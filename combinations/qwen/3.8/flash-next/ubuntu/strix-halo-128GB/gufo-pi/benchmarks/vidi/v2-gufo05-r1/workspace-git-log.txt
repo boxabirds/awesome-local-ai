@@ -1,3 +1,57 @@
+commit e3eba77957fd4ad0696b8d869802fc965e1c4f6d
+vidi-agent  Sat Oct 3 06:02:58 2026 +0000
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ src/shared/config.ts                     |  10 +
+ src/worker/board-room.ts                 | 546 +++++++++++++++++++++------
+ src/worker/index.ts                      |  18 +
+ src/worker/room-state.ts                 |  94 ++++-
+ src/worker/test-hooks.ts                 | 133 +++++++
+ tests/integration/board-room.test.ts     | 615 ++++++++++++++++++++++++++++---
+ tests/integration/helpers/room-client.ts |  22 +-
+ wrangler.jsonc                           |   9 +-
+ 8 files changed, 1273 insertions(+), 174 deletions(-)
+commit d9594b0850e9d0d05b63abc97e216c67784016f2
+agent  Sat Oct 3 02:27:50 2026 +0000
+
+    story 4: BoardStore (schema, append, load with quarantine, chunked compaction) and its integration tests
+
+
+ NOTES.md                              |  38 +++
+ PROGRESS.md                           |   4 +-
+ package.json                          |   1 +
+ src/worker/board-store.ts             | 355 ++++++++++++++++++--
+ tests/fixtures/boards.ts              | 324 +++++++++++++++++++
+ tests/integration/board-store.test.ts | 593 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 1285 insertions(+), 30 deletions(-)
+commit 97b0d2b06588a97cdab6ab0ebea45998559d606f
+agent  Sat Oct 3 01:57:45 2026 +0000
+
+    story 4: storage and room-state unit tests (red), settings and close codes
+
+
+ PROGRESS.md                              |   4 +-
+ src/shared/config.ts                     |  27 +++++++
+ src/shared/protocol.ts                   |  14 ++++
+ src/worker/board-store.ts                |  60 +++++++++++++++
+ src/worker/room-state.ts                 |  42 +++++++++++
+ tests/integration/board-room.test.ts     |   2 +-
+ tests/integration/helpers/room-client.ts |   9 ++-
+ tests/unit/board-store-chunks.test.ts    |  85 +++++++++++++++++++++
+ tests/unit/room-state.test.ts            | 124 +++++++++++++++++++++++++++++++
+ tsconfig.json                            |   2 +-
+ tsconfig.worker.json                     |  11 ++-
+ 11 files changed, 372 insertions(+), 8 deletions(-)
+commit d003ce4d1adffd2d2034f1a26b1c5b530097481d
+vidi-agent  Sat Oct 3 01:40:05 2026 +0000
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit f5b61cd644310d0ee5acc8694aca092d8a777988
 agent  Sat Oct 3 01:37:09 2026 +0000
 

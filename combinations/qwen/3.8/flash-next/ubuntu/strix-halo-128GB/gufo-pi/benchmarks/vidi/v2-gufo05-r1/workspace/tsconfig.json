@@ -22,5 +22,5 @@
   // belong to `tsconfig.worker.json`, because the generated runtime types and
   // the DOM lib describe the same globals differently.
   "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
-  "exclude": ["src/worker", "tests/integration"]
+  "exclude": ["src/worker", "tests/integration", "tests/unit/board-store-chunks.test.ts"]
 }

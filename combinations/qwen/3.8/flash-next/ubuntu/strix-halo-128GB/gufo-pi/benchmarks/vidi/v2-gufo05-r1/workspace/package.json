@@ -13,6 +13,7 @@
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
     "test:integration": "npm run build && vitest run --project integration",
+    "test:storage": "npm run build && vitest run --project integration tests/integration/board-store.test.ts",
     "test:e2e": "npm run build:test && playwright test",
     "wrangler:dev": "wrangler dev --config wrangler.jsonc",
     "test:e2e:nightly": "npm run build:test && playwright test --config playwright.nightly.config.ts"

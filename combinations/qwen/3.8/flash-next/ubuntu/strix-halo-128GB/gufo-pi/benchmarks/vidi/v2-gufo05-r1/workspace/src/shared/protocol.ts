@@ -18,6 +18,20 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code for a message the room cannot use (RFC 6455 "unsupported data"). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/**
+ * Close code for a board whose saved state could not be read. The client says "This
+ * board couldn't be loaded. Retrying…" and refuses edits, because an empty board
+ * that is not really empty is worse than a board that admits it is unreadable.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/**
+ * Close code for a board the room could not write to. The board is readable and the
+ * clients still hold what they typed, so the client says "Reconnecting…" and the
+ * change goes out again with the next handshake.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 /** The sub-kinds y-protocols writes behind `MESSAGE_SYNC`. */
 const SYNC_STEP_1 = 0;
 const SYNC_STEP_2 = 1;

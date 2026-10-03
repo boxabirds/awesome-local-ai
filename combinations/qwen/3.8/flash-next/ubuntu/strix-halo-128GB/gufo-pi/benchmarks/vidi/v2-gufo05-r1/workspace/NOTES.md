@@ -370,3 +370,41 @@ export) are not implemented and nothing was added for them.
   run, it waited. On a nightly run that starts at three in the morning that is a run
   with no result, so `playwright.config.ts` now sets `actionTimeout` and
   `navigationTimeout`.
+
+
+## Story 4 notes
+
+### `tsconfig.worker.json` was excluding the files it existed to check (fixed here)
+
+Story 3 added that project with `"exclude": ["src/worker", "tests/integration", ...]` on the
+**base** config, expecting the worker project to override it. It did not: the child inherited
+the base `exclude`, which filtered its own `include` list back down to `src/shared`. So
+`npm run typecheck` never typechecked `src/worker/**` or `tests/integration/**` — and the
+moment the workerd globals were really applied, two standing errors appeared (an unused
+import, and a private method called from `connectRoom`). Both are fixed; the worker project
+now sets `"exclude": []`. Nothing was deleted and no rule was loosened.
+
+### A missing update is a hole in a document clock, and Yjs refuses to fill it silently
+
+An update says which clock position it starts at. If the update before it was never applied,
+everything after it from that client is parked as a hole and the document looks empty — with
+no error. That bit the test fixtures first (`record(doc)` was attached after `initDoc(doc)`, so
+every generated board replayed as an empty board and every comparison against it passed while
+meaning nothing), and then it shaped TC-09: quarantining a row in the **middle** of a log does
+not leave the rest of that author's work, because the rows after it cannot be applied.
+
+Consequences written into the tests:
+- `tests/fixtures/boards.ts` attaches its recorder before the first change, and the
+  `replay()` helper in `tests/integration/board-store.test.ts` asserts that replaying produced
+  as many notes as the board had. A generator that loses an update now fails loudly.
+- TC-09 has three cases: a damaged **last** row (board complete apart from that update), a
+  damaged **middle** row on a board written by **two** clients (the author who was not damaged
+  keeps every note; the board still loads), and random bytes. This is what the storage layer
+  can actually promise; the room's behaviour on top of it is TC-16/TC-24.
+
+### A store that has not read its board does not know its log size
+
+`logStats()` and `compactIfNeeded()` used the in-memory counters, which start at zero, so a
+fresh `BoardStore` reported "nothing to compact" about a board with 500 rows. Now an instance
+that has not run `load()` measures with `COUNT(*)`/`SUM(bytes)` once; the loaded instance keeps
+the in-memory numbers, so an append still costs no query.

@@ -118,3 +118,40 @@ export const NIGHTLY_REJOIN_WINDOW_MINUTES = 10;
  * tests can be checked in seconds. The nightly job itself does not set it.
  */
 export const NIGHTLY_SHORT_SCALE = 60;
+
+/* Persistence (story 4) ------------------------------------------------------*/
+
+/** Compact the update log when this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** …or when the update log reaches this many bytes. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Size of one snapshot row. Keeps every row well under the per-row size limit of
+ * SQLite-backed Durable Objects, which is far larger than this in every figure
+ * Cloudflare has published (see NOTES.md).
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** A room in `load-failed` retries loading at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** The board size the PRD tests (prd §Large boards open quickly). */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/** How long opening a board of `PERSIST_TESTED_NOTES` notes may take (reported, not asserted). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/** The version of the room's SQLite tables, kept in `storage_meta`. */
+export const STORAGE_SCHEMA_VERSION = 1;
+
+/**
+ * How long one update may take to reach storage before the room says so in the log
+ * (`storage-write-slow`). The design calls it "the budget a live update is meant to
+ * fit inside", which is the same storage seen from the other side: writing one change
+ * should cost a fraction of opening a whole board, so it is a quarter of
+ * `BOARD_LOAD_BUDGET_MS`. Reported, not enforced: a write that has landed is not
+ * thrown away, and the room cannot stop a write that has already begun.
+ */
+export const STORAGE_WRITE_BUDGET_MS = BOARD_LOAD_BUDGET_MS / 4;

@@ -17,14 +17,22 @@
  */
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { testHooksEnabled } from './test-hooks';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /**
+   * `1` routes the `/__test/boards/:boardId/...` endpoints, which exist so a test can
+   * break a board on purpose (see `src/worker/test-hooks.ts`). Absent everywhere else:
+   * without it the path is not routed at all, and the room refuses it a second time.
+   */
+  TEST_HOOKS?: string;
 }
 
 const ROOM_PATH = '/api/rooms';
 const ROOM_PREFIX = `${ROOM_PATH}/`;
+const TEST_HOOK_PREFIX = '/__test/boards/';
 
 /** Case-insensitive `Upgrade: websocket`, as the fetch spec says to check it. */
 function wantsWebSocket(request: Request): boolean {
@@ -34,6 +42,16 @@ function wantsWebSocket(request: Request): boolean {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url);
+
+    // A board's storage belongs to its own object, so even a test that wants to damage
+    // it has to ask that object. The path is `/__test/boards/<boardId>/<action>`; the
+    // room parses the action and checks `TEST_HOOKS` again.
+    if (testHooksEnabled(env) && pathname.startsWith(TEST_HOOK_PREFIX)) {
+      const boardId = pathname.slice(TEST_HOOK_PREFIX.length).split('/')[0] ?? '';
+      if (!isValidBoardId(boardId)) return new Response('invalid board id', { status: 400 });
+      return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).fetch(request);
+    }
+
     if (pathname !== ROOM_PATH && !pathname.startsWith(ROOM_PREFIX)) {
       return env.ASSETS.fetch(request);
     }

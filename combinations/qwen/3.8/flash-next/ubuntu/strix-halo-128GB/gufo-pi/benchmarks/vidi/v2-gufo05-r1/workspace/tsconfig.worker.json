@@ -10,6 +10,13 @@
     "worker-configuration.d.ts",
     "src/worker/**/*.ts",
     "src/shared/**/*.ts",
-    "tests/integration/**/*.ts"
-  ]
+    "tests/integration/**/*.ts",
+    // `chunkBytes` and friends live in `src/worker/board-store.ts`, which only this
+    // project's globals can describe, so their unit tests are compiled here. Vitest
+    // still runs them in node, with every other unit test.
+    "tests/unit/board-store-chunks.test.ts"
+  ],
+  // Not the base config's: that one exists to keep workerd out of the browser
+  // project, and here it would filter these paths straight back out again.
+  "exclude": []
 }

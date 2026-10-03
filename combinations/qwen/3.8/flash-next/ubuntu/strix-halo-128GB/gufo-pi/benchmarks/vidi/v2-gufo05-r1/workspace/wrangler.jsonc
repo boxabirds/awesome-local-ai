@@ -31,5 +31,12 @@
       "tag": "v1",
       "new_sqlite_classes": ["BoardRoom"]
     }
-  ]
+  ],
+  // `TEST_HOOKS` is deliberately absent: it is what routes the `/__test/boards/...`
+  // endpoints that damage a board's snapshot on purpose, and the E2E harness passes it
+  // on the command line (`--var TEST_HOOKS:1`) to the dev server it starts. Uncomment
+  // only for a local run you want to break by hand.
+  // "vars": {
+  //   "TEST_HOOKS": "1"
+  // }
 }

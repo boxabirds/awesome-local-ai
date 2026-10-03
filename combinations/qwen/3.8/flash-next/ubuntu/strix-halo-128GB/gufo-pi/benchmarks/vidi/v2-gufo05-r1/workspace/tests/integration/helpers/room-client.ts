@@ -17,7 +17,7 @@
  *
  * Both are true of the room's own socket too, so the room sets them as well.
  */
-import { SELF } from 'cloudflare:test';
+import { env } from 'cloudflare:test';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness';
@@ -53,6 +53,17 @@ export interface CloseInfo {
 }
 
 /**
+ * The room for a board, as a stub.
+ *
+ * Tests fetch through this rather than through `SELF`, because a stub can also be
+ * evicted (`evictDurableObject(stub)`) and because it is the same object either way:
+ * the id comes from the board name, exactly as the HTTP router derives it.
+ */
+export function roomStub(boardId: string): DurableObjectStub {
+  return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+}
+
+/**
  * Open a socket to `boardId`'s room and hand back the frame endpoint.
  *
  * `doc` is optional on purpose: the same document can be connected, disconnected
@@ -61,7 +72,7 @@ export interface CloseInfo {
  * not the board.
  */
 export async function connectRoom(boardId: string, doc?: Y.Doc): Promise<RoomClient> {
-  const response = await SELF.fetch(
+  const response = await roomStub(boardId).fetch(
     new Request(`https://board.test/api/rooms/${boardId}`, {
       headers: { Upgrade: 'websocket' },
     }),
@@ -118,8 +129,13 @@ export class RoomClient {
     this.doc.on('update', this.onLocalUpdate);
   }
 
-  /** Ask the room for everything it has that this client lacks. */
-  private sendSyncStep1(): void {
+  /**
+   * Ask the room for everything it has that this client lacks.
+   *
+   * Public because `connectRoom` is the one that drives the handshake: the socket
+   * has to be accepted by the caller before anything can be written to it.
+   */
+  sendSyncStep1(): void {
     const encoder = encoding.createEncoder();
     encoding.writeVarUint(encoder, MESSAGE_SYNC);
     writeSyncStep1(encoder, this.doc);
@@ -221,6 +237,13 @@ export class RoomClient {
   }
 
   private handleFrame(data: ArrayBuffer | string): void {
+    // The hibernation keepalive. A browser is not told about it either, so the real
+    // client answers it in `connectBoard.ts`; this answers it the same way, and keeps
+    // it out of the frame log, which is about board traffic.
+    if (data === 'ping') {
+      this.sendRaw('pong');
+      return;
+    }
     const decoded = decodeMessage(data);
     if (decoded.kind === 'invalid') {
       throw new Error(`the room sent a frame no client can use: ${decoded.reason}`);
