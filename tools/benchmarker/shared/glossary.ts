@@ -49,6 +49,7 @@ export const GLOSSARY = {
   sqBad: { name: "none pass", what: "none of its held-out tests pass" },
   sqUnbuilt: { name: "not built", what: "not built yet" },
   sqRunning: { name: "building", what: "being built now" },
+  runStories: { name: "Stories", what: "Each story the run covers, one row each: its own held-out result, where its time went, and what it cost. A story being built, or not yet reached, has an empty row. The run's totals are above the table." },
   cost: { name: "Cost", what: "What the run's stories cost: tokens, calls and speed." },
   inputRead: { name: "Input tokens", what: "Everything the model read to answer, summed over all its calls: fresh input plus cache reads. Each call re-reads the whole conversation so far, so this grows with the number of calls." },
   cached: { name: "Cached", what: "The share of the input tokens served from the prompt cache rather than processed afresh." },

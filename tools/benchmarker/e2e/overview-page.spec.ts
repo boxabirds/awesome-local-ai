@@ -200,8 +200,8 @@ test.describe("no page asks the owner to do anything about scoring or accounting
     await expect(story(page)).not.toContainText(/accounting|Likely cause|What to do|recompute|harness|check/i);
     await expectNoPanel(page);
     await page.goto(runHref(SWIFT, "v2-r1"));
-    await expect(page.locator('[data-page="run"] [data-section="time"] [data-story="1"] .bar')).toHaveCount(0);
-    await expect(page.locator('[data-page="run"] [data-section="time"] [data-story="1"] .missing')).toHaveAttribute("data-tip", "No time breakdown for this story.");
+    await expect(page.locator('[data-page="run"] [data-section="stories"] [data-story="1"] .bar')).toHaveCount(0);
+    await expect(page.locator('[data-page="run"] [data-section="stories"] [data-story="1"] .no-split .missing')).toHaveAttribute("data-tip", "No time breakdown for this story.");
     expect(await tips(page)).not.toMatch(/accounting|Likely cause|What to do|uv run|backfill_timing|harness/i);
   });
 

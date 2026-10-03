@@ -613,7 +613,7 @@ test.describe("story links on other pages", () => {
 
   test("the run page: each story's row links to the story page beside its story-run link", async ({ page }) => {
     await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5`);
-    const r = page.locator('[data-page="run"] [data-section="time"] .rp-bar-row[data-story="2"]');
+    const r = page.locator('[data-page="run"] [data-section="stories"] .rp-bar-row[data-story="2"]');
     await expect(r.locator(".rp-bar-label a.story-run-link")).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r5/s/2`);
     await expect(r.locator("a.story-link")).toHaveText("all runs");
     await r.locator("a.story-link").click();
@@ -691,11 +691,11 @@ test.describe("page state in the address, on other pages", () => {
 
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("tooltip, for keyboard users", () => {
-  test.use({ viewport: { width: 1280, height: 600 } });
+  test.use({ viewport: { width: 1280, height: 340 } });
 
   test("Tab to something off screen: the browser scrolls it in, and its hover text shows beside it", async ({ page }) => {
     await page.goto(run());
-    const target = page.locator('[data-page="run"] [data-section="cost"] [data-stat="engineSpeed"] [data-fact="prefill"] .missing');
+    const target = page.locator('[data-page="run"] [data-section="stories"] [data-stat="engineSpeed"] [data-fact="prefill"] .missing');
     await expect(target).toBeAttached();
     // Focus the tab stop just before it without scrolling, from the top of the page; then Tab, as a person would.
     await target.evaluate((el) => {

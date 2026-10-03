@@ -166,7 +166,7 @@ test.describe("intervened: marked, and still counted", () => {
     await expect(list.first()).toContainText("(2 times)");
     await expect(list.first()).toContainText(SILENT);
     await expect(page.locator('[data-page="run"] [data-section="interventions"]')).not.toContainText(/harness|rebooted|killed/i);
-    await expect(page.locator('[data-page="run"] [data-section="cost"] .intervened')).toHaveCount(2);
+    await expect(page.locator('[data-page="run"] [data-section="stories"] .intervened')).toHaveCount(2);
   });
 
   test("an intervention the record describes as a harness bug or fix is listed as an intervention and no more", async ({ page }) => {

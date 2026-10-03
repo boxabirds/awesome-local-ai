@@ -207,12 +207,11 @@ test.describe("header: judge, record and summary", () => {
 
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("one panel: each story's held-out result and where its time went", () => {
-  const rows = (page: Page) => section(page, "time").locator(".rp-bar-row");
+  const rows = (page: Page) => section(page, "stories").locator(".rp-bar-row");
   const squares = (page: Page) => rows(page).locator(".rs-sq");
 
   test("the old latest-build strip and the separate held-out panel are gone; one row per story in scope, running one marked in progress, the rest pending", async ({ page }) => {
     await open(page, SWIFT, "v2-r1");
-    await expect(section(page, "stories")).toHaveCount(0);
     await expect(section(page, "heldout")).toHaveCount(0);
     await expect(rows(page)).toHaveCount(11);
     const states = await rows(page).evaluateAll((els) => els.map((e) => `${(e as HTMLElement).dataset.story}:${(e as HTMLElement).dataset.state}`));
@@ -249,7 +248,7 @@ test.describe("one panel: each story's held-out result and where its time went",
 
   test("each square's link has a name for a screen reader", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    await expect(section(page, "time").getByRole("link", { name: "story 1: 6/6 of its own tests" })).toBeVisible();
+    await expect(section(page, "stories").getByRole("link", { name: "story 1: 6/6 of its own tests" })).toBeVisible();
   });
 
   test("every story in scope in order, coloured by that story's own result", async ({ page }) => {
@@ -260,7 +259,7 @@ test.describe("one panel: each story's held-out result and where its time went",
     await expect(squares(page).nth(0)).toHaveClass(/q-high/);        // 6/6
     await expect(squares(page).nth(1)).toHaveClass(/q-high/);        // 14/14
     await expect(squares(page).nth(2)).toHaveClass(/rs-unbuilt/);
-    await expect(section(page, "time")).not.toContainText(/→|of record|agree|differ/);
+    await expect(section(page, "stories")).not.toContainText(/→|of record|agree|differ/);
   });
 
   test("each square says its story's own result on hover and to a screen reader, and links to the story run", async ({ page }) => {
@@ -283,7 +282,7 @@ test.describe("one panel: each story's held-out result and where its time went",
   test("a run with no stories in scope: says so", async ({ page }) => {
     await patchState(page, (s) => { const r = rowOf(s, SWIFT, "v2-r2"); r.storiesWorking = { working: 0, scope: 0, squares: [] }; });
     await open(page, SWIFT, "v2-r2");
-    await expect(section(page, "time").locator(".rp-empty")).toHaveText("No stories in scope are known for this run.");
+    await expect(section(page, "stories").locator(".rp-empty")).toHaveText("No stories in scope are known for this run.");
   });
 
   test("the story name column is wide enough for long titles: up to 390 px, half as wide again as before", async ({ page }) => {
@@ -294,10 +293,34 @@ test.describe("one panel: each story's held-out result and where its time went",
     expect(w).toBeLessThanOrEqual(391);
   });
 
-  test("the heading names both: held-out, and where the time went", async ({ page }) => {
+  test("the heading is Stories: one panel, one table, no second list of the same stories", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    await expect(section(page, "time").locator("h2")).toHaveText("Held-out and where the time went");
-    await expect(section(page, "time").locator("h2 .term")).toHaveCount(2);
+    await expect(section(page, "stories").locator("h2")).toHaveText("Stories");
+    await expect(section(page, "stories").locator("table")).toHaveCount(1);
+    await expect(page.locator('[data-page="run"] [data-section="cost"], [data-page="run"] [data-section="time"]')).toHaveCount(0);
+  });
+
+  test("each row has its figures: calls, output tokens, input tokens, cached share, generated tok/s, draft; the heldout is the story's own result, said once", async ({ page }) => {
+    await open(page, SWIFT, "v2-r4");
+    const r2 = rows(page).nth(1);
+    await expect(r2.locator(".held")).toHaveText("12/14");                                        // the square's own measure
+    await expect(r2.locator(".rs-sq")).toHaveAttribute("data-tip", "story 2: 12/14 of its own tests");
+    await expect(r2.locator(".held")).toHaveClass(/q-mid/);                                      // the same colour rule as its square
+    await expect(r2.locator(".rs-sq")).toHaveClass(/q-mid/);
+    await expect(section(page, "stories").locator("thead th")).toHaveText(["", "Held-out", "Story", "Where the time went", "Agent time", "Tool calls", "Output tokens", "Input tokens", "Cached", "generated tok/s", "Draft", ""]);
+  });
+
+  test("the engine's generation and reading speeds for a story are in the tok/s hover, not two more columns", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5");
+    const cell = rows(page).nth(1).locator("td.tok-s");
+    await expect(cell).toHaveAttribute("data-tip", /generation .* tok\/s/);
+  });
+
+  test("a story not yet built or in progress has no figures at all, only its word", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5");
+    const pending = rows(page).nth(3);
+    await expect(pending.locator("td.n")).toHaveText(Array(6).fill(""));
+    await expect(pending.locator(".row-state")).toHaveText("pending");
   });
 });
 
@@ -306,7 +329,7 @@ test.describe("one panel: each story's held-out result and where its time went",
 test.describe("where the time went", () => {
   test("one bar per recorded story, all on one scale", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    const t = section(page, "time");
+    const t = section(page, "stories");
     await expect(t.locator(".bar-link")).toHaveCount(2);   // a bar for each recorded story; the other rows are pending
     const w1 = (await t.locator('[data-story="1"] .bar').boundingBox())!.width;
     const w2 = (await t.locator('[data-story="2"] .bar').boundingBox())!.width;
@@ -317,39 +340,39 @@ test.describe("where the time went", () => {
 
   test("the same segments and colours as TimeBars, each with its hover", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    const bar = section(page, "time").locator('[data-story="2"] .bar');
+    const bar = section(page, "stories").locator('[data-story="2"] .bar');
     const segs = await bar.locator("[data-seg]").evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.seg));
     expect(segs).toEqual(["prefill", "decode", "compaction", "tools", "other"]);  // parts of 0 s aren't drawn
     await expect(bar.locator('[data-seg="decode"]')).toHaveClass(/seg-decode/);
     await expect(bar.locator('[data-seg="decode"]')).toHaveAttribute("data-tip", "Generation 69.8 min: 175k tokens at 42 tok/s");
-    await expect(section(page, "time").locator(".legend")).toHaveCount(7);
+    await expect(section(page, "stories").locator(".legend")).toHaveCount(7);
   });
 
   test("a story's label opens its story run; its bar does too, unless the story's conversation is there, which the bar opens instead", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    await section(page, "time").locator('[data-story="1"] .rp-bar-label a.story-run-link').click();
+    await section(page, "stories").locator('[data-story="1"] .rp-bar-label a.story-run-link').click();
     await expect(page).toHaveURL(new RegExp(`${storyRunHref(SWIFT, "v2-r5", "1").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
     await page.goBack();
-    await section(page, "time").locator('[data-story="1"] a.bar-link').click();
+    await section(page, "stories").locator('[data-story="1"] a.bar-link').click();
     await expect(page.locator('[data-page="storyRun"] h1')).toContainText("Story 1");
     await page.goBack();
-    await section(page, "time").locator('[data-story="2"] a.bar-link').click();
+    await section(page, "stories").locator('[data-story="2"] a.bar-link').click();
     await expect(page.locator('[data-page="conversation"]')).toBeVisible();
   });
 
   test("a story whose breakdown failed its check (v2-r1 story 1): no bar, not available, and nothing about why; its total stays", async ({ page }) => {
     await open(page, SWIFT, "v2-r1");
-    const row = section(page, "time").locator('[data-story="1"]');
+    const row = section(page, "stories").locator('[data-story="1"]');
     await expect(row.locator(".bar")).toHaveCount(0);
     await expect(row.locator(".no-split .missing")).toHaveAttribute("data-tip", "No time breakdown for this story.");
     await expect(row.locator(".rp-bar-total")).toHaveText("12 min");
-    await expect(section(page, "time")).not.toContainText(/accounting|check|unchecked|⚠/i);
-    await expect(section(page, "time").locator("[data-tip]").evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.tip).join(" "))).resolves.not.toMatch(/accounting|Likely cause|What to do|recompute|harness/i);
+    await expect(section(page, "stories")).not.toContainText(/accounting|check|unchecked|⚠/i);
+    await expect(section(page, "stories").locator("[data-tip]").evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.tip).join(" "))).resolves.not.toMatch(/accounting|Likely cause|What to do|recompute|harness/i);
   });
 
   test("a cloud model: one unsplit part, and no mark of any kind", async ({ page }) => {
     await open(page, OPUS, "run-9");
-    const row = section(page, "time").locator('[data-story="1"]');
+    const row = section(page, "stories").locator('[data-story="1"]');
     await expect(row.locator("[data-seg]")).toHaveCount(1);
     await expect(row.locator('[data-seg="modelUnsplit"]')).toBeVisible();
     await expect(row).not.toContainText(/unchecked|⚠/);
@@ -357,20 +380,20 @@ test.describe("where the time went", () => {
 
   test("a recorded story without a breakdown keeps its row, with '—' and no more", async ({ page }) => {
     await open(page, SWIFT, "v2-r1");
-    await expect(section(page, "time").locator('[data-story="2"] .no-split .missing')).toHaveText("—");
-    await expect(section(page, "time").locator('[data-story="2"] .bar')).toHaveCount(0);
+    await expect(section(page, "stories").locator('[data-story="2"] .no-split .missing')).toHaveText("—");
+    await expect(section(page, "stories").locator('[data-story="2"] .bar')).toHaveCount(0);
   });
 
   test("nothing recorded (a queued run): every story pending, no bar anywhere", async ({ page }) => {
     await open(page, SWIFT, "v2-r2");
-    await expect(section(page, "time").locator(".row-state")).toHaveText(Array(11).fill("pending"));
-    await expect(section(page, "time").locator(".bar")).toHaveCount(0);
+    await expect(section(page, "stories").locator(".row-state")).toHaveText(Array(11).fill("pending"));
+    await expect(section(page, "stories").locator(".bar")).toHaveCount(0);
   });
 });
 
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("cost", () => {
-  const stat = (page: Page, term: string) => section(page, "cost").locator(`[data-stat="${term}"] .stat-value`);
+  const stat = (page: Page, term: string) => section(page, "stories").locator(`[data-stat="${term}"] .stat-value`);
 
   test("run totals", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
@@ -378,20 +401,20 @@ test.describe("cost", () => {
       ["outTokens", "235k"], ["inputRead", "10.0M"], ["calls", "299"], ["tokS", "43.0"], ["compactions", "3"], ["nudges", "2"],
     ];
     for (const [term, text] of want) await expect(stat(page, term), term).toHaveText(text);
-    await expect(section(page, "cost").locator('[data-stat="tokS"] .term')).toHaveText("generated tok/s");
-    await expect(section(page, "cost").locator(".rp-head")).toContainText("over 2 stories");
+    await expect(section(page, "stories").locator('[data-stat="tokS"] .term')).toHaveText("generated tok/s");
+    await expect(section(page, "stories").locator(".rp-head")).toContainText("over 2 stories");
   });
 
   test("the engine's own speeds on one small line, not among the main figures: generation and reading", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    const line = section(page, "cost").locator('[data-stat="engineSpeed"]');
+    const line = section(page, "stories").locator('[data-stat="engineSpeed"]');
     await expect(line).toHaveText("engine speed: generation 193.4 tok/s · reading —");
-    await expect(section(page, "cost").locator('.stats [data-stat="decodeTokS"], .stats [data-stat="prefillTokS"]')).toHaveCount(0);
+    await expect(section(page, "stories").locator('.stats [data-stat="decodeTokS"], .stats [data-stat="prefillTokS"]')).toHaveCount(0);
   });
 
   test("a total nothing measured is '—' with why, never 0", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    const reading = section(page, "cost").locator('[data-stat="engineSpeed"] [data-fact="prefill"]');
+    const reading = section(page, "stories").locator('[data-stat="engineSpeed"] [data-fact="prefill"]');
     await expect(reading).toHaveText("—");
     await expect(reading.locator(".missing")).toHaveAttribute("data-tip", /timed the model on its own/);
   });
@@ -405,54 +428,55 @@ test.describe("cost", () => {
   test("a cloud model: engine speeds and drafting are 'n/a' with why, in the totals and per story, never '—'", async ({ page }) => {
     await open(page, OPUS, "run-9");
     for (const fact of ["decode", "prefill"]) {
-      const n = section(page, "cost").locator(`[data-stat="engineSpeed"] [data-fact="${fact}"] .na`);
+      const n = section(page, "stories").locator(`[data-stat="engineSpeed"] [data-fact="${fact}"] .na`);
       await expect(n).toHaveText("n/a");
       await expect(n).toHaveAttribute("data-tip", "Unavailable for this cloud model");
     }
-    const recorded = section(page, "cost").locator('table.story-cost tr[data-story="1"]');
-    await expect(recorded.locator(".na")).toHaveCount(3);  // generation, reading, draft
+    const recorded = section(page, "stories").locator('table.stories-table tr[data-story="1"]');
+    await expect(recorded.locator(".na")).toHaveCount(1);  // draft; generation and reading are in the tok/s hover
     await expect(recorded.locator(".missing")).toHaveCount(0);
   });
 
   test("nothing recorded: every total missing, with why", async ({ page }) => {
     await open(page, SWIFT, "v2-r2");
-    await expect(section(page, "cost").locator(".stat .missing")).toHaveCount(6);
+    await expect(section(page, "stories").locator(".stat .missing")).toHaveCount(6);
     await expect(stat(page, "outTokens").locator(".missing")).toHaveAttribute("data-tip", "Nothing recorded yet: the run is queued.");
-    await expect(section(page, "cost").locator("table")).toHaveCount(0);
+    await expect(section(page, "stories").locator(".stories-table .bar")).toHaveCount(0);   // every story pending: rows, no bar
   });
 
-  test("per story: a row each, its held-out result against the latest build, its figures", async ({ page }) => {
+  test("per story: a row each, its held-out result, its figures", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    const t = section(page, "cost").locator("table.story-cost");
+    const t = section(page, "stories").locator("table.stories-table");
     const r2 = t.locator('tr[data-story="2"]');
-    await expect(t.locator("tbody tr")).toHaveCount(2);
-    await expect(r2.locator("td").nth(1)).toHaveText("14/14");
+    await expect(t.locator("tbody tr")).toHaveCount(11);   // every story in scope, recorded or not
+    await expect(r2.locator(".held")).toHaveText("14/14");
     await expect(r2).toContainText("1h20m");
     await expect(r2).toContainText("175,000");
     await expect(r2).toContainText("90%");
-    await expect(r2).toContainText("41.7");
+    await expect(r2.locator("td.tok-s")).toHaveText("36.3");
+    await expect(r2.locator("td.tok-s")).toHaveAttribute("data-tip", /generation 41\.7 tok\/s/);
   });
 
   test("per story: every story links to its story run", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    const link = section(page, "cost").locator('tr[data-story="2"] a.story-run-link');
+    const link = section(page, "stories").locator('tr[data-story="2"] .rp-bar-label a.story-run-link');
     await expect(link).toHaveText("2. Sticky notes");
     await expect(link).toHaveAttribute("href", storyRunHref(SWIFT, "v2-r5", "2"));
   });
 
   test("per story: a figure the engine didn't report is '—' with its own reason", async ({ page }) => {
     await open(page, GUFO, "canvas-gufo-r3");
-    await expect(section(page, "cost").locator('tr[data-story="1"]')).toContainText("85%");  // draft accepted, reported
+    await expect(section(page, "stories").locator('tr[data-story="1"]')).toContainText("85%");  // draft accepted, reported
     await open(page, SWIFT, "v2-r5");
-    const draft = section(page, "cost").locator('tr[data-story="1"] td').nth(10);
+    const draft = section(page, "stories").locator('tr[data-story="1"] td.draft');
     await expect(draft.locator(".missing")).toHaveAttribute("data-tip", /speculative decoding/);
   });
 
   test("per story: a story recorded without usage says so across the row", async ({ page }) => {
     await open(page, SWIFT, "v2-r1");
-    const r2 = section(page, "cost").locator('tr[data-story="2"]');
+    const r2 = section(page, "stories").locator('tr[data-story="2"]');
     await expect(r2.locator("td.no-usage")).toContainText("no usage recorded for this story");
-    await expect(r2.locator("td").nth(1)).toHaveText("9/10");
+    await expect(r2.locator(".held")).toHaveText("9/10");
   });
 });
 
@@ -587,7 +611,7 @@ test.describe("links and keyboard", () => {
   test("sections come in reading order: identity, outcome, time, cost, evidence, provenance", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
     const order = await page.locator('[data-page="run"] > [data-section]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.section));
-    expect(order).toEqual(["header", "time", "cost", "ran", "compare", "related"]);
+    expect(order).toEqual(["header", "stories", "ran", "compare", "related"]);
   });
 
   test("every heading and label with a definition takes it from the glossary", async ({ page }) => {
@@ -597,7 +621,7 @@ test.describe("links and keyboard", () => {
     expect(tips.length).toBeGreaterThan(30);
     expect(tips.filter((t) => !definitions.has(t))).toEqual([]);
     const headings = await page.locator('[data-page="run"] h2').evaluateAll((els) => els.map((e) => e.textContent));
-    expect(headings).toEqual(["Held-out and where the time went", "Cost", "When it ran", "Compare with another run", "Other runs of this combination"]);
+    expect(headings).toEqual(["Stories", "When it ran", "Compare with another run", "Other runs of this combination"]);
   });
 
   test("every in-app link lands on the entity it names", async ({ page }) => {
@@ -642,7 +666,7 @@ test.describe("links and keyboard", () => {
 
   test("a story square opens from the keyboard, with a visible focus ring", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    const link = section(page, "time").locator('[data-story="2"] .rs-cell a');
+    const link = section(page, "stories").locator('[data-story="2"] .rs-cell a');
     await link.focus();
     await expect(link).toHaveCSS("outline-style", "solid");
     await page.keyboard.press("Enter");
@@ -662,7 +686,7 @@ test.describe("links and keyboard", () => {
 
   test("a missing number can be focused to read why", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    const m = section(page, "cost").locator('[data-stat="engineSpeed"] [data-fact="prefill"] .missing');
+    const m = section(page, "stories").locator('[data-stat="engineSpeed"] [data-fact="prefill"] .missing');
     await m.focus();
     await expect(page.getByRole("tooltip")).toContainText("timed the model");
   });
