@@ -201,7 +201,8 @@ VISION="${VISION:-$D_VISION}"
 NP="${NP:-$D_NP}"
 UB="${UB:-$D_UB}"
 THINKING="${THINKING:-1}"
-THINKING_BUDGET="${THINKING_BUDGET:-}"
+# The combination's thinking budget (REASONING_BUDGET_DEFAULT, the manifest field mlx-serve also uses) unless a run sets one.
+THINKING_BUDGET="${THINKING_BUDGET:-${REASONING_BUDGET_DEFAULT:-}}"
 
 # Only some KV types have a flash-attention kernel for a given model/backend.
 # Everything else silently falls back to CPU attention: measured 48 tok/s
@@ -243,6 +244,12 @@ if [[ "$THINKING" == "0" ]]; then
 else
   # shellcheck disable=SC2206
   ARGS+=(${SAMPLING_THINKING})
+
+  # Pin thinking on, on the command line, instead of leaving it to the chat template's own default (which the
+  # command line does not show, so a run's record could only say "unknown"). A combination opts in with
+  # PIN_THINKING_MODE=1 once its template is known to default to thinking on: for Qwen's it is the same behaviour,
+  # written down. llama.cpp: `--reasoning on` sets enable_thinking=true; `auto` detects it from the template.
+  [[ "${PIN_THINKING_MODE:-}" == "1" ]] && ARGS+=(--reasoning on)
 
   # Reasoning effort. Chat templates that support it typically default to
   # their most expensive level when the field is unset, which is a lot of
