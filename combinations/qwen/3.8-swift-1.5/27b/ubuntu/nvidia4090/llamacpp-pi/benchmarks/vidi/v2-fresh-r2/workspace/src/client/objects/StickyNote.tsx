@@ -21,7 +21,7 @@ import type { ObjectProps } from './registry';
 const PADDING = 16;
 
 export function StickyNote(props: ObjectProps): JSX.Element {
-  const { obj, doc, zoom, selected, editing, onObjectPointerDown, onStartEdit, onEndEdit } = props;
+  const { obj, doc, zoom, selected, editing, onObjectPointerDown, onStartEdit, onEndEdit, undo } = props;
   const note = obj as StickySnapshot;
   const width = note.width ?? STICKY_SIZE_WORLD;
   const height = note.height ?? STICKY_SIZE_WORLD;
@@ -101,6 +101,7 @@ export function StickyNote(props: ObjectProps): JSX.Element {
           boxWidth={width - PADDING * 2}
           boxHeight={height - PADDING * 2}
           onEnd={onEndEdit}
+          undo={undo}
         />
       ) : (
         <>

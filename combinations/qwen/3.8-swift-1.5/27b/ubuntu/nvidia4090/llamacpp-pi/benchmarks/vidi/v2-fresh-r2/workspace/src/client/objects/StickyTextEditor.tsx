@@ -1,5 +1,7 @@
 /**
  * Text editor for sticky notes. A textarea that diffs into Y.Text.
+ * Story 8: calls boundary() on edit start/end and intercepts Ctrl/Cmd+Z
+ * so the browser's native textarea undo never diverges from Y.Text.
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -13,6 +15,7 @@ import {
 } from './StickyText';
 import { STICKY_TEXT_MAX_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
+import type { UndoController } from '../board/undo';
 
 interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -22,12 +25,14 @@ interface StickyTextEditorProps {
   /** Text box height in world units (note height minus padding). */
   boxHeight?: number;
   onEnd(next: 'selected' | 'unselected'): void;
+  /** Undo controller for boundary() and Ctrl+Z handling (story 8). */
+  undo?: UndoController;
 }
 
 /** Padding inside the note for text (world units). */
 const PADDING = 16;
 
-export function StickyTextEditor({ ytext, fontPx, boxWidth, boxHeight, onEnd }: StickyTextEditorProps): JSX.Element {
+export function StickyTextEditor({ ytext, fontPx, boxWidth, boxHeight, onEnd, undo }: StickyTextEditorProps): JSX.Element {
   // Story 7: the note may be resized; the text box follows its size.
   const textBox = boxWidth ?? 168;
   const textBoxHeight = boxHeight ?? 168;
@@ -35,8 +40,13 @@ export function StickyTextEditor({ ytext, fontPx, boxWidth, boxHeight, onEnd }: 
   const composingRef = useRef(false);
   const [showCounter, setShowCounter] = useState(false);
   const [overflow, setOverflow] = useState(false);
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+  const onEndRef = useRef(onEnd);
+  onEndRef.current = onEnd;
 
-  // On mount: set value from Y.Text, focus, caret at end
+  // On mount: set value from Y.Text, focus, caret at end.
+  // Story 8: boundary() on edit start.
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -49,6 +59,14 @@ export function StickyTextEditor({ ytext, fontPx, boxWidth, boxHeight, onEnd }: 
     // Fit font on mount
     const { overflow: ovf } = fitFontSize(ta, textBoxHeight);
     setOverflow(ovf);
+
+    // Story 8: boundary on edit start
+    undoRef.current?.boundary();
+
+    return () => {
+      // Story 8: boundary on edit end (unmount)
+      undoRef.current?.boundary();
+    };
   }, [ytext]);
 
   // Listen for outside pointerdown to end editing
@@ -56,13 +74,13 @@ export function StickyTextEditor({ ytext, fontPx, boxWidth, boxHeight, onEnd }: 
     const handler = (e: PointerEvent) => {
       const ta = textareaRef.current;
       if (ta && !ta.contains(e.target as Node)) {
-        onEnd('unselected');
+        onEndRef.current('unselected');
       }
     };
     // Use capture phase to catch before the note's handler
     document.addEventListener('pointerdown', handler, true);
     return () => document.removeEventListener('pointerdown', handler, true);
-  }, [onEnd]);
+  }, []);
 
   const handleInput = useCallback(() => {
     const ta = textareaRef.current;
@@ -92,12 +110,33 @@ export function StickyTextEditor({ ytext, fontPx, boxWidth, boxHeight, onEnd }: 
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onEnd('selected');
+        onEndRef.current('selected');
+        return;
       }
+
+      // Story 8: intercept Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z inside the editor
+      // so native textarea undo never diverges from Y.Text.
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        const ctrl = undoRef.current;
+        if (!ctrl) return;
+        if (e.shiftKey) {
+          ctrl.redo();
+        } else {
+          ctrl.undo();
+        }
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        undoRef.current?.redo();
+        return;
+      }
+
       // Enter inserts a newline (default textarea behaviour)
       // Delete/Backspace are handled naturally by the textarea
     },
-    [onEnd],
+    [],
   );
 
   const handleCompositionStart = useCallback(() => {

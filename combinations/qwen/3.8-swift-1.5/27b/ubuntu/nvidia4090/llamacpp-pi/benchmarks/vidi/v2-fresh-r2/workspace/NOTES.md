@@ -151,3 +151,34 @@ queries also hang under fake timers (real intervals) and are avoided there.
 `grantPermissions(['clipboard-read','clipboard-write'])` + read-back is
 exercised on chromium only (the design's "chromium is enough" for the copy
 flow); TC-27 skips on other engines.
+
+---
+
+# Story 8 — Undo and redo my own changes without undoing anyone else's
+
+## E2E tests blocked
+The E2E tests (TC-22 to TC-24) are written and syntactically correct, but the
+E2E test infrastructure on this machine cannot establish a WebSocket
+connection to the wrangler dev server. The page renders correctly (toolbar
+with Undo/Redo buttons visible in the Playwright snapshot), the server logs
+show `101 Switching Protocols` for the WebSocket upgrade, but the client's
+`connectionState` never reaches `'connected'`. This affects ALL existing E2E
+tests (stories 3, 5, 7) equally — it is a pre-existing environment issue,
+not a regression from story 8.
+
+## Design decisions
+
+### UndoController created in BoardView
+The undo controller is created once per board doc using a `useRef` pattern in
+`BoardView`. It is destroyed on unmount. The `useUndo` hook subscribes to
+`onChange` and re-renders the buttons when the stack changes.
+
+### boundary() in gesture hooks
+`useTransformGesture` receives `onGestureStart` and `onGestureEnd` callbacks
+which call `undoController.boundary()`. This ensures each drag/resize gesture
+is exactly one undo step regardless of the number of rAF frames.
+
+### StickyTextEditor intercepts Ctrl+Z
+The editor's `onKeyDown` handler intercepts Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z
+before the browser's native textarea undo can act. This prevents the native
+undo from diverging from the Y.Text content managed by the UndoManager.

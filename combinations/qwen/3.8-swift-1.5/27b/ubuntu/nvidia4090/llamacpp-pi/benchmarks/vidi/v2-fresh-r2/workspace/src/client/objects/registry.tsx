@@ -16,6 +16,7 @@ import { markObjectTypeRegistered } from '../../shared/object-types';
 import type { Point } from '../../shared/geometry';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
+import type { UndoController } from '../board/undo';
 
 /** Props every board object component receives (generic, per-type agnostic). */
 export interface ObjectProps {
@@ -28,6 +29,8 @@ export interface ObjectProps {
   onObjectPointerDown(e: ReactPointerEvent<HTMLElement>, id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /** Undo controller for boundary() and Ctrl+Z (story 8). */
+  undo?: UndoController;
 }
 
 /** The only per-type knobs (sel.all_types). */

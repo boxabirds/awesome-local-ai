@@ -38,6 +38,16 @@ declare global {
       gestureLog?: string[];
       /** The board's Y.Doc (test only): simulates remote writes. */
       getDoc?: () => import('yjs').Doc;
+      /** The board's undo controller (test only, story 8). */
+      undo?: {
+        undo(): boolean;
+        redo(): boolean;
+        boundary(): void;
+        canUndo(): boolean;
+        canRedo(): boolean;
+      };
+      /** Start editing a note (test only, story 8). */
+      startEdit?: (id: string) => void;
       /** Force the load-failed state (test only). */
       forceLoadFailed?: () => void;
       /** Force recovery from load-failed state (test only). */

@@ -27,6 +27,8 @@ import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { Toolbar } from '../board/Toolbar';
+import { createUndo } from '../board/undo';
+import { useUndo } from '../board/useUndo';
 import { getObjectType } from '../objects/registry';
 import {
   createSticky,
@@ -151,18 +153,37 @@ export function BoardView({
   const selection = useSelection(objects);
   const isLoadFailed = connectionState === 'load-failed';
   const canEdit = !isLoadFailed;
+
+  // Story 8: per-user undo controller (one per board doc, destroyed on unmount).
+  const undoRef = useRef<ReturnType<typeof createUndo> | null>(null);
+  if (undoRef.current === null) {
+    undoRef.current = createUndo(doc);
+  }
+  const undoController = undoRef.current;
+  useEffect(() => {
+    return () => { undoRef.current?.destroy(); undoRef.current = null; };
+  }, []);
+
+  const undoState = useUndo(undoController, canEdit);
+
   const gesture = useTransformGesture({
     doc,
     camera: controls.camera,
     objects,
     selection,
     canEdit,
-    onGestureStart: () => window.__vidi6?.gestureLog?.push('start'),
-    onGestureEnd: () => window.__vidi6?.gestureLog?.push('end'),
+    onGestureStart: () => {
+      undoController.boundary();
+      window.__vidi6?.gestureLog?.push('start');
+    },
+    onGestureEnd: () => {
+      undoController.boundary();
+      window.__vidi6?.gestureLog?.push('end');
+    },
   });
 
-  // Board keyboard commands (story 7: select all, nudge, delete, …).
-  useBoardKeys({ doc, objects, selection, canEdit, startEdit: selection.startEdit });
+  // Board keyboard commands (story 7: select all, nudge, delete, …; story 8: undo/redo).
+  useBoardKeys({ doc, objects, selection, canEdit, startEdit: selection.startEdit, undo: undoController });
 
   // Marquee (story 7): Shift+drag on empty space selects by containment.
   const marquee = useMarquee(controls.camera, objects, (ids) => selection.setMany(ids, true));
@@ -171,6 +192,14 @@ export function BoardView({
   useEffect(() => {
     window.__vidi6?.setConnectionState(connectionState);
   }, [connectionState]);
+
+  // Story 8: expose undo controller and startEdit to the test hook.
+  useEffect(() => {
+    if (import.meta.env.MODE === 'test' && window.__vidi6) {
+      window.__vidi6.undo = undoController;
+      window.__vidi6.startEdit = selection.startEdit;
+    }
+  }, [undoController, selection]);
 
   // Create a sticky note at a screen point (disabled when load failed)
   const handleCreateAtScreenPoint = useCallback(
@@ -264,6 +293,7 @@ export function BoardView({
               onObjectPointerDown={gesture.onObjectPointerDown}
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
+              undo={undoController}
             />
           );
         })}
@@ -283,7 +313,7 @@ export function BoardView({
         onColor={handleColor}
         onDelete={handleDeleteSelection}
       />
-      <Toolbar onCreateSticky={handleCreateSticky} />
+      <Toolbar onCreateSticky={handleCreateSticky} undo={undoState} />
       <ZoomControls
         zoomPercent={zoomPercent(controls.camera)}
         canZoomIn={canZoomIn(controls.camera)}

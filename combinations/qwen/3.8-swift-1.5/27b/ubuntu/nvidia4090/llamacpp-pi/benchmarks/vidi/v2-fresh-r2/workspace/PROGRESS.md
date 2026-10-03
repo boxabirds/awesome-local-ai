@@ -1,32 +1,16 @@
-# Story 7: Select, move, resize and delete several objects at once
+# Story 8: Undo and redo my own changes without undoing anyone else's
 
 Your progress on this story's tasks. Keep the Status column up to date as you work.
 
 | # | Task | Status |
 |---|---|---|
-| 2 | Implement geometry and generic group operations in board-model | done |
-| 5 | E2E: colleague deletes one of my selected notes (TC-35) | done |
-| 6 | Write geometry and group-operation unit tests first (TC-01 to TC-10) | done |
-| 7 | Write registry unit tests first (TC-11, TC-12, duplicate registration) | done |
-| 8 | Implement object type registry and register sticky notes | done |
-| 9 | Write selection reducer unit tests first (TC-13 to TC-15) | done |
-| 10 | Implement multi-selection state, outlines and selection bar | done |
-| 11 | Implement Shift+drag marquee selection | done |
-| 12 | Implement generic transform gesture: group move and bounding-box resize handles | done |
-| 13 | Implement selection keyboard commands: select all, clear, nudge, delete | done |
-| 14 | Component tests: selection bar, marquee, transform gesture and keyboard (TC-16 to TC-31) | done |
-| 15 | E2E: reorganise a cluster and full-capacity reorganisation (TC-32, TC-33, TC-34, TC-36) | done |
+| 2 | Implement per-user undo history controller | done |
+| 5 | E2E: recover my mistakes while colleagues work (TC-22 to TC-24) | blocked |
+| 6 | Write undo history unit tests first with a simulated remote peer (TC-01 to TC-11) | done |
+| 7 | Write capture-timeout unit tests first (TC-12, TC-13) | done |
+| 8 | Wire undo step boundaries into transform gestures, toolbars and the text editor | done |
+| 9 | Component tests: gesture and typing boundaries (TC-14 to TC-17) | done |
+| 10 | Implement undo/redo shortcuts and toolbar buttons | done |
+| 11 | Component tests: undo shortcuts, buttons and edit lock (TC-18 to TC-21) | done |
 
 Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
-
-## Final verification
-
-- `npm run test:unit` — 115 passed (12 files)
-- `npm run test:component` — 64 passed (11 files)
-- `npm run test:e2e` — 67 passed, 1 skipped (chromium + firefox)
-- `npm run typecheck` — clean
-- `npm run build` — clean
-
-Note: `playwright.config.ts` gained `workers: 4` — the default (cores/2 per
-project = 16 on this 32-core box) oversubscribes the single workerd and made
-the suite flaky (baseline commit flakes the same way).

@@ -50,7 +50,7 @@ describe('sticky.toolbar', () => {
       // In real app, this would also call startEdit(id)
     });
 
-    render(<Toolbar onCreateSticky={onCreateSticky} />);
+    render(<Toolbar onCreateSticky={onCreateSticky} undo={{ canUndo: false, canRedo: false, undo: vi.fn(), redo: vi.fn() }} />);
 
     const btn = screen.getByTestId('sticky-btn');
     fireEvent.click(btn);

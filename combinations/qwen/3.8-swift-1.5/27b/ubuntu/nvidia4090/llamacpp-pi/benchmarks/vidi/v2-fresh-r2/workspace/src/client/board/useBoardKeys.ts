@@ -1,11 +1,13 @@
 /**
- * Board keyboard commands (story 7, sel.all / sel.delete / sel.nudge).
+ * Board keyboard commands (story 7, sel.all / sel.delete / sel.nudge;
+ * story 8, undo.shortcuts).
  *
  * - Ctrl/Cmd+A → select all registered objects;
  * - Escape → clear the selection;
  * - arrows → nudge the selection by NUDGE_STEP_WORLD (Shift: ×10);
  * - Delete/Backspace → delete the selection;
- * - Enter → start editing the single selected text object.
+ * - Enter → start editing the single selected text object;
+ * - Ctrl/Cmd+Z → undo; Ctrl/Cmd+Shift+Z or Ctrl+Y → redo.
  *
  * Ignored while focus is in a text field or while an object is being edited
  * (the editor owns its own keys, incl. Escape/Enter — story 2).
@@ -17,6 +19,7 @@ import { allObjectIds, deleteObjects, moveObjects } from '../../shared/board-mod
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
 import type { Selection } from './useSelection';
+import type { UndoController } from './undo';
 
 export function useBoardKeys(opts: {
   doc: YDoc;
@@ -24,6 +27,7 @@ export function useBoardKeys(opts: {
   selection: Selection;
   canEdit: boolean;
   startEdit: (id: string) => void;
+  undo?: UndoController;
 }): void {
   const { doc, selection, startEdit } = opts;
 
@@ -34,7 +38,9 @@ export function useBoardKeys(opts: {
   const canEditRef = useRef(opts.canEdit);
   canEditRef.current = opts.canEdit;
   const startEditRef = useRef(startEdit);
-  startEditRef.current = startEdit;
+  startEditRef.current = opts.startEdit;
+  const undoRef = useRef(opts.undo);
+  undoRef.current = opts.undo;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -50,6 +56,26 @@ export function useBoardKeys(opts: {
       // Only the mutating keys are gated on canEdit (sel.keyboard).
 
       const objects = objectsRef.current;
+
+      // Undo/Redo shortcuts (story 8)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (!canEditRef.current) return;
+        e.preventDefault();
+        const ctrl = undoRef.current;
+        if (!ctrl) return;
+        if (e.shiftKey) {
+          ctrl.redo();
+        } else {
+          ctrl.undo();
+        }
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        if (!canEditRef.current) return;
+        e.preventDefault();
+        undoRef.current?.redo();
+        return;
+      }
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();

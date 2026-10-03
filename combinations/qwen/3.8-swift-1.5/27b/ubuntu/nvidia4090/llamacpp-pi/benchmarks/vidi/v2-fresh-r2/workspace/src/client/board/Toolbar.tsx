@@ -1,14 +1,17 @@
 /**
- * Left-side vertical toolbar with the Sticky note button.
+ * Left-side vertical toolbar with the Sticky note button and Undo/Redo.
  */
 
 import type { JSX } from 'react';
+import type { UseUndoResult } from './useUndo';
+import { UndoButtons } from './UndoButtons';
 
 interface ToolbarProps {
   onCreateSticky(): void;
+  undo: UseUndoResult;
 }
 
-export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, undo }: ToolbarProps): JSX.Element {
   return (
     <div
       data-testid="main-toolbar"
@@ -49,6 +52,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
       >
         +
       </button>
+      <UndoButtons {...undo} />
     </div>
   );
 }

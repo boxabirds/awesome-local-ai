@@ -113,3 +113,11 @@ export const CREATE_BUDGET_MS = 2000;
 export const LINK_COPIED_MS = 2000;
 /** BoardPage existence check: base retry interval; doubles per attempt, capped at RECONNECT_MAX_BACKOFF_MS. */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+/**
+ * Story 8: undo and redo settings.
+ */
+/** Typing pause (ms) that ends a burst into one undo step. */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/** Maximum number of undo steps per user. */
+export const UNDO_MAX_STEPS = 200;
