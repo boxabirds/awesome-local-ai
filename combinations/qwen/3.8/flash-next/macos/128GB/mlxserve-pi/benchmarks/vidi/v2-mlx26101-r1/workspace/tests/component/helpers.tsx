@@ -2,7 +2,15 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type * as Y from 'yjs';
 import type { Camera } from '../../src/client/canvas/camera';
 import { Board } from '../../src/client/board/Board';
-import { createSticky, getStickyText } from '../../src/shared/board-model';
+import {
+  createSticky,
+  getStickyText,
+  objectBounds,
+  snapshot,
+  type ObjectSnapshot,
+  type StickySnapshot,
+} from '../../src/shared/board-model';
+import type { Rect } from '../../src/shared/geometry';
 
 // Story 5 moved the board out of the app shell: these tests mount the board itself
 // (the stories 1-4 surface), which is what the board page shows once a link has been
@@ -102,10 +110,27 @@ export function clickNote(id: string): void {
   pointer(el, 'pointerup', 0, 0);
 }
 
-export function windowKey(key: string): void {
+/** Shift-press a note and release: adds or removes it from the selection. */
+export function shiftClickNote(id: string): void {
+  const el = noteEl(id);
+  shiftPointer(el, 'pointerdown', 0, 0);
+  pointer(el, 'pointerup', 0, 0);
+}
+
+export function windowKey(
+  key: string,
+  modifiers: { ctrlKey?: boolean; shiftKey?: boolean; metaKey?: boolean } = {},
+): void {
   act(() => {
     window.dispatchEvent(
-      new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+      new KeyboardEvent('keydown', {
+        key,
+        bubbles: true,
+        cancelable: true,
+        ctrlKey: modifiers.ctrlKey ?? false,
+        metaKey: modifiers.metaKey ?? false,
+        shiftKey: modifiers.shiftKey ?? false,
+      }),
     );
   });
 }
@@ -137,4 +162,83 @@ export function clickByRole(name: string): void {
 
 export function noteSelected(id: string): boolean {
   return noteEl(id).getAttribute('data-selected') === 'true';
+}
+
+// --- story 7 helpers -------------------------------------------------------
+
+/**
+ * Fire a pointer event carrying `shiftKey`. The marquee and shift-click select
+ * gestures branch on this flag, which the plain `pointer` helper never sets.
+ */
+export function shiftPointer(
+  el: Element | Window,
+  type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+  x: number,
+  y: number,
+): void {
+  fireEvent(
+    el as Element,
+    new MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
+      clientY: y,
+      button: 0,
+      shiftKey: true,
+    }),
+  );
+}
+
+/**
+ * Shift-drag a marquee from one screen point to another: a Shift pointer-down on
+ * the board surface, a move and a release on the window (where the marquee hook
+ * listens). Releases unless `end` is given as 'cancel'.
+ */
+export function marqueeDrag(
+  from: [number, number],
+  to: [number, number],
+  end: 'up' | 'cancel' | 'none' = 'up',
+): void {
+  shiftPointer(surface(), 'pointerdown', from[0], from[1]);
+  shiftPointer(window, 'pointermove', to[0], to[1]);
+  if (end === 'up') shiftPointer(window, 'pointerup', to[0], to[1]);
+  else if (end === 'cancel') shiftPointer(window, 'pointercancel', to[0], to[1]);
+}
+
+/** The current world bounds of a note, read straight from the live document. */
+export function noteBounds(id: string): Rect {
+  const obj = snapshot(boardDoc()).find((n) => n.id === id);
+  if (!obj) throw new Error(`note ${id} not in document`);
+  return objectBounds(obj);
+}
+
+/** The live document snapshot (for "did anything get written?" checks). */
+export function modelSnapshot(): readonly StickySnapshot[] {
+  return snapshot(boardDoc());
+}
+
+/** Any object snapshot (unknown types included) for generic-machinery tests. */
+export function rawObjects(): readonly ObjectSnapshot[] {
+  return snapshot(boardDoc()) as readonly ObjectSnapshot[];
+}
+
+/** The selection bar element, or null when it is not shown. */
+export function selectionBarEl(): HTMLElement | null {
+  return screen.queryByTestId('selection-bar');
+}
+
+/** The count text the bar announces, e.g. "3 selected". */
+export function selectionCountText(): string | null {
+  const bar = selectionBarEl();
+  if (!bar) return null;
+  return within(bar).getByText(/^\d+ selected$/).textContent;
+}
+
+/** Ids currently marked selected in the DOM, sorted for stable comparison. */
+export function selectedIds(): string[] {
+  return screen
+    .getAllByTestId(/^sticky-note-./)
+    .filter((el) => el.getAttribute('data-selected') === 'true')
+    .map((el) => el.getAttribute('data-note-id')!)
+    .sort();
 }

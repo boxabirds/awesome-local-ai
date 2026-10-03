@@ -63,6 +63,26 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 /** Colour a freshly created note is filled with. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+// --- Selection & transform settings (story 7) ------------------------------
+// The one place to tune how a selection looks and how far it moves and grows.
+// Every object type shares these; a type only declares its own *minimum* size
+// through the object registry (see src/client/objects/registry.tsx).
+
+/** On-screen size (CSS px) of a selection resize handle, at any zoom. */
+export const HANDLE_SIZE_PX = 8;
+
+/** Smallest side a sticky note may be resized to, in world units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/** Largest side any object may be resized to, in world units (global maximum). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** Distance one arrow key nudges the selection, in world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Distance Shift + an arrow key nudges the selection, in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 // --- Live collaboration settings (story 3) ---------------------------------
 // The single place to tune how the board syncs between people.
 

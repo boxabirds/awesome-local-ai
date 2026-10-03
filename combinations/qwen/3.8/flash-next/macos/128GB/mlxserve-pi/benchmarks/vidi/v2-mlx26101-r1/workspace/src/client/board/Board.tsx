@@ -1,12 +1,14 @@
-// The stories 1-4 board: an infinite canvas of sticky notes, live-connected to the
-// room behind this board's link. Story 5 moved it out of App so the board page can
-// mount it *only* once the link has been answered "this board exists" — a bad link
-// never opens a socket (share.not_found).
+// The board: an infinite canvas of objects, live-connected to the room behind this
+// board's link. Story 7 made the board *multi-select* — a selection of objects can
+// be moved, resized, nudged and deleted together — so the board now composes three
+// generic pieces over the object registry: the transform gesture (move + resize),
+// the Shift+drag marquee, and the selection keyboard commands. Objects themselves
+// stay passive: each renders itself and reports a pointer-down; the gesture decides
+// what happens.
 //
 // Editing is locked only while the board could not be loaded (`load_failed`): there
-// is no real board on screen in that state, so every mutation handler becomes a
-// no-op and the Sticky note button is disabled rather than editing an empty board
-// that would overwrite a real one.
+// is no real board on screen in that state, so every mutation path is handed
+// `canEdit = false` and does nothing.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
@@ -25,14 +27,21 @@ import { NavigationHint } from '../canvas/NavigationHint';
 import { Toolbar } from './Toolbar';
 import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
+import { useTransformGesture } from './useTransformGesture';
+import { useMarquee, MarqueeRect } from './Marquee';
+import { useBoardKeys } from './useBoardKeys';
+import { SelectionOverlay } from './SelectionOverlay';
+import { SelectionBar } from './SelectionBar';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit } from '../sync/connectBoard';
 import { IS_TEST_MODE, publishConnectionState } from '../canvas/testHooks';
-import { StickyNote } from '../objects/StickyNote';
+import { getObjectType } from '../objects/registry';
 import {
+  allObjectIds,
   createSticky,
-  deleteObject,
+  deleteObjects,
   setStickyColor,
+  type ObjectSnapshot,
 } from '../../shared/board-model';
 
 /** Viewport size measured from the live board element via a ResizeObserver. */
@@ -64,18 +73,6 @@ function useViewportSize(
   return size;
 }
 
-/** True when focus is in a text field, so board keys must not steal the event. */
-function focusIsEditable(): boolean {
-  const el = document.activeElement;
-  if (!el) return false;
-  const tag = el.tagName;
-  return (
-    tag === 'INPUT' ||
-    tag === 'TEXTAREA' ||
-    el.getAttribute('contenteditable') === 'true'
-  );
-}
-
 export interface BoardProps {
   /** Which board to connect to — the id from the address bar. */
   boardId: string;
@@ -87,23 +84,46 @@ export function Board({ boardId }: BoardProps) {
   const cam = useCamera(viewport);
   const { camera } = cam;
   const { doc, notes, connectionState } = useBoardDoc(boardId);
-  const selection = useSelection();
-  const { selectedId, editingId, select, startEdit, endEdit } = selection;
+  const selection = useSelection(notes);
+  const { ids, editingId, clear, startEdit, endEdit } = selection;
 
   // Editing is locked only while the board could not be loaded (`load_failed`).
-  // In that state there is no real board on screen — the room could not read it —
-  // so every mutation handler below becomes a no-op and the Sticky note button is
-  // disabled, rather than editing an empty board that would overwrite a real one.
   const editAllowed = canEdit(connectionState);
 
-  // Render notes in a DOM order that never changes (stable by id) and express
-  // stacking purely through CSS z-index (note.z). If the DOM order followed z,
-  // bringing a note to front would relocate its node and drop the in-flight
-  // pointer capture mid-drag (see TC-39).
-  const orderedNotes = useMemo(
-    () => [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
-    [notes],
+  // The generic transform gesture (group move + resize) and the marquee, both read
+  // the live selection / snapshot through refs, so their handler identities are
+  // stable and BoardViewport's effects never re-subscribe mid-gesture.
+  const snapshot = notes as readonly ObjectSnapshot[];
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot,
+    canEdit: editAllowed,
+  });
+  const marquee = useMarquee({
+    camera,
+    snapshot,
+    selection,
+    canEdit: editAllowed,
+  });
+  useBoardKeys({ doc, selection, snapshot, canEdit: editAllowed });
+
+  // Render objects in a DOM order that never changes (stable by id) and express
+  // stacking purely through CSS z-index (obj.z): reordering the DOM on bring-to-
+  // front would relocate the node and drop the in-flight pointer (see TC-39).
+  const ordered = useMemo(
+    () => [...snapshot].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    [snapshot],
   );
+
+  // Do resize handles apply? Only when some selected object's type is resizable.
+  const showHandles = useMemo(() => {
+    for (const obj of snapshot) {
+      if (ids.has(obj.id) && getObjectType(obj.type)?.resizable) return true;
+    }
+    return false;
+  }, [snapshot, ids]);
 
   // Let e2e assert the badge state itself, not just what is on screen.
   useEffect(() => publishConnectionState(connectionState), [connectionState]);
@@ -143,47 +163,36 @@ export function Board({ boardId }: BoardProps) {
   }, [viewport.width, viewport.height, createAtScreen, editAllowed]);
 
   const onColor = useCallback(
-    (color: string) => {
+    (id: string, color: string) => {
       if (!editAllowed) return;
-      if (selectedId) setStickyColor(doc, selectedId, color);
+      setStickyColor(doc, id, color);
     },
-    [doc, selectedId, editAllowed],
+    [doc, editAllowed],
   );
 
-  const onDelete = useCallback(() => {
+  const onDeleteObject = useCallback(
+    (id: string) => {
+      if (!editAllowed) return;
+      deleteObjects(doc, [id]); // selection prunes the gone id automatically
+    },
+    [doc, editAllowed],
+  );
+
+  // The selection bar / keyboard delete the whole selection at once.
+  const onDeleteSelection = useCallback(() => {
     if (!editAllowed) return;
-    if (!selectedId) return;
-    deleteObject(doc, selectedId);
-    select(null);
-  }, [doc, selectedId, select, editAllowed]);
+    deleteObjects(doc, allObjectIds(snapshot).filter((id) => ids.has(id)));
+    clear();
+  }, [doc, snapshot, ids, clear, editAllowed]);
 
-  // Clear stale selection / editing when a note disappears (e.g. deleted).
-  useEffect(() => {
-    if (selectedId && !notes.some((n) => n.id === selectedId)) select(null);
-  }, [notes, selectedId, select]);
-  useEffect(() => {
-    if (editingId && !notes.some((n) => n.id === editingId)) endEdit('unselected');
-  }, [notes, editingId, endEdit]);
-
-  // Board-level keyboard shortcuts (Enter to edit, Delete/Backspace to remove).
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!editAllowed) return; // an unloadable board is not editable
-      if (editingId !== null) return; // text editing owns the keys
-      if (focusIsEditable()) return;
-      if (!selectedId) return;
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        startEdit(selectedId);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        deleteObject(doc, selectedId);
-        select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [editingId, selectedId, doc, startEdit, select, editAllowed]);
+  // The object's own text editor ending: keep it selected, or deselect entirely.
+  const onEndEdit = useCallback(
+    (next: 'selected' | 'unselected') => {
+      if (next === 'selected') endEdit();
+      else clear();
+    },
+    [endEdit, clear],
+  );
 
   return (
     <div className="vidi6-app">
@@ -197,25 +206,49 @@ export function Board({ boardId }: BoardProps) {
         onZoomStep={onZoomStep}
         onReset={onReset}
         onCreateStickyAt={createAtScreen}
-        onEmptyClick={() => select(null)}
+        onEmptyClick={clear}
+        onMarqueeStart={marquee.start}
       >
-        {orderedNotes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={camera.zoom}
-            selected={note.id === selectedId}
-            editing={note.id === editingId}
-            onColor={onColor}
-            onDelete={onDelete}
-            onSelect={select}
-            onStartEdit={startEdit}
-            onEndEdit={endEdit}
-            canEdit={editAllowed}
-          />
-        ))}
+        {ordered.map((obj) => {
+          const spec = getObjectType(obj.type);
+          if (!spec) return null; // never render an unknown type
+          const Component = spec.Component;
+          return (
+            <Component
+              key={obj.id}
+              obj={obj}
+              doc={doc}
+              zoom={camera.zoom}
+              selected={ids.has(obj.id)}
+              sole={ids.size === 1 && ids.has(obj.id)}
+              editing={obj.id === editingId}
+              canEdit={editAllowed}
+              onObjectPointerDown={gesture.onObjectPointerDown}
+              onStartEdit={startEdit}
+              onEndEdit={onEndEdit}
+              onColor={onColor}
+              onDelete={onDeleteObject}
+            />
+          );
+        })}
       </BoardViewport>
+
+      {/* Screen-space selection affordances, drawn over the board. */}
+      <SelectionOverlay
+        camera={camera}
+        snapshot={snapshot}
+        ids={ids}
+        showHandles={showHandles}
+        onHandlePointerDown={gesture.onHandlePointerDown}
+      />
+      {marquee.rect ? <MarqueeRect rect={marquee.rect} camera={camera} /> : null}
+      <SelectionBar
+        camera={camera}
+        snapshot={snapshot}
+        ids={ids}
+        onDelete={onDeleteSelection}
+      />
+
       <Toolbar onCreateSticky={createAtCentre} disabled={!editAllowed} />
       <ConnectionStatus state={connectionState} />
       <ZoomControls

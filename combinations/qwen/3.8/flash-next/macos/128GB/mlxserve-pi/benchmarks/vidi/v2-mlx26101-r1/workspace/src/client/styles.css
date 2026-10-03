@@ -296,3 +296,74 @@ button:disabled {
   color: #1b7f4b;
   font-weight: 700;
 }
+
+/* --- Selection & transform (story 7) ------------------------------------- */
+/* The marquee box drawn while Shift-dragging to select. */
+.marquee {
+  box-sizing: border-box;
+  border: 1px solid #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+  z-index: 2147482000;
+}
+
+/* The group bounding box around a multi-object selection. */
+.selection-box {
+  box-sizing: border-box;
+  border: 1px solid #2563eb;
+}
+
+/* The eight resize handles. They live in a screen-space overlay, so they stay a
+   constant on-screen size at every zoom level. */
+.resize-handle {
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  background: #ffffff;
+  border: 1px solid #2563eb;
+  border-radius: 1px;
+  cursor: nwse-resize;
+}
+.resize-handle--n,
+.resize-handle--s {
+  cursor: ns-resize;
+}
+.resize-handle--e,
+.resize-handle--w {
+  cursor: ew-resize;
+}
+.resize-handle--nw,
+.resize-handle--se {
+  cursor: nwse-resize;
+}
+.resize-handle--ne,
+.resize-handle--sw {
+  cursor: nesw-resize;
+}
+.resize-handle:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* The floating bar over a selection of two or more objects. */
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #1b1d23;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.selection-delete {
+  border: 0;
+  border-radius: 4px;
+  padding: 3px 8px;
+  background: #e5484d;
+  color: #ffffff;
+  font: inherit;
+  cursor: pointer;
+}

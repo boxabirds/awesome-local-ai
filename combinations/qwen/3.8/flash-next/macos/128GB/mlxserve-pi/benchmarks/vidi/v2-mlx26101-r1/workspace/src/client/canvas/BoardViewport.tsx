@@ -40,6 +40,8 @@ export interface BoardViewportProps {
   onCreateStickyAt?(p: Point): void;
   /** A press on empty board space that did not pan (a plain click). */
   onEmptyClick?(): void;
+  /** Shift + press on empty board space: begin a marquee instead of a pan. */
+  onMarqueeStart?(p: Point): void;
   children?: ReactNode;
 }
 
@@ -65,6 +67,7 @@ export const BoardViewport = forwardRef<HTMLDivElement, BoardViewportProps>(
       onReset,
       onCreateStickyAt,
       onEmptyClick,
+      onMarqueeStart,
       children,
     },
     ref,
@@ -101,6 +104,13 @@ export const BoardViewport = forwardRef<HTMLDivElement, BoardViewportProps>(
       // Only empty board space starts a drag; objects stop propagation.
       if (!isBoardSurface(e.target)) return;
       if (e.button !== 0 && e.pointerType === 'mouse') return;
+      // Shift + press on empty board draws a marquee instead of panning; the
+      // marquee hook drives its own move / up on the window from here.
+      if (e.shiftKey && onMarqueeStart) {
+        e.preventDefault();
+        onMarqueeStart({ x: e.clientX, y: e.clientY });
+        return;
+      }
       e.currentTarget.setPointerCapture?.(e.pointerId);
       setPanning(true);
       panStart.current = { x: e.clientX, y: e.clientY };
