@@ -13,7 +13,7 @@ stated as theirs, not ours. Our own figures come from `docs/research/20261003-th
 | Change | What it is | What its data must be |
 |---|---|---|
 | **Context engineering** | Change the system prompt or what the agent is shown: an instruction against a named habit. A series of runs against the baseline. | A class that **names a habit a sentence can instruct against** ("do not re-run a check that has passed"), and a measured link from the habit to cost or result. No training data. |
-| **Rejection-sampled fine-tuning (SFT, LoRA)** | Train on the model's own best trajectories: those that reached the best result at the least cost. LoRA is how the weights are trained cheaply (a small adapter), not what is trained on. | **On-policy trajectories** with an outcome and a cost per trajectory. Classes help by **editing** a trace (cutting redundant segments) or **weighting** segments. One source reports that SFT on shortest-path demonstrations does not learn to backtrack, so whole good trajectories are safer than pruned ones. |
+| **Rejection-sampled fine-tuning (SFT, LoRA)** | Train on the model's own best trajectories: those that reached the best result at the least cost. LoRA is how the weights are trained cheaply (a small adapter), not what is trained on. | **On-policy trajectories** with an outcome and a cost per trajectory. Classes help by **editing** a trace (cutting redundant segments) or **weighting** segments. One source reports that SFT on shortest-path demonstrations does not learn to backtrack, so whole good trajectories are safer than pruned ones. That is if you train a model to imitate such cleaned-up traces (SFT), it learns the correct route, but never sees anyone recover from a mistake. So it doesn't learn the skill of backtracking. |
 | **Preference optimisation (DPO and relatives)** | Train on pairs: a chosen and a rejected continuation. | **Pairs that share the same prompt**, differing in outcome or cost. One source builds pairs from a raw and a refined trajectory with the same final answer. Offline pairs shape behaviour the model already shows; they do not teach what it never did right. |
 | **RL with verifiable rewards (GRPO and relatives)** | Sample a group of completions per prompt, reward each by a check, learn from the differences. A length penalty can be added; one line of work scales it by the prompt's solve rate. | A **verifiable reward** (our held-out tests are one), **a group of rollouts from the same state**, and the cost in tokens. Segment-level credit assignment (cutpoints between sub-problems; redundancy-aware rewards that penalise redundant steps) is the active research on putting the reward where it belongs. Compute-heavy: each rollout is a story run. |
 
@@ -25,6 +25,74 @@ Two facts from our own setup shape every row:
 - **Our trajectories do not share prompts.** Two runs of a story diverge after the first few calls, so natural preference
   pairs and RL groups do not exist. They have to be made by **branching**: re-running from an identical state (a partial
   rerun, which the harness already does) several times at a chosen point. Everything in rows 3 and 4 depends on that.
+
+### 1a. Words, so the rows are not misread
+
+**"Supervised" describes the loss, not who wrote the labels.** SFT means the model is given target sequences and trained to
+predict them token by token. That is a supervised objective whatever produced the targets. *Unsupervised* means no targets at
+all: the clustering in layer A is genuinely unsupervised, because nothing told it what any segment was, while the classifier
+in layer C is supervised, because it learns from labelled examples. Both appear in this plan, and they are different things.
+
+**What is unusual here is the provenance, and it has its own names.** In our setting the model generates its own training
+data and a verifier (the held-out tests) filters it; no human writes any of it. The field calls that **self-training**,
+**rejection sampling fine-tuning (RFT)**, **STaR** or **expert iteration**. All are SFT in their loss. The precise phrase for
+row 2 is *rejection-sampled SFT with a verifiable filter*, which is why the row says "rejection-sampled".
+
+**LoRA is an orthogonal axis.** Rows 2, 3 and 4 say *what you train on*. LoRA says *how the weights are updated*: freeze the
+model, train a small adapter beside it, keep the result as a small file. SFT, DPO and RL can each be done with LoRA or with a
+full fine-tune. Nothing in this document assesses whether we can train either, on what, or where.
+
+### 1b. How the three training rows scale, which is not the usual answer
+
+The usual objection, that SFT does not scale because demonstrations are human-written, **does not apply here**: our ground
+truth is automatic for every row, because the held-out tests decide. The real differences are two others.
+
+**SFT learns only from winners.** Of 364 Qwen story runs with a held-out result (3 Oct 2026): 165 pass all of their own tests,
+151 pass some, 48 pass none. The SFT pool is the 165 at its most generous; the 48 failures are waste to it. Preference methods
+use both sides, and a run that passed some contrasts usefully with one that passed all.
+
+**Signal per unit of bench time.** A new SFT example costs a whole story run (hours), kept only if it passes. A branch point
+yields several continuations from one shared prefix, so many comparisons come out of one run's context. That is the scaling
+advantage of rows 3 and 4, and it is real.
+
+**The catch on the other side.** Preference methods can only sharpen behaviour the model already shows: if it never produces
+a good continuation at a branch point, no pair from there teaches it one. And SFT needs no new bench time at all, since the
+165 runs exist today. So the order that follows is SFT first because it is free and immediate, preference methods second
+because they scale better once SFT has shown whether training on this model's own work does anything. Both are limited by the
+same thing: 165 runs over 11 stories of one app is a small, narrow set, and a story split takes half of it.
+
+### 1c. Branch points: where a pair or a group can be made
+
+A branch point is a state in a story run from which the next move is genuinely open and the outcome is settled soon after. The
+clearest one in our data is **the moment after a test run fails**: the workspace at a known commit, the conversation so far,
+and the failing output just returned. The next call is a real fork (edit the file the failure named, read more first, re-run
+to check for flakiness, change the test), and it is where our runs think hardest: a call after failing tests thinks 117% more
+than an ordinary one on Swift 1.5, 201% on gufo, 83% on mlx-serve. Other candidates of the same shape: after a tool errors,
+right after a compaction, and immediately before a long planning call.
+
+A **bad** branch point, by contrast, is the start of a story: every run diverges at call one and never meets again, the
+outcome is hours away, and the pair differs in everything, so it teaches nothing in particular. That is the signal-dilution
+problem with pairing whole runs: if two trajectories of tens of thousands of tokens differ in a few paragraphs, the useful
+contrast is a needle in shared text, and the model may learn "prefer the shorter one" instead of "prefer the better one". The
+remedy is to shrink the unit: pair continuations from an identical state, change one thing per pair, decide chosen and
+rejected by the tests and never by length alone.
+
+**How many, and what they cost** (measured 3 Oct 2026, `v2-*` runs with complete thinking text):
+
+| Stack | Calls after a failing test run | Share of calls | Story runs holding one | Prompt there (mean) | Of it already cached |
+|---|---|---|---|---|---|
+| Swift 1.5 / llama.cpp | 1,378 | 9.1% | 80 | 73,831 tokens | 98.0% |
+| Flash-Next / gufo | 764 | 5.9% | 65 | 73,166 | 97.6% |
+| Flash-Next / mlx-serve | 659 | 6.0% | 40 | 69,987 | 97.3% |
+
+Two readings of that table matter. First, there are **more branch points than expected** (about 2,800 across the three
+stacks), though they cluster: the same story failing the same way in seven runs is not seven independent points, and the
+usable number is smaller and unmeasured. Second, **the enormous context is what makes branching cheap, not expensive**: every
+rollout from a branch point starts from the identical prefix, 97 to 98% of which the server has already cached, with under
+1,400 fresh tokens. Prefill once, and the remaining rollouts reuse it; the alternative, running whole stories again, costs
+hours each. Two things this rests on are unverified: that each engine **keeps** the prefix cached across several sequential
+rollouts, and that the **workspace** (not just the conversation) restores to the same commit each time. One branch point run
+six times would settle both, and would give the only cost figure this document does not have.
 
 ## 2. What follows for the classes
 
