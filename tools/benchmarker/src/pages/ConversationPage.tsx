@@ -216,7 +216,7 @@ function Strip({ all, from, toMs, range, onJump, onRange }: { all: Turn[]; from:
   const sel = drag ?? (range ? [(range[0] - from) / Math.max(1, toMs - from), (range[1] - from) / Math.max(1, toMs - from)] as [number, number] : null);
   return (
     <div className="conv-strip-wrap">
-      <svg ref={svg} className="conv-strip" viewBox={`0 0 ${STRIP_W} ${STRIP_H}`} preserveAspectRatio="none" role="img" aria-label={GLOSSARY.callTimeline.name} data-tip={GLOSSARY.callTimeline.what}
+      <svg ref={svg} className="conv-strip" viewBox={`0 0 ${STRIP_W} ${STRIP_H}`} preserveAspectRatio="none" role="img" aria-label={GLOSSARY.callTimeline.name}
         onPointerDown={(ev) => { press.current = { x: ev.clientX, frac: frac(ev.clientX) }; svg.current?.setPointerCapture(ev.pointerId); }}
         onPointerMove={(ev) => { if (!press.current) return; const f = frac(ev.clientX); if (Math.abs(ev.clientX - press.current.x) >= DRAG_PX) setDrag([Math.min(press.current.frac, f), Math.max(press.current.frac, f)]); }}
         onPointerUp={(ev) => {

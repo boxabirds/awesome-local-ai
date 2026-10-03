@@ -274,6 +274,7 @@ test.describe("D. layout: pinned heads, compact numbers, folded cells", () => {
     await expect(head.locator(".conv-chips")).toBeVisible();
     await expect(head.getByRole("searchbox")).toBeVisible();
     await expect(head.locator("svg.conv-strip")).toBeVisible();
+    await expect(head.locator("svg.conv-strip")).not.toHaveAttribute("data-tip", /./);   // no hover card over the strip
     await expect(p.locator(".rp-section")).toHaveCount(1);
     const th = p.locator("table.turns thead th").first();
     await expect(th).toHaveCSS("position", "sticky");
