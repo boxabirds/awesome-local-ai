@@ -180,3 +180,222 @@ body {
   pointer-events: none;
   white-space: nowrap;
 }
+
+/* --------------------------------------------------------- sticky notes */
+
+/* A note is board content: it is positioned and sized in world units inside the
+   scaled world layer, so it grows and shrinks with the board. Its font size is a
+   board unit too, which is why the auto-fit does not have to be recomputed when
+   the user zooms. */
+.sticky-note {
+  --sticky-text-padding: 12px;
+  position: absolute;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 16%);
+  cursor: grab;
+  /* The note is the object under the pointer: it must catch the pointer before
+     the board does, so grabbing it never pans the board. */
+  touch-action: none;
+}
+
+.sticky-note[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.sticky-note[data-selected='true'] {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+.sticky-note:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+.sticky-note-content {
+  position: absolute;
+  inset: 0;
+  padding: var(--sticky-text-padding);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Nothing is drawn outside the note: text that does not fit at the smallest
+     font size is cut off (with a fade), not spilled over the board. */
+  overflow: hidden;
+}
+
+/* Shared by the rendered text and the hidden measurement element: the fit search
+   is only correct when both wrap the text in exactly the same way. */
+.sticky-text,
+.sticky-measure,
+.sticky-editor {
+  font-family: inherit;
+  text-align: center;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ui-text);
+}
+
+.sticky-text {
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+}
+
+.sticky-measure {
+  position: absolute;
+  inset: var(--sticky-text-padding);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.sticky-editor {
+  position: absolute;
+  inset: var(--sticky-text-padding);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* The character counter is page chrome: it stays readable at every zoom level,
+   so it undoes the world scale with the note's --inverse-zoom. */
+.sticky-counter {
+  position: absolute;
+  right: calc(8px * var(--inverse-zoom, 1));
+  bottom: calc(6px * var(--inverse-zoom, 1));
+  font-size: calc(11px * var(--inverse-zoom, 1));
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-muted);
+  pointer-events: none;
+}
+
+.sticky-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(28px * var(--inverse-zoom, 1));
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0%), rgb(255 255 255 / 85%));
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------ note toolbar */
+
+/* Anchor at the top edge of the note; the toolbar itself is counter-scaled so it
+   keeps a constant size on screen, and is centred on that anchor. */
+.note-toolbar-anchor {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.note-toolbar {
+  position: absolute;
+  bottom: var(--sticky-text-padding);
+  left: 50%;
+  transform: translate(-50%, 0) scale(var(--inverse-zoom, 1));
+  transform-origin: 50% 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  pointer-events: auto;
+}
+
+.note-color-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 18%);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.note-color-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+}
+
+.note-color-swatch:focus-visible,
+.note-delete:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+}
+
+.note-delete {
+  font: inherit;
+  line-height: 1;
+  padding: 2px 6px;
+  color: var(--ui-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.note-delete:hover {
+  background: #f0f2f5;
+}
+
+/* ------------------------------------------------------------- board toolbar */
+
+.board-toolbar {
+  position: fixed;
+  /* Page chrome: the notes must never be drawn over the toolbar, because a note
+     that covered the button would also swallow the click. */
+  z-index: 2;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+}
+
+.board-toolbar-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.board-toolbar-button:hover {
+  background: #f0f2f5;
+}
+
+.board-toolbar-button:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+}
+
+.board-toolbar-icon {
+  font-size: 15px;
+  line-height: 1;
+}

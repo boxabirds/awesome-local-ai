@@ -1,4 +1,6 @@
 import type { Camera } from './camera.js';
+import type { StickySnapshot } from '../../shared/board-model.js';
+import type * as Y from 'yjs';
 
 /**
  * Test-only hook for jumping the camera around the board. Dragging a million
@@ -33,4 +35,35 @@ export function clearTestHooks(): void {
 export function testHooks(): Vidi6TestHooks | undefined {
   if (typeof window === 'undefined') return undefined;
   return window.__vidi6;
+}
+
+/**
+ * Test-only view of the board document, so tests can assert the document state
+ * directly (and delete a note "via a model call", as the design's TC-37 puts
+ * it) instead of only through the rendered DOM.
+ */
+export interface Vidi6BoardTestHooks {
+  getDoc(): Y.Doc | undefined;
+  getNotes(): readonly StickySnapshot[];
+}
+
+declare global {
+  interface Window {
+    __vidi6Board?: Vidi6BoardTestHooks;
+  }
+}
+
+export function registerBoardTestHooks(hooks: Vidi6BoardTestHooks): void {
+  if (!IS_TEST_MODE || typeof window === 'undefined') return;
+  window.__vidi6Board = hooks;
+}
+
+export function clearBoardTestHooks(): void {
+  if (!IS_TEST_MODE || typeof window === 'undefined') return;
+  delete window.__vidi6Board;
+}
+
+export function boardTestHooks(): Vidi6BoardTestHooks | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return window.__vidi6Board;
 }

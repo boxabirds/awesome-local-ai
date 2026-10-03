@@ -1,31 +1,39 @@
-# Story 1: Pan and zoom around an infinite board
+# Story 2: Capture ideas on sticky notes and rearrange them
 
 Your progress on this story's tasks. Keep the Status column up to date as you work.
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Scaffold project and write camera maths unit tests first (TC-01 to TC-12) | done |
-| 2 | Implement camera maths to pass unit tests | done |
-| 3 | Implement board viewport: drag, wheel, pinch and keyboard navigation with dot grid | done |
-| 4 | Implement zoom controls (−, percentage, +, Reset view) | done |
-| 5 | Implement first-use navigation hint | done |
-| 6 | Component tests for viewport input, zoom controls and hint | done |
-| 7 | E2E navigation tests in Chromium, Firefox and WebKit | done |
+| 1 | Write board model unit tests first against a real Y.Doc (TC-01 to TC-12, TC-39) | done |
+| 2 | Implement Yjs board model and useBoardDoc snapshot hook | done |
+| 3 | Write sticky text logic unit tests first (TC-13 to TC-17) | done |
+| 4 | Implement sticky text editing: start/end editing, minimal Y.Text diff, length limit, auto-fit font | done |
+| 5 | Implement sticky note interaction: select, drag to move, double-click create, keyboard delete | done |
+| 6 | Implement toolbars: Sticky note button, colour swatches and delete button | done |
+| 7 | Component tests for sticky interaction, text editor and toolbars | done |
+| 8 | E2E sticky note workflows (create, move at zoom, recolour, delete, long text) | done |
 
 Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
 
-Notes:
+## What the tests found
 
-- Task 7 is done: the tests are browser-agnostic and run in all three browser
-  projects. On this machine only Chromium can be launched at all, so the Firefox
-  and WebKit runs skip themselves with a reason (measured and explained in
-  NOTES.md “Browsers”); the suite is run twice in Chromium (1x and 2x surfaces)
-  to keep real coverage.
+- **Dragging a lower note did nothing** (found by the e2e stacking test, TC-32). Notes were
+  rendered in document drawing order, so bringing a note to the front moved its DOM element -
+  and Chromium releases pointer capture when the captured element moves, which ended the drag
+  on the same event that started it. Notes are now rendered in a stable order (creation order)
+  and stacked with CSS `z-index: <z>`, so a `bringToFront` never touches the DOM.
+- **The Sticky note button was behind the board** (found by e2e, TC-28/TC-34). The toolbar is
+  page chrome rendered before the viewport, so the absolutely positioned viewport painted over
+  it and swallowed the click. `.board-toolbar` now has `z-index: 2`.
+- React 19 defers state updates scheduled outside `act()` to the scheduler queue, so component
+  tests that read the DOM right after a dispatched event saw stale selection state. Every event
+  helper in `tests/component/helpers.tsx` dispatches inside `act()`.
+- A detached `Y.Text` cannot be read back (TC-13 as written was not a valid test): the case is
+  tested as a `Y.Text` created detached and then attached to its `Y.Map`, which is what the
+  model actually does.
 
-## Test totals
+## Skipped here
 
-| Suite | Command | Result |
-|---|---|---|
-| Unit (camera maths, TC-01–TC-12) | `npm run test:unit` | 24 passed |
-| Component (TC-13–TC-22, TC-28–TC-30, TC-32) | `npm run test:component` | 44 passed |
-| E2E (TC-23–TC-27, TC-31, workflows 1–3) | `npm run test:e2e` | 24 passed (12 cases × DPR 1 and DPR 2), 24 skipped (Firefox/WebKit cannot launch here) |
+- `npm run test:e2e` runs 100 tests: 50 pass (chromium, chromium-retina), 50 are skipped because
+  firefox and webkit cannot be launched on this machine (the launch probe in
+  `tests/e2e/setup.ts` decides, as in story 1 - see NOTES.md).

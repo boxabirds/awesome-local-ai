@@ -4,12 +4,16 @@ import {
   useRef,
   useState,
   type JSX,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
 
-import { GRID_SPACING_WORLD } from '../../shared/config.js';
-import type { Point } from './camera.js';
+import * as Y from 'yjs';
+
+import { createSticky } from '../../shared/board-model.js';
+import { GRID_SPACING_WORLD, DRAG_THRESHOLD_PX } from '../../shared/config.js';
+import { screenToWorld, type Point } from './camera.js';
 import { useCameraContext } from './useCamera.js';
 
 /**
@@ -24,6 +28,12 @@ import { useCameraContext } from './useCamera.js';
 export interface BoardViewportProps {
   /** Rendered in world coordinates. */
   children?: ReactNode;
+  /** The board document a double-click on empty space adds a note to. */
+  doc: Y.Doc;
+  /** A note was created by a double-click: the app selects it and opens it. */
+  onStickyCreated(id: string): void;
+  /** A single click landed on empty board space: the app clears the selection. */
+  onEmptyClick(): void;
 }
 
 type GestureEventLike = Event & {
@@ -41,7 +51,12 @@ const mod = (value: number, period: number): number => {
 /** Only this pointer button starts a pan (right/middle click are ignored). */
 const PRIMARY_BUTTON = 0;
 
-export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
+export function BoardViewport({
+  children,
+  doc,
+  onStickyCreated,
+  onEmptyClick,
+}: BoardViewportProps): JSX.Element {
   const {
     camera,
     viewport,
@@ -55,6 +70,10 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
   } = useCameraContext();
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const activePointerRef = useRef<number | null>(null);
+  // A drag of the board is not a click: after panning, the click that the
+  // browser still reports must not clear the selection.
+  const draggedRef = useRef(false);
+  const downPointRef = useRef<Point | null>(null);
   const [panning, setPanning] = useState(false);
 
   /** Viewport-client coordinates -> coordinates inside the board area. */
@@ -91,13 +110,26 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
     if (!isEmptyBoardSpace(event.target)) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     activePointerRef.current = event.pointerId;
+    draggedRef.current = false;
+    downPointRef.current = toBoardPoint(event);
     setPanning(true);
-    beginPan(toBoardPoint(event));
+    beginPan(downPointRef.current);
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (activePointerRef.current !== event.pointerId) return;
-    panMove(toBoardPoint(event));
+    const point = toBoardPoint(event);
+    const from = downPointRef.current;
+    // Past the drag threshold this pointer gesture is a pan, not a click, even
+    // though the browser will still report a click at the end of it.
+    if (
+      from !== null &&
+      (point.x - from.x) ** 2 + (point.y - from.y) ** 2 >=
+        DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX
+    ) {
+      draggedRef.current = true;
+    }
+    panMove(point);
   };
 
   const finishDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -107,6 +139,29 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
     activePointerRef.current = null;
     setPanning(false);
     endPan();
+  };
+
+  /**
+   * A double-click on empty board space creates a sticky note centred on the
+   * pointer (the same gesture as the toolbar button). The screen point is turned
+   * into a world point first, so a note created while zoomed out or panned away
+   * lands where the user looked.
+   */
+  const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!isEmptyBoardSpace(event.target)) return;
+    const world = screenToWorld(camera, toBoardPoint(event));
+    const id = createSticky(doc, world);
+    if (typeof id === 'string') onStickyCreated(id);
+  };
+
+  /** A click on empty space selects nothing; a click that was a pan does not. */
+  const handleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (draggedRef.current) {
+      draggedRef.current = false;
+      return;
+    }
+    if (!isEmptyBoardSpace(event.target)) return;
+    onEmptyClick();
   };
 
   // Wheel and Safari gesture listeners must be non-passive to prevent the
@@ -180,6 +235,8 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
       onPointerUp={finishDrag}
       onPointerCancel={finishDrag}
       onLostPointerCapture={finishDrag}
+      onDoubleClick={handleDoubleClick}
+      onClick={handleClick}
     >
       <div
         className="board-world"

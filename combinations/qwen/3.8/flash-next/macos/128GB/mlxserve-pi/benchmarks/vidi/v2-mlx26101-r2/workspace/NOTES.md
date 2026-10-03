@@ -87,9 +87,41 @@ tested the way they run in a browser:
   `background-size`/`position` of the dot grid) rather than pixel geometry; exact
   pixel geometry (±1 px) is asserted in e2e, where real layout happens.
 
+## Story 2: sticky notes
+
+- **Moving a DOM element that has the pointer capture ends the drag.** Chromium fires
+  `lostpointercapture` when the captured element is re-parented or *moved among its siblings*, so
+  rendering notes in document drawing order - which changes whenever a note is brought to the
+  front - cancelled a drag in the very event that started it: `bringToFront` re-rendered, React
+  moved the element, capture was lost, and the note never moved. Notes are therefore rendered in
+  a stable order (creation order, which never changes) and stacked with `z-index: <z>`; hit
+  testing follows the painting order, so `document.elementFromPoint` still reports the top note.
+  jsdom has no pointer capture at all, so no component test can see this: it is an e2e-only bug
+  (TC-32 found it).
+- **Page chrome needs a stacking order of its own.** `.board-toolbar` is rendered before the
+  board viewport, and both are positioned, so the viewport painted over the toolbar and
+  intercepted its clicks (Playwright reports this as "…intercepts pointer events"). Fixed with
+  `z-index: 2` on `.board-toolbar`; `.zoom-controls` only worked because it happens to come after
+  the viewport in the DOM.
+- **React 19 schedules state updates that arrive outside `act()`** onto the scheduler queue (a
+  MessageChannel task), so a component test that dispatches an event and then reads the DOM
+  synchronously sees stale state whenever that event notifies `useSyncExternalStore` - which every
+  Y.Doc write does. Every event helper in `tests/component/helpers.tsx` dispatches inside `act()`.
+  Mutating the document directly from a test (rather than through a UI event) needs the same
+  treatment.
+- **A detached `Y.Text` cannot be read**: `toString()` on a `Y.Text` that is not attached to a
+  document returns `''` and logs a warning. Tests read text through `getStickyText` after the
+  `Y.Map` owns it, which is the state the app is ever in.
+- **Drag threshold is exclusive**: `distanceSq < DRAG_THRESHOLD_PX ** 2` keeps a 2 px press as a
+  select and 3 px starts the drag, matching the PRD ("a 2 px press is a select").
+- **Counter-scaling page chrome inside the scaled layer**: each note element sets
+  `--inverse-zoom: <1/zoom>`, and its toolbar, counter and fade use `calc(<px> * var(--inverse-zoom))`.
+  They keep a constant size on screen without the components having to pass zoom around.
+
 ## Deviations
 
 - None from the story's acceptance criteria. The e2e port differs (see Ports),
   Safari pinch gestures are not covered in e2e (see Browsers), which the story's
   test strategy explicitly allows, and Firefox/WebKit tests skip themselves on
-  this machine because those browsers cannot be launched here (see Browsers).
+  this machine because those browsers cannot be launched here (see Browsers) -
+  story 1 and story 2 alike (50 e2e tests run, 50 skip themselves for that reason).
