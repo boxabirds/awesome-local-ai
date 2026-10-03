@@ -15,6 +15,8 @@ import {
   CONNECTOR_MIN_LENGTH_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
   type FillColor,
   type StrokeColor,
@@ -31,7 +33,9 @@ import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
 import type { ConnectorSnap } from '../../shared/objects/connector';
+import { strokePolyline, strokeThickness, type StrokeSnap } from '../../shared/objects/stroke';
 
 /**
  * The props every board object component receives. The object's own data is
@@ -199,5 +203,41 @@ registerObjectType('connector', {
     // at 100%, which is the one reading that is true of the number on its own.
     const z = Number.isFinite(zoom) && (zoom as number) > 0 ? (zoom as number) : 1;
     return distanceToPolyline(line, worldPoint) <= CONNECTOR_HIT_TOLERANCE_PX / z;
+  },
+});
+
+// A stroke (story 11) is an object that is *resized* — that is the point of a sketch being an
+// object and not a mark on a canvas — and it is aspect-locked, because a circle dragged into an
+// ellipse stopped being the thing that was drawn (pen.resize). It has no text and no style
+// toolbar: the ink and the nib are chosen before drawing, not afterwards (pen.options).
+//
+// Its hit area is its line plus a screen allowance, for the same reason an arrow's is: a
+// squiggle's bounding box is a rectangle nobody drew, and most of it is empty board that belongs
+// to whatever is underneath (pen.select). The allowance is divided by the zoom in the same breath
+// as an arrow's, so a thin line is as catchable at 25% as at 400%, and the component gives its
+// invisible hit path the same width — one rule, in the model and in the DOM.
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  // As small as the smallest box a stroke can be: a dot's own box. Smaller than this there is no
+  // mark left to see, which is the only meaning `minSize` has for a drawing.
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean {
+    const stroke = obj as StrokeSnap;
+    // The path *as it is drawn now*: scaled by every resize the box has been through, so a press
+    // is measured against the pixels in front of the person and not against the path the pen left
+    // behind (pen.resize).
+    const line = strokePolyline(stroke);
+    if (line.length < 1) return false;
+    const z = Number.isFinite(zoom) && (zoom as number) > 0 ? (zoom as number) : 1;
+    // Half the nib or the screen allowance, whichever is wider: a thick line is caught by its
+    // own width, a thin one by the pixels a hand needs, and neither by the sum of the two
+    // (design: max(thickness / 2, STROKE_HIT_TOLERANCE_PX / zoom)).
+    return (
+      distanceToPolyline(line, worldPoint) <=
+      Math.max(strokeThickness(stroke) / 2, STROKE_HIT_TOLERANCE_PX / z)
+    );
   },
 });

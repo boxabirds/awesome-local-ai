@@ -1,4 +1,4 @@
-// Which object is under a point, for the two story 10 tools.
+// Which object is under a point, for the board's drawing tools (stories 10 and 11).
 //
 // Both tools put a layer over the board, so while one of them is held the objects
 // underneath never receive the press — the browser's own hit-testing is out of reach and
@@ -23,11 +23,12 @@ function holds(rect: { x: number; y: number; width: number; height: number }, p:
 /**
  * The object on top of `world`, or null when the point is on the board itself.
  *
- * An arrow is never the answer. Its box is the box of a line: most of it is empty board, and
- * a box test that answered "the arrow" would let a press in mid-air join to an arrow nobody
- * aimed at (connector.select). What belongs to an arrow is its line plus a screen allowance,
- * and the code that wants that measures the line — `hitTest` on the object, or the
- * Connector tool's own reading of it.
+ * An arrow is never the answer, and neither is a drawing. Their boxes are the boxes of a line:
+ * most of one is empty board, and a box test that answered "the arrow" would let a press in
+ * mid-air join to an arrow nobody aimed at (connector.select), just as one that answered "the
+ * drawing" would let a press beside a squiggle select a squiggle nobody aimed at (pen.select).
+ * What belongs to them is their line plus a screen allowance, and the code that wants that
+ * measures the line — `hitTest` on the object, or the Connector tool's own reading of it.
  */
 export function topObjectAt(
   objects: readonly ObjectSnapshot[],
@@ -35,7 +36,7 @@ export function topObjectAt(
 ): ObjectSnapshot | null {
   let best: ObjectSnapshot | null = null;
   for (const obj of objects) {
-    if (obj.type === 'connector') continue;
+    if (obj.type === 'connector' || obj.type === 'stroke') continue;
     if (!holds(objectBounds(obj), world)) continue;
     if (
       !best ||

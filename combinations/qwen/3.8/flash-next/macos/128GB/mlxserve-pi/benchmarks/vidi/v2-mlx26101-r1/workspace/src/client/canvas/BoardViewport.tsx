@@ -14,10 +14,8 @@ import {
 } from '../../shared/config';
 import type { Camera, Point } from './camera';
 import type { WheelInput } from './useCamera';
+import { wheelInputFromEvent } from '../tools/toolSurface';
 import type { ToolId as Tool } from '../tools/useActiveTool';
-
-/** Convert a non-pixel wheel deltaMode to CSS pixels. */
-const PIXELS_PER_LINE = 16;
 
 /** Minimal shape of Safari's proprietary GestureEvent. */
 interface GestureEventLike extends Event {
@@ -88,6 +86,7 @@ export const BoardViewport = forwardRef<HTMLDivElement, BoardViewportProps>(
     const panStart = useRef<Point | null>(null);
     const movedRef = useRef(false);
     const textToolActive = tool === 'text';
+    const penToolActive = tool === 'pen';
 
     // Latest click-to-create callback, read by the (stable) text-tool capture
     // listener below so it never re-subscribes mid-gesture.
@@ -118,6 +117,12 @@ export const BoardViewport = forwardRef<HTMLDivElement, BoardViewportProps>(
         target.closest('[data-board-grid]') !== null);
 
     const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+      // The pen is held: a drag is a stroke and never a pan, whatever it is drawn over.
+      // The pen's own layer covers the board while it is held, so in the normal case a press
+      // never reaches this handler at all — the rule is written here as well so that "the pen
+      // draws, the board does not move" is true of the board and not only of one overlay's
+      // z-order (pen.navigation).
+      if (penToolActive) return;
       // Only empty board space starts a drag; objects stop propagation.
       if (!isBoardSurface(e.target)) return;
       if (e.button !== 0 && e.pointerType === 'mouse') return;
@@ -181,21 +186,13 @@ export const BoardViewport = forwardRef<HTMLDivElement, BoardViewportProps>(
       const el = surfaceRef.current;
       if (!el) return;
 
-      const toPixels = (delta: number, mode: number, axisPx: number): number => {
-        if (mode === 1) return delta * PIXELS_PER_LINE; // DOM_DELTA_LINE
-        if (mode === 2) return delta * axisPx; // DOM_DELTA_PAGE
-        return delta; // DOM_DELTA_PIXEL
-      };
-
       const onWheel = (e: WheelEvent) => {
         // Always prevent over the board: stops the page from scrolling and,
         // with Ctrl/Cmd held, stops the browser from zooming the whole page.
         e.preventDefault();
-        const point = toLocal(e.clientX, e.clientY);
-        const ctrlOrMeta = e.ctrlKey || e.metaKey;
-        const px = toPixels(e.deltaX, e.deltaMode, el.clientWidth || window.innerWidth);
-        const py = toPixels(e.deltaY, e.deltaMode, el.clientHeight || window.innerHeight);
-        onWheelInput({ deltaX: px, deltaY: py, ctrlOrMeta, point });
+        // The same conversion the pen's layer over the board uses, so a wheel turns the camera
+        // the same way whether a tool is held or not (pen.navigation).
+        onWheelInput(wheelInputFromEvent(el, e));
       };
 
       const onGestureStart = (e: Event) => e.preventDefault();

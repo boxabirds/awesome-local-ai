@@ -14,8 +14,12 @@ import {
   type TextSnapshot,
 } from '../../src/shared/board-model';
 import type { Rect } from '../../src/shared/geometry';
+import type { Point } from '../../src/shared/geometry';
+import { createStroke } from '../../src/shared/objects/stroke';
+import type { StrokeSnap } from '../../src/shared/objects/stroke';
+import type { PenColor, PenThickness, TextSize } from '../../src/shared/config';
+import { DEFAULT_PEN_COLOR, DEFAULT_PEN_THICKNESS } from '../../src/shared/config';
 import { createText, setTextSize, setTextWidthFixed } from '../../src/shared/objects/text';
-import type { TextSize } from '../../src/shared/config';
 
 // Story 5 moved the board out of the app shell: these tests mount the board itself
 // (the stories 1-4 surface), which is what the board page shows once a link has been
@@ -213,7 +217,7 @@ export function marqueeDrag(
 // --- story 10 helpers -------------------------------------------------------
 
 /** Which creating tool's layer to press on. */
-export type ToolLayerName = 'shape-tool-layer' | 'connector-tool-layer';
+export type ToolLayerName = 'shape-tool-layer' | 'connector-tool-layer' | 'pen-tool-layer';
 
 /**
  * The transparent layer a creating tool holds while it is the tool this tab has.
@@ -339,12 +343,100 @@ export function selectedObjectIds(): string[] {
     }
   }
   // Story 10's two types carry their id the same way. Only the rendered object itself has
-  // `data-object-id` — its figure, its label and its arrowhead are decoration.
-  for (const el of screen.queryAllByTestId(/^(shape|connector)-./)) {
+  // `data-object-id` — its figure, its label and its arrowhead are decoration. Story 11's
+  // drawings too: an svg, a hit line and an ink line carry no `data-object-id` of their own.
+  for (const el of screen.queryAllByTestId(/^(shape|connector|stroke)-./)) {
     const id = el.getAttribute('data-object-id');
     if (id !== null && el.getAttribute('data-selected') === 'true') ids.push(id);
   }
   return ids.sort();
+}
+
+// --- story 11 helpers ------------------------------------------------------
+
+/** The drawings on the board, as this client's model sees them. */
+export function strokes(): StrokeSnap[] {
+  return objectSnapshots(boardDoc()).filter((o): o is StrokeSnap => o.type === 'stroke');
+}
+
+/** One drawing, or a failure that names the id a test is looking for. */
+export function strokeOf(id: string): StrokeSnap {
+  const found = strokes().find((s) => s.id === id);
+  if (!found) throw new Error(`stroke ${id} is not on the board`);
+  return found;
+}
+
+/**
+ * The rendered box of a stroke. Like an arrow's, it is not a hit target: a squiggle's bounding
+ * box is a rectangle nobody drew (pen.select), so pressing this element is pressing nothing and
+ * selects nothing — which is a thing worth being able to assert.
+ */
+export function strokeEl(id: string): HTMLElement {
+  return screen.getByTestId(`stroke-${id}`);
+}
+
+/** The line a press on a stroke has to land on, at the width a hand can hit. */
+export function strokeLineEl(id: string): SVGElement {
+  const el = screen.getByTestId(`stroke-hit-${id}`);
+  if (!(el instanceof SVGElement)) throw new Error(`${id} is not drawn as a line`);
+  return el;
+}
+
+/** The ink of a stroke: what a person sees, and what a resize must scale. */
+export function strokeInkEl(id: string): SVGElement {
+  const el = screen.getByTestId(`stroke-line-${id}`);
+  if (!(el instanceof SVGElement)) throw new Error(`${id} has no ink`);
+  return el;
+}
+
+/** Select a stroke the way a person does: press its line. */
+export function clickStroke(id: string): void {
+  const el = strokeLineEl(id);
+  act(() => {
+    pointer(el, 'pointerdown', 0, 0);
+    pointer(el, 'pointerup', 0, 0);
+  });
+}
+
+/** Shift-press a stroke's line: add it to the selection, or take it out of the selection. */
+export function shiftClickStroke(id: string): void {
+  const el = strokeLineEl(id);
+  act(() => {
+    shiftPointer(el, 'pointerdown', 0, 0);
+    pointer(el, 'pointerup', 0, 0);
+  });
+}
+
+/**
+ * Draw a stroke through the model, at world points: the same `createStroke` the Pen tool calls,
+ * so what comes back is indistinguishable from a stroke that was drawn. Used by the tests that
+ * need a stroke to exist and are not about drawing one.
+ */
+export function seedStroke(
+  points: readonly Point[],
+  color: PenColor = DEFAULT_PEN_COLOR,
+  thickness: PenThickness = DEFAULT_PEN_THICKNESS,
+): string {
+  let id: string | null = null;
+  act(() => {
+    id = createStroke(boardDoc(), { points, color, thickness }, 'local-tab');
+  });
+  if (id === null) throw new Error('the model refused to draw it');
+  return id;
+}
+
+/** The pen this tab is holding, as the tool holds it: ink and nib. */
+export function penOptions(): { color: PenColor; thickness: PenThickness } {
+  const color = screen.getByTestId('pen-toolbar').querySelector('[aria-pressed="true"]');
+  const ink = color?.getAttribute('data-pen-color');
+  const nib = screen
+    .getByTestId('pen-toolbar')
+    .querySelector('[data-pen-thickness][aria-pressed="true"]')
+    ?.getAttribute('data-pen-thickness');
+  if (ink === null || ink === undefined || nib === null || nib === undefined) {
+    throw new Error('the pen toolbar is not showing a chosen ink and nib');
+  }
+  return { color: ink as PenColor, thickness: nib as PenThickness };
 }
 
 // --- story 9 helpers -------------------------------------------------------
@@ -475,6 +567,7 @@ export function objectEl(id: string): HTMLElement {
     screen.queryByTestId(`text-object-${id}`) ??
     screen.queryByTestId(`shape-${id}`) ??
     screen.queryByTestId(`connector-${id}`) ??
+    screen.queryByTestId(`stroke-${id}`) ??
     screen.getByTestId(`sticky-note-${id}`)
   );
 }

@@ -6,10 +6,13 @@
 // menu remembers Rectangle / Ellipse / Diamond) and the rule every tool obeys:
 // `toolCreated(id)` makes what was just drawn the only selected object and hands the
 // board back to Select, so a new shape or arrow can be adjusted straight away
-// (tools.return_to_select).
+// (tools.return_to_select). The Pen tool (story 11) is the one tool that does not obey that
+// rule, and it escapes it by never calling it: a sketch is several strokes long, and a tool that
+// handed the board back after each one would make a person pick the pen up as many times as they
+// drew (pen.stay_active). No flag exists here for it — the absence of a call is the mechanism.
 //
 // The keyboard half owns the tool letters — V select, T text, N a sticky note, S the
-// Shape tool, L the Connector tool — and Escape's return to Select. Every one of them
+// Shape tool, L the Connector tool, P the Pen — and Escape's return to Select. Every one of them
 // is ignored while a text field owns the keyboard, which is the shared guard in
 // `../board/typingGuard`: typing the word "save" into a shape label must not colour a
 // shape, switch a tool and create a note, one letter at a time. The letters are chosen
@@ -27,11 +30,11 @@ import { typingOwnsKeys, useWindowKeyDown } from '../board/typingGuard';
 import type { SelectionApi } from '../board/useSelection';
 
 /**
- * The tools this app has. Stories 11 and 12 add `pen`, `image` and `comment` to this
+ * The tools this app has. Story 12 adds `image` and `comment` to this
  * union; `select` is what every tool returns to, and `sticky` is deliberately not a
  * tool — the Sticky note button and N are one-shot actions, not a mode.
  */
-export type ToolId = 'select' | 'text' | 'shape' | 'connector';
+export type ToolId = 'select' | 'text' | 'shape' | 'connector' | 'pen';
 
 export interface ActiveToolApi {
   /** The tool currently held. */
@@ -65,6 +68,7 @@ const TOOL_KEYS: Readonly<Record<string, ToolId>> = {
   t: 'text',
   s: 'shape',
   l: 'connector',
+  p: 'pen',
 };
 
 /**

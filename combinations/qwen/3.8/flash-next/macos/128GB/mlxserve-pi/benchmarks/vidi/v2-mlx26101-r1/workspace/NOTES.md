@@ -505,3 +505,87 @@ now polled until the two boards agree instead of read once, using the file's own
 `expectEventually` and its propagation guard; the promise is the same (the two screens
 must agree on where the note is), the timing log is still printed, and a board that never
 agrees still fails. Nothing was removed and no threshold was loosened.
+
+# Story 11: sketch freehand with a pen
+
+## The undo boundary goes before the write, not after it
+`design.md` says "stopCapturing after each commit", and a literal reading of that loses strokes:
+`Y.UndoManager` merges consecutive transactions into one undo stack item *until* `stopCapturing()`
+is called, so a stop placed only after a write closes the window that the *next* write will open.
+A sticky note created a moment before a stroke, then one undo, and the note comes back with it.
+`PenTool` calls `undo.boundary()` first and then writes, which is the convention the rest of the
+board already uses: two strokes are `stop → write₁ → stop → write₂`, which groups exactly the way
+the design's own state diagram wants.
+
+## Two readouts of a stroke's points, on purpose
+`scaledPoints(s)` returns points in the **box's own units** (origin at the box's top-left, scaled by
+`width / baseWidth` and `height / baseHeight`); `strokePolyline(s)` returns the same line in **board
+units**. They cannot be one function: the first is what the `<svg>` draws inside its `viewBox` (which
+is what makes a resize scale a drawing instead of sliding it), and the second is what
+`distanceToPolyline` measures for a hit test, which has to be in the coordinate space the press was
+converted into. TC-06's "coordinates doubled when the box doubled" is a statement about the first;
+TC-15's five pixels is a statement about the second.
+
+## A stroke's box is not a target, in the model or in the DOM
+`objectAtPoint.ts` now excludes strokes from its box test, for the same reason connectors are
+excluded: a squiggle's bounding box is mostly empty board, and a box test would let a press beside a
+line select it. The DOM says the same thing — the wrapper is `pointer-events: none` and only the two
+paths take presses — and the two agree by construction: the registry's tolerance is
+`max(thickness / 2, STROKE_HIT_TOLERANCE_PX / zoom)` and the hit path is painted at twice that, so
+"this press is on the drawing" cannot mean one thing to the browser and another to the model.
+
+## The preview is painted imperatively, and React only mounts the SVG
+PenTool keeps the recorded points in a ref and, once per animation frame, sets
+`path.setAttribute('d', smoothPath(...))` directly. Re-rendering React per pointer event would put a
+5,000-point path through the reconciler 60 times a second for a line that is going to be thrown away
+a moment later; and the *reason* the stroke is not in the document while it is being drawn (an
+unfinished object on everybody else's board, in everybody's undo history) is the same reason its
+pixels should not go through the component tree either. React's involvement is one boolean: whether
+the SVG exists. Coalesced points come from `getCoalescedEvents()` when the browser offers them, which
+is the difference between a line and a polygon on a fast drag.
+
+## One wheel rule, in `toolSurface.ts`
+`wheelPixels()` / `wheelInputFromEvent()` moved out of `BoardViewport` so `PenTool`'s "forward what
+the pen is not for" path uses the same `deltaMode` conversion (lines vs pixels vs pages) the board
+uses. Duplicating it would mean two places to get the conversion wrong, and TC-19's "the board pans
+under the pen" would pass in one and not the other.
+
+## Component tests dispatch coalesced bursts, not single moves
+A 5,010-point drag delivered as 5,010 individual `fireEvent`s is 5,010 preview repaints in jsdom and
+took 5.6s for TC-12 alone. `moveThrough` now delivers 250 points per dispatch with a synthetic
+`getCoalescedEvents()` — which is what a real browser does: one `pointermove` per frame, the
+intermediate points inside it. Same coverage, same code path, TC-12 under a second.
+
+## e2e: sample the preview from inside the page's frames
+`design.md` asks for the preview's `d` measured "on consecutive animation frames". Reading it between
+two Playwright calls measures it whenever the browser got round to it, which is not the same claim, so
+`startPreviewSampler` installs a `requestAnimationFrame` loop in the page, the drag gives the pointer
+one frame per point, and the test asserts on what the page itself saw: a path painted on almost every
+frame, repainted with more than three distinct shapes as the pointer went on.
+
+## e2e: a fixture is sampled at a hand's rate, and the box is computed from what was moved
+Each `page.mouse.move` is a round trip, so replaying a 320-point recording at two steps each was
+enough to push TC-17 over the test timeout. The fixtures are now sampled every 5th or 6th point — a
+real pointer reports tens of points a second, not hundreds — and the box a stroke is stored in is
+asserted against the extent of the points that were *actually* moved through, not against the full
+fixture. That keeps the assertion honest at any sampling rate.
+
+## e2e: this Playwright has no `toSatisfy`
+Numeric "within n of" assertions go through `deviation(actual, expected)` and a `toBeLessThan`, which
+reads better in a failure message anyway ("the drawing is as wide as the pointer went: 3.4 ≥ 2").
+
+## A pen in one hand is not a pen in every hand, and the e2e says so
+TC-18's watcher holds no pen at all: his screen has no `pen-toolbar`, while the drawer's has. That is
+`pen.options`' session-only rule showing up as a real absence on a second browser, which is a
+stronger statement than the component test's "the other tab's state did not change".
+
+## Single-quoted test titles cannot contain apostrophes
+`it('a drawing's box…')` is a parse error in the vitest transform (esbuild), reported as a syntax
+error on a line the test title is not on. Rephrase, or use double quotes for titles that need an
+apostrophe.
+
+## Firefox and WebKit still cannot launch here (TC-17's second half is blocked)
+`E2E_BROWSERS=chromium,firefox,webkit npx playwright test pen.spec.ts --grep TC-17` launches both and
+both die at start (`Abort trap: 6` out of `pw_run.sh`, exit 134) before a page exists. Chromium's
+TC-17 passes. This is the same machine limitation noted for earlier stories, not something this
+story introduced or can fix; the run is recorded rather than skipped silently.

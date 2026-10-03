@@ -37,6 +37,7 @@ import {
   type Rect,
 } from './geometry';
 import { shapeFromMap } from './objects/shape';
+import { strokeFromMap } from './objects/stroke';
 import {
   connectorFromMap,
   detachConnectorsTo,
@@ -336,6 +337,15 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
       const snap = shapeFromMap(id, obj);
       rects.set(id, objectBounds(snap));
       out.push(snap);
+    } else if (type === 'stroke') {
+      // A stroke's box is its own too, written by the pen when the path was drawn: the path
+      // itself lives inside it, which is why a resize can redraw the drawing (pen.resize).
+      // A map whose path cannot be read is skipped rather than drawn as an empty box.
+      const snap = strokeFromMap(id, obj);
+      if (snap) {
+        rects.set(id, objectBounds(snap));
+        out.push(snap);
+      }
     } else if (type === 'connector') {
       // An arrow's real box comes from the objects it joins, which are every other
       // entry of this map: hold it back for the second pass. Its *stored* points give

@@ -8,12 +8,12 @@ import { useUndo, useUndoController } from './useUndo';
 export interface ToolbarProps {
   onCreateSticky(): void;
   /**
-   * The tool the board is holding (story 9, extended by story 10): Select, Text, the
-   * Shape tool or the Connector tool. Defaults to 'select' so a rail rendered on its
+   * The tool the board is holding (story 9, extended by stories 10 and 11): Select, Text, the
+   * Shape tool, the Connector tool or the Pen. Defaults to 'select' so a rail rendered on its
    * own (a story 2 / story 8 test) shows Select pressed.
    */
   tool?: Tool;
-  /** Hold a tool from the rail (a Select / Text / Shape / Connector button click). */
+  /** Hold a tool from the rail (a Select / Text / Shape / Connector / Pen button click). */
   onSelectTool?(t: Tool): void;
   /**
    * Which kind the Shape tool will draw next (shape.menu). The Shape button's small
@@ -203,6 +203,20 @@ export function Toolbar({
         style={toolBtn(tool === 'connector')}
       >
         {'\u2197'}
+      </button>
+      {/* The Pen. Its own options toolbar is drawn next to this rail by the board, and only
+          while this button is pressed: the nib and the ink are the tool's, not the rail's. */}
+      <button
+        type="button"
+        aria-label="Pen (P)"
+        title="Pen (P) \u2013 draw freehand; the pen stays in your hand until you put it down"
+        aria-pressed={tool === 'pen'}
+        data-testid="pen-tool"
+        disabled={disabled}
+        onClick={() => pick('pen')}
+        style={toolBtn(tool === 'pen')}
+      >
+        {'\u270E'}
       </button>
       <UndoButtons {...undo} />
     </div>

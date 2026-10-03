@@ -9,6 +9,9 @@ import type {
 import type { Point, Rect } from '../../shared/geometry';
 import type { ShapeKind, ShapeSnap } from '../../shared/objects/shape';
 import type { ConnectorSnap } from '../../shared/objects/connector';
+import type { StrokeSnap } from '../../shared/objects/stroke';
+import type { PenColor, PenThickness } from '../../shared/config';
+import { DEFAULT_PEN_COLOR, DEFAULT_PEN_THICKNESS } from '../../shared/config';
 import { applyTextDiff } from '../objects/StickyText';
 import {
   createSticky,
@@ -22,6 +25,7 @@ import { objectBounds, objectSnapshots } from '../../shared/board-model';
 import { nearestSide, sideAnchor } from '../../shared/geometry';
 import { createShape, getShapeLabel } from '../../shared/objects/shape';
 import { createConnector } from '../../shared/objects/connector';
+import { createStroke } from '../../shared/objects/stroke';
 
 /** Test-only handle on the live camera, installed when MODE === 'test'. */
 export interface Vidi6TestHooks {
@@ -73,6 +77,21 @@ export interface Vidi6BoardHandle {
   connectToPoint(fromId: string, at: Point): string | null;
   /** Replace a shape's label, as the editor does (minimal diff, merge-safe). */
   writeShape(id: string, text: string): void;
+  /**
+   * The drawings on the board, as this client's model sees them — seeded or drawn, local or
+   * synced, because the model does not distinguish and neither can a test that wants the truth.
+   */
+  strokes(): readonly StrokeSnap[];
+  /**
+   * Draw a stroke through world points, in the ink and nib asked for: the same `createStroke`
+   * the Pen tool calls, so a seeded stroke is indistinguishable from a drawn one. Null when the
+   * model refused the path, which is what it does with a path that has no points in it.
+   */
+  createStroke(
+    points: readonly Point[],
+    color?: PenColor,
+    thickness?: PenThickness,
+  ): string | null;
 }
 
 declare global {
@@ -154,6 +173,9 @@ export function installBoardHandle(doc: Y.Doc): () => void {
       );
     },
     shapes: () => objectsOf(doc, 'shape') as ShapeSnap[],
+    strokes: () => objectsOf(doc, 'stroke') as StrokeSnap[],
+    createStroke: (points, color = DEFAULT_PEN_COLOR, thickness = DEFAULT_PEN_THICKNESS) =>
+      createStroke(doc, { points, color, thickness }, 'e2e'),
     connectors: () => objectsOf(doc, 'connector') as ConnectorSnap[],
     createShape: (at, kind, rect) => createShape(doc, { at, kind, rect }, 'e2e'),
     connect: (fromId, toId) => {

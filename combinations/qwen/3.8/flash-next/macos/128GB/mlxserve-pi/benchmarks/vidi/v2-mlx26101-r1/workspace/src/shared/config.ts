@@ -374,3 +374,62 @@ export const CONNECTOR_DOT_HIGHLIGHT_COLOR = '#1E88E5';
 
 /** The four object sides an arrow can attach to, in the order they are drawn. */
 export const CONNECTOR_SIDES = ['top', 'right', 'bottom', 'left'] as const;
+
+// --- Pen (freehand stroke) settings (story 11) ------------------------------
+// The pens a person can draw with, and the three rules a drawn path is held to: how far it may
+// be smoothed, how long one stroke may be, and how close a click has to be to be a hit on it.
+
+/**
+ * The pens, as names rather than hex codes: a stroke stores the name it was drawn with and the
+ * board looks the colour up, so a palette can be retinted without a migration and a stroke drawn
+ * by an older client keeps the ink it was drawn in.
+ */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+export type PenColor = keyof typeof PEN_COLORS;
+
+/**
+ * The nib sizes, in **world units**, so a stroke keeps its weight on the board as the camera
+ * zooms: the same pen at 200% is the same line over the same note, twice as many pixels wide.
+ */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** The pen the board picks for someone who has never chosen one. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/**
+ * How far a point may stray from the line that replaces it, in *screen* pixels, before the hand
+ * that drew it is missed (pen.smooth). The board divides it by the zoom, so the promise is the
+ * same size on the screen at every zoom level, exactly like the hit tolerance below.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * The most points one stroke may hold (pen.long_stroke). A path is one array on one object and
+ * every commit replaces the whole of it, so a person who scribbles without lifting the pen would
+ * be sending an ever-larger payload; past this the path is cut into a second stroke, which is
+ * why the cut has to share its point.
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/**
+ * How close to a stroke's line a click has to land to select it, in *screen* pixels
+ * (pen.select). The same rule story 10 set for arrows, on a polyline with far more points in it.
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/**
+ * The smallest box a stroke may have, in world units: the thickness square a single dot is drawn
+ * in (pen.dot), and the least a resize may leave of a drawing.
+ */
+export const STROKE_MIN_SIZE_WORLD = 4;

@@ -17,8 +17,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 8 | 7/7 | 0 | 1 | 49/51 |
 | 9 | 6/6 | 1 | 0 | 54/57 |
 | 10 | 7/8 | 0 | 0 | 61/65 |
+| 11 | 4/5 | 0 | 1 | 66/70 |
 
-**New work** 57/61, **regressions** 1, **repairs** 1, **cumulative** 61/65.
+**New work** 61/66, **regressions** 1, **repairs** 2, **cumulative** 66/70.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -31,8 +32,13 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 40.3 | None | None | None | — | — | green | 49/51 |  | 0 / 0 | 2 | — | throttled 96%, server peak 94 GB |
 | 9 | Write free text anywhere on the board | DONE | 86.0 | None | None | None | — | — | green | 54/57 |  | 0 / 1 | 5 | — | throttled 93%, server peak 94 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 152.5 | None | None | None | — | — | green | 61/65 |  | 0 / 0 | 7 | — | throttled 93%, server peak 94 GB |
+| 11 | Sketch freehand with a pen | PARTIAL (green) | 87.8 | None | None | None | — | — | green | 66/70 |  | 0 / 1 | 6 | — | throttled 98%, server peak 94 GB |
 
-**Totals:** 9 stories, 653 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 9/9, final acceptance 61/65, stalled 0, partial 0, 28820 lines in src+tests.
+**Totals:** 10 stories, 741 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 10/10, final acceptance 66/70, stalled 0, partial 1, 32525 lines in src+tests.
+
+### Stories ended early (PARTIAL) and what was built on them
+
+- **Story 11 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **green**: gate green, tasks not verified none (implementation: none), held-out 4/5 (floor 0.0).
 
 ## How it happened
 
@@ -49,6 +55,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 8 | 1 by the agent | 1565 / 7 | `undo.ts` (202), `useUndo.ts` (78), `UndoButtons.tsx` (35), `Board.tsx` (27), `useBoardKeys.ts` (27), `StickyTextEditor.tsx` (27), +3 more |
 | 9 | 1 by the agent | 4228 / 425 | `TextEditor.tsx` (298), `text.ts` (261), `StickyTextEditor.tsx` (247), `textLayout.ts` (207), `TextObject.tsx` (158), `text-edit.ts` (151), +21 more |
 | 10 | 1 by the agent | 7036 / 259 | `ConnectorTool.tsx` (636), `connector.ts` (374), `shape.ts` (336), `ShapeTool.tsx` (279), `useBoardKeys.ts` (263), `ShapeObject.tsx` (224), +20 more |
+| 11 | 1 by the agent | 3836 / 42 | `PenTool.tsx` (390), `stroke.ts` (268), `simplify.ts` (147), `PenToolbar.tsx` (143), `StrokeObject.tsx` (139), `NOTES.md` (84), +13 more |
 
 ### Earlier stories broken or fixed
 
@@ -56,6 +63,8 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 3: 6/7 → 7/7; fixed 1
 - **Story 9 broke 1, fixed 0** earlier held-out tests (story 9: Write free text anywhere on the board). Source files it changed most: `TextEditor.tsx` (298), `text.ts` (261), `StickyTextEditor.tsx` (247), `textLayout.ts` (207), `TextObject.tsx` (158), `text-edit.ts` (151), +21 more.
   - story 3: 7/7 → 6/7; broke 1.
+- **Story 11 broke 0, fixed 1** earlier held-out tests (story 11: Sketch freehand with a pen). Source files it changed most: `PenTool.tsx` (390), `stroke.ts` (268), `simplify.ts` (147), `PenToolbar.tsx` (143), `StrokeObject.tsx` (139), `NOTES.md` (84), +13 more.
+  - story 3: 6/7 → 7/7; fixed 1
 
 ### Interruptions and dead time
 

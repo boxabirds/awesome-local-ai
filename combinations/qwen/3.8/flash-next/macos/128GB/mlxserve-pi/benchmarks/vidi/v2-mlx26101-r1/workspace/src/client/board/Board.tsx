@@ -36,6 +36,9 @@ import { SelectionBar } from './SelectionBar';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool, type ConnectorToolHandle } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit } from '../sync/connectBoard';
 import { IS_TEST_MODE, publishConnectionState } from '../canvas/testHooks';
@@ -268,6 +271,11 @@ export function Board({ boardId }: BoardProps) {
     onCreateSticky: createAtCentre,
   });
 
+  // Which pen this person is holding: ink and nib, for this tab and this visit only. Like the
+  // tool itself it is never written to the document, so it cannot appear on anyone else's screen
+  // and a reload hands back the default pen (pen.options).
+  const penOptions = usePenOptions();
+
   useBoardKeys({
     doc,
     selection,
@@ -433,6 +441,40 @@ export function Board({ boardId }: BoardProps) {
         onCreated={tool.toolCreated}
         onWriteEnd={writeConnectorEnd}
       />
+
+      {/*
+        Story 11's pen, which works the same way as the two above it and differs in one rule:
+        it does not go back to Select when it finishes. Its layer covers the board while the pen
+        is held, so the presses are the tool's and the objects underneath never see them — a
+        stroke drawn across a sticky note neither pans the board nor moves the note
+        (pen.navigation) — and the wheel it catches is forwarded to the same camera handler the
+        board itself uses, because a wheel belongs to the element under the pointer and that is
+        now the layer (pen.navigation). Each finished stroke is written once, by the tool, in one
+        transaction; nothing before it reaches the document.
+      */}
+      <PenTool
+        doc={doc}
+        identityId={author(doc)}
+        surface={surfaceRef.current}
+        camera={camera}
+        canEdit={editAllowed}
+        active={tool.tool === 'pen'}
+        color={penOptions.color}
+        thickness={penOptions.thickness}
+        onWheelInput={onWheelInput}
+      />
+      {/* The pen's own options, next to the rail and after the pen's layer in the DOM so that it
+          stays clickable while the layer is taking every press. Rendered only while the pen is
+          held, and it holds nothing but the two settings: the strokes already on the board keep
+          the ink and nib they were drawn with (pen.options). */}
+      {tool.tool === 'pen' ? (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
+        />
+      ) : null}
 
       <Toolbar
         onCreateSticky={createAtCentre}
