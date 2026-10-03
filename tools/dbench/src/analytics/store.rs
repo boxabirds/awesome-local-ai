@@ -31,7 +31,9 @@ pub struct Store {
 impl Store {
     pub fn open(path: &Path) -> Result<Store> {
         let conn = Connection::open(path).with_context(|| format!("open {}", path.display()))?;
-        conn.pragma_update(None, "journal_mode", "wal")?;
+        // Not WAL: one writer, passes seconds long, and a reader opening the idle file read-only (the sqlite3 CLI, DuckDB)
+        // needs no -shm file. A file an earlier version made in WAL mode is converted.
+        conn.query_row("pragma journal_mode = delete", [], |r| r.get::<_, String>(0))?;
         Self::init(conn)
     }
 

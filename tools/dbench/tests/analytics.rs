@@ -243,3 +243,24 @@ fn a_failure_in_analytics_is_a_message_never_a_panic_or_an_error_for_the_collect
     assert!(msg.starts_with("analytics: "), "{msg}");
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn the_analytics_file_can_be_opened_read_only_once_a_pass_is_done() {
+    // Readers (the sqlite3 CLI, DuckDB's attach) open it read-only while no collector pass has it open: in WAL mode that
+    // fails for lack of a -shm file, so the file is not in WAL mode.
+    use dbench::analytics::after_ingest;
+    let dir = scratch("readonly");
+    let wh = dir.join("conversations.db");
+    {
+        let db = Db::open(&wh).unwrap();
+        let sk = story(&db.conn, REL, 3);
+        call(&db.conn, sk, 0, 1.0, 2.0, Some("one thought two three"));
+    }
+    after_ingest(&wh, 0, 1.0).expect("computed");
+    let ro = Connection::open_with_flags(dir.join("analytics.db"), rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+    let n: i64 = ro.query_row("select count(*) from analytics_story", [], |r| r.get(0)).unwrap();
+    assert_eq!(n, 1);
+    let mode: String = ro.query_row("pragma journal_mode", [], |r| r.get(0)).unwrap();
+    assert_ne!(mode, "wal");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
