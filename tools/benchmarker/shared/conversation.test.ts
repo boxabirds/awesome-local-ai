@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cutText, eventText, EventStore, matchesQuery, needsClamp, SEGMENT_ANCHOR, splitHighlights, storyRunId, timeline, type ConversationEvent } from "./conversation.ts";
+import { cutText, eventText, EventStore, matchesQuery, needsClamp, SEGMENT_KIND, splitHighlights, storyRunId, timeline, type ConversationEvent } from "./conversation.ts";
 import { SEGMENTS } from "./runView.ts";
 
 const ev = (ord: number, tMs: number, kind = "call", refIdx = ord): ConversationEvent => ({ ord, tMs, kind, refIdx, cursor: `${tMs}:${ord}` });
@@ -9,8 +9,8 @@ describe("ids and anchors", () => {
     expect(storyRunId("combinations/x/benchmarks/vidi/v2-r1", "3")).toBe("combinations/x/benchmarks/vidi/v2-r1/stories/03");
     expect(storyRunId("benchmarks/reference/vidi/opus-5.5/run-9", "12")).toBe("benchmarks/reference/vidi/opus-5.5/run-9/stories/12");
   });
-  it("every part of a time bar leads somewhere on the conversation page", () => {
-    for (const s of SEGMENTS) expect(SEGMENT_ANCHOR[s.seg], s.seg).toBeTruthy();
+  it("every part of a time bar names a kind of turn", () => {
+    for (const s of SEGMENTS) expect(SEGMENT_KIND[s.seg], s.seg).toBeTruthy();
   });
 });
 

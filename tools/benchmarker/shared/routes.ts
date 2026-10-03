@@ -29,9 +29,9 @@ export const storyRunHref = (pack: string, stack: string, runId: string, story: 
   `${runHref(pack, stack, runId)}/s/${storyNo(story)}`;
 const CONVERSATION = "conversation";
 const CALL = "c";
-/** A story run's conversation, landing on one of its sections (`at`) when asked. */
-export const conversationHref = (pack: string, stack: string, runId: string, story: string, at?: string) =>
-  withParams(`${storyRunHref(pack, stack, runId, story)}/${CONVERSATION}`, { at });
+/** A story run's conversation, showing one kind of turn alone (`kind`) when asked: what a time bar's part names. */
+export const conversationHref = (pack: string, stack: string, runId: string, story: string, kind?: string) =>
+  withParams(`${storyRunHref(pack, stack, runId, story)}/${CONVERSATION}`, { kind });
 /** One model call of a story run's conversation, in full. */
 export const callHref = (pack: string, stack: string, runId: string, story: string, call: number | string) =>
   `${storyRunHref(pack, stack, runId, story)}/${CONVERSATION}/${CALL}/${seg(String(Number(call)))}`;

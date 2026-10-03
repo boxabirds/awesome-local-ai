@@ -7,6 +7,7 @@ import { GLOSSARY } from "../../shared/glossary.ts";
 import { Breadcrumb, CombinationLink, RunLink, StoryRunLink } from "../components/EntityLinks.tsx";
 import { StoryRunHeader } from "../components/run/StoryRunParts.tsx";
 import { Missing, NotApplicable, Section, Stat, full } from "../components/run/bits.tsx";
+import { Clamped } from "../components/conversation/text.tsx";
 import { useConversation, useInFull } from "../useConversation.ts";
 import { NOT_AVAILABLE } from "./ConversationPage.tsx";
 import "./run.css";
@@ -16,7 +17,7 @@ interface ToolInFull { idx: number; callIdx: number; name: string | null; kind: 
 interface CallInFull { idx: number; think: number; text: string; nTools: number; outTok: number | null; inTok: number | null; cacheTok: number | null; stop: string | null; sub: number; thinking: string; sent: number | null; first: number | null; tools: ToolInFull[] }
 
 const JSON_INDENT = 2;
-const Quoted = ({ text, block }: { text: string; block?: boolean }) => (block ? <pre className="quoted" data-quoted="agent">{text}</pre> : <span className="quoted" data-quoted="agent">{text}</span>);
+const Quoted = ({ text }: { text: string }) => <Clamped text={text} block />;
 
 export function CallPage({ run, story, storyId, call, state }: { run: Row; story: Story | null; storyId: string; call: string; state: State }) {
   const st = storyRunState(run, storyId);
@@ -64,13 +65,13 @@ export function CallPage({ run, story, storyId, call, state }: { run: Row; story
             <Stat term="inputRead">{c.inTok !== null ? full(c.inTok + (c.cacheTok ?? 0)) : <Missing why="The client didn't report this call's tokens." />}</Stat>
             <Stat term="calls">{full(c.nTools)}</Stat>
           </div>
-          {!withheld && c.thinking ? <div className="call-block" data-block="thinking"><h3>Thinking</h3><Quoted text={c.thinking} block /></div> : null}
-          <div className="call-block" data-block="text"><h3>Text</h3>{c.text ? <Quoted text={c.text} block /> : <span className="small">none</span>}</div>
+          {!withheld && c.thinking ? <div className="call-block" data-block="thinking"><h3>Thinking</h3><Quoted text={c.thinking} /></div> : null}
+          <div className="call-block" data-block="text"><h3>Text</h3>{c.text ? <Quoted text={c.text} /> : <span className="small">none</span>}</div>
           {c.tools.map((t) => (
             <div className="call-block tool" data-block="tool" data-tool={t.idx} key={t.idx}>
               <h3><span className="mono">{t.name ?? ""}</span> <span className="small">{t.kind ?? ""}{t.error === 1 ? " · failed" : t.end === null ? " · no end yet" : ""}</span></h3>
-              <h4>Arguments</h4><Quoted text={JSON.stringify(t.args, null, JSON_INDENT)} block />
-              <h4>Result</h4>{t.result !== null ? <Quoted text={t.result} block /> : <Missing why="This tool call has no result yet." />}
+              <h4>Arguments</h4><Quoted text={JSON.stringify(t.args, null, JSON_INDENT)} />
+              <h4>Result</h4>{t.result !== null ? <Quoted text={t.result} /> : <Missing why="This tool call has no result yet." />}
             </div>
           ))}
         </>}

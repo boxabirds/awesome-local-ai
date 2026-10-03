@@ -1,12 +1,4 @@
 /* The conversation and call pages: results, happening by happening. */
-.conv-sections { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 10px; }
-.conv-sections a { text-decoration: none; }
-.conv-sections a[aria-current="true"] { font-weight: 600; text-decoration: underline; }
-.conv-timeline { display: flex; align-items: flex-end; gap: 1px; height: 48px; margin: 0; padding: 2px 0; border-bottom: 1px solid var(--line, #ddd); }
-.conv-timeline .tick { flex: 1 1 0; min-width: 2px; background: var(--seg-decode); border-radius: 1px 1px 0 0; display: block; }
-.conv-timeline .tick.empty { background: var(--faint, #ccc); opacity: 0.5; }
-.conv-timeline .tick.compaction { box-shadow: 0 -2px 0 var(--seg-compaction); }
-.conv-timeline a.tick:hover { filter: brightness(1.25); }
 /* Numbers take the width of their digits; the conversation's text takes the rest. */
 .conv-table { table-layout: auto; }
 .conv-table th, .conv-table td { padding: 4px 6px; vertical-align: top; }
@@ -46,10 +38,6 @@ pre.quoted { max-height: 60vh; overflow: auto; background: var(--panel, #f6f6f6)
 .conversation-link { font-size: 12px; }
 
 /* The layout switch, the in-order list, and the row a timeline tick jumped to. */
-.view-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-right: 12px; }
-.view-switch button { font: inherit; font-size: 12px; padding: 3px 10px; border: 0; background: var(--panel); color: var(--muted); cursor: pointer; }
-.view-switch button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
-.conv-timeline button.tick { border: 0; padding: 0; cursor: pointer; }
 .in-order .what { white-space: nowrap; }
 .kind { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--panel-2); color: var(--muted); }
 .kind-call { background: var(--seg-decode); color: #fff; }
@@ -60,3 +48,35 @@ pre.quoted { max-height: 60vh; overflow: auto; background: var(--panel, #f6f6f6)
 tr[data-jumped="true"] td { background: var(--chip); }
 .call-nav .back { font-weight: 600; }
 .call-nav .call-of { color: var(--muted); }
+
+/* The overview's controls: kind chips, the search, the strip. */
+.conv-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 10px; }
+.conv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--muted); cursor: pointer; }
+.chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.chip[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+.chip[aria-pressed="false"] { text-decoration: line-through; opacity: .7; }
+.chip-call i { background: var(--seg-decode); } .chip-tool i { background: var(--seg-tools); } .chip-compaction i { background: var(--seg-compaction); } .chip-wait i { background: var(--seg-between); }
+.chip-reset { font: inherit; font-size: 12px; padding: 3px 10px; border: 1px dashed var(--line); border-radius: 999px; background: none; color: var(--muted); cursor: pointer; }
+.conv-controls input { flex: 0 1 32ch; font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.conv-strip-wrap { margin: 4px 0 0; }
+.conv-strip { display: block; width: 100%; height: 60px; cursor: crosshair; touch-action: none; }
+.strip-base { stroke: var(--line); stroke-width: 1; }
+.strip-call { fill: var(--seg-decode); }
+.strip-call:hover { filter: brightness(1.25); }
+.strip-tool { fill: var(--seg-tools); opacity: .8; }
+.strip-compaction { stroke: var(--seg-compaction); stroke-width: 2; }
+.strip-range { fill: var(--ink); opacity: .12; }
+.conv-strip-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin-top: 4px; color: var(--muted); }
+.conv-strip-legend .sw { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; border-radius: 2px; }
+.sw-call { background: var(--seg-decode); } .sw-tool { background: var(--seg-tools); } .sw-compaction { background: var(--seg-compaction); }
+.conv-strip-legend .hint { margin-left: auto; }
+/* The one list: a call's row, then its tools indented; the Turn column holds the figures under the label. */
+.conv-table.turns .what { white-space: normal; width: 30ch; min-width: 24ch; }
+.conv-table.turns .figures { white-space: normal; margin-top: 2px; }
+.conv-table.turns tr.tool-line td { background: var(--panel-2); }
+.conv-table.turns tr.tool-line .what { padding-left: 22px; }
+.conv-table.turns .said .clamp-cell + .clamp-cell { margin-top: 4px; border-top: 1px dashed var(--line); padding-top: 4px; }
+.kind-tool { background: var(--seg-tools); color: #fff; }
+.kind-wait { background: var(--seg-between); color: #fff; }
+.kind-compaction { background: var(--seg-compaction); color: #fff; }

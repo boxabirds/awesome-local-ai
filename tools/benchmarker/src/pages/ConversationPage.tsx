@@ -1,100 +1,46 @@
-// A story run's conversation, happening by happening (plan section 4.4, as the time-range cursor API gives it).
-// The page backfills the span and then follows along after its latest cursor; the story's status plays no part.
-// Verbatim agent text is marked data-quoted="agent": it is a result, never the app's own words.
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+// A story run's conversation: an overview that navigates it (what kinds to show, what text, what span of time),
+// over one list of its turns in time order. The story's status plays no part: the page backfills the span and then
+// follows along after its latest cursor. Verbatim agent text is marked data-quoted="agent": a result, never the
+// app's own words.
+import { useEffect, useRef, useState } from "react";
 import type { Row, State, Story } from "../../shared/types.ts";
-import { CONVERSATION_VIEWS, cutText, matchesQuery, needsClamp, splitHighlights, timeline, type ConversationAnchor, type ConversationEvent, type ConversationView, type CutText } from "../../shared/conversation.ts";
-import { callHref, conversationHref } from "../../shared/routes.ts";
+import { clock, cutText, kindsFromParam, nearestTurn, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
+import { callHref } from "../../shared/routes.ts";
 import { storyRunState, storyTitle } from "../../shared/runView.ts";
-import { GLOSSARY, type TermId } from "../../shared/glossary.ts";
+import { GLOSSARY } from "../../shared/glossary.ts";
 import { Breadcrumb, CombinationLink, RunLink, StoryRunLink } from "../components/EntityLinks.tsx";
 import { StoryRunHeader } from "../components/run/StoryRunParts.tsx";
-import { Missing, NotApplicable, Section, Term, full, utc } from "../components/run/bits.tsx";
+import { Missing, Section, Term, full, utc } from "../components/run/bits.tsx";
+import { Clamped } from "../components/conversation/text.tsx";
 import { duration } from "../format.ts";
 import { useConversation } from "../useConversation.ts";
 import "./run.css";
 import "./conversation.css";
 
-const TIMELINE_BINS = 60;
 const MS_PER_S = 1000;
-const PERCENT = 100;
-const MIN_TICK_PERCENT = 2;
+/** The strip's drawing space: a click within this many pixels of its press is a click, not a drag. */
+const STRIP_W = 1000;
+const STRIP_H = 60;
+const STRIP_BASE = 52;
+const STRIP_CALL_H = 44;
+const STRIP_TOOL_H = 6;
+const DRAG_PX = 4;
+const MIN_MARK_W = 2;
 export const NOT_AVAILABLE = "Not available.";
-
-const VIEW_KEY = "benchmarker:conv-view:v1";
-const DEFAULT_VIEW: ConversationView = "time";
-const loadView = (): ConversationView => { try { return localStorage.getItem(VIEW_KEY) === "type" ? "type" : DEFAULT_VIEW; } catch { return DEFAULT_VIEW; } };
-const saveView = (v: ConversationView) => { try { localStorage.setItem(VIEW_KEY, v); } catch { /* not remembered */ } };
 const callRowId = (idx: number) => `call-${idx}`;
 
-const SECTIONS: { id: ConversationAnchor; term: TermId; kinds: string[] }[] = [
-  { id: "calls", term: "modelCall", kinds: ["call"] },
-  { id: "tools", term: "toolCall", kinds: ["tool_start"] },
-  { id: "compactions", term: "compactionEvent", kinds: ["compaction_start"] },
-  { id: "sessions", term: "betweenSessionsEvent", kinds: ["between_sessions"] },
-  { id: "messages", term: "harnessMessage", kinds: ["msg"] },
-  { id: "requests", term: "engineRequest", kinds: ["request"] },
-  { id: "conditions", term: "conditionReading", kinds: ["condition"] },
-];
-
-const secs = (ms: number, from: number) => `${((ms - from) / MS_PER_S).toFixed(1)} s`;
-const n = (v: unknown) => (typeof v === "number" ? full(v) : null);
-const num = (v: unknown, why: string) => (typeof v === "number" ? full(v) : <Missing why={why} />);
 const isNum = (v: unknown): v is number => typeof v === "number";
-
-/** Verbatim text from the agent's conversation: a result, marked as such; what matches the search is marked too. */
-function Quoted({ text, className, query }: { text: string; className?: string; query?: string }) {
-  const runs = splitHighlights(text, query ?? "");
-  return <span className={`quoted ${className ?? ""}`} data-quoted="agent">{runs.map((r, i) => (r.hit ? <mark key={i}>{r.text}</mark> : r.text))}</span>;
-}
-
-/** A cell of conversation text: five lines, then a + button for the whole of what the page holds. */
-function Clamped({ text, query, mono }: { text: string; query: string; mono?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const fold = needsClamp(text);
-  return (
-    <div className="clamp-cell">
-      <div className={`clamp${mono ? " mono" : ""}`} data-expanded={fold && open ? "true" : "false"} data-folded={fold && !open ? "true" : undefined}>
-        <Quoted text={text} query={query} />
-      </div>
-      {fold ? <button type="button" className="clamp-more" aria-expanded={open} aria-label={open ? "Show less" : "Show all"} onClick={() => setOpen((o) => !o)}>{open ? "−" : "+"}</button> : null}
-    </div>
-  );
-}
-
-/** What a call's Said cell shows: its text, else its thinking; and its thinking when that is what the search found. */
-function said(e: ConversationEvent, withheld: boolean, query: string): string {
-  const text = cutText(e.textBody as CutText).trim();
-  const thinking = withheld ? "" : cutText(e.thinking as CutText | null).trim();
-  const q = query.trim().toLowerCase();
-  if (q && thinking && !text.toLowerCase().includes(q) && thinking.toLowerCase().includes(q)) return thinking;
-  return text || thinking;
-}
-
-/** Rows that hold the query; all of them for none. */
-const matching = (events: ConversationEvent[], query: string) => events.filter((e) => matchesQuery(e, query));
-
-/** "154", or "3 of 154" while a search narrows the rows. */
-const countText = (shown: number, total: number, query: string) => (query.trim() ? `${full(shown)} of ${full(total)}` : full(total));
+const n = (v: unknown) => (isNum(v) ? full(v) : "");
 
 export function ConversationPage({ run, story, storyId, state, params }: { run: Row; story: Story | null; storyId: string; state: State; params?: Record<string, string> }) {
   const st = storyRunState(run, storyId);
   const title = storyTitle(run, state.rows, storyId);
   const id = story?.storyRunId ?? null;
   const conv = useConversation(id && story?.hasConversation ? id : null);
-  const at = params?.at;
-  // A bar's part names a section, so the page opens by type then; otherwise the view last chosen (in order at first).
-  const [view, setView] = useState<ConversationView>(() => (at ? "type" : loadView()));
-  const chooseView = (v: ConversationView) => { setView(v); saveView(v); };
+  const [kinds, setKinds] = useState<Set<TurnKind>>(() => kindsFromParam(params?.kind));
+  const [query, setQuery] = useState("");
+  const [range, setRange] = useState<[number, number] | null>(null);
   const [jumped, setJumped] = useState<number | null>(null);
-  useEffect(() => {
-    if (at && conv.backfilled) document.getElementById(`sec-${at}`)?.scrollIntoView({ block: "start" });
-  }, [at, conv.backfilled]);
-  /** A timeline tick: to that call's row, marked, in whichever view is shown. */
-  const jumpTo = (idx: number) => {
-    setJumped(idx);
-    document.getElementById(callRowId(idx))?.scrollIntoView({ block: "center" });
-  };
   const crumbs = [
     { label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> },
     { label: <RunLink pack={run.pack} stack={run.stack} runId={run.runId} /> },
@@ -114,289 +60,179 @@ export function ConversationPage({ run, story, storyId, state, params }: { run: 
   }
   const s = conv.summary;
   const from = s?.range.fromMs ?? 0;
-  const link = (call: number | string) => callHref(run.pack, run.stack, run.runId, storyId, call);
-  const toMs = s ? Math.max(s.range.toMs, ...conv.events.map((e) => e.tMs + 1)) : 0;
-  const bins = s ? timeline(conv.events, { fromMs: from, toMs }, TIMELINE_BINS) : [];
-  const maxCalls = Math.max(1, ...bins.map((b) => b.calls));
-  const of = (kinds: string[]) => conv.events.filter((e) => kinds.includes(e.kind));
+  const toMs = s ? Math.max(s.range.toMs, ...conv.events.map((e) => e.tMs + 1)) : from + 1;
+  const all = turns(conv.events);
+  const filter = { kinds, query, range };
+  const shown = all.map((t, i) => [t, i] as const).filter(([t]) => turnShown(t, filter));
+  const count = (k: TurnKind) => all.filter((t) => (k === "tool" ? t.kind === "tool" || t.tools.length > 0 : t.kind === k)).reduce((a, t) => a + (k === "tool" ? (t.kind === "tool" ? 1 : t.tools.length) : 1), 0);
+  const toggle = (k: TurnKind) => setKinds((prev) => { const next = new Set(prev); if (next.has(k)) next.delete(k); else next.add(k); return next; });
+  const everyKind = kinds.size === TURN_KINDS.length;
+  const link = (call: number) => callHref(run.pack, run.stack, run.runId, storyId, call);
+  const jumpTo = (turn: number) => {
+    setJumped(turn);
+    const t = all[turn];
+    const el = t?.callIdx !== null && t?.callIdx !== undefined ? document.getElementById(callRowId(t.callIdx)) : document.getElementById(`turn-${turn}`);
+    el?.scrollIntoView({ block: "center" });
+  };
+  const withheld = s?.fmt === "claude";
   return (
     <div className="page conversation-page run-page" data-page="conversation" data-available="true" data-backfilled={conv.backfilled ? "true" : "false"} data-polls={conv.polls}>
       <Breadcrumb trail={crumbs} />
       <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
-      <Section term="conversationPage" id="conversation" aside={<>
-        <span className="view-switch" role="group" aria-label="Layout">
-          {CONVERSATION_VIEWS.map((v) => <button key={v.id} type="button" aria-pressed={view === v.id} data-view={v.id} onClick={() => chooseView(v.id)}>{v.name}</button>)}
-        </span>
-        {s ? <span className="small" data-fact="range">{utc(from / MS_PER_S)} · {duration((toMs - from) / MS_PER_S)} · <span data-fact="events">{full(conv.events.length)}</span> events{s.complete ? "" : " so far"}</span> : null}
-      </>}>
-        <nav className="conv-sections" aria-label="Sections of the conversation">
-          {SECTIONS.map((sec) => view === "type"
-            ? <a key={sec.id} href={conversationHref(run.pack, run.stack, run.runId, storyId, sec.id)} data-anchor={sec.id} aria-current={at === sec.id ? "true" : undefined}>{GLOSSARY[sec.term].name} <span className="num">{of(sec.kinds).length}</span></a>
-            : <span key={sec.id} data-anchor={sec.id}>{GLOSSARY[sec.term].name} <span className="num">{of(sec.kinds).length}</span></span>)}
-        </nav>
-        <figure className="conv-timeline" aria-label={GLOSSARY.callTimeline.name} data-tip={GLOSSARY.callTimeline.what}>
-          {bins.map((b, i) => (
-            b.firstCallIdx !== null
-              ? <button key={i} type="button" className={`tick${b.compaction ? " compaction" : ""}`} onClick={() => jumpTo(b.firstCallIdx!)} style={{ height: `${Math.max(MIN_TICK_PERCENT, (b.calls / maxCalls) * PERCENT)}%` }} data-tip={`${secs(b.fromMs, from)}: ${b.calls} call${b.calls === 1 ? "" : "s"}${b.compaction ? ", compacted" : ""}. Click: to call ${b.firstCallIdx + 1} below`} aria-label={`${b.calls} calls at ${secs(b.fromMs, from)}: to call ${b.firstCallIdx + 1}`} />
-              : <span key={i} className={`tick empty${b.compaction ? " compaction" : ""}`} style={{ height: `${MIN_TICK_PERCENT}%` }} data-tip={`${secs(b.fromMs, from)}: no call${b.compaction ? ", compacted" : ""}`} />
-          ))}
-        </figure>
+      <Section term="conversationPage" id="conversation" aside={s ? <span className="small" data-fact="range">{utc(from / MS_PER_S)} · {duration((toMs - from) / MS_PER_S)} · <span data-fact="events">{full(conv.events.length)}</span> events{s.complete ? "" : " so far"}</span> : null}>
+        <div className="conv-controls">
+          <div className="conv-chips" role="group" aria-label="Kinds shown">
+            {TURN_KINDS.map((k) => <button key={k.id} type="button" className={`chip chip-${k.id}`} data-kind={k.id} aria-pressed={kinds.has(k.id)} onClick={() => toggle(k.id)}><i aria-hidden="true" />{k.name} <span className="num">{full(count(k.id))}</span></button>)}
+            {everyKind ? null : <button type="button" className="chip-reset" onClick={() => setKinds(kindsFromParam(undefined))}>all kinds</button>}
+          </div>
+          <input type="search" role="searchbox" aria-label="Search the conversation" placeholder="Search the conversation" value={query} onChange={(ev) => setQuery(ev.target.value)} />
+        </div>
+        <Strip all={all} from={from} toMs={toMs} range={range} onJump={jumpTo} onRange={setRange} />
       </Section>
-      {view === "time" ? <InOrder events={conv.events} from={from} fmt={s?.fmt ?? null} link={link} jumped={jumped} /> : <>
-        <Calls events={of(["call"])} from={from} fmt={s?.fmt ?? null} link={link} jumped={jumped} />
-        <Tools events={of(["tool_start", "tool_end"])} from={from} link={link} />
-        <Compactions events={of(["compaction_start", "compaction_end"])} from={from} />
-        <Sessions events={of(["between_sessions"])} from={from} />
-        <Messages events={of(["msg"])} from={from} />
-        <Requests events={of(["request"])} from={from} link={link} />
-        <Conditions events={of(["condition"])} from={from} />
-      </>}
+      <section className="rp-section conv-section" id="sec-all" data-section="all" aria-labelledby="h-all">
+        <div className="rp-head">
+          <h2 id="h-all"><Term id="inOrder" /></h2>
+          <div className="rp-aside"><span className="num" data-fact="count">{shown.length === all.length ? full(all.length) : `${full(shown.length)} of ${full(all.length)} shown`}</span></div>
+        </div>
+        <div className="rp-body">
+          {all.length === 0 ? <p className="rp-empty small">None.</p> : (
+            <div className="table-scroll">
+              <table className="rp-table conv-table turns" aria-label={GLOSSARY.inOrder.name}>
+                <thead><tr><th className="n">At</th><th className="what">Turn</th><th className="said">Text</th></tr></thead>
+                <tbody>
+                  {shown.flatMap(([t, i]) => rowsOf(t, i, { from, link, query, kinds, withheld, jumped: jumped === i }))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
 
-// ---- which sections are folded: remembered in the browser, like the run groups ----
-const FOLD_KEY = "benchmarker:conv-folded:v1";
-const foldListeners = new Set<() => void>();
-let folded: Set<string> = (() => { try { return new Set(JSON.parse(localStorage.getItem(FOLD_KEY) ?? "[]") as string[]); } catch { return new Set(); } })();
-function setFolded(id: string, fold: boolean) {
-  const next = new Set(folded);
-  if (fold) next.add(id); else next.delete(id);
-  folded = next;
-  try { localStorage.setItem(FOLD_KEY, JSON.stringify([...next])); } catch { /* not remembered */ }
-  for (const l of foldListeners) l();
-}
-const subscribeFold = (l: () => void) => { foldListeners.add(l); return () => { foldListeners.delete(l); }; };
-const useFolded = (id: string) => useSyncExternalStore(subscribeFold, () => folded.has(id), () => false);
+interface RowCtx { from: number; link: (call: number) => string; query: string; kinds: Set<TurnKind>; withheld: boolean; jumped: boolean }
 
-/** A section's own search, behind a magnifier where its count was. */
-interface SecSearch { query: string; onChange: (q: string) => void; shown: number; total: number; label: string }
-
-const Magnifier = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><line x1="15.5" y1="15.5" x2="21" y2="21" /></svg>;
-
-function Sec({ id, term, count, search, children }: { id: ConversationAnchor; term: TermId; count: number; search?: SecSearch; children: ReactNode }) {
-  const isFolded = useFolded(id);
-  const [searching, setSearching] = useState(false);
-  const name = GLOSSARY[term].name;
-  const open = searching || (search?.query.trim() ?? "") !== "";
-  return <section className="rp-section conv-section" id={`sec-${id}`} data-section={id} data-collapsed={isFolded ? "true" : "false"} aria-labelledby={`h-${id}`}>
-    <div className="rp-head">
-      <h2 id={`h-${id}`}>
-        <button type="button" className="twisty" aria-expanded={!isFolded} aria-label={`${isFolded ? "Expand" : "Collapse"} ${name}`} onClick={() => setFolded(id, !isFolded)}>{isFolded ? "▸" : "▾"}</button>
-        <Term id={term} />
-      </h2>
-      <div className="rp-aside">
-        {search ? <span className="sec-search" data-open={open ? "true" : "false"}>
-          {open ? <>
-            <input type="search" role="searchbox" aria-label={search.label} placeholder="Search as you type" autoFocus value={search.query} onChange={(ev) => search.onChange(ev.target.value)} onBlur={() => { if (!search.query.trim()) setSearching(false); }} />
-            <span className="num" data-fact="count">{countText(search.shown, search.total, search.query)}</span>
-          </> : null}
-          <button type="button" className="sec-search-toggle" aria-label={search.label} aria-expanded={open} onClick={() => { if (open) { search.onChange(""); setSearching(false); } else setSearching(true); }}><Magnifier /></button>
-        </span> : <span className="num" data-fact="count">{full(count)}</span>}
-      </div>
-    </div>
-    <div className="rp-body" hidden={isFolded}>{count ? children : <p className="rp-empty small">None.</p>}</div>
-  </section>;
-}
-
-const KIND_NAME: Record<string, string> = { call: "model call", tool_start: "tool", tool_end: "tool done", msg: "message", compaction_start: "compaction", compaction_end: "compacted", between_sessions: "wait", request: "engine request", condition: "reading" };
-
-/** One event's figures, briefly, for the in-order list. */
-function figures(e: ConversationEvent, withheld: boolean): string {
-  const n = (v: unknown) => (isNum(v) ? full(v) : "");
-  switch (e.kind) {
-    case "call": return [withheld ? "" : `${n(e.think)} thinking`, `${n(e.text)} text`, `${n(e.nTools)} tools`, isNum(e.inTok) ? `read ${full(e.inTok + (isNum(e.cacheTok) ? e.cacheTok : 0))}` : "", isNum(e.outTok) ? `wrote ${n(e.outTok)}` : "", typeof e.stop === "string" ? e.stop : ""].filter(Boolean).join(" · ");
-    case "tool_start": return `${String(e.name ?? "")} (${String(e.toolKind ?? "")})`;
-    case "tool_end": return [`${String(e.name ?? "")}`, e.error === 1 ? "failed" : "ok", isNum(e.seconds) ? `${e.seconds} s` : "", isNum(e.passed) ? `${e.passed} passed` : "", isNum(e.failed) ? `${e.failed} failed` : ""].filter(Boolean).join(" · ");
-    case "compaction_start": return String(e.reason ?? "");
-    case "compaction_end": return [String(e.reason ?? ""), isNum(e.seconds) ? `${e.seconds} s` : "", isNum(e.summaryChars) ? `summary ${full(e.summaryChars)} chars` : ""].filter(Boolean).join(" · ");
-    case "between_sessions": return isNum(e.seconds) ? `waited ${e.seconds} s` : "";
-    case "request": return [isNum(e.promptTok) ? `prompt ${full(e.promptTok)}` : "", isNum(e.generatedTok) ? `generated ${full(e.generatedTok)}` : "", isNum(e.decodeTokS) ? `${full(e.decodeTokS)} tok/s` : "", isNum(e.draftAccepted) && isNum(e.draftProposed) ? `drafts ${e.draftAccepted}/${e.draftProposed}` : ""].filter(Boolean).join(" · ");
-    case "condition": return [typeof e.thermal === "string" ? e.thermal : "", isNum(e.freePct) ? `free ${e.freePct.toFixed(0)}%` : "", isNum(e.swapGb) ? `swap ${e.swapGb.toFixed(1)} GB` : ""].filter(Boolean).join(" · ");
-    default: return "";
+/** The rows of one turn: a call's row then one line per tool it called; a tool no call owns as its own line. */
+function rowsOf(t: Turn, i: number, c: RowCtx) {
+  const toolLines = (tools: ToolTurn[], parent: number | null) => tools
+    .filter((x) => !c.query.trim() || [x.start, x.end].some((e) => e && eventTextHas(e, c.query)) || (parent !== null && !c.kinds.has("call")))
+    .map((x) => <ToolLine key={`t${x.idx}`} tool={x} parent={parent} ctx={c} />);
+  if (t.kind === "call") {
+    const callRow = c.kinds.has("call") ? [<CallRow key={`c${t.callIdx}`} t={t} i={i} ctx={c} />] : [];
+    return [...callRow, ...(c.kinds.has("tool") ? toolLines(t.tools, t.callIdx) : [])];
   }
+  if (t.kind === "tool") return toolLines(t.tools, null);
+  return [<OtherRow key={`o${i}`} t={t} i={i} ctx={c} />];
 }
 
-/** Everything in time order: one row per happening, the text of each as the page holds it. */
-function InOrder({ events, from, fmt, link, jumped }: { events: ConversationEvent[]; from: number; fmt: string | null; link: (i: number | string) => string; jumped: number | null }) {
-  const withheld = fmt === "claude";
-  const [query, setQuery] = useState("");
-  const rows = matching(events, query);
+const eventTextHas = (e: ConversationEvent, q: string) => {
+  const text = e.kind === "tool_start" ? String(e.arg ?? "") : e.kind === "tool_end" ? cutText(e.result as CutText) : "";
+  return text.toLowerCase().includes(q.trim().toLowerCase());
+};
+
+/** What a call's Text cell shows: its text, else its thinking; and its thinking when that is what the search found. */
+function said(e: ConversationEvent, withheld: boolean, query: string): string {
+  const text = cutText(e.textBody as CutText).trim();
+  const thinking = withheld ? "" : cutText(e.thinking as CutText | null).trim();
+  const q = query.trim().toLowerCase();
+  if (q && thinking && !text.toLowerCase().includes(q) && thinking.toLowerCase().includes(q)) return thinking;
+  return text || thinking;
+}
+
+function CallRow({ t, i, ctx }: { t: Turn; i: number; ctx: RowCtx }) {
+  const e = t.event;
+  const r = t.request;
+  const figures = [
+    ctx.withheld ? "" : `${n(e.think)} thinking`, `${n(e.text)} text`, t.tools.length ? `${t.tools.length} tool${t.tools.length === 1 ? "" : "s"}` : "",
+    isNum(e.inTok) ? `read ${full(e.inTok + (isNum(e.cacheTok) ? e.cacheTok : 0))}` : "", isNum(e.outTok) ? `wrote ${n(e.outTok)}` : "",
+    r && isNum(r.decodeTokS) ? `${n(r.decodeTokS)} tok/s` : "", r && isNum(r.draftAccepted) && isNum(r.draftProposed) ? `drafts ${r.draftAccepted}/${r.draftProposed}` : "",
+    typeof e.stop === "string" ? e.stop : "",
+  ].filter(Boolean).join(" · ");
+  const idx = t.callIdx ?? 0;
   return (
-    <Sec id="all" term="inOrder" count={events.length} search={{ query, onChange: setQuery, shown: rows.length, total: events.length, label: "Search the conversation" }}>
-      <div className="table-scroll">
-        <table className="rp-table conv-table in-order" aria-label={GLOSSARY.inOrder.name}>
-          <thead><tr><th className="n">At</th><th>What</th><th>Figures</th><th className="said">Text</th></tr></thead>
-          <tbody>
-            {rows.map((e) => {
-              const call = e.kind === "call" && isNum(e.refIdx) ? e.refIdx : null;
-              const text = e.kind === "call" ? said(e, withheld, query) : e.kind === "tool_start" ? String(e.arg ?? "") : e.kind === "tool_end" ? cutText(e.result as CutText) : e.kind === "msg" ? cutText(e.textBody as CutText) : "";
-              const toCall = e.kind !== "call" && isNum(e.callIdx) ? e.callIdx : null;
-              return (
-                <tr key={e.ord} id={call !== null ? callRowId(call) : undefined} data-kind={e.kind} data-call={call ?? undefined} data-jumped={call !== null && call === jumped ? "true" : undefined}>
-                  <td className="n">{secs(e.tMs, from)}</td>
-                  <td className="what"><span className={`kind kind-${e.kind}`}>{KIND_NAME[e.kind] ?? e.kind}</span>{call !== null ? <> <a className="entity call-link" href={link(call)}>call {call + 1}</a></> : toCall !== null ? <> <a className="entity call-link" href={link(toCall)}>call {toCall + 1}</a></> : null}</td>
-                  <td className="figures small">{figures(e, withheld)}</td>
-                  <td className="said">{text ? <Clamped text={text} query={query} mono={e.kind === "tool_start" || e.kind === "tool_end"} /> : null}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+    <tr id={callRowId(idx)} data-turn={i} data-kind="call" data-call={idx} data-sub={e.sub === 1 ? "true" : undefined} data-jumped={ctx.jumped ? "true" : undefined}>
+      <td className="n">{clock(t.tMs, ctx.from)}</td>
+      <td className="what"><span className="kind kind-call">model call</span> <a className="entity call-link" href={ctx.link(idx)}>call {idx + 1}</a>{e.sub === 1 ? <span className="small"> subagent</span> : null}<div className="figures small">{figures}</div></td>
+      <td className="said"><Clamped text={said(e, ctx.withheld, ctx.query)} query={ctx.query} /></td>
+    </tr>
+  );
+}
+
+function ToolLine({ tool, parent, ctx }: { tool: ToolTurn; parent: number | null; ctx: RowCtx }) {
+  const s = tool.start;
+  const end = tool.end;
+  const counts = end && isNum(end.passed) ? ` · ${end.passed} passed${isNum(end.failed) ? `, ${end.failed} failed` : ""}` : "";
+  const outcome = end ? `${end.error === 1 ? "failed" : "ok"}${isNum(end.seconds) ? ` · ${end.seconds} s` : ""}${counts}` : "";
+  return (
+    <tr className="tool-line" data-kind="tool" data-tool={tool.idx} data-parent={parent ?? undefined} data-error={end?.error === 1 ? "true" : undefined} data-open={end ? undefined : "true"}>
+      <td className="n">{clock(s.tMs, ctx.from)}</td>
+      <td className="what"><span className="kind kind-tool">tool</span> <span className="mono">{String(s.name ?? "")}</span> <span className="small">{String(s.toolKind ?? "")}</span>{parent === null && isNum(s.callIdx) ? <> <a className="entity call-link" href={ctx.link(s.callIdx)}>call {s.callIdx + 1}</a></> : null}<div className="figures small">{outcome || <Missing why="This tool call has no end yet." />}</div></td>
+      <td className="said">
+        <Clamped text={String(s.arg ?? "")} query={ctx.query} mono />
+        {end ? <Clamped text={cutText(end.result as CutText)} query={ctx.query} mono /> : null}
+      </td>
+    </tr>
+  );
+}
+
+function OtherRow({ t, i, ctx }: { t: Turn; i: number; ctx: RowCtx }) {
+  const e = t.event;
+  let what = "";
+  let figures = "";
+  let text = "";
+  switch (t.kind) {
+    case "msg": what = "message"; text = cutText(e.textBody as CutText); break;
+    case "compaction": what = "compaction"; figures = [String(e.reason ?? ""), t.end && isNum(t.end.seconds) ? `${t.end.seconds} s` : "", t.end && isNum(t.end.summaryChars) ? `summary ${full(t.end.summaryChars)} chars` : ""].filter(Boolean).join(" · "); break;
+    case "wait": what = "wait"; figures = isNum(e.seconds) ? `waited ${e.seconds} s` : ""; break;
+    case "request": what = "engine request"; figures = [isNum(e.promptTok) ? `prompt ${full(e.promptTok)}` : "", isNum(e.generatedTok) ? `generated ${full(e.generatedTok)}` : "", isNum(e.decodeTokS) ? `${full(e.decodeTokS)} tok/s` : ""].filter(Boolean).join(" · ") || "no call of this story matched it"; break;
+    case "condition": what = "reading"; figures = [typeof e.thermal === "string" ? e.thermal : "", isNum(e.freePct) ? `free ${e.freePct.toFixed(0)}%` : "", isNum(e.swapGb) ? `swap ${e.swapGb.toFixed(1)} GB` : "", e.gpu && typeof e.gpu === "object" && isNum((e.gpu as Record<string, unknown>).busyPct) ? `GPU ${((e.gpu as Record<string, unknown>).busyPct as number).toFixed(0)}%` : ""].filter(Boolean).join(" · "); break;
+    default: what = t.kind;
+  }
+  return (
+    <tr id={`turn-${i}`} data-turn={i} data-kind={t.kind} data-jumped={ctx.jumped ? "true" : undefined}>
+      <td className="n">{clock(t.tMs, ctx.from)}</td>
+      <td className="what"><span className={`kind kind-${t.kind}`}>{what}</span>{figures ? <div className="figures small">{figures}</div> : null}</td>
+      <td className="said">{text ? <Clamped text={text} query={ctx.query} /> : null}</td>
+    </tr>
+  );
+}
+
+/** The strip: calls as bars from send to end (height by output), tools as a band, compactions as lines; a click
+ * jumps to the nearest turn, a drag narrows the list to that span. */
+function Strip({ all, from, toMs, range, onJump, onRange }: { all: Turn[]; from: number; toMs: number; range: [number, number] | null; onJump: (turn: number) => void; onRange: (r: [number, number] | null) => void }) {
+  const marks = strip(all, { fromMs: from, toMs });
+  const svg = useRef<SVGSVGElement>(null);
+  const press = useRef<{ x: number; frac: number } | null>(null);
+  const [drag, setDrag] = useState<[number, number] | null>(null);
+  const frac = (clientX: number) => { const r = svg.current!.getBoundingClientRect(); return Math.min(1, Math.max(0, (clientX - r.left) / Math.max(1, r.width))); };
+  const atFrac = (f: number) => from + f * (toMs - from);
+  const sel = drag ?? (range ? [(range[0] - from) / Math.max(1, toMs - from), (range[1] - from) / Math.max(1, toMs - from)] as [number, number] : null);
+  return (
+    <div className="conv-strip-wrap">
+      <svg ref={svg} className="conv-strip" viewBox={`0 0 ${STRIP_W} ${STRIP_H}`} preserveAspectRatio="none" role="img" aria-label={GLOSSARY.callTimeline.name} data-tip={GLOSSARY.callTimeline.what}
+        onPointerDown={(ev) => { press.current = { x: ev.clientX, frac: frac(ev.clientX) }; svg.current?.setPointerCapture(ev.pointerId); }}
+        onPointerMove={(ev) => { if (!press.current) return; const f = frac(ev.clientX); if (Math.abs(ev.clientX - press.current.x) >= DRAG_PX) setDrag([Math.min(press.current.frac, f), Math.max(press.current.frac, f)]); }}
+        onPointerUp={(ev) => {
+          const p = press.current; press.current = null; setDrag(null);
+          if (!p) return;
+          if (Math.abs(ev.clientX - p.x) < DRAG_PX) { const t = nearestTurn(all, atFrac(p.frac)); if (t !== null) onJump(t); return; }
+          const f = frac(ev.clientX);
+          onRange([atFrac(Math.min(p.frac, f)), atFrac(Math.max(p.frac, f))]);
+        }}>
+        <line x1="0" y1={STRIP_BASE} x2={STRIP_W} y2={STRIP_BASE} className="strip-base" />
+        {marks.map((m, i) => m.kind === "tool"
+          ? <rect key={i} className="strip-tool" x={m.x0 * STRIP_W} y={STRIP_BASE + 1} width={Math.max(MIN_MARK_W, (m.x1 - m.x0) * STRIP_W)} height={STRIP_TOOL_H} data-turn={m.turn}><title>{m.label}</title></rect>
+          : m.kind === "compaction"
+            ? <line key={i} className="strip-compaction" x1={m.x0 * STRIP_W} y1={0} x2={m.x0 * STRIP_W} y2={STRIP_H} data-turn={m.turn}><title>{m.label}</title></line>
+            : <rect key={i} className="strip-call" x={m.x0 * STRIP_W} y={STRIP_BASE - m.h * STRIP_CALL_H} width={Math.max(MIN_MARK_W, (m.x1 - m.x0) * STRIP_W)} height={m.h * STRIP_CALL_H} data-turn={m.turn}><title>{m.label}</title></rect>)}
+        {sel ? <rect className="strip-range" x={sel[0] * STRIP_W} y={0} width={Math.max(1, (sel[1] - sel[0]) * STRIP_W)} height={STRIP_H} /> : null}
+      </svg>
+      <div className="conv-strip-legend small">
+        <span><i className="sw sw-call" />model calls (height: output)</span><span><i className="sw sw-tool" />tool calls</span><span><i className="sw sw-compaction" />compaction</span>
+        <span className="hint">click: to that turn · drag: only that span</span>
+        {range ? <button type="button" className="chip-reset" data-fact="range-filter" onClick={() => onRange(null)}>{clock(range[0], from)} to {clock(range[1], from)} ×</button> : null}
       </div>
-    </Sec>
-  );
-}
-
-function Calls({ events, from, fmt, link, jumped }: { events: ConversationEvent[]; from: number; fmt: string | null; link: (i: number | string) => string; jumped: number | null }) {
-  const withheld = fmt === "claude";
-  const [query, setQuery] = useState("");
-  const rows = matching(events, query);
-  return (
-    <Sec id="calls" term="modelCall" count={events.length} search={{ query, onChange: setQuery, shown: rows.length, total: events.length, label: "Search model calls" }}>
-      <div className="table-scroll">
-        <table className="rp-table conv-table calls" aria-label={GLOSSARY.modelCall.name}>
-          <thead><tr><th>Call</th><th className="n">At</th><th className="n">Thinking</th><th className="n">Text</th><th className="n">Tools</th><th className="n">Read</th><th className="n">Wrote</th><th>Stop</th><th className="said">Said</th></tr></thead>
-          <tbody>
-            {rows.map((e) => {
-              const think = e.thinking as CutText | null | undefined;
-              const idx = isNum(e.refIdx) ? e.refIdx : 0;
-              return (
-                <tr key={e.ord} id={callRowId(idx)} data-call={idx} data-sub={e.sub === 1 ? "true" : undefined} data-jumped={idx === jumped ? "true" : undefined}>
-                  <td><a className="entity call-link" href={link(idx)}>call {idx + 1}</a>{e.sub === 1 ? <span className="small"> subagent</span> : null}</td>
-                  <td className="n">{secs(e.tMs, from)}</td>
-                  <td className="n">{withheld ? <NotApplicable why="This client withholds its thinking: the count isn't known." /> : num(e.think, "Not counted.")}</td>
-                  <td className="n">{num(e.text, "Not counted.")}</td>
-                  <td className="n">{num(e.nTools, "Not counted.")}</td>
-                  <td className="n">{isNum(e.inTok) ? full(e.inTok + (isNum(e.cacheTok) ? e.cacheTok : 0)) : <Missing why="The client didn't report this call's tokens." />}</td>
-                  <td className="n">{num(e.outTok, "The client didn't report this call's tokens.")}</td>
-                  <td>{typeof e.stop === "string" ? e.stop : <Missing why="The client didn't report why the call stopped." />}</td>
-                  <td className="said"><Clamped text={said(e, withheld, query)} query={query} /></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </Sec>
-  );
-}
-
-function Tools({ events, from, link }: { events: ConversationEvent[]; from: number; link: (i: number | string) => string }) {
-  const starts = events.filter((e) => e.kind === "tool_start");
-  const ends = new Map(events.filter((e) => e.kind === "tool_end").map((e) => [e.refIdx, e]));
-  const [query, setQuery] = useState("");
-  // A tool call matches on its argument or its result.
-  const rows = starts.filter((e) => { const end = ends.get(e.refIdx); return matchesQuery(e, query) || (end !== undefined && matchesQuery(end, query)); });
-  return (
-    <Sec id="tools" term="toolCall" count={starts.length} search={{ query, onChange: setQuery, shown: rows.length, total: starts.length, label: "Search tool calls" }}>
-      <div className="table-scroll">
-        <table className="rp-table conv-table tools" aria-label={GLOSSARY.toolCall.name}>
-          <thead><tr><th>Tool</th><th>Kind</th><th className="n">At</th><th className="n">Seconds</th><th>Outcome</th><th className="said">Argument</th><th className="said">Result</th><th>Call</th></tr></thead>
-          <tbody>
-            {rows.map((e) => {
-              const end = ends.get(e.refIdx);
-              const counts = end && isNum(end.passed) ? `${end.passed} passed${isNum(end.failed) ? `, ${end.failed} failed` : ""}` : "";
-              const callIdx = isNum(e.callIdx) ? e.callIdx : 0;
-              return (
-                <tr key={e.ord} data-tool={isNum(e.refIdx) ? e.refIdx : undefined} data-error={end?.error === 1 ? "true" : undefined} data-open={end ? undefined : "true"}>
-                  <td><span className="mono">{String(e.name ?? "")}</span>{e.sub === 1 ? <span className="small"> subagent</span> : null}</td>
-                  <td>{String(e.toolKind ?? "")}</td>
-                  <td className="n">{secs(e.tMs, from)}</td>
-                  <td className="n">{end ? n(end.seconds) : <Missing why="This tool call has no end yet." />}</td>
-                  <td>{end ? (end.error === 1 ? "failed" : "ok") : <Missing why="This tool call has no end yet." />}{counts ? <span className="small"> · {counts}</span> : null}</td>
-                  <td className="said"><Clamped text={String(e.arg ?? "")} query={query} mono /></td>
-                  <td className="said">{end ? <Clamped text={cutText(end.result as CutText)} query={query} mono /> : <Missing why="This tool call has no result yet." />}</td>
-                  <td><a className="entity call-link" href={link(callIdx)}>call {callIdx + 1}</a></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </Sec>
-  );
-}
-
-function Compactions({ events, from }: { events: ConversationEvent[]; from: number }) {
-  const starts = events.filter((e) => e.kind === "compaction_start");
-  const ends = new Map(events.filter((e) => e.kind === "compaction_end").map((e) => [e.refIdx, e]));
-  return (
-    <Sec id="compactions" term="compactionEvent" count={starts.length}>
-      <ul className="conv-list">
-        {starts.map((e) => { const end = ends.get(e.refIdx); return <li key={e.ord} data-compaction={isNum(e.refIdx) ? e.refIdx : undefined}>at {secs(e.tMs, from)}: {String(e.reason ?? "")}{end ? <> · {n(end.seconds)} s · summary {n(end.summaryChars)} chars</> : <> · <Missing why="This compaction has no end yet." /></>}</li>; })}
-      </ul>
-    </Sec>
-  );
-}
-
-function Sessions({ events, from }: { events: ConversationEvent[]; from: number }) {
-  return (
-    <Sec id="sessions" term="betweenSessionsEvent" count={events.length}>
-      <ul className="conv-list">{events.map((e) => <li key={e.ord}>from {secs(e.tMs, from)}: waited {n(e.seconds)} s</li>)}</ul>
-    </Sec>
-  );
-}
-
-function Messages({ events, from }: { events: ConversationEvent[]; from: number }) {
-  return (
-    <Sec id="messages" term="harnessMessage" count={events.length}>
-      <ul className="conv-list messages">{events.map((e) => <li key={e.ord} data-msg={isNum(e.refIdx) ? e.refIdx : undefined}><span className="num">{secs(e.tMs, from)}</span> <Clamped text={cutText(e.textBody as CutText)} query="" /></li>)}</ul>
-    </Sec>
-  );
-}
-
-function Requests({ events, from, link }: { events: ConversationEvent[]; from: number; link: (i: number | string) => string }) {
-  return (
-    <Sec id="requests" term="engineRequest" count={events.length}>
-      <div className="table-scroll">
-        <table className="rp-table conv-table requests" aria-label={GLOSSARY.engineRequest.name}>
-          <thead><tr><th className="n">At</th><th>Call</th><th className="n">Prompt tok</th><th className="n">Generated</th><th className="n">Prefill s</th><th className="n">Decode s</th><th className="n">Prefill tok/s</th><th className="n">Decode tok/s</th><th className="n">Drafts accepted</th></tr></thead>
-          <tbody>
-            {events.map((e) => (
-              <tr key={e.ord} data-request={isNum(e.refIdx) ? e.refIdx : undefined}>
-                <td className="n">{secs(e.tMs, from)}</td>
-                <td>{isNum(e.callIdx) ? <a className="entity call-link" href={link(e.callIdx)}>call {e.callIdx + 1}</a> : <Missing why="No call of this story matched this request." />}</td>
-                <td className="n">{num(e.promptTok, "Not reported by the server.")}</td>
-                <td className="n">{num(e.generatedTok, "Not reported by the server.")}</td>
-                <td className="n">{isNum(e.prefillS) ? e.prefillS.toFixed(1) : <Missing why="Not reported by the server." />}</td>
-                <td className="n">{isNum(e.decodeS) ? e.decodeS.toFixed(1) : <Missing why="Not reported by the server." />}</td>
-                <td className="n">{num(e.prefillTokS, "Not reported by the server.")}</td>
-                <td className="n">{num(e.decodeTokS, "Not reported by the server.")}</td>
-                <td className="n">{isNum(e.draftAccepted) && isNum(e.draftProposed) ? `${e.draftAccepted}/${e.draftProposed}` : <NotApplicable why="Nothing was drafted for this request." />}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Sec>
-  );
-}
-
-function Conditions({ events, from }: { events: ConversationEvent[]; from: number }) {
-  return (
-    <Sec id="conditions" term="conditionReading" count={events.length}>
-      <div className="table-scroll">
-        <table className="rp-table conv-table conditions" aria-label={GLOSSARY.conditionReading.name}>
-          <thead><tr><th className="n">At</th><th>Thermal</th><th className="n">Swap GB</th><th className="n">Free %</th><th className="n">Footprint GB</th><th className="n">GPU busy %</th><th className="n">GPU mem GB</th><th className="n">GPU °C</th><th className="n">GPU W</th></tr></thead>
-          <tbody>
-            {events.map((e) => {
-              const g = (e.gpu ?? null) as Record<string, unknown> | null;
-              const gv = (k: string) => (g && isNum(g[k]) ? (g[k] as number).toFixed(0) : <NotApplicable why="No GPU reading on this machine." />);
-              return (
-                <tr key={e.ord} data-condition={isNum(e.refIdx) ? e.refIdx : undefined}>
-                  <td className="n">{secs(e.tMs, from)}</td>
-                  <td>{typeof e.thermal === "string" ? e.thermal : <Missing why="Not read." />}</td>
-                  <td className="n">{isNum(e.swapGb) ? e.swapGb.toFixed(1) : <Missing why="Not read." />}</td>
-                  <td className="n">{isNum(e.freePct) ? e.freePct.toFixed(0) : <Missing why="Not read." />}</td>
-                  <td className="n">{isNum(e.footprintGb) ? e.footprintGb.toFixed(1) : <Missing why="Not read." />}</td>
-                  <td className="n">{gv("busyPct")}</td><td className="n">{gv("memGb")}</td><td className="n">{gv("tempC")}</td><td className="n">{gv("powerW")}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </Sec>
+    </div>
   );
 }

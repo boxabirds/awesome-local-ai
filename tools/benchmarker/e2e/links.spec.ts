@@ -124,20 +124,21 @@ test.describe("from a time bar", () => {
     await page.goto(SWIFT_R5);
     const with_ = page.locator('.rp-bar-row[data-story="2"]');
     await expect(with_.locator("a.bar-link")).toHaveAttribute("data-to", "conversation");
-    await expect(with_.locator('a.seg-link:has([data-seg="tools"])')).toHaveAttribute("href", new RegExp(`/v2-r5/s/2/conversation\\?at=tools$`));
-    await expect(with_.locator('a.seg-link:has([data-seg="decode"])')).toHaveAttribute("href", /\?at=calls$/);
-    await expect(with_.locator('a.seg-link:has([data-seg="compaction"])')).toHaveAttribute("href", /\?at=compactions$/);
+    await expect(with_.locator('a.seg-link:has([data-seg="tools"])')).toHaveAttribute("href", new RegExp(`/v2-r5/s/2/conversation\\?kind=tool$`));
+    await expect(with_.locator('a.seg-link:has([data-seg="decode"])')).toHaveAttribute("href", /\?kind=call$/);
+    await expect(with_.locator('a.seg-link:has([data-seg="compaction"])')).toHaveAttribute("href", /\?kind=compaction$/);
     const without = page.locator('.rp-bar-row[data-story="1"]');
     await expect(without.locator("a.bar-link")).toHaveAttribute("data-to", "storyRun");
     await expect(without.locator("a.seg-link")).toHaveCount(0);
     await with_.locator('a.seg-link:has([data-seg="tools"])').click({ force: true });
     await expect(page$(page, "conversation")).toBeVisible();
-    await expect(page$(page, "conversation").locator('a[data-anchor="tools"]')).toHaveAttribute("aria-current", "true");
+    await expect(page$(page, "conversation").locator('.conv-chips [data-kind="tool"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(page$(page, "conversation").locator('.conv-chips [data-kind="call"]')).toHaveAttribute("aria-pressed", "false");
   });
 
   test("the story-run page: the big bar's parts, and the conversation section's own link", async ({ page }) => {
     await page.goto(`${SWIFT_R5}/s/2`);
-    await expect(page.locator('.big-bar a.seg-link:has([data-seg="tools"])')).toHaveAttribute("href", /\?at=tools$/);
+    await expect(page.locator('.big-bar a.seg-link:has([data-seg="tools"])')).toHaveAttribute("href", /\?kind=tool$/);
     await expect(page.locator('[data-section="conversation"] a.conversation-link')).toHaveAttribute("href", /\/s\/2\/conversation$/);
     await page.goto(`${SWIFT_R5}/s/1`);
     await expect(page.locator(".big-bar a.seg-link")).toHaveCount(0);
@@ -146,7 +147,7 @@ test.describe("from a time bar", () => {
 
   test("the story page: each run's bar parts lead to that run's conversation when it has one", async ({ page }) => {
     await page.goto("/#/vidi/s/2");
-    await expect(page.locator('.sp-time [data-run="v2-r5"] a.seg-link:has([data-seg="tools"])')).toHaveAttribute("href", /v2-r5\/s\/2\/conversation\?at=tools$/);
+    await expect(page.locator('.sp-time [data-run="v2-r5"] a.seg-link:has([data-seg="tools"])')).toHaveAttribute("href", /v2-r5\/s\/2\/conversation\?kind=tool$/);
     await expect(page.locator('.sp-time [data-run="v2-r4"] a.seg-link')).toHaveCount(0);
   });
 

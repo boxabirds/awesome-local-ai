@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // The conversation pages, MECE by where the reader starts and by the fixture's cells (e2e/fixtures/conversations.py):
-//   A. the conversation page by address: complete pi | complete claude | growing | not available (with a split, without
-//      one, a story that doesn't exist)
+//   A. the conversation page by address: complete pi (every kind of turn, the overview's chips, search and strip)
+//      | complete claude | growing | not available (with a split, without one, a story that doesn't exist)
 //   B. the call page by address: a call with thinking, a failed tool and an open tool | the first and last call |
 //      a claude call | a call that doesn't exist
 //   C. the API as the page sees it: the list, one conversation, the time-range form page by page, the open-ended form,
@@ -15,127 +15,139 @@ const enc = encodeURIComponent;
 const SWIFT_S2 = `combinations/${SWIFT}/benchmarks/vidi/v2-r5/stories/02`;
 const OPUS_S1 = "benchmarks/reference/vidi/opus-5.5/run-9/stories/01";
 const SWIFT_R1_S1 = `combinations/${SWIFT}/benchmarks/vidi/v2-r1/stories/01`;
-const conv = (stack: string, run: string, story: string, at?: string) => `/#/vidi/r/${enc(stack)}/${run}/s/${story}/conversation${at ? `?at=${at}` : ""}`;
+const conv = (stack: string, run: string, story: string, kind?: string) => `/#/vidi/r/${enc(stack)}/${run}/s/${story}/conversation${kind ? `?kind=${kind}` : ""}`;
 const call = (stack: string, run: string, story: string, idx: number) => `/#/vidi/r/${enc(stack)}/${run}/s/${story}/conversation/c/${idx}`;
 const page$ = (page: Page) => page.locator('[data-page="conversation"]');
-/** The layout switch's buttons, by their own marks (a role query by name would also match the twisties' labels). */
-const viewButton = (page: Page, view: "time" | "type") => page$(page).locator(`.view-switch [data-view="${view}"]`);
-const byType = async (page: Page) => { await viewButton(page, "type").click(); await expect(viewButton(page, "type")).toHaveAttribute("aria-pressed", "true"); };
+const chip = (page: Page, kind: string) => page$(page).locator(`.conv-chips [data-kind="${kind}"]`);
+const kinds = (page: Page) => page$(page).locator("table.turns tbody tr").evaluateAll((trs) => trs.map((tr) => tr.getAttribute("data-kind")));
 
 test.beforeEach(async ({ request }) => {
   await request.post("/api/test/reset");
 });
 
 test.describe("A. the conversation page", () => {
-  test("in order, by default: one row per happening in time order, with its text; a tick jumps to its call", async ({ page }) => {
-    await page.goto(conv(SWIFT, "v2-r5", "2"));
-    const p = page$(page);
-    await expect(p).toHaveAttribute("data-backfilled", "true");
-    await expect(viewButton(page, "time")).toHaveAttribute("aria-pressed", "true");
-    const rows = p.locator("table.in-order tbody tr");
-    await expect(rows).toHaveCount(17);
-    const kinds = await rows.evaluateAll((trs) => trs.map((tr) => tr.getAttribute("data-kind")));
-    expect(kinds.slice(0, 5)).toEqual(["msg", "between_sessions", "request", "call", "tool_start"]);
-    await expect(rows.nth(3)).toContainText("call 1");
-    await expect(rows.nth(3).locator('[data-quoted="agent"]')).toContainText("Reading the spec.");
-    // A tool's end carries its result; the late-placed request sits at its own time with its call named.
-    await expect(p.locator('table.in-order tbody tr[data-kind="tool_end"]').first()).toContainText("ok");
-    await expect(rows.nth(2)).toContainText("call 1");
-    // A tick jumps to the call's row and marks it; the search is the section's own.
-    await p.locator(".conv-timeline button.tick").last().click();
-    await expect(p.locator('table.in-order tbody tr[data-jumped="true"]')).toHaveCount(1);
-    await expect(p.locator('table.in-order tbody tr[data-jumped="true"]')).toBeInViewport();
-    await p.locator('[data-section="all"]').getByRole("button", { name: "Search the conversation" }).click();
-    await p.locator('[data-section="all"]').getByRole("searchbox").fill("attempt 2");
-    await expect(rows).toHaveCount(3);   // two tool results and a call's text
-    // By type is remembered; a bar's part still lands by type.
-    await byType(page);
-    await expect(p.locator("table.calls")).toBeVisible();
-    await page.reload();
-    await expect(viewButton(page, "type")).toHaveAttribute("aria-pressed", "true");
-    await viewButton(page, "time").click();
-    await expect(page$(page).locator("table.in-order")).toBeVisible();
-  });
-
-  test("by type: every section, in time order, with the late-placed request in its place", async ({ page }) => {
+  test("a complete pi story: one list of turns in time order, a call's tools under it, its engine request in its figures", async ({ page }) => {
     await page.goto(conv(SWIFT, "v2-r5", "2"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-available", "true");
     await expect(p).toHaveAttribute("data-backfilled", "true");
-    await byType(page);
     await expect(p.locator('[data-fact="events"]')).toHaveText("17");
     await expect(p.locator('[data-fact="range"]')).not.toContainText("so far");
-    const nav = p.getByRole("navigation", { name: "Sections of the conversation" });
-    for (const [anchor, count] of [["calls", "4"], ["tools", "3"], ["compactions", "1"], ["sessions", "1"], ["messages", "1"], ["requests", "2"], ["conditions", "2"]]) {
-      await expect(nav.locator(`a[data-anchor="${anchor}"] .num`), anchor).toHaveText(count);
+    // The chips say what the conversation holds; every kind is on.
+    for (const [kind, count] of [["call", "4"], ["tool", "3"], ["compaction", "1"], ["wait", "1"], ["msg", "1"], ["request", "0"], ["condition", "2"]]) {
+      await expect(chip(page, kind).locator(".num"), kind).toHaveText(count);
+      await expect(chip(page, kind), kind).toHaveAttribute("aria-pressed", "true");
     }
-    // Calls: one row each, in time order, the call with no reported tokens showing them as not available.
-    const calls = p.locator("table.calls tbody tr");
-    await expect(calls).toHaveCount(4);
-    await expect(calls.nth(0)).toHaveAttribute("data-call", "0");
-    await expect(calls.nth(3).locator(".missing")).toHaveCount(2);
-    await expect(calls.nth(1)).toContainText("Running the tests.");
-    await expect(calls.nth(2).locator('[data-quoted="agent"]')).toContainText("the harness said attempt 2 was invalid");
-    // Tools: ok, failed with its test counts, and one with no end yet.
-    const tools = p.locator("table.tools tbody tr");
-    await expect(tools).toHaveCount(3);
-    await expect(tools.nth(0)).toContainText("ok");
-    await expect(tools.nth(1)).toHaveAttribute("data-error", "true");
-    await expect(tools.nth(1)).toContainText("9 passed, 1 failed");
-    await expect(tools.nth(2)).toHaveAttribute("data-open", "true");
-    await expect(tools.nth(2).locator(".missing")).toHaveCount(3);   // seconds, outcome, result
-    // Compactions, waits, messages.
-    await expect(p.locator('[data-section="compactions"] li')).toContainText("context · 3 s · summary 1,200 chars");
-    await expect(p.locator('[data-section="sessions"] li')).toContainText("waited 2 s");
-    await expect(p.locator('[data-section="messages"] li [data-quoted="agent"]')).toHaveText("Implement story 2 now.");
-    // Requests, by time: the late-placed one (4.9 s, call 1) before the other (31 s, call 3); nothing drafted shows as n/a.
-    const reqs = p.locator("table.requests tbody tr");
-    await expect(reqs.nth(0)).toContainText("4.9 s");
-    await expect(reqs.nth(0).locator(".na")).toHaveCount(1);
-    await expect(reqs.nth(1)).toContainText("40/60");
-    // Conditions: the reading without a GPU shows n/a for its GPU columns.
-    const conds = p.locator("table.conditions tbody tr");
-    await expect(conds.nth(0)).toContainText("nominal");
-    await expect(conds.nth(1).locator(".na")).toHaveCount(4);
-    // A timeline tick jumps to the call at that time, in the page, and marks its row.
-    await p.locator(".conv-timeline button.tick").last().click();
-    await expect(p.locator('table.calls tbody tr[data-jumped="true"]')).toHaveCount(1);
-    await expect(p.locator('table.calls tbody tr[data-jumped="true"]')).toBeInViewport();
-    // The section asked for is marked, and the page scrolls to it.
-    await page.goto(conv(SWIFT, "v2-r5", "2", "tools"));
-    await expect(page$(page).locator('a[data-anchor="tools"]')).toHaveAttribute("aria-current", "true");
-    await expect(page.locator("#sec-tools")).toBeInViewport();
+    // The list: 9 turns, the tools as lines under their calls (12 rows), in time order.
+    expect(await kinds(page)).toEqual(["msg", "wait", "call", "tool", "call", "tool", "compaction", "call", "tool", "call", "condition", "condition"]);
+    await expect(p.locator('[data-fact="count"]')).toHaveText("9");
+    const call0 = p.locator('table.turns tr[data-call="0"]');
+    await expect(call0).toContainText("call 1");
+    await expect(call0.locator(".figures")).toContainText("150 tok/s");   // the late-placed request, matched to call 1
+    await expect(call0.locator('[data-quoted="agent"]')).toContainText("Reading the spec.");
+    const call2 = p.locator('table.turns tr[data-call="2"]');
+    await expect(call2.locator(".figures")).toContainText("drafts 40/60");
+    // A tool line: its argument and its result; failed with its counts; one still open.
+    const t1 = p.locator('table.turns tr[data-tool="1"]');
+    await expect(t1).toHaveAttribute("data-parent", "1");
+    await expect(t1).toHaveAttribute("data-error", "true");
+    await expect(t1.locator(".figures")).toContainText("failed · 6 s · 9 passed, 1 failed");
+    await expect(t1.locator('[data-quoted="agent"]').nth(1)).toContainText("1 failed, 9 passed");
+    await expect(p.locator('table.turns tr[data-tool="2"]')).toHaveAttribute("data-open", "true");
+    await expect(p.locator('table.turns tr[data-tool="2"] .missing')).toHaveCount(1);
+    // The other turns.
+    await expect(p.locator('table.turns tr[data-kind="compaction"] .figures')).toContainText("context · 3 s · summary 1,200 chars");
+    await expect(p.locator('table.turns tr[data-kind="wait"] .figures')).toContainText("waited 2 s");
+    await expect(p.locator('table.turns tr[data-kind="msg"] [data-quoted="agent"]')).toHaveText("Implement story 2 now.");
+    await expect(p.locator('table.turns tr[data-kind="condition"]').first().locator(".figures")).toContainText("nominal");
+    // Times past a minute read as m:ss.
+    await expect(p.locator('table.turns tr[data-kind="condition"]').last().locator("td").first()).toHaveText("33.0 s");
   });
 
-  test("a complete claude story: thinking is not applicable, a subagent's tool is marked, an unknown stop is not available", async ({ page }) => {
+  test("the overview narrows the list: chips by kind, the search by text, the strip by a span; a click on the strip jumps", async ({ page }) => {
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    const p = page$(page);
+    await expect(p).toHaveAttribute("data-backfilled", "true");
+    // Hide tool calls: their lines go; the calls stay. Hide calls too: nothing of them. "all kinds" brings everything back.
+    await chip(page, "tool").click();
+    expect(await kinds(page)).toEqual(["msg", "wait", "call", "call", "compaction", "call", "call", "condition", "condition"]);
+    await chip(page, "call").click();
+    expect(await kinds(page)).toEqual(["msg", "wait", "compaction", "condition", "condition"]);
+    await expect(p.locator('[data-fact="count"]')).toHaveText("5 of 9 shown");
+    await p.getByRole("button", { name: "all kinds" }).click();
+    await expect(p.locator('[data-fact="count"]')).toHaveText("9");
+    // Tools shown with calls hidden: the tools stand as lines of their own.
+    await chip(page, "call").click();
+    expect((await kinds(page)).filter((k) => k === "tool")).toHaveLength(3);
+    expect(await kinds(page)).not.toContain("call");
+    await p.getByRole("button", { name: "all kinds" }).click();
+    // The search: "harness" is in two calls' thinking and one call's text; a call found through its thinking shows it.
+    const box = p.getByRole("searchbox", { name: "Search the conversation" });
+    await box.fill("harness");
+    expect((await kinds(page)).filter((k) => k === "call")).toHaveLength(3);
+    for (const i of [0, 1, 2]) await expect(p.locator('table.turns tr[data-kind="call"]').nth(i).locator("mark").first()).toHaveText(/harness/i);
+    await expect(p.locator('[data-fact="count"]')).toHaveText("3 of 9 shown");
+    // A tool found through its result; a call's tool lines narrow to the ones that match.
+    await box.fill("attempt 2");
+    expect(await kinds(page)).toEqual(["call", "tool", "call", "tool", "call"]);
+    await expect(p.locator("table.turns tr mark").first()).toHaveText(/attempt 2/);
+    await box.fill("");
+    await expect(p.locator('[data-fact="count"]')).toHaveText("9");
+    // The strip: a click goes to the nearest turn and marks it; a drag keeps only the span.
+    const svg = p.locator("svg.conv-strip");
+    const box2 = (await svg.boundingBox())!;
+    await page.mouse.click(box2.x + box2.width * 0.95, box2.y + box2.height / 2);
+    await expect(p.locator('table.turns tr[data-jumped="true"]')).toHaveCount(1);
+    await expect(p.locator('table.turns tr[data-jumped="true"]')).toBeInViewport();
+    // The jump scrolled the page: measure the strip again before dragging across it.
+    await svg.scrollIntoViewIfNeeded();
+    const box3 = (await svg.boundingBox())!;
+    await page.mouse.move(box3.x + box3.width * 0.1, box3.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(box3.x + box3.width * 0.5, box3.y + 10, { steps: 5 });
+    await page.mouse.up();
+    await expect(p.locator('[data-fact="range-filter"]')).toBeVisible();
+    const shown = Number((await p.locator('[data-fact="count"]').innerText()).split(" ")[0]);
+    expect(shown).toBeGreaterThan(0);
+    expect(shown).toBeLessThan(9);
+    await p.locator('[data-fact="range-filter"]').click();
+    await expect(p.locator('[data-fact="count"]')).toHaveText("9");
+  });
+
+  test("a bar's part names a kind: ?kind=tool shows the tool calls alone", async ({ page }) => {
+    await page.goto(conv(SWIFT, "v2-r5", "2", "tool"));
+    const p = page$(page);
+    await expect(p).toHaveAttribute("data-backfilled", "true");
+    await expect(chip(page, "tool")).toHaveAttribute("aria-pressed", "true");
+    await expect(chip(page, "call")).toHaveAttribute("aria-pressed", "false");
+    expect(await kinds(page)).toEqual(["tool", "tool", "tool"]);
+    await expect(p.locator('[data-fact="count"]')).toHaveText("3 of 9 shown");
+  });
+
+  test("a complete claude story: thinking is not counted in the figures, a subagent's call and tool are marked, an unknown stop says nothing", async ({ page }) => {
     await page.goto(conv(OPUS, "run-9", "1"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
-    await byType(page);
     await expect(p.locator('[data-fact="events"]')).toHaveText("6");
-    const calls = p.locator("table.calls tbody tr");
-    await expect(calls).toHaveCount(2);
-    await expect(calls.nth(0).locator(".na")).toHaveCount(1);
-    await expect(calls.nth(1).locator("td").nth(7).locator(".missing")).toHaveCount(1);
-    await expect(p.locator("table.tools tbody tr").first()).toContainText("subagent");
-    await expect(p.locator('[data-section="requests"] .rp-empty')).toHaveText("None.");
+    expect(await kinds(page)).toEqual(["msg", "call", "tool", "call", "wait"]);
+    const call0 = p.locator('table.turns tr[data-call="0"]');
+    await expect(call0.locator(".figures")).not.toContainText("thinking");
+    await expect(p.locator('table.turns tr[data-tool="0"]')).toContainText("Task");
+    await expect(p.locator('table.turns tr[data-call="1"] .figures')).not.toContainText("null");
   });
 
   test("a story still being built: 'so far', and what arrives after the latest cursor appears without a reload", async ({ page, request }) => {
     await page.goto(conv(SWIFT, "v2-r1", "1"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
-    await byType(page);
     await expect(p.locator('[data-fact="range"]')).toContainText("so far");
     await expect(p.locator('[data-fact="events"]')).toHaveText("2");
-    // More arrives on the node: the fixture's reset appends it (the real warehouse would ingest it); the page's next
-    // poll after its latest cursor picks it up.
     await request.post("/api/test/reset", { data: { appendEvents: { [SWIFT_R1_S1]: [
       { tMs: 1790000110000, kind: "call", refIdx: 1, idx: 1, think: 3, text: 9, nTools: 0, outTok: 30, inTok: 200, cacheTok: 0, stop: "endTurn", sub: 0, thinkFlags: [], textFlags: [], sentMs: 1790000106000, firstMs: 1790000108000, thinking: { text: "Go" }, textBody: { text: "Carrying on" } },
     ] } } });
     await expect(p.locator('[data-fact="events"]')).toHaveText("3", { timeout: 15_000 });
-    await expect(p.locator("table.calls tbody tr")).toHaveCount(2);
-    await expect(p.locator("table.calls tbody tr").nth(1)).toContainText("Carrying on");
+    await expect(p.locator('table.turns tr[data-kind="call"]')).toHaveCount(2);
+    await expect(p.locator('table.turns tr[data-call="1"]')).toContainText("Carrying on");
   });
 
   test("not available: a story with a split but no conversation, one with neither, and one that doesn't exist", async ({ page }) => {
@@ -144,7 +156,7 @@ test.describe("A. the conversation page", () => {
       const p = page$(page);
       await expect(p, `${run} story ${story}`).toHaveAttribute("data-available", "false");
       await expect(p.locator('[data-empty="conversation"]')).toContainText("Not available.");
-      await expect(p.locator("table.calls")).toHaveCount(0);
+      await expect(p.locator("table.turns")).toHaveCount(0);
     }
   });
 });
@@ -156,7 +168,7 @@ test.describe("B. the call page", () => {
     await expect(p).toHaveAttribute("data-available", "true");
     const thinking = p.locator('[data-block="thinking"] pre[data-quoted="agent"]');
     await expect(thinking).toBeVisible();
-    expect((await thinking.innerText()).length).toBeGreaterThan(4000);
+    expect((await thinking.textContent())!.length).toBeGreaterThan(4000);
     await expect(p.locator('[data-block="tool"][data-tool="1"]')).toContainText("failed");
     await expect(p.locator('[data-block="tool"][data-tool="1"] pre').nth(1)).toContainText("1 failed, 9 passed");
     await expect(p.getByRole("link", { name: "← Back to the conversation" })).toHaveAttribute("href", new RegExp("/s/2/conversation$"));
@@ -249,89 +261,25 @@ test.describe("C. the API as the page sees it", () => {
   });
 });
 
-test.describe("D. layout: pinned heads, compact numbers, search, folded cells", () => {
-  test("the section heading and the column heads stay pinned; numbers take their digits' width, the text the rest", async ({ page }) => {
+test.describe("D. layout: pinned heads, compact numbers, folded cells", () => {
+  test("the list's heading and column heads stay pinned; the text column takes the width the numbers don't need", async ({ page }) => {
     await page.goto(conv(SWIFT, "v2-r5", "2"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
-    await byType(page);
-    await expect(p.locator('[data-section="calls"] .rp-head')).toHaveCSS("position", "sticky");
-    await expect(p.locator("table.calls thead th").first()).toHaveCSS("position", "sticky");
-    const widths = await p.locator("table.calls tbody tr").first().locator("td").evaluateAll((tds) => tds.map((td) => ({ cls: td.className, w: td.getBoundingClientRect().width })));
+    await expect(p.locator('[data-section="all"] .rp-head')).toHaveCSS("position", "sticky");
+    await expect(p.locator("table.turns thead th").first()).toHaveCSS("position", "sticky");
+    const widths = await p.locator('table.turns tr[data-call="0"] td').evaluateAll((tds) => tds.map((td) => ({ cls: td.className, w: td.getBoundingClientRect().width })));
     const said = widths.find((w) => w.cls.includes("said"))!;
-    for (const w of widths.filter((x) => x.cls.includes("n"))) expect(w.w, w.cls).toBeLessThan(160);
-    expect(said.w, JSON.stringify(widths)).toBeGreaterThan(Math.max(...widths.filter((x) => !x.cls.includes("said")).map((x) => x.w)) * 2);
-    // Scrolled deep into the calls, the heading is still in view.
-    await page.locator("table.calls tbody tr").last().scrollIntoViewIfNeeded();
-    await expect(p.locator('[data-section="calls"] .rp-head')).toBeInViewport();
+    expect(said.w, JSON.stringify(widths)).toBeGreaterThan(Math.max(...widths.filter((x) => !x.cls.includes("said")).map((x) => x.w)) * 1.5);
+    await p.locator("table.turns tbody tr").last().scrollIntoViewIfNeeded();
+    await expect(p.locator('[data-section="all"] .rp-head')).toBeInViewport();
   });
 
-  test("each section folds behind its twisty, and the fold is remembered", async ({ page }) => {
+  test("a cell shows five lines, and + shows the whole of it; the call page opens folded too", async ({ page }) => {
     await page.goto(conv(SWIFT, "v2-r5", "2"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
-    await byType(page);
-    const calls = p.locator('[data-section="calls"]');
-    await expect(calls).toHaveAttribute("data-collapsed", "false");
-    await expect(calls.locator("table.calls")).toBeVisible();
-    await calls.getByRole("button", { name: "Collapse Model calls" }).click();
-    await expect(calls).toHaveAttribute("data-collapsed", "true");
-    await expect(calls.locator("table.calls")).toBeHidden();
-    await expect(calls.locator(".rp-head")).toBeVisible();
-    // Another section is untouched; the fold survives a reload; the twisty opens it again.
-    await expect(p.locator('[data-section="tools"] table.tools')).toBeVisible();
-    await page.reload();
-    await expect(page$(page).locator('[data-section="calls"]')).toHaveAttribute("data-collapsed", "true");
-    await page$(page).locator('[data-section="calls"]').getByRole("button", { name: "Expand Model calls" }).click();
-    await expect(page$(page).locator('[data-section="calls"] table.calls')).toBeVisible();
-  });
-
-  test("a section's magnifier opens its own search, as you type, with the hits marked and the count of what matches", async ({ page }) => {
-    await page.goto(conv(SWIFT, "v2-r5", "2"));
-    const p = page$(page);
-    await expect(p).toHaveAttribute("data-backfilled", "true");
-    await byType(page);
-    const calls = p.locator('[data-section="calls"]');
-    // The count's place holds the magnifier; the box appears on a click.
-    await expect(calls.locator('[data-fact="count"]')).toHaveCount(0);
-    await expect(calls.getByRole("searchbox")).toHaveCount(0);
-    await calls.getByRole("button", { name: "Search model calls" }).click();
-    const box = calls.getByRole("searchbox", { name: "Search model calls" });
-    await expect(box).toBeFocused();
-    await expect(calls.locator('[data-fact="count"]')).toHaveText("4");
-    // "harness" is in two calls' thinking and one call's text: all three are shown, each with the hit marked (a call
-    // found through its thinking shows that thinking in Said).
-    await box.fill("harness");
-    await expect(calls.locator("table.calls tbody tr")).toHaveCount(3);
-    for (const i of [0, 1, 2]) await expect(calls.locator("table.calls tbody tr").nth(i).locator("mark").first()).toHaveText(/harness/i);
-    await expect(calls.locator('[data-fact="count"]')).toHaveText("3 of 4");
-    await box.fill("everything is complete");
-    await expect(calls.locator("table.calls tbody tr")).toHaveCount(1);
-    // The tools section has its own: the tool whose result holds "attempt 2" is found through its result; the argument too.
-    const tools = p.locator('[data-section="tools"]');
-    await expect(tools.locator("table.tools tbody tr")).toHaveCount(3);
-    await tools.getByRole("button", { name: "Search tool calls" }).click();
-    const tbox = tools.getByRole("searchbox", { name: "Search tool calls" });
-    await tbox.fill("attempt 2");
-    await expect(tools.locator("table.tools tbody tr")).toHaveCount(2);
-    await expect(tools.locator("table.tools tbody tr mark").first()).toHaveText("attempt 2");
-    await expect(tools.locator('[data-fact="count"]')).toHaveText("2 of 3");
-    await tbox.fill("npm test");
-    await expect(tools.locator("table.tools tbody tr")).toHaveCount(1);
-    // The calls' search is still its own, untouched by the tools'.
-    await expect(calls.locator("table.calls tbody tr")).toHaveCount(1);
-    // The magnifier again clears and closes the search.
-    await tools.getByRole("button", { name: "Search tool calls" }).click();
-    await expect(tools.getByRole("searchbox")).toHaveCount(0);
-    await expect(tools.locator("table.tools tbody tr")).toHaveCount(3);
-  });
-
-  test("a cell shows five lines, and + shows the whole of it", async ({ page }) => {
-    await page.goto(conv(SWIFT, "v2-r5", "2"));
-    const p = page$(page);
-    await expect(p).toHaveAttribute("data-backfilled", "true");
-    await byType(page);
-    const cell = p.locator('table.calls tbody tr[data-call="3"] .clamp-cell');
+    const cell = p.locator('table.turns tr[data-call="3"] .clamp-cell');
     await expect(cell.locator(".clamp")).toHaveAttribute("data-folded", "true");
     const folded = await cell.locator(".clamp").evaluate((e) => e.getBoundingClientRect().height);
     await cell.getByRole("button", { name: "Show all" }).click();
@@ -341,8 +289,13 @@ test.describe("D. layout: pinned heads, compact numbers, search, folded cells", 
     await expect(cell.locator(".clamp")).toContainText("Committed.");
     await cell.getByRole("button", { name: "Show less" }).click();
     await expect(cell.locator(".clamp")).toHaveAttribute("data-folded", "true");
-    // A short cell has no button; a long tool result is folded in the tools table.
-    await expect(p.locator('table.calls tbody tr[data-call="0"] .clamp-more')).toHaveCount(0);
-    await expect(p.locator('table.tools tbody tr[data-tool="0"] .clamp[data-folded="true"]')).toHaveCount(1);
+    await expect(p.locator('table.turns tr[data-call="0"] .clamp-more')).toHaveCount(0);
+    await expect(p.locator('table.turns tr[data-tool="0"] .clamp[data-folded="true"]')).toHaveCount(1);
+    // The call page: the long thinking is folded on arrival.
+    await page.goto(call(SWIFT, "v2-r5", "2", 1));
+    const thinking = page.locator('[data-page="call"] [data-block="thinking"] .clamp');
+    await expect(thinking).toHaveAttribute("data-folded", "true");
+    await page.locator('[data-page="call"] [data-block="thinking"]').getByRole("button", { name: "Show all" }).click();
+    await expect(thinking).toHaveAttribute("data-expanded", "true");
   });
 });
