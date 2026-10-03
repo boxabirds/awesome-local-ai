@@ -5,7 +5,7 @@
 // Observations are facts about the work, found in the data of normal operation. A bug in the app, the harness or the
 // pipeline is not one and never appears here (CLAUDE.md, "The app shows results, never its own faults").
 import type { Row } from "./types.ts";
-import { closeCalls, isComplete, median, rankCombinations, scoreOfRecord } from "./stats.ts";
+import { closeCalls, INDISTINGUISHABLE_TESTS, isComplete, median, rankCombinations, scoreOfRecord, SMALL_N } from "./stats.ts";
 import { SILENT_MINUTES, type NowLine } from "./overviewView.ts";
 import { runOrder } from "./runGroups.ts";
 
@@ -185,23 +185,60 @@ export function observations(lines: NowLine[], rows: Row[], now: number): Observ
 // ---------- the score plot ----------
 
 export interface ScorePlotRow { stack: string; label: string; pack: string; machines: string[]; dots: number[]; median: number; min: number; max: number; n: number }
-export interface ScorePlot { total: number | null; rows: ScorePlotRow[]; closeCalls: [string, string][] }
+export interface ScorePlot {
+  total: number | null;
+  rows: ScorePlotRow[];
+  /** Where the scale starts: the tens below the lowest ordinary dot (0 when the scores are low). */
+  axisMin: number;
+  /** Runs far below the rest: drawn pinned at the left edge, so one bad run doesn't squash everyone else. */
+  offScale: { stack: string; label: string; value: number }[];
+  /** Neighbours the runs so far can't separate (the small-n rule), each chain of them one group, best first. */
+  groups: string[][];
+  /** The chart in plain English, one sentence each. */
+  narrative: string[];
+}
 
-/** One row per combination with a score of record, best median first: a dot per run, the median and the range, on one
- * axis from 0 to the suite's total. `closeCalls`: neighbours the evidence can't separate (the existing small-n rule). */
+/** A dot below this share of the middle score of all dots is off the scale. */
+export const OFF_SCALE_SHARE = 0.6;
+const SCALE_STEP = 10;
+const REFERENCE_PREFIX = "reference/";
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const score = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+const joined = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
+
+/** One row per combination with a score of record, best median first: a dot per run, the median and the range. */
 export function scorePlot(rows: Row[]): ScorePlot {
   const ranked = rankCombinations(rows).filter((c) => c.score);
-  if (!ranked.length) return { total: null, rows: [], closeCalls: [] };
+  if (!ranked.length) return { total: null, rows: [], axisMin: 0, offScale: [], groups: [], narrative: [] };
   const total = ranked.map((c) => c.score!.total).find((t): t is number => t !== null) ?? null;
-  return {
-    total,
-    rows: ranked.map((c) => ({
-      stack: c.stack, label: c.label, pack: c.pack, machines: c.machines,
-      dots: c.ofRecord.map((r) => scoreOfRecord(r)!.passed!).toSorted((a, b) => a - b),
-      median: c.score!.median, min: c.score!.min, max: c.score!.max, n: c.score!.n,
-    })),
-    closeCalls: closeCalls(ranked).map(([a, b]) => [a.stack, b.stack] as [string, string]),
-  };
+  const plot: ScorePlotRow[] = ranked.map((c) => ({
+    stack: c.stack, label: c.label, pack: c.pack, machines: c.machines,
+    dots: c.ofRecord.map((r) => scoreOfRecord(r)!.passed!).toSorted((a, b) => a - b),
+    median: c.score!.median, min: c.score!.min, max: c.score!.max, n: c.score!.n,
+  }));
+  const all = plot.flatMap((r) => r.dots);
+  const cut = OFF_SCALE_SHARE * (median(all) ?? 0);
+  const ordinary = all.filter((v) => v >= cut);
+  const axisMin = Math.floor(Math.min(...(ordinary.length ? ordinary : all)) / SCALE_STEP) * SCALE_STEP;
+  const offScale = plot.flatMap((r) => r.dots.filter((v) => v < cut).map((value) => ({ stack: r.stack, label: r.label, value })));
+  const groups: string[][] = [];
+  for (const [a, b] of closeCalls(ranked)) {
+    const last = groups.at(-1);
+    if (last && last.at(-1) === a.stack) last.push(b.stack); else groups.push([a.stack, b.stack]);
+  }
+  const label = (stack: string) => plot.find((r) => r.stack === stack)!.label;
+  const top = plot[0], local = plot.find((r) => !r.stack.startsWith(REFERENCE_PREFIX));
+  const said = (r: ScorePlotRow) => `${r.label}, ${score(r.median)} of ${total} in the middle, over ${plural(r.n, "run")}.`;
+  const narrative = [
+    `Each dot is one finished run: how many of the ${total} hidden tests it passed. The black bar is the middle run; the grey line runs from the lowest to the highest. Further right is better.`,
+    `Highest: ${said(top)}`,
+    ...(local && local !== top ? [`Best of the local stacks: ${said(local)}`] : []),
+    ...groups.map((g) => `${joined(g.map(label))} are within ${INDISTINGUISHABLE_TESTS} tests of each other, and each has ${SMALL_N} runs or fewer, so with the runs so far their order could change.`),
+    ...offScale.map((o) => `One run of ${o.label} scored ${score(o.value)}, off the left edge of the scale.`),
+    ...(axisMin > 0 ? [`The scale starts at ${axisMin}, not 0, so the differences show.`] : []),
+  ];
+  return { total, rows: plot, axisMin, offScale, groups, narrative };
 }
 
 // The run order in the lists the dashboard draws is the app's one order.

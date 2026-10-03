@@ -115,13 +115,42 @@ test.describe("the score, drawn", () => {
   test("one row per ranked combination, a dot for each run, the median and the range, with a text equivalent", async ({ page }) => {
     const plot = overview(page).locator('[data-section="scores"] svg');
     await expect(plot).toHaveAttribute("role", "img");
-    await expect(plot).toHaveAttribute("aria-label", /Score by combination\. .*median \d+ of 75/);
+    await expect(plot).toHaveAttribute("aria-label", /Score by combination\. .*middle \d+ of 75/);
     const rows = plot.locator("g[data-stack]");
     expect(await rows.count()).toBeGreaterThanOrEqual(2);
     const first = rows.first();
     await expect(first.locator(".plot-median")).toHaveCount(1);
     expect(await first.locator(".plot-dot").count()).toBeGreaterThanOrEqual(1);
-    await expect(first.locator(".plot-n")).toHaveText(/^n=\d+$/);
+    await expect(first.locator(".plot-runs")).toHaveText(/^\d+ runs?$/);
+    await expect(first.locator(".plot-score")).toHaveText(/^\d+(\.\d)?\/75$/);
+  });
+
+  test("it is explained in plain words above the picture: how to read it, the top, the best local, what can't be separated", async ({ page }) => {
+    const words = overview(page).locator('[data-section="scores"] [data-narrative]');
+    await expect(words).toContainText("Each dot is one finished run");
+    await expect(words).toContainText("Further right is better.");
+    await expect(words).toContainText("Highest:");
+    await expect(words).toContainText(/Best of the local stacks:|are within 12 tests of each other/);
+    await expect(overview(page).locator('[data-section="scores"] h2')).toHaveText(/^Score\s*out of 75 hidden tests$/);
+  });
+
+  test("each row says in a sentence what its marks are, on hover; a bracket says what can't be told apart", async ({ page }) => {
+    await expect(overview(page).locator('[data-section="scores"] g[data-stack]').first()).toHaveAttribute("data-tip", /runs? scored .* out of 75\. The middle run scored .*; the lowest \d+, the highest \d+\./);
+    const bracket = overview(page).locator('[data-section="scores"] .plot-close');
+    if (await bracket.count()) await expect(bracket.first()).toHaveAttribute("data-tip", /^These can't be told apart yet: /);
+  });
+
+  test("a key names every mark; the scale says where it starts when it isn't 0", async ({ page }) => {
+    const key = overview(page).locator('[data-section="scores"] .plot-key');
+    await expect(key).toContainText("one run");
+    await expect(key).toContainText("the middle run");
+    await expect(key).toContainText("lowest to highest");
+  });
+
+  test("one bracket per group of neighbours, not one per pair", async ({ page }) => {
+    const plot = overview(page).locator('[data-section="scores"]');
+    const groups = await plot.locator(".plot-close").evaluateAll((els) => els.map((e) => (e as SVGElement).dataset.group!.split("|").length));
+    for (const n of groups) expect(n).toBeGreaterThanOrEqual(2);
   });
 
   test("a combination's label links to its page", async ({ page }) => {
