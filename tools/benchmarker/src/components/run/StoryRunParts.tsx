@@ -1,5 +1,5 @@
 // The story run page's header, what's known of a story run that isn't recorded, and the ways around it.
-import type { Row, State } from "../../../shared/types.ts";
+import type { Row, RunStatus, State } from "../../../shared/types.ts";
 import { interventionsOf, neighbours, otherRuns, storyRunState, type StoryRunState } from "../../../shared/runView.ts";
 import { InterventionMark } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
@@ -27,30 +27,63 @@ function StoryStatus({ st }: { st: StoryRunState }) {
 
 const fraction = (p: number | null, t: number | null, why: string) => (t !== null && p !== null ? <span className="live-n">{p}/{t}</span> : <Missing why={why} />);
 
+/** The run's states that change what its story means: the conversation may still grow, or was cut short. A run
+ * that finished, or is queued, adds nothing to a story's own status and is not shown beside it. */
+const RUN_STATES_SHOWN: RunStatus[] = ["running", "failed", "stopped", "cancelled"];
+const runStateShown = (run: Row) => RUN_STATES_SHOWN.includes(run.status);
+
+/** The story's number and title as a page's h1; a story whose title isn't known yet is its number alone. */
+const StoryTitle = ({ storyId, title }: { storyId: string; title: string }) => (
+  <h1>Story {storyId}{title ? <span className="story-title-h"> · {title}</span> : null}</h1>
+);
+
+/** The story-run page's header card: the story, its run and machine, then its figures, each at one size. The
+ * combination is in the breadcrumb and on the run link's hover; the terms' explanations are their hovers. */
 export function StoryRunHeader({ run, st, storyId, title }: { run: Row; st: StoryRunState; storyId: string; title: string }) {
   const story = st.kind === "recorded" ? st.story : null;
   const secs = story?.usage?.agentSeconds ?? null;
   return (
     <div className="rp-header" data-section="header">
-      <div className="eyebrow">Story run</div>
-      <h1>Story {storyId}{title ? <span className="story-title-h"> · {title}</span> : <span className="small"> · title not known yet</span>}</h1>
+      <StoryTitle storyId={storyId} title={title} />
       <div className="of-run">
-        <RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} /> <span className="small">on <MachineLink machine={run.machine} host={run.host} /> · run</span> <StatusBadge run={run} />
+        <RunLink pack={run.pack} stack={run.stack} runId={run.runId} /> <span className="small">on <MachineLink machine={run.machine} host={run.host} /></span>
+        {runStateShown(run) ? <> <StatusBadge run={run} /></> : null}
         {" "}<InterventionMark list={interventionsOf(run, storyId)} />
       </div>
       {story?.notComparable ? <p className="not-compared" data-fact="notCompared"><Term id="notCompared" />: {story.notComparable}</p> : null}
       <div className="outcome">
         <Stat term="storyStatus"><span data-fact="storyStatus"><StoryStatus st={st} /></span></Stat>
         {story ? <>
-          <Stat term="storyHeldOut" sub="this story's own tests, after it">
-            <span data-fact="own">{fraction(story.ownPassed, story.ownTotal, "Not available.")}</span>
+          <Stat term="storyHeldOut">
+            <span className="held-out-parts">
+              <span data-part="own"><Term id="storyHeldOut">This story</Term> <span data-fact="own">{fraction(story.ownPassed, story.ownTotal, "Not available.")}</span></span>
+              <span data-part="cumulative"><Term id="cumulativeHeldOut">Suite so far</Term> <span data-fact="cumulative">{fraction(story.passed, story.total, "Not available.")}</span></span>
+            </span>
           </Stat>
-          <Stat term="cumulativeHeldOut" sub="whole suite so far">
-            <span data-fact="cumulative">{fraction(story.passed, story.total, "Not available.")}</span>
-          </Stat>
-          <Stat term="agentTime"><span data-fact="agentTime">{secs !== null ? <span className="big-n">{duration(secs)}</span> : <Missing why="This story's record has no time." />}</span></Stat>
+          <Stat term="agentTime"><span data-fact="agentTime">{secs !== null ? duration(secs) : <Missing why="This story's record has no time." />}</span></Stat>
         </> : null}
       </div>
+    </div>
+  );
+}
+
+/** The story run in one line, for the pages about its conversation: the story's number and title, then its
+ * status, its held-out fraction and its agent time in small type, and the run's state with its machine only while
+ * that matters (RUN_STATES_SHOWN). Everything else about the story run is one crumb back. */
+export function StoryRunLine({ run, st, storyId, title }: { run: Row; st: StoryRunState; storyId: string; title: string }) {
+  const story = st.kind === "recorded" ? st.story : null;
+  const secs = story?.usage?.agentSeconds ?? null;
+  const sep = <span className="srl-sep" aria-hidden="true"> · </span>;
+  return (
+    <div className="story-run-line" data-section="header">
+      <StoryTitle storyId={storyId} title={title} />
+      <span className="srl-facts small">
+        <span data-fact="storyStatus"><StoryStatus st={st} /></span>
+        {story ? <>{sep}<span data-fact="own" data-tip={GLOSSARY.storyHeldOut.what}>{fraction(story.ownPassed, story.ownTotal, "Not available.")}</span></> : null}
+        {story ? <>{sep}<span data-fact="agentTime" data-tip={GLOSSARY.agentTime.what}>{secs !== null ? duration(secs) : <Missing why="This story's record has no time." />}</span></> : null}
+        {runStateShown(run) ? <>{sep}<StatusBadge run={run} /> <span className="srl-on">on <MachineLink machine={run.machine} host={run.host} /></span></> : null}
+        {" "}<InterventionMark list={interventionsOf(run, storyId)} />
+      </span>
     </div>
   );
 }

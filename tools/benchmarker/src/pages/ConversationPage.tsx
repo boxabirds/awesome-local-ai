@@ -13,7 +13,7 @@ import { GLOSSARY } from "../../shared/glossary.ts";
 import { Breadcrumb } from "../components/EntityLinks.tsx";
 import { useAddressParam } from "../components/story/useAddressParam.ts";
 import { restoreScroll } from "../router.ts";
-import { StoryRunHeader } from "../components/run/StoryRunParts.tsx";
+import { StoryRunLine } from "../components/run/StoryRunParts.tsx";
 import { Missing, Section, Term, full, utc } from "../components/run/bits.tsx";
 import { Clamped } from "../components/conversation/text.tsx";
 import { duration } from "../format.ts";
@@ -76,7 +76,7 @@ export function ConversationPage({ route, run, story, storyId, state, params }: 
     return (
       <div className="page conversation-page run-page" data-page="conversation" data-available="false">
         {crumbs}
-        <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
+        <StoryRunLine run={run} st={st} storyId={storyId} title={title} />
         <Section term="conversationPage" id="conversation">
           <p className="rp-empty" data-empty="conversation"><Missing why={NOT_AVAILABLE} /> {NOT_AVAILABLE}</p>
         </Section>
@@ -99,9 +99,9 @@ export function ConversationPage({ route, run, story, storyId, state, params }: 
   return (
     <div className="page conversation-page run-page" data-page="conversation" data-available="true" data-backfilled={conv.backfilled ? "true" : "false"} data-polls={conv.polls}>
       {crumbs}
-      <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
       <section className="rp-section conv-section" id="sec-all" data-section="all" aria-labelledby="h-all">
         <div className="rp-head conv-head" ref={head}>
+          <StoryRunLine run={run} st={st} storyId={storyId} title={title} />
           <div className="conv-head-row">
             <h2 id="h-all"><Term id="conversationPage" /></h2>
             <div className="rp-aside">

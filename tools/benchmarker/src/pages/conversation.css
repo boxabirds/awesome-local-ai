@@ -83,3 +83,15 @@ tr[data-jumped="true"] td { background: var(--chip); }
 .kind-tool { background: var(--seg-tools); color: #fff; }
 .kind-wait { background: var(--seg-between); color: #fff; }
 .kind-compaction { background: var(--seg-compaction); color: #fff; }
+
+/* The story run in one line above the conversation and above a call: the title at the left, the facts at the
+   right in the head's small type; it wraps under the title when the window is narrow. */
+.story-run-line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 16px; margin: 0 0 8px; }
+.story-run-line h1 { font-size: 18px; line-height: 1.3; margin: 0; font-weight: 750; overflow-wrap: anywhere; }
+.story-run-line h1 .story-title-h { font-weight: 600; }
+.story-run-line .srl-facts { color: var(--muted); white-space: nowrap; }
+.story-run-line .srl-facts .story-status { font-size: 13px; }
+.story-run-line .srl-facts .status-badge .status-word { font-size: 13px; }
+.story-run-line .srl-facts .live-n { font-style: normal; color: var(--ink); }
+.conv-head .story-run-line { padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.call-page .story-run-line { padding: 10px 0 2px; }
