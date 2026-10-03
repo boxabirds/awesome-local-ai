@@ -1,0 +1,6 @@
+{
+  "state": "started",
+  "reason": "harness 9617ebb9 (harness-v2026.10.02.3), client pi, model mlxserve-flash-next-mixed-4-8bit",
+  "at": "2026-10-03T14:00:36Z",
+  "host": "Apple M5 Max 128GB"
+}
