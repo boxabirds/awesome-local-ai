@@ -1,0 +1,467 @@
+{
+ "edits": [
+  {
+   "args": {
+    "edits": [
+     {
+      "newText": "abcd",
+      "oldText": "abc"
+     },
+     {
+      "new_string": "yy",
+      "old_string": "x"
+     }
+    ]
+   },
+   "sizes": [
+    2,
+    4,
+    6
+   ]
+  },
+  {
+   "args": {
+    "newText": "new",
+    "oldText": "old"
+   },
+   "sizes": [
+    1,
+    3,
+    3
+   ]
+  },
+  {
+   "args": {
+    "old_string": "a"
+   },
+   "sizes": [
+    1,
+    1,
+    0
+   ]
+  },
+  {
+   "args": {
+    "content": "file body"
+   },
+   "sizes": [
+    1,
+    0,
+    9
+   ]
+  },
+  {
+   "args": {
+    "command": "ls"
+   },
+   "sizes": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "args": {},
+   "sizes": [
+    0,
+    0,
+    0
+   ]
+  }
+ ],
+ "probes": [
+  {
+   "arg": [],
+   "home": "Permission denied: EACCES on ~/x",
+   "res": [
+    "perm_denied"
+   ],
+   "summary": {},
+   "text": "Permission denied: EACCES on /Users/julian/x",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "zsh: command not found: foo",
+   "res": [
+    "not_found_cmd"
+   ],
+   "summary": {},
+   "text": "zsh: command not found: foo",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "ENOENT: No such file or directory",
+   "res": [
+    "no_such_file"
+   ],
+   "summary": {},
+   "text": "ENOENT: No such file or directory",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "Error: listen EADDRINUSE: address already in use",
+   "res": [
+    "addr_in_use"
+   ],
+   "summary": {},
+   "text": "Error: listen EADDRINUSE: address already in use",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "Test timeout of 30000ms exceeded",
+   "res": [
+    "timed_out"
+   ],
+   "summary": {},
+   "text": "Test timeout of 30000ms exceeded",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "Could not find oldText in file",
+   "res": [
+    "edit_mismatch"
+   ],
+   "summary": {},
+   "text": "Could not find oldText in file",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "src/a.ts(1,2): error TS2345",
+   "res": [
+    "ts_error"
+   ],
+   "summary": {},
+   "text": "src/a.ts(1,2): error TS2345",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "SyntaxError: Unexpected token",
+   "res": [
+    "syntax_error"
+   ],
+   "summary": {},
+   "text": "SyntaxError: Unexpected token",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "Cannot find module 'x'",
+   "res": [
+    "module_missing"
+   ],
+   "summary": {},
+   "text": "Cannot find module 'x'",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "npm ERR! code 1",
+   "res": [
+    "npm_error"
+   ],
+   "summary": {},
+   "text": "npm ERR! code 1",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "Killed",
+   "res": [
+    "killed"
+   ],
+   "summary": {},
+   "text": "Killed",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "FATAL ERROR: heap out of memory",
+   "res": [
+    "oom"
+   ],
+   "summary": {},
+   "text": "FATAL ERROR: heap out of memory",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "ENOSPC: No space left on device",
+   "res": [
+    "no_space"
+   ],
+   "summary": {},
+   "text": "ENOSPC: No space left on device",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "Segmentation fault (core dumped)",
+   "res": [
+    "crash"
+   ],
+   "summary": {},
+   "text": "Segmentation fault (core dumped)",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "getaddrinfo ENOTFOUND registry",
+   "res": [
+    "net_fail"
+   ],
+   "summary": {},
+   "text": "getaddrinfo ENOTFOUND registry",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "3 failed, 12 passed, 1 flaky, 2 skipped",
+   "res": [
+    "tests_failed",
+    "tests_passed",
+    "flaky"
+   ],
+   "summary": {
+    "failed": 3,
+    "flaky": 1,
+    "passed": 12,
+    "skipped": 2
+   },
+   "text": "3 failed, 12 passed, 1 flaky, 2 skipped",
+   "text_flags": [
+    "blames_env"
+   ]
+  },
+  {
+   "arg": [],
+   "home": "✘ test",
+   "res": [
+    "tests_failed"
+   ],
+   "summary": {},
+   "text": "✘ test",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "Executable doesn't exist at",
+   "res": [
+    "browser_missing"
+   ],
+   "summary": {},
+   "text": "Executable doesn't exist at",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "sandbox-exec: deny(file-read",
+   "res": [
+    "sandbox"
+   ],
+   "summary": {},
+   "text": "sandbox-exec: deny(file-read",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "[... truncated 300 chars]",
+   "res": [
+    "truncated_output"
+   ],
+   "summary": {},
+   "text": "[... truncated 300 chars]",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "...[truncated 12 chars] and more",
+   "res": [],
+   "summary": {},
+   "text": "...[truncated 12 chars] and more",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "…[truncated 5 chars]",
+   "res": [],
+   "summary": {},
+   "text": "…[truncated 5 chars]",
+   "text_flags": []
+  },
+  {
+   "arg": [
+    "test_skip"
+   ],
+   "home": "test.skip('x')",
+   "res": [],
+   "summary": {},
+   "text": "test.skip('x')",
+   "text_flags": []
+  },
+  {
+   "arg": [
+    "test_only"
+   ],
+   "home": "it.only('y')",
+   "res": [],
+   "summary": {},
+   "text": "it.only('y')",
+   "text_flags": []
+  },
+  {
+   "arg": [
+    "ts_suppress"
+   ],
+   "home": "// @ts-ignore\nconst a = b as any",
+   "res": [],
+   "summary": {},
+   "text": "// @ts-ignore\nconst a = b as any",
+   "text_flags": []
+  },
+  {
+   "arg": [
+    "timeout_raise"
+   ],
+   "home": "await page.waitForTimeout(500)",
+   "res": [],
+   "summary": {},
+   "text": "await page.waitForTimeout(500)",
+   "text_flags": []
+  },
+  {
+   "arg": [
+    "console_log"
+   ],
+   "home": "console.log('hi')",
+   "res": [],
+   "summary": {},
+   "text": "console.log('hi')",
+   "text_flags": []
+  },
+  {
+   "arg": [
+    "todo_marker"
+   ],
+   "home": "// TODO later",
+   "res": [],
+   "summary": {},
+   "text": "// TODO later",
+   "text_flags": []
+  },
+  {
+   "arg": [
+    "retries"
+   ],
+   "home": "retries: 2",
+   "res": [],
+   "summary": {},
+   "text": "retries: 2",
+   "text_flags": []
+  },
+  {
+   "arg": [
+    "no_verify"
+   ],
+   "home": "git push --force",
+   "res": [],
+   "summary": {},
+   "text": "git push --force",
+   "text_flags": []
+  },
+  {
+   "arg": [
+    "cjk"
+   ],
+   "home": "你好",
+   "res": [],
+   "summary": {},
+   "text": "你好",
+   "text_flags": [
+    "cjk"
+   ]
+  },
+  {
+   "arg": [],
+   "home": "I'm stuck and cannot proceed",
+   "res": [],
+   "summary": {},
+   "text": "I'm stuck and cannot proceed",
+   "text_flags": [
+    "gives_up"
+   ]
+  },
+  {
+   "arg": [],
+   "home": "Is that right?",
+   "res": [],
+   "summary": {},
+   "text": "Is that right?",
+   "text_flags": [
+    "question"
+   ]
+  },
+  {
+   "arg": [],
+   "home": "all tests pass, fully implemented",
+   "res": [],
+   "summary": {},
+   "text": "all tests pass, fully implemented",
+   "text_flags": [
+    "claims_done"
+   ]
+  },
+  {
+   "arg": [],
+   "home": "for now a workaround",
+   "res": [],
+   "summary": {},
+   "text": "for now a workaround",
+   "text_flags": [
+    "shortcut"
+   ]
+  },
+  {
+   "arg": [],
+   "home": "a pre-existing flaky environment issue",
+   "res": [],
+   "summary": {},
+   "text": "a pre-existing flaky environment issue",
+   "text_flags": [
+    "blames_env"
+   ]
+  },
+  {
+   "arg": [],
+   "home": "The harness being evaluated",
+   "res": [],
+   "summary": {},
+   "text": "The harness being evaluated",
+   "text_flags": [
+    "eval_aware"
+   ]
+  },
+  {
+   "arg": [],
+   "home": "",
+   "res": [],
+   "summary": {},
+   "text": "",
+   "text_flags": []
+  },
+  {
+   "arg": [],
+   "home": "plain text with nothing in it",
+   "res": [],
+   "summary": {},
+   "text": "plain text with nothing in it",
+   "text_flags": []
+  }
+ ]
+}

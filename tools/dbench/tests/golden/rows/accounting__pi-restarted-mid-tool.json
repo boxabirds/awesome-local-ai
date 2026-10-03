@@ -1,0 +1,82 @@
+{
+ "calls": [
+  {
+   "cache_tok": 5000,
+   "idx": 0,
+   "in_tok": 1200,
+   "n_tools": 0,
+   "out_tok": 80,
+   "rx": 1790000011.0,
+   "stop": null,
+   "sub": 0,
+   "text": 0,
+   "text_flags": [],
+   "text_full": "",
+   "think": 0,
+   "think_flags": [],
+   "think_full": ""
+  },
+  {
+   "cache_tok": 5000,
+   "idx": 1,
+   "in_tok": 1200,
+   "n_tools": 0,
+   "out_tok": 80,
+   "rx": 1790000026.0,
+   "stop": null,
+   "sub": 0,
+   "text": 0,
+   "text_flags": [],
+   "text_full": "",
+   "think": 0,
+   "think_flags": [],
+   "think_full": ""
+  },
+  {
+   "cache_tok": 5000,
+   "idx": 2,
+   "in_tok": 1200,
+   "n_tools": 0,
+   "out_tok": 80,
+   "rx": 1790000217.0,
+   "stop": null,
+   "sub": 0,
+   "text": 0,
+   "text_flags": [],
+   "text_full": "",
+   "think": 0,
+   "think_flags": [],
+   "think_full": ""
+  },
+  {
+   "cache_tok": 5000,
+   "idx": 3,
+   "in_tok": 1200,
+   "n_tools": 0,
+   "out_tok": 80,
+   "rx": 1790000236.0,
+   "stop": null,
+   "sub": 0,
+   "text": 0,
+   "text_flags": [],
+   "text_full": "",
+   "think": 0,
+   "think_flags": [],
+   "think_full": ""
+  }
+ ],
+ "compactions": [],
+ "fmt": "pi",
+ "msgs": [
+  {
+   "chars": 0,
+   "idx": 0,
+   "role": "user",
+   "rx": 1790000200.3,
+   "text": ""
+  }
+ ],
+ "tools": [],
+ "truncated_chars": 0,
+ "truncated_strings": 0
+}
