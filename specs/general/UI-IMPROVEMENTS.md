@@ -1,10 +1,198 @@
 # UI/UX Improvements
 
+Two reviews of the benchmarker, newest first. Part 1 is navigation across the site (3 October 2026, evening).
+Part 2 is the conversation page (3 October 2026, afternoon; its Critical and most High items are built).
+
+## Part 1: navigation across the site (3 October 2026)
+
+Reviewed at 1148 px wide against the live app, by walking these paths and reading the address, the breadcrumb,
+the tab bar, the scroll position and `history.length` after each step: overview › Machines › a machine › Back;
+Runs › a combination › its run › a time bar › Back; run › story run › conversation › a call › Back › Back;
+Stories tab and Setup tab from a story-run page › Back; story page and machine page by address. The code behind
+each finding is named so the fix is a known change, not a search.
+
+### Summary
+
+The site has two navigation systems that disagree about what a place is. The address bar and the breadcrumb
+treat entity pages as places: a combination, a run, a story run, a conversation, a call. The top bar treats
+Runs, Machines and Setup as a remembered choice (a `localStorage` key, `App.tsx:27`) that is not in the
+address at all, while the fourth tab, Stories, is a page. So `#/`, the one address every "Overview" crumb and
+every Back-to-the-top leads to, is three different screens depending on what was clicked last, and the
+breadcrumb cannot name the level the reader came through (Machines, Stories) because that level has no
+address. That is the "wrong level": Back and the crumb do go where they say, but where they say is not a
+fixed place.
+
+Three further things make the trail feel loose. The breadcrumb's depth and wording differ by page (a machine
+page is "Overview › gruntus", a story page is "Overview › vidi story 3", a combination page omits the pack the
+story page includes). The tab bar highlights nothing on most pages, so the reader's sense of section is lost as
+soon as they leave the overview. And the router scrolls to the top on every address change, Back included
+(`router.ts:8`), so Back from a call page returns to the top of a 300-row conversation, not to the row that was
+clicked.
+
+The fix is one system: every screen a reader can stand on has an address, the tabs are links to the top of
+their sections, the breadcrumb is the address spelled out, and Back restores what the reader was looking at.
+
+### Critical Issues
+
+#### Issue: `#/` is three different screens, so "Overview" and Back have no fixed target
+**Current State**: Runs, Machines and Setup are a `tab` state in `App.tsx:88` saved under
+`benchmarker:tab:v1`; choosing one from an entity page sets `location.hash = "#/"` (`App.tsx:91`). The
+breadcrumb's first crumb is always `#/` (`EntityLinks.tsx:52`), `RemoveMachine` goes to `#/`
+(`MachineHeader.tsx:38`), the not-found page's "Back to the overview" goes to `#/`. Machine pages live at
+`#/m/<name>`, under no section. Verified: after opening Setup from a story-run page and pressing Back, every
+"Overview" crumb on the site opens Setup until Runs is clicked again; from a machine page, Back lands on `#/`
+showing Machines only because Machines was the last tab chosen.
+**Problem**: The reader cannot predict what "Overview" or Back will show, and nothing on the screen explains
+why it changed. A shared or bookmarked `#/` opens a different screen on another machine. The breadcrumb
+cannot say "Overview › Machines › gruntus" because "Machines" has no address to link to.
+**Recommendation**: Give each section an address and drop the remembered tab:
+- `#/` is Runs, always. "Overview" in the breadcrumb means this screen and nothing else.
+- `#/machines` is the Machines index; machine pages move to `#/machines/<name>`. `#/m/<name>` keeps parsing
+  as the same page for existing links.
+- `#/setup` is Setup.
+- `#/<pack>/stories` is a Stories index (the pack's stories, the list `StoryList` already draws beside a
+  story), and story pages stay at `#/<pack>/s/<n>`. The Stories tab opens the index, not story 1.
+The tabs become plain links to those four addresses; `chooseTab`, `TAB_KEY` and `loadTab` go. The last tab
+the reader used is the browser's business (its history), not the app's.
+**Impact**: Every "Overview", every Back and every bookmark lands on a screen the reader can name. The machine
+and story pages gain the crumb level they lack (next issue).
+**Implementation Notes**: `shared/routes.ts`: `Route` gains `machines`, `setup`, `stories` pages;
+`machinesHref`, `setupHref`, `storiesHref(pack)`; `machineHref` changes prefix; `parseRoute` accepts both
+prefixes. `App.tsx` renders by `route.page` alone. `e2e/links.spec.ts` "the tabs always go back to the
+overview" (line 62) asserts the current behaviour (`Machines` from a run page → `#/`) and must change to
+assert `#/machines`. Add one test per section address, and one that `#/` is Runs after Machines was visited.
+
+#### Issue: The breadcrumb's levels and wording differ by page
+**Current State** (read from the live pages):
+
+| Page | Trail shown | Missing or odd |
+|---|---|---|
+| Combination | Overview › reference/opus-5.5 | no section level (fine once Overview is Runs) |
+| Run | Overview › reference/opus-5.5 › v2-r1 | |
+| Story run | … › v2-r1 › story 1 | lower case |
+| Conversation | … › story 1 › Conversation | capitalised |
+| Call | … › Conversation › call 1 | lower case |
+| Story | Overview › vidi story 3 | no Stories level; the pack is in the label here and nowhere else |
+| Machine | Overview › gruntus | no Machines level |
+
+Trails are built per page by hand (`StoryPage.tsx:24`, `CombinationPage.tsx:48`, `RunPage.tsx:30`,
+`StoryRunPage.tsx:20`, `ConversationPage.tsx:56`, `CallPage.tsx:49`, `MachinePage.tsx:24`).
+**Problem**: A reader learns the trail's shape on one page and finds a different shape on the next. The story
+and machine pages jump from "Overview" straight to the entity, so there is no crumb to click to see the other
+stories or the other machines; the side list on the story page is the only way, and the machine page has none.
+**Recommendation**: One trail per page kind, derived from the route, in one place:
+- Runs: Overview › combination › run › Story N › Conversation › Call N
+- Stories: Overview › Stories › Story N
+- Machines: Overview › Machines › name
+Section crumbs link to the section addresses from the previous issue. Labels are sentence case throughout
+("Story 1", "Call 3"). The pack is not a crumb: it is the site-wide pack and version choice in the top bar,
+and the address carries it for every page that needs it.
+**Impact**: The trail reads the same way everywhere and every level in it is a place the reader can go.
+**Implementation Notes**: a `trailFor(route, state): Crumb[]` in `shared/` or beside `Breadcrumb`, called by
+every page; pages stop assembling crumbs. A unit test over every `Route` page kind pins each trail (MECE by
+page kind), replacing the per-page assertions scattered through the e2e specs.
+
+#### Issue: The tab bar highlights nothing on most pages
+**Current State**: `aria-selected` is `route.page === "overview" && tab === t` (`App.tsx:139`), or
+`route.page === "story"` for Stories. Verified on a story-run page: all four tabs unselected; on a story page,
+Stories selected; on `#/` the stored tab is selected whatever brought the reader there.
+**Problem**: The top bar is the one fixed element on every page and it stops saying where the reader is as
+soon as they open a run. On the overview it can say the wrong thing (Machines selected on arrival from a run
+page's Back, because Machines was stored).
+**Recommendation**: Select the tab from the route's section: Runs for overview, combination, run, story run,
+conversation and call pages; Stories for the stories index and story pages; Machines for the index and machine
+pages; Setup for Setup. With section addresses this is a one-line derivation from `route.page`.
+**Impact**: The reader always sees which of the four sections they are inside.
+**Implementation Notes**: `sectionOf(route.page)` in `shared/routes.ts`; e2e: one assertion per page kind.
+
+#### Issue: Back returns to the top of the page, not to where the reader was
+**Current State**: `useRoute` calls `window.scrollTo(0, 0)` on every `hashchange` (`router.ts:8`), which
+fires for Back and Forward as well as for links. Verified: conversation page scrolled to 1500 px › open call 1
+› Back › conversation at 0 px. The run page happened to come back at 600 px because its content is in memory
+and the browser's own restoration won; the conversation page loads its events after render, so the browser
+restores to a short page and the app then scrolls to 0. So Back sometimes keeps the place and sometimes loses
+it, which is worse than either alone.
+**Problem**: The call page is reached from a row deep in a long list; losing the row on Back is the single most
+repeated cost of reading a conversation (open a call, Back, scroll to find the row again, open the next). The
+earlier review's "dead end" finding was the symptom of this.
+**Recommendation**: Scroll to the top only for a new place (a link followed), never for Back or Forward, and
+restore the saved position once the page has its data. Give each history entry a key
+(`history.replaceState({key}, "")` on first sight), save `scrollY` for the current key before leaving, and on
+`popstate` restore the key's position after the page reports it is laid out (the conversation page: after the
+first events page lands; other pages: after render). Set `history.scrollRestoration = "manual"` so the browser
+and the app stop competing.
+**Impact**: Open a call, Back, and the row is under the cursor again.
+**Implementation Notes**: `router.ts` owns the keys and the saved positions (a `Map` in memory is enough: a
+reload is a new place). Pages that load asynchronously call a `restoreScroll()` from the router once ready;
+`useConversation` already knows when the first page has arrived. e2e: scroll, open a call, Back, assert
+`scrollY` within a few pixels of the saved value; and that a fresh link starts at 0.
+
+### High Priority Improvements
+
+#### Issue: The conversation page's choices are not in its address
+**Current State**: The story, combination and run pages keep their choices (`?compare=`, `?metric=`) in the
+address with `history.replaceState` (`useAddressParam.ts`), so Back to them finds the choice still made. The
+conversation page keeps its kind chips, search text and time range in component state; only `?kind=` arrives
+from a bar part and is never written back when a chip changes.
+**Problem**: Open a conversation narrowed to tools with "write" in the search, open a call, Back: the chips and
+search are reset to the default. The address cannot be shared to show a colleague the same narrowing.
+**Recommendation**: `?kind=`, `?q=`, `?from=` and `?to=` (ms offsets into the story) through `useAddressParam`,
+replaced not pushed, exactly as the other pages do. The strip's drag writes the range; clearing it removes the
+parameters.
+**Impact**: Back and sharing restore the view; one mechanism for page state across the site.
+
+#### Issue: The call page's way back lands on the top of the conversation
+**Current State**: The call page's "Back to the conversation" link and its Conversation crumb go to the
+conversation's address with no row named; the page's own next and previous links step between calls without
+labels (carried over from Part 2).
+**Recommendation**: The link targets the row: `…/conversation?turn=<idx>` scrolls that turn into view and
+marks it, the same path the strip's click uses (`ConversationPage.tsx:78`). With the scroll fix above the
+browser's Back does the same without the parameter.
+**Impact**: Two reliable ways back to the row: the browser's and the page's.
+
+#### Issue: Tab clicks and the search box push history entries with `location.hash =`
+**Current State**: `App.tsx:91` and `:138`, `SearchBox.tsx:65`, `MachineHeader.tsx:38` set `location.hash`.
+**Problem**: None for Back (verified: Back from Setup returns to the story-run page), but these are the only
+places that navigate by assignment rather than by an `<a href>`, so they cannot be opened in a new tab, are
+invisible to the link sweep in `links.spec.ts`, and are the places the stored-tab logic lives.
+**Recommendation**: Tabs become `<a href>` (previous issue). The search box's result rows are already
+links (`SearchBox.tsx:111`); Enter follows the highlighted row's href the same way instead of assigning the
+hash. `RemoveMachine` goes to `#/machines`.
+
+### Medium Priority Enhancements
+
+- **Crumb capitalisation**: "story 1", "Conversation", "call 1" become "Story 1", "Conversation", "Call 1"
+  (folded into the trail issue above).
+- **The run crumb's style**: on the story-run page the run crumb is a `RunLink` (run colour), on the run page
+  the current run is plain text. Once trails come from one function this difference goes with it.
+- **A Stories index**: the Stories tab opens the pack's first story and relies on the side list for the rest.
+  With `#/<pack>/stories` the tab, the crumb and the side list's heading all go to the same list.
+- **`#/m/`** in the address is a code, `#/machines/` is a word. Keep the old form parsing.
+
+### Low Priority Suggestions
+
+- The not-found page's "Back to the overview" becomes "Back to runs" when Overview means Runs.
+- A page title (`document.title`) per route ("v2-r1 · reference/opus-5.5 · Benchmarker") so the browser's
+  Back menu and tab strip name the places; today every entry reads "Benchmarker".
+
+### Positive Observations
+
+- Every entity reference is a real link with an href (combination, run, story run, machine, bar parts), so
+  Back, middle-click and copying the address all work between entity pages; verified run › story run ›
+  conversation › call › Back › Back returns through each page.
+- Page choices on the story, combination and run pages are kept in the address by replacement, with the
+  reasoning written in `useAddressParam.ts`. This is the pattern the rest should follow.
+- The breadcrumb is pinned under the top bar and reads as a trail; the not-found page names the missing id and
+  links back.
+- `links.spec.ts` already pins crumbs and tab targets, so each change above has a test to change rather than a
+  test to invent.
+
+## Part 2: the conversation page (3 October 2026)
 Review of the benchmarker's conversation page, 3 October 2026, at
 `#/vidi/r/<stack>/v2-gufo05-r1/s/1/conversation` (a story still running: 154 model calls, 170 tool calls, 651 events,
 52 minutes), 1148 px wide. Reviewed as a reader who has just clicked a time bar to see what the agent did.
 
-## Status (3 October 2026, later the same day)
+### Status (3 October 2026, later the same day)
 
 The four Critical issues below are built and live: one list of turns with the overview as the only control surface
 (kind chips, one search, the strip's click and drag), one row per turn with its tools under it and its engine request
@@ -12,7 +200,7 @@ in its figures, an SVG strip of calls, tool bands and compaction lines, and the 
 column. Of the High items, m:ss times, one search and the call page opening folded are done; the labelled next and
 previous turns are not. The Medium and Low items stand.
 
-## Summary
+### Summary
 
 The page has two things that should be one. A "Conversation" card at the top holds a summary line, a layout
 switch ("In order" / "By type"), a row of counts by kind, and a timeline; below it, either one long list or seven
@@ -26,9 +214,9 @@ The owner's model is the right one: the card is an overview that lets the reader
 fix is to make the overview the only control surface (what kinds to show, what time range, what text) over one
 list whose rows are the conversation's turns, and to drop the second layout.
 
-## Critical Issues
+### Critical Issues
 
-### Issue: The overview controls its siblings instead of describing and navigating one thing
+#### Issue: The overview controls its siblings instead of describing and navigating one thing
 **Current State**: The "Conversation" card carries a two-way switch. "In order" shows one section, "By type"
 shows seven; the switch is remembered. The row of counts under it ("Model calls 154 · Tool calls 170 …") links to
 a section in "By type" and is plain text in "In order". The timeline's ticks scroll to a row in whichever layout
@@ -50,7 +238,7 @@ shows what the card selects. The "By type" sections and their anchors go away.
 as sections; keep `SECTIONS` as the chip definitions; `?at=` becomes `?kind=`; `SEGMENT_ANCHOR` maps a bar part
 to a kind set. `conversationHref(…, at)` is renamed accordingly; `links.spec.ts` and `conversation.spec.ts` follow.
 
-### Issue: One happening, several rows
+#### Issue: One happening, several rows
 **Current State**: Each model call is a row, its engine request is another row with the same time and the same
 tokens restated, each tool call is two rows (its start with the argument, its end with the result), a compaction
 is two rows. The example story has 651 rows for 154 calls; the first 40 rows alternate between 32 px and 107 px.
@@ -69,7 +257,7 @@ conversation.
 and attach to the call by `callIdx`; attach `request` to its call by `callIdx`; a `compaction_end` joins its
 start. The API and the warehouse do not change.
 
-### Issue: The timeline draws idle time as blocks and hides the conversation's shape
+#### Issue: The timeline draws idle time as blocks and hides the conversation's shape
 **Current State**: 60 bins across the story; a bin with calls is a purple bar scaled to its count; a bin with no
 calls is a grey block that, by a CSS fault, renders at the full 48 px although styled to 2% (18 of 60 bins here).
 Compaction is a thin red top edge. Hovers say "N calls at T".
@@ -87,7 +275,7 @@ spans; tool: start→end); an SVG strip, `shared/conversation.ts` computing the 
 selection state `rangeMs` in the page, applied before the kind and text filters. Fix `.tick.empty` on the way
 (the span ignores the inline percentage height; a block with `height: 1px` does what was meant).
 
-### Issue: The Figures column overlaps the Text column
+#### Issue: The Figures column overlaps the Text column
 **Current State**: On call rows the figures ("79 thinking · 3 text · 2 tools · read 2,149 · wrote 104 · toolUse")
 run under the text of the next column (visible in the review's screenshot at 1148 px).
 **Problem**: Two columns of text on top of each other; the figures are unreadable at that width.
@@ -99,9 +287,9 @@ the text.
 which `.in-order .figures { white-space: normal; max-width: 28ch }` only half overrides; the cell is 1% wide and
 its text overflows.
 
-## High Priority Improvements
+### High Priority Improvements
 
-### Issue: Two searches, two counts
+#### Issue: Two searches, two counts
 **Current State**: Each section (and the in-order list) has its own magnifier that opens its own search box in
 its heading; the count shows "n of N" there while searching.
 **Problem**: With one list the search is the overview's; a second one in the list's heading is a second place to
@@ -109,19 +297,19 @@ look.
 **Recommendation**: One search box on the overview (beside the chips), always visible, placeholder "Search the
 conversation"; the list heading shows "n of N" when the search or the chips narrow it. Keep the hit marking.
 
-### Issue: Time is in seconds for an hour-long story
+#### Issue: Time is in seconds for an hour-long story
 **Current State**: The "At" column shows "1,234.5 s".
 **Problem**: Nobody reads 1,234 s as 20 minutes.
 **Recommendation**: `m:ss` past a minute (`20:34`), seconds under it; the hover gives the clock time.
 
-### Issue: The call page is a dead end from the list
+#### Issue: The call page is a dead end from the list
 **Current State**: "call N" opens the call page, which heads with "Call N of M" and a back link (added this
 afternoon).
 **Recommendation**: Keep it, and add the next and previous turns' first line as the links' labels so the reader
 knows what they are stepping to. Also open the call page's thinking and text folded at five lines with the same
 + button, so a 48,000-character thinking block does not fill the screen on arrival.
 
-## Medium Priority Enhancements
+### Medium Priority Enhancements
 
 - **Kind badges and bar colours agree** (model purple, tools green, compaction red): keep this, and use the same
   colours for the timeline's marks and the chips' dots, so the three places read as one legend.
@@ -132,14 +320,14 @@ knows what they are stepping to. Also open the call page's thinking and text fol
 - **"so far"** on a running story is the only sign the list grows; a small "live" mark on the heading with the
   time of the last event would say it plainly.
 
-## Low Priority Suggestions
+### Low Priority Suggestions
 
 - Drop the twisty on a page with one section; keep it only if a second section (readings, requests as tables)
   returns.
 - The breadcrumb's last crumb reads "Conversation"; "Conversation of story 1" reads better when the story-run
   header is scrolled away.
 
-## Positive Observations
+### Positive Observations
 
 - Pinned column heads and compact numeric columns work and should stay.
 - Verbatim agent text is marked as such (`data-quoted="agent"`) and the search marks hits inside it; this is the
