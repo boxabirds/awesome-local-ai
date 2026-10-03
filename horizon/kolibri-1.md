@@ -32,14 +32,23 @@ load it; a new combination, never a change to a baseline.
   place to test "shorter paths that are as effective" than a cap bolted on the engine.
 - **A German-and-English parity claim** does not matter to the benchmark's stories; it neither helps nor hurts.
 
+## Hardware and software it asks for (from the model card and write-ups, found by search 3 Oct 2026)
+
+- **Software:** Aleph Alpha's `aleph-alpha-inference` package, which carries a Kolibri plugin for vLLM; served behind an
+  OpenAI-compatible API. It does not run on stock vLLM, and no source I found mentions llama.cpp, a GGUF or an MLX build.
+- **Hardware, FP8 (about 78 GB of weights):** two 80 GB A100s, two H100s, one H200, or one B200 or B300 as the stated minimums.
+- **Hardware, BF16 (about 156 GB):** four 80 GB A100s or H100s, two H200s, or one B200 or B300.
+- A forum thread about running it on NVIDIA's 128 GB DGX Spark class machine exists; I have not read it.
+
 ## What gates it
 
 - **An engine we run has to load it.** The card names only vLLM through a vendor plugin. llama.cpp, mlx-serve, gufo and
   MTPLX support is not mentioned; whether any exists, or a GGUF or MLX conversion, is the first thing to find out. Without it
   the only route is vLLM, which is not an engine we have a combination for.
-- **Memory.** About 78 GB of FP8 weights fits the Mac Studio class machines (the M5 Max's 128 GB, under the 89.6 GiB
-  budget we hold it to, only with a 4-bit conversion) and the Strix Halo's 128 GB, but not the 4090's 24 GB plus 62 GB of
-  RAM at any speed worth benchmarking.
+- **Memory.** About 78 GB of FP8 weights is more than the M5 Max's 89.6 GiB budget leaves once the cache is counted, unless
+  a 4-bit conversion exists; it would fit the Strix Halo's 128 GB only on an engine that can run it; and it does not fit the
+  4090's 24 GB plus 62 GB of RAM at any speed worth benchmarking. The published minimums are datacentre GPUs, none of
+  which we have.
 - **The sampling it recommends** differs from ours (top-p 0.97, top-k 128 against 0.95 and 20). A run would have to use the
   card's, as every combination here uses its model card's.
 
