@@ -9,7 +9,7 @@
   .ov-section > h2 .small { margin-left: auto; }
   .empty-note { margin: 0; padding: 10px 12px; font-size: 13px; color: var(--muted); }
 
-  /* Now: one row per machine. */
+  /* Now: one row per machine. (The old table's rules, kept for the machines list.) */
   table.now-table { min-width: 0; table-layout: auto; font-size: 13px; }
   .now-table th[scope="row"] { width: 1%; white-space: nowrap; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--ink); background: var(--panel); }
   .now-table thead th:last-child, .now-table td.q { width: 1%; white-space: nowrap; }
@@ -18,4 +18,46 @@
   /* The Combinations table keeps its own look (styles.css). */
   .combinations { margin-bottom: 16px; }
 
+  /* The dashboard. */
+  .observations { margin-bottom: 14px; }
+  .obs-list { list-style: none; margin: 0; padding: 8px 12px 10px; display: flex; flex-wrap: wrap; gap: 6px 8px; }
+  .obs a { display: inline-block; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--ink); text-decoration: none; background: var(--panel); }
+  .obs a:hover { text-decoration: underline; }
+  .obs-unreachable a, .obs-silent a { border-color: var(--bad, #b3382c); }
+  .obs-idle a, .obs-slow a { border-color: var(--part); }
+  .obs-none { margin: 0; padding: 10px 12px; font-size: 13px; color: var(--muted); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; padding: 10px 12px 12px; }
+  .machine-card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--panel); display: grid; gap: 8px; align-content: start; min-width: 0; }
+  .machine-card > .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 650; }
+  .card-state { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .state-running { color: var(--run); } .state-idle { color: var(--part); } .state-unreachable { color: var(--bad, #b3382c); }
+  .card-now { font-size: 13px; overflow-wrap: anywhere; }
+  .card-strip { display: flex; flex-wrap: wrap; gap: 3px; }
+  .card-strip .rs-sq { display: block; width: 14px; height: 14px; border-radius: 3px; box-sizing: border-box; }
+  .card-strip .rs-sq:not(.rs-unbuilt):not(.rs-noResult):not(.rs-building) { background-color: currentColor; }
+  .card-series { display: flex; align-items: center; gap: 8px; }
+  .card-queue { font-size: 13px; }
+
+  .ov-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 14px; margin-bottom: 14px; align-items: start; }
+  @media (max-width: 1100px) { .ov-pair { grid-template-columns: minmax(0, 1fr); } }
+  .series-list { list-style: none; margin: 0; padding: 6px 12px 10px; display: grid; gap: 8px; }
+  .series-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px 12px; }
+  .series-name { display: grid; font-size: 13px; min-width: 0; }
+  .series-bar { display: inline-flex; gap: 3px; }
+  .seg-run { min-width: 26px; height: 22px; padding: 0 5px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 12px; font-weight: 650; color: var(--ink); text-decoration: none; border: 1.5px solid var(--line); }
+  .seg-finished { background: var(--chip); border-color: var(--muted); }
+  .seg-running { border-color: var(--run); background: linear-gradient(to right, color-mix(in srgb, var(--run) 35%, transparent) var(--filled, 0%), transparent var(--filled, 0%)); }
+  .seg-queued { border-style: dashed; color: var(--faint); }
+  .series-count { white-space: nowrap; }
+
+  .plot { width: 100%; height: auto; display: block; padding: 6px 12px 0; box-sizing: border-box; }
+  .plot-grid { stroke: var(--line); stroke-width: 1; }
+  .plot-tick, .plot-n { font-size: 11px; fill: var(--muted); }
+  .plot-label { font-size: 12.5px; fill: var(--ink); }
+  .plot-range { stroke: var(--muted); stroke-width: 2; }
+  .plot-dot { fill: var(--run); fill-opacity: .55; stroke: var(--run); }
+  .plot-median { fill: var(--ink); }
+  .plot-close { fill: none; stroke: var(--part); stroke-width: 1.5; }
+  .plot-note { margin: 0; padding: 0 12px 10px; }
 }

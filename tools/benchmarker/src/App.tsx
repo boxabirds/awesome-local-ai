@@ -136,7 +136,7 @@ export function App() {
       </Header>
       <StaleBanner stale={stale} age={age} />
       <main>
-        {route.page === "overview" ? <OverviewPage state={data} serverNow={serverNow} rows={visibleRuns(inFamily, filter)} filteredOut={inFamily.length ? filteredOut : undefined} />
+        {route.page === "overview" ? <OverviewPage state={data} serverNow={serverNow} rows={visibleRuns(inFamily, filter)} inScope={inFamily} filteredOut={inFamily.length ? filteredOut : undefined} />
           : route.page === "machines" ? <MachinesIndex route={route} state={data} serverNow={serverNow} />
           : route.page === "setup" ? <SetupTab route={route} />
           : <EntityPage route={route} state={data} serverNow={serverNow} family={family} filter={filter} filteredOut={filteredOut} />}
