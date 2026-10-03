@@ -157,6 +157,19 @@ test.describe("collapsed: a stretch of stories in a row that pass none is marked
     await expect(page.locator('[data-page="run"] [data-section="stories"] tr[data-story="1"] .collapsed-mark')).toHaveCount(0);
   });
 
+  test("a long title is cut short, never the mark (real data: stories 7, 8, 10 of Swift v2-r5 lost it)", async ({ page }) => {
+    await patchState(page, (s) => { for (const st of rowOf(s, "v2-r5").stories) { st.collapsed = true; st.title = "A very long story title ".repeat(8); } });
+    await page.goto(runUrl("v2-r5"));
+    const cell = page.locator('[data-page="run"] [data-section="stories"] tr[data-story="2"] td.rp-bar-label');
+    const mark = cell.locator(".collapsed-mark");
+    await expect(mark).toHaveText("collapsed");
+    const fits = await cell.evaluate((td) => {
+      const m = td.querySelector(".collapsed-mark")!.getBoundingClientRect(), c = td.getBoundingClientRect();
+      return m.width > 0 && m.right <= c.right + 0.5 && m.left >= c.left;
+    });
+    expect(fits).toBe(true);
+  });
+
   test("the story run page says it on the story's line", async ({ page }) => {
     await collapse(page, ["2"]);
     await page.goto(storyRunUrl("v2-r5", "2"));
