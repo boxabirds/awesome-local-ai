@@ -225,32 +225,62 @@ test.describe("D. layout: pinned heads, compact numbers, search, folded cells", 
     await expect(p.locator('[data-section="calls"] .rp-head')).toBeInViewport();
   });
 
-  test("searching as you type narrows the calls, tools and messages to what holds the text, and marks it", async ({ page }) => {
+  test("each section folds behind its twisty, and the fold is remembered", async ({ page }) => {
     await page.goto(conv(SWIFT, "v2-r5", "2"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
-    const box = p.getByRole("searchbox", { name: "Search the conversation" });
+    const calls = p.locator('[data-section="calls"]');
+    await expect(calls).toHaveAttribute("data-collapsed", "false");
+    await expect(calls.locator("table.calls")).toBeVisible();
+    await calls.getByRole("button", { name: "Collapse Model calls" }).click();
+    await expect(calls).toHaveAttribute("data-collapsed", "true");
+    await expect(calls.locator("table.calls")).toBeHidden();
+    await expect(calls.locator(".rp-head")).toBeVisible();
+    // Another section is untouched; the fold survives a reload; the twisty opens it again.
+    await expect(p.locator('[data-section="tools"] table.tools')).toBeVisible();
+    await page.reload();
+    await expect(page$(page).locator('[data-section="calls"]')).toHaveAttribute("data-collapsed", "true");
+    await page$(page).locator('[data-section="calls"]').getByRole("button", { name: "Expand Model calls" }).click();
+    await expect(page$(page).locator('[data-section="calls"] table.calls')).toBeVisible();
+  });
+
+  test("a section's magnifier opens its own search, as you type, with the hits marked and the count of what matches", async ({ page }) => {
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    const p = page$(page);
+    await expect(p).toHaveAttribute("data-backfilled", "true");
+    const calls = p.locator('[data-section="calls"]');
+    // The count's place holds the magnifier; the box appears on a click.
+    await expect(calls.locator('[data-fact="count"]')).toHaveCount(0);
+    await expect(calls.getByRole("searchbox")).toHaveCount(0);
+    await calls.getByRole("button", { name: "Search model calls" }).click();
+    const box = calls.getByRole("searchbox", { name: "Search model calls" });
+    await expect(box).toBeFocused();
+    await expect(calls.locator('[data-fact="count"]')).toHaveText("4");
     // "harness" is in two calls' thinking and one call's text: all three are shown, each with the hit marked (a call
     // found through its thinking shows that thinking in Said).
     await box.fill("harness");
-    await expect(p.locator('[data-fact="matches"]')).toHaveText("3 matching events");
-    await expect(p.locator("table.calls tbody tr")).toHaveCount(3);
-    for (const i of [0, 1, 2]) await expect(p.locator("table.calls tbody tr").nth(i).locator("mark").first()).toHaveText(/harness/i);
-    await expect(p.locator('[data-section="calls"] [data-fact="count"]')).toHaveText("3 of 4");
+    await expect(calls.locator("table.calls tbody tr")).toHaveCount(3);
+    for (const i of [0, 1, 2]) await expect(calls.locator("table.calls tbody tr").nth(i).locator("mark").first()).toHaveText(/harness/i);
+    await expect(calls.locator('[data-fact="count"]')).toHaveText("3 of 4");
     await box.fill("everything is complete");
-    await expect(p.locator("table.calls tbody tr")).toHaveCount(1);
-    // The tool whose result holds "attempt 2" is found through its result; the argument column is searched too.
-    await box.fill("attempt 2");
-    await expect(p.locator("table.tools tbody tr")).toHaveCount(2);
-    await expect(p.locator("table.tools tbody tr mark").first()).toHaveText("attempt 2");
-    await box.fill("npm test");
-    await expect(p.locator("table.tools tbody tr")).toHaveCount(1);
-    await box.fill("Implement story");
-    await expect(p.locator('[data-section="messages"] li mark')).toHaveText("Implement story");
-    await expect(p.locator("table.calls tbody tr")).toHaveCount(0);
-    await box.fill("");
-    await expect(p.locator("table.calls tbody tr")).toHaveCount(4);
-    await expect(p.locator('[data-section="calls"] [data-fact="count"]')).toHaveText("4");
+    await expect(calls.locator("table.calls tbody tr")).toHaveCount(1);
+    // The tools section has its own: the tool whose result holds "attempt 2" is found through its result; the argument too.
+    const tools = p.locator('[data-section="tools"]');
+    await expect(tools.locator("table.tools tbody tr")).toHaveCount(3);
+    await tools.getByRole("button", { name: "Search tool calls" }).click();
+    const tbox = tools.getByRole("searchbox", { name: "Search tool calls" });
+    await tbox.fill("attempt 2");
+    await expect(tools.locator("table.tools tbody tr")).toHaveCount(2);
+    await expect(tools.locator("table.tools tbody tr mark").first()).toHaveText("attempt 2");
+    await expect(tools.locator('[data-fact="count"]')).toHaveText("2 of 3");
+    await tbox.fill("npm test");
+    await expect(tools.locator("table.tools tbody tr")).toHaveCount(1);
+    // The calls' search is still its own, untouched by the tools'.
+    await expect(calls.locator("table.calls tbody tr")).toHaveCount(1);
+    // The magnifier again clears and closes the search.
+    await tools.getByRole("button", { name: "Search tool calls" }).click();
+    await expect(tools.getByRole("searchbox")).toHaveCount(0);
+    await expect(tools.locator("table.tools tbody tr")).toHaveCount(3);
   });
 
   test("a cell shows five lines, and + shows the whole of it", async ({ page }) => {
