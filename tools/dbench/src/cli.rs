@@ -156,6 +156,14 @@ pub enum Cmd {
     /// as PARTIAL with your reason, and the run continues with the next story (the job
     /// keeps running). Later stories may then build on incomplete work, so use with care.
     /// See benchmarks/spec-bench/harness/CONTROL.md.
+    /// Pull what git never carries from every node into the lake, keep the conversation database
+    /// current, and serve the conversation API.
+    ///
+    /// Each pass asks every node in nodes.toml for its runs and the files it may collect, pulls the
+    /// bytes it doesn't have yet (append-only files by range with a prefix check, small files whole)
+    /// into `<store>/<node>/<run path>/`, records what it holds in collection.json beside them, then
+    /// ingests the stories whose inputs changed. Runs for ever by default; --once is one pass.
+    Collect(CollectArgs),
     /// Build or update the conversation database from the published records and the collected logs.
     ///
     /// Reads each story's record and compact log from the repo's origin/main (never the working copy)
@@ -173,6 +181,52 @@ pub enum Cmd {
         #[arg(long)]
         reason: String,
     },
+}
+
+pub const DEFAULT_RUNNING_POLL_MS: u64 = 10_000;
+pub const DEFAULT_FINISHED_RECHECK_MS: u64 = 3_600_000;
+pub const DEFAULT_SETTLE_GRACE_MS: u64 = 60_000;
+/// How often the published records are fetched from git between passes.
+pub const DEFAULT_FETCH_EVERY_MS: u64 = 60_000;
+pub const DEFAULT_API_BIND: &str = "127.0.0.1:7761";
+
+#[derive(Args, Debug, Clone)]
+pub struct CollectArgs {
+    /// The lake: a directory for each node's run directories. Default: nodes.toml `[collect] store`.
+    #[arg(long)]
+    pub store: Option<PathBuf>,
+    /// The conversation database. Default: nodes.toml `[collect] db`.
+    #[arg(long)]
+    pub db: Option<PathBuf>,
+    /// The repository whose origin/main holds the published records. Default: nodes.toml `[collect] repo`.
+    #[arg(long)]
+    pub repo: Option<PathBuf>,
+    /// Read the published records from the working tree at --repo instead of git (for tests).
+    #[arg(long)]
+    pub worktree: bool,
+    /// Serve the conversation API on this address. Default: nodes.toml `[collect] api`, else 127.0.0.1:7761; "none" for no API.
+    #[arg(long)]
+    pub api: Option<String>,
+    /// One pass over every node, then exit (0 even when a node is unreachable).
+    #[arg(long)]
+    pub once: bool,
+    /// Only these nodes (repeatable).
+    #[arg(long = "node")]
+    pub nodes: Vec<String>,
+    /// Only this run directory (repo-relative; repeatable).
+    #[arg(long = "run")]
+    pub runs: Vec<String>,
+    /// Pull only; don't ingest.
+    #[arg(long)]
+    pub no_ingest: bool,
+    #[arg(long, default_value_t = DEFAULT_RUNNING_POLL_MS, hide = true)]
+    pub running_poll_ms: u64,
+    #[arg(long, default_value_t = DEFAULT_FINISHED_RECHECK_MS, hide = true)]
+    pub finished_recheck_ms: u64,
+    #[arg(long, default_value_t = DEFAULT_SETTLE_GRACE_MS, hide = true)]
+    pub settle_grace_ms: u64,
+    #[arg(long, default_value_t = DEFAULT_FETCH_EVERY_MS, hide = true)]
+    pub fetch_every_ms: u64,
 }
 
 #[derive(Args, Debug, Clone)]

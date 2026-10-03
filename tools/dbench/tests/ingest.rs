@@ -448,3 +448,117 @@ fn dbench_ingest_builds_the_database_from_the_published_tree_and_the_lake_and_re
     assert!(ok && out.contains("create table if not exists events"), "{out}");
     std::fs::remove_dir_all(&root).unwrap();
 }
+
+// ---- the conversation API over the warehouse ----
+
+async fn api_server(db_path: PathBuf) -> String {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let router = dbench::conversation_api::router(std::sync::Arc::new(dbench::conversation_api::Shared { db_path }));
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    format!("http://{addr}")
+}
+
+async fn get_json(url: &str) -> (u16, Value) {
+    let r = reqwest::get(url).await.unwrap();
+    let status = r.status().as_u16();
+    let text = r.text().await.unwrap();
+    (status, serde_json::from_str(&text).unwrap_or(Value::String(text)))
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_conversation_api_pages_a_story_by_time_range_and_by_cursor_without_loss_or_repeat() {
+    let root = std::env::temp_dir().join(format!("dbench-api-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let db_path = root.join("conversations.db");
+    let parts = ingest::run_parts(RUN).unwrap();
+    let rel = format!("{RUN}/stories/05");
+    {
+        let mut db = Db::open(&db_path).unwrap();
+        let rec = json!({"started": 1790000000.0, "agent_finished": 1790000140.7});
+        // A finished story, then a late-placed request (earlier in time, later in ord).
+        let out = ingest::ingest_story(&mut db, &parts, &story_inputs(&rel, &fixture("accounting__claude-slept"), rec, true), 1_790_001_000.0).unwrap();
+        let late = ingest::RequestRow { sk: Some(out.sk), call_idx: Some(0), ts: Some(1_790_000_003.0), prompt_tok: Some(10), ..Default::default() };
+        let empty = ingest::events::Rows::default();
+        let none = ingest::timing::Parsed::default();
+        let stream = ingest::stream_events(&empty, &none, &[], &[(0, &late)], &[]);
+        db.append_events(out.sk, &stream).unwrap();
+    }
+    let base = api_server(db_path).await;
+    let id = urlencoding(&rel);
+    let (code, v) = get_json(&format!("{base}/v1/conversations/{id}")).await;
+    assert_eq!(code, 200, "{v}");
+    let total = v["events"].as_u64().unwrap() as usize;
+    assert!(total > 5 && v["range"]["fromMs"].is_i64() && v["complete"] == true && v["fmt"] == "claude", "{v}");
+    assert_eq!(v["counts"]["requests"], 1);
+    // Time-range form, pages of 3: every event exactly once, in (tMs, ord) order.
+    let mut got: Vec<(i64, i64)> = Vec::new();
+    let mut cursor: Option<String> = None;
+    loop {
+        let url = match &cursor {
+            Some(c) => format!("{base}/v1/conversations/{id}/events?limit=3&cursor={c}"),
+            None => format!("{base}/v1/conversations/{id}/events?limit=3"),
+        };
+        let (code, page) = get_json(&url).await;
+        assert_eq!(code, 200, "{page}");
+        for e in page["events"].as_array().unwrap() {
+            got.push((e["tMs"].as_i64().unwrap(), e["ord"].as_i64().unwrap()));
+        }
+        match page["nextCursor"].as_str() {
+            Some(c) => cursor = Some(c.to_string()),
+            None => break,
+        }
+    }
+    assert_eq!(got.len(), total);
+    assert!(got.windows(2).all(|w| w[0] < w[1]), "{got:?}");
+    let mut sorted = got.clone();
+    sorted.sort();
+    sorted.dedup();
+    assert_eq!(sorted.len(), total, "no event twice");
+    // The same span in one page is the same list; a half-open window holds what it should.
+    let (_, all) = get_json(&format!("{base}/v1/conversations/{id}/events?limit=500")).await;
+    let all_pairs: Vec<(i64, i64)> = all["events"].as_array().unwrap().iter().map(|e| (e["tMs"].as_i64().unwrap(), e["ord"].as_i64().unwrap())).collect();
+    assert_eq!(all_pairs, got);
+    assert!(all["nextCursor"].is_null());
+    let mid = got[got.len() / 2].0;
+    let (_, before) = get_json(&format!("{base}/v1/conversations/{id}/events?toMs={mid}&limit=500")).await;
+    assert!(before["events"].as_array().unwrap().iter().all(|e| e["tMs"].as_i64().unwrap() < mid));
+    let (_, from) = get_json(&format!("{base}/v1/conversations/{id}/events?fromMs={mid}&limit=500")).await;
+    assert_eq!(before["events"].as_array().unwrap().len() + from["events"].as_array().unwrap().len(), total);
+    // The open-ended form: after=0 is everything in ord order; the late request is last by ord though early in time.
+    let (_, stream) = get_json(&format!("{base}/v1/conversations/{id}/events?after=0&limit=500")).await;
+    let evs = stream["events"].as_array().unwrap();
+    assert_eq!(evs.len(), total);
+    assert_eq!(evs.last().unwrap()["kind"], "request");
+    assert!(evs.last().unwrap()["tMs"].as_i64().unwrap() < evs[evs.len() - 2]["tMs"].as_i64().unwrap());
+    let latest = stream["nextCursor"].as_str().unwrap().to_string();
+    assert_eq!(v["latest"].as_str().unwrap(), latest);
+    let (_, nothing) = get_json(&format!("{base}/v1/conversations/{id}/events?after={latest}")).await;
+    assert!(nothing["events"].as_array().unwrap().is_empty());
+    assert_eq!(nothing["nextCursor"].as_str().unwrap(), latest);
+    // Refusals and the not-available case: 404 with an empty object, no reason.
+    let (code, v) = get_json(&format!("{base}/v1/conversations/{id}/events?limit=0")).await;
+    assert_eq!(code, 400, "{v}");
+    let (code, v) = get_json(&format!("{base}/v1/conversations/{id}/events?cursor=garbage")).await;
+    assert_eq!(code, 400, "{v}");
+    let (code, v) = get_json(&format!("{base}/v1/conversations/{id}/events?unknown=1")).await;
+    assert_eq!(code, 400, "{v}");
+    let (code, v) = get_json(&format!("{base}/v1/conversations/{}", urlencoding("nope/stories/01"))).await;
+    assert_eq!((code, v), (404, json!({})));
+    let (code, v) = get_json(&format!("{base}/v1/conversations/{id}/calls/0")).await;
+    assert_eq!(code, 200);
+    assert!(v["tools"].is_array());
+    let (code, _) = get_json(&format!("{base}/v1/conversations/{id}/tools/0")).await;
+    assert_eq!(code, 200);
+    let (code, v) = get_json(&format!("{base}/v1/conversations/{id}/calls/99")).await;
+    assert_eq!((code, v), (404, json!({})));
+    let (_, avail) = get_json(&format!("{base}/v1/conversations")).await;
+    assert_eq!(avail["ids"], json!([rel.clone()]));
+    assert_eq!(avail["complete"], json!([rel.clone()]));
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+fn urlencoding(s: &str) -> String {
+    dbench::client::urlencode(s)
+}

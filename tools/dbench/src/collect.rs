@@ -224,12 +224,16 @@ pub struct ChunkMeta {
     pub eof: bool,
 }
 
-fn mtime_secs(m: &std::fs::Metadata) -> f64 {
-    m.modified()
+/// Modification time in seconds, to the millisecond: the same text the `/file` headers carry, so a
+/// manifest's mtime and a chunk's compare equal.
+pub fn mtime_secs(m: &std::fs::Metadata) -> f64 {
+    let secs = m
+        .modified()
         .ok()
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_secs_f64())
-        .unwrap_or(0.0)
+        .unwrap_or(0.0);
+    format!("{secs:.3}").parse().unwrap_or(secs)
 }
 
 fn entry_for(path: &Path, name: String, kind: FileKind) -> Option<FileEntry> {

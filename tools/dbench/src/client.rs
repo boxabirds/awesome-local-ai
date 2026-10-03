@@ -31,10 +31,21 @@ pub struct NodeEntry {
     pub token: Option<String>,
 }
 
+/// `[collect]` in nodes.toml: where `dbench collect` keeps the lake and the warehouse, and serves the API.
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct CollectEntry {
+    pub store: Option<PathBuf>,
+    pub db: Option<PathBuf>,
+    pub repo: Option<PathBuf>,
+    pub api: Option<String>,
+}
+
 #[derive(Deserialize, Debug)]
 struct NodesFile {
     #[serde(default)]
     nodes: BTreeMap<String, NodeEntry>,
+    #[serde(default)]
+    collect: CollectEntry,
 }
 
 pub fn default_config_path() -> Result<PathBuf> {
@@ -42,10 +53,64 @@ pub fn default_config_path() -> Result<PathBuf> {
 }
 
 pub fn load_nodes(path: &Path) -> Result<BTreeMap<String, NodeEntry>> {
+    Ok(load_file(path)?.nodes)
+}
+
+fn load_file(path: &Path) -> Result<NodesFile> {
     let text = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
-    let f: NodesFile =
-        toml::from_str(&text).with_context(|| format!("parse {}", path.display()))?;
-    Ok(f.nodes)
+    toml::from_str(&text).with_context(|| format!("parse {}", path.display()))
+}
+
+/// The `[collect]` table of nodes.toml (empty when there is none).
+pub fn load_collect(path: &Path) -> Result<CollectEntry> {
+    Ok(load_file(path)?.collect)
+}
+
+/// Whole-request limit for one chunk of a collected file (4 MiB over a LAN or Tailscale link).
+pub const CHUNK_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// A run on a node, as the collect endpoints take it.
+#[derive(Debug, Clone)]
+pub enum RunRef {
+    Job(String),
+    Path(String),
+}
+
+impl RunRef {
+    fn files_path(&self) -> String {
+        match self {
+            RunRef::Job(id) => format!("/v1/jobs/{id}/files"),
+            RunRef::Path(run) => format!("/v1/runs/files?run={}", urlencode(run)),
+        }
+    }
+    fn file_path(&self, name: &str, from: u64, check: Option<&str>) -> String {
+        let check = check.map(|c| format!("&check={c}")).unwrap_or_default();
+        match self {
+            RunRef::Job(id) => format!("/v1/jobs/{id}/file?name={}&from={from}{check}", urlencode(name)),
+            RunRef::Path(run) => format!("/v1/runs/file?run={}&name={}&from={from}{check}", urlencode(run), urlencode(name)),
+        }
+    }
+}
+
+/// Percent-encode a query value (run paths hold slashes; names hold slashes and dots).
+pub fn urlencode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+/// One chunk of a collected file: the status, what the node said about the file, the bytes.
+#[derive(Debug)]
+pub struct Chunk {
+    pub status: reqwest::StatusCode,
+    pub meta: Option<crate::collect::ChunkMeta>,
+    pub bytes: Vec<u8>,
+    pub error: Option<String>,
 }
 
 #[derive(Clone)]
@@ -96,6 +161,43 @@ impl Api {
 
     pub async fn node(&self) -> Result<NodeInfo> {
         self.get_ok("/v1/node").await
+    }
+
+    /// Every run directory on the node (`GET /v1/runs`).
+    pub async fn runs(&self) -> Result<Vec<crate::collect::RunListing>> {
+        self.get_ok("/v1/runs").await
+    }
+
+    /// The collectable files of a run and their sizes.
+    pub async fn files(&self, run: &RunRef) -> Result<crate::collect::Manifest> {
+        self.get_ok(&run.files_path()).await
+    }
+
+    /// One chunk of a file from `from`, with the prefix check `check` (the hex FNV-1a-64 of the bytes before `from`).
+    pub async fn file_chunk(&self, run: &RunRef, name: &str, from: u64, check: Option<&str>) -> Result<Chunk> {
+        let resp = self
+            .req(reqwest::Method::GET, &run.file_path(name, from, check))
+            .timeout(CHUNK_TIMEOUT)
+            .send()
+            .await?;
+        let status = resp.status();
+        let header = |k: &str| resp.headers().get(k).and_then(|v| v.to_str().ok()).map(String::from);
+        let meta = match (header(crate::collect::HDR_FROM), header(crate::collect::HDR_SIZE), header(crate::collect::HDR_MTIME), header(crate::collect::HDR_EOF)) {
+            (Some(f), Some(s), Some(m), Some(e)) => Some(crate::collect::ChunkMeta {
+                from: f.parse().unwrap_or(0),
+                size: s.parse().unwrap_or(0),
+                mtime: m.parse().unwrap_or(0.0),
+                eof: e == "1",
+            }),
+            _ => None,
+        };
+        let bytes = resp.bytes().await?.to_vec();
+        let error = if status.is_success() {
+            None
+        } else {
+            Some(serde_json::from_slice::<serde_json::Value>(&bytes).map(|v| error_text(&v)).unwrap_or_else(|_| String::from_utf8_lossy(&bytes).into_owned()))
+        };
+        Ok(Chunk { status, meta, bytes, error })
     }
 
     pub async fn jobs(&self) -> Result<Vec<JobView>> {
@@ -203,6 +305,7 @@ fn error_text(v: &serde_json::Value) -> String {
 
 pub struct Ctx {
     pub nodes: BTreeMap<String, NodeEntry>,
+    pub collect: CollectEntry,
     pub json: bool,
 }
 
@@ -212,13 +315,11 @@ impl Ctx {
             Some(p) => p,
             None => default_config_path()?,
         };
-        Ok(Ctx {
-            nodes: load_nodes(&path)?,
-            json,
-        })
+        let f = load_file(&path)?;
+        Ok(Ctx { nodes: f.nodes, collect: f.collect, json })
     }
 
-    fn api(&self, node: &str) -> Result<Api> {
+    pub fn api(&self, node: &str) -> Result<Api> {
         let entry = self.nodes.get(node).with_context(|| {
             format!(
                 "no node {node:?} in the config (have: {})",

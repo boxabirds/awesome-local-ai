@@ -865,11 +865,7 @@ async fn file_of(st: &Shared, run: &str, q: FileQuery) -> Response {
         }
     };
     let size = meta.len();
-    let mtime = meta
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map_or(0.0, |d| d.as_secs_f64());
+    let mtime = collect::mtime_secs(&meta);
     let from = q.from.unwrap_or(0);
     match name.kind() {
         FileKind::Whole => {

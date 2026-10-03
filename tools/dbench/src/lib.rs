@@ -9,6 +9,8 @@
 pub mod cli;
 pub mod client;
 pub mod collect;
+pub mod collector;
+pub mod conversation_api;
 pub mod control;
 pub mod events;
 pub mod failure;
