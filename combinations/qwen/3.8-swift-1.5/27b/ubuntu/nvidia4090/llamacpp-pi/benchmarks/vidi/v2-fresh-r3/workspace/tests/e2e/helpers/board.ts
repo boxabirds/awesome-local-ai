@@ -133,3 +133,21 @@ export async function dragScreen(page: Page, x: number, y: number, dx: number, d
   await page.mouse.move(x + dx, y + dy, { steps: 10 });
   await page.mouse.up();
 }
+
+/**
+ * Creates sticky notes at the given world centres via the test hook and
+ * returns their ids. At the default camera (0,0,1) world == screen.
+ */
+export async function createNotesAt(
+  page: Page,
+  specs: { x: number; y: number }[],
+): Promise<string[]> {
+  return page.evaluate((s) => (window as any).__vidi6.createNotesAt(s), specs);
+}
+
+/** The screen-space bounding box of a resize handle of the current selection. */
+export async function handleBox(page: Page, handle: string): Promise<{ x: number; y: number; width: number; height: number }> {
+  const box = await page.locator(`[data-testid="resize-handle-${handle}"]`).boundingBox();
+  if (!box) throw new Error(`resize handle ${handle} not found`);
+  return box;
+}

@@ -1,22 +1,28 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import {
+  initDoc,
+  snapshot,
+  snapshotObjects,
+  type ObjectSnapshot,
+  type StickySnapshot,
+} from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 interface BoardStore {
   subscribe(listener: () => void): () => void;
-  getSnapshot(): readonly StickySnapshot[];
+  getSnapshot(): readonly ObjectSnapshot[];
   reobserve(): void;
   dispose(): void;
 }
 
 function createBoardStore(doc: Y.Doc): BoardStore {
   let listeners = new Set<() => void>();
-  let value: readonly StickySnapshot[] = snapshot(doc);
+  let value: readonly ObjectSnapshot[] = snapshotObjects(doc);
   let observing = false;
 
   const onChange = () => {
-    value = snapshot(doc);
+    value = snapshotObjects(doc);
     for (const listener of [...listeners]) listener();
   };
 
@@ -46,6 +52,11 @@ function createBoardStore(doc: Y.Doc): BoardStore {
 export interface UseBoardDocResult {
   /** The in-memory Y.Doc. Story 3 attaches a network provider; story 4 persists it. */
   doc: Y.Doc;
+  /**
+   * Immutable snapshot of every board object (any type), sorted by (z, id).
+   * Reference-stable between doc changes (story 7 selection prunes on it).
+   */
+  objects: readonly ObjectSnapshot[];
   /** Immutable snapshot of all sticky notes, sorted by (z, id). */
   notes: readonly StickySnapshot[];
   /** Current connection state for the status badge. */
@@ -86,6 +97,7 @@ export function useBoardDoc(boardId: string): UseBoardDocResult {
     return () => conn.destroy();
   }, [doc, boardId]);
 
-  const notes = useSyncExternalStore(store.subscribe, store.getSnapshot);
-  return { doc, notes, connectionState };
+  const objects = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const notes = snapshot(doc);
+  return { doc, objects, notes, connectionState };
 }

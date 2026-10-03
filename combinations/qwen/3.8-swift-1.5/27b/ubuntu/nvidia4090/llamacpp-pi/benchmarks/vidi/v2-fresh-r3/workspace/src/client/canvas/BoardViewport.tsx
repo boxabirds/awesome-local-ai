@@ -6,6 +6,13 @@ import { zoomPercent, canZoomIn, canZoomOut, Camera, Point } from './camera';
 import { GRID_SPACING_WORLD } from '../../shared/config';
 import { registerSetCamera, registerVidi6Hook } from './testHooks';
 
+export interface MarqueeControls {
+  begin(p: Point): void;
+  move(p: Point): void;
+  end(): void;
+  cancel(): void;
+}
+
 export interface BoardViewportProps {
   children?: ReactNode;
   /** Reports the current camera (App uses it for world-space calculations). */
@@ -14,6 +21,11 @@ export interface BoardViewportProps {
   onEmptyDoubleClick?(p: Point): void;
   /** A click (press without movement) on empty board space. */
   onEmptyClick?(): void;
+  /**
+   * Shift+drag marquee (story 7). When present, a Shift+pointerdown on empty
+   * space starts the marquee; a plain pointerdown still pans (story 1).
+   */
+  marquee?: MarqueeControls;
 }
 
 export function BoardViewport(props: BoardViewportProps) {
@@ -50,20 +62,36 @@ export function BoardViewport(props: BoardViewportProps) {
   // Pointer drag
   const isPanning = useRef(false);
   const panMoved = useRef(false);
+  const marqueeActive = useRef(false);
+
+  const viewportPoint = (e: React.PointerEvent): Point => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (e.target !== e.currentTarget) return;
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      // Shift+drag on empty space selects (story 7); plain drag pans (story 1).
+      if (e.shiftKey && props.marquee) {
+        marqueeActive.current = true;
+        props.marquee.begin(viewportPoint(e));
+        return;
+      }
       isPanning.current = true;
       panMoved.current = false;
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       beginPan({ x: e.clientX, y: e.clientY });
     },
-    [beginPan],
+    [beginPan, props.marquee],
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
+      if (marqueeActive.current) {
+        props.marquee?.move(viewportPoint(e));
+        return;
+      }
       if (!isPanning.current) return;
       const last = panState.current;
       if (last && (e.clientX !== last.x || e.clientY !== last.y)) {
@@ -72,13 +100,20 @@ export function BoardViewport(props: BoardViewportProps) {
       panState.current = { x: e.clientX, y: e.clientY };
       panMove({ x: e.clientX, y: e.clientY });
     },
-    [panMove],
+    [panMove, props.marquee],
   );
 
   const panState = useRef<{ x: number; y: number } | null>(null);
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
+      if (marqueeActive.current) {
+        marqueeActive.current = false;
+        props.marquee?.move(viewportPoint(e)); // extend to the release point
+        props.marquee?.end();
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        return;
+      }
       if (!isPanning.current) return;
       isPanning.current = false;
       panState.current = null;
@@ -90,7 +125,7 @@ export function BoardViewport(props: BoardViewportProps) {
         props.onEmptyClick?.();
       }
     },
-    [endPan, props.onEmptyClick],
+    [endPan, props.onEmptyClick, props.marquee],
   );
 
   const handleDoubleClick = useCallback(
@@ -104,6 +139,16 @@ export function BoardViewport(props: BoardViewportProps) {
 
   const handlePointerCancel = useCallback(
     (e: React.PointerEvent) => {
+      if (marqueeActive.current) {
+        marqueeActive.current = false;
+        props.marquee?.cancel(); // discard: selection unchanged
+        try {
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        } catch {
+          // ignore
+        }
+        return;
+      }
       if (!isPanning.current) return;
       isPanning.current = false;
       try {
@@ -113,7 +158,7 @@ export function BoardViewport(props: BoardViewportProps) {
       }
       endPan();
     },
-    [endPan],
+    [endPan, props.marquee],
   );
 
   // Wheel (non-passive)

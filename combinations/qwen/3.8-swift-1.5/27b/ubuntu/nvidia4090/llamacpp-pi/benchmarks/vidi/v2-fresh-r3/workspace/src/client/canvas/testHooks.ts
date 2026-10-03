@@ -1,11 +1,21 @@
 import { Camera } from './camera';
 import * as Y from 'yjs';
 
+export interface NoteSpec {
+  /** World centre of the note. */
+  x: number;
+  y: number;
+  color?: string;
+  text?: string;
+}
+
 export interface Vidi6TestHooks {
   setCamera(cam: Camera): void;
   getDoc(): Y.Doc;
   /** TEST-ONLY: create `n` sticky notes in a grid; returns their ids. */
   createNotes(n: number): string[];
+  /** TEST-ONLY: create sticky notes at the given world centres; returns their ids. */
+  createNotesAt(specs: NoteSpec[]): string[];
 }
 
 declare global {
@@ -34,6 +44,9 @@ export function registerVidi6Hook(partial: Partial<Vidi6TestHooks>): void {
     },
     createNotes: () => {
       throw new Error('createNotes test hook not registered');
+    },
+    createNotesAt: () => {
+      throw new Error('createNotesAt test hook not registered');
     },
     ...window.__vidi6,
     ...partial,

@@ -239,5 +239,53 @@ test.describe('persistence e2e (story 4)', () => {
     await ctx.close();
     await stopServer();
   });
+
+  test('TC-35: a group move persists — both notes keep their new positions after reload', async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(120000);
+    const browser: Browser = page.context().browser()!;
+    const dir = persistDir('tc35');
+    rmSync(dir, { recursive: true, force: true });
+    await startServer(dir);
+
+    const boardId = await createBoard(BASE);
+    const ctx = await openBoard(browser, boardId);
+    const pg = ctx.pages()[0]!;
+    await pg.waitForFunction(() => (window as any).__vidi6?.connectionState === 'connected', { timeout: 15000 });
+    const [a, b] = await pg.evaluate(
+      (s: { x: number; y: number }[]) => (window as any).__vidi6.createNotesAt(s),
+      [{ x: 200, y: 200 }, { x: 600, y: 200 }],
+    );
+    await expect.poll(() => noteCount(ctx), { timeout: E2E_EVENTUAL_TIMEOUT_MS }).toBe(2);
+
+    const before = new Map((await getNotesState(pg)).map((n) => [n.id, n]));
+
+    // Select both and drag the first by (80, 40) — world == screen at zoom 1.
+    await pg.mouse.click(200, 200);
+    await pg.locator(`[data-note-id="${b}"]`).click({ modifiers: ['Shift'] });
+    await expect(pg.locator(`[data-note-id="${b}"]`)).toHaveAttribute('data-selected', 'true');
+    await pg.mouse.move(200, 200);
+    await pg.mouse.down();
+    await pg.mouse.move(280, 240, { steps: 10 });
+    await pg.mouse.up();
+
+    const moved = new Map((await getNotesState(pg)).map((n) => [n.id, n]));
+    expect(moved.get(a)!.x - before.get(a)!.x).toBeCloseTo(80, 0);
+    expect(moved.get(b)!.x - before.get(b)!.x).toBeCloseTo(80, 0);
+
+    // Reload the page: the group move is persisted for both notes.
+    await pg.reload();
+    await pg.waitForFunction(() => (window as any).__vidi6?.connectionState === 'connected', { timeout: 15000 });
+    await expect.poll(() => noteCount(ctx), { timeout: E2E_EVENTUAL_TIMEOUT_MS }).toBe(2);
+    const after = new Map((await getNotesState(pg)).map((n) => [n.id, n]));
+    expect(after.get(a)!.x).toBeCloseTo(moved.get(a)!.x, 0);
+    expect(after.get(a)!.y).toBeCloseTo(moved.get(a)!.y, 0);
+    expect(after.get(b)!.x).toBeCloseTo(moved.get(b)!.x, 0);
+    expect(after.get(b)!.y).toBeCloseTo(moved.get(b)!.y, 0);
+
+    await ctx.close();
+    await stopServer();
+  });
 });
 

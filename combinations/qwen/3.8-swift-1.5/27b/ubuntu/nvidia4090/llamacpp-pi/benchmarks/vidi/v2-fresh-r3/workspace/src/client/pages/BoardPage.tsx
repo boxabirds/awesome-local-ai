@@ -2,13 +2,18 @@ import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import { checkBoard } from '../api';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { screenToWorld, type Camera, type Point } from '../canvas/camera';
-import { registerVidi6Hook } from '../canvas/testHooks';
+import { registerVidi6Hook, type NoteSpec } from '../canvas/testHooks';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
+import { useMarquee, MarqueeRect } from '../board/Marquee';
+import { useTransformGesture } from '../board/useTransformGesture';
+import { useBoardKeys } from '../board/useBoardKeys';
+import { SelectionOverlay } from '../board/SelectionOverlay';
+import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
-import { StickyNote } from '../objects/StickyNote';
+import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
-import { createSticky, deleteObject } from '../../shared/board-model';
+import { createSticky, deleteObjects, getStickyText } from '../../shared/board-model';
 import { isValidBoardId } from '../../shared/board-id';
 import { SharePanel } from '../share/SharePanel';
 import { nextBoardPageState, type BoardPageState } from './state';
@@ -17,12 +22,23 @@ import { NotFoundPage } from './NotFoundPage';
 const INITIAL_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
 
 /**
- * The board UI (stories 1–4), mounted only when the board page has confirmed
+ * The board UI (stories 1–5), mounted only when the board page has confirmed
  * the board exists (share.open_link: full editing, no sign-in).
+ *
+ * Story 7 wires the multi-selection machinery: Set-based selection
+ * (useSelection), Shift+drag marquee (useMarquee), the generic transform
+ * gesture (useTransformGesture: group move + bounding-box resize), the
+ * screen-space overlay (SelectionOverlay) and bar (SelectionBar), and the
+ * keyboard commands (useBoardKeys). Objects render through the type
+ * registry (unknown types are skipped).
+ *
+ * `canEdit` is true whenever the board is mounted: the load-failed state
+ * (story 4) shows the retry page instead of the board, so a mounted board is
+ * always editable (PRD persist alternate flow).
  */
-function Board({ boardId }: { boardId: string }): JSX.Element {
-  const { doc, notes, connectionState } = useBoardDoc(boardId);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: boolean }): JSX.Element {
+  const { doc, objects, connectionState } = useBoardDoc(boardId);
+  const selection = useSelection(objects);
   const [camera, setCamera] = useState<Camera>(INITIAL_CAMERA);
   const cameraRef = useRef<Camera>(INITIAL_CAMERA);
 
@@ -30,6 +46,10 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
     cameraRef.current = cam;
     setCamera(cam);
   }, []);
+
+  const gesture = useTransformGesture({ doc, camera, selection, snapshot: objects, canEdit });
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit });
+  const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
 
   // Test hook for e2e (drives the production build via `wrangler dev`)
   useEffect(() => {
@@ -41,6 +61,15 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
           const x = 200 + (i % 20) * 220;
           const y = 200 + Math.floor(i / 20) * 220;
           const id = createSticky(doc, { x, y }, 'yellow');
+          if (id) ids.push(id);
+        }
+        return ids;
+      },
+      createNotesAt: (specs: NoteSpec[]) => {
+        const ids: string[] = [];
+        for (const s of specs) {
+          const id = createSticky(doc, { x: s.x, y: s.y }, (s.color as 'yellow') ?? 'yellow');
+          if (s.text) getStickyText(doc, id)?.insert(0, s.text);
           if (id) ids.push(id);
         }
         return ids;
@@ -59,11 +88,10 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
       const world = screenToWorld(cameraRef.current, p);
       const id = createSticky(doc, world);
       if (id) {
-        select(id);
-        startEdit(id);
+        selection.startEdit(id);
       }
     },
-    [doc, select, startEdit],
+    [doc, selection],
   );
 
   /** Creates a sticky note at the centre of the visible board area. */
@@ -71,44 +99,21 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
     createStickyAtScreen({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   }, [createStickyAtScreen]);
 
-  // Clear selection/editing when the selected note is deleted remotely
-  useEffect(() => {
-    if (selectedId !== null) {
-      const obj = doc.getMap('objects').get(selectedId);
-      if (!obj) {
-        select(null);
-      }
-    }
-    if (editingId !== null) {
-      const obj = doc.getMap('objects').get(editingId);
-      if (!obj) {
-        endEdit('unselected');
-      }
-    }
-  }, [notes, selectedId, editingId, doc, select, endEdit]);
+  /** Delete button on the selection bar (sel.group_delete). */
+  const handleDeleteSelection = useCallback(() => {
+    if (selection.ids.size === 0) return;
+    deleteObjects(doc, [...selection.ids]);
+    selection.clear();
+  }, [doc, selection]);
 
-  // Keyboard: Enter edits the selected note; Delete/Backspace delete it.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const inField =
-        !!target &&
-        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-      if (inField || editingId !== null || selectedId === null) return;
-
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        startEdit(selectedId);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        if (deleteObject(doc, selectedId)) {
-          select(null);
-        }
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedId, editingId, doc, select, startEdit]);
+  /** Editor finished: 'selected' keeps the selection (Escape), 'unselected' clears it. */
+  const handleEndEdit = useCallback(
+    (next: 'selected' | 'unselected') => {
+      selection.endEdit();
+      if (next === 'unselected') selection.clear();
+    },
+    [selection],
+  );
 
   return (
     <>
@@ -116,22 +121,43 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
       <BoardViewport
         onCamera={handleCamera}
         onEmptyDoubleClick={createStickyAtScreen}
-        onEmptyClick={() => select(null)}
+        onEmptyClick={() => selection.clear()}
+        marquee={{ begin: marquee.begin, move: marquee.move, end: marquee.end, cancel: marquee.cancel }}
       >
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={camera.zoom}
-            selected={note.id === selectedId}
-            editing={note.id === editingId}
-            onSelect={select}
-            onStartEdit={startEdit}
-            onEndEdit={endEdit}
-          />
-        ))}
+        <MarqueeRect rect={marquee.rect} camera={camera} />
+        {objects.map((obj) => {
+          const spec = getObjectType(obj.type);
+          if (!spec) return null; // unknown types are not rendered (stories 9–12)
+          const Component = spec.Component;
+          return (
+            <Component
+              key={obj.id}
+              obj={obj}
+              doc={doc}
+              zoom={camera.zoom}
+              selected={selection.ids.has(obj.id)}
+              editing={selection.editingId === obj.id}
+              dragging={gesture.draggingId === obj.id}
+              onObjectPointerDown={gesture.onObjectPointerDown}
+              onStartEdit={selection.startEdit}
+              onEndEdit={handleEndEdit}
+            />
+          );
+        })}
       </BoardViewport>
+      <SelectionOverlay
+        ids={selection.ids}
+        snapshot={objects}
+        camera={camera}
+        onHandlePointerDown={gesture.onHandlePointerDown}
+      />
+      <SelectionBar
+        ids={selection.ids}
+        snapshot={objects}
+        doc={doc}
+        camera={camera}
+        onDelete={handleDeleteSelection}
+      />
       <Toolbar onCreateSticky={createStickyAtCentre} />
       <SharePanel boardId={boardId} />
     </>
