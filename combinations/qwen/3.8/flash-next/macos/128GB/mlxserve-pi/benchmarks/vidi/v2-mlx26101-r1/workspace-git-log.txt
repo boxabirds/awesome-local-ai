@@ -1,3 +1,100 @@
+commit 0e4613871590b5c77128d5fe15f845d1d729a1b6
+agent  Sat Oct 3 01:12:08 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                | 110 ++++++++
+ PROGRESS.md                             |  16 +-
+ package.json                            |   3 +-
+ playwright.config.ts                    |  34 ++-
+ src/client/board/useBoardDoc.ts         |   5 +
+ src/client/canvas/testHooks.ts          |  69 ++++-
+ src/client/objects/StickyNote.tsx       |  11 +-
+ src/client/objects/StickyText.ts        | 119 +++++++--
+ src/client/objects/StickyTextEditor.tsx |  76 +++++-
+ src/client/sync/ConnectionStatus.tsx    |   1 +
+ src/shared/config.ts                    |  14 +
+ tests/e2e/helpers/participants.ts       | 446 ++++++++++++++++++++++++++++++++
+ tests/e2e/live-collaboration.spec.ts    | 371 ++++++++++++++++++++++++++
+ tests/e2e/live-nightly.spec.ts          | 171 ++++++++++++
+ tests/unit/sticky-text.test.ts          | 163 ++++++++++++
+ 15 files changed, 1561 insertions(+), 48 deletions(-)
+commit 7566f3cf7668f9e6f215eef6f384352be6cc5473
+agent  Sat Oct 3 00:14:58 2026 +0000
+
+    story 3 tasks 4, 7: /b/:boardId route, y-websocket connection, status badge + component tests
+
+
+ src/client/App.tsx                        |  36 ++++-
+ src/client/board/useBoardDoc.ts           |  37 ++++-
+ src/client/canvas/testHooks.ts            |  20 +++
+ src/client/styles.css                     |  30 ++++
+ src/client/sync/ConnectionStatus.tsx      |  38 +++++
+ src/client/sync/connectBoard.ts           | 164 +++++++++++++++++++++
+ tests/component/ConnectionStatus.test.tsx | 228 ++++++++++++++++++++++++++++++
+ tests/component/y-websocket-stub.ts       |  95 +++++++++++++
+ vitest.config.ts                          |  12 ++
+ 9 files changed, 653 insertions(+), 7 deletions(-)
+commit 11f3bc6e2ff2326ab1ee2ed3949b4a40cb41f27e
+agent  Sat Oct 3 00:03:21 2026 +0000
+
+    story 3 tasks 3, 5, 6: BoardRoom Yjs sync/awareness relay and workerd integration tests
+
+
+ NOTES.md                                |  43 +++
+ PROGRESS.md                             |  10 +-
+ src/worker/board-room.ts                | 193 +++++++++++-
+ src/worker/index.ts                     |   9 +-
+ tests/fixtures/texts.ts                 |  27 ++
+ tests/integration/board-room.test.ts    | 524 ++++++++++++++++++++++++++++++++
+ tests/integration/env.d.ts              |   3 +
+ tests/integration/helpers/random-ops.ts | 164 ++++++++++
+ tests/integration/helpers/room.ts       |  55 ++++
+ tests/integration/helpers/ws-client.ts  | 378 +++++++++++++++++++++++
+ tests/integration/worker.test.ts        | 144 +++++++++
+ vitest.config.ts                        |   4 +
+ 12 files changed, 1540 insertions(+), 14 deletions(-)
+commit ce600d2821703f2f31f2b2f9f1deef58be710b2c
+agent  Fri Oct 2 23:42:03 2026 +0000
+
+    story 3 task 2: Worker entry, board ids, protocol decode, wrangler DO wiring + integration project
+
+
+ package-lock.json        | 1360 ++++++++++++++++++++++++++++++++++++++++++++++
+ package.json             |    3 +
+ playwright.config.ts     |    9 +-
+ src/shared/board-id.ts   |   35 +-
+ src/shared/protocol.ts   |   48 +-
+ src/worker/board-room.ts |   13 +
+ src/worker/index.ts      |   69 +++
+ tsconfig.json            |    2 +-
+ vitest.config.ts         |   29 +-
+ wrangler.jsonc           |   20 +-
+ 10 files changed, 1573 insertions(+), 15 deletions(-)
+commit 12ce7c0164fe1be07fd66ca855614c549193ba20
+agent  Fri Oct 2 23:32:22 2026 +0000
+
+    story 3 task 1: board id + protocol decode unit tests (red) + config + stubs
+
+
+ PROGRESS.md                 |   2 +-
+ package-lock.json           |  44 ++++++++++++++++
+ package.json                |   3 ++
+ src/shared/board-id.ts      |  20 +++++++
+ src/shared/config.ts        |  33 ++++++++++++
+ src/shared/protocol.ts      |  30 +++++++++++
+ tests/unit/board-id.test.ts |  58 +++++++++++++++++++++
+ tests/unit/protocol.test.ts | 123 ++++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 312 insertions(+), 1 deletion(-)
+commit feaf2ed74b2d30413ed2ff2ab5691f16ea4b84e5
+vidi-agent  Sat Oct 3 00:29:06 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit 7f94984f53ba98bd544e6f955a64811e1aef0d32
 agent  Fri Oct 2 23:28:03 2026 +0000
 
