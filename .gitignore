@@ -20,3 +20,6 @@ benchmarks/vidi/acceptance/
 
 # coverage.py data from a local coverage run
 .coverage
+
+# Archived runs (plans/20261003-archive-superseded-records.md): kept on this machine only, never committed
+/archive/

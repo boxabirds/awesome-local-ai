@@ -113,7 +113,7 @@ All of it is in [assets/guide-data.js](assets/guide-data.js), found by id. These
 - **Define**: `pack`, `spec`, `scope`, `story`, `task`, `prompt`, `heldout`
 - **Stack under test**: `combination`, `model`, `engine`, `machine`, `client`, `settings`, `install`, `reference`
 - **A run**: `run`, `workspace`, `story-run`, `attempt`, `session`, `conversation`, `compaction`, `stop-message`, `intervention`, `progress-file`, `time-split`, `engine-request`
-- **Scoring**: `gate`, `accept`, `rescore`, `finalize`, `score-record`, `invalid-run`, `not-comparable`
+- **Scoring**: `gate`, `accept`, `rescore`, `finalize`, `score-record`, `invalid-run`, `not-comparable`, `archived-run`, `judgement`
 - **Operate**: `job`, `dbench`, `node-server`, `hold`, `harness`, `harness-release`, `provenance`, `partial-rerun`, `collector`
 - **Safeguards**: `sandbox`, `containment`, `machine-guard`, `credential-scan`, `private-repo`
 - **Show and watch**: `record`, `benchmarker`, `gallery`, `monitor`, `anomaly-log`, `insights`, `horizon`, `collection`, `conversation-db`

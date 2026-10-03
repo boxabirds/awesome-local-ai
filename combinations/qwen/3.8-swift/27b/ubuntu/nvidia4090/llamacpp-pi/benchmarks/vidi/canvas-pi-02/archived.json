@@ -1,0 +1,8 @@
+{
+ "archived_at": "2026-10-04T00:13:17+01:00",
+ "reason": "superseded: built against vidi spec v1 and scored by the v1 held-out suite",
+ "archive": "combinations__qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__canvas-pi-02.tar.zst",
+ "sha256": "bf44768b48a12a1d44bc739661566f1714480da4a906aef8ef986072a1454a92",
+ "files": 1731,
+ "plan": "plans/20261003-archive-superseded-records.md"
+}

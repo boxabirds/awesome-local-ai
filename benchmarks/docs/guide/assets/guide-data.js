@@ -346,11 +346,19 @@ GUIDE_DATA.entities = [
   {
     id: "invalid-run", name: "Invalid run", group: "score", row: 5,
     short: "A run whose result cannot stand.",
-    what: "A run marked in its `run.json` (`invalid: {reason, since}`) because its result cannot stand. The re-score sweep (on main) skips it and the benchmarker does not show it at all.",
+    what: "A run marked in its `run.json` (`invalid: {reason, since}`) because its result cannot stand. The re-score sweep (on main) skips it and the benchmarker does not show it at all. A run that is only superseded, with nothing wrong with it, is an archived run instead.",
     rel: [["is a flagged", "run"]],
     repo: [["benchmarks/spec-bench/harness/finalize_pending.py", "harness/finalize_pending.py"], ["tools/benchmarker/README.md", "benchmarker README: the faults feed"]],
     example: "Reason recorded on one run: 'read another run's build (27B canvas-pi-02, a re-score worktree left in /tmp) for the WebSocket code story 3 needed' (since 2026-09-30).",
     insights: ["reference-build"],
+  },
+  {
+    id: "archived-run", name: "Archived run", group: "score", row: 8,
+    short: "A superseded run, kept off the record and out of every database.",
+    what: "A run superseded by a later version of its pack, archived so that nothing current has to remember to leave it out. Its run directory keeps only `archived.json` (when, why, and its archive's name and sha256). The {e:collector|collector} no longer pulls it, the ingest removes it from the {e:conversation-db|warehouse} and the analytics file, and the {e:benchmarker|benchmarker} does not list it. Its files stay in git history, and its record and {e:collection|lake} copies sit in one compressed archive on the owner's machine, which is not backed up. Unlike an {e:invalid-run|invalid run}, nothing was wrong with it.",
+    rel: [["is a retired", "run"]],
+    repo: [["plans/20261003-archive-superseded-records.md", "the archiving plan, and what v1 says against v2"], ["tools/dbench/src/ingest/inputs.rs", "dbench ingest: ARCHIVED_MARKER"]],
+    example: "The 24 vidi-v1 runs and 2 unversioned MTPLX runs, archived on 4 October 2026. The v1 and v2 held-out suites are the same 75 tests; gufo scored 60, 65 and 68 on v1 against a median of 66 on v2.",
   },
   {
     id: "judgement", name: "Judgement", group: "score", row: 7,
@@ -2500,6 +2508,7 @@ GUIDE_DATA.glossary = [
   { id: "hold", term: "Hold (and release of a node)", def: "`dbench hold` stops new jobs starting on a node; the running job finishes. `dbench release` ends the hold. Not a harness release.", entity: "hold", see: ["harness-release"] },
   { id: "install", term: "Install", def: "What the installer leaves on a machine for one combination, including the manifest `install.env` that the harness and dbench read.", entity: "install" },
   { id: "intervention", term: "Intervention", def: "Anything the harness or an operator does to a story that the agent did not ask for: the stop message, a resume after an engine fault, a killed hung tool, a story ended at its cap, an operator skip.", entity: "intervention" },
+  { id: "archived-run", term: "Archived run", def: "A run superseded by a later version of its pack: only `archived.json` stays in its run directory, and it is kept out of the lake, the warehouse, the analytics file and the benchmarker.", entity: "archived-run", auto: ["archived run", "archived runs"] },
   { id: "invalid-run", term: "Invalid run", def: "A run marked `invalid` in `run.json` because its result cannot stand. It is skipped by the re-score sweep and not shown in the benchmarker.", entity: "invalid-run", auto: ["invalid run", "invalid runs"] },
   { id: "job", term: "Job", def: "One dbench execution of a run, waiting in a node's queue: queued, running, done, failed or cancelled.", entity: "job" },
   { id: "judge", term: "Judging", def: "A person watching a recording of each held-out test and marking whether the scored pass or fail was right. It validates the scoring. (A blinded AI grader, below, compares code quality instead.)", entity: "judgement", see: ["blinded-grading", "build-score-judge"] },

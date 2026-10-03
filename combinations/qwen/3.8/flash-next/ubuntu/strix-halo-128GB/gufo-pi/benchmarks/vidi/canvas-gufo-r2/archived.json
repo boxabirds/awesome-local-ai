@@ -1,0 +1,8 @@
+{
+ "archived_at": "2026-10-04T00:13:17+01:00",
+ "reason": "superseded: built against vidi spec v1 and scored by the v1 held-out suite",
+ "archive": "combinations__qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2.tar.zst",
+ "sha256": "84b06fc2401400928acc00cb90ba3ea82a47127bf9015c04b7592d10a9bac289",
+ "files": 485,
+ "plan": "plans/20261003-archive-superseded-records.md"
+}

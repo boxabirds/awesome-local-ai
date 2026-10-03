@@ -1,0 +1,8 @@
+{
+ "archived_at": "2026-10-04T00:13:17+01:00",
+ "reason": "no pack version recorded, status unknown",
+ "archive": "combinations__qwen__3.8__flash-next__macos__128GB__mtplx-pi__benchmarks__vidi__canvas-pi-01.tar.zst",
+ "sha256": "f7e0c4d0ea856eda6ed8788680c2a02d124981248b62d52016b5dd67933613f6",
+ "files": 818,
+ "plan": "plans/20261003-archive-superseded-records.md"
+}
