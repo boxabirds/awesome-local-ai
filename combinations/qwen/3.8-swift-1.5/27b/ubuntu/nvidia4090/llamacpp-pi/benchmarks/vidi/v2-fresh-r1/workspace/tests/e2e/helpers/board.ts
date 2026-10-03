@@ -40,6 +40,31 @@ export async function gridBackgroundPosition(page: Page): Promise<{ x: number; y
   });
 }
 
+/** Shift+drag a marquee from (x0,y0) to (x1,y1) (screen pixels). */
+export async function marqueeSelect(
+  page: import('@playwright/test').Page,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): Promise<void> {
+  await page.keyboard.down('Shift');
+  await page.mouse.move(x0, y0);
+  await page.mouse.down();
+  await page.mouse.move(x1, y1, { steps: 10 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+}
+
+/** The selection count text ("N selected"), or null when no count bar. */
+export async function selectionCountText(
+  page: import('@playwright/test').Page,
+): Promise<string | null> {
+  const el = page.locator('[data-testid="selection-count"]');
+  if ((await el.count()) === 0) return null;
+  return ((await el.textContent()) ?? '').trim();
+}
+
 /** Drag the board by (dx, dy) screen pixels starting at (x, y). */
 export async function dragBoard(
   page: Page,

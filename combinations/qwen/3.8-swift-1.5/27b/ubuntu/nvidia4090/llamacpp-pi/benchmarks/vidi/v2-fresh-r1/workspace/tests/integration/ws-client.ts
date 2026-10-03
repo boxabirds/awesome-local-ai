@@ -14,7 +14,7 @@ import {
   writeVarUint8Array,
 } from 'lib0/encoding';
 import { readSyncMessage, writeSyncStep1, writeUpdate } from 'y-protocols/sync';
-import { initDoc, snapshot, type StickySnapshot } from '../../src/shared/board-model';
+import { initDoc, snapshot, type ObjectSnapshot } from '../../src/shared/board-model';
 import { MESSAGE_AWARENESS, MESSAGE_SYNC } from '../../src/shared/protocol';
 import { newBoardId } from '../../src/shared/board-id';
 
@@ -116,7 +116,7 @@ export class RoomClient {
   }
 
   /** Current board snapshot (same function the client renders from). */
-  snapshot(): readonly StickySnapshot[] {
+  snapshot(): readonly ObjectSnapshot[] {
     return snapshot(this.doc);
   }
 

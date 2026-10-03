@@ -1,5 +1,6 @@
-// Board content: the actual board UI (viewport, toolbar, notes, zoom, hint).
+// Board content: the actual board UI (viewport, toolbar, objects, zoom, hint).
 // Extracted from the old App.tsx so BoardPage can render it when ready.
+// Story 7: multi-selection, marquee, group move/resize/delete.
 
 import { useCallback, useEffect, useRef } from 'react';
 import { BoardViewport, CameraContext } from '../canvas/BoardViewport';
@@ -10,10 +11,20 @@ import { ZoomControls } from '../canvas/ZoomControls';
 import { canZoomIn, canZoomOut, zoomPercent } from '../canvas/camera';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
+import { useTransformGesture } from '../board/useTransformGesture';
+import { useBoardKeys } from '../board/useBoardKeys';
+import { useMarquee, MarqueeRect } from '../board/Marquee';
+import { SelectionOverlay } from '../board/SelectionOverlay';
+import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
-import { StickyNote } from '../objects/StickyNote';
+import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
-import { createSticky, deleteObject } from '../../shared/board-model';
+import {
+  createSticky,
+  deleteObjects,
+  setStickyColor,
+} from '../../shared/board-model';
+import type { StickyColor } from '../../shared/config';
 import { screenToWorld } from '../canvas/camera';
 
 export function BoardContent({ boardId }: { boardId: string }) {
@@ -29,6 +40,11 @@ export function BoardContent({ boardId }: { boardId: string }) {
   // Editing is disabled when the board failed to load on the server side.
   const canEdit = connectionState !== 'load_failed';
 
+  // Shared transform gesture (move/resize) + marquee + keyboard shortcuts.
+  const gesture = useTransformGesture({ doc, camera, selection, snapshot: objects, canEdit });
+  const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit });
+
   // Test-only `window.__vidi6` hook (test mode only, see testHooks.ts).
   useEffect(() => {
     installTestHooks(setCamera, () => boardId, () => connectionState);
@@ -41,7 +57,8 @@ export function BoardContent({ boardId }: { boardId: string }) {
       const world = screenToWorld(camera, screenPoint);
       const id = createSticky(doc, world);
       if (id) {
-        selection.startEdit(id);
+        // Just created: not in the rendered snapshot yet, so skip validation.
+        selection.startEditFresh(id);
       }
     },
     [camera, doc, selection, canEdit],
@@ -60,32 +77,35 @@ export function BoardContent({ boardId }: { boardId: string }) {
 
   // Clear selection on empty board click
   const handleClickEmpty = useCallback(() => {
-    selection.select(null);
+    selection.clear();
   }, [selection]);
 
-  // Keyboard handler: Enter to edit, Delete/Backspace to delete
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      // Don't handle keys when focus is in an input/textarea
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-
+  // Double-click an object: enter edit mode if the type supports text.
+  const handleObjectDoubleClick = useCallback(
+    (id: string) => {
       if (!canEdit) return;
-
-      if (e.key === 'Enter' && selection.selectedId && !selection.editingId) {
-        e.preventDefault();
-        selection.startEdit(selection.selectedId);
+      const obj = objects.find((o) => o.id === id);
+      if (obj && getObjectType(obj.type)?.editableText) {
+        selection.startEdit(id);
       }
+    },
+    [canEdit, objects, selection],
+  );
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selection.selectedId && !selection.editingId) {
-        e.preventDefault();
-        deleteObject(doc, selection.selectedId);
-        selection.select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selection.selectedId, selection.editingId, selection, doc, canEdit]);
+  // Delete the current selection (SelectionBar / Delete key).
+  const handleDeleteSelection = useCallback(() => {
+    if (!canEdit || selection.ids.size === 0) return;
+    deleteObjects(doc, [...selection.ids]);
+    selection.clear();
+  }, [canEdit, doc, selection]);
+
+  const handleStickyColor = useCallback(
+    (id: string, color: StickyColor) => {
+      if (!canEdit) return;
+      setStickyColor(doc, id, color);
+    },
+    [canEdit, doc],
+  );
 
   return (
     <CameraContext.Provider value={cameraApi}>
@@ -93,21 +113,41 @@ export function BoardContent({ boardId }: { boardId: string }) {
         <BoardViewport
           onDblClickEmpty={handleDblClickEmpty}
           onClickEmpty={handleClickEmpty}
+          marquee={marquee}
         >
-          {objects.map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={doc}
-              zoom={camera.zoom}
-              selected={selection.selectedId === note.id}
-              editing={selection.editingId === note.id}
-              onSelect={selection.select}
-              onStartEdit={selection.startEdit}
-              onEndEdit={selection.endEdit}
-            />
-          ))}
+          {objects.map((obj) => {
+            const spec = getObjectType(obj.type);
+            if (!spec) return null; // unknown type: skip (forward compatibility)
+            const Component = spec.Component;
+            return (
+              <Component
+                key={obj.id}
+                obj={obj}
+                doc={doc}
+                zoom={camera.zoom}
+                selected={selection.ids.has(obj.id)}
+                editing={selection.editingId === obj.id}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+                onObjectDoubleClick={handleObjectDoubleClick}
+                onEndEdit={selection.endEdit}
+              />
+            );
+          })}
+          <MarqueeRect rect={marquee.rect} />
         </BoardViewport>
+        <SelectionOverlay
+          ids={selection.ids}
+          snapshot={objects}
+          camera={camera}
+          onHandlePointerDown={gesture.onHandlePointerDown}
+        />
+        <SelectionBar
+          ids={selection.ids}
+          snapshot={objects}
+          camera={camera}
+          onDelete={handleDeleteSelection}
+          onStickyColor={handleStickyColor}
+        />
         <Toolbar onCreateSticky={handleCreateSticky} disabled={!canEdit} />
         <ConnectionStatus state={connectionState} />
         <ZoomControls

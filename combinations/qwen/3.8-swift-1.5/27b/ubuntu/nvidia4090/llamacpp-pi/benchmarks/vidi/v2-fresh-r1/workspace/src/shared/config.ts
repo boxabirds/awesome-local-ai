@@ -85,3 +85,15 @@ export const CREATE_BUDGET_MS = 2000;
 export const LINK_COPIED_MS = 2000;
 /** Base backoff for board existence check retries; doubles up to RECONNECT_MAX_BACKOFF_MS. */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Story 7: Multi-select, group move/resize/delete ---
+/** Screen-space size of a resize handle in pixels. */
+export const HANDLE_SIZE_PX = 8;
+/** Minimum width/height (world units) any object can be resized to. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Maximum width/height (world units) any object can be resized to. */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** Single arrow-key nudge in world units. */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift+arrow nudge in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;

@@ -8,7 +8,8 @@ import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
 interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
-  onEnd: (next: 'selected' | 'unselected') => void;
+  /** End editing. The selection is kept (story 7: Escape → back to selected). */
+  onEnd: () => void;
 }
 
 export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
@@ -61,7 +62,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     const handler = (e: PointerEvent) => {
       const el = ref.current;
       if (el && !el.contains(e.target as Node)) {
-        onEnd('unselected');
+        onEnd();
       }
     };
     // Use capture phase so we get the event before the note's handler
@@ -89,7 +90,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onEnd('selected');
+        onEnd();
       }
       // Enter inserts a newline (default textarea behaviour) — no special handling needed
     },

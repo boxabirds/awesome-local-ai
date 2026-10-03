@@ -2,140 +2,30 @@
 // TC-18 to TC-22, TC-25, TC-35 to TC-37.
 
 import { cleanup, fireEvent, render, screen, act } from '@testing-library/react';
-import { useEffect, useState } from 'react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test } from 'vitest';
 import * as Y from 'yjs';
-import { BoardViewport, CameraContext } from '../../src/client/canvas/BoardViewport';
-import { useCamera } from '../../src/client/canvas/useCamera';
 import {
   createSticky,
   deleteObject,
   initDoc,
-  snapshot,
-  type StickySnapshot,
 } from '../../src/shared/board-model';
-import { useSelection } from '../../src/client/board/useSelection';
-import { StickyNote } from '../../src/client/objects/StickyNote';
 import { STICKY_SIZE_WORLD } from '../../src/shared/config';
-
-// Fake rAF
-let rafId = 0;
-const rafCallbacks = new Map<number, FrameRequestCallback>();
-vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-  rafId++;
-  rafCallbacks.set(rafId, cb);
-  return rafId;
-});
-vi.stubGlobal('cancelAnimationFrame', (id: number) => {
-  rafCallbacks.delete(id);
-});
-
-function flushRAF() {
-  act(() => {
-    const now = performance.now();
-    const cbs = Array.from(rafCallbacks.entries());
-    rafCallbacks.clear();
-    cbs.forEach(([_, cb]) => cb(now));
-  });
-}
+import { BoardHarness, makeDoc } from './board-harness';
+import { flushRAF, clearRAF } from './fake-raf';
 
 afterEach(() => {
   cleanup();
-  rafCallbacks.clear();
+  clearRAF();
 });
-
-/**
- * A hook that subscribes to a Y.Doc's objects map and returns the snapshot.
- * Used in test harnesses that provide their own doc.
- */
-function useDocSnapshot(doc: Y.Doc): readonly StickySnapshot[] {
-  const [snap, setSnap] = useState(() => snapshot(doc));
-  useEffect(() => {
-    const objects = doc.getMap('objects');
-    const handler = () => setSnap(snapshot(doc));
-    objects.observeDeep(handler);
-    return () => objects.unobserveDeep(handler);
-  }, [doc]);
-  return snap;
-}
-
-/** Test harness with a pre-created doc. */
-function Harness({ doc, withKeyboard = false }: { doc: Y.Doc; withKeyboard?: boolean }) {
-  const api = useCamera({ width: 1280, height: 800 });
-  const selection = useSelection();
-  const objects = useDocSnapshot(doc);
-
-  // Keyboard handler for Delete/Backspace/Enter
-  useEffect(() => {
-    if (!withKeyboard) return;
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-      if (e.key === 'Enter' && selection.selectedId && !selection.editingId) {
-        e.preventDefault();
-        selection.startEdit(selection.selectedId);
-      }
-      if (
-        (e.key === 'Delete' || e.key === 'Backspace') &&
-        selection.selectedId &&
-        !selection.editingId
-      ) {
-        e.preventDefault();
-        deleteObject(doc, selection.selectedId);
-        selection.select(null);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [withKeyboard, selection.selectedId, selection.editingId, selection, doc]);
-
-  return (
-    <CameraContext.Provider value={api}>
-      <div>
-        <BoardViewport
-          onDblClickEmpty={(pt) => {
-            const id = createSticky(doc, pt);
-            if (id) selection.startEdit(id);
-          }}
-          onClickEmpty={() => selection.select(null)}
-        >
-          {objects.map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={doc}
-              zoom={api.camera.zoom}
-              selected={selection.selectedId === note.id}
-              editing={selection.editingId === note.id}
-              onSelect={selection.select}
-              onStartEdit={selection.startEdit}
-              onEndEdit={selection.endEdit}
-            />
-          ))}
-        </BoardViewport>
-        <div data-testid="selected" data-value={selection.selectedId ?? ''} />
-        <div data-testid="editing" data-value={selection.editingId ?? ''} />
-        <div data-testid="note-count" data-value={String(objects.length)} />
-        <div data-testid="camera-x" data-value={String(api.camera.x)} />
-        <div data-testid="camera-y" data-value={String(api.camera.y)} />
-      </div>
-    </CameraContext.Provider>
-  );
-}
-
-function makeDoc(): Y.Doc {
-  const doc = new Y.Doc();
-  initDoc(doc);
-  return doc;
-}
 
 describe('sticky.interaction (component)', () => {
   // TC-18: press+release without move → Selected, outline and NoteToolbar shown
   test('TC-18 pointerdown+up without move selects the note', () => {
     const doc = makeDoc();
+    initDoc(doc);
     const noteId = createSticky(doc, { x: 200, y: 200 });
 
-    render(<Harness doc={doc} />);
+    render(<BoardHarness doc={doc} />);
 
     const note = screen.getByTestId('sticky-note');
     expect(note).toBeTruthy();
@@ -147,16 +37,18 @@ describe('sticky.interaction (component)', () => {
 
     expect(screen.getByTestId('selected').getAttribute('data-value')).toBe(noteId);
     expect(screen.getByTestId('note-toolbar')).toBeTruthy();
+    expect(note).toHaveAttribute('data-selected');
   });
 
   // TC-19: move 2px (< DRAG_THRESHOLD_PX) → still Selected, no moveObject
   test('TC-19 move 2px (below threshold) does not move the note', () => {
     const doc = makeDoc();
+    initDoc(doc);
     const noteId = createSticky(doc, { x: 200, y: 200 });
     const initialX = 200 - STICKY_SIZE_WORLD / 2;
     const initialY = 200 - STICKY_SIZE_WORLD / 2;
 
-    render(<Harness doc={doc} />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
 
     act(() => {
@@ -176,9 +68,10 @@ describe('sticky.interaction (component)', () => {
   // TC-20: move 3px (= threshold) → Dragging; board camera unchanged (no pan)
   test('TC-20 move 3px (at threshold) starts drag; board does not pan', () => {
     const doc = makeDoc();
+    initDoc(doc);
     createSticky(doc, { x: 200, y: 200 });
 
-    render(<Harness doc={doc} />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
     const camXBefore = screen.getByTestId('camera-x').getAttribute('data-value');
     const camYBefore = screen.getByTestId('camera-y').getAttribute('data-value');
@@ -197,10 +90,11 @@ describe('sticky.interaction (component)', () => {
   // TC-21: pointercancel during drag → Selected at last position
   test('TC-21 pointercancel during drag keeps last position', () => {
     const doc = makeDoc();
+    initDoc(doc);
     const noteId = createSticky(doc, { x: 200, y: 200 });
     const initialX = 200 - STICKY_SIZE_WORLD / 2;
 
-    render(<Harness doc={doc} />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
 
     act(() => {
@@ -219,9 +113,10 @@ describe('sticky.interaction (component)', () => {
   // TC-22: click empty board → Unselected, toolbar gone
   test('TC-22 click empty board clears selection', () => {
     const doc = makeDoc();
+    initDoc(doc);
     const noteId = createSticky(doc, { x: 200, y: 200 });
 
-    render(<Harness doc={doc} />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
 
     // Select the note
@@ -245,9 +140,10 @@ describe('sticky.interaction (component)', () => {
   // TC-25: Delete and Backspace on selected → removed
   test('TC-25a Delete key removes selected note', () => {
     const doc = makeDoc();
+    initDoc(doc);
     const noteId = createSticky(doc, { x: 200, y: 200 });
 
-    render(<Harness doc={doc} withKeyboard />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
 
     act(() => {
@@ -266,9 +162,10 @@ describe('sticky.interaction (component)', () => {
 
   test('TC-25b Backspace key removes selected note', () => {
     const doc = makeDoc();
+    initDoc(doc);
     createSticky(doc, { x: 200, y: 200 });
 
-    render(<Harness doc={doc} withKeyboard />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
 
     act(() => {
@@ -286,9 +183,10 @@ describe('sticky.interaction (component)', () => {
   // TC-35: dblclick on existing note → no new note, edits existing
   test('TC-35 dblclick on existing note edits it, does not create new', () => {
     const doc = makeDoc();
+    initDoc(doc);
     const noteId = createSticky(doc, { x: 200, y: 200 });
 
-    render(<Harness doc={doc} />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
 
     act(() => {
@@ -302,8 +200,9 @@ describe('sticky.interaction (component)', () => {
   // TC-36: Enter with nothing selected → nothing happens
   test('TC-36 Enter with nothing selected does nothing', () => {
     const doc = makeDoc();
+    initDoc(doc);
 
-    render(<Harness doc={doc} withKeyboard />);
+    render(<BoardHarness doc={doc} />);
 
     act(() => {
       fireEvent.keyDown(window, { key: 'Enter' });
@@ -317,9 +216,10 @@ describe('sticky.interaction (component)', () => {
   // TC-37: note deleted while Dragging or Editing → interaction ends, no exception
   test('TC-37a note deleted while dragging ends interaction silently', () => {
     const doc = makeDoc();
+    initDoc(doc);
     const noteId = createSticky(doc, { x: 200, y: 200 });
 
-    render(<Harness doc={doc} />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
 
     // Start a drag
@@ -327,6 +227,7 @@ describe('sticky.interaction (component)', () => {
       fireEvent.pointerDown(note, { clientX: 300, clientY: 300, button: 0, pointerId: 1 });
       fireEvent.pointerMove(note, { clientX: 310, clientY: 300, pointerId: 1 });
     });
+    flushRAF();
 
     // Delete the note mid-drag
     act(() => {
@@ -344,9 +245,10 @@ describe('sticky.interaction (component)', () => {
 
   test('TC-37b note deleted while editing ends interaction silently', () => {
     const doc = makeDoc();
+    initDoc(doc);
     const noteId = createSticky(doc, { x: 200, y: 200 });
 
-    render(<Harness doc={doc} />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
 
     // Start editing

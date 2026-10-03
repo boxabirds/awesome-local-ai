@@ -9,8 +9,14 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
-import { GRID_SPACING_WORLD, WHEEL_LINE_DELTA_PX, WHEEL_PAGE_DELTA_PX } from '../../shared/config';
+import {
+  DRAG_THRESHOLD_PX,
+  GRID_SPACING_WORLD,
+  WHEEL_LINE_DELTA_PX,
+  WHEEL_PAGE_DELTA_PX,
+} from '../../shared/config';
 import type { CameraApi } from './useCamera';
+import type { MarqueeApi } from '../board/Marquee';
 
 export const CameraContext = createContext<CameraApi | null>(null);
 
@@ -33,6 +39,8 @@ export function BoardViewport(props: {
   children?: ReactNode;
   onDblClickEmpty?: (screenPoint: { x: number; y: number }) => void;
   onClickEmpty?: () => void;
+  /** Marquee (shift+drag) selection; omit to disable. */
+  marquee?: MarqueeApi;
 }) {
   const api = useCameraContext();
   const { camera, isPanning, beginPan, panMove, endPan } = api;
@@ -43,6 +51,27 @@ export function BoardViewport(props: {
 
   const ref = useRef<HTMLDivElement>(null);
   const lastScaleRef = useRef(1);
+  const marqueeRef = useRef<MarqueeApi | undefined>(props.marquee);
+  marqueeRef.current = props.marquee;
+  // True while a marquee drag is in progress (pointer captured on the
+  // viewport, no panning).
+  const marqueeActiveRef = useRef(false);
+  // Suppress the click event that follows a real drag, so panning or a
+  // marquee drag does not clear the selection.
+  const suppressClickRef = useRef(false);
+  const downPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Escape cancels an in-progress marquee.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && marqueeActiveRef.current) {
+        marqueeActiveRef.current = false;
+        marqueeRef.current?.cancel();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Wheel: non-passive so preventDefault always works (React's onWheel is
   // passive). Plain wheel pans; Ctrl/Cmd wheel zooms around the pointer.
@@ -121,6 +150,15 @@ export function BoardViewport(props: {
     if (e.target !== e.currentTarget) return;
     if (e.button !== 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
+    downPosRef.current = { x: e.clientX, y: e.clientY };
+
+    // Shift+drag on empty space → marquee selection (story 7).
+    if (e.shiftKey && marqueeRef.current) {
+      marqueeActiveRef.current = true;
+      const rect = e.currentTarget.getBoundingClientRect();
+      marqueeRef.current.begin({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      return;
+    }
     beginPan({ x: e.clientX, y: e.clientY });
   };
 
@@ -138,7 +176,33 @@ export function BoardViewport(props: {
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeActiveRef.current) {
+      if (marqueeRef.current) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        marqueeRef.current.move({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      }
+      return;
+    }
     panMove({ x: e.clientX, y: e.clientY });
+  };
+
+  const finishPointer = (cancel: boolean, e: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeActiveRef.current) {
+      marqueeActiveRef.current = false;
+      suppressClickRef.current = true;
+      if (cancel) marqueeRef.current?.cancel();
+      else marqueeRef.current?.end();
+      downPosRef.current = null;
+      return;
+    }
+    // Suppress the trailing click after a real pan drag so the selection
+    // is only cleared by a genuine click (no drag).
+    const down = downPosRef.current;
+    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) >= DRAG_THRESHOLD_PX) {
+      suppressClickRef.current = true;
+    }
+    downPosRef.current = null;
+    endPan();
   };
 
   const spacing = GRID_SPACING_WORLD * camera.zoom;
@@ -160,11 +224,17 @@ export function BoardViewport(props: {
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={endPan}
-      onPointerCancel={endPan}
-      onLostPointerCapture={endPan}
+      onPointerUp={(e) => finishPointer(false, e)}
+      onPointerCancel={(e) => finishPointer(true, e)}
+      onLostPointerCapture={(e) => finishPointer(true, e)}
       onDoubleClick={onDoubleClick}
-      onClick={onClickEmpty}
+      onClick={(e) => {
+        if (suppressClickRef.current) {
+          suppressClickRef.current = false;
+          return;
+        }
+        onClickEmpty(e);
+      }}
     >
       <div
         data-testid="world-layer"

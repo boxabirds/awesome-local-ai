@@ -2,124 +2,31 @@
 // TC-23, TC-24, TC-26, TC-38.
 
 import { cleanup, fireEvent, render, screen, act } from '@testing-library/react';
-import { useEffect, useState } from 'react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
-import * as Y from 'yjs';
-import { BoardViewport, CameraContext } from '../../src/client/canvas/BoardViewport';
-import { useCamera } from '../../src/client/canvas/useCamera';
+import { afterEach, describe, expect, test } from 'vitest';
 import {
   createSticky,
   getStickyText,
   initDoc,
-  snapshot,
-  type StickySnapshot,
 } from '../../src/shared/board-model';
-import { useSelection } from '../../src/client/board/useSelection';
-import { StickyNote } from '../../src/client/objects/StickyNote';
-
-// Fake rAF
-let rafId = 0;
-const rafCallbacks = new Map<number, FrameRequestCallback>();
-vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-  rafId++;
-  rafCallbacks.set(rafId, cb);
-  return rafId;
-});
-vi.stubGlobal('cancelAnimationFrame', (id: number) => {
-  rafCallbacks.delete(id);
-});
-
-function flushRAF() {
-  act(() => {
-    const now = performance.now();
-    const cbs = Array.from(rafCallbacks.entries());
-    rafCallbacks.clear();
-    cbs.forEach(([_, cb]) => cb(now));
-  });
-}
+import { BoardHarness, makeDoc } from './board-harness';
+import { clearRAF } from './fake-raf';
 
 afterEach(() => {
   cleanup();
-  rafCallbacks.clear();
+  clearRAF();
 });
-
-function useDocSnapshot(doc: Y.Doc): readonly StickySnapshot[] {
-  const [snap, setSnap] = useState(() => snapshot(doc));
-  useEffect(() => {
-    const objects = doc.getMap('objects');
-    const handler = () => setSnap(snapshot(doc));
-    objects.observeDeep(handler);
-    return () => objects.unobserveDeep(handler);
-  }, [doc]);
-  return snap;
-}
-
-function Harness({ doc }: { doc: Y.Doc }) {
-  const api = useCamera({ width: 1280, height: 800 });
-  const selection = useSelection();
-  const objects = useDocSnapshot(doc);
-
-  // Keyboard handler for Enter
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-      if (e.key === 'Enter' && selection.selectedId && !selection.editingId) {
-        e.preventDefault();
-        selection.startEdit(selection.selectedId);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selection.selectedId, selection.editingId, selection]);
-
-  return (
-    <CameraContext.Provider value={api}>
-      <div>
-        <BoardViewport
-          onDblClickEmpty={(pt) => {
-            const id = createSticky(doc, pt);
-            if (id) selection.startEdit(id);
-          }}
-          onClickEmpty={() => selection.select(null)}
-        >
-          {objects.map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={doc}
-              zoom={api.camera.zoom}
-              selected={selection.selectedId === note.id}
-              editing={selection.editingId === note.id}
-              onSelect={selection.select}
-              onStartEdit={selection.startEdit}
-              onEndEdit={selection.endEdit}
-            />
-          ))}
-        </BoardViewport>
-        <div data-testid="selected" data-value={selection.selectedId ?? ''} />
-        <div data-testid="editing" data-value={selection.editingId ?? ''} />
-      </div>
-    </CameraContext.Provider>
-  );
-}
-
-function makeDoc(): Y.Doc {
-  const doc = new Y.Doc();
-  initDoc(doc);
-  return doc;
-}
 
 describe('sticky.text (component)', () => {
   // TC-23: Enter on selected → Editing, textarea focused, caret at end
   test('TC-23 Enter on selected note starts editing with caret at end', () => {
     const doc = makeDoc();
+    initDoc(doc);
     const noteId = createSticky(doc, { x: 200, y: 200 });
     // Set some text
     const ytext = getStickyText(doc, noteId)!;
     ytext.insert(0, 'hello');
 
-    render(<Harness doc={doc} />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
 
     // Select the note
@@ -148,11 +55,12 @@ describe('sticky.text (component)', () => {
   // TC-24: Escape → Selected, text preserved
   test('TC-24 Escape ends editing, text preserved', () => {
     const doc = makeDoc();
+    initDoc(doc);
     const noteId = createSticky(doc, { x: 200, y: 200 });
     const ytext = getStickyText(doc, noteId)!;
     ytext.insert(0, 'hello world');
 
-    render(<Harness doc={doc} />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
 
     // Select and start editing
@@ -182,11 +90,12 @@ describe('sticky.text (component)', () => {
   // TC-26: Backspace while editing 'ab' → note present, text 'a'
   test('TC-26 Backspace while editing deletes character, not note', () => {
     const doc = makeDoc();
+    initDoc(doc);
     const noteId = createSticky(doc, { x: 200, y: 200 });
     const ytext = getStickyText(doc, noteId)!;
     ytext.insert(0, 'ab');
 
-    render(<Harness doc={doc} />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
 
     // Select and start editing
@@ -214,10 +123,11 @@ describe('sticky.text (component)', () => {
   // TC-38: type 'abc' then click outside → editor unmounted, Y.Text 'abc', Unselected
   test('TC-38 type text then click outside: editor unmounts, text saved, unselected', () => {
     const doc = makeDoc();
+    initDoc(doc);
     const noteId = createSticky(doc, { x: 200, y: 200 });
     const ytext = getStickyText(doc, noteId)!;
 
-    render(<Harness doc={doc} />);
+    render(<BoardHarness doc={doc} />);
     const note = screen.getByTestId('sticky-note');
 
     // Start editing via double-click
@@ -236,10 +146,13 @@ describe('sticky.text (component)', () => {
     // Text should be in Y.Text
     expect(ytext.toString()).toBe('abc');
 
-    // Click outside (on the viewport)
+    // Click outside (on the viewport): pointerdown ends editing, the
+    // trailing click clears the selection.
     const viewport = screen.getByTestId('board-viewport');
     act(() => {
       fireEvent.pointerDown(viewport, { clientX: 10, clientY: 10, button: 0, pointerId: 1 });
+      fireEvent.pointerUp(viewport, { clientX: 10, clientY: 10, button: 0, pointerId: 1 });
+      fireEvent.click(viewport);
     });
 
     // Editor should be unmounted
