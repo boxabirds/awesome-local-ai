@@ -4,13 +4,47 @@
  */
 
 declare module 'cloudflare:workers' {
+  /**
+   * Cursor returned by `SqlStorage.exec` for SELECT (and DML) statements.
+   * BLOB columns are read back as `ArrayBuffer`.
+   */
+  export interface SqlStorageCursor {
+    one<T = any>(): T | undefined;
+    toArray<T = any>(): T[];
+    next<T = any>(): T | undefined;
+    raw(): unknown;
+    readonly columnNames: string[];
+    readonly rowsRead: number;
+    readonly rowsWritten: number;
+  }
+
+  /**
+   * Synchronous SQLite API. `exec` binds parameters variadically:
+   * `exec('INSERT INTO t (a) VALUES (?)', value)`. BLOBs bind as `Uint8Array`.
+   */
+  export interface SqlStorage {
+    exec(sql: string, ...params: unknown[]): SqlStorageCursor;
+    readonly databaseSize: number;
+  }
+
+  /**
+   * Durable Object storage: KV + synchronous SQLite. `transactionSync` runs a
+   * synchronous transaction that rolls back if the callback throws.
+   */
+  export interface DurableObjectStorage {
+    readonly sql: SqlStorage;
+    transactionSync<T>(fn: () => T): T;
+  }
+
   export interface DurableObjectState {
     readonly id: string;
     readonly ctx: DurableObjectCtx;
+    readonly storage: DurableObjectStorage;
   }
 
   export interface DurableObjectCtx {
-    acceptWebSocket(source: any, tags?: any): boolean;
+    acceptWebSocket(source: any, tags?: any): Response;
+    getWebSockets(): any[];
     waitForEvent(): Promise<void>;
     abort(): void;
     readonly log: {
@@ -22,6 +56,12 @@ declare module 'cloudflare:workers' {
   export abstract class DurableObject<Env = unknown> {
     constructor(state: DurableObjectState, env: Env);
     abstract fetch(request: Request, env: Env, ctx: DurableObjectCtx): Promise<Response>;
+    /** Hibernation API: called when an accepted socket receives a message. */
+    webSocketMessage(ws: any, message: string | ArrayBuffer): void | Promise<void>;
+    /** Hibernation API: called when an accepted socket closes. */
+    webSocketClose(ws: any, code: number, reason: string, wasClean: boolean): void | Promise<void>;
+    /** Hibernation API: called when an accepted socket errors. */
+    webSocketError(ws: any, error: Error): void | Promise<void>;
   }
 }
 

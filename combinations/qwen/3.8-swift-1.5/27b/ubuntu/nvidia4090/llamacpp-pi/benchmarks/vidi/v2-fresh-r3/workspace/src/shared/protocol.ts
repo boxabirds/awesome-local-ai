@@ -11,6 +11,18 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code for unsupported/invalid data. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/**
+ * WebSocket close code signalling that a saved board could not be loaded.
+ * The client maps this to a `load_failed` state (red badge, editing disabled)
+ * and keeps retrying until the board loads.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/**
+ * WebSocket close code signalling a storage (write) failure. The room resets
+ * and closes every socket with this code; the client treats it as `reconnecting`
+ * (the board is still readable and unsaved changes are re-sent on reconnect).
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 /** Result of decoding a WebSocket message frame. */
 export type Decoded =

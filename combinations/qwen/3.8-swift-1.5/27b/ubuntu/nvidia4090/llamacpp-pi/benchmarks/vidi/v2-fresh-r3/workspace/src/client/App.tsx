@@ -48,7 +48,19 @@ export function App() {
 
   // Test hook for e2e (drives the production build via `wrangler dev`)
   useEffect(() => {
-    registerVidi6Hook({ getDoc: () => doc });
+    registerVidi6Hook({
+      getDoc: () => doc,
+      createNotes: (n: number) => {
+        const ids: string[] = [];
+        for (let i = 0; i < n; i++) {
+          const x = 200 + (i % 20) * 220;
+          const y = 200 + Math.floor(i / 20) * 220;
+          const id = createSticky(doc, { x, y }, 'yellow');
+          if (id) ids.push(id);
+        }
+        return ids;
+      },
+    });
     // Expose connection state for nightly tests
     (window as any).__vidi6 = {
       ...(window as any).__vidi6,
