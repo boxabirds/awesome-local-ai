@@ -108,7 +108,7 @@ describe('sticky.text', () => {
 
   // TC-14: paste of 1,200 chars into empty → 1,000 kept
   test('TC-14 clampToLimit: 1200 chars → 1000 kept', () => {
-    const result = clampToLimit(LONG_PARAGRAPH.slice(0, 1200));
+    const result = clampToLimit(LONG_PARAGRAPH.slice(0, 1200), STICKY_TEXT_MAX_CHARS);
     expect(result.length).toBe(STICKY_TEXT_MAX_CHARS);
     expect(result).toBe(LONG_PARAGRAPH.slice(0, 1000));
   });
@@ -116,14 +116,14 @@ describe('sticky.text', () => {
   // TC-15: 999 + 1 → 1,000 accepted (boundary)
   test('TC-15 clampToLimit: 999 chars + 1 = 1000 accepted', () => {
     const text999 = MEDIUM_TEXT.repeat(10).slice(0, 999);
-    const result = clampToLimit(text999 + 'a');
+    const result = clampToLimit(text999 + 'a', STICKY_TEXT_MAX_CHARS);
     expect(result.length).toBe(1000);
   });
 
   // TC-16: 1,000 + 1 → rejected, still 1,000
   test('TC-16 clampToLimit: 1000 chars + 1 = still 1000', () => {
     const text1000 = MEDIUM_TEXT.repeat(10).slice(0, 1000);
-    const result = clampToLimit(text1000 + 'a');
+    const result = clampToLimit(text1000 + 'a', STICKY_TEXT_MAX_CHARS);
     expect(result.length).toBe(1000);
     expect(result).toBe(text1000);
   });
@@ -151,10 +151,10 @@ describe('sticky.text', () => {
   });
 
   test('clampToLimit with empty string → empty', () => {
-    expect(clampToLimit('')).toBe('');
+    expect(clampToLimit('', STICKY_TEXT_MAX_CHARS)).toBe('');
   });
 
   test('clampToLimit with short string → unchanged', () => {
-    expect(clampToLimit(SHORT_TEXT)).toBe(SHORT_TEXT);
+    expect(clampToLimit(SHORT_TEXT, STICKY_TEXT_MAX_CHARS)).toBe(SHORT_TEXT);
   });
 });

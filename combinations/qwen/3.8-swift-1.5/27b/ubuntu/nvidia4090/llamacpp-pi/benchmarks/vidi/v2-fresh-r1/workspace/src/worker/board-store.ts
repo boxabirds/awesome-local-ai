@@ -10,7 +10,7 @@
 import * as Y from 'yjs';
 // DurableObjectStorage type: the storage API available inside a DO.
 // (Not directly exported by cloudflare:workers types in this version.)
-type DurableObjectStorage = {
+export type DurableObjectStorage = {
   sql: {
     exec(query: string): {
       next(): { done: boolean; value?: Record<string, unknown> };

@@ -30,6 +30,10 @@ export interface ObjectSnapshot {
   height?: number;
   color?: StickyColor;
   text?: string;
+  /** Present on text snapshots (story 9). */
+  size?: string;
+  /** Present on text snapshots (story 9). */
+  widthMode?: 'auto' | 'fixed';
 }
 
 /** A sticky-note object snapshot (story 2+). */
@@ -62,7 +66,7 @@ function getObjects(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects');
 }
 
-function getMaxZ(doc: Y.Doc): number {
+export function getMaxZ(doc: Y.Doc): number {
   const objects = getObjects(doc);
   let maxZ = 0;
   objects.forEach((obj) => {
@@ -283,6 +287,23 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
 
   objects.forEach((obj, id) => {
     const type = obj.get('type');
+    if (type === 'text') {
+      const text = obj.get('text');
+      result.push({
+        id,
+        type: 'text',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        text: text instanceof Y.Text ? text.toString() : '',
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        width: obj.get('width') as number | undefined,
+        height: obj.get('height') as number | undefined,
+        size: (obj.get('size') as string) ?? 'M',
+        widthMode: (obj.get('widthMode') as 'auto' | 'fixed') ?? 'auto',
+      });
+      return;
+    }
     if (type !== 'sticky') return; // other types included as they are introduced
 
     const text = obj.get('text');

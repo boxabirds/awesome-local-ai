@@ -20,12 +20,19 @@ import {
 import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
+import type { Tool } from './useTool';
 
 interface BoardKeysOptions {
   doc: Y.Doc;
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** The active tool (story 9). */
+  tool: Tool;
+  /** Switch the active tool (story 9). */
+  setTool: (t: Tool) => void;
+  /** Create a sticky note at the view centre (N shortcut, story 9). */
+  onCreateSticky: () => void;
   /** Called before and after mutating operations (undo boundary). */
   onBoundary?: () => void;
   /** Undo/redo callbacks (story 8). */
@@ -59,10 +66,30 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
 
-      // Escape clears the selection.
+      // Escape clears the selection and reverts to the Select tool.
       if (e.key === 'Escape') {
         selection.clear();
+        optsRef.current.setTool('select');
         return;
+      }
+
+      // Tool shortcuts (story 9): single keys, no modifiers.
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.key === 'v' || e.key === 'V') {
+          optsRef.current.setTool('select');
+          return;
+        }
+        if (e.key === 't' || e.key === 'T') {
+          optsRef.current.setTool('text'); // no-op when !canEdit
+          return;
+        }
+        if (e.key === 'n' || e.key === 'N') {
+          if (canEdit) {
+            e.preventDefault();
+            optsRef.current.onCreateSticky();
+          }
+          return;
+        }
       }
 
       if (!canEdit) return;

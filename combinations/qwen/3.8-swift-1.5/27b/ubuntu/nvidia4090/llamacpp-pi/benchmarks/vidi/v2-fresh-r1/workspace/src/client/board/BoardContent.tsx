@@ -13,6 +13,7 @@ import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { useTool } from '../board/useTool';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
@@ -27,7 +28,8 @@ import {
   deleteObjects,
   setStickyColor,
 } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import { createText, deleteIfEmpty, isEmptyText, setTextSize } from '../../shared/objects/text';
+import type { StickyColor, TextSize } from '../../shared/config';
 import { screenToWorld } from '../canvas/camera';
 
 export function BoardContent({ boardId }: { boardId: string }) {
@@ -43,6 +45,9 @@ export function BoardContent({ boardId }: { boardId: string }) {
   // Editing is disabled when the board failed to load on the server side.
   const canEdit = connectionState !== 'load_failed';
 
+  // Active tool (story 9): select (default) or text.
+  const { tool, setTool } = useTool(canEdit);
+
   // Undo controller (story 8): one per board doc, destroyed on board change.
   const undoRef = useRef<UndoController | null>(null);
   useEffect(() => {
@@ -55,8 +60,23 @@ export function BoardContent({ boardId }: { boardId: string }) {
 
   // Shared transform gesture (move/resize) + marquee + keyboard shortcuts.
   const gesture = useTransformGesture({ doc, camera, selection, snapshot: objects, canEdit, onGestureStart: boundary, onGestureEnd: boundary });
+
+  // Kept in a ref so the key handler (which runs once) always sees the
+  // latest create-sticky callback without a dependency cycle.
+  const handleCreateStickyRef = useRef<() => void>(() => {});
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit, onBoundary: boundary, onUndo: undoApi.undo, onRedo: undoApi.redo });
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit,
+    tool,
+    setTool,
+    onCreateSticky: handleCreateStickyRef.current,
+    onBoundary: boundary,
+    onUndo: undoApi.undo,
+    onRedo: undoApi.redo,
+  });
 
   // Test-only `window.__vidi6` hook (test mode only, see testHooks.ts).
   useEffect(() => {
@@ -67,6 +87,7 @@ export function BoardContent({ boardId }: { boardId: string }) {
   const handleDblClickEmpty = useCallback(
     (screenPoint: { x: number; y: number }) => {
       if (!canEdit) return;
+      if (tool === 'text') return; // the Text tool creates text, not stickies
       const world = screenToWorld(camera, screenPoint);
       boundary();
       const id = createSticky(doc, world);
@@ -76,10 +97,10 @@ export function BoardContent({ boardId }: { boardId: string }) {
         selection.startEditFresh(id);
       }
     },
-    [camera, doc, selection, canEdit, boundary],
+    [camera, doc, selection, canEdit, boundary, tool],
   );
 
-  // Create a sticky note at the centre of the viewport (toolbar button)
+  // Create a sticky note at the centre of the viewport (toolbar button / N)
   const handleCreateSticky = useCallback(() => {
     if (!canEdit) return;
     const centre = { x: size.width / 2, y: size.height / 2 };
@@ -88,9 +109,29 @@ export function BoardContent({ boardId }: { boardId: string }) {
     const id = createSticky(doc, world);
     boundary();
     if (id) {
-      selection.startEdit(id);
+      // Just created: not in the rendered snapshot yet (skip validation).
+      selection.startEditFresh(id);
     }
   }, [camera, doc, selection, size, canEdit, boundary]);
+
+  handleCreateStickyRef.current = handleCreateSticky;
+
+  // Create a text object at a screen point (Text tool click, story 9).
+  const handleCreateText = useCallback(
+    (screenPoint: { x: number; y: number }) => {
+      if (!canEdit) return;
+      const world = screenToWorld(camera, screenPoint);
+      boundary();
+      const id = createText(doc, world, 'local');
+      boundary();
+      if (id) {
+        setTool('select');
+        // Just created: not in the rendered snapshot yet, so skip validation.
+        selection.startEditFresh(id);
+      }
+    },
+    [camera, doc, selection, canEdit, boundary, setTool],
+  );
 
   // Clear selection on empty board click
   const handleClickEmpty = useCallback(() => {
@@ -128,6 +169,32 @@ export function BoardContent({ boardId }: { boardId: string }) {
     [canEdit, doc, boundary],
   );
 
+  // End editing a text object (story 9): an empty text is deleted and the
+  // selection cleared; otherwise the selection is kept.
+  const handleTextEditEnd = useCallback(() => {
+    const id = selection.editingId;
+    if (id === null) return;
+    if (isEmptyText(doc, id)) {
+      boundary();
+      deleteIfEmpty(doc, id);
+      boundary();
+      selection.clear();
+    } else {
+      selection.endEdit();
+    }
+  }, [doc, selection, boundary]);
+
+  // Change the size of a text object (TextToolbar, story 9).
+  const handleTextSize = useCallback(
+    (id: string, size: TextSize) => {
+      if (!canEdit) return;
+      boundary();
+      setTextSize(doc, id, size);
+      boundary();
+    },
+    [canEdit, doc, boundary],
+  );
+
   return (
     <CameraContext.Provider value={cameraApi}>
       <div ref={rootRef} className="app-root" data-testid="app-root">
@@ -135,6 +202,8 @@ export function BoardContent({ boardId }: { boardId: string }) {
           onDblClickEmpty={handleDblClickEmpty}
           onClickEmpty={handleClickEmpty}
           marquee={marquee}
+          tool={tool}
+          onTextCreate={handleCreateText}
         >
           {objects.map((obj) => {
             const spec = getObjectType(obj.type);
@@ -150,7 +219,7 @@ export function BoardContent({ boardId }: { boardId: string }) {
                 editing={selection.editingId === obj.id}
                 onObjectPointerDown={gesture.onObjectPointerDown}
                 onObjectDoubleClick={handleObjectDoubleClick}
-                onEndEdit={selection.endEdit}
+                onEndEdit={obj.type === 'text' ? handleTextEditEnd : selection.endEdit}
                 onBoundary={boundary}
                 onUndo={undoApi.undo}
                 onRedo={undoApi.redo}
@@ -171,6 +240,7 @@ export function BoardContent({ boardId }: { boardId: string }) {
           camera={camera}
           onDelete={handleDeleteSelection}
           onStickyColor={handleStickyColor}
+          onTextSize={handleTextSize}
         />
         <Toolbar
           onCreateSticky={handleCreateSticky}
@@ -179,6 +249,8 @@ export function BoardContent({ boardId }: { boardId: string }) {
           canRedo={undoApi.canRedo}
           onUndo={undoApi.undo}
           onRedo={undoApi.redo}
+          tool={tool}
+          onToolChange={setTool}
         />
         <ConnectionStatus state={connectionState} />
         <ZoomControls

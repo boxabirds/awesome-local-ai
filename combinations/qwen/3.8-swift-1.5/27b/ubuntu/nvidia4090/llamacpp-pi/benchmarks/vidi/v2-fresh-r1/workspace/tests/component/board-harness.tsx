@@ -19,6 +19,9 @@ import { screenToWorld } from '../../src/client/canvas/camera';
 import { useSelection } from '../../src/client/board/useSelection';
 import { useTransformGesture } from '../../src/client/board/useTransformGesture';
 import { useBoardKeys } from '../../src/client/board/useBoardKeys';
+import { useTool } from '../../src/client/board/useTool';
+import { Toolbar } from '../../src/client/board/Toolbar';
+import { createText, deleteIfEmpty, isEmptyText, setTextSize } from '../../src/shared/objects/text';
 import { useMarquee, MarqueeRect } from '../../src/client/board/Marquee';
 import { SelectionOverlay } from '../../src/client/board/SelectionOverlay';
 import { SelectionBar } from '../../src/client/board/SelectionBar';
@@ -56,8 +59,10 @@ export function BoardHarness(props: {
   snapshotOfDoc?: (doc: Y.Doc) => readonly ObjectSnapshot[];
   onGestureStart?: () => void;
   onGestureEnd?: () => void;
+  /** Render the toolbar (tool buttons) for tool-mode tests. */
+  withToolbar?: boolean;
 }) {
-  const { doc, canEdit = true, snapshotOfDoc, onGestureStart, onGestureEnd } = props;
+  const { doc, canEdit = true, snapshotOfDoc, onGestureStart, onGestureEnd, withToolbar = false } = props;
   const api = useCamera(HARNESS_SIZE);
   const objects = useDocSnapshot(doc, snapshotOfDoc);
   const selection = useSelection(objects);
@@ -72,9 +77,44 @@ export function BoardHarness(props: {
     onGestureEnd,
   });
   const marquee = useMarquee(api.camera, objects, (ids) => selection.setMany(ids, true));
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit });
+  const { tool, setTool } = useTool(canEdit);
+
+  const handleCreateSticky = () => {
+    if (!canEdit) return;
+    const centre = { x: HARNESS_SIZE.width / 2, y: HARNESS_SIZE.height / 2 };
+    const world = screenToWorld(api.camera, centre);
+    onGestureStart?.();
+    const id = createSticky(doc, world);
+    onGestureEnd?.();
+    if (id) selection.startEditFresh(id);
+  };
+
+  const handleCreateStickyRef = { current: handleCreateSticky };
+
+  const handleCreateText = (pt: { x: number; y: number }) => {
+    if (!canEdit) return;
+    const world = screenToWorld(api.camera, pt);
+    onGestureStart?.();
+    const id = createText(doc, world, 'test');
+    onGestureEnd?.();
+    if (id) {
+      setTool('select');
+      selection.startEditFresh(id);
+    }
+  };
+
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit,
+    tool,
+    setTool,
+    onCreateSticky: () => handleCreateStickyRef.current(),
+  });
 
   const handleDblClickEmpty = (pt: { x: number; y: number }) => {
+    if (tool === 'text') return;
     const world = screenToWorld(api.camera, pt);
     const id = createSticky(doc, world);
     if (id) selection.startEdit(id);
@@ -84,6 +124,21 @@ export function BoardHarness(props: {
     if (selection.ids.size === 0) return;
     deleteObjects(doc, [...selection.ids]);
     selection.clear();
+  };
+
+  const handleTextEditEnd = () => {
+    const id = selection.editingId;
+    if (id === null) return;
+    if (isEmptyText(doc, id)) {
+      deleteIfEmpty(doc, id);
+      selection.clear();
+    } else {
+      selection.endEdit();
+    }
+  };
+
+  const handleTextSize = (id: string, size: import('../../src/shared/config').TextSize) => {
+    setTextSize(doc, id, size);
   };
 
   const handleObjectDoubleClick = (id: string) => {
@@ -98,6 +153,8 @@ export function BoardHarness(props: {
           onDblClickEmpty={handleDblClickEmpty}
           onClickEmpty={() => selection.clear()}
           marquee={marquee}
+          tool={tool}
+          onTextCreate={handleCreateText}
         >
           {objects.map((obj) => {
             const spec = getObjectType(obj.type);
@@ -113,7 +170,7 @@ export function BoardHarness(props: {
                 editing={selection.editingId === obj.id}
                 onObjectPointerDown={gesture.onObjectPointerDown}
                 onObjectDoubleClick={handleObjectDoubleClick}
-                onEndEdit={selection.endEdit}
+                onEndEdit={obj.type === 'text' ? handleTextEditEnd : selection.endEdit}
               />
             );
           })}
@@ -131,7 +188,17 @@ export function BoardHarness(props: {
           camera={api.camera}
           onDelete={handleDeleteSelection}
           onStickyColor={(id, c: StickyColor) => setStickyColor(doc, id, c)}
+          onTextSize={handleTextSize}
         />
+        {withToolbar && (
+          <Toolbar
+            onCreateSticky={handleCreateSticky}
+            disabled={!canEdit}
+            tool={tool}
+            onToolChange={setTool}
+          />
+        )}
+        <div data-testid="tool" data-value={tool} />
         <div data-testid="selected" data-value={[...selection.ids].sort().join(',')} />
         <div data-testid="editing" data-value={selection.editingId ?? ''} />
         <div data-testid="note-count" data-value={String(objects.length)} />

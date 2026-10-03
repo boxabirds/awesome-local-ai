@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import * as Y from 'yjs';
-import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
+import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import {
   bringObjectsToFront,
   moveObjects,
@@ -31,6 +31,7 @@ import {
   type Rect,
 } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import type { Camera } from '../canvas/camera';
 import type { SelectionApi } from './useSelection';
 
@@ -47,6 +48,11 @@ interface GestureState {
   startBox: Rect | null;
   handle: Handle | null;
   aspectLocked: boolean;
+  /**
+   * Story 9: a lone text object dragged by e/w resizes its width only
+   * (height is re-derived by the box-sync hook).
+   */
+  widthDrag: { id: string; startRect: Rect; handle: 'e' | 'w' } | null;
 }
 
 const IDLE: GestureState = {
@@ -59,6 +65,7 @@ const IDLE: GestureState = {
   startBox: null,
   handle: null,
   aspectLocked: false,
+  widthDrag: null,
 };
 
 export interface TransformGesture {
@@ -167,6 +174,12 @@ export function useTransformGesture(opts: {
           positions.set(id, { x: r.x + wx, y: r.y + wy });
         }
         schedule(() => moveObjects(docRef.current, positions));
+      } else if (st.mode === 'resizing' && st.widthDrag !== null) {
+        const { id, startRect, handle } = st.widthDrag;
+        const raw = handle === 'e' ? startRect.width + wx : startRect.width - wx;
+        const clamped = Math.min(Math.max(raw, TEXT_MIN_WIDTH_WORLD), MAX_OBJECT_SIZE_WORLD);
+        const x = handle === 'w' ? startRect.x + (startRect.width - clamped) : startRect.x;
+        schedule(() => setTextWidthFixed(docRef.current, id, clamped, x));
       } else if (st.mode === 'resizing' && st.startBox !== null) {
         const box = st.startBox;
         const handle = st.handle!;
@@ -274,6 +287,16 @@ export function useTransformGesture(opts: {
       if (box === null) return;
       const aspectLocked = selected.some((o) => getObjectType(o.type)?.aspectLocked);
 
+      // Story 9: a lone text object with an e/w handle → width-only drag.
+      let widthDrag: GestureState['widthDrag'] = null;
+      if (
+        selected.length === 1 &&
+        getObjectType(selected[0].type)?.handles === 'horizontal' &&
+        (handle === 'e' || handle === 'w')
+      ) {
+        widthDrag = { id: selected[0].id, startRect: startRects.get(selected[0].id)!, handle };
+      }
+
       stateRef.current = {
         mode: 'pressed',
         pointerId: e.pointerId,
@@ -284,6 +307,7 @@ export function useTransformGesture(opts: {
         startBox: box,
         handle,
         aspectLocked,
+        widthDrag,
       };
     },
     [],

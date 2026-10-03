@@ -10,8 +10,9 @@ import type {
 import * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { rectContains, type Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /** Props every object component receives from the board renderer. */
 export interface ObjectProps {
@@ -45,6 +46,11 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Whether double-click / Enter opens a text editor. */
   editableText: boolean;
+  /**
+   * Which resize handles to show when this object is the sole selection
+   * (story 9): 'all' (default) or 'horizontal' (text: e/w only).
+   */
+  handles?: 'all' | 'horizontal';
   /** Hit test for marquee selection: is the object at `worldPoint`? */
   hitTest: (obj: ObjectSnapshot, worldPoint: Point) => boolean;
 }
@@ -81,5 +87,15 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: rectHitTest,
+});
+
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: rectHitTest,
 });

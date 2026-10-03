@@ -36,6 +36,12 @@ export function SelectionOverlay(props: {
   if (box === null) return null;
 
   const anyResizable = selected.some((o) => getObjectType(o.type)?.resizable);
+  // Story 9: a lone text object shows only the horizontal (e/w) handles.
+  const horizontalOnly =
+    selected.length === 1 && getObjectType(selected[0].type)?.handles === 'horizontal';
+  const visibleHandles = horizontalOnly
+    ? HANDLES.filter((h) => h.handle === 'e' || h.handle === 'w')
+    : HANDLES;
   const tl = worldToScreen(camera, { x: box.x, y: box.y });
   const w = box.width * camera.zoom;
   const h = box.height * camera.zoom;
@@ -55,7 +61,7 @@ export function SelectionOverlay(props: {
       }}
     >
       {anyResizable &&
-        HANDLES.map(({ handle, fx, fy, cursor, label }) => (
+        visibleHandles.map(({ handle, fx, fy, cursor, label }) => (
           <div
             key={handle}
             role="button"

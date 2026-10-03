@@ -26,6 +26,7 @@ import {
 test.describe('story 4: return to a board and find everything as it was left', () => {
   // TC-19: create 25 varied notes, close browser, reopen → 25 notes identical.
   test('TC-19: 25 notes survive context close and reopen', async ({ browser }) => {
+    test.setTimeout(120_000);
     const colors = ['yellow', 'pink', 'blue', 'green', 'orange'];
     const notes: { text: string; x: number; y: number }[] = [];
 
@@ -58,10 +59,11 @@ test.describe('story 4: return to a board and find everything as it was left', (
     expect(textsAfter.sort()).toEqual(textsBefore.sort());
 
     await p2.close();
-  }, 120_000);
+  });
 
   // TC-20: Alex creates note; Sam sees it; both close; reopen → note present.
   test('TC-20: note visible to second participant survives both closing', async ({ browser }) => {
+    test.setTimeout(60_000);
     // Alex creates a note.
     const alex = await openParticipant(browser);
     await createNoteWithText(alex.page, 'Shared idea', 400, 300);
@@ -87,10 +89,11 @@ test.describe('story 4: return to a board and find everything as it was left', (
     expect(texts).toContain('Shared idea');
 
     await p3.close();
-  }, 60_000);
+  });
 
   // TC-21: large board loads completely; time logged against budget.
   test('TC-21: large board loads completely (time logged)', async ({ browser }) => {
+    test.setTimeout(60_000);
     // We create a board with many notes by pre-populating a Y.Doc and
     // connecting to the board with it. This is much faster than creating
     // notes one by one via the UI.
@@ -144,13 +147,14 @@ test.describe('story 4: return to a board and find everything as it was left', (
     expect(count).toBe(50);
 
     await closeParticipant(p1);
-  }, 60_000);
+  });
 
   // TC-24: load-failed state shows red message, blocks editing; recovery works.
   // This test uses client-side state manipulation to simulate the 4500 close
   // code, since server-side corruption requires storage access that is not
   // available from the browser.
   test('TC-24: load-failed shows red message, blocks editing, recovery works', async ({ browser }) => {
+    test.setTimeout(30_000);
     const p1 = await openParticipant(browser);
 
     // Create a note first (board is in connected state).
@@ -189,5 +193,5 @@ test.describe('story 4: return to a board and find everything as it was left', (
     // Full recovery is tested in the component tests (TC-28).
 
     await closeParticipant(p1);
-  }, 30_000);
+  });
 });

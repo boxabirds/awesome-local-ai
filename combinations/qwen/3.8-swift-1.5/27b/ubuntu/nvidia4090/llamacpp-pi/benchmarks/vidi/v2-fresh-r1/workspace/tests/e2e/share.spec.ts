@@ -17,6 +17,7 @@ import {
 test.describe('story 5: share a board', () => {
   // TC-26: Create, share, join
   test('TC-26: Maya creates board, adds note, copies link; Sam joins and edits', async ({ browser }) => {
+    test.setTimeout(60_000);
     // Grant clipboard permissions (Chromium supports them; Firefox does not).
     const ctxOptions: Record<string, unknown> = {};
     if (browser.browserType().name() === 'chromium') {
@@ -78,7 +79,7 @@ test.describe('story 5: share a board', () => {
 
     await samCtx.close();
     await mayaCtx.close();
-  }, 60_000);
+  });
 
   // TC-27: Bad link recovery
   test('TC-27: unknown board link shows Board not found; New board creates fresh board', async ({ page }) => {
@@ -105,6 +106,7 @@ test.describe('story 5: share a board', () => {
 
   // TC-28: Flaky service on open
   test('TC-28: service unreachable then recovers → board opens without reload', async ({ page }) => {
+    test.setTimeout(30_000);
     // Create a board first.
     const createRes = await page.request.post('/api/boards');
     expect(createRes.status()).toBe(201);
@@ -125,7 +127,7 @@ test.describe('story 5: share a board', () => {
 
     // Board opens without reload.
     await page.getByTestId('app-root').waitFor({ timeout: E2E_EVENTUAL_TIMEOUT_MS });
-  }, 30_000);
+  });
 
   // TC-29: Clipboard blocked
   test('TC-29: clipboard writeText rejects → manual-copy message with full link selected', async ({ page }) => {
@@ -172,6 +174,7 @@ test.describe('story 5: share a board', () => {
 
   // TC-31: Pre-existing (legacy) board
   test('TC-31: legacy board with seeded notes opens (not Board not found)', async ({ page }) => {
+    test.setTimeout(30_000);
     const boardId = newBoardId();
 
     // Seed a legacy board via the test hook.
@@ -187,5 +190,5 @@ test.describe('story 5: share a board', () => {
     // Board has the seeded note (not Board not found).
     await waitForNotes(page, 1);
     expect(page.getByTestId('not-found-page')).not.toBeVisible();
-  }, 30_000);
+  });
 });

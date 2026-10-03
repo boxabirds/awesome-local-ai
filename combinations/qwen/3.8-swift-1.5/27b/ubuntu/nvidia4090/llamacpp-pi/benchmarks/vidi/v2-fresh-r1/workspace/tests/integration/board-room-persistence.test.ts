@@ -385,7 +385,7 @@ async function rawConnectExpectClose(boardId: string): Promise<number> {
 
 // Helper to avoid circular import issues.
 function getStickyTextHelper(doc: Y.Doc, id: string): Y.Text | undefined {
-  const objects = doc.getMap('objects');
+  const objects = doc.getMap<Y.Map<unknown>>('objects');
   const obj = objects.get(id);
   if (!obj) return undefined;
   const text = obj.get('text');

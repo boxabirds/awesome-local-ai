@@ -104,3 +104,25 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Maximum undo/redo steps per user (200). */
 export const UNDO_MAX_STEPS = 200;
+
+// --- Story 9: Free text ---
+
+/** Maximum automatic width of a text object (world units); longer lines wrap. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Minimum width a text object can be set to via a side handle (world units). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Maximum characters in a text object. */
+export const TEXT_MAX_CHARS = 5000;
+/** Text size presets in world units (font size at 100% zoom). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Default size for new text objects. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Line height as a multiple of the font size. */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** Font used for text objects (the board's standard sans-serif stack). */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/** Extra width (world units) added to the longest line for an auto-width box. */
+export const TEXT_PADDING_WORLD = 2;
+/** Average glyph width as a fraction of the font size (estimation fallback). */
+export const TEXT_ESTIMATED_GLYPH_RATIO = 0.6;

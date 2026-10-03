@@ -7,6 +7,7 @@ import { env, runInDurableObject } from 'cloudflare:test';
 import {
   BoardStore,
   LOAD_ORIGIN,
+  type DurableObjectStorage,
 } from '../../src/worker/board-store';
 import {
   COMPACTION_UPDATE_COUNT,
@@ -30,7 +31,7 @@ async function withStore<T>(boardId: string, fn: (store: BoardStore) => Promise<
   const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
   let result: T | undefined;
   await runInDurableObject(stub, async (instance) => {
-    const ctx = (instance as any).ctx as { storage: import('cloudflare:workers').DurableObjectStorage };
+    const ctx = (instance as any).ctx as { storage: DurableObjectStorage };
     const store = new BoardStore(ctx.storage);
     result = await fn(store);
   });

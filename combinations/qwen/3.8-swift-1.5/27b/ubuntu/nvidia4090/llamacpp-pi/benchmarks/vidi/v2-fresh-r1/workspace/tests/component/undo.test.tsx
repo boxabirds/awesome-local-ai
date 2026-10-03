@@ -73,7 +73,7 @@ function UndoHarness(props: {
     onGestureEnd: boundary,
   });
   const marquee = useMarquee(api.camera, objects, (ids) => selection.setMany(ids, true));
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit, onBoundary: boundary, onUndo: undoApi.undo, onRedo: undoApi.redo });
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit, tool: 'select', setTool: () => {}, onCreateSticky: () => {}, onBoundary: boundary, onUndo: undoApi.undo, onRedo: undoApi.redo });
 
   const handleDblClickEmpty = (pt: { x: number; y: number }) => {
     const world = screenToWorld(api.camera, pt);

@@ -1,3 +1,133 @@
+commit 80eac7cbb58a3eeb3d4ad0879cbda0afe3a6a6e0
+agent  Sat Oct 3 05:16:21 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ PROGRESS.md                             |  20 +--
+ src/client/objects/StickyTextEditor.tsx |   1 +
+ src/client/objects/TextEditor.tsx       |  21 ++-
+ src/client/objects/TextObject.tsx       |   2 +
+ src/client/objects/useTextBoxSync.ts    |  28 +++-
+ tests/e2e/text.spec.ts                  | 235 ++++++++++++++++++++++++++++++++
+ 6 files changed, 287 insertions(+), 20 deletions(-)
+commit 7cecac6c39cd623da01f378a27259da51b06cca9
+agent  Sat Oct 3 04:42:24 2026 +0100
+
+    story 9 (task 9): text object component tests
+
+
+ src/client/objects/TextEditor.tsx   |   5 +-
+ src/client/objects/TextObject.tsx   |   2 +-
+ tests/component/TextObject.test.tsx | 255 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 259 insertions(+), 3 deletions(-)
+commit 0fb5565c96d4df06dd4556891906bf158effc3eb
+agent  Sat Oct 3 04:38:31 2026 +0100
+
+    story 9 (task 8): TextObject, TextEditor, TextToolbar, horizontal handles, width drag
+
+
+ src/client/board/BoardContent.tsx       |  33 ++++-
+ src/client/board/SelectionBar.tsx       |  31 ++++-
+ src/client/board/SelectionOverlay.tsx   |   8 +-
+ src/client/board/useTransformGesture.ts |  26 +++-
+ src/client/objects/StickyTextEditor.tsx | 186 +++-----------------------
+ src/client/objects/TextEditor.tsx       | 222 ++++++++++++++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 122 ++++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  93 +++++++++++++
+ src/client/objects/registry.tsx         |  18 ++-
+ src/shared/objects/text.ts              |  16 ++-
+ tests/component/board-harness.tsx       |  20 ++-
+ 11 files changed, 587 insertions(+), 188 deletions(-)
+commit d940b9e928c220caa0d23affd8cd1ee308b0b42e
+agent  Sat Oct 3 04:33:21 2026 +0100
+
+    story 9 (task 7): tool mode component tests
+
+
+ src/client/board/BoardContent.tsx |   3 +-
+ tests/component/Tool.test.tsx     | 130 ++++++++++++++++++++++++++++++++++++++
+ tests/component/board-harness.tsx |  55 +++++++++++++++-
+ 3 files changed, 185 insertions(+), 3 deletions(-)
+commit 3e0257dda640f9df4681de040e11633d80013881
+agent  Sat Oct 3 04:31:26 2026 +0100
+
+    story 9 (task 6): tool mode hook, V/T/N shortcuts, toolbar buttons, viewport text tool
+
+
+ src/client/board/BoardContent.tsx   | 50 +++++++++++++++++++++++++++--
+ src/client/board/Toolbar.tsx        | 63 ++++++++++++++++++++++++++++++++++---
+ src/client/board/useBoardKeys.ts    | 29 ++++++++++++++++-
+ src/client/board/useTool.ts         | 28 +++++++++++++++++
+ src/client/canvas/BoardViewport.tsx | 28 ++++++++++++++---
+ tests/component/board-harness.tsx   |  2 +-
+ tests/component/undo.test.tsx       |  2 +-
+ 7 files changed, 188 insertions(+), 14 deletions(-)
+commit 3450d15bbb5bf9cef48ffae48d45a1711854b536
+agent  Sat Oct 3 04:28:21 2026 +0100
+
+    story 9 (task 5): box sync component tests
+
+
+ tests/component/TextBoxSync.test.tsx | 106 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 106 insertions(+)
+commit 07fbac9da25a24ae13492c5d838f3f13d10819b3
+agent  Sat Oct 3 04:27:24 2026 +0100
+
+    story 9 (task 4): text layout + box sync hook
+
+
+ src/client/objects/textLayout.ts     | 111 +++++++++++++++++++++++++++++++----
+ src/client/objects/useTextBoxSync.ts |  79 +++++++++++++++++++++++++
+ tests/unit/text-layout.test.ts       |   2 +-
+ 3 files changed, 180 insertions(+), 12 deletions(-)
+commit a264cbca3d2d753435c9ae2a6cf5aaccf52dbe55
+agent  Sat Oct 3 04:25:54 2026 +0100
+
+    story 9 (task 3): text layout unit tests + stub
+
+
+ src/client/objects/textLayout.ts |  33 +++++++++++++
+ tests/unit/text-layout.test.ts   | 100 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 133 insertions(+)
+commit fad46be2141cde64157853c0964fa1042870c5ea
+agent  Sat Oct 3 04:24:49 2026 +0100
+
+    story 9 (task 2): text object model + shared text-edit helpers
+
+
+ src/client/objects/StickyText.ts        |  66 +--------------
+ src/client/objects/StickyTextEditor.tsx |   4 +-
+ src/shared/board-model.ts               |  23 ++++-
+ src/shared/objects/text.ts              | 144 ++++++++++++++++++++++++--------
+ src/shared/text-edit.ts                 |  76 ++++++++++++++---
+ tests/unit/sticky-text.test.ts          |  10 +--
+ 6 files changed, 209 insertions(+), 114 deletions(-)
+commit 43d7dd63aef18068867bbe4588ed4c246506145b
+agent  Sat Oct 3 04:22:28 2026 +0100
+
+    story 9 (task 1): text model unit tests + stubs; fix pre-existing typecheck errors
+
+
+ PROGRESS.md                                      |   2 +-
+ src/shared/config.ts                             |  22 +++
+ src/shared/objects/text.ts                       |  65 +++++++
+ src/shared/text-edit.ts                          |  18 ++
+ src/worker/board-store.ts                        |   2 +-
+ tests/e2e/persistence.spec.ts                    |  12 +-
+ tests/e2e/share.spec.ts                          |   9 +-
+ tests/integration/board-room-persistence.test.ts |   2 +-
+ tests/integration/board-store.test.ts            |   3 +-
+ tests/unit/text-model.test.ts                    | 206 +++++++++++++++++++++++
+ 10 files changed, 330 insertions(+), 11 deletions(-)
+commit f0285a06834e297aace5dccc035f7177fda6e24d
+vidi-agent  Sat Oct 3 04:10:11 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 commit 24cc0baae756950a9caa0b81bf6f2c5ab6c5884d
 agent  Sat Oct 3 04:06:51 2026 +0100
 

@@ -7,7 +7,8 @@ import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { unionRects } from '../../shared/geometry';
 import { worldToScreen, type Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
-import type { StickyColor } from '../../shared/config';
+import { TextToolbar } from '../objects/TextToolbar';
+import { DEFAULT_TEXT_SIZE, type StickyColor, type TextSize } from '../../shared/config';
 
 const BAR_GAP_PX = 8;
 
@@ -17,8 +18,10 @@ export function SelectionBar(props: {
   camera: Camera;
   onDelete: () => void;
   onStickyColor: (id: string, color: StickyColor) => void;
+  /** Change the size of a text object (story 9). */
+  onTextSize?: (id: string, size: TextSize) => void;
 }): React.ReactElement | null {
-  const { ids, snapshot, camera, onDelete, onStickyColor } = props;
+  const { ids, snapshot, camera, onDelete, onStickyColor, onTextSize } = props;
   if (ids.size === 0) return null;
 
   const selected = snapshot.filter((o) => ids.has(o.id));
@@ -48,6 +51,30 @@ export function SelectionBar(props: {
         <NoteToolbar
           color={obj.color ?? 'yellow'}
           onColor={(c) => onStickyColor(obj.id, c)}
+          onDelete={onDelete}
+        />
+      </div>
+    );
+  }
+
+  // Exactly one text object → the text toolbar (story 9).
+  if (ids.size === 1 && selected[0].type === 'text') {
+    const obj = selected[0];
+    const size = (obj.size as TextSize | undefined) ?? DEFAULT_TEXT_SIZE;
+    return (
+      <div
+        data-testid="selection-bar"
+        style={{
+          position: 'absolute',
+          left: cx,
+          top: anchorTop,
+          pointerEvents: 'auto',
+          zIndex: 30,
+        }}
+      >
+        <TextToolbar
+          size={size}
+          onSize={(s) => onTextSize?.(obj.id, s)}
           onDelete={onDelete}
         />
       </div>

@@ -1,7 +1,8 @@
 // Left-side vertical toolbar with the Sticky note button and Undo/Redo.
 
-import { useCallback, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { UndoButtons } from './UndoButtons';
+import type { Tool } from './useTool';
 
 interface ToolbarProps {
   onCreateSticky: () => void;
@@ -10,9 +11,22 @@ interface ToolbarProps {
   canRedo?: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
+  /** Active tool (story 9). */
+  tool?: Tool;
+  /** Switch the active tool (story 9). */
+  onToolChange?: (t: Tool) => void;
 }
 
-export function Toolbar({ onCreateSticky, disabled, canUndo, canRedo, onUndo, onRedo }: ToolbarProps) {
+export function Toolbar({
+  onCreateSticky,
+  disabled,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  tool = 'select',
+  onToolChange,
+}: ToolbarProps) {
   const stopPointer = useCallback((e: ReactPointerEvent) => {
     e.stopPropagation();
   }, []);
@@ -45,9 +59,32 @@ export function Toolbar({ onCreateSticky, disabled, canUndo, canRedo, onUndo, on
     >
       <button
         type="button"
-        aria-label="Sticky note"
+        aria-label="Select (V)"
+        aria-pressed={tool === 'select'}
+        data-testid="select-tool-btn"
+        title="Select – V"
+        onClick={() => onToolChange?.('select')}
+        style={toolButtonStyle(tool === 'select')}
+      >
+        ➤
+      </button>
+      <button
+        type="button"
+        aria-label="Text (T)"
+        aria-pressed={tool === 'text'}
+        data-testid="text-tool-btn"
+        title="Text – T"
+        onClick={() => onToolChange?.('text')}
+        disabled={disabled}
+        style={toolButtonStyle(tool === 'text')}
+      >
+        T
+      </button>
+      <button
+        type="button"
+        aria-label="Sticky note (N)"
         data-testid="sticky-note-btn"
-        title="Sticky note – or double-click the board"
+        title="Sticky note – N, or double-click the board"
         onClick={onCreateSticky}
         disabled={disabled}
         style={{
@@ -73,4 +110,22 @@ export function Toolbar({ onCreateSticky, disabled, canUndo, canRedo, onUndo, on
       />
     </div>
   );
+}
+
+/** Style for the tool toggle buttons (select/text). */
+function toolButtonStyle(active: boolean): CSSProperties {
+  return {
+    width: '40px',
+    height: '40px',
+    borderRadius: '8px',
+    border: 'none',
+    backgroundColor: active ? '#E3F2FD' : 'white',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '18px',
+    color: active ? '#1976D2' : '#555',
+    boxShadow: active ? 'inset 0 0 0 2px #1976D2' : 'none',
+  };
 }

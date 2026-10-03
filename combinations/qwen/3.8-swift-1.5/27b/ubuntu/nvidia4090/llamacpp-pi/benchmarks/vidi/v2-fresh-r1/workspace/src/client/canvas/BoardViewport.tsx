@@ -17,6 +17,7 @@ import {
 } from '../../shared/config';
 import type { CameraApi } from './useCamera';
 import type { MarqueeApi } from '../board/Marquee';
+import type { Tool } from '../board/useTool';
 
 export const CameraContext = createContext<CameraApi | null>(null);
 
@@ -41,6 +42,10 @@ export function BoardViewport(props: {
   onClickEmpty?: () => void;
   /** Marquee (shift+drag) selection; omit to disable. */
   marquee?: MarqueeApi;
+  /** Active tool (story 9). With 'text', empty-space clicks create text. */
+  tool?: Tool;
+  /** Create a text object at a screen point (Text tool, story 9). */
+  onTextCreate?: (screenPoint: { x: number; y: number }) => void;
 }) {
   const api = useCameraContext();
   const { camera, isPanning, beginPan, panMove, endPan } = api;
@@ -152,6 +157,10 @@ export function BoardViewport(props: {
     e.currentTarget.setPointerCapture(e.pointerId);
     downPosRef.current = { x: e.clientX, y: e.clientY };
 
+    // Text tool (story 9): no panning or marquee on empty space; a click
+    // (handled in onClick) creates a text object.
+    if (props.tool === 'text') return;
+
     // Shift+drag on empty space → marquee selection (story 7).
     if (e.shiftKey && marqueeRef.current) {
       marqueeActiveRef.current = true;
@@ -162,16 +171,23 @@ export function BoardViewport(props: {
     beginPan({ x: e.clientX, y: e.clientY });
   };
 
-  // Double-click on empty space → create sticky note
+  // Double-click on empty space → create sticky note (not while Text is active)
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
+    if (props.tool === 'text') return;
     const rect = e.currentTarget.getBoundingClientRect();
     props.onDblClickEmpty?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
-  // Click on empty space (pointerup without drag) → clear selection
+  // Click on empty space (pointerup without drag).
   const onClickEmpty = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
+    // Text tool (story 9): create a text object at the click point.
+    if (props.tool === 'text') {
+      const rect = e.currentTarget.getBoundingClientRect();
+      props.onTextCreate?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      return;
+    }
     props.onClickEmpty?.();
   };
 
@@ -214,7 +230,7 @@ export function BoardViewport(props: {
       data-state={isPanning ? 'panning' : 'idle'}
       className="board-viewport"
       style={{
-        cursor: isPanning ? 'grabbing' : 'grab',
+        cursor: isPanning ? 'grabbing' : props.tool === 'text' ? 'text' : 'grab',
         backgroundImage: 'radial-gradient(circle, var(--grid-dot-color) 1.5px, transparent 1.5px)',
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${mod(-camera.x * camera.zoom, spacing)}px ${mod(
@@ -245,7 +261,11 @@ export function BoardViewport(props: {
         }}
       >
         <div data-testid="origin-marker" className="origin-marker" />
-        {props.children}
+        {/* While the Text tool is active, object clicks fall through to the
+            viewport so a click on an object creates text on top at that point. */}
+        <div style={{ pointerEvents: props.tool === 'text' ? 'none' : 'auto' }}>
+          {props.children}
+        </div>
       </div>
     </div>
   );
