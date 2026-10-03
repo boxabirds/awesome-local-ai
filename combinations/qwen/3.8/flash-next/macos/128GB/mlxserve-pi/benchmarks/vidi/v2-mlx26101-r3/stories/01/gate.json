@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.8,
+      "tail": "\nadded 205 packages, and audited 206 packages in 3s\n\n35 packages are looking for funding\n  run `npm fund` for details\n\n2 moderate severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.2 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20261001.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 1.3,
+      "tail": "\n> vidi6@0.0.1 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 36 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html        \u001b[39m\u001b[1m\u001b[2m  0.37 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.24 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex.css  \u001b[39m\u001b[1m\u001b[2m  2.20 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.96 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mapp.js     \u001b[39m\u001b[1m\u001b[2m230.55 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 72.10 kB\u001b[22m\n\u001b[32m\u2713 built in 505ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.2,
+      "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.6,
+      "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/492da773d5/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 35\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m23 passed\u001b[39m\u001b[22m\u001b[90m (23)\u001b[39m\n\u001b[2m   Start at \u001b[22m 23:00:53\n\u001b[2m   Duration \u001b[22m 186ms\u001b[2m (transform 21ms, setup 0ms, collect 21ms, tests 35ms, environment 0ms, prepare 29ms)\u001b[22m\n\n",
+      "passed": 23,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.0.1 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/492da773d5/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 32\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 72\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 165\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m27 passed\u001b[39m\u001b[22m\u001b[90m (27)\u001b[39m\n\u001b[2m   Start at \u001b[22m 23:00:53\n\u001b[2m   Duration \u001b[22m 553ms\u001b[2m (transform 51ms, setup 150ms, collect 99ms, tests 269ms, environment 509ms, prepare 72ms)\u001b[22m\n\n",
+      "passed": 27,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 12.4,
+      "tail": "ts/app.js 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (11ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (11ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (12ms)\n  \u2713  14 [chromium] \u203a tests/e2e/navigation.spec.ts:113:3 \u203a workflow 1: first visit navigation \u203a the dot grid spacing on screen is GRID_SPACING_WORLD * zoom (356ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (8ms)\n  \u2713  11 [chromium] \u203a tests/e2e/navigation.spec.ts:54:3 \u203a workflow 1: first visit navigation \u203a TC-23: a 200 x 100 drag moves the board exactly 200 x 100 pixels (859ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (5ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (5ms)\n  \u2713  12 [chromium] \u203a tests/e2e/navigation.spec.ts:73:3 \u203a workflow 1: first visit navigation \u203a TC-24: zooming with Ctrl + wheel keeps the point under the pointer fixed (838ms)\n  \u2713   6 [chromium] \u203a tests/e2e/layout.spec.ts:75:3 \u203a page layout and controls on top \u203a dragging away from a control does not pan the board (1.6s)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (7ms)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (9ms)\n  \u2713  16 [chromium] \u203a tests/e2e/navigation.spec.ts:179:3 \u203a workflow 2: limits and recovery \u203a TC-26: Reset view returns to 100% centred on the starting point from far away (566ms)\n  \u2713  13 [chromium] \u203a tests/e2e/navigation.spec.ts:96:3 \u203a workflow 1: first visit navigation \u203a TC-15 (browser): plain scrolling moves the board in the scroll direction (985ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (9ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (10ms)\n  \u2713  17 [chromium] \u203a tests/e2e/navigation.spec.ts:201:3 \u203a workflow 2: limits and recovery \u203a keyboard shortcuts zoom the board and never the page (689ms)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n  \u2713   8 [chromium] \u203a tests/e2e/layout.spec.ts:129:3 \u203a page layout and controls on top \u203a the dot grid stays aligned with world grid lines (2.1s)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (6ms)\n  \u2713  20 [chromium] \u203a tests/e2e/navigation.spec.ts:291:3 \u203a workflow 3: far travel \u203a TC-27b: panning far away at maximum zoom still follows the pointer exactly (623ms)\n  \u2713  10 [chromium] \u203a tests/e2e/navigation.spec.ts:37:3 \u203a workflow 1: first visit navigation \u203a TC-28: the navigation hint shows on load and is gone after the first drag (1.9s)\n  \u2713  19 [chromium] \u203a tests/e2e/navigation.spec.ts:258:3 \u203a workflow 3: far travel \u203a TC-27: at 1,000,000 units the grid is evenly spaced and dragging is exact (896ms)\n  \u2713  23 [chromium] \u203a tests/e2e/touch.spec.ts:42:3 \u203a touch drag panning \u203a the page does not scroll while a touch drag pans the board (579ms)\n  \u2713  18 [chromium] \u203a tests/e2e/navigation.spec.ts:226:3 \u203a workflow 2: limits and recovery \u203a TC-31: board zoom gestures leave the page zoom untouched (1.3s)\n  \u2713  21 [chromium] \u203a tests/e2e/navigation.spec.ts:312:3 \u203a workflow 3: far travel \u203a TC-26b: reset works after a long trip and zoom, and the marker is centred (1.2s)\n  \u2713  22 [chromium] \u203a tests/e2e/touch.spec.ts:14:3 \u203a touch drag panning \u203a a touch drag moves the board by exactly the drag distance (1.3s)\n  \u2713  15 [chromium] \u203a tests/e2e/navigation.spec.ts:125:3 \u203a workflow 2: limits and recovery \u203a TC-25: zooming in with the button ends at 400% with the button disabled (7.4s)\n\n  23 passed (11.9s)\n",
+      "passed": 23,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
