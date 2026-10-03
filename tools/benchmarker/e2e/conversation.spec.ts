@@ -312,15 +312,13 @@ test.describe("B. the call page", () => {
     await page.goto(call(SWIFT, "v2-r5", "2", 1));
     await head(page, "input").click();
     const body = item(page, "input").locator(".cc-body");
-    // Two rows that mirror the two figures: the cache (expandable) and the new tokens, with what they were right under.
-    await expect(body.locator(".cc-row")).toHaveCount(2);
-    await expect(body.locator(".cc-split, h4")).toHaveCount(0);
-    await expect(body.locator('[data-part="new"] .cc-row')).toHaveText(/^1,800 tokens new to this call: what call 1's tools returned$/);
-    await expect(body.locator('[data-prev-tool="0"] h5')).toHaveText("read");          // the name once, not the name and its kind twice
-    await expect(body.locator('[data-prev-tool="0"] pre[data-quoted="agent"]')).toBeVisible();
+    // The input text, then one line for the cache with its expander; nothing else: no headings, no tool names, no summary.
+    expect(await body.evaluate((el) => [...el.children].map((c) => c.getAttribute("data-part")))).toEqual(["new", "cache"]);
+    await expect(body.locator("h4, h5, .cc-split")).toHaveCount(0);
+    await expect(body.locator('[data-part="new"] [data-prev-tool="0"] pre[data-quoted="agent"]')).toBeVisible();
+    await expect(body.locator('[data-part="cache"] .cc-row')).toHaveText(/^1,500 tokens read from the cache\s*Expand/);
     await page.goto(call(SWIFT, "v2-r5", "2", 0));
     await head(page, "input").click();
-    await expect(item(page, "input").locator('[data-part="new"] .cc-row')).toHaveText(/^1,500 tokens new to this call: the story's opening message$/);
     await expect(item(page, "input").locator('[data-part="new"] pre[data-quoted="agent"]')).toHaveText("Implement story 2 now.");
   });
 
@@ -328,7 +326,7 @@ test.describe("B. the call page", () => {
     await page.goto(call(SWIFT, "v2-r5", "2", 1));
     await head(page, "input").click();
     const body = item(page, "input").locator(".cc-body");
-    const expander = body.locator('button[data-part="cache"]');
+    const expander = body.locator('[data-part="cache"] button');
     await expect(expander).toHaveText(/^1,500 tokens read from the cache\s*Expand/);
     await expect(expander).toHaveAttribute("aria-expanded", "false");
     await expect(body.locator('[data-part="context"]')).toHaveCount(0);
@@ -345,12 +343,12 @@ test.describe("B. the call page", () => {
     // After a compaction the context is the turns since it; the first call has no context before it and no expander.
     await page.goto(call(SWIFT, "v2-r5", "2", 2));
     await head(page, "input").click();
-    await item(page, "input").locator('button[data-part="cache"]').click();
+    await item(page, "input").locator('[data-part="cache"] button').click();
     await expect(item(page, "input").locator('[data-part="context"] [data-context-turn]')).toHaveCount(1);   // the compaction itself
     await expect(item(page, "input").locator('[data-part="context"]')).toContainText(/compaction/);
     await page.goto(call(SWIFT, "v2-r5", "2", 0));
     await head(page, "input").click();
-    await expect(item(page, "input").locator('button[data-part="cache"]')).toHaveCount(0);
+    await expect(item(page, "input").locator('[data-part="cache"]')).toHaveCount(0);
   });
 
   test("tool calls open to each tool whole: its failed result, and a tool with no end yet says so", async ({ page }) => {
@@ -370,9 +368,8 @@ test.describe("B. the call page", () => {
     await expect(item(page, "output").locator(".cc-body")).toContainText(/text ≈ [\d,]+/i);
     await head(page, "input").click();
     await expect(item(page, "input").locator(".cc-body")).toContainText(/read from the cache/i);
-    await expect(item(page, "input").locator(".cc-body")).toContainText(/new to this call/i);
     await expect(item(page, "input").locator(".cc-body [data-prev-tool]")).not.toHaveCount(0);
-    await expect(item(page, "input").locator(".cc-body")).not.toContainText(/what the call before returned/i);
+    await expect(item(page, "input").locator(".cc-body")).not.toContainText(/what the call before returned|new to this call/i);
   });
 
   test("the way back and the calls either side stay on the call's row", async ({ page }) => {
