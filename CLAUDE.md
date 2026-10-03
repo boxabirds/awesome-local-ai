@@ -70,6 +70,30 @@ Why: on 1 October 2026 the dashboard listed skipped re-scores and failed time-ac
 
 Why: on 1 October 2026 the system's rules changed several times in a day (what ends a story, what the agent can see, how a score is made, what the app shows) while the only documentation was the code and a long conversation. A guide that is not updated with the system is wrong the first time someone relies on it.
 
+## Check a strategic insight before saying it
+
+A strategic insight is any claim that would change a decision: which combination is better, what to run next, what to stop
+running, whether something is worth building. Before one is said to the owner, it is checked, and the check is reported with
+it. Three rules, in order of how often they are broken:
+
+1. **A surprising absence in the data is a fault in the reading until proved otherwise.** "No run has a score", "no stack
+   records this", "nothing has that field" is almost always the wrong field, the wrong key or the wrong filter. Find where
+   the figure really lives before building anything on its absence. Never route around it with a substitute metric.
+2. **Check the figure against something independent.** The app's own screen, another field in the record, a count from the
+   raw files. One query is not a finding. If the two disagree, say so and stop.
+3. **Name the metric exactly, and where it came from.** "Median score of record, `scores[suite].passed` of 75, over 6
+   finished runs" is a figure a reader can check. "79%" is not, and a figure computed as a fallback is not a headline.
+
+The same care applies to anything that names a person or their work. This repository is public and its model repositories
+belong to real people. A judgement on someone's quantisation, engine or fine-tune is a published judgement on their work, and
+it must rest on the figure the benchmark actually recorded.
+
+Why: on 3 October 2026 the owner was told that ddalcu's mlx-serve quantisation was 3.8 times more verbose and bought no
+quality, on a per-story average invented as a fallback after looking for the score of record in the wrong field and
+concluding that none of the three local combinations had one. The real scores were there, keyed by suite version, and said
+the opposite: that quantisation was the **best** local combination, 69.5 of 75 against gufo's 66. The owner: "your laziness
+was at fault", and the name was "held in vain".
+
 ## A smoke run takes ten minutes or less
 
 A smoke run is a check that finishes in ten minutes or less: the engine starts, answers a request, returns a tool call, reuses a prompt. Anything longer is not a smoke run and must not be called one or run as one. A benchmark story is never a smoke run, recorded or not: a story takes as long as the stories of a normal run.
