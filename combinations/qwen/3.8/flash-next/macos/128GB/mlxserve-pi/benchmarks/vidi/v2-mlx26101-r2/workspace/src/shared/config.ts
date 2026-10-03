@@ -72,3 +72,36 @@ export const STICKY_COLOR_NAMES = Object.keys(STICKY_COLORS) as StickyColor[];
 /** Is `value` one of the six colour names? Unknown names are rejected. */
 export const isStickyColor = (value: unknown): value is StickyColor =>
   typeof value === 'string' && Object.prototype.hasOwnProperty.call(STICKY_COLORS, value);
+
+/* ------------------------------------------------------- live collaboration */
+
+/**
+ * Soft capacity: the number of simultaneous editors the board is designed and
+ * tested for. It is never enforced — a 6th person joins and edits normally —
+ * but it drives the tests, which read this setting rather than a literal.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/**
+ * The change-delivery requirement: a change made on one screen must appear on
+ * every other screen within this many milliseconds (PRD `live.propagate`).
+ * e2e measures against it and reports it, but does not gate on it, because the
+ * model, the browsers and the server share one machine in the test setup.
+ */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Upper bound of the provider's reconnect backoff (y-websocket `maxBackoffTime`). */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" confirmation shows after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** Length of the outage in the catch-up verification (PRD `live.catch_up`). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/**
+ * Generous functional wait in e2e (all stories): tests wait up to this long
+ * for a change to arrive, while latency is logged against
+ * LIVE_UPDATE_LATENCY_BUDGET_MS rather than asserted.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;

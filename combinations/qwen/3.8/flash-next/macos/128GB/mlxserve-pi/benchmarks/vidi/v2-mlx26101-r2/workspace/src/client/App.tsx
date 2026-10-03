@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { JSX } from 'react';
 
 import { Toolbar } from './board/Toolbar.js';
 import { useBoardDoc } from './board/useBoardDoc.js';
+import type { BoardConnector } from './board/useBoardDoc.js';
 import { useSelection } from './board/useSelection.js';
 import { BoardViewport } from './canvas/BoardViewport.js';
 import { screenToWorld, viewportCentre } from './canvas/camera.js';
@@ -14,7 +15,9 @@ import {
   useCameraContextValue,
   useViewportSize,
 } from './canvas/useCamera.js';
+import { ConnectionStatus } from './sync/ConnectionStatus.js';
 import { StickyNote } from './objects/StickyNote.js';
+import { isValidBoardId, newBoardId } from '../shared/board-id.js';
 import { createSticky, deleteObject } from '../shared/board-model.js';
 
 /** Focus guard: a keyboard shortcut must not fire while the user is typing. */
@@ -25,13 +28,63 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * Top-level layout: the board fills the window, the toolbar stands on its left
- * edge, the zoom controls sit in the bottom-right corner and the first-use hint
- * at the bottom centre. The camera lives here (one camera per visit, per
- * device) and is shared with the board surface through context; the board
- * content lives in the `Y.Doc` that `useBoardDoc` owns.
+ * The address of a board: `/b/<boardId>`. The browser's own address bar is the
+ * router here - there is no router dependency - because a board is a place you
+ * go to, and the link to it is the thing people share. Story 5 adds the board
+ * list on top of this; all it needs is `boardPath`.
  */
-export function App(): JSX.Element {
+export const BOARD_PATH_PREFIX = '/b/';
+
+/** The board this path names, or null when it names none (`/`, or rubbish). */
+export function boardIdFromPathname(pathname: string): string | null {
+  if (!pathname.startsWith(BOARD_PATH_PREFIX)) return null;
+  const candidate = pathname.slice(BOARD_PATH_PREFIX.length).replace(/\/+$/u, '');
+  return isValidBoardId(candidate) ? candidate : null;
+}
+
+/** The path a board lives at (design "connection-status": `/b/<boardId>`). */
+export const boardPath = (boardId: string): string => `${BOARD_PATH_PREFIX}${boardId}`;
+
+export interface AppProps {
+  /** How to reach the room; tests pass a fake (see `connectBoard`). */
+  connect?: BoardConnector;
+}
+
+/**
+ * The route. `/b/<boardId>` opens that board; anything else - `/` on a fresh
+ * visit, or a link that does not name a board - opens a board of its own and
+ * puts its address in the bar, so there is something to share straight away.
+ */
+export function App({ connect }: AppProps = {}): JSX.Element {
+  const [boardId, setBoardId] = useState<string | null>(() =>
+    boardIdFromPathname(window.location.pathname),
+  );
+
+  useEffect(() => {
+    if (boardId !== null) return;
+    const fresh = newBoardId();
+    // replaceState, not a navigation: this is the same page arriving at the
+    // address it should have had, and it must not push a history entry.
+    window.history.replaceState(null, '', boardPath(fresh));
+    setBoardId(fresh);
+  }, [boardId]);
+
+  if (boardId === null) {
+    // One frame at most: the effect above has already chosen a board.
+    return <div className="app" data-testid="app" />;
+  }
+  return <Board key={boardId} boardId={boardId} connect={connect} />;
+}
+
+/**
+ * Top-level layout: the board fills the window, the toolbar stands on its left
+ * edge, the zoom controls sit in the bottom-right corner, the first-use hint at
+ * the bottom centre and the connection badge at the top centre. The camera lives
+ * here (one camera per visit, per device) and is shared with the board surface
+ * through context; the board content lives in the `Y.Doc` that `useBoardDoc`
+ * owns and shares with everyone else on this board.
+ */
+function Board({ boardId, connect }: { boardId: string; connect?: BoardConnector }): JSX.Element {
   const viewport = useViewportSize();
   const api = useCamera(viewport);
   const context = useCameraContextValue(api, viewport);
@@ -41,7 +94,7 @@ export function App(): JSX.Element {
   // deliberately *not* in it: what this user has selected is not board content,
   // and once the document is shared (story 3) writing it there would move other
   // people's selection.
-  const { doc, notes } = useBoardDoc();
+  const { doc, notes, connection } = useBoardDoc(boardId, connect);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   /** Create a note centred on a world point, select it and open it for typing. */
@@ -159,6 +212,7 @@ export function App(): JSX.Element {
         onReset={api.reset}
       />
       <NavigationHint visible={!api.hasNavigated} />
+      <ConnectionStatus state={connection} />
     </div>
   );
 }

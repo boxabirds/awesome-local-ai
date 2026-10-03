@@ -8,6 +8,9 @@ import type { Camera, Point } from '../../src/client/canvas/camera.js';
 import { worldToScreen, zoomAt } from '../../src/client/canvas/camera.js';
 import { STICKY_SIZE_WORLD } from '../../src/shared/config.js';
 import { drainFrames } from './setup.js';
+import { FakeLink } from './fake-link.js';
+import { connectBoard } from '../../src/client/sync/connectBoard.js';
+import type { BoardConnector } from '../../src/client/board/useBoardDoc.js';
 
 /** Board area used by component tests (the design's default laptop size). */
 export const VIEWPORT = { width: 1280, height: 800 };
@@ -52,13 +55,33 @@ export function flushFrames(): void {
   settle();
 }
 
-export function renderApp(): void {
+export function renderApp(link = new FakeLink()): FakeLink {
   // Tests that loop over several renders would otherwise stack containers.
   cleanup();
+  const connect: BoardConnector = (doc, boardId, onState) =>
+    connectBoard(doc, boardId, onState, { createLink: () => link });
+  activeLink = link;
   act(() => {
-    render(<App />);
+    render(<App connect={connect} />);
   });
   flushFrames();
+  return link;
+}
+
+/**
+ * The board's connection is faked in component tests: a component test that
+ * opened a real socket would be testing the network, and jsdom's WebSocket
+ * cannot reach the room anyway. `renderApp` hands the app a fake and remembers
+ * it here, so a test can say what the connection did. It reports nothing on its
+ * own, which leaves the badge on "Connecting…" - a test that needs a board that
+ * is in step with its room says so.
+ */
+let activeLink: FakeLink | null = null;
+
+/** The connection the last `renderApp` used. */
+export function connectionLink(): FakeLink {
+  if (activeLink === null) throw new Error('no app is rendered');
+  return activeLink;
 }
 
 /** The camera the app currently holds (test hook, present in test mode). */

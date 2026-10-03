@@ -114,6 +114,39 @@ export async function typeIntoNote(page: Page, text: string): Promise<void> {
     .toBe(text);
 }
 
+/** The editor that is open on the page, whichever note it belongs to. */
+export function openEditor(page: Page): Locator {
+  return page.locator('[data-testid="sticky-editor"]');
+}
+
+/** Which note the open editor belongs to, by its own element. */
+export async function editingNoteIdOf(page: Page): Promise<string | null> {
+  const editor = openEditor(page);
+  if ((await editor.count()) === 0) return null;
+  return editor.evaluate((element) => {
+    const note = element.closest('[data-note-id]');
+    return note instanceof HTMLElement ? note.dataset.noteId ?? null : null;
+  });
+}
+
+/**
+ * Type into the note that is open for editing, wherever it happens to sit in the
+ * document. `typeIntoNote` asserts on the first note; once several people create
+ * notes at the same time the one you just made is not necessarily first, so a
+ * test that means "the note I am typing in" uses this instead.
+ */
+export async function typeIntoOpenEditor(page: Page, text: string): Promise<void> {
+  await expect(openEditor(page)).toBeVisible();
+  const id = await editingNoteIdOf(page);
+  if (!id) throw new Error('no sticky note is open for editing');
+  await page.keyboard.type(text);
+  await expect
+    .poll(async () => (await noteById(page, id)).text, {
+      message: 'the typed text never reached the document',
+    })
+    .toBe(text);
+}
+
 /**
  * Put a long text into the note in one go, the way pasting does it: the browser
  * writes the whole value and reports a single `input` event.

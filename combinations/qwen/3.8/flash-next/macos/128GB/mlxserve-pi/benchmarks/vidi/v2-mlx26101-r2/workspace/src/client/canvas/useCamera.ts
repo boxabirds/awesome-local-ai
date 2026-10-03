@@ -251,6 +251,8 @@ export function useCamera(viewport: Size): UseCameraResult {
         commit({ x: next.x, y: next.y, zoom: next.zoom });
       },
       getCamera: () => cameraRef.current,
+      // publishConnectionState() keeps this up to date (see testHooks.ts).
+      connectionState: null,
     });
     return () => clearTestHooks();
   }, [commit]);

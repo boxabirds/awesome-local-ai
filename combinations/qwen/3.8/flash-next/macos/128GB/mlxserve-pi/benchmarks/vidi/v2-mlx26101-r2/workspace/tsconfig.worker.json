@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["@cloudflare/workers-types/experimental", "@cloudflare/vitest-pool-workers/types"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": false,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "useDefineForClassFields": true,
+    "noEmit": true
+  },
+  "//": "Everything that runs inside the Workers runtime: the Worker and its integration tests (`npm run test:integration`). No DOM here, on purpose: if this project compiles, the Worker does not reach for a browser API it will not have.",
+  "include": ["src/worker", "src/shared", "tests/integration"]
+}

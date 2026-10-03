@@ -117,7 +117,15 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       if (!el) return;
       const next = ytextRef.current.toString();
       if (el.value === next) return;
-      const caret = Math.min(next.length, el.selectionStart);
+      // A caret that was at the end of the text stays at the end. Two people
+      // typing into the same note both add to the end, each in their own order;
+      // leaving the caret where it was would drop the next keystroke *between*
+      // the characters this person has already typed and scramble the word
+      // (story 3: two people typing into one note).
+      const caretWasAtEnd = el.selectionStart >= el.value.length;
+      const caret = caretWasAtEnd
+        ? next.length
+        : Math.min(next.length, el.selectionStart);
       el.value = next;
       el.setSelectionRange(caret, caret);
       setLength(next.length);

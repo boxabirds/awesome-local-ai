@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
@@ -18,5 +19,15 @@
     "useDefineForClassFields": true,
     "noEmit": true
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "//": "The browser side and the tests that run in node/jsdom/Playwright. The Worker and the tests that run inside workerd are in tsconfig.worker.json, because the two environments declare different globals.",
+  "include": [
+    "src/client",
+    "src/shared",
+    "tests/unit",
+    "tests/component",
+    "tests/e2e",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts"
+  ]
 }

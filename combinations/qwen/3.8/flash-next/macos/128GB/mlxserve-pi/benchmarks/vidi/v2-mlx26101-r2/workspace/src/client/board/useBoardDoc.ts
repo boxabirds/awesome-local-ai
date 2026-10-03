@@ -2,7 +2,9 @@ import { useCallback, useMemo, useSyncExternalStore, useState, useEffect } from 
 
 import * as Y from 'yjs';
 
-import { clearBoardTestHooks, registerBoardTestHooks } from '../canvas/testHooks.js';
+import { clearBoardTestHooks, publishConnectionState, registerBoardTestHooks } from '../canvas/testHooks.js';
+import { connectBoard } from '../sync/connectBoard.js';
+import type { BoardConnection, ConnectionState } from '../sync/connectBoard.js';
 import {
   DOC_OBJECTS_MAP,
   initDoc,
@@ -10,12 +12,21 @@ import {
   type StickySnapshot,
 } from '../../shared/board-model.js';
 
+/** How a board gets its connection; tests hand in a fake (see `connectBoard`). */
+export type BoardConnector = (
+  doc: Y.Doc,
+  boardId: string,
+  onState: (state: ConnectionState) => void,
+) => BoardConnection;
+
 /** What the hook exposes to the app. */
 export interface UseBoardDocResult {
-  /** The one document of this visit. Story 3 attaches a provider to it. */
+  /** The one document of this visit, shared with everyone on this board. */
   doc: Y.Doc;
   /** Every note, sorted by (z, id); a new array only when the doc changed. */
   notes: readonly StickySnapshot[];
+  /** The connection badge's state; `connecting` until this room is reached. */
+  connection: ConnectionState;
 }
 
 /**
@@ -38,14 +49,19 @@ const cacheFor = (doc: Y.Doc): { notes: readonly StickySnapshot[] | null } => {
 /**
  * Owns the board's `Y.Doc` and republishes it as an immutable snapshot through
  * `useSyncExternalStore` (design `board.model`: "snapshot is memoised by
- * useBoardDoc and recomputed on objects.observeDeep").
+ * useBoardDoc and recomputed on objects.observeDeep"), and attaches the board's
+ * connection to it (design "sync.client").
  *
- * Nothing is synchronised or stored in this story: the document lives in memory
- * only, and reloads start empty. Story 3 adds a network provider and story 4
- * persists this same document, which is why the document - not React state -
- * is the source of truth for board content.
+ * The document is the source of truth for board content: everything the user
+ * types, moves or deletes goes into it and goes out through the provider, and
+ * everything a remote edit does arrives through the same document. Nothing is
+ * stored yet - that is story 4 - so a board starts empty every time it is
+ * opened.
  */
-export function useBoardDoc(): UseBoardDocResult {
+export function useBoardDoc(
+  boardId: string,
+  connect: BoardConnector = connectBoard,
+): UseBoardDocResult {
   // useState's initialiser is the one place React guarantees runs once per
   // mounted component, so the document survives re-renders.
   const [doc] = useState<Y.Doc>(() => {
@@ -79,6 +95,16 @@ export function useBoardDoc(): UseBoardDocResult {
 
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
+  // The connection badge's state. It starts at 'connecting' because that is
+  // what it says from the first render: the provider has not reached the room
+  // yet. connectBoard reports every later change.
+  const [connection, setConnection] = useState<ConnectionState>('connecting');
+
+  useEffect(() => {
+    const board = connect(doc, boardId, setConnection);
+    return () => board.destroy();
+  }, [connect, doc, boardId]);
+
   // Test-only view of the document (test mode only): tests assert the document
   // itself, and can delete a note "through the model" the way a second client
   // would, instead of only looking at the rendered DOM.
@@ -86,9 +112,18 @@ export function useBoardDoc(): UseBoardDocResult {
     registerBoardTestHooks({
       getDoc: () => doc,
       getNotes: () => snapshot(doc),
+      getBoardId: () => boardId,
     });
     return () => clearBoardTestHooks();
-  }, [doc]);
+  }, [doc, boardId]);
 
-  return useMemo<UseBoardDocResult>(() => ({ doc, notes }), [doc, notes]);
+  // e2e-only: the connection state the badge is showing (test mode only).
+  useEffect(() => {
+    publishConnectionState(connection);
+  }, [connection]);
+
+  return useMemo<UseBoardDocResult>(
+    () => ({ doc, notes, connection }),
+    [doc, notes, connection],
+  );
 }

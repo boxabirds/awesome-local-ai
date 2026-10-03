@@ -1,12 +1,33 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-01",
+  // Kept at or below the compatibility date that the workerd binary bundled with
+  // @cloudflare/vitest-pool-workers understands, so `npm run test:integration`
+  // (which reads this same file) can start the runtime.
+  "compatibility_date": "2026-08-22",
   "compatibility_flags": ["nodejs_als"],
-  // Story 1 serves the client as static assets only; Worker code (`main`)
-  // arrives with story 3 (real-time collaboration).
+  // Story 3 adds the Worker: it routes /api/rooms/:boardId to that board's
+  // BoardRoom Durable Object and serves everything else from the client assets.
+  "main": "src/worker/index.ts",
   "assets": {
     "directory": "./dist/client",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
-  }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  // SQLite-backed from the start, so story 4 (boards that outlive the last
+  // person) adds storage without a class migration.
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ]
 }

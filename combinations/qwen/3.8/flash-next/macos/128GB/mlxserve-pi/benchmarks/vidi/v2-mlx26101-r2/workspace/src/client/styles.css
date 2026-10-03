@@ -9,6 +9,8 @@
   --ui-text: #1f2328;
   --ui-muted: #5d6570;
   --ui-accent: #2f6feb;
+  --connection-warning: #b45309;
+  --connection-ok: #15803d;
   color: var(--ui-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-size: 14px;
@@ -179,6 +181,43 @@ body {
   box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
   pointer-events: none;
   white-space: nowrap;
+}
+
+/* --------------------------------------------------- connection status badge */
+
+/* The badge sits at the top centre, above the board and out of the way of the
+   toolbar and the zoom controls. `pointer-events: none` is not decoration: a
+   badge that could be clicked would also be able to swallow a drag or a pinch
+   that starts on top of it, which is the one thing the design forbids
+   ("it never covers a control" - the toolbar is on the left edge and the zoom
+   controls in the bottom-right corner, so at the top centre it covers nothing).
+   Amber while the room cannot be reached, green for the confirmation that it
+   came back; `connected` renders no element at all. */
+.connection-status {
+  position: fixed;
+  left: 50%;
+  top: 20px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1.4;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 40;
+}
+
+.connection-status--connecting,
+.connection-status--reconnecting {
+  background: var(--connection-warning);
+}
+
+.connection-status--confirmed {
+  background: var(--connection-ok);
 }
 
 /* --------------------------------------------------------- sticky notes */

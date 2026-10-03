@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import * as Y from 'yjs';
 
 import { act, fireEvent, userEvent } from './tl.js';
 import {
@@ -341,5 +342,94 @@ describe('sticky.text: input methods', () => {
     expect(editingNoteId()).toBe(noteId(0));
     expect(document.activeElement).toBe(editor());
     expect(docNotes()).toHaveLength(1);
+  });
+});
+
+/**
+ * Another person typing into the note this person has open (story 3). The peer
+ * is a second `Y.Doc`, synced both ways with the board's document exactly as the
+ * room syncs two browsers: the peer's update is applied to the board's doc, and
+ * the doc's own state vector is passed to `encodeStateAsUpdate` so only what the
+ * board does not have arrives.
+ */
+describe('sticky.text: somebody else typing into the same note', () => {
+  /** A document that holds the same board as the app's. */
+  function peerDoc(): Y.Doc {
+    const peer = new Y.Doc();
+    Y.applyUpdate(peer, Y.encodeStateAsUpdate(boardDoc()));
+    return peer;
+  }
+
+  /** Hand the board's document everything the peer has that it does not. */
+  function deliverFrom(peer: Y.Doc): void {
+    Y.applyUpdate(boardDoc(), Y.encodeStateAsUpdate(peer, Y.encodeStateVector(boardDoc())));
+  }
+
+  /** Type text into the note from the peer's side. */
+  function peerTypes(noteIdValue: string, text: string): void {
+    const peer = peerDoc();
+    const text$1 = getStickyText(peer, noteIdValue);
+    if (!text$1) throw new Error(`the peer has no note ${noteIdValue}`);
+    text$1.insert(text$1.length, text);
+    deliverFrom(peer);
+  }
+
+  /** Put one character into the textarea at the caret, as a browser does. */
+  function typeAtCaret(character: string): void {
+    const element = editor();
+    const at = element.selectionStart;
+    const next =
+      element.value.slice(0, at) + character + element.value.slice(element.selectionEnd);
+    element.value = next;
+    element.setSelectionRange(at + character.length, at + character.length);
+    act(() => {
+      fireEvent.input(element, { target: { value: next } });
+    });
+  }
+
+  it('TC-23e keeps a caret at the end of the text when characters arrive from elsewhere', () => {
+    clickStickyButton();
+    typeText('green');
+    const id = editingNoteId();
+    if (!id) throw new Error('the new note is not open for editing');
+
+    // Somebody else adds to the same note while this one is open.
+    act(() => {
+      peerTypes(id, ' blue');
+    });
+
+    expect(editorValue()).toBe('green blue');
+    // The caret is at the end of what arrived. Had it stayed at 5, this person's
+    // next keystroke would have landed between the characters they had already
+    // typed and the word would come out scrambled.
+    expect(editor().selectionStart).toBe('green blue'.length);
+
+    // So their own next characters go on the end, in their own order.
+    typeAtCaret('r');
+    typeAtCaret('e');
+    typeAtCaret('d');
+    expect(noteText(0)).toBe('green bluered');
+    expect(editorValue()).toBe('green bluered');
+  });
+
+  it('TC-23f leaves a caret in the middle of the text where it was', () => {
+    clickStickyButton();
+    typeText('green');
+    const id = editingNoteId();
+    if (!id) throw new Error('the new note is not open for editing');
+
+    // This person's caret is at the start, editing the first letter.
+    editor().setSelectionRange(0, 0);
+
+    act(() => {
+      peerTypes(id, ' blue');
+    });
+
+    // Their place in the text is untouched by what arrived.
+    expect(editorValue()).toBe('green blue');
+    expect(editor().selectionStart).toBe(0);
+
+    typeAtCaret('X');
+    expect(noteText(0)).toBe('Xgreen blue');
   });
 });

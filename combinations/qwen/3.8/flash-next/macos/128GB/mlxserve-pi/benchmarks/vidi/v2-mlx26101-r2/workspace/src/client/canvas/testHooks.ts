@@ -1,4 +1,5 @@
 import type { Camera } from './camera.js';
+import type { ConnectionState } from '../sync/connectBoard.js';
 import type { StickySnapshot } from '../../shared/board-model.js';
 import type * as Y from 'yjs';
 
@@ -12,6 +13,11 @@ import type * as Y from 'yjs';
 export interface Vidi6TestHooks {
   setCamera(camera: Camera): void;
   getCamera(): Camera;
+  /**
+   * The connection state the badge is showing, or null before the board has one
+   * (design "sync.client": e2e asserts the badge text and this).
+   */
+  connectionState: ConnectionState | null;
 }
 
 declare global {
@@ -22,9 +28,23 @@ declare global {
 
 export const IS_TEST_MODE = import.meta.env.MODE === 'test';
 
+/** The last connection state published, so a later registration keeps it. */
+let connectionState: ConnectionState | null = null;
+
 export function registerTestHooks(api: Vidi6TestHooks): void {
   if (!IS_TEST_MODE || typeof window === 'undefined') return;
+  api.connectionState = connectionState;
   window.__vidi6 = api;
+}
+
+/**
+ * Record the connection state for e2e assertions (TC-29 reads it on an idle
+ * connection). Only the test build keeps it.
+ */
+export function publishConnectionState(state: ConnectionState): void {
+  if (!IS_TEST_MODE || typeof window === 'undefined') return;
+  connectionState = state;
+  if (window.__vidi6) window.__vidi6.connectionState = state;
 }
 
 export function clearTestHooks(): void {
@@ -45,6 +65,8 @@ export function testHooks(): Vidi6TestHooks | undefined {
 export interface Vidi6BoardTestHooks {
   getDoc(): Y.Doc | undefined;
   getNotes(): readonly StickySnapshot[];
+  /** The board this page is on, from the URL. */
+  getBoardId(): string;
 }
 
 declare global {
@@ -66,4 +88,41 @@ export function clearBoardTestHooks(): void {
 export function boardTestHooks(): Vidi6BoardTestHooks | undefined {
   if (typeof window === 'undefined') return undefined;
   return window.__vidi6Board;
+}
+
+/**
+ * Test-only controls for the board's own connection (design "Flaky Wi-Fi",
+ * TC-27). Playwright's `context.setOffline(true)` does not interrupt a
+ * WebSocket that is already open - it only makes new connections fail - so a
+ * test that wants an outage says "the connection dropped" here and holds the
+ * *reconnection* offline with `setOffline`. Both are the provider's own
+ * `disconnect()`/`connect()`; nothing else about the connection changes.
+ */
+export interface Vidi6ConnectionTestHooks {
+  /** Hang up the socket. The provider retries on its own backoff. */
+  dropConnection(): void;
+  /** Retry now, instead of waiting for the backoff. */
+  restoreConnection(): void;
+}
+
+declare global {
+  interface Window {
+    __vidi6Connection?: Vidi6ConnectionTestHooks;
+  }
+}
+
+let connectionHooks: Vidi6ConnectionTestHooks | null = null;
+
+export function registerConnectionTestHooks(hooks: Vidi6ConnectionTestHooks): void {
+  if (!IS_TEST_MODE || typeof window === 'undefined') return;
+  connectionHooks = hooks;
+  window.__vidi6Connection = hooks;
+}
+
+/** Unregister, but only if this is still the connection that owns the slot. */
+export function clearConnectionTestHooks(hooks: Vidi6ConnectionTestHooks): void {
+  if (!IS_TEST_MODE || typeof window === 'undefined') return;
+  if (connectionHooks !== hooks) return;
+  connectionHooks = null;
+  delete window.__vidi6Connection;
 }
