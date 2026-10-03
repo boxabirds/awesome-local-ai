@@ -98,8 +98,76 @@ around an infinite board**.
   behaviour, Safari `GestureEvent` in e2e (TC-17 covers the handler in jsdom),
   touch input.
 
+## Story 2 — Sticky notes
+
+### Followed from the design
+
+- `src/shared/board-model.ts` implements the framework-free contract on a real
+  `Y.Doc`: `initDoc` sets `meta.schemaVersion` once; `objects: Y.Map<id,
+  Y.Map>` with `type, x, y, color, text: Y.Text, z, createdAt`; every success
+  is one `doc.transact(run, LOCAL_ORIGIN)`; rejections return before opening a
+  transaction (0 `update` events). `snapshot` is sorted by `(z, id)` and skips
+  unknown types. Ids via `crypto.randomUUID()`.
+- Config additions are exactly the named settings: `STICKY_SIZE_WORLD`,
+  `STICKY_TEXT_MAX_CHARS`, `STICKY_COUNTER_THRESHOLD_CHARS`,
+  `STICKY_FONT_MAX_PX`, `STICKY_FONT_MIN_PX`, `DRAG_THRESHOLD_PX`,
+  `STICKY_COLORS`, `DEFAULT_STICKY_COLOR`.
+- `applyTextDiff` emits a single insert and/or single delete (common prefix +
+  suffix) inside one transaction; surrogate-pair safe (TC-13). `counterVisible`
+  is based on remaining budget (remaining ≤ threshold), so a full 1,000-char
+  note shows `1000/1000` (TC-17).
+- `useBoardDoc()` uses `useSyncExternalStore` over `objects.observeDeep`, so
+  the snapshot only changes on a real document update (TC-18 model test).
+
+### Decisions
+
+12. **`createSticky` return type on a bad point.** The design signature returns
+    `string`; for a non-finite point there is no id to give, so it returns the
+    empty string `''` and opens no transaction (TC-39). `moveObject` returns
+    `false` as specified.
+13. **Extra config `STICKY_PADDING_WORLD`.** The design lists padding behaviour
+    but not a named constant; a single `STICKY_PADDING_WORLD = 16` drives both
+    the note's inner box and the text `box-sizing`, so the auto-fit
+    measurement and the visible text share one number.
+14. **`window.__vidi6` now merges hooks.** `registerTestHooks` merges into the
+    existing object and exposes `doc` and `getNotes()` (a `snapshot(doc)`
+    getter) in addition to story 1's `setCamera`, so component/e2e tests read
+    the live model. Still guarded by `import.meta.env.MODE === 'test'`; the
+    production bundle contains 0 occurrences of `__vidi6`.
+
+### Bugs found by the e2e suite (fixed)
+
+- **Drag remount on bring-to-front.** Notes were rendered in z-order, so the
+  `bringToFront` call at drag start reordered the array and React remounted the
+  dragged note, resetting its drag refs (the rAF-coalesced `moveObject` was
+  then cancelled and the note never moved). Fix: render notes in a **stable
+  id order** (`renderNotes` in `App.tsx`) and let each note's CSS `zIndex:
+  note.z` provide stacking. `bringToFront` now changes only z-index, never DOM
+  order. The golden-path and 200% drag both move the grabbed point exactly
+  (world delta = screen delta ÷ zoom).
+- **Origin marker swallowed double-clicks.** `.origin-marker` sits at world
+  0,0 (the viewport centre at the default camera) and, being interactive, was
+  the double-click target, so `handleDoubleClick`'s `target === surface` guard
+  blocked creating a note at the centre. It is purely decorative
+  (`aria-hidden`), so it is now `pointer-events: none`.
+
+### Test notes (story 2)
+
+- Unit: `board-model.test.ts` (TC-01..TC-12, TC-39) and `sticky-text.test.ts`
+  (TC-13..TC-17) run against a real `Y.Doc`; 53 tests.
+- Component (jsdom, real `Y.Doc`, dispatch native events + fake timers): 18
+  new tests across `StickyNote`, `StickyTextEditor`, `Toolbars` covering
+  TC-18..TC-22, TC-24..TC-29, TC-35..TC-38; 54 total.
+- e2e (Chromium, `wrangler dev`, test hooks): 4 new specs — the brainstorm
+  golden path (TC-30 → TC-31 → recolour → delete), TC-32 (200% drag +
+  bring-to-front), TC-33 (auto-fit 24px → clip with fade + counter at the
+  limit), TC-34 (create at the view centre far from the start); 19 total.
+- Text fixtures live in `tests/fixtures/texts.ts` (realistic prose, plus the
+  1,000-char paste used by TC-33).
+
 ## Not implemented (other stories)
 
 Presence/cursors (6), realtime/offline sync (3, 13), sign-in (14), dashboard
-(15), comments (16), export (17), and all board objects (2, 7–12). The Worker
-entry point is intentionally absent; `wrangler dev` serves static assets only.
+(15), comments (16), export (17), and the remaining board objects (7–12).
+Sticky notes (story 2) are implemented. The Worker entry point is intentionally
+absent; `wrangler dev` serves static assets only.

@@ -3,17 +3,25 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
 
-import { GRID_SPACING_WORLD } from '../../shared/config';
-import type { Camera, Point } from './camera';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import { screenToWorld, type Camera, type Point } from './camera';
 import { registerTestHooks } from './testHooks';
 import { useBoard } from './useCamera';
 
 export interface BoardViewportProps {
   children?: ReactNode;
+  /**
+   * Called on a double-click of empty board space with the world point under
+   * the pointer. When omitted, double-click does nothing (story 1).
+   */
+  onCreateStickyAt?(world: Point): void;
+  /** Called on a click (no drag) of empty board space, to clear selection. */
+  onClearSelection?(): void;
 }
 
 /** Safari's pinch gestures, which are not part of the standard DOM types. */
@@ -31,7 +39,7 @@ const GRID_DENSE_SPACING_PX = 8;
 /** Left mouse button / primary pointer. */
 const PRIMARY_MOUSE_BUTTON = 0;
 
-export function BoardViewport({ children }: BoardViewportProps) {
+export function BoardViewport({ children, onCreateStickyAt, onClearSelection }: BoardViewportProps) {
   const board = useBoard();
   const boardRef = useRef(board);
   boardRef.current = board;
@@ -39,6 +47,8 @@ export function BoardViewport({ children }: BoardViewportProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [panning, setPanning] = useState(false);
   const panningRef = useRef(false);
+  const downRef = useRef<Point | null>(null);
+  const movedRef = useRef(false);
   const camera = board.camera;
 
   // Non-passive listeners: the board owns wheel and pinch gestures over itself
@@ -113,23 +123,46 @@ export function BoardViewport({ children }: BoardViewportProps) {
     if (event.pointerType === 'mouse' && event.button !== PRIMARY_MOUSE_BUTTON) return;
     panningRef.current = true;
     setPanning(true);
+    const point = clientPoint(surfaceRef.current!, event);
+    downRef.current = point;
+    movedRef.current = false;
     try {
       surfaceRef.current?.setPointerCapture?.(event.pointerId);
     } catch {
       // Pointer capture can fail for synthetic events; dragging still works.
     }
-    boardRef.current.beginPan(clientPoint(surfaceRef.current!, event));
+    boardRef.current.beginPan(point);
   };
 
   const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!panningRef.current) return;
-    boardRef.current.panMove(clientPoint(surfaceRef.current!, event));
+    const point = clientPoint(surfaceRef.current!, event);
+    const down = downRef.current;
+    if (down && Math.hypot(point.x - down.x, point.y - down.y) >= DRAG_THRESHOLD_PX) {
+      movedRef.current = true;
+    }
+    boardRef.current.panMove(point);
   };
 
-  const finishDrag = () => {
+  const endPan = () => {
     panningRef.current = false;
     setPanning(false);
     boardRef.current.endPan();
+  };
+
+  // A click (no drag) on empty board space clears the note selection.
+  const finishDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const wasClick = !movedRef.current && event.target === surfaceRef.current;
+    endPan();
+    if (wasClick) onClearSelection?.();
+  };
+
+  // A double-click on empty board space creates a note at that world point.
+  const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (event.target !== surfaceRef.current) return; // notes handle their own
+    if (!onCreateStickyAt) return;
+    const point = clientPoint(surfaceRef.current, event);
+    onCreateStickyAt(screenToWorld(boardRef.current.camera, point));
   };
 
   return (
@@ -142,8 +175,9 @@ export function BoardViewport({ children }: BoardViewportProps) {
       onPointerDown={beginDrag}
       onPointerMove={moveDrag}
       onPointerUp={finishDrag}
-      onPointerCancel={finishDrag}
-      onLostPointerCapture={finishDrag}
+      onPointerCancel={endPan}
+      onLostPointerCapture={endPan}
+      onDoubleClick={handleDoubleClick}
     >
       <div
         className="board-world"
