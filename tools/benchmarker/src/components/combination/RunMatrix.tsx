@@ -183,7 +183,7 @@ export function RunMatrix({ runs, metric, matrix: given }: { runs: Row[]; metric
         </thead>
         <tbody>
           {sections.map((s) => (
-            <RunSectionRows key={s.group.id} group={s.group} count={s.items.length} colSpan={matrix.stories.length + MATRIX_FIXED_COLUMNS} headed={sections.length > 1}>
+            <RunSectionRows key={s.group.id} scope="combination" group={s.group} count={s.items.length} colSpan={matrix.stories.length + MATRIX_FIXED_COLUMNS} headed={sections.length > 1}>
               {s.items.map(({ r, i }) => {
                 const total = r.run.stories.length ? runTotal(r.run, metric) : null;
                 return (

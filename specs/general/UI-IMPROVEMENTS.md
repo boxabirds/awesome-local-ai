@@ -7,6 +7,16 @@ its Critical and most High items are built).
 
 ## Part 1: the machine page's History (3 October 2026)
 
+### Status (3 October 2026, the same evening)
+
+Built, as decided by the owner (no folding on the machine page; fold state per page kind): the history is one
+table of every run, newest activity first (the running run, the ended ones latest first, the queue in its
+order), with Combination, Run, Version (the pack version on hover), Status, Stories and Score as columns and
+nothing grouped or folded. A finished run of an earlier suite version shows "—" with "Not scored: an earlier
+version of the suite." The intervened mark is the compact ✱ in the Run cell. Everywhere else the fold state is
+per page kind (combination, story, run, story-run pages), remembered in the browser. Not done: sticky column
+heads; the span in the History head.
+
 Reviewed from the owner's screenshot of `#/machines/tritus` (18 runs) and the code (`MachineHistory.tsx`,
 `RunGroupHead.tsx`, `shared/overviewView.ts` `machineHistory`, `shared/runGroups.ts`). The owner's words: "I don't
 understand the history information architecture."

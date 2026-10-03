@@ -154,7 +154,7 @@ export const GLOSSARY = {
   queuedOnly: { name: "waiting", what: "Nothing is running, but jobs are queued: the next one starts when it can." },
   hardware: { name: "Hardware", what: "What the machine reports about itself: processor, cores, memory, graphics and operating system. Each exact machine spec is its own hardware class." },
   reachability: { name: "Reachability", what: "Whether the machine answered the last request, and at which address." },
-  historyRun: { name: "Run", what: "The run's id: a link to its page, with everything about it. The combination it belongs to heads the table." },
+  historyRun: { name: "Run", what: "The run's id: a link to its page, with everything about it." },
   nowRunning: { name: "Running", what: "The run the machine is on now and its story, with the agent minutes on that story as last reported; or idle, waiting (a queue but nothing running), or unreachable." },
   machinesList: { name: "Machines", what: "Every machine in the list and every one that answered. Each links to its page, with its hardware, installs, jobs and history." },
   os: { name: "OS", what: "The operating system the machine reports it runs." },
@@ -164,7 +164,7 @@ export const GLOSSARY = {
   installs: { name: "Installs", what: "The combinations installed on the machine, which it can run. Each links to its combination's page once it has a run." },
   machineNow: { name: "Now", what: "The job running on this machine, with its activity, then the queue in the order it will run, then jobs that ended in the last day. Each job has its operations." },
   endedJobs: { name: "Ended in the last day", what: `Jobs that ended in the last ${RECENT_END_S / SECONDS_PER_HOUR} hours, by how each ended: finished, failed, stopped or cancelled. Older ones are on their runs' pages. A failed, stopped or cancelled one can be restarted, which resumes its run at its first unfinished story.` },
-  history: { name: "History", what: "Every run on this machine, by combination, then by pack and spec version: runs of different spec versions built different specs, so they are never grouped together. Each shows its status and its score." },
+  history: { name: "History", what: "Every run on this machine, newest first: the one running, then those that ended, latest first, then the queue. Each row says its combination, the spec version it built against, its status, its stories and its score." },
   activity: { name: "Activity", what: "The running story's model calls and output tokens so far, the tasks written, and the agent's latest action." },
   machineRow: { name: "Machine", what: "A machine a run runs on. Its page has its hardware, installs, jobs and history." },
 

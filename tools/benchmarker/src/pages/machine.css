@@ -71,17 +71,15 @@
   .queue-form label { grid-template-columns: 96px minmax(0, 1fr); }
 
   /* ---------- history ---------- */
-  .history-combo { padding: 12px 14px 4px; }
-  .history-combo + .history-combo { border-top: 1px solid var(--line); }
-  .history-combo h3 { font-size: 14px; text-transform: none; letter-spacing: 0; color: var(--ink); margin: 0 0 6px; }
-  .history-combo h3 .combination-link { font-weight: 700; }
+  [data-section="history"] table.history { margin: 0; }
   /* One set of column widths for every combination's table, so they line up down the page. */
   table.history { min-width: 0; table-layout: fixed; font-size: 13px; margin-bottom: 8px; }
-  table.history col.c-run { width: 18%; } table.history col.c-status { width: 34%; } table.history col.c-stories { width: 28%; } table.history col.c-score { width: 20%; }
+  table.history col.c-combination { width: 18%; } table.history col.c-run { width: 18%; } table.history col.c-version { width: 9%; } table.history col.c-status { width: 25%; } table.history col.c-stories { width: 20%; } table.history col.c-score { width: 10%; }
+  table.history td.h-combination { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  table.history td.h-version { color: var(--muted); white-space: nowrap; }
   table.history th, table.history td { padding: 6px 8px; vertical-align: middle; overflow-wrap: normal; }
   table.history thead th { white-space: nowrap; }
   table.history thead th .term { display: inline; }
-  table.history tr.group-head th { background: var(--bg); text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--ink); border-top: 1px solid var(--line); }
   .version-label { font-weight: 700; }
   table.history th.h-run { text-transform: none; letter-spacing: 0; font-size: 14px; background: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   table.history th.h-run .run-link { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); }

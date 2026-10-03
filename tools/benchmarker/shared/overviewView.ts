@@ -139,46 +139,30 @@ export function jobPlace(r: Pick<Row, "jobs" | "live">): { place: number; of: nu
 
 // ---------- a machine's history ----------
 
-export interface VersionGroup {
-  pack: string;
-  /** The spec version family ("vidi-v2"); "" when the runs don't say. */
-  family: string;
-  /** The pack versions its runs built against, newest first ("vidi-v2.0-pre1"). */
-  packVersions: string[];
-  runs: Row[];
-}
-
-export interface CombinationHistory { stack: string; label: string; groups: VersionGroup[] }
-
-const STATUS_ORDER: Record<RunStatus, number> = { running: 0, queued: 1, finished: 2, failed: 3, stopped: 3, cancelled: 3, unknown: 3 };
+/** A log's order: what is running, then what has ended, latest first, then the queue in its order. A run with no
+ * end time known sorts by its id. */
+const ACTIVITY_ORDER: Record<RunStatus, number> = { running: 0, finished: 1, failed: 1, stopped: 1, cancelled: 1, unknown: 1, queued: 2 };
 const newestFirst = (a: string, b: string) => b.localeCompare(a, undefined, { numeric: true });
 
-/** In progress, the queue in its order, finished, then the rest; each of the last two latest-ended first, then by run id. */
-function byRecency(a: Row, b: Row): number {
-  return STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
+function byLastActivity(a: Row, b: Row): number {
+  return ACTIVITY_ORDER[a.status] - ACTIVITY_ORDER[b.status]
     || (a.live?.queue?.position ?? 0) - (b.live?.queue?.position ?? 0)
     || (endedAt(b) ?? 0) - (endedAt(a) ?? 0)
     || newestFirst(a.runId, b.runId);
 }
 
-/** Every run on a machine, by combination, then by pack and version family: runs of different spec versions built
- * different specs, so they never share a group. Combinations with work in hand come first, then the most recent. */
-export function machineHistory(runs: Row[]): CombinationHistory[] {
-  const byStack = new Map<string, Row[]>();
-  for (const r of runs) byStack.set(r.stack, [...(byStack.get(r.stack) ?? []), r]);
-  const combos = [...byStack.entries()].map(([stack, rs]): CombinationHistory => {
-    const byVersion = new Map<string, Row[]>();
-    for (const r of rs) {
-      const k = `${r.pack}\u0000${r.family}`;
-      byVersion.set(k, [...(byVersion.get(k) ?? []), r]);
-    }
-    const groups = [...byVersion.values()].map((vr): VersionGroup => ({
-      pack: vr[0].pack, family: vr[0].family,
-      packVersions: [...new Set(vr.map((r) => r.packVersion).filter(Boolean))].toSorted(newestFirst),
-      runs: vr.toSorted(byRecency),
-    })).toSorted((a, b) => a.pack.localeCompare(b.pack) || newestFirst(a.family, b.family));
-    return { stack, label: rs[0].label, groups };
-  });
-  const lead = (c: CombinationHistory) => c.groups.flatMap((g) => g.runs).toSorted(byRecency)[0];
-  return combos.toSorted((a, b) => byRecency(lead(a), lead(b)) || a.label.localeCompare(b.label));
+/** Every run on a machine as a log: one list, newest activity first (`byLastActivity`). The combination and the
+ * version are the row's business, not a grouping's. */
+export function machineHistory(runs: Row[]): Row[] {
+  return runs.toSorted(byLastActivity);
+}
+
+/** The version family a suite version string names ("vidi-v2.0-pre1" → "vidi-v2"); "" when it names none. */
+export const familyOf = (suiteVersion: string | undefined): string => /^(.*?-v\d+)/.exec(suiteVersion ?? "")?.[1] ?? "";
+
+/** A run of an earlier version of its pack's suite than the current one: its score will not come. Unknown when the
+ * current version is not known. */
+export function earlierVersion(run: Pick<Row, "pack" | "family">, suites: Record<string, string>): boolean {
+  const current = familyOf(suites[run.pack]);
+  return current !== "" && run.family !== "" && run.family !== current;
 }

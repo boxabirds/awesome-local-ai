@@ -6,7 +6,7 @@ import { GLOSSARY } from "../shared/glossary.ts";
 // The machine page (plan 4.6), section by section: the header (reachable, unreachable, not a node), Now (the
 // running job and its live activity, the queue in its order, jobs ended in the last day, idle, waiting), the
 // operations against the fixture server's fake dbench (Stop with confirmation, Remove, Restart, Queue a run,
-// Remove machine), History (grouped by combination, then pack and version), every
+// Remove machine), History (one table, every run newest first), every
 // link landing on its entity, keyboard, and 1000 px. Then the machines list, which replaces the Machines tab.
 // States the fixture lacks are made by changing what /api/state or /api/machines returns, for that test only.
 
@@ -277,7 +277,7 @@ test.describe("operations, against the fake dbench", () => {
     await form.getByRole("button", { name: "Queue" }).click();
     await expect(form).toContainText("node-a: job vidi-qwen38-27b-v3-r1 queued");
     await expect(nowSec(page).locator('.mp-queue [data-job="vidi-qwen38-27b-v3-r1"]')).toBeVisible();
-    await expect(history(page).locator(`[data-stack="${QWEN_27B}"] tr[data-run="v3-r1"]`)).toContainText("queued");
+    await expect(history(page).locator(`tr[data-stack="${QWEN_27B}"][data-run="v3-r1"]`)).toContainText("queued");
   });
 
   test("Queue a run: a run id the fake refuses shows why; Queue waits for a run id", async ({ page }) => {
@@ -306,22 +306,41 @@ test.describe("operations, against the fake dbench", () => {
 
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("history", () => {
-  test("by combination, work in hand first; then by pack and version, v2 and v1 apart and labelled", async ({ page }) => {
+  test("one table of every run, newest first: the running run, then the ended ones by when they ended, then the queue", async ({ page }) => {
     await open(page, "node-a");
-    expect(await ids(page, '[data-section="history"] .history-combo', "data-stack")).toEqual([SWIFT, QWEN_27B]);
-    const swift = history(page).locator(`.history-combo[data-stack="${SWIFT}"]`);
-    await expect(swift.locator("h3 a.combination-link")).toHaveAttribute("href", `#/vidi/c/${enc(SWIFT)}`);
-    expect(await swift.locator("tbody").evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.group))).toEqual(["vidi|vidi-v2", "vidi|vidi-v1"]);
-    await expect(swift.locator(".version-label")).toHaveText(["vidi · vidi-v2", "vidi · vidi-v1"]);
-    await expect(swift.locator('tbody[data-group="vidi|vidi-v2"] .group-head')).toContainText("vidi-v2.0-pre1, vidi-v2.0-pre0 · 8 runs");
-    expect(await swift.locator('tbody[data-group="vidi|vidi-v2"] tr[data-run]').evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run)))
-      .toEqual(["v2-r1", "v2-r2", "v2-r3", "v2-r9", "v2-r5", "v2-r6", "v2-r4", "v2-r7"]);   // v2-r9 (a partial rerun) is finished most recently
-    expect(await swift.locator('tbody[data-group="vidi|vidi-v1"] tr[data-run]').evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run))).toEqual(["canvas-s-01"]);
+    await expect(history(page).locator("table.history")).toHaveCount(1);
+    await expect(history(page).locator("h3, .history-combo, .group-head, .run-group-head, .version-label")).toHaveCount(0);
+    const rows = history(page).locator("tbody tr[data-run]");
+    const got = await rows.evaluateAll((trs) => trs.map((tr) => [(tr as HTMLElement).dataset.stack, (tr as HTMLElement).dataset.run, (tr as HTMLElement).dataset.status]));
+    expect(got.length).toBe(11);
+    expect(got[0]).toEqual([SWIFT, "v2-r1", "running"]);
+    const statuses = got.map((r) => r[2]);
+    expect(statuses.slice(-3)).toEqual(["queued", "queued", "queued"]);     // the queue, last, in its order
+    expect(statuses.slice(1, -3).every((s) => s !== "running" && s !== "queued")).toBe(true);
+    const ended = got.slice(1, -3).map((r) => `${r[0]}|${r[1]}`);
+    const at = (run: string, stack = SWIFT) => ended.indexOf(`${stack}|${run}`);
+    expect(at("v2-r9")).toBeLessThan(at("v2-r5"));            // v2-r9 (a partial rerun) ended most recently
+    expect(at("v2-r5")).toBeLessThan(at("v2-r6"));
+    expect(at("v2-r6")).toBeLessThan(at("v2-r4"));
+    expect(at("v2-r4")).toBeLessThan(at("v2-r7"));
+    expect(at("v2-r7")).toBeLessThan(at("canvas-s-01"));
+    expect(at("v2-r2", QWEN_27B)).toBeGreaterThanOrEqual(0);  // the cancelled run is in the table, not folded away
+  });
+
+  test("each row says its combination and its version; the version's hover is the pack version it built against", async ({ page }) => {
+    await open(page, "node-a");
+    const r7 = history(page).locator('tr[data-run="v2-r7"]');
+    await expect(r7.locator(".h-combination a.combination-link")).toHaveAttribute("href", `#/vidi/c/${enc(SWIFT)}`);
+    await expect(r7.locator(".h-combination a.combination-link")).toHaveText("3.8-swift-1.5/27b llamacpp");
+    await expect(r7.locator(".h-version")).toHaveText("vidi-v2");
+    await expect(r7.locator(".h-version [data-tip]")).toHaveAttribute("data-tip", /vidi-v2\.0-pre0/);
+    await expect(history(page).locator('tr[data-run="canvas-s-01"] .h-version')).toHaveText("vidi-v1");
+    await expect(history(page).locator("thead th")).toHaveText(["Combination", "Run", "Version", "Status", "Stories", "Score"]);
   });
 
   test("each run: a link to its page, its status, its stories (live) and its score of record", async ({ page }) => {
     await open(page, "node-a");
-    const swift = history(page).locator(`.history-combo[data-stack="${SWIFT}"]`);
+    const swift = history(page);
     const r5 = swift.locator('tr[data-run="v2-r5"]');
     await expect(r5.locator("a.run-link")).toHaveAttribute("href", runHref(SWIFT, "v2-r5"));
     await expect(r5.locator(".status-badge")).toHaveText("✓ finished · 2026-09-30 15:28 UTC");
@@ -333,23 +352,24 @@ test.describe("history", () => {
     await expect(page.locator('[data-page="run"] h1 .run-id')).toHaveText("v2-r5");
   });
 
-  test("no score of record: pending for a finished run, '—' with only that the run isn't finished for the rest", async ({ page }) => {
+  test("no score of record: pending for a finished run of the current version; '—' for an earlier version, and for a run that isn't finished", async ({ page }) => {
     await open(page, "node-a");
-    const swift = history(page).locator(`.history-combo[data-stack="${SWIFT}"]`);
-    const why = (run: string) => swift.locator(`tr[data-run="${run}"] .h-score .missing`);
+    const swift = history(page);
+    const why = (run: string) => swift.locator(`tr[data-stack="${SWIFT}"][data-run="${run}"] .h-score .missing`);
     await expect(swift.locator('tr[data-run="v2-r7"] .h-score .pending')).toHaveText("pending");
-    await expect(swift.locator('tr[data-run="canvas-s-01"] .h-score .pending')).toHaveText("pending");
+    // A run of an earlier version of the suite will not be scored: not a promise, a dash with the reason on hover.
+    await expect(swift.locator('tr[data-run="canvas-s-01"] .h-score .pending')).toHaveCount(0);
+    await expect(why("canvas-s-01")).toHaveAttribute("data-tip", "Not scored: an earlier version of the suite.");
     await expect(why("v2-r1")).toHaveAttribute("data-tip", "Not scored yet.");
     await expect(why("v2-r2")).toHaveAttribute("data-tip", "Not scored yet.");
-    await history(page).locator(`[data-stack="${QWEN_27B}"]`).getByRole("button", { name: /Did not finish/ }).click();   // folded at first
-    await expect(history(page).locator(`[data-stack="${QWEN_27B}"] tr[data-run="v2-r2"] .h-score .missing`)).toHaveAttribute("data-tip", /was cancelled before it finished/);
+    await expect(history(page).locator(`tr[data-stack="${QWEN_27B}"][data-run="v2-r2"] .h-score .missing`)).toHaveAttribute("data-tip", /was cancelled before it finished/);
     await expect(history(page)).not.toContainText(/re-score|harness|retr/i);
   });
 
   test("a re-score that gave no score: pending, like any other", async ({ page }) => {
     await patchState(page, (s) => { const r = rowOf(s, SWIFT, "v2-r6"); r.scores = {}; r.rescores = ["vidi-v2.0-pre1"]; });
     await open(page, "node-a");
-    await expect(history(page).locator(`[data-stack="${SWIFT}"] tr[data-run="v2-r6"] .h-score .pending`)).toHaveText("pending");
+    await expect(history(page).locator(`tr[data-stack="${SWIFT}"][data-run="v2-r6"] .h-score .pending`)).toHaveText("pending");
   });
 
   test("no runs at all says so", async ({ page }) => {
@@ -360,7 +380,8 @@ test.describe("history", () => {
   test("the history heading and columns explain themselves", async ({ page }) => {
     await open(page, "node-a");
     await expect(history(page).locator("h2 .term")).toHaveAttribute("data-tip", GLOSSARY.history.what);
-    await expect(history(page).locator("thead th .term").first()).toHaveAttribute("data-tip", GLOSSARY.historyRun.what);
+    await expect(history(page).locator("thead th .term").nth(1)).toHaveAttribute("data-tip", GLOSSARY.historyRun.what);
+    await expect(history(page).locator("thead th .term").nth(2)).toHaveAttribute("data-tip", GLOSSARY.packVersion.what);
   });
 });
 

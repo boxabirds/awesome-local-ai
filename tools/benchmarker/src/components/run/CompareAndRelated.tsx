@@ -89,7 +89,7 @@ export function RelatedRuns({ run, others }: { run: Row; others: Row[] }) {
   return (
     <Section term="relatedRuns" id="related" aside={<CombinationLink pack={run.pack} stack={run.stack} label={`all of ${run.label}`} />}>
       {others.length === 0 ? <p className="rp-empty">This is the combination's only run in this pack.</p> : (
-        <RunSectionLists items={others} runOf={(r) => r} className="rp-related" render={(r) => {
+        <RunSectionLists scope="run" items={others} runOf={(r) => r} className="rp-related" render={(r) => {
             const v = statusView(r);
             const rec = scoreOfRecord(r);
             return (
