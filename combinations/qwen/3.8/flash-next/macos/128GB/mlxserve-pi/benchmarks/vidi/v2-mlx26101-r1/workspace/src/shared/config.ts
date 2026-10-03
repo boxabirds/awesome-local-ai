@@ -146,3 +146,25 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 
 /** Version of the Durable Object SQLite table layout (not the Yjs document). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Sharing settings (story 5) ---------------------------------------------
+// How a board is created, how its link reads, and how the client behaves when the
+// service cannot be reached. `BOARD_ID_BYTES` (story 3, 16 bytes = 128 bits) is
+// already the link-code strength behind share.unguessable.
+
+/**
+ * Budget for share.create: clicking **New board** until the empty board is on
+ * screen. The e2e workflow logs the measured click-to-board time against it
+ * rather than asserting it (one shared machine).
+ */
+export const CREATE_BUDGET_MS = 2000;
+
+/** How long the Share panel's button reads "Link copied". */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * First wait between "does this board exist?" attempts when the service cannot be
+ * reached. Each further attempt doubles, capped at RECONNECT_MAX_BACKOFF_MS (the
+ * same ceiling the live connection backs off to).
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

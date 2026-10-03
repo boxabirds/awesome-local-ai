@@ -37,10 +37,16 @@ export async function handleTestHook(
   const boardId = rest.slice(0, slash);
   const action = rest.slice(slash + 1);
 
-  // Forward into the DO; the DO re-checks TEST_HOOKS before acting.
+  // Forward into the DO; the DO re-checks TEST_HOOKS before acting. The body comes
+  // along: the story 5 legacy-seed hook reads the updates to write.
   const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+  const body =
+    request.method === 'GET' || request.method === 'HEAD'
+      ? undefined
+      : await request.arrayBuffer();
   const forwarded = new Request(url.origin + '/__test/' + action, {
     method: request.method,
+    body,
   });
   return stub.fetch(forwarded);
 }

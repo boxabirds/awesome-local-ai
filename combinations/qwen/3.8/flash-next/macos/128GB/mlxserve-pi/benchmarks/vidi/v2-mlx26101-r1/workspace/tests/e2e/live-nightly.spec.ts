@@ -16,7 +16,7 @@ import {
   createParticipants,
   everyoneSynced,
   expectEventually,
-  freshBoardId,
+  createFreshBoard,
   openParticipant,
   randomBoardOps,
   screensMatch,
@@ -69,9 +69,10 @@ function badgeStates(
 test.describe('nightly', () => {
   test('TC-29 a board left idle stays connected and still works @nightly', async ({
     browser,
+    request,
   }) => {
     test.setTimeout(180_000);
-    const boardId = freshBoardId();
+    const boardId = await createFreshBoard(request);
     const people = await createParticipants(browser, boardId, ['alex', 'sam']);
     const [alex, sam] = people as [Participant, Participant];
 
@@ -113,9 +114,10 @@ test.describe('nightly', () => {
 
   test('TC-30 five people at the soft capacity converge @nightly', async ({
     browser,
+    request,
   }) => {
     test.setTimeout(300_000);
-    const boardId = freshBoardId();
+    const boardId = await createFreshBoard(request);
     const people = await createParticipants(browser, boardId, [
       'alex',
       'sam',

@@ -27,6 +27,7 @@ import {
   STICKY_COLORS,
   type StickyColor,
 } from '../../src/shared/config';
+import { createBoardAt } from './helpers/board';
 import { dropPersistDir, newPersistDir, WranglerProc } from './helpers/wrangler-process';
 
 const COLOR_NAMES = Object.keys(STICKY_COLORS) as StickyColor[];
@@ -149,11 +150,12 @@ test('TC-19 overnight return: 25 notes come back identical after a real restart'
   browser,
 }) => {
   const dir = newPersistDir();
-  const boardId = newBoardId();
   let a: WranglerProc | null = null;
   let b: WranglerProc | null = null;
   try {
     a = await new WranglerProc({ ...PHASE_PORTS.overnight[0]!, dir }).start();
+    // Story 5: the link is minted by the service, on the process that will store it.
+    const boardId = await createBoardAt(a.baseURL);
     const alex = await openBoard(browser, a.baseURL, boardId);
     await alex.page.waitForFunction(() => Boolean(window.__vidi6TestBoard));
     await seedNotes(alex.page, 25);
@@ -190,12 +192,13 @@ test('TC-20 leave immediately: a note Sam already saw survives a same-second res
   browser,
 }) => {
   const dir = newPersistDir();
-  const boardId = newBoardId();
   const noteText = 'the very last note before I close the laptop';
   let a: WranglerProc | null = null;
   let b: WranglerProc | null = null;
   try {
     a = await new WranglerProc({ ...PHASE_PORTS.leaveImmediately[0]!, dir }).start();
+    // Story 5: the link is minted by the service, on the process that will store it.
+    const boardId = await createBoardAt(a.baseURL);
     const alex = await openBoard(browser, a.baseURL, boardId);
     await alex.page.waitForFunction(() => Boolean(window.__vidi6TestBoard));
     await alex.page.evaluate((text) => {
@@ -244,12 +247,13 @@ test('TC-21 @nightly big board open: a large board loads from disk after a resta
 }) => {
   test.setTimeout(300_000);
   const dir = newPersistDir();
-  const boardId = newBoardId();
   let seed: WranglerProc | null = null;
   let opener: WranglerProc | null = null;
   try {
     // Seed the big board (a real process, so it is compacted into on-disk state).
     seed = await new WranglerProc({ ...PHASE_PORTS.bigBoard[0]!, dir }).start();
+    // Story 5: the link is minted by the service, on the process that will store it.
+    const boardId = await createBoardAt(seed.baseURL);
     const seeding = await openBoard(browser, seed.baseURL, boardId);
     await seeding.page.waitForFunction(() => Boolean(window.__vidi6TestBoard));
     await seedNotes(seeding.page, PERSIST_TESTED_NOTES);
@@ -321,7 +325,6 @@ test('TC-24 @nightly broken board: honest failure, edit lock, recovery without r
 }) => {
   test.setTimeout(360_000);
   const dir = newPersistDir();
-  const boardId = newBoardId();
   let hooks: WranglerProc | null = null;
   let prod: WranglerProc | null = null;
   try {
@@ -331,6 +334,8 @@ test('TC-24 @nightly broken board: honest failure, edit lock, recovery without r
       dir,
       vars: { TEST_HOOKS: '1' },
     }).start();
+    // Story 5: the link is minted by the service, on the process that will store it.
+    const boardId = await createBoardAt(hooks.baseURL);
     const seed = await openBoard(browser, hooks.baseURL, boardId);
     await seed.page.waitForFunction(() => Boolean(window.__vidi6TestBoard));
     await seedNotes(seed.page, 25);

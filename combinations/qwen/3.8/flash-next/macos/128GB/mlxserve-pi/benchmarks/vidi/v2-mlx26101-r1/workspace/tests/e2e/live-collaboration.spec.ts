@@ -20,7 +20,7 @@ import {
   createParticipants,
   everyoneSynced,
   expectEventually,
-  freshBoardId,
+  createFreshBoard,
   openParticipant,
   screensMatch,
   waitForSameScreen,
@@ -67,8 +67,9 @@ function noteOn(screen: readonly NoteState[], id: string): NoteState | undefined
 test.describe('live collaboration', () => {
   test('TC-22 four people on one board see each other create notes', async ({
     browser,
+    request,
   }) => {
-    const people = await createParticipants(browser, freshBoardId(), [
+    const people = await createParticipants(browser, await createFreshBoard(request), [
       'alex',
       'sam',
       'rita',
@@ -102,8 +103,9 @@ test.describe('live collaboration', () => {
 
   test('TC-23 two people typing into one note at the same time keep every character', async ({
     browser,
+    request,
   }) => {
-    const boardId = freshBoardId();
+    const boardId = await createFreshBoard(request);
     const people = await createParticipants(browser, boardId, ['alex', 'sam']);
     const [alex, sam] = people as [Participant, Participant];
 
@@ -172,8 +174,9 @@ test.describe('live collaboration', () => {
 
   test('TC-24 both people dragging the same note settle on one place', async ({
     browser,
+    request,
   }) => {
-    const people = await createParticipants(browser, freshBoardId(), ['alex', 'sam']);
+    const people = await createParticipants(browser, await createFreshBoard(request), ['alex', 'sam']);
     const [alex, sam] = people as [Participant, Participant];
     const id = await alex.createNote('shared');
 
@@ -193,8 +196,9 @@ test.describe('live collaboration', () => {
 
   test('TC-25 moving, recolouring and typing by one person arrive at the other', async ({
     browser,
+    request,
   }) => {
-    const people = await createParticipants(browser, freshBoardId(), ['alex', 'sam']);
+    const people = await createParticipants(browser, await createFreshBoard(request), ['alex', 'sam']);
     const [alex, sam] = people as [Participant, Participant];
     const id = await alex.createNote('first');
 
@@ -233,8 +237,9 @@ test.describe('live collaboration', () => {
 
   test('TC-26 a note deleted while someone edits it just goes away', async ({
     browser,
+    request,
   }) => {
-    const people = await createParticipants(browser, freshBoardId(), ['alex', 'sam']);
+    const people = await createParticipants(browser, await createFreshBoard(request), ['alex', 'sam']);
     const [alex, sam] = people as [Participant, Participant];
     const id = await alex.createNote('doomed');
     await expectEventually(() => sam.noteText(id), (text) => text === 'doomed');
@@ -268,11 +273,12 @@ test.describe('live collaboration', () => {
 
   test('TC-27 a dropped connection shows Reconnecting, then catches up', async ({
     browser,
+    request,
   }) => {
     // A whole reconnect cycle takes as long as the backoff ceiling plus the time to
     // resync, so this test needs room for that.
     test.setTimeout(RECONNECT_MAX_BACKOFF_MS + 60_000);
-    const boardId = freshBoardId();
+    const boardId = await createFreshBoard(request);
     const alex = await openParticipant(browser, boardId, 'alex');
     const sam = await openParticipant(browser, boardId, 'sam');
     const people = [alex, sam];
@@ -324,6 +330,7 @@ test.describe('live collaboration', () => {
 
   test('TC-28 after the room is gone and rebuilt the board is not lost', async ({
     browser,
+    request,
   }) => {
     test.setTimeout(RECONNECT_MAX_BACKOFF_MS + 60_000);
     // The board lives in the room. What a test can do from outside is put every
@@ -332,7 +339,7 @@ test.describe('live collaboration', () => {
     // typed lost. The room-restart case of the same rule is in
     // tests/integration/board-room.test.ts (TC-18), where the object can actually
     // be evicted.
-    const boardId = freshBoardId();
+    const boardId = await createFreshBoard(request);
     const alex = await openParticipant(browser, boardId, 'alex');
     const sam = await openParticipant(browser, boardId, 'sam');
     await everyoneSynced([alex, sam]);

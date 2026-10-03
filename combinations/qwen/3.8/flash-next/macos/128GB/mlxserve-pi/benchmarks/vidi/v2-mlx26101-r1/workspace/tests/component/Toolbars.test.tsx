@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
-import App from '../../src/client/App';
+import { screen, within } from '@testing-library/react';
 import { screenToWorld } from '../../src/client/canvas/camera';
 import { snapshot } from '../../src/shared/board-model';
 import { STICKY_COLORS, STICKY_SIZE_WORLD } from '../../src/shared/config';
@@ -13,6 +12,7 @@ import {
   noteEl,
   noteSelected,
   readCamera,
+  renderBoard,
 } from './helpers';
 
 function modelColor(id: string): string {
@@ -27,7 +27,7 @@ function hexToRgb(hex: string): string {
 
 describe('sticky.toolbar', () => {
   it('TC-27 choosing the Pink swatch recolours the note and keeps selection', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     clickNote(id);
 
@@ -44,7 +44,7 @@ describe('sticky.toolbar', () => {
   });
 
   it('TC-28 the Sticky note button creates one note centred in the viewport, editing', () => {
-    render(<App />);
+    renderBoard();
     expect(noteCount()).toBe(0);
 
     clickByRole('Sticky note');
@@ -65,7 +65,7 @@ describe('sticky.toolbar', () => {
   });
 
   it('TC-29 the bin button deletes the note and clears the selection', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     clickNote(id);
     expect(noteSelected(id)).toBe(true);

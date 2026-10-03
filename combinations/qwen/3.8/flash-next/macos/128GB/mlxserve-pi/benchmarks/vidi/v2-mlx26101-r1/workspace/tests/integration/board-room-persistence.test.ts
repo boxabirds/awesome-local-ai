@@ -18,7 +18,7 @@ import {
 import type { BoardRoom } from '../../src/worker/board-room';
 import { damagedGarbage } from '../fixtures/boards';
 import { RoomClient } from './helpers/ws-client';
-import { bindings, waitForRoom } from './helpers/room';
+import { bindings, createRoom, waitForRoom } from './helpers/room';
 import { runStore } from './helpers/store';
 
 /** Compare two boards by id, ignoring render order (all fields must match). */
@@ -216,6 +216,10 @@ describe('an unreadable board refuses clients (TC-15)', () => {
 describe('load failures retry on a throttled cadence (TC-16)', () => {
   it('TC-16 refuses before the retry interval and recovers after a repair', async () => {
     const boardId = newBoardId();
+    // The board exists first (story 5): a load failure must be refused with the
+    // load-failure code, which is a different thing from refusing a link that was
+    // never issued. Creating it is also what gives the seeding below its tables.
+    await createRoom(boardId);
     // Seed a corrupt snapshot and remember the good bytes for the repair.
     const { result } = await runStore(({ storage }) => {
       const doc = new Y.Doc();

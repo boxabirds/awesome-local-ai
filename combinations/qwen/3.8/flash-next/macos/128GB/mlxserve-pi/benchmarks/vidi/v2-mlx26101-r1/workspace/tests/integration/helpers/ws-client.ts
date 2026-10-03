@@ -17,6 +17,7 @@ import {
 } from '../../../src/shared/board-model';
 import { newBoardId } from '../../../src/shared/board-id';
 import { MESSAGE_AWARENESS, MESSAGE_SYNC, decodeMessage } from '../../../src/shared/protocol';
+import { createRoom } from './room';
 
 /**
  * What a received frame was, in board terms rather than wire numbers: the two
@@ -114,6 +115,11 @@ export class RoomClient {
 
   /** Open a WebSocket to `boardId`'s room through the real Worker route. */
   static async connect(boardId = newBoardId()): Promise<RoomClient> {
+    // Story 5: only a board that exists may be joined, exactly like the browser.
+    // `createRoom` is the `initialize()` RPC behind POST /api/boards, which is how a
+    // test gets a board at a known id; it is idempotent, so a second person joining
+    // the same board changes nothing.
+    await createRoom(boardId);
     const client = new RoomClient(boardId, await RoomClient.openSocket(boardId));
     // Like the browser provider: as soon as the socket is open, ask the room what
     // it has (the room's own SyncStep1 is answered by the frame handler below).

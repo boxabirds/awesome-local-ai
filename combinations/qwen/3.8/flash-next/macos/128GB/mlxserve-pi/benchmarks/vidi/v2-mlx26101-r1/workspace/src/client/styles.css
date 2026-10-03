@@ -135,3 +135,164 @@ button:disabled {
 .connection-status--load_failed {
   background: #b3261e;
 }
+
+/* --- Sharing (story 5) ----------------------------------------------------- */
+/* Home and "Board not found" are the two screens with no board on them, so they
+   centre their one card and never capture pointer gestures. */
+.home-page,
+.status-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f6f7f9;
+  color: #1b1d23;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.home-card,
+.not-found-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 420px;
+}
+
+.home-title {
+  margin: 0;
+  font-size: 32px;
+  letter-spacing: -0.02em;
+}
+
+.home-tagline,
+.not-found-text,
+.status-screen-text,
+.status-screen-note {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #4b5563;
+}
+
+.not-found-title {
+  margin: 0;
+  font-size: 24px;
+}
+
+.new-board {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.new-board button,
+.share-open,
+.share-copy,
+.share-close {
+  font: inherit;
+  padding: 8px 14px;
+  border: 1px solid #d0d3da;
+  border-radius: 8px;
+  background: #fff;
+  color: #1b1d23;
+  cursor: pointer;
+}
+
+.new-board button {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.new-board-error {
+  margin: 0;
+  font-size: 13px;
+  color: #b3261e;
+}
+
+.status-screen-note {
+  color: #6b7280;
+}
+
+.not-found-home {
+  font-size: 13px;
+  color: #2563eb;
+}
+
+/* The board page is the stories 1-4 board plus the Share button on top of it; the
+   board keeps painting the whole viewport, so this wrapper is only a stacking
+   context and must never intercept pointer events. */
+.board-page {
+  position: fixed;
+  inset: 0;
+}
+
+.board-page > .board-viewport {
+  position: absolute;
+  inset: 0;
+}
+
+/* The Share panel sits in the top-right, away from the tool rail (left) and the
+   connection badge (top centre). */
+.share {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.share-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 320px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e2e4ea;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+
+.share-label,
+.share-note,
+.share-manual {
+  margin: 0;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.share-manual {
+  color: #b26a00;
+}
+
+.share-link {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid #d0d3da;
+  border-radius: 6px;
+  background: #f6f7f9;
+  color: #1b1d23;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.share-copy {
+  align-self: flex-start;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.share-tick {
+  color: #1b7f4b;
+  font-weight: 700;
+}

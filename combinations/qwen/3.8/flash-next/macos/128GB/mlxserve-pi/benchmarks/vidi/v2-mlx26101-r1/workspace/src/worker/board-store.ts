@@ -36,6 +36,19 @@ export const LOAD_ORIGIN: unique symbol = Symbol('vidi6-load');
 
 const META_SCHEMA_VERSION = 'storage_schema_version';
 const META_SNAPSHOT_THROUGH = 'snapshot_through_seq';
+/**
+ * Story 5: when this board's link was issued. Its presence is what makes a board
+ * exist (share.not_found), and `initialize()` writes it exactly once.
+ */
+const META_CREATED_AT = 'created_at';
+
+/** Every table `migrate()` creates; their presence means "this board was set up". */
+const TABLES = [
+  'storage_meta',
+  'updates',
+  'snapshot_chunks',
+  'quarantined_updates',
+] as const;
 
 /** Outcome of loading a stored board into a document. */
 export type LoadResult =
@@ -115,10 +128,83 @@ export class BoardStore {
     this.sql = storage.sql;
   }
 
+  /** True when the named table exists. Reads `sqlite_master`; creates nothing. */
+  private hasTable(name: string): boolean {
+    return (
+      this.sql
+        .exec(
+          'SELECT name FROM sqlite_master WHERE type = ? AND name = ?',
+          'table',
+          name,
+        )
+        .toArray().length > 0
+    );
+  }
+
+  /** True when the whole table layout is present (i.e. `migrate()` has run). */
+  private tablesPresent(): boolean {
+    return TABLES.every((table) => this.hasTable(table));
+  }
+
+  /** One row in `table`? (Table names come from `TABLES`, never from user input.) */
+  private hasAnyRow(table: (typeof TABLES)[number]): boolean {
+    return this.sql.exec(`SELECT 1 FROM ${table} LIMIT 1`).toArray().length > 0;
+  }
+
+  /**
+   * Does this board exist? **Read-only**: it queries `sqlite_master` first, so
+   * probing a made-up link never creates a table (share.not_found, TC-06/TC-09).
+   *
+   * A board exists when its storage carries `created_at` (written by
+   * `initialize()`), or — the legacy case, share.legacy_boards — when it holds any
+   * saved content at all: a board used at this address before links were issued has
+   * update or snapshot rows and no `created_at`, and must still open.
+   */
+  existsReadOnly(): boolean {
+    if (this.hasTable('storage_meta')) {
+      const rows = this.sql
+        .exec('SELECT value FROM storage_meta WHERE key = ?', META_CREATED_AT)
+        .toArray();
+      if (rows.length > 0) return true;
+    }
+    if (this.hasTable('updates') && this.hasAnyRow('updates')) return true;
+    if (this.hasTable('snapshot_chunks') && this.hasAnyRow('snapshot_chunks')) {
+      return true;
+    }
+    return false;
+  }
+
+  /** The stored `created_at` (epoch ms as written), or null when never created. */
+  createdAt(): string | null {
+    if (!this.hasTable('storage_meta')) return null;
+    const rows = this.sql
+      .exec('SELECT value FROM storage_meta WHERE key = ?', META_CREATED_AT)
+      .toArray();
+    return rows.length > 0 ? String(rows[0]!.value) : null;
+  }
+
+  /**
+   * Stamp this board as created. Creates the table layout first, and writes
+   * `created_at` only when absent, so a board is never re-initialised (TC-15):
+   * `'exists'` means somebody already owns this address.
+   */
+  markCreated(): 'created' | 'exists' {
+    this.migrate();
+    if (this.createdAt() !== null) return 'exists';
+    this.sql.exec(
+      'INSERT INTO storage_meta (key, value) VALUES (?, ?)',
+      META_CREATED_AT,
+      String(Date.now()),
+    );
+    return 'created';
+  }
+
   /**
    * Create the tables if absent and record the storage schema version. Writes no
    * update rows: a board that has never been edited stays empty on disk (TC-25,
-   * persist.compat "boards from before this story open empty").
+   * persist.compat "boards from before this story open empty"). Story 5: this runs
+   * from `initialize()` (and lazily before the first `append`), never from `load`,
+   * so a request that only asks whether a board exists leaves no storage behind.
    */
   migrate(): void {
     this.sql.exec(
@@ -158,6 +244,10 @@ export class BoardStore {
     // buffer that lib0 may reuse for a later update, so we must not let the row
     // alias it. The length is the copy's length (identical to the input's).
     const bytes = update.slice();
+    // Lazily create the tables: a board that was created before this story has
+    // them already, and a board created by `initialize()` has them too, so this is
+    // a guard — but it is what lets `load()` refuse to create anything (TC-06).
+    if (!this.tablesPresent()) this.migrate();
     this.sql.exec(
       'INSERT INTO updates (data, bytes) VALUES (?, ?)',
       bytes,
@@ -181,6 +271,11 @@ export class BoardStore {
     this.count = 0;
     this.bytes = 0;
     try {
+      // A board whose tables were never created has nothing stored: that is an
+      // empty board, not a load failure, and reading it must not create tables
+      // (share.not_found asks only "does this exist?").
+      if (!this.tablesPresent()) return { ok: true, quarantined: 0 };
+
       // 1. The snapshot, if any, reconstructed from its ordered chunks.
       const chunkRows = this.sql
         .exec('SELECT data FROM snapshot_chunks ORDER BY idx')

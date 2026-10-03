@@ -60,7 +60,14 @@ export default defineConfig({
     // `wrangler dev` processes sharing the default `.wrangler/state` make workerd
     // die with `SQLITE_BUSY` on the second one's reload, which looks like a
     // mysterious "runtime failed to start" and has nothing to do with the code.
-    command: `npx wrangler dev --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT} --persist-to node_modules/.tmp/wrangler-state-${PORT} --local`,
+    //
+    // `--var TEST_HOOKS:1` is what makes the `/__test/boards/*` routes exist on this
+    // server (they are absent from a deploy; see TC-24). Story 5 needs one of them for
+    // the thing no browser can do from the outside: put a board on disk in the shape
+    // story 4 left behind, so TC-31 can prove a pre-sharing board still opens at its
+    // link. Story 4's own surgery hooks are reached on the restart processes, which set
+    // the same var when they spawn wrangler.
+    command: `npx wrangler dev --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT} --persist-to node_modules/.tmp/wrangler-state-${PORT} --local --var TEST_HOOKS:1`,
     url: baseURL,
     // Reuse a `wrangler dev` that is already listening (this sandbox cannot kill
     // processes, so each run would otherwise need two fresh ports). A server that

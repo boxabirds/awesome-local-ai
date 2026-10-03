@@ -10,12 +10,12 @@
  */
 import {
   expect,
+  type APIRequestContext,
   type Browser,
   type BrowserContext,
   type Page,
   type WebSocketRoute,
 } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
 import {
   CLOSE_SERVER_ERROR,
   E2E_EVENTUAL_TIMEOUT_MS,
@@ -23,6 +23,7 @@ import {
   type StickyColor,
 } from '../../../src/shared/config';
 import type { ConnectionState } from '../../../src/client/sync/connectBoard';
+import { createBoard } from './board';
 import {
   createByToolbar,
   dragNote,
@@ -169,9 +170,13 @@ export async function everyoneSeesNotes(
   );
 }
 
-/** A board address nobody else is using. */
-export function freshBoardId(): string {
-  return newBoardId();
+/**
+ * A board that exists, for the tests that put several people on one board: asks the
+ * service for a link, which is the same thing the New board button does. Story 5 retired
+ * the version of this that invented an address and hoped a board was waiting there.
+ */
+export async function createFreshBoard(request: APIRequestContext): Promise<string> {
+  return createBoard(request);
 }
 
 /**

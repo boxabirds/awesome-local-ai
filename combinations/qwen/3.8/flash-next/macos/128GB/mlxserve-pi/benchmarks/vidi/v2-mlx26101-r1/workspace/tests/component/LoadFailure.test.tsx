@@ -8,7 +8,6 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import App from '../../src/client/App';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import {
   canEdit,
@@ -28,6 +27,7 @@ import {
   noteCount,
   noteEl,
   pointer,
+  renderBoard,
   surface,
   windowKey,
 } from './helpers';
@@ -82,7 +82,7 @@ describe('persist.client_status', () => {
   });
 
   it('TC-23 locks every board mutation while the board could not be loaded', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     // Take the connection through a normal sync, then a load failure.
     act(() => provider().emitSync(true));
@@ -121,7 +121,7 @@ describe('persist.client_status', () => {
   });
 
   it('TC-28 maps close codes: 4500 locks, 1011 / 1003 stay reconnecting and editable', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(200, 200);
     act(() => provider().emitSync(true));
     const create = () =>

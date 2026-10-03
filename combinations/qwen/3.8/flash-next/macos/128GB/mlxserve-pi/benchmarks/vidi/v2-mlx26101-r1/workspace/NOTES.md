@@ -273,3 +273,93 @@ so the default run is Chromium and Firefox/WebKit are opted in elsewhere
   1000 writes in ~200 ms) and asserts the screens converge (observed ~1.1 s), that a
   6th person is not turned away and catches up, and that one more change still
   arrives quickly afterwards.
+
+---
+
+# Notes — story 5 (Share a board with others using a link)
+
+## `App.tsx` became a router shell (deviation from the design's file list)
+The design's `src/client/pages/*` layout assumes the board is a page that can be
+mounted behind a link check. Story 4 left the whole board inside `App.tsx`, so
+`App.tsx` is now only `useRoute()` → `HomePage` / `BoardPage` / `NotFoundPage`, and the
+board itself moved, unchanged, to `src/client/board/Board.tsx` (one extra file, not in
+the design's list). Nothing in the board's behaviour moved with it: `Board` still owns
+`useBoardDoc` → `connectBoard`, the viewport, the tool rail and the load-failure badge.
+`SharePanel` is mounted by `BoardPage` beside `Board`, so the Share control exists only
+where a board actually exists — a not-found page has no Share button to click.
+
+## `initialize()` answers `created | exists | failed` (deviation, and why)
+The contract in the design is `created | exists`, with a storage failure thrown. In this
+repo the integration tests run inside workerd under `@cloudflare/vitest-pool-workers`,
+whose RPC plumbing (`getRPCPropertyCallableThenable`) turns a *throwing* RPC method into
+an unhandled rejection that fails the test file even when the caller catches the value.
+So `createBoard()` catches and maps the failure to `'failed'`, and the Worker answers
+`500 {error:"create_failed"}` — the same thing the design asks the client to see, one
+return-value earlier. TC-12 still exercises the real failure path: it patches
+`BoardStore.prototype.markCreated` to throw, so the throw happens inside the Durable
+Object, inside `initialize()`, on the way to real SQLite.
+
+## Existence must not write, so `migrate()` moved out of `load()`
+`load()` used to create the tables on first touch. A `GET /api/boards/:id` is now a
+question about a board that may not exist, so `load()` reports "empty" when the tables
+are absent instead of making them, and `migrate()` runs from `initialize()` and lazily
+before the first `append()`. TC-06 asserts the negative end of this with
+`SELECT name FROM sqlite_master` on a never-opened link: no tables at all. Related trap:
+`namespace.listDurableObjectIds()` yields opaque ids, never the board-id strings, so
+tests that ask "did that link create anything?" compare against
+`namespace.idFromName(boardId).toString()`.
+
+Legacy boards (story 4 shape: update rows, no `created_at`) exist. `existsReadOnly()`
+answers true on `created_at` **or** any row in `updates` / `snapshot_chunks`, which is
+what makes TC-31's pre-sharing board open instead of being declared missing.
+
+## 404 for a malformed room link (was 400)
+`/api/rooms/:id` with an id that cannot be a board now answers 404 without touching the
+namespace, per the design's HTTP table — "there is no such board" is the honest answer,
+and it is the same answer the browser's link check gives. Story 3's `worker.test.ts`
+TC-04 was updated from 400 to 404 for that reason; nothing about the check was weakened
+(it still asserts the namespace is never consulted).
+
+## Test hooks on the e2e server
+`playwright.config.ts` now passes `--var TEST_HOOKS:1` to the `wrangler dev` it starts,
+so story 4's board-surgery hooks and story 5's `/__test/boards/:id/seed-legacy` exist
+under `npm run test:e2e`. `wrangler.jsonc` still has no such var, so a deploy serves
+`/__test/...` as the SPA and TC-24's "production lacks the hooks" assertion stands. The
+seed hook writes the fixture's Yjs updates through the store's own `append()` and then
+re-reads the document, so the board a browser then opens is disk content, not test
+scaffolding.
+
+## E2E boards are created, not invented
+Every e2e board id now comes from `POST /api/boards` (`createBoard(request)` /
+`createBoardAt(baseURL)`), because a link only works if something was created behind it.
+The restart specs need their ids *after* their own `wrangler dev` processes are listening,
+which is why they build boards in `beforeAll` rather than at module scope.
+`RoomClient.connect()` in the integration helpers does the same before upgrading a
+socket — create, then connect, exactly the order a browser uses; `initialize()` is
+idempotent, so a rerun answers `exists` instead of resetting somebody's board.
+
+## Clipboard: one test takes the yes, one forces the no
+TC-26 grants `clipboard-read` / `clipboard-write` to Chromium and reads the link back
+out of the **real clipboard** with `navigator.clipboard.readText()`, then opens that
+text in a second context — so what is proven is that the bytes handed over are the
+bytes the second person lands on. TC-29 does the opposite: an init script replaces
+`navigator.clipboard` with one whose `writeText` rejects with `NotAllowedError` before
+any page script runs, and asserts the manual message plus a full selection
+(`selectionStart === 0`, `selectionEnd === value.length`, focus in the field). Neither
+test asserts anything about a duration. `writeText` (not `write([ClipboardItem])`) is
+what the design names, and jsdom has no `ClipboardItem` at all.
+
+## Timings (logged, never asserted)
+- click → board ready: **165 ms / 234 ms** (budget `CREATE_BUDGET_MS` = 2000 ms).
+- Sam's edit visible on Maya's screen: under the 15 s functional timeout, in practice
+  a few hundred ms.
+
+## Browser coverage (task 7's cross-browser clause: blocked on this machine)
+Tasks.md asks for TC-27 and TC-29 in Firefox and WebKit as well. They cannot run here:
+`E2E_BROWSERS=firefox` fails at launch (`firefox ... <process did exit: signal=SIGABRT>`),
+and `E2E_BROWSERS=webkit` fails the same way (`pw_run.sh ... exitCode=134`) — the same
+sandbox limitation as stories 1–4, so the default run stays Chromium. Neither test uses
+an engine-only API (`page.route`, `addInitScript`, `selectionStart`, `data-testid`), so
+they are ready to run wherever those browsers start. TC-26 deliberately holds the only
+clipboard-permission grant in the file, so the two engine-independent recovery tests
+never inherit a Chromium-only assumption.

@@ -22,6 +22,15 @@
 //    rather than serving an empty doc; a change that cannot be saved closes every
 //    socket with CLOSE_STORAGE_FAILURE and discards the doc so the next connection
 //    reloads from what is actually on disk.
+//
+// Story 5 makes board existence explicit (share.not_found):
+//  - `initialize()` is the RPC that *creates* a board (table layout plus a one-time
+//    `created_at` stamp); POST /api/boards is the only way to get a link.
+//  - `exists()` is the read-only answer the Worker needs for GET /api/boards/:id.
+//  - `fetch` refuses a WebSocket for a board that was never created with 404, so
+//    probing an unknown link neither joins a room nor writes any storage.
+//  - A board that has saved content but no `created_at` (it was used at this
+//    address before links existed) is legacy and still opens (share.legacy_boards).
 
 import { DurableObject } from 'cloudflare:workers';
 import * as decoding from 'lib0/decoding';
@@ -85,10 +94,42 @@ export class BoardRoom extends DurableObject<Env> {
     super(ctx, env);
     this.store = new BoardStore(ctx.storage);
     // The document is reloaded before the object handles any event, so no client
-    // ever sees a board that is only partly back.
+    // ever sees a board that is only partly back. `load()` creates nothing: a board
+    // that was never created simply reads as empty until `initialize()` runs.
     ctx.blockConcurrencyWhile(async () => {
       await this.loadDoc();
     });
+  }
+
+  /**
+   * RPC (share.board_api): create this board — the table layout plus `created_at`,
+   * written once. `'exists'` means the address was already taken, which for a fresh
+   * 128-bit id is not a practical event; `'failed'` means the write could not happen.
+   * Both are answered 500 `create_failed` by the caller rather than silently adopting
+   * somebody else's board. A failure comes back as a value rather than an exception,
+   * because an exception across an RPC boundary loses the reason.
+   */
+  async initialize(): Promise<'created' | 'exists' | 'failed'> {
+    try {
+      const result = this.store.markCreated();
+      // A board that could not be loaded before creation is readable now that it
+      // exists: re-read it, exactly as a wake from hibernation would.
+      if (this.currentState() === 'load-failed') await this.loadDoc();
+      return result;
+    } catch (error) {
+      console.error(
+        JSON.stringify({ event: 'board-initialize-failed', error: String(error) }),
+      );
+      return 'failed';
+    }
+  }
+
+  /**
+   * RPC (share.board_api): does this board exist? Read-only, so answering it leaves
+   * no storage behind (TC-06).
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
   }
 
   /**
@@ -125,7 +166,6 @@ export class BoardRoom extends DurableObject<Env> {
    * `load-failed` and discards the document so it never serves an empty board.
    */
   private async loadDoc(): Promise<void> {
-    this.store.migrate();
     const doc = this.createDoc();
     const result: LoadResult = this.store.load(doc);
     if (result.ok) {
@@ -166,16 +206,24 @@ export class BoardRoom extends DurableObject<Env> {
    */
   async fetch(request: Request): Promise<Response> {
     const path = new URL(request.url).pathname;
-    // Test-only board surgery (corrupt / repair the stored snapshot), used by the
-    // e2e "broken board" story. Gated on an env var that is set only in the e2e
-    // wrangler session, never in production, so this branch is dead in a deploy.
+    // Test-only board surgery (corrupt / repair the stored snapshot, seed a legacy
+    // board), used by the e2e flows. Gated on an env var that is set only in the
+    // e2e wrangler session, never in production, so this branch is dead in a deploy.
     if (this.env.TEST_HOOKS === '1' && path.startsWith('/__test/')) {
-      return this.handleTestRoute(path);
+      return this.handleTestRoute(request, path);
     }
 
     const upgrade = request.headers.get('Upgrade');
     if (upgrade === null || upgrade.trim().toLowerCase() !== 'websocket') {
       return new Response('Upgrade: websocket required', { status: 426 });
+    }
+
+    // Only boards that exist may be joined: a never-created link gets a 404 and no
+    // socket, and nothing is written (share.not_found). A board used at this address
+    // before links were issued has saved content and still counts as existing
+    // (share.legacy_boards).
+    if (!this.store.existsReadOnly()) {
+      return new Response('Board not found', { status: 404 });
     }
 
     if (this.state === 'load-failed') {
@@ -351,7 +399,10 @@ export class BoardRoom extends DurableObject<Env> {
    * the room in the state a real load of that storage would produce, so a waiting
    * client sees exactly what a fresh reopen would.
    */
-  private handleTestRoute(path: string): Response {
+  private async handleTestRoute(
+    request: Request,
+    path: string,
+  ): Promise<Response> {
     if (path === '/__test/corrupt-snapshot') {
       // Ensure there is a snapshot to corrupt (the e2e board is small, below the
       // automatic compaction threshold), exactly as a real compaction would write
@@ -412,6 +463,26 @@ export class BoardRoom extends DurableObject<Env> {
       // when a client reconnects after LOAD_RETRY_MIN_INTERVAL_MS and the room
       // re-reads the now-repaired storage — the honest, no-reload recovery path.
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }
+
+    if (path === '/__test/seed-legacy') {
+      // A board that was used at this address before links were issued: the table
+      // layout plus real Yjs update rows and *no* `created_at`, which is exactly the
+      // shape story 4 left behind. Then re-read the board, so a client connecting
+      // now sees what is on disk (share.legacy_boards, TC-31).
+      const body = (await request.json()) as { updates?: string[] };
+      const updates = body.updates ?? [];
+      this.store.migrate();
+      for (const update of updates) {
+        const binary = atob(update);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        this.store.append(bytes);
+      }
+      await this.loadDoc();
+      return new Response(JSON.stringify({ ok: true, rows: updates.length }), {
+        status: 200,
+      });
     }
 
     return new Response(JSON.stringify({ ok: false, error: 'unknown test route' }), {

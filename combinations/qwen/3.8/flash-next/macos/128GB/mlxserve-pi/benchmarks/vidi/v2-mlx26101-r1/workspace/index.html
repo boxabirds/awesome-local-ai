@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- share.not_found / privacy: a board link is a capability, so it must not leak.
+       This page is opened by address or by typing it, never by following a link from
+       somewhere else, so no board or page address needs to travel in a Referer header
+       to a third party. -->
+  <meta name="referrer" content="no-referrer" />
     <title>vidi6</title>
   </head>
   <body>

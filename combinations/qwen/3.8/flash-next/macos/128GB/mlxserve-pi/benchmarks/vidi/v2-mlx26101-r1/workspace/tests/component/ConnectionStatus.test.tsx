@@ -14,13 +14,13 @@ import {
   type ConnectionState,
 } from '../../src/client/sync/connectBoard';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../src/shared/config';
-import App from '../../src/client/App';
 import {
   lastProvider,
   resetProviderStub,
   type StubStatus,
 } from './y-websocket-stub';
 
+import { renderBoard } from './helpers';
 /**
  * The production wiring, minus the socket: `connectBoard` feeds exactly these two
  * provider events into a tracker, so driving a tracker drives the badge. Each
@@ -180,7 +180,7 @@ describe('connection status badge', () => {
   });
 
   it('connects the board doc to this origin and backs off no further than the setting', () => {
-    render(<App />);
+    renderBoard();
     const provider = lastProvider();
     expect(provider).not.toBeNull();
     const providerObj = provider as unknown as {

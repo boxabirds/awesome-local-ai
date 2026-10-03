@@ -1,10 +1,73 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import type { Camera } from '../../../src/client/canvas/camera';
 
-/** Move to the app and wait for the board surface to be present. */
+/** Where a board link lands the browser: `/b/<boardId>` is that board. */
+export function boardPath(boardId: string): string {
+  return `/b/${boardId}`;
+}
+
+/** Check a created board's link is a link, and return it. */
+async function createdBoardId(body: unknown): Promise<string> {
+  const id = (body as { id?: unknown }).id;
+  expect(
+    typeof id === 'string' && /^[A-Za-z0-9_-]{22}$/.test(id),
+    `the service did not return a board link (got ${JSON.stringify(body)})`,
+  ).toBe(true);
+  return id as string;
+}
+
+/**
+ * Ask the service for a board and return its id — the same call the New board button
+ * makes. Story 5: a link only works once a board exists behind it, so a test that needs
+ * a board makes one rather than inventing an address and hoping.
+ */
+export async function createBoard(request: APIRequestContext): Promise<string> {
+  const response = await request.post('/api/boards');
+  expect(response.status(), 'POST /api/boards should create a board').toBe(201);
+  return createdBoardId(await response.json());
+}
+
+/**
+ * Create a board on an explicit origin: the restart tests run their own `wrangler dev`
+ * processes, so the project's base URL is not theirs.
+ */
+export async function createBoardAt(baseUrl: string): Promise<string> {
+  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/boards`, {
+    method: 'POST',
+  });
+  expect(response.status, 'POST /api/boards should create a board').toBe(201);
+  return createdBoardId(await response.json());
+}
+
+/**
+ * Get to a board the way a person does: open the product, click New board, and wait for
+ * the board the new link points at. Every test that needs a writable board comes through
+ * here, so the create flow is exercised by the whole suite and not only by the tests
+ * about sharing.
+ */
 export async function gotoBoard(page: Page): Promise<void> {
   await page.goto('/');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await page.getByTestId('new-board').click();
+  await page.waitForURL(/\/b\/[A-Za-z0-9_-]{22}$/);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
+}
+
+/** Open a board that already exists, by its link. */
+export async function gotoExistingBoard(page: Page, boardId: string): Promise<void> {
+  await page.goto(boardPath(boardId));
+  await expect(page.getByTestId('board-viewport')).toBeVisible();
+}
+
+/**
+ * Open the same board in a browser that has never seen it (TC-14): the only thing
+ * carried across is the link.
+ */
+export async function restoreBoardInAnotherBrowser(
+  page: Page,
+  boardId: string,
+): Promise<void> {
+  await gotoExistingBoard(page, boardId);
 }
 
 export function zoomLabel(page: Page): Locator {

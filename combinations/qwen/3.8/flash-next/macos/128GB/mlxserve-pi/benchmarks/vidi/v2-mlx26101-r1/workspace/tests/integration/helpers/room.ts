@@ -16,6 +16,34 @@ export async function liveRoomIds(): Promise<string[]> {
 }
 
 /**
+ * One board's Durable Object, addressed by its id. Story 5 gave the object two
+ * Durable Object RPC methods — `initialize()` and `exists()` — which are what
+ * POST /api/boards and GET /api/boards/:boardId call, so a test that needs a known
+ * id creates the board the same way instead of poking at private fields.
+ */
+export function roomStub(
+  boardId: string,
+): ReturnType<DurableObjectNamespace<BoardRoom>['get']> {
+  return bindings.BOARD_ROOM.get(bindings.BOARD_ROOM.idFromName(boardId));
+}
+
+/**
+ * Create a board (the `initialize()` RPC behind POST /api/boards). Since story 5 a
+ * room refuses a WebSocket for a board that was never created, so this is the
+ * prerequisite for connecting — and it is idempotent.
+ */
+export async function createRoom(
+  boardId: string,
+): Promise<'created' | 'exists' | 'failed'> {
+  return roomStub(boardId).initialize();
+}
+
+/** Does this board exist? The `exists()` RPC behind GET /api/boards/:boardId. */
+export async function roomExists(boardId: string): Promise<boolean> {
+  return roomStub(boardId).exists();
+}
+
+/**
  * The document as the room itself holds it, read from inside the Durable Object.
  * A board that never received an update is reported as an empty board.
  */

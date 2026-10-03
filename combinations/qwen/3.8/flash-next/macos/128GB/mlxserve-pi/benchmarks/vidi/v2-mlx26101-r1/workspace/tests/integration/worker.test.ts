@@ -8,33 +8,44 @@ import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { newBoardId } from '../../src/shared/board-id';
 import { createSticky } from '../../src/shared/board-model';
 import { RoomClient } from './helpers/ws-client';
-import { liveRoomIds, roomSnapshot, waitForRoom, waitForRoomNote } from './helpers/room';
+import {
+  createRoom,
+  liveRoomIds,
+  roomSnapshot,
+  waitForRoom,
+  waitForRoomNote,
+} from './helpers/room';
 
 const UPGRADE = { headers: { Upgrade: 'websocket' } };
 
 describe('GET /api/rooms/:boardId routing (TC-04, TC-05)', () => {
-  it('TC-04 rejects malformed board ids with 400 and creates no object', async () => {
+  // Story 5 made a bad link answer the same way an unknown board does: 404, not 400
+  // (share.not_found), so nothing is leaked about which of the two it was.
+  it('TC-04 rejects malformed board ids with 404 and creates no object', async () => {
     for (const bad of ['bad!id', 'a'.repeat(23), 'a'.repeat(21), 'short', 'bad*id', 'a'.repeat(40)]) {
       const before = await liveRoomIds();
       const response = await SELF.fetch(
         `https://example.com/api/rooms/${bad}`,
         UPGRADE,
       );
-      expect([response.status, bad]).toEqual([400, bad]);
+      expect([response.status, bad]).toEqual([404, bad]);
       // No BoardRoom instance was created for a malformed id.
       expect(await liveRoomIds()).toEqual(before);
     }
   });
 
-  it('TC-04 rejects the empty board id with 400 too', async () => {
+  it('TC-04 rejects the empty board id with 404 too', async () => {
     const before = await liveRoomIds();
     const response = await SELF.fetch('https://example.com/api/rooms/', UPGRADE);
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
     expect(await liveRoomIds()).toEqual(before);
   });
 
   it('TC-05 accepts a valid id with an Upgrade header and answers 426 without one', async () => {
     const boardId = newBoardId();
+    // The board has to exist to be joinable (story 5); the object is then already
+    // live, so "no new instance" below is still a real assertion.
+    expect(await createRoom(boardId)).toBe('created');
     const before = await liveRoomIds();
 
     const withoutUpgrade: Array<Record<string, string>> = [

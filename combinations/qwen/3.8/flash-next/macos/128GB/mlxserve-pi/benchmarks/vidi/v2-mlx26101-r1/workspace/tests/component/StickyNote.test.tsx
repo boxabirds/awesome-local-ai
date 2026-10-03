@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
-import App from '../../src/client/App';
+import { act, screen, within } from '@testing-library/react';
 import { deleteObject, snapshot } from '../../src/shared/board-model';
 import { DRAG_THRESHOLD_PX } from '../../src/shared/config';
 import {
@@ -13,6 +12,7 @@ import {
   noteSelected,
   pointer,
   readCamera,
+  renderBoard,
   surface,
   windowKey,
 } from './helpers';
@@ -24,7 +24,7 @@ function noteLeftTop(id: string): { x: number; y: number } {
 
 describe('sticky.interaction', () => {
   it('TC-18 press + release without moving selects and shows the toolbar', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     expect(noteSelected(id)).toBe(false);
 
@@ -35,7 +35,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-19 moving 2px (below threshold) selects but never moves the note', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     const before = noteLeftTop(id);
 
@@ -50,7 +50,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-20 moving 3px drags the note and never pans the board', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     const camBefore = readCamera();
     const before = noteLeftTop(id);
@@ -65,7 +65,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-21 pointercancel during a drag keeps the last position and stays selected', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
 
     const el = noteEl(id);
@@ -81,7 +81,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-22 clicking empty board space clears the selection and hides the toolbar', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     clickNote(id);
     expect(noteSelected(id)).toBe(true);
@@ -95,7 +95,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-25 Delete removes the selected note', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     clickNote(id);
     windowKey('Delete');
@@ -103,7 +103,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-25b Backspace removes the selected note', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     clickNote(id);
     windowKey('Backspace');
@@ -111,7 +111,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-35 double-clicking an existing note edits it and creates nothing new', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     doubleClick(noteEl(id), 50, 50);
 
@@ -121,14 +121,14 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-36 Enter with nothing selected does nothing', () => {
-    render(<App />);
+    renderBoard();
     windowKey('Enter');
     expect(noteCount()).toBe(0);
     expect(screen.queryByRole('textbox')).toBeNull();
   });
 
   it('TC-37 a note deleted by the model mid-drag ends the drag without error', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     const el = noteEl(id);
     pointer(el, 'pointerdown', 0, 0);
@@ -145,7 +145,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-37b a note deleted by the model mid-edit ends editing without re-creating it', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     doubleClick(noteEl(id), 50, 50);
     expect(within(noteEl(id)).queryByRole('textbox')).toBeTruthy();

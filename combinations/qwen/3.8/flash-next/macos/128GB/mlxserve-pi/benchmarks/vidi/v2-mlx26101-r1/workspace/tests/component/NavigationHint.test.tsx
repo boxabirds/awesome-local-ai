@@ -4,8 +4,8 @@ import {
   HINT_TEXT,
   NavigationHint,
 } from '../../src/client/canvas/NavigationHint';
-import App from '../../src/client/App';
 
+import { renderBoard } from './helpers';
 describe('nav.hint_display', () => {
   it('NavigationHint renders the copy when visible and nothing when not', () => {
     const { rerender } = render(<NavigationHint visible />);
@@ -15,7 +15,7 @@ describe('nav.hint_display', () => {
   });
 
   it('TC-22 hint is visible, hides after the first camera change, stays hidden', () => {
-    render(<App />);
+    renderBoard();
     // Visible on first render.
     expect(screen.getByTestId('navigation-hint')).toBeTruthy();
 

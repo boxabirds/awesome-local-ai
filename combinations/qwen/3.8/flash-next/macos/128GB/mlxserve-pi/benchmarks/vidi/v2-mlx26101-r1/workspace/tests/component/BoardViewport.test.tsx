@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import type { Camera } from '../../src/client/canvas/camera';
 import {
   GRID_SPACING_WORLD,
   WHEEL_ZOOM_SENSITIVITY,
   ZOOM_MAX,
 } from '../../src/shared/config';
-import App from '../../src/client/App';
 
+import { renderBoard } from './helpers';
 function surface(): HTMLElement {
   return screen.getByTestId('board-viewport');
 }
@@ -73,7 +73,7 @@ function key(k: string, ctrl = true): boolean {
 
 describe('viewport.input', () => {
   it('TC-13 drag pans content by exactly the pointer delta (Idle→Panning→Idle)', () => {
-    render(<App />);
+    renderBoard();
     const before = readCamera();
     expect(interaction()).toBe('Idle');
 
@@ -92,7 +92,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-14 pointercancel freezes the camera; later moves are ignored', () => {
-    render(<App />);
+    renderBoard();
     pointer('pointerdown', 50, 50);
     pointer('pointermove', 150, 130);
     const atCancel = readCamera();
@@ -107,7 +107,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-15 plain wheel pans the camera and is preventDefault-ed', () => {
-    render(<App />);
+    renderBoard();
     const before = readCamera();
     const prevented = wheel(10, 10, { deltaY: 100 });
     expect(prevented).toBe(true);
@@ -117,7 +117,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-16 Ctrl + wheel zooms in and is preventDefault-ed', () => {
-    render(<App />);
+    renderBoard();
     const before = readCamera();
     const prevented = wheel(300, 200, { deltaY: -100, ctrlKey: true });
     expect(prevented).toBe(true);
@@ -131,7 +131,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-17 Safari gesturechange doubles zoom and is preventDefault-ed', () => {
-    render(<App />);
+    renderBoard();
     const before = readCamera();
     const ev = new Event('gesturechange', { cancelable: true, bubbles: true });
     Object.defineProperty(ev, 'scale', { value: 2 });
@@ -146,7 +146,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-18 Ctrl + = / - / 0 step and reset, each preventDefault-ed', () => {
-    render(<App />);
+    renderBoard();
     expect(label().textContent).toBe('100%');
 
     expect(key('=')).toBe(true);
@@ -166,7 +166,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-29 click without moving leaves camera and hint unchanged', () => {
-    render(<App />);
+    renderBoard();
     const before = readCamera();
     expect(screen.getByTestId('navigation-hint')).toBeTruthy();
     pointer('pointerdown', 400, 300);
@@ -179,7 +179,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-30 Ctrl + wheel over the zoom control does not zoom the board', () => {
-    render(<App />);
+    renderBoard();
     const before = readCamera();
     const controls = screen.getByTestId('zoom-controls');
     const ev = new WheelEvent('wheel', {
@@ -196,7 +196,7 @@ describe('viewport.input', () => {
   });
 
   it('grid background scales with zoom', () => {
-    render(<App />);
+    renderBoard();
     const zoom = readCamera().zoom;
     expect(surface().style.backgroundSize).toBe(
       `${GRID_SPACING_WORLD * zoom}px ${GRID_SPACING_WORLD * zoom}px`,

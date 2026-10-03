@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
-import App from '../../src/client/App';
+import { screen, within } from '@testing-library/react';
 import { getStickyText } from '../../src/shared/board-model';
 import {
   boardDoc,
@@ -12,6 +11,7 @@ import {
   noteEl,
   noteSelected,
   pointer,
+  renderBoard,
   seedText,
   surface,
   textEl,
@@ -29,7 +29,7 @@ function enterEdit(id: string): void {
 
 describe('sticky.text editor', () => {
   it('TC-23 Enter on a selected note edits it with the caret at the end', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     seedText(id, 'Faster onboarding');
 
@@ -43,7 +43,7 @@ describe('sticky.text editor', () => {
   });
 
   it('TC-24 Escape ends editing and preserves the text', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     seedText(id, 'abc');
     enterEdit(id);
@@ -58,7 +58,7 @@ describe('sticky.text editor', () => {
   });
 
   it('TC-26 Backspace while editing edits text and never deletes the note', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     seedText(id, 'ab');
     enterEdit(id);
@@ -75,7 +75,7 @@ describe('sticky.text editor', () => {
   });
 
   it('TC-38 typing then clicking outside keeps the text and deselects', () => {
-    render(<App />);
+    renderBoard();
     const id = createNote(300, 300);
     enterEdit(id);
     inputInto(textarea(id), 'abc');
