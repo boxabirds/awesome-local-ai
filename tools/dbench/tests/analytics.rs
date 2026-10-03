@@ -4,6 +4,8 @@
 use dbench::analytics::{run_on, store::Store, think_rows, context::CallIn, Selection, ANALYTICS_VERSION};
 use dbench::ingest::db::Db;
 use rusqlite::{params, Connection};
+use serde_json::Value;
+use std::sync::Arc;
 
 const REL: &str = "combinations/x/y/z/os/m/llamacpp-pi/benchmarks/vidi/v2-r1/stories/03";
 const OTHER: &str = "combinations/x/y/z/os/m/llamacpp-pi/benchmarks/vidi/v2-r1/stories/04";
@@ -324,4 +326,58 @@ fn reference_stacks_are_not_analysed_and_any_already_analysed_are_purged() {
         assert_eq!(n, 0, "{t}");
     }
     assert_eq!(s.count("analytics_story").unwrap(), 1);
+}
+
+// ---- the activity API: thinking by activity class, per story run, for the benchmarker's report ----
+
+#[tokio::test]
+async fn the_activity_route_serves_the_theme_shares_per_story_run() {
+    use dbench::analytics::store::Store;
+    use dbench::conversation_api::{router, Shared};
+    let dir = scratch("activity");
+    let wh = dir.join("conversations.db");
+    Db::open(&wh).unwrap();                                   // the warehouse must exist beside it
+    {
+        let s = Store::open(&dir.join("analytics.db")).unwrap();
+        s.conn.execute_batch(
+            "insert into theme values (1, 0, 'Weighing and correcting', 'but, wait, hmm');
+             insert into theme values (1, 1, 'Looking at code', 'reads existing code');
+             insert into analytics_story(rel, run_id, stack, run, story, n_calls, think_chars, think_complete, version)
+               values ('combinations/a/b/c/os/m/gufo-pi/benchmarks/vidi/v2-r1/stories/03', 'r', 'a/b/c/os/m/gufo-pi', 'v2-r1', 3, 10, 900, 1, 1);
+             insert into theme_share values ('combinations/a/b/c/os/m/gufo-pi/benchmarks/vidi/v2-r1/stories/03', 1, 0, 600.0, 4);
+             insert into theme_share values ('combinations/a/b/c/os/m/gufo-pi/benchmarks/vidi/v2-r1/stories/03', 1, 1, 300.0, 2);",
+        ).unwrap();
+    }
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let shared = Arc::new(Shared { db_path: wh });
+    tokio::spawn(async move { axum::serve(listener, router(shared)).await.unwrap() });
+    let v: Value = reqwest::get(format!("http://{addr}/v1/activity")).await.unwrap().json().await.unwrap();
+    assert_eq!(v["version"], 1);
+    assert_eq!(v["themes"].as_array().unwrap().len(), 2);
+    assert_eq!(v["themes"][0]["name"], "Weighing and correcting");
+    let rows = v["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0]["stack"], "a/b/c/os/m/gufo-pi");
+    assert_eq!(rows[0]["story"], 3);
+    assert_eq!(rows[0]["run"], "v2-r1");
+    assert_eq!(rows[0]["theme"], 0);
+    assert_eq!(rows[0]["chars"], 600.0);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
+async fn the_activity_route_is_empty_when_nothing_has_been_assigned() {
+    use dbench::conversation_api::{router, Shared};
+    let dir = scratch("activity-empty");
+    let wh = dir.join("conversations.db");
+    Db::open(&wh).unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let shared = Arc::new(Shared { db_path: wh });
+    tokio::spawn(async move { axum::serve(listener, router(shared)).await.unwrap() });
+    let v: Value = reqwest::get(format!("http://{addr}/v1/activity")).await.unwrap().json().await.unwrap();
+    assert_eq!(v["rows"].as_array().unwrap().len(), 0);
+    assert_eq!(v["themes"].as_array().unwrap().len(), 0);
+    std::fs::remove_dir_all(&dir).unwrap();
 }
