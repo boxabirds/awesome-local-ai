@@ -1,10 +1,107 @@
 # UI/UX Improvements
 
-Three reviews of the benchmarker, newest first. Part 1 is the story-run header as it sits above the
-conversation (3 October 2026, evening). Part 2 is navigation across the site (3 October 2026, evening; built).
-Part 3 is the conversation page (3 October 2026, afternoon; its Critical and most High items are built).
+Four reviews of the benchmarker, newest first. Part 1 is the machine page's History (3 October 2026, evening).
+Part 2 is the story-run header above the conversation (3 October 2026, evening; built). Part 3 is navigation
+across the site (3 October 2026, evening; built). Part 4 is the conversation page (3 October 2026, afternoon;
+its Critical and most High items are built).
 
-## Part 1: the story-run header above the conversation (3 October 2026)
+## Part 1: the machine page's History (3 October 2026)
+
+Reviewed from the owner's screenshot of `#/machines/tritus` (18 runs) and the code (`MachineHistory.tsx`,
+`RunGroupHead.tsx`, `shared/overviewView.ts` `machineHistory`, `shared/runGroups.ts`). The owner's words: "I don't
+understand the history information architecture."
+
+### Summary
+
+A machine's history is a log: what this machine ran, in what order, how each went. The page cuts those 18 runs
+four ways before showing one: by combination (a heading and a table each), then by pack and spec version (a
+grey row inside the table), then by status section (In progress, Queued, Finished, Did not finish, each a
+folding row), then the runs. The column heads sit above the first grey row, two levels away from the rows they
+label. And the sections' folded state is one choice for the whole app, remembered in the browser: the reader
+folded "Finished" on another page some time ago, so here five finished runs and four queued ones are hidden
+behind two closed rows, while the vidi-v1 group, which has only one kind of status and therefore no section
+row, shows all six of its runs open. Seven runs visible of 18, two levels of heading that carry no figures,
+and no visible reason why some groups are open and some are shut. That is what cannot be understood.
+
+The architecture that fits a history is one table, newest first, with the groupings as columns.
+
+### Critical Issues
+
+#### Issue: Four levels of grouping for one machine's runs
+**Current State**: `MachineHistory` renders one `<h3>` and one `<table>` per combination; inside each, a
+`group-head` row per pack and version family (with the suite build strings "vidi-v2.0-pre2+28ace8b,
+vidi-v2.0-pre2"), then the site's status sections as folding rows, then the runs. Within a group runs are in the
+group's order, not the machine's timeline.
+**Problem**: The reader has to hold three kinds of heading in mind to read one row, and the headings carry
+nothing a column could not: the combination is a name, the version is a word, the status is already a cell in
+every row. The column heads are separated from the rows by the group rows. The table never answers the
+question a history exists for: what ran last, and what before that.
+**Recommendation**: One table for the whole machine, newest first by the run's last activity (the running run
+first, then by end time, queued runs last in queue order). Columns: Combination (short label, link), Run (id,
+link, with the intervened mark), Version ("vidi-v2"; the suite build string as its hover), Status (the badge
+with its time, as now), Stories (the strip), Score. No combination headings, no version rows. The "History ·
+18 runs" head stays.
+**Impact**: Eighteen rows under one set of column heads, in the order a log is read. The reader scans one
+column for the combination and one for the version instead of parsing nested headings.
+**Implementation Notes**: `machineHistory` becomes a sort, not a nest; `VersionGroup` and the per-combination
+table go. Keep `data-run`, `data-status` and the `[data-stack]` attribute on the row so `machine-page.spec.ts`'s
+"grouped by combination, then pack and version" tests become "every run, newest first, with its combination
+and version in the row". The combination page and the overview keep their own run lists; this is the machine
+page only.
+
+#### Issue: Sections fold away runs with nothing on the page to say they are hidden or why
+**Current State**: `useFolded` keeps one set of folded section ids for the whole app in `localStorage`
+(`benchmarker:folded-run-groups:v1`); only "Did not finish" is folded at first, but any section the reader folds
+anywhere stays folded everywhere, for ever. A group with a single status kind gets no section row at all
+(`headed = sections.length > 1`), so it is always open.
+**Problem**: On the screenshot "Queued 4" and "Finished 5" are shut and "vidi-v1 · 6 runs" is open, and nothing
+distinguishes a group that was folded from one that never had sections. A reader who did not fold them (or did,
+on the overview, days ago) sees nine of eighteen runs missing with a triangle as the only clue.
+**Recommendation**: On the machine page, no folding at all: a history shows every run. If the site rule (runs
+in one order, in sections that fold) is to hold here, then the sections sit at the top level of the one table,
+"Did not finish" is the only one folded at first, and a folded section's row says what it hides ("Finished · 5
+runs, folded") so a closed row is never a blank one. Either way the fold state should be per page kind, not one
+set for the app: folding "Finished" on the overview should not empty a machine's history.
+**Impact**: Every run is on the page or its absence is named; the reader never wonders where the runs went.
+**Implementation Notes**: the simplest form is to render the rows without `RunSectionRows`. If sections stay,
+`useFolded` takes a page key and `FOLDED_AT_FIRST` applies per key.
+
+### High Priority Improvements
+
+#### Issue: The version row's suite build strings are noise at the top of every group
+**Current State**: "vidi-v2.0-pre2+28ace8b, vidi-v2.0-pre2 · 10 runs" in monospace beside the version label.
+**Recommendation**: With the version as a column, the build string is the cell's hover (it already has the
+`packVersion` term's hover). A run that was built against a different suite build from its neighbours is the
+only case where the string matters, and that belongs on the run's page.
+
+#### Issue: "pending" on every run of a retired version
+**Current State**: Six vidi-v1 runs show Score "pending" in italics, as a finished run without a score does.
+**Problem**: "pending" promises a score that will come. A run of a version whose suite is no longer scored will
+never get one, and the page cannot tell that apart from a run whose score is still being computed; the reader
+reads six promises.
+**Recommendation**: Where the state knows the family is not the pack's current one (`suites[pack]` names the
+current version), show "—" with the hover "Not scored: an earlier version of the suite." Where it does not know,
+keep "pending".
+
+### Medium Priority Enhancements
+
+- **The intervened mark** on four of six rows: keep it, but as the small ✱ alone in the Run cell, with the
+  word on hover; the dashed pill the width of the run id doubles the column.
+- **Status with its time** is the right cell; make the time the row's sort key so the order and the column agree.
+- **The column heads** become sticky under the page's pinned top when the table is longer than the window.
+
+### Low Priority Suggestions
+
+- "History · 18 runs" could say the span: "18 runs · 27 Sep to today".
+
+### Positive Observations
+
+- The row itself is right: run id, status badge with time, the stories strip with its count, the score. Nothing
+  in it needs to change; it is the scaffolding around it that does.
+- The status badge and the stories strip are the same components the overview uses, so the reader meets one
+  vocabulary.
+
+## Part 2: the story-run header above the conversation (3 October 2026)
 
 ### Status (3 October 2026, the same evening)
 
@@ -107,7 +204,7 @@ grow), failed or cancelled (so the story may have been cut short). "finished" ad
 - The glossary hovers on the labels are the right place for "this story's own tests, after it"; the words
   only need to move there.
 
-## Part 2: navigation across the site (3 October 2026)
+## Part 3: navigation across the site (3 October 2026)
 
 ### Status (3 October 2026, the same evening)
 
@@ -302,7 +399,7 @@ hash. `RemoveMachine` goes to `#/machines`.
 - `links.spec.ts` already pins crumbs and tab targets, so each change above has a test to change rather than a
   test to invent.
 
-## Part 3: the conversation page (3 October 2026)
+## Part 4: the conversation page (3 October 2026)
 Review of the benchmarker's conversation page, 3 October 2026, at
 `#/vidi/r/<stack>/v2-gufo05-r1/s/1/conversation` (a story still running: 154 model calls, 170 tool calls, 651 events,
 52 minutes), 1148 px wide. Reviewed as a reader who has just clicked a time bar to see what the agent did.
