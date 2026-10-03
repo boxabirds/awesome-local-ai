@@ -1,6 +1,7 @@
 // Local selection + editing state (never stored in the Y.Doc).
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { StickySnapshot } from '../../shared/board-model';
 
 export interface SelectionApi {
   selectedId: string | null;
@@ -10,7 +11,12 @@ export interface SelectionApi {
   endEdit(next: 'selected' | 'unselected'): void;
 }
 
-export function useSelection(): SelectionApi {
+/**
+ * Local selection. When `objects` is provided, selection/editing state is
+ * cleared automatically if the selected note disappears (e.g. deleted by
+ * someone else over sync).
+ */
+export function useSelection(objects?: readonly StickySnapshot[]): SelectionApi {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -31,6 +37,14 @@ export function useSelection(): SelectionApi {
       setSelectedId(null);
     }
   }, []);
+
+  // Drop selection/edit state for notes that no longer exist.
+  useEffect(() => {
+    if (!objects) return;
+    const ids = new Set(objects.map((o) => o.id));
+    if (selectedId !== null && !ids.has(selectedId)) setSelectedId(null);
+    if (editingId !== null && !ids.has(editingId)) setEditingId(null);
+  }, [objects, selectedId, editingId]);
 
   return { selectedId, editingId, select, startEdit, endEdit };
 }

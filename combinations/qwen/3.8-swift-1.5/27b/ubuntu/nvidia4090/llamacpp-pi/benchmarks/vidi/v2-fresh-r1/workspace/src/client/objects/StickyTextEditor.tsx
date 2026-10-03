@@ -25,6 +25,37 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     el.setSelectionRange(len, len);
   }, [ytext]);
 
+  // Merge remote Y.Text changes into the textarea. Local input is synced to
+  // ytext synchronously in handleInput, so a value mismatch here means a
+  // remote edit arrived while this editor was open (simultaneous editing).
+  // Without this, each editor would diff against a stale ytext and overwrite
+  // the other's characters.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = () => {
+      const next = ytext.toString();
+      if (el.value === next) return;
+      const prev = el.value;
+      const caret = el.selectionStart ?? prev.length;
+      // Locate the first divergence to re-anchor the caret: inserts before
+      // the caret shift it right; everything else keeps it clamped.
+      let prefix = 0;
+      while (prefix < Math.min(prev.length, next.length) && prev[prefix] === next[prefix]) {
+        prefix++;
+      }
+      const delta = next.length - prev.length;
+      const newCaret = Math.max(
+        prefix,
+        Math.min(next.length, caret + (caret > prefix ? delta : 0)),
+      );
+      el.value = next;
+      el.setSelectionRange(newCaret, newCaret);
+    };
+    ytext.observe(observer);
+    return () => ytext.unobserve(observer);
+  }, [ytext]);
+
   // Outside pointerdown → end editing (unselected)
   useEffect(() => {
     const handler = (e: PointerEvent) => {

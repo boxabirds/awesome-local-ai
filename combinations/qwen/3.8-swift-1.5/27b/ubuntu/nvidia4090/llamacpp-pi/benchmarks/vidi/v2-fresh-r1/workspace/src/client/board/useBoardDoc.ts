@@ -1,11 +1,18 @@
 // React hook that owns the Y.Doc and exposes an immutable snapshot
-// via useSyncExternalStore. Story 3 will attach a network provider here.
+// via useSyncExternalStore. Story 3 attaches the network provider here:
+// when a `boardId` is given the doc is connected to the board room and
+// the UI connection state is reported.
 
-import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
-export function useBoardDoc(): { doc: Y.Doc; objects: readonly StickySnapshot[] } {
+export function useBoardDoc(boardId?: string): {
+  doc: Y.Doc;
+  objects: readonly StickySnapshot[];
+  connectionState: ConnectionState;
+} {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     const doc = new Y.Doc();
@@ -13,6 +20,18 @@ export function useBoardDoc(): { doc: Y.Doc; objects: readonly StickySnapshot[] 
     docRef.current = doc;
   }
   const doc = docRef.current;
+
+  const [connectionState, setConnectionState] = useState<ConnectionState>(
+    boardId ? 'connecting' : 'connected',
+  );
+
+  // Attach (and re-attach on board change) the network provider.
+  useEffect(() => {
+    if (!boardId) return;
+    setConnectionState('connecting');
+    const handle = connectBoard(doc, boardId, setConnectionState);
+    return () => handle.destroy();
+  }, [doc, boardId]);
 
   // Cache the snapshot so getSnapshot returns a stable reference
   // when the doc hasn't changed (prevents infinite re-render loops).
@@ -46,5 +65,5 @@ export function useBoardDoc(): { doc: Y.Doc; objects: readonly StickySnapshot[] 
 
   const objects = useSyncExternalStore(subscribe, getSnapshot);
 
-  return { doc, objects };
+  return { doc, objects, connectionState };
 }

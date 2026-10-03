@@ -116,3 +116,82 @@ Decisions and environment facts worth remembering for later stories.
 ## Environment
 
 - Same as story 1 (ports, browsers, build mode).
+
+---
+
+# Story 3 — Notes
+
+## Environment
+
+- **`@cloudflare/vitest-pool-workers@0.12.21`**: 0.22.0 requires vitest 4;
+  0.12.x supports vitest 3.2.x. The integration project uses
+  `defineWorkersProject` with `isolatedStorage: false` (BoardRoom docs are
+  memory-only; every test uses a unique board id, so no storage isolation is
+  needed).
+- **Playwright projects**: regular `test:e2e` runs `chromium` + `firefox`
+  (`testIgnore: /nightly/`); `test:e2e:nightly` runs `chromium-nightly` +
+  `firefox-nightly` (`testMatch: /nightly/`).
+- **Long e2e tests** set their own timeout via `test.setTimeout(ms)` *inside*
+  the test body — Playwright 1.63 does not accept `timeout` in test options.
+
+## Worker / y-websocket gotchas
+
+- **Workerd WebSocket**: no `onmessage`/`onclose`/`onerror` properties — use
+  `addEventListener`. `server.accept()` returns `void` (the accepted socket is
+  `server` itself).
+- **`toUint8Array` is a free function** from `lib0/encoding`, not a method on
+  the encoder.
+- **`readSyncMessage` decoder position**: the caller must consume the
+  top-level `MESSAGE_SYNC` byte (`readVarUint(decoder)`) *before* calling
+  `readSyncMessage` — it expects the decoder positioned at the sync-type byte.
+- **y-websocket event payloads are single-element arrays**: `status` emits
+  `[{ status }]` and `sync` emits `[synced]` — handlers must normalise.
+- **`provider.disconnect()`** force-closes the socket locally (works while the
+  context is offline, where `ws.close()` would hang in CLOSING) **and sets
+  `shouldConnect = false`** — it stops the automatic reconnect loop, so outage
+  tests must call `provider.connect()` (the `__vidi6.reconnect()` hook) to
+  resume.
+- **Playwright `context.setOffline(true)` does not kill established
+  WebSockets** — outage tests combine it with the test-only `__vidi6
+  .disconnect()` hook.
+- **TC-18 restart simulation**: `runInDurableObject(stub, (instance) => {
+  instance.doc = null; instance.sockets.clear(); })` — vitest-pool-workers
+  stubs have no `delete()` API.
+- **TC-16 awareness framing**: wire format is
+  `[MESSAGE_AWARENESS(1), varbytes(payload)]` where varbytes =
+  `[length, ...data]`; the room relays the whole frame verbatim.
+
+## Client sync design
+
+- **`createConnectionMapper`**: pure state machine extracted from
+  `connectBoard` for testability. Tracks `wsConnected`, `synced`,
+  `everConnected`, `isReconnecting`; states map
+  `connecting → connected → reconnecting → confirmed → connected` with a
+  `CONNECTED_CONFIRMATION_MS` (2 s) confirmation window after reconnects.
+- **Editor remote merge** (`StickyTextEditor`): local input is diffed into
+  Y.Text synchronously (`applyTextDiff`), and a `ytext.observe` handler merges
+  *remote* changes back into the textarea (caret re-anchored at the first
+  divergence). Without this, two simultaneous editors each diff against a
+  stale Y.Text and overwrite each other's characters — the last writer wins
+  instead of merging.
+- **`createSticky` stores top-left world coords** (`x - STICKY_SIZE_WORLD/2`)
+  while the spec's (x, y) is the centre — assertions on snapshot positions
+  must account for the 100 px offset.
+
+## E2E test techniques
+
+- **Stale-reference pitfall**: never capture one page's snapshot and compare
+  other pages against that fixed value — a transiently stale reference pins
+  the comparison and the poll times out even though the pages converged with
+  each other. Re-read *all* pages inside the poll and compare pairwise.
+- **`setOffline` + `disconnect` ordering**: go offline first, then disconnect —
+  the reverse lets the provider's 200 ms backoff attempt reconnect before the
+  offline emulation kicks in.
+- **Soak test (TC-30)**: unbounded note creation floods the DOM and wedges
+  the run; the test keeps a bounded per-participant pool (2 notes) with
+  tracked home slots, seeded per-participant PRNG (mulberry32), mixed ops
+  (create/move/type/recolour/delete), a 15 s outer timeout on every op, and
+  slot bookkeeping resynced from real note texts on failure (ghost entries
+  after merged creates would otherwise block all further creates).
+- **`waitFor()` in `createNoteWithText`** is bounded (5 s) — an unbounded wait
+  on an empty page is how a soak loop can hang past the test timeout.

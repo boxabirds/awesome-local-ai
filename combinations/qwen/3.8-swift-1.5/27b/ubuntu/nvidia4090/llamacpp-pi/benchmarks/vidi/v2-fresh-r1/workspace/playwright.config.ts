@@ -8,6 +8,8 @@ const PORT = 24368;
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
+  // Long tests (outage catch-up, capacity soak) set their own timeouts via
+  // test.setTimeout(); the default stays at 30s for the fast e2e suite.
   reporter: [['list']],
   timeout: 30_000,
   use: {
@@ -16,8 +18,27 @@ export default defineConfig({
     trace: 'off',
   },
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
-    { name: 'firefox', use: { browserName: 'firefox' } },
+    {
+      name: 'chromium',
+      testIgnore: /nightly/,
+      use: { browserName: 'chromium' },
+    },
+    {
+      name: 'firefox',
+      testIgnore: /nightly/,
+      use: { browserName: 'firefox' },
+    },
+    // Nightly: long-running soak + idle keep-alive checks (tests/e2e/nightly).
+    {
+      name: 'chromium-nightly',
+      testMatch: /nightly\/.*\.spec\.ts/,
+      use: { browserName: 'chromium' },
+    },
+    {
+      name: 'firefox-nightly',
+      testMatch: /nightly\/.*\.spec\.ts/,
+      use: { browserName: 'firefox' },
+    },
     // WebKit is not available on this host (missing system library libavif13,
     // no root access to install it); see NOTES.md.
   ],

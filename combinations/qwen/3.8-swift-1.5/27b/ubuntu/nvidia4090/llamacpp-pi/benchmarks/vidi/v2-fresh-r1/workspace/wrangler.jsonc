@@ -1,11 +1,19 @@
 {
   // Worker config. `assets.directory` points at the Vite build output so
-  // `wrangler dev` serves the client as static assets from day one.
-  // The Worker entry point (`main`) arrives in story 3.
+  // `wrangler dev` serves the client as static assets. The Worker entry
+  // (story 3) routes `/api/rooms/:boardId` to the BoardRoom Durable Object
+  // and everything else to the ASSETS fetcher (SPA fallback).
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
   "compatibility_date": "2025-09-01",
+  "main": "src/worker/index.ts",
   "assets": {
-    "directory": "dist/client"
-  }
+    "directory": "dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
 }

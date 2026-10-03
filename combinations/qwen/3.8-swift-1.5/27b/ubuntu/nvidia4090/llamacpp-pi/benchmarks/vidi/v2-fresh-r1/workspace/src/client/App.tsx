@@ -1,7 +1,7 @@
 // Top-level layout: full-window board viewport, toolbars, sticky notes,
 // zoom controls and first-use navigation hint.
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BoardViewport, CameraContext, useCameraContext } from './canvas/BoardViewport';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
 import { NavigationHint } from './canvas/NavigationHint';
@@ -12,7 +12,25 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
+
+/**
+ * Board id from the address (`/b/<boardId>`). A missing or malformed id
+ * means a fresh board: generate one and replace the address so the URL is
+ * always shareable.
+ */
+function useBoardId(): string {
+  const [boardId] = useState(() => {
+    const match = /^\/b\/([^/]+)$/.exec(window.location.pathname);
+    if (match && isValidBoardId(match[1])) return match[1];
+    const id = newBoardId();
+    window.history.replaceState(null, '', `/b/${id}`);
+    return id;
+  });
+  return boardId;
+}
 
 export function App() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -21,13 +39,14 @@ export function App() {
   const { camera, hasNavigated } = cameraApi;
   const setCamera = cameraApi.setCamera;
 
-  const { doc, objects } = useBoardDoc();
-  const selection = useSelection();
+  const boardId = useBoardId();
+  const { doc, objects, connectionState } = useBoardDoc(boardId);
+  const selection = useSelection(objects);
 
   // Test-only `window.__vidi6` hook (test mode only, see testHooks.ts).
   useEffect(() => {
-    installTestHooks(setCamera);
-  }, [setCamera]);
+    installTestHooks(setCamera, () => boardId, () => connectionState);
+  }, [setCamera, boardId, connectionState]);
 
   // Create a sticky note at a screen point (double-click on empty space)
   const handleDblClickEmpty = useCallback(
@@ -100,6 +119,7 @@ export function App() {
           ))}
         </BoardViewport>
         <Toolbar onCreateSticky={handleCreateSticky} />
+        <ConnectionStatus state={connectionState} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}

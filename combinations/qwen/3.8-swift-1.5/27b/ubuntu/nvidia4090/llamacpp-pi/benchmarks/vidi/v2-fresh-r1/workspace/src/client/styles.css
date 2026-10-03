@@ -140,3 +140,29 @@ body {
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* Connection status badge, top centre (story 3). */
+.connection-status {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+.connection-status--connecting {
+  background: rgb(33 33 33 / 80%);
+  color: #fff;
+}
+.connection-status--reconnecting {
+  background: #ffb300;
+  color: #1a1a1a;
+}
+.connection-status--confirmed {
+  background: #43a047;
+  color: #fff;
+}
