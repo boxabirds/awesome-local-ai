@@ -124,7 +124,7 @@ export function StoryNav({ run, state, storyId }: { run: Row; state: State; stor
           <dt>Story {storyId} in other runs</dt>
           <dd>
             {siblings.length === 0 ? <span className="small">the combination has no other run in this pack</span> : (
-              <RunSectionLists items={siblings} runOf={(r) => r} className="siblings" render={(r) => {
+              <RunSectionLists scope="storyRun" items={siblings} runOf={(r) => r} className="siblings" render={(r) => {
                   const s = storyRunState(r, storyId);
                   return (
                     <li key={r.runId} data-run={r.runId}>

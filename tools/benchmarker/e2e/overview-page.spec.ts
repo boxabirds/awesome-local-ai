@@ -179,7 +179,7 @@ test.describe("a finished run with no score of record: pending, on its own pages
     await page.goto(`#/vidi/c/${enc(SWIFT)}`);
     await expect(page.locator('[data-page="combination"] tr[data-run="v2-r7"] .pending')).toHaveText("pending");
     await page.goto("#/m/node-a");
-    await expect(page.locator(`[data-page="machine"] .history-combo[data-stack="${SWIFT}"] tr[data-run="v2-r7"] .h-score .pending`)).toHaveText("pending");
+    await expect(page.locator(`[data-page="machine"] tr[data-stack="${SWIFT}"][data-run="v2-r7"] .h-score .pending`)).toHaveText("pending");
     await page.goto(`#/vidi/c/${enc(VK)}`);
     await page.locator('[data-page="combination"] tr[data-run="v2-r1"] .pending').hover();
     await expect(tip(page)).toHaveText(GLOSSARY.noScore.what);

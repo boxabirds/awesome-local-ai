@@ -158,7 +158,7 @@ function GroupRows({ g, storyId, scale, cmp, onCompare }: { g: Group; storyId: s
       </tr>
       {g.entries.length ? <SummaryRow g={g} storyId={storyId} /> : null}
       {sections.map((s) => (
-        <RunSectionRows key={s.group.id} group={s.group} count={s.items.length} colSpan={COLS} headed={sections.length > 1}>
+        <RunSectionRows key={s.group.id} scope="story" group={s.group} count={s.items.length} colSpan={COLS} headed={sections.length > 1}>
           {s.items.map((e) => (
             <tr key={e.run.runId} className="sp-entry" data-run={e.run.runId} data-attempt={e.attempt.kind} data-comparison={cmp.kind === "ok" && cmp.entry === e ? "true" : undefined}>
               <RunCell e={e} storyId={storyId} cmp={cmp} onCompare={onCompare} />

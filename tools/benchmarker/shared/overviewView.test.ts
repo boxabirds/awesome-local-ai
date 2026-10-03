@@ -237,62 +237,55 @@ describe("when a machine's job ended", () => {
 describe("a machine's history", () => {
   const r = (stack: string, pack: string, family: string, packVersion: string, runId: string, over: Partial<Row> = {}) =>
     row({ stack, label: stack.toUpperCase(), pack, family, packVersion, runId, ...over });
+  const ids = (runs: Row[]) => machineHistory(runs).map((x) => `${x.stack}/${x.runId}`);
 
-  it("groups by combination, then by pack and version family: v1 and v2 apart, newest first", () => {
-    const h = machineHistory([
-      r("a", "vidi", "vidi-v1", "vidi-v1.1", "canvas-01", { stateAt: "2026-09-01T00:00:00Z" }),
-      r("a", "vidi", "vidi-v2", "vidi-v2.0-pre1", "v2-r1", { stateAt: "2026-09-02T00:00:00Z" }),
-      r("a", "vidi", "vidi-v2", "vidi-v2.0-pre0", "v2-r0", { stateAt: "2026-08-02T00:00:00Z" }),
-    ]);
-    expect(h).toHaveLength(1);
-    expect(h[0].groups.map((g) => [g.pack, g.family, g.packVersions, g.runs.map((x) => x.runId)])).toEqual([
-      ["vidi", "vidi-v2", ["vidi-v2.0-pre1", "vidi-v2.0-pre0"], ["v2-r1", "v2-r0"]],
-      ["vidi", "vidi-v1", ["vidi-v1.1"], ["canvas-01"]],
-    ]);
-  });
-  it("one combination in two packs: a group per pack, packs by name", () => {
-    const h = machineHistory([r("a", "vidi", "vidi-v2", SUITE, "x"), r("a", "todoodle", "todoodle-v1", "todoodle-v1.0", "y")]);
-    expect(h[0].groups.map((g) => g.pack)).toEqual(["todoodle", "vidi"]);
-  });
-  it("a group's pack versions leave out the blank one of a run with no record yet", () => {
-    const h = machineHistory([r("a", "vidi", "vidi-v2", "", "q", { status: "queued" }), r("a", "vidi", "vidi-v2", SUITE, "f")]);
-    expect(h[0].groups[0].packVersions).toEqual([SUITE]);
-  });
-  it("within a group: running, the queue in its order, then latest ended first, then run id", () => {
-    const h = machineHistory([
+  it("one list, newest activity first: the running run, then the ended ones latest first, then the queue in its order", () => {
+    expect(ids([
       r("a", "vidi", "vidi-v2", SUITE, "old", { stateAt: "2026-09-01T00:00:00Z" }),
-      r("a", "vidi", "vidi-v2", SUITE, "q2", { status: "queued", live: live({ status: "queued", queue: { position: 3, ahead: [] } }) }),
+      r("b", "vidi", "vidi-v2", SUITE, "q2", { status: "queued", live: live({ status: "queued", queue: { position: 3, ahead: [] } }) }),
       r("a", "vidi", "vidi-v2", SUITE, "new", { stateAt: "2026-09-03T00:00:00Z" }),
       r("a", "vidi", "vidi-v2", SUITE, "q1", { status: "queued", live: live({ status: "queued", queue: { position: 2, ahead: [] } }) }),
-      r("a", "vidi", "vidi-v2", SUITE, "run", { status: "running" }),
-      r("a", "vidi", "vidi-v2", SUITE, "r-9", { stateAt: "" }), r("a", "vidi", "vidi-v2", SUITE, "r-10", { stateAt: "" }),
-    ]);
-    expect(h[0].groups[0].runs.map((x) => x.runId)).toEqual(["run", "q1", "q2", "new", "old", "r-10", "r-9"]);
+      r("b", "vidi", "vidi-v2", SUITE, "run", { status: "running" }),
+    ])).toEqual(["b/run", "a/new", "a/old", "a/q1", "b/q2"]);
   });
-  it("finished runs come before failed, stopped and cancelled ones, however recently those ended", () => {
-    const h = machineHistory([
+  it("combinations and versions are not groupings: runs of different combinations and versions interleave by time", () => {
+    expect(ids([
+      r("a", "vidi", "vidi-v1", "vidi-v1.1", "canvas-01", { stateAt: "2026-09-02T00:00:00Z" }),
+      r("b", "todoodle", "todoodle-v1", "todoodle-v1.0", "t1", { stateAt: "2026-09-03T00:00:00Z" }),
+      r("a", "vidi", "vidi-v2", "vidi-v2.0-pre1", "v2-r1", { stateAt: "2026-09-01T00:00:00Z" }),
+    ])).toEqual(["b/t1", "a/canvas-01", "a/v2-r1"]);
+  });
+  it("a run that did not finish takes its place by when it ended, among the finished ones", () => {
+    expect(ids([
       r("a", "vidi", "vidi-v2", SUITE, "cx", { status: "cancelled", stateAt: "2026-09-09T00:00:00Z" }),
       r("a", "vidi", "vidi-v2", SUITE, "fin", { stateAt: "2026-09-01T00:00:00Z" }),
       r("a", "vidi", "vidi-v2", SUITE, "fail", { status: "failed", stateAt: "2026-09-08T00:00:00Z" }),
-    ]);
-    expect(h[0].groups[0].runs.map((x) => x.runId)).toEqual(["fin", "cx", "fail"]);
+    ])).toEqual(["a/cx", "a/fail", "a/fin"]);
   });
-  it("combinations with work in hand first, then the most recently ended", () => {
-    const h = machineHistory([
-      r("old", "vidi", "vidi-v2", SUITE, "1", { stateAt: "2026-01-01T00:00:00Z" }),
-      r("recent", "vidi", "vidi-v2", SUITE, "1", { stateAt: "2026-09-01T00:00:00Z" }),
-      r("queued", "vidi", "vidi-v2", SUITE, "1", { status: "queued" }),
-      r("busy", "vidi", "vidi-v2", SUITE, "1", { status: "running" }),
-    ]);
-    expect(h.map((c) => c.stack)).toEqual(["busy", "queued", "recent", "old"]);
+  it("runs with no end time known come after those with one, newest id first", () => {
+    expect(ids([
+      r("a", "vidi", "vidi-v2", SUITE, "r-9", { stateAt: "" }), r("a", "vidi", "vidi-v2", SUITE, "r-10", { stateAt: "" }),
+      r("a", "vidi", "vidi-v2", SUITE, "dated", { stateAt: "2026-01-01T00:00:00Z" }),
+    ])).toEqual(["a/dated", "a/r-10", "a/r-9"]);
   });
-  it("carries each combination's label; no runs, no groups", () => {
-    expect(machineHistory([r("a", "vidi", "vidi-v2", SUITE, "1")])[0]).toMatchObject({ stack: "a", label: "A" });
+  it("every run is in the list once; no runs, an empty list", () => {
+    const runs = [r("a", "vidi", "vidi-v2", SUITE, "1"), r("a", "vidi", "vidi-v1", "vidi-v1.1", "2"), r("b", "todoodle", "todoodle-v1", "t", "3"), r("b", "vidi", "vidi-v2", SUITE, "4")];
+    expect(machineHistory(runs).map((x) => x.runId).toSorted()).toEqual(["1", "2", "3", "4"]);
     expect(machineHistory([])).toEqual([]);
   });
-  it("every run lands in exactly one group", () => {
-    const runs = [r("a", "vidi", "vidi-v2", SUITE, "1"), r("a", "vidi", "vidi-v1", "vidi-v1.1", "2"), r("b", "todoodle", "todoodle-v1", "t", "3"), r("b", "vidi", "vidi-v2", SUITE, "4")];
-    const ids = machineHistory(runs).flatMap((c) => c.groups.flatMap((g) => g.runs.map((x) => x.runId)));
-    expect(ids.toSorted()).toEqual(["1", "2", "3", "4"]);
+});
+
+describe("a run of an earlier suite version", () => {
+  it("is one whose family is not the family of the pack's current suite; unknown when either is blank", async () => {
+    const { earlierVersion, familyOf } = await import("./overviewView.ts");
+    expect(familyOf("vidi-v2.0-pre1")).toBe("vidi-v2");
+    expect(familyOf("vidi-v2.0-pre2+28ace8b")).toBe("vidi-v2");
+    expect(familyOf(undefined)).toBe("");
+    expect(familyOf("nonsense")).toBe("");
+    const suites = { vidi: "vidi-v2.0-pre1" };
+    expect(earlierVersion({ pack: "vidi", family: "vidi-v1" }, suites)).toBe(true);
+    expect(earlierVersion({ pack: "vidi", family: "vidi-v2" }, suites)).toBe(false);
+    expect(earlierVersion({ pack: "vidi", family: "" }, suites)).toBe(false);
+    expect(earlierVersion({ pack: "todoodle", family: "todoodle-v1" }, suites)).toBe(false);
   });
 });

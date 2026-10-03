@@ -140,10 +140,14 @@ is still complete. Everything else is hidden under Complete runs: running, queue
 cancelled and unknown runs, finished runs waiting for their score or missing a story's record, and
 partial reruns. One function decides it: `isComplete` in `shared/stats.ts`.
 
-Wherever runs are listed, they are in one order: **In progress**, **Queued**, **Finished**, then **Did not finish**
-(failed, stopped, cancelled). Each is a section under its own heading, with its count, that folds away; the runs that
-did not finish start folded. The choice is one for the whole app and is remembered in the browser. A list with only
-one kind of run has no headings. The order is `runOrder` and `groupRuns` in `shared/runGroups.ts`.
+Wherever runs are compared, they are in one order: **In progress**, **Queued**, **Finished**, then **Did not
+finish** (failed, stopped, cancelled). Each is a section under its own heading, with its count, that folds away;
+the runs that did not finish start folded. The choice is per page kind (the combination pages, the story pages,
+the run pages, the story-run pages) and is remembered in the browser: folding Finished on one combination's page
+folds it on every combination's page and nowhere else. A list with only one kind of run has no headings. The
+order is `runOrder` and `groupRuns` in `shared/runGroups.ts`. A machine's history is a log, not a comparison:
+one table of every run on the machine, newest activity first (the running run, then those that ended, latest
+first, then the queue), with the combination and the spec version as columns and nothing folded.
 
 The switch applies to every page's runs: the Combinations table, a combination's runs, a story's runs,
 what a run or story run is compared with, and a machine's history. When it hides everything a page

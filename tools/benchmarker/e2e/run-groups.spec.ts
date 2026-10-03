@@ -1,7 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// Runs are in one order on every page (in progress, queued, finished, did not finish), in sections that fold away.
-// The runs that did not finish start folded. One choice for the whole app, remembered in the browser.
+// Runs are in one order on every page that compares them (in progress, queued, finished, did not finish), in
+// sections that fold away. The runs that did not finish start folded. The choice is per page kind (the combination
+// pages, the story pages, the run pages), remembered in the browser: folding Finished on one combination's page
+// folds it on every combination's page, and nowhere else. A machine's history is a log and has no sections.
 
 const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
 const QWEN_27B = "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi";
@@ -39,30 +41,35 @@ test("the runs that did not finish start folded", async ({ page }) => {
   expect(await runs(page)).toEqual(["v2-r1", "v2-r2"]);
 });
 
-test("one choice for the whole app: folded here, folded on the machine's history and the story page, and after a reload", async ({ page }) => {
+test("per page kind: folded on one combination's page, folded on another's and after a reload; open on the story page", async ({ page }) => {
   await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
   await heading(page, /^Finished/).click();
-  await page.goto("/#/m/node-a");
-  const history = page.locator('[data-section="history"]');
-  await expect(history.getByRole("button", { name: /^Finished/ }).first()).toHaveAttribute("aria-expanded", "false");
-  await expect(history.locator(`[data-stack="${SWIFT}"] tr[data-run="v2-r5"]`)).toHaveCount(0);
-  await expect(history.locator(`[data-stack="${SWIFT}"] tr[data-run="v2-r1"]`)).toHaveCount(1);
-  await page.goto("/#/vidi/s/1");
-  await expect(page.locator('[data-page="story"] tr.run-group-head').first()).toBeVisible();
-  await expect(page.locator(`[data-page="story"] tr.sp-entry[data-run="v2-r5"]`)).toHaveCount(0);
-  await page.reload();
-  await expect(page.locator(`[data-page="story"] tr.sp-entry[data-run="v2-r5"]`)).toHaveCount(0);
+  await page.goto(`/#/vidi/c/${enc(QWEN_27B)}`);
+  await expect(matrix(page)).toBeVisible();
   await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
   await expect(heading(page, /^Finished/)).toHaveAttribute("aria-expanded", "false");
+  await page.reload();
+  await expect(heading(page, /^Finished/)).toHaveAttribute("aria-expanded", "false");
+  await page.goto("/#/vidi/s/1");
+  await expect(page.locator('[data-page="story"] tr.run-group-head').first()).toBeVisible();
+  await expect(page.locator(`[data-page="story"] tr.sp-entry[data-run="v2-r5"]`)).toHaveCount(1);
+  // And the other way: folding on the story page leaves the run pages as they were.
+  await page.locator('[data-page="story"]').getByRole("button", { name: /^Finished/ }).first().click();
+  await expect(page.locator(`[data-page="story"] tr.sp-entry[data-run="v2-r5"]`)).toHaveCount(0);
+  await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r1`);
+  await expect(page.locator('[data-page="run"] .run-group-list h3').getByRole("button", { name: /^Finished/ })).toHaveAttribute("aria-expanded", "true");
 });
 
-test("the machine's history is in the same sections, running first", async ({ page }) => {
-  await page.goto("/#/m/node-a");
-  const swift = page.locator(`[data-section="history"] .history-combo[data-stack="${SWIFT}"]`);
-  await expect(swift.locator("tr.run-group-head")).toHaveText([/In progress\s*1/, /Queued\s*2/, /Finished\s*\d+/]);
-  const order = await swift.locator("tr[data-run]").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.status));
-  expect(order.indexOf("running")).toBeLessThan(order.indexOf("queued"));
-  expect(order.indexOf("queued")).toBeLessThan(order.indexOf("finished"));
+test("the machine's history has no sections: every run on one table, the running one first, the queue last", async ({ page }) => {
+  await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
+  await heading(page, /^Finished/).click();
+  await page.goto("/#/machines/node-a");
+  const history = page.locator('[data-section="history"]');
+  await expect(history.locator("tr.run-group-head, .run-group-button")).toHaveCount(0);
+  await expect(history.locator(`tr[data-stack="${SWIFT}"][data-run="v2-r5"]`)).toHaveCount(1);
+  const order = await history.locator("tr[data-run]").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.status));
+  expect(order[0]).toBe("running");
+  expect(order.lastIndexOf("finished")).toBeLessThan(order.indexOf("queued"));
 });
 
 test("a run page lists the combination's other runs in the same sections; the comparison picker groups them the same way", async ({ page }) => {

@@ -25,7 +25,7 @@ export function MachinePage({ route, machine, runs, history, filteredOut, state,
       <Breadcrumb route={route} />
       <MachineHeader machine={machine} info={info} listed={machines !== undefined} runs={runs} all={state.rows} />
       <MachineNow machine={machine} all={state.rows} info={info} listed={machines !== undefined} isNode={isNode} node={(state.machines ?? []).find((m) => m.node === machine) ?? null} now={now} />
-      <MachineHistory runs={history} filteredOut={runs.length > history.length ? filteredOut : undefined} />
+      <MachineHistory runs={history} filteredOut={runs.length > history.length ? filteredOut : undefined} suites={state.suites} />
     </div>
   );
 }
