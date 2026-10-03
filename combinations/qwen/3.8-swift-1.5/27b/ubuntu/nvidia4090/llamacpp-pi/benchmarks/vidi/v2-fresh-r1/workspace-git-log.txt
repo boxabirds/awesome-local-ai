@@ -1,3 +1,51 @@
+commit 22f43d21974438b4ad4517caa75c02e5e464afbf
+agent  Sat Oct 3 02:05:24 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                  |   79 ++
+ PROGRESS.md                               |   18 +-
+ package-lock.json                         | 1368 +++++++++++++++++++++++++++++
+ package.json                              |    9 +-
+ playwright.config.ts                      |   25 +-
+ src/client/App.tsx                        |   30 +-
+ src/client/board/useBoardDoc.ts           |   27 +-
+ src/client/board/useSelection.ts          |   18 +-
+ src/client/canvas/testHooks.ts            |   53 +-
+ src/client/objects/StickyTextEditor.tsx   |   31 +
+ src/client/styles.css                     |   26 +
+ src/client/sync/ConnectionStatus.tsx      |   26 +
+ src/client/sync/connectBoard.ts           |  130 +++
+ src/shared/board-id.ts                    |   32 +
+ src/shared/config.ts                      |   15 +
+ src/shared/protocol.ts                    |   57 ++
+ src/worker/board-room.ts                  |  146 +++
+ src/worker/index.ts                       |   44 +
+ tests/component/ConnectionStatus.test.tsx |  115 +++
+ tests/e2e/global.d.ts                     |    8 +-
+ tests/e2e/helpers/participants.ts         |  119 +++
+ tests/e2e/live-collaboration.spec.ts      |  364 ++++++++
+ tests/e2e/nightly/soak.spec.ts            |  255 ++++++
+ tests/integration/board-room.test.ts      |  348 ++++++++
+ tests/integration/env.d.ts                |   22 +
+ tests/integration/random-ops.ts           |   55 ++
+ tests/integration/worker.test.ts          |   83 ++
+ tests/integration/ws-client.ts            |  283 ++++++
+ tests/unit/board-id.test.ts               |   44 +
+ tests/unit/protocol.test.ts               |   77 ++
+ tsconfig.json                             |    2 +-
+ vitest.config.ts                          |   21 +
+ wrangler.jsonc                            |   16 +-
+ 33 files changed, 3911 insertions(+), 35 deletions(-)
+commit 40fc2038be2d1742bee870ed3d254f6fe7ef8956
+vidi-agent  Sat Oct 3 00:19:24 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit a045de48f9bbcfcfc3876c38c526eb248dbbc954
 agent  Sat Oct 3 00:18:29 2026 +0100
 
