@@ -63,6 +63,12 @@ With the soft shares, a theme's share of the run-to-run spread is close to its s
 against 11%; code drafted in thought 8% and 8%). mlx-serve is the one exception: notes, selecting and dragging carry 22%
 of its spread against 14% of its characters (six stories).
 
+## Runtime bias and efficiency (3 October evening)
+
+`runtime_bias.py` (is verbosity a trait of a run; what makes a call think more), `run_traits.py` (verbosity index per run
+with engine and harness versions, drift along a run, early against late), `efficiency.py` (how much shorter at the same
+result). Findings are in `docs/research/20261003-thinking-spread.md` section 7.
+
 ## Limits
 
 The themes mix subject and function (several clusters name both); k-means was the only method tried; the
