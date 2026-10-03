@@ -32,7 +32,7 @@ fn to_value<T: serde::Serialize>(v: &T) -> Value {
 
 fn call(v: &Value) -> Call {
     let f = |i: usize| v[i].as_f64().unwrap();
-    Call { sent: f(0), first: f(1), end: f(2), fresh: v[3].as_i64().unwrap(), cached: v[4].as_i64().unwrap(), out: v[5].as_i64() }
+    Call { sent: f(0), first: f(1), end: f(2), fresh: v[3].as_i64().unwrap(), cached: v[4].as_i64().unwrap(), out: v[5].as_i64(), id: None }
 }
 
 #[test]
@@ -136,4 +136,315 @@ fn timing_agrees_with_accounting_parse() {
         );
         assert_eq!(got, want, "{name}");
     }
+}
+
+// ---- the warehouse: schema, the write path, the stream ----
+
+use dbench::ingest::{self, db::Db};
+
+/// build_full.py's version-1 columns, in order: the insights scripts read these by name and by `select *`.
+const V1_COLUMNS: [(&str, &str); 5] = [
+    ("stories", "sk,pack,stack,family,variant,engine,client,machine,run,story,rel,status,passed,total,wall,fmt,source,truncated_strings,truncated_chars,v2,invalid,nudges,started,finished"),
+    ("calls", "sk,idx,rx,think,text,n_tools,out_tok,in_tok,cache_tok,stop,sub,think_flags,text_flags,think_full,text_full,think_head,think_tail,text_head,text_tail"),
+    ("tools", "sk,call_idx,idx,tid,name,arg,arg_full,arg_chars,start,end,error,res_chars,sub,arg_flags,res_flags,n_edits,old_chars,new_chars,passed,failed,flaky,skipped,args_json,res_full,res_head,res_tail"),
+    ("msgs", "sk,idx,rx,role,chars,text_full,text_head"),
+    ("compactions", "sk,start,end,reason,summary_chars,summary"),
+];
+
+#[test]
+fn the_v1_columns_are_an_exact_prefix_of_every_table_the_detect_scripts_read() {
+    let db = Db::open_memory().unwrap();
+    for (table, cols) in V1_COLUMNS {
+        let mut q = db.conn.prepare(&format!("pragma table_info({table})")).unwrap();
+        let names: Vec<String> = q.query_map([], |r| r.get::<_, String>(1)).unwrap().map(|r| r.unwrap()).collect();
+        let want: Vec<&str> = cols.split(',').collect();
+        assert!(names.len() >= want.len(), "{table}: {names:?}");
+        assert_eq!(&names[..want.len()], &want[..], "{table}: v1 prefix");
+    }
+    assert_eq!(db.meta("schema_version").unwrap().as_deref(), Some("2"));
+}
+
+#[test]
+fn run_paths_and_iso_stamps_are_read() {
+    let p = ingest::run_parts("combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1").unwrap();
+    assert_eq!(
+        (p.stack.as_str(), p.pack.as_str(), p.run.as_str(), p.family.as_str(), p.variant.as_str(), p.machine.as_str(), p.engine.as_str(), p.client.as_str()),
+        ("qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi", "vidi", "v2-r1", "qwen 3.8-swift-1.5", "27b", "ubuntu/nvidia4090", "llamacpp", "pi")
+    );
+    let r = ingest::run_parts("benchmarks/reference/vidi/opus-5.5/run-3").unwrap();
+    assert_eq!((r.stack.as_str(), r.pack.as_str(), r.run.as_str(), r.machine.as_str(), r.client.as_str()), ("reference/opus-5.5", "vidi", "run-3", "cloud", "claude-code"));
+    assert!(ingest::run_parts("combinations/x/benchmarks/vidi/r1").is_none());
+    assert!(ingest::run_parts("docs/x").is_none());
+    assert_eq!(ingest::split_story_rel("a/b/stories/07"), Some(("a/b", 7)));
+    assert_eq!(ingest::epoch_of("2026-10-02T09:00:00Z"), Some(1_790_931_600.0));
+    assert_eq!(ingest::epoch_of("2026-10-02T10:00:00+01:00"), Some(1_790_931_600.0));
+    assert_eq!(ingest::epoch_of("2026-10-02T09:00:00.5"), Some(1_790_931_600.5));
+    assert_eq!(ingest::epoch_of("nope"), None);
+}
+
+fn story_inputs(rel: &str, text: &str, rec: Value, complete: bool) -> ingest::StoryInputs {
+    let (run_dir, story) = ingest::split_story_rel(rel).unwrap();
+    ingest::StoryInputs {
+        rel: rel.to_string(),
+        run_dir: run_dir.to_string(),
+        story,
+        events_text: Some(text.to_string()),
+        events_source: ingest::EVENTS_FULL.to_string(),
+        events_path: Some("x".into()),
+        events_bytes: text.len() as i64,
+        rec,
+        run_json: json!({"pack_version": "vidi-v2", "started_at": "2026-10-02T09:00:00Z"}),
+        status_json: json!({"state": "finished", "at": "2026-10-02T10:00:00Z"}),
+        complete,
+        inputs_digest: "d1".into(),
+        ..Default::default()
+    }
+}
+
+const RUN: &str = "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1";
+
+#[test]
+fn a_story_is_written_whole_its_stream_in_time_order_and_read_back_by_range_and_by_cursor() {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let text = fixture("accounting__pi-nudged");
+    let g = golden("rows/accounting__pi-nudged.json");
+    let rel = format!("{RUN}/stories/01");
+    let rec = json!({"title": "One", "status": "DONE", "accept": {"passed": 3, "total": 4}, "started": 1790000000.0, "agent_finished": 1790000122.0,
+                     "agent": {"seconds": 12.5, "nudges": 1, "tokens": {"input": 10, "output": 20, "cache_read": 30},
+                               "attempts": [{"attempt": 1, "source": "harness", "started": 1790000000.0, "ended": 1790000122.0, "seconds": 12.5, "steps": 5, "tool_calls": 4, "sessions": ["s1"]}]},
+                     "time_split": {"wall_s": 900.0}, "conversation": {"version": 4, "calls": 5}});
+    db.upsert_run(RUN, &parts, &json!({"pack_version": "vidi-v2", "started_at": "2026-10-02T09:00:00Z"}), &json!({"state": "finished"}), Some("node-a"), 1.0).unwrap();
+    let out = ingest::ingest_story(&mut db, &parts, &story_inputs(&rel, &text, rec.clone(), true), 1_790_001_000.0).unwrap();
+    let sk = out.sk;
+    assert_eq!(db.count("calls", sk).unwrap(), g["calls"].as_array().unwrap().len() as i64);
+    assert_eq!(db.count("tools", sk).unwrap(), g["tools"].as_array().unwrap().len() as i64);
+    assert_eq!(db.count("msgs", sk).unwrap(), g["msgs"].as_array().unwrap().len() as i64);
+    assert_eq!(db.count("attempts", sk).unwrap(), 1);
+    assert_eq!(db.count("sessions", sk).unwrap(), 1);
+    let (status, passed, title, fmt, out_tok): (String, i64, String, String, i64) = db
+        .conn
+        .query_row("select status, passed, title, fmt, out_tok from stories where sk = ?1", [sk], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))
+        .unwrap();
+    assert_eq!((status.as_str(), passed, title.as_str(), fmt.as_str(), out_tok), ("DONE", 3, "One", "pi", 20));
+    // Every call has its timing from the stream, and every tool its kind.
+    let untimed: i64 = db.conn.query_row("select count(*) from calls where sk = ?1 and sent is null", [sk], |r| r.get(0)).unwrap();
+    assert_eq!(untimed, 0);
+    let kinds: Vec<String> = db.conn.prepare("select kind from tools where sk = ?1 order by idx").unwrap().query_map([sk], |r| r.get(0)).unwrap().map(|r| r.unwrap()).collect();
+    assert!(kinds.iter().all(|k| !k.is_empty()), "{kinds:?}");
+
+    // The stream: time order, ords 0.., and the time-range form pages it without loss or repeat.
+    let (first, last, latest, n) = db.events_range(sk).unwrap().unwrap();
+    assert!(first <= last && latest == n - 1 && n as usize == out.events_written);
+    let all = db.events_in_range(sk, i64::MIN, i64::MAX, None, 10_000).unwrap();
+    assert_eq!(all.len(), n as usize);
+    assert!(all.windows(2).all(|w| (w[0].t_ms, w[0].ord) < (w[1].t_ms, w[1].ord)));
+    let mut paged = Vec::new();
+    let mut cursor = None;
+    loop {
+        let page = db.events_in_range(sk, i64::MIN, i64::MAX, cursor, 3).unwrap();
+        if page.is_empty() {
+            break;
+        }
+        cursor = page.last().map(|e| (e.t_ms, e.ord));
+        paged.extend(page);
+    }
+    assert_eq!(paged, all);
+    // A half-open window.
+    let mid = all[all.len() / 2].t_ms;
+    let before = db.events_in_range(sk, i64::MIN, mid, None, 10_000).unwrap();
+    assert!(before.iter().all(|e| e.t_ms < mid) && !before.is_empty());
+    // The open-ended form from the latest cursor: nothing new.
+    assert!(db.events_after(sk, latest, 100).unwrap().is_empty());
+    assert_eq!(db.events_after(sk, -1, 100).unwrap().len(), n as usize);
+    // The synthetic pi log has tool executions but no toolCall blocks, so its rows (as the Python reader has them)
+    // carry no tools; its stream has the calls, the compaction and the wait between sessions.
+    let kinds: std::collections::BTreeSet<String> = all.iter().map(|e| e.kind.clone()).collect();
+    assert!(["call", "compaction_start", "compaction_end", "between_sessions"].iter().all(|k| kinds.contains(*k)), "{kinds:?}");
+
+    // Ingesting the same story again keeps its sk and its stream.
+    let again = ingest::ingest_story(&mut db, &parts, &story_inputs(&rel, &text, rec, true), 1_790_001_001.0).unwrap();
+    assert_eq!(again.sk, sk);
+    assert_eq!(db.events_range(sk).unwrap().unwrap().3, n);
+    assert_eq!(db.collection_digest(sk).unwrap(), Some(("d1".into(), true)));
+    assert_eq!(db.complete_story_ids().unwrap(), vec![rel.clone()]);
+    // One call in full (this log's rows carry no tools: see above).
+    let c = db.call(sk, 0).unwrap().unwrap();
+    assert!(c["tools"].is_array() && c["sent"].is_number());
+    assert!(db.tool(sk, 0).unwrap().is_none());
+    assert!(db.call(sk, 999).unwrap().is_none());
+}
+
+#[test]
+fn a_story_still_growing_only_ever_gains_ords_and_the_cursor_form_sees_the_growth() {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let text = fixture("accounting__claude-background-and-nudge");
+    let lines: Vec<&str> = text.lines().collect();
+    let half = lines[..lines.len() / 2].join("\n") + "\n";
+    let rel = format!("{RUN}/stories/02");
+    let rec = json!({});
+    let a = ingest::ingest_story(&mut db, &parts, &story_inputs(&rel, &half, rec.clone(), false), 1_790_001_000.0).unwrap();
+    let (_, _, latest_a, n_a) = db.events_range(a.sk).unwrap().unwrap();
+    assert!(n_a > 0);
+    let before: Vec<(i64, i64, String)> = db.events_after(a.sk, -1, 1000).unwrap().into_iter().map(|e| (e.ord, e.t_ms, e.kind)).collect();
+    // More of the log arrives: the earlier rows keep their ords; the new ones follow, whatever their time.
+    let b = ingest::ingest_story(&mut db, &parts, &story_inputs(&rel, &text, rec.clone(), false), 1_790_001_010.0).unwrap();
+    assert_eq!(b.sk, a.sk);
+    let after: Vec<(i64, i64, String)> = db.events_after(a.sk, -1, 1000).unwrap().into_iter().map(|e| (e.ord, e.t_ms, e.kind)).collect();
+    assert_eq!(&after[..before.len()], &before[..]);
+    assert!(after.len() > before.len());
+    let new = db.events_after(a.sk, latest_a, 1000).unwrap();
+    assert_eq!(new.len(), after.len() - before.len());
+    assert!(new.iter().all(|e| e.ord > latest_a));
+    assert_eq!(db.collection_digest(a.sk).unwrap(), Some(("d1".into(), false)));
+    assert!(db.complete_story_ids().unwrap().is_empty());
+    assert_eq!(db.story_ids_with_events().unwrap(), vec![rel.clone()]);
+    // Then the story completes: the stream is rebuilt in time order, with everything in it.
+    let c = ingest::ingest_story(&mut db, &parts, &story_inputs(&rel, &text, rec, true), 1_790_001_020.0).unwrap();
+    let all = db.events_after(c.sk, -1, 1000).unwrap();
+    assert!(all.windows(2).all(|w| (w[0].t_ms, w[0].ord) < (w[1].t_ms, w[1].ord)));
+    assert_eq!(all.len(), after.len());
+    assert_eq!(db.story_fmt(c.sk).unwrap().as_deref(), Some("claude"));
+    let kinds: std::collections::BTreeSet<String> = all.iter().map(|e| e.kind.clone()).collect();
+    assert!(["call", "tool_start", "tool_end"].iter().all(|k| kinds.contains(*k)), "{kinds:?}");
+    let tool_end = all.iter().find(|e| e.kind == "tool_end").unwrap();
+    assert!(tool_end.payload["kind"].is_string() && tool_end.payload["seconds"].is_number(), "{}", tool_end.payload);
+    // One tool in full, with its call.
+    let t = db.tool(c.sk, 0).unwrap().unwrap();
+    assert!(t["args"].is_object() && t["kind"].is_string(), "{t}");
+    let call = db.call(c.sk, t["callIdx"].as_i64().unwrap()).unwrap().unwrap();
+    assert!(call["tools"].as_array().unwrap().iter().any(|x| x["idx"] == 0), "{call}");
+}
+
+#[test]
+fn llama_server_requests_are_placed_in_the_story_and_call_whose_time_holds_them() {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let text = fixture("accounting__pi-nudged");
+    let rel = format!("{RUN}/stories/03");
+    let rec = json!({"started": 1790000000.0, "agent_finished": 1790000122.0});
+    let out = ingest::ingest_story(&mut db, &parts, &story_inputs(&rel, &text, rec, true), 1_790_001_000.0).unwrap();
+    let n_before = db.events_range(out.sk).unwrap().unwrap().3;
+    // A server log whose one request ends inside the story's second call.
+    let call = &out.calls.calls[1].1;
+    let g = golden("llama.json");
+    let smoke = g["smoke"]["text"].as_str().unwrap();
+    let body = smoke.split_once('\n').unwrap().1;
+    // The marker so that the request's end (41.76 s after the start) lands inside the call.
+    let server_log = format!("{}{}", llama_log::start_marker(call.end - 41.76 - 0.1), body);
+    let mut complete = std::collections::HashMap::new();
+    complete.insert(out.sk, true);
+    let added = ingest::ingest_run_requests(&mut db, RUN, Some(&server_log), std::slice::from_ref(&out.calls), &complete).unwrap();
+    assert_eq!(added, 1);
+    let (sk, call_idx, prompt, decode_tok_s): (Option<i64>, Option<i64>, i64, f64) = db
+        .conn
+        .query_row("select sk, call_idx, prompt_tok, decode_tok_s from requests where run_id = ?1 and source = 'llama-log'", [RUN], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
+        .unwrap();
+    assert_eq!((sk, call_idx, prompt, decode_tok_s), (Some(out.sk), Some(1), 45, 28.7));
+    // The request joined the stream, after the story's own rows (ord append-only) and at its own time.
+    let all = db.events_after(out.sk, -1, 10_000).unwrap();
+    assert_eq!(all.len() as i64, n_before + 1);
+    let r = all.last().unwrap();
+    assert_eq!(r.kind, "request");
+    assert!(r.t_ms < all[all.len() - 2].t_ms, "placed earlier in time than the row before it in ord");
+    // A second pass with the same log adds nothing.
+    assert_eq!(ingest::ingest_run_requests(&mut db, RUN, Some(&server_log), std::slice::from_ref(&out.calls), &complete).unwrap(), 0);
+}
+
+
+// ---- the binary: dbench ingest over a published tree and a lake ----
+
+fn gzip(text: &str) -> Vec<u8> {
+    use std::io::Write;
+    let mut enc = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    enc.write_all(text.as_bytes()).unwrap();
+    enc.finish().unwrap()
+}
+
+fn ingest_cmd(args: &[&str]) -> (bool, String) {
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_dbench")).arg("--json").arg("ingest").args(args).output().unwrap();
+    (out.status.success(), format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr)))
+}
+
+#[test]
+fn dbench_ingest_builds_the_database_from_the_published_tree_and_the_lake_and_redoes_only_what_changed() {
+    let root = std::env::temp_dir().join(format!("dbench-ingest-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let tree = root.join("repo");
+    let store = root.join("store");
+    let db_path = root.join("insights/conversations.db");
+    let run = tree.join(RUN);
+    // Published: a run with two stories; story 1 has its compact log, story 2 only its record (its full log is in the lake).
+    std::fs::create_dir_all(run.join("stories/01")).unwrap();
+    std::fs::write(run.join("stories/01/agent-events.compact.jsonl.gz"), gzip(&fixture("accounting__claude-slept"))).unwrap();
+    std::fs::write(run.join("run.json"), r#"{"pack_version": "vidi-v2", "model_id": "m", "started_at": "2026-10-02T09:00:00Z"}"#).unwrap();
+    std::fs::write(run.join("run-status.json"), r#"{"state": "finished", "at": "2026-10-02T10:00:00Z"}"#).unwrap();
+    std::fs::write(
+        run.join("metrics.json"),
+        r#"{"stories": {"1": {"title": "One", "status": "DONE", "started": 1790000000.0, "agent_finished": 1790000140.7, "accept": {"passed": 2, "total": 2}},
+                        "2": {"title": "Two", "status": "DONE", "started": 1790000000.0, "agent_finished": 1790000122.0, "accept": {"passed": 1, "total": 3}}}}"#,
+    )
+    .unwrap();
+    // A re-score's copy is not a conversation.
+    std::fs::create_dir_all(run.join("rescore/v1/stories/01")).unwrap();
+    std::fs::write(run.join("rescore/v1/stories/01/agent-events.compact.jsonl.gz"), gzip("")).unwrap();
+    // The lake: node-a holds the run's full log for story 2, a server log, and the collector's record.
+    let lake = store.join("node-a").join(RUN);
+    std::fs::create_dir_all(lake.join("stories/02")).unwrap();
+    std::fs::write(lake.join("stories/02/agent-events.jsonl"), fixture("accounting__pi-nudged")).unwrap();
+    std::fs::write(lake.join("server.log"), golden("llama.json")["smoke"]["text"].as_str().unwrap()).unwrap();
+    std::fs::write(lake.join("collection.json"), r#"{"node": "node-a", "complete": true, "collected_at": 1790001000.0}"#).unwrap();
+
+    let common = [
+        "--db", db_path.to_str().unwrap(), "--repo", tree.to_str().unwrap(), "--store", store.to_str().unwrap(), "--worktree",
+    ];
+    let (ok, out) = ingest_cmd(&[&common[..], &["--rebuild"]].concat());
+    assert!(ok, "{out}");
+    let summary: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!((summary["candidates"].as_u64(), summary["ingested"].as_u64(), summary["runs"].as_u64()), (Some(2), Some(2), Some(1)));
+    assert!(db_path.is_file() && !db_path.with_extension("db.new").exists());
+
+    let db = Db::open_read_only(&db_path).unwrap();
+    let rows: Vec<(String, String, String, Option<String>, i64)> = db
+        .conn
+        .prepare("select s.rel, s.source, s.status, c.node, c.complete from stories s join collection c on c.sk = s.sk order by s.rel")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))
+        .unwrap()
+        .map(|r| r.unwrap())
+        .collect();
+    assert_eq!(
+        rows,
+        vec![
+            // Story 1's log came from git, but the run itself was collected from node-a, so that is its node too.
+            (format!("{RUN}/stories/01"), "compact".into(), "DONE".into(), Some("node-a".into()), 1),
+            (format!("{RUN}/stories/02"), "full".into(), "DONE".into(), Some("node-a".into()), 1),
+        ]
+    );
+    let (node, state): (Option<String>, Option<String>) = db.conn.query_row("select node, state from runs where id = ?1", [RUN], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+    assert_eq!((node.as_deref(), state.as_deref()), (Some("node-a"), Some("finished")));
+    assert_eq!(db.meta("source").unwrap().unwrap(), format!("tree {}", tree.display()));
+    let n_req: i64 = db.conn.query_row("select count(*) from requests where run_id = ?1", [RUN], |r| r.get(0)).unwrap();
+    assert_eq!(n_req, 1);
+    drop(db);
+
+    // Nothing changed: nothing is redone. A grown log is.
+    let (ok, out) = ingest_cmd(&common);
+    assert!(ok, "{out}");
+    let summary: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!((summary["ingested"].as_u64(), summary["unchanged"].as_u64()), (Some(0), Some(2)));
+    std::fs::write(lake.join("collection.json"), r#"{"node": "node-a", "complete": false, "collected_at": 1790001100.0}"#).unwrap();
+    let (ok, out) = ingest_cmd(&common);
+    assert!(ok, "{out}");
+    let summary: Value = serde_json::from_str(&out).unwrap();
+    // The run's collection record is an input of both its stories.
+    assert_eq!(summary["ingested"].as_u64(), Some(2));
+    // --only narrows to one story; --schema prints the schema.
+    let (ok, out) = ingest_cmd(&[&common[..], &["--all", "--only", &format!("{RUN}/stories/01")]].concat());
+    assert!(ok, "{out}");
+    assert_eq!(serde_json::from_str::<Value>(&out).unwrap()["candidates"].as_u64(), Some(1));
+    let (ok, out) = ingest_cmd(&[&common[..], &["--schema"]].concat());
+    assert!(ok && out.contains("create table if not exists events"), "{out}");
+    std::fs::remove_dir_all(&root).unwrap();
 }

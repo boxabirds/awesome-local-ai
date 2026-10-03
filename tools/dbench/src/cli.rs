@@ -156,6 +156,12 @@ pub enum Cmd {
     /// as PARTIAL with your reason, and the run continues with the next story (the job
     /// keeps running). Later stories may then build on incomplete work, so use with care.
     /// See benchmarks/spec-bench/harness/CONTROL.md.
+    /// Build or update the conversation database from the published records and the collected logs.
+    ///
+    /// Reads each story's record and compact log from the repo's origin/main (never the working copy)
+    /// and its full log, server log and conditions from the lake (`--store`, what `dbench collect` pulled),
+    /// and writes conversations.db (`--db`). By default only stories whose inputs changed are redone.
+    Ingest(IngestArgs),
     #[command(name = "skip-story")]
     SkipStory {
         node: String,
@@ -167,6 +173,40 @@ pub enum Cmd {
         #[arg(long)]
         reason: String,
     },
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct IngestArgs {
+    /// The conversation database to write.
+    #[arg(long)]
+    pub db: PathBuf,
+    /// The repository whose origin/main holds the published records.
+    #[arg(long)]
+    pub repo: PathBuf,
+    /// The lake: where `dbench collect` puts each node's run directories.
+    #[arg(long)]
+    pub store: PathBuf,
+    /// The git rev to read the published records from. Default origin/main (fetched first).
+    #[arg(long, default_value = "origin/main")]
+    pub rev: String,
+    /// Read the published records from the working tree at --repo instead of a git rev (for tests).
+    #[arg(long)]
+    pub worktree: bool,
+    /// Don't fetch before reading the rev.
+    #[arg(long)]
+    pub no_fetch: bool,
+    /// Build a fresh database beside --db and rename it over the old one.
+    #[arg(long)]
+    pub rebuild: bool,
+    /// Ingest every story, changed or not, in place.
+    #[arg(long, conflicts_with = "rebuild")]
+    pub all: bool,
+    /// Only this story run (`<run dir>/stories/NN`) or every story of this run dir; repeatable.
+    #[arg(long = "only")]
+    pub only: Vec<String>,
+    /// Print the schema and exit.
+    #[arg(long)]
+    pub schema: bool,
 }
 
 #[derive(Args, Debug, Clone)]

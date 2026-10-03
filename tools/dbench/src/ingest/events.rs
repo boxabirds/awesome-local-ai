@@ -41,6 +41,9 @@ pub struct CallRow {
     pub text_flags: Vec<&'static str>,
     pub think_full: String,
     pub text_full: String,
+    /// Claude Code's message id (the timing join's key); None for pi.
+    #[serde(skip)]
+    pub mid: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -67,6 +70,9 @@ pub struct ToolRow {
     pub skipped: Option<i64>,
     pub args_json: String,
     pub res: Option<String>,
+    /// e2e, unit, build, bash, or the tool's name (accounting.tool_kind).
+    #[serde(skip)]
+    pub kind: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -112,6 +118,7 @@ struct ToolBuild {
     ne: i64,
     oc: usize,
     nc: usize,
+    kind: String,
 }
 
 /// Reads a log line by line; `rows()` is what has been read so far.
@@ -259,6 +266,7 @@ impl Parser {
             text_flags: find_flags(text_rx(), &tx),
             think_full: th,
             text_full: tx,
+            mid: None,
         });
         for b in tcs {
             let a = obj(b.get("arguments")).cloned().unwrap_or_default();
@@ -266,7 +274,12 @@ impl Parser {
             let arg = if b.get("name").and_then(Value::as_str) == Some("bash") { arg_of(&a, &["command"], &aj) } else { arg_of(&a, &["path"], &aj) };
             let (ne, oc, nc) = edit_sizes(&a);
             let tid = opt_string(b.get("id"));
-            self.tools.insert(tid.clone(), ToolBuild { call: idx, name: get(b, "name"), arg, aj, start: Value::Null, end: Value::Null, err: None, res: None, sub: 0, ne, oc, nc });
+            let kind = match b.get("name").and_then(Value::as_str) {
+                Some("bash") => super::timing::kind_of_command(&a.get("command").map(str_of).unwrap_or_default()).to_string(),
+                Some(name) => name.to_string(),
+                None => "other".to_string(),
+            };
+            self.tools.insert(tid.clone(), ToolBuild { call: idx, name: get(b, "name"), arg, aj, start: Value::Null, end: Value::Null, err: None, res: None, sub: 0, ne, oc, nc, kind });
             self.order.push(tid);
         }
     }
@@ -297,6 +310,7 @@ impl Parser {
                     text_flags: Vec::new(),
                     think_full: String::new(),
                     text_full: String::new(),
+                    mid: mid.clone(),
                 });
                 i
             }
@@ -321,7 +335,8 @@ impl Parser {
                     };
                     let (ne, oc, nc) = edit_sizes(&a);
                     let tid = opt_string(b.get("id"));
-                    self.tools.insert(tid.clone(), ToolBuild { call: row, name: get(b, "name"), arg, aj, start: rx.clone(), end: Value::Null, err: None, res: None, sub, ne, oc, nc });
+                    let kind = super::timing::claude_tool_kind(b.get("name").and_then(Value::as_str).unwrap_or(""), &a);
+                    self.tools.insert(tid.clone(), ToolBuild { call: row, name: get(b, "name"), arg, aj, start: rx.clone(), end: Value::Null, err: None, res: None, sub, ne, oc, nc, kind });
                     self.order.push(tid);
                 }
                 _ => {}
@@ -395,6 +410,7 @@ impl Parser {
                     skipped: count("skipped"),
                     args_json: d.aj.clone(),
                     res: d.res.clone(),
+                    kind: d.kind.clone(),
                 }
             })
             .collect();
