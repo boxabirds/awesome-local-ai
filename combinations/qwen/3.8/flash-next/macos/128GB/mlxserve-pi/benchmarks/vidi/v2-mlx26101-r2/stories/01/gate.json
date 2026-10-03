@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.8,
+      "tail": "\nadded 141 packages, and audited 142 packages in 3s\n\n28 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm warn allow-scripts 3 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20261001.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 1.1,
+      "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v8.3.2 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.43 kB \u2502 gzip:  0.27 kB\ndist/client/assets/index-C12h1e8_.css    2.42 kB \u2502 gzip:  1.00 kB\ndist/client/assets/index-BulwGPVj.js   227.18 kB \u2502 gzip: 71.14 kB\n\n\u001b[32m\u2713 built in 322ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.5,
+      "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/c0b6692872/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m24 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m24 passed\u001b[39m\u001b[22m\u001b[90m (24)\u001b[39m\n\u001b[2m   Start at \u001b[22m 16:03:29\n\u001b[2m   Duration \u001b[22m 78ms\u001b[2m (transform 48%, tests 33%, import 15%, worker 4%)\u001b[22m\n\n",
+      "passed": 24,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 0.7,
+      "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/c0b6692872/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 43\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m27 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 56\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 110\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m44 passed\u001b[39m\u001b[22m\u001b[90m (44)\u001b[39m\n\u001b[2m   Start at \u001b[22m 16:03:29\n\u001b[2m   Duration \u001b[22m 468ms\u001b[2m (environment 56%, tests 18%, transform 11%, setup 10%, import 4%)\u001b[22m\n\n",
+      "passed": 44,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 19.8,
+      "tail": "3:3 \u203a workflow 1: first visit navigation \u203a TC-28 + TC-23 the first drag moves the board and removes the hint (2.1s)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BhgrDso0.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-C12h1e8_.css 200 OK (5ms)\n  \u2713   2 [chromium] \u203a tests/e2e/navigation.spec.ts:109:3 \u203a workflow 1: first visit navigation \u203a TC-23b a plain wheel scrolls the board by the wheel delta (389ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BhgrDso0.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-C12h1e8_.css 200 OK (5ms)\n  \u2713   3 [chromium] \u203a tests/e2e/navigation.spec.ts:125:3 \u203a workflow 1: first visit navigation \u203a TC-24 ctrl + wheel zooms around the pointer and leaves the page zoom alone (343ms)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-BhgrDso0.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-C12h1e8_.css 200 OK (5ms)\n  \u2713   4 [chromium] \u203a tests/e2e/navigation.spec.ts:150:3 \u203a workflow 1: first visit navigation \u203a TC-30 ctrl + wheel over the zoom controls does not move the board (309ms)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-BhgrDso0.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-C12h1e8_.css 200 OK (5ms)\n  \u2713   5 [chromium] \u203a tests/e2e/navigation.spec.ts:165:3 \u203a workflow 2: limits and recovery \u203a TC-25 Zoom in stops at ZOOM_MAX and is then disabled (2.0s)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-BhgrDso0.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-C12h1e8_.css 200 OK (5ms)\n  \u2713   6 [chromium] \u203a tests/e2e/navigation.spec.ts:185:3 \u203a workflow 2: limits and recovery \u203a TC-25b Zoom out stops at ZOOM_MIN and is then disabled (3.6s)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BhgrDso0.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-C12h1e8_.css 200 OK (5ms)\n  \u2713   7 [chromium] \u203a tests/e2e/navigation.spec.ts:197:3 \u203a workflow 2: limits and recovery \u203a TC-26 Reset view returns to the standard view from far away at ZOOM_MAX (715ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BhgrDso0.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-C12h1e8_.css 200 OK (5ms)\n  \u2713   8 [chromium] \u203a tests/e2e/navigation.spec.ts:219:3 \u203a workflow 2: limits and recovery \u203a TC-26b keyboard Ctrl + 0 resets the view like the button (501ms)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-BhgrDso0.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-C12h1e8_.css 200 OK (6ms)\n  \u2713   9 [chromium] \u203a tests/e2e/navigation.spec.ts:228:3 \u203a workflow 2: limits and recovery \u203a TC-18e Ctrl + = and Ctrl + - zoom one step around the centre (509ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BhgrDso0.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-C12h1e8_.css 200 OK (5ms)\n  \u2713  10 [chromium] \u203a tests/e2e/navigation.spec.ts:245:3 \u203a workflow 3: far travel \u203a TC-27 panning a million world units from the start is exact (1.2s)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BhgrDso0.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-C12h1e8_.css 200 OK (4ms)\n  \u2713  11 [chromium] \u203a tests/e2e/navigation.spec.ts:273:3 \u203a workflow 3: far travel \u203a TC-27b zoom and pan stay exact at the far end of the board (1.5s)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-BhgrDso0.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-C12h1e8_.css 200 OK (6ms)\n  \u2713  12 [chromium] \u203a tests/e2e/navigation.spec.ts:296:3 \u203a page zoom is never touched \u203a TC-31 board gestures leave visual viewport scale and devicePixelRatio alone (1.8s)\n\n  12 passed (19.3s)\n",
+      "passed": 12,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
