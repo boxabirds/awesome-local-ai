@@ -1,3 +1,59 @@
+commit 1059b2f82c9e42304ba78e1aed31e36664fcb4f7
+agent  Sat Oct 3 17:38:49 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  24 +++
+ PROGRESS.md                               |  18 +-
+ src/client/App.tsx                        |  94 ++++++++++-
+ src/client/board/Toolbar.tsx              |  60 +++++++
+ src/client/canvas/BoardViewport.tsx       |  54 +++++-
+ src/client/canvas/testHooks.ts            |  37 ++--
+ src/client/objects/NoteToolbar.tsx        |  83 +++++++++
+ src/client/objects/StickyNote.tsx         | 269 ++++++++++++++++++++++++++++++
+ src/client/objects/StickyTextEditor.tsx   | 174 +++++++++++++++++++
+ tests/component/StickyNote.test.tsx       | 257 ++++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 118 +++++++++++++
+ tests/component/Toolbars.test.tsx         |  76 +++++++++
+ tests/component/appHarness.tsx            | 104 ++++++++++++
+ tests/e2e/helpers/board.ts                |  77 +++++++++
+ tests/e2e/sticky-notes.spec.ts            | 164 ++++++++++++++++++
+ 15 files changed, 1578 insertions(+), 31 deletions(-)
+commit 9835bc62dd06c1cba6a0cba8582d37ed4bad5531
+agent  Sat Oct 3 17:24:10 2026 +0100
+
+    story 2: implement Yjs board model, useBoardDoc, sticky text logic
+
+
+ src/client/board/useBoardDoc.ts  |  78 ++++++++++++++++++
+ src/client/board/useSelection.ts |  35 ++++++++
+ src/client/objects/StickyText.ts |  96 ++++++++++++++++++++++
+ src/shared/board-model.ts        | 168 ++++++++++++++++++++++++++++++++++-----
+ tests/unit/board-model.test.ts   |  23 +++---
+ tests/unit/sticky-text.test.ts   | 119 +++++++++++++++++++++++++++
+ 6 files changed, 491 insertions(+), 28 deletions(-)
+commit 7e0fbc5106c3a65903752aa5e122947b33d34b50
+agent  Sat Oct 3 17:20:30 2026 +0100
+
+    story 2: board model unit tests (test-first) + config settings + yjs dep
+
+
+ package-lock.json              |  51 ++++++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  53 +++++++++
+ src/shared/config.ts           |  13 +++
+ tests/fixtures/texts.ts        |  16 +++
+ tests/unit/board-model.test.ts | 241 +++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 375 insertions(+), 2 deletions(-)
+commit cef3fe114c9b6938e293b249495d1536be88c6cd
+vidi-agent  Sat Oct 3 17:12:03 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)
 commit 0d77dc4b2466ac91783f61f7922cbfc8b26154fa
 agent  Sat Oct 3 17:11:24 2026 +0100
 
