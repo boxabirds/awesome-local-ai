@@ -27,7 +27,3 @@ flate2 = "1"
 rusqlite = { version = "0.31", features = ["bundled"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs", "io-util", "time", "sync", "net", "signal"] }
 toml = "0.8"
-
-[profile.release]
-strip = true
-lto = "thin"

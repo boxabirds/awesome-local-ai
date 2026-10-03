@@ -41,6 +41,25 @@ made of. This does, from the text alone, with no pre-set categories.
   generally more verbose run, not one that falls into a particular mode. This agrees with the earlier finding that
   the spread is per-call verbosity and not call count (rank correlation 0.93 within a story).
 
+## The softer method, adopted (theme model v1)
+
+`topics_function.py`: non-negative matrix factorisation on the same vocabulary, so each paragraph is a mixture over
+topics and not one label. Far more stable than k-means: matched topics have a mean cosine of 0.80 to 0.94 between seeds
+and the strongest topic agrees at an adjusted Rand of 0.56 to 0.72 (k-means: 0.30 to 0.36). A paragraph's strongest
+topic has a median weight of 0.47, so a paragraph is still a blend. Fourteen topics, named and defined in
+`themes_v1.json`; `theme_model.py` fits and saves the model (not in the repo: it is `state/insights/themes/` in the
+private repo) and assigns any later paragraph to the same topics.
+
+`themes_to_analytics.py` writes each story run's theme shares into `analytics.db` (`theme`, `theme_story`,
+`theme_share`; incremental by the story run's analytics digest; `dbench analyse --rebuild` carries the tables over).
+Characters are split by weight, so a story run's `chars` per theme sum to its paragraphs' characters. Backfilled for the
+231 story runs with complete thinking text (208,753 paragraphs). Not scheduled: it runs when asked.
+
+With the soft shares, a theme's share of the run-to-run spread is close to its share of all characters in Swift and gufo
+(Swift: weighing and correcting 27% of the spread against 25% of the characters; notes, selecting and dragging 13%
+against 11%; code drafted in thought 8% and 8%). mlx-serve is the one exception: notes, selecting and dragging carry 22%
+of its spread against 14% of its characters (six stories).
+
 ## Limits
 
 The themes mix subject and function (several clusters name both); k-means was the only method tried; the

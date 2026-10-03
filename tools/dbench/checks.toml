@@ -79,17 +79,13 @@ name = "ingest goldens current"
 dir = "benchmarks/spec-bench/harness"
 command = ["uv", "run", "--quiet", "export_goldens.py", "--check"]
 
+# The tools/ workspace: dbench and vidi-gallery, one target directory and one test run.
 [[check]]
-name = "dbench tests"
-dir = "tools/dbench"
-command = ["cargo", "test"]
+name = "rust tests (tools workspace)"
+dir = "tools"
+command = ["cargo", "test", "--workspace"]
 
-# The other Rust tools in the repo.
-[[check]]
-name = "vidi-gallery tests"
-dir = "tools/vidi-gallery"
-command = ["cargo", "test"]
-
+# Not in the workspace (tools/Cargo.toml says why).
 [[check]]
 name = "power-collector tests"
 dir = "tools/power-collector"

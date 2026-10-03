@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "method": "NMF, 14 topics, on cross-story TF-IDF of thinking paragraphs of 40 or more characters (topics_function.py, seed 0)",
+  "themes": [
+    {"id": 0,  "name": "Weighing and correcting", "definition": "Weighing alternatives or correcting itself: but, wait, no, should; questioning whether something is right."},
+    {"id": 1,  "name": "Notes: selecting and dragging", "definition": "Reasoning about how notes are selected, edited, clicked and dragged: pointer events and selection state."},
+    {"id": 5,  "name": "Fixing a test", "definition": "Deciding to fix or rewrite a test, or saying what is wrong with it."},
+    {"id": 2,  "name": "Module code", "definition": "TypeScript module code: imports, exports and type declarations."},
+    {"id": 6,  "name": "Announcing a write", "definition": "Announcing the next file or component to write: now let me write or create something."},
+    {"id": 8,  "name": "Code drafted in thought", "definition": "Code drafted inside the thinking: functions, constants, returns."},
+    {"id": 3,  "name": "Looking at code", "definition": "Reading existing code to understand it: let me look at something."},
+    {"id": 13, "name": "Running tests", "definition": "Running the tests, build or typecheck, and noting that they pass."},
+    {"id": 9,  "name": "Tracking test cases", "definition": "Tracking test cases by number (TC-nn): which pass, fail or remain."},
+    {"id": 7,  "name": "Shared document and sync", "definition": "Reasoning about the shared document, its updates and the sync messages."},
+    {"id": 12, "name": "Size arithmetic", "definition": "Arithmetic over widths, heights, sizes and boxes, often with check marks."},
+    {"id": 10, "name": "Checking a detail", "definition": "Checking a detail, a version or what something does: let me check something."},
+    {"id": 11, "name": "Zoom and camera maths", "definition": "Zoom and camera coordinate arithmetic: screen and world positions."},
+    {"id": 4,  "name": "End-to-end test code", "definition": "Playwright end-to-end test code: page, await, expect."}
+  ],
+  "other": {"id": "other", "name": "None of these", "definition": "Fits none of the themes above."}
+}

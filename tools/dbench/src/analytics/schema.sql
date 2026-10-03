@@ -32,3 +32,11 @@ create table if not exists think_text(
   code_share real, prompt_overlap real, result_overlap real, prev_sim real, max_prev_sim real,
   primary key (rel, idx)
 );
+
+-- The themes of thinking (benchmarks/docs/insights/thinking): written by those scripts, not by `dbench analyse`, which
+-- only carries them over when it rebuilds the file. A paragraph is spread over the themes by its weights, so a story
+-- run's `chars` per theme is the characters of its paragraphs times their weight on it; `paragraphs` counts those
+-- whose strongest theme it is.
+create table if not exists theme(version integer, id integer, name text, definition text, primary key (version, id));
+create table if not exists theme_story(rel text, version integer, source_digest text, paragraphs integer, computed_at real, primary key (rel, version));
+create table if not exists theme_share(rel text, version integer, theme integer, chars real, paragraphs integer, primary key (rel, version, theme));

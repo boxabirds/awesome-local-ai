@@ -657,7 +657,7 @@ command = ["bash", "tests/run-tests.sh"]
         for want in [
             "harness unit suite",
             "harness real-log replay",
-            "dbench tests",
+            "rust tests (tools workspace)",
             "dbench clippy",
             "benchmarker unit tests",
             "benchmarker end-to-end tests",
@@ -749,7 +749,7 @@ command = ["bash", "tests/run-tests.sh"]
     /// "stable" moves, and brings new clippy lints with it).
     #[test]
     fn the_rust_version_is_pinned_in_one_place() {
-        const TOOLCHAIN_FILE: &str = "tools/dbench/rust-toolchain.toml";
+        const TOOLCHAIN_FILE: &str = "tools/rust-toolchain.toml";
         const VERSION_PARTS: usize = 3; // major.minor.patch; "1.98" would follow its patch releases
         let text = std::fs::read_to_string(repo_root().join(TOOLCHAIN_FILE)).unwrap();
         let doc: toml::Value = toml::from_str(&text).unwrap();
