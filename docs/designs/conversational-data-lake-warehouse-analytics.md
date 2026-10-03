@@ -229,3 +229,9 @@ What landed on main, in the sequence's order, and where it departs from the desi
   (availability, format, every event kind, inline and cut text, tool outcomes, token and stop edge values,
   matched and late-placed requests, a reading without a GPU, a tie at one millisecond, page-boundary sizes,
   fault words in verbatim agent text) with one case per cell; the specs are organised by where the reader starts.
+- **No reference models in the warehouse (3 October 2026, the owner's rule).** Claude Opus and Sonnet are the benchmark's
+  quality yardstick, not a subject of conversation analysis, and their transcripts are not kept. Ingest no longer reads
+  `benchmarks/reference` (`PUBLISHED_ROOTS`) and every ingest first deletes any reference run's rows from every table
+  (`Db::purge_reference`); tests cover both. The live warehouse went from 506 story runs (121 reference) to 385, none
+  reference. The file keeps its size until a `VACUUM`. The benchmarker's conversation pages for reference runs now read
+  "Not available". `conv_full.db` (the hand-built database of 1 October) still holds them; it is not touched.

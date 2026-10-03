@@ -586,3 +586,57 @@ fn the_lake_run_that_counts_is_the_node_that_holds_the_files_not_the_newest_empt
     assert_eq!(lake.get(RUN).map(|l| l.node.as_str()), Some("node-ran"));
     std::fs::remove_dir_all(&root).unwrap();
 }
+
+// ---- the warehouse holds no reference model's conversations (owner, 3 Oct 2026) ----
+
+#[test]
+fn ingest_never_sees_a_reference_models_runs() {
+    use dbench::ingest::inputs::{candidates, Published, TreeSource};
+    let root = std::env::temp_dir().join(format!("dbench-ingest-ref-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    for dir in ["combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/v2-r1/stories/01", "benchmarks/reference/vidi/opus-5.5/run-9/stories/01"] {
+        std::fs::create_dir_all(root.join(dir)).unwrap();
+        std::fs::write(root.join(dir).join("agent-events.compact.jsonl.gz"), b"").unwrap();
+    }
+    let src = TreeSource { root: root.clone() };
+    assert!(src.paths().unwrap().keys().all(|p| !p.contains("reference")), "the published tree must not list reference runs");
+    let got = candidates(&src, &Default::default()).unwrap();
+    assert_eq!(got.len(), 1, "{got:?}");
+    assert!(got.iter().next().unwrap().starts_with("combinations/"));
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn a_reference_models_rows_already_in_the_warehouse_are_purged_from_every_table() {
+    use dbench::ingest::db::Db;
+    use rusqlite::params;
+    let mut db = Db::open_memory().unwrap();
+    for (run_id, stack, rel) in [
+        ("combinations/q/run", "q/w/v/os/m/llamacpp-pi", "combinations/q/run/stories/01"),
+        ("benchmarks/reference/vidi/opus-5.5/run-9", "reference/opus-5.5", "benchmarks/reference/vidi/opus-5.5/run-9/stories/01"),
+    ] {
+        let c = &db.conn;
+        c.execute("insert or ignore into runs(id) values (?1)", params![run_id]).unwrap();
+        c.execute("insert into stories(rel, run_id, stack, run, story) values (?1, ?2, ?3, 'r', 1)", params![rel, run_id, stack]).unwrap();
+        let sk = c.last_insert_rowid();
+        c.execute("insert into calls(sk, idx) values (?1, 0)", params![sk]).unwrap();
+        c.execute("insert into tools(sk, idx) values (?1, 0)", params![sk]).unwrap();
+        c.execute("insert into msgs(sk, idx) values (?1, 0)", params![sk]).unwrap();
+        c.execute("insert into compactions(sk) values (?1)", params![sk]).unwrap();
+        c.execute("insert into collection(sk) values (?1)", params![sk]).unwrap();
+        c.execute("insert into events(sk, ord, t_ms, kind) values (?1, 0, 1, 'call')", params![sk]).unwrap();
+        c.execute("insert into requests(run_id, source, idx, sk) values (?1, 'engine-log', 0, ?2)", params![run_id, sk]).unwrap();
+        c.execute("insert into conditions(run_id, at, sk) values (?1, 1.0, ?2)", params![run_id, sk]).unwrap();
+    }
+    let removed = db.purge_reference().unwrap();
+    let c = &db.conn;
+    assert_eq!(removed, 1);
+    for (table, expect) in [("runs", 1), ("stories", 1), ("calls", 1), ("tools", 1), ("msgs", 1), ("compactions", 1), ("collection", 1), ("events", 1), ("requests", 1), ("conditions", 1)] {
+        let n: i64 = c.query_row(&format!("select count(*) from {table}"), [], |r| r.get(0)).unwrap();
+        assert_eq!(n, expect, "{table}");
+    }
+    let left: i64 = c.query_row("select count(*) from stories where stack like 'reference/%'", [], |r| r.get(0)).unwrap();
+    assert_eq!(left, 0);
+    let again = db.purge_reference().unwrap();
+    assert_eq!(again, 0); // idempotent
+}

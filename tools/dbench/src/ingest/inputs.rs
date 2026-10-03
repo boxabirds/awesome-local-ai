@@ -26,7 +26,9 @@ const RESCORE_DIR: &str = "/rescore/";
 /// Logs recorded before the combinations were renamed: their run dir on the machine says -opencode.
 const RENAMED_FROM: &str = "-opencode/";
 const RENAMED_TO: &str = "-pi/";
-const PUBLISHED_ROOTS: [&str; 2] = ["combinations", "benchmarks/reference"];
+/// Where published records and compact logs are read from. Not `benchmarks/reference`: the reference models (Claude
+/// Opus, Sonnet) are the quality yardstick and their conversations are not kept in the warehouse.
+const PUBLISHED_ROOTS: [&str; 1] = ["combinations"];
 
 /// The published side: a path's bytes, and the blob id that names its content.
 pub trait Published {
@@ -380,6 +382,7 @@ pub struct Summary {
 /// Ingest what changed (or everything): each candidate story, then each run's requests.
 pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel: &Selection, now: f64) -> Result<Summary> {
     let started = std::time::Instant::now();
+    db.purge_reference()?;          // anything an earlier version ingested
     let ids = published.paths()?;
     let lake = lake_runs(store)?;
     let mut by_run: BTreeMap<String, Vec<String>> = BTreeMap::new();
