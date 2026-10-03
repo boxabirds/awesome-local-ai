@@ -15,7 +15,9 @@
     "test:e2e": "npm run build:test && touch src/worker/index.ts && playwright test --grep-invert @nightly",
     "test:e2e:nightly": "npm run build:test && touch src/worker/index.ts && playwright test --grep @nightly",
     "deploy": "wrangler deploy",
-    "start": "wrangler dev"
+    "start": "wrangler dev",
+    "test:e2e:persist": "npm run build:test && playwright test -c playwright.persistence.config.ts --grep-invert @nightly",
+    "test:e2e:persist:nightly": "npm run build:test && playwright test -c playwright.persistence.config.ts --grep @nightly"
   },
   "dependencies": {
     "lib0": "^0.2.119",

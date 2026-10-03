@@ -35,6 +35,11 @@ export interface StickyNoteProps {
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /**
+   * False while the board could not be loaded: the note cannot be dragged or
+   * opened for editing, so nothing writes into a document that has no board.
+   */
+  canEdit: boolean;
 }
 
 type DragState = 'idle' | 'pressed' | 'dragging';
@@ -58,6 +63,7 @@ export function StickyNote({
   onSelect,
   onStartEdit,
   onEndEdit,
+  canEdit,
 }: StickyNoteProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
@@ -133,6 +139,7 @@ export function StickyNote({
   useEffect(() => () => endInteraction(), [endInteraction]);
 
   const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!canEdit) return; // an unloadable board is not editable: no select, no drag
     if (editing) return; // the textarea owns input while editing
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     // Grabbing a note must never pan the board (sticky.no_pan).
@@ -193,6 +200,7 @@ export function StickyNote({
 
   const handleDoubleClick = (e: ReactMouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
+    if (!canEdit) return; // editing a note is a board mutation
     if (!editing) onStartEdit(note.id);
   };
 

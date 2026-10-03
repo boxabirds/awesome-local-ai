@@ -16,6 +16,11 @@ const enabledBrowsers = (process.env.E2E_BROWSERS ?? 'chromium')
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // The restart-persistence specs own their own `wrangler dev` processes and must
+  // run serially on their own ports; they belong to playwright.persistence.config.ts
+  // only. Excluding them here keeps `test:e2e` (parallel, shared server) from also
+  // spawning them.
+  testIgnore: /persistence\.spec\.ts$/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

@@ -109,3 +109,40 @@ export const CLOSE_SERVER_ERROR = 1011;
  * guard only fails a test that is properly broken, not one on a slow CI runner.
  */
 export const E2E_PROPAGATION_GUARD_MS = 2_000;
+
+// --- Persistence settings (story 4) ----------------------------------------
+// How the board is saved, compacted and reloaded. Everything a designer might
+// tune about durability lives here so the storage engine and the tests agree.
+
+/** Compact the update log into a snapshot once this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** Or once the log reaches this many bytes (whichever threshold is reached first). */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Snapshot chunk size. Chunks keep every SQLite row well under the platform's
+ * per-row size limit; the value is chosen far below any documented limit known
+ * at design time (re-check the Cloudflare Durable Object SQLite limits when the
+ * platform changes).
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** A LoadFailed room re-attempts its load at most this often (new connections). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/**
+ * The board size the PRD's persist.large_board guarantees against (and the
+ * fixtures generate): a saved board must open with all of these notes present.
+ */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/**
+ * Wall-clock budget for opening a `PERSIST_TESTED_NOTES` board. e2e tests log
+ * the measured navigation-to-rendered time against it; they do not assert it
+ * (the model, browsers and server share one machine).
+ */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/** Version of the Durable Object SQLite table layout (not the Yjs document). */
+export const STORAGE_SCHEMA_VERSION = 1;

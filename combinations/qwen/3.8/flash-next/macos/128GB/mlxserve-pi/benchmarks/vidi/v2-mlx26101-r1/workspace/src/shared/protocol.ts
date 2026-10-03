@@ -14,6 +14,22 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code sent for non-binary / undecodable / unknown traffic. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/**
+ * Close code sent when a saved board cannot be loaded (persist.load_failure).
+ * A client that sees it shows "This board couldn't be loaded. Retrying…" and
+ * disables editing until a later attempt succeeds. It is deliberately distinct
+ * from CLOSE_STORAGE_FAILURE, which is retryable without locking the board.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/**
+ * Close code sent when the room cannot save a change (persist.save_failure). The
+ * board itself is readable, so the client shows "Reconnecting…" and keeps editing
+ * with its unsaved changes, which are re-sent through the sync handshake when the
+ * socket comes back.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }
   | { kind: 'awareness'; payload: Uint8Array }

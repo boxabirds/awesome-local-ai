@@ -1,8 +1,10 @@
 // The little badge at the top centre that says what the connection is doing.
 // It is absent while everything is fine, amber while the room is unreachable,
-// and green for a moment after it comes back. Nothing else changes: the board
-// stays fully editable in every state, because edits go into the local Y.Doc
-// whether or not the socket is up.
+// green for a moment after it comes back, and red when the board itself could
+// not be loaded. In every state except the red one the board stays fully
+// editable — edits go into the local Y.Doc whether or not the socket is up. Only
+// the red `load_failed` state locks editing, because there is no board on screen
+// to edit: the room could not read it from storage.
 
 import type { JSX } from 'react';
 import type { ConnectionState } from './connectBoard';
@@ -15,6 +17,7 @@ const LABELS: Record<Exclude<ConnectionState, 'connected'>, string> = {
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
   confirmed: 'Connected',
+  load_failed: "This board couldn't be loaded. Retrying…",
 };
 
 /**

@@ -128,3 +128,10 @@ button:disabled {
 .connection-status--confirmed {
   background: #1b7f4b;
 }
+
+/* Red: the board itself could not be loaded. Unlike the amber "Reconnecting…"
+   (a retryable drop with the board still on screen and editable), this badge
+   marks an unreadable board, and editing is locked until a load succeeds. */
+.connection-status--load_failed {
+  background: #b3261e;
+}

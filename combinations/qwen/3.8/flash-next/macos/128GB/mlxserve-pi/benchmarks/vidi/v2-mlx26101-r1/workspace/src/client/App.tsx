@@ -16,6 +16,7 @@ import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 import { IS_TEST_MODE, publishConnectionState } from './canvas/testHooks';
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { StickyNote } from './objects/StickyNote';
@@ -91,6 +92,12 @@ export default function App() {
   const selection = useSelection();
   const { selectedId, editingId, select, startEdit, endEdit } = selection;
 
+  // Editing is locked only while the board could not be loaded (`load_failed`).
+  // In that state there is no real board on screen — the room could not read it —
+  // so every mutation handler below becomes a no-op and the Sticky note button is
+  // disabled, rather than editing an empty board that would overwrite a real one.
+  const editAllowed = canEdit(connectionState);
+
   // Render notes in a DOM order that never changes (stable by id) and express
   // stacking purely through CSS z-index (note.z). If the DOM order followed z,
   // bringing a note to front would relocate its node and drop the in-flight
@@ -132,31 +139,35 @@ export default function App() {
   /** Create a note centred on a screen point and start editing it. */
   const createAtScreen = useCallback(
     (p: Point) => {
+      if (!editAllowed) return;
       const world = screenToWorld(camera, p);
       const id = createSticky(doc, world);
       if (id) startEdit(id);
     },
-    [camera, doc, startEdit],
+    [camera, doc, startEdit, editAllowed],
   );
 
   /** Toolbar button: create a note at the centre of the visible board area. */
   const createAtCentre = useCallback(() => {
+    if (!editAllowed) return;
     const centre: Point = { x: viewport.width / 2, y: viewport.height / 2 };
     createAtScreen(centre);
-  }, [viewport.width, viewport.height, createAtScreen]);
+  }, [viewport.width, viewport.height, createAtScreen, editAllowed]);
 
   const onColor = useCallback(
     (color: string) => {
+      if (!editAllowed) return;
       if (selectedId) setStickyColor(doc, selectedId, color);
     },
-    [doc, selectedId],
+    [doc, selectedId, editAllowed],
   );
 
   const onDelete = useCallback(() => {
+    if (!editAllowed) return;
     if (!selectedId) return;
     deleteObject(doc, selectedId);
     select(null);
-  }, [doc, selectedId, select]);
+  }, [doc, selectedId, select, editAllowed]);
 
   // Clear stale selection / editing when a note disappears (e.g. deleted).
   useEffect(() => {
@@ -169,6 +180,7 @@ export default function App() {
   // Board-level keyboard shortcuts (Enter to edit, Delete/Backspace to remove).
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (!editAllowed) return; // an unloadable board is not editable
       if (editingId !== null) return; // text editing owns the keys
       if (focusIsEditable()) return;
       if (!selectedId) return;
@@ -183,7 +195,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [editingId, selectedId, doc, startEdit, select]);
+  }, [editingId, selectedId, doc, startEdit, select, editAllowed]);
 
   return (
     <div className="vidi6-app">
@@ -212,10 +224,11 @@ export default function App() {
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
+            canEdit={editAllowed}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtCentre} />
+      <Toolbar onCreateSticky={createAtCentre} disabled={!editAllowed} />
       <ConnectionStatus state={connectionState} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

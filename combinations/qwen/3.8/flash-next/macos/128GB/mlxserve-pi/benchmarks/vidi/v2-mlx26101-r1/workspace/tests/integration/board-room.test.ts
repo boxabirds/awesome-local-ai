@@ -406,8 +406,8 @@ describe('presence relays without interpretation (TC-16)', () => {
   });
 });
 
-describe('a restarted room is rebuilt from the clients (TC-18)', () => {
-  it('TC-18 refills the room from whoever reconnects first', async () => {
+describe('a restarted room is rebuilt (TC-18)', () => {
+  it('TC-18 refills the room from storage on wake and from whoever reconnects', async () => {
     const boardId = newBoardId();
     const a = await RoomClient.connect(boardId);
     const b = await RoomClient.connect(boardId);
@@ -419,25 +419,26 @@ describe('a restarted room is rebuilt from the clients (TC-18)', () => {
     }
     await b.waitForDoc((n) => n.length === 6, 'b has the 6 notes');
 
-    // Everybody drops off (a laptop lid closing), then the object goes away: story 3
-    // stores nothing, so a fresh room starts from an empty document.
+    // Everybody drops off (a laptop lid closing), then the object goes away. Story 4
+    // stores every change before it is broadcast, so a fresh room reads the board
+    // straight back out of its own storage — nobody has to be online to save it.
+    const saved = a.snapshot();
     a.close();
     b.close();
     await a.waitForClose();
     await b.waitForClose();
     const stub = bindings.BOARD_ROOM.get(bindings.BOARD_ROOM.idFromName(boardId));
     await evict(stub);
-    expect((await roomSnapshot(boardId)).length).toBe(0);
+    expect((await roomSnapshot(boardId)).map((n) => n.id)).toEqual(saved.map((n) => n.id));
 
-    // A reconnects first — same tab, so the same document — and the room asks what
-    // they have: the board comes back.
+    // A reconnects — same tab, same document — and converges on the restored board.
     await a.reconnect();
     await a.waitForSync();
     expect(a.snapshot()).toHaveLength(6);
     const aSnapshot = await waitForRoom(
       boardId,
       (current) => JSON.stringify(current) === JSON.stringify(a.snapshot()),
-      'the room never took a\'s board back',
+      'the room never matched a\'s board',
     );
     expect(aSnapshot).toEqual(a.snapshot());
 
@@ -472,30 +473,32 @@ describe('a dead socket cannot break the room (TC-31)', () => {
     // is about to write to it while A makes a change.
     const stub = bindings.BOARD_ROOM.get(bindings.BOARD_ROOM.idFromName(boardId));
     const sizeWhileDead = await runInDurableObject(stub, (instance: BoardRoom) => {
-      const room = instance as unknown as { sockets: Set<WebSocket>; roomDoc: Y.Doc };
-      const sockets = [...room.sockets];
+      const room = instance as unknown as {
+        ctx: { getWebSockets: () => WebSocket[] };
+        roomDoc: Y.Doc;
+      };
+      const sockets = [...room.ctx.getWebSockets()];
       const dead = sockets[sockets.length - 1]!;
       dead.close(); // now unusable, but the room has not noticed yet
       // A's change arrives in the same turn: the broadcast hits the dead socket.
       createSticky(room.roomDoc, { x: 11, y: 11 }, 'blue');
-      return room.sockets.size;
+      return room.ctx.getWebSockets().length;
     });
     expect(sizeWhileDead).toBeGreaterThan(0);
 
-    // The room is unharmed: the note is in it, and A is still connected.
+    // The room is unharmed: the note written while one socket was dead is in it.
     const written = await waitForRoom(
       boardId,
       (notes) => notes.length === 1,
       'the room lost the note written while a socket was dead',
     );
-    expect(a.closeCode).toBeNull();
 
-    // The dead socket is gone from the room's set...
+    // The dead socket is gone for the client it belonged to, and exactly one client
+    // is still connected: writing to a dead socket took the room down for nobody.
     await settle();
-    const live = await runInDurableObject(stub, (instance: BoardRoom) => {
-      return (instance as unknown as { sockets: Set<WebSocket> }).sockets.size;
-    });
-    expect(live).toBe(1);
+    const survivors = [a, b].filter((c) => c.closeCode === null);
+    expect(survivors).toHaveLength(1);
+    const survivor = survivors[0]!;
 
     // ...and a socket opened afterwards still receives everything.
     const c = await RoomClient.connect(boardId);
@@ -504,11 +507,11 @@ describe('a dead socket cannot break the room (TC-31)', () => {
     expect(c.snapshot()).toEqual(written);
 
     const cUpdates = c.frameCount('update');
-    const later = createSticky(a.doc, { x: 22, y: 22 });
+    const later = createSticky(survivor.doc, { x: 22, y: 22 });
     await c.waitForNewFrames('update', cUpdates);
     expect(ids(c.snapshot())).toContain(later);
 
-    a.close();
+    survivor.close();
     c.close();
   });
 });

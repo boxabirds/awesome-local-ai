@@ -73,6 +73,15 @@ export class WebsocketProvider {
     this.emit('sync', synced as never);
   }
 
+  /**
+   * Pretend the room closed the socket. Mirrors how the real provider emits
+   * `connection-close` (a close event carrying `code`, then the provider), so a
+   * test can drive the close-code → state mapping exactly as the transport does.
+   */
+  emitClose(code: number): void {
+    this.emit('connection-close', { code } as never);
+  }
+
   connect(): void {}
   disconnect(): void {}
 

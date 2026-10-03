@@ -2,6 +2,11 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /**
+   * True while the board could not be loaded: the Sticky note button is disabled
+   * so it cannot create a note on a board that is not really there.
+   */
+  disabled?: boolean;
 }
 
 /**
@@ -10,8 +15,12 @@ export interface ToolbarProps {
  * visible board area and starts editing. Pointer events are stopped so a click
  * here never pans the board or clears the selection.
  */
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
   const stop = (e: ReactPointerEvent) => e.stopPropagation();
+  const fire = () => {
+    if (disabled) return;
+    onCreateSticky();
+  };
   return (
     <div
       className="toolbar"
@@ -39,16 +48,18 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
         data-testid="create-sticky"
-        onClick={onCreateSticky}
+        disabled={disabled}
+        onClick={fire}
         style={{
           width: 40,
           height: 40,
           border: '1px solid #d0d3da',
           background: '#FFF59D',
           borderRadius: 8,
-          cursor: 'pointer',
+          cursor: disabled ? 'not-allowed' : 'pointer',
           fontSize: 18,
           lineHeight: 1,
+          opacity: disabled ? 0.4 : 1,
         }}
       >
         {'\u{1F4DD}'}

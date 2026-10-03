@@ -16,12 +16,19 @@
 
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { handleTestHook } from './test-hooks';
 
 export interface Env {
   /** This board's room: one Durable Object per board id. */
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client, served with an SPA fallback (see wrangler.jsonc). */
   ASSETS: Fetcher;
+  /**
+   * Set to `'1'` only by the e2e `wrangler dev` command line to enable the
+   * `/__test/...` board-surgery hooks. Absent in `wrangler.jsonc`, so a production
+   * deploy never exposes them.
+   */
+  TEST_HOOKS?: string;
 }
 
 /** Everything under this prefix is a board room WebSocket endpoint. (Not exported:
@@ -52,6 +59,12 @@ function isUpgradeToWebsocket(request: Request): boolean {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    // Test-only board surgery, present only when TEST_HOOKS=1 is set on the dev
+    // server; otherwise this returns null and normal routing continues.
+    const hook = await handleTestHook(request, env);
+    if (hook !== null) return hook;
+
     const boardId = boardIdFromPathname(url.pathname);
     if (boardId === null) return env.ASSETS.fetch(request);
 
