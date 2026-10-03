@@ -18,6 +18,16 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { SELF } from 'cloudflare:test';
 import { MESSAGE_SYNC, MESSAGE_AWARENESS } from '../../../src/shared/protocol';
+
+/**
+ * Create a real board through the worker API (story 5: rooms are only
+ * accepted for boards that exist), and return its id.
+ */
+export async function createBoardViaWorker(): Promise<string> {
+  const res = await SELF.fetch('http://localhost/api/boards', { method: 'POST' });
+  if (res.status !== 201) throw new Error(`board creation failed: ${res.status}`);
+  return ((await res.json()) as { id: string }).id;
+}
 // Remote updates are applied with this origin; the 'update' handler skips
 // them so they are not echoed back to the room. Every other origin (local
 // board-model edits, direct Y.Text mutations, ...) is forwarded.

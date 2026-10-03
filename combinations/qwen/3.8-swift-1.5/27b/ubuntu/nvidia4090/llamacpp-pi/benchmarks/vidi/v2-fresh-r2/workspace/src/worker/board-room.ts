@@ -24,13 +24,14 @@ import {
   CLOSE_STORAGE_FAILURE,
 } from '../shared/protocol';
 import { BoardStore, LOAD_ORIGIN } from './board-store';
-import { initDoc } from '../shared/board-model';
+import { initDoc, createSticky, getStickyText } from '../shared/board-model';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config';
 
 export class BoardRoom extends DurableObject {
   private doc: Y.Doc | null = null;
   private store: BoardStore;
-  private state: 'loading' | 'ready' | 'load-failed' | 'storage-failed' = 'loading';
+  private state: 'not-exist' | 'loading' | 'ready' | 'load-failed' | 'storage-failed' =
+    'loading';
   private lastLoadFailedAt = 0;
 
   constructor(ctx: DurableObjectState, env: unknown) {
@@ -38,8 +39,55 @@ export class BoardRoom extends DurableObject {
     this.store = new BoardStore(ctx.storage);
 
     ctx.blockConcurrencyWhile(async () => {
+      // Story 5: a board only loads when it exists (created_at, or legacy
+      // data). Unknown ids stay 'not-exist' and write nothing.
+      if (!this.store.existsReadOnly()) {
+        this.state = 'not-exist';
+        return;
+      }
       this.loadDoc();
     });
+  }
+
+  /**
+   * RPC (story 5, share.board_api): create the board's metadata.
+   * Migrate + set `created_at` if absent. Idempotent: a second call on an
+   * existing board returns 'exists' and never re-initialises it.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    const result = this.store.ensureInitialized();
+    if (this.state === 'not-exist') {
+      this.state = 'loading';
+      this.loadDoc();
+    }
+    return result;
+  }
+
+  /** RPC (story 5, share.board_api): read-only existence check. */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  /** Test-only (called from the /__test routes): run a read-only SQL query. */
+  testSql(query: string): unknown[] {
+    return this.store.runQuery(query);
+  }
+
+  /**
+   * Test-only (called from the /__test routes): seed a *legacy* board —
+   * real Yjs updates written as `updates` rows with NO `created_at`, the
+   * shape of boards that existed before story 5 shipped.
+   * Returns the number of seeded notes.
+   */
+  async seedLegacy(): Promise<number> {
+    const doc = new Y.Doc();
+    initDoc(doc);
+    const id = createSticky(doc, { x: 100, y: 100 });
+    getStickyText(doc, id)?.insert(0, 'Legacy note');
+    // append() migrates lazily and writes a plain `updates` row;
+    // `created_at` is deliberately never set.
+    this.store.append(Y.encodeStateAsUpdate(doc));
+    return 1;
   }
 
   /**
@@ -84,6 +132,12 @@ export class BoardRoom extends DurableObject {
   }
 
   fetch(req: Request): Promise<Response> {
+    // Story 5 (share.not_found): unknown or malformed boards are rejected
+    // with 404 before a socket is accepted; nothing is written.
+    if (!this.store.existsReadOnly()) {
+      return Promise.resolve(new Response('Not Found', { status: 404 }));
+    }
+
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 

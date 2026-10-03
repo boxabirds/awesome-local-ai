@@ -1,7 +1,11 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { BoardView } from '../../src/client/pages/BoardPage';
+import { newBoardId } from '../../src/shared/board-id';
 import { WHEEL_ZOOM_SENSITIVITY, ZOOM_STEP_FACTOR } from '../../src/shared/config';
+
+/** Any valid 22-char board id (the board view takes the id opaquely). */
+const BOARD_ID = newBoardId();
 
 /**
  * Viewport input tests (TC-13..TC-18, TC-29, TC-30).
@@ -70,7 +74,7 @@ afterEach(() => {
 
 describe('viewport.input', () => {
   it('TC-13 a drag pans the board exactly and the state returns to idle', () => {
-    render(<App />);
+    render(<BoardView boardId={BOARD_ID} />);
     const viewport = screen.getByTestId('board-viewport');
 
     firePointer('pointerdown', 100, 100);
@@ -88,7 +92,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-14 pointercancel freezes the camera and later moves are ignored', () => {
-    render(<App />);
+    render(<BoardView boardId={BOARD_ID} />);
     const viewport = screen.getByTestId('board-viewport');
 
     firePointer('pointerdown', 100, 100);
@@ -104,7 +108,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-15 a plain wheel pans and is always prevented', () => {
-    render(<App />);
+    render(<BoardView boardId={BOARD_ID} />);
     const viewport = screen.getByTestId('board-viewport');
     const event = fireWheel(viewport, { deltaX: 0, deltaY: 100 });
     expect(event.defaultPrevented).toBe(true);
@@ -116,7 +120,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-16 a Ctrl-wheel zooms and is prevented', () => {
-    render(<App />);
+    render(<BoardView boardId={BOARD_ID} />);
     const viewport = screen.getByTestId('board-viewport');
     const event = fireWheel(viewport, {
       deltaX: 0,
@@ -132,7 +136,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-17 a Safari gesturechange zooms by the scale ratio and is prevented', () => {
-    render(<App />);
+    render(<BoardView boardId={BOARD_ID} />);
     const viewport = screen.getByTestId('board-viewport');
     const event = new Event('gesturechange', { cancelable: true });
     Object.assign(event, { scale: 2, clientX: 300, clientY: 200 });
@@ -144,7 +148,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-18 Ctrl/Cmd + =, - and 0 step the zoom and reset, all prevented', () => {
-    render(<App />);
+    render(<BoardView boardId={BOARD_ID} />);
     const press = (key: string): KeyboardEvent => {
       const event = new KeyboardEvent('keydown', {
         key,
@@ -174,7 +178,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-29 a click without moving leaves the camera and the hint unchanged', () => {
-    render(<App />);
+    render(<BoardView boardId={BOARD_ID} />);
     const before = worldLayerTransform();
     expect(screen.getByTestId('navigation-hint')).toBeInTheDocument();
 
@@ -187,7 +191,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-30 a Ctrl-wheel over the zoom controls does not zoom the board', () => {
-    render(<App />);
+    render(<BoardView boardId={BOARD_ID} />);
     const before = worldLayerTransform();
     const controls = screen.getByTestId('zoom-controls');
     fireWheel(controls, { deltaX: 0, deltaY: -100, ctrlKey: true, clientX: 1200, clientY: 700 });

@@ -11,21 +11,21 @@ const UPGRADE_HEADERS = { Upgrade: 'websocket', Connection: 'Upgrade' };
  * workerd build cannot complete an in-process 101 upgrade.
  */
 describe('worker routing (integration)', () => {
-  it('TC-04: GET /api/rooms/<invalid id> with Upgrade → 400 before the DO is involved', async () => {
+  it('S3-TC-04: GET /api/rooms/<invalid id> with Upgrade → 404 before the DO is involved (story 5: 400 became 404)', async () => {
     const res = await SELF.fetch('http://localhost/api/rooms/not-a-valid-id!', {
       headers: UPGRADE_HEADERS,
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(res.webSocket ?? null).toBeNull();
   }, 15000);
 
-  it('TC-05: GET /api/rooms/<valid id> without Upgrade → 426', async () => {
+  it('S3-TC-05: GET /api/rooms/<valid id> without Upgrade → 426', async () => {
     const boardId = newBoardId();
     const res = await SELF.fetch(`http://localhost/api/rooms/${boardId}`);
     expect(res.status).toBe(426);
   }, 15000);
 
-  it('TC-06: GET /b/<valid id> → 200 index.html (SPA fallback)', async () => {
+  it('S3-TC-06: GET /b/<valid id> → 200 index.html (SPA fallback)', async () => {
     const boardId = newBoardId();
     const res = await SELF.fetch(`http://localhost/b/${boardId}`);
     expect(res.status).toBe(200);

@@ -15,5 +15,8 @@
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }
-  ]
+  ],
+  // Test-only: enables the /__test routes (story 5). This project is not
+  // deployed to production; see NOTES.md.
+  "vars": { "TEST_HOOKS": "1" }
 }

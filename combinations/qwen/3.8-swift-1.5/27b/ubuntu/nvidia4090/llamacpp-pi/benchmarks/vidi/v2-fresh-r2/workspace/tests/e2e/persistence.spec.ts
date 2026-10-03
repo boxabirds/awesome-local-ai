@@ -6,7 +6,7 @@
  * and re-load from SQLite).
  */
 import { test, expect, type Page } from '@playwright/test';
-import { setCamera } from './helpers/board';
+import { createBoardAndOpen, setCamera } from './helpers/board';
 import { BOARD_LOAD_BUDGET_MS, PERSIST_TESTED_NOTES } from '../../src/shared/config';
 
 /** Wait for the test hooks to be available. */
@@ -47,7 +47,7 @@ async function createNoteWithText(page: Page, text: string, x = 400, y = 300): P
 
 test.describe('persistence e2e', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await createBoardAndOpen(page);
     await setCamera(page, { x: -640, y: -400, zoom: 1 });
     await waitForHooks(page);
   });

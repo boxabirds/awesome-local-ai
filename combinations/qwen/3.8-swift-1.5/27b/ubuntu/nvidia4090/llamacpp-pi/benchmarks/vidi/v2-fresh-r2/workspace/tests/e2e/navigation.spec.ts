@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT, ZOOM_MAX } from '../../src/shared/config';
-import { dragBoard, originMarkerCenter, setCamera } from './helpers/board';
+import { createBoardAndOpen, dragBoard, originMarkerCenter, setCamera } from './helpers/board';
 
 const HINT_TEXT = 'Drag to move around · Ctrl/Cmd + scroll or pinch to zoom';
 
@@ -35,7 +35,7 @@ async function expectMarkerCenter(
 
 test.describe('First visit navigation', () => {
   test('TC-28 the hint shows on load and is removed after the first drag', async ({ page }) => {
-    await page.goto('/');
+    await createBoardAndOpen(page);
     const hint = page.getByText(HINT_TEXT);
     await expect(hint).toBeVisible();
     await dragBoard(page, 120, 60);
@@ -43,7 +43,7 @@ test.describe('First visit navigation', () => {
   });
 
   test('TC-23 a 200x100 drag moves the board exactly 200x100 px', async ({ page }) => {
-    await page.goto('/');
+    await createBoardAndOpen(page);
     const before = await originMarkerCenter(page);
     await dragBoard(page, 200, 100);
     await expectMarkerCenter(page, before.x + 200, before.y + 100);
@@ -52,7 +52,7 @@ test.describe('First visit navigation', () => {
   test('TC-24 a Ctrl-wheel over a dot keeps it under the pointer and never zooms the page', async ({
     page,
   }) => {
-    await page.goto('/');
+    await createBoardAndOpen(page);
     // Centre the origin so the pointer rests on a distinctive grid point,
     // and wait for the reset render to land before reading the position.
     const { width, height } = viewportSize(page);
@@ -74,7 +74,7 @@ test.describe('First visit navigation', () => {
 
 test.describe('Limits and recovery', () => {
   test('TC-25 zooming in stops at 400% with the + button disabled', async ({ page }) => {
-    await page.goto('/');
+    await createBoardAndOpen(page);
     const plus = page.getByRole('button', { name: 'Zoom in' });
     // The click that reaches the limit can lose the race with the re-render
     // that disables the button; a timeout there means the limit is reached.
@@ -87,7 +87,7 @@ test.describe('Limits and recovery', () => {
   });
 
   test('TC-26 reset view from far away returns to 100% centred on the start', async ({ page }) => {
-    await page.goto('/');
+    await createBoardAndOpen(page);
     const extent = UNBOUNDED_PAN_TESTED_EXTENT;
     await setCamera(page, { x: extent, y: extent, zoom: ZOOM_MAX });
     await expect(zoomLabel(page)).toHaveText('400%');
@@ -100,7 +100,7 @@ test.describe('Limits and recovery', () => {
 
 test.describe('Far travel', () => {
   test('TC-27 panning is exact at 1,000,000 units and the grid stays even', async ({ page }) => {
-    await page.goto('/');
+    await createBoardAndOpen(page);
     await setCamera(page, {
       x: UNBOUNDED_PAN_TESTED_EXTENT,
       y: UNBOUNDED_PAN_TESTED_EXTENT,
@@ -118,7 +118,7 @@ test.describe('Far travel', () => {
 
 test.describe('No page zoom', () => {
   test('TC-31 board zoom gestures leave the page zoom untouched', async ({ page }) => {
-    await page.goto('/');
+    await createBoardAndOpen(page);
     const before = await page.evaluate(() => ({
       scale: window.visualViewport?.scale ?? 1,
       devicePixelRatio: window.devicePixelRatio,

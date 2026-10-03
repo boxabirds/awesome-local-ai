@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
-import { RoomClient } from './helpers/ws-client';
+import { RoomClient, createBoardViaWorker } from './helpers/ws-client';
 import { applyRandomOps } from './helpers/random-ops';
-import { newBoardId } from '../../src/shared/board-id';
 import {
   createSticky,
   moveObject,
@@ -54,7 +53,7 @@ function closeAll(...clients: RoomClient[]): void {
  */
 describe('BoardRoom live relay (integration)', () => {
   it('TC-07: a note created by A appears on B; B received exactly one update', async () => {
-    const [a, b] = await twoClients(newBoardId());
+    const [a, b] = await twoClients(await createBoardViaWorker());
     createSticky(a.doc, { x: 100, y: 100 });
     await poll(() => snapshot(b.doc).length === snapshot(a.doc).length);
     expect(snapStr(b.doc)).toBe(snapStr(a.doc));
@@ -64,7 +63,7 @@ describe('BoardRoom live relay (integration)', () => {
 
   describe('TC-08: single operations propagate with no echo to the sender', () => {
     async function opPropagates(mutate: (doc: Y.Doc, id: string) => void): Promise<void> {
-      const [a, b] = await twoClients(newBoardId());
+      const [a, b] = await twoClients(await createBoardViaWorker());
       const id = createSticky(a.doc, { x: 0, y: 0 });
       await poll(() => snapshot(b.doc).some((n) => n.id === id));
       mutate(a.doc, id);
@@ -89,7 +88,7 @@ describe('BoardRoom live relay (integration)', () => {
     }, 30_000);
 
     it('delete', async () => {
-      const [a, b] = await twoClients(newBoardId());
+      const [a, b] = await twoClients(await createBoardViaWorker());
       const id = createSticky(a.doc, { x: 0, y: 0 });
       await poll(() => snapshot(b.doc).some((n) => n.id === id));
       deleteObject(a.doc, id);
@@ -100,7 +99,7 @@ describe('BoardRoom live relay (integration)', () => {
   });
 
   it("TC-09: concurrent text inserts merge to 'red green blue' on both", async () => {
-    const [a, b] = await twoClients(newBoardId());
+    const [a, b] = await twoClients(await createBoardViaWorker());
     const id = createSticky(a.doc, { x: 0, y: 0 });
     getStickyText(a.doc, id)?.insert(0, 'green');
     await poll(() => getStickyText(b.doc, id)?.toString() === 'green');
@@ -119,7 +118,7 @@ describe('BoardRoom live relay (integration)', () => {
   }, 30_000);
 
   it('TC-10: concurrent moves converge to an identical x on both', async () => {
-    const [a, b] = await twoClients(newBoardId());
+    const [a, b] = await twoClients(await createBoardViaWorker());
     const id = createSticky(a.doc, { x: 0, y: 0 });
     await poll(() => snapshot(b.doc).some((n) => n.id === id));
 
@@ -134,7 +133,7 @@ describe('BoardRoom live relay (integration)', () => {
   }, 30_000);
 
   it("TC-11: delete wins over concurrent text insert; B's text is nowhere", async () => {
-    const [a, b] = await twoClients(newBoardId());
+    const [a, b] = await twoClients(await createBoardViaWorker());
     const id = createSticky(a.doc, { x: 0, y: 0 });
     await poll(() => snapshot(b.doc).some((n) => n.id === id));
 
@@ -152,7 +151,7 @@ describe('BoardRoom live relay (integration)', () => {
   }, 30_000);
 
   it(`TC-12: ${MAX_CONCURRENT_EDITORS} clients x 200 seeded random ops converge`, async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaWorker();
     const seed = 0xc0ffee;
     console.log(`TC-12 seed: ${seed}`);
     const clients: RoomClient[] = [];
@@ -178,7 +177,7 @@ describe('BoardRoom live relay (integration)', () => {
   }, 120_000);
 
   it(`TC-13: ${MAX_CONCURRENT_EDITORS + 1} sockets all upgrade; the last joiner's note reaches all`, async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaWorker();
     const clients: RoomClient[] = [];
     for (let i = 0; i <= MAX_CONCURRENT_EDITORS; i++) {
       const c = new RoomClient(boardId);
@@ -194,7 +193,7 @@ describe('BoardRoom live relay (integration)', () => {
   }, 60_000);
 
   it('TC-14: late joiner C converges to the 20 notes created by A and B', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaWorker();
     const [a, b] = await twoClients(boardId);
     for (let i = 0; i < 10; i++) createSticky(a.doc, { x: i, y: 0 });
     for (let i = 0; i < 10; i++) createSticky(b.doc, { x: i, y: 100 });
@@ -209,7 +208,7 @@ describe('BoardRoom live relay (integration)', () => {
   }, 30_000);
 
   it('TC-15: malformed traffic closes only the sender (1003); B keeps receiving', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaWorker();
     const [b] = await twoClients(boardId);
 
     let sender: RoomClient;
@@ -250,7 +249,7 @@ describe('BoardRoom live relay (integration)', () => {
   }, 60_000);
 
   it('TC-16: awareness bytes from A are received identically by A and B', async () => {
-    const [a, b] = await twoClients(newBoardId());
+    const [a, b] = await twoClients(await createBoardViaWorker());
     const payload = new Uint8Array([9, 8, 7, 6, 5]);
     a.sendAwareness(payload);
     await poll(() => a.awarenessCount >= 1 && b.awarenessCount >= 1);
@@ -260,8 +259,8 @@ describe('BoardRoom live relay (integration)', () => {
   }, 30_000);
 
   it('TC-17: rooms are isolated; a note in room1 never reaches room2', async () => {
-    const room1 = newBoardId();
-    const room2 = newBoardId();
+    const room1 = await createBoardViaWorker();
+    const room2 = await createBoardViaWorker();
     const a = new RoomClient(room1);
     await a.connect();
     await a.waitForSync();
@@ -279,7 +278,7 @@ describe('BoardRoom live relay (integration)', () => {
 
   it('TC-18: after a restart the first reconnector repopulates; B converges', async () => {
     // Build content on one board.
-    const boardX = newBoardId();
+    const boardX = await createBoardViaWorker();
     const a = new RoomClient(boardX);
     await a.connect();
     await a.waitForSync();
@@ -290,7 +289,7 @@ describe('BoardRoom live relay (integration)', () => {
 
     // Fresh room (new board => new DO instance). A reconnects first, carrying
     // its content; the empty room must adopt it.
-    const boardY = newBoardId();
+    const boardY = await createBoardViaWorker();
     const a2 = new RoomClient(boardY);
     Y.applyUpdate(a2.doc, Y.encodeStateAsUpdate(a.doc));
     await a2.connect();
@@ -305,7 +304,7 @@ describe('BoardRoom live relay (integration)', () => {
   }, 30_000);
 
   it('TC-14b: state persists after all clients leave; new client sees converged state', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaWorker();
     const [a, b] = await twoClients(boardId);
     for (let i = 0; i < 10; i++) createSticky(a.doc, { x: i, y: 0 });
     for (let i = 0; i < 10; i++) createSticky(b.doc, { x: i, y: 100 });
@@ -333,7 +332,7 @@ describe('BoardRoom live relay (integration)', () => {
     const noteCount = snapshot(doc).length;
     expect(noteCount).toBe(2000);
 
-    const boardId = newBoardId();
+    const boardId = await createBoardViaWorker();
     const a = new RoomClient(boardId);
     Y.applyUpdate(a.doc, Y.encodeStateAsUpdate(doc));
     await a.connect();
@@ -364,7 +363,7 @@ describe('BoardRoom live relay (integration)', () => {
   }, 60_000);
 
   it('TC-18b: awareness is relayed but NOT persisted across reload', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaWorker();
     const [a, b] = await twoClients(boardId);
     const payload = new Uint8Array([1, 2, 3, 4, 5]);
     a.sendAwareness(payload);
@@ -385,7 +384,7 @@ describe('BoardRoom live relay (integration)', () => {
   }, 30_000);
 
   it('TC-26: restart persistence — updates from before "restart" are present', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaWorker();
     const a = new RoomClient(boardId);
     await a.connect();
     await a.waitForSync();
@@ -411,7 +410,7 @@ describe('BoardRoom live relay (integration)', () => {
   }, 30_000);
 
   it('TC-31: an abruptly closed socket does not break the room; later sockets receive', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaWorker();
     const a = new RoomClient(boardId);
     await a.connect();
     await a.waitForSync();

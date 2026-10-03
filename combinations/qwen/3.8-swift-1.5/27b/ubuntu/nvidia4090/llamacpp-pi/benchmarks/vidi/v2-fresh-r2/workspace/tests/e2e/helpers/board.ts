@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page, type APIRequestContext } from '@playwright/test';
 
 export const ORIGIN_MARKER_SELECTOR = '[data-testid="origin-marker"]';
 export const ZOOM_LABEL_SELECTOR = '[data-testid="zoom-label"]';
@@ -45,4 +45,33 @@ export async function dragBoard(page: Page, dx: number, dy: number): Promise<voi
   await page.mouse.down();
   await page.mouse.move(start.x + dx, start.y + dy, { steps: 10 });
   await page.mouse.up();
+}
+
+/**
+ * Create a real board through the worker API (story 5: rooms are only
+ * accepted for boards that exist) and return its id.
+ */
+export async function createBoardViaApi(context: APIRequestContext): Promise<string> {
+  const res = await context.post('/api/boards');
+  if (res.status() !== 201) {
+    throw new Error(`board creation failed: ${res.status()}`);
+  }
+  const body = (await res.json()) as { id: string };
+  expect(body.id).toMatch(/^[\w-]{22}$/);
+  return body.id;
+}
+
+/** URL of a board page. */
+export function boardUrl(id: string): string {
+  return `/b/${id}`;
+}
+
+/**
+ * Create a board through the API and open its page (the standard flow for
+ * the existing stories 1–4 e2e specs, which predate the home page).
+ */
+export async function createBoardAndOpen(page: Page): Promise<string> {
+  const id = await createBoardViaApi(page.request);
+  await page.goto(boardUrl(id));
+  return id;
 }

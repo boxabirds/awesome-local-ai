@@ -8,7 +8,7 @@
  * is not a reliable pass/fail signal (see config LIVE_UPDATE_LATENCY_BUDGET_MS).
  */
 import { expect, type Browser, type Page } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
+import { createBoardViaApi } from './board';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LIVE_UPDATE_LATENCY_BUDGET_MS,
@@ -31,13 +31,17 @@ export interface Participant {
 export async function openParticipants(
   browser: Browser,
   n: number,
-  boardId: string = newBoardId(),
+  boardId?: string,
 ): Promise<Participant[]> {
   const participants: Participant[] = [];
+  let id = boardId;
   for (let i = 0; i < n; i++) {
     const context = await browser.newContext();
+    // Story 5: boards are created server-side; without an explicit id, create
+    // one through the API (reused by every participant).
+    if (!id) id = await createBoardViaApi(context.request);
     const page = await context.newPage();
-    await page.goto(`/b/${boardId}`);
+    await page.goto(`/b/${id}`);
     await page.waitForFunction(
       () => (window as { __vidi6?: { connectionState: string } }).__vidi6?.connectionState === 'connected',
       { timeout: E2E_EVENTUAL_TIMEOUT_MS },
@@ -47,7 +51,7 @@ export async function openParticipants(
       name: `P${i}`,
       context,
       page,
-      boardId,
+      boardId: id,
       close: async () => {
         await context.close();
       },

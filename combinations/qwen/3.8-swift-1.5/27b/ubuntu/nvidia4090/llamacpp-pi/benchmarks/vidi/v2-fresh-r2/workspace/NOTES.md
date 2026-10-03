@@ -65,3 +65,89 @@ Decisions made while implementing story 1 (pan and zoom around an infinite board
 - All servers stay inside $AGENT_PORT_FIRST..$AGENT_PORT_LAST:
   - wrangler dev: 25504 (inspector 25505) — set in playwright.config.ts
   - vite dev: 25506 — set in vite.config.ts
+
+---
+
+# Story 5 — Share a board with others using a link
+
+## Coverage table
+
+| TC | Test | Where |
+|----|------|-------|
+| TC-04 | 10,000 fresh ids are unique, 22 chars, base64url alphabet | `tests/unit/create-board.test.ts` |
+| TC-05 | POST /api/boards → 201 + valid id; GET → 200; created_at set | `tests/integration/board-api.test.ts` |
+| TC-06 | GET /api/boards/<fresh id> → 404 and no storage written | `tests/integration/board-api.test.ts` |
+| TC-07 | malformed ids → 404 without touching the namespace | `tests/integration/board-api.test.ts` |
+| TC-08 | legacy board (updates row, no created_at) → GET 200 | `tests/integration/board-api.test.ts` |
+| TC-09 | WebSocket upgrade to an unknown id → 404, no socket, no tables | `tests/integration/board-api.test.ts` |
+| TC-10 | upgrade after POST → 101 and story 3 sync works | `tests/integration/board-api.test.ts` |
+| TC-12 | initialize() throwing → 500 create_failed | `tests/integration/board-api.test.ts` (via test header hook) |
+| TC-14 | PUT /api/boards → 405 | `tests/integration/board-api.test.ts` |
+| TC-15 | initialize() twice → 'created' then 'exists'; created_at unchanged | `tests/integration/board-api.test.ts` (via /__test init route) |
+| TC-16 | Home: New board → "Creating…" disabled → navigate to /b/<id> | `tests/component/pages.test.tsx` |
+| TC-17 | Home: creation fails (500 / network) → exact message, button re-enabled, no navigation | `tests/component/pages.test.tsx` |
+| TC-19 | /b/bad (malformed) → Board not found, no existence request | `tests/component/pages.test.tsx` |
+| TC-20 | 404 → "Opening board…" then Board not found with New board | `tests/component/pages.test.tsx` |
+| TC-21 | unreachable ×2 then exists → retry message, board opens, 3 calls | `tests/component/pages.test.tsx` |
+| TC-22 | Copy link → writeText(full link); "Link copied" reverts at exactly LINK_COPIED_MS | `tests/component/SharePanel.test.tsx` |
+| TC-23 | writeText rejects → full link selected + "Press Ctrl+C (Cmd+C on Mac) to copy" | `tests/component/SharePanel.test.tsx` |
+| TC-24 | navigator.clipboard missing → same manual-copy fallback | `tests/component/SharePanel.test.tsx` |
+| TC-25 | Escape closes; outside pointerdown closes; focus returns to Share | `tests/component/SharePanel.test.tsx` |
+| TC-26 | e2e: home → New board → board opens (toolbar + Share), server confirms 200 | `tests/e2e/share.spec.ts` |
+| TC-27 | e2e: share panel copy flow with permitted clipboard (chromium) | `tests/e2e/share.spec.ts` |
+| TC-28 | e2e: mistyped link → not-found page; New board works; mistyped id still 404 | `tests/e2e/share.spec.ts` |
+| TC-29 | e2e: second participant opening the shared link sees the same note | `tests/e2e/share.spec.ts` |
+| TC-31 | e2e: created board survives a reload (server-side) | `tests/e2e/share.spec.ts` |
+| TC-32 | served index.html carries the no-referrer meta | `tests/integration/board-api.test.ts` |
+
+## Design decisions
+
+### BoardPageState carries the boardId
+The design's `nextBoardPageState(state, result, attempt)` must produce
+`{ kind: 'ready', boardId }`, so the `checking` and `unreachable` variants
+carry `boardId` (a small extension of the design contract). `not_found`
+stays bare and is terminal: a board that 404s is not re-checked.
+
+### BoardPage is keyed by id in App
+`<BoardPage key={route.id} …/>`. Without the key, React reuses the BoardPage
+fiber when the id changes (same component type at the same tree position) and
+the `not_found` state from the previous id is carried over — the new id's
+`exists` result is then dropped by the terminal-not_found rule and the page
+stays on "Board not found" forever. The key gives each board a fresh state
+machine (this was a real bug found while writing TC-28).
+
+### Test hooks on the worker
+`src/worker/test-hooks.ts` serves `/__test/boards/:id/{tables,exists,sql,
+seed-legacy,init}` for the integration tests. It is gated by the `TEST_HOOKS`
+binding, set in `wrangler.jsonc` `vars`. This project is not deployed to
+production; the hooks are read-only (the `sql` route runs the query inside
+the DO) except `seed-legacy`/`init`, which exist to build test fixtures.
+
+### TC-12 failure injection
+`createBoard()` accepts an optional second argument (`{ failInitialize }`)
+used only by the worker's POST handler when the test header
+`x-vidi6-test-fail-initialize: 1` is present, so the 500 path is testable
+against the real Worker without touching production code paths.
+
+### Story 3's 400 became 404
+Story 3 returned 400 for malformed room ids on the WebSocket route. Story 5's
+design makes all unknown/malformed board addresses 404, so
+`tests/integration/worker.test.ts` was updated (labelled S3-TC-04).
+
+### Existing e2e specs create boards via the API
+The stories 1–4 e2e specs used to `page.goto('/')` and get a board. Since `/`
+is now the home page, they use `createBoardAndOpen(page)` (POST /api/boards,
+then goto /b/<id>). `openParticipants` creates a board via the API when no id
+is given. The old `openBoard` helper (client-side id generation) is gone.
+
+### Component tests: userEvent + fake timers
+`@testing-library/user-event` deadlocks under vitest fake timers in this
+environment (its timer-driven pointer sequence never completes). The
+SharePanel tests therefore use `fireEvent` (synchronous) for clicks and
+`act` + `vi.advanceTimersByTime` for the "Link copied" window. `findBy*`
+queries also hang under fake timers (real intervals) and are avoided there.
+
+### E2E clipboard test is chromium-only
+`grantPermissions(['clipboard-read','clipboard-write'])` + read-back is
+exercised on chromium only (the design's "chromium is enough" for the copy
+flow); TC-27 skips on other engines.

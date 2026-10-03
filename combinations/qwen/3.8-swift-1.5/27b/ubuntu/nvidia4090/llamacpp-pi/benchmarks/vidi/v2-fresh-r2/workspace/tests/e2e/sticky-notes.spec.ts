@@ -3,7 +3,7 @@
  * TC-30 to TC-34.
  */
 import { test, expect, type Page } from '@playwright/test';
-import { setCamera } from './helpers/board';
+import { createBoardAndOpen, setCamera } from './helpers/board';
 import { SHORT_PHRASE, LONG_PARAGRAPH } from '../fixtures/texts';
 
 const STICKY_SIZE = 200; // STICKY_SIZE_WORLD
@@ -26,7 +26,7 @@ async function noteTopLeft(page: Page, index = 0): Promise<{ x: number; y: numbe
 
 test.describe('sticky notes e2e', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await createBoardAndOpen(page);
     // Reset to standard view
     await setCamera(page, { x: -640, y: -400, zoom: 1 });
   });

@@ -7,7 +7,7 @@
  * 3. Recovery is possible (state returns to connected, editing works again)
  */
 import { test, expect, type Page } from '@playwright/test';
-import { setCamera } from './helpers/board';
+import { createBoardAndOpen, setCamera } from './helpers/board';
 
 /** Wait for the test hooks to be available. */
 async function waitForHooks(page: Page): Promise<void> {
@@ -33,7 +33,7 @@ async function setConnState(page: Page, state: string): Promise<void> {
 
 test.describe('broken board e2e', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await createBoardAndOpen(page);
     await setCamera(page, { x: -640, y: -400, zoom: 1 });
     await waitForHooks(page);
     // Wait for the board to be connected

@@ -88,9 +88,18 @@ export class BoardStore {
   private storage: BoardStorage;
   private updateCount = 0;
   private updateBytes = 0;
+  private migrated = false;
 
   constructor(storage: BoardStorage) {
     this.storage = storage;
+  }
+
+  /** True when the tables are present; runs migrate() at most once. */
+  private ensureMigrated(): void {
+    if (!this.migrated) {
+      this.migrate();
+      this.migrated = true;
+    }
   }
 
   /**
@@ -117,9 +126,82 @@ export class BoardStore {
   }
 
   /**
+   * Read-only existence check (story 5, share.board_api).
+   *
+   * A board exists if its storage has `storage_meta.created_at`, **or**
+   * (legacy, share.legacy_boards) it has at least one row in `updates` or
+   * `snapshot_chunks`. Queries `sqlite_master` first and never creates
+   * tables, so probing an unknown link writes nothing.
+   */
+  existsReadOnly(): boolean {
+    try {
+      const tableRows = this.storage.sql.exec(
+        "SELECT name FROM sqlite_master WHERE type = 'table'"
+      ).toArray() as { name: string }[];
+      const tables = new Set(tableRows.map((r) => r.name));
+      if (
+        !tables.has('storage_meta') &&
+        !tables.has('updates') &&
+        !tables.has('snapshot_chunks')
+      ) {
+        return false;
+      }
+      if (tables.has('storage_meta')) {
+        const created = this.storage.sql.exec(
+          'SELECT value FROM storage_meta WHERE key = ?',
+          'created_at'
+        ).toArray();
+        if (created.length > 0) return true;
+      }
+      if (tables.has('updates')) {
+        const row = this.storage.sql.exec(
+          'SELECT COUNT(*) AS c FROM updates'
+        ).one() as { c: number };
+        if (row.c > 0) return true;
+      }
+      if (tables.has('snapshot_chunks')) {
+        const row = this.storage.sql.exec(
+          'SELECT COUNT(*) AS c FROM snapshot_chunks'
+        ).one() as { c: number };
+        if (row.c > 0) return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Initialise the board's metadata (story 5): migrate, then set
+   * `created_at` (epoch ms) if absent. Returns 'created' when this call
+   * wrote it and 'exists' when it was already set.
+   */
+  ensureInitialized(): 'created' | 'exists' {
+    this.migrate();
+    const existing = this.storage.sql.exec(
+      'SELECT value FROM storage_meta WHERE key = ?',
+      'created_at'
+    ).toArray();
+    if (existing.length > 0) return 'exists';
+    this.storage.sql.exec(
+      'INSERT INTO storage_meta (key, value) VALUES (?, ?)',
+      'created_at',
+      String(Date.now())
+    );
+    return 'created';
+  }
+
+  /** Test-only: run a read-only SQL query and return the rows. */
+  runQuery(query: string): unknown[] {
+    return this.storage.sql.exec(query).toArray();
+  }
+
+  /**
    * Append a Yjs update to the log. Throws on SQL failure.
+   * Migrates lazily on the first append (story 5: no writes on construct).
    */
   append(update: Uint8Array): void {
+    this.ensureMigrated();
     this.storage.sql.exec(
       'INSERT INTO updates (data, bytes) VALUES (?, ?)',
       update, update.byteLength
@@ -135,6 +217,19 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // Story 5: missing tables mean an empty board; do not create them.
+      const tableRows = this.storage.sql.exec(
+        "SELECT name FROM sqlite_master WHERE type = 'table'"
+      ).toArray() as { name: string }[];
+      const tables = new Set(tableRows.map((r) => r.name));
+      if (
+        !tables.has('updates') &&
+        !tables.has('snapshot_chunks') &&
+        !tables.has('storage_meta')
+      ) {
+        return { ok: true, quarantined: 0 };
+      }
+
       // Read and apply snapshot
       const chunkRows = this.storage.sql.exec(
         'SELECT data FROM snapshot_chunks ORDER BY idx'
