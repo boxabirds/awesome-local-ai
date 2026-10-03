@@ -43,6 +43,9 @@ export function App() {
   const { doc, objects, connectionState } = useBoardDoc(boardId);
   const selection = useSelection(objects);
 
+  // Editing is disabled when the board failed to load on the server side.
+  const canEdit = connectionState !== 'load_failed';
+
   // Test-only `window.__vidi6` hook (test mode only, see testHooks.ts).
   useEffect(() => {
     installTestHooks(setCamera, () => boardId, () => connectionState);
@@ -51,24 +54,26 @@ export function App() {
   // Create a sticky note at a screen point (double-click on empty space)
   const handleDblClickEmpty = useCallback(
     (screenPoint: { x: number; y: number }) => {
+      if (!canEdit) return;
       const world = screenToWorld(camera, screenPoint);
       const id = createSticky(doc, world);
       if (id) {
         selection.startEdit(id);
       }
     },
-    [camera, doc, selection],
+    [camera, doc, selection, canEdit],
   );
 
   // Create a sticky note at the centre of the viewport (toolbar button)
   const handleCreateSticky = useCallback(() => {
+    if (!canEdit) return;
     const centre = { x: size.width / 2, y: size.height / 2 };
     const world = screenToWorld(camera, centre);
     const id = createSticky(doc, world);
     if (id) {
       selection.startEdit(id);
     }
-  }, [camera, doc, selection, size]);
+  }, [camera, doc, selection, size, canEdit]);
 
   // Clear selection on empty board click
   const handleClickEmpty = useCallback(() => {
@@ -81,6 +86,8 @@ export function App() {
       // Don't handle keys when focus is in an input/textarea
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
+      if (!canEdit) return;
 
       if (e.key === 'Enter' && selection.selectedId && !selection.editingId) {
         e.preventDefault();
@@ -95,7 +102,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selection.selectedId, selection.editingId, selection, doc]);
+  }, [selection.selectedId, selection.editingId, selection, doc, canEdit]);
 
   return (
     <CameraContext.Provider value={cameraApi}>
@@ -118,7 +125,7 @@ export function App() {
             />
           ))}
         </BoardViewport>
-        <Toolbar onCreateSticky={handleCreateSticky} />
+        <Toolbar onCreateSticky={handleCreateSticky} disabled={!canEdit} />
         <ConnectionStatus state={connectionState} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}

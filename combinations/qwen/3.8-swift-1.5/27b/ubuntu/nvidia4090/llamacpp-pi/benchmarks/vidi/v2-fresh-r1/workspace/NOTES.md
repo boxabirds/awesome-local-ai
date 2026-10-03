@@ -195,3 +195,63 @@ Decisions and environment facts worth remembering for later stories.
   after merged creates would otherwise block all further creates).
 - **`waitFor()` in `createNoteWithText`** is bounded (5 s) — an unbounded wait
   on an empty page is how a soak loop can hang past the test timeout.
+
+---
+
+# Story 4 — Notes
+
+## Storage architecture: KV + SQL hybrid
+
+- **SQLite `sql.exec()` has a ~100KB statement length limit** (BLOBs >40KB fail
+  with `SQLITE_TOOBIG`). This makes it impractical to store Yjs updates directly
+  in SQL BLOB columns.
+- **Solution**: BLOB data lives in **KV** (`storage.put/get`), SQL stores only
+  metadata (seq, kv_key, byte_length). KV handles arbitrary-sized data and is
+  async; SQL provides ordering, counting, and atomic transactions.
+- **`sql.prepare()` is NOT available** in the vitest-pool-workers test
+  environment. Only `sql.exec()` works. All queries use string interpolation
+  with validated integer values (no user input in SQL strings).
+- **Cursor API**: `cursor.next()` returns `{ done: boolean, value: Record<string, unknown> }`
+  (iterator pattern, NOT `toArray()`/`getRow()`).
+- **`storage.transactionSync()`** works for atomic operations (compaction).
+
+## AUTOINCREMENT for seq
+
+- After compaction deletes all rows, manual `MAX(seq)+1` would reset to 1,
+  which is less than `throughSeq` (e.g. 500). New rows would be invisible to
+  `WHERE seq > throughSeq` queries.
+- **Solution**: Use SQLite's `AUTOINCREMENT` by inserting without specifying
+  seq, then reading `last_insert_rowid()`. The `sqlite_sequence` table tracks
+  the high-water mark across deletions.
+
+## Durable Object hibernation API
+
+- **`ctx.acceptWebSocket(server)`**: allows the DO to hibernate with open
+  sockets. On wake, the constructor runs again (loads from storage).
+- **`ctx.getWebSockets()`**: returns all currently open sockets (replaces the
+  manual `Set<WebSocket>`).
+- **`ctx.blockConcurrencyWhile(async () => { ... })`**: blocks concurrent
+  requests while the callback runs. Must be `await`ed in async contexts
+  (e.g. `fetch`). In the constructor, it blocks before any requests are
+  processed.
+- **Output gate**: the platform holds outgoing WebSocket messages until all
+  pending storage writes in the DO are confirmed. This provides the
+  store-before-broadcast guarantee without explicit synchronization.
+
+## Async append in sync handler
+
+- `store.append()` is async (KV write). The `doc.on('update')` handler is
+  synchronous. Solution: fire the async append with `.catch()` for error
+  handling, then broadcast immediately. The output gate ensures the broadcast
+  is not delivered until the write is durable.
+
+## Client load-failure state
+
+- **`load_failed`** is a new `ConnectionState` value. Triggered by WebSocket
+  close code 4500 (`CLOSE_BOARD_LOAD_FAILED`).
+- **Recovery**: when the y-websocket provider reconnects and syncs successfully,
+  the state transitions from `load_failed` → `connected` (via `tryConnect`).
+- **Editing gate**: `canEdit = connectionState !== 'load_failed'` in `App.tsx`.
+  Gates dblclick, toolbar button, Delete key, and all board-model mutations.
+- **`window.__Y`**: Yjs is exposed as a global in test mode for E2E tests
+  that need to manipulate the doc directly (e.g. TC-21 large board seeding).

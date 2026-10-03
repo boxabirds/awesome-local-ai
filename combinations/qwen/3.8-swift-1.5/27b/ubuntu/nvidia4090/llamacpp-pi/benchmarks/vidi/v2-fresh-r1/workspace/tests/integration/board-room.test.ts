@@ -294,23 +294,23 @@ describe('board room protocol robustness', () => {
 });
 
 describe('board room restart', () => {
-  it('TC-18: restarted room is repopulated by the first client; late joiner gets the note', async () => {
+  it('TC-18: restarted room is repopulated from storage; late joiner gets the note', async () => {
     const boardId = newBoardId();
     const a = await RoomClient.connect(boardId);
     const noteId = createSticky(a.doc, { x: 42, y: 7 });
     await a.waitForFrames(1);
 
     // Simulate the Durable Object instance restarting: drop its in-memory
-    // state (doc + socket set) so the next connection sees a fresh room.
+    // state so the next connection triggers a reload from storage.
     const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
     await runInDurableObject(stub, (instance) => {
-      const room = instance as unknown as { doc: unknown; sockets: Set<unknown> };
+      const room = instance as unknown as { doc: unknown; state: string };
       room.doc = null;
-      room.sockets.clear();
+      room.state = 'storage-failed'; // triggers reload on next connection
     });
     a.close();
 
-    // A reconnects with its doc; the fresh room is repopulated from it.
+    // A reconnects; the room reloads from storage (which has the note).
     const a2 = await RoomClient.connect(boardId, a.doc);
     // A late joiner with an empty doc receives the note (as a sync step2).
     const b = await RoomClient.connect(boardId);

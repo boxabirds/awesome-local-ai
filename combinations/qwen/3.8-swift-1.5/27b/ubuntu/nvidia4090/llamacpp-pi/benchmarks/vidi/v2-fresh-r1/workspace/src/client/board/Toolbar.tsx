@@ -4,9 +4,10 @@ import { useCallback, type MouseEvent as ReactMouseEvent, type PointerEvent as R
 
 interface ToolbarProps {
   onCreateSticky: () => void;
+  disabled?: boolean;
 }
 
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled }: ToolbarProps) {
   const stopPointer = useCallback((e: ReactPointerEvent) => {
     e.stopPropagation();
   }, []);
@@ -43,6 +44,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
         data-testid="sticky-note-btn"
         title="Sticky note – or double-click the board"
         onClick={onCreateSticky}
+        disabled={disabled}
         style={{
           width: '40px',
           height: '40px',

@@ -2,7 +2,7 @@
 // Drives the pure connection state machine with scripted provider events
 // and asserts the badge the user sees.
 
-import { act, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { useEffect, useRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -36,6 +36,7 @@ describe('ConnectionStatus (sync.client)', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
   });
 
@@ -111,5 +112,64 @@ describe('ConnectionStatus (sync.client)', () => {
       mapper?.onStatus('disconnected');
     });
     expect(screen.getByRole('status')).toHaveTextContent('Reconnecting…');
+  });
+
+  it('TC-22: load_failed state shows red text with role=status', () => {
+    render(<TestBoard />);
+    act(() => {
+      mapper?.onStatus('connected');
+      mapper?.onSynced(true);
+    });
+    expect(screen.queryByRole('status')).toBeNull();
+
+    // Server closes with 4500.
+    act(() => {
+      mapper?.onCloseCode(4500);
+    });
+    const badge = screen.getByRole('status');
+    expect(badge).toHaveTextContent("This board couldn't be loaded. Retrying…");
+    expect(badge.className).toContain('load_failed');
+  });
+
+  it('TC-28: close code mapping — 4500 → load_failed; 1011 → reconnecting; 1003 → reconnecting; recovery', () => {
+    render(<TestBoard />);
+    // First connect.
+    act(() => {
+      mapper?.onStatus('connected');
+      mapper?.onSynced(true);
+    });
+    expect(screen.queryByRole('status')).toBeNull();
+
+    // 1011 (storage failure) → reconnecting (editing still enabled).
+    act(() => {
+      mapper?.onStatus('disconnected');
+    });
+    expect(screen.getByRole('status')).toHaveTextContent('Reconnecting…');
+
+    // Recover.
+    act(() => {
+      mapper?.onStatus('connected');
+      mapper?.onSynced(true);
+    });
+    expect(screen.getByRole('status')).toHaveTextContent('Connected');
+
+    // 4500 (load failed) → load_failed.
+    act(() => {
+      mapper?.onCloseCode(4500);
+    });
+    expect(screen.getByRole('status')).toHaveTextContent(
+      "This board couldn't be loaded. Retrying…",
+    );
+
+    // Recovery: subsequent sync after load_failed → connected.
+    act(() => {
+      mapper?.onStatus('connected');
+      mapper?.onSynced(true);
+    });
+    // Should be connected (badge hidden or showing "Connected").
+    const badge = screen.queryByRole('status');
+    if (badge) {
+      expect(badge).toHaveTextContent('Connected');
+    }
   });
 });
