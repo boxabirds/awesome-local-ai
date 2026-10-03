@@ -3113,6 +3113,21 @@
           "14": "done",
           "15": "done"
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": false,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r3/server.log"
+        ],
+        "private": {
+          "copied": 20,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "c024c6f6f",
+        "unpushed": true,
+        "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r3/stories/04/agent-events.compact.jsonl.gz' not uptodate. Cannot merge.\n"
       }
     }
   },
