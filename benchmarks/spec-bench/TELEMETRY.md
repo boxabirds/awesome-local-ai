@@ -90,14 +90,14 @@ no `identity`. Runs before 30 Sep 2026 have gufo's `server_command` and `engine_
 (Podman's network helper), not gufo's, and MTPLX's `engine_version` as its Python interpreter's.
 
 `engine_settings` is what the engine actually applies, read from `identity.server_command` by
-[`harness/engine_settings.py`](harness/engine_settings.py) (llama.cpp, gufo, mlx-serve, MTPLX; any other
+[`harness/engine_settings.py`](harness/engine_settings.py) (llama.cpp, gufo, mlx-serve, MTPLX, Strata; any other
 backend, a cloud one, or a command line that isn't the engine's own process gets every setting
 `unknown` with the reason). `engine` and `engine_version`, then one entry per setting:
 `thinking_mode` (the chat template's thinking mode: `on`/`off`), `thinking_budget` (tokens),
 `context_size`, `kv_cache_type` (`{k, v}` on llama.cpp), `speculative` (`method`, and where set
 `draft_max`, `p_min`, `draft_quantisation`, `depth`), `temperature`, `top_p`, `top_k`, `min_p`,
 `quantisation` (from the model file's name). Each entry is `{value, source, evidence}`; `source` is one
-of `command line`, `model file name`, `model config` (mlx-serve's served `generation_config.json`),
+of `command line`, `model file name`, `model config` (a file the engine loads: mlx-serve's served `generation_config.json`, Strata's run configuration and its shared-settings file, where its settings are and not on a command line),
 `client`, `not set` (nothing sets it; the value is `not set` and the evidence says what applies then),
 or `unknown` (the value is `unknown` and the evidence says why). No value is inferred from an engine's
 defaults.
@@ -386,6 +386,7 @@ null, when the scan itself failed (the run is still scored).
 | `time_split` tools and compaction | as above | as above | canvas-pi-03 (harness 61ac40e) and later |
 | `conditions.gpu` | as above, from sysfs | as above, from `nvidia-smi` | no (needs `powermetrics`, which needs root) |
 | lossless conversation log, every attempt counted, per-story `provenance` | runs started on the harness that adds them (30 Sep 2026) and later; earlier runs after `backfill_timing.py` (the log rebuild needs the machine's full logs) | as Strix Halo | as Strix Halo |
+| Strata: `engine_settings` (read from its run configuration), `engine_version` (its checkout's release tag) and the draft figures (from its engine log, which the launcher follows into the server's output) | runs of the strata-pi combination started on the harness release that adds them (after 3 Oct 2026); none before | RTX 4090 only | n/a |
 | `agent.finished`, and `nudges` counting stop messages (the stop rule) | runs started on the harness that adds them (1 Oct 2026) and later | as Strix Halo | as Strix Halo |
 | read-only `spec/` in the sandbox, `PROGRESS.md`, `tasks_claimed`, `spec_changed_files`, `skipped_output`, `record.credentials_redacted` | runs started on the harness release that adds them (after 1 Oct 2026) and later | as Strix Halo | as Strix Halo (sandbox-exec) |
 | the harness a machine's jobs run (`provenance.harness_release`) | newest release at the job's start; the box has the new dbench | `harness-v2026.10.01.1` for the running Swift 1.5 v2-r5 job, which keeps it until it ends (a restart keeps the release); a job started after 2 Oct 2026 takes `harness-v2026.10.01.2` (stop rule, read-only spec, credential scanner, agent-sandbox) once the node's dbench is restarted; the machine runs the old dbench, which already reads releases | the running vidi mlx-serve job started before releases and runs the checkout's harness (`harness_release` null); a job started after the restart onto the new dbench takes `harness-v2026.10.01.2` |

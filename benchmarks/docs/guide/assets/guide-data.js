@@ -135,9 +135,9 @@ GUIDE_DATA.entities = [
   {
     id: "engine", name: "Engine (server)", group: "stack", row: 2,
     short: "The server that loads the model and speaks an OpenAI-style API.",
-    what: "The program that loads the model and serves an OpenAI-compatible API with tool calling: llama.cpp (CUDA, Vulkan, Metal), MTPLX, mlx-serve, gufo, SGLang. Engines differ in speed, in how they apply reasoning settings, and in how they fail. Each install provides an `<install-id>-server` launcher that run.sh starts on port 18010.",
+    what: "The program that loads the model and serves an OpenAI-compatible API with tool calling: llama.cpp (CUDA, Vulkan, Metal), MTPLX, mlx-serve, gufo, SGLang, Strata (Flash-Next on one NVIDIA card). Engines differ in speed, in how they apply reasoning settings, and in how they fail. Each install provides an `<install-id>-server` launcher that run.sh starts on port 18010.",
     rel: [["runs on", "machine"], ["answers", "client"]],
-    repo: [["lib/llamacpp.sh", "lib/llamacpp.sh"], ["lib/mtplx.sh", "lib/mtplx.sh"], ["lib/mlxserve.sh", "lib/mlxserve.sh"], ["lib/gufo.sh", "lib/gufo.sh"], ["lib/sglang.sh", "lib/sglang.sh"]],
+    repo: [["lib/llamacpp.sh", "lib/llamacpp.sh"], ["lib/mtplx.sh", "lib/mtplx.sh"], ["lib/mlxserve.sh", "lib/mlxserve.sh"], ["lib/gufo.sh", "lib/gufo.sh"], ["lib/sglang.sh", "lib/sglang.sh"], ["lib/strata.sh", "lib/strata.sh"]],
     example: "Each engine ends a turn by accident in its own way. gufo hands a tool call back as text (57 times, 55 of them edits).",
     insights: ["engine-endings", "mlx-cache"],
   },

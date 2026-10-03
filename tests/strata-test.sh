@@ -140,9 +140,10 @@ printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$@" > "$ARGV"\nexit 0\n' > "$S/.ve
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "${FREE_VRAM_MIB:-24000}"\n' > "$LH/bin/nvidia-smi"
 printf '#!/usr/bin/env bash\nprintf "              total        used        free      shared  buff/cache   available\\nMem:          63000       10000       20000           0       33000       %%s\\n" "${AVAIL_MIB:-52000}"\n' > "$LH/bin/free"
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "${PS_OUT:-}"\n' > "$LH/bin/ps"
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$@" > "$TAILARGS"\nexit 0\n' > "$LH/bin/tail"
 chmod +x "$LH/bin/"* "$S/.venv/bin/python"
-ARGV="$WORK/argv"
-launch() { env -i PATH="$LH/bin:/usr/bin:/bin" HOME="$LH" LOCAL_AI_INSTALL_REL=.local/share/x ARGV="$ARGV" PORT=18960 "$@" bash "$LAUNCHER" >"$WORK/launch.out" 2>&1; }
+ARGV="$WORK/argv"; TAILARGS="$WORK/tailargs"
+launch() { env -i PATH="$LH/bin:/usr/bin:/bin" HOME="$LH" LOCAL_AI_INSTALL_REL=.local/share/x ARGV="$ARGV" TAILARGS="$TAILARGS" PORT=18960 "$@" bash "$LAUNCHER" >"$WORK/launch.out" 2>&1; }
 pair() { awk -v a="$2" -v b="$3" 'p==a && $0==b {f=1} {p=$0} END{exit !f}' "$1"; }
 
 rm -f "$ARGV"; launch
@@ -157,6 +158,9 @@ a = json.load(open(sys.argv[1]))['args']
 assert a[a.index('--max-context')+1] == '131072' and a[a.index('--vram-reserve-mib')+1] == '969'
 PY"
 assert_ok "reasoning effort low is set for clients that name none (pi sends none)" grep -q '"reasoning_effort": "low"' "$X/strata-run.shared-settings.json"
+sleep 0.3
+assert_ok "the engine's own log is followed into the server's output (the harness reads draft figures from it)" bash -c "grep -qxF -- -F '$TAILARGS' && grep -q 'strata-engine.log' '$TAILARGS'"
+assert_ok "...and stops when the server does" grep -q -- '--pid=' "$TAILARGS"
 rm -f "$ARGV"; launch PORT=18961 CTX=65536
 assert_ok "CTX overrides the profile's context" bash -c "python3 - '$X/strata-run.json' <<'PY'
 import json, sys

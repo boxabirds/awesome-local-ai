@@ -169,6 +169,9 @@ def test_the_version_is_asked_of_the_engine_not_its_wrapper():
     assert I.version_command("mtplx", ["/opt/homebrew/bin/Python", "-m", "mtplx.server.openai"]) == ["mtplx", "--version"]
     assert I.version_command("llamacpp", ["/x/llama-server", "-m", "m"]) == ["/x/llama-server", "--version"]
     assert I.version_command("llamacpp", None) is None
+    # Strata's listener is a Python interpreter too: the version is its checkout's tag, which names the release
+    assert I.version_command("strata", ["/h/Strata/.venv/bin/python", "/h/Strata/serve/server.py", "--engine", "strata"]) == \
+        ["git", "-C", "/h/Strata", "describe", "--tags", "--always"]
 
 
 def test_a_version_line_without_digits_is_kept_when_the_command_succeeded():

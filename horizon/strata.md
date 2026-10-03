@@ -1,7 +1,7 @@
 # Strata
 
-**Status:** engine checks passed on the RTX 4090 (2 Oct 2026): 131,072 tokens of context, tool calls and prompt reuse
-all work. Next: a harness backend for it (none exists), then one smoke story. Details under "What we measured".
+**Status:** combination written (3 Oct 2026), to run after the Swift 1.5 baseline on the RTX 4090 machine; engine checks
+passed at 131,072 tokens of context. Next: the real install, a harness release, then five runs. Details below.
 **Machine:** the RTX 4090 machine (Ubuntu or Windows). Would give it a Flash-Next stack, the same model
 family as the Strix Halo box and the M5 Max, for a hardware comparison we don't have.
 
@@ -61,7 +61,16 @@ with ranged requests over 16 connections and setup accepted them as already down
 `serve/server.py --engine strata --config strata-iq3_xxs.json --host 127.0.0.1 --port N` (drop the start script's
 `--open`, which opens a browser).
 
-**Last checked:** 2 Oct 2026. **Recheck when:** the harness backend exists and the smoke story has run.
+## The combination and the harness (3 Oct 2026)
+
+`combinations/qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi/` exists (backend `lib/strata.sh`, launcher
+`lib/runtime/server-strata.sh`, `tests/strata-test.sh`, 76 checks against stubs), and so does the harness side: Strata's
+engine settings are read from its run configuration, its version is its checkout's tag, and its draft figures come from its
+engine log, which the launcher follows into the server's output. Not yet installed through the real installer on the
+machine, and the harness changes need a harness release before a run can carry them. The owner's order: five runs of
+Strata after the Swift 1.5 baseline on the RTX 4090 machine. No smoke story: the ten-minute checks are above.
+
+**Last checked:** 3 Oct 2026. **Recheck when:** the real install has run and the first Strata story is recorded.
 
 Sources: [Strata](https://github.com/Niko1221/Strata) ·
 [DETAILS.md](https://github.com/Niko1221/Strata/blob/main/docs/DETAILS.md) ·

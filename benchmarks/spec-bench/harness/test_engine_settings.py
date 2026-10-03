@@ -487,3 +487,93 @@ def test_telemetry_md_names_every_engine_settings_field():
     names |= set(val(s, "speculative")) | {"depth"} | set(E.SOURCES) | {E.NOT_SET, E.UNKNOWN}
     missing = sorted(n for n in names if f"`{n}`" not in doc)
     assert missing == []
+
+
+# ---------- Strata: its settings are in the configuration the launcher derived, not on a command line ----------
+# The listener is `python serve/server.py --engine strata --config <root>/strata-run.json`. The engine's own flags
+# (--max-context, --kv, --spec, --mtp, --native) are the "args" of that JSON; sampling is its "sampling" block; the
+# server-side reasoning effort is in the shared-settings file beside it. Both files are read by the CLI, as the mlx-serve
+# one reads generation_config.json. Values here are those of the 2 Oct 2026 check on the RTX 4090 machine.
+
+STRATA = ["~/.local/share/awesome-local-ai/strata/Strata/.venv/bin/python",
+          "~/.local/share/awesome-local-ai/strata/Strata/serve/server.py", "--engine", "strata", "--config",
+          "~/.local/share/strata-qwen38-flash-next/strata-run.json", "--host", "127.0.0.1", "--port", "18010"]
+STRATA_CONFIG = {
+    "exe": "~/.local/share/awesome-local-ai/strata/Strata/engine/strata",
+    "args": ["--pack", "~/.local/share/awesome-local-ai/strata/Strata-data/packs/iq3_xxs", "--native",
+             "~/.local/share/awesome-local-ai/strata/Strata-data/models/IQ3_XXS/Qwen3.8-Flash-Next-GSQ-RCO-IQ3_XXS-00001-of-00002.gguf",
+             "--expert-cache", "auto", "--prefill", "auto", "--spec", "4", "--spec-min-p", "0.5", "--mtp",
+             "~/.local/share/awesome-local-ai/strata/Strata-data/mtp/rt", "--max-context", "131072", "--kv", "int8",
+             "--vram-reserve-mib", "969"],
+    "model_name": "strata-flash-next-iq3xxs",
+    "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20},
+}
+STRATA_SHARED = {"reasoning_effort": "low"}
+
+
+def strata_settings(config=STRATA_CONFIG, shared=STRATA_SHARED, argv=STRATA, version="v0.1.36"):
+    return E.engine_settings("strata", argv, version, requested_effort="low", client="pi", client_thinking=None,
+                             context_limit=131072, generation_config=config, extra_config=shared)
+
+
+class TestStrata:
+    def test_its_own_process_is_the_python_server_with_the_strata_engine(self):
+        assert E.is_engine_argv("strata", STRATA)
+        assert not E.is_engine_argv("strata", ["python", "other.py"])
+        assert not E.is_engine_argv("strata", ["python", "serve/server.py", "--engine", "mock"])
+
+    def test_the_engine_and_its_version(self):
+        s = strata_settings()
+        assert s["engine"] == "Strata" and s["engine_version"] == "v0.1.36"
+
+    def test_context_and_kv_type_come_from_the_engines_flags_in_its_configuration(self):
+        s = strata_settings()
+        assert s["context_size"]["value"] == 131072 and s["context_size"]["source"] == E.SRC_MODEL_CONFIG
+        assert "--max-context 131072" in s["context_size"]["evidence"]
+        assert s["kv_cache_type"]["value"] == "int8" and "--kv int8" in s["kv_cache_type"]["evidence"]
+
+    def test_speculative_decoding_is_mtp_with_its_draft_length(self):
+        spec = strata_settings()["speculative"]
+        assert spec["value"] == {"method": "mtp", "draft_max": 4, "p_min": 0.5} and spec["source"] == E.SRC_MODEL_CONFIG
+
+    def test_no_drafting_flags_means_none(self):
+        cfg = {**STRATA_CONFIG, "args": ["--max-context", "131072"]}
+        assert strata_settings(config=cfg)["speculative"]["source"] == E.SRC_NOT_SET
+
+    def test_suffix_drafting_without_the_mtp_head_is_named_for_what_it_is(self):
+        args = [a for a in STRATA_CONFIG["args"] if a != "--mtp" and not a.endswith("mtp/rt")]
+        assert strata_settings(config={**STRATA_CONFIG, "args": args})["speculative"]["value"]["method"] == "suffix drafting"
+
+    def test_sampling_is_the_configurations(self):
+        s = strata_settings()
+        assert (s["temperature"]["value"], s["top_p"]["value"], s["top_k"]["value"]) == (1.0, 0.95, 20)
+        assert s["min_p"]["source"] == E.SRC_NOT_SET
+
+    def test_the_quantisation_is_read_from_the_model_file_name(self):
+        q = strata_settings()["quantisation"]
+        assert q["value"] == "IQ3_XXS" and q["source"] == E.SRC_MODEL_NAME
+
+    def test_the_server_side_effort_is_from_the_shared_settings_and_is_the_effective_one(self):
+        s = strata_settings()
+        assert s["reasoning_effort"]["engine"]["value"] == "low"
+        assert s["reasoning_effort"]["effective"]["value"] == "low"
+
+    def test_thinking_mode_and_budget_are_not_invented(self):
+        s = strata_settings()
+        assert s["thinking_mode"]["source"] == E.SRC_UNKNOWN and s["thinking_mode"]["evidence"]
+        assert s["thinking_budget"]["source"] == E.SRC_NOT_SET
+
+    def test_a_configuration_that_could_not_be_read_makes_every_setting_unknown_with_why(self):
+        s = strata_settings(config=None, shared=None)
+        for k in ("context_size", "kv_cache_type", "speculative", "temperature", "quantisation"):
+            assert s[k]["source"] == E.SRC_UNKNOWN and s[k]["evidence"], k
+
+    def test_the_cli_reads_the_two_files_the_command_line_names(self, tmp_path, monkeypatch):
+        root = tmp_path / "root"; root.mkdir()
+        (root / "strata-run.json").write_text(json.dumps(STRATA_CONFIG))
+        (root / "strata-run.shared-settings.json").write_text(json.dumps(STRATA_SHARED))
+        argv = [*STRATA[:5], str(root / "strata-run.json"), *STRATA[6:]]
+        cfg, shared = E._strata_files(argv)
+        assert cfg["args"][cfg["args"].index("--max-context") + 1] == "131072" and shared == {"reasoning_effort": "low"}
+        assert E._strata_files(["python", "x.py"]) == (None, None)
+        assert E._strata_files([*argv[:5], str(tmp_path / "missing.json"), *argv[6:]]) == (None, None)
