@@ -1,0 +1,82 @@
+{
+ "no-marker": {
+  "requests": [],
+  "summary": {
+   "decode_s": 0.0,
+   "decode_tok_s": null,
+   "decode_tokens": 0,
+   "draft_acceptance": null,
+   "mean_accepted_len": null,
+   "prefill_s": 0.0,
+   "prefill_tok_s": null,
+   "prefill_tokens": 0,
+   "requests": 0
+  },
+  "text": "0.00.000.287 I srv  llama_server: initializing ...\n0.41.759.972 I slot print_timing: id  0 | task 0 | prompt eval time =     745.92 ms /    45 tokens (   16.58 ms per token,    60.33 tokens per second)\n0.41.759.977 I slot print_timing: id  0 | task 0 |        eval time =     836.19 ms /    24 tokens (   36.36 ms per token,    27.51 tokens per second)\n0.41.759.978 I slot print_timing: id  0 | task 0 |       total time =    1582.10 ms /    69 tokens\n0.41.759.984 I slot print_timing: id  0 | task 0 |    graphs reused =          6\n0.41.759.990 I slot print_timing: id  0 | task 0 | draft acceptance = 0.57143 (   16 accepted /    28 generated), mean len =  3.29\n"
+ },
+ "smoke": {
+  "requests": [
+   {
+    "draft_accepted": 16,
+    "draft_generated": 28,
+    "end": 1790390041.75999,
+    "gen_ms": 836.19,
+    "gen_n": 24,
+    "mean_len": 3.29,
+    "prompt_ms": 745.92,
+    "prompt_n": 45,
+    "task": 0
+   }
+  ],
+  "summary": {
+   "decode_s": 0.8,
+   "decode_tok_s": 28.7,
+   "decode_tokens": 24,
+   "draft_acceptance": 0.571,
+   "mean_accepted_len": 3.29,
+   "prefill_s": 0.7,
+   "prefill_tok_s": 60.3,
+   "prefill_tokens": 45,
+   "requests": 1
+  },
+  "text": "=== server start 1790390000.000 ===\n0.00.000.287 I srv  llama_server: initializing ...\n0.41.759.972 I slot print_timing: id  0 | task 0 | prompt eval time =     745.92 ms /    45 tokens (   16.58 ms per token,    60.33 tokens per second)\n0.41.759.977 I slot print_timing: id  0 | task 0 |        eval time =     836.19 ms /    24 tokens (   36.36 ms per token,    27.51 tokens per second)\n0.41.759.978 I slot print_timing: id  0 | task 0 |       total time =    1582.10 ms /    69 tokens\n0.41.759.984 I slot print_timing: id  0 | task 0 |    graphs reused =          6\n0.41.759.990 I slot print_timing: id  0 | task 0 | draft acceptance = 0.57143 (   16 accepted /    28 generated), mean len =  3.29\n1.08.405.895 I slot print_timing: id  0 | task 1 | prompt processing, n_tokens =   1590, progress = 0.03, t =   4.05 s / 392.73 tokens per second\n6.07.879.078 I slot print_timing: id  0 | task 1 | n_gen =   2493, tg =  28.00 t/s, tg_3s =  30.76 t/s\n"
+ },
+ "two-starts": {
+  "requests": [
+   {
+    "draft_accepted": 16,
+    "draft_generated": 28,
+    "end": 1790394502.00099,
+    "gen_ms": 836.19,
+    "gen_n": 24,
+    "mean_len": 3.29,
+    "prompt_ms": 745.92,
+    "prompt_n": 45,
+    "task": 0
+   },
+   {
+    "draft_accepted": 16,
+    "draft_generated": 28,
+    "end": 1790399041.75999,
+    "gen_ms": 836.19,
+    "gen_n": 24,
+    "mean_len": 3.29,
+    "prompt_ms": 745.92,
+    "prompt_n": 45,
+    "task": 0
+   }
+  ],
+  "summary": {
+   "decode_s": 0.8,
+   "decode_tok_s": 28.7,
+   "decode_tokens": 24,
+   "draft_acceptance": 0.571,
+   "mean_accepted_len": 3.29,
+   "prefill_s": 0.7,
+   "prefill_tok_s": 60.3,
+   "prefill_tokens": 45,
+   "requests": 1
+  },
+  "text": "=== server start 1790390000.000 ===\n0.00.000.287 I srv  llama_server: initializing ...\n75.02.000.972 I slot print_timing: id  0 | task 0 | prompt eval time =     745.92 ms /    45 tokens (   16.58 ms per token,    60.33 tokens per second)\n75.02.000.977 I slot print_timing: id  0 | task 0 |        eval time =     836.19 ms /    24 tokens (   36.36 ms per token,    27.51 tokens per second)\n75.02.000.978 I slot print_timing: id  0 | task 0 |       total time =    1582.10 ms /    69 tokens\n75.02.000.984 I slot print_timing: id  0 | task 0 |    graphs reused =          6\n75.02.000.990 I slot print_timing: id  0 | task 0 | draft acceptance = 0.57143 (   16 accepted /    28 generated), mean len =  3.29\n=== server start 1790399000.000 ===\n0.00.000.287 I srv  llama_server: initializing ...\n0.41.759.972 I slot print_timing: id  0 | task 0 | prompt eval time =     745.92 ms /    45 tokens (   16.58 ms per token,    60.33 tokens per second)\n0.41.759.977 I slot print_timing: id  0 | task 0 |        eval time =     836.19 ms /    24 tokens (   36.36 ms per token,    27.51 tokens per second)\n0.41.759.978 I slot print_timing: id  0 | task 0 |       total time =    1582.10 ms /    69 tokens\n0.41.759.984 I slot print_timing: id  0 | task 0 |    graphs reused =          6\n0.41.759.990 I slot print_timing: id  0 | task 0 | draft acceptance = 0.57143 (   16 accepted /    28 generated), mean len =  3.29\n"
+ }
+}

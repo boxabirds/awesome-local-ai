@@ -71,6 +71,14 @@ env = { REPLAY_ALL = "1" }
 requires = ["test_replay_real_logs.py"]
 no_skips_of = ["test_replay_real_logs.py"]
 
+# The Rust ingest (tools/dbench/src/ingest) reads the same logs as the harness's Python parsers; its tests
+# compare it with their output on the fixture logs, kept in tools/dbench/tests/golden. This check fails when
+# the goldens on disk are no longer what the parsers say, so a parser change reaches the Rust side the same day.
+[[check]]
+name = "ingest goldens current"
+dir = "benchmarks/spec-bench/harness"
+command = ["uv", "run", "--quiet", "export_goldens.py", "--check"]
+
 [[check]]
 name = "dbench tests"
 dir = "tools/dbench"
