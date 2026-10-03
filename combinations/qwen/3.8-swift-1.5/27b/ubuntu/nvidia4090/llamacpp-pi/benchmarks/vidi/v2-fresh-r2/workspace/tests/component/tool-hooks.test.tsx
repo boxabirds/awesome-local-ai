@@ -117,7 +117,25 @@ describe('tools.active_tool', () => {
   });
 
   // setTool is a no-op for tools without a mode in this build.
-  it('setTool ignores tools without a mode (pen/image/comment)', () => {
+  it('setTool ignores tools without a mode (image/comment)', () => {
+    const { result } = renderHook(() => {
+      const selection = useSelection([]);
+      return useTool({ canEdit: true, selection });
+    });
+
+    act(() => {
+      result.current.setTool('image' as ToolId);
+    });
+    expect(result.current.tool).toBe('select');
+
+    act(() => {
+      result.current.setTool('comment' as ToolId);
+    });
+    expect(result.current.tool).toBe('select');
+  });
+
+  // Pen is now a valid tool mode (story 11).
+  it('setTool accepts pen as a valid tool mode', () => {
     const { result } = renderHook(() => {
       const selection = useSelection([]);
       return useTool({ canEdit: true, selection });
@@ -126,7 +144,7 @@ describe('tools.active_tool', () => {
     act(() => {
       result.current.setTool('pen' as ToolId);
     });
-    expect(result.current.tool).toBe('select');
+    expect(result.current.tool).toBe('pen');
   });
 });
 

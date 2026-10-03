@@ -45,6 +45,10 @@ import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
+import { createStroke } from '../../shared/objects/stroke';
 import type { Endpoint } from '../../shared/objects/connector';
 import type { Rect, Handle } from '../../shared/geometry';
 import type { StickySnapshot } from '../../shared/board-model';
@@ -168,8 +172,9 @@ export function BoardView({
   const isLoadFailed = connectionState === 'load-failed';
   const canEdit = !isLoadFailed;
 
-  // Story 9: board tool (select / text); story 10: shape / connector.
+  // Story 9: board tool (select / text); story 10: shape / connector; story 11: pen.
   const tool = useTool({ canEdit, selection });
+  const penOptions = usePenOptions();
 
   // Story 8: per-user undo controller (one per board doc, destroyed on unmount).
   const undoRef = useRef<ReturnType<typeof createUndo> | null>(null);
@@ -273,9 +278,11 @@ export function BoardView({
   );
 
   // Click on empty board space → select a connector under the point (6px
-  // tolerance, story 10 connector.hit) or clear the selection.
+  // tolerance, story 10 connector.hit) or a stroke (line-distance hit test,
+  // story 11 pen.select) or clear the selection.
   const handleClickEmpty = useCallback(
     (point: { x: number; y: number }) => {
+      // Connectors (story 10): 6px screen tolerance on the line.
       for (const o of objects) {
         if (o.type !== 'connector') continue;
         const conn = o as unknown as { id: string; from: Endpoint; to: Endpoint };
@@ -286,6 +293,17 @@ export function BoardView({
           worldToScreen(controls.camera, ends.to),
         ];
         if (distanceToPolyline(seg, point) <= CONNECTOR_HIT_TOLERANCE_PX) {
+          selection.click(o.id);
+          return;
+        }
+      }
+      // Strokes (story 11): line-distance hit test in world space.
+      const worldPoint = screenToWorld(controls.camera, point);
+      for (let i = objects.length - 1; i >= 0; i--) {
+        const o = objects[i];
+        if (o.type !== 'stroke') continue;
+        const spec = getObjectType(o.type);
+        if (spec?.hitTest(o, worldPoint, controls.camera.zoom)) {
           selection.click(o.id);
           return;
         }
@@ -425,6 +443,18 @@ export function BoardView({
         marquee={canEdit ? marquee : undefined}
         textTool={tool.tool === 'text'}
         onTextToolClick={handleTextToolClick}
+        onStrokeHit={(worldPoint) => {
+          for (let i = objects.length - 1; i >= 0; i--) {
+            const o = objects[i];
+            if (o.type !== 'stroke') continue;
+            const spec = getObjectType(o.type);
+            if (spec?.hitTest(o, worldPoint, controls.camera.zoom)) {
+              selection.click(o.id);
+              return true;
+            }
+          }
+          return false;
+        }}
       >
         {objects.map((obj) => {
           const spec = getObjectType(obj.type);
@@ -472,6 +502,34 @@ export function BoardView({
           objects={objects}
           onCreate={(from, to) => createConnector(doc, from, to, sessionIdentity())}
           onCreated={tool.toolCreated}
+        />
+      )}
+      {/* Story 11: pen tool (stays active after each stroke). */}
+      {tool.tool === 'pen' && canEdit && (
+        <PenTool
+          camera={controls.camera}
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          doc={doc}
+          identityId={sessionIdentity()}
+          onCommit={() => undoController.boundary()}
+          onWheel={(e) => {
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            controls.wheel({
+              deltaX: e.deltaX,
+              deltaY: e.deltaY,
+              ctrlOrMeta: e.ctrlKey || e.metaKey,
+              point: { x: e.clientX - rect.left, y: e.clientY - rect.top },
+            });
+          }}
+        />
+      )}
+      {tool.tool === 'pen' && canEdit && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
         />
       )}
       <SelectionBar

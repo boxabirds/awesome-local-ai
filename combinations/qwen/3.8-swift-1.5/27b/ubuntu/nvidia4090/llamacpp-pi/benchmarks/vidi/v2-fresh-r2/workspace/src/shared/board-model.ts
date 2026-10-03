@@ -241,6 +241,18 @@ export function objects(doc: Y.Doc): readonly ObjectSnapshot[] {
         ? (label as Y.Text).toString()
         : '';
     }
+    if (type === 'stroke') {
+      (entry as { points?: number[]; baseWidth?: number; baseHeight?: number; color?: string; thickness?: string }).points =
+        (obj.get('points') as number[]) ?? [];
+      (entry as { points?: number[]; baseWidth?: number; baseHeight?: number; color?: string; thickness?: string }).baseWidth =
+        (obj.get('baseWidth') as number) ?? 1;
+      (entry as { points?: number[]; baseWidth?: number; baseHeight?: number; color?: string; thickness?: string }).baseHeight =
+        (obj.get('baseHeight') as number) ?? 1;
+      (entry as { points?: number[]; baseWidth?: number; baseHeight?: number; color?: string; thickness?: string }).color =
+        (obj.get('color') as string) ?? 'black';
+      (entry as { points?: number[]; baseWidth?: number; baseHeight?: number; color?: string; thickness?: string }).thickness =
+        (obj.get('thickness') as string) ?? 'medium';
+    }
     result.push(entry);
   });
 

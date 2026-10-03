@@ -14,12 +14,15 @@ import * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { markObjectTypeRegistered } from '../../shared/object-types';
 import type { Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from '../../shared/config';
 import type { Camera } from '../canvas/camera';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
+import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
 import type { UndoController } from '../board/undo';
 
 /** Props every board object component receives (generic, per-type agnostic). */
@@ -62,7 +65,7 @@ export interface ObjectTypeSpec {
    * (text — left/right only; height always follows the content).
    */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -139,4 +142,25 @@ registerObjectType('connector', {
   minSize: 0,
   editableText: false,
   hitTest: boundsHitTest,
+});
+
+// The stroke type (story 11): resizable with aspect lock, hit test is
+// distance-to-line (not bounding box).
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, worldPoint, zoom) => {
+    const s = obj as unknown as StrokeSnap;
+    const pts = scaledPoints(s);
+    const dist = distanceToPolyline(pts, worldPoint);
+    const z = zoom ?? 1;
+    const tolerance = Math.max(
+      PEN_THICKNESS_WORLD[s.thickness] / 2,
+      STROKE_HIT_TOLERANCE_PX / z,
+    );
+    return dist <= tolerance;
+  },
 });

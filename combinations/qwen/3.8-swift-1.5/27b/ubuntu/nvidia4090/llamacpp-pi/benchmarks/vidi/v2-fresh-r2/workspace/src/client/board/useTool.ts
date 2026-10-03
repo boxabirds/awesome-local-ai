@@ -33,7 +33,7 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 };
 
 /** Tools that have a real tool mode in this build. */
-const TOOL_MODES: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector']);
+const TOOL_MODES: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector', 'pen']);
 
 export interface ToolState {
   tool: ToolId;

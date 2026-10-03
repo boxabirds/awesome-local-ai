@@ -127,6 +127,12 @@ export function useBoardKeys(opts: {
           setToolRef.current?.('connector');
           return;
         }
+        if (key === 'p') {
+          if (!canEditRef.current) return;
+          e.preventDefault();
+          setToolRef.current?.('pen');
+          return;
+        }
       }
 
       switch (e.key) {

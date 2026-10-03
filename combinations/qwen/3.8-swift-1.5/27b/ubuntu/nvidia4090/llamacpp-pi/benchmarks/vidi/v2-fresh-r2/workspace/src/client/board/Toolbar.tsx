@@ -192,6 +192,17 @@ export function Toolbar({
       >
         Connector
       </button>
+      <button
+        type="button"
+        data-testid="pen-btn"
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        disabled={!canEdit}
+        onClick={() => setTool('pen')}
+        style={toolButtonStyle(tool === 'pen', canEdit)}
+      >
+        Pen
+      </button>
       <div style={{ width: 1, background: '#d0d0d0', margin: '4px 2px' }} />
       <button
         type="button"

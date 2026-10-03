@@ -38,6 +38,12 @@ export interface BoardViewportProps {
    */
   textTool?: boolean;
   onTextToolClick?(point: { x: number; y: number }): void;
+  /**
+   * Story 11 (pen.select): called on pointerdown on empty space with the
+   * world point. If it returns true, a stroke was hit and selected; the pan
+   * is not started.
+   */
+  onStrokeHit?(worldPoint: { x: number; y: number }): boolean;
 }
 
 /** Positive modulo: result in [0, modulus). */
@@ -65,6 +71,7 @@ export function BoardViewport({
   marquee,
   textTool = false,
   onTextToolClick,
+  onStrokeHit,
 }: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const panningRef = useRef(false);
@@ -105,12 +112,23 @@ export function BoardViewport({
     return () => el.removeEventListener('pointerdown', onPointerDownCapture, true);
   }, [textTool]);
 
+  const onStrokeHitRef = useRef(onStrokeHit);
+  onStrokeHitRef.current = onStrokeHit;
+
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     if (textToolRef.current) return; // the text tool creates text on click
     // Drag starts only on empty board space (the viewport/grid itself), so
     // later object stories can stop propagation on their own elements.
     if (e.target !== viewportRef.current) return;
+
+    // Story 11: check for a stroke hit before starting a pan.
+    if (onStrokeHitRef.current) {
+      const local = localPoint(e.clientX, e.clientY);
+      const world = { x: local.x / camera.zoom + camera.x, y: local.y / camera.zoom + camera.y };
+      if (onStrokeHitRef.current(world)) return; // stroke selected, no pan
+    }
+
     viewportRef.current?.setPointerCapture?.(e.pointerId);
 
     // Shift-drag on empty space → marquee (story 7), not a pan.

@@ -243,3 +243,40 @@ unrelated to story 10:
   fail under full-suite parallel load (timing/resource contention).
 
 All 10 story-10 e2e tests (TC-23 to TC-27 × chromium + firefox) pass.
+
+---
+
+# Story 11 — Sketch freehand with a pen
+
+## Design decisions
+
+### Stroke selection via pointerdown interception
+The stroke object has `pointerEvents: none` (like connectors) so it never
+blocks board interaction. Selection is handled by intercepting the
+pointerdown on the viewport: a new `onStrokeHit` prop on BoardViewport is
+called with the world point before a pan starts. If a stroke's line-distance
+hit test matches, the stroke is selected and the pan is suppressed. This is
+consistent with how connector selection works (story 10).
+
+### Pen tool wheel forwarding
+The PenTool overlay is a full-screen `position: fixed` div that sits above
+the BoardViewport. Wheel events on it don't reach the viewport's wheel
+listener. The PenTool accepts an `onWheel` prop that forwards to the camera
+controls, so scrolling still pans and Ctrl/Cmd+scroll zooms while the pen is
+active (pen.navigation).
+
+### useTool: pen added to TOOL_MODES
+The 'pen' tool id was already in the ToolId union and TOOL_SHORTCUTS (p→pen)
+but was not in TOOL_MODES (setTool was a no-op). Story 11 adds it to
+TOOL_MODES so the pen tool can be activated. The existing component test that
+expected pen to be a no-op was updated to check image/comment instead.
+
+### Pen stays active (pen.stay_active)
+Unlike shape/connector tools (which call `toolCreated(id)` to return to
+Select), the pen tool does NOT switch tools after a stroke. The active tool
+remains 'pen' until the user presses Escape, V, or chooses another tool.
+
+### Pre-existing E2E failure
+`undo.spec.ts TC-22` (per-user history isolation) fails deterministically on
+this machine. Verified pre-existing (documented in story 10 notes). Unrelated
+to story 11.
