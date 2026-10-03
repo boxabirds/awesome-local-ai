@@ -25,16 +25,22 @@ import type { Point } from '../canvas/camera';
 import type { UndoController } from '../board/undo';
 import { setTextWidthFixed, TEXT_TYPE } from '../../shared/objects/text';
 import { SHAPE_TYPE } from '../../shared/objects/shape';
-import { SHAPE_MIN_SIZE_WORLD, STROKE_MIN_SIZE_WORLD } from '../../shared/config';
+import {
+  IMAGE_MIN_SIZE_WORLD,
+  SHAPE_MIN_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
+} from '../../shared/config';
 import { CONNECTOR_TYPE } from '../../shared/objects/connector';
 import { connectorHitTest } from '../../shared/geometry/connector-geometry';
 import { STROKE_TYPE, strokeHitTest, type StrokeSnap } from '../../shared/objects/stroke';
+import { IMAGE_TYPE } from '../../shared/objects/image';
 import { remeasureTextBox } from './useTextBoxSync';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
+import { BoardImageObject } from './ImageObject';
 
 /** What the board gives any object component, whatever its type. */
 export interface ObjectProps {
@@ -255,6 +261,19 @@ registerObjectType(CONNECTOR_TYPE, {
   // a nearly-straight arrow has almost no box to be inside. The registry signature has no
   // zoom, so this is the zoom-1 form; the app hits-tests the live line at the real zoom.
   hitTest: (obj, point) => connectorHitTest(obj as never, point, 1),
+});
+
+registerObjectType(IMAGE_TYPE, {
+  // A picture: the document's rectangle, and whatever the bucket behind its key returns.
+  Component: BoardImageObject as unknown as ComponentType<ObjectProps>,
+  // Proportions always (`image.aspect_resize`): a photograph dragged wide is a photograph
+  // wanted wider, and a box that had been stretched out of shape could not be put back,
+  // because nothing about the box remembers what was inside it.
+  aspectLocked: true,
+  // Below this the picture is a smudge and the state message cannot be read at all.
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  // There is nothing to type into a picture, so no editor and no caret.
+  editableText: false,
 });
 
 registerObjectType(STROKE_TYPE, {

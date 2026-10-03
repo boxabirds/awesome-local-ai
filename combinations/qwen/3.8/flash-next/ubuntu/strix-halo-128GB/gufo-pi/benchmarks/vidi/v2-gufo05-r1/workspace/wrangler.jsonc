@@ -16,6 +16,15 @@
     // Worker's own decision rather than a gap in the asset listing.
     "run_worker_first": true
   },
+  // Board pictures (story 12). The Worker is the only thing that can read or write this
+  // bucket: nothing public is mounted on it, so a picture is reachable by its
+  // unguessable `<boardId>/<assetId>` key and by nothing else.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {

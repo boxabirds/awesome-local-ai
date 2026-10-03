@@ -11,7 +11,14 @@
  *   meta: Y.Map { schemaVersion: 1 }
  *   objects: Y.Map<string, Y.Map>
  *     <id>: Y.Map { type: 'sticky', x, y, color, text: Y.Text, z, createdAt }
+ *     <id>: Y.Map { type: 'image', x, y, width, height, z, createdAt,
+ *                   assetKey, contentType, naturalWidth, naturalHeight,
+ *                   status, uploadStartedAt, uploaderId }   // story 12
  * ```
+ *
+ * An image is the one type whose bytes are not in the document: it holds an `assetKey`
+ * naming a stored picture, and `status` says whether those bytes have arrived
+ * (`objects/image`).
  *
  * `x, y` is the note's top-left in world units; `z` is stacking order (higher is
  * on top) and `snapshot` sorts by `(z, id)` so clients that merge concurrent
@@ -33,6 +40,7 @@ import {
   resolveConnector,
   type ConnectorSnapshot,
 } from './objects/connector';
+import { IMAGE_TYPE, snapshotFrom as readImage } from './objects/image';
 import { SHAPE_TYPE, snapshotFrom as readShape } from './objects/shape';
 import { STROKE_TYPE, snapshotFrom as readStroke } from './objects/stroke';
 import { rectContains, isFiniteRect, type Point, type Rect } from './geometry';
@@ -161,6 +169,7 @@ function readObject(id: string, map: Y.Map<unknown>): ObjectSnapshot | null {
   const z = map.get('z');
   if (typeof x !== 'number' || typeof y !== 'number' || typeof z !== 'number') return null;
   // Text carries its own box and font size, so it reads itself (`text.model`).
+  if (type === IMAGE_TYPE) return readImage(id, map);
   if (type === TEXT_TYPE) return readText(id, map);
   if (type === SHAPE_TYPE) return readShape(id, map);
   // A connector's box is derived from the objects it is attached to; `objectSnapshots`
@@ -389,17 +398,21 @@ export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): 
 /**
  * The ids a move gesture may actually translate.
  *
- * Only notes and shapes have a position of their own. A piece of text re-lays itself out
- * from its words, and a connector's box is *derived* from the objects it is attached to,
+ * Only notes, shapes and images have a position of their own. A piece of text re-lays itself
+ * out from its words, and a connector's box is *derived* from the objects it is attached to,
  * so translating either would be meaningless — dragging a selection moves the shapes and
  * the arrows follow them (`connector.follow`). A transform gesture filters its ids through
  * this so a connector in the selection set never gets an `x`/`y` written.
+ *
+ * An image that has not finished uploading is movable with the rest: the placeholder has the
+ * rectangle the picture will fill, and a person who drops three files and immediately drags
+ * them somewhere is not doing anything wrong (`image.move`).
  */
 export function moveableIds(doc: Y.Doc, ids: readonly string[]): string[] {
   const objects = objectsMap(doc);
   return ids.filter((id) => {
     const type = objects.get(id)?.get('type');
-    return type === STICKY_TYPE || type === SHAPE_TYPE;
+    return type === STICKY_TYPE || type === SHAPE_TYPE || type === IMAGE_TYPE;
   });
 }
 

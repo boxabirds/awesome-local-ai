@@ -17,7 +17,7 @@
  * only, see `useSelection`), the camera (story 1), and the selection rectangle, which
  * exists only while the pointer is down.
  */
-import { useCallback, useMemo, useRef, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type JSX } from 'react';
 import type * as Y from 'yjs';
 
 import { isValidBoardId } from '../shared/board-id';
@@ -55,6 +55,11 @@ import { CameraProvider, useCameraContext } from './canvas/CameraContext';
 import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
 import { getObjectType, isRenderable } from './objects/registry';
+import { ImageRuntimeProvider, type ImageRuntimeSource } from './objects/ImageObject';
+import { IMAGE_TYPE, type ImageSnapshot } from '../shared/objects/image';
+import { useImageInsert } from './images/useImageInsert';
+import { DropHighlight } from './images/DropHighlight';
+import { ToastHost } from './ui/Toast';
 import { ConnectionStatus, canEdit as connectionAllowsEditing } from './sync/ConnectionStatus';
 import {
   canZoomIn,
@@ -176,6 +181,75 @@ function BoardLayout({ doc, boardId }: AppProps) {
   /** One model call is one undo step, whatever the pointer did around it. */
   const stepBoundary = undoController.boundary;
 
+  /**
+   * Pictures: drop, paste and the Image tool (`image.insert`).
+   *
+   * The camera goes in, so a drop point on the screen becomes the world coordinate the first
+   * placeholder is anchored to; the connection state goes in, because a picture is the one
+   * object on this board whose *bytes* have to reach a server — text can wait in the document
+   * and sync later, an upload cannot (`image.offline`).
+   */
+  const images = useImageInsert({
+    doc: board.doc,
+    boardId: boardId ?? '',
+    camera,
+    connection: board.connectionState,
+    identityId: SELF.id,
+    boundary: stepBoundary,
+  });
+
+  // Pasting is listened for on the window rather than on the board: a picture off the
+  // clipboard has no point to be dropped at, so wherever the page has focus is where it
+  // belongs — and the hook steps aside when that focus is something taking text, which is what
+  // keeps pasting words into a note just pasting words (`image.paste`).
+  useEffect(() => {
+    const onPaste = images.onPaste;
+    window.addEventListener('paste', onPaste);
+    return () => {
+      window.removeEventListener('paste', onPaste);
+    };
+  }, [images.onPaste]);
+
+  /**
+   * The Remove inside a failed or unfinished image.
+   *
+   * The delete every other route to it takes, plus forgetting the file behind it: an object
+   * that is gone can never be retried, and keeping its bytes in memory for a rectangle that no
+   * longer exists is a leak with a progress bar on it.
+   */
+  const removeImage = useCallback(
+    (id: string) => {
+      stepBoundary();
+      deleteObjects(board.doc, [id]);
+      stepBoundary();
+      images.forget(id);
+      // The selection needs nothing here: it is kept in step with the objects that exist, so a
+      // deleted picture leaves it by itself (`useSelection`).
+    },
+    [board.doc, images, stepBoundary],
+  );
+
+  const imageRuntime = useCallback(
+    (): ImageRuntimeSource => ({
+      identityId: SELF.id,
+      progressOf: (id) => images.progress.get(id),
+      canRetry: (id) => images.canRetry(id),
+      retry: (id) => {
+        images.retry(id);
+      },
+      remove: removeImage,
+    }),
+    [images, removeImage],
+  );
+
+  // A board only needs its clock running while a picture could be waiting for an upload that
+  // stopped: `unfinished` is the one state on this board that arrives with no event to announce
+  // it, and the tick exists to notice that (`image.unfinished`).
+  const anyImageUploading = objects.some(
+    (object) =>
+      object.type === IMAGE_TYPE && (object as Partial<ImageSnapshot>).status === 'uploading',
+  );
+
   /** Delete everything selected, and clear the selection (`sel.group_delete`). */
   const deleteSelection = useCallback(() => {
     if (!canEdit) return;
@@ -214,6 +288,9 @@ function BoardLayout({ doc, boardId }: AppProps) {
     undo: undoController,
     tool: tools,
     onCreateSticky: () => createAtCentre(),
+    // `I` is the toolbar's Image button under the keyboard, the same action and not a second
+    // one (`image.pick`).
+    onImage: images.openPicker,
   });
 
   /** Put a note on the board centred on a world point and start typing it. */
@@ -305,6 +382,7 @@ function BoardLayout({ doc, boardId }: AppProps) {
       <ConnectionStatus state={board.connectionState} />
       <Toolbar
         onCreateSticky={createAtCentre}
+        onImage={images.openPicker}
         tool={tools.tool}
         canEdit={canEdit}
         onTool={tools.setTool}
@@ -335,6 +413,10 @@ function BoardLayout({ doc, boardId }: AppProps) {
           createTextAt(screenToWorld(camera, point));
         }}
         penMode={canEdit && tools.tool === 'pen'}
+        onDragOver={images.onDragOver}
+        onDragLeave={images.onDragLeave}
+        onDrop={images.onDrop}
+        dragOver={images.dropActive}
         screenOverlay={
           canEdit && tools.tool === 'pen' ? (
             <PenTool
@@ -348,27 +430,34 @@ function BoardLayout({ doc, boardId }: AppProps) {
           ) : undefined
         }
       >
-        {objects.map((object) => {
-          const spec = getObjectType(object.type);
-          if (!spec) return null; // filtered above; the compiler does not know that
-          const Component = spec.Component;
-          return (
-            <Component
-              key={object.id}
-              obj={object}
-              doc={board.doc}
-              zoom={camera.zoom}
-              selected={selection.has(object.id)}
-              editing={selection.editingId === object.id}
-              canEdit={canEdit}
-              onObjectPointerDown={gesture.onObjectPointerDown}
-              onFocusSelect={selection.selectOnly}
-              onStartEdit={selection.startEdit}
-              onEndEdit={selection.endEdit}
-              undo={undoController}
-            />
-          );
-        })}
+        {/*
+         * What an image needs beyond `ObjectProps`: whose upload this was, how far it has got,
+         * whether Retry has a file to retry, Remove, and a clock (`image.object`). The provider
+         * adds them without widening what every other type is handed.
+         */}
+        <ImageRuntimeProvider runtime={imageRuntime} hasUploading={anyImageUploading}>
+          {objects.map((object) => {
+            const spec = getObjectType(object.type);
+            if (!spec) return null; // filtered above; the compiler does not know that
+            const Component = spec.Component;
+            return (
+              <Component
+                key={object.id}
+                obj={object}
+                doc={board.doc}
+                zoom={camera.zoom}
+                selected={selection.has(object.id)}
+                editing={selection.editingId === object.id}
+                canEdit={canEdit}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+                onFocusSelect={selection.selectOnly}
+                onStartEdit={selection.startEdit}
+                onEndEdit={selection.endEdit}
+                undo={undoController}
+              />
+            );
+          })}
+        </ImageRuntimeProvider>
         <MarqueeRect rect={marquee.rect} camera={camera} />
       </BoardViewport>
       {/*
@@ -424,6 +513,13 @@ function BoardLayout({ doc, boardId }: AppProps) {
         onReset={nav.reset}
       />
       <NavigationHint visible={!nav.hasNavigated} />
+      {/* Files being dragged over the board, and nothing else (`image.drop`): a drag of text or
+          of a link is the browser's business, and the board says so by staying out of the way. */}
+      {images.dropActive ? <DropHighlight /> : null}
+      {/* One message at a time, above the board: images refuse, uploads fail and the connection
+          drops, and none of them is a reason to stop drawing (`image.types`, `image.size_limit`,
+          `image.count_limit`, `image.offline`). */}
+      <ToastHost />
     </div>
   );
 }

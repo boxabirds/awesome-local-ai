@@ -35,6 +35,7 @@ import { getObjectType } from '../objects/registry';
 import { undoGesture, type UndoController } from './undo';
 import type { SelectionHandle } from './useSelection';
 import type { ActiveToolHandle } from '../tools/useActiveTool';
+import { takesTextKeys } from '../dom/textTarget';
 
 export interface BoardKeyParams {
   doc: Y.Doc;
@@ -66,25 +67,14 @@ export interface BoardKeyParams {
    * is the same button's action rather than a second implementation of it.
    */
   onCreateSticky?(): void;
-}
-
-/**
- * Is this a field that takes text? Its caret is its own, and so is its undo.
- *
- * A narrower question than `takesItsOwnKeys` below: a focused button does not keep Delete
- * (that would be the board's), but it has no reason to keep Ctrl+Z either — a person who
- * has just clicked the Undo button and reaches for the keyboard means the same thing both
- * times. A note being edited is a textarea, so it is in here, and the editor answers the
- * key itself (`undo.typing`).
- */
-function takesTextKeys(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.isContentEditable ||
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.tagName === 'SELECT'
-  );
+  /**
+   * Open the file picker for one image (`image.pick`).
+   *
+   * `I` is the keyboard's way of pressing the toolbar's Image button and the same action, not
+   * a second one. It is an action rather than a mode: a picture arrives where the view already
+   * is, so there is nothing for the pointer to be armed with afterwards.
+   */
+  onImage?(): void;
 }
 
 /**
@@ -126,7 +116,8 @@ export function useBoardKeys(params: BoardKeyParams): void {
       }
 
       if (takesItsOwnKeys(event.target)) return;
-      const { doc, selection, snapshot, canEdit, marqueeActive, tool, onCreateSticky } = latest.current;
+      const { doc, selection, snapshot, canEdit, marqueeActive, tool, onCreateSticky, onImage } =
+        latest.current;
       // Somebody is typing into an object: the keys are theirs. `T` typed into a note
       // is the letter t, and `N` is a word with an n in it (`text.tool_ui`).
       if (selection.editingId !== null) return;
@@ -178,6 +169,16 @@ export function useBoardKeys(params: BoardKeyParams): void {
           event.preventDefault();
           event.stopPropagation();
           onCreateSticky?.();
+          return;
+        }
+        if (event.key === 'i' || event.key === 'I') {
+          // `i` Image (`image.pick`): an action like `n`, and it refuses itself when the board
+          // is offline — a picker that collects a picture nothing can upload is worse than a
+          // key that says no.
+          if (!canEdit) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onImage?.();
           return;
         }
       }

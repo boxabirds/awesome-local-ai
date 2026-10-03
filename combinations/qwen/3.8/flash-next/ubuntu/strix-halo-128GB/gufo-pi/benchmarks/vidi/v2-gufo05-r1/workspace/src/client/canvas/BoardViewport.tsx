@@ -12,7 +12,14 @@
  * Ctrl/Cmd + `=`, `-`, `0`. Every one of these calls `preventDefault`, so the
  * browser never zooms or scrolls the page instead of the board.
  */
-import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type DragEvent as ReactDragEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 
 import {
   DRAG_THRESHOLD_PX,
@@ -20,6 +27,7 @@ import {
   WHEEL_LINE_DELTA_PX,
   WHEEL_PAGE_DELTA_PX,
 } from '../../shared/config';
+import { takesTextKeys } from '../dom/textTarget';
 import { useCameraContext } from './CameraContext';
 import type { Camera } from './camera';
 import { IS_TEST_MODE, installTestHooks, isValidCamera } from './testHooks';
@@ -182,6 +190,29 @@ export interface BoardViewportProps {
    * and are not the viewport itself, so they never start a pan.
    */
   screenOverlay?: ReactNode;
+  /**
+   * Files are being dragged over the board (`image.drop`).
+   *
+   * Three optional handlers rather than a listener the viewport installs itself, because
+   * whether a drag is a file drag — and what to do with one — belongs to the board, not to the
+   * surface: a page that passes nothing keeps the browser's own behaviour, which is to open the
+   * picture instead of adding it.
+   *
+   * Typed as React's own drag event because that is what the element hands them. What the board
+   * passes in reads a smaller shape — the same handful of fields, whichever kind of event object
+   * it is holding (`DragGesture`).
+   */
+  onDragOver?: (event: ReactDragEvent<HTMLDivElement>) => void;
+  onDragLeave?: (event: ReactDragEvent<HTMLDivElement>) => void;
+  onDrop?: (event: ReactDragEvent<HTMLDivElement>) => void;
+  /**
+   * Files are hovering over the board right now.
+   *
+   * Rendered as an attribute as well as drawn by the caller's overlay, so an end-to-end test can
+   * wait for the board to have noticed the drag without depending on what the highlight looks
+   * like (`image.drop`).
+   */
+  dragOver?: boolean;
 }
 
 export function BoardViewport({
@@ -193,6 +224,10 @@ export function BoardViewport({
   onTextPointClick,
   penMode,
   screenOverlay,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  dragOver,
 }: BoardViewportProps) {
   const nav = useCameraContext();
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -404,15 +439,8 @@ export function BoardViewport({
 
   // --- Keyboard shortcuts ------------------------------------------------
   useEffect(() => {
-    const isTextEntry = (target: EventTarget | null): boolean => {
-      if (!(target instanceof HTMLElement)) return false;
-      return (
-        target.isContentEditable ||
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT'
-      );
-    };
+    // One answer to "is something taking text here", shared with the shortcuts and the paste.
+    const isTextEntry = takesTextKeys;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (!event.ctrlKey && !event.metaKey) return;
@@ -467,6 +495,10 @@ export function BoardViewport({
         textMode ? ' board-viewport--text' : ''
       }${penMode ? ' board-viewport--pen' : ''}`}
       style={gridBackgroundStyle(camera)}
+      data-drag-over={dragOver ? 'true' : undefined}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={(event) => handlePointerEnd(event)}

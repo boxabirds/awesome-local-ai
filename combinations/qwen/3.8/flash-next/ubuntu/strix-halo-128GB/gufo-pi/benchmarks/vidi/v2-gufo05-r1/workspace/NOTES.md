@@ -1098,3 +1098,120 @@ production bundle with no `window.__vidi6`, and every test times out waiting for
 - **e2e TC-17** runs on every engine the host can run (the playwright config skips engines whose
   system libraries are missing); the faithfulness check compares the painted box to the traced loop
   within a few pixels.
+
+---
+
+## Story 12 — Drop images onto the board
+
+All nine tasks are done. Unit 329 pass, component 256 pass, integration 75 pass, the whole
+chromium e2e run (66 tests, including the 4 new story-12 ones) passes, and
+`npm run typecheck` is clean. Firefox and WebKit are skipped on this host for the same library
+reason as every prior story — `playwright.config.ts` prints it — which costs TC-26 nothing: it
+uses no engine-specific API and runs on every engine the machine can start.
+
+### Two bugs the browser found that 256 component tests could not
+
+Both were in the *object*, not the model, and both made a failed picture impossible to rescue.
+
+- **`.image-object` was click-through.** The world layer is `pointer-events: none` and every
+  object type opts back in on its own class (`.shape-object` does, `.stroke-object` does). The
+  new class did not, so a picture could not be clicked, resized, or retried: Playwright reported
+  the viewport "intercepts pointer events" over the Retry button. `.image-object` now opts in.
+- **A press on Retry never reached Retry.** `useTransformGesture` calls `setPointerCapture` on
+  `event.currentTarget`, which is right for a drag and fatal for a button inside an object: a
+  captured pointer takes the `click` off the control that was pressed and hands it to the box
+  that captured it. Every other object on this board keeps its controls outside itself (the note
+  toolbar is board-level chrome since story 7); a failed image carries its Retry and Remove
+  *inside* the picture. `BoardImageObject` now leaves a press that began on a `button` where it
+  started, and `ImageObject.test.tsx` has the regression test — pointerdown on the button
+  reaches neither the gesture nor the board behind it, and the click reaches `retry`.
+
+Neither is visible to jsdom: a synthetic event dispatched on a node never consults hit-testing,
+and `fireEvent.click` does not care where the pointer went.
+
+### One question about text, answered in one place
+
+`useBoardKeys`, `BoardViewport`'s wheel-and-key gestures and this story's paste handler all ask
+"is something taking text right now". The answer is now `takesTextKeys` in
+`src/client/dom/textTarget.ts`, and it reads the `contenteditable` **attribute** as well as
+`isContentEditable`: that property is a report from a live editing engine, and an environment
+without one answers `undefined` for every element, which would switch the guard off exactly
+where a test needs it. React writes `contenteditable="true"` as an attribute, so the attribute
+is the page's own record.
+
+### Where the fixtures come from, and why they are real bytes
+
+`scripts/make-image-fixtures.mjs` writes `tests/fixtures/images/*` (a real PNG/JPEG/GIF/WebP per
+case, a truncated PNG, a PDF wearing a `.png` name, an SVG, a 300×3200 portrait) and, in the
+same run, `tests/fixtures/image-bytes.ts` — the same bytes base64-inlined, because the workerd
+integration sandbox has no filesystem at all. Sniffing, the size limit and a browser's decoder
+all ignore a file's name, so a fixture that only *looked* like an image would test the wrong
+thing. Everything totals ~612 KB; `photo.jpg` was re-encoded to 1600×1200 to keep it that way.
+
+The two files on either side of the limit are built at run time instead: padding after a JPEG's
+end-of-image marker is ignored by every decoder, so `oversizedJpegPayload()` can be exactly
+`IMAGE_MAX_BYTES + 1` bytes without an eleven-megabyte file in the repository.
+
+### What the e2e helpers do that only a browser needs
+
+- **Dropping.** There is no operating system to drag from, so the drag is made of the same parts
+  a browser makes: a `DataTransfer` with real `File`s, dispatched as `dragover` then `drop` on
+  the viewport. `dragFilesOver` on its own is what proves the highlight appears *before* the
+  files are let go.
+- **Choosing.** A file dialog is not part of the page, so `chooseFiles` intercepts Playwright's
+  `filechooser` and answers it — which is also how the 11 MB file and the mislabelled PDF get
+  into a browser at all.
+- **Knowing a picture arrived.** `naturalWidth` is the browser's own verdict. A `<img>` whose
+  bytes 404, or never arrived, or never decoded, reports 0 however tidy its `src` looks.
+- **Making an upload slow, and making it fail.** `delayUploads` holds `POST …/assets` for 1.5 s
+  and then continues (so the placeholder state is something a test looks at rather than hopes to
+  catch), `blockUploads` aborts it, and the returned function un-routes for the retry. Both were
+  checked against a real upload first: Playwright's `route.continue()` preserves the body, the
+  201 still arrives, and progress events still fire.
+
+### A picture nobody can see is not fetched — and a test has to know that
+
+`<img loading="lazy">` is deliberate: twenty pictures dropped off the edge of the view should
+not cost twenty downloads. It also meant TC-25 failed at first for a reason that was the test's:
+the row of three screenshots is 2 448 world units and a viewport is 1 280, so the colleague's
+third picture sat off her screen and was never requested — `naturalWidth` 0, forever, correctly.
+The test now parks *both* cameras at `zoom 0.4` on the row, which is the state a person would be
+in and the only state in which "she can see them" means anything.
+
+### Deviations, stated
+
+- **The Image tool is an action, not a mode.** `i` and the toolbar button open the file dialog
+  immediately and leave the tool on Select. A picture lands where the view already is, so there
+  is nothing for the pointer to be armed with afterwards; a lingering mode would have to explain
+  what Escape means.
+- **`ASSET_ROUTE`/`assetUrl()` live in `src/shared/image-format.ts`** so the client and the
+  Worker agree on one string. The client deliberately does **not** import anything from
+  `src/worker/` — that pulls the worker files into a client program that has no Cloudflare
+  types — so `uploadImage.ts` re-declares the small `StoredAssetBody` shape it checks.
+- **`IMAGE_STATUS_TICK_MS = 30_000` is local to `ImageObject.tsx`**, not a shared setting: it is
+  how often a screen re-derives `unfinished` from the clock, not a design-named budget.
+  `ImageRuntimeProvider` starts that clock only while something is uploading.
+- **The Toast host is a module store, not a hook threaded through props** (`showToast` /
+  `<ToastHost />`), because a refusal is raised by three different places — validation, upload,
+  offline — and none of them is the board.
+- **At the resize floor the ratio is not kept, and that is the existing rule.**
+  `useTransformGesture` clamps each axis against `minSize` separately, so dragging a 300×200
+  picture far inward stops at 16×16. TC-27 asserts the floor and the *stop* (a second identical
+  drag changes nothing) rather than a ratio that the gesture does not promise at the bottom.
+- **Superseded uploads cannot overwrite a retry.** `abort()` still resolves its promise, so the
+  completion handler checks that the handle finishing is the handle it started; without that
+  guard, a Retry's cancelled attempt would mark the object `failed` on top of the upload already
+  running.
+- **No `createImageBitmap` fallback.** If a browser cannot decode a file, the decode throws and
+  the file is refused with the type message, which is the honest answer; every engine this suite
+  can run has had the API since 2022.
+
+### What was tested where
+
+Unit: `tests/unit/image-format.test.ts` TC-01, TC-02; `tests/unit/image-model.test.ts` TC-03 to
+TC-07; `tests/unit/validate-files.test.ts` TC-08, TC-09. Integration (real R2, real room):
+`tests/integration/assets.test.ts` TC-10 to TC-13, TC-15, TC-16. ui-component:
+`tests/component/ImageInsert.test.tsx` TC-17, TC-18, TC-19, TC-29 plus progress, retry, picker
+and non-file drags; `tests/component/ImageObject.test.tsx` TC-21 to TC-24 plus the two object
+bugs above. e2e: `tests/e2e/images.spec.ts` TC-25 to TC-28. There is no TC-14 or TC-20 in this
+story: design.md's table skips both numbers, as story 5's skips TC-30.

@@ -387,3 +387,53 @@ export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 
 /** The radius of the connection-point dots, in screen pixels, so they keep their size. */
 export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+/* Images (story 12) ---------------------------------------------------------*/
+
+/**
+ * The image types the board accepts, in the order the file picker lists them.
+ *
+ * Raster formats only: an SVG is markup, and markup stored on a board and handed back to
+ * a browser can carry script with it (`image.types`).
+ */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+export type AcceptedImageType = (typeof IMAGE_ACCEPTED_TYPES)[number];
+
+/** Largest image a person may add, in bytes (10 MB). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Most images one drop, paste or pick may add; the rest are skipped with a message. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/**
+ * Longest side an added image is placed at, in world units.
+ *
+ * A bigger image is scaled down to this, in proportion; a smaller one keeps its natural
+ * pixel size and is never enlarged (`image.placement_size`).
+ */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** Smallest side an image may be resized to, in world units (`image.aspect_resize`). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** Gap between the images of one add action, in world units (`image.drop`). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/**
+ * How long an image may sit in `uploading` before everyone is told it did not finish
+ * (`image.unfinished`) — the uploader reloaded, or closed the page, and nobody will ever
+ * complete this upload.
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** How long a stored image may be cached for: a key is never rewritten, so it is immutable. */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/**
+ * How many bytes of an upload are looked at to decide what it is.
+ *
+ * Enough for every signature below — WebP's is `RIFF`, four bytes, then `WEBP` four bytes
+ * further in, so twelve bytes covers the furthest-reaching one.
+ */
+export const IMAGE_SNIFF_BYTES = 12;

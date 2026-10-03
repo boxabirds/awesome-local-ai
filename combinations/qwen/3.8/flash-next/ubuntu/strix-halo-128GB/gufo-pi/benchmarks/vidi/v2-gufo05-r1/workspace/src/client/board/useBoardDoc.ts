@@ -91,11 +91,25 @@ function sameObjects(left: readonly ObjectSnapshot[], right: readonly ObjectSnap
       label?: string;
       fill?: string;
       stroke?: string;
+      // An image changes in two ways that leave its rectangle alone: the upload finishing
+      // (`status`, and the `assetKey` the bytes are fetched by) and a retry restarting the
+      // clock. Missing either, and a picture that arrives after its placeholder is drawn
+      // stays a spinner until the board is reloaded.
+      status?: string;
+      assetKey?: string | null;
+      contentType?: string;
+      naturalWidth?: number;
+      naturalHeight?: number;
+      uploadStartedAt?: number;
     };
     const mine = object as Extra;
     const theirs = other as Extra;
     if (mine.text !== theirs.text || mine.color !== theirs.color) return false;
     if (mine.label !== theirs.label || mine.fill !== theirs.fill || mine.stroke !== theirs.stroke) return false;
+    if (mine.status !== theirs.status || mine.assetKey !== theirs.assetKey) return false;
+    if (mine.contentType !== theirs.contentType) return false;
+    if (mine.naturalWidth !== theirs.naturalWidth || mine.naturalHeight !== theirs.naturalHeight) return false;
+    if (mine.uploadStartedAt !== theirs.uploadStartedAt) return false;
     return true;
   });
 }

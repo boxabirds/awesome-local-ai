@@ -15,7 +15,7 @@ import {
   type ObjectProps,
 } from '../../src/client/objects/registry';
 import { createSticky, objectBounds, snapshot } from '../../src/shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../src/shared/config';
+import { IMAGE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD } from '../../src/shared/config';
 import {
   registerTestBox,
   TESTBOX_MIN_SIZE_WORLD,
@@ -68,8 +68,17 @@ describe('the sticky note registration', () => {
     // Story 10 registers `shape` and `connector`, so they are no longer unknown.
     expect(getObjectType('shape')).toBeDefined();
     expect(getObjectType('connector')).toBeDefined();
-    // Types no story in this build gives a component are still not drawn at all.
-    expect(getObjectType('image')).toBeUndefined();
+    // Story 12 gives `image` a component, so it is drawn, selected and resized here too.
+    const image = getObjectType('image');
+    expect(image).toBeDefined();
+    // Resize keeps its proportions and stops at the smallest box worth showing
+    // (`image.aspect_resize`), and there is nothing to type into a picture, so double-click
+    // opens no editor.
+    expect(image?.aspectLocked).toBe(true);
+    expect(image?.minSize).toBe(IMAGE_MIN_SIZE_WORLD);
+    expect(image?.editableText).toBe(false);
+    // A type nothing registers is still not drawn at all: the Pen draws strokes, which are their
+    // own type, so a bare `pen` remains an object this build cannot show.
     expect(getObjectType('pen')).toBeUndefined();
     expect(getObjectType('')).toBeUndefined();
   });

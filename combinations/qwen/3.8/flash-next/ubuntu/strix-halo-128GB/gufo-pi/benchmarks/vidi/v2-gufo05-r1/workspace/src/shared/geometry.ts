@@ -26,6 +26,18 @@ export interface Point {
 }
 
 /**
+ * A width and a height, with no place.
+ *
+ * What an image has before anybody says where it goes: its natural pixel size, or the
+ * size it will be placed at (`image.placement_size`), which `layoutRow` then puts
+ * somewhere.
+ */
+export interface Size {
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
  * The eight resize handles of a bounding box, named for the edge or corner they
  * sit on: `nw` is the top-left corner, `e` the middle of the right edge.
  */

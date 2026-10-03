@@ -46,6 +46,14 @@ export interface ToolbarProps {
   shapeKind?: ShapeKind;
   /** Choose the kind the Shape tool will draw next. */
   onShapeKind?(kind: ShapeKind): void;
+  /**
+   * Choose pictures to add (`image.pick`).
+   *
+   * An action, like the sticky note button, and not a mode: it opens the system picker and
+   * leaves the pointer in Select, because the images arrive centred in the view rather than
+   * wherever the next click lands.
+   */
+  onImage?(): void;
   /** This person's history, for the buttons underneath the tools. */
   undo: UndoHandle;
 }
@@ -57,6 +65,7 @@ export function Toolbar({
   onTool,
   shapeKind = 'rect',
   onShapeKind,
+  onImage,
   undo,
 }: ToolbarProps) {
   return (
@@ -221,6 +230,37 @@ export function Toolbar({
           <path d="M13 10h-3v3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
         </svg>
         <span>Sticky note</span>
+      </button>
+      <button
+        type="button"
+        className="toolbar__button"
+        data-testid="tool-image"
+        aria-label="Image (I)"
+        disabled={!canEdit}
+        title="Image — add PNG, JPEG, GIF or WebP pictures, or drop them on the board"
+        onClick={onImage}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect
+            x="2.5"
+            y="3.5"
+            width="11"
+            height="9"
+            rx="1"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+          />
+          <path
+            d="M3 10.5l3-3 2.5 2.5L10 9l3 2.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinejoin="round"
+          />
+          <circle cx="6" cy="6.5" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.3" />
+        </svg>
+        <span>Image</span>
       </button>
       <UndoButtons {...undo} />
     </div>
