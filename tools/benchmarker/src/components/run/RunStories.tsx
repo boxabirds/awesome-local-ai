@@ -96,9 +96,11 @@ export function RunStories({ run, rows }: { run: Row; rows: Row[] }) {
                     </td>
                     <td className="held-cell">{r.state === "result" ? <span className={`held ${qualityClass(r.passed / r.total)}`}>{r.passed}/{r.total}</span> : null}</td>
                     <td className="rp-bar-label">
-                      <StoryRunLink pack={run.pack} stack={run.stack} runId={run.runId} story={r.id}>{r.id}. {title || `story ${r.id}`}</StoryRunLink>{" "}
-                      <CollapsedMark story={s} />{" "}
-                      <InterventionMark list={interventionsOf(run, r.id)} compact to={interventionHref(run, r.id)} />
+                      <div className="label-line">
+                        <StoryRunLink pack={run.pack} stack={run.stack} runId={run.runId} story={r.id}>{r.id}. {title || `story ${r.id}`}</StoryRunLink>
+                        <CollapsedMark story={s} />
+                        <InterventionMark list={interventionsOf(run, r.id)} compact to={interventionHref(run, r.id)} />
+                      </div>
                     </td>
                     <td className="bar-cell">
                       <span className="bar-track">
