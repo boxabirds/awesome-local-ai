@@ -88,6 +88,7 @@ async fn main() -> Result<()> {
         }
         Cmd::HarnessRelease(args) => dbench::release::run(&args),
         Cmd::Ingest(args) => dbench::ingest::cmd_ingest(&args, cli.json),
+        Cmd::Analyse(args) => dbench::analytics::cmd_analyse(&args, cli.json),
         Cmd::Collect(args) => dbench::collector::cmd_collect(&Ctx::load(cli.config, cli.json)?, &args).await,
         Cmd::Release { node } => client::cmd_release(&Ctx::load(cli.config, cli.json)?, &node).await,
         Cmd::Cancel { node, id, reason } => {
