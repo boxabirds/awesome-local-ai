@@ -1,0 +1,7 @@
+# name|ctx|need_vram_mib|need_ram_mib|basis|summary
+#
+# MEASURED on the RTX 4090 machine (i9-13900F, 62 GB RAM, RTX 4090 24564 MiB), Strata v0.1.36, IQ3_XXS, 2026-10-02:
+# VRAM 23,805 MiB used by the engine at start and 23,955 MiB after a 128k-token conversation; the engine process
+# 42.7 GiB resident at start and 43.5 GiB after it (horizon/strata.md). need_ram_mib is that resident set, rounded up.
+agent|131072|23955|44800|MEASURED-2026-10-02|default; the benchmark's full context; MTP drafts on; KV cache int8
+short|65536|23955|44800|MEASURED-2026-10-02|half the context: same weights, so the same memory; for a quick interactive session

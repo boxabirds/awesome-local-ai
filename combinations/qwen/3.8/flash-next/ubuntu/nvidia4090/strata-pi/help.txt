@@ -1,0 +1,25 @@
+NOTES FOR THIS COMBINATION
+
+  One model server at a time. This model keeps about 24 GiB in VRAM and 43 GiB in RAM. The launcher REFUSES to start
+  while llama-server, MTPLX, mlx-serve, gufo, TensorFold or another Strata is running (ALLOW_COEXIST=1 overrides), or
+  when less VRAM or RAM is free than the model needs.
+
+  The server is Strata's own (serve/server.py), bound to 127.0.0.1 only: it has no API key unless one is configured.
+  Reasoning effort is set server-side (low): pi sends none. The port opens when the model is loaded, about 25 s.
+
+  Strata's setup (run by the installer) builds its engine, reads the n-gram table from the GGUF and fetches the MTP
+  draft layer; the launcher then derives its run configuration from the one setup wrote, adding the context and the
+  VRAM reserve, and never changes setup's own file.
+
+VARIABLES
+
+  PROFILE             agent | short
+  PORT                default 8013 (always 127.0.0.1)
+  CTX                 an explicit context (overrides the profile's)
+  ALLOW_COEXIST=1     start even though another model server is running
+
+EXAMPLES
+
+  strata-qwen38-flash-next-server                 # agent profile, 131072 context
+  PROFILE=short strata-qwen38-flash-next-server
+  curl -s http://127.0.0.1:8013/v1/models | python3 -m json.tool
