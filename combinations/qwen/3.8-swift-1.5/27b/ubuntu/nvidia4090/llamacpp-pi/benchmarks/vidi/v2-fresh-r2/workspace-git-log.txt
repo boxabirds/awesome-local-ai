@@ -1,3 +1,86 @@
+commit 6d7e8bfdda9103b75fc7d8d8d3c59787ddc5d376
+agent  Sat Oct 3 10:44:46 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ PROGRESS.md                               |  10 +-
+ package.json                              |   3 +-
+ src/client/board/useBoardDoc.ts           |   7 +-
+ src/client/canvas/testHooks.ts            |  20 ++
+ src/client/sync/connectBoard.ts           |  17 +-
+ src/worker/board-room.ts                  |  21 +-
+ tests/component/ConnectionStatus.test.tsx | 186 +++++++++++++++++
+ tests/e2e/helpers/participants.ts         | 185 +++++++++++++++++
+ tests/e2e/live-collab.spec.ts             | 251 +++++++++++++++++++++++
+ tests/e2e/nightly.spec.ts                 | 242 ++++++++++++++++++++++
+ tests/integration/helpers/random-ops.ts   |  78 ++++++++
+ tests/integration/helpers/ws-client.ts    | 210 +++++++++++++++++++
+ tests/integration/probe.test.ts           |  14 --
+ tests/integration/worker.test.ts          |  35 ++++
+ tests/integration/ws-room.test.ts         | 321 ++++++++++++++++++++++++++++++
+ vitest.config.ts                          |   7 +-
+ 16 files changed, 1579 insertions(+), 28 deletions(-)
+commit 722a179811eb6339df6caecb5926c9a16628205e
+agent  Sat Oct 3 09:09:16 2026 +0100
+
+    story 3: board room DO, client connection, workers pool toolchain (vitest 4 + cloudflareTest plugin)
+
+
+ PROGRESS.md                          |  12 +-
+ package-lock.json                    | 331 +++++++++++++++++++++++------------
+ package.json                         |   6 +-
+ src/client/App.tsx                   |  38 +++-
+ src/client/board/useBoardDoc.ts      |  22 ++-
+ src/client/canvas/testHooks.ts       |  22 ++-
+ src/client/sync/ConnectionStatus.tsx |  50 ++++++
+ src/client/sync/connectBoard.ts      | 113 ++++++++++++
+ src/worker/board-room.ts             | 133 +++++++++++++-
+ tests/integration/globals.d.ts       |  24 +++
+ tests/integration/probe.test.ts      |  14 ++
+ tsconfig.json                        |   3 +-
+ vitest.config.ts                     |   8 +-
+ 13 files changed, 644 insertions(+), 132 deletions(-)
+commit 3a8a130e0cc153d6446c525f97f4889704c5105c
+agent  Sat Oct 3 08:53:05 2026 +0100
+
+    story 3 (tasks 1-2): unit tests green; worker entry, board ids, protocol decode, wrangler config
+
+
+ package-lock.json           | 130 ++++++++++++++++++++++++++++++++++++++++++++
+ package.json                |   7 ++-
+ src/shared/board-id.ts      |   8 ++-
+ src/shared/protocol.ts      |  51 ++++++++++++++++-
+ src/worker/board-room.ts    |  19 +++++++
+ src/worker/index.ts         |  44 +++++++++++++++
+ tests/unit/board-id.test.ts |  10 ++--
+ tests/unit/protocol.test.ts |  39 +++++++++----
+ tsconfig.worker.json        |   7 +++
+ vitest.config.ts            |  11 ++++
+ wrangler.jsonc              |  16 +++++-
+ 11 files changed, 319 insertions(+), 23 deletions(-)
+commit a3d31f08697a153652f97901ca74d43792aa7493
+agent  Sat Oct 3 08:43:39 2026 +0100
+
+    story 3 (task 1): board id and protocol decode unit tests (red phase)
+
+
+ package-lock.json           | 1039 +++++++++++++++++++++++++++++++++++++------
+ package.json                |    4 +
+ src/shared/board-id.ts      |   25 ++
+ src/shared/config.ts        |   19 +
+ src/shared/protocol.ts      |   34 ++
+ tests/unit/board-id.test.ts |   45 ++
+ tests/unit/protocol.test.ts |   76 ++++
+ 7 files changed, 1095 insertions(+), 147 deletions(-)
+commit 993fb6c85141f82e3ab51a77cc4a864670d1a113
+vidi-agent  Sat Oct 3 08:38:49 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit 51929bfbade1114bc9eba8fffe82c659a7008736
 agent  Sat Oct 3 08:37:56 2026 +0100
 
