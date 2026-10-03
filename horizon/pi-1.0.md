@@ -18,7 +18,7 @@ the shared library pi's TUI and SDK/headless mode both use, so they do apply to 
 
 - **llama.cpp tool-call mixups**: "Fixed inherited OpenAI Responses streams from servers that omit
   `output_index`, such as llama.cpp, running mixed-up tool calls; such streams now end with an error." Directly
-  names llama.cpp — relevant to the Swift 1.5 stack (llamacpp-pi, gruntus). Changes silent corruption to a loud
+  names llama.cpp — relevant to the Swift 1.5 stack (llamacpp-pi, the 4090 box). Changes silent corruption to a loud
   stream error, which is a strict improvement for a benchmark (a wrong answer we didn't know was wrong, vs a
   failure we can see).
 - **Dropped sampling params**: "Fixed inherited model-level `samplingParams` being dropped by direct

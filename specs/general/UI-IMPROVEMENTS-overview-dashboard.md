@@ -39,10 +39,10 @@ in the log. Examples, with the live data where there is some:
 
 | Observation (shown) | Source in the state |
 |---|---|
-| gruntus: idle, nothing queued | machine record |
-| quintus: 9 queued, about N h of work (N from the median wall time of this stack's finished runs, n shown) | queue and finished runs |
-| tritus: no activity for 25 min | the harness's last report |
-| gruntus, run v2-fresh-r2, story 3 took 2h06m: 3.8 times the median of 33 min for that story across 6 runs of this stack | story timings |
+| the 4090 box: idle, nothing queued | machine record |
+| the M5 Max: 9 queued, about N h of work (N from the median wall time of this stack's finished runs, n shown) | queue and finished runs |
+| the Strix Halo box: no activity for 25 min | the harness's last report |
+| the 4090 box, run v2-fresh-r2, story 3 took 2h06m: 3.8 times the median of 33 min for that story across 6 runs of this stack | story timings |
 | mlx-serve series: 3 of 5 done, median 69, range 66 to 72 | finished runs |
 | a series has finished | run states |
 | Swift 1.5 and gufo medians are within 12 tests with n of 5 or fewer: too close to call | the existing small-n rule |
@@ -63,7 +63,7 @@ fault wording inside it. An unreachable machine is shown as the app shows it tod
 ### Issue: The page does not show what a machine is doing, only what it is running
 **Current State**: One line per machine: the run, the story title, minutes, queue count.
 **Problem**: Progress, pace and queue length are the whole answer to "what are my machines doing", and none is shown. On
-the live data: quintus has 9 queued jobs and its run is on story 12 after 159 minutes, but nothing says that is run 1 of
+the live data: the M5 Max has 9 queued jobs and its run is on story 12 after 159 minutes, but nothing says that is run 1 of
 the 5 mlx-serve runs, or how long the queue is.
 **Recommendation**: One **machine card** per machine in a row (4 across at 1600 px, stacked on a phone):
 - Name, hardware (from the existing machine record), and a status word with colour (running, idle, held, unreachable).
@@ -93,7 +93,7 @@ the strike-through and keep only the opacity.
 
 ### Issue: No at-a-glance attention
 **Recommendation**: An **observations band** at the very top: a short list, most important first, each one a fact from
-the table above with its numbers and a link to the page that shows it ("gruntus idle · nothing queued", "tritus silent
+the table above with its numbers and a link to the page that shows it ("the 4090 box idle · nothing queued", "the Strix Halo box silent
 25 min", "v2-fresh-r2 story 3: 2h06m, 3.8x the 33 min median of this stack", "mlx-serve series 3 of 5 done"). Ranked by
 what a person could act on: idle capacity and short queues first, then outliers, then progress. When nothing qualifies,
 one quiet line: "Every machine is working." Colour carries the state, text carries the fact, and it is the only band
@@ -130,7 +130,7 @@ a stack has no finished run, say "no estimate yet" and draw nothing. No guessed 
 
 ### Issue: References and benchmark machines are mixed
 **Recommendation**: The reference rows (opus, sonnet) run on the Mac and are the yardstick, not a machine under test.
-Show them as a dashed reference line on the range plot and keep "macbook-air" out of the machine cards unless it is
+Show them as a dashed reference line on the range plot and keep "the M2 Air" out of the machine cards unless it is
 running something.
 
 ### Issue: The header carries too many controls above the first content
@@ -147,9 +147,9 @@ On the dashboard the pack and version choices can sit in the ranking band's own 
 ## A suggested layout (1600 px)
 
 ```
- ATTENTION   [gruntus: idle? no] [tritus: silent 25 min?]  or  every machine is working
+ ATTENTION   [the 4090 box: idle? no] [the Strix Halo box: silent 25 min?]  or  every machine is working
  ------------------------------------------------------------------------------------------
- gruntus  ▶ running        macbook-air idle     quintus  ▶ running        tritus  ▶ running
+ the 4090 box  ▶ running        the M2 Air idle     the M5 Max  ▶ running        the Strix Halo box  ▶ running
  Swift 1.5 27B llama.cpp                        mlx-serve 26.10.1          gufo 0.5.0
  run 2 of 5  ■□□□□                               run 1 of 5  ■□□□□          run 1 of 5  ■□□□□
  stories ■■■■■■■▢▫▫▫▫  story 9, 49 min          ■■■■■■■■■■■▢ story 12      ■■■■■■■■▢▫▫▫ story 9
