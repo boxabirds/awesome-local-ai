@@ -225,3 +225,20 @@ same across runs except for engine builds, and the two big outliers are one run 
 run. Unrecorded settings and the shared workspace are the exposed flanks. (b) Shorter paths that are as effective
 exist in every stack and every story; what separates them is mostly how much is thought after test failures. The next
 step is to compare the thinking after failures between efficient and inefficient runs.
+
+## 8. Where a per-call thinking cap would bite (`cap_candidates.py`)
+
+Characters of thinking per call; Qwen stacks, `v2-*`, complete text. Cutting each call above the cap to the cap would
+remove, of all thinking:
+
+| Cap (characters) | Swift 1.5: calls above, thinking removed | gufo | mlx-serve |
+|---|---|---|---|
+| 5,000 | 4.0%, 29% | 3.2%, 22% | 6.5%, 30% |
+| 10,000 | 1.3%, 19% | 1.0%, 11% | 2.3%, 17% |
+| 20,000 | 0.5%, 12% | 0.2%, 5% | 0.6%, 10% |
+| 40,000 | 0.3%, 6% | 0.1%, 1% | 0.3%, 4% |
+
+A few calls carry a lot: on Swift 1.5, 1.3% of calls (above 10,000 characters) hold 30% of all thinking; the median call is
+210 characters and the longest 104,291. This is the measured basis for choosing a cap to test as its own series; a budget is
+in tokens (about 3 to 4 characters each in this text, not measured), and what it costs in held-out result is not known
+from any of this. Mid-range candidates are 5,000 to 10,000 characters.
