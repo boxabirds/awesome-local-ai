@@ -1,3 +1,45 @@
+commit d5f792fc0c834b94950c7f84f724a07d37f7bd5f
+agent  Sat Oct 3 22:07:12 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ PROGRESS.md                             |  28 ++--
+ src/client/board/Marquee.tsx            | 104 ++++++++++++
+ src/client/board/SelectionBar.tsx       | 132 +++++++++++++++
+ src/client/board/SelectionOverlay.tsx   |  98 +++++++++++
+ src/client/board/useBoardDoc.ts         |  24 ++-
+ src/client/board/useBoardKeys.ts        | 101 +++++++++++
+ src/client/board/useSelection.ts        | 144 ++++++++++++++--
+ src/client/board/useTransformGesture.ts | 287 ++++++++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  55 +++++-
+ src/client/canvas/testHooks.ts          |  13 ++
+ src/client/objects/StickyNote.tsx       | 203 ++++------------------
+ src/client/objects/registry.tsx         |  81 +++++++++
+ src/client/pages/BoardPage.tsx          | 150 ++++++++++-------
+ src/shared/board-model.ts               | 263 ++++++++++++++++++++++++-----
+ src/shared/config.ts                    |   7 +
+ src/shared/geometry.ts                  | 171 +++++++++++++++++++
+ tests/component/appHarness.tsx          | 122 +++++++++++++-
+ tests/component/selection.test.tsx      | 195 ++++++++++++++++++++++
+ tests/component/testbox.test.tsx        | 100 +++++++++++
+ tests/component/transform.test.tsx      | 189 +++++++++++++++++++++
+ tests/e2e/helpers/board.ts              |  18 ++
+ tests/e2e/persistence.spec.ts           |  48 ++++++
+ tests/e2e/story7.spec.ts                | 102 ++++++++++++
+ tests/unit/board-group.test.ts          | 193 +++++++++++++++++++++
+ tests/unit/geometry.test.ts             | 126 ++++++++++++++
+ tests/unit/registry.test.ts             |  66 ++++++++
+ tests/unit/selection-reducer.test.ts    |  70 ++++++++
+ 27 files changed, 2768 insertions(+), 322 deletions(-)
+commit ad4278a146bfd0ea7d6eb216f7803c84e334b53e
+vidi-agent  Sat Oct 3 21:33:58 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 29 +++++++++++++----------------
+ 1 file changed, 13 insertions(+), 16 deletions(-)
 commit 1d715d9613c7d61f9ec0491ccf90b0983fb4ab1a
 agent  Sat Oct 3 21:30:19 2026 +0100
 
