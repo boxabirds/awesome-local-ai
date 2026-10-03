@@ -11,6 +11,8 @@ import { qualityClass } from "../../format.ts";
 import { CombinationLink, RunLink } from "../EntityLinks.tsx";
 import { Missing, Term } from "../run/bits.tsx";
 import { StatusBadge } from "../run/RunHeader.tsx";
+import { groupRuns } from "../../../shared/runGroups.ts";
+import { RunSectionRows } from "../RunGroupHead.tsx";
 
 function Score({ run }: { run: Row }) {
   const s = scoreOfRecord(run);
@@ -38,23 +40,30 @@ function Stories({ run }: { run: Row }) {
 
 const groupLabel = (g: VersionGroup) => `${g.pack} · ${g.family || "version unknown"}`;
 
+const HISTORY_COLUMNS = 4;
+
 function Group({ g }: { g: VersionGroup }) {
+  const sections = groupRuns(g.runs, (r) => r);
   return (
     <tbody data-group={`${g.pack}|${g.family}`}>
       <tr className="group-head">
-        <th colSpan={4} scope="rowgroup">
+        <th colSpan={HISTORY_COLUMNS} scope="rowgroup">
           <span className="version-label">{groupLabel(g)}</span>
           {g.packVersions.length ? <span className="small mono" data-tip={GLOSSARY.packVersion.what}> {g.packVersions.join(", ")}</span> : null}
           <span className="small"> · {g.runs.length} run{g.runs.length === 1 ? "" : "s"}</span>
         </th>
       </tr>
-      {g.runs.map((r) => (
-        <tr key={r.runId} data-run={r.runId} data-status={r.status}>
-          <th scope="row" className="h-run"><RunLink pack={r.pack} stack={r.stack} runId={r.runId} /> <InterventionMark list={interventionsOf(r)} /></th>
-          <td><StatusBadge run={r} /></td>
-          <td><Stories run={r} /></td>
-          <td className="h-score"><Score run={r} /></td>
-        </tr>
+      {sections.map((s) => (
+        <RunSectionRows key={s.group.id} group={s.group} count={s.items.length} colSpan={HISTORY_COLUMNS} headed={sections.length > 1}>
+          {s.items.map((r) => (
+            <tr key={r.runId} data-run={r.runId} data-status={r.status}>
+              <th scope="row" className="h-run"><RunLink pack={r.pack} stack={r.stack} runId={r.runId} /> <InterventionMark list={interventionsOf(r)} /></th>
+              <td><StatusBadge run={r} /></td>
+              <td><Stories run={r} /></td>
+              <td className="h-score"><Score run={r} /></td>
+            </tr>
+          ))}
+        </RunSectionRows>
       ))}
     </tbody>
   );

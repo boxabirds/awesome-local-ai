@@ -269,6 +269,14 @@ describe("a machine's history", () => {
     ]);
     expect(h[0].groups[0].runs.map((x) => x.runId)).toEqual(["run", "q1", "q2", "new", "old", "r-10", "r-9"]);
   });
+  it("finished runs come before failed, stopped and cancelled ones, however recently those ended", () => {
+    const h = machineHistory([
+      r("a", "vidi", "vidi-v2", SUITE, "cx", { status: "cancelled", stateAt: "2026-09-09T00:00:00Z" }),
+      r("a", "vidi", "vidi-v2", SUITE, "fin", { stateAt: "2026-09-01T00:00:00Z" }),
+      r("a", "vidi", "vidi-v2", SUITE, "fail", { status: "failed", stateAt: "2026-09-08T00:00:00Z" }),
+    ]);
+    expect(h[0].groups[0].runs.map((x) => x.runId)).toEqual(["fin", "cx", "fail"]);
+  });
   it("combinations with work in hand first, then the most recently ended", () => {
     const h = machineHistory([
       r("old", "vidi", "vidi-v2", SUITE, "1", { stateAt: "2026-01-01T00:00:00Z" }),

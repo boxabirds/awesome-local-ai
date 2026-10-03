@@ -6,6 +6,8 @@ import type { Row } from "../../../shared/types.ts";
 import type { TermId } from "../../../shared/glossary.ts";
 import { buildMatrix, DIVERGENCE, MECHANISM_TERM, METRICS, runTotal, type Matrix, type MatrixCell, type Metric, type StoryMedian } from "../../../shared/combinationView.ts";
 import { scoreOfRecord } from "../../../shared/stats.ts";
+import { groupRuns } from "../../../shared/runGroups.ts";
+import { RunSectionRows } from "../RunGroupHead.tsx";
 import { duration } from "../../format.ts";
 import { RunLink, StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
@@ -107,13 +109,16 @@ function MatrixCellView({ c, run, metric, m, row, col }: { c: MatrixCell; run: R
   );
 }
 
+/** The matrix's columns that are not a story: the run, its score and its total. */
+const MATRIX_FIXED_COLUMNS = 3;
+
 /** Arrow keys move between the matrix's links, skipping empty cells; Enter follows the link (the browser does that). */
 function move(table: HTMLTableElement, from: HTMLElement, key: string): HTMLAnchorElement | null {
   const td = from.closest("td[data-col]") as HTMLElement | null;
   if (!td) return null;
   const row = Number(td.dataset.row), col = Number(td.dataset.col);
   const at = (r: number, c: number) => table.querySelector<HTMLAnchorElement>(`td[data-row="${r}"][data-col="${c}"] a`);
-  const rows = table.querySelectorAll("tbody tr").length, cols = table.querySelectorAll("thead th.m-story").length;
+  const rows = Number(table.dataset.rows), cols = table.querySelectorAll("thead th.m-story").length;
   const [dr, dc] = ({ ArrowRight: [0, 1], ArrowLeft: [0, -1], ArrowDown: [1, 0], ArrowUp: [-1, 0] } as Record<string, [number, number]>)[key] ?? [0, 0];
   if (!dr && !dc) return null;
   for (let r = row + dr, c = col + dc; r >= 0 && r < rows && c >= 0 && c < cols; r += dr, c += dc) {
@@ -158,9 +163,12 @@ export function RunMatrix({ runs, metric, matrix: given }: { runs: Row[]; metric
   const titles = new Map<string, string>();
   for (const r of runs) for (const s of r.stories) if (s.title) titles.set(String(Number(s.id)), s.title);
   const view = METRIC_VIEW[metric];
+  // In progress, queued, finished, the rest: each a section that folds away. Rows keep their place in the matrix
+  // (data-row) whether or not the ones above them are folded.
+  const sections = groupRuns(matrix.rows.map((r, i) => ({ r, i })), (x) => x.r.run);
   return (
     <div className="matrix-wrap">
-      <table className="matrix" aria-label={termName("matrix")} ref={table} onKeyDown={onKey} onFocus={onFocus} data-metric={metric}>
+      <table className="matrix" aria-label={termName("matrix")} ref={table} onKeyDown={onKey} onFocus={onFocus} data-metric={metric} data-rows={matrix.rows.length}>
         <thead>
           <tr>
             <th className="m-run" scope="col"><Term id="runsByStatus" /></th>
@@ -174,16 +182,20 @@ export function RunMatrix({ runs, metric, matrix: given }: { runs: Row[]; metric
           </tr>
         </thead>
         <tbody>
-          {matrix.rows.map((r, i) => {
-            const total = r.run.stories.length ? runTotal(r.run, metric) : null;
-            return (
-              <tr key={r.run.runId} data-run={r.run.runId} data-status={r.run.status}>
-                <RunHead run={r.run} />
-                {r.cells.map((c, j) => <MatrixCellView key={c.storyId} c={c} run={r.run} metric={metric} m={matrix.medians.get(c.storyId)} row={i} col={j} />)}
-                <td className="m-total">{total === null ? <Missing why="Nothing recorded for this run yet." /> : view.total(total, r.run)}</td>
-              </tr>
-            );
-          })}
+          {sections.map((s) => (
+            <RunSectionRows key={s.group.id} group={s.group} count={s.items.length} colSpan={matrix.stories.length + MATRIX_FIXED_COLUMNS} headed={sections.length > 1}>
+              {s.items.map(({ r, i }) => {
+                const total = r.run.stories.length ? runTotal(r.run, metric) : null;
+                return (
+                  <tr key={r.run.runId} data-run={r.run.runId} data-status={r.run.status}>
+                    <RunHead run={r.run} />
+                    {r.cells.map((c, j) => <MatrixCellView key={c.storyId} c={c} run={r.run} metric={metric} m={matrix.medians.get(c.storyId)} row={i} col={j} />)}
+                    <td className="m-total">{total === null ? <Missing why="Nothing recorded for this run yet." /> : view.total(total, r.run)}</td>
+                  </tr>
+                );
+              })}
+            </RunSectionRows>
+          ))}
         </tbody>
         <tfoot>
           <tr className="m-median">

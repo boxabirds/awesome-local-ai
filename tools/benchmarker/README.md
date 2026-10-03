@@ -92,6 +92,11 @@ is still complete. Everything else is hidden under Complete runs: running, queue
 cancelled and unknown runs, finished runs waiting for their score or missing a story's record, and
 partial reruns. One function decides it: `isComplete` in `shared/stats.ts`.
 
+Wherever runs are listed, they are in one order: **In progress**, **Queued**, **Finished**, then **Did not finish**
+(failed, stopped, cancelled). Each is a section under its own heading, with its count, that folds away; the runs that
+did not finish start folded. The choice is one for the whole app and is remembered in the browser. A list with only
+one kind of run has no headings. The order is `runOrder` and `groupRuns` in `shared/runGroups.ts`.
+
 The switch applies to every page's runs: the Combinations table, a combination's runs, a story's runs,
 what a run or story run is compared with, and a machine's history. When it hides everything a page
 would show, the page says so in one line with **Show all**, which sets the switch back to All runs.

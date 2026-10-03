@@ -178,7 +178,7 @@ test.describe("by combination", () => {
     await expect(head.locator("a.combination-link")).toHaveText("3.8-swift-1.5/27b llamacpp");
     await expect(head.locator("a.combination-link")).toHaveAttribute("href", `#/vidi/c/${enc(SWIFT)}`);
     await expect(head.locator("a.machine-link")).toHaveText(["node-a"]);
-    await expect(group(page, OPUS).locator("tr.sp-group a.machine-link")).toHaveText(["Apple M2 16GB", "node-b"]);
+    await expect(group(page, OPUS).locator("tr.sp-group a.machine-link")).toHaveText(["node-b", "Apple M2 16GB"]);
   });
 
   test("median and range over the finished runs, with n; running runs aren't in it", async ({ page }) => {
@@ -227,10 +227,10 @@ test.describe("by combination", () => {
     await expect(row(page, SWIFT, "v2-r1").locator(".sp-run-meta")).toContainText("▶ running");
   });
 
-  test("runs in run order: finished first, then running", async ({ page }) => {
+  test("runs in run order: running first, then finished", async ({ page }) => {
     await open(page, "1");
     const runs = await group(page, SWIFT).locator("tr.sp-entry").evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run));
-    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r1"]);
+    expect(runs).toEqual(["v2-r1", "v2-r4", "v2-r5", "v2-r6", "v2-r7"]);
   });
 
   test("a missing number is — with why, never 0", async ({ page }) => {
@@ -281,7 +281,7 @@ test.describe("by combination", () => {
   test("runs that haven't built it: each a link, with its status, and why on hover", async ({ page }) => {
     await open(page, "1");
     const nb = group(page, SWIFT).locator("tr.sp-not-built");
-    await expect(nb).toContainText("Not built: v2-r9 finished · v2-r2 queued · v2-r3 queued");
+    await expect(nb).toContainText("Not built: v2-r2 queued · v2-r3 queued · v2-r9 finished");
     await expect(nb.locator('[data-run="v2-r2"] a.run-link')).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r2`);
     await expect(nb.locator('[data-run="v2-r2"] .small[data-tip]')).toHaveAttribute("data-tip", "The run is queued: no story is built yet.");
     await expect(group(page, Q27).locator("tr.sp-not-built")).toContainText("v2-r2 cancelled");

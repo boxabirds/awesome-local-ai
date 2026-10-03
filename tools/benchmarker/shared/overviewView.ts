@@ -150,10 +150,10 @@ export interface VersionGroup {
 
 export interface CombinationHistory { stack: string; label: string; groups: VersionGroup[] }
 
-const STATUS_ORDER: Record<RunStatus, number> = { running: 0, queued: 1, finished: 2, failed: 2, stopped: 2, cancelled: 2, unknown: 2 };
+const STATUS_ORDER: Record<RunStatus, number> = { running: 0, queued: 1, finished: 2, failed: 3, stopped: 3, cancelled: 3, unknown: 3 };
 const newestFirst = (a: string, b: string) => b.localeCompare(a, undefined, { numeric: true });
 
-/** Running first, the queue in its order, then the rest latest-ended first, then by run id. */
+/** In progress, the queue in its order, finished, then the rest; each of the last two latest-ended first, then by run id. */
 function byRecency(a: Row, b: Row): number {
   return STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
     || (a.live?.queue?.position ?? 0) - (b.live?.queue?.position ?? 0)

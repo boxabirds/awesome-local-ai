@@ -9,6 +9,8 @@ import { duration } from "../../format.ts";
 import { Missing, Section, Term, full } from "./bits.tsx";
 import { pct, speed } from "./RunCost.tsx";
 import { useAddressParam } from "../story/useAddressParam.ts";
+import { RunSectionLists } from "../RunGroupHead.tsx";
+import { groupRuns } from "../../../shared/runGroups.ts";
 
 const SHOW: Record<MeasureKey, (n: number) => string> = { minutes: duration, outTokens: short, calls: full, tokS: speed, heldOut: pct };
 
@@ -30,7 +32,11 @@ export function CompareRuns({ run, others, params }: { run: Row; others: Row[]; 
       against{" "}
       <select id={selectId} value={other ? chosen : ""} onChange={(e) => setChosen(e.target.value)}>
         <option value="">choose a run…</option>
-        {others.map((r) => <option key={r.runId} value={r.runId}>{r.runId} · {r.status}{r.stories.length ? ` · ${r.stories.length} recorded` : " · nothing recorded"}</option>)}
+        {groupRuns(others, (r) => r).map((s) => (
+          <optgroup key={s.group.id} label={s.group.label}>
+            {s.items.map((r) => <option key={r.runId} value={r.runId}>{r.runId} · {r.status}{r.stories.length ? ` · ${r.stories.length} recorded` : " · nothing recorded"}</option>)}
+          </optgroup>
+        ))}
       </select>
     </label>
   ) : null;
@@ -83,8 +89,7 @@ export function RelatedRuns({ run, others }: { run: Row; others: Row[] }) {
   return (
     <Section term="relatedRuns" id="related" aside={<CombinationLink pack={run.pack} stack={run.stack} label={`all of ${run.label}`} />}>
       {others.length === 0 ? <p className="rp-empty">This is the combination's only run in this pack.</p> : (
-        <ul className="rp-related">
-          {others.map((r) => {
+        <RunSectionLists items={others} runOf={(r) => r} className="rp-related" render={(r) => {
             const v = statusView(r);
             const rec = scoreOfRecord(r);
             return (
@@ -97,8 +102,7 @@ export function RelatedRuns({ run, others }: { run: Row; others: Row[] }) {
                   : <span className="small" data-score={rec.reason} data-tip={GLOSSARY.noScore.what}>{rec.reason === "pending" ? `score ${PENDING}` : "no score"}</span>}
               </li>
             );
-          })}
-        </ul>
+          }} />
       )}
     </Section>
   );

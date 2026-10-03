@@ -217,3 +217,8 @@ table.combos td .amount { display: block; font-size: 11px; white-space: nowrap; 
 .search-results .r-sub { font-size: 12px; color: var(--muted); display: block; overflow-wrap: anywhere; }
 .search-results mark { background: var(--chip); color: inherit; border-radius: 2px; font-weight: 700; }
 .search-empty { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 13px; }
+.run-group-head th { text-align: left; padding: 6px 12px; background: var(--panel-2); border-top: 1px solid var(--line); font-weight: 600; }
+.run-group-button { border: 0; background: none; padding: 0; font: inherit; color: var(--ink); cursor: pointer; }
+.run-group-button .fold { display: inline-block; width: 1em; color: var(--muted); }
+.run-group-button:hover { text-decoration: underline; }
+.run-group-list h3 { margin: 10px 0 4px; font-size: 13px; }

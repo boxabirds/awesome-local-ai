@@ -8,6 +8,7 @@ import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
 import { Missing, Section, Stat, Term, full } from "./bits.tsx";
 import { StatusBadge } from "./RunHeader.tsx";
+import { RunSectionLists } from "../RunGroupHead.tsx";
 
 const MINUTE = 60;
 
@@ -90,8 +91,7 @@ export function StoryNav({ run, state, storyId }: { run: Row; state: State; stor
           <dt>Story {storyId} in other runs</dt>
           <dd>
             {siblings.length === 0 ? <span className="small">the combination has no other run in this pack</span> : (
-              <ul className="siblings">
-                {siblings.map((r) => {
+              <RunSectionLists items={siblings} runOf={(r) => r} className="siblings" render={(r) => {
                   const s = storyRunState(r, storyId);
                   return (
                     <li key={r.runId} data-run={r.runId}>
@@ -99,8 +99,7 @@ export function StoryNav({ run, state, storyId }: { run: Row; state: State; stor
                       <span className="small">{s.kind === "recorded" ? s.story.status || "recorded" : s.kind === "inProgress" ? "in progress" : s.kind === "notBuilt" ? "not built" : "not in scope"}</span>
                     </li>
                   );
-                })}
-              </ul>
+                }} />
             )}
           </dd>
         </div>

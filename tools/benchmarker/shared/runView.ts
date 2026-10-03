@@ -4,6 +4,7 @@
 import type { ConversationProfile, Intervention, Row, RunStatus, Score, Story, StorySquare, TimeSplit, Usage } from "./types.ts";
 import { GLOSSARY, type TermId } from "./glossary.ts";
 import { scoreOf } from "./stats.ts";
+import { runOrder } from "./runGroups.ts";
 import { classifyMechanism, isCompared, type MechanismResult } from "./combinationView.ts";
 
 /** A difference counts when it is more than this share of the number it is compared with (the plan's 10% rule). */
@@ -354,9 +355,9 @@ export function compareRuns(a: Pick<Row, "stories">, b: Pick<Row, "stories">): C
   });
 }
 
-/** The other runs of the run's combination in its pack, in run order ("v2-r2" before "v2-r10"). */
+/** The other runs of the run's combination in its pack, in run order: in progress, queued, finished, the rest ("v2-r2" before "v2-r10"). */
 export function otherRuns(run: Pick<Row, "pack" | "stack" | "runId">, rows: Row[]): Row[] {
-  return rows.filter((r) => r.pack === run.pack && r.stack === run.stack && r.runId !== run.runId).toSorted(byRunId);
+  return runOrder(rows.filter((r) => r.pack === run.pack && r.stack === run.stack && r.runId !== run.runId));
 }
 
 export const byRunId = (a: Pick<Row, "runId">, b: Pick<Row, "runId">) => a.runId.localeCompare(b.runId, "en", { numeric: true });
@@ -464,7 +465,7 @@ export function againstCombination(run: Row, rows: Row[], id: string): {
   entries: AgainstEntry[]; scaleSeconds: number; flags: Record<AgainstKey, Divergence | null>; others: number;
   mechanism: MechanismResult | null; typical: TypicalRun | null;
 } {
-  const all = rows.filter((r) => r.pack === run.pack && r.stack === run.stack).toSorted(byRunId);
+  const all = runOrder(rows.filter((r) => r.pack === run.pack && r.stack === run.stack));
   const entries = all.map((r) => ({ run: r, story: r.stories.find((s) => s.id === id) ?? null, isThis: r.runId === run.runId }))
     .filter((e) => e.isThis || !e.story || isCompared(e.story));
   const mine = entries.find((e) => e.isThis)?.story ?? null;
