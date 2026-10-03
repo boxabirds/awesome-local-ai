@@ -231,10 +231,13 @@ test.describe("B. the call page", () => {
   const item = (page: Page, block: string) => page.locator(`[data-page="call"] [data-block="${block}"]`);
   const head = (page: Page, block: string) => item(page, block).locator("> button.cc-head");
 
-  test("four items, closed on arrival, each with its figure in its heading: thinking, output, input, tool calls", async ({ page }) => {
+  test("four items in the call's own order, input, thinking, tool calls, output; closed on arrival, each with its figure in its heading", async ({ page }) => {
     await page.goto(call(SWIFT, "v2-r5", "2", 1));
     const p = page.locator('[data-page="call"]');
     await expect(p).toHaveAttribute("data-available", "true");
+    expect(await p.locator(".cc").evaluateAll((els) => els.map((e) => e.getAttribute("data-block")))).toEqual(["input", "thinking", "tools", "output"]);
+    // The chevron is a target, not a speck: the size of the conversation page's twisty.
+    expect(await head(page, "input").locator(".cc-chevron").evaluate((e) => parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(18);
     for (const block of ["thinking", "output", "input", "tools"]) {
       await expect(head(page, block), block).toHaveAttribute("aria-expanded", "false");
       await expect(item(page, block).locator(".cc-body"), block).toHaveCount(0);
@@ -257,7 +260,7 @@ test.describe("B. the call page", () => {
     await expect(page.locator("nav.breadcrumb")).toContainText("Story 2: Sticky notes");
     await expect(p.locator('[data-fact="call-of"]')).toHaveText("Call 2 of 4");
     const order = await p.evaluate((el) => [...el.children].map((c) => c.getAttribute("data-block") ?? c.className.split(" ")[0]));
-    expect(order.slice(1)).toEqual(["call-nav", "thinking", "output", "input", "tools"]);
+    expect(order.slice(1)).toEqual(["call-nav", "input", "thinking", "tools", "output"]);
   });
 
   test("an item opens to its whole content in the page's own flow, and closes again", async ({ page }) => {
@@ -292,6 +295,29 @@ test.describe("B. the call page", () => {
     await expect.poll(async () => { const b = (await h.boundingBox())!; return b.y >= 0 && b.y < 200 && b.height > 0; }).toBe(true);
     await h.click();
     await expect(h).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("output opens to what the model produced: its text, and the tool calls it issued with their arguments; nothing explains the page", async ({ page }) => {
+    await page.goto(call(SWIFT, "v2-r5", "2", 1));
+    await head(page, "output").click();
+    const body = item(page, "output").locator(".cc-body");
+    await expect(body.locator('[data-part="text"] pre[data-quoted="agent"]')).toHaveText("Running the tests.");
+    await expect(body.locator('[data-part="issued"] [data-issued="1"] .mono')).toHaveText("bash");
+    await expect(body.locator('[data-part="issued"] [data-issued="1"] pre')).toContainText("npm test");
+    await expect(body).not.toContainText(/Tokens are recorded|shared out/);
+    await expect(body.locator(".cc-split")).toHaveText(/^thinking ≈ [\d,]+ · text ≈ [\d,]+ · tool calls ≈ [\d,]+ tokens$/);
+  });
+
+  test("input opens to what was new to the call: the tool results the call before returned; for the first call, the story's opening message", async ({ page }) => {
+    await page.goto(call(SWIFT, "v2-r5", "2", 1));
+    await head(page, "input").click();
+    const body = item(page, "input").locator(".cc-body");
+    await expect(body.locator('[data-prev-tool="0"] h5')).toHaveText("read");          // the name once, not the name and its kind twice
+    await expect(body.locator('[data-prev-tool="0"] pre[data-quoted="agent"]')).toBeVisible();
+    await expect(body.locator(".cc-split")).toHaveText(/^read from the cache [\d,]+ · new to this call [\d,]+ tokens$/);
+    await page.goto(call(SWIFT, "v2-r5", "2", 0));
+    await head(page, "input").click();
+    await expect(item(page, "input").locator('[data-part="opening"] pre[data-quoted="agent"]')).toHaveText("Implement story 2 now.");
   });
 
   test("tool calls open to each tool whole: its failed result, and a tool with no end yet says so", async ({ page }) => {
