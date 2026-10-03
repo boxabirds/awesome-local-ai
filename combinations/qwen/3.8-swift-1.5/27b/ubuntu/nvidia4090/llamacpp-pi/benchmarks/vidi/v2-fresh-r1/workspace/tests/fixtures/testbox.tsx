@@ -38,7 +38,7 @@ registerObjectType('testbox', {
   aspectLocked: false,
   minSize: 10,
   editableText: false,
-  hitTest: (obj, p: Point) => {
+  hitTest: (obj, p: Point, _zoom: number) => {
     const r = objectBounds(obj);
     return rectContains(r, { x: p.x, y: p.y, width: 0, height: 0 });
   },

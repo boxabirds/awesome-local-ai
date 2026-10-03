@@ -372,6 +372,26 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       } as ObjectSnapshot);
       return;
     }
+    if (type === 'stroke') {
+      const raw = obj.get('points');
+      if (!Array.isArray(raw)) return; // malformed: skip
+      result.push({
+        id,
+        type: 'stroke',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        width: obj.get('width') as number | undefined,
+        height: obj.get('height') as number | undefined,
+        points: raw as number[],
+        baseWidth: obj.get('baseWidth') as number,
+        baseHeight: obj.get('baseHeight') as number,
+        color: obj.get('color') as string,
+        thickness: obj.get('thickness') as string,
+      } as ObjectSnapshot);
+      return;
+    }
     if (type !== 'sticky') return; // other types included as they are introduced
 
     const text = obj.get('text');

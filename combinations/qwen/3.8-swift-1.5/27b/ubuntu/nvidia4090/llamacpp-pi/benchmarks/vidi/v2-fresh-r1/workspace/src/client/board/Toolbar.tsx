@@ -185,6 +185,19 @@ export function Toolbar({
       >
         →
       </button>
+      {/* Pen tool button (story 11) */}
+      <button
+        type="button"
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        data-testid="pen-tool-btn"
+        title="Pen – P"
+        onClick={() => onToolChange?.('pen')}
+        disabled={disabled}
+        style={toolButtonStyle(tool === 'pen')}
+      >
+        ✎
+      </button>
       <UndoButtons
         canUndo={canUndo ?? false}
         canRedo={canRedo ?? false}

@@ -4704,6 +4704,503 @@
           "14": "done",
           "15": "done"
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1/server.log"
+        ],
+        "private": {
+          "copied": 43,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "33b1ac69"
+      }
+    },
+    "11": {
+      "title": "Sketch freehand with a pen",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1791005624.2136707,
+      "engine_settings": {
+        "server_started_at": "2026-10-02T22:29:25Z",
+        "engine": "llama.cpp",
+        "engine_version": "version: 0.5.0-dev (build 1, commit 6a2743f)",
+        "thinking_mode": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no --reasoning flag or enable_thinking kwarg: the chat template's own default applies, which the command line doesn't show"
+        },
+        "thinking_budget": {
+          "value": "not set",
+          "source": "not set",
+          "evidence": "no --reasoning-budget: thinking is bounded only by the output limit"
+        },
+        "context_size": {
+          "value": 131072,
+          "source": "command line",
+          "evidence": "-c 131072"
+        },
+        "kv_cache_type": {
+          "value": {
+            "k": "q4_0",
+            "v": "q4_0"
+          },
+          "source": "command line",
+          "evidence": "--cache-type-k q4_0 --cache-type-v q4_0"
+        },
+        "speculative": {
+          "value": {
+            "method": "draft-mtp",
+            "draft_max": 4
+          },
+          "source": "command line",
+          "evidence": "--spec-type draft-mtp --spec-draft-n-max 4"
+        },
+        "temperature": {
+          "value": 1.0,
+          "source": "command line",
+          "evidence": "--temp 1.0"
+        },
+        "top_p": {
+          "value": 0.95,
+          "source": "command line",
+          "evidence": "--top-p 0.95"
+        },
+        "top_k": {
+          "value": 20,
+          "source": "command line",
+          "evidence": "--top-k 20"
+        },
+        "min_p": {
+          "value": 0.0,
+          "source": "command line",
+          "evidence": "--min-p 0.0"
+        },
+        "quantisation": {
+          "value": "Q4_K_M",
+          "source": "model file name",
+          "evidence": "Swift-1.5-Qwen3.8-27B-Q4_K_M.gguf"
+        },
+        "reasoning_effort": {
+          "requested": "low",
+          "engine": {
+            "value": "low",
+            "source": "command line",
+            "evidence": "--reasoning-effort low"
+          },
+          "client": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "effective": {
+            "value": "low",
+            "source": "command line",
+            "evidence": "--reasoning-effort low"
+          },
+          "matches_request": true
+        },
+        "gaps": []
+      },
+      "agent": {
+        "seconds": 1642.8,
+        "steps": 125,
+        "tool_calls": 166,
+        "compactions": 2,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 173044,
+          "output": 86449,
+          "reasoning": 0,
+          "cache_read": 9589392,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a10041-0826-734d-81a7-fc6aa5035944"
+        ],
+        "finished": true,
+        "interventions": {
+          "total": 0,
+          "stop_message": 0,
+          "toolcall_text_resumes": 0,
+          "error_resumes": 0
+        }
+      },
+      "agent_finished": 1791007267.2380989,
+      "conditions": {
+        "samples": 54,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 1.69,
+        "swap_max_gb": 1.69,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 41.8865756630327,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": 26.037994384765625,
+        "server_footprint_peak_gb": 26.16244125366211,
+        "gpu": {
+          "samples": 54,
+          "busy_mean_pct": 75.5,
+          "sclk_min_busy_mhz": 2595,
+          "sclk_max_mhz": 2760,
+          "power_mean_w": 342.2,
+          "power_max_w": 443.77,
+          "temp_max_c": 75.0,
+          "vram_max_gb": 20.82,
+          "throttled_samples": 10
+        }
+      },
+      "containment": {
+        "enabled": true,
+        "units": [
+          "spec-bench-v2-fresh-r1-s11-1"
+        ],
+        "memory_max_gb": 44.6,
+        "memory_peak_gb": null,
+        "left_at_story_end": 0,
+        "reaped": []
+      },
+      "agent_commits": 1,
+      "provenance": {
+        "harness_commit": "9617ebb9",
+        "harness_dirty": null,
+        "harness_release": "harness-v2026.10.02.3",
+        "pack_version": "vidi-v2.0-pre2",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 2.3,
+            "tail": "\nadded 221 packages, and audited 222 packages in 2s\n\n43 packages are looking for funding\n  run `npm fund` for details\n\n9 vulnerabilities (1 low, 2 moderate, 6 high)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 1.2,
+            "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 129 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.44 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.28 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-BWQTL3ug.css  \u001b[39m\u001b[1m\u001b[2m  3.63 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.14 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-DbkkIK5K.js   \u001b[39m\u001b[1m\u001b[2m394.80 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 121.94 kB\u001b[22m\n\u001b[32m\u2713 built in 1.06s\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.4,
+            "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/4a5405d271/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/geometry.test.ts \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/selection.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-layout.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 29\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/shape-model.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-model.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 12\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-boundaries.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/group-ops.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 19\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/connector-model.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 13\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/stroke.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 17\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-history.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 33\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 166\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 184\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m209 passed\u001b[39m\u001b[22m\u001b[90m (209)\u001b[39m\n\u001b[2m   Start at \u001b[22m 07:01:12\n\u001b[2m   Duration \u001b[22m 479ms\u001b[2m (transform 671ms, setup 0ms, collect 2.17s, tests 529ms, environment 2ms, prepare 1.01s)\u001b[22m\n\n",
+            "passed": 209,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 1.3,
+            "tail": "ent \u001b[49m\u001b[39m tests/component/ShapeConnector.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 191\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 204\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/story7-selection.test.tsx \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 204\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/PenTool.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 335\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m17 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m111 passed\u001b[39m\u001b[22m\u001b[90m (111)\u001b[39m\n\u001b[2m   Start at \u001b[22m 07:01:13\n\u001b[2m   Duration \u001b[22m 1.05s\u001b[2m (transform 588ms, setup 612ms, collect 3.43s, tests 2.16s, environment 3.95s, prepare 907ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/TextObject.test.tsx\u001b[2m > \u001b[22m\u001b[2mtext objects (story 9)\u001b[2m > \u001b[22m\u001b[2mTC-19 editor caret at end, Enter newline, Escape keeps selection\n\u001b[22m\u001b[39mError: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)\n    at module.exports (~/.w/4a5405d271/workspace/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)\n    at HTMLCanvasElementImpl.getContext (~/.w/4a5405d271/workspace/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)\n    at HTMLCanvasElement.getContext (~/.w/4a5405d271/workspace/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)\n    at createCanvasMeasurer (~/.w/4a5405d271/workspace/src/client/objects/textLayout.ts:109:46)\n    at createMeasurer (~/.w/4a5405d271/workspace/src/client/objects/TextObject.tsx:22:41)\n    at TextObject (~/.w/4a5405d271/workspace/src/client/objects/TextObject.tsx:38:27)\n    at Object.react_stack_bottom_frame (~/.w/4a5405d271/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:28571:20)\n    at renderWithHooks (~/.w/4a5405d271/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:8030:22)\n    at updateFunctionComponent (~/.w/4a5405d271/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:10569:19)\n    at beginWork (~/.w/4a5405d271/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:12205:18) \u001b[90mundefined\u001b[39m\n\n\u001b[90mstderr\u001b[2m | tests/component/Tool.test.tsx\u001b[2m > \u001b[22m\u001b[2mtool mode (story 9)\u001b[2m > \u001b[22m\u001b[2mTC-17 clicking the board with Text active creates a text and starts editing\n\u001b[22m\u001b[39mError: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)\n    at module.exports (~/.w/4a5405d271/workspace/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)\n    at HTMLCanvasElementImpl.getContext (~/.w/4a5405d271/workspace/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)\n    at HTMLCanvasElement.getContext (~/.w/4a5405d271/workspace/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)\n    at createCanvasMeasurer (~/.w/4a5405d271/workspace/src/client/objects/textLayout.ts:109:46)\n    at createMeasurer (~/.w/4a5405d271/workspace/src/client/objects/TextObject.tsx:22:41)\n    at TextObject (~/.w/4a5405d271/workspace/src/client/objects/TextObject.tsx:38:27)\n    at Object.react_stack_bottom_frame (~/.w/4a5405d271/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:28571:20)\n    at renderWithHooks (~/.w/4a5405d271/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:8030:22)\n    at updateFunctionComponent (~/.w/4a5405d271/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:10569:19)\n    at beginWork (~/.w/4a5405d271/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:12205:18) \u001b[90mundefined\u001b[39m\n\n",
+            "passed": 111,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 13.4,
+            "tail": "\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m persist.room integration\u001b[2m > \u001b[22mTC-18: hibernation path \u2014 after reconstruct, new connection triggers reload and syncs \u001b[33m 380\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m persist.room integration\u001b[2m > \u001b[22mTC-26: SQL read error \u2192 room closes clients with 4500 \u001b[33m 305\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/board-room.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 10297\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m board room sync\u001b[2m > \u001b[22mTC-07: two clients exchange initial state; both see the same note \u001b[33m 489\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m board room sync\u001b[2m > \u001b[22mTC-08: concurrent text edits at different positions merge \u001b[33m 488\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m board room sync\u001b[2m > \u001b[22mTC-10: concurrent position sets resolve deterministically (same winner on both) \u001b[33m 304\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m board room sync\u001b[2m > \u001b[22mTC-11: delete during edit - note gone on both, edit text nowhere \u001b[33m 317\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m board room sync\u001b[2m > \u001b[22mTC-12: sender gets no echo of its own update \u001b[33m 304\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m board room protocol robustness\u001b[2m > \u001b[22mTC-14: string frame closes only the sender with 1003 \u001b[33m 470\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m board room protocol robustness\u001b[2m > \u001b[22mTC-16: awareness relayed verbatim to all sockets including the sender \u001b[33m 314\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m convergence stress\u001b[2m > \u001b[22mTC-31: 500 random ops each from two participants converge to identical state \u001b[33m 6827\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m44 passed\u001b[39m\u001b[22m\u001b[90m (44)\u001b[39m\n\u001b[2m   Start at \u001b[22m 07:01:15\n\u001b[2m   Duration \u001b[22m 11.67s\u001b[2m (transform 163ms, setup 0ms, collect 1.38s, tests 17.39s, environment 0ms, prepare 814ms)\u001b[22m\n\n[vpw:debug] Shutting down runtimes...\n[vpw:debug] Disposing remote proxy sessions...\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store integration\u001b[2m > \u001b[22m\u001b[2mTC-09: damaged log row \u2192 quarantined, other notes present\n\u001b[22m\u001b[39m{\"event\":\"update-quarantined\",\"seq\":1,\"error\":\"Unexpected end of array\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room integration\u001b[2m > \u001b[22m\u001b[2mTC-14: storage failure \u2192 A and B closed 1011; A reconnects \u2192 stored and delivered to B\n\u001b[22m\u001b[39m{\"event\":\"storage-failed\",\"error\":\"Error: simulated storage failure\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room integration\u001b[2m > \u001b[22m\u001b[2mTC-15: LoadFailed room \u2192 client closed 4500; no updates stored\n\u001b[22m\u001b[39m{\"event\":\"board-load-failed\",\"reason\":\"snapshot-unreadable\",\"error\":\"Unexpected end of array\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room integration\u001b[2m > \u001b[22m\u001b[2mTC-17: garbage update \u2192 closed 1003, row count unchanged\n\u001b[22m\u001b[39mCaught error while handling a Yjs update Error: Unexpected end of array\n    at Module.create (home/julian/.w/4a5405d271/workspace/node_modules/lib0/error.js:12:28)\n    at home/julian/.w/4a5405d271/workspace/node_modules/lib0/decoding.js:40:41\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2mboard room protocol robustness\u001b[2m > \u001b[22m\u001b[2mTC-15: truncated frame closes only the sender with 1003\n\u001b[22m\u001b[39mCaught error while handling a Yjs update Error: Unexpected end of array\n    at Module.create (home/julian/.w/4a5405d271/workspace/node_modules/lib0/error.js:12:28)\n    at home/julian/.w/4a5405d271/workspace/node_modules/lib0/decoding.js:40:41\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room integration\u001b[2m > \u001b[22m\u001b[2mTC-26: SQL read error \u2192 room closes clients with 4500\n\u001b[22m\u001b[39m{\"event\":\"board-load-failed\",\"reason\":\"snapshot-unreadable\",\"error\":\"Unexpected end of array\"}\n\n",
+            "passed": 44,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 40.0,
+            "tail": "on and size \n    [firefox] \u203a tests/e2e/shapes-connectors.spec.ts:55:3 \u203a story 10: draw shapes and connect them with arrows \u203a TC-24 diamond shape with label wraps and stays centred after resize \n    [firefox] \u203a tests/e2e/shapes-connectors.spec.ts:93:3 \u203a story 10: draw shapes and connect them with arrows \u203a TC-25 connector follows when target shape is moved (collaborative) \n    [firefox] \u203a tests/e2e/shapes-connectors.spec.ts:139:3 \u203a story 10: draw shapes and connect them with arrows \u203a TC-26 deleting a connected shape leaves the connector with a free end \n    [firefox] \u203a tests/e2e/shapes-connectors.spec.ts:178:3 \u203a story 10: draw shapes and connect them with arrows \u203a TC-27 connector to deleted shape renders safely with fallback \n    [firefox] \u203a tests/e2e/share.spec.ts:19:3 \u203a story 5: share a board \u203a TC-26: Maya creates board, adds note, copies link; Sam joins and edits \n    [firefox] \u203a tests/e2e/share.spec.ts:85:3 \u203a story 5: share a board \u203a TC-27: unknown board link shows Board not found; New board creates fresh board \n    [firefox] \u203a tests/e2e/share.spec.ts:108:3 \u203a story 5: share a board \u203a TC-28: service unreachable then recovers \u2192 board opens without reload \n    [firefox] \u203a tests/e2e/share.spec.ts:133:3 \u203a story 5: share a board \u203a TC-29: clipboard writeText rejects \u2192 manual-copy message with full link selected \n    [firefox] \u203a tests/e2e/share.spec.ts:176:3 \u203a story 5: share a board \u203a TC-31: legacy board with seeded notes opens (not Board not found) \n    [firefox] \u203a tests/e2e/sticky-notes.spec.ts:23:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a TC-30 double-click creates a note centred on the click point \n    [firefox] \u203a tests/e2e/sticky-notes.spec.ts:53:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a TC-31 drag at 50% zoom: world position changes by 2x screen delta \n    [firefox] \u203a tests/e2e/sticky-notes.spec.ts:93:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a TC-32 drag at 200% zoom: world position changes by 0.5x screen delta; stacking \n    [firefox] \u203a tests/e2e/sticky-notes.spec.ts:124:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a TC-33 text auto-fit: short text at max font, long text at min with fade \n    [firefox] \u203a tests/e2e/sticky-notes.spec.ts:168:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a TC-34 toolbar button creates note at screen centre when panned far away \n    [firefox] \u203a tests/e2e/sticky-notes.spec.ts:192:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a golden path: create, type, move at 50% zoom, recolour, delete \n    [firefox] \u203a tests/e2e/text.spec.ts:49:3 \u203a story 9: write free text anywhere on the board \u203a TC-26 long text wraps to the 600-wide auto cap across multiple lines \n    [firefox] \u203a tests/e2e/text.spec.ts:69:3 \u203a story 9: write free text anywhere on the board \u203a TC-27 narrowing the east handle wraps text and grows the height \n    [firefox] \u203a tests/e2e/text.spec.ts:99:3 \u203a story 9: write free text anywhere on the board \u203a TC-28 golden path: XL heading, move, delete, undo restores \n    [firefox] \u203a tests/e2e/text.spec.ts:133:3 \u203a story 9: write free text anywhere on the board \u203a TC-29 simultaneous typing into one text merges to identical text \n    [firefox] \u203a tests/e2e/text.spec.ts:188:3 \u203a story 9: write free text anywhere on the board \u203a TC-30 every participant creates a heading; all are visible on all screens \n    [firefox] \u203a tests/e2e/text.spec.ts:222:3 \u203a story 9: write free text anywhere on the board \u203a TC-31 abandoning an empty text leaves no object behind \n    [firefox] \u203a tests/e2e/undo-redo.spec.ts:41:3 \u203a story 8: undo and redo my own changes \u203a TC-22 undo does not revert peer changes \n    [firefox] \u203a tests/e2e/undo-redo.spec.ts:85:3 \u203a story 8: undo and redo my own changes \u203a TC-23 repeated undo removes all my changes, peer unaffected \n    [firefox] \u203a tests/e2e/undo-redo.spec.ts:131:3 \u203a story 8: undo and redo my own changes \u203a TC-24 undo/redo buttons exist and are functional in the toolbar \n  52 passed (39.7s)\n",
+            "passed": 52,
+            "failed": 0
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 54,
+        "total": 70,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 8,
+            "total": 10
+          },
+          "03": {
+            "passed": 5,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5
+          },
+          "07": {
+            "passed": 6,
+            "total": 8
+          },
+          "08": {
+            "passed": 6,
+            "total": 7
+          },
+          "09": {
+            "passed": 6,
+            "total": 6
+          },
+          "10": {
+            "passed": 3,
+            "total": 8
+          },
+          "11": {
+            "passed": 1,
+            "total": 5
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "339cdcad0cc3d4015c722daefba0c849312cf170",
+      "requests": {},
+      "time_split": {
+        "wall_s": 1643.0,
+        "model": {
+          "source": "llama-log",
+          "requests": 125,
+          "prefill_s": 136.4,
+          "prefill_tokens": 173044,
+          "prefill_tok_s": 1268.1,
+          "decode_s": 1123.9,
+          "decode_tokens": 86449,
+          "decode_tok_s": 76.9,
+          "cached_tokens": 0,
+          "draft_acceptance": 0.68,
+          "mean_accepted_len": 3.8
+        },
+        "tools_s": 240.5,
+        "tools_by_kind": {
+          "e2e": 196.5,
+          "unit": 29.2,
+          "build": 12.3,
+          "bash": 2.4,
+          "read": 0.1,
+          "edit": 0.0,
+          "write": 0.0
+        },
+        "compaction_s": 124.9,
+        "compactions": 2,
+        "between_sessions_s": 0.0,
+        "other_s": 17.3,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        }
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 125,
+        "tool_calls": 166,
+        "thinking_visible": true,
+        "thinking_chars": 155115,
+        "thinking_median": 240,
+        "thinking_median_before": 265,
+        "thinking_median_after": 235,
+        "largest_thinking": {
+          "chars": 48216,
+          "call": 17,
+          "at_s": 425.5
+        },
+        "text_chars": 5559,
+        "tool_arg_chars": 125413,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 2185,
+        "context_end": 29899,
+        "largest_context_jump": {
+          "tokens": 17188,
+          "call": 18
+        },
+        "tools_by_name": {
+          "bash": 66,
+          "read": 53,
+          "edit": 34,
+          "write": 13
+        },
+        "tool_errors": 5,
+        "longest_tool": {
+          "seconds": 58.4,
+          "name": "bash",
+          "gist": "cd /w/workspace && npm run test:e2e 2>&1 | tail -8"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 135,
+        "lines": 21192
+      },
+      "finished": 1791007496.81632,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write stroke model and geometry unit tests first (TC-01 to TC-08)",
+          "type": "test:unit",
+          "implements": [
+            "stroke.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 2,
+          "title": "Implement stroke model: RDP simplify, split, smooth path, createStroke, scaled points",
+          "type": "implementation",
+          "implements": [
+            "stroke.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement Pen tool: capture, local preview, commit on finish/cancel/limit, options toolbar, viewport routing",
+          "type": "implementation",
+          "implements": [
+            "pen.tool"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement StrokeObject rendering and registry entry with line-distance hit test and aspect-locked resize",
+          "type": "implementation",
+          "implements": [
+            "stroke.object"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Component tests for Pen tool and StrokeObject (TC-09 to TC-16, TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "pen.tool",
+            "stroke.object"
+          ],
+          "tcs": [
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-21"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 6,
+          "title": "E2E pen workflows: annotate, shared sketch, tidy up (TC-17 to TC-20)",
+          "type": "test:e2e",
+          "implements": [
+            "pen.tool",
+            "stroke.object"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20"
+          ],
+          "status": "committed",
+          "found": 4,
+          "total": 4
+        }
+      ],
+      "end_reason": "agent-finished",
+      "tasks_claimed": {
+        "file": "read",
+        "tasks": {
+          "1": "done",
+          "2": "done",
+          "3": "done",
+          "4": "done",
+          "5": "done",
+          "6": "done"
+        }
       }
     }
   },
@@ -9997,6 +10494,518 @@
           "accept": {
             "passed": 0,
             "total": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Sketch freehand with a pen",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1791005624.2136707,
+      "ended_at": 1791007267.2380989,
+      "agent_minutes": 27.4,
+      "calls": 125,
+      "output_tokens": 86449,
+      "compactions": 2,
+      "last_commit_at": 1791007257.0,
+      "accept": {
+        "passed": 1,
+        "total": 5
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write stroke model and geometry unit tests first (TC-01 to TC-08)",
+          "type": "test:unit",
+          "implements": [
+            "stroke.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 2,
+          "title": "Implement stroke model: RDP simplify, split, smooth path, createStroke, scaled points",
+          "type": "implementation",
+          "implements": [
+            "stroke.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement Pen tool: capture, local preview, commit on finish/cancel/limit, options toolbar, viewport routing",
+          "type": "implementation",
+          "implements": [
+            "pen.tool"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement StrokeObject rendering and registry entry with line-distance hit test and aspect-locked resize",
+          "type": "implementation",
+          "implements": [
+            "stroke.object"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Component tests for Pen tool and StrokeObject (TC-09 to TC-16, TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "pen.tool",
+            "stroke.object"
+          ],
+          "tcs": [
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-21"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 6,
+          "title": "E2E pen workflows: annotate, shared sketch, tidy up (TC-17 to TC-20)",
+          "type": "test:e2e",
+          "implements": [
+            "pen.tool",
+            "stroke.object"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20"
+          ],
+          "status": "committed",
+          "found": 4,
+          "total": 4
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 31.4,
+          "calls": 69,
+          "output_tokens": 72676,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 10.5,
+          "calls": 46,
+          "output_tokens": 54481,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 10.5,
+          "calls": 43,
+          "output_tokens": 55574,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 46.4,
+          "calls": 181,
+          "output_tokens": 139642,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 62.6,
+          "calls": 265,
+          "output_tokens": 165955,
+          "accept": {
+            "passed": 3,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-04",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 147.0,
+          "calls": 526,
+          "output_tokens": 478683,
+          "accept": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 121.3,
+          "calls": 272,
+          "output_tokens": 216358,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 93.1,
+          "calls": 225,
+          "output_tokens": 160291,
+          "accept": {
+            "passed": 0,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 129.7,
+          "calls": 373,
+          "output_tokens": 284795,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 97.6,
+          "calls": 274,
+          "output_tokens": 192022,
+          "accept": {
+            "passed": 1,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 91.2,
+          "calls": 263,
+          "output_tokens": 185122,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 0.8,
+          "calls": 2,
+          "output_tokens": 34,
+          "accept": {
+            "passed": 4,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 96.0,
+          "calls": 292,
+          "output_tokens": 194169,
+          "accept": {
+            "passed": 1,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 1
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 50.6,
+          "calls": 190,
+          "output_tokens": 94849,
+          "accept": {
+            "passed": 0,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 22.0,
+          "calls": 129,
+          "output_tokens": 48132,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 44.9,
+          "calls": 179,
+          "output_tokens": 92825,
+          "accept": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 29.0,
+          "calls": 107,
+          "output_tokens": 46899,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 64.7,
+          "calls": 239,
+          "output_tokens": 78606,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 32.3,
+          "calls": 187,
+          "output_tokens": 72125,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 15.0,
+          "calls": 98,
+          "output_tokens": 36180,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 25.2,
+          "calls": 152,
+          "output_tokens": 51534,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 49.4,
+          "calls": 187,
+          "output_tokens": 97345,
+          "accept": {
+            "passed": 4,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 68.6,
+          "calls": 211,
+          "output_tokens": 97371,
+          "accept": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 32.8,
+          "calls": 174,
+          "output_tokens": 112634,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 46.4,
+          "calls": 199,
+          "output_tokens": 128282,
+          "accept": {
+            "passed": 1,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 35.9,
+          "calls": 174,
+          "output_tokens": 114931,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 35.1,
+          "calls": 127,
+          "output_tokens": 78648,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 67.5,
+          "calls": 270,
+          "output_tokens": 126792,
+          "accept": {
+            "passed": 4,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 54.7,
+          "calls": 232,
+          "output_tokens": 173422,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 54.0,
+          "calls": 134,
+          "output_tokens": 79274,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 15.8,
+          "calls": 101,
+          "output_tokens": 48090,
+          "accept": {
+            "passed": 0,
+            "total": 5
           }
         }
       ]

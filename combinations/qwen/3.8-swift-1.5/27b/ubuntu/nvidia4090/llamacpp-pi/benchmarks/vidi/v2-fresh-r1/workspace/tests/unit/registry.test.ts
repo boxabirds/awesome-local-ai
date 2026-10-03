@@ -34,10 +34,10 @@ describe('object registry', () => {
   it('TC-11 the sticky hitTest is point-in-rect', () => {
     const spec = getObjectType('sticky')!;
     const obj = { id: 'a', type: 'sticky', x: 0, y: 0, z: 0, createdAt: 0, width: 100, height: 50 };
-    expect(spec.hitTest(obj, { x: 10, y: 10 })).toBe(true);
-    expect(spec.hitTest(obj, { x: 99.9, y: 49.9 })).toBe(true);
-    expect(spec.hitTest(obj, { x: 100.1, y: 10 })).toBe(false);
-    expect(spec.hitTest(obj, { x: -0.1, y: 10 })).toBe(false);
+    expect(spec.hitTest(obj, { x: 10, y: 10 }, 1)).toBe(true);
+    expect(spec.hitTest(obj, { x: 99.9, y: 49.9 }, 1)).toBe(true);
+    expect(spec.hitTest(obj, { x: 100.1, y: 10 }, 1)).toBe(false);
+    expect(spec.hitTest(obj, { x: -0.1, y: 10 }, 1)).toBe(false);
   });
 
   // TC-12: registering a duplicate type throws.

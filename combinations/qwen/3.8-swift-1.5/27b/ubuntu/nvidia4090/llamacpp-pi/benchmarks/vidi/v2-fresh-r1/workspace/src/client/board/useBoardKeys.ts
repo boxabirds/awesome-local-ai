@@ -91,6 +91,10 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           optsRef.current.setTool('connector'); // no-op when !canEdit
           return;
         }
+        if (e.key === 'p' || e.key === 'P') {
+          optsRef.current.setTool('pen'); // no-op when !canEdit (story 11)
+          return;
+        }
         if (e.key === 'n' || e.key === 'N') {
           if (canEdit) {
             e.preventDefault();

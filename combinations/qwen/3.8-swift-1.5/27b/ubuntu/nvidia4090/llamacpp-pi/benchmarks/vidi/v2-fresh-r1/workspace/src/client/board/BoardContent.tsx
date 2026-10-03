@@ -16,6 +16,9 @@ import { useBoardKeys } from '../board/useBoardKeys';
 import { useTool } from '../board/useTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { createShape } from '../../shared/objects/shape';
 import { createConnector } from '../../shared/objects/connector';
 import { CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
@@ -51,8 +54,9 @@ export function BoardContent({ boardId }: { boardId: string }) {
   // Editing is disabled when the board failed to load on the server side.
   const canEdit = connectionState !== 'load_failed';
 
-  // Active tool (story 9+): select (default), text, shape, connector.
+  // Active tool (story 9+): select (default), text, shape, connector, pen.
   const { tool, shapeKind, setTool, setShapeKind, toolCreated, onToolCreated } = useTool(canEdit);
+  const penOptions = usePenOptions();
 
   // Undo controller (story 8): one per board doc, destroyed on board change.
   const undoRef = useRef<UndoController | null>(null);
@@ -121,6 +125,25 @@ export function BoardContent({ boardId }: { boardId: string }) {
   }, [camera, doc, selection, size, canEdit, boundary]);
 
   handleCreateStickyRef.current = handleCreateSticky;
+
+  // Story 11: a stroke click that misses its line selects the object
+  // underneath (topmost whose hit test passes), else clears the selection.
+  const handleObjectMiss = useCallback(
+    (e: React.PointerEvent<Element>, missedId: string) => {
+      const world = screenToWorld(camera, { x: e.clientX, y: e.clientY });
+      for (let i = objects.length - 1; i >= 0; i--) {
+        const o = objects[i];
+        if (o.id === missedId) continue;
+        const spec = getObjectType(o.type);
+        if (spec && spec.hitTest(o, world, camera.zoom)) {
+          selection.click(o.id);
+          return;
+        }
+      }
+      selection.clear();
+    },
+    [camera, objects, selection],
+  );
 
   // Create a text object at a screen point (Text tool click, story 9).
   const handleCreateText = useCallback(
@@ -261,6 +284,7 @@ export function BoardContent({ boardId }: { boardId: string }) {
                 onBoundary={boundary}
                 onUndo={undoApi.undo}
                 onRedo={undoApi.redo}
+                onObjectMiss={handleObjectMiss}
               />
             );
           })}
@@ -283,6 +307,24 @@ export function BoardContent({ boardId }: { boardId: string }) {
             onCreated={toolCreated}
             onBoundary={boundary}
           />
+        )}
+        {tool === 'pen' && canEdit && (
+          <>
+            <PenTool
+              camera={camera}
+              color={penOptions.color}
+              thickness={penOptions.thickness}
+              doc={doc}
+              identityId="local"
+              onBoundary={boundary}
+            />
+            <PenToolbar
+              color={penOptions.color}
+              thickness={penOptions.thickness}
+              onColor={penOptions.setColor}
+              onThickness={penOptions.setThickness}
+            />
+          </>
         )}
         <SelectionOverlay
           ids={selection.ids}

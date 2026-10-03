@@ -419,3 +419,55 @@ Decisions and environment facts worth remembering for later stories.
 - **TC-12 updated to use 'unknown-type'**: The test's intent is forward
   compatibility (unknown types are skipped), but 'shape' is no longer unknown
   after story 10. Changed to 'unknown-type' to preserve test intent.
+
+# Story 11 — Notes
+
+## Design decisions
+
+- **`StrokeSnap` uses `Omit<ObjectSnapshot, 'color'>`**: a stroke's `color`
+  is a `PenColor` (`black|blue|red|green|orange|purple`), a different union
+  from a sticky's `StickyColor`, so the stroke snapshot redefines `color`
+  rather than inheriting the sticky-typed one. The registry's `hitTest`
+  takes `ObjectSnapshot`, so the stroke entry casts `obj as StrokeSnap`.
+
+- **`hitTest` signature extended with `zoom`**: story 11 needs a zoom-correct
+  line hit test (`STROKE_HIT_TOLERANCE_PX / zoom`), so `ObjectTypeSpec.hitTest`
+  is now `(obj, worldPoint, zoom) => boolean`. All pre-existing types
+  (sticky/text/shape/connector) ignore the extra arg. The `testbox` fixture
+  and `registry.test.ts` were updated to the new signature.
+
+- **`onObjectMiss` fall-through selection**: a stroke's bounding box is much
+  larger than its line, so a click inside the bbox but away from the line must
+  select the object *underneath* (or clear), never the stroke. `StrokeObject`
+  calls `onObjectMiss(e, id)` when its line hit test fails; the board
+  (`BoardContent` / `BoardHarness`) re-runs `spec.hitTest` topmost-first over
+  the other objects and selects the first hit, else clears.
+
+- **PenTool is a full-viewport fixed overlay that forwards wheel**: the overlay
+  (`position: fixed; inset: 0; zIndex: 10`) sits above the `BoardViewport`, so
+  the viewport's own wheel listener never sees wheel events while the Pen is
+  active. The overlay therefore attaches its own non-passive `wheel` listener
+  and forwards the normalised delta to the shared `CameraApi.wheel`, so plain
+  wheel pans and Ctrl/Cmd+wheel zooms while sketching (PRD requirement).
+
+- **Pen stays active after a stroke**: unlike Shape/Connector (which call
+  `toolCreated` to select + return to Select), the Pen commits the stroke and
+  remains active for continuous sketching. Escape / V / another tool button
+  switches away.
+
+- **`identityId` for the Pen in `BoardContent` is `"local"`**, matching the
+  text-object convention (the board content doesn't track a remote identity).
+
+- **In-progress stroke is a local overlay only**: points accumulate in a ref
+  and render as an rAF-throttled SVG preview; nothing is written to the Y.Doc
+  until release/cancel/limit. A stroke reaching `STROKE_MAX_POINTS` commits the
+  part so far and continues as a new stroke sharing the join point (no gap).
+
+- **E2E TC-19 measures the origin marker for the pan assertion**: the sticky's
+  `boundingBox()` proved flaky as a pan proxy; the origin marker
+  (`[data-testid="origin-marker"]`) is a stable, deterministic camera readout.
+  Scrolling down (positive `deltaY`) moves content **up** (origin y decreases).
+
+- **RDP simplification is iterative (explicit stack)** to avoid recursion-depth
+  risk on 5,000-point strokes. Tolerance is `STROKE_SIMPLIFY_TOLERANCE_PX /
+  zoom` (screen-pixel budget converted to world units at the drawing zoom).

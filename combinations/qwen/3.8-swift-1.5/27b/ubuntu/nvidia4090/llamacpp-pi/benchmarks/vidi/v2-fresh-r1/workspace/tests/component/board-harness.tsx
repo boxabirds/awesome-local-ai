@@ -30,6 +30,9 @@ import { SelectionBar } from '../../src/client/board/SelectionBar';
 import { getObjectType } from '../../src/client/objects/registry';
 import { ShapeTool } from '../../src/client/tools/ShapeTool';
 import { ConnectorTool } from '../../src/client/tools/ConnectorTool';
+import { PenTool } from '../../src/client/tools/PenTool';
+import { PenToolbar } from '../../src/client/tools/PenToolbar';
+import { usePenOptions } from '../../src/client/tools/usePenOptions';
 import type { ShapeKind, FillColor, StrokeColor } from '../../src/shared/config';
 
 /** Viewport size used by the harness (default laptop). */
@@ -83,6 +86,7 @@ export function BoardHarness(props: {
   });
   const marquee = useMarquee(api.camera, objects, (ids) => selection.setMany(ids, true));
   const { tool, shapeKind, setTool, setShapeKind, toolCreated, onToolCreated } = useTool(canEdit);
+  const penOptions = usePenOptions();
 
   // Register selection callback for toolCreated (deferred to allow snapshot update)
   const selectionRef = useRef(selection);
@@ -170,6 +174,22 @@ export function BoardHarness(props: {
     if (obj && getObjectType(obj.type)?.editableText) selection.startEdit(id);
   };
 
+  // Story 11: a stroke click that misses its line selects the object
+  // underneath (topmost whose hit test passes), else clears the selection.
+  const handleObjectMiss = (e: React.PointerEvent<Element>, missedId: string) => {
+    const world = screenToWorld(api.camera, { x: e.clientX, y: e.clientY });
+    for (let i = objects.length - 1; i >= 0; i--) {
+      const o = objects[i];
+      if (o.id === missedId) continue;
+      const spec = getObjectType(o.type);
+      if (spec && spec.hitTest(o, world, api.camera.zoom)) {
+        selection.click(o.id);
+        return;
+      }
+    }
+    selection.clear();
+  };
+
   return (
     <CameraContext.Provider value={api}>
       <div>
@@ -195,6 +215,7 @@ export function BoardHarness(props: {
                 onObjectPointerDown={gesture.onObjectPointerDown}
                 onObjectDoubleClick={handleObjectDoubleClick}
                 onEndEdit={obj.type === 'text' ? handleTextEditEnd : selection.endEdit}
+                onObjectMiss={handleObjectMiss}
               />
             );
           })}
@@ -215,6 +236,23 @@ export function BoardHarness(props: {
             doc={doc}
             onCreated={toolCreated}
           />
+        )}
+        {tool === 'pen' && canEdit && (
+          <>
+            <PenTool
+              camera={api.camera}
+              color={penOptions.color}
+              thickness={penOptions.thickness}
+              doc={doc}
+              identityId="test"
+            />
+            <PenToolbar
+              color={penOptions.color}
+              thickness={penOptions.thickness}
+              onColor={penOptions.setColor}
+              onThickness={penOptions.setThickness}
+            />
+          </>
         )}
         <SelectionOverlay
           ids={selection.ids}

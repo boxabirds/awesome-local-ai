@@ -1,11 +1,15 @@
-// Active tool state (story 9+): 'select' (default), 'text', 'shape', 'connector'.
-// The Text/Shape/Connector tools are only available when the board is editable;
-// when editing becomes unavailable an active non-select tool reverts to Select.
+// Active tool state (story 9+): 'select' (default), 'text', 'shape',
+// 'connector', 'pen' (story 11).
+// The Text/Shape/Connector/Pen tools are only available when the board is
+// editable; when editing becomes unavailable an active non-select tool
+// reverts to Select.
+// The Pen tool stays active after each finished stroke; Escape or choosing
+// another tool switches away (story 11).
 
 import { useCallback, useEffect, useState } from 'react';
 import type { ShapeKind } from '../../shared/config';
 
-export type Tool = 'select' | 'text' | 'shape' | 'connector';
+export type Tool = 'select' | 'text' | 'shape' | 'connector' | 'pen';
 
 export function useTool(canEdit: boolean): {
   tool: Tool;

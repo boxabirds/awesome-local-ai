@@ -154,6 +154,11 @@ export function BoardViewport(props: {
     // later object stories can stop propagation from their own elements.
     if (e.target !== e.currentTarget) return;
     if (e.button !== 0) return;
+
+    // Pen tool (story 11): pointer drags are routed to the Pen tool (which
+    // covers the viewport with its own overlay) — never pan or marquee.
+    if (props.tool === 'pen') return;
+
     e.currentTarget.setPointerCapture(e.pointerId);
     downPosRef.current = { x: e.clientX, y: e.clientY };
 
@@ -171,10 +176,11 @@ export function BoardViewport(props: {
     beginPan({ x: e.clientX, y: e.clientY });
   };
 
-  // Double-click on empty space → create sticky note (not while Text is active)
+  // Double-click on empty space → create sticky note (not while Text or
+  // Pen is active)
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
-    if (props.tool === 'text') return;
+    if (props.tool === 'text' || props.tool === 'pen') return;
     const rect = e.currentTarget.getBoundingClientRect();
     props.onDblClickEmpty?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
@@ -182,6 +188,9 @@ export function BoardViewport(props: {
   // Click on empty space (pointerup without drag).
   const onClickEmpty = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
+    // Pen tool (story 11): a pen click draws a dot; it must not clear the
+    // selection.
+    if (props.tool === 'pen') return;
     // Text tool (story 9): create a text object at the click point.
     if (props.tool === 'text') {
       const rect = e.currentTarget.getBoundingClientRect();
