@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { SELF } from 'cloudflare:test';
 import { newBoardId } from '../../src/shared/board-id';
 
-describe('TC-04: Invalid board id returns 400', () => {
-  it('GET /api/rooms/bad!id with Upgrade → 400', async () => {
+describe('TC-04: Invalid board id returns 404', () => {
+  it('GET /api/rooms/bad!id with Upgrade → 404', async () => {
     const request = new Request('http://localhost/api/rooms/bad!id', {
       headers: { 'Upgrade': 'websocket', 'Connection': 'Upgrade' },
     });
     const response = await SELF.fetch(request);
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
   });
 });
 

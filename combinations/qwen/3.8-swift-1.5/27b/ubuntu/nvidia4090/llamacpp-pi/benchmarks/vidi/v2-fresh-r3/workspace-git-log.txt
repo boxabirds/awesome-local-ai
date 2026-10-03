@@ -1,3 +1,54 @@
+commit 1d715d9613c7d61f9ec0491ccf90b0983fb4ab1a
+agent  Sat Oct 3 21:30:19 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ PROGRESS.md                               |  22 ++-
+ index.html                                |   1 +
+ src/client/App.tsx                        | 167 +++----------------
+ src/client/api.ts                         |  36 +++++
+ src/client/pages/BoardPage.tsx            | 215 +++++++++++++++++++++++++
+ src/client/pages/HomePage.tsx             |  51 ++++++
+ src/client/pages/NotFoundPage.tsx         |  59 +++++++
+ src/client/pages/state.ts                 |  76 +++++++++
+ src/client/router.ts                      |  40 +++++
+ src/client/share/SharePanel.tsx           | 210 ++++++++++++++++++++++++
+ src/shared/config.ts                      |   5 +
+ src/worker/board-room.ts                  | 140 ++++++++++++++--
+ src/worker/board-store.ts                 |  96 +++++++++--
+ src/worker/create-board.ts                |  33 ++++
+ src/worker/index.ts                       |  54 ++++++-
+ src/worker/test-hooks.ts                  | 122 ++++++++++++++
+ tests/component/SharePanel.test.tsx       | 136 ++++++++++++++++
+ tests/component/StickyNote.test.tsx       |  40 ++---
+ tests/component/StickyTextEditor.test.tsx |  16 +-
+ tests/component/Toolbars.test.tsx         |  12 +-
+ tests/component/appHarness.tsx            |  39 ++++-
+ tests/component/pages.test.tsx            | 139 ++++++++++++++++
+ tests/e2e/helpers/board.ts                |  28 +++-
+ tests/e2e/navigation.spec.ts              |  15 +-
+ tests/e2e/persistence.spec.ts             |  48 +++++-
+ tests/e2e/share.spec.ts                   | 219 +++++++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts            |  19 ++-
+ tests/integration/board-api.test.ts       | 256 ++++++++++++++++++++++++++++++
+ tests/integration/board-room.test.ts      |  52 +++---
+ tests/integration/cloudflare-test.d.ts    |   2 +-
+ tests/integration/persistent-room.test.ts |  26 ++-
+ tests/integration/worker.test.ts          |   6 +-
+ tests/unit/create-board.test.ts           |  39 +++++
+ vitest.config.ts                          |   1 +
+ vitest.integration.config.ts              |   2 +-
+ wrangler.jsonc                            |   5 +-
+ 36 files changed, 2149 insertions(+), 278 deletions(-)
+commit cef99a4fe5d59a939ce8fbce7ffbebe1fddd2200
+vidi-agent  Sat Oct 3 20:18:49 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit c4ac4c37039160d4ef341a03f7905b80fb9ef577
 agent  Sat Oct 3 20:15:37 2026 +0100
 

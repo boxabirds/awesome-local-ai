@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
 import {
@@ -16,6 +15,17 @@ declare const process: { env: Record<string, string | undefined> };
 // Set the server URL for the test client
 process.env.INTEGRATION_PORT = process.env.INTEGRATION_PORT || '23030';
 
+/**
+ * Creates a board via the real HTTP API (story 5): rooms can no longer be
+ * created implicitly by connecting, so every test creates its board first.
+ */
+async function createBoardId(): Promise<string> {
+  const port = process.env.INTEGRATION_PORT || '23030';
+  const res = await fetch(`http://127.0.0.1:${port}/api/boards`, { method: 'POST' });
+  if (res.status !== 201) throw new Error(`board creation failed: ${res.status}`);
+  return ((await res.json()) as { id: string }).id;
+}
+
 /** Helper: wait for a condition with timeout using polling. */
 async function waitFor(cond: () => boolean, timeout = 5000): Promise<void> {
   const start = Date.now();
@@ -31,7 +41,7 @@ async function waitFor(cond: () => boolean, timeout = 5000): Promise<void> {
 
 describe('TC-07: Create propagates to second client', () => {
   it('A creates sticky → B snapshot equals A; B received exactly one update', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -54,7 +64,7 @@ describe('TC-07: Create propagates to second client', () => {
 
 describe('TC-08: Move, recolour, text insert, delete propagate', () => {
   it('move: A moves → B equals A; A receives no echo', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -77,7 +87,7 @@ describe('TC-08: Move, recolour, text insert, delete propagate', () => {
   });
 
   it('recolour: A changes color → B equals A', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -95,7 +105,7 @@ describe('TC-08: Move, recolour, text insert, delete propagate', () => {
   });
 
   it('text insert: A types → B equals A', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -118,7 +128,7 @@ describe('TC-08: Move, recolour, text insert, delete propagate', () => {
   });
 
   it('delete: A deletes → B note gone', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -138,7 +148,7 @@ describe('TC-08: Move, recolour, text insert, delete propagate', () => {
 
 describe('TC-09: Concurrent text merge', () => {
   it('A and B edit same text → both converge to identical text', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -175,7 +185,7 @@ describe('TC-09: Concurrent text merge', () => {
 
 describe('TC-10: Concurrent position change converges', () => {
   it('A sets x=100, B sets x=300 → both converge to same x', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -207,7 +217,7 @@ describe('TC-10: Concurrent position change converges', () => {
 
 describe('TC-11: Delete wins over concurrent edit', () => {
   it('A deletes note while B inserts text → note absent on both, no resurrection', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -236,7 +246,7 @@ describe('TC-11: Delete wins over concurrent edit', () => {
 
 describe('TC-12: Full capacity random ops converge', () => {
   it(`${MAX_CONCURRENT_EDITORS} clients × 200 random ops → identical snapshots`, async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const clients: TestClient[] = [];
 
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) {
@@ -300,7 +310,7 @@ describe('TC-12: Full capacity random ops converge', () => {
 
 describe('TC-14: Late joiner sees current board', () => {
   it('A and B create 20 notes; C connects → C snapshot equals A', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -331,7 +341,7 @@ describe('TC-14: Late joiner sees current board', () => {
 
 describe('TC-15: Malformed traffic closes only the offending socket', () => {
   it('text frame → A closed with 1003; B still open and receives updates', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await RawTestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -356,7 +366,7 @@ describe('TC-15: Malformed traffic closes only the offending socket', () => {
   });
 
   it('unknown type → A closed with 1003; B still open', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await RawTestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -374,7 +384,7 @@ describe('TC-15: Malformed traffic closes only the offending socket', () => {
   });
 
   it('truncated bytes → A closed with 1003; B still open', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await RawTestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -392,7 +402,7 @@ describe('TC-15: Malformed traffic closes only the offending socket', () => {
   });
 
   it('invalid Yjs update → A closed with 1003; B still open', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await RawTestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -413,7 +423,7 @@ describe('TC-15: Malformed traffic closes only the offending socket', () => {
 
 describe('TC-16: Awareness relay', () => {
   it('A sends awareness → B receives it via provider', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -447,7 +457,7 @@ describe('TC-16: Awareness relay', () => {
 
 describe('TC-18: Room restart simulation', () => {
   it('A reconnects to fresh room first → doc repopulated; B converges', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
 
     // Phase 1: A and B connect and create some notes
     const a1 = await TestClient.connect(boardId);
@@ -486,7 +496,7 @@ describe('TC-18: Room restart simulation', () => {
 
 describe('TC-31: Dead socket does not crash the room', () => {
   it('B closes abruptly, A sends update → room does not throw; later sockets receive', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await a.waitForSync();
@@ -515,7 +525,7 @@ describe('TC-31: Dead socket does not crash the room', () => {
 
 describe('TC-13: Over-capacity joiners are not refused', () => {
   it(`${MAX_CONCURRENT_EDITORS} + 1 clients all connect and can edit`, async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const clients: TestClient[] = [];
 
     for (let i = 0; i < MAX_CONCURRENT_EDITORS + 1; i++) {
@@ -551,8 +561,8 @@ describe('TC-13: Over-capacity joiners are not refused', () => {
 
 describe('TC-17: Boards stay separate', () => {
   it('client in room1 creates note, client in room2 receives nothing', async () => {
-    const boardId1 = newBoardId();
-    const boardId2 = newBoardId();
+    const boardId1 = await createBoardId();
+    const boardId2 = await createBoardId();
 
     const client1 = await TestClient.connect(boardId1);
     const client2 = await TestClient.connect(boardId2);

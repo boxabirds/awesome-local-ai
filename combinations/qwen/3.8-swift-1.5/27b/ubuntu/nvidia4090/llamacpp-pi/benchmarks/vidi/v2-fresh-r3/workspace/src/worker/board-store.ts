@@ -74,7 +74,7 @@ function toBytes(v: ArrayBuffer | Uint8Array): Uint8Array {
  * this returns `undefined` instead. (Aggregate queries like MAX always return
  * one row, so they are unaffected.)
  */
-function oneRow<T>(sql: DurableObjectStorage['sql'], query: string, ...params: unknown[]): T | undefined {
+export function oneRow<T>(sql: DurableObjectStorage['sql'], query: string, ...params: unknown[]): T | undefined {
   const rows = sql.exec(query, ...params).toArray<T>();
   return rows.length > 0 ? rows[0] : undefined;
 }
@@ -102,6 +102,53 @@ export class BoardStore {
   __testFailCompactionAfterChunkDelete = false;
 
   constructor(private storage: DurableObjectStorage) {}
+
+  /** Names of the tables that currently exist in this board's database. */
+  private tableNames(): Set<string> {
+    const rows = this.storage.sql
+      .exec("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .toArray<{ name: string }>();
+    return new Set(rows.map((r) => r.name));
+  }
+
+  private hasTables(): boolean {
+    const tables = this.tableNames();
+    return (
+      tables.has('storage_meta') || tables.has('updates') || tables.has('snapshot_chunks')
+    );
+  }
+
+  /**
+   * Read-only existence check (share.board_api): true when `created_at` is
+   * set, or (legacy boards, share.legacy_boards) when there is at least one
+   * row in `updates` or `snapshot_chunks`. Queries `sqlite_master` first and
+   * never creates tables, so probing an unknown link leaves no storage
+   * behind.
+   */
+  existsReadOnly(): boolean {
+    const tables = this.tableNames();
+    if (tables.has('storage_meta')) {
+      const created = oneRow<{ value: string }>(
+        this.storage.sql,
+        'SELECT value FROM storage_meta WHERE key = ?',
+        'created_at',
+      );
+      if (created) return true;
+    }
+    if (
+      tables.has('updates') &&
+      oneRow<{ one: number }>(this.storage.sql, 'SELECT 1 AS one FROM updates LIMIT 1')
+    ) {
+      return true;
+    }
+    if (
+      tables.has('snapshot_chunks') &&
+      oneRow<{ one: number }>(this.storage.sql, 'SELECT 1 AS one FROM snapshot_chunks LIMIT 1')
+    ) {
+      return true;
+    }
+    return false;
+  }
 
   /**
    * Creates the schema (idempotent) and sets storage_schema_version if absent.
@@ -132,8 +179,11 @@ export class BoardStore {
   /**
    * Appends an update row. Rethrows SQL errors so the caller can reset the
    * room (design state diagram: "R→S: insert; insert throws → storage-failed").
+   * Migrates lazily: the schema is created by `initialize()`, and a board
+   * that receives an update without one (should not happen) gets it here.
    */
   append(update: Uint8Array): void {
+    if (!this.hasTables()) this.migrate();
     this.storage.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length);
     this.rowCount += 1;
     this.byteTotal += update.length;
@@ -146,13 +196,25 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
-      this.migrate();
       const sql = this.storage.sql;
+      const tables = this.tableNames();
+      const hasMeta = tables.has('storage_meta');
+      const hasUpdates = tables.has('updates');
+      const hasSnapshot = tables.has('snapshot_chunks');
+
+      // No tables: an empty board. Deliberately does NOT create storage here —
+      // probing an unknown link must leave nothing behind (share.not_found).
+      if (!hasMeta && !hasUpdates && !hasSnapshot) {
+        return { ok: true, quarantined: 0 };
+      }
 
       // 1. Snapshot: read all chunks in order and apply as one update.
-      const chunkRows = sql
-        .exec('SELECT data FROM snapshot_chunks ORDER BY idx')
-        .toArray<{ data: ArrayBuffer }>();
+      let chunkRows: { data: ArrayBuffer }[] = [];
+      if (hasSnapshot) {
+        chunkRows = sql
+          .exec('SELECT data FROM snapshot_chunks ORDER BY idx')
+          .toArray<{ data: ArrayBuffer }>();
+      }
       if (chunkRows.length > 0) {
         const snapshotBytes = joinChunks(chunkRows.map((r) => toBytes(r.data)));
         try {
@@ -163,15 +225,21 @@ export class BoardStore {
       }
 
       // 2. Log rows beyond the snapshot's through-seq, in seq order.
-      const throughRow = oneRow<{ value: string }>(
-        sql,
-        'SELECT value FROM storage_meta WHERE key = ?',
-        'snapshot_through_seq',
-      );
-      const throughSeq = throughRow ? parseInt(throughRow.value, 10) : 0;
-      const logRows = sql
-        .exec('SELECT seq, data FROM updates WHERE seq > ? ORDER BY seq', throughSeq)
-        .toArray<{ seq: number; data: ArrayBuffer }>();
+      let throughSeq = 0;
+      if (hasMeta) {
+        const throughRow = oneRow<{ value: string }>(
+          sql,
+          'SELECT value FROM storage_meta WHERE key = ?',
+          'snapshot_through_seq',
+        );
+        throughSeq = throughRow ? parseInt(throughRow.value, 10) : 0;
+      }
+      let logRows: { seq: number; data: ArrayBuffer }[] = [];
+      if (hasUpdates) {
+        logRows = sql
+          .exec('SELECT seq, data FROM updates WHERE seq > ? ORDER BY seq', throughSeq)
+          .toArray<{ seq: number; data: ArrayBuffer }>();
+      }
 
       let quarantined = 0;
       let rowCount = 0;

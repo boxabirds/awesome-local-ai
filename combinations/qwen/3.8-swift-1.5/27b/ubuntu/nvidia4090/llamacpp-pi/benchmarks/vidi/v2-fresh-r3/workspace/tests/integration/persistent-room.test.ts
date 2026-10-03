@@ -122,6 +122,18 @@ async function setHook(boardId: string, hook: (room: BoardRoom) => void): Promis
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Creates a board via the real API (story 5): rooms can no longer be created
+ * implicitly by connecting, so every test creates its board first.
+ * (TC-16 keeps a raw `newBoardId()` + direct storage write: it exercises the
+ * legacy-board path, updates rows without `created_at`.)
+ */
+async function createBoardId(): Promise<string> {
+  const res = await SELF.fetch(new Request('http://localhost/api/boards', { method: 'POST' }));
+  if (res.status !== 201) throw new Error(`board creation failed: ${res.status}`);
+  return ((await res.json()) as { id: string }).id;
+}
+
 beforeEach(async () => {
   await reset();
 });
@@ -130,7 +142,7 @@ beforeEach(async () => {
 
 describe('persistent room (story 4)', () => {
   it('TC-12: an edit is stored before it is observed, and a fresh load has it', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     await sleep(150);
 
@@ -156,7 +168,7 @@ describe('persistent room (story 4)', () => {
   }, 30000);
 
   it('TC-13: a board survives everyone disconnecting', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     await sleep(150);
     a.ws.send(noteUpdate(2, 2, 'pink'));
@@ -177,7 +189,7 @@ describe('persistent room (story 4)', () => {
   }, 30000);
 
   it('TC-14: a late joiner receives the full existing state', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     await sleep(150);
     for (let i = 0; i < 3; i++) a.ws.send(noteUpdate(i, i, 'blue'));
@@ -193,7 +205,7 @@ describe('persistent room (story 4)', () => {
   }, 30000);
 
   it('TC-15: two creators at once — both notes are kept', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     const b = await connect(boardId);
     await sleep(200);
@@ -241,7 +253,7 @@ describe('persistent room (story 4)', () => {
   }, 30000);
 
   it('TC-17: a storage failure closes every socket with 1011', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     await sleep(150);
 
@@ -260,7 +272,7 @@ describe('persistent room (story 4)', () => {
   }, 30000);
 
   it('TC-18: a large board is delivered whole to a late joiner', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     await sleep(150);
 
@@ -283,7 +295,7 @@ describe('persistent room (story 4)', () => {
   }, 60000);
 
   it('TC-26: compaction during activity — a late joiner still gets the truth', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     await sleep(150);
 

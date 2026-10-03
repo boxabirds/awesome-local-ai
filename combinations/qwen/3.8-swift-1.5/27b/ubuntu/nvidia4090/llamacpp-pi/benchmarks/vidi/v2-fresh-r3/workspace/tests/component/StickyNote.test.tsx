@@ -19,9 +19,9 @@ function getEditor() {
   return screen.queryByTestId('sticky-texteditor') ?? screen.queryByTestId('sticky-text-editor');
 }
 
-describe('sticky.interaction (ui-component)', () => {
-  it('TC-18: press+release without move → Selected; outline and NoteToolbar rendered', () => {
-    const app = renderApp();
+describe('sticky.interaction (ui-component)', async () => {
+  it('TC-18: press+release without move → Selected; outline and NoteToolbar rendered', async () => {
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     const note = app.note(id);
 
@@ -39,8 +39,8 @@ describe('sticky.interaction (ui-component)', () => {
     expect(screen.getByTestId('note-toolbar')).toBeTruthy();
   });
 
-  it('TC-19: move 2px (< DRAG_THRESHOLD_PX) → Selected, no moveObject (boundary)', () => {
-    const app = renderApp();
+  it('TC-19: move 2px (< DRAG_THRESHOLD_PX) → Selected, no moveObject (boundary)', async () => {
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 }); // top-left (100,100)
     const note = app.note(id);
     const xBefore = app.notes().find((n) => n.id === id)!.x;
@@ -60,8 +60,8 @@ describe('sticky.interaction (ui-component)', () => {
     expect(app.notes().find((n) => n.id === id)!.y).toBe(100);
   });
 
-  it('TC-20: move 3px (= DRAG_THRESHOLD_PX) → Dragging; board camera unchanged (no pan)', () => {
-    const app = renderApp();
+  it('TC-20: move 3px (= DRAG_THRESHOLD_PX) → Dragging; board camera unchanged (no pan)', async () => {
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     const note = app.note(id);
 
@@ -86,7 +86,7 @@ describe('sticky.interaction (ui-component)', () => {
   });
 
   it('TC-21: pointercancel during drag → Selected at last applied position', async () => {
-    const app = renderApp();
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     const note = app.note(id);
 
@@ -117,8 +117,8 @@ describe('sticky.interaction (ui-component)', () => {
     expect(app.notes().find((n) => n.id === id)!.x).toBe(xAfterCancel);
   });
 
-  it('TC-22: click empty board → Unselected; toolbar gone', () => {
-    const app = renderApp();
+  it('TC-22: click empty board → Unselected; toolbar gone', async () => {
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     const note = app.note(id);
 
@@ -145,8 +145,8 @@ describe('sticky.interaction (ui-component)', () => {
     expect(screen.queryByTestId('note-toolbar')).toBeNull();
   });
 
-  it('TC-25a: Delete key on selected note → note removed', () => {
-    const app = renderApp();
+  it('TC-25a: Delete key on selected note → note removed', async () => {
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     const note = app.note(id);
 
@@ -166,8 +166,8 @@ describe('sticky.interaction (ui-component)', () => {
     expect(app.notes()).toHaveLength(0);
   });
 
-  it('TC-25b: Backspace key on selected note → note removed', () => {
-    const app = renderApp();
+  it('TC-25b: Backspace key on selected note → note removed', async () => {
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     const note = app.note(id);
 
@@ -186,8 +186,8 @@ describe('sticky.interaction (ui-component)', () => {
     expect(app.notes()).toHaveLength(0);
   });
 
-  it('TC-35: dblclick on an existing note → no new note, edits the existing one (negative)', () => {
-    const app = renderApp();
+  it('TC-35: dblclick on an existing note → no new note, edits the existing one (negative)', async () => {
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     const note = app.note(id);
 
@@ -199,8 +199,8 @@ describe('sticky.interaction (ui-component)', () => {
     expect(getEditor()).not.toBeNull(); // the existing note is being edited
   });
 
-  it('TC-36: Enter while nothing is selected → nothing happens (negative)', () => {
-    const app = renderApp();
+  it('TC-36: Enter while nothing is selected → nothing happens (negative)', async () => {
+    const app = await renderApp();
 
     act(() => {
       windowKeyDown('Enter');
@@ -211,7 +211,7 @@ describe('sticky.interaction (ui-component)', () => {
   });
 
   it('TC-37a: note deleted via model while Dragging → interaction ends, no exception, not recreated', async () => {
-    const app = renderApp();
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     const note = app.note(id);
 
@@ -236,7 +236,7 @@ describe('sticky.interaction (ui-component)', () => {
   });
 
   it('TC-37b: note deleted via model while Editing → interaction ends, no exception, not recreated', async () => {
-    const app = renderApp();
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     const note = app.note(id);
 

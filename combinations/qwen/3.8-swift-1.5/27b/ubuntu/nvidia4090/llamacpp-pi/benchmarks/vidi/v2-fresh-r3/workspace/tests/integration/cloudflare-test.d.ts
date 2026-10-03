@@ -25,7 +25,7 @@ declare module 'cloudflare:test' {
    */
   export function runInDurableObject<T, R>(
     stub: TestDurableObjectStub,
-    fn: (instance: T) => R,
+    fn: (instance: T) => R | Promise<R>,
   ): Promise<R>;
 
   /** Tears down the DO instance (fresh constructor on next use) while keeping durable storage. */

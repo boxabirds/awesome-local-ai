@@ -11,7 +11,7 @@ import {
   MESSAGE_SYNC,
   MESSAGE_AWARENESS,
 } from '../shared/protocol';
-import { BoardStore, LOAD_ORIGIN } from './board-store';
+import { BoardStore, LOAD_ORIGIN, oneRow } from './board-store';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config';
 
 /**
@@ -20,6 +20,31 @@ import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config';
  * sits in one of these three.
  */
 type RoomState = 'ready' | 'load-failed' | 'storage-failed';
+
+export interface StorageInfo {
+  tables: string[];
+  createdAt: string | null;
+  updatesCount: number;
+  snapshotCount: number;
+}
+
+/**
+ * The RPC surface of BoardRoom, callable on a Durable Object stub
+ * (`env.BOARD_ROOM.get(...) as BoardRoomStub`).
+ */
+export interface BoardRoomStub extends DurableObjectStub {
+  fetch(input: Request | string, init?: RequestInit): Promise<Response>;
+  /** Initialises the board: migrate + stamp `created_at` if absent. */
+  initialize(): Promise<'created' | 'exists'>;
+  /** Read-only existence check. */
+  exists(): Promise<boolean>;
+  /** TEST-ONLY: make the next `initialize()` throw. */
+  __testSetFailInitialize(fail: boolean): Promise<void>;
+  /** TEST-ONLY: storage facts. */
+  __testStorageInfo(): Promise<StorageInfo>;
+  /** TEST-ONLY: seed legacy `updates` rows without `created_at`. */
+  __testSeed(updates: Uint8Array[]): Promise<void>;
+}
 
 /**
  * BoardRoom Durable Object (persistent, story 4).
@@ -38,6 +63,10 @@ type RoomState = 'ready' | 'load-failed' | 'storage-failed';
  *   paths share the same sync/awareness/state logic.
  */
 export class BoardRoom extends DurableObject {
+  /** TEST-ONLY: how many times `initialize()` has run (across instances). */
+  static __testInitializeCalls = 0;
+  /** TEST-ONLY: whether the last `initialize()` threw. */
+  static __testInitializeThrew = false;
   state: DurableObjectState;
   private ctx: DurableObjectCtx | null = null;
   private doc: Y.Doc | null = null;
@@ -51,12 +80,91 @@ export class BoardRoom extends DurableObject {
   __testEvents: string[] = [];
   /** TEST-ONLY: when true, the next `store.append` throws (simulates storage failure). */
   __testFailAppend = false;
+  /** TEST-ONLY: when true, the next `initialize()` throws (TC-12). */
+  __testFailInitialize = false;
 
   constructor(state: DurableObjectState, env: unknown) {
     super(state, env);
     this.state = state;
     this.store = new BoardStore(state.storage);
+    // Story 5: the constructor no longer loads (and therefore no longer
+    // migrates). Storage is written only by `initialize()` or the first
+    // `append()`, so probing an unknown link leaves nothing behind.
+  }
+
+  /**
+   * Initialises the board (share.board_api): creates the schema, stamps
+   * `created_at` (epoch ms) if absent, and loads the doc. Idempotent: a
+   * second call returns `'exists'` and never re-initialises an existing
+   * board (TC-15).
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    BoardRoom.__testInitializeCalls += 1;
+    if (this.__testFailInitialize) {
+      this.__testFailInitialize = false;
+      BoardRoom.__testInitializeThrew = true;
+      throw new Error('injected initialize failure (test)');
+    }
+    this.store.migrate();
+    const sql = this.state.storage.sql;
+    const existing = oneRow<{ value: string }>(
+      sql,
+      'SELECT value FROM storage_meta WHERE key = ?',
+      'created_at',
+    );
+    if (existing) {
+      return 'exists';
+    }
+    sql.exec(
+      'INSERT INTO storage_meta (key, value) VALUES (?, ?)',
+      'created_at',
+      String(Date.now()),
+    );
     this.load();
+    return 'created';
+  }
+
+  /** Read-only existence check (share.board_api). Never writes storage. */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  /** TEST-ONLY: make the next `initialize()` throw (TC-12). */
+  __testSetFailInitialize(fail: boolean): void {
+    this.__testFailInitialize = fail;
+  }
+
+  /** TEST-ONLY: storage facts for integration tests. */
+  async __testStorageInfo(): Promise<StorageInfo & { initializeCalls: number; initializeThrew: boolean }> {
+    const sql = this.state.storage.sql;
+    const tables = sql
+      .exec("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .toArray<{ name: string }>()
+      .map((r) => r.name);
+    const createdAt = tables.includes('storage_meta')
+      ? oneRow<{ value: string }>(sql, 'SELECT value FROM storage_meta WHERE key = ?', 'created_at')
+          ?.value ?? null
+      : null;
+    const updatesCount = tables.includes('updates')
+      ? sql.exec('SELECT COUNT(*) AS c FROM updates').toArray<{ c: number }>()[0].c
+      : 0;
+    const snapshotCount = tables.includes('snapshot_chunks')
+      ? sql.exec('SELECT COUNT(*) AS c FROM snapshot_chunks').toArray<{ c: number }>()[0].c
+      : 0;
+    return {
+      tables,
+      createdAt,
+      updatesCount,
+      snapshotCount,
+      initializeCalls: BoardRoom.__testInitializeCalls,
+      initializeThrew: BoardRoom.__testInitializeThrew,
+    };
+  }
+
+  /** TEST-ONLY: seed legacy `updates` rows without `created_at` (TC-08, e2e TC-31). */
+  async __testSeed(updates: Uint8Array[]): Promise<void> {
+    this.store.migrate();
+    for (const u of updates) this.store.append(u);
   }
 
   /** Loads the board into a fresh doc. Sets roomState accordingly. */
@@ -225,24 +333,34 @@ export class BoardRoom extends DurableObject {
   async fetch(_req: Request, _env: unknown, ctx: DurableObjectCtx): Promise<Response> {
     this.ctx = ctx;
     this.useHibernation = !!(ctx && typeof (ctx as DurableObjectCtx).acceptWebSocket === 'function');
+
+    // Unknown boards are rejected BEFORE a connection is accepted (share.not_found):
+    // rooms can no longer be created implicitly by connecting.
+    if (!this.store.existsReadOnly()) {
+      return new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const pair = new WebSocketPair();
     const client = pair[0] as unknown as WorkersWebSocket;
     const server = pair[1] as unknown as WorkersWebSocket;
 
-    // A new connection is the trigger to (re)load when the room is not ready.
-    if (this.roomState === 'load-failed') {
-      const elapsed = Date.now() - this.loadFailedAt;
-      if (elapsed >= LOAD_RETRY_MIN_INTERVAL_MS) {
-        this.loadFailedAt = Date.now();
+    // The constructor no longer loads: load on first use (and after a storage
+    // failure), throttling reloads while load-failed.
+    if (this.doc === null) {
+      if (this.roomState === 'load-failed') {
+        const elapsed = Date.now() - this.loadFailedAt;
+        if (elapsed >= LOAD_RETRY_MIN_INTERVAL_MS) {
+          this.loadFailedAt = Date.now();
+          this.load();
+        }
+      } else {
         this.load();
       }
       if ((this.roomState as RoomState) !== 'ready') {
         return this.acceptAndClose(client, server, CLOSE_BOARD_LOAD_FAILED, 'board load failed');
-      }
-    } else if (this.roomState === 'storage-failed') {
-      this.load();
-      if ((this.roomState as RoomState) !== 'ready') {
-        return this.acceptAndClose(client, server, CLOSE_BOARD_LOAD_FAILED, 'storage-failed reload failed');
       }
     }
 

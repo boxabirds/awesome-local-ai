@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { screen, cleanup, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { getStickyText } from '../../src/shared/board-model';
-import { renderApp, pointerEvent, windowKeyDown } from './appHarness';
+import { renderApp, pointerEvent, windowKeyDown, type AppHarness } from './appHarness';
 
 afterEach(() => {
   cleanup();
@@ -21,7 +21,7 @@ function getTextarea(): HTMLTextAreaElement {
 }
 
 /** Selects the note with a short press, then starts editing with Enter. */
-function startEditing(app: ReturnType<typeof renderApp>, id: string) {
+function startEditing(app: AppHarness, id: string) {
   const note = app.note(id);
   act(() => {
     pointerEvent(note, 'pointerdown', 100, 100);
@@ -34,9 +34,9 @@ function startEditing(app: ReturnType<typeof renderApp>, id: string) {
   });
 }
 
-describe('sticky.text (ui-component)', () => {
-  it('TC-23: Enter on selected note → Editing; textarea focused, caret at end', () => {
-    const app = renderApp();
+describe('sticky.text (ui-component)', async () => {
+  it('TC-23: Enter on selected note → Editing; textarea focused, caret at end', async () => {
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     act(() => {
       getStickyText(app.doc, id)!.insert(0, 'hello');
@@ -54,7 +54,7 @@ describe('sticky.text (ui-component)', () => {
 
   it('TC-24: Escape while editing → Selected; text preserved', async () => {
     const user = userEvent.setup();
-    const app = renderApp();
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     act(() => {
       getStickyText(app.doc, id)!.insert(0, 'hello');
@@ -80,7 +80,7 @@ describe('sticky.text (ui-component)', () => {
 
   it('TC-26: Backspace while editing "ab" → note present, text "a" (negative: no delete)', async () => {
     const user = userEvent.setup();
-    const app = renderApp();
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     act(() => {
       getStickyText(app.doc, id)!.insert(0, 'ab');
@@ -99,7 +99,7 @@ describe('sticky.text (ui-component)', () => {
 
   it('TC-38: type "abc" then click outside → editor unmounted, Y.Text "abc", Unselected', async () => {
     const user = userEvent.setup();
-    const app = renderApp();
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
 
     startEditing(app, id);

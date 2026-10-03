@@ -1,13 +1,13 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { screen, cleanup, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderApp, pointerEvent } from './appHarness';
+import { renderApp, pointerEvent, type AppHarness } from './appHarness';
 
 afterEach(() => {
   cleanup();
 });
 
-function selectNote(app: ReturnType<typeof renderApp>, id: string) {
+function selectNote(app: AppHarness, id: string) {
   const note = app.note(id);
   act(() => {
     pointerEvent(note, 'pointerdown', 100, 100);
@@ -17,10 +17,10 @@ function selectNote(app: ReturnType<typeof renderApp>, id: string) {
   });
 }
 
-describe('sticky.toolbar (ui-component)', () => {
+describe('sticky.toolbar (ui-component)', async () => {
   it('TC-27: Pink swatch → model colour pink; selection kept', async () => {
     const user = userEvent.setup();
-    const app = renderApp();
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     selectNote(app, id);
 
@@ -43,7 +43,7 @@ describe('sticky.toolbar (ui-component)', () => {
 
   it('TC-28: Sticky note button → one note centred on viewport centre; Editing', async () => {
     const user = userEvent.setup();
-    const app = renderApp();
+    const app = await renderApp();
 
     expect(app.notes()).toHaveLength(0);
 
@@ -62,7 +62,7 @@ describe('sticky.toolbar (ui-component)', () => {
 
   it('TC-29: bin button → note removed; selection cleared', async () => {
     const user = userEvent.setup();
-    const app = renderApp();
+    const app = await renderApp();
     const id = app.addNote({ x: 200, y: 200 });
     selectNote(app, id);
 

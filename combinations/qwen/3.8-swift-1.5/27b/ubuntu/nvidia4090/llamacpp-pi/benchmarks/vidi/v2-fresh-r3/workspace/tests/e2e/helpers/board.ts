@@ -1,4 +1,20 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, APIRequestContext, expect } from '@playwright/test';
+
+/**
+ * Creates a board via the real API and opens it in the page (story 5: boards
+ * are created server-side and the board UI is only mounted at `/b/<id>` once
+ * the board exists). Waits until the board is ready (viewport mounted) so
+ * callers can immediately drive the camera / create notes. Returns the id.
+ */
+export async function openBoardPath(request: APIRequestContext, page: Page): Promise<string> {
+  const res = await request.post('/api/boards');
+  if (res.status() !== 201) throw new Error(`board creation failed: ${res.status()}`);
+  const { id } = (await res.json()) as { id: string };
+  await page.goto(`/b/${id}`);
+  // The board mounts only after the (async) existence check confirms it.
+  await expect(page.getByTestId('board-viewport')).toBeVisible({ timeout: 15000 });
+  return id;
+}
 
 export function getOriginMarker(page: Page): Locator {
   return page.getByTestId('origin-marker');
@@ -19,6 +35,16 @@ export async function setCamera(page: Page, x: number, y: number, zoom: number):
     },
     { x, y, zoom },
   );
+}
+
+/**
+ * Waits until the zoom label reflects the given zoom. `setCamera` triggers an
+ * async React re-render; position-sensitive tests must wait for the camera to
+ * actually be applied before driving the mouse.
+ */
+export async function waitForZoom(page: Page, zoom: number): Promise<void> {
+  const pct = Math.round(zoom * 100);
+  await expect(page.getByTestId('zoom-label')).toHaveText(`${pct}%`, { timeout: 5000 });
 }
 
 export async function getZoomLabelText(page: Page): Promise<string> {

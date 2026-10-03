@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   setCamera,
+  waitForZoom,
   getNotesState,
   noteBox,
   noteDomOrder,
@@ -8,13 +9,14 @@ import {
   createNoteAtScreen,
   selectNoteAtScreen,
   dragScreen,
+  openBoardPath,
 } from './helpers/board';
 
 test.describe('sticky.e2e (@playwright/test, chromium)', () => {
   test('TC-30: toolbar button creates a note at the viewport centre (zoom 1); text is kept', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openBoardPath(page.context().request, page);
     const { width: VP_W, height: VP_H } = page.viewportSize()!;
     await createNoteViaToolbar(page, 'Idea 1');
 
@@ -31,8 +33,9 @@ test.describe('sticky.e2e (@playwright/test, chromium)', () => {
   test('TC-31: drag at zoom 0.5 — 100px screen drag moves the note 200 world units; text kept', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openBoardPath(page.context().request, page);
     await setCamera(page, 0, 0, 0.5);
+    await waitForZoom(page, 0.5);
     await createNoteViaToolbar(page, 'Dragged');
 
     const [before] = await getNotesState(page);
@@ -52,8 +55,9 @@ test.describe('sticky.e2e (@playwright/test, chromium)', () => {
   test('TC-32: double-click empty space at zoom 0.5 → note centred at the clicked world point', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openBoardPath(page.context().request, page);
     await setCamera(page, 0, 0, 0.5);
+    await waitForZoom(page, 0.5);
 
     // 100 world units from the origin == 50px screen at zoom 0.5
     // (y=100 screen keeps the click clear of the left toolbar)
@@ -71,7 +75,7 @@ test.describe('sticky.e2e (@playwright/test, chromium)', () => {
   test('TC-33: dragging the second note over the first → second on top; first unmoved; texts kept', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openBoardPath(page.context().request, page);
     await createNoteViaToolbar(page, 'First'); // centre (640,400)
     await createNoteAtScreen(page, 900, 400, 'Second'); // centre (900,400)
 
@@ -98,7 +102,7 @@ test.describe('sticky.e2e (@playwright/test, chromium)', () => {
   });
 
   test('TC-34: blue swatch → second note blue; first note unchanged', async ({ page }) => {
-    await page.goto('/');
+    await openBoardPath(page.context().request, page);
     await createNoteViaToolbar(page, 'First');
     await createNoteAtScreen(page, 900, 400, 'Second');
 
@@ -123,7 +127,7 @@ test.describe('sticky.e2e (@playwright/test, chromium)', () => {
   test('TC-39: select first note, press Delete → first removed; second untouched', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openBoardPath(page.context().request, page);
     await createNoteViaToolbar(page, 'First');
     await createNoteAtScreen(page, 900, 400, 'Second');
 
@@ -136,9 +140,10 @@ test.describe('sticky.e2e (@playwright/test, chromium)', () => {
   });
 
   test('TC-40: 50 notes; typing affects only the selected note', async ({ page }) => {
-    await page.goto('/');
+    await openBoardPath(page.context().request, page);
     // Zoom out so a 10×5 grid of 200px notes (300 world spacing) fits on screen
     await setCamera(page, 0, 0, 0.4);
+    await waitForZoom(page, 0.4);
 
     for (let i = 0; i < 50; i++) {
       const worldX = 200 + 300 * (i % 10);

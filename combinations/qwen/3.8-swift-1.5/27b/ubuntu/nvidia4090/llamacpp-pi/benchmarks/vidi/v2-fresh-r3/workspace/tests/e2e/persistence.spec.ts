@@ -37,7 +37,10 @@ async function startServer(persistDir: string): Promise<void> {
   server = spawn(
     'npx',
     ['wrangler', 'dev', '--port', String(PORT), '--ip', '127.0.0.1', '--persist-to', persistDir],
-    { stdio: ['ignore', 'pipe', 'pipe'], env: nodeProcess.env as Record<string, string>, cwd: (nodeProcess as any).cwd ? (nodeProcess as any).cwd() : '/w/workspace' },
+    // `detached: true` puts wrangler + its workerd child in their own process
+    // group so `stopServer` can kill both (killing only the `npx` wrapper
+    // leaves workerd holding the port → the next server can't bind).
+    { stdio: ['ignore', 'pipe', 'pipe'], detached: true, env: nodeProcess.env as Record<string, string>, cwd: (nodeProcess as any).cwd ? (nodeProcess as any).cwd() : '/w/workspace' },
   );
   server.stdout?.on('data', (d: unknown) => nodeProcess.env.PERSIST_E2E_DEBUG && nodeProcess.stdout?.write?.(`[srv] ${String(d)}`));
   server.stderr?.on('data', (d: unknown) => nodeProcess.env.PERSIST_E2E_DEBUG && nodeProcess.stderr?.write?.(`[srv!] ${String(d)}`));
@@ -48,8 +51,31 @@ async function stopServer(): Promise<void> {
   if (!server) return;
   const p = server;
   server = null;
-  p.kill('SIGKILL');
-  await new Promise((r) => setTimeout(r, 800));
+  // Kill the whole process group (wrangler + workerd), not just the wrapper.
+  // (`process` isn't typed in the e2e tsconfig, so reach it via globalThis.)
+  const gProc = (globalThis as { process?: { kill?: (pid: number, sig?: string) => void } }).process;
+  try {
+    if (p.pid && gProc?.kill) gProc.kill(-p.pid, 'SIGKILL');
+  } catch {
+    try {
+      p.kill('SIGKILL');
+    } catch {
+      /* already gone */
+    }
+  }
+  // Wait until the port is actually free so the next server can bind.
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    let open = false;
+    try {
+      await fetch(BASE);
+      open = true;
+    } catch {
+      open = false;
+    }
+    if (!open) break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
 }
 
 async function waitForServer(url: string): Promise<void> {
@@ -64,6 +90,14 @@ async function waitForServer(url: string): Promise<void> {
     await new Promise((r) => setTimeout(r, 500));
   }
   throw new Error('persistence server did not start');
+}
+
+/** Creates a board on the persistence server via the real API (story 5). */
+async function createBoard(base: string): Promise<string> {
+  const res = await fetch(`${base}/api/boards`, { method: 'POST' });
+  if (res.status !== 201) throw new Error(`board creation failed: ${res.status}`);
+  const { id } = (await res.json()) as { id: string };
+  return id;
 }
 
 /** Opens a fresh context + page on the persistence server for a specific board. */
@@ -96,8 +130,8 @@ test.describe('persistence e2e (story 4)', () => {
     rmSync(dir, { recursive: true, force: true });
     await startServer(dir);
 
-    // Create 25 notes, then leave.
-    const boardId = 'tc19boardAAAAAAAAAAAAA';
+    // Create the board, then 25 notes, then leave.
+    const boardId = await createBoard(BASE);
     const ctx1 = await openBoard(browser, boardId);
     // Wait for the WebSocket connection to be established.
     await ctx1.pages()[0]!.waitForFunction(() => (window as any).__vidi6?.connectionState === 'connected', { timeout: 15000 });
@@ -142,7 +176,7 @@ test.describe('persistence e2e (story 4)', () => {
     await startServer(dir);
 
     // Alex creates a note.
-    const boardId = 'tc20boardAAAAAAAAAAAAA';
+    const boardId = await createBoard(BASE);
     const alex = await openBoard(browser, boardId);
     await alex.pages()[0]!.waitForFunction(() => (window as any).__vidi6?.connectionState === 'connected', { timeout: 15000 });
     await alex.pages()[0]!.evaluate(() => (window as any).__vidi6.createNotes(1));
@@ -177,7 +211,7 @@ test.describe('persistence e2e (story 4)', () => {
     await startServer(dir);
 
     // Seed PERSIST_TESTED_NOTES notes.
-    const boardId = 'tc21boardAAAAAAAAAAAAA';
+    const boardId = await createBoard(BASE);
     const seed = await openBoard(browser, boardId);
     await seed.pages()[0]!.waitForFunction(() => (window as any).__vidi6?.connectionState === 'connected', { timeout: 15000 });
     await seed.pages()[0]!.evaluate(

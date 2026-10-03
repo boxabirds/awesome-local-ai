@@ -1,7 +1,10 @@
 {
   "name": "vidi6",
   "main": "src/worker/index.ts",
-  "compatibility_date": "2025-01-01",
+  "compatibility_date": "2025-06-01",
+  "vars": {
+    "TEST_HOOKS": "1"
+  },
   "assets": {
     "directory": "dist/client",
     "binding": "ASSETS",

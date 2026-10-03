@@ -18,6 +18,7 @@ export default defineConfig({
         test: {
           name: 'component',
           environment: 'jsdom',
+          environmentOptions: { jsdom: { url: 'https://example.com/' } },
           globals: true,
           include: ['tests/component/**/*.test.tsx'],
         },
