@@ -240,5 +240,5 @@ remove, of all thinking:
 
 A few calls carry a lot: on Swift 1.5, 1.3% of calls (above 10,000 characters) hold 30% of all thinking; the median call is
 210 characters and the longest 104,291. This is the measured basis for choosing a cap to test as its own series; a budget is
-in tokens (about 3 to 4 characters each in this text, not measured), and what it costs in held-out result is not known
+in tokens: measured on the 2,526 long-thinking calls (over 5,000 characters) that the engines' own request counts match, about 3.1 characters per generated token (2.9 on Swift 1.5), so 5,000 characters is about 1,650 tokens and 10,000 about 3,200, and what it costs in held-out result is not known
 from any of this. Mid-range candidates are 5,000 to 10,000 characters.
