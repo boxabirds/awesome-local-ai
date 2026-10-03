@@ -176,6 +176,26 @@ pub fn after_ingest(warehouse: &Path, ingested: usize, now: f64) -> Option<Strin
     }
 }
 
+/// The tables the insights scripts write and `dbench analyse` does not compute.
+const FOREIGN_TABLES: [&str; 3] = ["theme", "theme_story", "theme_share"];
+
+/// A rebuild replaces the file; what the scripts wrote to it goes into the new one first.
+fn carry_over(old: &Path, new: &Path) -> Result<()> {
+    if !old.exists() {
+        return Ok(());
+    }
+    let c = Connection::open(new)?;
+    c.execute("attach database ?1 as old", params![old.to_string_lossy()])?;
+    for t in FOREIGN_TABLES {
+        let there: i64 = c.query_row("select count(*) from old.sqlite_master where type = 'table' and name = ?1", params![t], |r| r.get(0))?;
+        if there > 0 {
+            c.execute_batch(&format!("insert or replace into main.{t} select * from old.{t}"))?;
+        }
+    }
+    c.execute("detach database old", [])?;
+    Ok(())
+}
+
 /// `dbench analyse`.
 pub fn cmd_analyse(args: &crate::cli::AnalyseArgs, json: bool) -> Result<()> {
     let target = if args.rebuild {
@@ -191,6 +211,7 @@ pub fn cmd_analyse(args: &crate::cli::AnalyseArgs, json: bool) -> Result<()> {
     let now = crate::timefmt::now_secs() as f64;
     let summary = run(&args.db, &target, &sel, now)?;
     if args.rebuild {
+        carry_over(&args.out, &target)?;
         std::fs::rename(&target, &args.out).with_context(|| format!("rename {} over {}", target.display(), args.out.display()))?;
     }
     if json {

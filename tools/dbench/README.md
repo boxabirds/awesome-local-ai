@@ -16,16 +16,21 @@ Design: `docs/20260924-distributed-bench-design.md` (§3 and §5). dbench is the
 
 ```sh
 cd tools/dbench
-cargo build --release                 # native: target/release/dbench
+cargo build --release                 # for this machine: tools/target/release/dbench (no LTO, incremental: seconds per change)
+cargo build --profile dist            # for a bench node: tools/target/dist/dbench (thin LTO, stripped)
 cargo test                            # unit tests, plus end-to-end tests against the real binary
 cargo clippy -- -D warnings           # kept at zero warnings; both are checks of `dbench harness-release`
 ./build-linux.sh                      # Linux x86_64 glibc from a Mac, via zig (brew install zig)
-                                      # -> target/x86_64-unknown-linux-gnu/release/dbench
+                                      # -> tools/target/x86_64-unknown-linux-gnu/dist/dbench
 ```
 
-The Rust version is pinned in `rust-toolchain.toml` (an exact release, with clippy and the Linux target): rustup installs it the first time cargo runs here, so a new stable release can't fail a commit that passed before. To move to a newer Rust, change `channel` there and run the checks.
+dbench is a member of the `tools/` workspace (`tools/Cargo.toml`, with vidi-gallery): one target directory and
+one lock file for the two, and the build profiles are defined there. The Rust version is
+pinned in `tools/rust-toolchain.toml` (an exact release, with clippy and the Linux target): rustup installs it the
+first time cargo runs under `tools/`, so a new stable release can't fail a commit that passed before. To move to a
+newer Rust, change `channel` there and run the checks. Why the two profiles: docs/20261003-rust-build-times.md.
 
-On a Linux box, `cargo build --release` works natively. TLS is rustls, so there's no OpenSSL.
+On a Linux box, `cargo build --profile dist` works natively. TLS is rustls, so there's no OpenSSL.
 
 ## Run the server
 
@@ -100,9 +105,9 @@ Nothing ties a node to the machine that set it up.
 ```sh
 cd tools/dbench && cargo build --release          # or copy the binary from another Mac (same target)
 mkdir -p ~/.config/dbench && ssh node-a cat .dbench/token    # paste into nodes.toml as above
-./target/release/dbench nodes                      # status of every node
-./target/release/dbench status node-a vidi-canvas-4090-01
-./target/release/dbench logs node-a vidi-canvas-4090-01 -f
+../target/release/dbench nodes                     # status of every node
+../target/release/dbench status node-a vidi-canvas-4090-01
+../target/release/dbench logs node-a vidi-canvas-4090-01 -f
 git pull                                           # results, as each story is recorded
 ```
 

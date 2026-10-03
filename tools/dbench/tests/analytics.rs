@@ -264,3 +264,35 @@ fn the_analytics_file_can_be_opened_read_only_once_a_pass_is_done() {
     assert_ne!(mode, "wal");
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn a_rebuild_keeps_the_theme_tables_it_does_not_compute() {
+    // The themes are written by the insights scripts (benchmarks/docs/insights/thinking); `dbench analyse --rebuild`
+    // replaces the file, and must not take them with the old one.
+    use dbench::cli::AnalyseArgs;
+    let dir = scratch("themes");
+    let wh = dir.join("conversations.db");
+    {
+        let db = Db::open(&wh).unwrap();
+        let sk = story(&db.conn, REL, 3);
+        call(&db.conn, sk, 0, 1.0, 2.0, Some("one thought two three"));
+    }
+    let out = dir.join("analytics.db");
+    dbench::analytics::after_ingest(&wh, 0, 1.0).expect("computed");
+    {
+        let c = Connection::open(&out).unwrap();
+        c.execute("insert into theme(version, id, name, definition) values (1, 0, 'Weighing', 'but, wait')", []).unwrap();
+        c.execute("insert into theme_story(rel, version, source_digest, paragraphs, computed_at) values (?1, 1, 'd', 4, 1.0)", params![REL]).unwrap();
+        c.execute("insert into theme_share(rel, version, theme, chars, paragraphs) values (?1, 1, 0, 12.5, 2)", params![REL]).unwrap();
+    }
+    let args = AnalyseArgs { db: wh, out: out.clone(), rebuild: true, all: false, only: vec![] };
+    dbench::analytics::cmd_analyse(&args, true).unwrap();
+    let c = Connection::open(&out).unwrap();
+    let share: f64 = c.query_row("select chars from theme_share where rel = ?1 and theme = 0", params![REL], |r| r.get(0)).unwrap();
+    let name: String = c.query_row("select name from theme where version = 1", [], |r| r.get(0)).unwrap();
+    let n: i64 = c.query_row("select count(*) from theme_story", [], |r| r.get(0)).unwrap();
+    assert_eq!((share, name.as_str(), n), (12.5, "Weighing", 1));
+    // And the computed tables were rebuilt, not copied.
+    assert_eq!(c.query_row::<i64, _, _>("select count(*) from analytics_story", [], |r| r.get(0)).unwrap(), 1);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
