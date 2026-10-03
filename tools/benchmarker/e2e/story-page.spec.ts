@@ -614,7 +614,7 @@ test.describe("story links on other pages", () => {
   test("the run page: each story's row links to the story page beside its story-run link", async ({ page }) => {
     await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5`);
     const r = page.locator('[data-page="run"] [data-section="time"] .rp-bar-row[data-story="2"]');
-    await expect(r.locator("a.story-run-link")).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r5/s/2`);
+    await expect(r.locator(".rp-bar-label a.story-run-link")).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r5/s/2`);
     await expect(r.locator("a.story-link")).toHaveText("all runs");
     await r.locator("a.story-link").click();
     await expect(page$(page)).toHaveAttribute("data-story", "2");

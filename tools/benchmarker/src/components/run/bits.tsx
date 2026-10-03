@@ -20,12 +20,12 @@ export function Term({ id, children }: { id: TermId; children?: ReactNode }) {
   return <span className="term" data-tip={GLOSSARY[id].what}>{children ?? GLOSSARY[id].name}</span>;
 }
 
-/** A page section headed by its glossary term. `aside` sits on the heading's right (a control, a count). */
-export function Section({ term, id, aside, children }: { term: TermId; id: string; aside?: ReactNode; children: ReactNode }) {
+/** A page section headed by its glossary term (or `heading`, for one that is two things). `aside` sits on the heading's right (a control, a count). */
+export function Section({ term, id, aside, heading, children }: { term: TermId; id: string; aside?: ReactNode; heading?: ReactNode; children: ReactNode }) {
   return (
     <section className="rp-section" data-section={id} aria-labelledby={`h-${id}`}>
       <div className="rp-head">
-        <h2 id={`h-${id}`}><Term id={term} /></h2>
+        <h2 id={`h-${id}`}>{heading ?? <Term id={term} />}</h2>
         {aside ? <div className="rp-aside">{aside}</div> : null}
       </div>
       <div className="rp-body">{children}</div>
