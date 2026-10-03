@@ -181,20 +181,47 @@ describe("observations: facts about the work, in the order a person could act on
 });
 
 describe("the score plot: a dot for every run of record, the median and the range, on one axis", () => {
-  it("one row per combination with a score, best median first; dots, median, range, n and the axis total", () => {
+  const ref = (n: string) => `reference/${n}`;
+  it("one row per combination with a score, best median first: the dots, median, range and runs", () => {
     const rs = [finished("a1", HOUR, { score: 50 }), finished("a2", HOUR, { score: 60 }), finished("a3", HOUR, { score: 70 }), finished("b1", HOUR, { stack: STACK_B, score: 66 })];
     const p = scorePlot(rs);
     expect(p.total).toBe(75);
     expect(p.rows.map((r) => r.stack)).toEqual([STACK_B, STACK_A]);
     expect(p.rows[1]).toMatchObject({ dots: [50, 60, 70], median: 60, min: 50, max: 70, n: 3 });
   });
-  it("combinations that can't be told apart are marked as a pair; a combination with no score is left out", () => {
-    const rs = [finished("a1", HOUR, { score: 60 }), finished("b1", HOUR, { stack: STACK_B, score: 65 }), finished("c1", HOUR, { stack: "q/c/pi", score: null })];
-    const p = scorePlot(rs);
-    expect(p.rows.map((r) => r.stack)).toEqual([STACK_B, STACK_A]);
-    expect(p.closeCalls).toEqual([[STACK_B, STACK_A]]);
+  it("a combination with no score is left out; no runs of record: no rows and no axis", () => {
+    expect(scorePlot([finished("a1", HOUR, { score: 60 }), finished("c1", HOUR, { stack: "q/c/pi", score: null })]).rows.map((r) => r.stack)).toEqual([STACK_A]);
+    expect(scorePlot([run({ id: "r", status: "running" })])).toMatchObject({ total: null, rows: [], groups: [], narrative: [] });
   });
-  it("no runs of record: no rows and no axis", () => {
-    expect(scorePlot([run({ id: "r", status: "running" })])).toEqual({ total: null, rows: [], closeCalls: [] });
+  it("the scale starts at the tens below the lowest ordinary dot, so the differences are visible", () => {
+    const rs = [finished("a1", HOUR, { score: 56 }), finished("a2", HOUR, { score: 70 }), finished("b1", HOUR, { stack: STACK_B, score: 74 })];
+    expect(scorePlot(rs).axisMin).toBe(50);
+  });
+  it("a run far below the rest is off the scale: pinned at the edge, listed, and never moves the scale", () => {
+    const rs = [1, 61, 63, 62, 56].map((s, i) => finished(`a${i}`, HOUR, { score: s }));
+    const p = scorePlot(rs);
+    expect(p.axisMin).toBe(50);
+    expect(p.offScale).toEqual([{ stack: STACK_A, label: STACK_A, value: 1 }]);
+  });
+  it("neighbours the runs can't separate form one group, however long the chain", () => {
+    const rs = [finished("a1", HOUR, { score: 75 }), finished("b1", HOUR, { stack: STACK_B, score: 70 }), finished("c1", HOUR, { stack: "q/c/pi", score: 66 }), finished("d1", HOUR, { stack: "q/d/pi", score: 30 })];
+    expect(scorePlot(rs).groups).toEqual([[STACK_A, STACK_B, "q/c/pi"]]);
+  });
+  it("no group when nothing is close", () => {
+    expect(scorePlot([finished("a1", HOUR, { score: 70 }), finished("b1", HOUR, { stack: STACK_B, score: 30 })]).groups).toEqual([]);
+  });
+  it("says it in words: how to read it, the top, the best that is not a reference, the groups, the off-scale run", () => {
+    const rs = [
+      ...[75, 75, 74].map((s, i) => finished(`o${i}`, HOUR, { stack: ref("opus-5.5"), score: s })),
+      ...[70, 66, 72].map((s, i) => finished(`m${i}`, HOUR, { stack: STACK_B, score: s })),
+      ...[1, 61, 63].map((s, i) => finished(`a${i}`, HOUR, { score: s })),
+    ];
+    const n = scorePlot(rs).narrative;
+    expect(n[0]).toBe("Each dot is one finished run: how many of the 75 hidden tests it passed. The black bar is the middle run; the grey line runs from the lowest to the highest. Further right is better.");
+    expect(n).toContain("Highest: reference/opus-5.5, 75 of 75 in the middle, over 3 runs.");
+    expect(n).toContain("Best of the local stacks: q/b/pi, 70 of 75 in the middle, over 3 runs.");
+    expect(n.some((x) => x.startsWith("reference/opus-5.5, q/b/pi and q/a/pi are within 12 tests of each other"))).toBe(true);
+    expect(n).toContain("One run of q/a/pi scored 1, off the left edge of the scale.");
+    expect(n.at(-1)).toBe("The scale starts at 60, not 0, so the differences show.");
   });
 });

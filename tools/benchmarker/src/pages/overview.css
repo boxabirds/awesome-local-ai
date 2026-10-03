@@ -52,13 +52,24 @@
   .seg-queued { border-style: dashed; color: var(--faint); }
   .series-count { white-space: nowrap; text-align: right; }
 
+  .plot-narrative { padding: 10px 14px 4px; font-size: 13px; color: var(--ink); }
+  .plot-narrative p { margin: 0 0 4px; }
+  .plot-narrative .plot-lead { color: var(--muted); }
   .plot { width: 100%; height: auto; display: block; padding: 6px 12px 0; box-sizing: border-box; }
   .plot-grid { stroke: var(--line); stroke-width: 1; }
-  .plot-tick, .plot-n { font-size: 11px; fill: var(--muted); }
+  .plot-tick, .plot-runs { font-size: 11px; fill: var(--muted); }
   .plot-label { font-size: 12.5px; fill: var(--ink); }
+  .plot-score { font-size: 13px; font-weight: 700; fill: color-mix(in hsl, var(--ok) var(--score, 100%), var(--bad)); }
   .plot-range { stroke: var(--muted); stroke-width: 2; }
   .plot-dot { fill: var(--run); fill-opacity: .55; stroke: var(--run); }
+  .plot-dot-off { fill: none; stroke-dasharray: 2 2; }
+  .plot-edge { fill: var(--muted); }
   .plot-median { fill: var(--ink); }
   .plot-close { fill: none; stroke: var(--part); stroke-width: 1.5; }
-  .plot-note { margin: 0; padding: 0 12px 10px; }
+  .plot-key { margin: 0; padding: 4px 14px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+  .key-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: color-mix(in srgb, var(--run) 55%, transparent); border: 1px solid var(--run); }
+  .key-off { background: none; border-style: dashed; }
+  .key-median { display: inline-block; width: 3px; height: 14px; background: var(--ink); }
+  .key-range { display: inline-block; width: 22px; height: 2px; background: var(--muted); }
+  .key-bracket { display: inline-block; width: 8px; height: 14px; border: 1.5px solid var(--part); border-left: 0; }
 }
