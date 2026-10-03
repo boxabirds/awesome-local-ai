@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist/client"
+  },
+  "dev": {
+    "ip": "127.0.0.1",
+    "port": 23612,
+    "inspector_port": 23613
+  }
+}

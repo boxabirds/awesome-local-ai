@@ -1,0 +1,182 @@
+:root {
+  --grid-dot: #b9c2d0;
+  --board-bg: #fbfcfd;
+  --ink: #1f2937;
+  --muted: #5b6472;
+  --surface: #ffffff;
+  --border: #d7dce4;
+  --accent: #2563eb;
+  --marker: #94a3b8;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  color: var(--ink);
+  background: var(--board-bg);
+  /* The board owns wheel/pinch gestures; never let the page scroll or zoom. */
+  overscroll-behavior: none;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+}
+
+/* Board viewport ------------------------------------------------------- */
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--board-bg);
+  cursor: grab;
+  /* The board handles its own pointer gestures. */
+  touch-action: none;
+  /* ...and the page must not scroll or chain-scroll out of the board. */
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.board-viewport[data-panning='true'] {
+  cursor: grabbing;
+}
+
+.board-grid {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+}
+
+.board-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.origin-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 21px;
+  height: 21px;
+  transform-origin: 0 0;
+  /* Keeps a constant screen size and stays centred on world (0, 0). */
+  transform: scale(calc(1 / var(--zoom, 1))) translate(-50%, -50%);
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: '';
+  position: absolute;
+  background: var(--marker);
+}
+
+.origin-marker::before {
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  margin-left: -0.5px;
+}
+
+.origin-marker::after {
+  top: 50%;
+  left: 0;
+  height: 1px;
+  width: 100%;
+  margin-top: -0.5px;
+}
+
+/* Zoom controls -------------------------------------------------------- */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.zoom-controls button {
+  font: inherit;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #eef1f5;
+}
+
+.zoom-controls button:disabled {
+  color: #a6aebc;
+  cursor: default;
+}
+
+.zoom-controls .zoom-controls__reset {
+  min-width: 0;
+  font-size: 13px;
+}
+
+.zoom-controls output {
+  min-width: 52px;
+  padding: 0 4px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Navigation hint ------------------------------------------------------ */
+
+.navigation-hint {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(31, 41, 55, 0.88);
+  color: #f8fafc;
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

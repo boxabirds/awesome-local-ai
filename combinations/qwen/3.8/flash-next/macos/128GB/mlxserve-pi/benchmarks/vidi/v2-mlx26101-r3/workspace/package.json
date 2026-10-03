@@ -1,0 +1,39 @@
+{
+  "name": "vidi6",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:test": "vite build --mode test",
+    "preview": "wrangler dev",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
+    "test:unit": "vitest run --project unit",
+    "test:component": "vitest run --project component",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:all-browsers": "BROWSERS=all playwright test",
+    "check:no-test-hook": "node scripts/check-no-test-hook.mjs",
+    "verify": "npm run typecheck && npm run build && npm run check:no-test-hook && npm run test:unit && npm run test:component && npm run test:e2e"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^24.19.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.1",
+    "@vitejs/plugin-react": "^5.0.4",
+    "jsdom": "^27.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.9",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.42.0"
+  }
+}
