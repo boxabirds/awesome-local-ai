@@ -1,3 +1,67 @@
+commit 1132a72881c58e71a5a1abae2be6eb51474f1aba
+agent  Sat Oct 3 13:49:08 2026 +0000
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                      | 208 ++++++++++
+ PROGRESS.md                                   |  42 +-
+ src/client/board/Board.tsx                    |  93 ++++-
+ src/client/board/Toolbar.tsx                  |  21 +
+ src/client/board/useTransformGesture.ts       |  15 +
+ src/client/canvas/testHooks.ts                |   9 +
+ src/client/images/DropHighlight.tsx           |  90 ++++
+ src/client/images/uploadImage.ts              | 164 ++++++++
+ src/client/images/useImageInsert.ts           | 489 ++++++++++++++++++++++
+ src/client/images/useUploadClock.ts           |  42 ++
+ src/client/images/validateFiles.ts            |  92 ++++
+ src/client/objects/ImageObject.tsx            | 496 ++++++++++++++++++++++
+ src/client/objects/registry.tsx               |  23 +-
+ src/client/tools/useActiveTool.ts             |  27 +-
+ src/client/ui/Toast.tsx                       | 160 +++++++
+ src/shared/board-model.ts                     |  11 +
+ src/shared/config.ts                          |  76 ++++
+ src/shared/image-format.ts                    |  83 ++++
+ src/shared/objects/image.ts                   | 347 ++++++++++++++++
+ src/worker/assets.ts                          | 219 ++++++++++
+ src/worker/index.ts                           |   9 +
+ tests/component/ImageInsert.test.tsx          | 536 ++++++++++++++++++++++++
+ tests/component/ImageObject.test.tsx          | 456 ++++++++++++++++++++
+ tests/component/TextObject.test.tsx           |  10 +-
+ tests/component/Transform.test.tsx            |  36 ++
+ tests/component/helpers.tsx                   |  10 +-
+ tests/component/setup.ts                      |  30 ++
+ tests/e2e/helpers/drop-files.ts               | 216 ++++++++++
+ tests/e2e/helpers/image.ts                    | 220 ++++++++++
+ tests/e2e/images.spec.ts                      | 576 ++++++++++++++++++++++++++
+ tests/fixtures/image-bytes.ts                 | 370 +++++++++++++++++
+ tests/fixtures/image-files.ts                 | 160 +++++++
+ tests/fixtures/images/animation.gif           | Bin 0 -> 1230 bytes
+ tests/fixtures/images/diagram-1000x400.png    | Bin 0 -> 9454 bytes
+ tests/fixtures/images/generate.mjs            | 293 +++++++++++++
+ tests/fixtures/images/photo-4032x3024.jpg     | Bin 0 -> 71725 bytes
+ tests/fixtures/images/picture.webp            | Bin 0 -> 264 bytes
+ tests/fixtures/images/renamed-pdf.png         |   6 +
+ tests/fixtures/images/screenshot-1440x900.png | Bin 0 -> 28701 bytes
+ tests/fixtures/images/script.svg              |   5 +
+ tests/fixtures/images/swatch-100x100.png      | Bin 0 -> 588 bytes
+ tests/fixtures/images/truncated.png           | Bin 0 -> 11480 bytes
+ tests/integration/assets.test.ts              | 383 +++++++++++++++++
+ tests/unit/board-model-group.test.ts          |  10 +-
+ tests/unit/image-format.test.ts               | 140 +++++++
+ tests/unit/image-model.test.ts                | 401 ++++++++++++++++++
+ tests/unit/registry.test.ts                   |   8 +-
+ tests/unit/validate-files.test.ts             | 161 +++++++
+ wrangler.jsonc                                |  10 +
+ 49 files changed, 6722 insertions(+), 31 deletions(-)
+commit a6fae396cfbecbfec005864b20ff122a11cd2335
+vidi-agent  Sat Oct 3 12:04:26 2026 +0100
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 22 ++++++++++------------
+ 1 file changed, 10 insertions(+), 12 deletions(-)
 commit 52d772fe391373dcfe50dd355347956052075e84
 agent  Sat Oct 3 11:01:13 2026 +0000
 
