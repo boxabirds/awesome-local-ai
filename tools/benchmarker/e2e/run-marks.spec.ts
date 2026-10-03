@@ -134,7 +134,7 @@ test.describe("invalid: not in the app at all", () => {
     await page.goto("/");
     const now = page.locator('[data-page="overview"] [data-section="now"] [data-machine="node-a"]');
     await expect(now).toHaveAttribute("data-state", "running");
-    await expect(now.locator(".card-now")).toHaveText("▶ running");
+    await expect(now.locator(".card-state")).toHaveText("running");
     await page.goto("/#/m/node-a");
     await expect(page.locator('[data-page="machine"] [data-section="now"] .mp-busy')).toHaveText("▶ Running.");
     await expect(page.locator('[data-page="machine"] [data-section="now"] .mp-idle')).toHaveCount(0);

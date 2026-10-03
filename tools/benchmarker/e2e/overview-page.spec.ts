@@ -246,7 +246,9 @@ test.describe("now: one line per machine", () => {
     await open(page);
     const g = nowRow(page, "node-a");
     await expect(g).toHaveAttribute("data-state", "running");
-    await expect(g.locator(".card-now")).toHaveText("▶ 3.8-swift-1.5/27b llamacpp v2-r1 · story 3 See other people's edits live · 4 min");
+    await expect(g.locator(".card-state")).toHaveText("running");
+    await expect(g.locator('[data-level="run"] .card-line')).toHaveText("3.8-swift-1.5/27b llamacpp v2-r1");
+    await expect(g.locator('[data-level="story"] .card-story')).toHaveText("3. See other people's edits live · 4 min on this story");
     await expect(g.locator(".card-queue .queue-count")).toHaveText("3 queued");
     await expect(g.locator("a.run-link")).toHaveAttribute("href", runHref(SWIFT, "v2-r1"));
     await g.locator("a.story-run-link").click();
@@ -273,7 +275,7 @@ test.describe("now: one line per machine", () => {
     await patchState(page);
     await open(page);
     await expect(nowRow(page, "node-d")).toHaveAttribute("data-state", "idle");
-    await expect(nowRow(page, "node-d").locator(".card-now")).toHaveText("idle");
+    await expect(nowRow(page, "node-d").locator(".card-state")).toHaveText("idle");
     await expect(nowRow(page, "node-d").locator(".card-queue .queue-count")).toHaveText("nothing queued");
   });
 
@@ -281,7 +283,7 @@ test.describe("now: one line per machine", () => {
     await patchState(page, (s) => { s.machines.find((m) => m.node === "node-d")!.queued = 2; });
     await open(page);
     await expect(nowRow(page, "node-d")).toHaveAttribute("data-state", "queuedOnly");
-    await expect(nowRow(page, "node-d").locator(".card-now")).toHaveText("nothing running (2 waiting)");
+    await expect(nowRow(page, "node-d").locator(".card-state")).toHaveText("waiting");
     await expect(nowRow(page, "node-d").locator(".card-queue .queue-count")).toHaveText("2 queued");
   });
 
@@ -290,7 +292,7 @@ test.describe("now: one line per machine", () => {
     await patchMachines(page, (ms) => { const t = ms.find((m) => m.name === "node-a")!; t.ok = false; t.error = "timed out"; });
     await open(page);
     await expect(nowRow(page, "node-a")).toHaveAttribute("data-state", "unreachable");
-    await expect(nowRow(page, "node-a").locator(".card-now")).toHaveText("unreachable");
+    await expect(nowRow(page, "node-a").locator(".card-state")).toHaveText("unreachable");
     await expect(nowRow(page, "node-a").locator(".card-queue .missing")).toHaveText("—");
   });
 
@@ -322,7 +324,7 @@ test.describe("the glossary: every heading and column explains itself", () => {
     await open(page);
     await expect(now(page).locator("h2 .term")).toHaveAttribute("data-tip", GLOSSARY.now.what);
     await expect(nowRow(page, "node-a").locator(".now-min")).toHaveAttribute("data-tip", GLOSSARY.storyMinutes.what);
-    await expect(nowRow(page, "node-d").locator(".idle")).toHaveAttribute("data-tip", GLOSSARY.machineIdle.what);
+    await expect(nowRow(page, "node-d").locator(".card-state")).toHaveAttribute("data-tip", GLOSSARY.machineIdle.what);
     for (const [id, term] of Object.entries(GLOSSARY)) {
       expect(id).not.toMatch(/^need/);
       expect(`${term.name} ${term.what}`).not.toMatch(/needs you|what to do|the command/i);

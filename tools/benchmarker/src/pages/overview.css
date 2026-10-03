@@ -32,10 +32,16 @@
   .machine-card > .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 650; }
   .card-state { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
   .state-running { color: var(--run); } .state-idle { color: var(--part); } .state-unreachable { color: var(--bad, #b3382c); }
-  .card-now { font-size: 13px; overflow-wrap: anywhere; }
-  .card-strip { display: flex; flex-wrap: wrap; gap: 3px; }
-  .card-strip .rs-sq { display: block; width: 14px; height: 14px; border-radius: 3px; box-sizing: border-box; }
-  .card-strip .rs-sq:not(.rs-unbuilt):not(.rs-noResult):not(.rs-building) { background-color: currentColor; }
+  .machine-card > .card-level { display: grid; gap: 4px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; box-shadow: none; margin: 0; padding: 6px 0 0; }
+  .card-label { margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .card-line { font-size: 13px; overflow-wrap: anywhere; }
+  .card-strip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+  .card-sq { display: grid; justify-items: center; gap: 1px; text-decoration: none; color: var(--muted); }
+  .card-sq .rs-sq { width: 16px; height: 16px; border-radius: 3px; box-sizing: border-box; }
+  .card-sq-no { font-size: 10px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .card-sq[aria-current="true"] .card-sq-no { color: var(--ink); font-weight: 700; }
+  .card-sq[aria-current="true"] .rs-sq { outline: 2px solid var(--run); outline-offset: 1px; }
+  .card-sq:hover .rs-sq, .card-sq:focus-visible .rs-sq { box-shadow: 0 0 0 2px var(--ink) inset; }
   .card-series { display: flex; align-items: center; gap: 8px; }
   .card-queue { font-size: 13px; }
 
