@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { GLOSSARY } from "../shared/glossary.ts";
+import type { State } from "../shared/types.ts";
 
 // The conversation pages, MECE by where the reader starts and by the fixture's cells (e2e/fixtures/conversations.py):
 //   A. the conversation page by address: complete pi (every kind of turn, the overview's chips, search and strip)
@@ -26,6 +27,47 @@ test.beforeEach(async ({ request }) => {
   await request.post("/api/test/reset");
 });
 
+/** Serve the page this state change for this test only (the fixture's v2-r5 with interventions in its story 2). */
+async function withInterventions(page: Page, list: { at: number; story: string | null; text: string }[]) {
+  await page.route("**/api/state", async (route) => {
+    const res = await route.fetch();
+    const s = (await res.json()) as State;
+    s.rows.find((r) => r.stack === SWIFT && r.runId === "v2-r5")!.interventions = list;
+    await route.fulfill({ response: res, json: s });
+  });
+}
+const T0_S = 1790000000;
+
+test.describe("A2. interventions in the conversation", () => {
+  const SILENT = { at: T0_S + 6, story: "2", text: "interrupted a tool call silent for 600s (killed processes under the workspace)" };
+  test("each one stands among the turns at its moment, in the page's own words; the chip counts it; the strip marks it", async ({ page }) => {
+    await withInterventions(page, [SILENT, { at: T0_S + 8, story: "3", text: "story 3's, not this one's" }, { at: T0_S + 9, story: null, text: "node-a rebooted by the operator" }]);
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    await expect(page$(page).locator('[data-fact="events"]')).toHaveText("17");
+    await expect(chip(page, "intervention").locator(".num")).toHaveText("1");
+    const row = page$(page).locator('table.turns tr[data-kind="intervention"]');
+    await expect(row).toHaveCount(1);
+    await expect(row.locator(".kind")).toHaveText("intervention");
+    await expect(row.locator("td.said")).toHaveText("a tool call silent for 600 s was interrupted");
+    await expect(row.locator("td").first()).toHaveText("6.0 s");
+    expect(await kinds(page)).toEqual(["msg", "wait", "call", "tool", "intervention", "call", "tool", "compaction", "call", "tool", "call", "condition", "condition"]);
+    await expect(page$(page).locator("svg.conv-strip .strip-intervention")).toHaveCount(1);
+  });
+
+  test("the address's kinds decide whether they show: call,compaction hides them; intervention alone shows only them", async ({ page }) => {
+    await withInterventions(page, [SILENT]);
+    await page.goto(conv(SWIFT, "v2-r5", "2", "call%2Ccompaction"));
+    expect(await kinds(page)).not.toContain("intervention");
+    await page.goto(conv(SWIFT, "v2-r5", "2", "intervention"));
+    expect(await kinds(page)).toEqual(["intervention"]);
+  });
+
+  test("a story with none: no row, a count of 0", async ({ page }) => {
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    await expect(page$(page).locator('table.turns tr[data-kind="intervention"]')).toHaveCount(0);
+  });
+});
+
 test.describe("A. the conversation page", () => {
   test("a complete pi story: one list of turns in time order, a call's tools under it, its engine request in its figures", async ({ page }) => {
     await page.goto(conv(SWIFT, "v2-r5", "2"));
@@ -35,7 +77,7 @@ test.describe("A. the conversation page", () => {
     await expect(p.locator('[data-fact="events"]')).toHaveText("17");
     await expect(p.locator('[data-fact="range"]')).not.toContainText("so far");
     // The chips say what the conversation holds; every kind is on.
-    for (const [kind, count] of [["call", "4"], ["tool", "3"], ["compaction", "1"], ["wait", "1"], ["msg", "1"], ["request", "0"], ["condition", "2"]]) {
+    for (const [kind, count] of [["call", "4"], ["tool", "3"], ["compaction", "1"], ["wait", "1"], ["msg", "1"], ["request", "0"], ["condition", "2"], ["intervention", "0"]]) {
       await expect(chip(page, kind).locator(".num"), kind).toHaveText(count);
       await expect(chip(page, kind), kind).toHaveAttribute("aria-pressed", "true");
     }
