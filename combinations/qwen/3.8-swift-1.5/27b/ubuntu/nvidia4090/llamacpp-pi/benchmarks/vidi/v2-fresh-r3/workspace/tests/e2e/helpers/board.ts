@@ -30,3 +30,80 @@ export async function getOriginMarkerPosition(page: Page): Promise<{ x: number; 
   if (!box) throw new Error('Origin marker not found');
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
+
+export interface NoteState {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+  text: string;
+}
+
+/** Reads the notes (position, colour, text) straight from the Yjs document. */
+export async function getNotesState(page: Page): Promise<NoteState[]> {
+  return page.evaluate(() => {
+    const doc = (window as any).__vidi6.getDoc();
+    const objects = doc.getMap('objects');
+    return Array.from(objects.entries() as [string, any][]).map(([id, obj]) => ({
+      id,
+      x: obj.get('x') as number,
+      y: obj.get('y') as number,
+      color: obj.get('color') as string,
+      text: (obj.get('text') as any)?.toString() ?? '',
+    }));
+  });
+}
+
+/** The DOM element for a note by id. */
+export function noteByState(page: Page, state: NoteState): Locator {
+  return page.locator(`[data-note-id="${state.id}"]`);
+}
+
+/** The screen-space bounding box of a note by id. */
+export async function noteBox(page: Page, id: string): Promise<{ x: number; y: number; width: number; height: number }> {
+  const box = await page.locator(`[data-note-id="${id}"]`).boundingBox();
+  if (!box) throw new Error(`note ${id} not found in DOM`);
+  return box;
+}
+
+/** DOM order of the notes (index in the world layer) — equals z-order. */
+export async function noteDomOrder(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll('[data-note-id]')).map((el) =>
+      (el as HTMLElement).dataset.noteId!,
+    ),
+  );
+}
+
+/** Creates a sticky note via the toolbar button (enters editing immediately). */
+export async function createNoteViaToolbar(page: Page, text?: string): Promise<void> {
+  await page.getByLabel('Sticky note').click();
+  if (text) {
+    await page.getByTestId('sticky-textarea').waitFor();
+    await page.keyboard.type(text);
+  }
+  await page.keyboard.press('Escape');
+}
+
+/** Double-clicks empty board space at a screen point (creates a note there). */
+export async function createNoteAtScreen(page: Page, x: number, y: number, text?: string): Promise<void> {
+  await page.mouse.dblclick(x, y);
+  if (text) {
+    await page.getByTestId('sticky-textarea').waitFor();
+    await page.keyboard.type(text);
+  }
+  await page.keyboard.press('Escape');
+}
+
+/** Selects a note with a short press at a screen point. */
+export async function selectNoteAtScreen(page: Page, x: number, y: number): Promise<void> {
+  await page.mouse.click(x, y);
+}
+
+/** Drags from a screen point by (dx, dy) screen pixels. */
+export async function dragScreen(page: Page, x: number, y: number, dx: number, dy: number): Promise<void> {
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + dx, y + dy, { steps: 10 });
+  await page.mouse.up();
+}

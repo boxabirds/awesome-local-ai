@@ -2,11 +2,21 @@ import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { useCamera } from './useCamera';
 import { ZoomControls } from './ZoomControls';
 import { NavigationHint } from './NavigationHint';
-import { zoomPercent, canZoomIn, canZoomOut } from './camera';
+import { zoomPercent, canZoomIn, canZoomOut, Camera, Point } from './camera';
 import { GRID_SPACING_WORLD } from '../../shared/config';
-import { registerSetCamera } from './testHooks';
+import { registerSetCamera, registerVidi6Hook } from './testHooks';
 
-export function BoardViewport(props: { children?: ReactNode }) {
+export interface BoardViewportProps {
+  children?: ReactNode;
+  /** Reports the current camera (App uses it for world-space calculations). */
+  onCamera?(cam: Camera): void;
+  /** Double-click on empty board space, at a point relative to the viewport. */
+  onEmptyDoubleClick?(p: Point): void;
+  /** A click (press without movement) on empty board space. */
+  onEmptyClick?(): void;
+}
+
+export function BoardViewport(props: BoardViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState({ width: 1280, height: 800 });
   const { camera, hasNavigated, beginPan, panMove, endPan, wheel, zoomStep, reset, setCamera } =
@@ -15,12 +25,13 @@ export function BoardViewport(props: { children?: ReactNode }) {
   // Register test hook (available in all builds for e2e testing)
   useEffect(() => {
     registerSetCamera(setCamera);
-    if (typeof window !== 'undefined') {
-      window.__vidi6 = {
-        setCamera: (cam) => setCamera(cam),
-      };
-    }
+    registerVidi6Hook({ setCamera: (cam) => setCamera(cam) });
   }, [setCamera]);
+
+  // Report the camera to the parent
+  useEffect(() => {
+    props.onCamera?.(camera);
+  }, [camera, props.onCamera]);
 
   // ResizeObserver
   useEffect(() => {
@@ -38,11 +49,13 @@ export function BoardViewport(props: { children?: ReactNode }) {
 
   // Pointer drag
   const isPanning = useRef(false);
+  const panMoved = useRef(false);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (e.target !== e.currentTarget) return;
       isPanning.current = true;
+      panMoved.current = false;
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       beginPan({ x: e.clientX, y: e.clientY });
     },
@@ -52,19 +65,41 @@ export function BoardViewport(props: { children?: ReactNode }) {
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!isPanning.current) return;
+      const last = panState.current;
+      if (last && (e.clientX !== last.x || e.clientY !== last.y)) {
+        panMoved.current = true;
+      }
+      panState.current = { x: e.clientX, y: e.clientY };
       panMove({ x: e.clientX, y: e.clientY });
     },
     [panMove],
   );
 
+  const panState = useRef<{ x: number; y: number } | null>(null);
+
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
       if (!isPanning.current) return;
       isPanning.current = false;
+      panState.current = null;
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
       endPan();
+      // A click on empty board space (press without movement) clears the
+      // selection. Note drags stopPropagation, so they never get here.
+      if (!panMoved.current) {
+        props.onEmptyClick?.();
+      }
     },
-    [endPan],
+    [endPan, props.onEmptyClick],
+  );
+
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target !== e.currentTarget) return;
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      props.onEmptyDoubleClick?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    },
+    [props.onEmptyDoubleClick],
   );
 
   const handlePointerCancel = useCallback(
@@ -200,6 +235,7 @@ export function BoardViewport(props: { children?: ReactNode }) {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
+        onDoubleClick={handleDoubleClick}
       >
         <div
           data-testid="world-layer"
