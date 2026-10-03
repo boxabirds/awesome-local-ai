@@ -244,8 +244,8 @@ describe('text objects', () => {
     const sel = selectionBox([objectSnapshot(note)!, objectSnapshot(id)!]);
     const before = objectSnapshot(id)!;
 
-    // Drag the bottom-right corner out by 100 units on each axis.
-    dragHandle('se', [sel.right, sel.bottom], [sel.right + 100, sel.bottom + 100]);
+    // Drag the bottom-right corner out by 200 units on each axis.
+    dragHandle('se', [sel.right, sel.bottom], [sel.right + 200, sel.bottom + 200]);
 
     const after = textFields(id);
     const sticky = objectBounds(objectSnapshot(note)!);
@@ -254,7 +254,11 @@ describe('text objects', () => {
     const growX = sticky.width / 200;
     const growY = sticky.height / 200;
     expect(growX).toBeGreaterThan(1.2);
-    expect(growY).toBeGreaterThan(1.5);
+    expect(growY).toBeGreaterThan(1.2);
+    expect(growY, 'a group with a ratio-locked type in it scales by one factor, not by two').toBeCloseTo(
+      growX,
+      6,
+    );
 
     // The text is repositioned by exactly that factor, from the box's fixed corner:
     // it moves with the group, in proportion, on both axes.

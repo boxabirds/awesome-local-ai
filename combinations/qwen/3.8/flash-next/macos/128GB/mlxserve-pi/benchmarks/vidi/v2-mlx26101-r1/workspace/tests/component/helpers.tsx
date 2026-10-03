@@ -82,7 +82,7 @@ export function seedText(id: string, text: string): void {
 }
 
 export function pointer(
-  el: Element,
+  el: Element | Window,
   type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
   x: number,
   y: number,
@@ -344,8 +344,9 @@ export function selectedObjectIds(): string[] {
   }
   // Story 10's two types carry their id the same way. Only the rendered object itself has
   // `data-object-id` — its figure, its label and its arrowhead are decoration. Story 11's
-  // drawings too: an svg, a hit line and an ink line carry no `data-object-id` of their own.
-  for (const el of screen.queryAllByTestId(/^(shape|connector|stroke)-./)) {
+  // drawings too: an svg, a hit line and an ink line carry no `data-object-id` of their own. And
+  // story 12's pictures: the box is a description and the hit layer underneath is the object.
+  for (const el of screen.queryAllByTestId(/^(shape|connector|stroke|image-hit)-./)) {
     const id = el.getAttribute('data-object-id');
     if (id !== null && el.getAttribute('data-selected') === 'true') ids.push(id);
   }
@@ -568,6 +569,9 @@ export function objectEl(id: string): HTMLElement {
     screen.queryByTestId(`shape-${id}`) ??
     screen.queryByTestId(`connector-${id}`) ??
     screen.queryByTestId(`stroke-${id}`) ??
+    // A picture's outer box takes no presses in any of its five states; the hit layer underneath it
+    // is what a person aims at, the same way an arrow's line is for arrows (image.placeholder_other).
+    screen.queryByTestId(`image-hit-${id}`) ??
     screen.getByTestId(`sticky-note-${id}`)
   );
 }

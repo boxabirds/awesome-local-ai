@@ -10,6 +10,7 @@ import type { Point, Rect } from '../../shared/geometry';
 import type { ShapeKind, ShapeSnap } from '../../shared/objects/shape';
 import type { ConnectorSnap } from '../../shared/objects/connector';
 import type { StrokeSnap } from '../../shared/objects/stroke';
+import type { ImageSnap } from '../../shared/objects/image';
 import type { PenColor, PenThickness } from '../../shared/config';
 import { DEFAULT_PEN_COLOR, DEFAULT_PEN_THICKNESS } from '../../shared/config';
 import { applyTextDiff } from '../objects/StickyText';
@@ -92,6 +93,13 @@ export interface Vidi6BoardHandle {
     color?: PenColor,
     thickness?: PenThickness,
   ): string | null;
+  /**
+   * The pictures on the board, as this client's model sees them — in whichever of their five
+   * states the document says they are, and whether or not this client is the one that dropped them.
+   * Read-only by design: a test that wants a picture on the board drops a file, because the
+   * placeholder and the upload are the thing under test (image.insert).
+   */
+  images(): ImageSnap[];
 }
 
 declare global {
@@ -174,6 +182,7 @@ export function installBoardHandle(doc: Y.Doc): () => void {
     },
     shapes: () => objectsOf(doc, 'shape') as ShapeSnap[],
     strokes: () => objectsOf(doc, 'stroke') as StrokeSnap[],
+    images: () => objectsOf(doc, 'image') as ImageSnap[],
     createStroke: (points, color = DEFAULT_PEN_COLOR, thickness = DEFAULT_PEN_THICKNESS) =>
       createStroke(doc, { points, color, thickness }, 'e2e'),
     connectors: () => objectsOf(doc, 'connector') as ConnectorSnap[],

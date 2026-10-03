@@ -44,6 +44,16 @@ import { canEdit } from '../sync/connectBoard';
 import { IS_TEST_MODE, publishConnectionState } from '../canvas/testHooks';
 import { getHandles, getObjectType } from '../objects/registry';
 import { author } from './author';
+import { useToasts, ToastStack } from '../ui/Toast';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import {
+  UPLOAD_CLOCK_TICK_MS,
+  UPLOAD_CLOCK_TICK_TEST_MS,
+  useUploadClock,
+} from '../images/useUploadClock';
+import { ImageControlsContext, type ImageControls } from '../objects/ImageObject';
+import { isImageSnapshot } from '../../shared/objects/image';
 import {
   allObjectIds,
   createSticky,
@@ -261,6 +271,25 @@ export function Board({ boardId }: BoardProps) {
     createAtScreen(centre);
   }, [viewport.width, viewport.height, createAtScreen, editAllowed]);
 
+  // The three doors of story 12 (image.drop, image.paste, image.picker) are one hook, so that a
+  // fourth door would be a fourth copy of "validate, place a placeholder, upload, mark the object"
+  // rather than a fourth implementation of it. `identityId` is the same string an object carries in
+  // `createdBy` — the only reason a picture knows who put it here, and the reason only that person
+  // is offered Retry (image.upload_failure).
+  const identityId = useMemo(() => author(doc), [doc]);
+  const toasts = useToasts();
+  const images = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    connection: connectionState,
+    identityId,
+    notify: toasts.show,
+    // A batch of placeholders is the unit Undo takes back, so it is written in one transaction; the
+    // upload status writes that follow it are deliberately not (see UPLOAD_ORIGIN in the model).
+    boundary: undo.boundary,
+  });
+
   // The board keyboard: Enter edits, Delete deletes, arrows nudge, Ctrl+A selects all.
   // The tool letters (V / T / S / L) and Escape's return to Select are the tool hook's
   // own, mounted here with the same shared typing guard so the two can never disagree
@@ -269,6 +298,10 @@ export function Board({ boardId }: BoardProps) {
     canEdit: editAllowed,
     selection,
     onCreateSticky: createAtCentre,
+    // 'I' is the letter the toolbar button's label promises. An action, not a mode: the picker opens
+    // and the hand stays where it was, so a person who held S, pressed I and cancelled the dialog is
+    // still holding the Shape tool.
+    onPickImage: images.openPicker,
   });
 
   // Which pen this person is holding: ink and nib, for this tab and this visit only. Like the
@@ -345,9 +378,43 @@ export function Board({ boardId }: BoardProps) {
     [endEdit, clear],
   );
 
+  // "Unfinished" is not stored anywhere: it is what an upload that started more than five minutes ago
+  // looks like *now*. So a board with a picture in flight asks what time it is once a minute (once a
+  // second under test), and a board with nothing in flight asks nothing (image.upload_stuck).
+  const anyUploading = useMemo(
+    () => snapshot.some((obj) => isImageSnapshot(obj) && obj.status === 'uploading'),
+    [snapshot],
+  );
+  const clock = useUploadClock(
+    anyUploading,
+    IS_TEST_MODE ? UPLOAD_CLOCK_TICK_TEST_MS : UPLOAD_CLOCK_TICK_MS,
+  );
+
+  // What an image is allowed to do and say, decided here rather than inside the object: the object
+  // does not know who is looking at it, and "Upload failed + Retry" is only true for the person whose
+  // upload it was (image.upload_failure).
+  const imageControls = useMemo<ImageControls>(
+    () => ({
+      selfId: identityId,
+      now: clock,
+      progressOf: images.progressOf,
+      canRetry: images.canRetry,
+      retry: images.retry,
+    }),
+    [identityId, clock, images.progressOf, images.canRetry, images.retry],
+  );
+
   return (
     <UndoControllerContext.Provider value={undo}>
-    <div className="vidi6-app">
+    <div
+      className="vidi6-app"
+      // Two of the three doors live here: image.drop and image.paste. They are on the board and not on
+      // the canvas layer because a picture dropped on the toolbar, on the zoom control or on the gap
+      // around them is still a picture dropped on this board.
+      onDragOver={images.onDragOver}
+      onDrop={images.onDrop}
+      onPaste={images.onPaste}
+    >
       <BoardViewport
         ref={surfaceRef}
         camera={camera}
@@ -367,7 +434,7 @@ export function Board({ boardId }: BoardProps) {
           const spec = getObjectType(obj.type);
           if (!spec) return null; // never render an unknown type
           const Component = spec.Component;
-          return (
+          const object = (
             <Component
               key={obj.id}
               obj={obj}
@@ -386,6 +453,16 @@ export function Board({ boardId }: BoardProps) {
               onStyle={onShapeStyle}
               onConnectorEndPointerDown={onConnectorEndPointerDown}
             />
+          );
+          // Only an image is given the image controls, and only through context: `ObjectProps` is the
+          // one interface every object type shares, and four fields about uploads would say to every
+          // future object that it too has an upload to report on.
+          return obj.type === 'image' ? (
+            <ImageControlsContext.Provider key={obj.id} value={imageControls}>
+              {object}
+            </ImageControlsContext.Provider>
+          ) : (
+            object
           );
         })}
       </BoardViewport>
@@ -482,8 +559,16 @@ export function Board({ boardId }: BoardProps) {
         onSelectTool={tool.setTool}
         shapeKind={tool.shapeKind}
         onShapeKind={tool.setShapeKind}
+        onPickImage={images.openPicker}
         disabled={!editAllowed}
       />
+      {/* The third door (image.picker). A real input, kept out of the way rather than drawn: the
+          toolbar button and I click it, and `accept` + `multiple` are what the OS dialog offers, which
+          is why the picker needs no validation of its own (TC-29). */}
+      <input {...images.inputProps} ref={images.inputRef} style={{ display: 'none' }} />
+      {/* A dragged picture makes the whole board say "here" (image.drop). Nothing to click: the drop
+          itself is answered by the board around it. */}
+      <DropHighlight />
       <ConnectionStatus state={connectionState} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
@@ -494,6 +579,10 @@ export function Board({ boardId }: BoardProps) {
         onReset={cam.reset}
       />
       <NavigationHint visible={!cam.hasNavigated} />
+      {/* Why a file was refused (image.validate, image.limit, image.offline). Nothing else in this
+          board explains itself: an object says what it is doing, and this is where a request that never
+          became an object says why it did not. */}
+      <ToastStack toasts={toasts.toasts} onDismiss={toasts.dismiss} />
     </div>
     </UndoControllerContext.Provider>
   );

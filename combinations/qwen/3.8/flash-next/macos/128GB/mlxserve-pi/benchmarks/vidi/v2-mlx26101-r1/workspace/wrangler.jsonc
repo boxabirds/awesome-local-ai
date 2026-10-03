@@ -17,6 +17,16 @@
       }
     ]
   },
+  // Story 12: the pictures. One bucket for every board; the object key carries the board id
+  // (`<boardId>/<assetId>`), so a bucket can be audited without a lookup table, and a read that
+  // cannot name a valid key gets nothing. Local `wrangler dev` simulates it on disk.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets",
+      "preview_bucket_name": "vidi6-assets-preview"
+    }
+  ],
   // SQLite-backed classes from day one, so story 4 (which persists the board in
   // this same object) needs no class migration.
   "migrations": [

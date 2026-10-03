@@ -7,6 +7,8 @@ import { resetTypingBurst } from '../../src/client/board/typingGuard';
 
 const g = globalThis as unknown as {
   PointerEvent?: unknown;
+  DragEvent?: unknown;
+  ClipboardEvent?: unknown;
   ResizeObserver?: unknown;
   requestAnimationFrame?: (cb: FrameRequestCallback) => number;
   cancelAnimationFrame?: (id: number) => void;
@@ -15,6 +17,34 @@ const g = globalThis as unknown as {
 // Pointer events: jsdom has no PointerEvent constructor, so reuse MouseEvent.
 if (typeof g.PointerEvent === 'undefined') {
   g.PointerEvent = globalThis.MouseEvent;
+}
+
+// Drag and paste events: jsdom has neither constructor, and story 12's three doors are a `drop` and
+// a `paste`, so a test could not otherwise hand the board a file at all. Both are built the way the
+// browser builds them — a `drop` IS a mouse event (it carries the pointer's position), and both
+// carry their payload on one property that the constructor is given. `DataTransfer` and
+// `ClipboardEventInit.clipboardData` are left to the test: jsdom has no `DataTransfer` to fill one
+// with, and the board only ever reads `files` and `types` off it.
+if (typeof g.DragEvent === 'undefined') {
+  class DragEventShim extends MouseEvent {
+    dataTransfer: unknown;
+    constructor(type: string, init: MouseEventInit & { dataTransfer?: unknown } = {}) {
+      super(type, init);
+      this.dataTransfer = init.dataTransfer ?? null;
+    }
+  }
+  g.DragEvent = DragEventShim;
+}
+
+if (typeof g.ClipboardEvent === 'undefined') {
+  class ClipboardEventShim extends Event {
+    clipboardData: unknown;
+    constructor(type: string, init: EventInit & { clipboardData?: unknown } = {}) {
+      super(type, { bubbles: init.bubbles ?? true, cancelable: init.cancelable ?? true });
+      this.clipboardData = init.clipboardData ?? null;
+    }
+  }
+  g.ClipboardEvent = ClipboardEventShim;
 }
 
 if (!Element.prototype.setPointerCapture) {

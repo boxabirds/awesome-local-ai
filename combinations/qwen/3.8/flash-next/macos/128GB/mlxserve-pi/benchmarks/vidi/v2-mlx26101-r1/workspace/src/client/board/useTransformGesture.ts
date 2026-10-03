@@ -181,6 +181,21 @@ export function useTransformGesture(
       if (r) rects.push(r);
     }
     const clamped = clampScale(scale, rects, g.minSizes, MAX_OBJECT_SIZE_WORLD);
+    if (g.aspect) {
+      // A locked ratio is one scale, not two.
+      //
+      // `clampScale` clamps each axis on its own, which is right for a box that is free to change shape
+      // and wrong for one that is not: a picture twice as wide as it is tall, dragged far enough
+      // inwards, lands on 16x16 — the height reaches its minimum at a scale of 0.05 and the width
+      // reaches the same minimum at 0.02, so the two halves of the drag stop at two different places
+      // and what is left is a square. The drag has stopped at the smallest size and destroyed the ratio
+      // it was asked to keep. Whichever axis runs out of room first is the one that stops the drag, and
+      // the other one comes with it: the box stops at the floor with its shape.
+      const uniform =
+        scale.x <= 1 ? Math.max(clamped.x, clamped.y) : Math.min(clamped.x, clamped.y);
+      clamped.x = uniform;
+      clamped.y = uniform;
+    }
     // `clamped` is a scale factor relative to the press box; turn it back into a
     // box anchored at the dragged handle's fixed edge, then map every object into
     // it (so the relative layout is preserved while the whole thing stops together

@@ -126,17 +126,17 @@ describe('board.model.group', () => {
     expect(objectsInRect(snapshot(doc), rect)).not.toContain(c);
   });
 
-  // TC-08: allObjectIds excludes an unknown type. Story 10 made `shape` and
-  // `connector` real, so the stand-in for "a type from a later story" is `image`
-  // (story 12's) — the rule itself is unchanged: never select what cannot render.
+  // TC-08: allObjectIds excludes an unknown type. Story 10 made `shape` and `connector` real and
+  // story 12 made `image` real, so the stand-in for "a type from a later story" is `frame` (story
+  // 13's) — the rule itself is unchanged: never select what cannot render.
   it('TC-08 allObjectIds excludes objects of an unknown type', () => {
     const a = createSticky(doc, { x: 0, y: 0 });
-    put(doc, 'mystery', 'image', 0, 0, 5);
+    put(doc, 'mystery', 'frame', 0, 0, 5);
     const ids = allObjectIds([
       ...snapshot(doc),
       // The raw snapshot skips unknown types, so hand one in the way a future
       // generic snapshot would surface it.
-      { id: 'mystery', type: 'image', x: 0, y: 0, z: 5, createdAt: 0 },
+      { id: 'mystery', type: 'frame', x: 0, y: 0, z: 5, createdAt: 0 },
     ]);
     expect(ids).toContain(a);
     expect(ids).not.toContain('mystery');

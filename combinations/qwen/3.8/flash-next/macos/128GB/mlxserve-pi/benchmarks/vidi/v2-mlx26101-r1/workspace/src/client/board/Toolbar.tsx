@@ -23,6 +23,11 @@ export interface ToolbarProps {
   /** The Shape menu offered a different kind. */
   onShapeKind?(kind: ShapeKind): void;
   /**
+   * Add a picture from a file (story 12, image.picker): opens the OS file picker. Not a tool —
+   * nothing is held afterwards.
+   */
+  onPickImage?(): void;
+  /**
    * True while the board could not be loaded: the Sticky note and Text buttons are
    * disabled so nothing can be created on a board that is not really there.
    */
@@ -36,6 +41,7 @@ export function Toolbar({
   onSelectTool,
   shapeKind = DEFAULT_SHAPE_KIND,
   onShapeKind,
+  onPickImage,
   disabled = false,
 }: ToolbarProps) {
   const stop = (e: ReactPointerEvent) => e.stopPropagation();
@@ -217,6 +223,21 @@ export function Toolbar({
         style={toolBtn(tool === 'pen')}
       >
         {'\u270E'}
+      </button>
+      {/* Adding a picture is an action, not a mode: it opens a file picker and leaves the hand where
+          it was, so this button has no pressed state and nothing to pick. Only a board that is not
+          really there (disabled) stops it; a board that is merely offline answers one step later,
+          with a reason a person can read (image.offline). */}
+      <button
+        type="button"
+        aria-label="Image (I)"
+        title="Image (I) \u2013 add a picture from a file"
+        data-testid="image-tool"
+        disabled={disabled}
+        onClick={() => onPickImage?.()}
+        style={toolBtn(false)}
+      >
+        {'\u{1F5BC}'}
       </button>
       <UndoButtons {...undo} />
     </div>

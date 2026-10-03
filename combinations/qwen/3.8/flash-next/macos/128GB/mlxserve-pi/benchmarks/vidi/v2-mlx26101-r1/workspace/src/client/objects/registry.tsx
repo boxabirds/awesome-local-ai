@@ -17,6 +17,7 @@ import {
   STICKY_MIN_SIZE_WORLD,
   STROKE_HIT_TOLERANCE_PX,
   STROKE_MIN_SIZE_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
   type FillColor,
   type StrokeColor,
@@ -34,6 +35,7 @@ import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
+import { ImageObjectView } from './ImageObject';
 import type { ConnectorSnap } from '../../shared/objects/connector';
 import { strokePolyline, strokeThickness, type StrokeSnap } from '../../shared/objects/stroke';
 
@@ -145,8 +147,8 @@ function rectHitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
   );
 }
 
-// The one real object type so far. Stories 9-12 add theirs with their own
-// registerObjectType call and no other selection/transform code.
+// The one real object type so far. Stories 9-12 add theirs to this list and take no
+// selection/transform code of their own.
 registerObjectType('sticky', {
   Component: StickyNote,
   resizable: true,
@@ -240,4 +242,21 @@ registerObjectType('stroke', {
       Math.max(strokeThickness(stroke) / 2, STROKE_HIT_TOLERANCE_PX / z)
     );
   },
+});
+
+// A picture (story 12) is `resizable` and its ratio is locked (image.resize_ratio): the box a person
+// drags is the box the picture is painted in, and a picture stretched out of its proportion is a
+// picture lied about. It is not `editableText` — there is nothing to type into a picture — which is
+// what keeps a double-click from opening a text editor over it, and what makes Enter-on-selected do
+// nothing rather than something surprising. Its hit area is its box: unlike an arrow or a sketch, a
+// picture's box is the picture, and there is no empty board inside it belonging to something else.
+registerObjectType('image', {
+  Component: ImageObjectView,
+  resizable: true,
+  aspectLocked: true,
+  // Small enough that a postage stamp is still a postage stamp, and large enough that the box never
+  // becomes smaller than the words it can be showing about itself.
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: rectHitTest,
 });

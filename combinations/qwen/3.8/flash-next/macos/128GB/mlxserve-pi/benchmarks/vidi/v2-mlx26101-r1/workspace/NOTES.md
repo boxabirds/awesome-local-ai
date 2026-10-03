@@ -589,3 +589,211 @@ apostrophe.
 both die at start (`Abort trap: 6` out of `pw_run.sh`, exit 134) before a page exists. Chromium's
 TC-17 passes. This is the same machine limitation noted for earlier stories, not something this
 story introduced or can fix; the run is recorded rather than skipped silently.
+
+---
+
+# Notes — story 12 (Drop images onto the board)
+
+## The two addresses, and what each one is allowed to say
+`POST /api/boards/:boardId/assets` answers `201 {assetKey, contentType, url}` — the design's contract
+plus `url`, which is the address the Worker just built. A client that assembled its own would have to
+agree with the server about the prefix, and one field costs less than that argument. Board existence is
+asked over the Durable Object RPC (`boardExists`) rather than answered locally: story 5's object is the
+thing that knows whether a board was ever created, and an endpoint that says "stored" about a board
+nobody made is a hole in the board list. A malformed id takes the same path — a 404 without touching the
+namespace is an optimisation, not a correctness win, and going through one code path means one rule.
+
+## The body is measured, never believed
+The 10 MB rule is enforced on bytes *read*: `request.arrayBuffer()` in workerd enforces no limit, and a
+body read as a stream has no size until it has been read. So the reader stops at `limit + 1` and
+refuses if a byte exists past the limit. `Content-Length` is treated the same way — as a claim: if the
+bytes stop short of the claimed length the request is refused without being stored (TC-12's second
+half), because a client that lies about size will also lie about what it is sending.
+
+## Sniffing is the only type check, and it lives in shared code
+`sniffImageType` is in `src/shared/image-format.ts` because three runtimes have to reach the same
+verdict about the same bytes: the browser (before it uploads a file the board will refuse), the Worker
+(before it stores anything), and the tests (before they trust either). Two traps in it, both found the
+hard way:
+- A GIF's magic is six bytes and the interesting character is at **index 5** (`87a`/`89a` — index 3 is
+  the `8` in both). Sniffing `head[6]` accepts random bytes that happen to start `GIF8`.
+- A JPEG needs SOI *and* a following marker (`0xFF` + `0xE0..0xFE`): `FF D8 FF` is what a truncated
+  header looks like, and it is not a picture.
+SVG is refused by looking at the text (`<svg` inside the first bytes), because an SVG *is* XML that
+claims to be a picture, and a picture that can carry a script is not a picture. A truncated PNG is
+**stored**: sniffing is not decoding (TC-14's row in the design's matrix), and only a decoder is
+entitled to say a file is corrupt — which is why the client's `createImageBitmap` decode is the place
+that decides, and why a file that decodes to nothing never becomes an object.
+
+## Serving is a header set, and the bytes are re-checked on the way out
+`Content-Security-Policy: default-src 'none'` plus `x-content-type-options: nosniff`, and
+`Cache-Control: public, max-age=31536000, immutable` because a key is permanent. The `contentType`
+stored in R2's `httpMetadata` is a string some previous writer chose, so the type a visitor is served is
+decided from the bytes again: an object whose metadata claims `image/png` and whose first bytes are
+`{` is answered 404 rather than served (a stored JSON invoice is not one of our pictures).
+`If-None-Match` and `HEAD` need no code: passing `request.headers` to `bucket.get()` lets R2 answer 304
+itself, which the integration tests assert rather than assume.
+
+## Upload status is document state, written with an origin that undo ignores
+`status`, `uploadStartedAt` and `uploaderId` are ordinary fields on the object's `Y.Map`, so story 3
+relays them like a move or a colour and story 4 persists them like anything else. Writing them goes
+through `UPLOAD_ORIGIN`, **not** `LOCAL_ORIGIN`: `Y.UndoManager` filters by *origin*, not by author, so
+if an upload's completion were tracked, a colleague's Retry could be undone by my Ctrl+Z — which is the
+thing story 12's "undo only ever rewinds your own steps" forbids. `markImageReady` checks the object
+still exists **inside** the transaction: deleting a picture while its bytes are in flight is allowed,
+and the answer is "there is nowhere to put this" (`false`, no update) rather than a resurrected object.
+
+## Sizes, and where the rounding goes
+`placementSize` scales by `min(1, MAX / maxDim)` and rounds **after** multiplying. Writing
+`Math.round(w / (maxDim / MAX))` looks the same and is not: with `maxDim / MAX = 2` it is exact, but any
+inexact intermediate division turns 1600x1200 into a 799-wide box that no longer matches the picture. A
+1x1 picture stays 1x1 — the smallest size the world allows is a rule about *dragging*, and the PRD says
+a one-pixel picture arrives at one pixel.
+
+## The row is boxes, not objects
+`layoutRow(sizes, origin, anchor)` returns `{x, y}` per box so it is testable without a `Y.Doc`, and the
+anchor maths is `placement - size / 2` for a centre. (Writing `placement - size` put three dropped
+pictures half a box up and left of the pointer — the component test that dropped files at the view
+centre caught it because the boxes were off-screen.)
+
+## Three doors, one hallway
+Drop, paste and the file picker all funnel into a single `addFiles`. The only difference between a drag
+and a paste is where the files are hanging off the event, so `eventFiles` reads
+`dataTransfer ?? clipboardData`. Two rules that only show up when you try them:
+- `preventDefault()` only when the drag actually carries files. A drag of selected text or a link onto
+  the board must keep behaving as before, and a board that eats every drop is a board that broke
+  someone's day.
+- "Am I typing somewhere?" is `isTextEntryTarget`, and the **hidden file input is a text field as far
+  as that helper is concerned**. Pasting into the picker's own dialog was suppressed by the rule meant
+  for the text editor; the exclusion is `closest('input[type=file]')`.
+
+## The offline gate refuses two states, not three
+`reconnecting` and `load_failed` are refused with the PRD's sentence; `connecting` is **not**. The
+design's TC-19 names `reconnecting` only, and a board that has just been opened sits in `connecting`
+for a few hundred milliseconds — refusing a drop then would fail the golden path of the story and would
+contradict story 3's own rule that "not arrived yet" is not an error. The gate is in `addFiles`, so all
+three doors inherit it, and the toast is deduplicated by text: twenty oversized files say one sentence.
+
+## Upload progress is XHR, coalesced, and silent at both ends
+`fetch` has no upload progress; the design names `upload.onprogress`, so `uploadImage` is an
+`XMLHttpRequest`. Twenty files uploading at once produce dozens of progress events a second, so the
+fractions land in a ref `Map` and at most one React update per animation frame is published — a
+placeholder that re-renders per byte is a board that has stopped being responsive. `progressOf` returns
+`undefined` for a fraction ≤ 0 or ≥ 1: "no bar at zero and at complete" is a rule in one place rather
+than an absence in three.
+
+## The placeholder is the object's box; the buttons are its siblings
+Two DOM facts this story had to learn from the outside in:
+- An absolutely positioned element with no `inset` shrink-wraps to its content. The placeholder used to
+  sit in the top-left corner of an 800x600 picture's area with "Uploading…" in a box the size of the
+  word; it is `inset: 0` now, which is what "the picture arrives at the size it will be" means.
+- The placeholder box is `overflow: hidden` (its label must not spill over the board), and the control
+  row on it is counter-scaled by the zoom — so at a small enough zoom the row is bigger than the box,
+  gets clipped, and **a clipped button cannot be clicked**. The row is therefore a *sibling* of the
+  placeholder, inside the object's own (non-clipping) div, anchored bottom-centre; bottom-centre stays
+  inside the box at every zoom where any part of the box is on screen, which top-left is not.
+A finished picture that goes back to uploading (a Retry) gets a new `key`, because a browser that has
+already given up on an `<img>` does not change its mind when the same element gets a new `src`.
+
+## The picture wins when box and bytes disagree
+`objectFit: contain`. In the ordinary case the box was made from the picture and the two agree exactly;
+`fill` would mean that any box that ever disagreed — an older document, a group resize clamped on one
+axis — *stretches* the picture. That is cheap insurance for the sentence "resizing never distorts a
+picture".
+
+## `I` is not a tool
+The PRD's request is "press I and choose a file", which is one action, like `N` for a new note — not a
+mode. `ToolId`, the toolbar's selection state, the cursor, the object-creation switch and the tests of
+stories 8 to 11 all stay exactly as they were, and the key opens the picker through the same
+`onPickImage` the toolbar button calls.
+
+## One toast component, and no toast for a failed upload
+`useToasts` + `ToastStack` (in the design's `src/client/ui/Toast.tsx`), deduplicated by text, five
+seconds, `role="status"` / `aria-live="polite"`. A *failed upload* deliberately gets no toast: the box
+on the board already says "Upload failed", and a message that repeats the box is a second thing to
+notice and dismiss. The four toasts that exist are exactly the PRD's four pre-flight sentences.
+
+## Upload state does not go through `ObjectProps`
+`ObjectProps` is what every object type receives. Upload status, progress, retry and "who uploaded
+this" belong to pictures alone, so `ImageControlsContext` carries them and `ImageObjectView` reads it.
+`ObjectProps` is unchanged, which is another way of saying no other object type pays for this story.
+
+## One change to another story's behaviour: a ratio-locked resize clamps to one scale
+`clampScale` clamps each axis separately, which is right for a box that may change shape and wrong for
+one that may not: a note twice as wide as it is tall hits the size floor on its **height** at half the
+scale its **width** does, so the two halves of the same drag stopped at two places and the result was a
+square — the minimum honoured and the one property the type is locked to thrown away. Story 12 found it
+by resizing a wide picture to the floor (TC-27). `useTransformGesture` now collapses the two clamps into
+one factor for any aspect-locked gesture (sticky, shape, image, and any group containing one): whichever
+axis runs out of room first stops the drag and the other comes with it.
+Consequences, both deliberate:
+- `tests/component/Transform.test.tsx` gains a test for the invariant itself (a 400x200 note dragged
+  through the floor ends 50x25, never 16x16) — it is a gesture rule, not a picture rule, so it is not
+  labelled with a story 12 TC id.
+- Story 9's `TextObject.test.tsx` TC-23 measured a group scale that the old per-axis clamp produced in
+  two different amounts (its `growY > 1.5` was the *text object's minimum height* inflating the group's
+  y-scale). The drag is now 200 units instead of 100, both axes are asserted to have grown, and the test
+  gains an assertion the old behaviour would have failed: `growY` equals `growX`.
+
+## Fixtures: built once on disk, built again inside workerd
+`tests/fixtures/images/generate.mjs` is the one-time generator, committed, with the nine files it made
+committed as data. Writing a GIF that a real browser decodes was not a hand-job: the "uncompressed GIF"
+trick (emit every code literally, skipping the first code after each clear code and incrementing the
+table by one per code, bumping the code size when the next code reaches `1 << width`) produces a
+decodable animation in about forty lines. Because the integration suite runs **inside workerd**, where
+there is no filesystem, the same builders live in `tests/fixtures/image-bytes.ts` with no `node:fs` in
+sight — the e2e suite reads the files off disk, the integration suite calls the builders.
+
+## This repo's `Buffer` is not Node's `Buffer`
+`@cloudflare/workers-types` declares a global `Buffer` whose `toString()` takes no arguments, and the
+tsconfig that covers `src/` also covers `tests/`. So base64 in this repo's test code goes through chunked
+`btoa` / `atob` helpers (`base64Of`, `bytesOfBase64` in `tests/e2e/helpers/drop-files.ts`) — anything
+else typechecks in the test project and fails in the worker project, or the other way round.
+
+## Files in a browser that has no desktop
+There is no OS-level drag-and-drop to automate, and Playwright's own drag helpers carry no `File`s, so
+`dropFiles` builds a real `DataTransfer` holding real `File`s (from the real fixture bytes) inside the
+page and dispatches `dragenter` / `dragover` / `drop` **at the element under the point**
+(`document.elementFromPoint`), which is where a browser sends them. The same helper is used for paste.
+One honest absence: TC-25b does not assert the `dropEffect = 'copy'` cursor in a real browser, because
+Chromium hides `dataTransfer.types` from a page until a *user* has dragged files into it — a synthetic
+drag reports an empty list (the test proves it: `typesOfDrag` says 0 in the same instant that dropping
+the same event's files creates three objects). The hover half of TC-25b is asserted at component level,
+where the drag is ours.
+
+## The five-minute rule, tested in a second
+TC-28b holds the upload with a route that never answers — so the picture is genuinely, not
+pretendingly, mid-upload — then installs Playwright's **API clock**, runs it forward past
+`IMAGE_UPLOAD_STALE_MS` and resumes it immediately. Installing it *after* the drop is deliberate: the
+initial sync and the upload's own bookkeeping run on real time first, and resuming at once is what keeps
+Playwright's actionability checks (which wait on animation frames) from hanging on a frozen clock.
+`useUploadClock` re-measures `Date.now()` while any upload is in flight — every 60 s in production,
+every 1 s under `MODE=test`, where the wait costs nothing and the test proves the clock is the thing
+that flips the state, not a re-render someone happened to cause.
+
+## The picker's `accept` names suffixes as well as MIME types
+A list of bare MIME types makes Firefox show "Custom file" in the dialog's filter line. The PRD's
+sentence is about what the dialog offers, so `IMAGE_INPUT_ACCEPT` carries both forms (`image/png,.png`,
+…), MIME types first so browsers that can use names show names.
+
+## Only Chromium launches here, as in stories 1 to 11
+Same sandbox limitation, recorded rather than hidden: `E2E_BROWSERS=chromium,firefox,webkit` starts both
+extra browsers and both die before a page exists. Nothing in the image specs uses an engine-only API
+(`page.route`, `page.clock`, `setInputFiles`, `data-testid`), and the `accept` suffixes above are in
+place for the browser that cannot run here.
+
+## Timings (logged, never asserted)
+Drop of three screenshots → three pictures painted on another person's screen: **83 ms**
+(`LIVE_UPDATE_LATENCY_BUDGET_MS` is 1000 ms; the test fails past a 2 s propagation guard).
+## An id-ordered list is not a drop order (a flake this story's own suite taught me)
+`imagesOn(page)` sorts by **id**, on purpose: two people's screens have to be comparable without the order
+their updates arrived in being part of an assertion. It meant that reading `ready[i]` against `files[i]`
+in TC-25 was asserting a coincidence — with three files it held one time in six, and it failed the run
+where it did not, looking exactly like a board that had stored a WebP under a PNG's address. Nothing was
+mispaired in the product (`startUpload(id, file)` closes over both, and the key it writes is the answer to
+that request), so the fix is in the assertion: each served picture is now matched to a dropped file **by
+its bytes**, and the test asserts that the three served pictures are the three dropped files as a
+permutation, each under its own key, each served as the type its own magic says. Because an unordered
+list can also hide a real mispairing, the invariant the e2e can no longer state is stated where it can be
+seen: `tests/component/ImageInsert.test.tsx` answers three uploads **backwards** and checks each object got
+the address its own file's request returned, identifying the object by the pixel size that file decoded to.

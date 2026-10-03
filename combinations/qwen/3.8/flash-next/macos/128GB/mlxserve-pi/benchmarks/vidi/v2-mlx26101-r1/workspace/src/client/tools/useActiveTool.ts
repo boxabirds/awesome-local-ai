@@ -30,9 +30,12 @@ import { typingOwnsKeys, useWindowKeyDown } from '../board/typingGuard';
 import type { SelectionApi } from '../board/useSelection';
 
 /**
- * The tools this app has. Story 12 adds `image` and `comment` to this
- * union; `select` is what every tool returns to, and `sticky` is deliberately not a
- * tool — the Sticky note button and N are one-shot actions, not a mode.
+ * The tools this app has. `select` is what every tool returns to, and `sticky` is deliberately not a
+ * tool — the Sticky note button and N are one-shot actions, not a mode. The image button is not a
+ * tool either, for the same reason and stated here because the shape of this union invited it:
+ * holding a tool means the next click on the board means something, and a click after asking for a
+ * picture means nothing — it would select an object while a file dialog is open somewhere. So `I`
+ * opens the picker and leaves the hand where it was (see `onPickImage`), exactly like N.
  */
 export type ToolId = 'select' | 'text' | 'shape' | 'connector' | 'pen';
 
@@ -60,6 +63,12 @@ export interface ActiveToolOptions {
   selection: SelectionApi;
   /** N / the toolbar button: create a sticky note at the centre of the view. */
   onCreateSticky?(): void;
+  /**
+   * I / the toolbar button: ask for a file to add (story 12). An action rather than a tool, and
+   * called on a board that can be edited — whether the *connection* is up is not this hook's
+   * business: the insert layer refuses an offline board and says why (image.offline).
+   */
+  onPickImage?(): void;
 }
 
 /** A letter that names a tool, with no modifier in the way. */
@@ -77,7 +86,7 @@ const TOOL_KEYS: Readonly<Record<string, ToolId>> = {
  * (see `useWindowKeyDown`), so holding a tool never re-subscribes the window.
  */
 export function useActiveTool(opts: ActiveToolOptions): ActiveToolApi {
-  const { canEdit, selection, onCreateSticky } = opts;
+  const { canEdit, selection, onCreateSticky, onPickImage } = opts;
   const [tool, setToolState] = useState<ToolId>('select');
   const [shapeKind, setShapeKind] = useState<ShapeKind>(DEFAULT_SHAPE_KIND);
 
@@ -134,6 +143,16 @@ export function useActiveTool(opts: ActiveToolOptions): ActiveToolApi {
       if (!canEdit || !onCreateSticky) return;
       e.preventDefault();
       onCreateSticky();
+      return;
+    }
+
+    if (key === 'i' || key === 'I') {
+      // Story 12's other one-shot: the letter the toolbar button's label promises. It is taken
+      // before the tool letters are consulted, because it is not one — nothing is held after it,
+      // and a tool letter that swallowed it would leave the board holding an empty mode.
+      if (!canEdit || !onPickImage) return;
+      e.preventDefault();
+      onPickImage();
       return;
     }
 

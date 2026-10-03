@@ -22,6 +22,7 @@ import { CLOSE_BOARD_LOAD_FAILED } from '../../src/shared/protocol';
 import { useSelection } from '../../src/client/board/useSelection';
 import { useTransformGesture } from '../../src/client/board/useTransformGesture';
 import type { Camera } from '../../src/client/canvas/camera';
+import { STICKY_MIN_SIZE_WORLD } from '../../src/shared/config';
 import { TESTBOX_MIN_SIZE_WORLD } from '../fixtures/testbox';
 import {
   boardDoc,
@@ -279,5 +280,40 @@ describe('sel.transform (ui-component)', () => {
     ]) {
       expect(screen.getByRole('button', { name: label })).toBeTruthy();
     }
+  });
+
+  // A type that is locked to its ratio stops at its smallest size *as the same shape*.
+  //
+  // The clamp is per axis, and for a box that may change shape that is exactly right. For one that may
+  // not, the two axes reach their minimums at two different scales — a note twice as wide as it is tall
+  // hits the floor on its height at half the scale its width does — so clamping them separately stops
+  // the drag in two places at once and leaves a square where a rectangle was: the minimum honoured and
+  // the one property the type is locked to, thrown away. Whichever axis runs out of room first is the
+  // axis that stops the drag, and the other comes with it.
+  // (Found by story 12's resize test — TC-27 there — and belongs to this gesture, not to pictures.)
+  it('stops an aspect-locked resize at the minimum size with its shape intact', () => {
+    renderBoard();
+    const id = createNote(0, 0);
+    // A note twice as wide as it is tall. The gesture is what normally writes a size; so is the board.
+    act(() => {
+      const m = boardDoc().getMap<Y.Map<unknown>>('objects').get(id)!;
+      m.set('width', 400);
+      m.set('height', 200);
+    });
+    clickNote(id);
+
+    // Press the bottom-right corner and drag it through the floor of the world.
+    const handle = screen.getByTestId('resize-handle-se');
+    act(() => pointer(handle, 'pointerdown', 400, 200));
+    act(() => windowPointer('pointermove', -3000, -3000));
+    act(() => windowPointer('pointerup', -3000, -3000));
+
+    const box = noteBounds(id);
+    expect(
+      Math.min(box.width, box.height),
+      'the drag stops at the smallest size, not through it',
+    ).toBe(STICKY_MIN_SIZE_WORLD);
+    expect(box.width, 'and neither side goes under').toBeGreaterThan(STICKY_MIN_SIZE_WORLD - 1);
+    expect(box.width / box.height, 'and it stops as the same shape it started').toBeCloseTo(2, 6);
   });
 });

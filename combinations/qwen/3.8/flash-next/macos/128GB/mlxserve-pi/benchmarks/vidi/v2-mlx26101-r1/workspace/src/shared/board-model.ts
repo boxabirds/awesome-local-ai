@@ -38,6 +38,7 @@ import {
 } from './geometry';
 import { shapeFromMap } from './objects/shape';
 import { strokeFromMap } from './objects/stroke';
+import { imageFromMap } from './objects/image';
 import {
   connectorFromMap,
   detachConnectorsTo,
@@ -76,6 +77,7 @@ const KNOWN_TYPES: ReadonlySet<string> = new Set([
   'text',
   'shape',
   'connector',
+  'image',
 ]);
 
 /**
@@ -342,6 +344,15 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
       // itself lives inside it, which is why a resize can redraw the drawing (pen.resize).
       // A map whose path cannot be read is skipped rather than drawn as an empty box.
       const snap = strokeFromMap(id, obj);
+      if (snap) {
+        rects.set(id, objectBounds(snap));
+        out.push(snap);
+      }
+    } else if (type === 'image') {
+      // An image is placed with a box of its own (its natural size, capped), and the bytes live
+      // outside the document: the snapshot carries the key they are stored under, or none at all
+      // while the upload is still going. A map whose box cannot be read is left out.
+      const snap = imageFromMap(id, obj);
       if (snap) {
         rects.set(id, objectBounds(snap));
         out.push(snap);

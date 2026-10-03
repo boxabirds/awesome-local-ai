@@ -433,3 +433,79 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
  * in (pen.dot), and the least a resize may leave of a drawing.
  */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// --- Image settings (story 12) ----------------------------------------------
+// What an image file has to be to get onto the board, how big it is placed at, and how long the
+// board waits for an upload. One set of numbers for the client that refuses a file, the Worker
+// that sniffs its bytes and the model that stores the placeholder.
+
+/**
+ * The image types the board accepts (image.accepted_types), in the order the picker lists them.
+ * Magic bytes are the authority — this list is what a browser is asked for (`accept`) and the
+ * Content-Type stored with the object and answered on every response.
+ */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+export type AcceptedImageType = (typeof IMAGE_ACCEPTED_TYPES)[number];
+
+/**
+ * The extensions each accepted type goes by on a disk. The JPEG entry has two because a person's
+ * camera writes one and their phone writes the other, and both are the same file format.
+ */
+export const IMAGE_FILE_EXTENSIONS: Record<AcceptedImageType, readonly string[]> = {
+  'image/png': ['.png'],
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/gif': ['.gif'],
+  'image/webp': ['.webp'],
+};
+
+/**
+ * The file input's `accept` string, built from IMAGE_ACCEPTED_TYPES so the picker a person is shown
+ * and the rule their choice is checked against cannot drift into disagreeing.
+ *
+ * Both spellings are listed — the type and the extension — because a picker is not one thing: some
+ * grey out files by MIME type, some only know how to match a suffix, and a PDF that was renamed to
+ * `.png` (image.types) is exactly the file a suffix-only filter waves through. The MIME types come
+ * first so a picker that shows a name for the filter names the four kinds and not four suffixes.
+ */
+export const IMAGE_INPUT_ACCEPT: string = [
+  ...IMAGE_ACCEPTED_TYPES,
+  ...IMAGE_ACCEPTED_TYPES.flatMap((type) => [...IMAGE_FILE_EXTENSIONS[type]]),
+].join(',');
+
+/**
+ * The largest image that is accepted anywhere (image.too_large): 10 MB, counted in bytes, the same
+ * number the client checks before uploading and the Worker checks after reading the body.
+ */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** How many images one drop, paste or picker run may add (image.max_files). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/**
+ * The longest side an image is ever placed at, in world units (image.place_size): a 4032 x 3024
+ * photo comes down to 800 on its long side, a small screenshot is placed at its own size.
+ */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** The smallest an image may be resized to, on either side, in world units. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** How much board is left between images laid out in a row (image.drop_multiple). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/**
+ * How long an upload may sit at "uploading" before the board says the upload didn't finish
+ * (image.unfinished). The clock is wall time since the placeholder was made, so it reads the same
+ * on every board that has the image.
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60_000;
+
+/**
+ * How long a served image may be cached (image.serve_headers). An asset key is never reused, so a
+ * year is honest and not a cache that can go stale.
+ */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/** How many bytes from the front of a file are read to work out what it is (image.sniff). */
+export const IMAGE_SNIFF_BYTES = 12;

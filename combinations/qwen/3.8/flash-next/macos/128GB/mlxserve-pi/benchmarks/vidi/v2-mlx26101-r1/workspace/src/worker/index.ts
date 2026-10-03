@@ -25,11 +25,14 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { boardExists, createBoard } from './create-board';
+import { assetsRoute, handleAssets } from './assets';
 import { handleTestHook } from './test-hooks';
 
 export interface Env {
   /** This board's room: one Durable Object per board id. */
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
+  /** Story 12: the bucket the board's pictures live in (assets.api). */
+  ASSETS_BUCKET: R2Bucket;
   /** The built client, served with an SPA fallback (see wrangler.jsonc). */
   ASSETS: Fetcher;
   /**
@@ -128,6 +131,12 @@ export default {
     // server; otherwise this returns null and normal routing continues.
     const hook = await handleTestHook(request, env);
     if (hook !== null) return hook;
+
+    // Story 12: the two asset endpoints (assets.api). They are asked before the board API, for one
+    // reason: `/api/boards/<id>/assets` is a path whose last segment is not a board id, and the board
+    // id parser below would read it as "a board called assets" and answer 404 before an upload was
+    // ever looked at.
+    if (assetsRoute(url.pathname) !== null) return handleAssets(request, env, url);
 
     const boardApi = await handleBoardApi(request, env, url.pathname);
     if (boardApi !== null) return boardApi;

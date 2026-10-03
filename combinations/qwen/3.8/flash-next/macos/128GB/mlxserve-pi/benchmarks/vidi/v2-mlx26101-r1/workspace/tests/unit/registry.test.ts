@@ -35,10 +35,12 @@ describe('sel.registry', () => {
   });
 
   // TC-12: an unregistered type is undefined (and therefore never selectable).
-  // Story 10 registered `shape` and `connector`, so the stand-in for a type this app
-  // cannot paint is `image` (story 12's).
+  // Story 10 took `shape` and `connector` as stand-ins and story 12 took `image`, so this asks with a
+  // type the app genuinely cannot paint: `frame`. The point of the test is not which word, it is that
+  // a type nobody registered has no renderer — and story 12 is the reason that has to keep being true,
+  // because a document written by a newer client can contain a type this one has never heard of.
   it('TC-12 getObjectType is undefined for an unknown type', () => {
-    expect(getObjectType('image')).toBeUndefined();
+    expect(getObjectType('frame')).toBeUndefined();
     expect(getObjectType('')).toBeUndefined();
   });
 
