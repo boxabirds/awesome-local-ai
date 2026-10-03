@@ -248,6 +248,24 @@ assert_fails "SPEC_MTP=0 runs without the draft head, for an A/B" has draft-mtp
 assert_fails "...and passes no -md"                        has -md
 assert_eq "with MTP off, the model is still pinned" "Vulkan0" "$(after --device)"
 assert_fails "...and no draft device is passed"      has --spec-draft-device
+
+echo
+echo "thinking pinned explicitly: opt-in, so a combination that does not pin keeps what it had"
+argv="$(launch env)"
+assert_fails "by default: no --reasoning flag (the template's own default applies)" has --reasoning
+assert_fails "...and no --reasoning-budget"                                          has --reasoning-budget
+argv="$(launch env PIN_THINKING_MODE=1)"
+assert_eq "PIN_THINKING_MODE=1 passes --reasoning on" "on" "$(after --reasoning)"
+assert_eq "...exactly once" "1" "$(grep -cx -- --reasoning <<< "$argv")"
+argv="$(launch env PIN_THINKING_MODE=1 THINKING=0)"
+assert_eq "THINKING=0 still turns reasoning off, whatever the pin" "off" "$(after --reasoning)"
+assert_eq "...and passes the flag once" "1" "$(grep -cx -- --reasoning <<< "$argv")"
+argv="$(launch env REASONING_BUDGET_DEFAULT=32768)"
+assert_eq "the combination's thinking budget is passed" "32768" "$(after --reasoning-budget)"
+argv="$(launch env REASONING_BUDGET_DEFAULT=32768 THINKING_BUDGET=4096)"
+assert_eq "a run-time THINKING_BUDGET wins over the combination's" "4096" "$(after --reasoning-budget)"
+argv="$(launch env REASONING_BUDGET_DEFAULT=32768 THINKING=0)"
+assert_fails "no budget with thinking off" has --reasoning-budget
 argv="$(launch env)"
 assert_eq "a two-backend build runs on one device: Vulkan by default" "Vulkan0" "$(after --device)"
 assert_eq "...and so does the MTP draft head"  "Vulkan0" "$(after --spec-draft-device)"

@@ -76,6 +76,12 @@ SAMPLING_INSTRUCT="--temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --presence-pen
 # Same default as Swift 1.0, so the two are compared at the same setting.
 REASONING_EFFORT_DEFAULT="low"
 REASONING_EFFORTS="default low medium high xhigh"
+# Thinking, written down on the command line (3 Oct 2026, the owner's decision after the thinking-spread work found
+# this stack's record saying "mode unknown, no budget"). Both are what the engine did already, so the runs stay
+# comparable: Qwen's template defaults to thinking on, and thinking was bounded only by the output limit, which is what
+# a budget equal to it says. A real cap is a separate experiment, with its own series.
+PIN_THINKING_MODE=1
+REASONING_BUDGET_DEFAULT=32768             # = OUTPUT_LIMIT
 
 # Built-in MTP head (see header): --spec-type draft-mtp, no -md sidecar.
 # Draft depth kept at Swift 1.0's value for a like-for-like start; the Q4_0
