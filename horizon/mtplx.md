@@ -1,7 +1,13 @@
 # MTPLX
 
-**Status:** blocked (29 Sep 2026; retired from runs since late Sep 2026). Its memory admission can deadlock a
-long coding-agent conversation, and neither report has a fix yet.
+**Status:** back in the queue (3 Oct 2026). MTPLX 2.12.1 (2 Oct) closed issue 567, the compaction deadlock below:
+idle conversations are released before anything is refused, and the author ran a real pi compaction of a 205k-token
+Flash-Next session on a 128 GB Mac with no refusal. 2.12.2 (3 Oct, 01:01 BST) fixes a 2.12.1 regression on small
+Macs. The owner asked for the latest version and a five-run series: 2.12.2 is installed on the M5 Max (`uv tool`,
+version confirmed), the combination's floor is 2.12.2, and `v2-mtplx2122-r1` to `-r5` are queued behind the
+mlx-serve 26.10.1 series. The default memory limit on 128 GB is now 90 GiB, which the launcher leaves as is.
+Earlier status, kept for the record: blocked (29 Sep 2026; retired from runs since late Sep 2026). Its memory
+admission could deadlock a long coding-agent conversation, and neither report had a fix then.
 **Machine:** the M5 Max (128 GB). mlx-serve replaced it as the MLX engine; it is not used as a baseline.
 Three vidi runs exist under [mtplx-pi](../combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/).
 

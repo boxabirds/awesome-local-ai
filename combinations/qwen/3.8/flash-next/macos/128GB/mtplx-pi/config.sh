@@ -29,7 +29,11 @@ SYSTEM_PACKAGES=()
 # recommendedMaxWorkingSetSize on a 128 GB M5 Max is 110,100 MiB, so this fits
 # with room; on a 64 GB machine it does not, at any context.
 MIN_DEVICE_MEM_MIB=92000
-MIN_MTPLX_VERSION="2.10.0"
+# 2.12.1 (2 Oct 2026) rewrote the memory guard that refused pi's compaction requests with 507 near the limit
+# (MTPLX issue 567, our report; closed as fixed). 2.12.2 (3 Oct 2026) fixes a 2.12.1 regression on small Macs.
+# On a 128 GB Mac the engine's default memory limit is now 90 GiB; the launcher passes none, so that default is
+# what runs. Runs on this version are named for it (v2-mtplx2122-r*) and never pooled with the canvas-pi-* runs.
+MIN_MTPLX_VERSION="2.12.2"
 
 # ---- weights --------------------------------------------------------------
 # MTPLX pulls whole model packs into its own cache rather than single files, so
