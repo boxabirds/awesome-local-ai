@@ -89,13 +89,8 @@ a.record-link:hover .record-of { color: var(--run); }
 .legend-row .legend i.q-running { animation: none; }
 
 /* ---------- time bars ---------- */
-.rp-bars { display: grid; gap: 2px; }
-.rp-bar-row { display: grid; grid-template-columns: 22px minmax(225px, 390px) minmax(0, 1fr) 64px 120px; gap: 10px; align-items: center; padding: 3px 0; }
-.rp-bar-label { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rp-bar-label a.story-run-link, .story-cell a.story-run-link, .siblings a.story-run-link, .prevnext a.story-run-link, .live-steps a.story-run-link { font-size: inherit; margin: 0; color: var(--ink); }
 .bar-link { display: block; }
-.rp-bar-total { text-align: right; font-size: 13px; }
-.rp-bar-check { font-size: 12px; white-space: nowrap; }
 .no-split { font-size: 12px; color: var(--faint); }
 .row-state { font-size: 12px; font-style: italic; color: var(--faint); }
 .rs-cell a.story-run-link { border: 0; margin: 0; display: block; padding: 0; line-height: 0; }
@@ -202,7 +197,6 @@ td[data-flagged="true"] { background: color-mix(in srgb, var(--part) 12%, transp
 .rp-related li { font-size: 13px; }
 
 @media (max-width: 1100px) {
-  .rp-bar-row { grid-template-columns: 22px minmax(180px, 300px) minmax(0, 1fr) 56px 120px; }
   .split-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
@@ -211,3 +205,26 @@ td[data-flagged="true"] { background: color-mix(in srgb, var(--part) 12%, transp
   .run-links { margin-left: 0; }
 }
 }
+
+/* The Stories table: one row per story; the title column is 390 px, the bar takes what is left. */
+table.rp-table.stories-table { table-layout: fixed; width: 100%; min-width: 1240px; }
+.rp-table.stories-table th, .rp-table.stories-table td { padding: 4px 8px; vertical-align: middle; }
+.rp-table.stories-table th, .rp-table.stories-table th.n { white-space: normal; vertical-align: bottom; line-height: 1.25; }
+.stories-table .c-square { width: 34px; }
+.stories-table .c-held { width: 64px; }
+.stories-table .c-title { width: 390px; }
+.stories-table .c-time { width: 64px; }
+.stories-table .c-calls { width: 60px; }
+.stories-table .c-outTokens { width: 84px; }
+.stories-table .c-inputRead { width: 76px; }
+.stories-table .c-cached { width: 60px; }
+.stories-table .c-tokS { width: 80px; }
+.stories-table .c-draftAcceptance { width: 56px; }
+.stories-table .c-all { width: 76px; }
+.stories-table .rp-bar-label { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stories-table .rp-bar-label a.story-run-link { font-size: inherit; margin: 0; color: var(--ink); }
+.stories-table .rp-bar-total { text-align: right; font-size: 13px; }
+.stories-table .rp-bar-check { font-size: 12px; white-space: nowrap; }
+.stories-table .bar-cell { padding-right: 14px; }
+.stories-table .held { font-weight: 650; }
+.stories-table td.n { text-align: right; }

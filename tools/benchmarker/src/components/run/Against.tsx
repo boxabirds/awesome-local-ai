@@ -8,7 +8,7 @@ import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
 import { Missing, Section, Term, full } from "./bits.tsx";
 import { conversationPartHref, SplitBar } from "./SplitBar.tsx";
-import { NO_SPLIT } from "./RunTime.tsx";
+import { NO_SPLIT } from "./RunStories.tsx";
 import { pct } from "./RunCost.tsx";
 
 const SHOW: Record<AgainstKey, (n: number) => string> = { heldOut: pct, minutes: duration, outTokens: short, calls: full, thinking: short, largestThinking: short };

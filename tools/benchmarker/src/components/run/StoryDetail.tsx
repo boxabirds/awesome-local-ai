@@ -7,7 +7,7 @@ import { duration } from "../../format.ts";
 import { Missing, NotApplicable, Section, Stat, Term, full } from "./bits.tsx";
 import { conversationPartHref, SegmentLegend, SplitBar } from "./SplitBar.tsx";
 import { conversationHref } from "../../../shared/routes.ts";
-import { NO_SPLIT } from "./RunTime.tsx";
+import { NO_SPLIT } from "./RunStories.tsx";
 import { EngineSpeed, pct, speed } from "./RunCost.tsx";
 
 const RATIO_DECIMALS = 1;
