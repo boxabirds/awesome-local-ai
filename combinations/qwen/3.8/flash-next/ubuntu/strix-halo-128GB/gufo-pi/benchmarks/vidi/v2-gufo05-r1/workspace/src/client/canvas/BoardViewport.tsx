@@ -103,6 +103,17 @@ function releasePointer(element: HTMLElement, pointerId: number): void {
   }
 }
 
+/**
+ * The selection rectangle, as the viewport sees it: a drag on empty space that
+ * selects instead of panning. `App` builds it from `useMarquee`.
+ */
+export interface BoardViewportMarquee {
+  begin(point: { x: number; y: number }): void;
+  move(point: { x: number; y: number }): void;
+  end(): void;
+  cancel(): void;
+}
+
 export interface BoardViewportProps {
   children?: ReactNode;
   /**
@@ -115,9 +126,19 @@ export interface BoardViewportProps {
    * clicked, not dragged.
    */
   onEmptyClick?(): void;
+  /**
+   * Shift + drag on empty space draws a selection rectangle instead of panning
+   * (`sel.marquee`). Without it, Shift+drag pans, as it did before story 7.
+   */
+  marquee?: BoardViewportMarquee;
 }
 
-export function BoardViewport({ children, onEmptyDoubleClick, onEmptyClick }: BoardViewportProps) {
+export function BoardViewport({
+  children,
+  onEmptyDoubleClick,
+  onEmptyClick,
+  marquee,
+}: BoardViewportProps) {
   const nav = useCameraContext();
   const viewportRef = useRef<HTMLDivElement | null>(null);
   /** Latest nav, so native listeners are attached once and never go stale. */
@@ -128,29 +149,52 @@ export function BoardViewport({ children, onEmptyDoubleClick, onEmptyClick }: Bo
   emptyClickRef.current = onEmptyClick;
   /** Baseline of the current Safari pinch, so scale deltas compound correctly. */
   const gestureScaleRef = useRef(1);
-  /** Where the current press on empty space started, and whether it moved. */
-  const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  /** Latest marquee behaviour, for the same reason. */
+  const marqueeRef = useRef(marquee);
+  marqueeRef.current = marquee;
+  /**
+   * Where the current press on empty space started, whether it moved, and what it is
+   * doing: panning the board, or drawing a selection rectangle. A press is one or the
+   * other, decided at pointerdown by Shift, and never both — a drag that panned and
+   * selected at once would be unusable.
+   */
+  const pressRef = useRef<
+    { x: number; y: number; moved: boolean; mode: 'pan' | 'marquee' } | null
+  >(null);
 
   const localPoint = useCallback((clientX: number, clientY: number) => {
     const rect = viewportRef.current?.getBoundingClientRect();
     return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
   }, []);
 
-  // --- Drag to pan -------------------------------------------------------
+  // --- Drag to pan, or Shift+drag to select ------------------------------
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     // Only empty board space starts a pan; objects (story 2) stop propagation.
     if (event.target !== viewportRef.current) return;
     const point = localPoint(event.clientX, event.clientY);
-    pressRef.current = { x: point.x, y: point.y, moved: false };
     capturePointer(event.currentTarget, event.pointerId);
+    if (event.shiftKey && marqueeRef.current) {
+      // Shift turns a drag on empty space into a selection rectangle, and the board
+      // stays exactly where it is: selecting a region must not move it.
+      pressRef.current = { x: point.x, y: point.y, moved: false, mode: 'marquee' };
+      marqueeRef.current.begin(point);
+      return;
+    }
+    pressRef.current = { x: point.x, y: point.y, moved: false, mode: 'pan' };
     nav.beginPan(point);
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const press = pressRef.current;
+    if (press?.mode === 'marquee') {
+      // The rectangle follows the pointer with no threshold: from the moment the
+      // person Shift-presses, the box is what they are drawing.
+      marqueeRef.current?.move(localPoint(event.clientX, event.clientY));
+      return;
+    }
     if (!nav.isPanning) return;
     const point = localPoint(event.clientX, event.clientY);
-    const press = pressRef.current;
     if (press && !press.moved) {
       const distance = Math.hypot(point.x - press.x, point.y - press.y);
       // Below the threshold the camera does not move, so a click on empty space
@@ -161,15 +205,25 @@ export function BoardViewport({ children, onEmptyDoubleClick, onEmptyClick }: Bo
     nav.panMove(point);
   };
 
-  const handlePointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const handlePointerEnd = (event: ReactPointerEvent<HTMLDivElement>, cancelled = false) => {
+    const press = pressRef.current;
+    if (press?.mode === 'marquee') {
+      releasePointer(event.currentTarget, event.pointerId);
+      pressRef.current = null;
+      // Released: what is inside the box joins the selection. Interrupted: the box
+      // goes away and the selection is left exactly as it was.
+      if (cancelled) marqueeRef.current?.cancel();
+      else marqueeRef.current?.end();
+      return;
+    }
     if (!nav.isPanning) return;
     releasePointer(event.currentTarget, event.pointerId);
     // The board stays where it was when the drag ended or was interrupted.
     nav.endPan();
-    const press = pressRef.current;
     pressRef.current = null;
-    // A press on empty space that never became a pan deselects everything.
-    if (press && !press.moved) emptyClickRef.current?.();
+    // A press on empty space that never became a pan deselects everything — but an
+    // interrupted one is not a click, and leaves the selection alone.
+    if (press && !press.moved && !cancelled) emptyClickRef.current?.();
   };
 
   // --- Wheel, trackpad and Safari gesture --------------------------------
@@ -289,9 +343,11 @@ export function BoardViewport({ children, onEmptyDoubleClick, onEmptyClick }: Bo
       style={gridBackgroundStyle(camera)}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerEnd}
-      onPointerCancel={handlePointerEnd}
-      onLostPointerCapture={handlePointerEnd}
+      onPointerUp={(event) => handlePointerEnd(event)}
+      // An interrupted drag never selects: the rectangle is put away and the
+      // selection it was about to change is left alone.
+      onPointerCancel={(event) => handlePointerEnd(event, true)}
+      onLostPointerCapture={(event) => handlePointerEnd(event, true)}
       onDoubleClick={(event) => {
         // Only empty board space: an object stops the event before it gets here.
         if (event.target !== viewportRef.current) return;

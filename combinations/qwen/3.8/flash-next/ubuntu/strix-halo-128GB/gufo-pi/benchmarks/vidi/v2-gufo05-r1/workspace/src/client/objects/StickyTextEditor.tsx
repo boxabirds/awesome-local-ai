@@ -23,13 +23,17 @@ import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { applyTextDiff, clampToLimit, counterVisible, fitFontSize, shiftCaret } from './StickyText';
-import type { EndEditNext } from '../board/useSelection';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
   /** Font size the note is rendered at, in world units. */
   fontPx: number;
-  onEnd(next: EndEditNext): void;
+  /**
+   * Leave editing. The selection is left alone: Escape keeps the note selected
+   * (`sticky.text`), and clicking away is the board's own click, which clears it
+   * (`sel.clear`).
+   */
+  onEnd(): void;
 }
 
 /** The note element this node sits inside, for the "clicked outside" test. */
@@ -143,7 +147,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       const element = textareaRef.current;
       if (!element) return;
       if (noteAround(event.target) === noteAround(element)) return; // inside this note
-      onEndRef.current('unselected');
+      onEndRef.current();
     };
     document.addEventListener('pointerdown', onPointerDown, true);
     return () => document.removeEventListener('pointerdown', onPointerDown, true);
@@ -174,7 +178,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
           if (event.key !== 'Escape') return; // Enter belongs to the textarea
           event.preventDefault(); // the board must not react to it either
           event.stopPropagation();
-          onEndRef.current('selected');
+          onEndRef.current();
         }}
         onBlur={() => {
           const element = textareaRef.current;

@@ -174,3 +174,27 @@ export const STORAGE_SCHEMA_VERSION = 1;
  * thrown away, and the room cannot stop a write that has already begun.
  */
 export const STORAGE_WRITE_BUDGET_MS = BOARD_LOAD_BUDGET_MS / 4;
+
+/* Selecting and transforming objects (story 7) --------------------------------*/
+
+/**
+ * The side of one resize handle, in screen pixels. Handles keep this size at any
+ * zoom, which is why the overlay is drawn in screen space rather than in the
+ * world layer.
+ */
+export const HANDLE_SIZE_PX = 8;
+
+/** The smallest a sticky note may be resized to, in world units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/**
+ * The largest any board object may be resized to, in world units. One number for
+ * every object type: a type declares its minimum, the maximum is the board's.
+ */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** One press of an arrow key moves the selection this many world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Shift + an arrow key moves it this many. */
+export const NUDGE_LARGE_STEP_WORLD = 10;

@@ -11,6 +11,9 @@
  *   what is typed here will go out when it returns.
  * - `confirmed` — green, for CONNECTED_CONFIRMATION_MS after a reconnection: the
  *   catch-up happened, and then the badge hides itself.
+ * - `load_failed` — red, and it stays: the server would not hand over this board, so
+ *   the board is showing nothing real and cannot be edited (`canEdit`). It is the one
+ *   message that is not about the connection coming back, so it does not time out.
  *
  * It is a `role="status"` live region, so a screen reader hears the connection
  * change without the board losing focus, and it never takes a click: the note
@@ -18,10 +21,29 @@
  */
 import type { ConnectionState } from './connectBoard';
 
+/**
+ * May this board write to its document?
+ *
+ * `canEdit` sits with the badge because the badge is where these states are explained,
+ * and this is the one decision they drive that reaches beyond it: every editing handler
+ * on the board asks before it writes.
+ *
+ * Everything except a board the server would not load. In every other state the local
+ * document is the real one, and what is typed while the connection is down goes out
+ * with the next sync (`live.catch_up`); on a board that failed to load there is no such
+ * document, and anything written here would be discarded — so the board refuses the
+ * gestures that would write, while still letting the person select and look
+ * (`TC-25`, and story 4's TC-23).
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
 export const CONNECTION_STATUS_TEXT: Record<Exclude<ConnectionState, 'connected'>, string> = {
   connecting: 'Connecting\u2026',
   reconnecting: 'Reconnecting\u2026',
   confirmed: 'Connected',
+  load_failed: "This board couldn't be loaded. Retrying\u2026",
 };
 
 export interface ConnectionStatusProps {

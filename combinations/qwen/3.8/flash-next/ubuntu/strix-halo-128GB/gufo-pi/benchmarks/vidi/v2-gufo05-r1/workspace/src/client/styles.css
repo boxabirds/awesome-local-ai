@@ -234,10 +234,12 @@ button:focus-visible {
   cursor: grabbing;
 }
 
-.sticky-note--selected {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 0;
-}
+/*
+ * The note's own outline is gone: story 7 draws one outline per selected object in
+ * `SelectionOverlay`, in screen space, so that a note, a shape and a drawing all look
+ * selected the same way (`sel.all_types`). The class stays, because it is how the
+ * selected state is expressed to tests and assistive technology.
+ */
 
 .sticky-note__text {
   position: absolute;
@@ -299,15 +301,121 @@ button:focus-visible {
   pointer-events: none;
 }
 
-/* The toolbar sits above the note in screen space: the anchor is counter-scaled
-   by 1 / zoom so it keeps its size instead of growing with the board. */
-.sticky-note__toolbar-anchor {
+/*
+ * Selection, handles, the selection bar and the marquee (story 7).
+ *
+ * All four live in screen space, above the board — except the marquee, which lives
+ * inside the world layer so it stays glued to the board while it is dragged, and whose
+ * border width is divided by the zoom where it is rendered.
+ *
+ * Nothing here sets a size in world units: a handle is 8 screen pixels at 10% zoom and
+ * at 400%, which is why it could not live in the world layer at all.
+ */
+
+.selection-overlay {
   position: absolute;
-  left: 0;
-  bottom: 100%;
-  transform-origin: bottom left;
-  padding-bottom: 6px;
+  inset: 0;
+  /* The overlay describes the selection; it must never take a pointer that belongs to
+     the board underneath it. The handles switch pointer events back on. */
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* A thin outline on each selected object, in the selection's own blue. */
+.selection-overlay__item {
+  position: absolute;
+  border: 1px solid var(--focus-ring);
+  border-radius: 2px;
+}
+
+/* One box around the whole selection, which the handles sit on. */
+.selection-overlay__box {
+  position: absolute;
+  border: 1px solid var(--focus-ring);
+  border-radius: 3px;
+  opacity: 0.7;
+}
+
+.selection-handle {
+  position: absolute;
+  /* HANDLE_SIZE_PX, width and height, is set inline from the product setting. */
+  padding: 0;
+  border: 1px solid var(--focus-ring);
+  border-radius: 1px;
+  background-color: #ffffff;
   pointer-events: auto;
+  appearance: none;
+}
+
+.selection-handle:hover {
+  background-color: var(--focus-ring);
+}
+
+/* The bar above the selection: "N selected" and one delete button. */
+.selection-anchor {
+  position: absolute;
+  /* Centre horizontally on the selection, and sit above it. */
+  transform: translate(-50%, calc(-100% - 10px));
+  z-index: 21;
+}
+
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
+  white-space: nowrap;
+}
+
+.selection-bar__count {
+  padding: 0 4px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.selection-bar__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.selection-bar__delete:hover {
+  border-color: #c63a2f;
+  color: #c63a2f;
+}
+
+/* Exactly one sticky note selected: story 2's toolbar, in the same place. */
+.selection-bar--note {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+/* Light blue and translucent, so the board is still readable through it. */
+.marquee {
+  position: absolute;
+  border-style: solid;
+  border-color: var(--focus-ring);
+  background-color: rgb(47 111 237 / 18%);
+  pointer-events: none;
+}
+
+/* The board is being dragged or resized: nothing under the pointer changes cursor. */
+.transform--active .board-viewport {
+  cursor: grabbing;
 }
 
 .note-toolbar {

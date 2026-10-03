@@ -6,12 +6,13 @@
  * exponential backoff). What is decided *here* is what the person sees while it
  * talks, because the provider's own words do not map onto them:
  *
- * | provider                     | shown        |
- * |------------------------------|--------------|
- * | connecting, never synced yet | "Connecting…" |
- * | connected and synced         | nothing       |
- * | disconnected after syncing   | "Reconnecting…" |
+ * | provider                     | shown         |
+ * |------------------------------|---------------|
+ * | connecting, never synced yet | "Connecting…"  |
+ * | connected and synced         | nothing        |
+ * | disconnected after syncing   | "Reconnecting…"|
  * | synced again after that      | "Connected" for CONNECTED_CONFIRMATION_MS |
+ * | closed with 4500             | "This board couldn't be loaded. Retrying…" |
  *
  * `connected` from the provider only means the socket is open — the boards have
  * not met yet. That is why the two "we are in sync" transitions are read from the
@@ -27,14 +28,31 @@ import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 import { setTestConnectionState } from '../canvas/testHooks';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+/**
+ * What the badge says the connection is doing.
+ *
+ * `load_failed` is the odd one out: it is not about the connection working or not —
+ * the socket works perfectly — but about the room refusing to hand over this board
+ * because it could not be read from storage. It is the one state the board may not be
+ * edited in (`canEdit`, in `ConnectionStatus`), because changes made here would be
+ * thrown away.
+ */
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
 
 /** Anything the provider tells us that changes what the badge should say. */
 export type ConnectionEvent =
   | { type: 'status'; status: 'connecting' | 'connected' | 'disconnected' }
-  | { type: 'sync'; synced: boolean };
+  | { type: 'sync'; synced: boolean }
+  /** The socket was closed by the other end; `code` is why (4500 = we cannot load this). */
+  | { type: 'close'; code: number };
 
 /**
  * The minimum the state machine needs to know about a connection: when it changes,
@@ -82,6 +100,25 @@ export function trackConnection(
   };
 
   const unsubscribe = signals.subscribe((event) => {
+    if (event.type === 'close') {
+      // Only the room's own "this board could not be loaded" counts. Any other close
+      // — 1011, 1003, a dropped cable — is a connection problem, and the board stays
+      // editable while it retries (story 4's TC-28).
+      if (event.code === CLOSE_BOARD_LOAD_FAILED) {
+        stopConfirmation();
+        write('load_failed');
+      }
+      return;
+    }
+    if (state === 'load_failed') {
+      // The room is refusing this board: a status change or a stale sync flag means
+      // nothing while that is true. What does end the state is a real sync, below,
+      // once the room has been repaired and lets this board in.
+      if (event.type !== 'sync' || !event.synced) return;
+      // The room let this board in after all: treat it the way a reconnection that
+      // caught up is treated, so the person is told the board is live again.
+      everSynced = true;
+    }
     if (event.type === 'status') {
       // Only a connection that was cut counts as "reconnecting": one that has not
       // started yet is still "connecting", and a retry while already reconnecting
@@ -168,11 +205,18 @@ export function connectBoard(
       const onSync = (synced: boolean) => {
         listener({ type: 'sync', synced });
       };
+      // The room says "this board could not be loaded" by closing the socket with its
+      // own code, and nothing else: this is the only place that hears it.
+      const onClose = (event: CloseEvent | null) => {
+        if (event) listener({ type: 'close', code: event.code });
+      };
       provider.on('status', onStatus);
       provider.on('sync', onSync);
+      provider.on('connection-close', onClose);
       return () => {
         provider.off('status', onStatus);
         provider.off('sync', onSync);
+        provider.off('connection-close', onClose);
       };
     },
     synced: () => provider.synced,

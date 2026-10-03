@@ -4,55 +4,59 @@
  * `CameraProvider` owns the camera (`useCamera`); `BoardLayout` reads it and
  * wires it to the viewport, the zoom controls and the navigation hint, and adds
  * the collaborative layer: the shared document (`useBoardDoc`), the local
- * selection (`useSelection`) and the sticky notes drawn from the snapshot.
+ * selection (`useSelection`) and the objects drawn from the snapshot.
  *
- * Two things are deliberately not in React state and not in the document:
- * selection/editing (local only, see `useSelection`) and the camera (story 1).
+ * Story 7 moved the board's whole way of drawing objects through here: `App` asks the
+ * registry what a type is and renders the component it answers with, and it passes the
+ * same `ObjectProps` to every one of them. That is why nothing below mentions sticky
+ * notes — the selection, the drag, the resize handles, the marquee and the selection bar
+ * are wired once and work for every type the registry knows, which is the promise
+ * `sel.all_types` makes for stories 9 to 12.
+ *
+ * Three things are deliberately not in the document: selection and editing (local
+ * only, see `useSelection`), the camera (story 1), and the selection rectangle, which
+ * exists only while the pointer is down.
  */
-import { useCallback, useEffect, useRef, type JSX } from 'react';
+import { useCallback, useMemo, useRef, type JSX } from 'react';
 import type * as Y from 'yjs';
 
 import { isValidBoardId } from '../shared/board-id';
-import { createSticky, deleteObject } from '../shared/board-model';
+import {
+  createSticky,
+  deleteObjects,
+  objectBounds,
+  type ObjectSnapshot,
+} from '../shared/board-model';
+import { unionRects } from '../shared/geometry';
+import { MarqueeRect } from './board/Marquee';
+import { SelectionBar } from './board/SelectionBar';
+import { SelectionOverlay } from './board/SelectionOverlay';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
+import { useBoardKeys } from './board/useBoardKeys';
+import { useMarquee } from './board/useMarquee';
 import { useSelection } from './board/useSelection';
+import { useTransformGesture } from './board/useTransformGesture';
 import { BoardViewport } from './canvas/BoardViewport';
 import { CameraProvider, useCameraContext } from './canvas/CameraContext';
 import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
-import { ConnectionStatus } from './sync/ConnectionStatus';
+import { getObjectType, isRenderable } from './objects/registry';
+import { ConnectionStatus, canEdit as connectionAllowsEditing } from './sync/ConnectionStatus';
 import {
   canZoomIn,
   canZoomOut,
   screenToWorld,
+  worldToScreen,
   zoomPercent,
+  type Camera,
   type Point,
 } from './canvas/camera';
 import { useWindowSize } from './canvas/useCamera';
-import { StickyNote } from './objects/StickyNote';
 import { useRoute } from './router';
 import { BoardPage } from './pages/BoardPage';
 import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
-
-/**
- * Whether the focused thing takes the key for itself: a field you type into,
- * or a control that acts on Enter. Pressing Enter on the delete bin has to press
- * the bin, not start editing the note behind it.
- */
-function takesItsOwnKeys(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (
-    target.isContentEditable ||
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.tagName === 'SELECT'
-  ) {
-    return true;
-  }
-  return target.tagName === 'BUTTON' || target.tagName === 'A';
-}
 
 export interface AppProps {
   /** Bring your own document; the default is a fresh one (tests pass one). */
@@ -98,59 +102,87 @@ export function AppRoot(): JSX.Element {
   return <NotFoundPage />;
 }
 
+/**
+ * Where the selection bar goes: centred above the selection's bounding box, in screen
+ * pixels, so it stays the same size however far the board is zoomed out.
+ *
+ * Returns null when nothing is selected. The bar is positioned here, and not by
+ * `SelectionBar`, because only this component has the camera.
+ */
+function selectionAnchor(
+  camera: Camera,
+  objects: readonly ObjectSnapshot[],
+  ids: ReadonlySet<string>,
+): Point | null {
+  const rects = objects.filter((object) => ids.has(object.id)).map(objectBounds);
+  const box = unionRects(rects);
+  if (!box) return null;
+  return worldToScreen(camera, { x: box.x + box.width / 2, y: box.y });
+}
+
 function BoardLayout({ doc, boardId }: AppProps) {
   const nav = useCameraContext();
   const { camera } = nav;
   const viewport = useWindowSize();
   const board = useBoardDoc(boardId, doc);
-  const selection = useSelection();
-  const { notes } = board;
 
-  // Latest values for listeners that are attached once.
-  const latestRef = useRef({ camera, selection, doc: board.doc });
-  latestRef.current = { camera, selection, doc: board.doc };
+  // What this build can draw. Every gesture, the outlines and the bar work on this
+  // list, never on the whole document: an object whose type has no component is not
+  // drawn, cannot be selected by the marquee or by select-all, and cannot be moved —
+  // which is what keeps an object from a newer client from being half-handled here
+  // (`sel.registry`).
+  const objects = useMemo(
+    () => board.objects.filter((object) => isRenderable(object.type)),
+    [board.objects],
+  );
 
-  // A note that disappears stops being selected *and* stops being edited, so the
-  // toolbars and the keyboard never point at a note that is not there. With a room
-  // attached, a note can disappear without this keyboard touching it: somebody else
-  // deleted it while this person was typing in it or dragging it, and the editor
-  // closes on the deletion, not on a keystroke.
-  useEffect(() => {
-    const { selectedId, editingId } = selection;
-    if (selectedId === null && editingId === null) return;
-    const stillThere = (id: string | null) => id !== null && notes.some((note) => note.id === id);
-    if (stillThere(selectedId) && stillThere(editingId)) return;
-    if (editingId !== null && !stillThere(editingId)) selection.endEdit('unselected');
-    else if (!stillThere(selectedId)) selection.select(null);
-  }, [notes, selection]);
+  const selection = useSelection(objects);
+  const canEdit = connectionAllowsEditing(board.connectionState);
 
-  // Enter edits the selected note; Delete/Backspace removes it. While a note is
-  // being edited these keys belong to the textarea, so nothing happens here.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (takesItsOwnKeys(event.target)) return;
-      const { selection: sel, doc: document } = latestRef.current;
-      if (sel.editingId !== null) return;
-      const id = sel.selectedId;
-      if (id === null) return;
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        event.preventDefault();
-        deleteObject(document, id);
-        sel.select(null);
-      } else if (event.key === 'Enter') {
-        event.preventDefault();
-        sel.startEdit(id);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  // Latest values for the callbacks that are created once.
+  const latestRef = useRef({ camera, selection, doc: board.doc, connectionState: board.connectionState });
+  latestRef.current = { camera, selection, doc: board.doc, connectionState: board.connectionState };
+
+  /** Delete everything selected, and clear the selection (`sel.group_delete`). */
+  const deleteSelection = useCallback(() => {
+    if (!canEdit) return;
+    deleteObjects(latestRef.current.doc, [...latestRef.current.selection.ids]);
+    latestRef.current.selection.clear();
+  }, [canEdit]);
+
+  // Shift+drag on empty space. It adds to the selection, so a second rectangle grows
+  // it instead of starting over (`sel.marquee`).
+  const marquee = useMarquee(camera, objects, (ids) => {
+    selection.setMany(ids, true);
+  });
+
+  // Drag an object: move the selection. Drag a handle: resize it.
+  const gesture = useTransformGesture({
+    doc: board.doc,
+    camera,
+    selection,
+    snapshot: objects,
+    canEdit,
+  });
+
+  useBoardKeys({
+    doc: board.doc,
+    selection,
+    snapshot: objects,
+    canEdit,
+    marqueeActive: () => marquee.active,
+  });
 
   /** Put a note on the board centred on a world point and start typing it. */
   const createAt = useCallback(
     (point: Point) => {
+      if (!connectionAllowsEditing(latestRef.current.connectionState)) return;
       const id = createSticky(latestRef.current.doc, point);
       if (!id) return;
+      // The note is new, so the selection has not heard of it yet: say that it exists
+      // before selecting it, or the check that keeps a stale id out of a selection
+      // would keep this one out too.
+      selection.add(id);
       selection.startEdit(id);
     },
     [selection],
@@ -160,8 +192,10 @@ function BoardLayout({ doc, boardId }: AppProps) {
     createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }));
   }, [camera, createAt, viewport.height, viewport.width]);
 
+  const anchor = selectionAnchor(camera, objects, selection.ids);
+
   return (
-    <div className="app">
+    <div className={`app${gesture.isTransforming ? ' transform--active' : ''}`}>
       <ConnectionStatus state={board.connectionState} />
       <Toolbar onCreateSticky={createAtCentre} />
       <BoardViewport
@@ -169,23 +203,61 @@ function BoardLayout({ doc, boardId }: AppProps) {
           createAt(screenToWorld(camera, point));
         }}
         onEmptyClick={() => {
-          selection.select(null);
+          // A click on empty board space, with no drag: the selection goes away
+          // (`sel.clear`).
+          selection.clear();
         }}
+        marquee={marquee}
       >
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={board.doc}
-            zoom={camera.zoom}
-            selected={selection.selectedId === note.id}
-            editing={selection.editingId === note.id}
-            onSelect={selection.select}
-            onStartEdit={selection.startEdit}
-            onEndEdit={selection.endEdit}
-          />
-        ))}
+        {objects.map((object) => {
+          const spec = getObjectType(object.type);
+          if (!spec) return null; // filtered above; the compiler does not know that
+          const Component = spec.Component;
+          return (
+            <Component
+              key={object.id}
+              obj={object}
+              doc={board.doc}
+              zoom={camera.zoom}
+              selected={selection.has(object.id)}
+              editing={selection.editingId === object.id}
+              canEdit={canEdit}
+              onObjectPointerDown={gesture.onObjectPointerDown}
+              onFocusSelect={selection.selectOnly}
+              onStartEdit={selection.startEdit}
+              onEndEdit={selection.endEdit}
+            />
+          );
+        })}
+        <MarqueeRect rect={marquee.rect} camera={camera} />
       </BoardViewport>
+      {/*
+       * Screen space, above the board: the bar first, then the outlines and handles.
+       *
+       * The order is the tab order. A person on a keyboard who has selected a note reaches
+       * its colours and its bin before the eight resize handles, which is what story 2
+       * established and what eight new stops would otherwise have buried. z-index, not
+       * this order, decides what is drawn on top.
+       */}
+      {anchor && !gesture.isTransforming ? (
+        <div
+          className="selection-anchor"
+          style={{ left: anchor.x, top: anchor.y }}
+        >
+          <SelectionBar
+            ids={selection.ids}
+            snapshot={objects}
+            doc={board.doc}
+            onDelete={deleteSelection}
+          />
+        </div>
+      ) : null}
+      <SelectionOverlay
+        selection={[...selection.ids]}
+        snapshot={objects}
+        camera={camera}
+        onHandlePointerDown={gesture.onHandlePointerDown}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

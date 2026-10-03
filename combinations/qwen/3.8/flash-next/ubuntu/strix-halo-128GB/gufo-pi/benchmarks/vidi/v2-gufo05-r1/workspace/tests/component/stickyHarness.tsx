@@ -43,7 +43,7 @@ export interface StickyAppHandle {
   note(index?: number): HTMLElement;
   /** Add a note through the model and let the board render it. */
   addNote(centre?: { x: number; y: number }): Promise<string>;
-  press(target: Node | Window, x: number, y: number): Promise<void>;
+  press(target: Node | Window, x: number, y: number, init?: { shift?: boolean }): Promise<void>;
   moveTo(x: number, y: number): Promise<void>;
   release(x: number, y: number): Promise<void>;
   /** Press and release in the same place: a click. */
@@ -57,16 +57,38 @@ export interface StickyAppHandle {
   cancel(): Promise<void>;
   /** The currently rendered note ids, in stacking order. */
   noteIds(): string[];
+  /** Every rendered object, any type, in document order. */
+  objectElements(): HTMLElement[];
+  /** The ids the board marks as selected — the outline, the bar and the drag all agree with this. */
+  selectedIds(): string[];
+  /** One outline per selected object; the box and the handles only exist for a selection. */
+  overlayItems(): HTMLElement[];
+  overlayBox(): HTMLElement | null;
+  handles(): HTMLElement[];
+  handle(id: string): HTMLElement | null;
+  /** The bar above the selection, and what it says. */
+  selectionBar(): HTMLElement | null;
+  countLabel(): string | null;
+  /** The marquee rectangle, present only while one is being dragged. */
+  marqueeElement(): HTMLElement | null;
   /** The editor's textarea, when a note is being edited. */
   textarea(): HTMLTextAreaElement;
   /** Type as a user would: set the value, then fire `input`. */
   type(value: string): Promise<void>;
 }
 
-/** Mount the app around a given document. */
-export async function renderStickyApp(doc: Y.Doc = new Y.Doc()): Promise<StickyAppHandle> {
+/**
+ * Mount the app around a given document.
+ *
+ * Pass `boardId` to mount a board that has a room — and so a connection that can fail.
+ * Without one the document is purely local, which is what most of these tests want.
+ */
+export async function renderStickyApp(
+  doc: Y.Doc = new Y.Doc(),
+  boardId?: string,
+): Promise<StickyAppHandle> {
   initDoc(doc);
-  render(<App doc={doc} />);
+  const { container } = render(<App doc={doc} boardId={boardId} />);
   await advanceFrames();
 
   const api = () => window.__vidi6;
@@ -77,7 +99,12 @@ export async function renderStickyApp(doc: Y.Doc = new Y.Doc()): Promise<StickyA
    */
   let pressed: Node | Window | null = null;
 
-  const press = async (target: Node | Window, x: number, y: number) => {
+  const press = async (
+    target: Node | Window,
+    x: number,
+    y: number,
+    init: { shift?: boolean } = {},
+  ) => {
     pressed = target;
     await act(async () => {
       fireEvent.pointerDown(target, {
@@ -88,9 +115,12 @@ export async function renderStickyApp(doc: Y.Doc = new Y.Doc()): Promise<StickyA
         buttons: 1,
         isPrimary: true,
         pointerType: 'mouse',
+        shiftKey: init.shift ?? false,
       });
     });
   };
+
+  const data = (element: HTMLElement, name: string) => element.dataset[name] ?? '';
 
   const moveTo = async (x: number, y: number) => {
     const target = pressed ?? screen.queryByTestId('board-viewport');
@@ -153,6 +183,23 @@ export async function renderStickyApp(doc: Y.Doc = new Y.Doc()): Promise<StickyA
     },
     noteElements: () => [...screen.getAllByTestId('sticky-note')] as HTMLElement[],
     note: (index = 0) => handle.noteElements()[index] as HTMLElement,
+    objectElements: () =>
+      [...container.querySelectorAll<HTMLElement>('[data-object-id]')] as HTMLElement[],
+    selectedIds: () =>
+      [...container.querySelectorAll<HTMLElement>('[data-selected="true"]')]
+        .map((element) => data(element, 'objectId'))
+        .filter((id) => id !== ''),
+    overlayItems: () =>
+      [...container.querySelectorAll<HTMLElement>('.selection-overlay__item')],
+    overlayBox: () => container.querySelector<HTMLElement>('.selection-overlay__box'),
+    handles: () => [...container.querySelectorAll<HTMLElement>('.selection-handle')],
+    handle: (id: string) =>
+      container.querySelector<HTMLElement>(`.selection-handle[data-handle="${id}"]`),
+    selectionBar: () => container.querySelector<HTMLElement>('.selection-bar'),
+    countLabel: () =>
+      container.querySelector<HTMLElement>('[data-testid="selection-count"]')?.textContent ??
+      null,
+    marqueeElement: () => container.querySelector<HTMLElement>('.marquee'),
     addNote: async (centre = { x: 400, y: 300 }) => {
       let id = '';
       await act(async () => {

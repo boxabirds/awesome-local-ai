@@ -14,7 +14,14 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 
-import { initDoc, snapshot, OBJECTS_KEY, type StickySnapshot } from '../../shared/board-model';
+import {
+  initDoc,
+  objectSnapshots,
+  snapshot,
+  OBJECTS_KEY,
+  type ObjectSnapshot,
+  type StickySnapshot,
+} from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 import { installTestHooks, IS_TEST_MODE } from '../canvas/testHooks';
 
@@ -22,6 +29,16 @@ export interface BoardDocHandle {
   readonly doc: Y.Doc;
   /** Notes in stacking order (z, id); frozen so React can compare by identity. */
   readonly notes: readonly StickySnapshot[];
+  /**
+   * Every object on the board, of every type this build can read, in stacking order.
+   *
+   * This is what the board draws and what the selection works on. It is not filtered
+   * by the object registry here — reading a type is the shared model's business, and
+   * drawing one is the client's — because a component that cannot draw an object must
+   * still be able to see that it exists. `App` does the filtering, once, and the
+   * selection, the marquee and select-all are built from what is left.
+   */
+  readonly objects: readonly ObjectSnapshot[];
   /**
    * What the connection to this board's room is doing. `connected` when the board
    * has no room at all (no `boardId`: a purely local document, which is what the
@@ -35,26 +52,39 @@ interface BoardStore {
   readonly doc: Y.Doc;
   subscribe(onStoreChange: () => void): () => void;
   getSnapshot(): readonly StickySnapshot[];
+  getObjects(): readonly ObjectSnapshot[];
 }
 
-/** Cheap structural comparison, so a no-op change keeps the cached identity. */
-function sameNotes(
-  left: readonly StickySnapshot[],
-  right: readonly StickySnapshot[],
-): boolean {
+/**
+ * Cheap structural comparison of two object lists, so a change that altered nothing
+ * keeps the cached identity and the board does not re-render every object.
+ *
+ * Width and height are in here because story 7 made them real: a resize is a change to
+ * the document, and a snapshot comparison that ignored it would leave the board drawing
+ * the old size until something else happened to move.
+ */
+function sameObjects(left: readonly ObjectSnapshot[], right: readonly ObjectSnapshot[]): boolean {
   if (left.length !== right.length) return false;
-  return left.every((note, index) => {
+  return left.every((object, index) => {
     const other = right[index];
-    return (
-      !!other &&
-      other.id === note.id &&
-      other.x === note.x &&
-      other.y === note.y &&
-      other.z === note.z &&
-      other.color === note.color &&
-      other.text === note.text &&
-      other.createdAt === note.createdAt
-    );
+    if (!other) return false;
+    if (
+      other.id !== object.id ||
+      other.type !== object.type ||
+      other.x !== object.x ||
+      other.y !== object.y ||
+      other.width !== object.width ||
+      other.height !== object.height ||
+      other.z !== object.z
+    ) {
+      return false;
+    }
+    // Sticky notes carry their text and colour, and typing must re-render too; any
+    // other type has no extra fields to compare, since the generic snapshot holds only
+    // what every object has in common.
+    const mine = object as Partial<StickySnapshot>;
+    const theirs = other as Partial<StickySnapshot>;
+    return mine.text === theirs.text && mine.color === theirs.color;
   });
 }
 
@@ -64,11 +94,19 @@ export function createBoardStore(doc: Y.Doc = new Y.Doc()): BoardStore {
   const objects = doc.getMap(OBJECTS_KEY);
   const listeners = new Set<() => void>();
   let cached: readonly StickySnapshot[] = snapshot(doc);
+  let cachedObjects: readonly ObjectSnapshot[] = objectSnapshots(doc);
   let attached = false;
 
-  const handleDocumentChange = () => {
+  /** Recompute both lists: they are read off the same document, in the same breath. */
+  const refresh = () => {
     const next = snapshot(doc);
-    if (!sameNotes(cached, next)) cached = next;
+    if (!sameObjects(cached, next)) cached = next;
+    const nextObjects = objectSnapshots(doc);
+    if (!sameObjects(cachedObjects, nextObjects)) cachedObjects = nextObjects;
+  };
+
+  const handleDocumentChange = () => {
+    refresh();
     for (const listener of listeners) listener();
   };
 
@@ -81,8 +119,7 @@ export function createBoardStore(doc: Y.Doc = new Y.Doc()): BoardStore {
         attached = true;
       }
       // Pick up anything written between the render and this subscription.
-      const next = snapshot(doc);
-      if (!sameNotes(cached, next)) cached = next;
+      refresh();
       return () => {
         listeners.delete(onStoreChange);
         if (listeners.size === 0 && attached) {
@@ -92,6 +129,7 @@ export function createBoardStore(doc: Y.Doc = new Y.Doc()): BoardStore {
       };
     },
     getSnapshot: () => cached,
+    getObjects: () => cachedObjects,
   };
 }
 
@@ -109,6 +147,7 @@ export function createBoardStore(doc: Y.Doc = new Y.Doc()): BoardStore {
 export function useBoardDoc(boardId?: string, existing?: Y.Doc): BoardDocHandle {
   const [store] = useState<BoardStore>(() => createBoardStore(existing));
   const notes = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const objects = useSyncExternalStore(store.subscribe, store.getObjects, store.getObjects);
   const [connectionState, setConnectionState] = useState<ConnectionState>(
     boardId === undefined || boardId === '' ? 'connected' : 'connecting',
   );
@@ -130,7 +169,7 @@ export function useBoardDoc(boardId?: string, existing?: Y.Doc): BoardDocHandle 
   }, [boardId, store.doc]);
 
   return useMemo(
-    () => ({ doc: store.doc, notes, connectionState }),
-    [store, notes, connectionState],
+    () => ({ doc: store.doc, notes, objects, connectionState }),
+    [store, notes, objects, connectionState],
   );
 }
