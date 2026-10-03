@@ -58,10 +58,11 @@ export const SUMMARY_KEYS: SummaryKey[] = ["minutes", "outTokens", "calls", "hel
 export interface StoryItem { id: string; title: string }
 
 /** The title most runs recorded for the story (runs can record it differently); ties go to the first run in run
- * order. The running story's live title when no run recorded one. "" when nothing names it. */
+ * order, finished runs first: a title is the one a finished run recorded, not one a run is still building. The
+ * running story's live title when no run recorded one. "" when nothing names it. */
 export function storyTitleOf(runs: Row[], id: string): string {
   const count = new Map<string, number>();
-  for (const r of runOrder(runs)) {
+  for (const r of runOrder(runs).toSorted((a, b) => Number(b.status === "finished") - Number(a.status === "finished"))) {
     const t = r.stories.find((s) => sameStory(s.id, id))?.title;
     if (t) count.set(t, (count.get(t) ?? 0) + 1);
   }

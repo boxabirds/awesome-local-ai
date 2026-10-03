@@ -141,9 +141,9 @@ test.describe("combination page", () => {
     await expect(tip(page)).toContainText("Lower means more predictable turnaround.");
   });
 
-  test("matrix rows: finished first, then running and queued; each with its link, status and score of record", async ({ page }) => {
-    const runs = await matrix(page).locator("tbody tr").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.run));
-    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r9", "v2-r1", "v2-r2", "v2-r3"]);
+  test("matrix rows: in progress, then queued, then finished; each with its link, status and score of record", async ({ page }) => {
+    const runs = await matrix(page).locator("tbody tr[data-run]").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.run));
+    expect(runs).toEqual(["v2-r1", "v2-r2", "v2-r3", "v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r9"]);
     await expect(rowOf(page, "v2-r5").locator("a.run-link")).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r5`);
     await expect(rowOf(page, "v2-r5").locator(".m-status")).toHaveText("✓ finished");
     await expect(rowOf(page, "v2-r5").locator(".of-record")).toHaveText("63/75");
@@ -250,8 +250,15 @@ test.describe("combination page", () => {
     await expect(link("v2-r4", "2")).toBeFocused();
     await page.keyboard.press("ArrowDown");
     await expect(link("v2-r5", "2")).toBeFocused();
-    for (const run of ["v2-r6", "v2-r7", "v2-r9", "v2-r1"]) { await page.keyboard.press("ArrowDown"); await expect(link(run, "2")).toBeFocused(); }
-    await page.keyboard.press("ArrowDown");                                                   // the queued runs have nothing: stays
+    for (const run of ["v2-r6", "v2-r7", "v2-r9"]) { await page.keyboard.press("ArrowDown"); await expect(link(run, "2")).toBeFocused(); }
+    await page.keyboard.press("ArrowDown");                                                   // the last row: stays
+    await expect(link("v2-r9", "2")).toBeFocused();
+    await page.keyboard.press("ArrowUp");
+    await page.keyboard.press("ArrowUp");
+    await page.keyboard.press("ArrowUp");
+    await page.keyboard.press("ArrowUp");
+    await expect(link("v2-r4", "2")).toBeFocused();
+    await page.keyboard.press("ArrowUp");                                                     // the queued runs have nothing, and v2-r1 is above them
     await expect(link("v2-r1", "2")).toBeFocused();
     await page.keyboard.press("ArrowRight");
     await expect(link("v2-r1", "3")).toBeFocused();
@@ -373,7 +380,9 @@ test.describe("combination page: empty and absent states", () => {
     await open(page, QWEN_27B);
     await expect(matrix(page).locator("td.m-cell a")).toHaveCount(0);
     await expect(page.locator(".run-counts")).toHaveText("Runs: 1 queued · 1 cancelled");
-    const runs = await matrix(page).locator("tbody tr").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.status));
-    expect(runs).toEqual(["queued", "cancelled"]);
+    // The runs that did not finish are folded away at first; the queued run is shown, and the heading says how many are not.
+    expect(await matrix(page).locator("tbody tr[data-run]").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.status))).toEqual(["queued"]);
+    await matrix(page).getByRole("button", { name: /Did not finish/ }).click();
+    expect(await matrix(page).locator("tbody tr[data-run]").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.status))).toEqual(["queued", "cancelled"]);
   });
 });

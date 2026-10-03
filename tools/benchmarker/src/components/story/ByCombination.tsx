@@ -8,6 +8,8 @@ import {
   type Comparison, type Entry, type Group, type StoryMeasure, type StoryPageView, type SummaryKey,
 } from "../../../shared/storyView.ts";
 import { heldOutState, type Divergence } from "../../../shared/combinationView.ts";
+import { groupRuns } from "../../../shared/runGroups.ts";
+import { RunSectionRows } from "../RunGroupHead.tsx";
 import { interventionsOf, STATUS_ICON } from "../../../shared/runView.ts";
 import { InterventionMark } from "../RunMarks.tsx";
 import { CombinationLink, MachineLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
@@ -145,6 +147,7 @@ function SummaryRow({ g, storyId }: { g: Group; storyId: string }) {
 }
 
 function GroupRows({ g, storyId, scale, cmp, onCompare }: { g: Group; storyId: string; scale: number; cmp: Comparison; onCompare: (p: string | undefined) => void }) {
+  const sections = groupRuns(g.entries, (e) => e.run);   // in progress, then finished: each folds away
   return (
     <tbody data-stack={g.stack}>
       <tr className="sp-group">
@@ -154,14 +157,18 @@ function GroupRows({ g, storyId, scale, cmp, onCompare }: { g: Group; storyId: s
         </th>
       </tr>
       {g.entries.length ? <SummaryRow g={g} storyId={storyId} /> : null}
-      {g.entries.map((e) => (
-        <tr key={e.run.runId} className="sp-entry" data-run={e.run.runId} data-attempt={e.attempt.kind} data-comparison={cmp.kind === "ok" && cmp.entry === e ? "true" : undefined}>
-          <RunCell e={e} storyId={storyId} cmp={cmp} onCompare={onCompare} />
-          <td className="sp-bar">
-            <Bar e={e} scale={scale} />
-          </td>
-          {STORY_MEASURES.map((m) => <Cell key={m.key} e={e} m={m} g={g} cmp={cmp} />)}
-        </tr>
+      {sections.map((s) => (
+        <RunSectionRows key={s.group.id} group={s.group} count={s.items.length} colSpan={COLS} headed={sections.length > 1}>
+          {s.items.map((e) => (
+            <tr key={e.run.runId} className="sp-entry" data-run={e.run.runId} data-attempt={e.attempt.kind} data-comparison={cmp.kind === "ok" && cmp.entry === e ? "true" : undefined}>
+              <RunCell e={e} storyId={storyId} cmp={cmp} onCompare={onCompare} />
+              <td className="sp-bar">
+                <Bar e={e} scale={scale} />
+              </td>
+              {STORY_MEASURES.map((m) => <Cell key={m.key} e={e} m={m} g={g} cmp={cmp} />)}
+            </tr>
+          ))}
+        </RunSectionRows>
       ))}
       {g.notBuilt.length ? (
         <tr className="sp-not-built">

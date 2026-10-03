@@ -121,10 +121,10 @@ describe("cellOf: a story run's cell", () => {
 });
 
 describe("rows and columns", () => {
-  it("runs: finished, then running, then queued, then the rest; by run id in natural order within", () => {
+  it("runs: running, then queued, then finished, then the rest; by run id in natural order within", () => {
     const rs = [run([], { status: "queued", runId: "v2-r2" }), run([], { status: "cancelled", runId: "v2-r0" }), run([], { status: "running", runId: "v2-r1" }),
                 run([], { runId: "v2-r10" }), run([], { runId: "v2-r9" })];
-    expect(runOrder(rs).map((r) => r.runId)).toEqual(["v2-r9", "v2-r10", "v2-r1", "v2-r2", "v2-r0"]);
+    expect(runOrder(rs).map((r) => r.runId)).toEqual(["v2-r1", "v2-r2", "v2-r9", "v2-r10", "v2-r0"]);
   });
   it("stories: every story in any run's scope or record, in story order", () => {
     expect(storyIds([run([story("2")], { scope: ["1", "2", "10"] }), run([story("3")], { scope: [] })])).toEqual(["1", "2", "3", "10"]);
@@ -329,8 +329,8 @@ describe("buildMatrix", () => {
   ];
   const m = buildMatrix(runs, "minutes");
   const at = (runId: string, id: string) => m.rows.find((r) => r.run.runId === runId)!.cells.find((c) => c.storyId === id)!;
-  it("one row per run in order, one column per story", () => {
-    expect(m.rows.map((r) => r.run.runId)).toEqual(["a", "b", "c", "d", "e"]);
+  it("one row per run in order (the running and queued runs first), one column per story", () => {
+    expect(m.rows.map((r) => r.run.runId)).toEqual(["d", "e", "a", "b", "c"]);
     expect(m.stories).toEqual(["1", "2", "3"]);
   });
   it("medians over finished runs; a flagged cell carries its mechanism, others none", () => {

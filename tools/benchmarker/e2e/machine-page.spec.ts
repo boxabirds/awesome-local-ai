@@ -341,6 +341,7 @@ test.describe("history", () => {
     await expect(swift.locator('tr[data-run="canvas-s-01"] .h-score .pending')).toHaveText("pending");
     await expect(why("v2-r1")).toHaveAttribute("data-tip", "Not scored yet.");
     await expect(why("v2-r2")).toHaveAttribute("data-tip", "Not scored yet.");
+    await history(page).locator(`[data-stack="${QWEN_27B}"]`).getByRole("button", { name: /Did not finish/ }).click();   // folded at first
     await expect(history(page).locator(`[data-stack="${QWEN_27B}"] tr[data-run="v2-r2"] .h-score .missing`)).toHaveAttribute("data-tip", /was cancelled before it finished/);
     await expect(history(page)).not.toContainText(/re-score|harness|retr/i);
   });

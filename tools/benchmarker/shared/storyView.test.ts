@@ -278,7 +278,7 @@ describe("storyPage: groups, entries and scale", () => {
       run([], { ...A, runId: "b", status: "running", squares: [sq("1", "running")], live: { currentStory: "1" } }),
     ];
     const g = storyPage(rs, "1").groups[0];
-    expect(g.entries.map((e) => [e.run.runId, e.attempt.kind])).toEqual([["v2-r2", "recorded"], ["v2-r10", "recorded"], ["b", "building"]]);
+    expect(g.entries.map((e) => [e.run.runId, e.attempt.kind])).toEqual([["b", "building"], ["v2-r2", "recorded"], ["v2-r10", "recorded"]]);
     expect(g.notBuilt.map((n) => [n.run.runId, n.why])).toEqual([["q", "The run is queued: no story is built yet."]]);
   });
   it("counts the finished runs that recorded it", () => {

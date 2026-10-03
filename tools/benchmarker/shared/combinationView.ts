@@ -33,12 +33,9 @@ export function metricValue(story: Story, metric: Metric): { value: number | nul
 
 // ---------- rows and columns ----------
 
-/** Finished first, then running and queued, then the rest; within each, by run id in natural order. */
-const STATUS_RANK: Record<string, number> = { finished: 0, running: 1, queued: 2, failed: 3, stopped: 4, cancelled: 5, unknown: 6 };
-export function runOrder(runs: Row[]): Row[] {
-  return runs.toSorted((a, b) => (STATUS_RANK[a.status] ?? STATUS_RANK.unknown) - (STATUS_RANK[b.status] ?? STATUS_RANK.unknown)
-    || a.runId.localeCompare(b.runId, undefined, { numeric: true }));
-}
+// The order runs are shown in is shared/runGroups.ts's; kept importable from here.
+import { runOrder } from "./runGroups.ts";
+export { runOrder };
 
 /** Every story in the pack that any of the runs has in scope or recorded, in story order. */
 export function storyIds(runs: Row[]): string[] {
