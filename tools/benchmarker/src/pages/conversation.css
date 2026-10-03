@@ -98,3 +98,22 @@ tr[data-jumped="true"] td { background: var(--chip); }
 .story-run-line .srl-facts .live-n { font-style: normal; color: var(--ink); }
 .conv-head .story-run-line { padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
 .call-page .story-run-line { padding: 10px 0 2px; }
+
+/* The call page: concertina items, one per part of a call (CallPage.tsx). Nothing inside scrolls; the open item's heading pins
+   under the app's pinned bar and its section ends where its content does. */
+.call-page .call-nav { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; margin: 4px 0 10px; }
+.call-page .call-nav .call-of { font-size: 18px; font-weight: 650; }
+.cc { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin: 0 0 8px; overflow: visible; box-shadow: none; }
+.cc-head { display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 9px 12px; border: 0; background: var(--panel); color: var(--ink); font: inherit; text-align: left; cursor: pointer; border-radius: 8px; }
+.cc-head:disabled { cursor: default; color: var(--muted); }
+.cc-head:not(:disabled):hover, .cc-head:focus-visible { background: var(--bg); }
+.cc-chevron { width: 1em; color: var(--muted); }
+.cc-label { font-weight: 650; min-width: 6.5em; }
+.cc-figure { font-variant-numeric: tabular-nums; color: var(--ink); }
+.cc[data-open="true"] > .cc-head { position: sticky; top: var(--pinned-h); z-index: 2; border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; box-shadow: 0 1px 0 var(--line); }
+.cc-body { padding: 8px 12px 12px; }
+.cc-body h4, .cc-body h5 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.cc-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.5 ui-monospace, Menlo, monospace; }
+.cc-split { margin: 0 0 6px; }
+.call-tool { border-top: 1px solid var(--line); padding-top: 6px; margin-top: 8px; }
+.call-tool:first-child { border-top: 0; margin-top: 0; padding-top: 0; }

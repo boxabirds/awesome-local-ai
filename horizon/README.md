@@ -57,6 +57,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [K2 Horizon (MBZUAI IFM)](k2-horizon.md) | gated | any machine (new model family) | six open models, 0.9B to 375B; vLLM and SGLang support real, Ollama not, llama.cpp pull request approved but unmerged; gate: the merge |
 | [LightRSI / TokenPilot](lightrsi.md) | parked | pi and OpenCode (a client extension) | context manager for long sessions; fixes dollar and cache-miss costs we do not have; assessed on paper, never run |
 | [Caveman](caveman.md) | on the horizon | pi (a prompt) | terse-output prompt skill; reported for replies, not thinking; first find out whether it reaches Qwen's thinking; read only from write-ups |
+| [Kolibri-1](kolibri-1.md) | on the horizon | none yet (card names vLLM with a vendor plugin) | Aleph Alpha 78B MoE, 3.46B active, 262k context, built-in reasoning-effort modes; needs an engine we run to load it; read from a card summary only |
 | [pi 1.0](pi-1.0.md) | candidate | every machine | client update, 0.87.1 to 1.0.0; no landmine release; fixes a llama.cpp tool-call bug |
 | [pi 0.99](pi-0.99.md) | parked | every machine | superseded by pi 1.0; kept as why v2 pinned 0.87.1 |
 | [DeepSeek V4.1](deepseek-v4.1.md) | eliminated | none | about 750B parameters in total; V4.1-Flash size not checked |

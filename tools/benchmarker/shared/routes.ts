@@ -109,7 +109,7 @@ export function sectionOf(route: Route): Section | null {
 export interface Crumb { label: string; href?: string; cls?: string; tip?: string }
 
 /** What the trail needs that the address doesn't carry: the combination's short label. */
-export interface TrailNames { combination?: string }
+export interface TrailNames { combination?: string; /** The story's title: the story crumb then reads "Story 3: Title". */ story?: string }
 
 const OVERVIEW = "Overview";
 const SECTION_NAMES: Record<Section, string> = { runs: OVERVIEW, stories: "Stories", machines: "Machines", setup: "Setup" };
@@ -117,7 +117,7 @@ const CONVERSATION_NAME = "Conversation";
 const CALL_FROM = 1;
 /** A run crumb's hover is its combination's id and its run id, as RunLink shows them. */
 const RUN_TIP_SEP = " · ";
-const storyLabel = (story: string) => `Story ${Number(story)}`;
+const storyLabel = (story: string, title?: string) => `Story ${Number(story)}${title ? `: ${title}` : ""}`;
 /** The crumb for the page itself: the same entity, with nowhere to go. */
 const here = ({ href: _, ...crumb }: Crumb): Crumb => crumb;
 
@@ -139,7 +139,7 @@ export function trailFor(route: Route, names: TrailNames): Crumb[] {
   if (route.page === "combination") return [overview, here(combination)];
   const run: Crumb = { label: route.runId, href: runHref(route.pack, route.stack, route.runId), cls: "run-link", tip: `${route.stack}${RUN_TIP_SEP}${route.runId}` };
   if (route.page === "run") return [overview, combination, here(run)];
-  const story: Crumb = { label: storyLabel(route.story), href: storyRunHref(route.pack, route.stack, route.runId, route.story), cls: "story-run-link" };
+  const story: Crumb = { label: storyLabel(route.story, names.story), href: storyRunHref(route.pack, route.stack, route.runId, route.story), cls: "story-run-link" };
   if (route.page === "storyRun") return [overview, combination, run, here(story)];
   const conversation: Crumb = { label: CONVERSATION_NAME, href: conversationHref(route.pack, route.stack, route.runId, route.story), cls: "conversation-link" };
   if (route.page === "conversation") return [overview, combination, run, story, here(conversation)];

@@ -99,6 +99,7 @@ test.describe("no page narrates a fault", () => {
     expect((await everything(page)).match(FAULT_WORDS)).toBeNull();
     await page.goto(`/${runHref(SWIFT, "v2-r5")}/s/2/conversation/c/1`);
     await expect(page.locator('[data-page="call"] [data-block="thinking"]')).toBeVisible();
+    for (const block of ["thinking", "output", "tools"]) await page.locator(`[data-page="call"] [data-block="${block}"] > button.cc-head`).click();
     const call = await quotedText(page);
     expect(call).toMatch(/retry/);
     expect(call).toMatch(/harness/);
