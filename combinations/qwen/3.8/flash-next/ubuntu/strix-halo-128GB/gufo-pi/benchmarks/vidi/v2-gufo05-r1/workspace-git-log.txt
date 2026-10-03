@@ -1,3 +1,87 @@
+commit d243f3763fbe6488c9d5b7c66f9920769eb3a86c
+agent  Sat Oct 3 11:38:29 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                              | 149 +++++++++++++++
+ PROGRESS.md                           |  29 +--
+ src/client/App.tsx                    |  21 ++-
+ src/client/board/SelectionOverlay.tsx |   5 +-
+ tests/e2e/helpers/selection.ts        | 207 +++++++++++++++++++++
+ tests/e2e/selection.spec.ts           | 328 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 719 insertions(+), 20 deletions(-)
+commit 67fae19d35baeb27982eb0e1f3d27624c665f3e3
+agent  Sat Oct 3 11:16:19 2026 +0000
+
+    story 7: selection, transform and keyboard component tests; a click on one object of a group narrows to it
+
+
+ src/client/board/useTransformGesture.ts |  29 +-
+ src/client/canvas/BoardViewport.tsx     |   5 +-
+ src/client/styles.css                   | 130 ++++++++-
+ tests/component/selection.test.tsx      | 458 ++++++++++++++++++++++++++++++++
+ tests/component/stickyHarness.tsx       |  57 +++-
+ tests/component/transform.test.tsx      | 387 +++++++++++++++++++++++++++
+ tests/unit/selection.test.ts            | 177 ++++++++++++
+ 7 files changed, 1217 insertions(+), 26 deletions(-)
+commit 355649eff2658a12db12d1bed0c7774b59a4b4b1
+agent  Sat Oct 3 10:51:09 2026 +0000
+
+    story 7: object type registry, multi-selection, group move/resize, marquee and selection chrome wired into the board
+
+
+ src/client/App.tsx                      | 227 +++++++++++++-------
+ src/client/board/Marquee.tsx            |  38 ++++
+ src/client/board/SelectionBar.tsx       |  98 +++++++++
+ src/client/board/SelectionOverlay.tsx   | 130 ++++++++++++
+ src/client/board/useBoardDoc.ts         |  85 ++++++--
+ src/client/board/useBoardKeys.ts        | 146 +++++++++++++
+ src/client/board/useMarquee.ts          | 117 ++++++++++
+ src/client/board/useSelection.ts        | 237 ++++++++++++++++++---
+ src/client/board/useTransformGesture.ts | 364 ++++++++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  77 ++++++-
+ src/client/objects/StickyNote.tsx       | 288 ++++++-------------------
+ src/client/objects/StickyTextEditor.tsx |  12 +-
+ src/client/objects/registry.tsx         | 144 +++++++++++++
+ src/client/sync/ConnectionStatus.tsx    |  22 ++
+ src/client/sync/connectBoard.ts         |  58 ++++-
+ src/shared/board-model.ts               |  85 ++++++--
+ src/shared/geometry.ts                  |   3 +
+ tests/component/registry.test.tsx       |  99 +++++++++
+ tests/fixtures/testbox.tsx              | 109 ++++++++++
+ tests/unit/registry.test.ts             | 135 ++++++++++++
+ 20 files changed, 2070 insertions(+), 404 deletions(-)
+commit 5f495ca05fad0a16f2c0f79dc1e799a0ebbe0898
+agent  Sat Oct 3 10:09:19 2026 +0000
+
+    story 7: pure geometry helpers and generic group operations on the board document
+
+
+ src/shared/board-model.ts            | 147 ++++++++++++++++++++++++++---------
+ tests/unit/board-model-group.test.ts |   4 +-
+ 2 files changed, 115 insertions(+), 36 deletions(-)
+commit 1ee88046a6bb1dd7e3e691e1805277f006186d8d
+agent  Sat Oct 3 10:04:20 2026 +0000
+
+    story 7: geometry and group-operation unit tests (TC-01 to TC-10) against throwing stubs
+
+
+ PROGRESS.md                          |   4 +-
+ src/shared/board-model.ts            |  92 +++++++-
+ src/shared/config.ts                 |  24 +++
+ src/shared/geometry.ts               | 262 ++++++++++++++++++++++
+ tests/unit/board-model-group.test.ts | 406 +++++++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts          | 290 +++++++++++++++++++++++++
+ 6 files changed, 1071 insertions(+), 7 deletions(-)
+commit f6ea1ee913f569d4f8f01c3872bfbe020745c5cf
+vidi-agent  Sat Oct 3 09:46:52 2026 +0000
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 37 +++++++++++++------------------------
+ 1 file changed, 13 insertions(+), 24 deletions(-)
 commit 051e386536e3e97c91af6fbb6169998b8bf98c3a
 agent  Sat Oct 3 09:43:30 2026 +0000
 
