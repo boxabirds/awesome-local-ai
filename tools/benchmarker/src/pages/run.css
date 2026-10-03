@@ -15,6 +15,9 @@
 .run-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .story-title-h { color: var(--ink); }
 .of-run { font-size: 13px; margin: -4px 0 14px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+/* Held-out on the story-run page: this story and the suite so far, two parts of one figure. */
+.held-out-parts { display: flex; flex-wrap: wrap; gap: 2px 18px; }
+.held-out-parts .term { font-size: 12px; font-weight: 600; color: var(--muted); margin-right: 4px; }
 .facts { display: flex; flex-wrap: wrap; gap: 8px 32px; margin: 0 0 14px; }
 .facts dt, .stat-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .facts dd { margin: 2px 0 0; font-size: 14px; }

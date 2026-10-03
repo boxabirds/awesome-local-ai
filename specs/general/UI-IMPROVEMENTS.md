@@ -6,6 +6,15 @@ Part 3 is the conversation page (3 October 2026, afternoon; its Critical and mos
 
 ## Part 1: the story-run header above the conversation (3 October 2026)
 
+### Status (3 October 2026, the same evening)
+
+Built: the conversation and call pages carry one line (story number and title; status, held-out fraction, agent
+time; the run's state and machine only while running, failed, stopped or cancelled) in the conversation's pinned
+head, and no card. The story-run page's card has no eyebrow, says "run on machine" with the run's state only when
+it matters, puts the two fractions under one Held-out heading as "This story" and "Suite so far" with the
+explanations as hovers, and shows agent time at the other figures' size. A story without a title is its number
+alone. Not done: the breadcrumb does not carry the title on hover.
+
 Reviewed from the owner's screenshot of `…/v2-gufo05-r1/s/1/conversation`, a story still running, and the code
 that draws it (`StoryRunParts.tsx` `StoryRunHeader`, `run.css`, `ConversationPage.tsx`). The owner's words: "cluttered
 with lots of useless unnecessary information and could take up far less space. Focus on what is essential and

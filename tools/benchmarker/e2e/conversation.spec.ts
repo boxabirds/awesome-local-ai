@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { GLOSSARY } from "../shared/glossary.ts";
 
 // The conversation pages, MECE by where the reader starts and by the fixture's cells (e2e/fixtures/conversations.py):
 //   A. the conversation page by address: complete pi (every kind of turn, the overview's chips, search and strip)
@@ -150,6 +151,27 @@ test.describe("A. the conversation page", () => {
     await expect(p.locator('table.turns tr[data-call="1"]')).toContainText("Carrying on");
   });
 
+  test("one line names the story run: number and title, then status, held-out, agent time; the run's state only while it matters", async ({ page }) => {
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    const p = page$(page);
+    await expect(p).toHaveAttribute("data-backfilled", "true");
+    // The story-run page's card is not here: no eyebrow, no labelled stats, no second header.
+    await expect(p.locator(".rp-header, .eyebrow, .outcome, .stat")).toHaveCount(0);
+    const line = p.locator('[data-section="all"] .rp-head .story-run-line');
+    await expect(line.locator("h1")).toHaveText("Story 2 · Sticky notes");
+    await expect(line.locator(".srl-facts")).toHaveText("DONE · 14/14 · 1h20m");
+    await expect(line.locator('[data-fact="storyStatus"] .story-status')).toHaveAttribute("data-tip", GLOSSARY.storyStatus.what);
+    await expect(line.locator('[data-fact="own"]')).toHaveAttribute("data-tip", GLOSSARY.storyHeldOut.what);
+    await expect(line.locator(".status-badge")).toHaveCount(0);
+    // A story of a run still going says so, with the machine: the conversation may grow.
+    await page.goto(conv(SWIFT, "v2-r1", "1"));
+    await expect(page$(page).locator(".story-run-line .srl-facts")).toContainText("▶ running on node-a");
+    // The line is in the pinned head, so it is still there at the end of the list.
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    await page$(page).locator("table.turns tbody tr").last().scrollIntoViewIfNeeded();
+    await expect(page$(page).locator(".story-run-line")).toBeInViewport();
+  });
+
   test("not available: a story with a split but no conversation, one with neither, and one that doesn't exist", async ({ page }) => {
     for (const [stack, run, story] of [[SWIFT, "v2-r5", "1"], [OPUS, "run-9", "2"], [SWIFT, "v2-r5", "9"]]) {
       await page.goto(conv(stack, run, story));
@@ -157,6 +179,8 @@ test.describe("A. the conversation page", () => {
       await expect(p, `${run} story ${story}`).toHaveAttribute("data-available", "false");
       await expect(p.locator('[data-empty="conversation"]')).toContainText("Not available.");
       await expect(p.locator("table.turns")).toHaveCount(0);
+      await expect(p.locator(".story-run-line h1"), `${run} story ${story}`).toContainText(`Story ${story}`);
+      await expect(p.locator(".rp-header")).toHaveCount(0);
     }
   });
 });
@@ -182,6 +206,14 @@ test.describe("B. the call page", () => {
     // The tool with no end yet: its result is not available.
     await page.goto(call(SWIFT, "v2-r5", "2", 2));
     await expect(page.locator('[data-block="tool"][data-tool="2"] .missing')).toHaveCount(1);
+  });
+
+  test("the call page carries the same one line and no card", async ({ page }) => {
+    await page.goto(`${conv(SWIFT, "v2-r5", "2")}/c/1`);
+    const p = page.locator('[data-page="call"]');
+    await expect(p.locator(".story-run-line h1")).toHaveText("Story 2 · Sticky notes");
+    await expect(p.locator(".story-run-line .srl-facts")).toHaveText("DONE · 14/14 · 1h20m");
+    await expect(p.locator(".rp-header, .eyebrow, .outcome")).toHaveCount(0);
   });
 
   test("a claude call withholds its thinking (n/a); a call that doesn't exist is not available", async ({ page }) => {

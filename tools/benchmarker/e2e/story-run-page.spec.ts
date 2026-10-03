@@ -46,19 +46,38 @@ test.describe("header", () => {
     await expect(crumbs.locator("a.run-link")).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r5`);
     await expect(crumbs.locator('[aria-current="page"]')).toHaveText("Story 2");
     await expect(section(page, "header").locator("h1")).toHaveText("Story 2 · Sticky notes");
-    await expect(section(page, "header").locator(".of-run a.run-link")).toHaveText("3.8-swift-1.5/27b llamacpp v2-r5");
-    await expect(section(page, "header").locator(".of-run")).toContainText("on node-a");
+    // The combination is in the breadcrumb (and the run link's hover); the line says the run and the machine only.
+    await expect(section(page, "header").locator(".of-run a.run-link")).toHaveText("v2-r5");
+    await expect(section(page, "header").locator(".of-run a.run-link")).toHaveAttribute("data-tip", `${SWIFT} · v2-r5`);
+    await expect(section(page, "header").locator(".of-run")).toHaveText("v2-r5 on node-a");
+    // No label saying what the card is, and no second status for a run that simply finished.
+    await expect(section(page, "header").locator(".eyebrow")).toHaveCount(0);
+    await expect(section(page, "header").locator(".status-badge")).toHaveCount(0);
+  });
+
+  test("the run's status is on the line only when it changes what the story means: running, failed, stopped, cancelled", async ({ page }) => {
+    await patchState(page, (s) => { Object.assign(rowOf(s, SWIFT, "v2-r5"), { status: "failed", statusNote: "agent crashed" }); });
+    await open(page, SWIFT, "v2-r1", "2");
+    await expect(section(page, "header").locator(".of-run .status-badge .status-word")).toHaveText("▶ running");
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(section(page, "header").locator(".of-run .status-badge .status-word")).toHaveText(/failed/);
   });
 
   test("DONE, this story's held-out result and the whole suite so far; agent time", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     await expect(section(page, "header").locator('[data-fact="storyStatus"]')).toHaveText("DONE");
-    await expect(section(page, "header").locator('[data-fact="own"]')).toHaveText("14/14");
-    await expect(section(page, "header").locator('[data-fact="cumulative"]')).toHaveText("20/20");
-    await expect(stat(page, "header", "storyHeldOut").locator(".tag-live")).toHaveCount(0);
-    await expect(stat(page, "header", "cumulativeHeldOut").locator(".tag-live")).toHaveCount(0);
+    // One Held-out figure with two parts, this story and the suite so far; the explanations are the terms' hovers.
+    const heldOut = stat(page, "header", "storyHeldOut");
+    await expect(heldOut.locator('[data-fact="own"]')).toHaveText("14/14");
+    await expect(heldOut.locator('[data-fact="cumulative"]')).toHaveText("20/20");
+    await expect(heldOut.locator('[data-part="own"] .term')).toHaveText("This story");
+    await expect(heldOut.locator('[data-part="cumulative"] .term')).toHaveAttribute("data-tip", GLOSSARY.cumulativeHeldOut.what);
+    await expect(section(page, "header").locator(".stat-sub")).toHaveCount(0);
+    await expect(section(page, "header").locator(".tag-live")).toHaveCount(0);
     await expect(section(page, "header").locator(".tag-record")).toHaveCount(0);
     await expect(section(page, "header").locator('[data-fact="agentTime"]')).toHaveText("1h20m");
+    // Every figure at one size: none shouts.
+    await expect(section(page, "header").locator(".big-n")).toHaveCount(0);
   });
 
   test("PARTIAL is shown as PARTIAL, with what it means on hover", async ({ page }) => {
@@ -811,7 +830,7 @@ test.describe("a story run with no record shows what is known", () => {
   test("not built yet in a running run: which story the run is at; no title known", async ({ page }) => {
     await open(page, SWIFT, "v2-r1", "4");
     await expect(section(page, "progress").locator(".state-note")).toHaveText("Not built yet: the run is at story 3.");
-    await expect(section(page, "header").locator("h1")).toHaveText("Story 4 · title not known yet");
+    await expect(section(page, "header").locator("h1")).toHaveText("Story 4");   // a title not known yet is not announced
     await expect(section(page, "header").locator('[data-fact="storyStatus"]')).toHaveText("not built");
   });
 

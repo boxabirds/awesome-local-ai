@@ -4,7 +4,7 @@ import type { Row, State, Story } from "../../shared/types.ts";
 import { callHref, conversationHref, withParams, type Route } from "../../shared/routes.ts";
 import { storyRunState, storyTitle } from "../../shared/runView.ts";
 import { Breadcrumb } from "../components/EntityLinks.tsx";
-import { StoryRunHeader } from "../components/run/StoryRunParts.tsx";
+import { StoryRunLine } from "../components/run/StoryRunParts.tsx";
 import { Missing, NotApplicable, Section, Stat, full } from "../components/run/bits.tsx";
 import { Clamped } from "../components/conversation/text.tsx";
 import { useConversation, useInFull } from "../useConversation.ts";
@@ -40,7 +40,7 @@ export function CallPage({ route, run, story, storyId, call, state }: { route: R
     return (
       <div className="page call-page run-page" data-page="call" data-available="false">
         {crumbs}
-        <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
+        <StoryRunLine run={run} st={st} storyId={storyId} title={title} />
         <Section term="modelCall" id="call"><p className="rp-empty" data-empty="call"><Missing why={NOT_AVAILABLE} /> {NOT_AVAILABLE}</p>{nav}</Section>
       </div>
     );
@@ -49,7 +49,7 @@ export function CallPage({ route, run, story, storyId, call, state }: { route: R
   return (
     <div className="page call-page run-page" data-page="call" data-available="true" data-call={idx}>
       {crumbs}
-      <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
+      <StoryRunLine run={run} st={st} storyId={storyId} title={title} />
       <Section term="modelCall" id="call" aside={nav}>
         {c === null ? <p className="rp-empty small">Loading…</p> : <>
           <div className="stats">
