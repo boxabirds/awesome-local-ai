@@ -3,13 +3,16 @@
 // The API has two forms over one stream: a time range paged by cursor (contiguous by construction, for backfill),
 // and "everything after this cursor" whatever its time (for following along). The story's status plays no part.
 
-import type { Seg } from "./runView.ts";
+import { interventionsOf, interventionText, type Seg } from "./runView.ts";
+import type { Intervention } from "./types.ts";
+
+const MS_PER_SECOND = 1000;
 
 /** A story run's id: its run's record directory and its story number, as the warehouse names it. */
 export const STORY_DIR_DIGITS = 2;
 export const storyRunId = (dir: string, story: string) => `${dir}/stories/${String(Number(story)).padStart(STORY_DIR_DIGITS, "0")}`;
 
-export type EventKind = "call" | "tool_start" | "tool_end" | "msg" | "compaction_start" | "compaction_end" | "between_sessions" | "request" | "condition";
+export type EventKind = "call" | "tool_start" | "tool_end" | "msg" | "compaction_start" | "compaction_end" | "between_sessions" | "request" | "condition" | "intervention";
 
 /** One happening in a story's conversation. The payload's fields ride beside these (see the kinds' views). */
 export interface ConversationEvent {
@@ -165,10 +168,11 @@ export const needsClamp = (text: string) => text.split("\n").length > CLAMP_LINE
 // ---------- turns: the conversation as a reader follows it ----------
 
 /** The kinds a reader can show or hide; a bar's part names one of them. */
-export type TurnKind = "call" | "tool" | "msg" | "compaction" | "wait" | "request" | "condition";
+export type TurnKind = "call" | "tool" | "msg" | "compaction" | "wait" | "request" | "condition" | "intervention";
 export const TURN_KINDS: { id: TurnKind; name: string }[] = [
   { id: "call", name: "Model calls" }, { id: "tool", name: "Tool calls" }, { id: "compaction", name: "Compactions" }, { id: "wait", name: "Waits" },
   { id: "msg", name: "Messages" }, { id: "request", name: "Engine requests" }, { id: "condition", name: "Machine readings" },
+  { id: "intervention", name: "Interventions" },
 ];
 /** Where each part of a time bar lands: the kind it shows alone. */
 export const SEGMENT_KIND: Record<Seg, TurnKind> = {
@@ -207,6 +211,7 @@ export function turns(events: ConversationEvent[]): Turn[] {
     else if (e.kind === "between_sessions") out.push(own("wait", e));
     else if (e.kind === "msg") out.push(own("msg", e));
     else if (e.kind === "condition") out.push(own("condition", e));
+    else if (e.kind === "intervention") out.push(own("intervention", e));
   }
   // Pass 2: what belongs to a turn, or stands alone when nothing owns it.
   const tools = new Map<number, ToolTurn>();
@@ -237,8 +242,18 @@ export function turns(events: ConversationEvent[]): Turn[] {
   return out;
 }
 
+/** An intervention is shown as the conversation's own turn, at the moment it was made; ord puts it after the events
+ * of the same millisecond. Only this story's: a run-wide one belongs to no story's conversation. */
+const INTERVENTION_ORD = Number.MAX_SAFE_INTEGER;
+export function interventionEvents(list: Intervention[], story: string): ConversationEvent[] {
+  return interventionsOf({ interventions: list }, story).map((i, n) => ({
+    ord: INTERVENTION_ORD - list.length + n, tMs: i.at * MS_PER_SECOND, kind: "intervention", refIdx: null, cursor: `intervention:${i.at}:${n}`, text: interventionText(i.text),
+  }));
+}
+
 /** The text a turn holds: the call's words and thinking, its tools' arguments and results, a message. */
 export function turnText(t: Turn): string {
+  if (t.kind === "intervention") return String(t.event.text ?? "");
   const parts = [eventText(t.event), ...t.tools.flatMap((x) => [eventText(x.start), x.end ? eventText(x.end) : ""])];
   return parts.filter(Boolean).join("\n");
 }
@@ -296,7 +311,7 @@ export function clock(ms: number, fromMs: number): string {
 
 // ---------- the strip: where the model worked, where tools ran, where it compacted ----------
 
-export interface StripMark { kind: "call" | "tool" | "compaction"; x0: number; x1: number; h: number; turn: number; label: string }
+export interface StripMark { kind: "call" | "tool" | "compaction" | "intervention"; x0: number; x1: number; h: number; turn: number; label: string }
 
 /** The strip's marks in 0..1 of the width and height: a call as a bar at its end whose height is its output (or its
  * thinking) against the story's largest; a tool as a band from its start to its end; a compaction as a line. */
@@ -319,6 +334,8 @@ export function strip(all: Turn[], range: { fromMs: number; toMs: number }): Str
       out.push({ kind: "tool", x0: x(tool.start.tMs), x1: x(tool.end ? tool.end.tMs : range.toMs), h: 0.18, turn: i, label: `${String(tool.start.name ?? "tool")} at ${clock(t.tMs, range.fromMs)}` });
     } else if (t.kind === "compaction") {
       out.push({ kind: "compaction", x0: x(t.tMs), x1: x(t.end ? t.end.tMs : t.tMs), h: 1, turn: i, label: `compaction at ${clock(t.tMs, range.fromMs)}` });
+    } else if (t.kind === "intervention") {
+      out.push({ kind: "intervention", x0: x(t.tMs), x1: x(t.tMs), h: 1, turn: i, label: `intervention at ${clock(t.tMs, range.fromMs)}` });
     }
   });
   return out;

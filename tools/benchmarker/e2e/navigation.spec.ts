@@ -174,7 +174,7 @@ test.describe("D. the conversation page's choices are in its address", () => {
     await page.goto(`/${CONVERSATION}`);
     await expect(page$(page, "conversation")).toHaveAttribute("data-backfilled", "true");
     await chip(page, "call").click();
-    await expect(page).toHaveURL(/\?kind=tool%2Ccompaction%2Cwait%2Cmsg%2Crequest%2Ccondition$|\?kind=tool,compaction,wait,msg,request,condition$/);
+    await expect(page).toHaveURL(/\?kind=tool%2Ccompaction%2Cwait%2Cmsg%2Crequest%2Ccondition%2Cintervention$|\?kind=tool,compaction,wait,msg,request,condition,intervention$/);
     await page.getByRole("searchbox", { name: "Search the conversation" }).fill("harness");
     await expect(page).toHaveURL(/q=harness/);
     // Replaced, not pushed: Back leaves the page.

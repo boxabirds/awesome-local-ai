@@ -6,7 +6,7 @@
 // app's own words.
 import { useEffect, useRef, useState } from "react";
 import type { Row, State, Story } from "../../shared/types.ts";
-import { clock, cutText, kindsFromParam, kindsToParam, nearestTurn, spanFromParam, spanToParam, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
+import { clock, cutText, kindsFromParam, kindsToParam, nearestTurn, spanFromParam, spanToParam, interventionEvents, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
 import { callHref, type Route } from "../../shared/routes.ts";
 import { storyRunState, storyTitle } from "../../shared/runView.ts";
 import { GLOSSARY } from "../../shared/glossary.ts";
@@ -42,6 +42,8 @@ export function ConversationPage({ route, run, story, storyId, state, params }: 
   const title = storyTitle(run, state.rows, storyId);
   const id = story?.storyRunId ?? null;
   const conv = useConversation(id && story?.hasConversation ? id : null);
+  // What was done to the run in this story, by hand or by a watchdog, stands among its turns at its moment.
+  const events = [...conv.events, ...interventionEvents(run.interventions ?? [], storyId)];
   const [kindParam, setKindParam] = useAddressParam(params, "kind");
   const [queryParam, setQueryParam] = useAddressParam(params, "q");
   const [spanParam, setSpanParam] = useAddressParam(params, "span");
@@ -56,7 +58,7 @@ export function ConversationPage({ route, run, story, storyId, state, params }: 
   /** Scroll the turn's row into the middle of the window and mark it. */
   const jumpTo = (turn: number) => {
     setJumped(turn);
-    const t = turns(conv.events)[turn];
+    const t = turns(events)[turn];
     const el = t?.callIdx !== null && t?.callIdx !== undefined ? document.getElementById(callRowId(t.callIdx)) : document.getElementById(`turn-${turn}`);
     el?.scrollIntoView({ block: "center" });
   };
@@ -65,7 +67,7 @@ export function ConversationPage({ route, run, story, storyId, state, params }: 
   const crumbs = <Breadcrumb route={route} names={{ combination: run.label }} />;
   // The row the address asks for (?call=N), once the backfill has brought it; a position being restored (Back)
   // comes first. Before any early return: a hook's place in the order is fixed.
-  const askedTurn = conv.backfilled && askedCall !== null && jumpedToAsked !== askedCall ? turns(conv.events).findIndex((t) => t.callIdx === askedCall) : -1;
+  const askedTurn = conv.backfilled && askedCall !== null && jumpedToAsked !== askedCall ? turns(events).findIndex((t) => t.callIdx === askedCall) : -1;
   useEffect(() => {
     if (askedTurn < 0 || askedCall === null) return;
     setJumpedToAsked(askedCall);
@@ -85,8 +87,8 @@ export function ConversationPage({ route, run, story, storyId, state, params }: 
   }
   const s = conv.summary;
   const from = s?.range.fromMs ?? 0;
-  const toMs = s ? Math.max(s.range.toMs, ...conv.events.map((e) => e.tMs + 1)) : from + 1;
-  const all = turns(conv.events);
+  const toMs = s ? Math.max(s.range.toMs, ...events.map((e) => e.tMs + 1)) : from + 1;
+  const all = turns(events);
   const range = spanFromParam(spanParam, from);
   const setRange = (r: [number, number] | null) => setSpanParam(spanToParam(r, from));
   const filter = { kinds, query, range };
@@ -208,6 +210,7 @@ function OtherRow({ t, i, ctx }: { t: Turn; i: number; ctx: RowCtx }) {
   switch (t.kind) {
     case "msg": what = "message"; text = cutText(e.textBody as CutText); break;
     case "compaction": what = "compaction"; figures = [String(e.reason ?? ""), t.end && isNum(t.end.seconds) ? `${t.end.seconds} s` : "", t.end && isNum(t.end.summaryChars) ? `summary ${full(t.end.summaryChars)} chars` : ""].filter(Boolean).join(" · "); break;
+    case "intervention": what = "intervention"; text = String(e.text ?? ""); break;
     case "wait": what = "wait"; figures = isNum(e.seconds) ? `waited ${e.seconds} s` : ""; break;
     case "request": what = "engine request"; figures = [isNum(e.promptTok) ? `prompt ${full(e.promptTok)}` : "", isNum(e.generatedTok) ? `generated ${full(e.generatedTok)}` : "", isNum(e.decodeTokS) ? `${full(e.decodeTokS)} tok/s` : ""].filter(Boolean).join(" · ") || "no call of this story matched it"; break;
     case "condition": what = "reading"; figures = [typeof e.thermal === "string" ? e.thermal : "", isNum(e.freePct) ? `free ${e.freePct.toFixed(0)}%` : "", isNum(e.swapGb) ? `swap ${e.swapGb.toFixed(1)} GB` : "", e.gpu && typeof e.gpu === "object" && isNum((e.gpu as Record<string, unknown>).busyPct) ? `GPU ${((e.gpu as Record<string, unknown>).busyPct as number).toFixed(0)}%` : ""].filter(Boolean).join(" · "); break;
@@ -247,13 +250,15 @@ function Strip({ all, from, toMs, range, onJump, onRange }: { all: Turn[]; from:
         <line x1="0" y1={STRIP_BASE} x2={STRIP_W} y2={STRIP_BASE} className="strip-base" />
         {marks.map((m, i) => m.kind === "tool"
           ? <rect key={i} className="strip-tool" x={m.x0 * STRIP_W} y={STRIP_BASE + 1} width={Math.max(MIN_MARK_W, (m.x1 - m.x0) * STRIP_W)} height={STRIP_TOOL_H} data-turn={m.turn}><title>{m.label}</title></rect>
+          : m.kind === "intervention"
+            ? <line key={i} className="strip-intervention" x1={m.x0 * STRIP_W} y1={0} x2={m.x0 * STRIP_W} y2={STRIP_H} data-turn={m.turn}><title>{m.label}</title></line>
           : m.kind === "compaction"
             ? <line key={i} className="strip-compaction" x1={m.x0 * STRIP_W} y1={0} x2={m.x0 * STRIP_W} y2={STRIP_H} data-turn={m.turn}><title>{m.label}</title></line>
             : <rect key={i} className="strip-call" x={m.x0 * STRIP_W} y={STRIP_BASE - m.h * STRIP_CALL_H} width={Math.max(MIN_MARK_W, (m.x1 - m.x0) * STRIP_W)} height={m.h * STRIP_CALL_H} data-turn={m.turn}><title>{m.label}</title></rect>)}
         {sel ? <rect className="strip-range" x={sel[0] * STRIP_W} y={0} width={Math.max(1, (sel[1] - sel[0]) * STRIP_W)} height={STRIP_H} /> : null}
       </svg>
       <div className="conv-strip-legend small">
-        <span><i className="sw sw-call" />model calls (height: output)</span><span><i className="sw sw-tool" />tool calls</span><span><i className="sw sw-compaction" />compaction</span>
+        <span><i className="sw sw-call" />model calls (height: output)</span><span><i className="sw sw-tool" />tool calls</span><span><i className="sw sw-compaction" />compaction</span><span><i className="sw sw-intervention" />intervention</span>
         <span className="hint">click: to that turn · drag: only that span</span>
         {range ? <button type="button" className="chip-reset" data-fact="range-filter" onClick={() => onRange(null)}>{clock(range[0], from)} to {clock(range[1], from)} ×</button> : null}
       </div>

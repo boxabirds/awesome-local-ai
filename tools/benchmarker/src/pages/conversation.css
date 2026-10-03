@@ -60,7 +60,7 @@ tr[data-jumped="true"] td { background: var(--chip); }
 .conversation-page .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
 .conversation-page .chip[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
 .conversation-page .chip[aria-pressed="false"] { text-decoration: line-through; opacity: .7; }
-.chip-call i { background: var(--seg-decode); } .chip-tool i { background: var(--seg-tools); } .chip-compaction i { background: var(--seg-compaction); } .chip-wait i { background: var(--seg-between); }
+.chip-call i { background: var(--seg-decode); } .chip-tool i { background: var(--seg-tools); } .chip-compaction i { background: var(--seg-compaction); } .chip-wait i { background: var(--seg-between); } .chip-intervention i { background: var(--part); }
 .chip-reset { font: inherit; font-size: 12px; padding: 3px 10px; border: 1px dashed var(--line); border-radius: 999px; background: none; color: var(--muted); cursor: pointer; }
 .conv-controls input { flex: 0 1 32ch; font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 .conv-strip-wrap { margin: 4px 0 0; }
@@ -70,10 +70,11 @@ tr[data-jumped="true"] td { background: var(--chip); }
 .strip-call:hover { filter: brightness(1.25); }
 .strip-tool { fill: var(--seg-tools); opacity: .8; }
 .strip-compaction { stroke: var(--seg-compaction); stroke-width: 2; }
+.strip-intervention { stroke: var(--part); stroke-width: 2; stroke-dasharray: 4 3; }
 .strip-range { fill: var(--ink); opacity: .12; }
 .conv-strip-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin-top: 4px; color: var(--muted); }
 .conv-strip-legend .sw { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; border-radius: 2px; }
-.sw-call { background: var(--seg-decode); } .sw-tool { background: var(--seg-tools); } .sw-compaction { background: var(--seg-compaction); }
+.sw-call { background: var(--seg-decode); } .sw-tool { background: var(--seg-tools); } .sw-compaction { background: var(--seg-compaction); } .sw-intervention { background: var(--part); }
 .conv-strip-legend .hint { margin-left: auto; }
 /* The one list: a call's row, then its tools indented; the Turn column holds the figures under the label. */
 .conv-table.turns .what { white-space: normal; width: 30ch; min-width: 24ch; }
@@ -83,6 +84,7 @@ tr[data-jumped="true"] td { background: var(--chip); }
 .conv-table.turns .said .clamp-cell + .clamp-cell { margin-top: 4px; border-top: 1px dashed var(--line); padding-top: 4px; }
 .kind-tool { background: var(--seg-tools); color: #fff; }
 .kind-wait { background: var(--seg-between); color: #fff; }
+.kind-intervention { background: var(--part); color: #fff; }
 .kind-compaction { background: var(--seg-compaction); color: #fff; }
 
 /* The story run in one line above the conversation and above a call: the title at the left, the facts at the

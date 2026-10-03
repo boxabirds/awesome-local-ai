@@ -101,3 +101,43 @@ describe("the conversation page's choices in the address", () => {
     expect(spanFromParam("1200", FROM)).toBeNull();
   });
 });
+
+// Interventions are turns of the story's conversation: something done to the run by hand or by a watchdog, at its time.
+describe("interventions in the conversation", () => {
+  it("is a kind the reader can show or hide, after the machine readings", async () => {
+    const { TURN_KINDS } = await import("./conversation.ts");
+    expect(TURN_KINDS.map((k) => k.id)).toContain("intervention");
+  });
+  it("an intervention event is a turn of its own, in time order among the calls", async () => {
+    const { turns } = await import("./conversation.ts");
+    const events = [ev(1, 1000, "call", 0), { ...ev(2, 2000, "intervention", 0), text: "a tool call silent for 600 s was interrupted" }, ev(3, 3000, "call", 1)];
+    const all = turns(events);
+    expect(all.map((t) => t.kind)).toEqual(["call", "intervention", "call"]);
+    expect(all[1].event.text).toBe("a tool call silent for 600 s was interrupted");
+  });
+  it("is shown by its own kind only, and found by its text", async () => {
+    const { turns, turnShown, kindsFromParam } = await import("./conversation.ts");
+    const [t] = turns([{ ...ev(1, 1000, "intervention", 0), text: "paused 5 min, then resumed" }]);
+    expect(turnShown(t, { kinds: kindsFromParam("intervention"), query: "", range: null })).toBe(true);
+    expect(turnShown(t, { kinds: kindsFromParam("call,compaction"), query: "", range: null })).toBe(false);
+    expect(turnShown(t, { kinds: kindsFromParam(undefined), query: "resumed", range: null })).toBe(true);
+    expect(turnShown(t, { kinds: kindsFromParam(undefined), query: "nothing", range: null })).toBe(false);
+  });
+  it("the strip marks it as a line, with its time", async () => {
+    const { turns, strip } = await import("./conversation.ts");
+    const all = turns([{ ...ev(1, 5000, "intervention", 0), text: "x" }]);
+    const marks = strip(all, { fromMs: 0, toMs: 10000 });
+    expect(marks).toEqual([{ kind: "intervention", x0: 0.5, x1: 0.5, h: 1, turn: 0, label: "intervention at 5.0 s" }]);
+  });
+  it("events from a run's interventions: its words, its time, this story's only", async () => {
+    const { interventionEvents } = await import("./conversation.ts");
+    const list = [
+      { at: 100, story: "2", text: "interrupted a tool call silent for 600s (no output)" },
+      { at: 200, story: "3", text: "interrupted a tool call silent for 600s" },
+      { at: 300, story: null, text: "RESUMED (paused 5 min)" },
+    ];
+    const events = interventionEvents(list, "2");
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: "intervention", tMs: 100_000, text: "a tool call silent for 600 s was interrupted" });
+  });
+});
