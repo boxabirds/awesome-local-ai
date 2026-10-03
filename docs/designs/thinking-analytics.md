@@ -132,3 +132,7 @@ recomputes, a rebuild equals an incremental run. Parity: the real backfill again
   no stamps failed the first backfill; both cases are tests now. The flag columns exist because of it.
 - **Live.** `dbench collect` calls `after_ingest` after each ingest: it makes `analytics.db` beside the warehouse when
   it is absent and otherwise recomputes what changed; an error is a logged line and never stops collection.
+- **Found live, fixed:** the first version opened `analytics.db` in WAL mode, which a read-only reader (the sqlite3
+  CLI, DuckDB's attach) cannot open once the collector has closed it. It is now a rollback-journal file, with a test
+  that opens it read-only after a pass. The collector was restarted on the fixed binary (`launchctl kickstart` of
+  `com.awesome-local-ai.dbench-collect`; the previous binary is kept in the session's scratchpad).
