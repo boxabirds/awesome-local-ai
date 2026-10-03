@@ -2,6 +2,8 @@
 
 Plan, 3 October 2026, at the owner's instruction: "archiving means ensuring they're not in our data lake or dbs, and we can
 keep the raw files but in an archive file, compressed, stored using gitlfs. Not ready to throw them away just yet."
+Then, on LFS costing bandwidth on a public repository: "don't store it. gitignore it. It'll sit around locally for a few
+months and if it goes it goes." And, on the v1 runs: "then yes we axe all the v1 stuff".
 
 Nothing here has been done. The repository is public and these are published records, so every step below waits for the
 owner's approval.
@@ -13,7 +15,7 @@ Measured from the app's own state and the files on disk, 3 October 2026:
 | Pack | Family | Runs | Size | What it is |
 |---|---|---|---|---|
 | vidi | vidi-v2 | 29 | 384 MB | **current.** Not touched. |
-| vidi | vidi-v1 | 22 | 447 MB | the superseded suite: different stories, not comparable with v2 |
+| vidi | vidi-v1 | 22 | 447 MB | built against spec v1, scored by the v1 held-out suite (v1.2 to v1.3.2) |
 | vidi | unversioned | 2 | 52 MB | MTPLX `canvas-pi-01` and `pi-smoke`, both status `unknown`, no pack version recorded |
 | todoodle | unversioned | 2 | 19 MB | **a different pack, not superseded.** Opus reference runs, one failed and one stopped |
 
@@ -23,9 +25,8 @@ So "the old stuff" is not one bucket, and two of the four groups must be treated
 
 **Archived (24 runs, about 499 MB):**
 
-- **The 22 `vidi-v1` runs.** The v1 suite built other stories and scored them with another held-out suite. Their results are
-  valid results *of that suite* and are kept, but they cannot be set against anything current, and every analysis has to
-  remember to exclude them. That is the risk the owner named.
+- **The 22 `vidi-v1` runs.** Built against spec v1 and scored by the v1 held-out suite. Every analysis has to remember to
+  exclude them, which is the risk the owner named. What they can still say is kept below, in "What v1 says against v2".
 - **The 2 unversioned MTPLX runs** (`canvas-pi-01`, `pi-smoke`). Status `unknown`, no pack version, so nothing can place
   them against any suite. One is a smoke run.
 
@@ -49,14 +50,37 @@ The collector stops pulling an archived run, and its collected directory is dele
 verified. The lake is a copy of what the nodes had, and the archive file is the keeping copy.
 
 **3. The archive file.** One compressed file per run, under `archive/`, holding the run's whole directory as it stands
-(`tar` plus `zstd`, since the repository already uses `.zst` elsewhere), named after the run's path so it can be found
-without an index, with a small plain-text manifest beside it listing what each archive holds, its size, its sha256 and the
-date. Tracked by git-lfs: `.gitattributes` gains `archive/** filter=lfs diff=lfs merge=lfs -text`. The repository has
-git-lfs 3.5.1 available but no `.gitattributes` today, so this is the first use of it here and needs the owner's say: LFS
-objects on a public GitHub repository count against a quota the owner owns.
+(`tar` plus `zstd`), named after the run's path so it can be found without an index, with a plain-text manifest beside it
+listing each archive's size, sha256 and date. **Not stored anywhere: `archive/` is in `.gitignore`**, and the files sit on
+this laptop until they are lost. That is acceptable because the records are in git history: removing them in a commit
+takes them out of the working tree, not out of history, and `git show <commit>:<path>` brings any file back.
 
 **Restoring** is `zstd -d` and `tar -x` back to the original path, then a re-ingest. Nothing in the archive depends on code
 that could rot.
+
+## What v1 says against v2, kept here before the runs go
+
+Checked from the suite files themselves (private repo, `packs/vidi/acceptance`), 3 October 2026:
+
+- **The same 75 held-out tests, with the same titles**, in v1.3.2 and v2.0-pre2. The v2.0-pre2 change only made the suite
+  ask for what spec v2 asks for: the buttons spec v2 calls "New board" (the v1 suite clicked "Create a board"), and
+  locators that failed correct apps (rendered text, how a resize handle's position is spelled, text size XL, visible
+  elements only). The behaviours tested did not change.
+- So a v1 score and a v2 score count the same behaviours. What differs is everything else: the spec the agent was given
+  (the change the owner wants measured), the sandbox (v1 ran in the allow-everything one, and the containment scan found
+  two v1 runs that read other runs' work), and the harness and engine versions.
+
+Finished 75-test runs of the combinations that ran both, scores of record or, where none, the run's own whole-suite
+figure:
+
+| Combination | v1 | v2 (vidi-v2.0-pre2) |
+|---|---|---|
+| reference/opus-5.5 | 71 (status unknown), 74 | 74, 75, 75 |
+| qwen 3.8 Flash-Next, gufo | 60, 65, 68 | 58, 64, 66, 66, 68, 68 |
+
+The spec change moved neither measurably: Opus by one to three tests at the ceiling, gufo not at all (median 65 against
+66). Other combinations changed engine, model or quantisation between v1 and v2, so their v1 figures say nothing about
+the spec.
 
 ## How a run is known to be archived
 
@@ -72,7 +96,7 @@ archive_file, sha256}`. Reasons for this shape rather than moving the directory:
 
 ## Sequence
 
-1. **This plan approved**, and the git-lfs question answered.
+1. **This plan approved** (done: "then yes we axe all the v1 stuff").
 2. **The marker and the readers**: `archived.json`, the benchmarker leaving archived runs out, the ingest skipping and
    purging them, the collector not pulling them. Tests first, as for the reference exclusion.
 3. **The archive files** for the 24 runs, with the manifest and the checksums, verified by restoring one at random into a
@@ -80,10 +104,10 @@ archive_file, sha256}`. Reasons for this shape rather than moving the directory:
 4. **Then, and only then**, the records' bulk is removed and the lake's copies deleted.
 5. A note in the guide, since what the app shows changes.
 
-## What this does not settle
+## Settled
 
-- Whether the owner wants the v1 **reference** runs archived too (Opus `run-2`, `run-3` on vidi-v1): they are part of the 22.
-- Whether `archive/` belongs in this public repository at all, or in the private one beside the lake. The owner said
-  git-lfs, which implies here, but 499 MB of LFS objects on a public repository is a cost worth naming before it is paid.
+- The v1 reference runs (Opus `run-2`, `run-3`) are archived with the rest: the reference has three v2 runs.
+- No git-lfs and no private copy: `archive/` is gitignored and local.
+- The app's Version selector shows v1 today; after this it has only v2. The table above is what remains of v1.
 - Nothing about the 19 v2 story runs with incomplete thinking text; they stay, and the `think_complete` filter stays the
   way analysis avoids them.
