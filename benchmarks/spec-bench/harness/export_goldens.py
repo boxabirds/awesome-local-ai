@@ -258,8 +258,19 @@ def build() -> dict[str, object]:
     return out
 
 
+def finite(v):
+    """JSON has no infinities: a non-finite float (engine_log's NO_RUN_START) is written as the string "-inf"/"inf"/"nan"."""
+    if isinstance(v, float) and (v != v or v in (float("inf"), float("-inf"))):
+        return "nan" if v != v else ("inf" if v > 0 else "-inf")
+    if isinstance(v, dict):
+        return {k: finite(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [finite(x) for x in v]
+    return v
+
+
 def dump(v) -> str:
-    return json.dumps(v, indent=1, ensure_ascii=False, sort_keys=True) + "\n"
+    return json.dumps(finite(v), indent=1, ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n"
 
 
 def main(argv: list[str]) -> int:

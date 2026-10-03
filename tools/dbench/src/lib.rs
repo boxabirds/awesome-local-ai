@@ -14,6 +14,7 @@ pub mod events;
 pub mod failure;
 pub mod harness;
 pub mod ids;
+pub mod ingest;
 pub mod job;
 pub mod node;
 pub mod progress;
