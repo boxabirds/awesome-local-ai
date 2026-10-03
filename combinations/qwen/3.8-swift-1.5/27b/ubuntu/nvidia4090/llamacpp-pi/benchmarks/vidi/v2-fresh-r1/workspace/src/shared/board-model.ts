@@ -392,6 +392,26 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       } as ObjectSnapshot);
       return;
     }
+    if (type === 'image') {
+      result.push({
+        id,
+        type: 'image',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        width: obj.get('width') as number | undefined,
+        height: obj.get('height') as number | undefined,
+        assetKey: (obj.get('assetKey') as string | null) ?? null,
+        contentType: obj.get('contentType') as string,
+        naturalWidth: obj.get('naturalWidth') as number,
+        naturalHeight: obj.get('naturalHeight') as number,
+        status: obj.get('status') as string,
+        uploadStartedAt: obj.get('uploadStartedAt') as number,
+        uploaderId: obj.get('uploaderId') as string,
+      } as ObjectSnapshot);
+      return;
+    }
     if (type !== 'sticky') return; // other types included as they are introduced
 
     const text = obj.get('text');

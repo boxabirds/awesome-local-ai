@@ -20,6 +20,8 @@ interface ToolbarProps {
   shapeKind?: ShapeKind;
   /** Change the shape kind (story 10). */
   onShapeKindChange?: (k: ShapeKind) => void;
+  /** Open the image file picker (story 12). */
+  onOpenImagePicker?: () => void;
 }
 
 export function Toolbar({
@@ -33,6 +35,7 @@ export function Toolbar({
   onToolChange,
   shapeKind = 'rect',
   onShapeKindChange,
+  onOpenImagePicker,
 }: ToolbarProps) {
   const [showShapeMenu, setShowShapeMenu] = useState(false);
   const stopPointer = useCallback((e: ReactPointerEvent) => {
@@ -197,6 +200,29 @@ export function Toolbar({
         style={toolButtonStyle(tool === 'pen')}
       >
         ✎
+      </button>
+      {/* Image tool button (story 12) */}
+      <button
+        type="button"
+        aria-label="Image (I)"
+        data-testid="image-tool-btn"
+        title="Image – I, or drag files onto the board"
+        onClick={onOpenImagePicker}
+        disabled={disabled}
+        style={{
+          width: '40px',
+          height: '40px',
+          borderRadius: '8px',
+          border: 'none',
+          backgroundColor: '#E3F2FD',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '20px',
+        }}
+      >
+        🖼️
       </button>
       <UndoButtons
         canUndo={canUndo ?? false}

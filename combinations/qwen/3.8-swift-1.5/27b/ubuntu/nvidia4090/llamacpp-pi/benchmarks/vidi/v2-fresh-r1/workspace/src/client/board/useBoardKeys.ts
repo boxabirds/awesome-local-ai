@@ -33,6 +33,8 @@ interface BoardKeysOptions {
   setTool: (t: Tool) => void;
   /** Create a sticky note at the view centre (N shortcut, story 9). */
   onCreateSticky: () => void;
+  /** Open the image picker (I shortcut, story 12). */
+  onOpenImagePicker?: () => void;
   /** Called before and after mutating operations (undo boundary). */
   onBoundary?: () => void;
   /** Undo/redo callbacks (story 8). */
@@ -99,6 +101,13 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           if (canEdit) {
             e.preventDefault();
             optsRef.current.onCreateSticky();
+          }
+          return;
+        }
+        if (e.key === 'i' || e.key === 'I') {
+          if (canEdit) {
+            e.preventDefault();
+            optsRef.current.onOpenImagePicker?.();
           }
           return;
         }

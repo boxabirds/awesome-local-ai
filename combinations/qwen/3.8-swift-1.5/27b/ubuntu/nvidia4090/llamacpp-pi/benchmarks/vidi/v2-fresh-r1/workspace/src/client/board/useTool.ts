@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ShapeKind } from '../../shared/config';
 
-export type Tool = 'select' | 'text' | 'shape' | 'connector' | 'pen';
+export type Tool = 'select' | 'text' | 'shape' | 'connector' | 'pen' | 'image';
 
 export function useTool(canEdit: boolean): {
   tool: Tool;

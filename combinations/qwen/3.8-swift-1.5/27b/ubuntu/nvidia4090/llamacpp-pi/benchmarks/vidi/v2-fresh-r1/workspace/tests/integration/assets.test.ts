@@ -1,0 +1,260 @@
+// Integration tests for the asset API (assets.api) in workerd:
+// real Worker fetch handler, real R2 (Miniflare), real BoardRoom RPC.
+// TC-10 to TC-13, TC-15, TC-16.
+
+import { describe, expect, it } from 'vitest';
+import { env, SELF, runInDurableObject } from 'cloudflare:test';
+import { newBoardId } from '../../src/shared/board-id';
+import { ASSET_KEY_PATTERN } from '../../src/shared/image-format';
+import { IMAGE_MAX_BYTES, ASSET_CACHE_MAX_AGE_SECONDS } from '../../src/shared/config';
+import { BoardRoom } from '../../src/worker/board-room';
+
+// The test env type doesn't include ASSETS_BUCKET; cast it.
+const r2Env = env as unknown as { ASSETS_BUCKET: R2Bucket };
+
+// Helper: create a real PNG (minimal 1x1 pixel)
+function makePngBytes(): Uint8Array {
+  // Minimal valid PNG: 8-byte signature + IHDR + IDAT + IEND
+  return new Uint8Array([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // signature
+    0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+    0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+    0xde, 0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, // IDAT chunk
+    0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0x00, 0x00,
+    0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, 0x33,
+    0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, // IEND chunk
+    0xae, 0x42, 0x60, 0x82,
+  ]);
+}
+
+// Helper: create a real JPEG (minimal)
+function makeJpegBytes(): Uint8Array {
+  return new Uint8Array([
+    0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46,
+    0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01,
+    0x00, 0x01, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43,
+    0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08,
+    0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0a, 0x0c,
+    0x14, 0x0d, 0x0c, 0x0b, 0x0b, 0x0c, 0x19, 0x12,
+    0x13, 0x0f, 0x14, 0x1d, 0x1a, 0x1f, 0x1e, 0x1d,
+    0x1a, 0x1c, 0x1c, 0x20, 0x24, 0x35, 0x27, 0x24,
+    0x20, 0x24, 0x28, 0x20, 0x2c, 0x38, 0x32, 0x2e,
+    0x33, 0x35, 0x37, 0x39, 0x39, 0x3c, 0x42, 0x51,
+    0x48, 0x3a, 0x3e, 0x48, 0x39, 0x46, 0x55, 0x5c,
+    0x58, 0x54, 0x5c, 0x67, 0x63, 0x69, 0x68, 0x6e,
+    0x6b, 0x69, 0x69, 0x6a, 0x6c, 0x6c, 0x6d, 0x76,
+    0x78, 0x76, 0x71, 0x71, 0x74, 0x7a, 0x7a, 0x7a,
+    0x7a, 0x6b, 0x75, 0x6f, 0x68, 0x70, 0x79, 0x75,
+    0x73, 0x74, 0x78, 0x77, 0x79, 0x78, 0x78, 0x7a,
+    0x79, 0x79, 0x7d, 0x7c, 0x7c, 0x7c, 0x7c, 0x7c,
+    0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00,
+    0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xc4, 0x00,
+    0x1f, 0x00, 0x00, 0x01, 0x05, 0x01, 0x01, 0x01,
+    0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04,
+    0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0xff,
+    0xc4, 0x00, 0xb5, 0x10, 0x00, 0x02, 0x01, 0x03,
+    0x03, 0x02, 0x04, 0x03, 0x05, 0x05, 0x04, 0x04,
+    0x00, 0x00, 0x01, 0x7d, 0x01, 0x02, 0x03, 0x00,
+    0x04, 0x11, 0x05, 0x12, 0x21, 0x31, 0x41, 0x06,
+    0x13, 0x51, 0x61, 0x07, 0x22, 0x71, 0x14, 0x32,
+    0x81, 0x08, 0x42, 0x91, 0xa1, 0x09, 0x0a, 0x15,
+    0xb1, 0xc1, 0x16, 0x23, 0x33, 0x43, 0x24, 0x52,
+    0x62, 0x72, 0x82, 0x92, 0xa2, 0x17, 0x18, 0x19,
+    0x1a, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x34,
+    0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x44, 0x45,
+    0x46, 0x47, 0x48, 0x49, 0x4a, 0x53, 0x54, 0x55,
+    0x56, 0x57, 0x58, 0x59, 0x5a, 0x63, 0x64, 0x65,
+    0x66, 0x67, 0x68, 0x69, 0x6a, 0x73, 0x74, 0x75,
+    0x76, 0x77, 0x78, 0x79, 0x7a, 0x83, 0x84, 0x85,
+    0x86, 0x87, 0x88, 0x89, 0x8a, 0x93, 0x94, 0x95,
+    0x96, 0x97, 0x98, 0x99, 0x9a, 0xa3, 0xa4, 0xa5,
+    0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xb2, 0xb3, 0xb4,
+    0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xc2, 0xc3,
+    0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xd2,
+    0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda,
+    0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8,
+    0xe9, 0xea, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6,
+    0xf7, 0xf8, 0xf9, 0xfa, 0xff, 0xda, 0x00, 0x08,
+    0x01, 0x01, 0x00, 0x00, 0x3f, 0x00, 0xfb, 0xfa,
+    0x2d, 0x25, 0x2c, 0x2d, 0x26, 0x2c, 0x2e, 0x25,
+    0x2c, 0x2d, 0x26, 0x2c, 0x2e, 0x25, 0x2c, 0x2d,
+    0x26, 0x2c, 0x2e, 0x25, 0x2c, 0x2d, 0x26, 0x2c,
+    0x2e, 0x25, 0x2c, 0x2d, 0x26, 0x2c, 0x2e, 0x25,
+    0x2c, 0x2d, 0x26, 0x2c, 0x2e, 0x25, 0x2c, 0x2d,
+    0x26, 0x2c, 0x2e, 0x25, 0x2c, 0x2d, 0x26, 0x2c,
+    0x2e, 0x25, 0x2c, 0x2d, 0x26, 0x2c, 0x2e, 0x25,
+    0x2c, 0x2d, 0x26, 0x2c, 0x2e, 0x25, 0x2c, 0x2d,
+    0x26, 0x2c, 0x2e, 0x25, 0x2c, 0x2d, 0x26, 0x2c,
+    0x2e, 0x25, 0x2c, 0x2d, 0x26, 0x2c, 0x2e, 0x25,
+    0x2c, 0x2d, 0x26, 0x2c, 0x2e, 0x25, 0x2c, 0x2d,
+    0x26, 0x2c, 0x2e, 0x25, 0x2c, 0x2d, 0x26, 0x2c,
+    0x2e, 0xff, 0xd9,
+  ]);
+}
+
+// Helper: create a file of exactly N bytes with PNG magic
+function makePngOfSize(size: number): Uint8Array {
+  const png = makePngBytes();
+  if (size <= png.length) return png.slice(0, size);
+  const out = new Uint8Array(size);
+  out.set(png, 0);
+  // Fill rest with zeros (padding)
+  return out;
+}
+
+async function createBoard(): Promise<string> {
+  const res = await SELF.fetch('http://localhost/api/boards', { method: 'POST' });
+  expect(res.status).toBe(201);
+  const body = (await res.json()) as { id: string };
+  return body.id;
+}
+
+describe('assets API', () => {
+  it('TC-10: POST real PNG to existing board → 201; R2 object exists with contentType; key matches pattern', async () => {
+    const boardId = await createBoard();
+    const png = makePngBytes();
+
+    const res = await SELF.fetch(`http://localhost/api/boards/${boardId}/assets`, {
+      method: 'POST',
+      body: new Blob([png as any]),
+      headers: { 'Content-Type': 'image/png' },
+    });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { assetKey: string; contentType: string };
+    expect(ASSET_KEY_PATTERN.test(body.assetKey)).toBe(true);
+    expect(body.contentType).toBe('image/png');
+    expect(body.assetKey.startsWith(boardId + '/')).toBe(true);
+
+    // Verify R2 object exists
+    const object = await r2Env.ASSETS_BUCKET.get(body.assetKey);
+    expect(object).not.toBeNull();
+    expect(object!.httpMetadata?.contentType).toBe('image/png');
+  });
+
+  it('TC-11: POST to never-created board → 404; malformed id → 404; nothing in R2', async () => {
+    const unknownId = newBoardId();
+    const png = makePngBytes();
+
+    // Never-created board
+    const res1 = await SELF.fetch(`http://localhost/api/boards/${unknownId}/assets`, {
+      method: 'POST',
+      body: new Blob([png as any]),
+    });
+    expect(res1.status).toBe(404);
+
+    // Malformed id
+    const res2 = await SELF.fetch(`http://localhost/api/boards/not-a-valid-id/assets`, {
+      method: 'POST',
+      body: new Blob([png as any]),
+    });
+    expect(res2.status).toBe(404);
+
+    // Verify nothing was stored
+    const list = await r2Env.ASSETS_BUCKET.list({ prefix: unknownId + '/' });
+    expect(list.objects).toHaveLength(0);
+  });
+
+  it('TC-12: POST IMAGE_MAX_BYTES + 1 → 413; exactly IMAGE_MAX_BYTES valid JPEG → 201', async () => {
+    const boardId = await createBoard();
+
+    // Over limit: 413
+    const overLimit = new Uint8Array(IMAGE_MAX_BYTES + 1);
+    overLimit[0] = 0xff; overLimit[1] = 0xd8; overLimit[2] = 0xff;
+    const res1 = await SELF.fetch(`http://localhost/api/boards/${boardId}/assets`, {
+      method: 'POST',
+      body: new Blob([overLimit as any]),
+      headers: { 'Content-Length': String(IMAGE_MAX_BYTES + 1) },
+    });
+    expect(res1.status).toBe(413);
+
+    // Verify nothing stored for this
+    const list1 = await r2Env.ASSETS_BUCKET.list({ prefix: boardId + '/' });
+    expect(list1.objects).toHaveLength(0);
+
+    // Exactly at limit: 201 (use JPEG magic + padding)
+    const atLimit = new Uint8Array(IMAGE_MAX_BYTES);
+    atLimit[0] = 0xff; atLimit[1] = 0xd8; atLimit[2] = 0xff; atLimit[3] = 0xe0;
+    const res2 = await SELF.fetch(`http://localhost/api/boards/${boardId}/assets`, {
+      method: 'POST',
+      body: new Blob([atLimit as any]),
+      headers: { 'Content-Length': String(IMAGE_MAX_BYTES) },
+    });
+    expect(res2.status).toBe(201);
+  });
+
+  it('TC-13: POST renamed PDF with Content-Type image/png → 415; POST SVG → 415; nothing stored', async () => {
+    const boardId = await createBoard();
+
+    // PDF renamed with Content-Type image/png
+    const pdfContent = new TextEncoder().encode('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n');
+    const res1 = await SELF.fetch(`http://localhost/api/boards/${boardId}/assets`, {
+      method: 'POST',
+      body: new Blob([pdfContent as any]),
+      headers: { 'Content-Type': 'image/png' },
+    });
+    expect(res1.status).toBe(415);
+
+    // SVG with script
+    const svgContent = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+    const res2 = await SELF.fetch(`http://localhost/api/boards/${boardId}/assets`, {
+      method: 'POST',
+      body: new Blob([svgContent as any]),
+      headers: { 'Content-Type': 'image/svg+xml' },
+    });
+    expect(res2.status).toBe(415);
+
+    // Verify nothing was stored
+    const list = await r2Env.ASSETS_BUCKET.list({ prefix: boardId + '/' });
+    expect(list.objects).toHaveLength(0);
+  });
+
+  it('TC-15: R2 put throws → 500', async () => {
+    const boardId = await createBoard();
+    const png = makePngBytes();
+
+    // Wrap the bucket's put to throw
+    const originalPut = r2Env.ASSETS_BUCKET.put.bind(r2Env.ASSETS_BUCKET);
+    (r2Env.ASSETS_BUCKET as any).put = async () => { throw new Error('storage failure'); };
+
+    const res = await SELF.fetch(`http://localhost/api/boards/${boardId}/assets`, {
+      method: 'POST',
+      body: new Blob([png as any]),
+    });
+    expect(res.status).toBe(500);
+
+    // Restore
+    (r2Env.ASSETS_BUCKET as any).put = originalPut;
+  });
+
+  it('TC-16: GET stored key → 200 with headers; GET missing → 404; GET ../x → 404', async () => {
+    const boardId = await createBoard();
+    const png = makePngBytes();
+
+    // Upload
+    const uploadRes = await SELF.fetch(`http://localhost/api/boards/${boardId}/assets`, {
+      method: 'POST',
+      body: new Blob([png as any]),
+    });
+    expect(uploadRes.status).toBe(201);
+    const { assetKey } = (await uploadRes.json()) as { assetKey: string };
+
+    // GET the stored key
+    const [bid, aid] = assetKey.split('/');
+    const getRes = await SELF.fetch(`http://localhost/api/assets/${bid}/${aid}`);
+    expect(getRes.status).toBe(200);
+    expect(getRes.headers.get('Content-Type')).toBe('image/png');
+    expect(getRes.headers.get('Cache-Control')).toBe(`public, max-age=${ASSET_CACHE_MAX_AGE_SECONDS}, immutable`);
+    expect(getRes.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(getRes.headers.get('Content-Security-Policy')).toBe("default-src 'none'");
+
+    // GET missing key
+    const missingRes = await SELF.fetch(`http://localhost/api/assets/${bid}/${newBoardId()}`);
+    expect(missingRes.status).toBe(404);
+
+    // GET ../x (malformed)
+    const badRes = await SELF.fetch(`http://localhost/api/assets/${bid}/..%2Fx`);
+    expect(badRes.status).toBe(404);
+  });
+});

@@ -17,10 +17,12 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
+import { handleUpload, handleServe } from './assets';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
 }
 
 const ROOMS_PREFIX = '/api/rooms/';
@@ -29,6 +31,13 @@ const BOARDS_PREFIX = '/api/boards';
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+
+    // --- Asset serving: GET /api/assets/:boardId/:assetId ---
+    const assetMatch = /^\/api\/assets\/([^/]+)\/([^/]+)$/.exec(url.pathname);
+    if (assetMatch && req.method === 'GET') {
+      const key = `${assetMatch[1]}/${assetMatch[2]}`;
+      return handleServe(env, key);
+    }
 
     // --- Board API ---
     if (url.pathname === BOARDS_PREFIX || url.pathname.startsWith(BOARDS_PREFIX + '/')) {
@@ -99,6 +108,16 @@ function handleBoardsApi(req: Request, url: URL, env: Env): Promise<Response> | 
         headers: { 'Content-Type': 'application/json' },
       });
     });
+  }
+
+  // POST /api/boards/:id/assets → upload
+  const assetUploadMatch = /^\/api\/boards\/([^/]+)\/assets$/.exec(url.pathname);
+  if (assetUploadMatch) {
+    const boardId = assetUploadMatch[1];
+    if (method !== 'POST') {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
+    return handleUpload(req, env, boardId);
   }
 
   // GET /api/boards/:id → existence check

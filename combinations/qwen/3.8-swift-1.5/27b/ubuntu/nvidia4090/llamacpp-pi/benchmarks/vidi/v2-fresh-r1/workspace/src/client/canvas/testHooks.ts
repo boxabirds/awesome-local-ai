@@ -8,6 +8,8 @@ export interface TestHooks {
   disconnect(): void;
   /** Test-only: resume the connection after an outage test. */
   reconnect(): void;
+  /** Test-only: simulate dropping image files onto the board at a world point. */
+  dropImageFiles?(files: { name: string; data: number[]; type: string }[], worldX?: number, worldY?: number): void;
 }
 
 /**
@@ -22,6 +24,7 @@ export function installTestHooks(
   setCamera: (cam: Camera) => void,
   getBoardId: () => string = () => '',
   getConnectionState: () => string = () => '',
+  dropImageFiles?: (files: { name: string; data: number[]; type: string }[], worldX?: number, worldY?: number) => void,
 ): void {
   if (import.meta.env.MODE !== 'test') return;
   (window as { __vidi6?: TestHooks }).__vidi6 = {
@@ -32,11 +35,6 @@ export function installTestHooks(
       const provider = (window as unknown as {
         __vidi6Provider?: { disconnect(): void; ws?: { close(): void } };
       }).__vidi6Provider;
-      // provider.disconnect() force-closes the socket locally (no network
-      // needed, so it works while the context is offline) - the same state
-      // a real outage leaves the provider in. It also stops the provider's
-      // automatic reconnect loop, so outage tests resume it explicitly with
-      // reconnect() once the context is back online.
       try {
         provider?.disconnect();
       } catch {
@@ -49,5 +47,6 @@ export function installTestHooks(
       }).__vidi6Provider;
       provider?.connect();
     },
+    ...(dropImageFiles ? { dropImageFiles } : {}),
   };
 }

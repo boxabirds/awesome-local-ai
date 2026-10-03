@@ -19,6 +19,9 @@ import { ConnectorTool } from '../tools/ConnectorTool';
 import { PenTool } from '../tools/PenTool';
 import { PenToolbar } from '../tools/PenToolbar';
 import { usePenOptions } from '../tools/usePenOptions';
+import { useImageInsert, useDragCounter } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { useToast } from '../ui/Toast';
 import { createShape } from '../../shared/objects/shape';
 import { createConnector } from '../../shared/objects/connector';
 import { CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
@@ -74,6 +77,24 @@ export function BoardContent({ boardId }: { boardId: string }) {
   // Kept in a ref so the key handler (which runs once) always sees the
   // latest create-sticky callback without a dependency cycle.
   const handleCreateStickyRef = useRef<() => void>(() => {});
+
+  // Story 12: image insert (drop, paste, picker)
+  const { toast, node: toastNode } = useToast();
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    connection: connectionState,
+    identityId: 'local',
+    toast,
+    viewportSize: size,
+  });
+  const dragCounter = useDragCounter();
+
+  // Ref for the image picker callback (avoids ordering issues with useBoardKeys)
+  const openImagePickerRef = useRef<() => void>(() => {});
+  openImagePickerRef.current = canEdit ? imageInsert.openPicker : () => {};
+
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
   useBoardKeys({
     doc,
@@ -83,6 +104,7 @@ export function BoardContent({ boardId }: { boardId: string }) {
     tool,
     setTool,
     onCreateSticky: handleCreateStickyRef.current,
+    onOpenImagePicker: openImagePickerRef.current,
     onBoundary: boundary,
     onUndo: undoApi.undo,
     onRedo: undoApi.redo,
@@ -90,8 +112,29 @@ export function BoardContent({ boardId }: { boardId: string }) {
 
   // Test-only `window.__vidi6` hook (test mode only, see testHooks.ts).
   useEffect(() => {
-    installTestHooks(setCamera, () => boardId, () => connectionState);
-  }, [setCamera, boardId, connectionState]);
+    installTestHooks(setCamera, () => boardId, () => connectionState, (files, worldX, worldY) => {
+      // Convert the plain data arrays to File objects and call the drop handler directly
+      const fileObjs = files.map(f => {
+        const uint8 = new Uint8Array(f.data);
+        return new File([uint8], f.name, { type: f.type });
+      });
+      const cx = worldX ?? 0;
+      const cy = worldY ?? 0;
+      // Convert world coords to screen coords using the current camera
+      const cam = camera;
+      const rect = { left: 0, top: 0, width: 1280, height: 800 };
+      const screenX = (cx - cam.x) * cam.zoom;
+      const screenY = (cy - cam.y) * cam.zoom;
+      // Call the onDrop handler directly with a mock event
+      imageInsert.onDrop({
+        preventDefault: () => {},
+        dataTransfer: { files: fileObjs, types: ['Files'] },
+        clientX: screenX,
+        clientY: screenY,
+        currentTarget: { getBoundingClientRect: () => rect },
+      } as any);
+    });
+  }, [setCamera, boardId, connectionState, camera, imageInsert.onDrop]);
 
   // Create a sticky note at a screen point (double-click on empty space)
   const handleDblClickEmpty = useCallback(
@@ -125,6 +168,13 @@ export function BoardContent({ boardId }: { boardId: string }) {
   }, [camera, doc, selection, size, canEdit, boundary]);
 
   handleCreateStickyRef.current = handleCreateSticky;
+
+  // Paste handler for images (story 12)
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => imageInsert.onPaste(e);
+    window.addEventListener('paste', handler);
+    return () => window.removeEventListener('paste', handler);
+  }, [imageInsert.onPaste]);
 
   // Story 11: a stroke click that misses its line selects the object
   // underneath (topmost whose hit test passes), else clears the selection.
@@ -258,7 +308,21 @@ export function BoardContent({ boardId }: { boardId: string }) {
 
   return (
     <CameraContext.Provider value={cameraApi}>
-      <div ref={rootRef} className="app-root" data-testid="app-root">
+      <div
+        ref={rootRef}
+        className="app-root"
+        data-testid="app-root"
+        onDragEnter={dragCounter.onDragEnter}
+        onDragLeave={dragCounter.onDragLeave}
+        onDragOver={dragCounter.onDragOver}
+        onDrop={(e) => {
+          e.preventDefault();
+          dragCounter.reset();
+          imageInsert.onDrop(e);
+        }}
+      >
+        <DropHighlight visible={dragCounter.isOver} />
+        {toastNode}
         <BoardViewport
           onDblClickEmpty={handleDblClickEmpty}
           onClickEmpty={handleClickEmpty}
@@ -270,6 +334,34 @@ export function BoardContent({ boardId }: { boardId: string }) {
             const spec = getObjectType(obj.type);
             if (!spec) return null; // unknown type: skip (forward compatibility)
             const Component = spec.Component;
+            // Image objects need extra props (story 12)
+            if (obj.type === 'image') {
+              return (
+                <Component
+                  key={obj.id}
+                  obj={obj}
+                  doc={doc}
+                  zoom={camera.zoom}
+                  selected={selection.ids.has(obj.id)}
+                  editing={false}
+                  onObjectPointerDown={gesture.onObjectPointerDown}
+                  onObjectDoubleClick={handleObjectDoubleClick}
+                  onEndEdit={selection.endEdit}
+                  onBoundary={boundary}
+                  onUndo={undoApi.undo}
+                  onRedo={undoApi.redo}
+                  onObjectMiss={handleObjectMiss}
+                  {...({
+                    isUploader: (obj as any).uploaderId === 'local',
+                    progress: imageInsert.progress.get(obj.id),
+                    canRetry: imageInsert.canRetry(obj.id),
+                    now: Date.now(),
+                    onRetry: () => imageInsert.retry(obj.id),
+                    onRemove: () => { boundary(); deleteObjects(doc, [obj.id]); boundary(); selection.clear(); },
+                  } as any)}
+                />
+              );
+            }
             return (
               <Component
                 key={obj.id}
@@ -353,6 +445,9 @@ export function BoardContent({ boardId }: { boardId: string }) {
           onToolChange={setTool}
           shapeKind={shapeKind}
           onShapeKindChange={setShapeKind}
+          onOpenImagePicker={() => {
+            if (canEdit) imageInsert.openPicker();
+          }}
         />
         <ConnectionStatus state={connectionState} />
         <ZoomControls
