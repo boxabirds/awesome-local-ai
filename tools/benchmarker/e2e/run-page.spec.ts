@@ -206,28 +206,90 @@ test.describe("header: judge, record and summary", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-test.describe("one strip of stories: the held-out squares", () => {
-  test("the old latest-build strip is gone; the squares come first after the header, the running story marked building", async ({ page }) => {
+test.describe("one panel: each story's held-out result and where its time went", () => {
+  const rows = (page: Page) => section(page, "time").locator(".rp-bar-row");
+  const squares = (page: Page) => rows(page).locator(".rs-sq");
+
+  test("the old latest-build strip and the separate held-out panel are gone; one row per story in scope, running one marked in progress, the rest pending", async ({ page }) => {
     await open(page, SWIFT, "v2-r1");
     await expect(section(page, "stories")).toHaveCount(0);
-    const squares = section(page, "heldout").locator(".rs-item");
-    await expect(squares).toHaveCount(11);
-    const states = await squares.evaluateAll((els) => els.map((e) => `${(e as HTMLElement).dataset.story}:${(e as HTMLElement).dataset.state}`));
+    await expect(section(page, "heldout")).toHaveCount(0);
+    await expect(rows(page)).toHaveCount(11);
+    const states = await rows(page).evaluateAll((els) => els.map((e) => `${(e as HTMLElement).dataset.story}:${(e as HTMLElement).dataset.state}`));
     expect(states.slice(0, 4)).toEqual(["1:result", "2:result", "3:building", "4:unbuilt"]);
-    await expect(squares.nth(2).locator(".rs-sq")).toHaveAttribute("data-tip", "story 3: being built now");
+    await expect(squares(page).nth(2)).toHaveAttribute("data-tip", "story 3: being built now");
   });
 
-  test("every square links to its story run, built or not", async ({ page }) => {
+  test("a story being built or not yet built has an empty bar with a light italic grey word: in progress, pending", async ({ page }) => {
     await open(page, SWIFT, "v2-r1");
-    const hrefs = await section(page, "heldout").locator("a.story-run-link").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+    const building = rows(page).nth(2), pending = rows(page).nth(3);
+    await expect(building.locator(".row-state")).toHaveText("in progress");
+    await expect(pending.locator(".row-state")).toHaveText("pending");
+    for (const r of [building, pending]) {
+      await expect(r.locator(".bar")).toHaveCount(0);
+      await expect(r.locator(".rp-bar-total")).toHaveText("");
+      expect(await r.locator(".row-state").evaluate((e) => [getComputedStyle(e).fontStyle, getComputedStyle(e).color])).toEqual(["italic", expect.any(String)]);
+    }
+    await expect(rows(page).nth(0).locator(".row-state")).toHaveCount(0);   // a recorded story has none
+  });
+
+  test("every row's square links to its story run, built or not", async ({ page }) => {
+    await open(page, SWIFT, "v2-r1");
+    const hrefs = await rows(page).locator(".rs-cell a.story-run-link").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
     expect(hrefs).toEqual(["1", "2", "3", "4", "5", "7", "8", "9", "10", "11", "12"].map((n) => storyRunHref(SWIFT, "v2-r1", n)));
-    await section(page, "heldout").locator('[data-story="4"] a').click();
+    await rows(page).nth(3).locator(".rs-cell a").click();
     await expect(page.locator('[data-page="storyRun"]')).toHaveAttribute("data-story-state", "notBuilt");
+  });
+
+  test("a story not yet built still has its title in its row", async ({ page }) => {
+    await open(page, SWIFT, "v2-r1");
+    await expect(rows(page).nth(3).locator(".rp-bar-label")).toContainText("4.");
+    expect((await rows(page).nth(3).locator(".rp-bar-label").innerText()).length).toBeGreaterThan(4);
   });
 
   test("each square's link has a name for a screen reader", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    await expect(section(page, "heldout").getByRole("link", { name: "story 1: 6/6 of its own tests" })).toBeVisible();
+    await expect(section(page, "time").getByRole("link", { name: "story 1: 6/6 of its own tests" })).toBeVisible();
+  });
+
+  test("every story in scope in order, coloured by that story's own result", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5");
+    expect(await rows(page).evaluateAll((ls) => ls.map((l) => [(l as HTMLElement).dataset.story, (l as HTMLElement).dataset.state]))).toEqual([
+      ["1", "result"], ["2", "result"], ["3", "unbuilt"], ["4", "unbuilt"], ["5", "unbuilt"], ["7", "unbuilt"], ["8", "unbuilt"], ["9", "unbuilt"], ["10", "unbuilt"], ["11", "unbuilt"], ["12", "unbuilt"],
+    ]);
+    await expect(squares(page).nth(0)).toHaveClass(/q-high/);        // 6/6
+    await expect(squares(page).nth(1)).toHaveClass(/q-high/);        // 14/14
+    await expect(squares(page).nth(2)).toHaveClass(/rs-unbuilt/);
+    await expect(section(page, "time")).not.toContainText(/→|of record|agree|differ/);
+  });
+
+  test("each square says its story's own result on hover and to a screen reader, and links to the story run", async ({ page }) => {
+    await open(page, SWIFT, "v2-r4");
+    const two = rows(page).nth(1);
+    await expect(two.locator(".rs-sq")).toHaveAttribute("data-tip", "story 2: 12/14 of its own tests");
+    await expect(two.locator(".rs-cell .sr-only")).toHaveText("story 2: 12/14 of its own tests");
+    await expect(two.locator(".rs-cell a")).toHaveAttribute("href", storyRunHref(SWIFT, "v2-r4", "2"));
+    await expect(two.locator(".rs-sq")).toHaveClass(/q-mid/);                          // 86%
+    await expect(squares(page).nth(2)).toHaveAttribute("data-tip", "story 3: not built yet");
+  });
+
+  test("a story whose own tests weren't recorded: outlined, says so", async ({ page }) => {
+    await patchState(page, (s) => Object.assign(rowOf(s, SWIFT, "v2-r5").stories[1], { ownPassed: null, ownTotal: null }));
+    await open(page, SWIFT, "v2-r5");
+    await expect(rows(page).nth(1)).toHaveAttribute("data-state", "noResult");
+    await expect(squares(page).nth(1)).toHaveAttribute("data-tip", "story 2: no result recorded");
+  });
+
+  test("a run with no stories in scope: says so", async ({ page }) => {
+    await patchState(page, (s) => { const r = rowOf(s, SWIFT, "v2-r2"); r.storiesWorking = { working: 0, scope: 0, squares: [] }; });
+    await open(page, SWIFT, "v2-r2");
+    await expect(section(page, "time").locator(".rp-empty")).toHaveText("No stories in scope are known for this run.");
+  });
+
+  test("the heading names both: held-out, and where the time went", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5");
+    await expect(section(page, "time").locator("h2")).toHaveText("Held-out and where the time went");
+    await expect(section(page, "time").locator("h2 .term")).toHaveCount(2);
   });
 });
 
@@ -237,7 +299,7 @@ test.describe("where the time went", () => {
   test("one bar per recorded story, all on one scale", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
     const t = section(page, "time");
-    await expect(t.locator(".rp-bar-row")).toHaveCount(2);
+    await expect(t.locator(".bar-link")).toHaveCount(2);   // a bar for each recorded story; the other rows are pending
     const w1 = (await t.locator('[data-story="1"] .bar').boundingBox())!.width;
     const w2 = (await t.locator('[data-story="2"] .bar').boundingBox())!.width;
     expect(w1 / w2).toBeCloseTo(660 / 4811, 2);
@@ -257,7 +319,7 @@ test.describe("where the time went", () => {
 
   test("a story's label opens its story run; its bar does too, unless the story's conversation is there, which the bar opens instead", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    await section(page, "time").locator('[data-story="1"] a.story-run-link').click();
+    await section(page, "time").locator('[data-story="1"] .rp-bar-label a.story-run-link').click();
     await expect(page).toHaveURL(new RegExp(`${storyRunHref(SWIFT, "v2-r5", "1").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
     await page.goBack();
     await section(page, "time").locator('[data-story="1"] a.bar-link').click();
@@ -291,9 +353,10 @@ test.describe("where the time went", () => {
     await expect(section(page, "time").locator('[data-story="2"] .bar')).toHaveCount(0);
   });
 
-  test("nothing recorded: says so", async ({ page }) => {
+  test("nothing recorded (a queued run): every story pending, no bar anywhere", async ({ page }) => {
     await open(page, SWIFT, "v2-r2");
-    await expect(section(page, "time").locator(".rp-empty")).toHaveText("No story recorded yet: the run is queued.");
+    await expect(section(page, "time").locator(".row-state")).toHaveText(Array(11).fill("pending"));
+    await expect(section(page, "time").locator(".bar")).toHaveCount(0);
   });
 });
 
@@ -386,46 +449,6 @@ test.describe("cost", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-test.describe("held-out: one square per story, its own tests after it", () => {
-  const squares = (page: Page) => section(page, "heldout").locator(".rs-strip .rs-item");
-
-  test("every story in scope in order, coloured by that story's own result, the number under each; marked live", async ({ page }) => {
-    await open(page, SWIFT, "v2-r5");
-    expect(await squares(page).evaluateAll((ls) => ls.map((l) => [(l as HTMLElement).dataset.story, (l as HTMLElement).dataset.state]))).toEqual([
-      ["1", "result"], ["2", "result"], ["3", "unbuilt"], ["4", "unbuilt"], ["5", "unbuilt"], ["7", "unbuilt"], ["8", "unbuilt"], ["9", "unbuilt"], ["10", "unbuilt"], ["11", "unbuilt"], ["12", "unbuilt"],
-    ]);
-    await expect(squares(page).locator(".rs-n")).toHaveText(["1", "2", "3", "4", "5", "7", "8", "9", "10", "11", "12"]);
-    await expect(squares(page).nth(0).locator(".rs-sq")).toHaveClass(/q-high/);        // 6/6
-    await expect(squares(page).nth(1).locator(".rs-sq")).toHaveClass(/q-high/);        // 14/14
-    await expect(squares(page).nth(2).locator(".rs-sq")).toHaveClass(/rs-unbuilt/);
-    await expect(section(page, "heldout").locator(".rp-head .tag-live")).toHaveCount(0);
-    await expect(section(page, "heldout")).not.toContainText(/→|of record|agree|differ/);
-  });
-
-  test("each square says its story's own result on hover and to a screen reader, and links to the story run", async ({ page }) => {
-    await open(page, SWIFT, "v2-r4");
-    const two = squares(page).nth(1);
-    await expect(two.locator(".rs-sq")).toHaveAttribute("data-tip", "story 2: 12/14 of its own tests");
-    await expect(two.locator(".sr-only")).toHaveText("story 2: 12/14 of its own tests");
-    await expect(two.locator("a")).toHaveAttribute("href", storyRunHref(SWIFT, "v2-r4", "2"));
-    await expect(two.locator(".rs-sq")).toHaveClass(/q-mid/);                          // 86%
-    await expect(squares(page).nth(2).locator(".rs-sq")).toHaveAttribute("data-tip", "story 3: not built yet");
-  });
-
-  test("a story whose own tests weren't recorded: outlined, says so", async ({ page }) => {
-    await patchState(page, (s) => Object.assign(rowOf(s, SWIFT, "v2-r5").stories[1], { ownPassed: null, ownTotal: null }));
-    await open(page, SWIFT, "v2-r5");
-    await expect(squares(page).nth(1)).toHaveAttribute("data-state", "noResult");
-    await expect(squares(page).nth(1).locator(".rs-sq")).toHaveAttribute("data-tip", "story 2: no result recorded");
-  });
-
-  test("a run with no stories in scope: says so", async ({ page }) => {
-    await patchState(page, (s) => { const r = rowOf(s, SWIFT, "v2-r2"); r.storiesWorking = { working: 0, scope: 0, squares: [] }; });
-    await open(page, SWIFT, "v2-r2");
-    await expect(section(page, "heldout").locator(".rp-empty")).toHaveText("No stories in scope are known for this run.");
-  });
-});
-
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("when it ran", () => {
   test("a run restarted on its machine: the machine, when it was first queued, when it ended; no jobs, statuses or reasons", async ({ page }) => {
@@ -556,7 +579,7 @@ test.describe("links and keyboard", () => {
   test("sections come in reading order: identity, outcome, time, cost, evidence, provenance", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
     const order = await page.locator('[data-page="run"] > [data-section]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.section));
-    expect(order).toEqual(["header", "heldout", "time", "cost", "ran", "compare", "related"]);
+    expect(order).toEqual(["header", "time", "cost", "ran", "compare", "related"]);
   });
 
   test("every heading and label with a definition takes it from the glossary", async ({ page }) => {
@@ -566,7 +589,7 @@ test.describe("links and keyboard", () => {
     expect(tips.length).toBeGreaterThan(30);
     expect(tips.filter((t) => !definitions.has(t))).toEqual([]);
     const headings = await page.locator('[data-page="run"] h2').evaluateAll((els) => els.map((e) => e.textContent));
-    expect(headings).toEqual(["Held-out", "Where the time went", "Cost", "When it ran", "Compare with another run", "Other runs of this combination"]);
+    expect(headings).toEqual(["Held-out and where the time went", "Cost", "When it ran", "Compare with another run", "Other runs of this combination"]);
   });
 
   test("every in-app link lands on the entity it names", async ({ page }) => {
@@ -611,7 +634,7 @@ test.describe("links and keyboard", () => {
 
   test("a story square opens from the keyboard, with a visible focus ring", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    const link = section(page, "heldout").locator('[data-story="2"] a');
+    const link = section(page, "time").locator('[data-story="2"] .rs-cell a');
     await link.focus();
     await expect(link).toHaveCSS("outline-style", "solid");
     await page.keyboard.press("Enter");

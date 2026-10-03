@@ -4,7 +4,7 @@ import { Breadcrumb, CombinationLink } from "../components/EntityLinks.tsx";
 import { RunHeader } from "../components/run/RunHeader.tsx";
 import { RunTime } from "../components/run/RunTime.tsx";
 import { RunCost } from "../components/run/RunCost.tsx";
-import { HeldOut, Ran } from "../components/run/HeldOutAndJobs.tsx";
+import { Ran } from "../components/run/HeldOutAndJobs.tsx";
 import { CompareRuns, RelatedRuns } from "../components/run/CompareAndRelated.tsx";
 import { InterventionList } from "../components/RunMarks.tsx";
 import { Section } from "../components/run/bits.tsx";
@@ -29,8 +29,7 @@ export function RunPage({ run, state, params }: { run: Row; state: State; server
     <div className="page run-page" data-page="run">
       <Breadcrumb trail={[{ label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> }, { label: run.runId }]} />
       <RunHeader run={run} state={state} />
-      <HeldOut run={run} />
-      <RunTime run={run} />
+      <RunTime run={run} rows={state.rows} />
       <RunCost run={run} />
       <Ran run={run} />
       <Interventions run={run} />
