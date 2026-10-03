@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Label check</title>
+<style>
+:root { --bg:#f6f5f2; --panel:#fff; --ink:#1d1c1a; --muted:#6b6862; --line:#dcd9d2; --accent:#2f5fd0; --good:#2f7d3a; --bad:#b3382c; }
+@media (prefers-color-scheme: dark) { :root { --bg:#161513; --panel:#201f1c; --ink:#ece9e2; --muted:#9a968d; --line:#35332f; --accent:#7ba0ff; --good:#6cc27a; --bad:#ef7a6c; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, sans-serif; }
+header { position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line); padding:10px 16px; display:flex; gap:20px; flex-wrap:wrap; align-items:baseline; z-index:1; }
+header h1 { font-size:15px; margin:0; }
+.stat { color:var(--muted); font-size:13px; } .stat b { color:var(--ink); }
+main { max-width:980px; margin:0 auto; padding:16px; display:grid; gap:12px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+.ctx { color:var(--muted); font-size:13px; white-space:pre-wrap; max-height:14vh; overflow:auto; }
+.text { white-space:pre-wrap; font:13px/1.5 ui-monospace, Menlo, monospace; max-height:52vh; overflow:auto; }
+.meta { color:var(--muted); font-size:12px; }
+.labels { display:flex; flex-wrap:wrap; gap:8px; }
+button { font:inherit; border:1px solid var(--line); background:var(--panel); color:var(--ink); border-radius:6px; padding:6px 10px; cursor:pointer; }
+button:hover, button:focus-visible { border-color:var(--accent); }
+button.model { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+button.chosen { background:var(--accent); color:#fff; border-color:var(--accent); }
+kbd { font:11px ui-monospace, monospace; border:1px solid var(--line); border-radius:3px; padding:0 4px; margin-right:4px; color:var(--muted); }
+.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.verdict.agree { color:var(--good); } .verdict.differ { color:var(--bad); }
+textarea { width:100%; font:inherit; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:6px; }
+table { border-collapse:collapse; font-size:13px; } td, th { border:1px solid var(--line); padding:3px 8px; text-align:right; } th:first-child, td:first-child { text-align:left; }
+.hint { color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Label check</h1>
+  <span class="stat" id="progress"></span>
+  <span class="stat" id="agreement"></span>
+</header>
+<main>
+  <div class="card" id="ctxcard" hidden><div class="ctx" id="ctx"></div></div>
+  <div class="card"><div class="meta" id="meta"></div><div class="text" id="text" data-quoted="agent"></div></div>
+  <div class="card">
+    <div id="model" class="row"></div>
+    <div class="labels" id="labels" role="group" aria-label="Labels"></div>
+    <div class="row" style="margin-top:8px"><textarea id="note" rows="1" placeholder="Note (optional)"></textarea></div>
+    <div class="row" style="margin-top:8px">
+      <button id="prev">Back</button><button id="next">Next</button><button id="nextundecided">Next undecided</button>
+      <span class="hint">Number keys choose a label; Enter accepts the model's label when it is shown; arrows move.</span>
+    </div>
+  </div>
+  <div class="card" id="confcard" hidden><div class="meta">Model's label (rows) against yours (columns)</div><div id="conf"></div></div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let S = null, at = 0;
+const pct = (x) => (x === null || x === undefined ? "n/a" : Math.round(x * 100) + "%");
+const grp = (g) => (g.decided ? `${pct(g.agreement)} of ${g.decided}` + (g.kappa === null ? "" : `, kappa ${g.kappa.toFixed(2)}`) : "none yet");
+async function load() { S = await (await fetch("/api/state")).json(); firstUndecided(); render(); }
+function firstUndecided() { const i = S.items.findIndex((x) => !S.decisions[x.id]); at = i < 0 ? 0 : i; }
+function render() {
+  const s = S.summary, it = S.items[at], d = it && S.decisions[it.id];
+  $("progress").innerHTML = `<b>${s.decided}</b> of ${s.total} decided`;
+  $("agreement").innerHTML = `agreement <b>${grp(s.all)}</b> · blind <b>${grp(s.blind)}</b> · shown <b>${grp(s.shown)}</b>`;
+  if (!it) { $("text").textContent = "No items."; return; }
+  $("ctxcard").hidden = !it.context; $("ctx").textContent = it.context || "";
+  $("meta").textContent = `${at + 1} of ${S.items.length} · ${it.id}${it.blind ? " · blind" : ""}${it.meta && Object.keys(it.meta).length ? " · " + JSON.stringify(it.meta) : ""}`;
+  $("text").textContent = it.text;
+  const name = (id) => (S.labels.find((l) => l.id === id) || { name: id }).name;
+  const model = $("model"); model.textContent = "";
+  if (it.label !== null && it.label !== undefined) {
+    const t = document.createElement("span"); t.innerHTML = "Model's label: <b></b>"; t.querySelector("b").textContent = name(it.label);
+    model.append(t); if (it.reason) { const r = document.createElement("span"); r.className = "hint"; r.textContent = "— " + it.reason; model.append(r); }
+  } else { model.textContent = "Model's label hidden until you decide."; model.className = "row hint"; }
+  if (d && it.label) { const v = document.createElement("span"); const same = d.label === it.label; v.className = "verdict " + (same ? "agree" : "differ"); v.textContent = same ? "you agree" : "you chose " + name(d.label); model.append(v); }
+  const box = $("labels"); box.textContent = "";
+  S.labels.forEach((l, n) => {
+    const b = document.createElement("button"); b.title = l.definition;
+    b.className = (it.label === l.id ? "model " : "") + (d && d.label === l.id ? "chosen" : "");
+    const k = document.createElement("kbd"); k.textContent = n < 9 ? n + 1 : "0"; b.append(k, l.name);
+    b.onclick = () => choose(l.id); box.append(b);
+  });
+  $("note").value = d && d.note ? d.note : "";
+  const cm = s.confusion, rows = Object.keys(cm), cols = S.labels.map((l) => l.id);
+  $("confcard").hidden = !rows.length;
+  if (rows.length) { let h = "<table><tr><th></th>" + cols.map((c) => `<th>${name(c)}</th>`).join("") + "</tr>";
+    for (const r of rows) h += `<tr><th>${name(r)}</th>` + cols.map((c) => `<td>${cm[r][c] || ""}</td>`).join("") + "</tr>"; $("conf").innerHTML = h + "</table>"; }
+}
+async function choose(label) {
+  const it = S.items[at]; if (!it) return;
+  const res = await fetch("/api/decision", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: it.id, label, note: $("note").value }) });
+  if (!res.ok) { alert((await res.json()).error); return; }
+  S = await res.json();
+  const nx = S.items.findIndex((x, i) => i > at && !S.decisions[x.id]); if (nx >= 0) at = nx; render();
+}
+function move(d) { at = Math.max(0, Math.min(S.items.length - 1, at + d)); render(); }
+$("prev").onclick = () => move(-1); $("next").onclick = () => move(1);
+$("nextundecided").onclick = () => { const i = S.items.findIndex((x, n) => n > at && !S.decisions[x.id]); if (i >= 0) { at = i; render(); } };
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "TEXTAREA" || e.metaKey || e.ctrlKey || !S) return;
+  const it = S.items[at];
+  if (e.key === "Enter" && it && it.label) choose(it.label);
+  else if (e.key === "ArrowLeft") move(-1); else if (e.key === "ArrowRight") move(1);
+  else if (/^[0-9]$/.test(e.key)) { const n = e.key === "0" ? 9 : Number(e.key) - 1; if (S.labels[n]) choose(S.labels[n].id); }
+});
+load();
+</script>
+</body>
+</html>

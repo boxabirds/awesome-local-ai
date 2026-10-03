@@ -172,6 +172,8 @@ pub enum Cmd {
     Ingest(IngestArgs),
     /// Compute the thinking analytics (layers 0 and 1) from the conversation database into analytics.db.
     Analyse(AnalyseArgs),
+    /// Validate pre-labels in a browser: accept or correct each, with blind items, agreement and kappa.
+    Label(LabelArgs),
     #[command(name = "skip-story")]
     SkipStory {
         node: String,
@@ -282,6 +284,22 @@ pub struct AnalyseArgs {
     /// Only this story run (`<run dir>/stories/NN`) or every story of this run dir; repeatable.
     #[arg(long = "only")]
     pub only: Vec<String>,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct LabelArgs {
+    /// The items to label: one JSON object per line (id, text, label, and optionally context, reason, blind, meta).
+    #[arg(long)]
+    pub items: PathBuf,
+    /// The label set: a JSON array of {id, name, definition}.
+    #[arg(long)]
+    pub labels: PathBuf,
+    /// Where decisions are appended (created if absent; the last for an item wins).
+    #[arg(long)]
+    pub decisions: PathBuf,
+    /// Where to listen.
+    #[arg(long, default_value = "127.0.0.1:7763")]
+    pub bind: String,
 }
 
 #[derive(Args, Debug, Clone)]
