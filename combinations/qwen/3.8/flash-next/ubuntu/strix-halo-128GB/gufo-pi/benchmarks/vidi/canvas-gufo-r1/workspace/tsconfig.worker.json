@@ -1,8 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "types": ["@cloudflare/workers-types"],
-    "lib": ["ES2022"]
-  },
-  "include": ["src/worker/**/*.ts", "src/shared/**/*.ts", "tests/integration/**/*.ts", "tests/fixtures/**/*.ts"]
-}

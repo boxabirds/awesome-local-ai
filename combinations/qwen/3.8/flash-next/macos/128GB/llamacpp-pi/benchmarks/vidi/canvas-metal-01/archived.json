@@ -1,0 +1,8 @@
+{
+ "archived_at": "2026-10-04T00:13:17+01:00",
+ "reason": "superseded: built against vidi spec v1 and scored by the v1 held-out suite",
+ "archive": "combinations__qwen__3.8__flash-next__macos__128GB__llamacpp-pi__benchmarks__vidi__canvas-metal-01.tar.zst",
+ "sha256": "b49a33cecdbdf56fe0545b888287fef7afeb62fe2485bde2bf3158fbd76acd54",
+ "files": 57,
+ "plan": "plans/20261003-archive-superseded-records.md"
+}

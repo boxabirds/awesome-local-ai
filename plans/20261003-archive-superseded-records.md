@@ -5,8 +5,11 @@ keep the raw files but in an archive file, compressed, stored using gitlfs. Not 
 Then, on LFS costing bandwidth on a public repository: "don't store it. gitignore it. It'll sit around locally for a few
 months and if it goes it goes." And, on the v1 runs: "then yes we axe all the v1 stuff".
 
-Nothing here has been done. The repository is public and these are published records, so every step below waits for the
-owner's approval.
+**Done on 4 October 2026** (owner: "go"). 26 runs archived: the 24 `vidi-v1` runs (the two marked invalid included) and the
+2 unversioned MTPLX runs. Each archive (`archive/<run path with / as __>.tar.zst`, 298 MB in all, 18,919 files) holds the
+run directory as it was on disk (`record/`, untracked re-scores included) and every node's lake copy (`lake/<node>/`),
+and each was restored into scratch and compared entry by entry (path, type, size, sha256) before anything was removed.
+`archive/MANIFEST.json` lists them. The `todoodle` runs and every `vidi-v2` run are untouched.
 
 ## What is actually there
 
@@ -23,7 +26,7 @@ So "the old stuff" is not one bucket, and two of the four groups must be treated
 
 ## What is archived, and what is not
 
-**Archived (24 runs, about 499 MB):**
+**Archived (26 runs: the 22 shown in the app, the 2 hidden as invalid, and 2 unversioned):**
 
 - **The 22 `vidi-v1` runs.** Built against spec v1 and scored by the v1 held-out suite. Every analysis has to remember to
   exclude them, which is the risk the owner named. What they can still say is kept below, in "What v1 says against v2".
@@ -99,8 +102,8 @@ archive_file, sha256}`. Reasons for this shape rather than moving the directory:
 1. **This plan approved** (done: "then yes we axe all the v1 stuff").
 2. **The marker and the readers**: `archived.json`, the benchmarker leaving archived runs out, the ingest skipping and
    purging them, the collector not pulling them. Tests first, as for the reference exclusion.
-3. **The archive files** for the 24 runs, with the manifest and the checksums, verified by restoring one at random into a
-   scratch directory and comparing it byte for byte.
+3. **The archive files** for the 26 runs, with the manifest and the checksums, verified by restoring every one into a
+   scratch directory and comparing it entry by entry (the comparison was first seen to catch a one-bit change).
 4. **Then, and only then**, the records' bulk is removed and the lake's copies deleted.
 5. A note in the guide, since what the app shows changes.
 

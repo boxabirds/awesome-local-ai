@@ -1,9 +1,0 @@
-node_modules
-dist
-.wrangler
-.wrangler-dev
-playwright-report
-test-results
-playwright/.cache
-*.log
-.DS_Store

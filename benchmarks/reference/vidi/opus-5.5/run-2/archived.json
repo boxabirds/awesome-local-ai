@@ -1,0 +1,8 @@
+{
+ "archived_at": "2026-10-04T00:13:17+01:00",
+ "reason": "superseded: built against vidi spec v1 and scored by the v1 held-out suite",
+ "archive": "benchmarks__reference__vidi__opus-5.5__run-2.tar.zst",
+ "sha256": "3d7174577b6a93e29fc6242c79f4626c1e701d15f330ac8870afb64daa74d568",
+ "files": 926,
+ "plan": "plans/20261003-archive-superseded-records.md"
+}

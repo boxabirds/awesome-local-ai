@@ -1,1 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><script>alert("xss")</script><rect width="40" height="40" fill="#0af" /></svg>
