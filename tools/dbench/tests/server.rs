@@ -1839,3 +1839,161 @@ async fn a_ranged_read_follows_growth_and_the_prefix_check_catches_a_rewrite() {
     assert_eq!(srv.get_raw(&file("name=proxy.log")).await.0, 404);
     assert_eq!(srv.get_raw(&file("name=egress.jsonl")).await.0, 404);
 }
+
+// ---- dbench collect: the host pulls a node's run files into the lake ----
+
+/// A nodes.toml naming this test server as node-t, with the collect settings given.
+fn nodes_toml(env: &Env, srv: &Server, store: &std::path::Path, db: &std::path::Path) -> PathBuf {
+    let path = env.root.0.join("nodes.toml");
+    std::fs::write(
+        &path,
+        format!(
+            "[nodes.{NODE_NAME}]\nurl = \"{}\"\ntoken = \"{}\"\n\n[collect]\nstore = \"{}\"\ndb = \"{}\"\nrepo = \"{}\"\n",
+            srv.base,
+            srv.token,
+            store.display(),
+            db.display(),
+            env.repo.display()
+        ),
+    )
+    .unwrap();
+    path
+}
+
+fn collect_once(config: &std::path::Path, extra: &[&str]) -> (bool, Value, String) {
+    let out = Command::new(env!("CARGO_BIN_EXE_dbench"))
+        .arg("--json")
+        .arg("--config")
+        .arg(config)
+        .args(["collect", "--once", "--worktree", "--settle-grace-ms", "0"])
+        .args(extra)
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    (out.status.success(), serde_json::from_str(&stdout).unwrap_or(Value::Null), stderr)
+}
+
+fn read_collection(store: &std::path::Path, run: &str) -> Value {
+    serde_json::from_slice(&std::fs::read(store.join(NODE_NAME).join(run).join("collection.json")).unwrap()).unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn collect_pulls_deltas_resumes_after_the_node_was_unreachable_and_completes_a_settled_run() {
+    let env = setup();
+    let store = env.root.0.join("lake");
+    let db = env.root.0.join("insights/conversations.db");
+    let srv = start(&env, false);
+    let config = nodes_toml(&env, &srv, &store, &db);
+    assert_eq!(srv.submit("grow", &spec("growpack", "run-g")).await.0, 201);
+    // The job writes for about a second; the first pass lands while it is still running.
+    srv.wait_for("grow", "running with files", |v| v["state"]["status"] == "running" && v["progress"]["run_dir"].is_string()).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let (ok, v, err) = collect_once(&config, &[]);
+    assert!(ok, "{err}");
+    let node = &v[0];
+    assert_eq!(node["node"], NODE_NAME);
+    assert_eq!(node["reachable"], true);
+    let first: Vec<&Value> = node["runs"].as_array().unwrap().iter().filter(|r| r["run"] == GROW_RUN).collect();
+    assert_eq!(first.len(), 1, "{v:#}");
+    assert!(first[0]["pulled_files"].as_u64().unwrap() >= 3 && first[0]["complete"] == false, "{v:#}");
+    let events = store.join(NODE_NAME).join(GROW_RUN).join("stories/01/agent-events.jsonl");
+    let len1 = std::fs::metadata(&events).unwrap().len();
+    assert!(len1 > 0);
+    let c = read_collection(&store, GROW_RUN);
+    assert_eq!((c["node"].as_str(), c["complete"].as_bool(), c["job"].as_str()), (Some(NODE_NAME), Some(false), Some("grow")));
+    assert_eq!(c["files"]["stories/01/agent-events.jsonl"]["bytes"].as_u64(), Some(len1));
+    assert!(c.get("error").is_none() && c.get("reason").is_none());
+    // The lake copy is a byte-for-byte prefix of the node's file.
+    let node_file = env.repo.join(GROW_RUN).join("stories/01/agent-events.jsonl");
+    assert_eq!(std::fs::read(&events).unwrap(), std::fs::read(&node_file).unwrap()[..len1 as usize]);
+
+    // Once the job is done the next pass pulls only the growth, and the run settles (grace 0) and completes.
+    srv.wait_status("grow", "done").await;
+    let (ok, v, err) = collect_once(&config, &[]);
+    assert!(ok, "{err}");
+    let run = v[0]["runs"].as_array().unwrap().iter().find(|r| r["run"] == GROW_RUN).unwrap().clone();
+    let len2 = std::fs::metadata(&events).unwrap().len();
+    assert_eq!(std::fs::read(&events).unwrap(), std::fs::read(&node_file).unwrap());
+    assert!(run["pulled_bytes"].as_u64().unwrap() < len2, "only the delta: {run}");
+    let c = read_collection(&store, GROW_RUN);
+    assert_eq!(c["run_status"]["state"], "finished");
+    assert_eq!(c["job_state"], "done");
+    assert!(c["files"].as_object().unwrap().values().all(|f| f["at_eof"] == true), "{c:#}");
+    // Settled, every file at eof, grace 0: complete on this pass or the next.
+    let (ok, _, err) = collect_once(&config, &[]);
+    assert!(ok, "{err}");
+    assert_eq!(read_collection(&store, GROW_RUN)["complete"], true);
+    // The egress log named by work_dir.txt came too.
+    assert!(store.join(NODE_NAME).join(GROW_RUN).join("egress.jsonl").is_file());
+    // And the warehouse has the story, from the lake's full log, placed under its node.
+    let wh = dbench::ingest::db::Db::open_read_only(&db).unwrap();
+    let (source, node_name, complete): (String, String, i64) = wh
+        .conn
+        .query_row("select s.source, c.node, c.complete from stories s join collection c on c.sk = s.sk where s.rel = ?1", [format!("{GROW_RUN}/stories/01")], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .unwrap();
+    assert_eq!((source.as_str(), node_name.as_str(), complete), ("full", NODE_NAME, 1));
+    drop(wh);
+
+    // The node goes away: the pass still exits 0, says so, and leaves the lake as it was.
+    let before = std::fs::read_to_string(store.join(NODE_NAME).join(GROW_RUN).join("collection.json")).unwrap();
+    drop(srv);
+    let (ok, v, err) = collect_once(&config, &["--no-ingest"]);
+    assert!(ok, "{err}");
+    assert_eq!(v[0]["reachable"], false);
+    assert!(err.contains("unreachable") || err.contains("needs"), "{err}");
+    assert_eq!(std::fs::read_to_string(store.join(NODE_NAME).join(GROW_RUN).join("collection.json")).unwrap(), before);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn collect_refetches_a_file_the_node_rewrote_and_backfills_a_run_that_has_no_job() {
+    let env = setup();
+    let store = env.root.0.join("lake");
+    let db = env.root.0.join("insights/conversations.db");
+    // A run from before dbench: written directly, no job.
+    let run_dir = env.repo.join(GROW_RUN);
+    std::fs::create_dir_all(run_dir.join("stories/01")).unwrap();
+    std::fs::write(run_dir.join("run.json"), "{}").unwrap();
+    std::fs::write(run_dir.join("run-status.json"), r#"{"state": "finished", "at": "2026-10-01T00:00:00Z"}"#).unwrap();
+    let events = run_dir.join("stories/01/agent-events.jsonl");
+    let first: String = (0..300).map(|i| format!("{{\"_rx\": 1790000000.{i}, \"type\": \"x\"}}\n")).collect();
+    std::fs::write(&events, &first).unwrap();
+    std::fs::write(run_dir.join("server.log"), "=== server start 1790000000 ===\nline one\n").unwrap();
+    let srv = start(&env, false);
+    let config = nodes_toml(&env, &srv, &store, &db);
+    let (ok, v, err) = collect_once(&config, &["--no-ingest"]);
+    assert!(ok, "{err}");
+    let run = v[0]["runs"].as_array().unwrap().iter().find(|r| r["run"] == GROW_RUN).unwrap().clone();
+    assert_eq!(run["pulled_files"], 2);
+    let c = read_collection(&store, GROW_RUN);
+    assert!(c["job"].is_null() && c["job_state"].is_null());
+    assert_eq!(c["run_status"]["state"], "finished");
+    // Settled and at eof with no job: complete after the grace.
+    let (ok, _, _) = collect_once(&config, &["--no-ingest"]);
+    assert!(ok);
+    assert_eq!(read_collection(&store, GROW_RUN)["complete"], true);
+
+    // The node rewrites the file: a byte changes inside the last 4 KiB the lake holds (the window the
+    // prefix check guards: the splice point, not the whole file), then more is appended. The check
+    // catches it and the lake's copy is fetched again from 0.
+    let mut rewritten = first.clone().into_bytes();
+    let at = rewritten.len() - 100;
+    rewritten[at] = b'#';
+    rewritten.extend_from_slice(b"{\"_rx\": 1790000001.0}\n");
+    std::fs::write(&events, &rewritten).unwrap();
+    // A complete run is only looked at again after the recheck interval; ask for it now.
+    let (ok, v, err) = collect_once(&config, &["--no-ingest", "--finished-recheck-ms", "0"]);
+    assert!(ok, "{err}");
+    let run = v[0]["runs"].as_array().unwrap().iter().find(|r| r["run"] == GROW_RUN).unwrap().clone();
+    assert_eq!(run["pulled_files"], 1, "{run}");
+    let lake_copy = std::fs::read(store.join(NODE_NAME).join(GROW_RUN).join("stories/01/agent-events.jsonl")).unwrap();
+    assert_eq!(lake_copy, rewritten);
+    let c = read_collection(&store, GROW_RUN);
+    assert_eq!(c["files"]["stories/01/agent-events.jsonl"]["refetches"], 1);
+    // The node truncated the file: fetched again from 0 as well.
+    std::fs::write(&events, b"{\"_rx\": 1790000002.0}\n").unwrap();
+    let (ok, _, err) = collect_once(&config, &["--no-ingest", "--finished-recheck-ms", "0"]);
+    assert!(ok, "{err}");
+    assert_eq!(std::fs::read(store.join(NODE_NAME).join(GROW_RUN).join("stories/01/agent-events.jsonl")).unwrap(), b"{\"_rx\": 1790000002.0}\n");
+    assert_eq!(read_collection(&store, GROW_RUN)["files"]["stories/01/agent-events.jsonl"]["refetches"], 2);
+}

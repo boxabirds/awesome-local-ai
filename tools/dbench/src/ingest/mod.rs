@@ -66,7 +66,8 @@ pub fn run_parts(run_dir: &str) -> Option<RunParts> {
         if i < 4 || p.len() != i + 3 {
             return None;
         }
-        let (engine, client) = p[i - 1].rsplit_once('-')?;
+        // The last segment is <engine>-<client>; a combination named without the dash is its engine alone.
+        let (engine, client) = p[i - 1].rsplit_once('-').unwrap_or((p[i - 1], ""));
         Some(RunParts {
             stack: p[1..i].join("/"),
             pack: p[i + 1].to_string(),

@@ -114,6 +114,7 @@ git pull                                           # results, as each story is r
 
 - **Trusted network only.** Bind to the Tailscale or LAN address, never `0.0.0.0` on a network you don't control. The API is plain HTTP.
 - **The token guards against mistakes; it is not a security boundary.** Every endpoint except `/v1/health` needs `Authorization: Bearer <token>`.
+- **The node serves only named files.** `/v1/runs/files` and `/v1/runs/file` serve the allow-listed files of a run directory (the table in `src/collect.rs`: the transcript and conditions of each story, the server and proxy logs, the progress file, the egress log); a request never contributes a path, only a name from that table and a story number.
 - **Named jobs only.**
   - A job names an installed combination, a pack directory in the repo, a run id, a scope and a client. All are checked against `[A-Za-z0-9._-]`.
   - The pack must be a relative path with no `..`.
@@ -139,6 +140,60 @@ git pull                                           # results, as each story is r
 | `GET /v1/runs` | every run directory on the node, newest `run-status.json` first: `[{run, job, run_status: {state, at}, job_state}]`. `run` is repo-relative (`combinations/…/benchmarks/vidi/v2-r1`); `job` is the newest job whose run directory it is, or null for a run with no job (one from before dbench, or whose install is gone). |
 | `GET /v1/jobs/{id}/files`, `GET /v1/runs/files?run=…` | the files the host may collect from the run, the ones git never carries: `{run, job, run_status, job_state, files: [{name, kind, size, mtime}]}`, from `stat` alone. The names are an allow-list (`src/collect.rs`): `stories/NN/agent-events.jsonl`, `stories/NN/conditions.jsonl`, `server.log`, `proxy.log` (`kind: append`), `progress.json` (`kind: whole`) and `egress.jsonl` (the harness's egress log for the run, found from `work_dir.txt`). Only files that exist are listed. 404 for an unknown job or a path with no `run.json`; 400 for a path that isn't a repo-relative run directory; 409 when a job's install no longer resolves (use the path form). |
 | `GET /v1/jobs/{id}/file?name=…&from=N&check=H`, `GET /v1/runs/file?run=…&name=…&from=N&check=H` | the bytes of one listed file as `application/octet-stream`, at most 4 MiB per response, from byte `N` and never past the size read at the start; headers `x-dbench-from`, `x-dbench-size`, `x-dbench-mtime`, `x-dbench-eof` (`1` when the response reaches that size). For an append-only file read from past 0, `check` is required: the FNV-1a-64 (16 hex digits) of the last 4096 bytes before `N` as the client holds them. A 409 (`prefix mismatch`, or `file is shorter than from`, with `size`) means the node's file is not what the client has, so the client fetches it from 0 again. A whole file is read from 0 only (400 otherwise) and refused with 413 over 4 MiB. 404 for a name outside the allow-list or a file the run doesn't have. The server builds the path from the allow-list's own names and the story number; a request never contributes a path. |
+
+## Collecting what git does not carry
+
+`dbench collect` is the host's side of the data lake. After every story the harness pushes the published record
+to git (metrics.json, run.json, the compact transcript, scores); what it never pushes stays on the node: the
+full `agent-events.jsonl` (hundreds of MB, with every stream delta), the model server's `server.log`, the
+live `progress.json`, the egress log, and `stories/NN/conditions.jsonl`. The collector pulls those into the
+lake, keeps the conversation database current, and serves the conversation API the benchmarker reads.
+
+- **Pull and diff.** Each pass asks every node in nodes.toml for its runs (`GET /v1/runs`) and each run's
+  collectable files (`/v1/runs/files`), then pulls the bytes it doesn't hold (`/v1/runs/file`): an append-only
+  file from its local length, with the prefix check; `progress.json` whole. The local file's length is the
+  cursor, so a crash between an append and the record is healed on the next pass. The prefix check guards the
+  splice point (the last 4 KiB before the resume offset): a file the node truncated or rewrote there is
+  fetched again from 0. A node that is unreachable is reported on stderr and left as it was.
+- **The lake.** `<store>/<node>/<run path>/` holds byte-for-byte copies, and `collection.json` beside them:
+  what was collected, how many bytes, when, from which node, whether the run is complete. Facts only, never a
+  fault or a reason. A run is complete once its `run-status.json` is final, its job (if any) has ended, every
+  file is held to its end, and a further look after the settle grace (60 s) shows nothing changed; a complete
+  run is looked at again every hour (a resumed run flips back).
+- **The warehouse.** After each pass the stories whose inputs changed are ingested into `conversations.db`
+  (`dbench ingest`, below), with the published records read from the repo's origin/main (fetched every 60 s),
+  never the working copy.
+- **The API.** `--api` (default 127.0.0.1:7761): `GET /v1/conversations` (the story runs with a stream),
+  `GET /v1/conversations/{id}` (its range, counts and latest cursor), `GET /v1/conversations/{id}/events`
+  in two forms: `?fromMs=&toMs=&cursor=&limit=` pages a time range in (time, ord) order, contiguous by
+  construction, `nextCursor` null when the span is exhausted; `?after=<cursor|0>&limit=` returns everything
+  ingested after the cursor whatever its time (a late-placed request has a later ord), with `nextCursor` the
+  latest stamp for the next call; `.../calls/{idx}` and `.../tools/{idx}` give one call or tool call in full.
+  Every time is integer milliseconds; a story the warehouse doesn't have is 404 `{}`.
+- **Rollout.** Nodes need a dbench with the collect endpoints (hold, restart, release); an older node answers
+  404 to `/v1/runs` and the collector says it needs the new binary.
+
+```toml
+# ~/.config/dbench/nodes.toml
+[collect]
+store = "/Users/me/expts/awesome-local-ai-bench-private/state/collected"
+db = "/Users/me/expts/awesome-local-ai-bench-private/state/insights/conversations.db"
+repo = "/Users/me/expts/awesome-local-ai"
+api = "127.0.0.1:7761"
+```
+
+```sh
+dbench collect                      # for ever: a pass every 10 s, the API served
+dbench collect --once --json        # one pass, a summary per node
+dbench collect --once --node node-a --run combinations/.../benchmarks/vidi/v2-r1
+dbench ingest --db … --repo … --store … --rebuild     # the whole warehouse afresh, renamed over the old
+dbench ingest --db … --repo … --store … --only combinations/.../benchmarks/vidi/v2-r1/stories/03
+dbench ingest --schema                                # the schema, for SCHEMA.md
+```
+
+The ingest's parsers are ports of the harness's own Python ones (benchmarks/spec-bench/harness). Their
+output on the fixture logs is held equal by `tests/golden`, written by `export_goldens.py` there; the release
+check "ingest goldens current" fails when the Python parsers change until the Rust side is brought up to date.
 
 ## CLI examples
 
