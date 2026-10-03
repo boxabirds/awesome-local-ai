@@ -1,3 +1,44 @@
+commit 7feea7992bcf3ca288909d040e24daf01540d0a2
+agent  Sat Oct 3 22:52:30 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  72 ++++++-
+ PROGRESS.md                               |  16 +-
+ package-lock.json                         |  48 ++++-
+ package.json                              |   3 +-
+ src/client/App.tsx                        | 160 +++++++++++++++-
+ src/client/board/Toolbar.tsx              |  45 +++++
+ src/client/board/useBoardDoc.ts           |  53 ++++++
+ src/client/board/useSelection.ts          |  39 ++++
+ src/client/canvas/BoardViewport.tsx       |  50 ++++-
+ src/client/canvas/testHooks.ts            |  19 +-
+ src/client/objects/NoteToolbar.tsx        |  61 ++++++
+ src/client/objects/StickyNote.tsx         | 214 +++++++++++++++++++++
+ src/client/objects/StickyText.ts          | 134 +++++++++++++
+ src/client/objects/StickyTextEditor.tsx   | 152 +++++++++++++++
+ src/client/styles.css                     | 184 ++++++++++++++++++
+ src/shared/board-model.ts                 | 191 +++++++++++++++++++
+ src/shared/config.ts                      |  40 ++++
+ tests/component/StickyNote.test.tsx       | 153 +++++++++++++++
+ tests/component/StickyTextEditor.test.tsx |  86 +++++++++
+ tests/component/Toolbars.test.tsx         |  46 +++++
+ tests/component/stickyHarness.tsx         | 127 +++++++++++++
+ tests/e2e/helpers/notes.ts                | 120 ++++++++++++
+ tests/e2e/sticky-notes.spec.ts            | 174 +++++++++++++++++
+ tests/fixtures/texts.ts                   |  32 ++++
+ tests/unit/board-model.test.ts            | 304 ++++++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts            | 155 +++++++++++++++
+ 26 files changed, 2651 insertions(+), 27 deletions(-)
+commit 3e1650f203d0ab0a968c8707e5a6b362a7bf5ee1
+vidi-agent  Sat Oct 3 21:58:18 2026 +0000
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 24 +++++++++---------------
+ 1 file changed, 9 insertions(+), 15 deletions(-)
 commit f47a63117a661410aba32cc3cd9d9988799b4905
 agent  Sat Oct 3 21:56:08 2026 +0000
 

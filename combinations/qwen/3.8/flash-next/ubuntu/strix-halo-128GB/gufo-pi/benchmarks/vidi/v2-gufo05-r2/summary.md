@@ -9,14 +9,16 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | Story | New work | Regressions | Repairs | Cumulative |
 |---|---|---|---|---|
 | 1 | 5/6 | 0 | 0 | 5/6 |
+| 2 | 8/10 | 0 | 1 | 18/20 |
 
-**New work** 5/6, **regressions** 0, **repairs** 0, **cumulative** 5/6.
+**New work** 13/16, **regressions** 0, **repairs** 1, **cumulative** 18/20.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 40.8 | None | None | None | — | — | green | 5/6 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
+| 2 | Capture ideas on sticky notes and rearrange them | DONE | 54.6 | None | None | None | — | — | green | 18/20 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 1 stories, 41 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/1, final acceptance 5/6, stalled 0, partial 0, 2395 lines in src+tests.
+**Totals:** 2 stories, 95 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 18/20, stalled 0, partial 0, 4904 lines in src+tests.
 
 ## How it happened
 
@@ -25,10 +27,12 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | Story | Commits | + / − lines | Most-changed source files (lines; tests and lockfiles left out) |
 |---|---|---|---|
 | 1 | 3 by the agent | 6059 / 62 | `useCamera.ts` (255), `BoardViewport.tsx` (236), `camera.ts` (190), `styles.css` (174), `NOTES.md` (105), `playwright.config.ts` (94), +15 more |
+| 2 | 1 by the agent | 2651 / 27 | `StickyNote.tsx` (214), `board-model.ts` (191), `styles.css` (184), `App.tsx` (160), `StickyTextEditor.tsx` (152), `StickyText.ts` (134), +10 more |
 
 ### Earlier stories broken or fixed
 
-No story changed an earlier story's held-out results.
+- **Story 2 broke 0, fixed 1** earlier held-out tests (story 2: Capture ideas on sticky notes and rearrange them). Source files it changed most: `StickyNote.tsx` (214), `board-model.ts` (191), `styles.css` (184), `App.tsx` (160), `StickyTextEditor.tsx` (152), `StickyText.ts` (134), +10 more.
+  - story 1: 5/6 → 10/10; fixed 1
 
 ### Interruptions and dead time
 
