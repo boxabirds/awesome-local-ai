@@ -145,7 +145,7 @@ assert_ok "opts out of automatic selection"         grep -qE '^AUTO_SELECT=0$' "
 assert_ok "backend is tensorfold"                   grep -qE '^BACKEND="tensorfold"' "$CFG"
 assert_ok "weights pinned to a full commit"         grep -qE '^MODEL_REVISION="[0-9a-f]{40}"' "$CFG"
 assert_ok "TensorFold pinned to a full commit"      grep -qE '^TENSORFOLD_COMMIT="[0-9a-f]{40}"' "$CFG"
-assert_ok "...which is the 0.6.2 release"           grep -qE '^TENSORFOLD_VERSION="0\.6\.2"' "$CFG"
+assert_ok "...which is the 0.6.4 release"           grep -qE '^TENSORFOLD_VERSION="0\.6\.4"' "$CFG"
 assert_eq "a hash for all 23 LFS files (22 shards + tokenizer.json)" 23 \
   "$(bash -c ". '$CFG'; printf '%s\n' \"\$MODEL_SHA256\" | grep -cE '^[0-9a-f]{64}  '")"
 assert_ok "effort low, as the owner set for Flash-Next" grep -qE '^REASONING_EFFORT_DEFAULT="low"$' "$CFG"

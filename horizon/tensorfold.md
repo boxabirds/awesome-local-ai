@@ -1,5 +1,14 @@
 # TensorFold
 
+**Update, 3 Oct 2026:** TensorFold 0.6.4 is released (11:14 BST) and the combination is pinned to it
+(`6ea5ade2`); not tested. The owner filed the draft issue upstream as TensorFold issue 271 ("Tensorfold causes a hard
+crash on M5 Max"); the maintainer closed it on 3 Oct, saying 0.6.4 changes the startup step they believe caused the
+crash: Mac prompt chunk sizes are probed smallest first and a larger probe runs only when its worst case fits the memory
+budget. 0.6.4 also adds `tensorfold plan MODEL`, which prints the model and context budget before any weights load. The
+maintainer asked for a reopening with the command and model if it still crashes. Nothing says whether the 47k-token window
+at the default budget, or the shrinking window at a larger one, has changed. The test that would say is a start at the
+default 89.6 GiB and, only with the owner's say, one at a larger budget.
+
 **Status:** parked by the owner (2 Oct 2026, evening): on 128 GB it gives a 47k-token window against the 128k
 minimum, on 0.6.0 and on 0.6.2 alike. Nothing further runs until that changes upstream. Before parking: checks 1 and 2 ran for real on the M5 Max. Check 1 passes, but only to 32k
 tokens — short of our ~131k sessions — capped by the memory budget's own keep-prompt limit, not by the long-context

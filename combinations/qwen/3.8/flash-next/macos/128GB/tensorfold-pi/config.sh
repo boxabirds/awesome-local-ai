@@ -37,8 +37,13 @@ MIN_DEVICE_MEM_MIB=92000
 # notes below that cite 0.6.0 were read from that source. 0.6.1 widened Flash Next's fitted window on Macs after a
 # short request; 0.6.2 speeds Flash Next on Macs at 64k-128k (release notes). The long-context fix (issue 71) is in 0.3.6.3; 0.4.0 added Flash-Next's
 # mixed and 2-8-bit checkpoints on Macs. Pinned by the commit its tag points at (git ls-remote / the GitHub API).
-TENSORFOLD_VERSION="0.6.2"
-TENSORFOLD_COMMIT="56e2e3ec55bc0ae1d7d5158c4fa2c79a3567ab21"
+# Moved to 0.6.4 (3 Oct 2026), not yet tested. Its notes: Mac prompt chunks are now probed smallest first, and a larger
+# probe runs only when its worst case fits the memory budget (the startup step TensorFold's maintainer believes caused the
+# M5 Max crash the owner reported, issue 271, closed on this release); `tensorfold plan MODEL` prints the model and
+# context budget before any weights load. Whether it changes the 47k-token window at the default budget, or what a larger
+# budget now does, is for the test that has not run (horizon/tensorfold.md).
+TENSORFOLD_VERSION="0.6.4"
+TENSORFOLD_COMMIT="6ea5ade26c4335491c50275af0be32b81f75f525"
 # pyproject.toml: requires-python >= 3.11. A uv-managed CPython, so the Mac's own Python is not involved.
 TENSORFOLD_PYTHON="3.12"
 # The process memory budget (TENSORFOLD_MEMORY_LIMIT_GB, GiB, read as a float). Not mlx-serve's 16 GiB OS reserve
