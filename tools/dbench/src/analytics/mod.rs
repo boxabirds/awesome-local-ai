@@ -16,6 +16,22 @@ use text::{jaccard, overlap, shingles, text_features, Shingles, TextFeatures};
 
 /// Bumped when what is computed for the same warehouse inputs changes; every story run is then recomputed.
 pub const ANALYTICS_VERSION: i64 = 1;
+/// Stacks whose names start with this are the reference models (Claude Opus, Sonnet): the quality yardstick the
+/// benchmark scores against, never a subject of conversation analysis, so their conversations are not analysed
+/// (owner, 3 October 2026: including them muddies the optimisation paths).
+pub const REFERENCE_STACK_PREFIX: &str = "reference/";
+/// Every table that holds rows keyed by a story run's `rel`.
+const REL_TABLES: [&str; 5] = ["analytics_story", "call_context", "think_text", "theme_story", "theme_share"];
+
+/// Remove what an earlier version (or a script) wrote for a reference story run.
+fn purge_references(store: &Store) -> Result<()> {
+    let like = "rel in (select rel from analytics_story where stack like ?1) or rel like '%benchmarks/reference/%'";
+    for t in REL_TABLES {
+        store.conn.execute(&format!("delete from {t} where {like}"), params![format!("{REFERENCE_STACK_PREFIX}%")])?;
+    }
+    Ok(())
+}
+
 /// A block's `max_prev_sim` looks back over this many earlier thinking blocks of the story run.
 pub const PREV_WINDOW: usize = 10;
 
@@ -102,9 +118,10 @@ fn digest(wh: &Connection, sk: i64, n_calls: i64) -> Result<String> {
 pub fn run_on(wh: &Connection, store: &mut Store, sel: &Selection, now: f64) -> Result<Summary> {
     let started = std::time::Instant::now();
     let mut summary = Summary::default();
-    let mut q = wh.prepare("select sk, rel, run_id, stack, run, story from stories where rel is not null order by sk")?;
+    purge_references(store)?;
+    let mut q = wh.prepare("select sk, rel, run_id, stack, run, story from stories where rel is not null and coalesce(stack, '') not like ?1 order by sk")?;
     type Row = (i64, String, Option<String>, Option<String>, Option<String>, Option<i64>);
-    let stories: Vec<Row> = q.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?.collect::<std::result::Result<_, _>>()?;
+    let stories: Vec<Row> = q.query_map(params![format!("{REFERENCE_STACK_PREFIX}%")], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?.collect::<std::result::Result<_, _>>()?;
     let only: HashSet<&str> = sel.only.iter().map(String::as_str).collect();
     for (sk, rel, run_id, stack, run, story) in stories {
         if !only.is_empty() && !only.contains(rel.as_str()) && !only.iter().any(|o| rel.starts_with(&format!("{o}/stories/"))) {

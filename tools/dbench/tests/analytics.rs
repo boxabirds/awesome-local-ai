@@ -296,3 +296,32 @@ fn a_rebuild_keeps_the_theme_tables_it_does_not_compute() {
     assert_eq!(c.query_row::<i64, _, _>("select count(*) from analytics_story", [], |r| r.get(0)).unwrap(), 1);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn reference_stacks_are_not_analysed_and_any_already_analysed_are_purged() {
+    // The Claude references are the quality yardstick, never a subject of conversation analysis (owner, 3 Oct 2026).
+    let db = Db::open_memory().unwrap();
+    let qwen = story(&db.conn, REL, 3);
+    call(&db.conn, qwen, 0, 1.0, 2.0, Some("one thought two three"));
+    let reference_rel = "benchmarks/reference/vidi/opus-5.5/run-9/stories/01";
+    db.conn.execute("insert or ignore into runs(id) values ('benchmarks/reference/vidi/opus-5.5/run-9')", []).unwrap();
+    db.conn.execute("insert into stories(rel, run_id, stack, run, story) values (?1, 'benchmarks/reference/vidi/opus-5.5/run-9', 'reference/opus-5.5', 'run-9', 1)", params![reference_rel]).unwrap();
+    let r = db.conn.last_insert_rowid();
+    call(&db.conn, r, 0, 1.0, 2.0, Some("a visible thought here"));
+    let mut s = Store::open_memory().unwrap();
+    let sum = run_on(&db.conn, &mut s, &Selection::default(), 1.0).unwrap();
+    assert_eq!((sum.stories, sum.computed), (1, 1));
+    let rels: Vec<String> = s.conn.prepare("select rel from analytics_story").unwrap().query_map([], |x| x.get(0)).unwrap().map(Result::unwrap).collect();
+    assert_eq!(rels, vec![REL.to_string()]);
+    // A reference story run an earlier version analysed is removed from every table, theme tables included.
+    for (t, cols) in [("analytics_story", "rel"), ("call_context", "rel, idx"), ("think_text", "rel, idx"), ("theme_story", "rel, version"), ("theme_share", "rel, version, theme")] {
+        let vals = cols.split(", ").map(|c| if c == "rel" { format!("'{reference_rel}'") } else { "1".to_string() }).collect::<Vec<_>>().join(", ");
+        s.conn.execute(&format!("insert into {t}({cols}) values ({vals})"), []).unwrap();
+    }
+    run_on(&db.conn, &mut s, &Selection::default(), 2.0).unwrap();
+    for t in ["analytics_story", "call_context", "think_text", "theme_story", "theme_share"] {
+        let n: i64 = s.conn.query_row(&format!("select count(*) from {t} where rel like '%reference%'"), [], |x| x.get(0)).unwrap();
+        assert_eq!(n, 0, "{t}");
+    }
+    assert_eq!(s.count("analytics_story").unwrap(), 1);
+}

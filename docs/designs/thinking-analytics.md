@@ -37,7 +37,11 @@ LAKE ──ingest──► WAREHOUSE conversations.db ──read-only──► A
    is bumped, and only then. `analytics_story` records, per story run, the digest and version it was computed from.
 6. **Failure isolation.** Analytics runs after ingest in the collector's pass. An error in it is logged and never stops
    collection or ingest.
-7. **Facts only.** Nothing here explains or judges; a column is a count, a ratio or an overlap, and its definition is
+7. **No reference models.** Stacks named `reference/…` (Claude Opus and Sonnet) are the benchmark's quality yardstick and
+   are never analysed: no story run of theirs is computed, and any found in `analytics.db` is deleted on every pass
+   (every table keyed by `rel`, the theme tables included). Owner, 3 October 2026: including them muddies the
+   optimisation paths. Their scores stay where scores are used; their conversations are not data for this.
+8. **Facts only.** Nothing here explains or judges; a column is a count, a ratio or an overlap, and its definition is
    in this document.
 
 ## Tables
@@ -156,3 +160,6 @@ one page on `127.0.0.1:7763`.
   malformed files) and unit tests of agreement and kappa. Checked in a browser on a private port.
 - **Not built yet:** the taxonomy, the sample and the model's pre-labels. The taxonomy is the owner's to set (a first
   proposal is in the research document); the tool takes whatever label set it is given.
+- **Reference models excluded (3 Oct 2026, the owner's rule).** 121 reference story runs (about 7,200 calls) had been
+  computed by the first version; they are removed and no longer computed (`REFERENCE_STACK_PREFIX`, with a test that
+  they are skipped and that earlier rows are purged). The live file holds 385 story runs, all Qwen.

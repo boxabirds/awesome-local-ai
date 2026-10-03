@@ -2,6 +2,9 @@
 
 3 October 2026. Part of the thinking-spread investigation (`docs/research/20261003-thinking-spread.md`).
 
+The reference models (Claude Opus and Sonnet) are excluded from everything here: they are the quality yardstick, and
+including them muddies the optimisation paths (owner's rule, 3 October 2026). Every script reads Qwen stacks only.
+
 ## What existed, and what this adds
 
 The 1 October census (`../findings-behaviour.md` section 5, `../findings-performance.md` section 2) used hand-written

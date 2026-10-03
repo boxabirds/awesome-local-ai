@@ -155,7 +155,8 @@ order of how directly the data points at them:
 - "Does not affect quality" is a negative claim; the evidence is an interval around zero, and its width is the claim.
 - Reading the thinking text means reading what the model wrote: it must stay marked as data in anything shown, and out of
   the app's own words.
-- Thinking in a cloud model's runs is withheld, so none of this applies to the references.
+- The reference models (Claude Opus and Sonnet) are the quality yardstick and are excluded from this analysis, as from
+  every conversation analysis (owner's rule, 3 October 2026): including them muddies the optimisation paths.
 
 ## 6. Proposed order
 
