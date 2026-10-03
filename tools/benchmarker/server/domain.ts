@@ -460,11 +460,13 @@ function usageOf(raw: RawUsage): RecordUsage | null {
  * calls, held-out) stay. */
 export function publicStory(s: RecordStory): Story {
   const { harnessFaults: _faults, skippedOutput: _skipped, credentialsRedacted: _redacted, usage, ...rest } = s;
-  if (!usage) return { ...rest, usage: usage ?? null };
+  // The warehouse's id and whether it has the conversation are set by the server once it knows the row's directory.
+  const base = { ...rest, storyRunId: null, hasConversation: false };
+  if (!usage) return { ...base, usage: usage ?? null };
   const { split, ...u } = usage;
-  if (!split) return { ...rest, usage: { ...u, split: split ?? null } };
+  if (!split) return { ...base, usage: { ...u, split: split ?? null } };
   const { check, ...parts } = split;
-  return { ...rest, usage: { ...u, split: check.status === "problems" ? null : parts } };
+  return { ...base, usage: { ...u, split: check.status === "problems" ? null : parts } };
 }
 
 /** A run's tokens and speeds over its recorded stories. Speeds are total tokens over total seconds, so a

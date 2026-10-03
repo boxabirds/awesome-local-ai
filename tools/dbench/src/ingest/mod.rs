@@ -382,7 +382,8 @@ pub fn stream_events(rows: &events::Rows, timing: &timing::Parsed, timed: &[Opti
                 start,
                 "tool_start",
                 Some(tl.idx as i64),
-                json!({ "idx": tl.idx, "callIdx": tl.call, "name": tl.name, "kind": tl.kind, "arg": py::head_chars(&tl.arg, db::HEAD_CHARS), "argChars": tl.arg_chars, "sub": tl.sub, "argFlags": tl.arg_flags }),
+                // toolKind, not kind: an event's own kind is tool_start; the tool's (read, unit, bash) rides beside it.
+                json!({ "idx": tl.idx, "callIdx": tl.call, "name": tl.name, "toolKind": tl.kind, "arg": py::head_chars(&tl.arg, db::HEAD_CHARS), "argChars": tl.arg_chars, "sub": tl.sub, "argFlags": tl.arg_flags }),
             );
         }
         if let Some(end) = tl.end.as_f64() {
@@ -391,7 +392,7 @@ pub fn stream_events(rows: &events::Rows, timing: &timing::Parsed, timed: &[Opti
                 "tool_end",
                 Some(tl.idx as i64),
                 json!({
-                    "idx": tl.idx, "callIdx": tl.call, "name": tl.name, "kind": tl.kind, "error": tl.error, "resChars": tl.res_chars, "resFlags": tl.res_flags,
+                    "idx": tl.idx, "callIdx": tl.call, "name": tl.name, "toolKind": tl.kind, "error": tl.error, "resChars": tl.res_chars, "resFlags": tl.res_flags,
                     "passed": tl.passed, "failed": tl.failed, "flaky": tl.flaky, "skipped": tl.skipped, "seconds": tl.start.as_f64().map(|s| py::round_to(end - s, 1)),
                     "result": tl.res.as_deref().map(cut),
                 }),

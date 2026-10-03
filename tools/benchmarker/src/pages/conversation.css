@@ -1,0 +1,22 @@
+/* The conversation and call pages: results, happening by happening. */
+.conv-sections { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 10px; }
+.conv-sections a { text-decoration: none; }
+.conv-sections a[aria-current="true"] { font-weight: 600; text-decoration: underline; }
+.conv-timeline { display: flex; align-items: flex-end; gap: 1px; height: 48px; margin: 0; padding: 2px 0; border-bottom: 1px solid var(--line, #ddd); }
+.conv-timeline .tick { flex: 1 1 0; min-width: 2px; background: var(--seg-decode); border-radius: 1px 1px 0 0; display: block; }
+.conv-timeline .tick.empty { background: var(--faint, #ccc); opacity: 0.5; }
+.conv-timeline .tick.compaction { box-shadow: 0 -2px 0 var(--seg-compaction); }
+.conv-timeline a.tick:hover { filter: brightness(1.25); }
+.conv-table .said { max-width: 32ch; }
+.gist { display: inline-block; max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.conv-list { margin: 0; padding-left: 1.2em; }
+.conv-list.messages li { margin: 4px 0; }
+.quoted { white-space: pre-wrap; }
+pre.quoted { max-height: 60vh; overflow: auto; background: var(--panel, #f6f6f6); padding: 8px; border-radius: 6px; font-size: 12px; }
+.call-block { margin: 12px 0; }
+.call-block h3, .call-block h4 { margin: 8px 0 4px; font-size: 13px; }
+.call-nav { display: flex; gap: 14px; }
+.call-nav .faint { color: var(--faint); }
+.seg-link { display: block; height: 100%; }
+.seg-link:hover .seg { filter: brightness(1.25); }
+.conversation-link { font-size: 12px; }

@@ -13,6 +13,8 @@ import { OverviewPage } from "./pages/OverviewPage.tsx";
 import { MachinesIndex } from "./pages/MachinesIndex.tsx";
 import { RunPage } from "./pages/RunPage.tsx";
 import { StoryRunPage } from "./pages/StoryRunPage.tsx";
+import { ConversationPage } from "./pages/ConversationPage.tsx";
+import { CallPage } from "./pages/CallPage.tsx";
 import { CombinationPage } from "./pages/CombinationPage.tsx";
 import { NotFound } from "./pages/NotFound.tsx";
 import { StoryPage } from "./pages/StoryPage.tsx";
@@ -185,13 +187,17 @@ function EntityPage({ route, state, serverNow, family, filter, filteredOut }: { 
       return <CombinationPage stack={route.stack} runs={runs} state={scoped} serverNow={serverNow} params={route.params} />;
     }
     case "run":
-    case "storyRun": {
+    case "storyRun":
+    case "conversation":
+    case "call": {
       const run = state.rows.find((r) => r.pack === route.pack && r.stack === route.stack && r.runId === route.runId);
       if (!run) return <NotFound what={`run ${route.runId} of ${route.stack}`} />;
       const scoped = comparable(state, run.pack, run.family, filter);
       if (!scoped.rows.includes(run)) return <Hidden note={filteredOut} />;
       if (route.page === "run") return <RunPage run={run} state={scoped} serverNow={serverNow} params={route.params} />;
       const story = run.stories.find((s) => s.id === route.story) ?? null;
+      if (route.page === "conversation") return <ConversationPage run={run} story={story} storyId={route.story} state={scoped} params={route.params} />;
+      if (route.page === "call") return <CallPage run={run} story={story} storyId={route.story} call={route.call} state={scoped} />;
       return <StoryRunPage run={run} story={story} storyId={route.story} state={scoped} serverNow={serverNow} params={route.params} />;
     }
     case "story": {

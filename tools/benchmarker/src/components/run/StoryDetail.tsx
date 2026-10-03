@@ -5,7 +5,8 @@ import { GLOSSARY } from "../../../shared/glossary.ts";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
 import { Missing, NotApplicable, Section, Stat, Term, full } from "./bits.tsx";
-import { SegmentLegend, SplitBar } from "./SplitBar.tsx";
+import { conversationPartHref, SegmentLegend, SplitBar } from "./SplitBar.tsx";
+import { conversationHref } from "../../../shared/routes.ts";
 import { NO_SPLIT } from "./RunTime.tsx";
 import { EngineSpeed, pct, speed } from "./RunCost.tsx";
 
@@ -13,7 +14,7 @@ const RATIO_DECIMALS = 1;
 
 const secs = (s: number) => `${full(s)} s`;
 
-export function StoryTime({ story }: { story: Story }) {
+export function StoryTime({ story, run }: { story: Story; run?: { pack: string; stack: string; runId: string } }) {
   const split = story.usage?.split ?? null;
   if (!split) {
     return (
@@ -27,7 +28,7 @@ export function StoryTime({ story }: { story: Story }) {
   return (
     <Section term="timeSplit" id="time" aside={<span className="num">{duration(split.wall)} wall</span>}>
       <SegmentLegend />
-      <div className="big-bar"><SplitBar split={split} usage={story.usage ?? null} scaleSeconds={split.wall} label={`story ${story.id}: ${duration(split.wall)}`} /></div>
+      <div className="big-bar"><SplitBar split={split} usage={story.usage ?? null} scaleSeconds={split.wall} label={`story ${story.id}: ${duration(split.wall)}`} hrefOf={run ? conversationPartHref(run, story) : undefined} /></div>
       <div className="split-grid">
         <table className="rp-table parts" aria-label="Parts of the time">
           <thead><tr><th><Term id="splitParts" /></th><th className="n">Seconds</th><th className="n">Share</th></tr></thead>
@@ -76,17 +77,21 @@ export function StoryCost({ usage, cloud = false }: { usage: Usage | null | unde
 
 const notCounted = (what: string) => <Missing why={`Not counted: ${what}.`} />;
 
-export function Conversation({ story }: { story: Story }) {
+export function Conversation({ story, run }: { story: Story; run?: { pack: string; stack: string; runId: string } }) {
   const c = conversationView(story.conversation);
+  // The whole conversation, happening by happening, when the warehouse has it; else it is not available.
+  const open = run && story.hasConversation
+    ? <a className="conversation-link" data-to="conversation" href={conversationHref(run.pack, run.stack, run.runId, story.id)}>Open the {GLOSSARY.conversationPage.name.toLowerCase()}</a>
+    : <span className="conversation-link" data-to="none"><Missing why="Not available." /></span>;
   if (!c) {
     return (
-      <Section term="conversation" id="conversation">
+      <Section term="conversation" id="conversation" aside={open}>
         <p className="rp-empty" data-empty="conversation">No conversation profile for this story.</p>
       </Section>
     );
   }
   return (
-    <Section term="conversation" id="conversation">
+    <Section term="conversation" id="conversation" aside={open}>
       <div className="stats">
         <Stat term="modelCalls" sub={`${full(c.toolCalls)} tool calls`}>{full(c.calls)}</Stat>
         <Stat term="thinking" sub={c.thinkingMedian !== null ? `median ${full(c.thinkingMedian)} per call` : undefined}>

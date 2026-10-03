@@ -255,13 +255,16 @@ test.describe("where the time went", () => {
     await expect(section(page, "time").locator(".legend")).toHaveCount(7);
   });
 
-  test("a story's label and its bar both open its story run", async ({ page }) => {
+  test("a story's label opens its story run; its bar does too, unless the story's conversation is there, which the bar opens instead", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
     await section(page, "time").locator('[data-story="1"] a.story-run-link').click();
     await expect(page).toHaveURL(new RegExp(`${storyRunHref(SWIFT, "v2-r5", "1").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
     await page.goBack();
+    await section(page, "time").locator('[data-story="1"] a.bar-link').click();
+    await expect(page.locator('[data-page="storyRun"] h1')).toContainText("Story 1");
+    await page.goBack();
     await section(page, "time").locator('[data-story="2"] a.bar-link').click();
-    await expect(page.locator('[data-page="storyRun"] h1')).toContainText("Story 2");
+    await expect(page.locator('[data-page="conversation"]')).toBeVisible();
   });
 
   test("a story whose breakdown failed its check (v2-r1 story 1): no bar, not available, and nothing about why; its total stays", async ({ page }) => {
@@ -588,14 +591,18 @@ test.describe("links and keyboard", () => {
         await expect(page.locator('[data-page="storyRun"] .breadcrumb a.run-link'), href).toHaveAttribute("data-tip", `${route.stack} · ${route.runId}`);
         continue;
       }
+      if (route.page === "conversation" || route.page === "call") {
+        await expect(page.locator(`[data-page="${route.page}"] .breadcrumb a.story-run-link`), href).toHaveText(`story ${Number(route.story)}`);
+        continue;
+      }
       throw new Error(`${href} names no page`);
     }
   });
 
-  test("every link is reachable by keyboard and has a name, except the bars (their label is the same link)", async ({ page }) => {
+  test("every link is reachable by keyboard and has a name, except the bars and their parts (their label is the same link)", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
     const bad = await page.locator('[data-page="run"] a').evaluateAll((as) => as
-      .filter((a) => !a.classList.contains("bar-link"))
+      .filter((a) => !a.classList.contains("bar-link") && !a.classList.contains("seg-link"))
       .filter((a) => a.getAttribute("tabindex") === "-1" || !(a.textContent ?? "").trim())
       .map((a) => a.outerHTML));
     expect(bad).toEqual([]);

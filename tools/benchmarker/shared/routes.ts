@@ -12,6 +12,8 @@ export type Route =
   | { page: "combination"; pack: string; stack: string; params: Params }
   | { page: "run"; pack: string; stack: string; runId: string; params: Params }
   | { page: "storyRun"; pack: string; stack: string; runId: string; story: string; params: Params }
+  | { page: "conversation"; pack: string; stack: string; runId: string; story: string; params: Params }
+  | { page: "call"; pack: string; stack: string; runId: string; story: string; call: string; params: Params }
   | { page: "story"; pack: string; story: string; params: Params }
   | { page: "machine"; machine: string; params: Params }
   | { page: "notFound"; path: string };
@@ -25,6 +27,14 @@ export const combinationHref = (pack: string, stack: string) => `#/${seg(pack)}/
 export const runHref = (pack: string, stack: string, runId: string) => `#/${seg(pack)}/r/${seg(stack)}/${seg(runId)}`;
 export const storyRunHref = (pack: string, stack: string, runId: string, story: string) =>
   `${runHref(pack, stack, runId)}/s/${storyNo(story)}`;
+const CONVERSATION = "conversation";
+const CALL = "c";
+/** A story run's conversation, landing on one of its sections (`at`) when asked. */
+export const conversationHref = (pack: string, stack: string, runId: string, story: string, at?: string) =>
+  withParams(`${storyRunHref(pack, stack, runId, story)}/${CONVERSATION}`, { at });
+/** One model call of a story run's conversation, in full. */
+export const callHref = (pack: string, stack: string, runId: string, story: string, call: number | string) =>
+  `${storyRunHref(pack, stack, runId, story)}/${CONVERSATION}/${CALL}/${seg(String(Number(call)))}`;
 export const storyHref = (pack: string, story: string) => `#/${seg(pack)}/s/${storyNo(story)}`;
 export const machineHref = (machine: string) => `#/${MACHINE}/${seg(machine)}`;
 
@@ -56,6 +66,12 @@ export function parseRoute(hash: string): Route {
   if (kind === "r" && rest.length === 2) return { page: "run", pack, stack: rest[0], runId: rest[1], params };
   if (kind === "r" && rest.length === 4 && rest[2] === "s" && STORY.test(rest[3])) {
     return { page: "storyRun", pack, stack: rest[0], runId: rest[1], story: String(Number(rest[3])), params };
+  }
+  if (kind === "r" && rest.length === 5 && rest[2] === "s" && STORY.test(rest[3]) && rest[4] === CONVERSATION) {
+    return { page: "conversation", pack, stack: rest[0], runId: rest[1], story: String(Number(rest[3])), params };
+  }
+  if (kind === "r" && rest.length === 7 && rest[2] === "s" && STORY.test(rest[3]) && rest[4] === CONVERSATION && rest[5] === CALL && STORY.test(rest[6])) {
+    return { page: "call", pack, stack: rest[0], runId: rest[1], story: String(Number(rest[3])), call: String(Number(rest[6])), params };
   }
   return { page: "notFound", path };
 }

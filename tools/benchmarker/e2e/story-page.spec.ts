@@ -517,9 +517,10 @@ test.describe("every link lands on its entity", () => {
     await follow(page, note.locator("a.machine-link"), "machine", "node-a");
   });
 
-  test("every link on the page is an entity page's address, and has a name", async ({ page }) => {
+  test("every link on the page is an entity page's address, and has a name (a bar's parts, the mouse's way into a conversation, have the row's links for the keyboard)", async ({ page }) => {
     await open(page, "2");
     const bad = await page$(page).locator("a").evaluateAll((as) => as
+      .filter((a) => !a.classList.contains("seg-link"))
       .filter((a) => !/^#\/(vidi\/(c|r|s)\/|m\/|$)/.test(a.getAttribute("href") ?? "") || !(a.textContent ?? "").trim())
       .map((a) => a.outerHTML));
     expect(bad).toEqual([]);

@@ -130,6 +130,10 @@ export interface Story {
   /** Why this story run is left out of every story-by-story comparison, in the record's own plain words ("This story
    * run also built stories 11 and 12."); null or absent for a story run that is compared. Its run's total and score stand. */
   notComparable?: string | null;
+  /** The story run's id in the warehouse (`<run dir>/stories/NN`); null for a job with no record directory. */
+  storyRunId: string | null;
+  /** Whether the warehouse has this story run's conversation (any of it: a story still being built counts). */
+  hasConversation: boolean;
 }
 
 export interface QueuePlace {

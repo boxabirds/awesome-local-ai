@@ -24,9 +24,9 @@ export function StoryRunPage({ run, storyId, state, params }: { run: Row; story:
       ]} />
       <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
       {st.kind === "recorded" ? <>
-        <StoryTime story={st.story} />
+        <StoryTime story={st.story} run={run} />
         <StoryCost usage={st.story.usage} cloud={isCloud(run)} />
-        <Conversation story={st.story} />
+        <Conversation story={st.story} run={run} />
       </> : <NotRecorded run={run} st={st} />}
       {st.kind === "outOfScope" || !compared ? null : <Against run={run} state={state} storyId={storyId} />}
       {st.kind === "recorded" && compared ? <WhatDiffered run={run} state={state} storyId={storyId} params={params} /> : null}

@@ -128,11 +128,11 @@ export const SEGMENTS: { seg: Seg; term: TermId }[] = [
   { seg: "other", term: "segOther" },
 ];
 
-export interface StoryBar { id: string; title: string; split: TimeSplit | null; usage: Usage | null }
+export interface StoryBar { id: string; title: string; split: TimeSplit | null; usage: Usage | null; story: Story }
 
 /** One bar per recorded story, and the scale they share: the longest wall time among them. */
 export function runTimeBars(run: Pick<Row, "stories">): { bars: StoryBar[]; scaleSeconds: number } {
-  const bars = run.stories.map((s) => ({ id: s.id, title: s.title, split: s.usage?.split ?? null, usage: s.usage ?? null }));
+  const bars = run.stories.map((s) => ({ id: s.id, title: s.title, split: s.usage?.split ?? null, usage: s.usage ?? null, story: s }));
   return { bars, scaleSeconds: Math.max(1, ...bars.map((b) => b.split?.wall ?? 0)) };
 }
 

@@ -56,6 +56,34 @@ Click a run (its first cell) to open one line per recorded story: held-out tests
 build (like the squares), agent minutes, calls, output tokens, read tokens and the cached share, tok/s (output over
 story time), the model-only decode and prefill tok/s where timed, and how many drafted tokens the model accepted.
 
+## Conversations
+
+A story run's conversation, happening by happening, is a page of its own under the story run
+(`#/<pack>/r/<stack>/<run>/s/<n>/conversation`), with one model call in full a step further (`…/conversation/c/<idx>`).
+It comes from the warehouse (`conversations.db`, built by `dbench collect`; see tools/dbench/README.md), through
+dbench's conversation API, which this server proxies as `/api/conversations/…` (`--conversations-url`, default
+http://127.0.0.1:7761); the server never reads the database itself.
+
+- **What the page shows:** the calls, tool calls, compactions, waits between sessions, messages, the model server's
+  requests and the machine's readings, each a section with a count; a timeline of calls over the story's span, each
+  tick a link to the call at that time; what the agent itself said, verbatim (`data-quoted="agent"`: a result the
+  page presents, never its own words).
+- **How it reads:** the API is one stream per story run with two forms over it. `?fromMs=&toMs=&cursor=&limit=`
+  pages a time range in (time, ord) order, contiguous by construction (the page backfills with it); `?after=<cursor>`
+  returns everything ingested after the cursor whatever its time, and the latest cursor for the next call (the page
+  asks every 5 s with it, whether the story is running or long finished). Every time is integer milliseconds.
+- **Where it links from:** every time bar's parts, on the run, story-run and story pages: the model's parts lead to
+  the calls, tools to the tool calls, compaction to the compactions, the wait between sessions to the waits. A story
+  whose conversation the warehouse doesn't have keeps its bar as a link to its story run, and its page says
+  "Not available." with nothing about why. A combination page's bar sums a run's stories, so its parts open the
+  run's time section.
+- **The state** carries `storyRunId` (`<run dir>/stories/NN`) and `hasConversation` per story. The faults feed
+  gains `conversation_missing`, `conversation_incomplete` and `conversation_service_unreachable`; no page shows them.
+- **Tests:** `e2e/fixtures/conversations.py` writes the fixture's conversations, one case per cell of the matrix the
+  pages can show (its docstring lists the dimensions); `e2e/conversation.spec.ts` covers the pages and the API by
+  where the reader starts, `e2e/links.spec.ts` the bars, `e2e/no-faults.spec.ts` the sweep over the new pages
+  (quoted agent text is checked apart, and must be the only place a fault word appears).
+
 ## Machines and Setup
 
 **Machines** lists the dbench nodes in `~/.config/dbench/nodes.toml` (shared with the `dbench` command

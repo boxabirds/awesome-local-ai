@@ -309,7 +309,8 @@ fn a_story_still_growing_only_ever_gains_ords_and_the_cursor_form_sees_the_growt
     let kinds: std::collections::BTreeSet<String> = all.iter().map(|e| e.kind.clone()).collect();
     assert!(["call", "tool_start", "tool_end"].iter().all(|k| kinds.contains(*k)), "{kinds:?}");
     let tool_end = all.iter().find(|e| e.kind == "tool_end").unwrap();
-    assert!(tool_end.payload["kind"].is_string() && tool_end.payload["seconds"].is_number(), "{}", tool_end.payload);
+    assert!(tool_end.payload["toolKind"].is_string() && tool_end.payload["seconds"].is_number(), "{}", tool_end.payload);
+    assert!(tool_end.payload.get("kind").is_none(), "a payload field must not shadow the event's kind: {}", tool_end.payload);
     // One tool in full, with its call.
     let t = db.tool(c.sk, 0).unwrap().unwrap();
     assert!(t["args"].is_object() && t["kind"].is_string(), "{t}");
@@ -549,6 +550,10 @@ async fn the_conversation_api_pages_a_story_by_time_range_and_by_cursor_without_
     let (code, v) = get_json(&format!("{base}/v1/conversations/{id}/calls/0")).await;
     assert_eq!(code, 200);
     assert!(v["tools"].is_array());
+    // A tool event keeps its own kind over the API, with the tool's kind beside it.
+    let (_, stream) = get_json(&format!("{base}/v1/conversations/{id}/events?after=0&limit=500")).await;
+    let ts = stream["events"].as_array().unwrap().iter().find(|e| e["kind"] == "tool_start").unwrap();
+    assert!(ts["toolKind"].is_string(), "{ts}");
     let (code, _) = get_json(&format!("{base}/v1/conversations/{id}/tools/0")).await;
     assert_eq!(code, 200);
     let (code, v) = get_json(&format!("{base}/v1/conversations/{id}/calls/99")).await;
