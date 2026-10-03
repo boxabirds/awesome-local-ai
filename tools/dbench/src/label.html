@@ -12,13 +12,13 @@ body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-u
 header { position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line); padding:10px 16px; display:flex; gap:20px; flex-wrap:wrap; align-items:baseline; z-index:1; }
 header h1 { font-size:15px; margin:0; }
 .stat { color:var(--muted); font-size:13px; } .stat b { color:var(--ink); }
-main { max-width:980px; margin:0 auto; padding:16px; display:grid; gap:12px; }
-.card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
-.ctx { color:var(--muted); font-size:13px; white-space:pre-wrap; max-height:14vh; overflow:auto; }
-.text { white-space:pre-wrap; font:13px/1.5 ui-monospace, Menlo, monospace; max-height:52vh; overflow:auto; }
+main { max-width:980px; margin:0 auto; padding:16px; display:grid; grid-template-columns: minmax(0, 1fr); gap:12px; }
+.card { min-width: 0; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+.ctx { color:var(--muted); font-size:13px; white-space:pre-wrap; overflow-wrap: anywhere; max-height:14vh; overflow:auto; }
+.text { white-space:pre-wrap; overflow-wrap: anywhere; font:13px/1.5 ui-monospace, Menlo, monospace; max-height:52vh; overflow:auto; }
 .meta { color:var(--muted); font-size:12px; }
 .labels { display:flex; flex-wrap:wrap; gap:8px; }
-button { font:inherit; border:1px solid var(--line); background:var(--panel); color:var(--ink); border-radius:6px; padding:6px 10px; cursor:pointer; }
+button { max-width:100%; white-space:normal; text-align:left; font:inherit; border:1px solid var(--line); background:var(--panel); color:var(--ink); border-radius:6px; padding:6px 10px; cursor:pointer; }
 button:hover, button:focus-visible { border-color:var(--accent); }
 button.model { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
 button.chosen { background:var(--accent); color:#fff; border-color:var(--accent); }
@@ -48,7 +48,6 @@ table { border-collapse:collapse; font-size:13px; } td, th { border:1px solid va
       <span class="hint">Number keys choose a label; Enter accepts the model's label when it is shown; arrows move.</span>
     </div>
   </div>
-  <div class="card" id="confcard" hidden><div class="meta">Model's label (rows) against yours (columns)</div><div id="conf"></div></div>
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -60,7 +59,7 @@ function firstUndecided() { const i = S.items.findIndex((x) => !S.decisions[x.id
 function render() {
   const s = S.summary, it = S.items[at], d = it && S.decisions[it.id];
   $("progress").innerHTML = `<b>${s.decided}</b> of ${s.total} decided`;
-  $("agreement").innerHTML = `agreement <b>${grp(s.all)}</b> · blind <b>${grp(s.blind)}</b> · shown <b>${grp(s.shown)}</b>`;
+  $("agreement").innerHTML = s.all.decided ? `you agree with <b>${pct(s.all.agreement)}</b> of my proposals` : "";
   if (!it) { $("text").textContent = "No items."; return; }
   $("ctxcard").hidden = !it.context; $("ctx").textContent = it.context || "";
   $("meta").textContent = `${at + 1} of ${S.items.length} · ${it.id}${it.blind ? " · blind" : ""}${it.meta && Object.keys(it.meta).length ? " · " + JSON.stringify(it.meta) : ""}`;
@@ -80,10 +79,6 @@ function render() {
     b.onclick = () => choose(l.id); box.append(b);
   });
   $("note").value = d && d.note ? d.note : "";
-  const cm = s.confusion, rows = Object.keys(cm), cols = S.labels.map((l) => l.id);
-  $("confcard").hidden = !rows.length;
-  if (rows.length) { let h = "<table><tr><th></th>" + cols.map((c) => `<th>${name(c)}</th>`).join("") + "</tr>";
-    for (const r of rows) h += `<tr><th>${name(r)}</th>` + cols.map((c) => `<td>${cm[r][c] || ""}</td>`).join("") + "</tr>"; $("conf").innerHTML = h + "</table>"; }
 }
 async function choose(label) {
   const it = S.items[at]; if (!it) return;
