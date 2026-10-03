@@ -266,8 +266,20 @@ test.describe("D. layout: pinned heads, compact numbers, folded cells", () => {
     await page.goto(conv(SWIFT, "v2-r5", "2"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
-    await expect(p.locator('[data-section="all"] .rp-head')).toHaveCSS("position", "sticky");
-    await expect(p.locator("table.turns thead th").first()).toHaveCSS("position", "sticky");
+    // One header holds the title and its facts, the chips, the search and the strip; it is pinned, the column heads under it.
+    const head = p.locator('[data-section="all"] .rp-head');
+    await expect(head).toHaveCSS("position", "sticky");
+    await expect(head.locator("h2")).toHaveText("Conversation");
+    await expect(head.locator('[data-fact="count"]')).toBeVisible();
+    await expect(head.locator(".conv-chips")).toBeVisible();
+    await expect(head.getByRole("searchbox")).toBeVisible();
+    await expect(head.locator("svg.conv-strip")).toBeVisible();
+    await expect(p.locator(".rp-section")).toHaveCount(1);
+    const th = p.locator("table.turns thead th").first();
+    await expect(th).toHaveCSS("position", "sticky");
+    const headH = await head.evaluate((e) => e.getBoundingClientRect().height);
+    const thTop = await th.evaluate((e) => parseFloat(getComputedStyle(e).top));
+    expect(thTop).toBeGreaterThanOrEqual(headH);
     const widths = await p.locator('table.turns tr[data-call="0"] td').evaluateAll((tds) => tds.map((td) => ({ cls: td.className, w: td.getBoundingClientRect().width })));
     const said = widths.find((w) => w.cls.includes("said"))!;
     expect(said.w, JSON.stringify(widths)).toBeGreaterThan(Math.max(...widths.filter((x) => !x.cls.includes("said")).map((x) => x.w)) * 1.5);

@@ -14,6 +14,7 @@ import { Missing, Section, Term, full, utc } from "../components/run/bits.tsx";
 import { Clamped } from "../components/conversation/text.tsx";
 import { duration } from "../format.ts";
 import { useConversation } from "../useConversation.ts";
+import { useHeightVar } from "../useHeightVar.ts";
 import "./run.css";
 import "./conversation.css";
 
@@ -41,6 +42,8 @@ export function ConversationPage({ run, story, storyId, state, params }: { run: 
   const [query, setQuery] = useState("");
   const [range, setRange] = useState<[number, number] | null>(null);
   const [jumped, setJumped] = useState<number | null>(null);
+  // The one header is pinned; the column heads pin under it, so its height is kept in a variable for them.
+  const head = useHeightVar<HTMLDivElement>("--conv-head-h");
   const crumbs = [
     { label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> },
     { label: <RunLink pack={run.pack} stack={run.stack} runId={run.runId} /> },
@@ -79,20 +82,23 @@ export function ConversationPage({ run, story, storyId, state, params }: { run: 
     <div className="page conversation-page run-page" data-page="conversation" data-available="true" data-backfilled={conv.backfilled ? "true" : "false"} data-polls={conv.polls}>
       <Breadcrumb trail={crumbs} />
       <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
-      <Section term="conversationPage" id="conversation" aside={s ? <span className="small" data-fact="range">{utc(from / MS_PER_S)} · {duration((toMs - from) / MS_PER_S)} · <span data-fact="events">{full(conv.events.length)}</span> events{s.complete ? "" : " so far"}</span> : null}>
-        <div className="conv-controls">
-          <div className="conv-chips" role="group" aria-label="Kinds shown">
-            {TURN_KINDS.map((k) => <button key={k.id} type="button" className={`chip chip-${k.id}`} data-kind={k.id} aria-pressed={kinds.has(k.id)} onClick={() => toggle(k.id)}><i aria-hidden="true" />{k.name} <span className="num">{full(count(k.id))}</span></button>)}
-            {everyKind ? null : <button type="button" className="chip-reset" onClick={() => setKinds(kindsFromParam(undefined))}>all kinds</button>}
-          </div>
-          <input type="search" role="searchbox" aria-label="Search the conversation" placeholder="Search the conversation" value={query} onChange={(ev) => setQuery(ev.target.value)} />
-        </div>
-        <Strip all={all} from={from} toMs={toMs} range={range} onJump={jumpTo} onRange={setRange} />
-      </Section>
       <section className="rp-section conv-section" id="sec-all" data-section="all" aria-labelledby="h-all">
-        <div className="rp-head">
-          <h2 id="h-all"><Term id="inOrder" /></h2>
-          <div className="rp-aside"><span className="num" data-fact="count">{shown.length === all.length ? full(all.length) : `${full(shown.length)} of ${full(all.length)} shown`}</span></div>
+        <div className="rp-head conv-head" ref={head}>
+          <div className="conv-head-row">
+            <h2 id="h-all"><Term id="conversationPage" /></h2>
+            <div className="rp-aside">
+              <span className="num" data-fact="count">{shown.length === all.length ? full(all.length) : `${full(shown.length)} of ${full(all.length)} shown`}</span>
+              {s ? <span className="small" data-fact="range">{utc(from / MS_PER_S)} · {duration((toMs - from) / MS_PER_S)} · <span data-fact="events">{full(conv.events.length)}</span> events{s.complete ? "" : " so far"}</span> : null}
+            </div>
+          </div>
+          <div className="conv-controls">
+            <div className="conv-chips" role="group" aria-label="Kinds shown">
+              {TURN_KINDS.map((k) => <button key={k.id} type="button" className={`chip chip-${k.id}`} data-kind={k.id} aria-pressed={kinds.has(k.id)} onClick={() => toggle(k.id)}><i aria-hidden="true" />{k.name} <span className="num">{full(count(k.id))}</span></button>)}
+              {everyKind ? null : <button type="button" className="chip-reset" onClick={() => setKinds(kindsFromParam(undefined))}>all kinds</button>}
+            </div>
+            <input type="search" role="searchbox" aria-label="Search the conversation" placeholder="Search the conversation" value={query} onChange={(ev) => setQuery(ev.target.value)} />
+          </div>
+          <Strip all={all} from={from} toMs={toMs} range={range} onJump={jumpTo} onRange={setRange} />
         </div>
         <div className="rp-body">
           {all.length === 0 ? <p className="rp-empty small">None.</p> : (

@@ -21,10 +21,13 @@
 .sec-search-toggle:hover, .sec-search-toggle[aria-expanded="true"] { color: var(--ink); border-color: var(--line); background: var(--panel); }
 .conversation-page mark { background: var(--chip); color: inherit; border-radius: 2px; font-weight: 700; }
 /* A section's heading, and its table's column heads, stay pinned under the breadcrumb while its rows scroll. */
-.conv-section .rp-head { position: sticky; top: var(--pinned-h); z-index: 3; height: var(--conv-head-h); box-sizing: border-box; align-items: center; }
+.conv-section .rp-head { position: sticky; top: var(--pinned-h); z-index: 3; box-sizing: border-box; }
+.conv-head { display: block; }
+.conv-head-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; margin-bottom: 8px; }
+.conv-head-row .rp-aside { display: flex; gap: 14px; align-items: baseline; }
 .conv-section .table-scroll { overflow-x: visible; }
 .conv-table thead th { position: sticky; top: calc(var(--pinned-h) + var(--conv-head-h)); z-index: 2; background: var(--panel); box-shadow: 0 1px 0 var(--line); }
-.conversation-page { --conv-head-h: 41px; }
+.conversation-page { --conv-head-h: 180px; }   /* measured into the variable while the page is up (useHeightVar) */
 .conv-list { margin: 0; padding-left: 1.2em; }
 .conv-list.messages li { margin: 4px 0; }
 .quoted { white-space: pre-wrap; }
@@ -50,7 +53,7 @@ tr[data-jumped="true"] td { background: var(--chip); }
 .call-nav .call-of { color: var(--muted); }
 
 /* The overview's controls: kind chips, the search, the strip. */
-.conv-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 10px; }
+.conv-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 6px; }
 .conv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--muted); cursor: pointer; }
 .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
@@ -60,7 +63,7 @@ tr[data-jumped="true"] td { background: var(--chip); }
 .chip-reset { font: inherit; font-size: 12px; padding: 3px 10px; border: 1px dashed var(--line); border-radius: 999px; background: none; color: var(--muted); cursor: pointer; }
 .conv-controls input { flex: 0 1 32ch; font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 .conv-strip-wrap { margin: 4px 0 0; }
-.conv-strip { display: block; width: 100%; height: 60px; cursor: crosshair; touch-action: none; }
+.conv-strip { display: block; width: 100%; height: 48px; cursor: crosshair; touch-action: none; }
 .strip-base { stroke: var(--line); stroke-width: 1; }
 .strip-call { fill: var(--seg-decode); }
 .strip-call:hover { filter: brightness(1.25); }
