@@ -44,6 +44,7 @@ export function useConversation(id: string | null): ConversationState {
     }
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let polls = 0;
     const publish = (patch: Partial<ConversationState>) => {
       if (!stopped) setState((s) => ({ ...s, ...patch, events: store.current.all(), latest: store.current.latest }));
     };
@@ -51,8 +52,10 @@ export function useConversation(id: string | null): ConversationState {
       if (stopped) return;
       const after = store.current.latest ?? "0";
       const page = await getJson<EventsPage>(api(id, `/events?after=${encodeURIComponent(after)}&limit=${EVENTS_PAGE_MAX}`));
-      if (page) store.current.add(page.events);
-      if (!stopped) setState((s) => ({ ...s, polls: s.polls + 1, events: store.current.all(), latest: store.current.latest }));
+      const added = page ? store.current.add(page.events) : 0;
+      // A poll that brought nothing changes nothing on the page: a long conversation is not re-rendered every few seconds.
+      if (!stopped && (added > 0 || polls === 0)) setState((s) => ({ ...s, polls: polls + 1, events: store.current.all(), latest: store.current.latest }));
+      polls += 1;
       timer = setTimeout(() => void follow(), FOLLOW_POLL_MS);
     };
     (async () => {

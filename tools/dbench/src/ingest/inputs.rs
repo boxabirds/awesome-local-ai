@@ -160,6 +160,23 @@ pub struct LakeRecord {
     pub complete: bool,
     #[serde(default)]
     pub collected_at: Option<f64>,
+    /// What the lake holds of each file (`bytes` is what matters here: the node that ran the run has the files).
+    #[serde(default)]
+    pub files: BTreeMap<String, LakeFile>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct LakeFile {
+    #[serde(default)]
+    pub bytes: u64,
+}
+
+impl LakeRecord {
+    /// How much of the run this node's copy holds: every checkout has every run directory (the published files
+    /// come through git), but only the node that ran it has the machine-only files.
+    pub fn held_bytes(&self) -> u64 {
+        self.files.values().map(|f| f.bytes).sum()
+    }
 }
 
 /// One run's directory in the lake.
@@ -170,7 +187,9 @@ pub struct LakeRun {
     pub record: LakeRecord,
 }
 
-/// Every run the lake holds, by its repo-relative path (the newest collection first when two nodes hold one).
+/// Every run the lake holds, by its repo-relative path. Every node's checkout has every run directory, so a run
+/// is in the lake once per node; the copy that counts is the one with the most bytes (the node that ran it),
+/// and only then the newest.
 pub fn lake_runs(store: &Path) -> Result<BTreeMap<String, LakeRun>> {
     let mut out: BTreeMap<String, LakeRun> = BTreeMap::new();
     let Ok(nodes) = std::fs::read_dir(store) else { return Ok(out) };
@@ -181,8 +200,10 @@ pub fn lake_runs(store: &Path) -> Result<BTreeMap<String, LakeRun>> {
         for dir in found {
             let rel = dir.strip_prefix(node.path()).unwrap_or(&dir).to_string_lossy().replace('\\', "/");
             let record: LakeRecord = std::fs::read(dir.join(COLLECTION_FILE)).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
-            let newer = out.get(&rel).is_none_or(|prev| record.collected_at.unwrap_or(0.0) > prev.record.collected_at.unwrap_or(0.0));
-            if newer {
+            let better = out.get(&rel).is_none_or(|prev| {
+                (record.held_bytes(), record.collected_at.unwrap_or(0.0)) > (prev.record.held_bytes(), prev.record.collected_at.unwrap_or(0.0))
+            });
+            if better {
                 out.insert(rel, LakeRun { node: name.clone(), dir, record });
             }
         }

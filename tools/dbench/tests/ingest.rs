@@ -567,3 +567,22 @@ async fn the_conversation_api_pages_a_story_by_time_range_and_by_cursor_without_
 fn urlencoding(s: &str) -> String {
     dbench::client::urlencode(s)
 }
+
+#[test]
+fn the_lake_run_that_counts_is_the_node_that_holds_the_files_not_the_newest_empty_copy() {
+    let root = std::env::temp_dir().join(format!("dbench-lake-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let store = root.join("store");
+    // Two nodes hold the same run directory: the one that ran it (with the files, collected earlier) and another
+    // whose checkout merely has the published files (nothing collectable, collected later).
+    let ran = store.join("node-ran").join(RUN);
+    let other = store.join("node-other").join(RUN);
+    std::fs::create_dir_all(ran.join("stories/01")).unwrap();
+    std::fs::create_dir_all(&other).unwrap();
+    std::fs::write(ran.join("stories/01/agent-events.jsonl"), "{}\n").unwrap();
+    std::fs::write(ran.join("collection.json"), r#"{"node": "node-ran", "complete": true, "collected_at": 100.0, "files": {"stories/01/agent-events.jsonl": {"bytes": 3}}}"#).unwrap();
+    std::fs::write(other.join("collection.json"), r#"{"node": "node-other", "complete": true, "collected_at": 200.0, "files": {}}"#).unwrap();
+    let lake = ingest::inputs::lake_runs(&store).unwrap();
+    assert_eq!(lake.get(RUN).map(|l| l.node.as_str()), Some("node-ran"));
+    std::fs::remove_dir_all(&root).unwrap();
+}
