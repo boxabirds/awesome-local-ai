@@ -228,41 +228,111 @@ test.describe("A. the conversation page", () => {
 });
 
 test.describe("B. the call page", () => {
-  test("a call in full: its long thinking whole, its failed tool's arguments and result; a step to the calls before and after", async ({ page }) => {
+  const item = (page: Page, block: string) => page.locator(`[data-page="call"] [data-block="${block}"]`);
+  const head = (page: Page, block: string) => item(page, block).locator("> button.cc-head");
+
+  test("four items, closed on arrival, each with its figure in its heading: thinking, output, input, tool calls", async ({ page }) => {
     await page.goto(call(SWIFT, "v2-r5", "2", 1));
     const p = page.locator('[data-page="call"]');
     await expect(p).toHaveAttribute("data-available", "true");
-    const thinking = p.locator('[data-block="thinking"] pre[data-quoted="agent"]');
+    for (const block of ["thinking", "output", "input", "tools"]) {
+      await expect(head(page, block), block).toHaveAttribute("aria-expanded", "false");
+      await expect(item(page, block).locator(".cc-body"), block).toHaveCount(0);
+    }
+    // One unit: tokens. Output and input are the record's; thinking and tool calls are shared out of the output, marked ≈.
+    await expect(head(page, "thinking").locator(".cc-figure")).toHaveText(/^≈ [\d,]+ tokens$/);
+    await expect(head(page, "output").locator(".cc-figure")).toHaveText(/^[\d,]+ tokens$/);
+    await expect(head(page, "input").locator(".cc-figure")).toHaveText(/^[\d,]+ tokens$/);
+    await expect(head(page, "tools").locator(".cc-figure")).toHaveText(/^\d+ calls?, ≈ [\d,]+ tokens$/);
+    await expect(head(page, "thinking").locator(".cc-figure")).toHaveAttribute("data-tip", /shared out|by characters/i);
+    // No unit but tokens in the headings.
+    expect(await page.locator('[data-page="call"] .cc-head').allInnerTexts()).not.toContainEqual(expect.stringMatching(/chars|characters/i));
+  });
+
+  test("only the call: no story status, held-out result or time; the breadcrumb names the story; the second row is the call", async ({ page }) => {
+    await page.goto(call(SWIFT, "v2-r5", "2", 1));
+    const p = page.locator('[data-page="call"]');
+    await expect(p.locator(".story-run-line, .srl-facts")).toHaveCount(0);
+    await expect(p).not.toContainText(/14\/14|1h20m/);
+    await expect(page.locator("nav.breadcrumb")).toContainText("Story 2: Sticky notes");
+    await expect(p.locator('[data-fact="call-of"]')).toHaveText("Call 2 of 4");
+    const order = await p.evaluate((el) => [...el.children].map((c) => c.getAttribute("data-block") ?? c.className.split(" ")[0]));
+    expect(order.slice(1)).toEqual(["call-nav", "thinking", "output", "input", "tools"]);
+  });
+
+  test("an item opens to its whole content in the page's own flow, and closes again", async ({ page }) => {
+    await page.goto(call(SWIFT, "v2-r5", "2", 1));
+    await head(page, "thinking").click();
+    await expect(head(page, "thinking")).toHaveAttribute("aria-expanded", "true");
+    const thinking = item(page, "thinking").locator('pre[data-quoted="agent"]');
     await expect(thinking).toBeVisible();
     expect((await thinking.textContent())!.length).toBeGreaterThan(4000);
-    await expect(p.locator('[data-block="tool"][data-tool="1"]')).toContainText("failed");
-    await expect(p.locator('[data-block="tool"][data-tool="1"] pre').nth(1)).toContainText("1 failed, 9 passed");
+    await expect(item(page, "thinking").getByRole("button", { name: /show all|show less/i })).toHaveCount(0);
+    await head(page, "thinking").click();
+    await expect(head(page, "thinking")).toHaveAttribute("aria-expanded", "false");
+    await expect(item(page, "thinking").locator(".cc-body")).toHaveCount(0);
+  });
+
+  test("no scrolls within scrolls: nothing on the page scrolls inside itself, whatever is open", async ({ page }) => {
+    await page.goto(call(SWIFT, "v2-r5", "2", 1));
+    for (const block of ["thinking", "output", "input", "tools"]) await head(page, block).click();
+    await expect(item(page, "tools").locator(".cc-body")).toBeVisible();
+    const nested = await page.locator('[data-page="call"]').evaluate((root) =>
+      [...root.querySelectorAll("*")].filter((e) => { const o = getComputedStyle(e).overflowY; return (o === "auto" || o === "scroll") && e.scrollHeight > e.clientHeight + 1; }).map((e) => e.tagName + "." + String(e.className)));
+    expect(nested).toEqual([]);
+  });
+
+  test("the open item's heading stays pinned under the pinned bar while its content scrolls, so it can be closed from anywhere", async ({ page }) => {
+    await page.setViewportSize({ width: 1000, height: 420 });
+    await page.goto(call(SWIFT, "v2-r5", "2", 1));
+    await head(page, "thinking").click();
+    const h = head(page, "thinking");
+    const top0 = (await h.boundingBox())!.y;
+    await page.evaluate((y) => window.scrollTo(0, y), top0 + 500);
+    await expect.poll(async () => { const b = (await h.boundingBox())!; return b.y >= 0 && b.y < 200 && b.height > 0; }).toBe(true);
+    await h.click();
+    await expect(h).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("tool calls open to each tool whole: its failed result, and a tool with no end yet says so", async ({ page }) => {
+    await page.goto(call(SWIFT, "v2-r5", "2", 1));
+    await head(page, "tools").click();
+    await expect(page.locator('[data-block="tool"][data-tool="1"]')).toContainText("failed");
+    await expect(page.locator('[data-block="tool"][data-tool="1"] pre').nth(1)).toContainText("1 failed, 9 passed");
+    await page.goto(call(SWIFT, "v2-r5", "2", 2));
+    await head(page, "tools").click();
+    await expect(page.locator('[data-block="tool"][data-tool="2"] .missing')).toHaveCount(1);
+  });
+
+  test("output opens to the call's text and the split of its tokens; input to the cache and the new, and what the call before returned", async ({ page }) => {
+    await page.goto(call(SWIFT, "v2-r5", "2", 1));
+    await head(page, "output").click();
+    await expect(item(page, "output").locator(".cc-body")).toContainText(/thinking ≈ [\d,]+/i);
+    await expect(item(page, "output").locator(".cc-body")).toContainText(/text ≈ [\d,]+/i);
+    await head(page, "input").click();
+    await expect(item(page, "input").locator(".cc-body")).toContainText(/read from the cache/i);
+    await expect(item(page, "input").locator(".cc-body")).toContainText(/new to this call/i);
+    await expect(item(page, "input").locator(".cc-body [data-prev-tool]")).not.toHaveCount(0);
+  });
+
+  test("the way back and the calls either side stay on the call's row", async ({ page }) => {
+    await page.goto(call(SWIFT, "v2-r5", "2", 1));
+    const p = page.locator('[data-page="call"]');
     await expect(p.getByRole("link", { name: "← Back to the conversation" })).toHaveAttribute("href", new RegExp("/s/2/conversation\\?call=1$"));
-    await expect(p.locator('[data-fact="call-of"]')).toHaveText("Call 2 of 4");
     await expect(p.getByRole("link", { name: "← call 1" })).toHaveAttribute("href", new RegExp("/conversation/c/0$"));
     await expect(p.getByRole("link", { name: "call 3 →" })).toHaveAttribute("href", new RegExp("/conversation/c/2$"));
     await page.goto(call(SWIFT, "v2-r5", "2", 0));
     await expect(page.locator('[data-page="call"] .call-nav')).toContainText("← first call");
     await page.goto(call(SWIFT, "v2-r5", "2", 3));
     await expect(page.locator('[data-page="call"] .call-nav')).toContainText("last call →");
-    // The tool with no end yet: its result is not available.
-    await page.goto(call(SWIFT, "v2-r5", "2", 2));
-    await expect(page.locator('[data-block="tool"][data-tool="2"] .missing')).toHaveCount(1);
-  });
-
-  test("the call page carries the same one line and no card", async ({ page }) => {
-    await page.goto(`${conv(SWIFT, "v2-r5", "2")}/c/1`);
-    const p = page.locator('[data-page="call"]');
-    await expect(p.locator(".story-run-line h1")).toHaveText("Story 2 · Sticky notes");
-    await expect(p.locator(".story-run-line .srl-facts")).toHaveText("DONE · 14/14 · 1h20m");
-    await expect(p.locator(".rp-header, .eyebrow, .outcome")).toHaveCount(0);
   });
 
   test("a claude call withholds its thinking (n/a); a call that doesn't exist is not available", async ({ page }) => {
     await page.goto(call(OPUS, "run-9", "1", 0));
     const p = page.locator('[data-page="call"]');
-    await expect(p.locator('[data-stat="thinking"] .na')).toHaveCount(1);
-    await expect(p.locator('[data-block="thinking"]')).toHaveCount(0);
+    await expect(p.locator('[data-block="thinking"] .cc-figure .na')).toHaveCount(1);
+    await expect(p.locator('[data-block="thinking"] .cc-body')).toHaveCount(0);
+    await expect(p.locator('[data-block="thinking"] > button.cc-head')).toBeDisabled();
     await page.goto(call(SWIFT, "v2-r5", "2", 99));
     await expect(page.locator('[data-page="call"]')).toHaveAttribute("data-available", "false");
     await expect(page.locator('[data-empty="call"]')).toContainText("Not available.");
@@ -378,11 +448,8 @@ test.describe("D. layout: pinned heads, compact numbers, folded cells", () => {
     await expect(cell.locator(".clamp")).toHaveAttribute("data-folded", "true");
     await expect(p.locator('table.turns tr[data-call="0"] .clamp-more')).toHaveCount(0);
     await expect(p.locator('table.turns tr[data-tool="0"] .clamp[data-folded="true"]')).toHaveCount(1);
-    // The call page: the long thinking is folded on arrival.
+    // The call page: the long thinking is closed on arrival and opens whole.
     await page.goto(call(SWIFT, "v2-r5", "2", 1));
-    const thinking = page.locator('[data-page="call"] [data-block="thinking"] .clamp');
-    await expect(thinking).toHaveAttribute("data-folded", "true");
-    await page.locator('[data-page="call"] [data-block="thinking"]').getByRole("button", { name: "Show all" }).click();
-    await expect(thinking).toHaveAttribute("data-expanded", "true");
+    await expect(page.locator('[data-page="call"] [data-block="thinking"] > button.cc-head')).toHaveAttribute("aria-expanded", "false");
   });
 });

@@ -100,9 +100,9 @@ test.describe("B. the trail has one shape per page kind, and every level in it i
   test("runs: Overview › combination › run › Story N › Conversation › Call N", async ({ page }) => {
     await page.goto(`/${CONVERSATION}/c/1`);
     expect(await trail(page)).toEqual([
-      "Overview(#/)", `3.8-swift-1.5/27b llamacpp(${COMBINATION})`, `v2-r5(${RUN})`, `Story 2(${STORY_RUN})`, `Conversation(${CONVERSATION})`, "Call 2",
+      "Overview(#/)", `3.8-swift-1.5/27b llamacpp(${COMBINATION})`, `v2-r5(${RUN})`, `Story 2: Sticky notes(${STORY_RUN})`, `Conversation(${CONVERSATION})`, "Call 2",
     ]);
-    await crumbs(page).getByRole("link", { name: "Story 2" }).click();
+    await crumbs(page).getByRole("link", { name: "Story 2: Sticky notes" }).click();
     await expect(page$(page, "storyRun")).toBeVisible();
     expect(await trail(page)).toEqual(["Overview(#/)", `3.8-swift-1.5/27b llamacpp(${COMBINATION})`, `v2-r5(${RUN})`, "Story 2"]);
   });
