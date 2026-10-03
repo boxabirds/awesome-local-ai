@@ -10,7 +10,7 @@ mlx-serve, the served model directory's generation_config.json.
 Every setting is {"value", "source", "evidence"}. source is one of SOURCES:
   command line     the flag is on the engine's command line (evidence: the flag and its value)
   model file name  read from the model file's name (quantisation)
-  model config     read from a file the engine loads (mlx-serve's generation_config.json)
+  model config     read from a file the engine loads (mlx-serve's generation_config.json; Strata's run configuration)
   client           the client sends it with every request
   not set          nothing on the command line sets it; value is "not set", evidence says what applies then
   unknown          it can't be determined; value is "unknown", evidence says why
@@ -269,6 +269,58 @@ def parse_mlxserve(argv: list[str], generation_config: dict | None = None, model
     return s
 
 
+def _strata_arg(args: list[str], flag: str) -> str | None:
+    return flag_value(args, (flag,))
+
+
+def parse_strata(config: dict | None, shared: dict | None) -> dict:
+    """Strata's server (`python serve/server.py --engine strata --config strata-run.json`) takes its settings from that
+    JSON, not from flags: the engine's own flags are its "args", sampling is its "sampling" block, and the server-side
+    reasoning effort is in the shared-settings file beside it. A configuration that could not be read leaves every
+    setting unknown, with why."""
+    if not isinstance(config, dict):
+        return _all_unknown("Strata's run configuration (the --config file) couldn't be read, and its settings are "
+                            "in that file, not on the command line")
+    args = [str(a) for a in config.get("args") or []]
+    ev = lambda *flags: " ".join(f"{f} {_strata_arg(args, f)}" for f in flags if _strata_arg(args, f) is not None)
+    s = {}
+    sampling = config.get("sampling") if isinstance(config.get("sampling"), dict) else {}
+    for key in ("temperature", "top_p", "top_k", "min_p"):
+        s[key] = (_set(sampling[key], SRC_MODEL_CONFIG, f"run configuration sampling.{key}={sampling[key]}")
+                  if sampling.get(key) is not None
+                  else _not_set(f"no sampling.{key} in Strata's run configuration: its own default applies"))
+    ctx = _strata_arg(args, "--max-context")
+    s["context_size"] = (_set(_num(ctx), SRC_MODEL_CONFIG, f"run configuration args: --max-context {ctx}") if ctx
+                         else _not_set("no --max-context in Strata's engine arguments: its own default applies"))
+    kv = _strata_arg(args, "--kv")
+    s["kv_cache_type"] = (_set(kv, SRC_MODEL_CONFIG, f"run configuration args: --kv {kv}") if kv
+                          else _not_set("no --kv in Strata's engine arguments: its default (fp16) applies"))
+    s["thinking_mode"] = _unknown("Strata's thinking default isn't in its configuration: the chat template's own "
+                                  "default applies, which the files don't show")
+    budget = config.get("reasoning_budget_tokens")
+    s["thinking_budget"] = (_set(budget, SRC_MODEL_CONFIG, f"run configuration reasoning_budget_tokens={budget}")
+                            if budget is not None else _not_set("no reasoning_budget_tokens in Strata's run "
+                                                                 "configuration: thinking is bounded only by the output limit"))
+    if "--mtp" in args or _strata_arg(args, "--spec") is not None:
+        spec = {"method": "mtp"} if "--mtp" in args else {"method": "suffix drafting"}
+        n, p = _strata_arg(args, "--spec"), _strata_arg(args, "--spec-min-p")
+        if n is not None:
+            spec["draft_max"] = _num(n)
+        if p is not None:
+            spec["p_min"] = _num(p)
+        s["speculative"] = _set(spec, SRC_MODEL_CONFIG, "run configuration args: " + ev("--spec", "--spec-min-p") +
+                                (" --mtp" if "--mtp" in args else ""))
+    else:
+        s["speculative"] = _not_set("no --mtp or --spec in Strata's engine arguments: no speculative decoding")
+    native = _strata_arg(args, "--native")
+    s["quantisation"] = _quant(native, "--native")
+    effort = (shared or {}).get("reasoning_effort") if isinstance(shared, dict) else None
+    s["engine_effort"] = (_set(effort, SRC_MODEL_CONFIG, f"shared settings reasoning_effort={effort}") if effort
+                          else _not_set("no reasoning_effort in Strata's shared settings: it passes none to the chat template"))
+    s["effort_note"] = "the chat template's own default effort applies"
+    return s
+
+
 def parse_mtplx(argv: list[str]) -> dict:
     """Both shapes: the launcher's `mtplx serve` (--default-temperature, --reasoning on) and the
     `python -m mtplx.server.openai` process that listens on the port (--temperature, --reasoning-mode on)."""
@@ -309,11 +361,15 @@ def parse_mtplx(argv: list[str]) -> dict:
 # How each engine's own process shows on a command line: the binary's name, or MTPLX's Python module.
 ENGINE_MARKERS = {"llamacpp": ("llama-server",), "gufo": ("gufo",), "mlxserve": ("mlx-serve",),
                   "mtplx": ("mtplx", "mtplx.server")}
+# Strata's listener is `python serve/server.py --engine strata`; the engine binary is a child it starts.
+STRATA_SERVER_SCRIPT = "server.py"
 
 
 def is_engine_argv(backend: str, argv: list[str]) -> bool:
     """Whether argv is the engine's own process, not a wrapper or helper (e.g. Podman's pasta, which older
     records hold for gufo): its binary is named for the engine, or, for MTPLX, it runs mtplx's module."""
+    if backend == "strata":
+        return any(Path(a).name == STRATA_SERVER_SCRIPT for a in argv[1:2]) and flag_value(argv, ("--engine",)) == "strata"
     marks = ENGINE_MARKERS.get(backend, ())
     exe = Path(argv[0]).name if argv else ""
     if exe in marks:
@@ -323,7 +379,8 @@ def is_engine_argv(backend: str, argv: list[str]) -> bool:
 
 
 ENGINES = {"llamacpp": ("llama.cpp", parse_llamacpp), "gufo": ("gufo", parse_gufo),
-           "mlxserve": ("mlx-serve", parse_mlxserve), "mtplx": ("MTPLX", parse_mtplx)}
+           "mlxserve": ("mlx-serve", parse_mlxserve), "mtplx": ("MTPLX", parse_mtplx),
+           "strata": ("Strata", None)}
 CLOUD_BACKENDS = {"anthropic"}
 
 
@@ -348,8 +405,8 @@ def resolve_effort(requested: str, engine: dict, client: dict, thinking_mode: di
         effective = _set(client["value"], SRC_CLIENT, client["evidence"])
     elif thinking_mode["value"] == "off":
         effective = _set(THINKING_OFF, thinking_mode["source"], thinking_mode["evidence"])
-    elif engine["source"] == SRC_COMMAND:
-        effective = _set(engine["value"], SRC_COMMAND, engine["evidence"])
+    elif engine["source"] in (SRC_COMMAND, SRC_MODEL_CONFIG):
+        effective = _set(engine["value"], engine["source"], engine["evidence"])
     elif engine["source"] == SRC_UNKNOWN:
         effective = _unknown(engine["evidence"])
     else:
@@ -394,7 +451,8 @@ def _all_unknown(why: str) -> dict:
 
 def engine_settings(backend: str | None, argv: list[str] | None, version: str | None, *, requested_effort: str,
                     client: str, client_thinking: str | None, context_limit: int | None,
-                    generation_config: dict | None = None, model_dir: str | None = None) -> dict:
+                    generation_config: dict | None = None, model_dir: str | None = None,
+                    extra_config: dict | None = None) -> dict:
     name = ENGINES.get(backend or "", (backend or "unknown", None))[0]
     if backend in CLOUD_BACKENDS:
         parsed = _all_unknown(f"cloud backend {backend}: no local engine, and the provider's settings aren't observable")
@@ -407,6 +465,8 @@ def engine_settings(backend: str | None, argv: list[str] | None, version: str | 
                               f"so its flags aren't the engine's settings")
     elif backend == "mlxserve":
         parsed = parse_mlxserve(argv, generation_config, model_dir)
+    elif backend == "strata":
+        parsed = parse_strata(generation_config, extra_config)
     else:
         parsed = ENGINES[backend][1](argv)
     s = {"engine": backend if backend in CLOUD_BACKENDS else name, "engine_version": version,
@@ -452,6 +512,22 @@ def _mlx_files(argv: list[str]) -> tuple[dict | None, str | None]:
     return gen, real
 
 
+def _strata_files(argv: list[str]) -> tuple[dict | None, dict | None]:
+    """Strata's run configuration (the --config file) and the shared-settings file beside it, or None for either that
+    isn't there."""
+    path = flag_value(argv, ("--config",))
+    if not path:
+        return None, None
+    p = _expand(path)
+    out = []
+    for f in (p, p.with_suffix("").with_name(p.with_suffix("").name + ".shared-settings.json")):
+        try:
+            out.append(json.loads(f.read_text()))
+        except (OSError, ValueError):
+            out.append(None)
+    return out[0], out[1]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--requested-effort", default=REQUESTED_DEFAULT)
@@ -463,9 +539,13 @@ def main() -> int:
         ident = json.loads(sys.stdin.read() or "null") or {}
         argv = ident.get("server_command")
         gen, real = _mlx_files(argv) if ident.get("backend") == "mlxserve" and argv else (None, None)
+        extra = None
+        if ident.get("backend") == "strata" and argv:
+            gen, extra = _strata_files(argv)
         rec = engine_settings(ident.get("backend"), argv, ident.get("engine_version"),
                               requested_effort=a.requested_effort, client=a.client, client_thinking=a.client_thinking,
-                              context_limit=a.context_limit or None, generation_config=gen, model_dir=real)
+                              context_limit=a.context_limit or None, generation_config=gen, model_dir=real,
+                              extra_config=extra)
     except Exception as e:  # never stop a run over its record
         rec = {"error": f"{type(e).__name__}: {e}"}
     print(json.dumps(rec))

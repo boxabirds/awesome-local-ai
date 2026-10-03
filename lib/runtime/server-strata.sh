@@ -134,6 +134,13 @@ PY
 # pi sends no reasoning effort, and Qwen3.8's template default is xhigh; Strata applies this to requests that name none.
 printf '{"reasoning_effort": "%s"}\n' "${REASONING_EFFORT_DEFAULT:-low}" > "$ROOT/strata-run.shared-settings.json"
 
+# Strata's engine writes its one line per request (prompt tokens, reused and read, tokens generated, drafts accepted) to
+# its own log file, not to the server's output. The harness reads draft figures from the server's output, so the engine
+# log is followed into it; the follower ends with the server (the pid is the one `exec` keeps).
+ENGINE_LOG="$ROOT/strata-engine.log"
+: >> "$ENGINE_LOG"
+tail -q -n 0 -F --pid=$$ "$ENGINE_LOG" &
+
 echo "${SERVER_CMD}: PROFILE=${PROFILE} ctx=${CTX} id=${MODEL_ALIAS} -> http://127.0.0.1:${PORT}/v1" >&2
 cd "$STRATA_DIR"
 exec "$PY" "$STRATA_DIR/serve/server.py" --engine strata --config "$RUN_CONFIG" --host 127.0.0.1 --port "$PORT" "$@"

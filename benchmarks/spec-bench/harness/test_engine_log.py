@@ -90,3 +90,44 @@ def test_a_story_s_calls_start_where_most_of_them_match_not_at_another_story_s_r
     calls = [call(START + 1, 10, 0, 1), call(START + 2, 30, 0, 3), call(START + 3, 40, 0, 4)]
     assert engine_log.match(reqs, calls) == [reqs[2], reqs[3], reqs[4]]
     assert engine_log.match(reqs, calls)[0] is reqs[2]
+
+
+# ---------- Strata: its engine log, one line per request ----------
+# Real lines from the RTX 4090 machine, Strata v0.1.36 (2 Oct 2026): a short tool-call check, then a five-turn
+# conversation of about 54k tokens and a three-turn one of about 128k, whose later turns reuse the first one's prompt. The lines for the expert cache's hit
+# rate follow each request and are not requests.
+
+def test_strata_s_request_lines_are_read_and_its_cache_lines_are_not():
+    reqs = engine_log.parse(text("strata-excerpt.txt"))
+    assert len(reqs) == 10      # 11 "strata serve: prompt" lines, one of them the prompt-chunk setting
+    assert reqs[0] == {"start": START, "prompt": 369, "gen": 46, "draft_accepted": 33, "draft_generated": 38}
+
+
+def test_strata_prompt_is_the_whole_prompt_cached_or_read():
+    reqs = engine_log.parse(text("strata-excerpt.txt"))
+    # "54497 tokens = 54460 reused + 37 read": the agent records input + cacheRead = 54497
+    assert [r["prompt"] for r in reqs][2:6] == [54465, 54497, 54548, 54601]
+    assert reqs[3]["gen"] == 114 and (reqs[3]["draft_accepted"], reqs[3]["draft_generated"]) == (73, 89)
+
+
+def test_strata_gives_no_rounds_so_no_mean_accepted_length():
+    assert all("mean_len" not in r for r in engine_log.parse(text("strata-excerpt.txt")))
+
+
+def test_strata_requests_are_matched_to_the_agent_s_calls_by_tokens():
+    reqs = engine_log.parse(text("strata-excerpt.txt"))
+    calls = [call(START + 1, 37, 54460, 114), call(START + 2, 56, 54492, 98)]
+    got = engine_log.match(reqs, calls)
+    assert [g["gen"] for g in got] == [114, 98]
+
+
+def test_strata_draft_acceptance_is_accepted_over_drafted_for_the_counted_calls():
+    calls = [call(START + 1, 37, 54460, 114), call(START + 2, 56, 54492, 98)]
+    d = engine_log.draft(text("strata-excerpt.txt"), calls, calls)
+    assert d == {"draft_acceptance": round((73 + 72) / (89 + 75), 3), "mean_accepted_len": None}
+
+
+def test_a_strata_request_with_no_draft_clause_is_still_a_request():
+    line = "strata serve: prompt 100 tokens = 0 reused + 100 read in 50 ms (2000.0 tok/s), 10 generated in 100 ms (100.0 tok/s), 1 checkpoints\n"
+    reqs = engine_log.parse(llama_log.start_marker(START) + line)
+    assert reqs == [{"start": START, "prompt": 100, "gen": 10}]

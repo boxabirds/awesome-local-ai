@@ -39,6 +39,10 @@ GUFO_FIELD_RE = re.compile(r"(\w+)=(\S+)")
 MLX_STATS_RE = re.compile(r"^\s*\[spec-stats\] mode=\S+ (.*)")
 MLX_TOKENS_RE = re.compile(r"^\s*<- (\d+)\+(\d+) tokens streamed")
 MLX_REQUEST = "POST "
+# Strata, one line per request, in its engine log (the launcher puts that log into the server's own):
+#   strata serve: prompt 54497 tokens = 54460 reused + 37 read in 231 ms (160.5 tok/s), 114 generated in 895 ms (127.4 tok/s), drafts accepted 73 of 89, 6 checkpoints
+STRATA_RE = re.compile(r"^strata serve: prompt (\d+) tokens = \d+ reused \+ \d+ read in .*?, (\d+) generated in "
+                       r"(?:.*?, drafts accepted (\d+) of (\d+))?")
 NO_RUN_START = float("-inf")
 DRAFT_KEYS = ("draft_acceptance", "mean_accepted_len")
 RATIO_DECIMALS = 3          # as llama_log.summarise rounds them
@@ -65,6 +69,11 @@ def parse(text: str) -> list[dict]:
     for line in text.splitlines():
         if (m := llama_log.MARKER_RE.match(line)):
             start, stats = float(m.group(1)), None
+        elif (m := STRATA_RE.match(line)):
+            r = {"start": start, "prompt": int(m.group(1)), "gen": int(m.group(2))}
+            if m.group(3) is not None:
+                r.update(draft_accepted=int(m.group(3)), draft_generated=int(m.group(4)))
+            reqs.append(r)
         elif GUFO_RE.search(line):
             f = _fields(line)
             prompt, gen = _int(f, "prompt_tokens"), _int(f, "generated_tokens")

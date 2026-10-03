@@ -237,6 +237,9 @@ def version_command(backend: str | None, argv: list[str] | None, container: dict
         return [container["runtime"], "exec", container["name"], argv[0], "--version"]
     if backend == "mtplx":
         return ["mtplx", "--version"]
+    if backend == "strata" and len(argv) > 1:
+        # The listener is a Python interpreter running serve/server.py; the release is its checkout's tag.
+        return ["git", "-C", str(Path(argv[1]).parent.parent), "describe", "--tags", "--always"]
     return [argv[0], "--version"]
 
 
