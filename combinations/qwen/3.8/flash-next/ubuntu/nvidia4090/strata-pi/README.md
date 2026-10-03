@@ -43,4 +43,4 @@ what these tests do not show, are in `horizon/strata.md`.
 ## The disk
 
 The model files and Strata's packs are about 85 GB under `~/.local/share/awesome-local-ai/strata/`. See
-`docs/gruntus-disk.md` for the machine's disk layout.
+`docs/rtx4090-disk.md` for the machine's disk layout.
