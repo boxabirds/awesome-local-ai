@@ -10,14 +10,28 @@
 
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  CONNECTOR_MIN_LENGTH_WORLD,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+  type FillColor,
+  type StrokeColor,
+} from '../../shared/config';
+import type { ConnectorEnd } from '../../shared/objects/connector';
 import {
   objectBounds,
   type ObjectSnapshot,
 } from '../../shared/board-model';
+import type { Camera } from '../canvas/camera';
+import { connectorPolyline, distanceToPolyline } from '../../shared/geometry';
 import type { Point } from '../../shared/geometry';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
+import type { ConnectorSnap } from '../../shared/objects/connector';
 
 /**
  * The props every board object component receives. The object's own data is
@@ -30,6 +44,11 @@ export interface ObjectProps {
   obj: ObjectSnapshot;
   doc: Y.Doc;
   zoom: number;
+  /**
+   * The live camera, for the screen-sized chrome an object draws itself (an arrow's dots
+   * and handles). Optional because nothing that existed before story 10 needs it.
+   */
+  camera?: Camera;
   /** This object is one of several selected. */
   selected: boolean;
   /** This object is the *only* selected object (its own toolbar is shown). */
@@ -41,7 +60,18 @@ export interface ObjectProps {
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
   onColor(id: string, color: string): void;
+  /**
+   * Paint this object's fill and/or outline (shape.style), in one call and so in one
+   * transaction. Only a shape has anything to paint, so only ShapeObject calls it.
+   */
+  onStyle?(id: string, style: { fill?: FillColor; stroke?: StrokeColor }): void;
   onDelete(id: string): void;
+  /**
+   * Press on one of a selected arrow's end handles (connector.handles). Deliberately not
+   * `onObjectPointerDown`: dragging an end moves that end and not the arrow, so this press
+   * must never reach the generic transform gesture.
+   */
+  onConnectorEndPointerDown?(e: ReactPointerEvent<Element>, id: string, end: ConnectorEnd): void;
 }
 
 /**
@@ -63,8 +93,14 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** Which handles to show; omitted means 'all' (every type before story 9). */
   handles?: Handles;
-  /** Does `worldPoint` fall inside this object? */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /** Does `worldPoint` fall inside this object?
+   *
+   * `zoom` is optional because the board units a gesture is written in are already the
+   * caller's business; it is here for the types whose hit area is a *screen* allowance. An
+   * arrow is six screen pixels wide whichever way the board is zoomed, so its rule cannot
+   * say anything true without knowing the zoom (connector.select, TC-20).
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -127,4 +163,41 @@ registerObjectType('text', {
   editableText: true,
   handles: 'horizontal',
   hitTest: rectHitTest,
+});
+
+// A shape (story 10) is an ordinary object: aspect-locked like a note, so a corner drag
+// keeps its proportion, and it carries a text label — which is why `editableText` is
+// true and the board's generic Enter-to-edit opens its label (shape.consistent, shape.label).
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: rectHitTest,
+});
+
+// An arrow (story 10) is the one object that is not resized and has no text: its box is
+// whatever its two ends are doing, and its own handles move those ends instead of the
+// shape of a box. Everything else about it — selection, marquee, move, delete, undo — is
+// the machinery stories 7 and 8 already had (connector.consistent).
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: CONNECTOR_MIN_LENGTH_WORLD,
+  editableText: false,
+  // A rectangle would be wrong here: most of an arrow's box is empty board, and most of
+  // that does not belong to the arrow. What belongs to it is the line and a screen
+  // allowance either side (connector.select).
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean {
+    const line = connectorPolyline((obj as ConnectorSnap).endpoints);
+    if (line.length < 2) return false;
+    // What a person has to hit is the arrow and not a hairline. The tolerance is a screen
+    // allowance, so it becomes board units at the zoom the board is at: the same number of
+    // pixels on the screen at 50% as at 200%. With no zoom given the board is taken to be
+    // at 100%, which is the one reading that is true of the number on its own.
+    const z = Number.isFinite(zoom) && (zoom as number) > 0 ? (zoom as number) : 1;
+    return distanceToPolyline(line, worldPoint) <= CONNECTOR_HIT_TOLERANCE_PX / z;
+  },
 });

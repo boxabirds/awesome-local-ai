@@ -14,7 +14,7 @@ import {
 } from '../../shared/config';
 import type { Camera, Point } from './camera';
 import type { WheelInput } from './useCamera';
-import type { Tool } from '../board/useTool';
+import type { ToolId as Tool } from '../tools/useActiveTool';
 
 /** Convert a non-pixel wheel deltaMode to CSS pixels. */
 const PIXELS_PER_LINE = 16;

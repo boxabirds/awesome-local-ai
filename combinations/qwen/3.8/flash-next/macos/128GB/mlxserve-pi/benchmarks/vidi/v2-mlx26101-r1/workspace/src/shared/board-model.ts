@@ -36,6 +36,16 @@ import {
   type Point,
   type Rect,
 } from './geometry';
+import { shapeFromMap } from './objects/shape';
+import {
+  connectorFromMap,
+  detachConnectorsTo,
+  endpointStoredPoint,
+} from './objects/connector';
+import {
+  connectorBBox,
+  isEndpoint,
+} from './geometry/connector-geometry';
 
 /**
  * Transaction origin for local (this client's) mutations. Story 8's undo manager
@@ -53,11 +63,19 @@ const OBJECTS = 'objects';
 /**
  * Object types the *model* understands. `snapshot` only returns these, and
  * `allObjectIds` / `objectsInRect` never select past them, so a board carrying a
- * type from a later story (shape, text, image …) is inert until that story adds
+ * type from a later story (image, frame …) is inert until that story adds
  * it here. Stories 9-12 append their type names; the mutation functions below
  * stay type-agnostic so a test-only type can be exercised before it is real.
+ *
+ * Story 10 adds `shape` and `connector`, so a board saved by a story 10 client is
+ * fully readable here and every older type is untouched by the upgrade (TC-33).
  */
-const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text']);
+const KNOWN_TYPES: ReadonlySet<string> = new Set([
+  'sticky',
+  'text',
+  'shape',
+  'connector',
+]);
 
 /**
  * The type-agnostic render model every generic operation (selection, marquee,
@@ -247,15 +265,22 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 }
 
 /**
- * The full render model: every object of a type the model knows (sticky, text),
- * as a generic `ObjectSnapshot` carrying that type's own fields. This is what the
+ * The full render model: every object of a type the model knows (sticky, text,
+ * shape, connector), as a generic `ObjectSnapshot` carrying that type's own fields.
+ * This is what the
  * board renders and the generic selection / marquee / transform machinery walks,
- * so a text object selects, moves and resizes exactly like a sticky (text.consistent).
- * Unknown types are skipped for forward compatibility with stories 10-12. Sorted by
+ * so a text object selects, moves and resizes exactly like a sticky (text.consistent),
+ * and a shape and an arrow do the same. Unknown types are skipped for forward
+ * compatibility with stories 11-12. Sorted by
  * (z, id) so every client that ever syncs this document renders the same stacking.
+ *
+ * Connectors are resolved in a second pass, once every other object's box is known,
+ * because an arrow's geometry is a question about the shapes it joins (TC-07).
  */
 export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
   const out: ObjectSnapshot[] = [];
+  const rects = new Map<string, Rect>();
+  const connectors: { id: string; map: Y.Map<unknown> }[] = [];
   objects(doc).forEach((obj, id) => {
     const type = obj.get('type');
     if (type === 'sticky') {
@@ -275,6 +300,7 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
       const height = obj.get('height');
       if (isFiniteNumber(width)) snap.width = width;
       if (isFiniteNumber(height)) snap.height = height;
+      rects.set(id, objectBounds(snap));
       out.push(snap);
     } else if (type === 'text') {
       const text = obj.get('text');
@@ -302,10 +328,37 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
         createdAt: obj.get('createdAt') as number,
         createdBy: typeof createdBy === 'string' ? createdBy : '',
       };
+      rects.set(id, objectBounds(snap));
       out.push(snap);
+    } else if (type === 'shape') {
+      // A shape's box is its own, written when it was drawn or resized, so its rect
+      // is known without asking anything else (shape.create).
+      const snap = shapeFromMap(id, obj);
+      rects.set(id, objectBounds(snap));
+      out.push(snap);
+    } else if (type === 'connector') {
+      // An arrow's real box comes from the objects it joins, which are every other
+      // entry of this map: hold it back for the second pass. Its *stored* points give
+      // it a provisional box here, so another arrow can point at an arrow too.
+      const from = obj.get('from');
+      const to = obj.get('to');
+      if (isEndpoint(from) && isEndpoint(to)) {
+        rects.set(
+          id,
+          connectorBBox(endpointStoredPoint(from), endpointStoredPoint(to)),
+        );
+      }
+      connectors.push({ id, map: obj });
     }
     // any other known-but-unhandled type, and unknown types, are skipped.
   });
+  for (const { id, map } of connectors) {
+    const snap = connectorFromMap(id, map, rects);
+    if (!snap) continue;
+    // Now that its box is known, another arrow can be resolved against it.
+    rects.set(id, objectBounds(snap));
+    out.push(snap);
+  }
   out.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;
 }
@@ -363,6 +416,21 @@ export function objectBounds(obj: ObjectSnapshot): Rect {
     width: isFiniteNumber(obj.width) ? obj.width : STICKY_SIZE_WORLD,
     height: isFiniteNumber(obj.height) ? obj.height : STICKY_SIZE_WORLD,
   };
+}
+
+/**
+ * The box of every object the model knows, by id — the map an arrow resolves
+ * against (story 10). Built from the same snapshots the renderer draws, so an arrow
+ * is never painted against a box nobody is looking at, and a client that joins later
+ * computes the identical arrow from the same document.
+ */
+export function objectRects(doc: Y.Doc): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const snap of objectSnapshots(doc)) {
+    if (!KNOWN_TYPES.has(snap.type)) continue;
+    rects.set(snap.id, objectBounds(snap));
+  }
+  return rects;
 }
 
 /**
@@ -516,6 +584,11 @@ export function deleteObjects(
   for (const id of ids) if (objects(doc).has(id)) present.push(id);
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // An arrow that pointed at one of these is released *before* its object
+    // disappears, so it can be left where it was last drawn (connector.detaches).
+    // Same transaction: one undo brings the object back with its arrows still joined
+    // to it, and the document is never seen holding an arrow to a missing object.
+    detachConnectorsTo(doc, present);
     for (const id of present) objects(doc).delete(id);
   }, LOCAL_ORIGIN);
   return present.length;

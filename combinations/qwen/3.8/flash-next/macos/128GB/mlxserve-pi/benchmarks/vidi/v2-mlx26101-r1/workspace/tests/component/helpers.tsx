@@ -210,6 +210,86 @@ export function marqueeDrag(
   else if (end === 'cancel') shiftPointer(window, 'pointercancel', to[0], to[1]);
 }
 
+// --- story 10 helpers -------------------------------------------------------
+
+/** Which creating tool's layer to press on. */
+export type ToolLayerName = 'shape-tool-layer' | 'connector-tool-layer';
+
+/**
+ * The transparent layer a creating tool holds while it is the tool this tab has.
+ *
+ * A test presses *this* element rather than the board surface underneath it, because that
+ * is what a person's pointer is on while the tool is held: the tool layer is a sibling of
+ * the surface, so an event sent at the surface would never reach the tool and a test that
+ * pressed the surface would be testing the Select tool.
+ */
+export function toolLayer(name: ToolLayerName): HTMLElement {
+  return screen.getByTestId(name);
+}
+
+export interface ToolDragOptions {
+  /** Shift held for the whole gesture (a shape's square, a marquee's additive). */
+  shift?: boolean;
+  /** How the gesture finishes: released, cancelled, or left hanging in the air. */
+  end?: 'up' | 'cancel' | 'none';
+  /** How many moves between the press and the release (default: 3). */
+  steps?: number;
+}
+
+/**
+ * Press, move and release over a tool layer, in screen points. The press lands on the
+ * layer and the moves and the release on the window, which is where `useWindowPointer`
+ * listens — the same split a real pointer makes, since the pointer keeps sending events to
+ * the element that took the press only while it is captured.
+ *
+ * Every dispatch is wrapped in `act`, so by the time this returns the board has rendered
+ * whatever the gesture wrote and a test can read the document and the DOM alike.
+ */
+export function toolDrag(
+  layer: HTMLElement,
+  from: [number, number],
+  to: [number, number],
+  options: ToolDragOptions = {},
+): void {
+  const { shift = false, end = 'up', steps = 3 } = options;
+  const send = (
+    el: Element | Window,
+    type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+    x: number,
+    y: number,
+  ) => {
+    act(() => {
+      fireEvent(
+        el as Element,
+        new MouseEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          clientX: x,
+          clientY: y,
+          button: 0,
+          shiftKey: shift,
+        }),
+      );
+    });
+  };
+  send(layer, 'pointerdown', from[0], from[1]);
+  for (let i = 1; i <= steps; i++) {
+    const t = i / (steps + 1);
+    send(window, 'pointermove', from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t);
+  }
+  if (end === 'up') send(window, 'pointerup', to[0], to[1]);
+  else if (end === 'cancel') send(window, 'pointercancel', to[0], to[1]);
+}
+
+/**
+ * A single click on a tool layer: press and release without the pointer ever moving.
+ * Every creating tool turns that into something of its default size, which is the point —
+ * a hand cannot drag a box to an exact pixel.
+ */
+export function toolClick(layer: HTMLElement, at: [number, number]): void {
+  toolDrag(layer, at, at, { steps: 0 });
+}
+
 /** The current world bounds of a note, read straight from the live document. */
 export function noteBounds(id: string): Rect {
   const obj = snapshot(boardDoc()).find((n) => n.id === id);
@@ -257,6 +337,12 @@ export function selectedObjectIds(): string[] {
     if (el.getAttribute('data-selected') === 'true') {
       ids.push(el.getAttribute('data-text-object-id')!);
     }
+  }
+  // Story 10's two types carry their id the same way. Only the rendered object itself has
+  // `data-object-id` — its figure, its label and its arrowhead are decoration.
+  for (const el of screen.queryAllByTestId(/^(shape|connector)-./)) {
+    const id = el.getAttribute('data-object-id');
+    if (id !== null && el.getAttribute('data-selected') === 'true') ids.push(id);
   }
   return ids.sort();
 }
@@ -386,7 +472,10 @@ export function clickBoard(x: number, y: number): void {
 /** The rendered element of any object, by its document id. */
 export function objectEl(id: string): HTMLElement {
   return (
-    screen.queryByTestId(`text-object-${id}`) ?? screen.getByTestId(`sticky-note-${id}`)
+    screen.queryByTestId(`text-object-${id}`) ??
+    screen.queryByTestId(`shape-${id}`) ??
+    screen.queryByTestId(`connector-${id}`) ??
+    screen.getByTestId(`sticky-note-${id}`)
   );
 }
 
@@ -396,6 +485,35 @@ export function clickObject(id: string): void {
     pointer(el, 'pointerdown', 0, 0);
     pointer(el, 'pointerup', 0, 0);
   });
+}
+
+/**
+ * The element of an arrow that a pointer can actually land on.
+ *
+ * An arrow's box is empty board (connector.select): the object's own element takes no
+ * presses by design, and the line drawn under the arrow is what a person hits. Pressing the
+ * box would be pressing nothing, which is why it selects nothing.
+ */
+export function connectorLineEl(id: string): SVGElement {
+  const el = screen.getByTestId(`connector-hit-${id}`);
+  if (!(el instanceof SVGElement)) throw new Error(`${id} is not drawn as a line`);
+  return el;
+}
+
+/** Select an arrow the way a person does: press its line. */
+export function clickConnector(id: string): void {
+  const el = connectorLineEl(id);
+  act(() => {
+    pointer(el, 'pointerdown', 0, 0);
+    pointer(el, 'pointerup', 0, 0);
+  });
+}
+
+/** The handle of one end of a selected arrow. */
+export function connectorHandleEl(id: string, end: 'from' | 'to'): SVGElement {
+  const el = screen.getByTestId(`connector-handle-${end}-${id}`);
+  if (!(el instanceof SVGElement)) throw new Error(`${id}'s ${end} end is not a handle`);
+  return el;
 }
 
 /** Open the editor of a text object the way a person does: double-click it. */

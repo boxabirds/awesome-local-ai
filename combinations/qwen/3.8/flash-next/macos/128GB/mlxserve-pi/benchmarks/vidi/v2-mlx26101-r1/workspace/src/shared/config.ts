@@ -254,3 +254,123 @@ export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
  * pixel-exact (measurer-unavailable error path, TC-32).
  */
 export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.55;
+
+// --- Shape settings (story 10) ---------------------------------------------
+// Everything a designer might tune about the three drawable shapes lives here, so
+// the model, the tool and the renderer all agree on one set of numbers.
+
+/** The three shape kinds, in the order the Shape menu lists them (shape.create). */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** The kind the Shape tool creates when nothing was picked (shape.create). */
+export const DEFAULT_SHAPE_KIND: ShapeKind = 'rect';
+
+/** The Shape menu's accessible names, in SHAPE_KINDS order (shape.menu). */
+export const SHAPE_KIND_NAMES: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+
+/**
+ * The size of a shape dropped by a click (shape.create_click), and the side a
+ * drag smaller than SHAPE_MIN_SIZE_WORLD grows to.
+ */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/**
+ * A drag this small in either direction is a click, not a shape (shape.create_click).
+ * A drag of exactly this size is kept as drawn (the boundary TC-03 asserts).
+ */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** Hard limit on the number of characters kept in a shape's label (shape.label). */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** Outline width of a shape, in world units, at every zoom level. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/**
+ * The label font size in world units. Not a product knob the PRD names; one number
+ * here keeps the painted label and the wrapped-line arithmetic in agreement.
+ */
+export const SHAPE_LABEL_FONT_PX = 16;
+
+/** Air inside the label box, in world units, so text never touches the outline. */
+export const SHAPE_LABEL_PADDING_WORLD = 8;
+
+/** The seven fill choices: six colours plus 'none' (shape.style). */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** The six outline choices (shape.style). */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** The colours a freshly created shape carries (shape.style). */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+/** The accessible name of the 'none' fill swatch (shape.style). */
+export const SHAPE_NO_FILL_LABEL = 'no fill';
+
+// --- Connector (arrow) settings (story 10) ---------------------------------
+// The rules an arrow follows: how short it may be, how close a click has to be to
+// select it, and how it is drawn.
+
+/**
+ * A connector drag shorter than this (board units) creates nothing
+ * (connector.no_accidental). Exactly this long is created (the TC-09 boundary).
+ */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/**
+ * How close to an arrow's line a click has to land to select it, in *screen*
+ * pixels (connector.select). The board divides it by the zoom to get board units,
+ * so it feels the same at every zoom level.
+ */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** Line width of an arrow, in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** Length of the arrowhead's shaft, in world units (connector.arrowhead). */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** Radius of a connection dot, in *screen* pixels (connector.hover_points). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+/**
+ * The size of the handle on a selected arrow's end, in *screen* pixels: its diameter, so
+ * the handle is bigger than the dot it covers and is the thing a person aims at when they
+ * move an end (connector.handles). Divided by the zoom like every other screen size.
+ */
+export const CONNECTOR_HANDLE_SIZE_PX = 10;
+
+/** The colour of an arrow, its dots and its handles. */
+export const CONNECTOR_COLOR = '#263238';
+
+/** The colour of the connection dot an arrow will attach to (highlighted). */
+export const CONNECTOR_DOT_HIGHLIGHT_COLOR = '#1E88E5';
+
+/** The four object sides an arrow can attach to, in the order they are drawn. */
+export const CONNECTOR_SIDES = ['top', 'right', 'bottom', 'left'] as const;

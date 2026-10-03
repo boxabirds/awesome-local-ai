@@ -270,8 +270,15 @@ test.describe('live collaboration', () => {
       () => sam.ids(),
       (ids) => !ids.includes(id),
     );
-    // The editor is gone too, and nothing complained.
-    await expect(sam.page.getByRole('textbox')).toHaveCount(0);
+    // The editor is gone too, and nothing complained. The editor is not a thing the delete
+    // touches: it goes away because this screen's board no longer has the note in it, which is
+    // this screen drawing an update somebody else sent. The document above is waited for with
+    // the project's guard; the picture of it gets the generous wait, as every other cross-screen
+    // picture in this project does — how long a screen takes to redraw is measured and logged
+    // against LIVE_UPDATE_LATENCY_BUDGET_MS, never asserted from a default timeout.
+    await expect(sam.page.getByRole('textbox')).toHaveCount(0, {
+      timeout: E2E_EVENTUAL_TIMEOUT_MS,
+    });
     expect(sam.dialogs, 'a conflict or error dialog appeared').toEqual([]);
     expect(alex.dialogs).toEqual([]);
 

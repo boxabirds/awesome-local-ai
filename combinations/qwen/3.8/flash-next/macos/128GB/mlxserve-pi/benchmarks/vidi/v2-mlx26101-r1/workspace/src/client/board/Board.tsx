@@ -33,7 +33,9 @@ import { useBoardKeys } from './useBoardKeys';
 import { SelectionOverlay } from './SelectionOverlay';
 import { useBoardUndoController, UndoControllerContext } from './useUndo';
 import { SelectionBar } from './SelectionBar';
-import { useTool } from './useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool, type ConnectorToolHandle } from '../tools/ConnectorTool';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit } from '../sync/connectBoard';
 import { IS_TEST_MODE, publishConnectionState } from '../canvas/testHooks';
@@ -47,7 +49,10 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { createText, setTextSize } from '../../shared/objects/text';
-import type { TextSize } from '../../shared/config';
+import { createShape, setShapeStyle, type ShapeCreation } from '../../shared/objects/shape';
+import { createConnector, setConnectorEndpoint, type ConnectorEnd } from '../../shared/objects/connector';
+import type { Endpoint } from '../../shared/geometry';
+import type { ShapeKind, TextSize } from '../../shared/config';
 
 /** Viewport size measured from the live board element via a ResizeObserver. */
 function useViewportSize(
@@ -100,10 +105,8 @@ export function Board({ boardId }: BoardProps) {
   // colleague's. Gesture and creation boundaries below make one gesture = one step.
   const undo = useBoardUndoController(doc);
 
-  // Which tool this person is holding (story 9): Select, or Text (the next board
-  // click writes a text object there). Per-client and never persisted, and a board
-  // that stops being editable drops Text back to Select.
-  const tool = useTool(editAllowed);
+  // Which tool this person is holding is decided below, next to the keyboard that
+  // changes it (`useActiveTool`, story 9 extended by story 10).
 
   // The generic transform gesture (group move + resize) and the marquee, both read
   // the live selection / snapshot through refs, so their handler identities are
@@ -185,6 +188,69 @@ export function Board({ boardId }: BoardProps) {
     [camera, doc, startEdit, editAllowed, undo],
   );
 
+  // The two tools story 10 adds, and the writes they are allowed to make.
+  //
+  // Each one is a boundary and a model call, in that order: a shape dragged out, an arrow
+  // drawn and an end moved are each one undo step (undo.step), and the model — not the
+  // gesture — decides whether the request is sound at all. A refusal comes back as null or
+  // false having written nothing, which is why there is no rollback anywhere here.
+  // The author is this tab's name, the same one a sticky note and a text object are created
+  // by; it is never taken from the document.
+
+  /** Shape tool release: draw the shape the pointer described (shape.create_*). */
+  const createShapeFromTool = useCallback(
+    (a: ShapeCreation & { kind: ShapeKind }): string | null => {
+      if (!editAllowed) return null;
+      undo.boundary();
+      return createShape(doc, a, author(doc));
+    },
+    [doc, editAllowed, undo],
+  );
+
+  /**
+   * Shape toolbar swatch: one colour, one undo step. An unknown colour name is refused by
+   * the model rather than stored, so a toolbar that grows out of order cannot corrupt a
+   * shape; the undo boundary is only opened when something was actually written.
+   */
+  const onShapeStyle = useCallback(
+    (id: string, patch: { fill?: unknown; stroke?: unknown }): void => {
+      if (!editAllowed) return;
+      undo.boundary(); // a colour change is its own step, exactly as a note's colour is
+      setShapeStyle(doc, id, patch);
+    },
+    [doc, editAllowed, undo],
+  );
+
+  /** Connector tool release: the two ends the pointer joined, or nothing (connector.empty). */
+  const createConnectorFromTool = useCallback(
+    (from: Endpoint, to: Endpoint): string | null => {
+      if (!editAllowed) return null;
+      undo.boundary();
+      return createConnector(doc, from, to, author(doc));
+    },
+    [doc, editAllowed, undo],
+  );
+
+  /** Dragging one end of an arrow, which is written as it moves (connector.follows). */
+  const writeConnectorEnd = useCallback(
+    (id: string, end: ConnectorEnd, target: Endpoint): boolean => {
+      if (!editAllowed) return false;
+      return setConnectorEndpoint(doc, id, end, target);
+    },
+    [doc, editAllowed],
+  );
+
+  // The Connector tool owns both of its gestures, so the handle of a selected arrow is
+  // handed to it through a ref rather than becoming a gesture of its own here. One gesture
+  // per press is the rule: whoever's pointer lands on the board, this is what answers.
+  const connectorRef = useRef<ConnectorToolHandle | null>(null);
+  const onConnectorEndPointerDown = useCallback(
+    (e: React.PointerEvent<Element>, id: string, end: ConnectorEnd): void => {
+      connectorRef.current?.beginEndDrag(e, id, end);
+    },
+    [],
+  );
+
   /** Toolbar button: create a note at the centre of the visible board area. */
   const createAtCentre = useCallback(() => {
     if (!editAllowed) return;
@@ -192,16 +258,22 @@ export function Board({ boardId }: BoardProps) {
     createAtScreen(centre);
   }, [viewport.width, viewport.height, createAtScreen, editAllowed]);
 
-  // The board keyboard: Enter edits, Delete deletes, arrows nudge, Ctrl+A selects all
-  // — plus story 9's tool keys (V / T / Escape) and N for a sticky note.
+  // The board keyboard: Enter edits, Delete deletes, arrows nudge, Ctrl+A selects all.
+  // The tool letters (V / T / S / L) and Escape's return to Select are the tool hook's
+  // own, mounted here with the same shared typing guard so the two can never disagree
+  // about whose keystrokes these are.
+  const tool = useActiveTool({
+    canEdit: editAllowed,
+    selection,
+    onCreateSticky: createAtCentre,
+  });
+
   useBoardKeys({
     doc,
     selection,
     snapshot,
     canEdit: editAllowed,
     undo,
-    tool,
-    onCreateSticky: createAtCentre,
   });
 
   /**
@@ -302,6 +374,9 @@ export function Board({ boardId }: BoardProps) {
               onEndEdit={onEndEdit}
               onColor={onColor}
               onDelete={onDeleteObject}
+              camera={camera}
+              onStyle={onShapeStyle}
+              onConnectorEndPointerDown={onConnectorEndPointerDown}
             />
           );
         })}
@@ -325,10 +400,46 @@ export function Board({ boardId }: BoardProps) {
         onTextSize={onTextSize}
       />
 
+      {/*
+        Story 10's two creating tools. They cover the world layer and sit under the chrome,
+        and are transparent to the pointer unless a press is being held: an idle board
+        behaves exactly as it did before this story. While one of them is the tool this
+        person holds, its layer takes the presses — which is why the objects underneath never
+        see them, and why these two ask the *model* what is under a point (objectAtPoint)
+        rather than trusting an event target. Each owns its gestures completely: the Shape
+        tool draws one shape per press, the Connector tool draws an arrow and moves the end
+        of one, and both write the document and nothing else.
+      */}
+      <ShapeTool
+        doc={doc}
+        surface={surfaceRef.current}
+        camera={camera}
+        canEdit={editAllowed}
+        active={tool.tool === 'shape'}
+        shapeKind={tool.shapeKind}
+        selection={selection}
+        onCreate={createShapeFromTool}
+        onCreated={tool.toolCreated}
+      />
+      <ConnectorTool
+        ref={connectorRef}
+        doc={doc}
+        surface={surfaceRef.current}
+        camera={camera}
+        canEdit={editAllowed}
+        active={tool.tool === 'connector'}
+        selection={selection}
+        onCreate={createConnectorFromTool}
+        onCreated={tool.toolCreated}
+        onWriteEnd={writeConnectorEnd}
+      />
+
       <Toolbar
         onCreateSticky={createAtCentre}
         tool={tool.tool}
         onSelectTool={tool.setTool}
+        shapeKind={tool.shapeKind}
+        onShapeKind={tool.setShapeKind}
         disabled={!editAllowed}
       />
       <ConnectionStatus state={connectionState} />

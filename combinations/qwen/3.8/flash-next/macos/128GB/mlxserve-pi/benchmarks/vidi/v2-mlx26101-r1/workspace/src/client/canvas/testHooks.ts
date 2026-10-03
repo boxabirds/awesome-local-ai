@@ -2,7 +2,13 @@ import type { Camera } from './camera';
 import type { ConnectionState } from '../sync/connectBoard';
 import type * as Y from 'yjs';
 import type { StickyColor } from '../../shared/config';
-import type { StickySnapshot } from '../../shared/board-model';
+import type {
+  ObjectSnapshot,
+  StickySnapshot,
+} from '../../shared/board-model';
+import type { Point, Rect } from '../../shared/geometry';
+import type { ShapeKind, ShapeSnap } from '../../shared/objects/shape';
+import type { ConnectorSnap } from '../../shared/objects/connector';
 import { applyTextDiff } from '../objects/StickyText';
 import {
   createSticky,
@@ -12,6 +18,10 @@ import {
   setStickyColor,
   snapshot,
 } from '../../shared/board-model';
+import { objectBounds, objectSnapshots } from '../../shared/board-model';
+import { nearestSide, sideAnchor } from '../../shared/geometry';
+import { createShape, getShapeLabel } from '../../shared/objects/shape';
+import { createConnector } from '../../shared/objects/connector';
 
 /** Test-only handle on the live camera, installed when MODE === 'test'. */
 export interface Vidi6TestHooks {
@@ -39,6 +49,30 @@ export interface Vidi6BoardHandle {
   /** Replace a note's text, as the editor does (minimal diff, merge-safe). */
   write(id: string, text: string): void;
   remove(id: string): boolean;
+  /** The shapes on the board, as this client's model sees them. */
+  shapes(): readonly ShapeSnap[];
+  /** The arrows on the board, with their ends resolved to where they draw. */
+  connectors(): readonly ConnectorSnap[];
+  /**
+   * Draw a shape centred on a world point (or of an exact box), in the shape kind asked
+   * for. Null when the model refused it, which is what it does with a box that is neither
+   * a real drag nor a click.
+   */
+  createShape(at: Point, kind?: ShapeKind, rect?: Rect): string | null;
+  /**
+   * Join two objects with an arrow, both ends attached to the object it names, which is the
+   * way the tool joins them. Null when the model refused: one object at both ends, or an
+   * arrow too short to be a thing a person meant to draw.
+   */
+  connect(fromId: string, toId: string): string | null;
+  /**
+   * Join one end of an arrow to an object and leave the other end a point on the board at `at`,
+   * which is what an arrow whose object went away is left as. Null when the model refused it,
+   * as it does with an arrow too short to have been meant.
+   */
+  connectToPoint(fromId: string, at: Point): string | null;
+  /** Replace a shape's label, as the editor does (minimal diff, merge-safe). */
+  writeShape(id: string, text: string): void;
 }
 
 declare global {
@@ -98,11 +132,68 @@ export function installBoardHandle(doc: Y.Doc): () => void {
       if (ytext) applyTextDiff(ytext, text, undefined);
     },
     remove: (id) => deleteObject(doc, id),
+      writeShape: (id, text) => {
+      const label = getShapeLabel(doc, id);
+      if (label) applyTextDiff(label, text, undefined);
+    },
+    connectToPoint: (fromId, at) => {
+      const from = objectsOf(doc).find((o) => o.id === fromId && o.type !== 'connector');
+      if (!from) return null;
+      const box = objectBounds(from);
+      return createConnector(
+        doc,
+        {
+          kind: 'attached',
+          objectId: from.id,
+          // The end is stored with the place it draws, so that is the place it is left with if
+          // the object goes away (connector.detaches).
+          fallback: sideAnchor(box, nearestSide(box, at)),
+        },
+        { kind: 'free', x: at.x, y: at.y },
+        'e2e',
+      );
+    },
+    shapes: () => objectsOf(doc, 'shape') as ShapeSnap[],
+    connectors: () => objectsOf(doc, 'connector') as ConnectorSnap[],
+    createShape: (at, kind, rect) => createShape(doc, { at, kind, rect }, 'e2e'),
+    connect: (fromId, toId) => {
+      const things = objectsOf(doc).filter((o) => o.type !== 'connector');
+      const a = things.find((o) => o.id === fromId);
+      const b = things.find((o) => o.id === toId);
+      // The centre is only a starting point: the model stores each end's fallback as the
+      // place that end actually draws, which is what an arrow is left with when the object
+      // it was joined to goes away (connector.detaches).
+      if (!a || !b) return null;
+      return createConnector(
+        doc,
+        {
+          kind: 'attached',
+          objectId: a.id,
+          fallback: { x: a.x, y: a.y },
+        },
+        {
+          kind: 'attached',
+          objectId: b.id,
+          fallback: { x: b.x, y: b.y },
+        },
+        'e2e',
+      );
+    },
   };
   window.__vidi6TestBoard = handle;
   return () => {
     if (window.__vidi6TestBoard === handle) delete window.__vidi6TestBoard;
   };
+}
+
+/**
+ * Every object of one type, as the render model sees it. The type is a plain string on a
+ * generic snapshot, so the filter is the check and the caller's annotation is a promise the
+ * filter keeps.
+ */
+function objectsOf(doc: Y.Doc, type?: string): ObjectSnapshot[] {
+  const all: ObjectSnapshot[] = [...objectSnapshots(doc)];
+  return type === undefined ? all : all.filter((o) => o.type === type);
 }
 
 /**

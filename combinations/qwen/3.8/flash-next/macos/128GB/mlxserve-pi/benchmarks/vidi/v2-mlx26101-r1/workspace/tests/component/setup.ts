@@ -1,5 +1,6 @@
-import { afterEach } from 'vitest';
+import { afterEach, beforeEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { resetTypingBurst } from '../../src/client/board/typingGuard';
 
 // jsdom lacks these browser APIs the board relies on; provide minimal,
 // deterministic stand-ins so component tests can exercise the real handlers.
@@ -66,4 +67,13 @@ if (typeof g.ResizeObserver === 'undefined') {
 
 afterEach(() => {
   cleanup();
+});
+
+// The keyboard guard that keeps a burst of typing out of the board's shortcuts
+// remembers the last character on a clock (see `typingGuard`). That memory is
+// correct in a browser and meaningless between tests: one test's 'n' must not be
+// swallowed because the test before it typed into a note. Every test starts with
+// nobody mid-word; a test that means to be mid-word types within itself.
+beforeEach(() => {
+  resetTypingBurst();
 });

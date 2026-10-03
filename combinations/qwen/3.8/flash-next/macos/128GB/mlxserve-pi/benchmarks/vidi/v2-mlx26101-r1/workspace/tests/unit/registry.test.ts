@@ -35,8 +35,10 @@ describe('sel.registry', () => {
   });
 
   // TC-12: an unregistered type is undefined (and therefore never selectable).
+  // Story 10 registered `shape` and `connector`, so the stand-in for a type this app
+  // cannot paint is `image` (story 12's).
   it('TC-12 getObjectType is undefined for an unknown type', () => {
-    expect(getObjectType('shape')).toBeUndefined();
+    expect(getObjectType('image')).toBeUndefined();
     expect(getObjectType('')).toBeUndefined();
   });
 

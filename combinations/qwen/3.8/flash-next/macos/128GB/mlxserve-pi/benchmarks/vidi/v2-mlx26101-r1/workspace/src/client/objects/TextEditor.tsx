@@ -36,6 +36,7 @@ import {
   type TextOp,
 } from './StickyText';
 import type { UndoController } from '../board/undo';
+import { endTypingBurst } from '../board/typingGuard';
 
 export interface TextEditorProps {
   ytext: Y.Text;
@@ -237,6 +238,9 @@ export function TextEditor(props: TextEditorProps) {
       e.preventDefault();
       e.stopPropagation();
       commit();
+      // This person is done typing and is reaching for the board: the letters are theirs
+      // again from this keystroke onwards, not a quarter of a second later (typingGuard).
+      endTypingBurst();
       onEnd('selected');
       undo?.boundary(); // leaving the edit closes this object's typing step
     }
@@ -278,7 +282,11 @@ export function TextEditor(props: TextEditorProps) {
           composingRef.current = false;
           commit();
         }}
-        onBlur={commit}
+        onBlur={() => {
+          commit();
+          // A click outside the field is the same declaration of "finished" that Escape is.
+          endTypingBurst();
+        }}
         // Only the font size (and, for a text object, the box width) is set inline:
         // each type's own class styles the rest, exactly as before this editor was
         // shared — a sticky note keeps `.sticky-text / .sticky-editing`.
