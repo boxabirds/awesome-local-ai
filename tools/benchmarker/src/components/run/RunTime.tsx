@@ -1,12 +1,12 @@
 // Where the run's time went: one bar per recorded story, all on one scale, each a link to its story run.
 import type { Row } from "../../../shared/types.ts";
 import { runTimeBars } from "../../../shared/runView.ts";
-import { storyRunHref } from "../../../shared/routes.ts";
+import { conversationHref, storyRunHref } from "../../../shared/routes.ts";
 import { StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { duration } from "../../format.ts";
 import { Missing, Section } from "./bits.tsx";
-import { SegmentLegend, SplitBar } from "./SplitBar.tsx";
+import { conversationPartHref, SegmentLegend, SplitBar } from "./SplitBar.tsx";
 
 /** The one thing said of a story with no breakdown: it isn't available. Its own total still is. */
 export const NO_SPLIT = "No time breakdown for this story.";
@@ -25,9 +25,10 @@ export function RunTime({ run }: { run: Row }) {
               </span>
               <span className="bar-track">
                 {b.split ? (
-                  // The bar is a second way to the same page for the mouse; the keyboard has the label's link.
-                  <a className="bar-link" href={storyRunHref(run.pack, run.stack, run.runId, b.id)} tabIndex={-1} aria-hidden="true">
-                    <SplitBar split={b.split} usage={b.usage} scaleSeconds={scaleSeconds} label={`story ${b.id}: ${duration(b.split.wall)}`} />
+                  // The bar is a second way for the mouse: into the story's conversation when the warehouse has it (each
+                  // part at its own section), else to the story run's page; the keyboard has the label's link.
+                  <a className="bar-link" data-to={b.story.hasConversation ? "conversation" : "storyRun"} href={b.story.hasConversation ? conversationHref(run.pack, run.stack, run.runId, b.id) : storyRunHref(run.pack, run.stack, run.runId, b.id)} tabIndex={-1} aria-hidden="true">
+                    <SplitBar split={b.split} usage={b.usage} scaleSeconds={scaleSeconds} label={`story ${b.id}: ${duration(b.split.wall)}`} hrefOf={conversationPartHref(run, b.story)} />
                   </a>
                 ) : <span className="no-split"><Missing why={NO_SPLIT} /></span>}
               </span>

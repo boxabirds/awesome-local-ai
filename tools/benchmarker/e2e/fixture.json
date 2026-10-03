@@ -1,1878 +1,2706 @@
 {
-  "web": "https://github.com/boxabirds/awesome-local-ai",
-  "suites": {
-    "vidi": "vidi-v2.0-pre1"
-  },
-  "records": [
+ "web": "https://github.com/boxabirds/awesome-local-ai",
+ "suites": {
+  "vidi": "vidi-v2.0-pre1"
+ },
+ "records": [
+  {
+   "pack": "vidi",
+   "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+   "runId": "v2-r1",
+   "client": "pi",
+   "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1",
+   "rescores": [],
+   "hasBundle": false,
+   "packVersion": "vidi-v2.0-pre1",
+   "state": "started",
+   "stateAt": "",
+   "stories": [
     {
-      "pack": "vidi",
-      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
-      "runId": "v2-r1",
-      "client": "pi",
-      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1",
-      "rescores": [],
-      "hasBundle": false,
-      "packVersion": "vidi-v2.0-pre1",
-      "state": "started",
-      "stateAt": "",
-      "stories": [
-        {
-          "id": "1",
-          "title": "Pan and zoom",
-          "status": "DONE",
-          "passed": 6,
-          "total": 6,
-          "ownPassed": 6,
-          "ownTotal": 6,
-          "usage": {
-            "outTokens": 60000,
-            "inTokens": 500000,
-            "cacheRead": 4500000,
-            "readTokens": 5000000,
-            "calls": 95,
-            "agentSeconds": 720,
-            "tokS": 83.33333333333333,
-            "decodeTokens": 54000,
-            "decodeSeconds": 591.7159763313609,
-            "decodeTokS": 101.4,
-            "prefillTokens": 45000,
-            "prefillSeconds": null,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 1,
-            "nudges": 2,
-            "split": {
-              "wall": 720,
-              "prefill": 60,
-              "decode": 540,
-              "tools": 90,
-              "compaction": 20,
-              "other": 10,
-              "modelUnsplit": 0,
-              "toolsByKind": {
-                "e2e": 60,
-                "bash": 30
-              },
-              "betweenSessions": 0,
-              "check": {
-                "status": "problems",
-                "problems": [
-                  "tool call t9 never ended; counted to the agent's next step"
-                ],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 96,
-            "toolCalls": 95,
-            "thinkingChars": 9100,
-            "textChars": 2100,
-            "toolArgChars": 88000,
-            "thinkingMedian": 82,
-            "thinkingMedianBefore": 80,
-            "thinkingMedianAfter": 85,
-            "largestThinking": {
-              "chars": 3900,
-              "call": 12,
-              "atS": 150
-            },
-            "contextStart": 9000,
-            "contextEnd": 61000,
-            "largestContextJump": {
-              "tokens": 4100,
-              "call": 40
-            },
-            "toolsByName": {
-              "bash": 40,
-              "read": 25,
-              "edit": 20,
-              "write": 10
-            },
-            "toolErrors": 2,
-            "longestTool": {
-              "seconds": 41.0,
-              "name": "bash",
-              "gist": "npx playwright test"
-            },
-            "signals": []
-          }
-        }
-      ],
-      "scores": {},
-      "host": "Intel Core i9 + RTX 4090 64GB"
-    },
-    {
-      "pack": "vidi",
-      "stack": "reference/opus-5.5",
-      "runId": "run-9",
-      "client": "claude",
-      "dir": "benchmarks/reference/vidi/opus-5.5/run-9",
-      "rescores": [
-        "vidi-v2.0-pre1"
-      ],
-      "hasBundle": true,
-      "packVersion": "vidi-v2.0-pre1",
-      "state": "finished",
-      "stateAt": "2026-09-29T10:00:00Z",
-      "stories": [
-        {
-          "id": "1",
-          "title": "Pan and zoom",
-          "status": "DONE",
-          "passed": 6,
-          "total": 6,
-          "ownPassed": 6,
-          "ownTotal": 6,
-          "usage": {
-            "outTokens": 38000,
-            "inTokens": 110000,
-            "cacheRead": 990000,
-            "readTokens": 1100000,
-            "calls": 20,
-            "agentSeconds": 480,
-            "tokS": 79.16666666666667,
-            "decodeTokens": null,
-            "decodeSeconds": null,
-            "decodeTokS": null,
-            "prefillTokens": null,
-            "prefillSeconds": null,
-            "prefillTokS": null,
-            "draftAcceptance": null,
-            "compactions": 0,
-            "nudges": 0,
-            "split": {
-              "wall": 480,
-              "prefill": 0,
-              "decode": 0,
-              "tools": 0,
-              "compaction": 0,
-              "other": 0,
-              "modelUnsplit": 480,
-              "betweenSessions": 0,
-              "check": {
-                "status": "unchecked",
-                "problems": [],
-                "version": null
-              }
-            }
-          }
-        },
-        {
-          "id": "2",
-          "title": "Sticky notes",
-          "status": "DONE",
-          "passed": 19,
-          "total": 20,
-          "ownPassed": 9,
-          "ownTotal": 10
-        }
-      ],
-      "scores": {
-        "vidi-v2.0-pre1": {
-          "passed": 74,
-          "total": 75,
-          "flaky": 0,
-          "at": "2026-09-29T11:00:00Z"
-        }
+     "id": "1",
+     "title": "Pan and zoom",
+     "status": "DONE",
+     "passed": 6,
+     "total": 6,
+     "ownPassed": 6,
+     "ownTotal": 6,
+     "usage": {
+      "outTokens": 60000,
+      "inTokens": 500000,
+      "cacheRead": 4500000,
+      "readTokens": 5000000,
+      "calls": 95,
+      "agentSeconds": 720,
+      "tokS": 83.33333333333333,
+      "decodeTokens": 54000,
+      "decodeSeconds": 591.7159763313609,
+      "decodeTokS": 101.4,
+      "prefillTokens": 45000,
+      "prefillSeconds": null,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 1,
+      "nudges": 2,
+      "split": {
+       "wall": 720,
+       "prefill": 60,
+       "decode": 540,
+       "tools": 90,
+       "compaction": 20,
+       "other": 10,
+       "modelUnsplit": 0,
+       "toolsByKind": {
+        "e2e": 60,
+        "bash": 30
+       },
+       "betweenSessions": 0,
+       "check": {
+        "status": "problems",
+        "problems": [
+         "tool call t9 never ended; counted to the agent's next step"
+        ],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 96,
+      "toolCalls": 95,
+      "thinkingChars": 9100,
+      "textChars": 2100,
+      "toolArgChars": 88000,
+      "thinkingMedian": 82,
+      "thinkingMedianBefore": 80,
+      "thinkingMedianAfter": 85,
+      "largestThinking": {
+       "chars": 3900,
+       "call": 12,
+       "atS": 150
       },
-      "host": "Apple M2 16GB"
-    },
-    {
-      "pack": "vidi",
-      "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi",
-      "runId": "canvas-gufo-r3",
-      "client": "pi",
-      "dir": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r3",
-      "rescores": [],
-      "hasBundle": false,
-      "packVersion": "vidi-v1.1",
-      "state": "finished",
-      "stateAt": "2026-09-29T14:02:31Z",
-      "stories": [
-        {
-          "id": "1",
-          "title": "Pan and zoom",
-          "status": "DONE",
-          "passed": 6,
-          "total": 6,
-          "ownPassed": 6,
-          "ownTotal": 6,
-          "usage": {
-            "outTokens": 55968,
-            "inTokens": 45179,
-            "cacheRead": 6230043,
-            "calls": 115,
-            "agentSeconds": 760.3,
-            "decodeTokens": 55968,
-            "decodeSeconds": 565.7,
-            "decodeTokS": 98.9,
-            "prefillTokens": 45179,
-            "prefillSeconds": 59.2,
-            "prefillTokS": 763.2,
-            "draftAcceptance": 0.853,
-            "tokS": 73.6130474812574,
-            "readTokens": 6275222,
-            "compactions": 0,
-            "nudges": 0,
-            "split": {
-              "wall": 760.3,
-              "prefill": 59.2,
-              "decode": 565.7,
-              "tools": 60,
-              "compaction": 0,
-              "betweenSessions": 60,
-              "other": 15.4,
-              "modelUnsplit": 0,
-              "toolsByKind": {
-                "unit": 60
-              },
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          }
-        }
-      ],
-      "scores": {},
-      "host": "AMD Ryzen AI Max+ 395 128GB"
-    },
-    {
-      "pack": "vidi",
-      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
-      "runId": "v2-r5",
-      "client": "pi",
-      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5",
-      "rescores": [
-        "vidi-v2.0-pre1"
-      ],
-      "hasBundle": true,
-      "packVersion": "vidi-v2.0-pre1",
-      "state": "finished",
-      "stateAt": "2026-09-30T15:28:00Z",
-      "stories": [
-        {
-          "id": "1",
-          "title": "Pan and zoom",
-          "status": "DONE",
-          "passed": 6,
-          "total": 6,
-          "ownPassed": 6,
-          "ownTotal": 6,
-          "usage": {
-            "outTokens": 60000,
-            "inTokens": 500000,
-            "cacheRead": 4500000,
-            "readTokens": 5000000,
-            "calls": 95,
-            "agentSeconds": 660,
-            "tokS": 83.33333333333333,
-            "decodeTokens": 54000,
-            "decodeSeconds": 591.7159763313609,
-            "decodeTokS": 101.4,
-            "prefillTokens": 45000,
-            "prefillSeconds": null,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 1,
-            "nudges": 2,
-            "split": {
-              "wall": 660,
-              "prefill": 60,
-              "decode": 480,
-              "tools": 90,
-              "compaction": 20,
-              "other": 10,
-              "modelUnsplit": 0,
-              "toolsByKind": {
-                "e2e": 60,
-                "bash": 30
-              },
-              "betweenSessions": 0,
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 89,
-            "toolCalls": 89,
-            "thinkingChars": 8000,
-            "textChars": 2100,
-            "toolArgChars": 88000,
-            "thinkingMedian": 82,
-            "thinkingMedianBefore": 80,
-            "thinkingMedianAfter": 85,
-            "largestThinking": {
-              "chars": 3900,
-              "call": 12,
-              "atS": 150
-            },
-            "contextStart": 9000,
-            "contextEnd": 61000,
-            "largestContextJump": {
-              "tokens": 4100,
-              "call": 40
-            },
-            "toolsByName": {
-              "bash": 40,
-              "read": 25,
-              "edit": 20,
-              "write": 10
-            },
-            "toolErrors": 2,
-            "longestTool": {
-              "seconds": 41.0,
-              "name": "bash",
-              "gist": "npx playwright test"
-            },
-            "signals": []
-          }
-        },
-        {
-          "id": "2",
-          "title": "Sticky notes",
-          "status": "DONE",
-          "passed": 20,
-          "total": 20,
-          "ownPassed": 14,
-          "ownTotal": 14,
-          "usage": {
-            "outTokens": 175000,
-            "inTokens": 500000,
-            "cacheRead": 4500000,
-            "readTokens": 5000000,
-            "calls": 204,
-            "agentSeconds": 4811,
-            "tokS": 36.3,
-            "decodeTokens": 174827,
-            "decodeSeconds": 591.7159763313609,
-            "decodeTokS": 41.7,
-            "prefillTokens": 45000,
-            "prefillSeconds": null,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 2,
-            "nudges": 0,
-            "split": {
-              "wall": 4811,
-              "prefill": 222,
-              "decode": 4188,
-              "tools": 117,
-              "compaction": 270,
-              "other": 14,
-              "modelUnsplit": 0,
-              "betweenSessions": 0,
-              "toolsByKind": {
-                "unit": 62,
-                "e2e": 43,
-                "build": 11,
-                "bash": 1
-              },
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 207,
-            "toolCalls": 204,
-            "thinkingChars": 328750,
-            "textChars": 4889,
-            "toolArgChars": 279940,
-            "thinkingMedian": 424,
-            "thinkingMedianBefore": 80,
-            "thinkingMedianAfter": 464,
-            "largestThinking": {
-              "chars": 64543,
-              "call": 14,
-              "atS": 480
-            },
-            "contextStart": 9000,
-            "contextEnd": 120000,
-            "largestContextJump": {
-              "tokens": 16607,
-              "call": 15
-            },
-            "toolsByName": {
-              "bash": 115,
-              "edit": 40,
-              "read": 21,
-              "write": 28
-            },
-            "toolErrors": 5,
-            "longestTool": {
-              "seconds": 61.7,
-              "name": "bash",
-              "gist": "npm run test:unit"
-            },
-            "signals": [
-              "long-thinking-block"
-            ]
-          }
-        }
-      ],
-      "scores": {
-        "vidi-v2.0-pre1": {
-          "passed": 63,
-          "total": 75,
-          "flaky": 0,
-          "at": "2026-09-30T18:30:00Z"
-        }
+      "contextStart": 9000,
+      "contextEnd": 61000,
+      "largestContextJump": {
+       "tokens": 4100,
+       "call": 40
       },
-      "host": "Intel Core i9 + RTX 4090 64GB"
-    },
-    {
-      "pack": "vidi",
-      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
-      "runId": "v2-r9",
-      "client": "pi",
-      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r9",
-      "rescores": [],
-      "hasBundle": false,
-      "packVersion": "vidi-v2.0-pre1",
-      "state": "finished",
-      "stateAt": "2026-10-01T09:00:00Z",
-      "knownGood": true,
-      "stories": [
-        {
-          "id": "2",
-          "title": "Sticky notes",
-          "status": "DONE",
-          "passed": 20,
-          "total": 20,
-          "ownPassed": 14,
-          "ownTotal": 14,
-          "usage": {
-            "outTokens": 900000,
-            "inTokens": 500000,
-            "cacheRead": 4500000,
-            "readTokens": 5000000,
-            "calls": 900,
-            "agentSeconds": 60000,
-            "tokS": 15.0,
-            "decodeTokens": 900000,
-            "decodeSeconds": 60000,
-            "decodeTokS": 15.0,
-            "prefillTokens": 45000,
-            "prefillSeconds": null,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 9,
-            "nudges": 0,
-            "split": {
-              "wall": 60000,
-              "prefill": 222,
-              "decode": 59000,
-              "tools": 700,
-              "compaction": 70,
-              "other": 8,
-              "modelUnsplit": 0,
-              "betweenSessions": 0,
-              "toolsByKind": {
-                "unit": 700
-              },
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 900,
-            "toolCalls": 900,
-            "thinkingChars": 900000,
-            "textChars": 4889,
-            "toolArgChars": 279940,
-            "thinkingMedian": 1000,
-            "thinkingMedianBefore": 80,
-            "thinkingMedianAfter": 464,
-            "largestThinking": {
-              "chars": 64543,
-              "call": 14,
-              "atS": 480
-            },
-            "contextStart": 9000,
-            "contextEnd": 120000,
-            "largestContextJump": {
-              "tokens": 16607,
-              "call": 15
-            },
-            "toolsByName": {
-              "bash": 115,
-              "edit": 40,
-              "read": 21,
-              "write": 28
-            },
-            "toolErrors": 5,
-            "longestTool": {
-              "seconds": 61.7,
-              "name": "bash",
-              "gist": "npm run test:unit"
-            },
-            "signals": [
-              "long-thinking-block"
-            ]
-          }
-        }
-      ],
-      "scores": {},
-      "host": "Intel Core i9 + RTX 4090 64GB"
-    },
-    {
-      "pack": "vidi",
-      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
-      "runId": "v2-r4",
-      "client": "pi",
-      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4",
-      "rescores": [
-        "vidi-v2.0-pre1"
-      ],
-      "hasBundle": true,
-      "packVersion": "vidi-v2.0-pre1",
-      "state": "finished",
-      "stateAt": "2026-09-28T12:00:00Z",
-      "stories": [
-        {
-          "id": "1",
-          "title": "Pan and zoom",
-          "status": "DONE",
-          "passed": 6,
-          "total": 6,
-          "ownPassed": 6,
-          "ownTotal": 6,
-          "usage": {
-            "outTokens": 55000,
-            "inTokens": 400000,
-            "cacheRead": 4000000,
-            "readTokens": 4400000,
-            "calls": 88,
-            "agentSeconds": 690,
-            "tokS": 79.71,
-            "decodeTokens": 55000,
-            "decodeSeconds": 520,
-            "decodeTokS": 102.0,
-            "prefillTokens": 40000,
-            "prefillSeconds": 60,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 1,
-            "nudges": 0,
-            "split": {
-              "prefill": 60,
-              "decode": 520,
-              "tools": 85,
-              "compaction": 15,
-              "other": 10,
-              "wall": 690,
-              "modelUnsplit": 0,
-              "betweenSessions": 0,
-              "toolsByKind": {
-                "e2e": 85
-              },
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 89,
-            "toolCalls": 88,
-            "thinkingChars": 7600,
-            "textChars": 2000,
-            "toolArgChars": 90000,
-            "thinkingMedian": 84,
-            "thinkingMedianBefore": 80,
-            "thinkingMedianAfter": 86,
-            "largestThinking": {
-              "chars": 3700,
-              "call": 10,
-              "atS": 120
-            },
-            "contextStart": 9000,
-            "contextEnd": 64000,
-            "largestContextJump": {
-              "tokens": 4000,
-              "call": 30
-            },
-            "toolsByName": {
-              "bash": 44,
-              "edit": 22,
-              "read": 22
-            },
-            "toolErrors": 2,
-            "longestTool": {
-              "seconds": 40.0,
-              "name": "bash",
-              "gist": "npx playwright test"
-            },
-            "signals": []
-          }
-        },
-        {
-          "id": "2",
-          "title": "Sticky notes",
-          "status": "DONE",
-          "passed": 18,
-          "total": 20,
-          "ownPassed": 12,
-          "ownTotal": 14,
-          "usage": {
-            "outTokens": 70000,
-            "inTokens": 400000,
-            "cacheRead": 4000000,
-            "readTokens": 4400000,
-            "calls": 112,
-            "agentSeconds": 960,
-            "tokS": 72.92,
-            "decodeTokens": 70000,
-            "decodeSeconds": 700,
-            "decodeTokS": 99.0,
-            "prefillTokens": 40000,
-            "prefillSeconds": 80,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 1,
-            "nudges": 0,
-            "split": {
-              "prefill": 80,
-              "decode": 700,
-              "tools": 150,
-              "compaction": 20,
-              "other": 10,
-              "wall": 960,
-              "modelUnsplit": 0,
-              "betweenSessions": 0,
-              "toolsByKind": {
-                "unit": 90,
-                "e2e": 50,
-                "bash": 10
-              },
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 114,
-            "toolCalls": 113,
-            "thinkingChars": 12000,
-            "textChars": 2000,
-            "toolArgChars": 90000,
-            "thinkingMedian": 104,
-            "thinkingMedianBefore": 100,
-            "thinkingMedianAfter": 108,
-            "largestThinking": {
-              "chars": 4100,
-              "call": 10,
-              "atS": 120
-            },
-            "contextStart": 9000,
-            "contextEnd": 64000,
-            "largestContextJump": {
-              "tokens": 4000,
-              "call": 30
-            },
-            "toolsByName": {
-              "bash": 57,
-              "edit": 28,
-              "read": 28
-            },
-            "toolErrors": 2,
-            "longestTool": {
-              "seconds": 55.0,
-              "name": "bash",
-              "gist": "npm run test:unit"
-            },
-            "signals": []
-          }
-        }
-      ],
-      "scores": {
-        "vidi-v2.0-pre1": {
-          "passed": 68,
-          "total": 75,
-          "flaky": 0,
-          "at": "2026-09-28T12:00:00Z"
-        }
+      "toolsByName": {
+       "bash": 40,
+       "read": 25,
+       "edit": 20,
+       "write": 10
       },
-      "host": "Intel Core i9 + RTX 4090 64GB"
-    },
-    {
-      "pack": "vidi",
-      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
-      "runId": "v2-r6",
-      "client": "pi",
-      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r6",
-      "rescores": [
-        "vidi-v2.0-pre1"
-      ],
-      "hasBundle": true,
-      "packVersion": "vidi-v2.0-pre1",
-      "state": "finished",
-      "stateAt": "2026-09-29T20:00:00Z",
-      "stories": [
-        {
-          "id": "1",
-          "title": "Pan and zoom",
-          "status": "DONE",
-          "passed": 5,
-          "total": 6,
-          "ownPassed": 5,
-          "ownTotal": 6,
-          "usage": {
-            "outTokens": 62000,
-            "inTokens": 400000,
-            "cacheRead": 4000000,
-            "readTokens": 4400000,
-            "calls": 92,
-            "agentSeconds": 1500,
-            "tokS": 41.33,
-            "decodeTokens": 62000,
-            "decodeSeconds": 510,
-            "decodeTokS": 101.0,
-            "prefillTokens": 40000,
-            "prefillSeconds": 60,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 1,
-            "nudges": 0,
-            "split": {
-              "prefill": 60,
-              "decode": 510,
-              "tools": 900,
-              "compaction": 20,
-              "other": 10,
-              "wall": 1500,
-              "modelUnsplit": 0,
-              "betweenSessions": 0,
-              "toolsByKind": {
-                "bash": 820,
-                "e2e": 80
-              },
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 93,
-            "toolCalls": 92,
-            "thinkingChars": 8100,
-            "textChars": 2000,
-            "toolArgChars": 90000,
-            "thinkingMedian": 87,
-            "thinkingMedianBefore": 85,
-            "thinkingMedianAfter": 88,
-            "largestThinking": {
-              "chars": 3800,
-              "call": 10,
-              "atS": 120
-            },
-            "contextStart": 9000,
-            "contextEnd": 64000,
-            "largestContextJump": {
-              "tokens": 4000,
-              "call": 30
-            },
-            "toolsByName": {
-              "bash": 46,
-              "edit": 23,
-              "read": 23
-            },
-            "toolErrors": 2,
-            "longestTool": {
-              "seconds": 780.0,
-              "name": "bash",
-              "gist": "npm run dev (never returned; killed by the harness)"
-            },
-            "signals": [
-              "hung-command"
-            ]
-          }
-        },
-        {
-          "id": "2",
-          "title": "Sticky notes",
-          "status": "DONE",
-          "passed": 16,
-          "total": 20,
-          "ownPassed": 11,
-          "ownTotal": 14,
-          "usage": {
-            "outTokens": 80000,
-            "inTokens": 400000,
-            "cacheRead": 4000000,
-            "readTokens": 4400000,
-            "calls": 262,
-            "agentSeconds": 1080,
-            "tokS": 74.07,
-            "decodeTokens": 80000,
-            "decodeSeconds": 760,
-            "decodeTokS": 100.0,
-            "prefillTokens": 40000,
-            "prefillSeconds": 90,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 1,
-            "nudges": 0,
-            "split": {
-              "prefill": 90,
-              "decode": 760,
-              "tools": 200,
-              "compaction": 20,
-              "other": 10,
-              "wall": 1080,
-              "modelUnsplit": 0,
-              "betweenSessions": 0,
-              "toolsByKind": {
-                "unit": 120,
-                "e2e": 60,
-                "bash": 20
-              },
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 264,
-            "toolCalls": 263,
-            "thinkingChars": 23500,
-            "textChars": 2000,
-            "toolArgChars": 90000,
-            "thinkingMedian": 88,
-            "thinkingMedianBefore": 86,
-            "thinkingMedianAfter": 90,
-            "largestThinking": {
-              "chars": 4300,
-              "call": 10,
-              "atS": 120
-            },
-            "contextStart": 9000,
-            "contextEnd": 64000,
-            "largestContextJump": {
-              "tokens": 4000,
-              "call": 30
-            },
-            "toolsByName": {
-              "bash": 132,
-              "edit": 66,
-              "read": 65
-            },
-            "toolErrors": 2,
-            "longestTool": {
-              "seconds": 48.0,
-              "name": "bash",
-              "gist": "npm run test:unit"
-            },
-            "signals": []
-          }
-        }
-      ],
-      "scores": {
-        "vidi-v2.0-pre1": {
-          "passed": 58,
-          "total": 75,
-          "flaky": 0,
-          "at": "2026-09-29T20:00:00Z"
-        }
+      "toolErrors": 2,
+      "longestTool": {
+       "seconds": 41.0,
+       "name": "bash",
+       "gist": "npx playwright test"
       },
-      "host": "Intel Core i9 + RTX 4090 64GB"
-    },
-    {
-      "pack": "vidi",
-      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
-      "runId": "v2-r7",
-      "client": "pi",
-      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r7",
-      "rescores": [
-        "vidi-v2.0-pre0"
-      ],
-      "hasBundle": true,
-      "finalize": {
-        "rescore": "skipped",
-        "reason": "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1",
-        "version": "vidi-v2.0-pre1+28ace8b",
-        "pack_ref": "vidi-v2.0-pre1",
-        "at": "2026-09-27T09:00:00Z"
-      },
-      "packVersion": "vidi-v2.0-pre0",
-      "state": "finished",
-      "stateAt": "2026-09-27T09:00:00Z",
-      "stories": [
-        {
-          "id": "1",
-          "title": "Pan and zoom",
-          "status": "DONE",
-          "passed": 6,
-          "total": 6,
-          "ownPassed": 6,
-          "ownTotal": 6,
-          "usage": {
-            "outTokens": 90000,
-            "inTokens": 400000,
-            "cacheRead": 4000000,
-            "readTokens": 4400000,
-            "calls": 90,
-            "agentSeconds": 700,
-            "tokS": 128.57,
-            "decodeTokens": 90000,
-            "decodeSeconds": 530,
-            "decodeTokS": 100.0,
-            "prefillTokens": 40000,
-            "prefillSeconds": 60,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 1,
-            "nudges": 0,
-            "split": {
-              "prefill": 60,
-              "decode": 530,
-              "tools": 85,
-              "compaction": 15,
-              "other": 10,
-              "wall": 700,
-              "modelUnsplit": 0,
-              "betweenSessions": 0,
-              "toolsByKind": {
-                "e2e": 85
-              },
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          }
-        },
-        {
-          "id": "2",
-          "title": "Sticky notes",
-          "status": "DONE",
-          "passed": 19,
-          "total": 20,
-          "ownPassed": 13,
-          "ownTotal": 14,
-          "usage": {
-            "outTokens": 72000,
-            "inTokens": 400000,
-            "cacheRead": 4000000,
-            "readTokens": 4400000,
-            "calls": 118,
-            "agentSeconds": 1000,
-            "tokS": 72.0,
-            "decodeTokens": 72000,
-            "decodeSeconds": 730,
-            "decodeTokS": 98.0,
-            "prefillTokens": 40000,
-            "prefillSeconds": 80,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 1,
-            "nudges": 0,
-            "split": {
-              "prefill": 80,
-              "decode": 730,
-              "tools": 160,
-              "compaction": 20,
-              "other": 10,
-              "wall": 1000,
-              "modelUnsplit": 0,
-              "betweenSessions": 0,
-              "toolsByKind": {
-                "unit": 100,
-                "e2e": 50,
-                "bash": 10
-              },
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 120,
-            "toolCalls": 119,
-            "thinkingChars": 11400,
-            "textChars": 2000,
-            "toolArgChars": 90000,
-            "thinkingMedian": 95,
-            "thinkingMedianBefore": 93,
-            "thinkingMedianAfter": 97,
-            "largestThinking": {
-              "chars": 4000,
-              "call": 10,
-              "atS": 120
-            },
-            "contextStart": 9000,
-            "contextEnd": 64000,
-            "largestContextJump": {
-              "tokens": 4000,
-              "call": 30
-            },
-            "toolsByName": {
-              "bash": 60,
-              "edit": 30,
-              "read": 29
-            },
-            "toolErrors": 2,
-            "longestTool": {
-              "seconds": 50.0,
-              "name": "bash",
-              "gist": "npm run test:unit"
-            },
-            "signals": []
-          }
-        }
-      ],
-      "scores": {
-        "vidi-v2.0-pre0": {
-          "passed": 60,
-          "total": 75,
-          "flaky": 0,
-          "at": "2026-09-27T09:00:00Z"
-        }
-      },
-      "host": "Intel Core i9 + RTX 4090 64GB"
-    },
-    {
-      "pack": "vidi",
-      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
-      "runId": "canvas-s-01",
-      "client": "pi",
-      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-s-01",
-      "rescores": [],
-      "hasBundle": true,
-      "packVersion": "vidi-v1.1",
-      "state": "finished",
-      "stateAt": "2026-09-20T10:00:00Z",
-      "stories": [
-        {
-          "id": "1",
-          "title": "Pan and zoom",
-          "status": "DONE",
-          "passed": 6,
-          "total": 6,
-          "ownPassed": 6,
-          "ownTotal": 6,
-          "usage": {
-            "outTokens": 60000,
-            "inTokens": 500000,
-            "cacheRead": 4500000,
-            "readTokens": 5000000,
-            "calls": 95,
-            "agentSeconds": 1980,
-            "tokS": 83.33333333333333,
-            "decodeTokens": 54000,
-            "decodeSeconds": 591.7159763313609,
-            "decodeTokS": 101.4,
-            "prefillTokens": 45000,
-            "prefillSeconds": null,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 1,
-            "nudges": 2,
-            "split": {
-              "wall": 660,
-              "prefill": 60,
-              "decode": 480,
-              "tools": 90,
-              "compaction": 20,
-              "other": 10,
-              "modelUnsplit": 0,
-              "toolsByKind": {
-                "e2e": 60,
-                "bash": 30
-              },
-              "betweenSessions": 0,
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 89,
-            "toolCalls": 89,
-            "thinkingChars": 8000,
-            "textChars": 2100,
-            "toolArgChars": 88000,
-            "thinkingMedian": 82,
-            "thinkingMedianBefore": 80,
-            "thinkingMedianAfter": 85,
-            "largestThinking": {
-              "chars": 3900,
-              "call": 12,
-              "atS": 150
-            },
-            "contextStart": 9000,
-            "contextEnd": 61000,
-            "largestContextJump": {
-              "tokens": 4100,
-              "call": 40
-            },
-            "toolsByName": {
-              "bash": 40,
-              "read": 25,
-              "edit": 20,
-              "write": 10
-            },
-            "toolErrors": 2,
-            "longestTool": {
-              "seconds": 41.0,
-              "name": "bash",
-              "gist": "npx playwright test"
-            },
-            "signals": []
-          }
-        },
-        {
-          "id": "2",
-          "title": "Sticky notes",
-          "status": "DONE",
-          "passed": 20,
-          "total": 20,
-          "ownPassed": 14,
-          "ownTotal": 14,
-          "usage": {
-            "outTokens": 175000,
-            "inTokens": 500000,
-            "cacheRead": 4500000,
-            "readTokens": 5000000,
-            "calls": 204,
-            "agentSeconds": 14433,
-            "tokS": 36.3,
-            "decodeTokens": 174827,
-            "decodeSeconds": 591.7159763313609,
-            "decodeTokS": 41.7,
-            "prefillTokens": 45000,
-            "prefillSeconds": null,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 2,
-            "nudges": 0,
-            "split": {
-              "wall": 4811,
-              "prefill": 222,
-              "decode": 4188,
-              "tools": 117,
-              "compaction": 270,
-              "other": 14,
-              "modelUnsplit": 0,
-              "betweenSessions": 0,
-              "toolsByKind": {
-                "unit": 62,
-                "e2e": 43,
-                "build": 11,
-                "bash": 1
-              },
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 207,
-            "toolCalls": 204,
-            "thinkingChars": 328750,
-            "textChars": 4889,
-            "toolArgChars": 279940,
-            "thinkingMedian": 424,
-            "thinkingMedianBefore": 80,
-            "thinkingMedianAfter": 464,
-            "largestThinking": {
-              "chars": 64543,
-              "call": 14,
-              "atS": 480
-            },
-            "contextStart": 9000,
-            "contextEnd": 120000,
-            "largestContextJump": {
-              "tokens": 16607,
-              "call": 15
-            },
-            "toolsByName": {
-              "bash": 115,
-              "edit": 40,
-              "read": 21,
-              "write": 28
-            },
-            "toolErrors": 5,
-            "longestTool": {
-              "seconds": 61.7,
-              "name": "bash",
-              "gist": "npm run test:unit"
-            },
-            "signals": [
-              "long-thinking-block"
-            ]
-          }
-        }
-      ],
-      "scores": {},
-      "host": "Intel Core i9 + RTX 4090 64GB"
-    },
-    {
-      "pack": "vidi",
-      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
-      "runId": "v2-r8",
-      "client": "pi",
-      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r8",
-      "rescores": [
-        "vidi-v2.0-pre1"
-      ],
-      "hasBundle": true,
-      "packVersion": "vidi-v2.0-pre1",
-      "state": "finished",
-      "stateAt": "2026-09-30T12:10:00Z",
-      "stories": [
-        {
-          "id": "1",
-          "title": "Pan and zoom",
-          "status": "DONE",
-          "passed": 6,
-          "total": 6,
-          "ownPassed": 6,
-          "ownTotal": 6,
-          "usage": {
-            "outTokens": 9000,
-            "inTokens": 500000,
-            "cacheRead": 4500000,
-            "readTokens": 5000000,
-            "calls": 20,
-            "agentSeconds": 180,
-            "tokS": 83.33333333333333,
-            "decodeTokens": 54000,
-            "decodeSeconds": 591.7159763313609,
-            "decodeTokS": 101.4,
-            "prefillTokens": 45000,
-            "prefillSeconds": null,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 1,
-            "nudges": 2,
-            "split": {
-              "wall": 180,
-              "prefill": 0,
-              "decode": 0,
-              "tools": 170,
-              "compaction": 0,
-              "other": 10,
-              "modelUnsplit": 0,
-              "toolsByKind": {
-                "e2e": 60,
-                "bash": 30
-              },
-              "betweenSessions": 0,
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 89,
-            "toolCalls": 89,
-            "thinkingChars": 8000,
-            "textChars": 2100,
-            "toolArgChars": 88000,
-            "thinkingMedian": 82,
-            "thinkingMedianBefore": 80,
-            "thinkingMedianAfter": 85,
-            "largestThinking": {
-              "chars": 3900,
-              "call": 12,
-              "atS": 150
-            },
-            "contextStart": 9000,
-            "contextEnd": 61000,
-            "largestContextJump": {
-              "tokens": 4100,
-              "call": 40
-            },
-            "toolsByName": {
-              "bash": 40,
-              "read": 25,
-              "edit": 20,
-              "write": 10
-            },
-            "toolErrors": 2,
-            "longestTool": {
-              "seconds": 41.0,
-              "name": "bash",
-              "gist": "npx playwright test"
-            },
-            "signals": []
-          }
-        },
-        {
-          "id": "2",
-          "title": "Sticky notes",
-          "status": "DONE",
-          "passed": 20,
-          "total": 20,
-          "ownPassed": 14,
-          "ownTotal": 14,
-          "usage": {
-            "outTokens": 30000,
-            "inTokens": 500000,
-            "cacheRead": 4500000,
-            "readTokens": 5000000,
-            "calls": 40,
-            "agentSeconds": 900,
-            "tokS": 36.3,
-            "decodeTokens": 174827,
-            "decodeSeconds": 591.7159763313609,
-            "decodeTokS": 41.7,
-            "prefillTokens": 45000,
-            "prefillSeconds": null,
-            "prefillTokS": 750.0,
-            "draftAcceptance": null,
-            "compactions": 2,
-            "nudges": 0,
-            "split": {
-              "wall": 900,
-              "prefill": 60,
-              "decode": 700,
-              "tools": 100,
-              "compaction": 30,
-              "other": 10,
-              "modelUnsplit": 0,
-              "betweenSessions": 0,
-              "toolsByKind": {
-                "unit": 62,
-                "e2e": 43,
-                "build": 11,
-                "bash": 1
-              },
-              "check": {
-                "status": "ok",
-                "problems": [],
-                "version": null
-              }
-            }
-          },
-          "conversation": {
-            "calls": 207,
-            "toolCalls": 204,
-            "thinkingChars": 328750,
-            "textChars": 4889,
-            "toolArgChars": 279940,
-            "thinkingMedian": 424,
-            "thinkingMedianBefore": 80,
-            "thinkingMedianAfter": 464,
-            "largestThinking": {
-              "chars": 64543,
-              "call": 14,
-              "atS": 480
-            },
-            "contextStart": 9000,
-            "contextEnd": 120000,
-            "largestContextJump": {
-              "tokens": 16607,
-              "call": 15
-            },
-            "toolsByName": {
-              "bash": 115,
-              "edit": 40,
-              "read": 21,
-              "write": 28
-            },
-            "toolErrors": 5,
-            "longestTool": {
-              "seconds": 61.7,
-              "name": "bash",
-              "gist": "npm run test:unit"
-            },
-            "signals": [
-              "long-thinking-block"
-            ]
-          }
-        }
-      ],
-      "scores": {
-        "vidi-v2.0-pre1": {
-          "passed": 74,
-          "total": 75,
-          "flaky": 0,
-          "at": "2026-09-30T13:00:00Z"
-        }
-      },
-      "host": "Intel Core i9 + RTX 4090 64GB",
-      "invalid": {
-        "reason": "read the reference build in story 2, through a clone of the repo the sandbox did not hide",
-        "since": "2026-09-30"
-      },
-      "interventions": [
-        {
-          "at": 1790755800.0,
-          "story": "1",
-          "text": "interrupted a tool call silent for 600s (killed processes under the workspace)"
-        },
-        {
-          "at": 1790755830.0,
-          "story": "1",
-          "text": "interrupted a tool call silent for 600s (killed processes under the workspace)"
-        },
-        {
-          "at": 1790758800.0,
-          "story": null,
-          "text": "node-a rebooted by the operator; the run resumed at story 2"
-        },
-        {
-          "at": 1790764200.0,
-          "story": "2",
-          "text": "story ended by the operator at its cap"
-        }
-      ]
-    },
-    {
-      "pack": "vidi",
-      "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi",
-      "runId": "v2-r1",
-      "client": "pi",
-      "dir": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/benchmarks/vidi/v2-r1",
-      "rescores": [],
-      "hasBundle": true,
-      "finalize": {
-        "rescore": "failed",
-        "reason": "the app's build failed in the re-score (exit 1) but passed where the agent worked, on the same commit",
-        "version": "vidi-v2.0-pre1",
-        "pack_ref": "vidi-v2.0-pre1",
-        "at": "2026-09-28T09:00:00Z",
-        "needs_person": true,
-        "attempts": 3,
-        "last_attempt_at": "2026-09-29T07:30:00Z"
-      },
-      "packVersion": "vidi-v2.0-pre1",
-      "state": "finished",
-      "stateAt": "2026-09-28T09:00:00Z",
-      "stories": [],
-      "scores": {},
-      "host": "AMD Ryzen AI Max+ 395 128GB"
-    },
-    {
-      "pack": "vidi",
-      "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi",
-      "runId": "v2-r2",
-      "client": "pi",
-      "dir": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/benchmarks/vidi/v2-r2",
-      "rescores": [],
-      "hasBundle": true,
-      "finalize": {
-        "rescore": "skipped",
-        "reason": "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1",
-        "version": "vidi-v2.0-pre1+28ace8b",
-        "pack_ref": "vidi-v2.0-pre1",
-        "at": "2026-09-29T09:00:00Z",
-        "needs_person": false,
-        "attempts": 2,
-        "last_attempt_at": "2026-09-29T12:00:00Z"
-      },
-      "packVersion": "vidi-v2.0-pre1",
-      "state": "finished",
-      "stateAt": "2026-09-29T09:00:00Z",
-      "stories": [],
-      "scores": {},
-      "host": "AMD Ryzen AI Max+ 395 128GB"
+      "signals": []
+     }
     }
-  ],
-  "jobs": {
-    "node-a": [
-      {
-        "id": "vidi-v2b-swift15-r1",
-        "spec": {
-          "pack": "benchmarks/vidi",
-          "run_id": "v2-r1"
-        },
-        "seq": 0,
-        "progress": {
-          "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
-          "current_story": "3",
-          "log_tail": [
-            "[story 3] See other people's edits appear live on the same board \u2014 agent starting"
-          ],
-          "stories": [
-            {
-              "id": "1",
-              "status": "DONE",
-              "passed": 6,
-              "total": 6,
-              "title": "Pan and zoom",
-              "agent_minutes": 12.0
-            },
-            {
-              "id": "2",
-              "status": "DONE",
-              "passed": 9,
-              "total": 10,
-              "title": "Sticky notes",
-              "agent_minutes": 12.0
-            },
-            {
-              "id": "3",
-              "status": "running",
-              "agent_minutes": 4.0,
-              "calls": 41,
-              "output_tokens": 12000,
-              "started_at": 1790714996,
-              "tasks": [
-                {
-                  "status": "written"
-                },
-                {
-                  "status": "not-started"
-                }
-              ],
-              "recent_activity": [
-                "write: /home/you/.vidi-bench/work/x/workspace/src/shared/protocol.ts"
-              ],
-              "title": "See other people's edits live"
-            },
-            {
-              "id": "4",
-              "status": "pending",
-              "title": "Undo and redo"
-            },
-            {
-              "id": "5",
-              "status": "pending",
-              "title": "Story 5"
-            },
-            {
-              "id": "7",
-              "status": "pending",
-              "title": "Story 7"
-            },
-            {
-              "id": "8",
-              "status": "pending",
-              "title": "Story 8"
-            },
-            {
-              "id": "9",
-              "status": "pending",
-              "title": "Story 9"
-            },
-            {
-              "id": "10",
-              "status": "pending",
-              "title": "Story 10"
-            },
-            {
-              "id": "11",
-              "status": "pending",
-              "title": "Story 11"
-            },
-            {
-              "id": "12",
-              "status": "pending",
-              "title": "Story 12"
-            }
-          ]
-        },
-        "state": {
-          "status": "running",
-          "attempt": 1,
-          "started_at": 1790713020
-        },
-        "submitted_at": 100,
-        "updated_at": 1790715296
-      },
-      {
-        "id": "vidi-v2b-swift15-r2",
-        "spec": {
-          "pack": "benchmarks/vidi",
-          "run_id": "v2-r2"
-        },
-        "seq": 1,
-        "progress": {
-          "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"
-        },
-        "state": {
-          "status": "queued"
-        },
-        "submitted_at": 200,
-        "updated_at": 200
-      },
-      {
-        "id": "vidi-v2b-27b-r1",
-        "spec": {
-          "pack": "benchmarks/vidi",
-          "run_id": "v2-r1"
-        },
-        "seq": 3,
-        "progress": {
-          "combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi"
-        },
-        "state": {
-          "status": "queued"
-        },
-        "submitted_at": 200,
-        "updated_at": 200
-      },
-      {
-        "id": "vidi-v2b-swift15-r3",
-        "spec": {
-          "pack": "benchmarks/vidi",
-          "run_id": "v2-r3"
-        },
-        "seq": 2,
-        "progress": {
-          "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"
-        },
-        "state": {
-          "status": "queued"
-        },
-        "submitted_at": 200,
-        "updated_at": 200
-      },
-      {
-        "id": "vidi-v2b-27b-r2",
-        "spec": {
-          "pack": "benchmarks/vidi",
-          "run_id": "v2-r2"
-        },
-        "seq": 3,
-        "progress": {
-          "combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi"
-        },
-        "state": {
-          "status": "cancelled"
-        },
-        "submitted_at": 200
-      },
-      {
-        "spec": {
-          "pack": "benchmarks/vidi",
-          "run_id": "v2-r5",
-          "install_id": "swift15-qwen38-27b"
-        },
-        "progress": {
-          "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"
-        },
-        "id": "vidi-v2b-swift15-r5",
-        "state": {
-          "status": "cancelled",
-          "reason": "stopped by the operator"
-        },
-        "submitted_at": 1790640000,
-        "updated_at": 1790650000
-      },
-      {
-        "spec": {
-          "pack": "benchmarks/vidi",
-          "run_id": "v2-r5",
-          "install_id": "swift15-qwen38-27b"
-        },
-        "progress": {
-          "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"
-        },
-        "id": "vidi-v2b-swift15-r5-again1",
-        "state": {
-          "status": "done",
-          "exit_code": 0
-        },
-        "submitted_at": 1790650100,
-        "updated_at": 1790690000
-      }
-    ],
-    "node-c": [
-      {
-        "id": "vidi-v2b-mlx-r1",
-        "spec": {
-          "pack": "benchmarks/vidi",
-          "run_id": "v2-r1"
-        },
-        "seq": 1,
-        "progress": {
-          "combination": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi",
-          "current_story": "1",
-          "stories": [
-            {
-              "id": "1",
-              "status": "running",
-              "agent_minutes": 0.0,
-              "calls": 0,
-              "started_at": 1790715286
-            }
-          ]
-        },
-        "state": {
-          "status": "running",
-          "attempt": 1
-        },
-        "submitted_at": 300,
-        "updated_at": 1790715296
-      }
-    ],
-    "node-d": [],
-    "node-b": [
-      {
-        "id": "vidi-v2-opus-r1",
-        "spec": {
-          "pack": "benchmarks/vidi",
-          "run_id": "v2-r1"
-        },
-        "seq": 1,
-        "progress": {
-          "combination": "reference/opus-5.5",
-          "current_story": "2",
-          "stories": [
-            {
-              "id": "1",
-              "status": "DONE",
-              "title": "Pan and zoom around an infinite board",
-              "passed": 6,
-              "total": 6,
-              "agent_minutes": 8.0
-            },
-            {
-              "id": "2",
-              "status": "running",
-              "title": "Capture ideas on sticky notes",
-              "agent_minutes": 5.0,
-              "calls": 0,
-              "output_tokens": 0,
-              "tasks": [
-                {
-                  "status": "committed"
-                },
-                {
-                  "status": "not-started"
-                }
-              ]
-            }
-          ]
-        },
-        "state": {
-          "status": "running",
-          "attempt": 1
-        },
-        "submitted_at": 400
-      }
-    ]
+   ],
+   "scores": {},
+   "host": "Intel Core i9 + RTX 4090 64GB"
   },
-  "flowCounts": {
+  {
+   "pack": "vidi",
+   "stack": "reference/opus-5.5",
+   "runId": "run-9",
+   "client": "claude",
+   "dir": "benchmarks/reference/vidi/opus-5.5/run-9",
+   "rescores": [
+    "vidi-v2.0-pre1"
+   ],
+   "hasBundle": true,
+   "packVersion": "vidi-v2.0-pre1",
+   "state": "finished",
+   "stateAt": "2026-09-29T10:00:00Z",
+   "stories": [
+    {
+     "id": "1",
+     "title": "Pan and zoom",
+     "status": "DONE",
+     "passed": 6,
+     "total": 6,
+     "ownPassed": 6,
+     "ownTotal": 6,
+     "usage": {
+      "outTokens": 38000,
+      "inTokens": 110000,
+      "cacheRead": 990000,
+      "readTokens": 1100000,
+      "calls": 20,
+      "agentSeconds": 480,
+      "tokS": 79.16666666666667,
+      "decodeTokens": null,
+      "decodeSeconds": null,
+      "decodeTokS": null,
+      "prefillTokens": null,
+      "prefillSeconds": null,
+      "prefillTokS": null,
+      "draftAcceptance": null,
+      "compactions": 0,
+      "nudges": 0,
+      "split": {
+       "wall": 480,
+       "prefill": 0,
+       "decode": 0,
+       "tools": 0,
+       "compaction": 0,
+       "other": 0,
+       "modelUnsplit": 480,
+       "betweenSessions": 0,
+       "check": {
+        "status": "unchecked",
+        "problems": [],
+        "version": null
+       }
+      }
+     }
+    },
+    {
+     "id": "2",
+     "title": "Sticky notes",
+     "status": "DONE",
+     "passed": 19,
+     "total": 20,
+     "ownPassed": 9,
+     "ownTotal": 10
+    }
+   ],
+   "scores": {
     "vidi-v2.0-pre1": {
-      "1": 10,
-      "2": 10,
-      "3": 7,
-      "4": 4,
-      "5": 5,
-      "7": 8,
-      "8": 7,
-      "9": 6,
-      "10": 8,
-      "11": 5,
-      "12": 5
+     "passed": 74,
+     "total": 75,
+     "flaky": 0,
+     "at": "2026-09-29T11:00:00Z"
     }
+   },
+   "host": "Apple M2 16GB"
   },
-  "machines": {
-    "node-a": {
-      "hostname": "node-a",
-      "os": "linux",
-      "cpu_brand": "13th Gen Intel(R) Core(TM) i9-13900F",
-      "cpus": 32,
-      "total_ram_bytes": 67108864000,
-      "gpus": [
+  {
+   "pack": "vidi",
+   "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi",
+   "runId": "canvas-gufo-r3",
+   "client": "pi",
+   "dir": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r3",
+   "rescores": [],
+   "hasBundle": false,
+   "packVersion": "vidi-v1.1",
+   "state": "finished",
+   "stateAt": "2026-09-29T14:02:31Z",
+   "stories": [
+    {
+     "id": "1",
+     "title": "Pan and zoom",
+     "status": "DONE",
+     "passed": 6,
+     "total": 6,
+     "ownPassed": 6,
+     "ownTotal": 6,
+     "usage": {
+      "outTokens": 55968,
+      "inTokens": 45179,
+      "cacheRead": 6230043,
+      "calls": 115,
+      "agentSeconds": 760.3,
+      "decodeTokens": 55968,
+      "decodeSeconds": 565.7,
+      "decodeTokS": 98.9,
+      "prefillTokens": 45179,
+      "prefillSeconds": 59.2,
+      "prefillTokS": 763.2,
+      "draftAcceptance": 0.853,
+      "tokS": 73.6130474812574,
+      "readTokens": 6275222,
+      "compactions": 0,
+      "nudges": 0,
+      "split": {
+       "wall": 760.3,
+       "prefill": 59.2,
+       "decode": 565.7,
+       "tools": 60,
+       "compaction": 0,
+       "betweenSessions": 60,
+       "other": 15.4,
+       "modelUnsplit": 0,
+       "toolsByKind": {
+        "unit": 60
+       },
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     }
+    }
+   ],
+   "scores": {},
+   "host": "AMD Ryzen AI Max+ 395 128GB"
+  },
+  {
+   "pack": "vidi",
+   "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+   "runId": "v2-r5",
+   "client": "pi",
+   "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5",
+   "rescores": [
+    "vidi-v2.0-pre1"
+   ],
+   "hasBundle": true,
+   "packVersion": "vidi-v2.0-pre1",
+   "state": "finished",
+   "stateAt": "2026-09-30T15:28:00Z",
+   "stories": [
+    {
+     "id": "1",
+     "title": "Pan and zoom",
+     "status": "DONE",
+     "passed": 6,
+     "total": 6,
+     "ownPassed": 6,
+     "ownTotal": 6,
+     "usage": {
+      "outTokens": 60000,
+      "inTokens": 500000,
+      "cacheRead": 4500000,
+      "readTokens": 5000000,
+      "calls": 95,
+      "agentSeconds": 660,
+      "tokS": 83.33333333333333,
+      "decodeTokens": 54000,
+      "decodeSeconds": 591.7159763313609,
+      "decodeTokS": 101.4,
+      "prefillTokens": 45000,
+      "prefillSeconds": null,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 1,
+      "nudges": 2,
+      "split": {
+       "wall": 660,
+       "prefill": 60,
+       "decode": 480,
+       "tools": 90,
+       "compaction": 20,
+       "other": 10,
+       "modelUnsplit": 0,
+       "toolsByKind": {
+        "e2e": 60,
+        "bash": 30
+       },
+       "betweenSessions": 0,
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 89,
+      "toolCalls": 89,
+      "thinkingChars": 8000,
+      "textChars": 2100,
+      "toolArgChars": 88000,
+      "thinkingMedian": 82,
+      "thinkingMedianBefore": 80,
+      "thinkingMedianAfter": 85,
+      "largestThinking": {
+       "chars": 3900,
+       "call": 12,
+       "atS": 150
+      },
+      "contextStart": 9000,
+      "contextEnd": 61000,
+      "largestContextJump": {
+       "tokens": 4100,
+       "call": 40
+      },
+      "toolsByName": {
+       "bash": 40,
+       "read": 25,
+       "edit": 20,
+       "write": 10
+      },
+      "toolErrors": 2,
+      "longestTool": {
+       "seconds": 41.0,
+       "name": "bash",
+       "gist": "npx playwright test"
+      },
+      "signals": []
+     }
+    },
+    {
+     "id": "2",
+     "title": "Sticky notes",
+     "status": "DONE",
+     "passed": 20,
+     "total": 20,
+     "ownPassed": 14,
+     "ownTotal": 14,
+     "usage": {
+      "outTokens": 175000,
+      "inTokens": 500000,
+      "cacheRead": 4500000,
+      "readTokens": 5000000,
+      "calls": 204,
+      "agentSeconds": 4811,
+      "tokS": 36.3,
+      "decodeTokens": 174827,
+      "decodeSeconds": 591.7159763313609,
+      "decodeTokS": 41.7,
+      "prefillTokens": 45000,
+      "prefillSeconds": null,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 2,
+      "nudges": 0,
+      "split": {
+       "wall": 4811,
+       "prefill": 222,
+       "decode": 4188,
+       "tools": 117,
+       "compaction": 270,
+       "other": 14,
+       "modelUnsplit": 0,
+       "betweenSessions": 0,
+       "toolsByKind": {
+        "unit": 62,
+        "e2e": 43,
+        "build": 11,
+        "bash": 1
+       },
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 207,
+      "toolCalls": 204,
+      "thinkingChars": 328750,
+      "textChars": 4889,
+      "toolArgChars": 279940,
+      "thinkingMedian": 424,
+      "thinkingMedianBefore": 80,
+      "thinkingMedianAfter": 464,
+      "largestThinking": {
+       "chars": 64543,
+       "call": 14,
+       "atS": 480
+      },
+      "contextStart": 9000,
+      "contextEnd": 120000,
+      "largestContextJump": {
+       "tokens": 16607,
+       "call": 15
+      },
+      "toolsByName": {
+       "bash": 115,
+       "edit": 40,
+       "read": 21,
+       "write": 28
+      },
+      "toolErrors": 5,
+      "longestTool": {
+       "seconds": 61.7,
+       "name": "bash",
+       "gist": "npm run test:unit"
+      },
+      "signals": [
+       "long-thinking-block"
+      ]
+     }
+    }
+   ],
+   "scores": {
+    "vidi-v2.0-pre1": {
+     "passed": 63,
+     "total": 75,
+     "flaky": 0,
+     "at": "2026-09-30T18:30:00Z"
+    }
+   },
+   "host": "Intel Core i9 + RTX 4090 64GB"
+  },
+  {
+   "pack": "vidi",
+   "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+   "runId": "v2-r9",
+   "client": "pi",
+   "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r9",
+   "rescores": [],
+   "hasBundle": false,
+   "packVersion": "vidi-v2.0-pre1",
+   "state": "finished",
+   "stateAt": "2026-10-01T09:00:00Z",
+   "knownGood": true,
+   "stories": [
+    {
+     "id": "2",
+     "title": "Sticky notes",
+     "status": "DONE",
+     "passed": 20,
+     "total": 20,
+     "ownPassed": 14,
+     "ownTotal": 14,
+     "usage": {
+      "outTokens": 900000,
+      "inTokens": 500000,
+      "cacheRead": 4500000,
+      "readTokens": 5000000,
+      "calls": 900,
+      "agentSeconds": 60000,
+      "tokS": 15.0,
+      "decodeTokens": 900000,
+      "decodeSeconds": 60000,
+      "decodeTokS": 15.0,
+      "prefillTokens": 45000,
+      "prefillSeconds": null,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 9,
+      "nudges": 0,
+      "split": {
+       "wall": 60000,
+       "prefill": 222,
+       "decode": 59000,
+       "tools": 700,
+       "compaction": 70,
+       "other": 8,
+       "modelUnsplit": 0,
+       "betweenSessions": 0,
+       "toolsByKind": {
+        "unit": 700
+       },
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 900,
+      "toolCalls": 900,
+      "thinkingChars": 900000,
+      "textChars": 4889,
+      "toolArgChars": 279940,
+      "thinkingMedian": 1000,
+      "thinkingMedianBefore": 80,
+      "thinkingMedianAfter": 464,
+      "largestThinking": {
+       "chars": 64543,
+       "call": 14,
+       "atS": 480
+      },
+      "contextStart": 9000,
+      "contextEnd": 120000,
+      "largestContextJump": {
+       "tokens": 16607,
+       "call": 15
+      },
+      "toolsByName": {
+       "bash": 115,
+       "edit": 40,
+       "read": 21,
+       "write": 28
+      },
+      "toolErrors": 5,
+      "longestTool": {
+       "seconds": 61.7,
+       "name": "bash",
+       "gist": "npm run test:unit"
+      },
+      "signals": [
+       "long-thinking-block"
+      ]
+     }
+    }
+   ],
+   "scores": {},
+   "host": "Intel Core i9 + RTX 4090 64GB"
+  },
+  {
+   "pack": "vidi",
+   "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+   "runId": "v2-r4",
+   "client": "pi",
+   "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4",
+   "rescores": [
+    "vidi-v2.0-pre1"
+   ],
+   "hasBundle": true,
+   "packVersion": "vidi-v2.0-pre1",
+   "state": "finished",
+   "stateAt": "2026-09-28T12:00:00Z",
+   "stories": [
+    {
+     "id": "1",
+     "title": "Pan and zoom",
+     "status": "DONE",
+     "passed": 6,
+     "total": 6,
+     "ownPassed": 6,
+     "ownTotal": 6,
+     "usage": {
+      "outTokens": 55000,
+      "inTokens": 400000,
+      "cacheRead": 4000000,
+      "readTokens": 4400000,
+      "calls": 88,
+      "agentSeconds": 690,
+      "tokS": 79.71,
+      "decodeTokens": 55000,
+      "decodeSeconds": 520,
+      "decodeTokS": 102.0,
+      "prefillTokens": 40000,
+      "prefillSeconds": 60,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 1,
+      "nudges": 0,
+      "split": {
+       "prefill": 60,
+       "decode": 520,
+       "tools": 85,
+       "compaction": 15,
+       "other": 10,
+       "wall": 690,
+       "modelUnsplit": 0,
+       "betweenSessions": 0,
+       "toolsByKind": {
+        "e2e": 85
+       },
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 89,
+      "toolCalls": 88,
+      "thinkingChars": 7600,
+      "textChars": 2000,
+      "toolArgChars": 90000,
+      "thinkingMedian": 84,
+      "thinkingMedianBefore": 80,
+      "thinkingMedianAfter": 86,
+      "largestThinking": {
+       "chars": 3700,
+       "call": 10,
+       "atS": 120
+      },
+      "contextStart": 9000,
+      "contextEnd": 64000,
+      "largestContextJump": {
+       "tokens": 4000,
+       "call": 30
+      },
+      "toolsByName": {
+       "bash": 44,
+       "edit": 22,
+       "read": 22
+      },
+      "toolErrors": 2,
+      "longestTool": {
+       "seconds": 40.0,
+       "name": "bash",
+       "gist": "npx playwright test"
+      },
+      "signals": []
+     }
+    },
+    {
+     "id": "2",
+     "title": "Sticky notes",
+     "status": "DONE",
+     "passed": 18,
+     "total": 20,
+     "ownPassed": 12,
+     "ownTotal": 14,
+     "usage": {
+      "outTokens": 70000,
+      "inTokens": 400000,
+      "cacheRead": 4000000,
+      "readTokens": 4400000,
+      "calls": 112,
+      "agentSeconds": 960,
+      "tokS": 72.92,
+      "decodeTokens": 70000,
+      "decodeSeconds": 700,
+      "decodeTokS": 99.0,
+      "prefillTokens": 40000,
+      "prefillSeconds": 80,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 1,
+      "nudges": 0,
+      "split": {
+       "prefill": 80,
+       "decode": 700,
+       "tools": 150,
+       "compaction": 20,
+       "other": 10,
+       "wall": 960,
+       "modelUnsplit": 0,
+       "betweenSessions": 0,
+       "toolsByKind": {
+        "unit": 90,
+        "e2e": 50,
+        "bash": 10
+       },
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 114,
+      "toolCalls": 113,
+      "thinkingChars": 12000,
+      "textChars": 2000,
+      "toolArgChars": 90000,
+      "thinkingMedian": 104,
+      "thinkingMedianBefore": 100,
+      "thinkingMedianAfter": 108,
+      "largestThinking": {
+       "chars": 4100,
+       "call": 10,
+       "atS": 120
+      },
+      "contextStart": 9000,
+      "contextEnd": 64000,
+      "largestContextJump": {
+       "tokens": 4000,
+       "call": 30
+      },
+      "toolsByName": {
+       "bash": 57,
+       "edit": 28,
+       "read": 28
+      },
+      "toolErrors": 2,
+      "longestTool": {
+       "seconds": 55.0,
+       "name": "bash",
+       "gist": "npm run test:unit"
+      },
+      "signals": []
+     }
+    }
+   ],
+   "scores": {
+    "vidi-v2.0-pre1": {
+     "passed": 68,
+     "total": 75,
+     "flaky": 0,
+     "at": "2026-09-28T12:00:00Z"
+    }
+   },
+   "host": "Intel Core i9 + RTX 4090 64GB"
+  },
+  {
+   "pack": "vidi",
+   "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+   "runId": "v2-r6",
+   "client": "pi",
+   "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r6",
+   "rescores": [
+    "vidi-v2.0-pre1"
+   ],
+   "hasBundle": true,
+   "packVersion": "vidi-v2.0-pre1",
+   "state": "finished",
+   "stateAt": "2026-09-29T20:00:00Z",
+   "stories": [
+    {
+     "id": "1",
+     "title": "Pan and zoom",
+     "status": "DONE",
+     "passed": 5,
+     "total": 6,
+     "ownPassed": 5,
+     "ownTotal": 6,
+     "usage": {
+      "outTokens": 62000,
+      "inTokens": 400000,
+      "cacheRead": 4000000,
+      "readTokens": 4400000,
+      "calls": 92,
+      "agentSeconds": 1500,
+      "tokS": 41.33,
+      "decodeTokens": 62000,
+      "decodeSeconds": 510,
+      "decodeTokS": 101.0,
+      "prefillTokens": 40000,
+      "prefillSeconds": 60,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 1,
+      "nudges": 0,
+      "split": {
+       "prefill": 60,
+       "decode": 510,
+       "tools": 900,
+       "compaction": 20,
+       "other": 10,
+       "wall": 1500,
+       "modelUnsplit": 0,
+       "betweenSessions": 0,
+       "toolsByKind": {
+        "bash": 820,
+        "e2e": 80
+       },
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 93,
+      "toolCalls": 92,
+      "thinkingChars": 8100,
+      "textChars": 2000,
+      "toolArgChars": 90000,
+      "thinkingMedian": 87,
+      "thinkingMedianBefore": 85,
+      "thinkingMedianAfter": 88,
+      "largestThinking": {
+       "chars": 3800,
+       "call": 10,
+       "atS": 120
+      },
+      "contextStart": 9000,
+      "contextEnd": 64000,
+      "largestContextJump": {
+       "tokens": 4000,
+       "call": 30
+      },
+      "toolsByName": {
+       "bash": 46,
+       "edit": 23,
+       "read": 23
+      },
+      "toolErrors": 2,
+      "longestTool": {
+       "seconds": 780.0,
+       "name": "bash",
+       "gist": "npm run dev (never returned; killed by the harness)"
+      },
+      "signals": [
+       "hung-command"
+      ]
+     }
+    },
+    {
+     "id": "2",
+     "title": "Sticky notes",
+     "status": "DONE",
+     "passed": 16,
+     "total": 20,
+     "ownPassed": 11,
+     "ownTotal": 14,
+     "usage": {
+      "outTokens": 80000,
+      "inTokens": 400000,
+      "cacheRead": 4000000,
+      "readTokens": 4400000,
+      "calls": 262,
+      "agentSeconds": 1080,
+      "tokS": 74.07,
+      "decodeTokens": 80000,
+      "decodeSeconds": 760,
+      "decodeTokS": 100.0,
+      "prefillTokens": 40000,
+      "prefillSeconds": 90,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 1,
+      "nudges": 0,
+      "split": {
+       "prefill": 90,
+       "decode": 760,
+       "tools": 200,
+       "compaction": 20,
+       "other": 10,
+       "wall": 1080,
+       "modelUnsplit": 0,
+       "betweenSessions": 0,
+       "toolsByKind": {
+        "unit": 120,
+        "e2e": 60,
+        "bash": 20
+       },
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 264,
+      "toolCalls": 263,
+      "thinkingChars": 23500,
+      "textChars": 2000,
+      "toolArgChars": 90000,
+      "thinkingMedian": 88,
+      "thinkingMedianBefore": 86,
+      "thinkingMedianAfter": 90,
+      "largestThinking": {
+       "chars": 4300,
+       "call": 10,
+       "atS": 120
+      },
+      "contextStart": 9000,
+      "contextEnd": 64000,
+      "largestContextJump": {
+       "tokens": 4000,
+       "call": 30
+      },
+      "toolsByName": {
+       "bash": 132,
+       "edit": 66,
+       "read": 65
+      },
+      "toolErrors": 2,
+      "longestTool": {
+       "seconds": 48.0,
+       "name": "bash",
+       "gist": "npm run test:unit"
+      },
+      "signals": []
+     }
+    }
+   ],
+   "scores": {
+    "vidi-v2.0-pre1": {
+     "passed": 58,
+     "total": 75,
+     "flaky": 0,
+     "at": "2026-09-29T20:00:00Z"
+    }
+   },
+   "host": "Intel Core i9 + RTX 4090 64GB"
+  },
+  {
+   "pack": "vidi",
+   "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+   "runId": "v2-r7",
+   "client": "pi",
+   "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r7",
+   "rescores": [
+    "vidi-v2.0-pre0"
+   ],
+   "hasBundle": true,
+   "finalize": {
+    "rescore": "skipped",
+    "reason": "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1",
+    "version": "vidi-v2.0-pre1+28ace8b",
+    "pack_ref": "vidi-v2.0-pre1",
+    "at": "2026-09-27T09:00:00Z"
+   },
+   "packVersion": "vidi-v2.0-pre0",
+   "state": "finished",
+   "stateAt": "2026-09-27T09:00:00Z",
+   "stories": [
+    {
+     "id": "1",
+     "title": "Pan and zoom",
+     "status": "DONE",
+     "passed": 6,
+     "total": 6,
+     "ownPassed": 6,
+     "ownTotal": 6,
+     "usage": {
+      "outTokens": 90000,
+      "inTokens": 400000,
+      "cacheRead": 4000000,
+      "readTokens": 4400000,
+      "calls": 90,
+      "agentSeconds": 700,
+      "tokS": 128.57,
+      "decodeTokens": 90000,
+      "decodeSeconds": 530,
+      "decodeTokS": 100.0,
+      "prefillTokens": 40000,
+      "prefillSeconds": 60,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 1,
+      "nudges": 0,
+      "split": {
+       "prefill": 60,
+       "decode": 530,
+       "tools": 85,
+       "compaction": 15,
+       "other": 10,
+       "wall": 700,
+       "modelUnsplit": 0,
+       "betweenSessions": 0,
+       "toolsByKind": {
+        "e2e": 85
+       },
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     }
+    },
+    {
+     "id": "2",
+     "title": "Sticky notes",
+     "status": "DONE",
+     "passed": 19,
+     "total": 20,
+     "ownPassed": 13,
+     "ownTotal": 14,
+     "usage": {
+      "outTokens": 72000,
+      "inTokens": 400000,
+      "cacheRead": 4000000,
+      "readTokens": 4400000,
+      "calls": 118,
+      "agentSeconds": 1000,
+      "tokS": 72.0,
+      "decodeTokens": 72000,
+      "decodeSeconds": 730,
+      "decodeTokS": 98.0,
+      "prefillTokens": 40000,
+      "prefillSeconds": 80,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 1,
+      "nudges": 0,
+      "split": {
+       "prefill": 80,
+       "decode": 730,
+       "tools": 160,
+       "compaction": 20,
+       "other": 10,
+       "wall": 1000,
+       "modelUnsplit": 0,
+       "betweenSessions": 0,
+       "toolsByKind": {
+        "unit": 100,
+        "e2e": 50,
+        "bash": 10
+       },
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 120,
+      "toolCalls": 119,
+      "thinkingChars": 11400,
+      "textChars": 2000,
+      "toolArgChars": 90000,
+      "thinkingMedian": 95,
+      "thinkingMedianBefore": 93,
+      "thinkingMedianAfter": 97,
+      "largestThinking": {
+       "chars": 4000,
+       "call": 10,
+       "atS": 120
+      },
+      "contextStart": 9000,
+      "contextEnd": 64000,
+      "largestContextJump": {
+       "tokens": 4000,
+       "call": 30
+      },
+      "toolsByName": {
+       "bash": 60,
+       "edit": 30,
+       "read": 29
+      },
+      "toolErrors": 2,
+      "longestTool": {
+       "seconds": 50.0,
+       "name": "bash",
+       "gist": "npm run test:unit"
+      },
+      "signals": []
+     }
+    }
+   ],
+   "scores": {
+    "vidi-v2.0-pre0": {
+     "passed": 60,
+     "total": 75,
+     "flaky": 0,
+     "at": "2026-09-27T09:00:00Z"
+    }
+   },
+   "host": "Intel Core i9 + RTX 4090 64GB"
+  },
+  {
+   "pack": "vidi",
+   "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+   "runId": "canvas-s-01",
+   "client": "pi",
+   "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-s-01",
+   "rescores": [],
+   "hasBundle": true,
+   "packVersion": "vidi-v1.1",
+   "state": "finished",
+   "stateAt": "2026-09-20T10:00:00Z",
+   "stories": [
+    {
+     "id": "1",
+     "title": "Pan and zoom",
+     "status": "DONE",
+     "passed": 6,
+     "total": 6,
+     "ownPassed": 6,
+     "ownTotal": 6,
+     "usage": {
+      "outTokens": 60000,
+      "inTokens": 500000,
+      "cacheRead": 4500000,
+      "readTokens": 5000000,
+      "calls": 95,
+      "agentSeconds": 1980,
+      "tokS": 83.33333333333333,
+      "decodeTokens": 54000,
+      "decodeSeconds": 591.7159763313609,
+      "decodeTokS": 101.4,
+      "prefillTokens": 45000,
+      "prefillSeconds": null,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 1,
+      "nudges": 2,
+      "split": {
+       "wall": 660,
+       "prefill": 60,
+       "decode": 480,
+       "tools": 90,
+       "compaction": 20,
+       "other": 10,
+       "modelUnsplit": 0,
+       "toolsByKind": {
+        "e2e": 60,
+        "bash": 30
+       },
+       "betweenSessions": 0,
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 89,
+      "toolCalls": 89,
+      "thinkingChars": 8000,
+      "textChars": 2100,
+      "toolArgChars": 88000,
+      "thinkingMedian": 82,
+      "thinkingMedianBefore": 80,
+      "thinkingMedianAfter": 85,
+      "largestThinking": {
+       "chars": 3900,
+       "call": 12,
+       "atS": 150
+      },
+      "contextStart": 9000,
+      "contextEnd": 61000,
+      "largestContextJump": {
+       "tokens": 4100,
+       "call": 40
+      },
+      "toolsByName": {
+       "bash": 40,
+       "read": 25,
+       "edit": 20,
+       "write": 10
+      },
+      "toolErrors": 2,
+      "longestTool": {
+       "seconds": 41.0,
+       "name": "bash",
+       "gist": "npx playwright test"
+      },
+      "signals": []
+     }
+    },
+    {
+     "id": "2",
+     "title": "Sticky notes",
+     "status": "DONE",
+     "passed": 20,
+     "total": 20,
+     "ownPassed": 14,
+     "ownTotal": 14,
+     "usage": {
+      "outTokens": 175000,
+      "inTokens": 500000,
+      "cacheRead": 4500000,
+      "readTokens": 5000000,
+      "calls": 204,
+      "agentSeconds": 14433,
+      "tokS": 36.3,
+      "decodeTokens": 174827,
+      "decodeSeconds": 591.7159763313609,
+      "decodeTokS": 41.7,
+      "prefillTokens": 45000,
+      "prefillSeconds": null,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 2,
+      "nudges": 0,
+      "split": {
+       "wall": 4811,
+       "prefill": 222,
+       "decode": 4188,
+       "tools": 117,
+       "compaction": 270,
+       "other": 14,
+       "modelUnsplit": 0,
+       "betweenSessions": 0,
+       "toolsByKind": {
+        "unit": 62,
+        "e2e": 43,
+        "build": 11,
+        "bash": 1
+       },
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 207,
+      "toolCalls": 204,
+      "thinkingChars": 328750,
+      "textChars": 4889,
+      "toolArgChars": 279940,
+      "thinkingMedian": 424,
+      "thinkingMedianBefore": 80,
+      "thinkingMedianAfter": 464,
+      "largestThinking": {
+       "chars": 64543,
+       "call": 14,
+       "atS": 480
+      },
+      "contextStart": 9000,
+      "contextEnd": 120000,
+      "largestContextJump": {
+       "tokens": 16607,
+       "call": 15
+      },
+      "toolsByName": {
+       "bash": 115,
+       "edit": 40,
+       "read": 21,
+       "write": 28
+      },
+      "toolErrors": 5,
+      "longestTool": {
+       "seconds": 61.7,
+       "name": "bash",
+       "gist": "npm run test:unit"
+      },
+      "signals": [
+       "long-thinking-block"
+      ]
+     }
+    }
+   ],
+   "scores": {},
+   "host": "Intel Core i9 + RTX 4090 64GB"
+  },
+  {
+   "pack": "vidi",
+   "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+   "runId": "v2-r8",
+   "client": "pi",
+   "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r8",
+   "rescores": [
+    "vidi-v2.0-pre1"
+   ],
+   "hasBundle": true,
+   "packVersion": "vidi-v2.0-pre1",
+   "state": "finished",
+   "stateAt": "2026-09-30T12:10:00Z",
+   "stories": [
+    {
+     "id": "1",
+     "title": "Pan and zoom",
+     "status": "DONE",
+     "passed": 6,
+     "total": 6,
+     "ownPassed": 6,
+     "ownTotal": 6,
+     "usage": {
+      "outTokens": 9000,
+      "inTokens": 500000,
+      "cacheRead": 4500000,
+      "readTokens": 5000000,
+      "calls": 20,
+      "agentSeconds": 180,
+      "tokS": 83.33333333333333,
+      "decodeTokens": 54000,
+      "decodeSeconds": 591.7159763313609,
+      "decodeTokS": 101.4,
+      "prefillTokens": 45000,
+      "prefillSeconds": null,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 1,
+      "nudges": 2,
+      "split": {
+       "wall": 180,
+       "prefill": 0,
+       "decode": 0,
+       "tools": 170,
+       "compaction": 0,
+       "other": 10,
+       "modelUnsplit": 0,
+       "toolsByKind": {
+        "e2e": 60,
+        "bash": 30
+       },
+       "betweenSessions": 0,
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 89,
+      "toolCalls": 89,
+      "thinkingChars": 8000,
+      "textChars": 2100,
+      "toolArgChars": 88000,
+      "thinkingMedian": 82,
+      "thinkingMedianBefore": 80,
+      "thinkingMedianAfter": 85,
+      "largestThinking": {
+       "chars": 3900,
+       "call": 12,
+       "atS": 150
+      },
+      "contextStart": 9000,
+      "contextEnd": 61000,
+      "largestContextJump": {
+       "tokens": 4100,
+       "call": 40
+      },
+      "toolsByName": {
+       "bash": 40,
+       "read": 25,
+       "edit": 20,
+       "write": 10
+      },
+      "toolErrors": 2,
+      "longestTool": {
+       "seconds": 41.0,
+       "name": "bash",
+       "gist": "npx playwright test"
+      },
+      "signals": []
+     }
+    },
+    {
+     "id": "2",
+     "title": "Sticky notes",
+     "status": "DONE",
+     "passed": 20,
+     "total": 20,
+     "ownPassed": 14,
+     "ownTotal": 14,
+     "usage": {
+      "outTokens": 30000,
+      "inTokens": 500000,
+      "cacheRead": 4500000,
+      "readTokens": 5000000,
+      "calls": 40,
+      "agentSeconds": 900,
+      "tokS": 36.3,
+      "decodeTokens": 174827,
+      "decodeSeconds": 591.7159763313609,
+      "decodeTokS": 41.7,
+      "prefillTokens": 45000,
+      "prefillSeconds": null,
+      "prefillTokS": 750.0,
+      "draftAcceptance": null,
+      "compactions": 2,
+      "nudges": 0,
+      "split": {
+       "wall": 900,
+       "prefill": 60,
+       "decode": 700,
+       "tools": 100,
+       "compaction": 30,
+       "other": 10,
+       "modelUnsplit": 0,
+       "betweenSessions": 0,
+       "toolsByKind": {
+        "unit": 62,
+        "e2e": 43,
+        "build": 11,
+        "bash": 1
+       },
+       "check": {
+        "status": "ok",
+        "problems": [],
+        "version": null
+       }
+      }
+     },
+     "conversation": {
+      "calls": 207,
+      "toolCalls": 204,
+      "thinkingChars": 328750,
+      "textChars": 4889,
+      "toolArgChars": 279940,
+      "thinkingMedian": 424,
+      "thinkingMedianBefore": 80,
+      "thinkingMedianAfter": 464,
+      "largestThinking": {
+       "chars": 64543,
+       "call": 14,
+       "atS": 480
+      },
+      "contextStart": 9000,
+      "contextEnd": 120000,
+      "largestContextJump": {
+       "tokens": 16607,
+       "call": 15
+      },
+      "toolsByName": {
+       "bash": 115,
+       "edit": 40,
+       "read": 21,
+       "write": 28
+      },
+      "toolErrors": 5,
+      "longestTool": {
+       "seconds": 61.7,
+       "name": "bash",
+       "gist": "npm run test:unit"
+      },
+      "signals": [
+       "long-thinking-block"
+      ]
+     }
+    }
+   ],
+   "scores": {
+    "vidi-v2.0-pre1": {
+     "passed": 74,
+     "total": 75,
+     "flaky": 0,
+     "at": "2026-09-30T13:00:00Z"
+    }
+   },
+   "host": "Intel Core i9 + RTX 4090 64GB",
+   "invalid": {
+    "reason": "read the reference build in story 2, through a clone of the repo the sandbox did not hide",
+    "since": "2026-09-30"
+   },
+   "interventions": [
+    {
+     "at": 1790755800.0,
+     "story": "1",
+     "text": "interrupted a tool call silent for 600s (killed processes under the workspace)"
+    },
+    {
+     "at": 1790755830.0,
+     "story": "1",
+     "text": "interrupted a tool call silent for 600s (killed processes under the workspace)"
+    },
+    {
+     "at": 1790758800.0,
+     "story": null,
+     "text": "node-a rebooted by the operator; the run resumed at story 2"
+    },
+    {
+     "at": 1790764200.0,
+     "story": "2",
+     "text": "story ended by the operator at its cap"
+    }
+   ]
+  },
+  {
+   "pack": "vidi",
+   "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi",
+   "runId": "v2-r1",
+   "client": "pi",
+   "dir": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/benchmarks/vidi/v2-r1",
+   "rescores": [],
+   "hasBundle": true,
+   "finalize": {
+    "rescore": "failed",
+    "reason": "the app's build failed in the re-score (exit 1) but passed where the agent worked, on the same commit",
+    "version": "vidi-v2.0-pre1",
+    "pack_ref": "vidi-v2.0-pre1",
+    "at": "2026-09-28T09:00:00Z",
+    "needs_person": true,
+    "attempts": 3,
+    "last_attempt_at": "2026-09-29T07:30:00Z"
+   },
+   "packVersion": "vidi-v2.0-pre1",
+   "state": "finished",
+   "stateAt": "2026-09-28T09:00:00Z",
+   "stories": [],
+   "scores": {},
+   "host": "AMD Ryzen AI Max+ 395 128GB"
+  },
+  {
+   "pack": "vidi",
+   "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi",
+   "runId": "v2-r2",
+   "client": "pi",
+   "dir": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/benchmarks/vidi/v2-r2",
+   "rescores": [],
+   "hasBundle": true,
+   "finalize": {
+    "rescore": "skipped",
+    "reason": "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1",
+    "version": "vidi-v2.0-pre1+28ace8b",
+    "pack_ref": "vidi-v2.0-pre1",
+    "at": "2026-09-29T09:00:00Z",
+    "needs_person": false,
+    "attempts": 2,
+    "last_attempt_at": "2026-09-29T12:00:00Z"
+   },
+   "packVersion": "vidi-v2.0-pre1",
+   "state": "finished",
+   "stateAt": "2026-09-29T09:00:00Z",
+   "stories": [],
+   "scores": {},
+   "host": "AMD Ryzen AI Max+ 395 128GB"
+  }
+ ],
+ "jobs": {
+  "node-a": [
+   {
+    "id": "vidi-v2b-swift15-r1",
+    "spec": {
+     "pack": "benchmarks/vidi",
+     "run_id": "v2-r1"
+    },
+    "seq": 0,
+    "progress": {
+     "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+     "current_story": "3",
+     "log_tail": [
+      "[story 3] See other people's edits appear live on the same board \u2014 agent starting"
+     ],
+     "stories": [
+      {
+       "id": "1",
+       "status": "DONE",
+       "passed": 6,
+       "total": 6,
+       "title": "Pan and zoom",
+       "agent_minutes": 12.0
+      },
+      {
+       "id": "2",
+       "status": "DONE",
+       "passed": 9,
+       "total": 10,
+       "title": "Sticky notes",
+       "agent_minutes": 12.0
+      },
+      {
+       "id": "3",
+       "status": "running",
+       "agent_minutes": 4.0,
+       "calls": 41,
+       "output_tokens": 12000,
+       "started_at": 1790714996,
+       "tasks": [
         {
-          "name": "NVIDIA GeForce RTX 4090",
-          "memory_mib": 24564
-        }
-      ],
-      "dbench_version": "0.1.0+30085de1",
-      "current_job": "vidi-v2b-swift15-r1",
-      "combinations": [
-        {
-          "install_id": "swift15-qwen38-27b",
-          "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
-          "backend": "llamacpp"
+         "status": "written"
         },
         {
-          "install_id": "qwen38-27b",
-          "combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi",
-          "backend": "llamacpp"
+         "status": "not-started"
         }
-      ]
+       ],
+       "recent_activity": [
+        "write: /home/you/.vidi-bench/work/x/workspace/src/shared/protocol.ts"
+       ],
+       "title": "See other people's edits live"
+      },
+      {
+       "id": "4",
+       "status": "pending",
+       "title": "Undo and redo"
+      },
+      {
+       "id": "5",
+       "status": "pending",
+       "title": "Story 5"
+      },
+      {
+       "id": "7",
+       "status": "pending",
+       "title": "Story 7"
+      },
+      {
+       "id": "8",
+       "status": "pending",
+       "title": "Story 8"
+      },
+      {
+       "id": "9",
+       "status": "pending",
+       "title": "Story 9"
+      },
+      {
+       "id": "10",
+       "status": "pending",
+       "title": "Story 10"
+      },
+      {
+       "id": "11",
+       "status": "pending",
+       "title": "Story 11"
+      },
+      {
+       "id": "12",
+       "status": "pending",
+       "title": "Story 12"
+      }
+     ]
     },
-    "node-c": {
-      "hostname": "Node-C",
-      "os": "macos",
-      "cpu_brand": "Apple M5 Max",
-      "cpus": 18,
-      "total_ram_bytes": 137438953472,
-      "gpus": [
-        {
-          "name": "Apple M5 Max",
-          "memory_mib": 131072,
-          "unified": true
-        }
-      ],
-      "dbench_version": "0.1.0+30085de1",
-      "current_job": "vidi-v2b-mlx-r1",
-      "combinations": [
-        {
-          "install_id": "mlxserve-qwen38-flash-next",
-          "combination": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi",
-          "backend": "mlxserve"
-        }
-      ]
+    "state": {
+     "status": "running",
+     "attempt": 1,
+     "started_at": 1790713020
     },
-    "node-d": {
-      "hostname": "node-d",
-      "os": "linux",
-      "cpu_brand": "AMD RYZEN AI MAX+ 395",
-      "cpus": 32,
-      "total_ram_bytes": 131000000000,
-      "gpus": [],
-      "dbench_version": "0.1.0+30085de1",
-      "current_job": null,
-      "combinations": []
+    "submitted_at": 100,
+    "updated_at": 1790715296
+   },
+   {
+    "id": "vidi-v2b-swift15-r2",
+    "spec": {
+     "pack": "benchmarks/vidi",
+     "run_id": "v2-r2"
     },
-    "node-b": {
-      "hostname": "laptop-b.local",
-      "os": "macos",
-      "cpu_brand": "Apple M2",
-      "cpus": 8,
-      "total_ram_bytes": 17179869184,
-      "gpus": [
+    "seq": 1,
+    "progress": {
+     "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"
+    },
+    "state": {
+     "status": "queued"
+    },
+    "submitted_at": 200,
+    "updated_at": 200
+   },
+   {
+    "id": "vidi-v2b-27b-r1",
+    "spec": {
+     "pack": "benchmarks/vidi",
+     "run_id": "v2-r1"
+    },
+    "seq": 3,
+    "progress": {
+     "combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi"
+    },
+    "state": {
+     "status": "queued"
+    },
+    "submitted_at": 200,
+    "updated_at": 200
+   },
+   {
+    "id": "vidi-v2b-swift15-r3",
+    "spec": {
+     "pack": "benchmarks/vidi",
+     "run_id": "v2-r3"
+    },
+    "seq": 2,
+    "progress": {
+     "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"
+    },
+    "state": {
+     "status": "queued"
+    },
+    "submitted_at": 200,
+    "updated_at": 200
+   },
+   {
+    "id": "vidi-v2b-27b-r2",
+    "spec": {
+     "pack": "benchmarks/vidi",
+     "run_id": "v2-r2"
+    },
+    "seq": 3,
+    "progress": {
+     "combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi"
+    },
+    "state": {
+     "status": "cancelled"
+    },
+    "submitted_at": 200
+   },
+   {
+    "spec": {
+     "pack": "benchmarks/vidi",
+     "run_id": "v2-r5",
+     "install_id": "swift15-qwen38-27b"
+    },
+    "progress": {
+     "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"
+    },
+    "id": "vidi-v2b-swift15-r5",
+    "state": {
+     "status": "cancelled",
+     "reason": "stopped by the operator"
+    },
+    "submitted_at": 1790640000,
+    "updated_at": 1790650000
+   },
+   {
+    "spec": {
+     "pack": "benchmarks/vidi",
+     "run_id": "v2-r5",
+     "install_id": "swift15-qwen38-27b"
+    },
+    "progress": {
+     "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"
+    },
+    "id": "vidi-v2b-swift15-r5-again1",
+    "state": {
+     "status": "done",
+     "exit_code": 0
+    },
+    "submitted_at": 1790650100,
+    "updated_at": 1790690000
+   }
+  ],
+  "node-c": [
+   {
+    "id": "vidi-v2b-mlx-r1",
+    "spec": {
+     "pack": "benchmarks/vidi",
+     "run_id": "v2-r1"
+    },
+    "seq": 1,
+    "progress": {
+     "combination": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi",
+     "current_story": "1",
+     "stories": [
+      {
+       "id": "1",
+       "status": "running",
+       "agent_minutes": 0.0,
+       "calls": 0,
+       "started_at": 1790715286
+      }
+     ]
+    },
+    "state": {
+     "status": "running",
+     "attempt": 1
+    },
+    "submitted_at": 300,
+    "updated_at": 1790715296
+   }
+  ],
+  "node-d": [],
+  "node-b": [
+   {
+    "id": "vidi-v2-opus-r1",
+    "spec": {
+     "pack": "benchmarks/vidi",
+     "run_id": "v2-r1"
+    },
+    "seq": 1,
+    "progress": {
+     "combination": "reference/opus-5.5",
+     "current_story": "2",
+     "stories": [
+      {
+       "id": "1",
+       "status": "DONE",
+       "title": "Pan and zoom around an infinite board",
+       "passed": 6,
+       "total": 6,
+       "agent_minutes": 8.0
+      },
+      {
+       "id": "2",
+       "status": "running",
+       "title": "Capture ideas on sticky notes",
+       "agent_minutes": 5.0,
+       "calls": 0,
+       "output_tokens": 0,
+       "tasks": [
         {
-          "name": "Apple M2",
-          "memory_mib": 16384,
-          "unified": true
-        }
-      ],
-      "dbench_version": "0.1.0+30085de1",
-      "current_job": "vidi-v2-opus-r1",
-      "combinations": [
+         "status": "committed"
+        },
         {
-          "install_id": "claude-code-opus-5-5",
-          "combination": "reference/opus-5.5",
-          "backend": "anthropic"
+         "status": "not-started"
         }
-      ]
-    }
+       ]
+      }
+     ]
+    },
+    "state": {
+     "status": "running",
+     "attempt": 1
+    },
+    "submitted_at": 400
+   }
+  ]
+ },
+ "flowCounts": {
+  "vidi-v2.0-pre1": {
+   "1": 10,
+   "2": 10,
+   "3": 7,
+   "4": 4,
+   "5": 5,
+   "7": 8,
+   "8": 7,
+   "9": 6,
+   "10": 8,
+   "11": 5,
+   "12": 5
   }
+ },
+ "machines": {
+  "node-a": {
+   "hostname": "node-a",
+   "os": "linux",
+   "cpu_brand": "13th Gen Intel(R) Core(TM) i9-13900F",
+   "cpus": 32,
+   "total_ram_bytes": 67108864000,
+   "gpus": [
+    {
+     "name": "NVIDIA GeForce RTX 4090",
+     "memory_mib": 24564
+    }
+   ],
+   "dbench_version": "0.1.0+30085de1",
+   "current_job": "vidi-v2b-swift15-r1",
+   "combinations": [
+    {
+     "install_id": "swift15-qwen38-27b",
+     "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+     "backend": "llamacpp"
+    },
+    {
+     "install_id": "qwen38-27b",
+     "combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi",
+     "backend": "llamacpp"
+    }
+   ]
+  },
+  "node-c": {
+   "hostname": "Node-C",
+   "os": "macos",
+   "cpu_brand": "Apple M5 Max",
+   "cpus": 18,
+   "total_ram_bytes": 137438953472,
+   "gpus": [
+    {
+     "name": "Apple M5 Max",
+     "memory_mib": 131072,
+     "unified": true
+    }
+   ],
+   "dbench_version": "0.1.0+30085de1",
+   "current_job": "vidi-v2b-mlx-r1",
+   "combinations": [
+    {
+     "install_id": "mlxserve-qwen38-flash-next",
+     "combination": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi",
+     "backend": "mlxserve"
+    }
+   ]
+  },
+  "node-d": {
+   "hostname": "node-d",
+   "os": "linux",
+   "cpu_brand": "AMD RYZEN AI MAX+ 395",
+   "cpus": 32,
+   "total_ram_bytes": 131000000000,
+   "gpus": [],
+   "dbench_version": "0.1.0+30085de1",
+   "current_job": null,
+   "combinations": []
+  },
+  "node-b": {
+   "hostname": "laptop-b.local",
+   "os": "macos",
+   "cpu_brand": "Apple M2",
+   "cpus": 8,
+   "total_ram_bytes": 17179869184,
+   "gpus": [
+    {
+     "name": "Apple M2",
+     "memory_mib": 16384,
+     "unified": true
+    }
+   ],
+   "dbench_version": "0.1.0+30085de1",
+   "current_job": "vidi-v2-opus-r1",
+   "combinations": [
+    {
+     "install_id": "claude-code-opus-5-5",
+     "combination": "reference/opus-5.5",
+     "backend": "anthropic"
+    }
+   ]
+  }
+ },
+ "conversations": {
+  "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/stories/02": {
+   "fmt": "pi",
+   "complete": true,
+   "node": "node-a",
+   "events": [
+    {
+     "tMs": 1790000000000,
+     "kind": "msg",
+     "refIdx": 0,
+     "idx": 0,
+     "role": "user",
+     "chars": 22,
+     "textBody": {
+      "text": "Implement story 2 now."
+     },
+     "ord": 0
+    },
+    {
+     "tMs": 1790000001000,
+     "kind": "between_sessions",
+     "refIdx": 0,
+     "idx": 0,
+     "endMs": 1790000003000,
+     "seconds": 2.0,
+     "ord": 1
+    },
+    {
+     "tMs": 1790000005000,
+     "kind": "call",
+     "refIdx": 0,
+     "idx": 0,
+     "think": 120,
+     "text": 40,
+     "nTools": 1,
+     "outTok": 300,
+     "inTok": 1500,
+     "cacheTok": 0,
+     "stop": "toolUse",
+     "sub": 0,
+     "thinkFlags": [],
+     "textFlags": [],
+     "sentMs": 1790000003200,
+     "firstMs": 1790000004000,
+     "thinking": {
+      "text": "I should look at the spec first; the harness is invalid to mention but here it is."
+     },
+     "textBody": {
+      "text": "Reading the spec."
+     },
+     "ord": 2
+    },
+    {
+     "tMs": 1790000005000,
+     "kind": "tool_start",
+     "refIdx": 0,
+     "idx": 0,
+     "callIdx": 0,
+     "name": "read",
+     "toolKind": "read",
+     "arg": "spec/story-2.md",
+     "argChars": 30,
+     "sub": 0,
+     "argFlags": [],
+     "ord": 3
+    },
+    {
+     "tMs": 1790000007000,
+     "kind": "tool_end",
+     "refIdx": 0,
+     "idx": 0,
+     "callIdx": 0,
+     "name": "read",
+     "toolKind": "read",
+     "error": 0,
+     "resChars": 5000,
+     "resFlags": [
+      "truncated_output"
+     ],
+     "passed": null,
+     "failed": null,
+     "flaky": null,
+     "skipped": null,
+     "seconds": 2.0,
+     "result": {
+      "head": "line of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline",
+      "tail": "attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\n",
+      "chars": 7200
+     },
+     "ord": 4
+    },
+    {
+     "tMs": 1790000007000,
+     "kind": "call",
+     "refIdx": 1,
+     "idx": 1,
+     "think": 4800,
+     "text": 10,
+     "nTools": 1,
+     "outTok": 900,
+     "inTok": 1800,
+     "cacheTok": 1500,
+     "stop": "toolUse",
+     "sub": 0,
+     "thinkFlags": [
+      "eval_aware"
+     ],
+     "textFlags": [],
+     "sentMs": 1790000007000,
+     "firstMs": 1790000007500,
+     "thinking": {
+      "head": "Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harne",
+      "tail": " retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. ",
+      "chars": 5580
+     },
+     "textBody": {
+      "text": "Running the tests."
+     },
+     "ord": 5
+    },
+    {
+     "tMs": 1790000009000,
+     "kind": "tool_start",
+     "refIdx": 1,
+     "idx": 1,
+     "callIdx": 1,
+     "name": "bash",
+     "toolKind": "unit",
+     "arg": "npm test",
+     "argChars": 20,
+     "sub": 0,
+     "argFlags": [],
+     "ord": 6
+    },
+    {
+     "tMs": 1790000015000,
+     "kind": "tool_end",
+     "refIdx": 1,
+     "idx": 1,
+     "callIdx": 1,
+     "name": "bash",
+     "toolKind": "unit",
+     "error": 1,
+     "resChars": 800,
+     "resFlags": [
+      "tests_failed",
+      "tests_passed"
+     ],
+     "passed": 9,
+     "failed": 1,
+     "flaky": 0,
+     "skipped": null,
+     "seconds": 6.0,
+     "result": {
+      "text": "Tests: 1 failed, 9 passed\nattempt 2 of the suite"
+     },
+     "ord": 7
+    },
+    {
+     "tMs": 1790000016000,
+     "kind": "compaction_start",
+     "refIdx": 0,
+     "idx": 0,
+     "reason": "context",
+     "ord": 8
+    },
+    {
+     "tMs": 1790000019000,
+     "kind": "compaction_end",
+     "refIdx": 0,
+     "idx": 0,
+     "reason": "context",
+     "summaryChars": 1200,
+     "seconds": 3.0,
+     "ord": 9
+    },
+    {
+     "tMs": 1790000021000,
+     "kind": "call",
+     "refIdx": 2,
+     "idx": 2,
+     "think": 0,
+     "text": 60,
+     "nTools": 1,
+     "outTok": 120,
+     "inTok": 900,
+     "cacheTok": 0,
+     "stop": "toolUse",
+     "sub": 0,
+     "thinkFlags": [],
+     "textFlags": [
+      "claims_done"
+     ],
+     "sentMs": 1790000019500,
+     "firstMs": 1790000020000,
+     "thinking": {
+      "text": ""
+     },
+     "textBody": {
+      "text": "Fixing the failing test; the harness said attempt 2 was invalid, then everything is complete."
+     },
+     "ord": 10
+    },
+    {
+     "tMs": 1790000021500,
+     "kind": "tool_start",
+     "refIdx": 2,
+     "idx": 2,
+     "callIdx": 2,
+     "name": "bash",
+     "toolKind": "bash",
+     "arg": "npm run dev &",
+     "argChars": 18,
+     "sub": 0,
+     "argFlags": [],
+     "ord": 11
+    },
+    {
+     "tMs": 1790000030000,
+     "kind": "call",
+     "refIdx": 3,
+     "idx": 3,
+     "think": 50,
+     "text": 20,
+     "nTools": 0,
+     "outTok": null,
+     "inTok": null,
+     "cacheTok": null,
+     "stop": "endTurn",
+     "sub": 0,
+     "thinkFlags": [],
+     "textFlags": [],
+     "sentMs": 1790000029000,
+     "firstMs": 1790000029500,
+     "thinking": {
+      "text": "Done."
+     },
+     "textBody": {
+      "text": "Story 2 is done."
+     },
+     "ord": 12
+    },
+    {
+     "tMs": 1790000031000,
+     "kind": "request",
+     "refIdx": 0,
+     "idx": 0,
+     "callIdx": 2,
+     "promptTok": 900,
+     "prefillTok": 900,
+     "generatedTok": 120,
+     "cachedTok": 0,
+     "prefillS": 0.4,
+     "decodeS": 1.2,
+     "ttftS": null,
+     "prefillTokS": 2250.0,
+     "decodeTokS": 100.0,
+     "draftAccepted": 40,
+     "draftProposed": 60,
+     "meanLen": 2.7,
+     "ord": 13
+    },
+    {
+     "tMs": 1790000032000,
+     "kind": "condition",
+     "refIdx": 0,
+     "ac": 1,
+     "lowPower": 0,
+     "thermal": "nominal",
+     "swapGb": 0.0,
+     "freePct": 41.5,
+     "footprintGb": 58.2,
+     "gpu": {
+      "busyPct": 97.0,
+      "sclkMhz": 2500,
+      "memGb": 22.1,
+      "tempC": 71.0,
+      "powerW": 310.0,
+      "throttle": null
+     },
+     "ord": 14
+    },
+    {
+     "tMs": 1790000033000,
+     "kind": "condition",
+     "refIdx": 1,
+     "ac": 1,
+     "lowPower": 0,
+     "thermal": "nominal",
+     "swapGb": 0.1,
+     "freePct": 40.0,
+     "footprintGb": 58.4,
+     "gpu": null,
+     "ord": 15
+    },
+    {
+     "tMs": 1790000004900,
+     "kind": "request",
+     "refIdx": 1,
+     "idx": 1,
+     "callIdx": 0,
+     "promptTok": 1500,
+     "prefillTok": 1500,
+     "generatedTok": 300,
+     "cachedTok": 0,
+     "prefillS": 0.8,
+     "decodeS": 2.0,
+     "ttftS": null,
+     "prefillTokS": 1875.0,
+     "decodeTokS": 150.0,
+     "draftAccepted": null,
+     "draftProposed": null,
+     "meanLen": null,
+     "ord": 16
+    }
+   ],
+   "calls": {
+    "0": {
+     "idx": 0,
+     "rx": 1790000005.0,
+     "think": 120,
+     "text": "Reading the spec.",
+     "nTools": 1,
+     "outTok": 300,
+     "inTok": 1500,
+     "cacheTok": 0,
+     "stop": "toolUse",
+     "sub": 0,
+     "thinkFlags": "",
+     "textFlags": "",
+     "thinking": "I should look at the spec first; the harness is invalid to mention but here it is.",
+     "sent": 1790000003.2,
+     "first": 1790000004.0,
+     "tools": [
+      {
+       "idx": 0,
+       "callIdx": 0,
+       "id": "t0",
+       "name": "read",
+       "kind": "read",
+       "arg": "spec/story-2.md",
+       "argChars": 30,
+       "start": 1790000005.0,
+       "end": 1790000007.0,
+       "error": 0,
+       "resChars": 5000,
+       "sub": 0,
+       "argFlags": "",
+       "resFlags": "truncated_output",
+       "nEdits": 0,
+       "oldChars": 0,
+       "newChars": 0,
+       "passed": null,
+       "failed": null,
+       "flaky": null,
+       "skipped": null,
+       "args": {
+        "path": "spec/story-2.md"
+       },
+       "result": "line of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\n"
+      }
+     ]
+    },
+    "1": {
+     "idx": 1,
+     "rx": 1790000007.0,
+     "think": 4800,
+     "text": "Running the tests.",
+     "nTools": 1,
+     "outTok": 900,
+     "inTok": 1800,
+     "cacheTok": 1500,
+     "stop": "toolUse",
+     "sub": 0,
+     "thinkFlags": "eval_aware",
+     "textFlags": "",
+     "thinking": "Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. Let me think about the harness and whether a retry is needed. ",
+     "sent": 1790000007.0,
+     "first": 1790000007.5,
+     "tools": [
+      {
+       "idx": 1,
+       "callIdx": 1,
+       "id": "t1",
+       "name": "bash",
+       "kind": "unit",
+       "arg": "npm test",
+       "argChars": 20,
+       "start": 1790000009.0,
+       "end": 1790000015.0,
+       "error": 1,
+       "resChars": 800,
+       "sub": 0,
+       "argFlags": "",
+       "resFlags": "tests_failed,tests_passed",
+       "nEdits": 0,
+       "oldChars": 0,
+       "newChars": 0,
+       "passed": 9,
+       "failed": 1,
+       "flaky": 0,
+       "skipped": null,
+       "args": {
+        "command": "npm test"
+       },
+       "result": "Tests: 1 failed, 9 passed\nattempt 2 of the suite"
+      }
+     ]
+    },
+    "2": {
+     "idx": 2,
+     "rx": 1790000021.0,
+     "think": 0,
+     "text": "Fixing the failing test; the harness said attempt 2 was invalid, then everything is complete.",
+     "nTools": 1,
+     "outTok": 120,
+     "inTok": 900,
+     "cacheTok": 0,
+     "stop": "toolUse",
+     "sub": 0,
+     "thinkFlags": "",
+     "textFlags": "claims_done",
+     "thinking": "",
+     "sent": 1790000019.5,
+     "first": 1790000020.0,
+     "tools": [
+      {
+       "idx": 2,
+       "callIdx": 2,
+       "id": "t2",
+       "name": "bash",
+       "kind": "bash",
+       "arg": "npm run dev &",
+       "argChars": 18,
+       "start": 1790000021.5,
+       "end": null,
+       "error": null,
+       "resChars": null,
+       "sub": 0,
+       "argFlags": "",
+       "resFlags": "",
+       "nEdits": 0,
+       "oldChars": 0,
+       "newChars": 0,
+       "passed": null,
+       "failed": null,
+       "flaky": null,
+       "skipped": null,
+       "args": {
+        "command": "npm run dev &"
+       },
+       "result": null
+      }
+     ]
+    },
+    "3": {
+     "idx": 3,
+     "rx": 1790000030.0,
+     "think": 50,
+     "text": "Story 2 is done.",
+     "nTools": 0,
+     "outTok": null,
+     "inTok": null,
+     "cacheTok": null,
+     "stop": "endTurn",
+     "sub": 0,
+     "thinkFlags": "",
+     "textFlags": "",
+     "thinking": "Done.",
+     "sent": 1790000029.0,
+     "first": 1790000029.5,
+     "tools": []
+    }
+   },
+   "tools": {
+    "0": {
+     "idx": 0,
+     "callIdx": 0,
+     "id": "t0",
+     "name": "read",
+     "kind": "read",
+     "arg": "spec/story-2.md",
+     "argChars": 30,
+     "start": 1790000005.0,
+     "end": 1790000007.0,
+     "error": 0,
+     "resChars": 5000,
+     "sub": 0,
+     "argFlags": "",
+     "resFlags": "truncated_output",
+     "nEdits": 0,
+     "oldChars": 0,
+     "newChars": 0,
+     "passed": null,
+     "failed": null,
+     "flaky": null,
+     "skipped": null,
+     "args": {
+      "path": "spec/story-2.md"
+     },
+     "result": "line of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\nline of output with attempt 2 noted\n"
+    },
+    "1": {
+     "idx": 1,
+     "callIdx": 1,
+     "id": "t1",
+     "name": "bash",
+     "kind": "unit",
+     "arg": "npm test",
+     "argChars": 20,
+     "start": 1790000009.0,
+     "end": 1790000015.0,
+     "error": 1,
+     "resChars": 800,
+     "sub": 0,
+     "argFlags": "",
+     "resFlags": "tests_failed,tests_passed",
+     "nEdits": 0,
+     "oldChars": 0,
+     "newChars": 0,
+     "passed": 9,
+     "failed": 1,
+     "flaky": 0,
+     "skipped": null,
+     "args": {
+      "command": "npm test"
+     },
+     "result": "Tests: 1 failed, 9 passed\nattempt 2 of the suite"
+    },
+    "2": {
+     "idx": 2,
+     "callIdx": 2,
+     "id": "t2",
+     "name": "bash",
+     "kind": "bash",
+     "arg": "npm run dev &",
+     "argChars": 18,
+     "start": 1790000021.5,
+     "end": null,
+     "error": null,
+     "resChars": null,
+     "sub": 0,
+     "argFlags": "",
+     "resFlags": "",
+     "nEdits": 0,
+     "oldChars": 0,
+     "newChars": 0,
+     "passed": null,
+     "failed": null,
+     "flaky": null,
+     "skipped": null,
+     "args": {
+      "command": "npm run dev &"
+     },
+     "result": null
+    }
+   }
+  },
+  "benchmarks/reference/vidi/opus-5.5/run-9/stories/01": {
+   "fmt": "claude",
+   "complete": true,
+   "node": null,
+   "events": [
+    {
+     "tMs": 1790000000000,
+     "kind": "msg",
+     "refIdx": 0,
+     "idx": 0,
+     "role": "user",
+     "chars": 15,
+     "textBody": {
+      "text": "Build story 1."
+     },
+     "ord": 0
+    },
+    {
+     "tMs": 1790000004000,
+     "kind": "call",
+     "refIdx": 0,
+     "idx": 0,
+     "think": 0,
+     "text": 30,
+     "nTools": 1,
+     "outTok": 200,
+     "inTok": 2000,
+     "cacheTok": 1000,
+     "stop": "tool_use",
+     "sub": 0,
+     "thinkFlags": [],
+     "textFlags": [],
+     "sentMs": 1790000000500,
+     "firstMs": 1790000002000,
+     "thinking": null,
+     "textBody": {
+      "text": "Delegating to a subagent."
+     },
+     "ord": 1
+    },
+    {
+     "tMs": 1790000004000,
+     "kind": "tool_start",
+     "refIdx": 0,
+     "idx": 0,
+     "callIdx": 0,
+     "name": "Task",
+     "toolKind": "task",
+     "arg": "explore the repo",
+     "argChars": 40,
+     "sub": 1,
+     "argFlags": [],
+     "ord": 2
+    },
+    {
+     "tMs": 1790000009000,
+     "kind": "tool_end",
+     "refIdx": 0,
+     "idx": 0,
+     "callIdx": 0,
+     "name": "Task",
+     "toolKind": "task",
+     "error": 0,
+     "resChars": 300,
+     "resFlags": [],
+     "passed": null,
+     "failed": null,
+     "flaky": null,
+     "skipped": null,
+     "seconds": 5.0,
+     "result": {
+      "text": "Found the files."
+     },
+     "ord": 3
+    },
+    {
+     "tMs": 1790000012000,
+     "kind": "call",
+     "refIdx": 1,
+     "idx": 1,
+     "think": 0,
+     "text": 12,
+     "nTools": 0,
+     "outTok": 50,
+     "inTok": 2300,
+     "cacheTok": 2000,
+     "stop": null,
+     "sub": 0,
+     "thinkFlags": [],
+     "textFlags": [],
+     "sentMs": 1790000009000,
+     "firstMs": 1790000011000,
+     "thinking": null,
+     "textBody": {
+      "text": "All done here."
+     },
+     "ord": 4
+    },
+    {
+     "tMs": 1790000013000,
+     "kind": "between_sessions",
+     "refIdx": 0,
+     "idx": 0,
+     "endMs": 1790000014000,
+     "seconds": 1.0,
+     "ord": 5
+    }
+   ],
+   "calls": {
+    "0": {
+     "idx": 0,
+     "rx": 1790000004.0,
+     "think": 0,
+     "text": "Delegating to a subagent.",
+     "nTools": 1,
+     "outTok": 200,
+     "inTok": 2000,
+     "cacheTok": 1000,
+     "stop": "tool_use",
+     "sub": 0,
+     "thinkFlags": "",
+     "textFlags": "",
+     "thinking": "",
+     "sent": 1790000000.5,
+     "first": 1790000002.0,
+     "tools": [
+      {
+       "idx": 0,
+       "callIdx": 0,
+       "id": "tu0",
+       "name": "Task",
+       "kind": "task",
+       "arg": "explore the repo",
+       "argChars": 40,
+       "start": 1790000004.0,
+       "end": 1790000009.0,
+       "error": 0,
+       "resChars": 300,
+       "sub": 1,
+       "argFlags": "",
+       "resFlags": "",
+       "nEdits": 0,
+       "oldChars": 0,
+       "newChars": 0,
+       "passed": null,
+       "failed": null,
+       "flaky": null,
+       "skipped": null,
+       "args": {
+        "prompt": "explore the repo"
+       },
+       "result": "Found the files."
+      }
+     ]
+    },
+    "1": {
+     "idx": 1,
+     "rx": 1790000012.0,
+     "think": 0,
+     "text": "All done here.",
+     "nTools": 0,
+     "outTok": 50,
+     "inTok": 2300,
+     "cacheTok": 2000,
+     "stop": null,
+     "sub": 0,
+     "thinkFlags": "",
+     "textFlags": "",
+     "thinking": "",
+     "sent": 1790000009.0,
+     "first": 1790000011.0,
+     "tools": []
+    }
+   },
+   "tools": {
+    "0": {
+     "idx": 0,
+     "callIdx": 0,
+     "id": "tu0",
+     "name": "Task",
+     "kind": "task",
+     "arg": "explore the repo",
+     "argChars": 40,
+     "start": 1790000004.0,
+     "end": 1790000009.0,
+     "error": 0,
+     "resChars": 300,
+     "sub": 1,
+     "argFlags": "",
+     "resFlags": "",
+     "nEdits": 0,
+     "oldChars": 0,
+     "newChars": 0,
+     "passed": null,
+     "failed": null,
+     "flaky": null,
+     "skipped": null,
+     "args": {
+      "prompt": "explore the repo"
+     },
+     "result": "Found the files."
+    }
+   }
+  },
+  "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1/stories/01": {
+   "fmt": "pi",
+   "complete": false,
+   "node": "node-a",
+   "events": [
+    {
+     "ord": 0,
+     "tMs": 1790000100000,
+     "kind": "msg",
+     "refIdx": 0,
+     "idx": 0,
+     "role": "user",
+     "chars": 10,
+     "textBody": {
+      "text": "Go ahead."
+     }
+    },
+    {
+     "ord": 1,
+     "tMs": 1790000105000,
+     "kind": "call",
+     "refIdx": 0,
+     "idx": 0,
+     "think": 10,
+     "text": 5,
+     "nTools": 0,
+     "outTok": 20,
+     "inTok": 100,
+     "cacheTok": 0,
+     "stop": "endTurn",
+     "sub": 0,
+     "thinkFlags": [],
+     "textFlags": [],
+     "sentMs": 1790000101000,
+     "firstMs": 1790000103000,
+     "thinking": {
+      "text": "Start."
+     },
+     "textBody": {
+      "text": "Hello"
+     }
+    }
+   ],
+   "calls": {
+    "0": {
+     "idx": 0,
+     "rx": 1790000105.0,
+     "think": 10,
+     "text": "Hello",
+     "nTools": 0,
+     "outTok": 20,
+     "inTok": 100,
+     "cacheTok": 0,
+     "stop": "endTurn",
+     "sub": 0,
+     "thinkFlags": "",
+     "textFlags": "",
+     "thinking": "Start.",
+     "sent": 1790000101.0,
+     "first": 1790000103.0,
+     "tools": []
+    }
+   },
+   "tools": {}
+  }
+ }
 }

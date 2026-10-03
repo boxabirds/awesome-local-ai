@@ -39,22 +39,28 @@ export function segmentHover(seg: Seg, seconds: number, u: Usage | null | undefi
 /** A part's name, from the glossary. */
 export const segName = (seg: Seg) => GLOSSARY[SEGMENTS.find((s) => s.seg === seg)!.term].name;
 
-/** A bar: the wall time drawn against a shared scale, split into its parts in the one order, each with its hover. */
-export function SegmentBar({ parts, wall, scaleSeconds, tip, label }: {
-  parts: Record<Seg, number>; wall: number; scaleSeconds: number; tip: (seg: Seg, seconds: number) => string; label?: string;
+/** A bar: the wall time drawn against a shared scale, split into its parts in the one order, each with its hover.
+ * With `hrefOf`, a part is a link (for the mouse; the keyboard has the row's own links): on the run, story and
+ * story-run pages, into the conversation at that part's section. */
+export function SegmentBar({ parts, wall, scaleSeconds, tip, label, hrefOf }: {
+  parts: Record<Seg, number>; wall: number; scaleSeconds: number; tip: (seg: Seg, seconds: number) => string; label?: string; hrefOf?: (seg: Seg) => string | null;
 }) {
   return (
     <span className="bar" role={label ? "img" : undefined} aria-label={label} style={{ width: `${(wall / Math.max(1, scaleSeconds)) * PERCENT}%` }}>
-      {SEGMENTS.filter((s) => parts[s.seg] > 0).map((s) => (
-        <span key={s.seg} data-seg={s.seg} className={`seg seg-${s.seg}`} style={{ width: `${(parts[s.seg] / wall) * PERCENT}%` }} data-tip={tip(s.seg, parts[s.seg])} />
-      ))}
+      {SEGMENTS.filter((s) => parts[s.seg] > 0).map((s) => {
+        const href = hrefOf?.(s.seg) ?? null;
+        const style = { width: `${(parts[s.seg] / wall) * PERCENT}%` };
+        return href
+          ? <a key={s.seg} className="seg-link" href={href} tabIndex={-1} aria-hidden="true" style={style}><span data-seg={s.seg} className={`seg seg-${s.seg}`} data-tip={tip(s.seg, parts[s.seg])} /></a>
+          : <span key={s.seg} data-seg={s.seg} className={`seg seg-${s.seg}`} style={style} data-tip={tip(s.seg, parts[s.seg])} />;
+      })}
     </span>
   );
 }
 
 /** One story's split as a bar, each part's hover from segmentHover. */
-export function StorySplitBar({ split, usage, scaleSeconds, label }: { split: TimeSplit; usage: Usage | null | undefined; scaleSeconds: number; label?: string }) {
-  return <SegmentBar parts={split} wall={split.wall} scaleSeconds={scaleSeconds} label={label} tip={(seg, s) => segmentHover(seg, s, usage)} />;
+export function StorySplitBar({ split, usage, scaleSeconds, label, hrefOf }: { split: TimeSplit; usage: Usage | null | undefined; scaleSeconds: number; label?: string; hrefOf?: (seg: Seg) => string | null }) {
+  return <SegmentBar parts={split} wall={split.wall} scaleSeconds={scaleSeconds} label={label} hrefOf={hrefOf} tip={(seg, s) => segmentHover(seg, s, usage)} />;
 }
 
 /** What each colour is: a swatch and the glossary's name per part, its definition on hover. */
@@ -63,13 +69,13 @@ export function SegmentKey() {
 }
 
 /** One row of a figure of bars: a label, the bar on the shared scale, the total. */
-export function BarRow({ label, split, usage, scaleSeconds, total, ...data }: {
-  label: ReactNode; split: TimeSplit; usage: Usage | null | undefined; scaleSeconds: number; total: string; [data: `data-${string}`]: string;
+export function BarRow({ label, split, usage, scaleSeconds, total, hrefOf, ...data }: {
+  label: ReactNode; split: TimeSplit; usage: Usage | null | undefined; scaleSeconds: number; total: string; hrefOf?: (seg: Seg) => string | null; [data: `data-${string}`]: string;
 }) {
   return (
     <div className="bar-row" {...data}>
       <span className="bar-label">{label}</span>
-      <span className="bar-track"><StorySplitBar split={split} usage={usage} scaleSeconds={scaleSeconds} /></span>
+      <span className="bar-track"><StorySplitBar split={split} usage={usage} scaleSeconds={scaleSeconds} hrefOf={hrefOf} /></span>
       <span className="bar-total num">{total}</span>
     </div>
   );

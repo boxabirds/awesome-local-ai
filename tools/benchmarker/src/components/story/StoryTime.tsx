@@ -4,6 +4,7 @@ import type { StoryPageView } from "../../../shared/storyView.ts";
 import { duration } from "../../format.ts";
 import { CombinationLink, MachineLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { BarRow, SegmentKey } from "../TimeBars.tsx";
+import { conversationPartHref } from "../run/SplitBar.tsx";
 import { Term, termName } from "./parts.tsx";
 
 export function StoryTime({ view, storyId }: { view: StoryPageView; storyId: string }) {
@@ -26,7 +27,7 @@ export function StoryTime({ view, storyId }: { view: StoryPageView; storyId: str
             <div className="sp-time-group" key={g.stack} data-stack={g.stack}>
               <div className="sp-time-head"><CombinationLink pack={g.pack} stack={g.stack} label={g.label} /></div>
               {bars.map(({ e, story }) => (
-                <BarRow key={e.run.runId} data-run={e.run.runId} split={story.usage!.split!} usage={story.usage} scaleSeconds={view.scaleSeconds} total={duration(story.usage!.split!.wall)}
+                <BarRow key={e.run.runId} data-run={e.run.runId} split={story.usage!.split!} usage={story.usage} scaleSeconds={view.scaleSeconds} total={duration(story.usage!.split!.wall)} hrefOf={conversationPartHref(e.run, story)}
                   label={<>
                     <RunLink pack={e.run.pack} stack={e.run.stack} runId={e.run.runId} /> <StoryRunLink pack={e.run.pack} stack={e.run.stack} runId={e.run.runId} story={storyId}>this story</StoryRunLink>
                     <span className="bar-machine-inline small"> · <MachineLink machine={e.run.machine} host={e.run.host} /></span>

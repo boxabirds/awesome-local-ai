@@ -115,3 +115,43 @@ test.describe("machine and story addresses", () => {
     await expect(page$(page, "notFound")).toBeVisible();
   });
 });
+
+// Where a time bar leads: into the story run's conversation when the warehouse has it (each part at its own
+// section), to the story run's page when it doesn't; a combination page's bar (a whole run) to the run's time.
+test.describe("from a time bar", () => {
+  const SWIFT_R5 = `/#/vidi/r/${enc(SWIFT)}/v2-r5`;
+  test("the run page: a story with a conversation, part by part; one without, to its story run", async ({ page }) => {
+    await page.goto(SWIFT_R5);
+    const with_ = page.locator('.rp-bar-row[data-story="2"]');
+    await expect(with_.locator("a.bar-link")).toHaveAttribute("data-to", "conversation");
+    await expect(with_.locator('a.seg-link:has([data-seg="tools"])')).toHaveAttribute("href", new RegExp(`/v2-r5/s/2/conversation\\?at=tools$`));
+    await expect(with_.locator('a.seg-link:has([data-seg="decode"])')).toHaveAttribute("href", /\?at=calls$/);
+    await expect(with_.locator('a.seg-link:has([data-seg="compaction"])')).toHaveAttribute("href", /\?at=compactions$/);
+    const without = page.locator('.rp-bar-row[data-story="1"]');
+    await expect(without.locator("a.bar-link")).toHaveAttribute("data-to", "storyRun");
+    await expect(without.locator("a.seg-link")).toHaveCount(0);
+    await with_.locator('a.seg-link:has([data-seg="tools"])').click({ force: true });
+    await expect(page$(page, "conversation")).toBeVisible();
+    await expect(page$(page, "conversation").locator('a[data-anchor="tools"]')).toHaveAttribute("aria-current", "true");
+  });
+
+  test("the story-run page: the big bar's parts, and the conversation section's own link", async ({ page }) => {
+    await page.goto(`${SWIFT_R5}/s/2`);
+    await expect(page.locator('.big-bar a.seg-link:has([data-seg="tools"])')).toHaveAttribute("href", /\?at=tools$/);
+    await expect(page.locator('[data-section="conversation"] a.conversation-link')).toHaveAttribute("href", /\/s\/2\/conversation$/);
+    await page.goto(`${SWIFT_R5}/s/1`);
+    await expect(page.locator(".big-bar a.seg-link")).toHaveCount(0);
+    await expect(page.locator('[data-section="conversation"] .conversation-link[data-to="none"] .missing')).toHaveCount(1);
+  });
+
+  test("the story page: each run's bar parts lead to that run's conversation when it has one", async ({ page }) => {
+    await page.goto("/#/vidi/s/2");
+    await expect(page.locator('.sp-time [data-run="v2-r5"] a.seg-link:has([data-seg="tools"])')).toHaveAttribute("href", /v2-r5\/s\/2\/conversation\?at=tools$/);
+    await expect(page.locator('.sp-time [data-run="v2-r4"] a.seg-link')).toHaveCount(0);
+  });
+
+  test("the combination page: a run's bar sums its stories, so a part goes to the run page's time", async ({ page }) => {
+    await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
+    await expect(page.locator('.run-time-bars [data-run="v2-r5"] a.seg-link').first()).toHaveAttribute("href", /\/v2-r5\?at=time$/);
+  });
+});

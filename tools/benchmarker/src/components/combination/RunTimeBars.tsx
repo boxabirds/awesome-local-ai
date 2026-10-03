@@ -4,6 +4,7 @@ import type { Row } from "../../../shared/types.ts";
 import { runOrder, runSplit } from "../../../shared/combinationView.ts";
 import { duration } from "../../format.ts";
 import { RunLink } from "../EntityLinks.tsx";
+import { runHref, withParams } from "../../../shared/routes.ts";
 import { SEGMENTS, SegmentBar, SegmentKey, segName } from "../TimeBars.tsx";
 import { termName, termTip } from "./Term.tsx";
 
@@ -28,7 +29,7 @@ export function RunTimeBars({ runs }: { runs: Row[] }) {
               <span className="small"> · {note}</span>
             </span>
             <span className="bar-track">
-              <SegmentBar parts={sp.parts} wall={sp.wall} scaleSeconds={max} tip={(p, secs) => {
+              <SegmentBar parts={sp.parts} wall={sp.wall} scaleSeconds={max} hrefOf={() => withParams(runHref(r.pack, r.stack, r.runId), { at: "time" })} tip={(p, secs) => {
                 const term = SEGMENTS.find((x) => x.seg === p)!.term;
                 return `${segName(p)} ${duration(secs)} (${Math.round((secs / sp.wall) * PERCENT)}%) over ${note}: ${termTip(term)}`;
               }} />

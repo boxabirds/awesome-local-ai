@@ -7,7 +7,7 @@ import { RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
 import { Missing, Section, Term, full } from "./bits.tsx";
-import { SplitBar } from "./SplitBar.tsx";
+import { conversationPartHref, SplitBar } from "./SplitBar.tsx";
 import { NO_SPLIT } from "./RunTime.tsx";
 import { pct } from "./RunCost.tsx";
 
@@ -61,7 +61,7 @@ export function Against({ run, state, storyId }: { run: Row; state: State; story
                     {isThis ? <span className="this-mark">this story run</span> : <> · <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId} /></>}
                   </td>
                   <td className="bar-col">
-                    {split ? <span className="bar-track"><SplitBar split={split} usage={story!.usage ?? null} scaleSeconds={scaleSeconds} label={`${r.runId}: ${duration(split.wall)}`} /></span>
+                    {split ? <span className="bar-track"><SplitBar split={split} usage={story!.usage ?? null} scaleSeconds={scaleSeconds} label={`${r.runId}: ${duration(split.wall)}`} hrefOf={conversationPartHref(r, story)} /></span>
                       : story ? <Missing why={NO_SPLIT} /> : <Absent run={r} storyId={storyId} />}
                   </td>
                   {AGAINST_MEASURES.map((m) => {

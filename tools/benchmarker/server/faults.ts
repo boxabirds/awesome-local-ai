@@ -9,6 +9,7 @@
 import type { Machine } from "../shared/types.ts";
 import { endedAt, runningStory, silentMinutes, SILENT_MINUTES } from "../shared/overviewView.ts";
 import { jobReason, type FullRow, type NodeJob } from "./domain.ts";
+import { storyRunId } from "../shared/conversation.ts";
 
 export const FAULT_KINDS = [
   "accounting_failed", "accounting_unchecked", "harness_fault", "agent_output_skipped", "credentials_redacted",
@@ -16,6 +17,7 @@ export const FAULT_KINDS = [
   "sandbox_not_enforced", "job_failed", "job_cancelled", "job_restarted",
   "machine_unreachable", "machine_no_activity", "machine_idle", "machine_idle_with_queue",
   "fetch_error", "dbench_error",
+  "conversation_missing", "conversation_incomplete", "conversation_service_unreachable",
 ] as const;
 export type FaultKind = (typeof FAULT_KINDS)[number];
 
@@ -48,7 +50,12 @@ export interface FaultsInput {
   /** The server's own data-source errors, "" for none. */
   fetchError: string;
   dbenchError: string;
+  /** Which story runs the warehouse has a conversation for, and which are complete; null when it couldn't be asked. */
+  conversations?: { ids: Set<string>; complete: Set<string> } | null;
 }
+
+/** A story recorded this long ago with no conversation in the warehouse is a collection fault. */
+const CONVERSATION_STALE_S = 6 * 3600;
 
 /** The last lines of a job's log the server already has. */
 const LOG_TAIL_LINES = 10;
@@ -168,8 +175,28 @@ function machineFaults({ rows, machines, reach, now }: FaultsInput): Fault[] {
 }
 
 /** Every fault, runs first (in row order), then machines, then the server's own sources. */
+/** The collection faults: a recorded story the warehouse has no conversation for, long after its run ended; a
+ * conversation still incomplete after its run ended; the warehouse not answering at all. */
+function conversationFaults(input: FaultsInput): Fault[] {
+  if (input.conversations === undefined) return [];
+  if (input.conversations === null) return [{ id: "conversation_service_unreachable", kind: "conversation_service_unreachable", pack: "", combination: "", run: "", detail: {} }];
+  const { ids, complete } = input.conversations;
+  const out: Fault[] = [];
+  for (const r of input.rows) {
+    if (!r.dir || r.status === "running" || r.status === "queued") continue;
+    const endedS = r.stateAt ? Date.parse(r.stateAt) / 1000 : null;
+    const longAgo = endedS !== null && input.now - endedS > CONVERSATION_STALE_S;
+    for (const s of r.stories) {
+      const id = storyRunId(r.dir, s.id);
+      if (!ids.has(id)) { if (longAgo) out.push(ofRun(r, "conversation_missing", { story_run: id, ended_at: r.stateAt }, { story: s.id })); }
+      else if (!complete.has(id) && longAgo) out.push(ofRun(r, "conversation_incomplete", { story_run: id, ended_at: r.stateAt }, { story: s.id }));
+    }
+  }
+  return out;
+}
+
 export function findFaults(input: FaultsInput): Fault[] {
-  const out = input.rows.flatMap(runFaults).concat(machineFaults(input));
+  const out = input.rows.flatMap(runFaults).concat(machineFaults(input), conversationFaults(input));
   if (input.fetchError) out.push({ id: "fetch_error", kind: "fetch_error", pack: "", combination: "", run: "", detail: { error: input.fetchError } });
   if (input.dbenchError) out.push({ id: "dbench_error", kind: "dbench_error", pack: "", combination: "", run: "", detail: { error: input.dbenchError } });
   return out;

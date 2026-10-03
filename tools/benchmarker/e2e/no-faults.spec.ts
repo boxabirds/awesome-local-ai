@@ -32,14 +32,31 @@ const PAGES: [string, string][] = [
   ["story page 2", "#/vidi/s/2"],
   ["machine (running, queue, ended jobs with reasons)", "#/m/node-a"],
   ["machine (idle)", "#/m/node-d"],
+  ["conversation (complete, with fault words in the agent's own text)", `${runHref(SWIFT, "v2-r5")}/s/2/conversation`],
+  ["conversation (not available)", `${runHref(SWIFT, "v2-r5")}/s/1/conversation`],
+  ["call (its thinking and a failed tool's result)", `${runHref(SWIFT, "v2-r5")}/s/2/conversation/c/1`],
 ];
 
-/** The page's text and every hover, as one string. */
+/** The page's text and every hover, as one string: the app's own words. What the agent itself said
+ * (data-quoted="agent": a tool's result, the model's text) is a result the page presents verbatim, not the app's
+ * narration, so it is left out here and checked apart (quotedText). */
 async function everything(page: Page): Promise<string> {
-  const text = await page.locator("main").innerText();
-  const tips = await page.locator("main [data-tip]").evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.tip ?? ""));
-  const labels = await page.locator("main [aria-label]").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label") ?? ""));
+  const text = await page.locator("main").evaluate((main) => {
+    const copy = main.cloneNode(true) as HTMLElement;
+    for (const q of copy.querySelectorAll('[data-quoted="agent"]')) q.remove();
+    document.body.appendChild(copy);
+    const t = copy.innerText;
+    copy.remove();
+    return t;
+  });
+  const tips = await page.locator('main [data-tip]:not([data-quoted="agent"] *)').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.tip ?? ""));
+  const labels = await page.locator('main [aria-label]:not([data-quoted="agent"] *)').evaluateAll((els) => els.map((e) => e.getAttribute("aria-label") ?? ""));
   return [text, ...tips, ...labels].join("\n");
+}
+
+/** What the agent said, verbatim, on the page. */
+async function quotedText(page: Page): Promise<string> {
+  return (await page.locator('main [data-quoted="agent"]').allInnerTexts()).join("\n");
 }
 
 async function patchState(page: Page, change: (s: State) => void) {
@@ -70,6 +87,22 @@ test.describe("no page narrates a fault", () => {
     });
   }
 
+  test("the agent's own words are presented verbatim, fault words and all, and are the only place such words appear", async ({ page }) => {
+    await page.goto(`/${runHref(SWIFT, "v2-r5")}/s/2/conversation`);
+    await expect(page.locator('[data-page="conversation"]')).toHaveAttribute("data-backfilled", "true");
+    const quoted = await quotedText(page);
+    expect(quoted).toMatch(/harness/);
+    expect(quoted).toMatch(/attempt 2/);
+    expect(quoted).toMatch(/invalid/);
+    expect((await everything(page)).match(FAULT_WORDS)).toBeNull();
+    await page.goto(`/${runHref(SWIFT, "v2-r5")}/s/2/conversation/c/1`);
+    await expect(page.locator('[data-page="call"] [data-block="thinking"]')).toBeVisible();
+    const call = await quotedText(page);
+    expect(call).toMatch(/retry/);
+    expect(call).toMatch(/harness/);
+    expect((await everything(page)).match(FAULT_WORDS)).toBeNull();
+  });
+
   test("the header strip: how fresh the data is, and the suite; never a source's error", async ({ page }) => {
     await page.goto("/");
     const meta = page.getByTestId("meta");
@@ -92,6 +125,7 @@ test.describe("no page narrates a fault", () => {
       for (const j of r.jobs) expect(j).not.toHaveProperty("reason");
       if (r.live) expect(r.live).not.toHaveProperty("logTail");
       for (const st of r.stories) if (st.usage?.split) expect(st.usage.split).not.toHaveProperty("check");
+      for (const st of r.stories) expect(typeof st.hasConversation).toBe("boolean");
       expect(r.statusNote).not.toMatch(/exit|attempt|failed/i);
     }
     expect(JSON.stringify(s)).not.toMatch(/needs_person|harness_fault|accounting|cancel_reason/);
@@ -119,6 +153,10 @@ test.describe("the neutral state where a figure is not available", () => {
     expect(a.faults.map((f) => f.id)).toEqual(b.faults.map((f) => f.id));
     for (const f of a.faults) expect(f.firstSeenAt).toMatch(/^\d{4}-/);
     // The fixture's running stories started on fixed dates, so by now they have been silent for days: that is a fault too.
-    expect(new Set(a.faults.map((f) => f.kind))).toEqual(new Set(["run_invalid", "accounting_failed", "accounting_unchecked", "not_scored", "no_workspace_bundle", "job_cancelled", "job_restarted", "machine_idle", "machine_no_activity"]));
+    // The fixture's finished runs ended days ago, and most of their stories have no conversation in its warehouse: a collection fault each.
+    expect(new Set(a.faults.map((f) => f.kind))).toEqual(new Set(["run_invalid", "accounting_failed", "accounting_unchecked", "not_scored", "no_workspace_bundle", "job_cancelled", "job_restarted", "machine_idle", "machine_no_activity", "conversation_missing"]));
+    const missing = a.faults.filter((f) => f.kind === "conversation_missing");
+    expect(missing.length).toBeGreaterThan(0);
+    expect(missing.every((f) => f.story)).toBe(true);
   });
 });

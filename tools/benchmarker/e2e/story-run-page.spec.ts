@@ -879,15 +879,21 @@ test.describe("links and keyboard", () => {
         await expect(page.locator('[data-page="storyRun"] .breadcrumb a.run-link'), href).toHaveAttribute("data-tip", `${route.stack} · ${route.runId}`);
         continue;
       }
+      if (route.page === "conversation" || route.page === "call") {
+        await expect(page.locator(`[data-page="${route.page}"] .breadcrumb a.story-run-link`), href).toHaveText(`story ${Number(route.story)}`);
+        continue;
+      }
       throw new Error(`${href} names no page`);
     }
   });
 
-  test("every link is reachable by keyboard and has a name", async ({ page }) => {
+  test("every link is reachable by keyboard and has a name, except a bar's parts (the mouse's way into the conversation; the keyboard has the section's own link)", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     const bad = await page.locator('[data-page="storyRun"] a').evaluateAll((as) => as
+      .filter((a) => !a.classList.contains("seg-link"))
       .filter((a) => a.getAttribute("tabindex") === "-1" || !(a.textContent ?? "").trim()).map((a) => a.outerHTML));
     expect(bad).toEqual([]);
+    await expect(page.locator('[data-page="storyRun"] [data-section="conversation"] a.conversation-link')).toHaveText("Open the conversation");
   });
 
   test("next story from the keyboard, with a visible focus ring", async ({ page }) => {
