@@ -339,6 +339,97 @@ def test_compact_events_drops_stream_deltas(tmp_path):
     assert [e["type"] for e in kept] == ["session", "message_end"]
 
 
+def test_compact_events_keeps_where_a_dead_process_was_last_heard_from(tmp_path):
+    """gufo05-r1 story 3 (3 Oct 2026): an e2e tool call was still streaming output when its process died, and the
+    next session started 2 s after its last delta. The record (from the full log) ended the call at that delta; the
+    compact log had dropped it, so the replay ended the call at its start and the record could not be reproduced.
+    The last delta before a new process, and before the end of a log cut by a death, is kept as a stamp: its time,
+    type and tool call id, no payload."""
+    import gzip, json
+    from drive import compact_events
+    raw = tmp_path / "agent-events.jsonl"
+    raw.write_text("\n".join(json.dumps(e) for e in [
+        {"_rx": 1.0, "type": "session", "id": "s1"},
+        {"_rx": 2.0, "type": "tool_execution_start", "toolCallId": "t1", "toolName": "bash"},
+        {"_rx": 3.0, "type": "tool_execution_update", "toolCallId": "t1", "partialResult": "x" * 100},
+        {"_rx": 4.0, "type": "tool_execution_update", "toolCallId": "t1", "partialResult": "y" * 100},
+        {"_rx": 6.0, "type": "session", "id": "s2"},
+        {"_rx": 7.0, "type": "tool_execution_start", "toolCallId": "t2", "toolName": "bash"},
+        {"_rx": 8.0, "type": "tool_execution_update", "toolCallId": "t2", "partialResult": "z" * 100},
+    ]) + "\n")
+    kept = [json.loads(l) for l in gzip.open(compact_events(raw), "rt")]
+    assert [(e["_rx"], e["type"]) for e in kept] == [
+        (1.0, "session"), (2.0, "tool_execution_start"), (4.0, "tool_execution_update"), (6.0, "session"),
+        (7.0, "tool_execution_start"), (8.0, "tool_execution_update")]
+    assert kept[2] == {"_rx": 4.0, "type": "tool_execution_update", "toolCallId": "t1"}     # a stamp, no payload
+    assert kept[5] == {"_rx": 8.0, "type": "tool_execution_update", "toolCallId": "t2"}     # the log's end: cut by a death
+
+
+def test_compact_events_stamps_a_message_delta_too_and_only_a_stamped_one(tmp_path):
+    """A process that died while the model was still streaming text: the stamp is the last message delta, with no
+    tool call id. A delta the agent wrote without a stamp (a log from before stamping) leaves nothing to keep."""
+    import gzip, json
+    from drive import compact_events
+    raw = tmp_path / "agent-events.jsonl"
+    raw.write_text("\n".join(json.dumps(e) for e in [
+        {"_rx": 1.0, "type": "session", "id": "s1"},
+        {"_rx": 2.0, "type": "message_start", "message": {"role": "assistant"}},
+        {"_rx": 2.5, "type": "message_update", "delta": "first chunk, kept for its timing"},
+        {"_rx": 3.0, "type": "message_update", "delta": "x" * 100},
+        {"_rx": 4.0, "type": "message_update", "delta": "y" * 100},
+        {"_rx": 6.0, "type": "session", "id": "s2"},
+        {"type": "message_update", "delta": "unstamped"},
+    ]) + "\n")
+    kept = [json.loads(l) for l in gzip.open(compact_events(raw), "rt")]
+    assert [(e.get("_rx"), e["type"]) for e in kept] == [(1.0, "session"), (2.0, "message_start"), (2.5, "message_update"), (4.0, "message_update"), (6.0, "session")]
+    assert kept[3] == {"_rx": 4.0, "type": "message_update"}
+
+
+def test_compact_events_keeps_no_stamp_where_a_delta_was_not_the_last_thing_heard(tmp_path):
+    """A delta followed by the tool's own end, or by any kept line, is not where the process was last heard from."""
+    import gzip, json
+    from drive import compact_events
+    raw = tmp_path / "agent-events.jsonl"
+    raw.write_text("\n".join(json.dumps(e) for e in [
+        {"_rx": 1.0, "type": "session", "id": "s1"},
+        {"_rx": 2.0, "type": "tool_execution_start", "toolCallId": "t1", "toolName": "bash"},
+        {"_rx": 3.0, "type": "tool_execution_update", "toolCallId": "t1", "partialResult": "x"},
+        {"_rx": 5.0, "type": "tool_execution_end", "toolCallId": "t1"},
+        {"_rx": 6.0, "type": "session", "id": "s2"},
+    ]) + "\n")
+    kept = [json.loads(l) for l in gzip.open(compact_events(raw), "rt")]
+    assert [e["type"] for e in kept] == ["session", "tool_execution_start", "tool_execution_end", "session"]
+
+
+def test_the_time_split_from_a_compact_log_is_the_time_split_from_its_full_log(tmp_path):
+    """What the record says (from the full log on the node) must be what the published compact log gives."""
+    import json
+    from drive import compact_events, time_split
+    import attempts
+    raw = tmp_path / "agent-events.jsonl"
+    raw.write_text("\n".join(json.dumps(e) for e in [
+        {"_rx": 100.0, "type": "session", "id": "s1"},
+        {"_rx": 101.0, "type": "message_start", "message": {"role": "assistant"}},
+        {"_rx": 101.5, "type": "message_update", "delta": "a"},
+        {"_rx": 102.0, "type": "message_end", "message": {"role": "assistant", "usage": {"input": 1, "output": 1}}},
+        {"_rx": 103.0, "type": "tool_execution_start", "toolCallId": "t1", "toolName": "bash", "input": {"command": "npx playwright test"}},
+        {"_rx": 110.0, "type": "tool_execution_update", "toolCallId": "t1", "partialResult": "x" * 50},
+        {"_rx": 112.0, "type": "session", "id": "s2"},
+        {"_rx": 113.0, "type": "message_start", "message": {"role": "assistant"}},
+        {"_rx": 113.5, "type": "message_update", "delta": "b"},
+        {"_rx": 114.0, "type": "message_end", "message": {"role": "assistant", "usage": {"input": 1, "output": 1}}},
+        {"_rx": 115.0, "type": "agent_end"},
+    ]) + "\n")
+    compact = tmp_path / "compact.jsonl"
+    import gzip
+    compact.write_text(gzip.open(compact_events(raw), "rt").read())
+    no_server = tmp_path / attempts.NO_SERVER_LOG
+    full, cmp = time_split(raw, no_server, 100.0, 115.0), time_split(compact, no_server, 100.0, 115.0)
+    assert cmp["tools_s"] == full["tools_s"] == 7.0
+    assert cmp["between_sessions_s"] == full["between_sessions_s"]
+    assert cmp["accounting"]["interrupted_tools"] == full["accounting"]["interrupted_tools"]
+
+
 def test_record_story_commits_only_the_run_dir_and_pushes(tmp_path):
     import subprocess
     from drive import record_story
