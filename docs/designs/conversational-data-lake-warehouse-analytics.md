@@ -193,3 +193,39 @@ The node → host transport (section A) moves raw files, so its cursor is a byte
 - Redaction at ingest: the DB keeps verbatim text as today (private repo, local app); a `publicise.leaks` pass before any hosting is a follow-up.
 - Deleting full logs from nodes once collected and verified: not in scope; a follow-up with its own rule.
 - MTPLX request log: out of scope v1 (reason above).
+
+## As built (3 October 2026)
+
+What landed on main, in the sequence's order, and where it departs from the design above.
+
+- **Steps 1 to 5 are on main with their tests**: the node endpoints (`collect.rs`, `server.rs`), the goldens
+  (`export_goldens.py`, the release check "ingest goldens current"), the parsers and the warehouse
+  (`src/ingest/`, `dbench ingest`), the collector and the conversation API (`collector.rs`,
+  `conversation_api.rs`, `dbench collect`), the benchmarker's conversation and call pages with every time bar
+  linking in, and the harness's per-tick `stories/NN/conditions.jsonl`.
+- **Not yet deployed.** The nodes run a dbench without the file endpoints (hold, restart, release, between runs);
+  `dbench collect` is not running on the host, so the lake is empty and the warehouse holds only what the published
+  compact logs give; the readings file needs a harness release. The verification against a real node (plan step 2)
+  waits on the rollout.
+- **The Rust port's scope is what ingest needs**, not every Python parser: the event-log reader behind the
+  conversation database (`events.rs`), `accounting.parse` (`timing.rs`: call timing, tool kinds, sessions, the
+  rules for a call cut off), llama-server's, gufo's, mlx-serve's and Strata's logs with the token matcher, and the
+  insights flag tables. The conversation profile, the time-split partition and the attempts totals are computed on
+  the node by the harness and arrive in the published record; the warehouse copies them (`conversation_json`,
+  `time_split_json`, `attempts`) rather than recomputing them. The goldens hold the ported parsers equal to the
+  Python ones on every fixture log, Strata's included.
+- **Parity with the first database** (`conv_full.db`, 1 October): rebuilt from origin/main's published logs, the
+  warehouse holds 477 story runs; of the 429 both hold, 425 have identical call, tool, message and compaction
+  counts; three of the four that differ were still running on 1 October, and one has more calls in its machine's
+  complete log than in its published compact log (the lake will supply the complete log once collected).
+- **"Live" is not a mode.** The page backfills with the time-range form and follows with the open-ended form,
+  whatever the story's status; the only live-specific code is the ingest's rule that a story still being appended
+  to gains ords without rebuilding its stream.
+- **Field names.** A tool event's own kind is `tool_start`/`tool_end`; the tool's kind rides beside it as `toolKind`
+  (the fixture design caught the payload shadowing the event's kind). The harness's machine readings are
+  "conditions" throughout: the file, the table, the event kind; "samples" is not used for data.
+- **The MTPLX request log is not collected** (per port, shared across runs, named nowhere in the run directory).
+- **The e2e fixture is a matrix**: `tools/benchmarker/e2e/fixtures/conversations.py` lists its dimensions
+  (availability, format, every event kind, inline and cut text, tool outcomes, token and stop edge values,
+  matched and late-placed requests, a reading without a GPU, a tie at one millisecond, page-boundary sizes,
+  fault words in verbatim agent text) with one case per cell; the specs are organised by where the reader starts.

@@ -150,8 +150,8 @@ class Sampler:
     made: list = []
     record: dict = {}
 
-    def __init__(self, ws, server_port=None):
-        Sampler.made.append((ws, server_port))
+    def __init__(self, ws, server_port=None, record=None):
+        Sampler.made.append((ws, server_port, record))
 
     def start(self):
         pass
@@ -473,7 +473,9 @@ def test_the_run_s_bookkeeping_files_and_the_workspace_are_where_local_tools_loo
 
 def test_the_machine_is_sampled_by_port_and_swept_after_the_agent_and_after_the_gate(loop):
     loop.main("--only", "1")
-    assert Sampler.made == [(loop.ws, BASE_URL_PORT)]
+    assert [m[:2] for m in Sampler.made] == [(loop.ws, BASE_URL_PORT)]
+    # Every reading of the story goes beside its log: stories/NN/conditions.jsonl (git-ignored; dbench collect pulls it).
+    assert Sampler.made[0][2].name == drive.CONDITIONS_FILE and Sampler.made[0][2].parent.parent.name == "stories"
     assert loop.strays == [loop.ws, loop.ws]
 
 
@@ -995,7 +997,8 @@ def test_a_story_skipped_before_the_harness_restarted_is_ended_from_its_log_with
     assert "restarted" not in agent and "first_started" not in rec          # one attempt in the log: nothing to add up
     assert rec["conditions"] == {"samples": 0, "degraded": False, "throttled_share": 0.0, "bad_samples": [],
                                  "aborted_swap": False, "aborted_memory": False}
-    assert rec["agent_commits"] == 0 and Sampler.made == [(loop.ws, BASE_URL_PORT)]      # only story 2 was sampled
+    assert rec["agent_commits"] == 0 and [m[:2] for m in Sampler.made] == [(loop.ws, BASE_URL_PORT)]      # only story 2 was sampled
+    assert Sampler.made[0][2].parent.name == "02"
     assert (loop.run / drive.CONTROL_DIR / "skip-story-1.applied.json").exists()
     assert "[story 1] First — ended by the operator before the agent restarted\n" in capsys.readouterr().out
     assert loop.story(2)["status"] == drive.DONE

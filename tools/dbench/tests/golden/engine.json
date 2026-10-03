@@ -135,6 +135,31 @@
     4
    ],
    "text": "=== server start 1790390000.000 ===\n  <- 10+1 tokens streamed [prefill: 1 tok/s, decode: 1 tok/s] [stop]\n  <- 20+2 tokens streamed [prefill: 1 tok/s, decode: 1 tok/s] [stop]\n  <- 10+1 tokens streamed [prefill: 1 tok/s, decode: 1 tok/s] [stop]\n  <- 30+3 tokens streamed [prefill: 1 tok/s, decode: 1 tok/s] [stop]\n  <- 40+4 tokens streamed [prefill: 1 tok/s, decode: 1 tok/s] [stop]\n"
+  },
+  "strata": {
+   "calls": [
+    [
+     1790390001.0,
+     1790390002.0,
+     1790390003.0,
+     37,
+     54460,
+     114
+    ],
+    [
+     1790390002.0,
+     1790390003.0,
+     1790390004.0,
+     56,
+     54492,
+     98
+    ]
+   ],
+   "matched": [
+    3,
+    4
+   ],
+   "text": "=== server start 1790390000.000 ===\nstrata generate: session is up (engine 0.1.36)\nstrata serve: prompt chunk auto: 8192 tokens\nstrata serve: prompt 369 tokens = 0 reused + 369 read in 1166 ms (316.4 tok/s), 46 generated in 537 ms (85.7 tok/s), drafts accepted 33 of 38, 1 checkpoints\nstrata serve: decode expert cache hit rate: 79.1% (16715 hits / 21136 lookups)\nstrata serve: prompt 468 tokens = 414 reused + 54 read in 413 ms (130.8 tok/s), 71 generated in 856 ms (82.9 tok/s), drafts accepted 54 of 72, 2 checkpoints\nstrata serve: decode expert cache hit rate: 84.3% (33246 hits / 39434 lookups)\nstrata serve: prompt 54465 tokens = 0 reused + 54465 read in 12599 ms (4322.8 tok/s), 200 generated in 1929 ms (103.7 tok/s), drafts accepted 126 of 164, 5 checkpoints\nstrata serve: decode expert cache hit rate: 89.5% (94961 hits / 106081 lookups)\nstrata serve: prompt 54497 tokens = 54460 reused + 37 read in 231 ms (160.5 tok/s), 114 generated in 895 ms (127.4 tok/s), drafts accepted 73 of 89, 6 checkpoints\nstrata serve: decode expert cache hit rate: 93.4% (55629 hits / 59572 lookups)\nstrata serve: prompt 54548 tokens = 54492 reused + 56 read in 323 ms (173.2 tok/s), 98 generated in 741 ms (132.2 tok/s), drafts accepted 72 of 75, 6 checkpoints\nstrata serve: decode expert cache hit rate: 91.8% (43132 hits / 47003 lookups)\nstrata serve: prompt 54601 tokens = 54543 reused + 58 read in 351 ms (165.4 tok/s), 96 generated in 654 ms (146.7 tok/s), drafts accepted 66 of 77, 6 checkpoints\nstrata serve: decode expert cache hit rate: 94.9% (47555 hits / 50103 lookups)\nstrata serve: prompt 54654 tokens = 54596 reused + 58 read in 345 ms (168.3 tok/s), 90 generated in 520 ms (173.0 tok/s), drafts accepted 65 of 69, 6 checkpoints\nstrata serve: decode expert cache hit rate: 95.9% (42146 hits / 43935 lookups)\nstrata serve: prompt 127967 tokens = 16384 reused + 111583 read in 25293 ms (4411.6 tok/s), 200 generated in 1446 ms (138.3 tok/s), drafts accepted 130 of 164, 6 checkpoints\nstrata serve: decode expert cache hit rate: 95.0% (103280 hits / 108752 lookups)\nstrata serve: prompt 128001 tokens = 127962 reused + 39 read in 226 ms (172.7 tok/s), 109 generated in 732 ms (148.8 tok/s), drafts accepted 81 of 88, 6 checkpoints\nstrata serve: decode expert cache hit rate: 94.2% (51683 hits / 54889 lookups)\nstrata serve: prompt 128058 tokens = 127996 reused + 62 read in 319 ms (194.6 tok/s), 83 generated in 529 ms (156.8 tok/s), drafts accepted 61 of 66, 6 checkpoints\nstrata serve: decode expert cache hit rate: 95.4% (39942 hits / 41877 lookups)\n"
   }
  },
  "parsed": {
@@ -239,6 +264,78 @@
     "start": 1790390000.0
    }
   ],
+  "strata-excerpt.txt": [
+   {
+    "draft_accepted": 33,
+    "draft_generated": 38,
+    "gen": 46,
+    "prompt": 369,
+    "start": 1790390000.0
+   },
+   {
+    "draft_accepted": 54,
+    "draft_generated": 72,
+    "gen": 71,
+    "prompt": 468,
+    "start": 1790390000.0
+   },
+   {
+    "draft_accepted": 126,
+    "draft_generated": 164,
+    "gen": 200,
+    "prompt": 54465,
+    "start": 1790390000.0
+   },
+   {
+    "draft_accepted": 73,
+    "draft_generated": 89,
+    "gen": 114,
+    "prompt": 54497,
+    "start": 1790390000.0
+   },
+   {
+    "draft_accepted": 72,
+    "draft_generated": 75,
+    "gen": 98,
+    "prompt": 54548,
+    "start": 1790390000.0
+   },
+   {
+    "draft_accepted": 66,
+    "draft_generated": 77,
+    "gen": 96,
+    "prompt": 54601,
+    "start": 1790390000.0
+   },
+   {
+    "draft_accepted": 65,
+    "draft_generated": 69,
+    "gen": 90,
+    "prompt": 54654,
+    "start": 1790390000.0
+   },
+   {
+    "draft_accepted": 130,
+    "draft_generated": 164,
+    "gen": 200,
+    "prompt": 127967,
+    "start": 1790390000.0
+   },
+   {
+    "draft_accepted": 81,
+    "draft_generated": 88,
+    "gen": 109,
+    "prompt": 128001,
+    "start": 1790390000.0
+   },
+   {
+    "draft_accepted": 61,
+    "draft_generated": 66,
+    "gen": 83,
+    "prompt": 128058,
+    "start": 1790390000.0
+   }
+  ],
   "two-runs": [
    {
     "draft_accepted": 76,
@@ -315,6 +412,10 @@
    "draft_acceptance": 0.743,
    "mean_accepted_len": 3.61
   },
+  "strata-excerpt.txt": {
+   "draft_acceptance": 0.844,
+   "mean_accepted_len": null
+  },
   "two-runs": {
    "draft_acceptance": 0.858,
    "mean_accepted_len": null
@@ -322,6 +423,7 @@
  },
  "texts": {
   "gufo-excerpt.txt": "=== server start 1790390000.000 ===\n2026-10-01 00:28:55 [INFO] [loader] event=load_completed kind=text elapsed_ms=51523 model=qwen3.8-flash-next-gufo sessions=1 context_tokens=131072 speculative=mtp draft_limit=7 disk_cache=off rss_mib=426 host_available_mib=35158 gpu_device_used_mib=88603 gpu_device_total_mib=122880\n2026-10-01 00:28:55 [INFO] [server] event=listening address=http://0.0.0.0:8080 auth=off max_connections=16 max_body_bytes=8388608\n2026-10-01 00:28:58 [INFO] [http] request=r1 event=completed method=GET path=/v1/models status=200 duration_ms=0.9 outcome=completed rss_mib=426 host_available_mib=35155\n2026-10-01 00:28:58 [INFO] [http] request=r2 event=completed method=GET path=/v1/models status=200 duration_ms=0.1 outcome=completed rss_mib=426 host_available_mib=35154\n2026-10-01 00:29:06 [INFO] [http] request=r4 event=completed method=POST path=/v1/chat/completions status=200 duration_ms=3955.1 outcome=completed prompt_tokens=2049 prefill_tokens=2049 generated_tokens=103 finish=stop cache=miss cached_tokens=0 cache_restore_ms=0.0 queue_depth=1 resident_at_admission=1 queue_ms=3.6 ttft_ms=1946.9 prefill_tps=1065.1 decode_tps=51.4 batch_width=1 plan=serial-c1 draft_accepted=76 draft_proposed=90 acceptance_pct=84.4 cache_snapshot_bytes=187430592 cache_miss_reason=no_checkpoint common_prefix_tokens=0 nearest_checkpoint_tokens=0 rss_mib=718 host_available_mib=34296\n2026-10-01 00:29:10 [INFO] [http] request=r5 event=completed method=POST path=/v1/chat/completions status=200 duration_ms=3669.5 outcome=completed prompt_tokens=5534 prefill_tokens=3382 generated_tokens=55 finish=stop cache=memory cached_tokens=2152 cache_restore_ms=0.0 queue_depth=1 resident_at_admission=1 queue_ms=4.0 ttft_ms=2828.2 prefill_tps=1207.4 decode_tps=65.8 batch_width=1 plan=serial-c1 draft_accepted=47 draft_proposed=49 acceptance_pct=95.9 cache_snapshot_bytes=271230260 rss_mib=804 host_available_mib=34191\n2026-10-01 00:29:17 [INFO] [http] request=r6 event=completed method=POST path=/v1/chat/completions status=200 duration_ms=6944.4 outcome=completed prompt_tokens=12596 prefill_tokens=7007 generated_tokens=53 finish=stop cache=memory cached_tokens=5589 cache_restore_ms=0.0 queue_depth=1 resident_at_admission=1 queue_ms=7.9 ttft_ms=5914.3 prefill_tps=1192.6 decode_tps=51.7 batch_width=1 plan=serial-c1 draft_accepted=39 draft_proposed=45 acceptance_pct=86.7 cache_snapshot_bytes=465164428 rss_mib=989 host_available_mib=34047\n2026-10-01 00:29:21 [INFO] [http] request=r7 event=completed method=POST path=/v1/chat/completions status=200 duration_ms=4181.5 outcome=completed prompt_tokens=15603 prefill_tokens=2954 generated_tokens=70 finish=stop cache=memory cached_tokens=12649 cache_restore_ms=0.0 queue_depth=1 resident_at_admission=1 queue_ms=9.2 ttft_ms=2709.1 prefill_tps=1109.6 decode_tps=47.7 batch_width=1 plan=serial-c1 draft_accepted=49 draft_proposed=62 acceptance_pct=79.0 cache_snapshot_bytes=547730824 rss_mib=1071 host_available_mib=33954\n",
-  "mlx-serve-excerpt.txt": "=== server start 1790390000.000 ===\nPOST /v1/chat/completions (2 msgs, max_tokens=32768, temp=1.00, top_p=0.95, top_k=20, stream=true, thinking=true, sys=2774b, user=1783b, tools=2841b, tool_msgs=0) \n  > \"You are implementing the web app \"vidi6\" (a collaborative whiteboard) in the cur...\"\n[admission] needed=2729 MB available=34757 MB reclaimable=0 MB width=8192 verdict=admit\n  prompt=2093 tokens, max_gen=32768, ctx=131072\n  spec-gate: ngram-score=0.121 (threshold=0.010)\n  reasoning budget 32768: enforced in-stream\n  mtp=enabled (streaming, depth=6)\n[hc-prefill] engaged: S=2062 B=1 pending=false native_inject=true\n[gdn-prefill] engaged: S=2062 B=1 cold=true\n[qwen4] PLE prefill gather: SERIAL mmap walk (prefill width: 32992 rows; the pool engages past kv 262144, QWEN4_PLE_PREFETCH_PREFILL_MIN_KV overrides)\n[qsa] sparse attention engaged: kv=2062 blocks=515 top-512 (budget 2048, ratio 4)\n[qsa-select] engaged (S=2062 nb=515 k=512 tg=256) — MLX_SERVE_QSA_SELECT_KERNEL=0 restores the argpartition chain\n[qsa-fused] engaged: msv_attn_p256 mask arm qL=2062 kL=2062 Hq=24 Hkv=2 (MLX_SERVE_QSA_FUSED=0 restores stock sdpa)\n[qsa-score] engaged (S=1 nb=523 layout=base nsg=4 nsh=17) — MLX_SERVE_QSA_SCORE_FUSED=0 restores the composed chain\n[qsa-select] engaged (S=1 nb=523 k=512 tg=1024) — MLX_SERVE_QSA_SELECT_KERNEL=0 restores the argpartition chain\n[mtp] draft rerank engaged (3-bit coarse -> top-32 -> trunk re-score)\n[qsa-score] engaged (S=2 nb=523 layout=base nsg=4 nsh=17) — MLX_SERVE_QSA_SCORE_FUSED=0 restores the composed chain\n[qsa-select] engaged (S=2 nb=523 k=512 tg=1024) — MLX_SERVE_QSA_SELECT_KERNEL=0 restores the argpartition chain\n[sdpa-split] masked arm engaged: qL=3 kL=2095 gqa=12 rows/group=2 (MLX_SERVE_SDPA_SPLIT=0 restores the single dispatch)\n[mtp] prompt-lookup drafts engaged: k=7 suffix=8\n[mtp] cost table: bucket 2-4k measured w4:8.45/3 (ms/tok) replaces the fitted surface (scale 0.0532 at w4)\n  [spec-stats] mode=mtp attempts=30 accepts=83 avg_per_round=2.77 per_draft_pct=87.4% depth=6 drafted=95 ext_rounds=0 partial_rounds=10 runtime_disabled=false reason=none adaptive=undecided serial_cell=0.00 sync_ms=0.00 round_ms=33.36 two_ms_tok=0.00 one_ms_tok=7.77 verdict_round=0 trials=0 width_trials=2 table=2-4k:w4:7.71/8 table_drops=t8/c0/b0/i0 serial_drops=t0/c0/b0 depth_policy=accept lookup=12/98/77\n  [spec-stats] lookup_table=2-4k:k7:45.1/9,k14:73.1/1\n  [qsa-arms] qsa=mask calls=528 mask=528 decode=0 verify=0 prefill=0\n  [hot-cache] resident=116.45 / 16384.00 MB (1/32 entries)\n  <- 2093+201 tokens streamed [prefill: 1120.8 tok/s, decode: 133.5 tok/s] [tool_calls]\n  pld=enabled (draft_len=5, key_len=3)\nPOST /v1/chat/completions (5 msgs, max_tokens=32768, temp=1.00, top_p=0.95, top_k=20, stream=true, thinking=true, sys=2774b, user=1783b, tools=2841b, tool_msgs=2) \n  > \"# Technical Design\n\nClient-only infinite canvas: a pure camera module (world<->s...\"\n  prompt=11658 tokens, max_gen=32768, ctx=131072\n  spec-gate: ngram-score=0.168 (threshold=0.010)\n  reasoning budget 32768: enforced in-stream\n  mtp=enabled (streaming, depth=6)\n  [hot-cache] reused 2062/11658 tokens (matched 2295; entry 1/1)\n  [qwen4] MTP head restored (2062 tokens from base 0)\n[qsa-gather] engaged: msv_qsa_nax_precise S=3435 kv=11627 blocks=512 bk=32 tgmem=20992 (MLX_SERVE_QSA_NAX=0 restores the stock gather)\n[qsa-decode-gather] engaged (S=1 kv=11661 rows=2049) (MLX_SERVE_QSA_DECODE_GATHER=0 restores the dense mask arm)\n[mtp] regime gate: two-chunk 37.32 ms/tok vs single 7.38 ms/tok -> two-chunk throttled (period 128)\n  [spec-stats] mode=mtp attempts=23 accepts=62 avg_per_round=2.70 per_draft_pct=62.6% depth=6 drafted=99 ext_rounds=1 partial_rounds=18 runtime_disabled=false reason=none adaptive=undecided serial_cell=0.00 sync_ms=3.39 round_ms=38.20 two_ms_tok=37.32 one_ms_tok=10.27 verdict_round=16 trials=0 width_trials=2 table=8-16k:w4:9.72/8,w5:7.03/1 table_drops=t16/c0/b0/i0 serial_drops=t0/c0/b0 depth_policy=legacy lookup=16/143/106\n  [spec-stats] lookup_table=8-16k:k7:47.3/10,k14:72.4/4\n  [qsa-arms] qsa=mask calls=504 mask=480 decode=0 verify=0 prefill=24\n  [hot-cache] resident=555.12 / 16384.00 MB (1/32 entries)\n  <- 11658+206 tokens streamed [prefill: 1928.0 tok/s (2062 cached / 11658 total), decode: 118.8 tok/s] [tool_calls]\n  pld=enabled (draft_len=5, key_len=3)\nPOST /v1/chat/completions (8 msgs, max_tokens=32768, temp=1.00, top_p=0.95, top_k=20, stream=true, thinking=true, sys=2774b, user=1783b, tools=2841b, tool_msgs=4) \n  > \"# vidi6\n\nA shared board for thinking together.\nREADME.md\nepics\nstories\n001-pan-a...\"\n  prompt=15149 tokens, max_gen=32768, ctx=131072\n  spec-gate: ngram-score=0.189 (threshold=0.010)\n  reasoning budget 32768: enforced in-stream\n  mtp=enabled (streaming, depth=6)\n  [hot-cache] reused 11627/15149 tokens (matched 11865; entry 1/1)\n  [qwen4] MTP head restored (11627 tokens from base 0)\n[mtp] regime gate: two-chunk 42.22 ms/tok vs single 19.24 ms/tok -> two-chunk throttled (period 128)\n  [spec-stats] mode=mtp attempts=68 accepts=166 avg_per_round=2.44 per_draft_pct=70.9% depth=6 drafted=234 ext_rounds=0 partial_rounds=29 runtime_disabled=false reason=none adaptive=undecided serial_cell=0.00 sync_ms=3.53 round_ms=37.69 two_ms_tok=42.22 one_ms_tok=10.41 verdict_round=15 trials=0 width_trials=4 table=8-16k:w3:10.48/33,w4:14.00/19,w5:12.20/2 table_drops=t32/c0/b0/i0 serial_drops=t0/c0/b0 depth_policy=legacy lookup=13/112/94\n  [spec-stats] lookup_table=8-16k:k7:53.9/20,k14:77.5/7\n  [qsa-arms] qsa=mask calls=996 mask=972 decode=0 verify=0 prefill=24\n  [hot-cache] resident=711.69 / 16384.00 MB (1/32 entries)\n  <- 15149+335 tokens streamed [prefill: 1815.8 tok/s (11627 cached / 15149 total), decode: 98.9 tok/s] [tool_calls]\n  pld=enabled (draft_len=5, key_len=3)\nPOST /v1/chat/completions (10 msgs, max_tokens=32768, temp=1.00, top_p=0.95, top_k=20, stream=true, thinking=true, sys=2774b, user=1783b, tools=2841b, tool_msgs=5) \n  > \"19.3.0\n8.3.1\n4.145.0\n5.0.3\n1.63.0\n\"\n  prompt=15533 tokens, max_gen=32768, ctx=131072\n  spec-gate: ngram-score=0.192 (threshold=0.010)\n  reasoning budget 32768: enforced in-stream\n  mtp=enabled (streaming, depth=6)\n  [hot-cache] reused 15118/15533 tokens (matched 15490; entry 1/1)\n  [qwen4] MTP head restored (15118 tokens from base 0)\n[mtp] regime gate: two-chunk 30.65 ms/tok vs single 8.24 ms/tok -> two-chunk throttled (period 128)\n  [spec-stats] mode=mtp attempts=15 accepts=41 avg_per_round=2.73 per_draft_pct=89.1% depth=6 drafted=46 ext_rounds=1 partial_rounds=5 runtime_disabled=false reason=none adaptive=undecided serial_cell=0.00 sync_ms=3.12 round_ms=35.25 two_ms_tok=30.65 one_ms_tok=8.23 verdict_round=15 trials=0 width_trials=0 table=8-16k:w3:8.96/43,w4:14.00/19,w5:12.20/2 table_drops=t34/c0/b0/i0 serial_drops=t0/c0/b0 depth_policy=legacy lookup=3/21/13\n  [spec-stats] lookup_table=8-16k:k7:52.6/23,k14:77.5/7\n  [qsa-arms] qsa=mask calls=240 mask=216 decode=0 verify=0 prefill=24\n  [hot-cache] resident=768.27 / 16384.00 MB (1/32 entries)\n  <- 15533+67 tokens streamed [prefill: 836.8 tok/s (15118 cached / 15533 total), decode: 111.7 tok/s] [tool_calls]\n  pld=enabled (draft_len=5, key_len=3)\n"
+  "mlx-serve-excerpt.txt": "=== server start 1790390000.000 ===\nPOST /v1/chat/completions (2 msgs, max_tokens=32768, temp=1.00, top_p=0.95, top_k=20, stream=true, thinking=true, sys=2774b, user=1783b, tools=2841b, tool_msgs=0) \n  > \"You are implementing the web app \"vidi6\" (a collaborative whiteboard) in the cur...\"\n[admission] needed=2729 MB available=34757 MB reclaimable=0 MB width=8192 verdict=admit\n  prompt=2093 tokens, max_gen=32768, ctx=131072\n  spec-gate: ngram-score=0.121 (threshold=0.010)\n  reasoning budget 32768: enforced in-stream\n  mtp=enabled (streaming, depth=6)\n[hc-prefill] engaged: S=2062 B=1 pending=false native_inject=true\n[gdn-prefill] engaged: S=2062 B=1 cold=true\n[qwen4] PLE prefill gather: SERIAL mmap walk (prefill width: 32992 rows; the pool engages past kv 262144, QWEN4_PLE_PREFETCH_PREFILL_MIN_KV overrides)\n[qsa] sparse attention engaged: kv=2062 blocks=515 top-512 (budget 2048, ratio 4)\n[qsa-select] engaged (S=2062 nb=515 k=512 tg=256) — MLX_SERVE_QSA_SELECT_KERNEL=0 restores the argpartition chain\n[qsa-fused] engaged: msv_attn_p256 mask arm qL=2062 kL=2062 Hq=24 Hkv=2 (MLX_SERVE_QSA_FUSED=0 restores stock sdpa)\n[qsa-score] engaged (S=1 nb=523 layout=base nsg=4 nsh=17) — MLX_SERVE_QSA_SCORE_FUSED=0 restores the composed chain\n[qsa-select] engaged (S=1 nb=523 k=512 tg=1024) — MLX_SERVE_QSA_SELECT_KERNEL=0 restores the argpartition chain\n[mtp] draft rerank engaged (3-bit coarse -> top-32 -> trunk re-score)\n[qsa-score] engaged (S=2 nb=523 layout=base nsg=4 nsh=17) — MLX_SERVE_QSA_SCORE_FUSED=0 restores the composed chain\n[qsa-select] engaged (S=2 nb=523 k=512 tg=1024) — MLX_SERVE_QSA_SELECT_KERNEL=0 restores the argpartition chain\n[sdpa-split] masked arm engaged: qL=3 kL=2095 gqa=12 rows/group=2 (MLX_SERVE_SDPA_SPLIT=0 restores the single dispatch)\n[mtp] prompt-lookup drafts engaged: k=7 suffix=8\n[mtp] cost table: bucket 2-4k measured w4:8.45/3 (ms/tok) replaces the fitted surface (scale 0.0532 at w4)\n  [spec-stats] mode=mtp attempts=30 accepts=83 avg_per_round=2.77 per_draft_pct=87.4% depth=6 drafted=95 ext_rounds=0 partial_rounds=10 runtime_disabled=false reason=none adaptive=undecided serial_cell=0.00 sync_ms=0.00 round_ms=33.36 two_ms_tok=0.00 one_ms_tok=7.77 verdict_round=0 trials=0 width_trials=2 table=2-4k:w4:7.71/8 table_drops=t8/c0/b0/i0 serial_drops=t0/c0/b0 depth_policy=accept lookup=12/98/77\n  [spec-stats] lookup_table=2-4k:k7:45.1/9,k14:73.1/1\n  [qsa-arms] qsa=mask calls=528 mask=528 decode=0 verify=0 prefill=0\n  [hot-cache] resident=116.45 / 16384.00 MB (1/32 entries)\n  <- 2093+201 tokens streamed [prefill: 1120.8 tok/s, decode: 133.5 tok/s] [tool_calls]\n  pld=enabled (draft_len=5, key_len=3)\nPOST /v1/chat/completions (5 msgs, max_tokens=32768, temp=1.00, top_p=0.95, top_k=20, stream=true, thinking=true, sys=2774b, user=1783b, tools=2841b, tool_msgs=2) \n  > \"# Technical Design\n\nClient-only infinite canvas: a pure camera module (world<->s...\"\n  prompt=11658 tokens, max_gen=32768, ctx=131072\n  spec-gate: ngram-score=0.168 (threshold=0.010)\n  reasoning budget 32768: enforced in-stream\n  mtp=enabled (streaming, depth=6)\n  [hot-cache] reused 2062/11658 tokens (matched 2295; entry 1/1)\n  [qwen4] MTP head restored (2062 tokens from base 0)\n[qsa-gather] engaged: msv_qsa_nax_precise S=3435 kv=11627 blocks=512 bk=32 tgmem=20992 (MLX_SERVE_QSA_NAX=0 restores the stock gather)\n[qsa-decode-gather] engaged (S=1 kv=11661 rows=2049) (MLX_SERVE_QSA_DECODE_GATHER=0 restores the dense mask arm)\n[mtp] regime gate: two-chunk 37.32 ms/tok vs single 7.38 ms/tok -> two-chunk throttled (period 128)\n  [spec-stats] mode=mtp attempts=23 accepts=62 avg_per_round=2.70 per_draft_pct=62.6% depth=6 drafted=99 ext_rounds=1 partial_rounds=18 runtime_disabled=false reason=none adaptive=undecided serial_cell=0.00 sync_ms=3.39 round_ms=38.20 two_ms_tok=37.32 one_ms_tok=10.27 verdict_round=16 trials=0 width_trials=2 table=8-16k:w4:9.72/8,w5:7.03/1 table_drops=t16/c0/b0/i0 serial_drops=t0/c0/b0 depth_policy=legacy lookup=16/143/106\n  [spec-stats] lookup_table=8-16k:k7:47.3/10,k14:72.4/4\n  [qsa-arms] qsa=mask calls=504 mask=480 decode=0 verify=0 prefill=24\n  [hot-cache] resident=555.12 / 16384.00 MB (1/32 entries)\n  <- 11658+206 tokens streamed [prefill: 1928.0 tok/s (2062 cached / 11658 total), decode: 118.8 tok/s] [tool_calls]\n  pld=enabled (draft_len=5, key_len=3)\nPOST /v1/chat/completions (8 msgs, max_tokens=32768, temp=1.00, top_p=0.95, top_k=20, stream=true, thinking=true, sys=2774b, user=1783b, tools=2841b, tool_msgs=4) \n  > \"# vidi6\n\nA shared board for thinking together.\nREADME.md\nepics\nstories\n001-pan-a...\"\n  prompt=15149 tokens, max_gen=32768, ctx=131072\n  spec-gate: ngram-score=0.189 (threshold=0.010)\n  reasoning budget 32768: enforced in-stream\n  mtp=enabled (streaming, depth=6)\n  [hot-cache] reused 11627/15149 tokens (matched 11865; entry 1/1)\n  [qwen4] MTP head restored (11627 tokens from base 0)\n[mtp] regime gate: two-chunk 42.22 ms/tok vs single 19.24 ms/tok -> two-chunk throttled (period 128)\n  [spec-stats] mode=mtp attempts=68 accepts=166 avg_per_round=2.44 per_draft_pct=70.9% depth=6 drafted=234 ext_rounds=0 partial_rounds=29 runtime_disabled=false reason=none adaptive=undecided serial_cell=0.00 sync_ms=3.53 round_ms=37.69 two_ms_tok=42.22 one_ms_tok=10.41 verdict_round=15 trials=0 width_trials=4 table=8-16k:w3:10.48/33,w4:14.00/19,w5:12.20/2 table_drops=t32/c0/b0/i0 serial_drops=t0/c0/b0 depth_policy=legacy lookup=13/112/94\n  [spec-stats] lookup_table=8-16k:k7:53.9/20,k14:77.5/7\n  [qsa-arms] qsa=mask calls=996 mask=972 decode=0 verify=0 prefill=24\n  [hot-cache] resident=711.69 / 16384.00 MB (1/32 entries)\n  <- 15149+335 tokens streamed [prefill: 1815.8 tok/s (11627 cached / 15149 total), decode: 98.9 tok/s] [tool_calls]\n  pld=enabled (draft_len=5, key_len=3)\nPOST /v1/chat/completions (10 msgs, max_tokens=32768, temp=1.00, top_p=0.95, top_k=20, stream=true, thinking=true, sys=2774b, user=1783b, tools=2841b, tool_msgs=5) \n  > \"19.3.0\n8.3.1\n4.145.0\n5.0.3\n1.63.0\n\"\n  prompt=15533 tokens, max_gen=32768, ctx=131072\n  spec-gate: ngram-score=0.192 (threshold=0.010)\n  reasoning budget 32768: enforced in-stream\n  mtp=enabled (streaming, depth=6)\n  [hot-cache] reused 15118/15533 tokens (matched 15490; entry 1/1)\n  [qwen4] MTP head restored (15118 tokens from base 0)\n[mtp] regime gate: two-chunk 30.65 ms/tok vs single 8.24 ms/tok -> two-chunk throttled (period 128)\n  [spec-stats] mode=mtp attempts=15 accepts=41 avg_per_round=2.73 per_draft_pct=89.1% depth=6 drafted=46 ext_rounds=1 partial_rounds=5 runtime_disabled=false reason=none adaptive=undecided serial_cell=0.00 sync_ms=3.12 round_ms=35.25 two_ms_tok=30.65 one_ms_tok=8.23 verdict_round=15 trials=0 width_trials=0 table=8-16k:w3:8.96/43,w4:14.00/19,w5:12.20/2 table_drops=t34/c0/b0/i0 serial_drops=t0/c0/b0 depth_policy=legacy lookup=3/21/13\n  [spec-stats] lookup_table=8-16k:k7:52.6/23,k14:77.5/7\n  [qsa-arms] qsa=mask calls=240 mask=216 decode=0 verify=0 prefill=24\n  [hot-cache] resident=768.27 / 16384.00 MB (1/32 entries)\n  <- 15533+67 tokens streamed [prefill: 836.8 tok/s (15118 cached / 15533 total), decode: 111.7 tok/s] [tool_calls]\n  pld=enabled (draft_len=5, key_len=3)\n",
+  "strata-excerpt.txt": "=== server start 1790390000.000 ===\nstrata generate: session is up (engine 0.1.36)\nstrata serve: prompt chunk auto: 8192 tokens\nstrata serve: prompt 369 tokens = 0 reused + 369 read in 1166 ms (316.4 tok/s), 46 generated in 537 ms (85.7 tok/s), drafts accepted 33 of 38, 1 checkpoints\nstrata serve: decode expert cache hit rate: 79.1% (16715 hits / 21136 lookups)\nstrata serve: prompt 468 tokens = 414 reused + 54 read in 413 ms (130.8 tok/s), 71 generated in 856 ms (82.9 tok/s), drafts accepted 54 of 72, 2 checkpoints\nstrata serve: decode expert cache hit rate: 84.3% (33246 hits / 39434 lookups)\nstrata serve: prompt 54465 tokens = 0 reused + 54465 read in 12599 ms (4322.8 tok/s), 200 generated in 1929 ms (103.7 tok/s), drafts accepted 126 of 164, 5 checkpoints\nstrata serve: decode expert cache hit rate: 89.5% (94961 hits / 106081 lookups)\nstrata serve: prompt 54497 tokens = 54460 reused + 37 read in 231 ms (160.5 tok/s), 114 generated in 895 ms (127.4 tok/s), drafts accepted 73 of 89, 6 checkpoints\nstrata serve: decode expert cache hit rate: 93.4% (55629 hits / 59572 lookups)\nstrata serve: prompt 54548 tokens = 54492 reused + 56 read in 323 ms (173.2 tok/s), 98 generated in 741 ms (132.2 tok/s), drafts accepted 72 of 75, 6 checkpoints\nstrata serve: decode expert cache hit rate: 91.8% (43132 hits / 47003 lookups)\nstrata serve: prompt 54601 tokens = 54543 reused + 58 read in 351 ms (165.4 tok/s), 96 generated in 654 ms (146.7 tok/s), drafts accepted 66 of 77, 6 checkpoints\nstrata serve: decode expert cache hit rate: 94.9% (47555 hits / 50103 lookups)\nstrata serve: prompt 54654 tokens = 54596 reused + 58 read in 345 ms (168.3 tok/s), 90 generated in 520 ms (173.0 tok/s), drafts accepted 65 of 69, 6 checkpoints\nstrata serve: decode expert cache hit rate: 95.9% (42146 hits / 43935 lookups)\nstrata serve: prompt 127967 tokens = 16384 reused + 111583 read in 25293 ms (4411.6 tok/s), 200 generated in 1446 ms (138.3 tok/s), drafts accepted 130 of 164, 6 checkpoints\nstrata serve: decode expert cache hit rate: 95.0% (103280 hits / 108752 lookups)\nstrata serve: prompt 128001 tokens = 127962 reused + 39 read in 226 ms (172.7 tok/s), 109 generated in 732 ms (148.8 tok/s), drafts accepted 81 of 88, 6 checkpoints\nstrata serve: decode expert cache hit rate: 94.2% (51683 hits / 54889 lookups)\nstrata serve: prompt 128058 tokens = 127996 reused + 62 read in 319 ms (194.6 tok/s), 83 generated in 529 ms (156.8 tok/s), drafts accepted 61 of 66, 6 checkpoints\nstrata serve: decode expert cache hit rate: 95.4% (39942 hits / 41877 lookups)\n"
  }
 }

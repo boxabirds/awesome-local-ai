@@ -212,6 +212,49 @@ def test_condition_sampler_start_stop(monkeypatch):
     assert res["degraded"] is True and res["samples"] >= 1
 
 
+def test_condition_sampler_records_every_tick_as_a_json_line(monkeypatch, tmp_path):
+    """The whole series goes to stories/NN/conditions.jsonl (dbench collect pulls it); metrics.json keeps the summary."""
+    import drive, json
+    monkeypatch.setattr(drive, "CONDITION_POLL_S", 0.01)
+    monkeypatch.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
+    monkeypatch.setattr(drive, "swap_used_gb", lambda: 1.25)
+    monkeypatch.setattr(drive, "mem_free_pct", lambda: 42.0)
+    monkeypatch.setattr(drive, "server_footprint_gb", lambda port: (58.2, 60.0))
+    monkeypatch.setattr(drive.hostenv, "gpu_sample", lambda: {"busy_pct": 97.0, "sclk_mhz": 2500})
+    out = tmp_path / "stories" / "03" / drive.CONDITIONS_FILE
+    out.parent.mkdir(parents=True)
+    s = drive.ConditionSampler(record=out)
+    s.start()
+    import time
+    time.sleep(0.05)
+    res = s.stop()
+    lines = [json.loads(l) for l in out.read_text().splitlines()]
+    assert len(lines) == res["samples"] >= 1
+    assert lines[0] == {"t": lines[0]["t"], "ac": True, "low_power": False, "thermal": "nominal", "swap_gb": 1.25, "free_pct": 42.0,
+                        "footprint_gb": 58.2, "footprint_peak_gb": 60.0, "gpu": {"busy_pct": 97.0, "sclk_mhz": 2500}}
+    assert isinstance(lines[0]["t"], float)
+    # No GPU reading: recorded as null, not left out.
+    monkeypatch.setattr(drive.hostenv, "gpu_sample", lambda: None)
+    s2 = drive.ConditionSampler(record=out)
+    s2.start(); time.sleep(0.03); s2.stop()
+    assert json.loads(out.read_text().splitlines()[-1])["gpu"] is None
+
+
+def test_condition_sampler_record_that_cannot_be_written_does_not_stop_the_guards(monkeypatch, tmp_path, capsys):
+    import drive
+    monkeypatch.setattr(drive, "CONDITION_POLL_S", 0.01)
+    monkeypatch.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
+    s = drive.ConditionSampler(record=tmp_path / "no-such-dir" / drive.CONDITIONS_FILE)
+    s.start()
+    import time
+    time.sleep(0.05)
+    res = s.stop()
+    assert res["samples"] >= 1
+    assert "conditions record failed" in capsys.readouterr().out
+    # The story's gitignore keeps the file on the machine: it is collected, never pushed.
+    assert "stories/*/conditions.jsonl" in drive.RUN_GITIGNORE
+
+
 def test_opencode_error_event_is_detected_and_session_captured(tmp_path):
     from clients import OpenCodeClient, empty_state
     c, st = OpenCodeClient(tmp_path), empty_state()
