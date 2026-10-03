@@ -62,6 +62,11 @@ export function StickyNote({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
   const [displayFit, setDisplayFit] = useState({ fontPx: 24, overflow: false });
+  // Whether a drag is in progress, mirrored into React state. `drag` is a ref (so
+  // per-frame movement does not re-render), and the note's toolbar is hidden while
+  // dragging: without this mirror nothing re-renders when the drag ends, and the
+  // toolbar of a note that has just been moved would stay hidden.
+  const [dragging, setDragging] = useState(false);
 
   // Drag bookkeeping lives in refs so per-frame movement does not re-render React;
   // the note's position comes from the document (note.x/note.y) via moveObject.
@@ -110,6 +115,7 @@ export function StickyNote({
     // moveObject returns false if the note was deleted mid-drag → end silently.
     if (!moveObject(doc, note.id, d.pendingX, d.pendingY)) {
       d.state = 'idle';
+      setDragging(false);
     }
   }, [doc, note.id]);
 
@@ -120,6 +126,7 @@ export function StickyNote({
       d.frame = 0;
     }
     d.state = 'idle';
+    setDragging(false);
   }, []);
 
   // If the note unmounts while dragging, stop the drag (stale-id safety).
@@ -151,6 +158,7 @@ export function StickyNote({
     if (d.state === 'pressed') {
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return; // still a possible click
       d.state = 'dragging';
+      setDragging(true);
       bringToFront(doc, note.id); // drawn above anything it overlaps
     }
 
@@ -172,6 +180,7 @@ export function StickyNote({
       flushDrag();
     }
     d.state = 'idle';
+    setDragging(false);
   };
 
   const handlePointerCancel = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -188,7 +197,7 @@ export function StickyNote({
   };
 
   const color = STICKY_COLORS[note.color];
-  const showToolbar = selected && !editing && drag.current.state !== 'dragging';
+  const showToolbar = selected && !editing && !dragging;
   const ytext = editing ? getStickyText(doc, note.id) : undefined;
 
   return (

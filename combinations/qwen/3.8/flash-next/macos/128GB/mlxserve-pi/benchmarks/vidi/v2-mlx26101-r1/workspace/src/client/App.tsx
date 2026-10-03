@@ -15,7 +15,9 @@ import { NavigationHint } from './canvas/NavigationHint';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
-import { IS_TEST_MODE } from './canvas/testHooks';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { IS_TEST_MODE, publishConnectionState } from './canvas/testHooks';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { StickyNote } from './objects/StickyNote';
 import {
   createSticky,
@@ -52,6 +54,18 @@ function useViewportSize(
   return size;
 }
 
+/**
+ * The board route: `/b/<boardId>`. Everything else (including an id that is not
+ * 22 base64url characters) means "no board in the URL yet".
+ */
+const BOARD_ROUTE = /^\/b\/([^/]+)\/?$/;
+
+function boardIdFromLocation(): string | null {
+  const match = BOARD_ROUTE.exec(window.location.pathname);
+  if (!match) return null;
+  return isValidBoardId(match[1] as string) ? (match[1] as string) : null;
+}
+
 /** True when focus is in a text field, so board keys must not steal the event. */
 function focusIsEditable(): boolean {
   const el = document.activeElement;
@@ -69,7 +83,11 @@ export default function App() {
   const viewport = useViewportSize(surfaceRef);
   const cam = useCamera(viewport);
   const { camera } = cam;
-  const { doc, notes } = useBoardDoc();
+  // The board comes from the URL, so opening a shared link joins that room. A
+  // bare `/` mints a fresh board id and puts it in the URL, which makes the
+  // board shareable straight away (story 5 replaces this with a board list).
+  const [boardId] = useState<string>(() => boardIdFromLocation() ?? newBoardId());
+  const { doc, notes, connectionState } = useBoardDoc(boardId);
   const selection = useSelection();
   const { selectedId, editingId, select, startEdit, endEdit } = selection;
 
@@ -81,6 +99,19 @@ export default function App() {
     () => [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     [notes],
   );
+
+  // Keep the URL equal to the board we are on, so the address bar holds a link
+  // to this exact room. Done in an effect (not during render) because React may
+  // invoke the initialiser twice in development.
+  useEffect(() => {
+    const path = `/b/${boardId}`;
+    if (window.location.pathname !== path) {
+      window.history.replaceState(null, '', path);
+    }
+  }, [boardId]);
+
+  // Let e2e assert the badge state itself, not just what is on screen.
+  useEffect(() => publishConnectionState(connectionState), [connectionState]);
 
   // Expose the board document to component tests so they can simulate model-level
   // events (e.g. a note deleted by a remote user mid-drag). No-op in production.
@@ -185,6 +216,7 @@ export default function App() {
         ))}
       </BoardViewport>
       <Toolbar onCreateSticky={createAtCentre} />
+      <ConnectionStatus state={connectionState} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

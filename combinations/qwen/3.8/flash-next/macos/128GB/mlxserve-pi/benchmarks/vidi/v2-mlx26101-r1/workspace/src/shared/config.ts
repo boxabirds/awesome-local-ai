@@ -62,3 +62,50 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** Colour a freshly created note is filled with. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// --- Live collaboration settings (story 3) ---------------------------------
+// The single place to tune how the board syncs between people.
+
+/**
+ * Soft capacity: the number of simultaneous editors the board is designed and
+ * tested for. It is never enforced — the Worker and the BoardRoom count no
+ * participants, so a 6th person joins and edits like anyone else.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/**
+ * Latency budget for live.propagate: the time from a change appearing on the
+ * sender's screen to appearing on every other connected screen. e2e tests
+ * measure and report against it; they do not assert it (one shared machine).
+ */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Exponential backoff ceiling handed to WebsocketProvider (`maxBackoffTime`). */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays up after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** Outage length used by the live.catch_up verification (TC-27). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/**
+ * Generous functional wait used by every e2e test in the project: states are
+ * awaited until they converge, wall-clock latency is only logged against
+ * LIVE_UPDATE_LATENCY_BUDGET_MS.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+/**
+ * WebSocket close code used by tests to simulate the room going away: 1011
+ * ("internal server error"), which a reconnecting client treats as retryable.
+ */
+export const CLOSE_SERVER_ERROR = 1011;
+
+/**
+ * Guard used where a test must not wait forever for a change that is supposed to
+ * arrive: the LIVE_UPDATE_LATENCY_BUDGET_MS budget plus allowance for a shared,
+ * loaded machine. Measured latency is logged against the budget itself, so the
+ * guard only fails a test that is properly broken, not one on a slow CI runner.
+ */
+export const E2E_PROPAGATION_GUARD_MS = 2_000;

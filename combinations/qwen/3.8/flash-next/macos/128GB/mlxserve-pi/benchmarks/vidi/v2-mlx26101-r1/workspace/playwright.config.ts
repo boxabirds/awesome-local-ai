@@ -26,7 +26,24 @@ export default defineConfig({
     trace: 'off',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        // Chromium slows down timers in pages it thinks are hidden or covered by
+        // another window, which would hold up the connection badge's own timers
+        // (and anything on requestAnimationFrame) for up to a minute. Tests need a
+        // page's timers to run at their real length even when several boards are
+        // open side by side.
+        launchOptions: {
+          args: [
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+          ],
+        },
+      },
+    },
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ].filter((project) => enabledBrowsers.includes(project.name)),
@@ -34,12 +51,20 @@ export default defineConfig({
   // window.__vidi6 test hook) and then serves it with wrangler, exercising the
   // same static-asset serving path the Worker will use from story 3.
   webServer: {
-    command: `npx wrangler dev --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT} --local`,
+    // `--persist-to` gives this server its own local state directory. Two
+    // `wrangler dev` processes sharing the default `.wrangler/state` make workerd
+    // die with `SQLITE_BUSY` on the second one's reload, which looks like a
+    // mysterious "runtime failed to start" and has nothing to do with the code.
+    command: `npx wrangler dev --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT} --persist-to node_modules/.tmp/wrangler-state-${PORT} --local`,
     url: baseURL,
-    // Always start a fresh server: `wrangler dev` disables its assets watcher
-    // past the platform file-watch limit, so a reused process could serve stale
-    // asset hashes after a rebuild.
-    reuseExistingServer: false,
+    // Reuse a `wrangler dev` that is already listening (this sandbox cannot kill
+    // processes, so each run would otherwise need two fresh ports). A server that
+    // is already running snapshots its asset list when it starts, which is why
+    // `npm run test:e2e` touches a Worker source file after building: that makes a
+    // lingering server reload and read the new assets, so it never serves a stale
+    // bundle. In a clean environment Playwright starts the server after the build
+    // and there is nothing stale to serve.
+    reuseExistingServer: true,
     timeout: 120_000,
     stdout: 'pipe',
     stderr: 'pipe',

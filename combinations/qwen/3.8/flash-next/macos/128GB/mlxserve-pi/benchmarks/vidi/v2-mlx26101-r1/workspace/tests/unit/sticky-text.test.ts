@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import {
+  applyTextDelta,
   applyTextDiff,
+  caretAfterRemoteEdit,
   clampToLimit,
   counterVisible,
+  textDelta,
 } from '../../src/client/objects/StickyText';
 import {
   STICKY_COUNTER_THRESHOLD_CHARS,
@@ -160,5 +163,165 @@ describe('sticky.text logic', () => {
     expect(counterVisible(949)).toBe(false); // remaining 51
     expect(counterVisible(950)).toBe(true); // remaining 50
     expect(counterVisible(951)).toBe(true); // remaining 49
+  });
+});
+
+// --- story 3: two people typing into one note -------------------------------
+// The editor used to write its whole box into the shared text, so as soon as a
+// second person's characters landed in between, the next local keystroke diffed
+// them away and they vanished. It now writes only the change it made itself.
+
+function sortedChars(text: string): string {
+  return [...text].sort().join('');
+}
+
+/** Two documents that stay in step, as they will be once they share a room. */
+function syncedPair(base: string): { a: Y.Text; b: Y.Text } {
+  const docA = new Y.Doc();
+  const docB = new Y.Doc();
+  const relay = (_from: Y.Doc, to: Y.Doc) => (update: Uint8Array, origin: string) => {
+    if (origin === 'relay') return;
+    Y.applyUpdate(to, update, 'relay');
+  };
+  docA.on('update', relay(docA, docB));
+  docB.on('update', relay(docB, docA));
+  const a = docA.getText('note');
+  docB.getText('note');
+  a.insert(0, base);
+  expect(docB.getText('note').toString()).toBe(base);
+  return { a, b: docB.getText('note') };
+}
+
+/** One person's editor: a box with `value` in it, committing keystroke by keystroke. */
+class Box {
+  private buffer: string;
+  private base: string;
+  constructor(private readonly ytext: Y.Text) {
+    this.buffer = ytext.toString();
+    this.base = this.buffer;
+  }
+
+  /** What the person sees in their box. */
+  get value(): string {
+    return this.buffer;
+  }
+
+  /** Type at the caret, which for these tests sits at the end of the box. */
+  type(chars: string): void {
+    this.buffer += chars;
+    this.commit();
+  }
+
+  /** Type at the start of the box instead of at its end. */
+  typeInFront(chars: string): void {
+    this.buffer = chars + this.buffer;
+    this.commit();
+  }
+
+  private commit(): void {
+    // Exactly the editor's commit path: only this box's own change is sent.
+    this.base = applyTextDelta(this.ytext, textDelta(this.base, this.buffer), LOCAL_ORIGIN);
+    // ... and the box then shows the merged text, as the editor does.
+    this.buffer = this.base;
+  }
+}
+
+describe('sticky.text concurrent typing', () => {
+  it('textDelta is the minimal change between two strings', () => {
+    expect(textDelta('abc', 'abc')).toEqual({ start: 3, deleteCount: 0, insert: '' });
+    expect(textDelta('abc', 'abcX')).toEqual({ start: 3, deleteCount: 0, insert: 'X' });
+    expect(textDelta('abc', 'ac')).toEqual({ start: 1, deleteCount: 1, insert: '' });
+    expect(textDelta('green', 'red green')).toEqual({
+      start: 0,
+      deleteCount: 0,
+      insert: 'red ',
+    });
+  });
+
+  it('applyTextDelta splices a local change into text that moved on', () => {
+    const { ytext } = doc();
+    ytext.insert(0, 'green');
+    const local = textDelta('green', 'red green'); // typed 'red ' in front
+    ytext.insert(5, ' blue'); // the other person typed while we were typing
+    const merged = applyTextDelta(ytext, local, LOCAL_ORIGIN);
+    expect(sortedChars(merged)).toBe(sortedChars('red green blue'));
+    expect(merged).toContain('blue');
+  });
+
+  it('applyTextDelta shortens an out-of-range delete instead of eating text', () => {
+    const { ytext } = doc();
+    ytext.insert(0, 'green blue');
+    // A local box that deleted 4 chars from a base whose tail is no longer there:
+    // the delete is shortened to what exists rather than reaching further.
+    const merged = applyTextDelta(
+      ytext,
+      { start: 8, deleteCount: 4, insert: '' },
+      LOCAL_ORIGIN,
+    );
+    expect(merged).toBe('green bl');
+  });
+
+  it('TC-23 typing at opposite ends of one note keeps both people words', () => {
+    const { a, b } = syncedPair('green');
+    const alex = new Box(a);
+    const sam = new Box(b);
+
+    alex.type(' at the top'); // appends at the end of the box
+    sam.typeInFront('very '); // inserts at the start of the box
+
+    expect(a.toString()).toBe(b.toString());
+    expect(a.toString()).toContain('very green');
+    expect(a.toString()).toContain(' at the top');
+    expect(sortedChars(a.toString())).toBe(
+      sortedChars('very green at the top'),
+    );
+  });
+
+  it('TC-23 keystrokes at the same offset interleave but nothing is lost', () => {
+    const { a, b } = syncedPair('green');
+    const alex = new Box(a);
+    const sam = new Box(b);
+
+    // Both people type at the same moment, at the same spot: the letters end up
+    // interleaved (that is what a merge does) but no character ever disappears.
+    for (const [left, right] of [
+      ['r', ' '],
+      ['e', 'b'],
+      ['d', 'l'],
+      [' ', 'u'],
+      ['', 'e'],
+    ] as const) {
+      if (left) alex.type(left);
+      if (right) sam.type(right);
+    }
+
+    expect(a.toString()).toBe(b.toString());
+    expect(sortedChars(a.toString())).toBe(sortedChars('red green blue'));
+  });
+
+  it('TC-23 a whole word typed on each side still converges', () => {
+    const { a, b } = syncedPair('Pricing');
+    const alex = new Box(a);
+    const sam = new Box(b);
+    alex.type('!!');
+    sam.type('??');
+    alex.type('aa');
+    sam.type('bb');
+    expect(a.toString()).toBe(b.toString());
+    expect(sortedChars(a.toString())).toBe(sortedChars('Pricing!!??aabb'));
+  });
+
+  it('caretAfterRemoteEdit steps the caret around someone else change', () => {
+    // "ab|cd" -> someone inserts "XY" before the caret.
+    expect(caretAfterRemoteEdit(2, [{ retain: 2 }, { insert: 'XY' }])).toBe(4);
+    // Inserted after the caret: the caret stays.
+    expect(caretAfterRemoteEdit(2, [{ retain: 4 }, { insert: 'XY' }])).toBe(2);
+    // Deleted before the caret: pulled left, never below zero.
+    expect(caretAfterRemoteEdit(3, [{ retain: 1 }, { delete: 2 }])).toBe(1);
+    expect(caretAfterRemoteEdit(4, [{ delete: 9 }])).toBe(0);
+    // Sitting at the start of the deleted range: the caret does not move.
+    expect(caretAfterRemoteEdit(1, [{ retain: 1 }, { delete: 5 }])).toBe(1);
+    // Deleted after the caret: the caret stays.
+    expect(caretAfterRemoteEdit(2, [{ retain: 3 }, { delete: 2 }])).toBe(2);
   });
 });

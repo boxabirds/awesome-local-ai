@@ -35,3 +35,30 @@ export const TWELVE_HUNDRED_CHARS: string = (() => {
   while (s.length < 1200) s += PARAGRAPH_SENTENCES.join('');
   return s.slice(0, 1200);
 })();
+
+/**
+ * Everyday retrospective words. The seeded random-op generators type real words
+ * (never a repeated character) so generated boards look like real ones.
+ */
+export const RANDOM_WORDS: readonly string[] = [
+  'onboarding',
+  'handoff',
+  'clarify',
+  'cluster',
+  'facilitator',
+  'retrospective',
+  'timescale',
+  'action',
+  'blocker',
+  'appreciation',
+  'pricing',
+  'documentation',
+  'pairing',
+  'release',
+  'backlog',
+  'follow-up',
+  'template',
+  'agenda',
+  'timebox',
+  'vote',
+];

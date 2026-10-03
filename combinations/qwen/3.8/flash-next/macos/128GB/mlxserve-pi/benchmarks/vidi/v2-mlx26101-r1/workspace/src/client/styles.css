@@ -98,3 +98,33 @@ button:disabled {
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+
+/* Connection badge (top centre). Only on screen while the room is not in sync:
+   amber when the connection is lost, green for the confirmation after it comes
+   back. It never takes pointer events, so the board stays editable under it. */
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 1.2;
+  color: #fff;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.connection-status--connecting {
+  background: #5b6472;
+}
+
+.connection-status--reconnecting {
+  background: #b26a00;
+}
+
+.connection-status--confirmed {
+  background: #1b7f4b;
+}

@@ -3,10 +3,13 @@ import type * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import {
-  applyTextDiff,
+  applyTextDelta,
+  caretAfterRemoteEdit,
   clampToLimit,
   counterVisible,
   fitFontSize,
+  textDelta,
+  type TextOp,
 } from './StickyText';
 
 export interface StickyTextEditorProps {
@@ -24,15 +27,18 @@ function noteAncestor(el: Element | null): Element | null {
 /**
  * The textarea shown while a note is being edited. It is the bridge between a
  * plain textarea and the shared Y.Text: every `input` is clamped to the character
- * limit and written to Y.Text with a minimal diff (so story 3's concurrent typing
- * survives). IME composition is deferred to `compositionend` so multibyte input
- * never duplicates characters. Escape ends editing keeping the note selected; a
+ * limit and written to Y.Text as the delta since this box last wrote (see
+ * `applyTextDelta`), so story 3's concurrent typing keeps every character.
+ * IME composition is deferred to `compositionend` so multibyte input never
+ * duplicates characters. Escape ends editing keeping the note selected; a
  * pointerdown outside the note ends editing and deselects. The font auto-fits as
  * text grows, and a fade marks overflow past the smallest readable size.
  */
 export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
+  /** What this box last wrote to (or read from) the shared text. */
+  const baseRef = useRef<string>(ytext.toString());
   // A pending value written to the DOM directly but not yet committed (only used
   // to satisfy the uncontrolled/controlled edge when clamping truncates).
   const [length, setLength] = useState(() => ytext.toString().length);
@@ -51,18 +57,35 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     );
   };
 
+  /**
+   * Show `value` in the box with the caret at `caret`, and remember it as the
+   * basis of the next local change.
+   */
+  const adopt = (value: string, caret: number): void => {
+    baseRef.current = value;
+    const el = ref.current;
+    if (!el) return;
+    if (el.value !== value) el.value = value;
+    const at = Math.min(Math.max(caret, 0), value.length);
+    el.setSelectionRange(at, at);
+    setLength(value.length);
+    remeasure();
+  };
+
   const commit = () => {
     const el = ref.current;
     if (!el) return;
-    const clamped = clampToLimit(el.value);
-    if (clamped !== el.value) {
-      // Drop the over-limit characters and park the caret at the end of kept text.
-      el.value = clamped;
-      el.setSelectionRange(clamped.length, clamped.length);
+    const next = clampToLimit(el.value);
+    const delta = textDelta(baseRef.current, next);
+    if (delta.deleteCount === 0 && delta.insert.length === 0) {
+      // Nothing changed here; just pick up whatever the other person typed.
+      adopt(ytext.toString(), next.length);
+      return;
     }
-    setLength(clamped.length);
-    applyTextDiff(ytext, clamped, LOCAL_ORIGIN);
-    remeasure();
+    // Only this box's own change goes to the shared text, wherever that text has
+    // got to in the meantime — characters typed by someone else survive.
+    const merged = applyTextDelta(ytext, delta, LOCAL_ORIGIN);
+    adopt(merged, delta.start + delta.insert.length);
   };
 
   // Mount: seed the textarea, focus it and place the caret at the end of the text.
@@ -70,11 +93,40 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     const el = ref.current;
     if (!el) return;
     el.value = ytext.toString();
+    baseRef.current = el.value;
     setLength(el.value.length);
     el.focus();
     const end = el.value.length;
     el.setSelectionRange(end, end);
     remeasure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ytext]);
+
+  // The other person's typing on this note appears while we are editing it too:
+  // their change is adopted into the box and the caret is stepped around it.
+  useEffect(() => {
+    const onRemote = (
+      event: Y.YTextEvent,
+      transaction: Y.Transaction,
+    ): void => {
+      if (transaction.origin === LOCAL_ORIGIN) return; // our own write, already adopted
+      if (composingRef.current) return; // never disturb an in-flight composition
+      const value = ytext.toString();
+      const el = ref.current;
+      if (el && el.value === value) {
+        baseRef.current = value;
+        return;
+      }
+      const caret = el
+        ? caretAfterRemoteEdit(
+            el.selectionStart ?? value.length,
+            event.delta as unknown as readonly TextOp[],
+          )
+        : value.length;
+      adopt(value, caret);
+    };
+    ytext.observe(onRemote);
+    return () => ytext.unobserve(onRemote);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ytext]);
 

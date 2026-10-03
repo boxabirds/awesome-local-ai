@@ -120,3 +120,156 @@ builds contain no reference to it. Component tests additionally override
 Same environment limitation as story 1: only Chromium can launch in this sandbox,
 so the default run is Chromium and Firefox/WebKit are opted in elsewhere
 (`E2E_BROWSERS=...`). No sticky test cases were removed or weakened.
+
+---
+
+# Notes — story 3 (See other people's edits appear live on the same board)
+
+## BoardRoom relay details worth knowing
+- A reply envelope must start with the **outer** message type: y-websocket's
+  `messageHandlers[messageSync]` writes `messageSync` into the reply encoder
+  before calling `readSyncMessage`. Doing only the latter produces frames whose
+  first byte is a *sync* type, which the peer reads as an awareness frame. Both
+  the room and the test client write the prefix.
+- `readSyncStep2` swallows `Y.applyUpdate` failures unless you pass it an error
+  handler, so the room passes one that rethrows: that is what turns a corrupt
+  document update into the required `close(1003)` instead of a silent ignore.
+- When a peer closes its socket, workerd does **not** echo the close on our side
+  automatically, so the room's `close`/`error` listeners call `close()` too
+  (after forgetting the socket). Without it a browser/test client sits in
+  `CLOSING` forever waiting for the handshake to complete.
+
+## Integration tests inside workerd (`@cloudflare/vitest-pool-workers`)
+- `SELF.fetch(url, { headers: { Upgrade: 'websocket' } })` returns status 101 with
+  `response.webSocket`: that is the *client* end of the room's `WebSocketPair`
+  delivered through the service binding, and workerd requires `accept()` on it
+  before it may be used. Everything else is real — real Yjs, real WebSocket
+  frames, real Durable Object.
+- TC-04's "no object instance created" is checked with
+  `listDurableObjectIds(env.BOARD_ROOM)` from `cloudflare:test` before and after
+  the request instead of spying on `idFromName`: it observes the real thing (no
+  instance exists) rather than a mock call, and needs no test-only seam in the
+  Worker.
+- TC-18's "restart" is `evictDurableObject(stub, { webSockets: 'close' })` — the
+  object is really gone, and because story 3 persists nothing the fresh instance
+  starts from an empty document. The reconnecting client keeps its own `Y.Doc`
+  (`RoomClient.reconnect()` swaps only the socket), which is exactly the browser
+  case: the tab still has the board and refills the room.
+- TC-31's dead socket is created deterministically inside the room
+  (`runInDurableObject` closes one socket and mutates the doc in the same turn),
+  because a client-initiated close may already have been processed by the time
+  the next update is broadcast.
+- `tsconfig.json` gets `cloudflare:test` types from
+  `/// <reference types="@cloudflare/vitest-pool-workers/types" />` in
+  `tests/integration/env.d.ts`; the single project keeps `lib: DOM` for React and
+  `@cloudflare/workers-types` for the Worker, which coexist under `skipLibCheck`.
+
+## The badge in React (TC-19 to TC-21)
+- `ConnectionStatus` does not talk to the provider: `connectBoard` feeds a separate
+  state machine, `createConnectionTracker(onState)`, which turns the provider's
+  `status`/`sync` events into the four states the badge renders. The component tests
+  drive that machine directly with fake timers and a `MockProvider extends
+  EventEmitter`, so the 2 s "Connected" confirmation is testable in milliseconds and
+  there is nothing fake about a real provider in real use.
+- The component project aliases `y-websocket` to
+  `tests/component/y-websocket-stub.ts` (a `WebsocketProvider` that only
+  remembers the doc and emits what a test tells it to). The alias is at the
+  *project* level in `vitest.config.ts`, next to `test:`, not inside it — other
+  projects keep the real package.
+- The badge's URL is rewritten in an effect, never during render, and
+  `publishConnectionState` keeps its latest value in a module-level variable so a
+  remount shows the current state instead of a blank moment.
+
+## E2E with several people on one board (TC-22 to TC-28)
+- Each person is a browser **context** of one browser (`helpers/participants.ts`),
+  so nothing can be shared through `localStorage`, a BroadcastChannel or a cache —
+  the only path from one screen to another is the worker and its room. The helper
+  also waits for `window.__vidi6.board().sync` (the provider's own sync flag)
+  before a test starts issuing changes, so a "did it arrive in 4 ms" measurement is
+  not measuring the initial sync.
+- Latency is *measured and logged*, and only fails past
+  `E2E_PROPAGATION_GUARD_MS` (2 s) — the number the PRD cares about is
+  `LIVE_UPDATE_LATENCY_BUDGET_MS` (1 s), which the runs report (observed 1-30 ms).
+  Tests for "both people end up seeing the same thing" wait for the screens to
+  agree, so they say what is true rather than how long it took.
+- `window.__vidi6Board` was already taken: story 2's `App.tsx` puts the raw
+  `Y.Doc` there for the component tests. The e2e handle is `window.__vidi6TestBoard`
+  (`{ doc, notes(), create(), moveTo(), color(), write(), remove() }`) and is
+  installed by `installBoardHandle` in test hooks only.
+
+## Two people typing into one note (why TC-23 is written the way it is)
+- The editor used to commit the whole box contents as a diff against the document.
+  With two people in one note that deletes the other person's characters: Sam's
+  commit was computed against a base that did not contain Alex's newest letter.
+  It now commits the **delta since this box last wrote** (`textDelta` +
+  `applyTextDelta`), so a local keystroke is a splice into wherever the shared text
+  has got to, and a remote change is adopted into the box with the caret stepped
+  around it (`caretAfterRemoteEdit`).
+- What Yjs guarantees here, and what the test asserts: all replicas end up with the
+  same text, and nothing is lost or invented — the merged text is made of exactly
+  the characters typed, no more and no less. What is *not* guaranteed (and the test
+  says so in a comment): that each person's own word stays in one piece. Each
+  keystroke is its own transaction placed at a caret that remote text has moved,
+  and this story has no presence or "who is editing what" — that is a later story.
+  Verified over 12 runs: convergence and the exact character multiset every time.
+
+## Deliberately clicking a note that is already selected
+- Story 2 hides a note's toolbar while `drag.current.state === 'dragging'`, but
+  `drag` is a ref: nothing re-rendered when the drag ended, so after moving a note
+  its toolbar stayed hidden until something else happened to re-render the note.
+  `StickyNote` now mirrors the drag into a `dragging` state (`setDragging`) — the
+  toolbar is back the moment the pointer is released, which is what TC-25 needs.
+- Clicking an already-selected note *deselects* it (story 2's behaviour), so
+  `ensureSelected` in the helper clicks a note only when it is not selected, and if
+  a selected note has no toolbar it clicks twice — off, then back on — instead of
+  hanging on a click of a button that is not on screen.
+
+## Simulating a dropped network for one person
+- `context.setOffline(true)` does **not** drop an established WebSocket in this
+  Chromium build: the page stayed "Connected" through it. What works is routing the
+  socket yourself: `context.routeWebSocket(/\/api\/rooms\//, route => ...)`, keep
+  the `route.connectToServer()` pair, and to simulate the outage close **the page
+  side** of it (`route.toPage.close({ code: 1011 })`) while a flag makes every later
+  reconnection attempt get `route.close(...)` too. Turning the flag off lets the
+  provider's next attempt through, and the badge goes
+  Reconnecting… → Connected → gone in about 2.5 s.
+- Closing only the *server* side of that pair does not reach the page in Playwright
+  1.63, which is a confusing half an hour: close the page side.
+
+## Keeping a dev server honest in this sandbox
+- `wrangler dev` snapshots the **asset list** when it starts. Rebuilding
+  `dist/client` does not refresh it — the fresh `index.html` then points at a bundle
+  the running server answers with the SPA fallback HTML, and the app dies with
+  "Failed to load module script ... MIME type text/html" (a whole suite of tests
+  failing because the server was quietly stale). Touching a *Worker source* file
+  makes wrangler reload and read the new assets, so `npm run test:e2e` does
+  `npm run build:test && touch src/worker/index.ts` before Playwright starts. In a
+  clean environment Playwright starts the server after the build and the touch is
+  simply harmless.
+- Two `wrangler dev` processes sharing the default local state directory
+  (`.wrangler/state`) make the second one kill workerd with
+  `database is locked: SQLITE_BUSY` — the server dies with "The Workers runtime
+  failed to start", which reads like a broken Worker and is nothing of the sort.
+  There is no `persist` key in this wrangler version's config schema, so the
+  Playwright `webServer` command passes `--persist-to
+  node_modules/.tmp/wrangler-state-<port>`: each dev server keeps its own local
+  state and they cannot lock each other out. Story 3 stores nothing anyway.
+- Chromium slows timers in pages it believes are hidden, which can postpone the
+  badge's 2 s "Connected" timer for tens of seconds when several boards are open at
+  once. The chromium project launches with `--disable-background-timer-throttling`,
+  `--disable-backgrounding-occluded-windows` and `--disable-renderer-backgrounding`.
+
+## Nightly (TC-29, TC-30)
+- Selected by tag: `npm run test:e2e` runs `--grep-invert @nightly`,
+  `npm run test:e2e:nightly` runs `--grep @nightly`. A separate Playwright project
+  would need its own browser and webServer entry for no benefit.
+- The idle test freezes the page clock (`page.clock.install()` then `runFor(5000)`
+  eleven times) to sit 45 s of page time in under a second, and proves the badge
+  never flickered with a MutationObserver recorder installed in the page — an
+  observer needs no timers, so it keeps working while the clock is frozen. The
+  socket is real (the clock does not touch it), and a change made afterwards still
+  crosses in 1 ms.
+- The capacity test is five contexts × 200 seeded operations (`randomBoardOps`,
+  1000 writes in ~200 ms) and asserts the screens converge (observed ~1.1 s), that a
+  6th person is not turned away and catches up, and that one more change still
+  arrives quickly afterwards.
