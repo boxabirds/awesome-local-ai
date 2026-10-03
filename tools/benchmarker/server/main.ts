@@ -149,7 +149,7 @@ function loadFixture() {
   for (const jobs of Object.values(f.jobs as Record<string, DbenchJob[]>)) for (const j of jobs) j.updated_at ??= now();
   Object.assign(src, { records: f.records, suites: f.suites, jobs: f.jobs, web: f.web ?? null, flowCounts: f.flowCounts ?? {}, fetchedAt: now(), dbenchAt: now() });
   ops = fakeOps(src.jobs, f.machines ?? {});
-  conversations = fixtureStore(f.conversations ?? {});
+  conversations = fixtureStore(f.conversations ?? {}, f.activity ?? null);
 }
 if (args.fixture) {
   loadFixture();
@@ -174,6 +174,7 @@ async function conversationsApi(req: import("node:http").IncomingMessage, res: i
   const orNotFound = (v: unknown) => (v === null ? send(404, {}) : send(200, v));
   let m: RegExpExecArray | null;
   if (path === "/api/conversations") return orNotFound((await conversations.available()) ?? { ids: [], complete: [] }), true;
+  if (path === "/api/conversations/activity") return send(200, (await conversations.activity()) ?? { version: 0, themes: [], rows: [] }), true;
   if ((m = /^\/api\/conversations\/([^/]+)$/.exec(path))) return orNotFound(await conversations.conversation(decodeURIComponent(m[1]))), true;
   if ((m = /^\/api\/conversations\/([^/]+)\/events$/.exec(path))) {
     const q = url.searchParams;

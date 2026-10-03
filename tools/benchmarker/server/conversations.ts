@@ -2,6 +2,7 @@
 // proxies as /api/conversations/… (never reading the database itself). In fixture mode the same routes are served
 // from the fixture's events in memory, with the same paging rules, so the tests see what the API would give.
 import type { Conversation, ConversationEvent, EventsPage } from "../shared/conversation.ts";
+import type { ActivityData } from "../shared/activityView.ts";
 import { EVENTS_PAGE_MAX } from "../shared/conversation.ts";
 
 export interface Available { ids: string[]; complete: string[] }
@@ -15,6 +16,8 @@ export interface ConversationStore {
   events(id: string, q: EventsQuery): Promise<EventsPage | { error: string } | null>;
   call(id: string, idx: number): Promise<Record<string, unknown> | null>;
   tool(id: string, idx: number): Promise<Record<string, unknown> | null>;
+  /** Thinking by activity class, per story run (shared/activityView.ts). Null when the API can't be reached. */
+  activity(): Promise<ActivityData | null>;
 }
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -52,6 +55,7 @@ export function proxyStore(base: string): ConversationStore {
     },
     call: (id, idx) => plain(`/${encodeURIComponent(id)}/calls/${idx}`),
     tool: (id, idx) => plain(`/${encodeURIComponent(id)}/tools/${idx}`),
+    activity: async () => { const v = await getJson<ActivityData>(`${base.replace(/\/$/, "")}/v1/activity`); return isError(v) ? null : v; },
   };
 }
 
@@ -77,7 +81,7 @@ const byOrd = (a: ConversationEvent, b: ConversationEvent) => a.ord - b.ord;
 
 /** The in-memory store for tests, with the API's paging rules. `append` adds events to a story (the test reset's
  * `appendEvents`), each with the next ord, so the open-ended form can be seen to pick them up. */
-export function fixtureStore(data: Record<string, FixtureConversation>): ConversationStore & { append(id: string, events: Omit<ConversationEvent, "cursor" | "ord">[]): void } {
+export function fixtureStore(data: Record<string, FixtureConversation>, activity: ActivityData | null = null): ConversationStore & { append(id: string, events: Omit<ConversationEvent, "cursor" | "ord">[]): void } {
   const stories = new Map<string, FixtureConversation & { events: ConversationEvent[] }>();
   for (const [id, c] of Object.entries(data)) stories.set(id, { ...c, events: c.events.map((e) => ({ ...e, cursor: cursorOf(e) })) });
   const range = (evs: ConversationEvent[]) => ({ fromMs: Math.min(...evs.map((e) => e.tMs)), toMs: Math.max(...evs.map((e) => e.tMs)) + 1 });
@@ -118,6 +122,7 @@ export function fixtureStore(data: Record<string, FixtureConversation>): Convers
     },
     async call(id, idx) { return stories.get(id)?.calls?.[String(idx)] ?? null; },
     async tool(id, idx) { return stories.get(id)?.tools?.[String(idx)] ?? null; },
+    async activity() { return activity; },
     append(id, events) {
       const c = stories.get(id) ?? { events: [] };
       let ord = Math.max(-1, ...c.events.map((e) => e.ord));

@@ -2702,5 +2702,189 @@
    },
    "tools": {}
   }
+ },
+ "activity": {
+  "version": 1,
+  "themes": [
+   {
+    "id": 0,
+    "name": "Weighing and correcting",
+    "definition": "weighs alternatives or corrects itself"
+   },
+   {
+    "id": 1,
+    "name": "Looking at code",
+    "definition": "reads existing code to understand it"
+   },
+   {
+    "id": 2,
+    "name": "Running tests",
+    "definition": "runs the tests or the build"
+   }
+  ],
+  "rows": [
+   {
+    "rel": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/stories/01",
+    "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "run": "v2-r5",
+    "story": 1,
+    "theme": 0,
+    "chars": 1000,
+    "paragraphs": 8
+   },
+   {
+    "rel": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/stories/01",
+    "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "run": "v2-r5",
+    "story": 1,
+    "theme": 1,
+    "chars": 400,
+    "paragraphs": 3
+   },
+   {
+    "rel": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/stories/01",
+    "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "run": "v2-r5",
+    "story": 1,
+    "theme": 2,
+    "chars": 200,
+    "paragraphs": 1
+   },
+   {
+    "rel": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4/stories/01",
+    "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "run": "v2-r4",
+    "story": 1,
+    "theme": 0,
+    "chars": 2000,
+    "paragraphs": 16
+   },
+   {
+    "rel": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4/stories/01",
+    "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "run": "v2-r4",
+    "story": 1,
+    "theme": 1,
+    "chars": 600,
+    "paragraphs": 5
+   },
+   {
+    "rel": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4/stories/01",
+    "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "run": "v2-r4",
+    "story": 1,
+    "theme": 2,
+    "chars": 200,
+    "paragraphs": 1
+   },
+   {
+    "rel": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1/stories/01",
+    "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi",
+    "run": "v2-r1",
+    "story": 1,
+    "theme": 0,
+    "chars": 500,
+    "paragraphs": 4
+   },
+   {
+    "rel": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1/stories/01",
+    "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi",
+    "run": "v2-r1",
+    "story": 1,
+    "theme": 1,
+    "chars": 300,
+    "paragraphs": 2
+   },
+   {
+    "rel": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1/stories/01",
+    "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi",
+    "run": "v2-r1",
+    "story": 1,
+    "theme": 2,
+    "chars": 100,
+    "paragraphs": 1
+   },
+   {
+    "rel": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/stories/02",
+    "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "run": "v2-r5",
+    "story": 2,
+    "theme": 0,
+    "chars": 800,
+    "paragraphs": 6
+   },
+   {
+    "rel": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/stories/02",
+    "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "run": "v2-r5",
+    "story": 2,
+    "theme": 1,
+    "chars": 200,
+    "paragraphs": 1
+   },
+   {
+    "rel": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/stories/02",
+    "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "run": "v2-r5",
+    "story": 2,
+    "theme": 2,
+    "chars": 100,
+    "paragraphs": 1
+   },
+   {
+    "rel": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1/stories/02",
+    "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi",
+    "run": "v2-r1",
+    "story": 2,
+    "theme": 0,
+    "chars": 1600,
+    "paragraphs": 13
+   },
+   {
+    "rel": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1/stories/02",
+    "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi",
+    "run": "v2-r1",
+    "story": 2,
+    "theme": 1,
+    "chars": 100,
+    "paragraphs": 1
+   },
+   {
+    "rel": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1/stories/02",
+    "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi",
+    "run": "v2-r1",
+    "story": 2,
+    "theme": 2,
+    "chars": 50,
+    "paragraphs": 1
+   },
+   {
+    "rel": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/stories/09",
+    "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "run": "v2-r5",
+    "story": 9,
+    "theme": 0,
+    "chars": 99999,
+    "paragraphs": 833
+   },
+   {
+    "rel": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/stories/09",
+    "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "run": "v2-r5",
+    "story": 9,
+    "theme": 1,
+    "chars": 99999,
+    "paragraphs": 833
+   },
+   {
+    "rel": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/stories/09",
+    "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "run": "v2-r5",
+    "story": 9,
+    "theme": 2,
+    "chars": 99999,
+    "paragraphs": 833
+   }
+  ]
  }
 }

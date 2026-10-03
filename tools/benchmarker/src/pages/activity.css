@@ -1,0 +1,12 @@
+/* The activity report (ActivityPage.tsx): two combinations' thinking side by side, by activity class. */
+.activity-page .act-note { margin: 0 12px 10px; color: var(--muted); max-width: 70ch; }
+.activity-page .act-pickers { display: flex; flex-wrap: wrap; gap: 16px; padding: 0 12px 10px; align-items: end; }
+.activity-page .act-pick { display: grid; gap: 2px; }
+.activity-page .act-pick select { font: inherit; max-width: 46ch; }
+.activity-page [data-fact="basis"] { margin: 0 12px 8px; color: var(--muted); }
+.activity-page .act-table { width: auto; min-width: 0; }
+.activity-page .act-table th.n { white-space: nowrap; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
+.activity-page .act-table th[scope="row"] { font-weight: 400; text-align: left; white-space: nowrap; }
+.activity-page .act-ratio { font-variant-numeric: tabular-nums; font-weight: 650; }
+.activity-page .act-total th, .activity-page .act-total td { border-top: 2px solid var(--line); font-weight: 650; }
+.activity-page .act-foot { margin: 8px 12px 0; color: var(--muted); }

@@ -31,7 +31,44 @@ pub fn router(shared: Arc<Shared>) -> Router {
         .route("/v1/conversations/{id}/events", get(events))
         .route("/v1/conversations/{id}/calls/{idx}", get(call))
         .route("/v1/conversations/{id}/tools/{idx}", get(tool))
+        .route("/v1/activity", get(activity))
         .with_state(shared)
+}
+
+/// Thinking by activity class, per story run: what the benchmarker's activity report reads. It comes from the analytics
+/// file beside the warehouse (derived, rebuildable), not from the warehouse itself; with no file, or nothing assigned
+/// yet, it is empty rather than an error, like every other missing figure.
+async fn activity(State(s): State<Arc<Shared>>) -> Response {
+    let path = s.db_path.with_file_name(crate::analytics::ANALYTICS_FILE);
+    let empty = json!({ "version": crate::analytics::ANALYTICS_VERSION, "themes": [], "rows": [] });
+    let Ok(db) = rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY) else {
+        return no_store(Json(empty).into_response());
+    };
+    let themes = db
+        .prepare("select id, name, definition from theme where version = ?1 order by id")
+        .and_then(|mut q| {
+            q.query_map([crate::analytics::ANALYTICS_VERSION], |r| {
+                Ok(json!({ "id": r.get::<_, i64>(0)?, "name": r.get::<_, String>(1)?, "definition": r.get::<_, String>(2)? }))
+            })
+            .and_then(|rows| rows.collect::<rusqlite::Result<Vec<_>>>())
+        })
+        .unwrap_or_default();
+    let rows = db
+        .prepare(
+            "select h.rel, s.stack, s.run, s.story, h.theme, h.chars, h.paragraphs
+             from theme_share h join analytics_story s using (rel)
+             where h.version = ?1 order by s.stack, s.story, s.run, h.theme",
+        )
+        .and_then(|mut q| {
+            q.query_map([crate::analytics::ANALYTICS_VERSION], |r| {
+                Ok(json!({ "rel": r.get::<_, String>(0)?, "stack": r.get::<_, Option<String>>(1)?, "run": r.get::<_, Option<String>>(2)?,
+                           "story": r.get::<_, Option<i64>>(3)?, "theme": r.get::<_, i64>(4)?,
+                           "chars": r.get::<_, f64>(5)?, "paragraphs": r.get::<_, Option<i64>>(6)? }))
+            })
+            .and_then(|rows| rows.collect::<rusqlite::Result<Vec<_>>>())
+        })
+        .unwrap_or_default();
+    no_store(Json(json!({ "version": crate::analytics::ANALYTICS_VERSION, "themes": themes, "rows": rows })).into_response())
 }
 
 fn not_found() -> Response {

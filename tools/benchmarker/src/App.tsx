@@ -8,7 +8,7 @@ import { Tooltip } from "./components/Tooltip.tsx";
 import { StaleBanner } from "./components/StaleBanner.tsx";
 import { useBenchState } from "./useBenchState.ts";
 import { useRoute } from "./router.ts";
-import { machinesHref, overviewHref, sectionOf, setupHref, storiesHref, type Section } from "../shared/routes.ts";
+import { activityHref, machinesHref, overviewHref, sectionOf, setupHref, storiesHref, type Section } from "../shared/routes.ts";
 import { OverviewPage } from "./pages/OverviewPage.tsx";
 import { MachinesIndex } from "./pages/MachinesIndex.tsx";
 import { RunPage } from "./pages/RunPage.tsx";
@@ -19,13 +19,14 @@ import { CombinationPage } from "./pages/CombinationPage.tsx";
 import { NotFound } from "./pages/NotFound.tsx";
 import { StoryPage } from "./pages/StoryPage.tsx";
 import { StoriesPage } from "./pages/StoriesPage.tsx";
+import { ActivityPage } from "./pages/ActivityPage.tsx";
 import { MachinePage } from "./pages/MachinePage.tsx";
 
 const SAVED_KEY = "benchmarker:v2"; // versioned: selections saved by older builds are ignored
 const ALL = "all";
 const FILTER_KEY = "benchmarker:run-filter:v1";
 /** The four sections, each a tab: a link to the section's address (routes.ts), selected on every page inside it. */
-const TABS: [Section, string][] = [["runs", "Runs"], ["stories", "Stories"], ["machines", "Machines"], ["setup", "Setup"]];
+const TABS: [Section, string][] = [["runs", "Runs"], ["stories", "Stories"], ["machines", "Machines"], ["activity", "Activity"], ["setup", "Setup"]];
 const APP_NAME = "Benchmarker";
 const FILTER_AT_FIRST: RunFilter = "all";
 
@@ -139,6 +140,7 @@ export function App() {
         {route.page === "overview" ? <OverviewPage state={data} serverNow={serverNow} rows={visibleRuns(inFamily, filter)} inScope={inFamily} filteredOut={inFamily.length ? filteredOut : undefined} />
           : route.page === "machines" ? <MachinesIndex route={route} state={data} serverNow={serverNow} />
           : route.page === "setup" ? <SetupTab route={route} />
+          : route.page === "activity" ? <ActivityPage route={route} params={route.params} />
           : <EntityPage route={route} state={data} serverNow={serverNow} family={family} filter={filter} filteredOut={filteredOut} />}
       </main>
     </div>
@@ -152,6 +154,7 @@ function sectionHref(section: Section, pack: string): string {
     case "stories": return storiesHref(pack);
     case "machines": return machinesHref();
     case "setup": return setupHref();
+    case "activity": return activityHref();
   }
 }
 
@@ -170,7 +173,7 @@ const newestFamily = (runs: Row[]) => runs.map((r) => r.family).toSorted((a, b) 
 /** A page whose content the switch hides entirely: the one line that says so, with the way out. */
 const Hidden = ({ note }: { note: ReactNode }) => <div className="page" data-page="filteredOut">{note}</div>;
 
-function EntityPage({ route, state, serverNow, family, filter, filteredOut }: { route: Exclude<ReturnType<typeof useRoute>, { page: "overview" | "machines" | "setup" }>; state: BenchState; serverNow: number | null; family: string; filter: RunFilter; filteredOut: ReactNode }) {
+function EntityPage({ route, state, serverNow, family, filter, filteredOut }: { route: Exclude<ReturnType<typeof useRoute>, { page: "overview" | "machines" | "setup" | "activity" }>; state: BenchState; serverNow: number | null; family: string; filter: RunFilter; filteredOut: ReactNode }) {
   switch (route.page) {
     case "combination": {
       const all = state.rows.filter((r) => r.pack === route.pack && r.stack === route.stack);

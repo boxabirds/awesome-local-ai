@@ -21,6 +21,7 @@ export type Route =
   | { page: "machines"; params: Params }
   | { page: "machine"; machine: string; params: Params }
   | { page: "setup"; params: Params }
+  | { page: "activity"; params: Params }
   | { page: "notFound"; path: string };
 
 const seg = encodeURIComponent;
@@ -29,11 +30,13 @@ const MACHINES = "machines";
 /** The machine pages' first address; kept so links made before the sections had addresses still open. */
 const MACHINE_OLD = "m";
 const SETUP = "setup";
+const ACTIVITY = "activity";
 const STORIES = "stories";
 
 export const overviewHref = () => "#/";
 export const machinesHref = () => `#/${MACHINES}`;
 export const setupHref = () => `#/${SETUP}`;
+export const activityHref = () => `#/${ACTIVITY}`;
 export const storiesHref = (pack: string) => `#/${seg(pack)}/${STORIES}`;
 export const combinationHref = (pack: string, stack: string) => `#/${seg(pack)}/c/${seg(stack)}`;
 export const runHref = (pack: string, stack: string, runId: string) => `#/${seg(pack)}/r/${seg(stack)}/${seg(runId)}`;
@@ -74,6 +77,7 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === MACHINES && parts.length === 1) return { page: "machines", params };
   if (parts[0] === MACHINES || parts[0] === MACHINE_OLD) return parts.length === 2 ? { page: "machine", machine: parts[1], params } : { page: "notFound", path };
   if (parts[0] === SETUP) return parts.length === 1 ? { page: "setup", params } : { page: "notFound", path };
+  if (parts[0] === ACTIVITY) return parts.length === 1 ? { page: "activity", params } : { page: "notFound", path };
   const [pack, kind, ...rest] = parts;
   if (kind === STORIES && rest.length === 0) return { page: "stories", pack, params };
   if (kind === "c" && rest.length === 1) return { page: "combination", pack, stack: rest[0], params };
@@ -92,7 +96,7 @@ export function parseRoute(hash: string): Route {
 }
 
 /** The four sections of the site, one tab each. A page belongs to one; an address that names nothing to none. */
-export type Section = "runs" | "stories" | "machines" | "setup";
+export type Section = "runs" | "stories" | "machines" | "setup" | "activity";
 
 export function sectionOf(route: Route): Section | null {
   switch (route.page) {
@@ -100,6 +104,7 @@ export function sectionOf(route: Route): Section | null {
     case "stories": case "story": return "stories";
     case "machines": case "machine": return "machines";
     case "setup": return "setup";
+    case "activity": return "activity";
     case "notFound": return null;
   }
 }
@@ -112,7 +117,7 @@ export interface Crumb { label: string; href?: string; cls?: string; tip?: strin
 export interface TrailNames { combination?: string; /** The story's title: the story crumb then reads "Story 3: Title". */ story?: string }
 
 const OVERVIEW = "Overview";
-const SECTION_NAMES: Record<Section, string> = { runs: OVERVIEW, stories: "Stories", machines: "Machines", setup: "Setup" };
+const SECTION_NAMES: Record<Section, string> = { runs: OVERVIEW, stories: "Stories", machines: "Machines", setup: "Setup", activity: "Activity" };
 const CONVERSATION_NAME = "Conversation";
 const CALL_FROM = 1;
 /** A run crumb's hover is its combination's id and its run id, as RunLink shows them. */
@@ -130,6 +135,7 @@ export function trailFor(route: Route, names: TrailNames): Crumb[] {
     case "overview": case "notFound": return [];
     case "machines": return [overview, { label: SECTION_NAMES.machines }];
     case "setup": return [overview, { label: SECTION_NAMES.setup }];
+    case "activity": return [overview, { label: SECTION_NAMES.activity }];
     case "stories": return [overview, { label: SECTION_NAMES.stories }];
     case "machine": return [overview, { label: SECTION_NAMES.machines, href: machinesHref() }, { label: route.machine, cls: "machine-link" }];
     case "story": return [overview, { label: SECTION_NAMES.stories, href: storiesHref(route.pack) }, { label: storyLabel(route.story), cls: "story-link" }];
