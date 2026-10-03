@@ -70,35 +70,42 @@ value label, not a size cut.
 
 ## 4. The plan: a generalised classifier in four layers
 
-**Layer A: function class (universal).** Re-derive from the data, not by hand: cluster paragraphs on **function-only**
-features (vocabulary that occurs across every story, plus structure and cutpoint markers), choose the number of classes by
-**stability** (agreement across seeds and across story splits), and name them by their strongest evidence. Cross-check: fit on
-six stories, assign the other five, and measure how many keep their class. Target about 8 to 12 classes; a task-subject class
-for what is left. *Gate:* stable across splits, and a person recognises them.
+### Why four, and in this order
 
-**Layer B: value label (critical, supporting, redundant).** Defined by measured rules first, from the proxies in section 3 (a
-segment whose content is already in the prompt, the last result or an earlier thought, and which is not followed by a change
-in the work, is a candidate for redundant), then **calibrated by intervention** on a sample: at branch points, skip a
-segment and re-sample the continuation several times, and see whether the result or the cost changes. This is the only layer
-that costs bench time, and it is the one that makes the labels mean anything for training. *Gate:* the rule labels agree with
-the intervention labels well enough to use, or they are not used for training.
+Read backwards from the change, which is how the brief asks for it: a fine-tune needs a **dataset** of a particular shape
+(layer D); a dataset needs a label on **every** segment, not on a sample (layer C); a label is only worth training on if it
+says whether the segment **earned its tokens**, not merely what it was about (layer B); and worth can only be judged per
+**kind** of step, because a plan, a re-check and a draft are worth different things (layer A).
 
-**Layer C: the classifier that runs at scale.** A light model (a bag-of-words or small-embedding classifier) trained on the
-validated sample from A and B, run over every paragraph into `analytics.db` (a `segment` table: story run, call, paragraph,
-function, value, confidence, version). Weak rules label first; a judge adjudicates a sample; the owner validates; the light
-model learns from that. *Constraint found:* the platform's safeguards stopped Claude models, as subagents and in this session,
-when asked to read these thinking texts, so the judge is either **a local Qwen model on a bench machine** or the owner. That
-decision needs a free machine and the owner's say.
+Read forwards, each layer answers one question and hands the next its answer:
 
-**Layer D: dataset builders, one per change.** From the same labelled store: (1) a **habit report** that ranks the redundant
-classes by tokens spent, each with the instruction it suggests, feeding context-engineering series; (2) a **trajectory
-filter** for rejection-sampled SFT (best result at least cost, split by story); (3) **branch-point pair and group builders**
-for preference optimisation and RL (same state, several continuations, each with outcome and cost). Layer D is built only as
-far as the evidence from A to C supports.
+| | Question | Hands on |
+|---|---|---|
+| **A** | What kinds of thinking are there, independent of the task? | A vocabulary: a small set of universal function classes |
+| **B** | Which of them earned their tokens? | A value label per segment, and the evidence for it |
+| **C** | How do ~100,000 calls get labelled without reading them all? | A classifier, and a labelled store of every segment |
+| **D** | What does each kind of change actually consume? | One dataset builder per change from section 1 |
 
-**Layer A, first result (`function_classes.py`, 3 Oct 2026).** For 6, 8, 10, 12 and 14 classes on the cross-story vocabulary,
-two stabilities: across seeds (similar for all, adjusted Rand 0.55 to 0.62), and **across stories**, where a model fitted on half
-the stories assigns every paragraph and is compared with one fitted on the other half:
+Today we are before A: every statement we can make is about "thinking" in aggregate ("the spread is 83%", "a run is
+generally more verbose"), and no change can be aimed at an aggregate. The layers exist to turn that aggregate into
+something a sentence in a prompt, or a row in a training set, can address.
+
+### Layer A — the kinds (universal function classes)
+
+**Question.** What kinds of thinking are there, in words that carry to another task?
+
+**Unit.** A paragraph today (208,753 of them). It should become a **segment**: thinking cut at the turns of thought, which
+a rule can find ("but", "wait", "actually", "let me", a numbered list item, a fenced block). A paragraph is often several
+steps; a segment is one. Everything downstream, an edit, a penalty, a credit, needs the smaller unit, so this is the first
+build.
+
+**Method.** The one already used: TF-IDF over vocabulary that occurs across every story (so the app's nouns cannot form a
+class), then NMF, which gives each segment a mixture rather than one label. The number of classes is not chosen by taste:
+it is the largest number that still **reproduces on stories it was not fitted on**.
+
+**First result (`function_classes.py`, 3 Oct 2026).** For 6, 8, 10, 12 and 14 classes, two stabilities: across seeds
+(similar for all, adjusted Rand 0.55 to 0.62), and **across stories**, where a model fitted on half the stories assigns every
+paragraph and is compared with one fitted on the other half:
 
 | Classes | Across-story agreement (adjusted Rand) | Matched-class cosine |
 |---|---|---|
@@ -113,22 +120,134 @@ not 10 or 14**, and even 6 agree only moderately across story halves. Read by th
 correcting ("but", "so", "not"); looking at existing code or the spec ("look at", "understand"); checking a detail ("check");
 running tests and announcing the next action ("run the tests", "now let me write"); code drafted in the thinking ("const",
 "return", "export"); and one **task-subject** class (notes, zoom, widths, selection), which is the app's and not a way of
-thinking. That is five functions and one subject class, and it supersedes the 10-class merge proposed earlier. The 8-class fit
-splits the subject class in two and the checking class in two (a module-and-import form), which is the first step towards
-story-bound classes.
+thinking. That is five functions and one subject class, and it supersedes both the 14 themes and the 10-class merge proposed
+earlier. The 8-class fit splits the subject class in two and the checking class in two (a module-and-import form), which is
+the first step back towards story-bound classes.
 
-**Order, and what each step costs:**
+**The honest problem with it.** 0.47 is moderate agreement, not good agreement. Two things should be tried before the
+classes are trusted: fitting on **segments** rather than paragraphs (a paragraph mixes steps, which blurs every class), and
+**removing the subject vocabulary entirely** before fitting rather than relying on the cross-story filter to dilute it, since
+the subject class is where most of the story-dependence lives. If neither lifts it, the honest answer is that five classes
+is what one app's data can carry, and the sixth is a bucket.
 
-| Step | Needs |
-|---|---|
-| A: function-only clustering, stability and cross-story check | no bench time |
-| Segment cutpoints by rule, and the `segment` table | no bench time |
-| B (rules): value labels from the proxies, with the evidence per class | no bench time |
-| Owner validation of proposals (the tool) | the owner's time |
-| B (intervention): branch-point replay on a sample | bench time and a free machine |
-| C: train the light classifier, run at scale, audit | a labeller (local Qwen, or the owner) |
-| D (1): habit report, then one context-engineering series | one 5-run series |
-| D (2 to 3): datasets for fine-tuning | the story split decided; training hardware not assessed |
+**Artefact.** `themes_v2.json` (id, name, one-line definition, evidence terms) and the fitted model beside it, as v1 already
+is. **Gate:** across-story agreement at or above the 6-class figure, *and* the owner recognising the classes on a sample of
+proposals. Failing the second gate is as disqualifying as failing the first.
+
+### Layer B — the value (did this segment earn its tokens?)
+
+**Question.** A function class cannot tell anyone what to change. "Code drafted in thought" could be the most valuable thing
+the model does, or pure waste; our own data says the longest such calls go with *better* results. The label that points at an
+action is value, and it needs three grades:
+
+- **critical** — remove it and what the agent did next, or the story's result, changes.
+- **supporting** — it informs the step, but it could have been shorter or carried by another segment: removing it costs
+  tokens, not outcome.
+- **redundant** — its content is already available (in the prompt, in the last tool result, or in an earlier segment of the
+  same story run) *and* nothing changed because of it.
+
+**Two ways to get that label, different in kind, both needed.**
+
+*(i) Rules over measured features — cheap, total coverage, circumstantial.* The analytics layer already holds the features
+(section 3). A redundancy rule has two halves: **the content was already available** (`max_prev_sim`, `result_overlap` or
+`prompt_overlap` over a threshold) **and nothing came of it** (the next call writes nothing, runs nothing new, or repeats a
+tool call it has already made). Both halves matter: overlap alone is not waste, because restating a failing test before fixing
+it is how the model keeps its place.
+
+*(ii) Intervention — expensive, a sample only, causal.* At a branch point, re-run the story from the identical state N times
+with the segment present, and N times with it cut, and compare held-out result and tokens. This is the only procedure that
+can say "redundant" and mean it. The harness can already restart a story from another run's state (a partial rerun), so the
+machinery exists; the cost is bench time, N rollouts per branch point.
+
+**How they relate.** (i) is what the classifier in layer C learns from; (ii) is what tells us whether (i) measures anything
+at all. If the rule labels and the intervention labels disagree on the calibration sample, the rules are reported as
+observations and never used as training targets. That is the gate.
+
+**A worked example, measured today.** The clearest redundancy rule I can state: *a test run that passed, when the previous
+test run also passed and nothing was written or edited in between* — a re-check of work nothing had touched.
+
+| Stack | Calls matching | Share of calls | Share of all output tokens |
+|---|---|---|---|
+| Flash-Next / gufo | 404 of 12,890 | 3.1% | 1.5% |
+| Swift 1.5 / llama.cpp | 306 of 15,087 | 2.0% | 1.1% |
+| Flash-Next / mlx-serve | 263 of 10,888 | 2.4% | 1.2% |
+
+**This is the honest shape of such a finding, and it is why the plan is built this way.** It is a real habit, recognisable,
+and a prompt sentence could address it. It is worth about 1% of output tokens. Five such rules might be worth 5%. That is a
+context-engineering result, not a fine-tuning one: it would be absurd to train a model to recover 1%, and the measurement
+costs nothing. The plan must therefore be able to *stop at D1* and report a handful of instructions, and only escalate to
+training if the accumulated redundant share is large enough to be worth the contamination risk and the compute.
+
+**Artefact.** A value label and a rule name per segment, plus a per-rule report of count and tokens. **Gate:** agreement
+between rules and intervention on the calibration sample, stated as a number.
+
+### Layer C — the labeller that runs at scale
+
+**Question.** Layers A and B are established on hundreds of segments. Every dataset builder needs the label on all of them:
+roughly 100,000 calls, and more segments than that. Nobody reads those.
+
+**Pipeline, in four steps.** (1) **Weak labelling:** layer A's model gives every segment its function mixture, layer B's
+rules give a provisional value. (2) **A gold set:** a stratified sample (by class, by confidence, by stack) is adjudicated,
+one label per segment, and the owner validates proposals in the labelling tool. (3) **The light classifier:** a supervised
+model, logistic regression over the same TF-IDF features plus the context features (position, what preceded, overlap), trains
+on the gold set and relabels everything. (4) **An audit:** a fresh sample is re-validated against the trained labels.
+
+**Why a supervised classifier and not the NMF model.** NMF is unsupervised and reads the text alone, so it can only ever give
+*function*. Value depends on what happened around the segment as much as on its words, so it needs the context features and a
+supervised target. Those are different models, which is why A and C are different layers rather than one.
+
+**Artefact.** A `segment` table in `analytics.db`: story run, call index, segment index, character span, function class,
+value, confidence, model version. Derived, rebuildable, never in the warehouse, like everything else in the analytics layer.
+
+**The constraint that decides who the judge is.** Twice in this session, Claude models asked to read these thinking texts
+were stopped by platform safeguards: a Sonnet 5.5 subagent and then an Opus 5.5 one, both on the same adjudication task. That
+is a fact about the plan, not a preference. The judge in step 2 is therefore **a local Qwen model on a bench machine**, or
+the owner, or rules alone with no judge. That decision needs a free machine and the owner's say, and it gates the size of the
+gold set: a judge makes thousands affordable, the owner makes it hundreds.
+
+**Gate.** The light classifier's agreement with held-out gold items, per class. A class below the stated rate is not used
+downstream; it is better to carry four trustworthy classes than six shaky ones.
+
+### Layer D — the dataset builders, one per change
+
+Each change in section 1 consumes a different shape. D is the adapter from the one labelled store to those shapes, and each
+builder is written only when the evidence justifies it.
+
+**D1 — the habit report → context engineering.** *In:* the segment table and tokens. *Out:* a ranked list of redundant
+patterns, each with how many calls and how many tokens it costs, and the instruction it suggests. *Then:* one 5-run series
+per candidate instruction against the baseline, scored on held-out result first and tokens second. This is the only branch
+that can run today, the only one with no training cost, and the only one whose result is directly actionable. The worked
+example above is its first row.
+
+**D2 — the trajectory filter → rejection-sampled SFT or LoRA.** *In:* finished story runs with outcome and cost. *Out:* for
+each story, the trajectories that reached the best held-out result at the least cost, as training examples. *Blockers:* a
+**story split** is mandatory, because our held-out tests are the benchmark and training on a story then scoring it measures
+memory; with 11 stories of one app, a split halves an already small set. The literature also reports that training on
+shortest-path demonstrations does not teach backtracking, so the filter should prefer *whole* good trajectories over
+pruned ones, which makes the value labels a weighting rather than a knife.
+
+**D3 — branch-point pairs and groups → DPO, GRPO.** *In:* branch points chosen by layer B (states where a decision was about
+to be made), re-run N times each. *Out:* for preference methods, pairs sharing a state that differ in outcome or cost; for
+RL, groups of rollouts each with a verified reward from the held-out tests. *Blockers:* bench time proportional to branch
+points × N, where each rollout is a partial story run, so this is the most expensive thing in the document by a wide margin.
+Nothing here is built until D1 has said whether there is enough to bake in.
+
+**Order, what each step costs, and where it can stop.** The plan is built so that it pays for itself early and can be
+abandoned at any gate without having wasted the steps before it.
+
+| # | Step | Needs | Stop here if |
+|---|---|---|---|
+| 1 | Segment cutpoints by rule, and the `segment` table | no bench time | — |
+| 2 | A: refit on segments, stability and cross-story check | no bench time | agreement stays below the 6-class figure: report five classes and go no further |
+| 3 | B (rules): value labels and the per-rule token cost | no bench time | no rule is worth more than a fraction of a per cent |
+| 4 | Owner validation of the proposals | the owner's time | the classes are not recognisable: redraw or abandon |
+| 5 | **D1: habit report, then one context-engineering series** | one 5-run series | **the instructions work: take the win and stop** |
+| 6 | B (intervention): branch-point replay on a sample | bench time, a free machine | rules and intervention disagree: value labels stay observations |
+| 7 | C: train the light classifier, run at scale, audit | a labeller (local Qwen, or the owner) | per-class agreement too low: carry only the classes that pass |
+| 8 | D2, D3: datasets for fine-tuning | story split decided; training hardware not assessed | the redundant share is too small to be worth training for |
+
+Steps 1 to 5 need no bench time but one series, and they are the ones most likely to produce something usable. Steps 6 to 8
+are where the cost is, and nothing commits to them until step 5 has reported.
 
 ## 5. What this does not settle
 
