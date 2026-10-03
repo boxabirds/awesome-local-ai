@@ -36,8 +36,9 @@ export function CallPage({ run, story, storyId, call, state }: { run: Row; story
   ];
   const nav = (
     <nav className="call-nav" aria-label="Calls">
+      <a className="back" href={conversationHref(run.pack, run.stack, run.runId, storyId)}>← Back to the conversation</a>
+      <span className="call-of" data-fact="call-of">Call {idx + 1}{calls !== null ? ` of ${full(calls)}` : ""}</span>
       {idx > 0 ? <a href={callHref(run.pack, run.stack, run.runId, storyId, idx - 1)} rel="prev">← call {idx}</a> : <span className="faint">← first call</span>}
-      <a href={conversationHref(run.pack, run.stack, run.runId, storyId, "calls")}>all calls</a>
       {calls !== null && idx + 1 < calls ? <a href={callHref(run.pack, run.stack, run.runId, storyId, idx + 1)} rel="next">call {idx + 2} →</a> : <span className="faint">last call →</span>}
     </nav>
   );

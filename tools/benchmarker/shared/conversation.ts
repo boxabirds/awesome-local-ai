@@ -46,7 +46,11 @@ export interface EventsPage {
 }
 
 /** The sections of the conversation page a bar's part leads to. */
-export type ConversationAnchor = "calls" | "tools" | "compactions" | "sessions" | "requests" | "messages" | "conditions";
+export type ConversationAnchor = "all" | "calls" | "tools" | "compactions" | "sessions" | "requests" | "messages" | "conditions";
+
+/** How the page lays the conversation out: one list in time order, or a section per kind. */
+export type ConversationView = "time" | "type";
+export const CONVERSATION_VIEWS: { id: ConversationView; name: string }[] = [{ id: "time", name: "In order" }, { id: "type", name: "By type" }];
 
 /** Where each part of a time bar lands on the conversation page. */
 export const SEGMENT_ANCHOR: Record<Seg, ConversationAnchor> = {

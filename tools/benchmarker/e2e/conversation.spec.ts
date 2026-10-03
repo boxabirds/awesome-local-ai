@@ -18,17 +18,51 @@ const SWIFT_R1_S1 = `combinations/${SWIFT}/benchmarks/vidi/v2-r1/stories/01`;
 const conv = (stack: string, run: string, story: string, at?: string) => `/#/vidi/r/${enc(stack)}/${run}/s/${story}/conversation${at ? `?at=${at}` : ""}`;
 const call = (stack: string, run: string, story: string, idx: number) => `/#/vidi/r/${enc(stack)}/${run}/s/${story}/conversation/c/${idx}`;
 const page$ = (page: Page) => page.locator('[data-page="conversation"]');
+/** The layout switch's buttons, by their own marks (a role query by name would also match the twisties' labels). */
+const viewButton = (page: Page, view: "time" | "type") => page$(page).locator(`.view-switch [data-view="${view}"]`);
+const byType = async (page: Page) => { await viewButton(page, "type").click(); await expect(viewButton(page, "type")).toHaveAttribute("aria-pressed", "true"); };
 
 test.beforeEach(async ({ request }) => {
   await request.post("/api/test/reset");
 });
 
 test.describe("A. the conversation page", () => {
-  test("a complete pi story: every section, in time order, with the late-placed request in its place", async ({ page }) => {
+  test("in order, by default: one row per happening in time order, with its text; a tick jumps to its call", async ({ page }) => {
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    const p = page$(page);
+    await expect(p).toHaveAttribute("data-backfilled", "true");
+    await expect(viewButton(page, "time")).toHaveAttribute("aria-pressed", "true");
+    const rows = p.locator("table.in-order tbody tr");
+    await expect(rows).toHaveCount(17);
+    const kinds = await rows.evaluateAll((trs) => trs.map((tr) => tr.getAttribute("data-kind")));
+    expect(kinds.slice(0, 5)).toEqual(["msg", "between_sessions", "request", "call", "tool_start"]);
+    await expect(rows.nth(3)).toContainText("call 1");
+    await expect(rows.nth(3).locator('[data-quoted="agent"]')).toContainText("Reading the spec.");
+    // A tool's end carries its result; the late-placed request sits at its own time with its call named.
+    await expect(p.locator('table.in-order tbody tr[data-kind="tool_end"]').first()).toContainText("ok");
+    await expect(rows.nth(2)).toContainText("call 1");
+    // A tick jumps to the call's row and marks it; the search is the section's own.
+    await p.locator(".conv-timeline button.tick").last().click();
+    await expect(p.locator('table.in-order tbody tr[data-jumped="true"]')).toHaveCount(1);
+    await expect(p.locator('table.in-order tbody tr[data-jumped="true"]')).toBeInViewport();
+    await p.locator('[data-section="all"]').getByRole("button", { name: "Search the conversation" }).click();
+    await p.locator('[data-section="all"]').getByRole("searchbox").fill("attempt 2");
+    await expect(rows).toHaveCount(3);   // two tool results and a call's text
+    // By type is remembered; a bar's part still lands by type.
+    await byType(page);
+    await expect(p.locator("table.calls")).toBeVisible();
+    await page.reload();
+    await expect(viewButton(page, "type")).toHaveAttribute("aria-pressed", "true");
+    await viewButton(page, "time").click();
+    await expect(page$(page).locator("table.in-order")).toBeVisible();
+  });
+
+  test("by type: every section, in time order, with the late-placed request in its place", async ({ page }) => {
     await page.goto(conv(SWIFT, "v2-r5", "2"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-available", "true");
     await expect(p).toHaveAttribute("data-backfilled", "true");
+    await byType(page);
     await expect(p.locator('[data-fact="events"]')).toHaveText("17");
     await expect(p.locator('[data-fact="range"]')).not.toContainText("so far");
     const nav = p.getByRole("navigation", { name: "Sections of the conversation" });
@@ -63,8 +97,10 @@ test.describe("A. the conversation page", () => {
     const conds = p.locator("table.conditions tbody tr");
     await expect(conds.nth(0)).toContainText("nominal");
     await expect(conds.nth(1).locator(".na")).toHaveCount(4);
-    // The timeline: ticks with calls are links to the call at that time.
-    await expect(p.locator(".conv-timeline a.tick").first()).toHaveAttribute("href", new RegExp("/conversation/c/0$"));
+    // A timeline tick jumps to the call at that time, in the page, and marks its row.
+    await p.locator(".conv-timeline button.tick").last().click();
+    await expect(p.locator('table.calls tbody tr[data-jumped="true"]')).toHaveCount(1);
+    await expect(p.locator('table.calls tbody tr[data-jumped="true"]')).toBeInViewport();
     // The section asked for is marked, and the page scrolls to it.
     await page.goto(conv(SWIFT, "v2-r5", "2", "tools"));
     await expect(page$(page).locator('a[data-anchor="tools"]')).toHaveAttribute("aria-current", "true");
@@ -75,6 +111,7 @@ test.describe("A. the conversation page", () => {
     await page.goto(conv(OPUS, "run-9", "1"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
+    await byType(page);
     await expect(p.locator('[data-fact="events"]')).toHaveText("6");
     const calls = p.locator("table.calls tbody tr");
     await expect(calls).toHaveCount(2);
@@ -88,6 +125,7 @@ test.describe("A. the conversation page", () => {
     await page.goto(conv(SWIFT, "v2-r1", "1"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
+    await byType(page);
     await expect(p.locator('[data-fact="range"]')).toContainText("so far");
     await expect(p.locator('[data-fact="events"]')).toHaveText("2");
     // More arrives on the node: the fixture's reset appends it (the real warehouse would ingest it); the page's next
@@ -121,6 +159,8 @@ test.describe("B. the call page", () => {
     expect((await thinking.innerText()).length).toBeGreaterThan(4000);
     await expect(p.locator('[data-block="tool"][data-tool="1"]')).toContainText("failed");
     await expect(p.locator('[data-block="tool"][data-tool="1"] pre').nth(1)).toContainText("1 failed, 9 passed");
+    await expect(p.getByRole("link", { name: "← Back to the conversation" })).toHaveAttribute("href", new RegExp("/s/2/conversation$"));
+    await expect(p.locator('[data-fact="call-of"]')).toHaveText("Call 2 of 4");
     await expect(p.getByRole("link", { name: "← call 1" })).toHaveAttribute("href", new RegExp("/conversation/c/0$"));
     await expect(p.getByRole("link", { name: "call 3 →" })).toHaveAttribute("href", new RegExp("/conversation/c/2$"));
     await page.goto(call(SWIFT, "v2-r5", "2", 0));
@@ -214,6 +254,7 @@ test.describe("D. layout: pinned heads, compact numbers, search, folded cells", 
     await page.goto(conv(SWIFT, "v2-r5", "2"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
+    await byType(page);
     await expect(p.locator('[data-section="calls"] .rp-head')).toHaveCSS("position", "sticky");
     await expect(p.locator("table.calls thead th").first()).toHaveCSS("position", "sticky");
     const widths = await p.locator("table.calls tbody tr").first().locator("td").evaluateAll((tds) => tds.map((td) => ({ cls: td.className, w: td.getBoundingClientRect().width })));
@@ -229,6 +270,7 @@ test.describe("D. layout: pinned heads, compact numbers, search, folded cells", 
     await page.goto(conv(SWIFT, "v2-r5", "2"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
+    await byType(page);
     const calls = p.locator('[data-section="calls"]');
     await expect(calls).toHaveAttribute("data-collapsed", "false");
     await expect(calls.locator("table.calls")).toBeVisible();
@@ -248,6 +290,7 @@ test.describe("D. layout: pinned heads, compact numbers, search, folded cells", 
     await page.goto(conv(SWIFT, "v2-r5", "2"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
+    await byType(page);
     const calls = p.locator('[data-section="calls"]');
     // The count's place holds the magnifier; the box appears on a click.
     await expect(calls.locator('[data-fact="count"]')).toHaveCount(0);
@@ -287,6 +330,7 @@ test.describe("D. layout: pinned heads, compact numbers, search, folded cells", 
     await page.goto(conv(SWIFT, "v2-r5", "2"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
+    await byType(page);
     const cell = p.locator('table.calls tbody tr[data-call="3"] .clamp-cell');
     await expect(cell.locator(".clamp")).toHaveAttribute("data-folded", "true");
     const folded = await cell.locator(".clamp").evaluate((e) => e.getBoundingClientRect().height);
