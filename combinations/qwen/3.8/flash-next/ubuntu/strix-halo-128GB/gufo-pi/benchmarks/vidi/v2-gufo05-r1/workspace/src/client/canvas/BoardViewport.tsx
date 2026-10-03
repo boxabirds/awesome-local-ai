@@ -167,6 +167,21 @@ export interface BoardViewportProps {
   textMode?: boolean;
   /** A press with the Text tool armed, at a point relative to the viewport. */
   onTextPointClick?(point: { x: number; y: number }): void;
+  /**
+   * The Pen tool is armed (`pen.tool_ui`): the surface becomes a drawing surface, and the
+   * pointer is a pen tip rather than a grab. It only changes the cursor; the routing itself is
+   * the `screenOverlay`, whose own pointer events are not the viewport, so a press draws rather
+   * than pans or drags an object.
+   */
+  penMode?: boolean;
+  /**
+   * A screen-space overlay rendered inside the viewport, above the world layer.
+   *
+   * A child of the viewport on purpose: a wheel gesture over it still bubbles to the viewport's
+   * pan and zoom, so arming the Pen never freezes the view. Pointer events on it are screen-space
+   * and are not the viewport itself, so they never start a pan.
+   */
+  screenOverlay?: ReactNode;
 }
 
 export function BoardViewport({
@@ -176,6 +191,8 @@ export function BoardViewport({
   marquee,
   textMode,
   onTextPointClick,
+  penMode,
+  screenOverlay,
 }: BoardViewportProps) {
   const nav = useCameraContext();
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -448,7 +465,7 @@ export function BoardViewport({
       data-grid-spacing={GRID_SPACING_WORLD * camera.zoom}
       className={`board-viewport${nav.isPanning ? ' board-viewport--panning' : ''}${
         textMode ? ' board-viewport--text' : ''
-      }`}
+      }${penMode ? ' board-viewport--pen' : ''}`}
       style={gridBackgroundStyle(camera)}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -481,6 +498,7 @@ export function BoardViewport({
         </div>
         {children}
       </div>
+      {screenOverlay}
     </div>
   );
 }

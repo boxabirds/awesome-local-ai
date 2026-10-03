@@ -44,6 +44,9 @@ import { useSelection } from './board/useSelection';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { useUndo, useUndoController } from './board/useUndo';
 import { SELF } from './identity';
 import { useTransformGesture } from './board/useTransformGesture';
@@ -159,6 +162,9 @@ function BoardLayout({ doc, boardId }: AppProps) {
   // back to Select through the same hook (`tools.return_to_select`).
   const tools = useActiveTool({ canEdit, select: (id) => selection.add(id) });
   const createToolActive = tools.tool === 'shape' || tools.tool === 'connector';
+  // The Pen's colour and thickness: a session choice, remembered until reload, never stored
+  // (`pen.session`). The Pen tool reads it and writes a stroke straight into the document.
+  const pen = usePenOptions();
 
   // One undo history per board document, for this person alone (story 8). It watches the
   // document rather than being told about the changes, so nothing here has to remember to
@@ -306,6 +312,14 @@ function BoardLayout({ doc, boardId }: AppProps) {
         onShapeKind={tools.setShapeKind}
         undo={undo}
       />
+      {canEdit && tools.tool === 'pen' ? (
+        <PenToolbar
+          color={pen.color}
+          thickness={pen.thickness}
+          onColor={pen.setColor}
+          onThickness={pen.setThickness}
+        />
+      ) : null}
       <BoardViewport
         onEmptyDoubleClick={(point) => {
           createAt(screenToWorld(camera, point));
@@ -320,6 +334,19 @@ function BoardLayout({ doc, boardId }: AppProps) {
         onTextPointClick={(point) => {
           createTextAt(screenToWorld(camera, point));
         }}
+        penMode={canEdit && tools.tool === 'pen'}
+        screenOverlay={
+          canEdit && tools.tool === 'pen' ? (
+            <PenTool
+              camera={camera}
+              color={pen.color}
+              thickness={pen.thickness}
+              doc={board.doc}
+              identityId={SELF.id}
+              onCommitBoundary={stepBoundary}
+            />
+          ) : undefined
+        }
       >
         {objects.map((object) => {
           const spec = getObjectType(object.type);

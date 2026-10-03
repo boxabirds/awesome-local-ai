@@ -1037,3 +1037,64 @@ test should dictate.
 Same as story 9 and noted above for the next author: the e2e run needs `npm run build:test`
 (`npm run test:e2e` does it). Running `npm run build` immediately before `playwright test` produces a
 production bundle with no `window.__vidi6`, and every test times out waiting for a camera hook.
+
+---
+
+## Story 11 — Sketch freehand with a pen
+
+### Decisions and deviations
+
+- **`smoothPath` is quadratic-midpoint, not Catmull-Rom.** The design (design.md line 259 and the
+  TC-08 acceptance "uses Q segments") specifies `Q` midpoint curves, which stay inside the polyline
+  hull and so keep the rendered stroke within the simplify tolerance of the hand. An earlier draft
+  used Catmull-Rom `C` segments; switched to `Q` to match the design and the unit/e2e assertions.
+  Two-point strokes are emitted as a single `Q` (steered by the far point, so it reads straight) to
+  keep the path free of `L` and `C` for the fidelity assertions.
+
+- **`distanceToSegment(a, b, p)` / `distanceToPolyline(points, p)`.** The point being measured is the
+  last argument. `simplify` and the hit test pass it in that order.
+
+- **Faithfulness tolerance values are the design's, not the earlier summary's.**
+  `STROKE_SIMPLIFY_TOLERANCE_PX = 1` and `STROKE_HIT_TOLERANCE_PX = 6` (world units are `px / zoom`).
+
+- **PenTool is rendered as a `screenOverlay` child of the viewport, not a sibling.** Mounting it
+  inside the viewport element means a wheel event still bubbles to the viewport's own non-passive
+  wheel listener, so the view pans and zooms while the pen is armed (TC-18 / design wheel-during-pen).
+  `BoardViewport` gained two props, `penMode` (adds `.board-viewport--pen`, `cursor: none`) and
+  `screenOverlay` (rendered after the world layer). The overlay covers the objects, so a pen press
+  never reaches an object underneath.
+
+- **The Pen does not return to Select.** Unlike Shape/Connector, drawing a stroke leaves the Pen
+  armed (`tools.return_to_select` deliberately does not apply); the next line draws immediately
+  (TC-09). The committed stroke is not auto-selected, matching the design's select-by-ink model.
+
+- **Session-only ink.** `usePenOptions` keeps the colour and thickness in React state, never written
+  to the document — a per-tab choice, remembered until reload.
+
+- **Undo is one stroke per step.** PenTool calls `onCommitBoundary` (= `undo.boundary`) both before
+  and after the `createStroke` transaction, so each stroke is its own undo group and one `Ctrl/Cmd+Z`
+  removes exactly one stroke (TC-20). The stroke transaction uses `LOCAL_ORIGIN`.
+
+- **A mid-draw tool switch or unmount keeps the drawn points** (the PenTool unmount effect commits),
+  and `pointercancel` / `lostpointercapture` commit what was gathered (TC-11). A press that moved less
+  than `DRAG_THRESHOLD_PX` commits a single-point dot (TC-10).
+
+- **Split at `STROKE_MAX_POINTS` shares the join point.** When the live path passes the cap that part
+  is committed and drawing continues from that same last point (TC-12 / design pen.long_stroke).
+
+- **Select by line, resize aspect-locked.** The registry entry for `stroke` is
+  `resizable: true, aspectLocked: true, minSize: STROKE_MIN_SIZE_WORLD, editableText: false`, with a
+  zoom-1 line-distance hit test; `StrokeObject` applies the live-zoom tolerance itself through an
+  invisible wide hit stroke so the click reach is a constant number of screen pixels at any zoom
+  (TC-15). A click inside the box but off the ink falls through to whatever is underneath (TC-16).
+
+### Notes on the tests
+
+- **TC-16 / TC-15 are asserted against the registry contract.** The board's selection picks the topmost
+  object whose registered `hitTest(point)` is true; that predicate is pure geometry, so a component
+  test on the registry (a far-from-line point misses the stroke but hits the note under it) is exactly
+  the decision the app makes, without depending on jsdom's empty layout.
+- **`noUncheckedIndexedAccess` is on**, so the geometry code reads array elements into guarded locals.
+- **e2e TC-17** runs on every engine the host can run (the playwright config skips engines whose
+  system libraries are missing); the faithfulness check compares the painted box to the traced loop
+  within a few pixels.

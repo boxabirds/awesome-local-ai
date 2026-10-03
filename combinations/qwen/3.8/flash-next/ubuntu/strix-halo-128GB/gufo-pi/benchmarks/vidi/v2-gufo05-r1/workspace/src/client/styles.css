@@ -901,3 +901,84 @@ button:focus-visible {
   background: rgba(47, 111, 237, 0.16);
   border-color: var(--focus-ring);
 }
+
+/* Pen tool (story 11) ------------------------------------------------------ */
+
+/*
+ * The Pen tool armed: the pointer is a pen tip, not a hand. The PenTool overlay hides the
+ * system cursor itself and paints a round tip that follows the pointer, but the viewport class
+ * keeps a press that lands on the overlay (rather than a toolbar) from promising a grab.
+ */
+.board-viewport--pen {
+  cursor: none;
+}
+
+/* The options panel, to the right of the left toolbar and on a layer above the drawing. */
+.pen-toolbar {
+  position: fixed;
+  left: 116px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: var(--panel-shadow);
+  z-index: 3;
+}
+
+.pen-toolbar__colors,
+.pen-toolbar__thicknesses {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pen-toolbar__thicknesses {
+  padding-left: 8px;
+  border-left: 1px solid var(--panel-border);
+}
+
+.pen-toolbar__swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 0.2);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.pen-toolbar__swatch--active {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.pen-toolbar__thickness {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.pen-toolbar__thickness--active {
+  background: var(--panel-border);
+}
+
+.pen-toolbar__thickness-dot {
+  display: block;
+  border-radius: 50%;
+  background: #1e293b;
+}
+
+.stroke-object {
+  cursor: default;
+}

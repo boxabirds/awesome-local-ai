@@ -25,14 +25,16 @@ import type { Point } from '../canvas/camera';
 import type { UndoController } from '../board/undo';
 import { setTextWidthFixed, TEXT_TYPE } from '../../shared/objects/text';
 import { SHAPE_TYPE } from '../../shared/objects/shape';
-import { SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+import { SHAPE_MIN_SIZE_WORLD, STROKE_MIN_SIZE_WORLD } from '../../shared/config';
 import { CONNECTOR_TYPE } from '../../shared/objects/connector';
 import { connectorHitTest } from '../../shared/geometry/connector-geometry';
+import { STROKE_TYPE, strokeHitTest, type StrokeSnap } from '../../shared/objects/stroke';
 import { remeasureTextBox } from './useTextBoxSync';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
 
 /** What the board gives any object component, whatever its type. */
 export interface ObjectProps {
@@ -253,4 +255,17 @@ registerObjectType(CONNECTOR_TYPE, {
   // a nearly-straight arrow has almost no box to be inside. The registry signature has no
   // zoom, so this is the zoom-1 form; the app hits-tests the live line at the real zoom.
   hitTest: (obj, point) => connectorHitTest(obj as never, point, 1),
+});
+
+registerObjectType(STROKE_TYPE, {
+  // A stroke has a box (it moves and resizes with the ordinary gestures), but it is selected
+  // by its ink, never by the empty area inside that box.
+  Component: StrokeObject as unknown as ComponentType<ObjectProps>,
+  // Freehand ink is never skewed: it resizes in proportion (`ink.preserve`).
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  // The zoom-invariant line tolerance is applied to the live stroke by its own hit layer; this
+  // is the plain zoom-1 form for generic callers (`pen.select`).
+  hitTest: (obj, point) => strokeHitTest(obj as StrokeSnap, point, 1),
 });

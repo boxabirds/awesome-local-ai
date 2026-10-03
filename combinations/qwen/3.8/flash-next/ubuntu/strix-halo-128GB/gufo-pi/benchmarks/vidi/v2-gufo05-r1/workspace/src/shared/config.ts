@@ -335,6 +335,50 @@ export const CONNECTOR_MIN_LENGTH_WORLD = 8;
  */
 export const CONNECTOR_HIT_TOLERANCE_PX = 6;
 
+// -----------------------------------------------------------------------------
+// Pen tool (story 11)
+// -----------------------------------------------------------------------------
+
+/**
+ * The six ink colours the pen draws in. The order here is the order the swatches are
+ * shown in (`pen.tool_ui`); the value is the colour as painted.
+ */
+export const PEN_COLORS = {
+  black: '#1e293b',
+  blue: '#2563eb',
+  red: '#dc2626',
+  green: '#16a34a',
+  orange: '#ea580c',
+  purple: '#9333ea',
+} as const;
+
+export type PenColor = keyof typeof PEN_COLORS;
+
+/** How thick the pen draws, in world units, so a stroke keeps its size relative to the board. */
+export const PEN_THICKNESS_WORLD = {
+  thin: 2,
+  medium: 4,
+  thick: 8,
+} as const;
+
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** A new board's pen settings — never persisted; the choice is remembered for the session only. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/** Ramer-Douglas-Peucker tolerance, in screen pixels: within this of the raw path is faithful. */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/** One stroke holds at most this many raw points; the tool splits into a new stroke at the cap. */
+export const STROKE_MAX_POINTS = 5000;
+
+/** How close to a stroke's line, in screen pixels, a click must land to select it (`pen.select`). */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/** The smallest a stroke can be resized to; the world size of the smallest sensible dot. */
+export const STROKE_MIN_SIZE_WORLD = 4;
+
 /** The width of an arrow's line, in world units, so it scales with zoom. */
 export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
 

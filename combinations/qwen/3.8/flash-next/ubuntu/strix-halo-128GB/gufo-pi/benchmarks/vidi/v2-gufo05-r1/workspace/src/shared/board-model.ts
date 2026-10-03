@@ -34,6 +34,7 @@ import {
   type ConnectorSnapshot,
 } from './objects/connector';
 import { SHAPE_TYPE, snapshotFrom as readShape } from './objects/shape';
+import { STROKE_TYPE, snapshotFrom as readStroke } from './objects/stroke';
 import { rectContains, isFiniteRect, type Point, type Rect } from './geometry';
 
 /**
@@ -166,6 +167,7 @@ function readObject(id: string, map: Y.Map<unknown>): ObjectSnapshot | null {
   // reads those with every other rectangle in hand. Read alone here, it gets a placeholder
   // box from its endpoints' own reference points.
   if (type === CONNECTOR_TYPE) return connectorSnapshotFrom(id, map);
+  if (type === STROKE_TYPE) return readStroke(id, map);
   if (type === STICKY_TYPE) return readSticky(id, map);
 
   const createdAt = map.get('createdAt');

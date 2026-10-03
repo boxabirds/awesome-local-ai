@@ -168,6 +168,11 @@ export function useBoardKeys(params: BoardKeyParams): void {
           if (canEdit) tool?.setTool('connector');
           return;
         }
+        if (event.key === 'p' || event.key === 'P') {
+          // `p` Pen (`pen.tool_ui`) — same rule as the other drawing tools.
+          if (canEdit) tool?.setTool('pen');
+          return;
+        }
         if (event.key === 'n' || event.key === 'N') {
           if (!canEdit) return;
           event.preventDefault();

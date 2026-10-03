@@ -181,6 +181,30 @@ export function Toolbar({
       <button
         type="button"
         className="toolbar__button"
+        data-testid="tool-pen"
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        disabled={!canEdit}
+        title="Pen — freehand sketch that stays fixed size when resized"
+        onClick={() => {
+          onTool?.('pen');
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path
+            d="M2.5 13.5l1-3 6.5-6.5 2 2L5.5 12.5l-3 1zM9 5l2 2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        </svg>
+        <span>Pen</span>
+      </button>
+      <button
+        type="button"
+        className="toolbar__button"
         data-testid="tool-sticky-note"
         aria-label="Sticky note (N)"
         title="Sticky note — adds a note in the centre and starts typing"
