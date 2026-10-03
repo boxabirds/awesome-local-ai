@@ -346,17 +346,39 @@ def _redact(text: str) -> str:
     return text.replace(str(Path.home()), "~")
 
 
+# A dropped delta's stamp, from its line without parsing it: where a process that died mid-call was last heard from.
+DELTA_STAMP = re.compile(r'^\{"_rx":\s*([0-9.]+)')
+DELTA_TOOL_ID = re.compile(r'"toolCallId":\s*"([^"]*)"')
+STAMP_SEPARATORS = (",", ":")      # written as the agent writes its lines ({"_rx":…,"type":…}), which the readers' prefix tests expect
+
+
+def _delta_stamp(line: str, kind: str) -> dict | None:
+    m = DELTA_STAMP.match(line)
+    if not m:
+        return None
+    stamp = {"_rx": float(m.group(1)), "type": kind}
+    if (tool := DELTA_TOOL_ID.search(line)) is not None:
+        stamp["toolCallId"] = tool.group(1)
+    return stamp
+
+
 def compact_events(raw: Path) -> Path:
     """Gzip the agent event log, lossless but for the stream deltas: every other event exactly as the agent wrote
-    it (its line, home paths redacted, nothing truncated), and the first delta of each model call for its timing.
-    Lines that aren't a JSON object (a line cut off when the agent was killed) are dropped."""
+    it (its line, home paths redacted, nothing truncated), the first delta of each model call for its timing, and
+    the last delta before a new agent process or the log's end, as a stamp (its time, type and tool call id, no
+    payload): that is when a process that died mid-call was last heard from, which is where the accounting ends the
+    call (accounting.parse), so the compact log gives the record's figures. Lines that aren't a JSON object (a line
+    cut off when the agent was killed) are dropped."""
     import gzip
+    from accounting import CLAUDE_INIT, RESTART_MARK
     out = raw.with_name(raw.stem + ".compact.jsonl.gz")
     first_chunk_due = False            # an assistant message has started and its first chunk isn't kept yet
+    pending = None                     # the last delta dropped since the last line kept
     with raw.open(errors="replace") as src, gzip.open(out, "wt") as dst:
         for line in src:
             m = DELTA_TYPE.search(line[:DELTA_PREFIX])
             if m and not (first_chunk_due and m.group(1) == FIRST_CHUNK_EVENT):
+                pending = _delta_stamp(line, m.group(1)) or pending
                 continue
             try:
                 e = json.loads(line)
@@ -366,13 +388,19 @@ def compact_events(raw: Path) -> Path:
                 continue
             t = e.get("type")
             if t in STREAM_DELTA_EVENTS and not (first_chunk_due and t == FIRST_CHUNK_EVENT):
-                continue                  # a delta whose type wasn't at the start of its line
+                pending = _delta_stamp(line, t) or pending     # a delta whose type wasn't at the start of its line
+                continue
             if t == FIRST_CHUNK_EVENT:
                 first_chunk_due = False
             elif t == "message_start":
                 msg = e.get("message")
                 first_chunk_due = isinstance(msg, dict) and msg.get("role") == "assistant"
+            if pending is not None and (t in ("session", RESTART_MARK) or (t == "system" and e.get("subtype") == CLAUDE_INIT)):
+                dst.write(json.dumps(pending, separators=STAMP_SEPARATORS) + "\n")   # the process before this one was last heard from here
+            pending = None
             dst.write(_redact(line.rstrip("\n")) + "\n")
+        if pending is not None:
+            dst.write(json.dumps(pending, separators=STAMP_SEPARATORS) + "\n")   # a log that ends in a delta: cut off by a death
     return out
 
 
