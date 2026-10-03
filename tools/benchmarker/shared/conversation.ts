@@ -45,18 +45,6 @@ export interface EventsPage {
   range: { fromMs: number; toMs: number };
 }
 
-/** The sections of the conversation page a bar's part leads to. */
-export type ConversationAnchor = "all" | "calls" | "tools" | "compactions" | "sessions" | "requests" | "messages" | "conditions";
-
-/** How the page lays the conversation out: one list in time order, or a section per kind. */
-export type ConversationView = "time" | "type";
-export const CONVERSATION_VIEWS: { id: ConversationView; name: string }[] = [{ id: "time", name: "In order" }, { id: "type", name: "By type" }];
-
-/** Where each part of a time bar lands on the conversation page. */
-export const SEGMENT_ANCHOR: Record<Seg, ConversationAnchor> = {
-  prefill: "calls", decode: "calls", modelUnsplit: "calls", other: "calls", compaction: "compactions", tools: "tools", betweenSessions: "sessions",
-};
-
 export const EVENTS_PAGE_MAX = 500;
 /** How often the page asks for what came after its latest cursor. */
 export const FOLLOW_POLL_MS = 5_000;
@@ -173,3 +161,152 @@ export const CLAMP_LINES = 5;
 /** A text this long is folded whatever its line count (a cell is about this wide in characters, times the lines). */
 export const CLAMP_CHARS = 400;
 export const needsClamp = (text: string) => text.split("\n").length > CLAMP_LINES || text.length > CLAMP_CHARS;
+
+// ---------- turns: the conversation as a reader follows it ----------
+
+/** The kinds a reader can show or hide; a bar's part names one of them. */
+export type TurnKind = "call" | "tool" | "msg" | "compaction" | "wait" | "request" | "condition";
+export const TURN_KINDS: { id: TurnKind; name: string }[] = [
+  { id: "call", name: "Model calls" }, { id: "tool", name: "Tool calls" }, { id: "compaction", name: "Compactions" }, { id: "wait", name: "Waits" },
+  { id: "msg", name: "Messages" }, { id: "request", name: "Engine requests" }, { id: "condition", name: "Machine readings" },
+];
+/** Where each part of a time bar lands: the kind it shows alone. */
+export const SEGMENT_KIND: Record<Seg, TurnKind> = {
+  prefill: "call", decode: "call", modelUnsplit: "call", other: "call", compaction: "compaction", tools: "tool", betweenSessions: "wait",
+};
+
+export interface ToolTurn { idx: number; start: ConversationEvent; end: ConversationEvent | null }
+
+/** One turn: a model call with the tools it called and the engine's request for it; or a message, a compaction
+ * (its start and end together), a wait, an engine request no call matched, a machine reading, or a tool no call owns. */
+export interface Turn {
+  kind: TurnKind;
+  /** The event the turn is: the call, the message, the compaction's start, the wait, the request, the reading, the tool's start. */
+  event: ConversationEvent;
+  tMs: number;
+  tools: ToolTurn[];
+  request: ConversationEvent | null;
+  end: ConversationEvent | null;
+  /** A model call's index (its page's address), when the turn is one. */
+  callIdx: number | null;
+}
+
+const num = (v: unknown): number | null => (typeof v === "number" ? v : null);
+
+/** The events as turns, in time order. A call's tools and request find it whatever their order in the stream (a
+ * request placed late has an earlier time than the call it answers). */
+export function turns(events: ConversationEvent[]): Turn[] {
+  const sorted = [...events].sort((a, b) => a.tMs - b.tMs || a.ord - b.ord);
+  const calls = new Map<number, Turn>();
+  const out: Turn[] = [];
+  const own = (kind: TurnKind, e: ConversationEvent): Turn => ({ kind, event: e, tMs: e.tMs, tools: [], request: null, end: null, callIdx: null });
+  // Pass 1: every turn that stands by itself, calls first so their tools and requests can find them.
+  for (const e of sorted) {
+    if (e.kind === "call") { const t = { ...own("call", e), callIdx: num(e.refIdx) }; if (t.callIdx !== null) calls.set(t.callIdx, t); out.push(t); }
+    else if (e.kind === "compaction_start") out.push(own("compaction", e));
+    else if (e.kind === "between_sessions") out.push(own("wait", e));
+    else if (e.kind === "msg") out.push(own("msg", e));
+    else if (e.kind === "condition") out.push(own("condition", e));
+  }
+  // Pass 2: what belongs to a turn, or stands alone when nothing owns it.
+  const tools = new Map<number, ToolTurn>();
+  const ends = new Map<number, ConversationEvent>();
+  const compactions = new Map<number, Turn>(out.filter((t) => t.kind === "compaction").map((t) => [num(t.event.refIdx) ?? -1, t]));
+  for (const e of sorted) {
+    if (e.kind === "tool_start") {
+      const idx = num(e.refIdx) ?? -1;
+      const t: ToolTurn = { idx, start: e, end: ends.get(idx) ?? null };
+      tools.set(idx, t);
+      const owner = num(e.callIdx);
+      const call = owner !== null ? calls.get(owner) : undefined;
+      if (call) call.tools.push(t); else out.push({ ...own("tool", e), tools: [t], callIdx: owner });
+    } else if (e.kind === "tool_end") {
+      const idx = num(e.refIdx) ?? -1;
+      const t = tools.get(idx);
+      if (t) t.end = e; else ends.set(idx, e);
+    } else if (e.kind === "request") {
+      const owner = num(e.callIdx);
+      const call = owner !== null ? calls.get(owner) : undefined;
+      if (call) call.request = e; else out.push({ ...own("request", e), callIdx: owner });
+    } else if (e.kind === "compaction_end") {
+      const t = compactions.get(num(e.refIdx) ?? -1);
+      if (t) t.end = e; else out.push({ ...own("compaction", e), end: e });
+    }
+  }
+  out.sort((a, b) => a.tMs - b.tMs || a.event.ord - b.event.ord);
+  return out;
+}
+
+/** The text a turn holds: the call's words and thinking, its tools' arguments and results, a message. */
+export function turnText(t: Turn): string {
+  const parts = [eventText(t.event), ...t.tools.flatMap((x) => [eventText(x.start), x.end ? eventText(x.end) : ""])];
+  return parts.filter(Boolean).join("\n");
+}
+
+export interface TurnFilter { kinds: Set<TurnKind>; query: string; range: [number, number] | null }
+
+/** Whether a turn is shown: its kind on, in the range, and holding the text (its tools count for a call). */
+export function turnShown(t: Turn, f: TurnFilter): boolean {
+  if (f.range && (t.tMs < f.range[0] || t.tMs >= f.range[1])) return false;
+  const q = f.query.trim().toLowerCase();
+  const textOk = q === "" || turnText(t).toLowerCase().includes(q);
+  if (!textOk) return false;
+  if (f.kinds.has(t.kind)) return true;
+  // A call hidden but its tools shown: the tools stand as rows of their own (the page does that split).
+  return t.kind === "call" && f.kinds.has("tool") && t.tools.length > 0;
+}
+
+/** `?kind=tool`: only that kind on; absent: every kind. */
+export function kindsFromParam(kind: string | undefined): Set<TurnKind> {
+  const all = new Set(TURN_KINDS.map((k) => k.id));
+  if (!kind) return all;
+  const one = TURN_KINDS.find((k) => k.id === kind);
+  return one ? new Set([one.id]) : all;
+}
+
+/** `m:ss` past a minute, `s.s s` under it: a moment of the story. */
+export function clock(ms: number, fromMs: number): string {
+  const s = Math.max(0, ms - fromMs) / 1000;
+  if (s < 60) return `${s.toFixed(1)} s`;
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s - m * 60);
+  return `${m}:${String(sec).padStart(2, "0")}`;
+}
+
+// ---------- the strip: where the model worked, where tools ran, where it compacted ----------
+
+export interface StripMark { kind: "call" | "tool" | "compaction"; x0: number; x1: number; h: number; turn: number; label: string }
+
+/** The strip's marks in 0..1 of the width and height: a call as a bar at its end whose height is its output (or its
+ * thinking) against the story's largest; a tool as a band from its start to its end; a compaction as a line. */
+export function strip(all: Turn[], range: { fromMs: number; toMs: number }): StripMark[] {
+  const span = Math.max(1, range.toMs - range.fromMs);
+  const x = (t: number) => Math.min(1, Math.max(0, (t - range.fromMs) / span));
+  const size = (t: Turn) => (typeof t.event.outTok === "number" ? t.event.outTok : typeof t.event.think === "number" ? t.event.think : 1);
+  const biggest = Math.max(1, ...all.filter((t) => t.kind === "call").map(size));
+  const out: StripMark[] = [];
+  all.forEach((t, i) => {
+    if (t.kind === "call") {
+      const sent = typeof t.event.sentMs === "number" ? t.event.sentMs : t.tMs;
+      out.push({ kind: "call", x0: x(sent), x1: x(t.tMs), h: Math.max(0.08, Math.sqrt(size(t) / biggest)), turn: i, label: `call ${(t.callIdx ?? 0) + 1} at ${clock(t.tMs, range.fromMs)}` });
+      for (const tool of t.tools) {
+        const end = tool.end ? tool.end.tMs : range.toMs;
+        out.push({ kind: "tool", x0: x(tool.start.tMs), x1: x(end), h: 0.18, turn: i, label: `${String(tool.start.name ?? "tool")} at ${clock(tool.start.tMs, range.fromMs)}` });
+      }
+    } else if (t.kind === "tool") {
+      const tool = t.tools[0];
+      out.push({ kind: "tool", x0: x(tool.start.tMs), x1: x(tool.end ? tool.end.tMs : range.toMs), h: 0.18, turn: i, label: `${String(tool.start.name ?? "tool")} at ${clock(t.tMs, range.fromMs)}` });
+    } else if (t.kind === "compaction") {
+      out.push({ kind: "compaction", x0: x(t.tMs), x1: x(t.end ? t.end.tMs : t.tMs), h: 1, turn: i, label: `compaction at ${clock(t.tMs, range.fromMs)}` });
+    }
+  });
+  return out;
+}
+
+/** The turn nearest a moment (by its own time), for a click on the strip. */
+export function nearestTurn(all: Turn[], tMs: number): number | null {
+  let best: number | null = null;
+  let d = Infinity;
+  all.forEach((t, i) => { const dd = Math.abs(t.tMs - tMs); if (dd < d) { d = dd; best = i; } });
+  return best;
+}

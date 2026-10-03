@@ -101,9 +101,9 @@ describe("conversation addresses", () => {
   it("a story run's conversation and one of its calls round-trip, with the section asked for", async () => {
     const { conversationHref, callHref, parseRoute } = await import("./routes.ts");
     const stack = "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi";
-    const href = conversationHref("vidi", stack, "v2-r1", "3", "tools");
-    expect(href).toBe(`#/vidi/r/${encodeURIComponent(stack)}/v2-r1/s/3/conversation?at=tools`);
-    expect(parseRoute(href)).toEqual({ page: "conversation", pack: "vidi", stack, runId: "v2-r1", story: "3", params: { at: "tools" } });
+    const href = conversationHref("vidi", stack, "v2-r1", "3", "tool");
+    expect(href).toBe(`#/vidi/r/${encodeURIComponent(stack)}/v2-r1/s/3/conversation?kind=tool`);
+    expect(parseRoute(href)).toEqual({ page: "conversation", pack: "vidi", stack, runId: "v2-r1", story: "3", params: { kind: "tool" } });
     const call = callHref("vidi", stack, "v2-r1", "03", 7);
     expect(call).toBe(`#/vidi/r/${encodeURIComponent(stack)}/v2-r1/s/3/conversation/c/7`);
     expect(parseRoute(call)).toEqual({ page: "call", pack: "vidi", stack, runId: "v2-r1", story: "3", call: "7", params: {} });
