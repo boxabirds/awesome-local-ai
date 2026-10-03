@@ -178,16 +178,20 @@ not decisions.
 
 The scripts are in [scripts/](scripts/), standard library only.
 
-1. `build_full.py <repo> <folder of complete logs> conv_full.db` builds the database. The complete logs
-   (`agent-events.jsonl`) are kept on the machine that ran each run; the published logs in this repo are lossless
-   only for runs recorded since 30 September 2026.
+1. The database is the warehouse `dbench collect` keeps current: `<private repo>/state/insights/conversations.db`
+   (git-ignored there; see `tools/dbench/README.md`, "Collecting what git does not carry"). Each story's conversation
+   comes from the complete log pulled from the machine that ran it, else from the published compact log (lossless
+   for runs recorded since 30 September 2026). To build it afresh by hand:
+   `dbench ingest --db <private>/state/insights/conversations.db --repo <this repo> --store <private>/state/collected --rebuild`.
+   The five tables these scripts read (`stories`, `calls`, `tools`, `msgs`, `compactions`) keep the columns of the
+   first database as an exact prefix; the schema is `dbench ingest --schema`. The scripts' reader of the event logs
+   lives on in `tools/dbench/src/ingest/events.rs`, held equal to the Python reader by the goldens
+   `benchmarks/spec-bench/harness/export_goldens.py` writes.
 2. `detect_core.py`, `detect_performance.py`, `detect_behaviour.py` and `detect_security.py`, each given the database,
    print every table. Two runs give identical output. `detect_time.py` (where story time goes, by kind of call) and
    `detect_reads.py` (how many look calls a bulk read could merge) print the tables behind the time analysis; they are
    not yet part of the findings documents.
 
 The database itself is not in this repo: it holds complete conversations, including the credentials one story
-printed. It is expensive to build, so it is kept, compressed, in the private repo at
-`analysis/insights-db/conv_full.db.zst`, with its schema (`SCHEMA.md`), the brief, the build scripts, the detectors
-as they were run and their printed output. To use it: `zstd -d conv_full.db.zst -o conv_full.db`, then run a detector
-on it. Rebuild it (step 1) only when new runs are to be added.
+printed. The findings above were made from its first build, `conv_full.db` (1 October 2026), kept beside it in the
+private repo's `state/insights/` with the detectors' printed output.

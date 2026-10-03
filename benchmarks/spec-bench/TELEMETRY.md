@@ -14,18 +14,25 @@ Everything is under the run directory,
 `combinations/<COMBINATION>/benchmarks/<pack>/<run-id>/` (or `<RUN_BASE>/<run-id>/` for a reference
 stack).
 
+Published means pushed to git after each story. **Collected** means it stays on the machine and `dbench collect`
+pulls it from there into the lake (`<private repo>/state/collected/<node>/<run path>/`, a byte-for-byte copy with
+`collection.json` beside it saying what was collected and whether the run is complete), from which the ingest
+builds the conversation database (`tools/dbench/README.md`, "Collecting what git does not carry"). A collected
+file still being appended to is read up to its last complete line.
+
 | File | Published | What |
 |---|---|---|
 | `run.json` | yes | the run's configuration, written at each start (the previous one is kept in `run-history.jsonl`) |
 | `metrics.json` | yes | one record per story (the fields below) |
 | `run-history.jsonl` | yes | every earlier `run.json`, one line per start: run.sh appends the old one before it writes the new, so a restart never loses what an earlier start ran (`provenance.py` reads it) |
 | `run-status.json` | yes | the run's current state, and `host`: the machine's hardware (`host-desc.sh`), never its hostname |
-| `progress.json`, `current_story`, `control/` | no (git-ignored) | live state of the current story, for dbench and watchers |
+| `progress.json`, `current_story`, `control/` | no (git-ignored); `progress.json` collected | live state of the current story, for dbench and watchers |
 | `summary.md` | yes | the report (`report.py`), ending with *How it happened* (`history.py`): each story's commits and source files changed, how many of an earlier story's held-out tests each story broke or fixed (counts only; the tests and their errors are in the git-ignored `summary-detail.md`), and *Interruptions and dead time*: every machine freeze, harness crash or restart inside a story, how long it was down, the cause logged in `interventions.md`, and each story's active agent time across all its attempts |
 | `workspace-git-log.txt` | yes | the agent's commit history |
 | `stories/NN/prompt.md`, `base-commit` | yes | what the agent was given, and from which commit |
 | `stories/NN/agent-events.compact.jsonl.gz` | yes | the agent's session, lossless: every event line exactly as the agent wrote it, home paths redacted, nothing cut; only the stream deltas (`message_update`, `tool_execution_update`) are dropped, except the first `message_update` of each model call, whose arrival is when prefill ended (`accounting.py` times prefill and decode by it). A restarted story's log also holds a `harness_attempt` line where each restart began (`attempt`, `harness_commit`, `pack_version`). About 1/40 of the full log (a 30.9 MB story: 0.7 MB). Its own size cap is 50 MB (GitHub warns over 50 MB and refuses over 100 MB); past it strings are cut and a first `harness_log_cut` line says so. Logs committed before 30 Sep 2026 cut strings at 2,000 characters (down to 80 over 512 KB) and have no deltas: `backfill_timing.py` rebuilds them from the full log where the machine kept it |
-| `stories/NN/agent-events.jsonl` | no (git-ignored) | the full session as pi streamed it, each line stamped `_rx` on arrival |
+| `stories/NN/agent-events.jsonl` | no (git-ignored); collected | the full session as pi streamed it, each line stamped `_rx` on arrival |
+| `stories/NN/conditions.jsonl` | no (git-ignored); collected | every reading of the machine while the story ran, one JSON line per tick (every `CONDITION_POLL_S`): `t`, `ac`, `low_power`, `thermal`, `swap_gb`, `free_pct`, `footprint_gb`, `footprint_peak_gb`, `gpu` (the GPU sample, or null). `conditions` in `metrics.json` is this series summarised; runs started before the harness release of 3 Oct 2026 have only the summary |
 | `stories/NN/gate.json` | yes | the agent's own checks |
 | `stories/NN/accept-summary.json` (and `accept-final-summary.json`) | yes | the held-out result's counts: passed, total, per story, fallbacks, fault; never a test, its title or its output |
 | `stories/NN/accept.json`, `accept-report.json`, `screenshots/`, `artifacts/`, `scoring-N/`; `accept-final.json`; `AUDIT.md`, `audit.jsonl`; `heldout-detail.json`, `summary-detail.md` | **no, never** (git-ignored; `publicise.py`) | the held-out suite's detail. Kept on the machine and copied to the private repo under `runs/<run path>/`; tools that need it read it there (`heldout.find`). The harness refuses any commit whose files carry a held-out test title |
@@ -34,7 +41,10 @@ stack).
 | `rescore/<version>/rescore.json`, `per-story.md`, `stories/NN/accept-summary.json` | yes | a re-score under suite `<version>` (`rescore.py`; below); its `stories/NN/accept.json` and `scoring-N/` are held-out detail, private like the live ones |
 | `rescore-spoiled/<version>-<UTC time>/` | yes (its detail private, as above) | a re-score that was not recorded: the machine spoiled it, the live-vs-record guard flagged it, or the run went on after it (it scored an earlier checkpoint); `set-aside.json` says why (`reason`, `at`). The next finalize, or the sweep, re-scores |
 | `base/accept-summary.json` | yes, partial reruns only | the held-out suite's counts on the base before the agent starts, so the story's regressions and repairs are measured |
-| `server.log` | no (`*.log` is ignored) | the model server's own log, appended across restarts, each start after a `=== server start <epoch> ===` marker |
+| `server.log` | no (`*.log` is ignored); collected | the model server's own log, appended across restarts, each start after a `=== server start <epoch> ===` marker |
+| `proxy.log` | no; collected | the metering proxy's log, only with `run.sh --meter` |
+| `<VIDI_BENCH_HOME>/egress/<work id>.jsonl` | no; collected as `egress.jsonl` | the agent's egress log (the sandbox's allow-listed network), named by `work_dir.txt`'s basename; absent for runs before 1 Oct 2026 |
+| `~/.mtplx/logs/request-log-<port>.jsonl` | no; not collected | MTPLX's request log is per port and shared across runs, so nothing in the run directory names it |
 | `requests.jsonl` | yes, if present | per-request figures from the Python metering proxy; only with `run.sh --meter` (off by default; it adds a hop) |
 
 dbench keeps its own job log and events (`story_start`, `agent_done`, `scored`, `crash`), attempts,

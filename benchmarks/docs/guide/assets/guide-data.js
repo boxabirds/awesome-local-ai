@@ -9,7 +9,7 @@
  */
 const GUIDE_DATA = {};
 
-GUIDE_DATA.meta = { asOf: "2 October 2026" };
+GUIDE_DATA.meta = { asOf: "3 October 2026" };
 
 GUIDE_DATA.mapDesc = "Seven columns of boxes, one box per entity, grouped as Define, Stack under test, A run, Scoring, Operate, Safeguards, and Show and watch. Lines between boxes are relationships. Select a box to see what it is and what it relates to.";
 
@@ -236,10 +236,19 @@ GUIDE_DATA.entities = [
     id: "conversation", name: "Conversation (events)", group: "run", row: 5,
     short: "The agent's complete event log for a story.",
     what: "The agent's complete event log for a story: every model reply, thought, tool call and tool result, each stamped with its arrival time. It is published whole, compressed (`agent-events.compact.jsonl.gz`); only the repeated stream deltas are dropped. From it the harness counts a conversation profile (thinking, context growth, tools) with no LLM.",
-    rel: [["includes", "compaction"]],
+    rel: [["includes", "compaction"], ["is collected into", "collection"]],
     repo: [["benchmarks/spec-bench/harness/conversation.py", "harness/conversation.py"], ["benchmarks/spec-bench/harness/accounting.py", "harness/accounting.py"]],
     example: "The insights analysis read 436 story conversations in 52 runs, each from its complete log.",
     insights: ["thinking-spread"],
+  },
+  {
+    id: "engine-request", name: "Engine request", group: "run", row: 11,
+    short: "One request the model server finished, by its own account.",
+    what: "One request the model server finished, as its own log says: what it read (prompt tokens, cached or fresh), what it generated, how long prefill and decode took, how many drafted tokens were accepted. llama-server's log has a clock, so its requests are placed in a story by time; gufo's, mlx-serve's and Strata's do not, so theirs are matched to the agent's calls by their token counts, in order, within the server run that was up. A matched request names the model call it answered.",
+    rel: [["answers", "conversation"], ["is kept in", "conversation-db"]],
+    repo: [["tools/dbench/src/ingest/engine_log.rs", "ingest/engine_log.rs"], ["tools/dbench/src/ingest/llama_log.rs", "ingest/llama_log.rs"], ["benchmarks/spec-bench/harness/engine_log.py", "harness/engine_log.py"]],
+    example: "In the parity check of 3 October 2026, the one llama-server request of a fixture story was placed in its second call, with 45 prompt tokens and 24 generated at 28.7 tok/s.",
+    status: { state: "in-progress", note: "The readers are on main (3 October 2026) and held equal to the harness's Python ones by goldens; no server log has been collected yet, so no run has its requests placed." },
   },
   {
     id: "compaction", name: "Compaction", group: "run", row: 6,
@@ -421,6 +430,15 @@ GUIDE_DATA.entities = [
     example: "gufo `v2-r1` was scored under suite `vidi-v2.0-pre1`, then `pre2`, and could not say which stories were scored by which until provenance existed.",
   },
   {
+    id: "collector", name: "Collector (dbench collect)", group: "operate", row: 8,
+    short: "The host's loop that pulls each run's machine-only files into the lake and keeps the warehouse current.",
+    what: "`dbench collect` on the host. Each pass asks every node for its runs and the files it may collect, pulls the bytes it does not hold yet (an append-only file from its local length, with a check that the last 4 KiB it holds are still what the node has; `progress.json` whole) into the lake, records what it holds in `collection.json`, and ingests the stories whose inputs changed into the {e:conversation-db|warehouse}. It also serves the conversation API the {e:benchmarker|benchmarker} reads. A node that cannot be reached is reported on stderr and left as it was; nothing on the page says why.",
+    rel: [["pulls from", "node-server"], ["writes", "collection"], ["builds", "conversation-db"]],
+    repo: [["tools/dbench/README.md", "dbench README: collecting"], ["tools/dbench/src/collector.rs", "collector.rs"], ["tools/dbench/src/collect.rs", "collect.rs (the allow-list)"], ["docs/designs/conversational-data-lake-warehouse-analytics.md", "design: lake, warehouse, analytics"]],
+    example: "In its end-to-end test the collector pulls a growing run in three passes: everything, then only the growth, then nothing while the node is unreachable (exit 0, the lake untouched), and marks the run complete once it has settled.",
+    status: { state: "in-progress", note: "On main since 3 October 2026, with its tests. Not yet running on the host: the nodes need the dbench that serves the files (hold, restart, release), then the first pass over every node." },
+  },
+  {
     id: "partial-rerun", name: "Partial rerun", group: "operate", row: 7,
     short: "One story, or the rest of a run, rerun from another run's code.",
     what: "A diagnostic: one story (`--only N`), or story N and every later one (`--from-story N`), run on another finished run's code as it was when the story before ended. The held-out suite is run on that base first, so regressions still count. It measures a stack on a story without earlier mistakes carried in, in the time of a story instead of a run. Labelled diagnostic; never mixed with full runs.",
@@ -532,9 +550,27 @@ GUIDE_DATA.entities = [
     id: "insights", name: "Insights analysis", group: "watch", row: 5,
     short: "What every recorded conversation shows.",
     what: "`benchmarks/docs/insights/`: what every recorded conversation shows, as of 1 October 2026: 436 story conversations in 52 runs, read from complete logs. Each finding is a detector run over all of them and reported per combination. The scripts are in the repo; the database is not, because it holds complete conversations, including credentials one story printed.",
-    rel: [["reads", "conversation"]],
+    rel: [["reads", "conversation"], ["reads", "conversation-db"]],
     repo: [["benchmarks/docs/insights/README.md", "insights README"], ["benchmarks/docs/insights/findings-performance.md", "findings: performance"], ["benchmarks/docs/insights/findings-behaviour.md", "findings: behaviour"], ["benchmarks/docs/insights/findings-security.md", "findings: security"]],
     example: "Section 'What the analysis found' below lists its findings by theme.",
+  },
+  {
+    id: "collection", name: "Collection (the lake)", group: "watch", row: 7,
+    short: "The host's byte-for-byte copy of what a run leaves on its machine and never pushes.",
+    what: "The lake: `<private repo>/state/collected/<node>/<run path>/`, a byte-for-byte copy of the files a run leaves on its machine that git never carries (the complete `agent-events.jsonl` of each story, `server.log`, `progress.json`, the egress log, each story's `conditions.jsonl`), with `collection.json` beside them: what was collected, how many bytes, when, from which node, and whether the run is complete (its status final, its job over, every file held to its end, nothing changed after a minute's grace). Facts only, never a fault or a reason. The local file's length is the cursor, so a crash between an append and the record is healed on the next pass.",
+    rel: [["copies", "conversation"], ["is read by", "conversation-db"], ["lives in", "private-repo"]],
+    repo: [["tools/dbench/README.md", "dbench README: collecting"], ["benchmarks/spec-bench/TELEMETRY.md", "TELEMETRY.md: where it lands"]],
+    example: "A run's `collection.json` after two passes: `stories/01/agent-events.jsonl` 714 bytes, at its end; `server.log` at its end; `progress.json` fetched whole; complete once the job ended and the files stopped changing.",
+    status: { state: "in-progress", note: "The format and the collector are on main (3 October 2026); the lake is empty until the collector runs." },
+  },
+  {
+    id: "conversation-db", name: "Conversation database (the warehouse)", group: "watch", row: 8,
+    short: "Every conversation, parsed, in one database with one time axis.",
+    what: "`<private repo>/state/insights/conversations.db`: every story run's conversation parsed into rows (calls, tool calls, messages, compactions; runs, attempts, sessions; the model server's {e:engine-request|requests} placed in it; the machine's readings), and `events`, the time-ordered, append-only stream the conversation API pages over. Each story's rows come from its complete log in the {e:collection|lake} when the run is there, else from the published compact log; only a story whose inputs changed is redone. The five tables the {e:insights|insights scripts} read keep the columns of the first database as an exact prefix, so those scripts run unchanged. Its parsers are ports of the harness's own, held equal by goldens the Python side writes.",
+    rel: [["is built from", "collection"], ["is built from", "record"], ["is read by", "benchmarker"], ["is read by", "insights"]],
+    repo: [["tools/dbench/src/ingest/schema.sql", "schema.sql"], ["tools/dbench/src/ingest/mod.rs", "ingest/mod.rs"], ["benchmarks/spec-bench/harness/export_goldens.py", "export_goldens.py"], ["benchmarks/docs/insights/README.md", "insights README: reproducing this"]],
+    example: "Rebuilt from origin/main's published logs on 3 October 2026: 477 story runs in 55 runs, 97,935 calls, 101,748 tool calls, 263,294 events. Of the 429 stories the first database (1 October) also held, 425 have the same call, tool, message and compaction counts; the four that differ were still running then, or have more in their machine's complete log than in the published one.",
+    status: { state: "in-progress", note: "On main since 3 October 2026 (`dbench ingest`); the first build exists in the private repo's `state/insights/`. Kept current only once the collector runs on the host." },
   },
   {
     id: "horizon", name: "Horizon", group: "watch", row: 6,
@@ -1235,24 +1271,24 @@ GUIDE_DATA.components = [
   {
     id: "dbench", name: "dbench", lang: "Rust",
     status: { state: "built" },
-    what: "The controller for the harness: `dbench serve` on each machine (a queue, restarts, recovery, hold and release, a read-only copy of the newest harness release) and client commands from any machine (`nodes`, `submit`, `status`, `logs`, `events`, `cancel`, `hold`, `release`, `skip-story`, `harness-release`). About 8,800 lines in 21 source files, with unit and end-to-end tests against the real binary.",
+    what: "The controller for the harness: `dbench serve` on each machine (a queue, restarts, recovery, hold and release, a read-only copy of the newest harness release, and since 3 October 2026 the run directory's collectable files, by an allow-list of names, served by byte range) and client commands from any machine (`nodes`, `submit`, `status`, `logs`, `events`, `cancel`, `hold`, `release`, `skip-story`, `harness-release`). On the host, `dbench collect` is the {e:collector|collector} and `dbench ingest` builds the {e:conversation-db|warehouse}; the collector also serves the conversation API. With unit and end-to-end tests against the real binary, and golden tests that hold the ingest's parsers equal to the harness's Python ones.",
     why: "Runs last hours, machines reboot and get unfit, and nobody should have to sit and watch. The harness stays ignorant of queues; dbench stays ignorant of models.",
     inputs: "A named job (checked against `[A-Za-z0-9._-]`); the harness's exit codes and `progress.json`; git.",
-    outputs: "Job state, logs, events and progress over HTTP and JSON; results arrive through git.",
+    outputs: "Job state, logs, events and progress over HTTP and JSON; results arrive through git; a run's machine-only files by name and byte range (`/v1/runs`, `/v1/runs/files`, `/v1/runs/file`); on the host, the lake, the warehouse and the conversation API (`/v1/conversations/…`).",
     fails: "A non-zero exit restarts the job up to 3 times; the same failure twice with no progress fails it at once; exit 3 fails at once; exit 75 waits. With no harness release the job fails and says how to make one. The API is plain HTTP on a trusted network; the token guards against mistakes, not attackers.",
     repo: [["tools/dbench/README.md", "tools/dbench/README.md"], ["tools/dbench/checks.toml", "checks.toml"], ["docs/20260924-distributed-bench-design.md", "distributed-bench design"]],
-    entities: ["dbench", "node-server", "job", "hold", "harness-release"],
+    entities: ["dbench", "node-server", "job", "hold", "harness-release", "collector", "collection", "conversation-db"],
   },
   {
     id: "benchmarker", name: "Benchmarker", lang: "TypeScript (React app, Node server; bun)",
     status: { state: "built" },
-    what: "The results page. A small server reads `origin/main` and dbench and turns records and jobs into rows (`server/domain.ts`, pure and unit-tested); the React page shows overview, combination, run, story-run, story and machine pages. One glossary file (`shared/glossary.ts`) defines every measure, so a number means the same thing wherever it appears. A header search (`shared/search.ts`, press `/`) indexes every combination, run, story and machine and groups results the same way. It also queues, stops and restarts jobs through the `dbench` command line.",
+    what: "The results page. A small server reads `origin/main` and dbench and turns records and jobs into rows (`server/domain.ts`, pure and unit-tested); the React page shows overview, combination, run, story-run, story and machine pages, and since 3 October 2026 a story run's conversation (every call, tool call, compaction, wait, message, engine request and machine reading, in time) and one call in full, read through the collector's conversation API (proxied, never the database itself): the page backfills a story's span with a time-range cursor and then asks after its latest cursor every 5 s, whatever the story's status. Every time bar's parts link into the conversation at the matching section; a story the warehouse doesn't have says 'Not available.' and nothing more. One glossary file (`shared/glossary.ts`) defines every measure, so a number means the same thing wherever it appears. A header search (`shared/search.ts`, press `/`) indexes every combination, run, story and machine and groups results the same way. It also queues, stops and restarts jobs through the `dbench` command line.",
     why: "One place to see where each run is and how each combination did, built on one matrix: every number is a story-run fact, or an aggregate of them.",
-    inputs: "`origin/main` (every 60 s), `dbench status --json` (every 10 s).",
-    outputs: "`/api/state` for the page; `/api/faults` for the monitor.",
+    inputs: "`origin/main` (every 60 s), `dbench status --json` (every 10 s), the conversation API at 127.0.0.1:7761 (which story runs it has, every 10 s; a page's events on demand).",
+    outputs: "`/api/state` for the page; `/api/conversations/…` for the conversation pages; `/api/faults` for the monitor.",
     fails: "If it cannot refresh for 20 seconds it greys out under a red bar saying how old the data is. It never shows its own or the harness's faults: they go to `/api/faults`.",
     repo: [["tools/benchmarker/README.md", "tools/benchmarker/README.md"], ["tools/benchmarker/server/domain.ts", "server/domain.ts"], ["tools/benchmarker/shared/glossary.ts", "shared/glossary.ts"], ["tools/benchmarker/shared/search.ts", "shared/search.ts"], ["plans/20260930-benchmarker-information-architecture.md", "page plan"]],
-    entities: ["benchmarker"],
+    entities: ["benchmarker", "conversation-db"],
     insights: ["thinking-spread"],
   },
   {
@@ -1313,13 +1349,13 @@ GUIDE_DATA.components = [
   {
     id: "insights-scripts", name: "Insights scripts", lang: "Python (standard library only)",
     status: { state: "built" },
-    what: "`build_full.py` builds a database from the complete conversation logs; `detect_core.py`, `detect_performance.py`, `detect_behaviour.py` and `detect_security.py` print every table, deterministically.",
+    what: "`detect_core.py`, `detect_performance.py`, `detect_behaviour.py` and `detect_security.py` print every table, deterministically, from the {e:conversation-db|conversation database}; `detect_time.py` and `detect_reads.py` print the tables behind the time analysis. The database was first built by `build_full.py` (1 October 2026); since 3 October it is the warehouse `dbench ingest` builds and `dbench collect` keeps current, whose reader of the logs is held equal to `build_full.py`'s by goldens.",
     why: "So the analysis can be reproduced rather than taken on trust: each finding is a query run over every conversation.",
-    inputs: "The complete logs (`agent-events.jsonl`), which are kept on the machine that ran each run.",
+    inputs: "The conversation database: each story from its complete log (`agent-events.jsonl`) where the lake has it, else the published compact log.",
     outputs: "The tables and findings in `benchmarks/docs/insights/`.",
-    fails: "The database is not in the repo, because it holds complete conversations, including credentials one story printed. The published logs are lossless only for runs recorded since 30 September 2026.",
-    repo: [["benchmarks/docs/insights/README.md", "benchmarks/docs/insights/README.md"], ["benchmarks/docs/insights/scripts/build_full.py", "build_full.py"]],
-    entities: ["insights", "conversation"],
+    fails: "The database is not in the repo, because it holds complete conversations, including credentials one story printed. The published logs are lossless only for runs recorded since 30 September 2026; the complete logs reach the host only once the collector runs.",
+    repo: [["benchmarks/docs/insights/README.md", "benchmarks/docs/insights/README.md"], ["benchmarks/spec-bench/harness/export_goldens.py", "export_goldens.py"]],
+    entities: ["insights", "conversation", "conversation-db"],
   },
   {
     id: "judging", name: "Judging and blinded grading", lang: "Python (macOS)",
@@ -2169,6 +2205,69 @@ GUIDE_DATA.flows = [
       },
     ],
   },
+  {
+    id: "collect", letter: "J", short: "Collecting the conversation", title: "Collecting the conversation: from the machine to the page",
+    intro: [
+      "After every story the harness pushes the published record: metrics.json, the compact transcript, the score. What it never pushes stays on the machine: the complete `agent-events.jsonl` (hundreds of MB), the model server's log, the live progress file, the egress log, each story's machine readings. This flow is how those reach the host, become one database with one time axis, and are shown, happening by happening, under every time bar.",
+      "Three layers: the lake (raw, byte-for-byte copies of what the machine had), the warehouse (parsed, queryable, one millisecond time axis), and the analytics that read the warehouse: the benchmarker's conversation pages and the insights scripts. Nothing reads the lake but the ingest.",
+    ],
+    status: {
+      built: ["Every step is on main with its tests (3 October 2026). Not yet deployed: the nodes need the dbench that serves the files, the collector is not yet running on the host, and the per-tick machine readings need a harness release."],
+    },
+    caption: "Pull and diff, never push: the host asks each machine what it has and takes only what it lacks.",
+    diagram: {
+      w: 540, h: 760,
+      desc: "A run directory on a machine, with its complete transcript, server log and readings, is served by dbench serve through an allow-list of file names and byte ranges. dbench collect on the host pulls what it does not hold into the lake, a byte-for-byte copy with a collection record beside it. The ingest reads the lake and the published record into the warehouse, conversations.db, whose events stream the conversation API serves by time range with a cursor. The benchmarker's conversation pages read the API; its time bars link in. A gate beside the page: why something is missing is never on the page.",
+      nodes: [
+        { id: "nd", label: "A run directory on the machine\nagent-events.jsonl, server.log, conditions.jsonl", kind: "store", x: 270, y: 34, w: 300 },
+        { id: "srv", label: "dbench serve\nnamed files by byte range (allow-list)", kind: "guard", x: 270, y: 122, w: 300 },
+        { id: "col", label: "dbench collect on the host\nthe local length is the cursor; the last 4 KiB checked", x: 270, y: 210, w: 300 },
+        { id: "lake", label: "The lake\nstate/collected/<node>/<run>/ + collection.json", kind: "store", x: 270, y: 298, w: 300 },
+        { id: "rec", label: "The published record\norigin/main: metrics.json, compact log", kind: "store", x: 540, y: 386, w: 220 },
+        { id: "ing", label: "Ingest\nrows, the events stream, requests placed", x: 270, y: 386, w: 300 },
+        { id: "wh", label: "conversations.db\nthe warehouse: one time axis", kind: "store", x: 270, y: 474, w: 300 },
+        { id: "api", label: "Conversation API\nfromMs/toMs + cursor; after=cursor", x: 270, y: 562, w: 300 },
+        { id: "page", label: "Benchmarker\nconversation and call pages; every bar links in", kind: "out", x: 270, y: 650, w: 300 },
+        { id: "never", label: "Never on the page:\nwhy something is missing", kind: "gate", x: 540, y: 650, w: 220 },
+      ],
+      edges: [
+        { from: "nd", to: "srv" }, { from: "srv", to: "col" }, { from: "col", to: "lake" }, { from: "lake", to: "ing" }, { from: "rec", to: "ing" },
+        { from: "ing", to: "wh" }, { from: "wh", to: "api" }, { from: "api", to: "page" }, { from: "never", to: "page" },
+      ],
+    },
+    steps: [
+      {
+        title: "The machine serves only named files", nodes: ["nd", "srv"], edges: ["nd>srv"],
+        text: ["`GET /v1/runs` lists every run directory on the machine; `/v1/runs/files` lists a run's collectable files with their sizes from `stat` alone; `/v1/runs/file` serves one of them from a byte offset, at most 4 MiB at a time, never past the size it saw at the start. The names are an allow-list in `collect.rs` (each story's transcript and readings, the server and proxy logs, the progress file, the egress log found from `work_dir.txt`): a request never contributes a path, only a name from the table and a story number, so a file outside the run directory cannot be asked for. Reads never touch the harness."],
+        where: [["tools/dbench/src/collect.rs", "collect.rs"], ["tools/dbench/README.md", "dbench README: API"]],
+        state: "in-progress",
+      },
+      {
+        title: "The host pulls what it does not hold", nodes: ["srv", "col", "lake"], edges: ["srv>col", "col>lake"],
+        text: ["Every 10 s `dbench collect` asks each node in nodes.toml for its runs and each run's files, and pulls the difference: an append-only file from its local length, sending the hash of the last 4 KiB it holds, which the node checks before answering (a file the node truncated or rewrote there comes back as 409 and is fetched again from 0); `progress.json` whole. The local file's length is the cursor, so a crash between an append and the record is healed on the next pass. A node that cannot be reached is reported on stderr and left as it was; a node with an older dbench is named as needing the new one."],
+        where: [["tools/dbench/src/collector.rs", "collector.rs"], ["tools/dbench/src/client.rs", "client.rs (`file_chunk`)"]],
+        state: "in-progress",
+      },
+      {
+        title: "A run's collection is recorded, and completes", nodes: ["lake"], edges: [],
+        text: ["`collection.json` beside the files says what was collected, how many bytes, when, from which node, and whether the run is complete: its `run-status.json` final, its job (if any) over, every file held to its end, and a further look after a minute's grace showing nothing changed. A complete run is looked at again every hour (a resumed run flips back). Facts only: no error text, no reason, nothing the page would have to explain."],
+        where: [["tools/dbench/src/collector.rs", "collector.rs (`Collection`, `settled`, `due`)"], ["benchmarks/spec-bench/TELEMETRY.md", "TELEMETRY.md: where it lands"]],
+        state: "in-progress",
+      },
+      {
+        title: "Ingest: the warehouse", nodes: ["lake", "rec", "ing", "wh"], edges: ["lake>ing", "rec>ing", "ing>wh"],
+        text: ["After each pass, every story whose inputs changed (a digest of the record's blob ids and the lake's file stamps) is parsed again: its calls, tool calls, messages and compactions as rows, each call's timing from the client's stream, each tool's kind; the model server's log into {e:engine-request|requests}, placed by time (llama-server) or matched by tokens (gufo, mlx-serve, Strata); the machine's readings; and `events`, one immutable row per happening in (time, kind, index) order. A story still being appended to only ever gains ords; a finished story's stream is rebuilt in time order. The parsers are ports of the harness's Python ones, and `tests/golden` holds them equal: the release check fails the day the Python side changes until the Rust side follows. The five tables the insights scripts read keep their first columns as an exact prefix."],
+        where: [["tools/dbench/src/ingest/schema.sql", "schema.sql"], ["tools/dbench/src/ingest/mod.rs", "ingest/mod.rs"], ["benchmarks/spec-bench/harness/export_goldens.py", "export_goldens.py"]],
+        state: "in-progress",
+      },
+      {
+        title: "The API, and the page", nodes: ["wh", "api", "page", "never"], edges: ["wh>api", "api>page", "never>page"],
+        text: ["The conversation API serves the warehouse read-only on the loopback address. One stream per story run, two forms: `?fromMs=&toMs=&cursor=&limit=` pages a time range in (time, ord) order, contiguous by construction, and `?after=<cursor>` returns everything ingested after the cursor whatever its time (a late-placed request has a later ord), with the latest stamp for the next call. Every time is integer milliseconds. The benchmarker proxies it as `/api/conversations/…`: the page backfills the story's span, then asks after its latest cursor every 5 s, whether the story is running or long finished. Every time bar's parts lead to the matching section; a story the warehouse doesn't have keeps its bar as a link to its story run and says 'Not available.', and the faults it would explain go to `/api/faults` instead."],
+        where: [["tools/dbench/src/conversation_api.rs", "conversation_api.rs"], ["tools/benchmarker/README.md", "benchmarker README: Conversations"], ["tools/benchmarker/src/pages/ConversationPage.tsx", "ConversationPage.tsx"]],
+        state: "in-progress",
+      },
+    ],
+  },
 ];
 
 // =====================================================================================================================
@@ -2376,6 +2475,11 @@ GUIDE_DATA.glossary = [
   { id: "compaction", term: "Compaction", def: "The client summarising the conversation to make room when it nears the context limit. It costs a model call and discards the prompt cache.", entity: "compaction", auto: ["compaction", "compactions"] },
   { id: "containment", term: "Containment", def: "On Linux, keeping every process the agent starts in a cgroup the harness owns. On macOS the harness cleans up by process group.", entity: "containment", see: ["cgroup"] },
   { id: "context-window", term: "Context window", def: "How many tokens the model can hold at once: 128k on most combinations (20k on the 16 GB one, too small for agentic coding). Chosen with the engine and the client's compaction threshold together.", see: ["compaction"] },
+  { id: "lake", term: "Lake", def: "The host's raw, byte-for-byte copies of the files a run leaves on its machine and never pushes, pulled by `dbench collect` into the private repo's `state/collected/`, with `collection.json` beside each run saying what was collected and whether the run is complete.", entity: "collection", auto: ["the lake"] },
+  { id: "warehouse", term: "Warehouse", def: "The conversation database, `conversations.db`: every conversation parsed into rows, with the model server's requests and the machine's readings placed in it, and an events stream with one millisecond time axis that the conversation API pages over.", entity: "conversation-db", auto: ["the warehouse", "conversation database"] },
+  { id: "collector", term: "Collector", def: "`dbench collect`: the host's loop that pulls each run's machine-only files into the lake (pull and diff, never push), keeps the warehouse current, and serves the conversation API.", entity: "collector", auto: ["the collector"] },
+  { id: "engine-request", term: "Engine request", def: "One request the model server finished, by its own log: what it read and generated, how long prefill and decode took, and how many drafted tokens were accepted; placed in a story by time, or matched to a call by its token counts.", entity: "engine-request", auto: ["engine request", "engine requests"] },
+  { id: "cursor", term: "Cursor", def: "Opaque text naming a place in a story's events stream (its time and ord). The time-range form of the conversation API pages with it, contiguous by construction; the open-ended form returns everything ingested after it and the latest one to ask after next.", auto: ["cursor"] },
   { id: "conversation", term: "Conversation (events)", def: "The agent's complete event log for a story, every reply, thought, tool call and result, time-stamped on arrival and published whole.", entity: "conversation", auto: ["conversation profile"], see: ["time-split"] },
   { id: "credential-scan", term: "Credential scan", def: "The check that replaces credentials in anything staged for a public commit with a marker naming what was found and how long, never the value.", entity: "credential-scan", auto: ["credential scan", "credential scanner"] },
   { id: "dbench", term: "dbench", def: "The Rust controller that queues benchmark jobs on each machine, restarts and recovers them, and reports status.", entity: "dbench", auto: ["dbench"], see: ["node-server", "job"] },
@@ -2477,6 +2581,7 @@ GUIDE_DATA.ledger = [
   { state: "built", item: "The re-score sweep and the tag-exact suite", detail: "Live on every machine since harness-v2026.10.01.2: repair of stale records, the sweep (`finalize_pending.py`) with its 5 attempts and `needs_person`, the suite taken exactly at the pack's tag (`tagsuite.py`), bun installs, and marking a story run not comparable (`mark_not_comparable.py`, manual). Release 1 (harness-v2026.10.01.1) re-scored only when the private suite checkout happened to be exactly at the pack's tag." },
   { state: "built", item: "Partial rerun to the end of the scope", detail: "`--only N --from-run` is in release 1; `--from-story N` and queueing partial-rerun jobs with dbench (`--from-run`, `--from-story`) have been live since harness-v2026.10.01.2, and every machine used in this benchmark has the dbench that supports them." },
   { state: "built", item: "Harness releases since 1.1", detail: "`harness-v2026.10.01.1` was the first release, with the old deny-list sandbox. `harness-v2026.10.01.2` carried `tools/agent-sandbox` as source for the node to build, with the stop rule, read-only spec, credential scan and the rest listed above; every release since (`.02.1`, `.02.2`) has built on it." },
+  { state: "in-progress", item: "The conversation collector, warehouse and pages", detail: "On main since 3 October 2026: the nodes' file endpoints, `dbench collect` and `dbench ingest`, the conversation API, the benchmarker's conversation and call pages with every time bar linking in, and the harness's per-tick `conditions.jsonl`, each with its tests. Not yet deployed: the nodes run a dbench without the endpoints (hold, restart, release), the collector is not running on the host, and the readings file needs a harness release. The design is docs/designs/conversational-data-lake-warehouse-analytics.md. Strata's engine log joins the goldens once its fixture and reader are on main." },
   { state: "planned", item: "Rerunning one story five times", detail: "Proposal D of the gufo analysis, to measure the model's own variation from one commit (story 2 took 18 to 97 minutes). The analysis says it awaits a decision." },
   { state: "planned", item: "Showing unscored runs on the page", detail: "EVALUATION-POLICY.md still lists it as 'to do', so that unscored runs are not silently left out of every mean. The benchmarker's glossary already counts pending runs apart on a combination row under 'Not counted'; whether that satisfies the policy line is not stated." },
   { state: "planned", item: "dbench features from its design", detail: "A conditions gate with a `blocked` state, a memory guard in dbench, an offline push retry, previews, a `rescore` command, binary self-update, `deploy`, `doctor`, follow for events (the dbench README's 'Not built yet', among others)." },

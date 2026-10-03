@@ -32,8 +32,7 @@ import reduce_lib  # noqa: E402
 START = 1790390000.0
 FOREVER = 1e12                 # a window that holds every event of a fixture with no window of its own
 LOGS = ["pi-smoke-events.jsonl", "claude-stream.jsonl"] + [f"accounting/{c['log']}" for c in json.loads((FIXTURES / "accounting/cases.json").read_text())]
-# Strata joins once its fixture and engine_log.py's reader for it are on main.
-ENGINE_LOGS = ["gufo-excerpt.txt", "mlx-serve-excerpt.txt"]
+ENGINE_LOGS = ["gufo-excerpt.txt", "mlx-serve-excerpt.txt", "strata-excerpt.txt"]
 SKIP = ('"message_update"', '"agent_end"', '"turn_end"', '"message_start"', '"tool_execution_update"', '"stream_event"')
 PRE = 90
 
@@ -212,6 +211,7 @@ def engine_cases() -> dict:
         "no-output-tokens": match_case(engine_text("gufo-excerpt.txt"), [call(START + 1, 2049, 0, None)]),
         "same-tokens-earlier-story": match_case(same_tokens, [call(START + 1, 10, 0, 1), call(START + 2, 30, 0, 3), call(START + 3, 40, 0, 4)]),
         "mlx": match_case(engine_text("mlx-serve-excerpt.txt"), [call(START + 1, p["prompt"], 0, p["gen"]) for p in parses["mlx-serve-excerpt.txt"][:3]]),
+        "strata": match_case(engine_text("strata-excerpt.txt"), [call(START + 1, 37, 54460, 114), call(START + 2, 56, 54492, 98)]),
     }
     summaries = {name: engine_log.summarise(reqs) for name, reqs in parses.items()}
     llama_text = llama_log.start_marker(START) + SMOKE + PROGRESS

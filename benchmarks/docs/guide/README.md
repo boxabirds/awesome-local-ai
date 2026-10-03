@@ -54,7 +54,7 @@ root and the build makes it relative (or give a full `https://` address). An unk
 | `insights` | One "in practice" panel each: `body`, `numbers`, an optional `chart` and `quotes`, a `use`, and `sources`. | An expandable panel everywhere it is named. |
 | `components` | Each tool: what, why, inputs, outputs, how it fails, language, repo links, status. | Section "Components". |
 | `safeguarding` | A plain-English walkthrough of the sandbox: `intro`, a `bigPicture` diagram, a `mechanisms` comparison table (macOS vs Linux), a `dynamic` stepper (`diagram` + `steps`, same shape as a flow), `notSolved`. Technical terms are introduced with `{g:term\|text}` at first use, not after. | Section "Safeguarding: stopping agent jailbreaks". |
-| `flows` | Nine flows: `diagram` (nodes at x,y, edges, optional via points) and `steps` that name the nodes and edges they light up, with commands and repo links. | The steppers. |
+| `flows` | Ten flows: `diagram` (nodes at x,y, edges, optional via points) and `steps` that name the nodes and edges they light up, with commands and repo links. | The steppers. |
 | `findings` | The findings of the insights README by theme and combination. | The explorer table. |
 | `glossary` | Every term. `auto` lists phrases linked automatically (first use in each paragraph). | The glossary, the hover text and the dotted links. |
 | `ledger` | What is in progress, planned, an idea, or built, and where a document disagrees with the code. | Section "What is built, and what is not". |
@@ -112,11 +112,11 @@ All of it is in [assets/guide-data.js](assets/guide-data.js), found by id. These
 
 - **Define**: `pack`, `spec`, `scope`, `story`, `task`, `prompt`, `heldout`
 - **Stack under test**: `combination`, `model`, `engine`, `machine`, `client`, `settings`, `install`, `reference`
-- **A run**: `run`, `workspace`, `story-run`, `attempt`, `session`, `conversation`, `compaction`, `stop-message`, `intervention`, `progress-file`, `time-split`
+- **A run**: `run`, `workspace`, `story-run`, `attempt`, `session`, `conversation`, `compaction`, `stop-message`, `intervention`, `progress-file`, `time-split`, `engine-request`
 - **Scoring**: `gate`, `accept`, `rescore`, `finalize`, `score-record`, `invalid-run`, `not-comparable`
-- **Operate**: `job`, `dbench`, `node-server`, `hold`, `harness`, `harness-release`, `provenance`, `partial-rerun`
+- **Operate**: `job`, `dbench`, `node-server`, `hold`, `harness`, `harness-release`, `provenance`, `partial-rerun`, `collector`
 - **Safeguards**: `sandbox`, `containment`, `machine-guard`, `credential-scan`, `private-repo`
-- **Show and watch**: `record`, `benchmarker`, `gallery`, `monitor`, `anomaly-log`, `insights`, `horizon`
+- **Show and watch**: `record`, `benchmarker`, `gallery`, `monitor`, `anomaly-log`, `insights`, `horizon`, `collection`, `conversation-db`
 
 **Insights** (`GUIDE_DATA.insights`), with the file each is copied from. A panel appears wherever an entity, problem, component or flow step lists its id.
 
@@ -161,3 +161,5 @@ All of it is in [assets/guide-data.js](assets/guide-data.js), found by id. These
 | F. A harness release | [tools/dbench/README.md](../../../tools/dbench/README.md) (releasing), [checks.toml](../../../tools/dbench/checks.toml) |
 | G. A partial rerun | [spec-bench README](../../spec-bench/README.md), the gufo analysis, `drive.py` (`known_good_base`) |
 | H. The monitor | [ops/monitor/README.md](../../../ops/monitor/README.md), [triage-prompt.md](../../../ops/monitor/triage-prompt.md) |
+| I. Judging a run | [tools/vidi-gallery/README.md](../../../tools/vidi-gallery/README.md) |
+| J. Collecting the conversation | [tools/dbench/README.md](../../../tools/dbench/README.md) (collecting), `tools/dbench/src/` (`collect.rs`, `collector.rs`, `ingest/`, `conversation_api.rs`), [tools/benchmarker/README.md](../../../tools/benchmarker/README.md) (Conversations), [the design](../../../docs/designs/conversational-data-lake-warehouse-analytics.md) |

@@ -102,6 +102,7 @@ SPEC_DIR = sandbox.SPEC_DIR
 TMP_ENV = ("TMPDIR", "TMP", "TEMP", "CLAUDE_CODE_TMPDIR")
 CONTEXT_BANDS = [(0, 16_000), (16_000, 32_000), (32_000, 64_000), (64_000, 100_000), (100_000, 10**9)]
 CONDITION_POLL_S = 30        # how often run conditions are sampled during a story / while waiting
+CONDITIONS_FILE = "conditions.jsonl"   # every reading of a story, one JSON line per tick, beside its agent-events.jsonl (git-ignored; dbench collect pulls it)
 # The mirror is committed into the outer repo: no nested .git (it would become a
 # broken gitlink), no copy of the spec (it lives in the pack), no build output.
 MIRROR_EXCLUDES = [".git", "spec", "node_modules", "dist", ".wrangler", "test-results", "playwright-report"]
@@ -424,6 +425,7 @@ def make_publishable(run: Path) -> list[str]:
 RUN_GITIGNORE = """# Written by benchmarks/spec-bench/harness/drive.py. Raw agent logs are kept compacted
 # (agent-events.compact.jsonl.gz); machine-local bookkeeping stays out of git.
 stories/*/agent-events.jsonl
+stories/*/conditions.jsonl
 current_story
 work_dir.txt
 progress.json
@@ -1599,9 +1601,10 @@ class ConditionSampler(threading.Thread):
     """Samples run conditions while a story runs; any bad sample marks the story as degraded.
     Swap growth past SWAP_ABORT_GROWTH_GB kills the agent's processes and sets `aborted`."""
 
-    def __init__(self, ws: Path | None = None, server_port: int | None = None):
+    def __init__(self, ws: Path | None = None, server_port: int | None = None, record: Path | None = None):
         super().__init__(daemon=True)
         self.server_port = server_port
+        self.record = record            # where every tick's reading is appended, when the story has a directory for it
         self.footprint_max = None
         self.footprint_peak = None
         self.bad: list[dict] = []
@@ -1624,6 +1627,7 @@ class ConditionSampler(threading.Thread):
                 self.bad.append({**c, "t": time.time()})
             swap = swap_used_gb()
             self.swap_max = max(self.swap_max, swap)
+            g = None
             try:  # informational: a failed GPU reading must not stop the memory and swap guards below
                 if (g := hostenv.gpu_sample()):
                     self.gpu.append(g)
@@ -1634,6 +1638,9 @@ class ConditionSampler(threading.Thread):
                 self.footprint_max = max(self.footprint_max or 0.0, fp)
                 self.footprint_peak = max(self.footprint_peak or 0.0, fp_peak or 0.0)
             free = mem_free_pct()
+            if self.record is not None:
+                self._tick({"t": time.time(), "ac": c.get("ac"), "low_power": c.get("low_power"), "thermal": c.get("thermal"),
+                            "swap_gb": round(swap, 2), "free_pct": free, "footprint_gb": fp, "footprint_peak_gb": fp_peak, "gpu": g or None})
             if free is not None and free < MEM_REAP_PCT and CONTAINMENT:
                 CONTAINMENT.reap_pressure()
             if free is not None:
@@ -1648,6 +1655,15 @@ class ConditionSampler(threading.Thread):
             elif free is not None and free < MEM_FREE_ABORT_PCT:
                 self.aborted_memory = True
                 self._abort(f"MEMORY GUARD: free memory {free:.0f}% < {MEM_FREE_ABORT_PCT}%")
+
+    def _tick(self, reading: dict) -> None:
+        """One reading, appended to the story's conditions file: the whole series, where metrics.json keeps a summary.
+        Informational: a write that fails must not stop the guards."""
+        try:
+            with self.record.open("a") as f:
+                f.write(json.dumps(reading) + "\n")
+        except OSError as e:
+            print(f"    conditions record failed: {e}", flush=True)
 
     def _snapshot(self, free: float) -> None:
         """What held the memory at the story's lowest point so far (the RTX 4090 machine's canvas-pi-03 story 5 lost
@@ -2138,7 +2154,7 @@ def main() -> None:
             # After a harness restart the story began earlier: its live clock counts the whole story, like its
             # call and token counts, and so does the record (record_attempts).
             live["started_at"] = (first_event_time(events) if prior else None) or rec["started"]
-            sampler = ConditionSampler(ws, server_port=urlparse(a.base_url).port)
+            sampler = ConditionSampler(ws, server_port=urlparse(a.base_url).port, record=events.parent / CONDITIONS_FILE)
             sampler.start()
             if prior:
                 print(f"[story {sid}] continuing the agent's own session {prior} after a harness restart", flush=True)
