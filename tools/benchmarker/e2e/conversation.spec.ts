@@ -320,6 +320,35 @@ test.describe("B. the call page", () => {
     await expect(item(page, "input").locator('[data-part="opening"] pre[data-quoted="agent"]')).toHaveText("Implement story 2 now.");
   });
 
+  test("what was read from the cache expands to the context as the transcript gives it: the turns since the start or the last compaction", async ({ page }) => {
+    await page.goto(call(SWIFT, "v2-r5", "2", 1));
+    await head(page, "input").click();
+    const body = item(page, "input").locator(".cc-body");
+    const expander = body.locator('button[data-part="cache"]');
+    await expect(expander).toHaveText(/^1,500 tokens read from the cache\s*Expand/);
+    await expect(expander).toHaveAttribute("aria-expanded", "false");
+    await expect(body.locator('[data-part="context"]')).toHaveCount(0);
+    await expander.click();
+    const ctx = body.locator('[data-part="context"]');
+    await expect(ctx).toBeVisible();
+    await expect(ctx).toContainText(/as the transcript gives it/);              // not the request itself: that is never recorded
+    await expect(ctx.locator('[data-context-turn="0"] pre[data-quoted="agent"]')).toHaveText("Implement story 2 now.");
+    await expect(ctx.locator('[data-context-turn="1"] pre[data-quoted="agent"]').first()).toHaveText("Reading the spec.");
+    await expect(ctx.locator('[data-context-turn="1"] [data-context-tool="0"] .mono')).toHaveText("read");
+    await expect(expander).toHaveText(/Collapse/);
+    await expander.click();
+    await expect(body.locator('[data-part="context"]')).toHaveCount(0);
+    // After a compaction the context is the turns since it; the first call has no context before it and no expander.
+    await page.goto(call(SWIFT, "v2-r5", "2", 2));
+    await head(page, "input").click();
+    await item(page, "input").locator('button[data-part="cache"]').click();
+    await expect(item(page, "input").locator('[data-part="context"] [data-context-turn]')).toHaveCount(1);   // the compaction itself
+    await expect(item(page, "input").locator('[data-part="context"]')).toContainText(/compaction/);
+    await page.goto(call(SWIFT, "v2-r5", "2", 0));
+    await head(page, "input").click();
+    await expect(item(page, "input").locator('button[data-part="cache"]')).toHaveCount(0);
+  });
+
   test("tool calls open to each tool whole: its failed result, and a tool with no end yet says so", async ({ page }) => {
     await page.goto(call(SWIFT, "v2-r5", "2", 1));
     await head(page, "tools").click();

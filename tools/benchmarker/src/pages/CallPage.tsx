@@ -7,7 +7,7 @@ import type { Row, State, Story } from "../../shared/types.ts";
 import { callHref, conversationHref, withParams, type Route } from "../../shared/routes.ts";
 import { storyTitle } from "../../shared/runView.ts";
 import { outputSplit } from "../../shared/callView.ts";
-import { cutText, type CutText } from "../../shared/conversation.ts";
+import { cutText, turns, type ConversationEvent, type CutText, type Turn } from "../../shared/conversation.ts";
 import { Breadcrumb } from "../components/EntityLinks.tsx";
 import { Missing, NotApplicable, full } from "../components/run/bits.tsx";
 import { Concertina } from "../components/conversation/Concertina.tsx";
@@ -29,6 +29,37 @@ const argsText = (t: ToolInFull) => JSON.stringify(t.args, null, JSON_INDENT);
 const ToolName = ({ t }: { t: ToolInFull }) => <><span className="mono">{t.name ?? ""}</span>{t.kind && t.kind !== t.name ? <> <span className="small">{t.kind}</span></> : null}</>;
 
 type Open = { thinking: boolean; output: boolean; input: boolean; tools: boolean };
+const CONTEXT_NOTE = "The request itself is not recorded; this is the context as the transcript gives it: every turn since the start or the last compaction, up to the call before.";
+const cut = (v: unknown) => cutText(v as CutText | null);
+
+/** The context a call was sent with, as the transcript gives it: the turns after the last compaction before it. */
+function contextBefore(all: Turn[], callIdx: number): Turn[] {
+  const at = all.findIndex((t) => t.callIdx === callIdx && t.kind === "call");
+  if (at < 0) return [];
+  const before = all.slice(0, at).filter((t) => t.kind === "msg" || t.kind === "call" || t.kind === "tool" || t.kind === "compaction");
+  const lastCompaction = before.map((t) => t.kind).lastIndexOf("compaction");
+  return lastCompaction < 0 ? before : before.slice(lastCompaction);
+}
+
+/** One turn of the context: a message's text; a call's text and each tool it called with its arguments and result; a compaction. */
+function ContextTurn({ t, i }: { t: Turn; i: number }) {
+  const e: ConversationEvent = t.event;
+  const tools = t.tools.map((x) => (
+    <div key={x.idx} data-context-tool={x.idx} className="ctx-tool">
+      <h5><span className="mono">{String(x.start.name ?? "")}</span> <span className="small">{String(x.start.toolKind ?? "")}</span></h5>
+      <Quoted text={String(x.start.arg ?? "")} />
+      {x.end ? <Quoted text={cut(x.end.result)} /> : <Missing why="This tool call has no result yet." />}
+    </div>
+  ));
+  return (
+    <div className="ctx-turn" data-context-turn={i} data-kind={t.kind}>
+      {t.kind === "msg" ? <><h5>message</h5><Quoted text={cut(e.textBody)} /></>
+        : t.kind === "call" ? <><h5>call {(t.callIdx ?? 0) + 1}</h5>{cut(e.textBody) ? <Quoted text={cut(e.textBody)} /> : null}{tools}</>
+        : t.kind === "compaction" ? <h5>compaction: the context before it was summarised</h5>
+        : tools}
+    </div>
+  );
+}
 const CLOSED: Open = { thinking: false, output: false, input: false, tools: false };
 
 export function CallPage({ route, run, story, storyId, call, state }: { route: Route; run: Row; story: Story | null; storyId: string; call: string; state: State }) {
@@ -39,6 +70,7 @@ export function CallPage({ route, run, story, storyId, call, state }: { route: R
   const c = useInFull<CallInFull>(available ? id : null, `/calls/${idx}`);
   const conv = useConversation(available ? id : null);
   const [open, setOpen] = useState<{ at: number; items: Open }>({ at: idx, items: CLOSED });
+  const [contextOpen, setContextOpen] = useState<number | null>(null);      // the call whose context is expanded
   const items = open.at === idx ? open.items : CLOSED;       // another call starts closed
   const toggle = (k: keyof Open) => setOpen({ at: idx, items: { ...items, [k]: !items[k] } });
   // What the call before returned is this call's new input; it is fetched only when the input item is open.
@@ -64,6 +96,8 @@ export function CallPage({ route, run, story, storyId, call, state }: { route: R
   }
   const withheld = conv.summary ? conv.summary.fmt === "claude" : false;
   const opening = idx === 0 ? cutText((conv.events.find((e) => e.kind === "msg")?.textBody ?? null) as CutText | null) : "";
+  const context = idx > 0 ? contextBefore(turns(conv.events), idx) : [];
+  const showContext = contextOpen === idx;
   const split = c ? outputSplit(c.outTok, { thinking: withheld ? 0 : c.think, text: c.text.length, tools: c.tools.reduce((n, t) => n + argsText(t).length, 0) }) : null;
   const missingTokens = <Missing why="The client didn't report this call's tokens." />;
   return (
@@ -74,6 +108,15 @@ export function CallPage({ route, run, story, storyId, call, state }: { route: R
         <Concertina block="input" label="Input" open={items.input} onToggle={() => toggle("input")}
           figure={c.inTok !== null ? tokens(c.inTok + (c.cacheTok ?? 0)) : missingTokens}>
           {c.inTok !== null ? <p className="small cc-split">read from the cache {full(c.cacheTok ?? 0)} · new to this call {tokens(c.inTok)}</p> : null}
+          {context.length ? <>
+            <button type="button" className="cc-expand" data-part="cache" aria-expanded={showContext} aria-controls="cc-context" onClick={() => setContextOpen(showContext ? null : idx)}>
+              <span>{full(c.cacheTok ?? 0)} tokens read from the cache</span><span className="cc-expand-word">{showContext ? "Collapse ▾" : "Expand ▸"}</span>
+            </button>
+            {showContext ? <div id="cc-context" data-part="context" className="cc-context">
+              <p className="small">{CONTEXT_NOTE}</p>
+              {context.map((t, i) => <ContextTurn key={i} t={t} i={i} />)}
+            </div> : null}
+          </> : null}
           {idx === 0 ? <div data-part="opening"><h4>The story's opening message</h4>{opening ? <Quoted text={opening} /> : <Missing why="The conversation has no opening message." />}</div>
             : before === null ? <p className="small">Loading…</p>
             : before === false || before.tools.length === 0 ? <p className="small">The call before returned no tool results.</p>
