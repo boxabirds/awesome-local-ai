@@ -19,9 +19,14 @@
 .clamp[data-folded="true"] { display: -webkit-box; -webkit-line-clamp: 5; line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 .clamp-more { flex: 0 0 auto; width: 20px; height: 20px; line-height: 18px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); color: var(--muted); cursor: pointer; font-size: 14px; }
 .clamp-more:hover { color: var(--ink); }
-/* Searching: the box, and what matches. */
-.conv-search { display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px; }
-.conv-search input { flex: 0 1 36ch; font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+/* A section's twisty, and its own search behind a magnifier where its count was. */
+.conv-section .rp-head h2 { display: flex; align-items: center; gap: 6px; }
+.twisty { font: inherit; font-size: 12px; line-height: 1; width: 18px; height: 18px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; }
+.twisty:hover { color: var(--ink); }
+.sec-search { display: inline-flex; align-items: center; gap: 8px; }
+.sec-search input { width: 28ch; font: inherit; font-size: 13px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.sec-search-toggle { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+.sec-search-toggle:hover, .sec-search-toggle[aria-expanded="true"] { color: var(--ink); border-color: var(--line); background: var(--panel); }
 .conversation-page mark { background: var(--chip); color: inherit; border-radius: 2px; font-weight: 700; }
 /* A section's heading, and its table's column heads, stay pinned under the breadcrumb while its rows scroll. */
 .conv-section .rp-head { position: sticky; top: var(--pinned-h); z-index: 3; height: var(--conv-head-h); box-sizing: border-box; align-items: center; }

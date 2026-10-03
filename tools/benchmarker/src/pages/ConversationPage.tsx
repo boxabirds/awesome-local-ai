@@ -1,7 +1,7 @@
 // A story run's conversation, happening by happening (plan section 4.4, as the time-range cursor API gives it).
 // The page backfills the span and then follows along after its latest cursor; the story's status plays no part.
 // Verbatim agent text is marked data-quoted="agent": it is a result, never the app's own words.
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { Row, State, Story } from "../../shared/types.ts";
 import { cutText, matchesQuery, needsClamp, splitHighlights, timeline, type ConversationAnchor, type ConversationEvent, type CutText } from "../../shared/conversation.ts";
 import { callHref, conversationHref } from "../../shared/routes.ts";
@@ -76,7 +76,6 @@ export function ConversationPage({ run, story, storyId, state, params }: { run: 
   const title = storyTitle(run, state.rows, storyId);
   const id = story?.storyRunId ?? null;
   const conv = useConversation(id && story?.hasConversation ? id : null);
-  const [query, setQuery] = useState("");
   const at = params?.at;
   useEffect(() => {
     if (at && conv.backfilled) document.getElementById(`sec-${at}`)?.scrollIntoView({ block: "start" });
@@ -110,10 +109,6 @@ export function ConversationPage({ run, story, storyId, state, params }: { run: 
       <Breadcrumb trail={crumbs} />
       <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
       <Section term="conversationPage" id="conversation" aside={s ? <span className="small" data-fact="range">{utc(from / MS_PER_S)} · {duration((toMs - from) / MS_PER_S)} · <span data-fact="events">{full(conv.events.length)}</span> events{s.complete ? "" : " so far"}</span> : null}>
-        <div className="conv-search">
-          <input type="search" role="searchbox" aria-label="Search the conversation" placeholder="Search the conversation (as you type)" value={query} onChange={(ev) => setQuery(ev.target.value)} />
-          {query.trim() ? <span className="small" data-fact="matches">{full(matching(conv.events.filter((e) => ["call", "tool_start", "tool_end", "msg"].includes(e.kind)), query).length)} matching events</span> : null}
-        </div>
         <nav className="conv-sections" aria-label="Sections of the conversation">
           {SECTIONS.map((sec) => <a key={sec.id} href={conversationHref(run.pack, run.stack, run.runId, storyId, sec.id)} data-anchor={sec.id} aria-current={at === sec.id ? "true" : undefined}>{GLOSSARY[sec.term].name} <span className="num">{of(sec.kinds).length}</span></a>)}
         </nav>
@@ -125,29 +120,67 @@ export function ConversationPage({ run, story, storyId, state, params }: { run: 
           ))}
         </figure>
       </Section>
-      <Calls events={of(["call"])} from={from} fmt={s?.fmt ?? null} link={link} query={query} />
-      <Tools events={of(["tool_start", "tool_end"])} from={from} link={link} query={query} />
+      <Calls events={of(["call"])} from={from} fmt={s?.fmt ?? null} link={link} />
+      <Tools events={of(["tool_start", "tool_end"])} from={from} link={link} />
       <Compactions events={of(["compaction_start", "compaction_end"])} from={from} />
       <Sessions events={of(["between_sessions"])} from={from} />
-      <Messages events={of(["msg"])} from={from} query={query} />
+      <Messages events={of(["msg"])} from={from} />
       <Requests events={of(["request"])} from={from} link={link} />
       <Conditions events={of(["condition"])} from={from} />
     </div>
   );
 }
 
-function Sec({ id, term, count, shown, children }: { id: ConversationAnchor; term: TermId; count: number; shown?: string; children: ReactNode }) {
-  return <section className="rp-section conv-section" id={`sec-${id}`} data-section={id} aria-labelledby={`h-${id}`}>
-    <div className="rp-head"><h2 id={`h-${id}`}><Term id={term} /></h2><div className="rp-aside"><span className="num" data-fact="count">{shown ?? full(count)}</span></div></div>
-    <div className="rp-body">{count ? children : <p className="rp-empty small">None.</p>}</div>
+// ---- which sections are folded: remembered in the browser, like the run groups ----
+const FOLD_KEY = "benchmarker:conv-folded:v1";
+const foldListeners = new Set<() => void>();
+let folded: Set<string> = (() => { try { return new Set(JSON.parse(localStorage.getItem(FOLD_KEY) ?? "[]") as string[]); } catch { return new Set(); } })();
+function setFolded(id: string, fold: boolean) {
+  const next = new Set(folded);
+  if (fold) next.add(id); else next.delete(id);
+  folded = next;
+  try { localStorage.setItem(FOLD_KEY, JSON.stringify([...next])); } catch { /* not remembered */ }
+  for (const l of foldListeners) l();
+}
+const subscribeFold = (l: () => void) => { foldListeners.add(l); return () => { foldListeners.delete(l); }; };
+const useFolded = (id: string) => useSyncExternalStore(subscribeFold, () => folded.has(id), () => false);
+
+/** A section's own search, behind a magnifier where its count was. */
+interface SecSearch { query: string; onChange: (q: string) => void; shown: number; total: number; label: string }
+
+const Magnifier = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><line x1="15.5" y1="15.5" x2="21" y2="21" /></svg>;
+
+function Sec({ id, term, count, search, children }: { id: ConversationAnchor; term: TermId; count: number; search?: SecSearch; children: ReactNode }) {
+  const isFolded = useFolded(id);
+  const [searching, setSearching] = useState(false);
+  const name = GLOSSARY[term].name;
+  const open = searching || (search?.query.trim() ?? "") !== "";
+  return <section className="rp-section conv-section" id={`sec-${id}`} data-section={id} data-collapsed={isFolded ? "true" : "false"} aria-labelledby={`h-${id}`}>
+    <div className="rp-head">
+      <h2 id={`h-${id}`}>
+        <button type="button" className="twisty" aria-expanded={!isFolded} aria-label={`${isFolded ? "Expand" : "Collapse"} ${name}`} onClick={() => setFolded(id, !isFolded)}>{isFolded ? "▸" : "▾"}</button>
+        <Term id={term} />
+      </h2>
+      <div className="rp-aside">
+        {search ? <span className="sec-search" data-open={open ? "true" : "false"}>
+          {open ? <>
+            <input type="search" role="searchbox" aria-label={search.label} placeholder="Search as you type" autoFocus value={search.query} onChange={(ev) => search.onChange(ev.target.value)} onBlur={() => { if (!search.query.trim()) setSearching(false); }} />
+            <span className="num" data-fact="count">{countText(search.shown, search.total, search.query)}</span>
+          </> : null}
+          <button type="button" className="sec-search-toggle" aria-label={search.label} aria-expanded={open} onClick={() => { if (open) { search.onChange(""); setSearching(false); } else setSearching(true); }}><Magnifier /></button>
+        </span> : <span className="num" data-fact="count">{full(count)}</span>}
+      </div>
+    </div>
+    <div className="rp-body" hidden={isFolded}>{count ? children : <p className="rp-empty small">None.</p>}</div>
   </section>;
 }
 
-function Calls({ events, from, fmt, link, query }: { events: ConversationEvent[]; from: number; fmt: string | null; link: (i: number | string) => string; query: string }) {
+function Calls({ events, from, fmt, link }: { events: ConversationEvent[]; from: number; fmt: string | null; link: (i: number | string) => string }) {
   const withheld = fmt === "claude";
+  const [query, setQuery] = useState("");
   const rows = matching(events, query);
   return (
-    <Sec id="calls" term="modelCall" count={events.length} shown={countText(rows.length, events.length, query)}>
+    <Sec id="calls" term="modelCall" count={events.length} search={{ query, onChange: setQuery, shown: rows.length, total: events.length, label: "Search model calls" }}>
       <div className="table-scroll">
         <table className="rp-table conv-table calls" aria-label={GLOSSARY.modelCall.name}>
           <thead><tr><th>Call</th><th className="n">At</th><th className="n">Thinking</th><th className="n">Text</th><th className="n">Tools</th><th className="n">Read</th><th className="n">Wrote</th><th>Stop</th><th className="said">Said</th></tr></thead>
@@ -176,13 +209,14 @@ function Calls({ events, from, fmt, link, query }: { events: ConversationEvent[]
   );
 }
 
-function Tools({ events, from, link, query }: { events: ConversationEvent[]; from: number; link: (i: number | string) => string; query: string }) {
+function Tools({ events, from, link }: { events: ConversationEvent[]; from: number; link: (i: number | string) => string }) {
   const starts = events.filter((e) => e.kind === "tool_start");
   const ends = new Map(events.filter((e) => e.kind === "tool_end").map((e) => [e.refIdx, e]));
+  const [query, setQuery] = useState("");
   // A tool call matches on its argument or its result.
   const rows = starts.filter((e) => { const end = ends.get(e.refIdx); return matchesQuery(e, query) || (end !== undefined && matchesQuery(end, query)); });
   return (
-    <Sec id="tools" term="toolCall" count={starts.length} shown={countText(rows.length, starts.length, query)}>
+    <Sec id="tools" term="toolCall" count={starts.length} search={{ query, onChange: setQuery, shown: rows.length, total: starts.length, label: "Search tool calls" }}>
       <div className="table-scroll">
         <table className="rp-table conv-table tools" aria-label={GLOSSARY.toolCall.name}>
           <thead><tr><th>Tool</th><th>Kind</th><th className="n">At</th><th className="n">Seconds</th><th>Outcome</th><th className="said">Argument</th><th className="said">Result</th><th>Call</th></tr></thead>
@@ -231,11 +265,10 @@ function Sessions({ events, from }: { events: ConversationEvent[]; from: number 
   );
 }
 
-function Messages({ events, from, query }: { events: ConversationEvent[]; from: number; query: string }) {
-  const rows = matching(events, query);
+function Messages({ events, from }: { events: ConversationEvent[]; from: number }) {
   return (
-    <Sec id="messages" term="harnessMessage" count={events.length} shown={countText(rows.length, events.length, query)}>
-      <ul className="conv-list messages">{rows.map((e) => <li key={e.ord} data-msg={isNum(e.refIdx) ? e.refIdx : undefined}><span className="num">{secs(e.tMs, from)}</span> <Clamped text={cutText(e.textBody as CutText)} query={query} /></li>)}</ul>
+    <Sec id="messages" term="harnessMessage" count={events.length}>
+      <ul className="conv-list messages">{events.map((e) => <li key={e.ord} data-msg={isNum(e.refIdx) ? e.refIdx : undefined}><span className="num">{secs(e.tMs, from)}</span> <Clamped text={cutText(e.textBody as CutText)} query="" /></li>)}</ul>
     </Sec>
   );
 }
