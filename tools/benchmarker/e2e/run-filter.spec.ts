@@ -193,3 +193,10 @@ test("the switch works from the keyboard", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(complete(page)).toHaveAttribute("aria-pressed", "true");
 });
+
+test("an unpressed chip is not struck through: the switch's other setting reads as not selected, not as removed", async ({ page }) => {
+  await open(page);
+  expect(await complete(page).evaluate((e) => getComputedStyle(e).textDecorationLine)).toBe("none");
+  await complete(page).click();
+  expect(await all(page).evaluate((e) => getComputedStyle(e).textDecorationLine)).toBe("none");
+});
