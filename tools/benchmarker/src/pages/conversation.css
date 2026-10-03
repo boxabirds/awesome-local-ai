@@ -119,7 +119,10 @@ tr[data-jumped="true"] td { background: var(--chip); }
 .call-tool:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
 
 /* The call page's cache expander: what the call read from the cache, as one line that opens to the context (CallPage.tsx). */
-.cc-expand { display: flex; justify-content: space-between; align-items: center; width: 100%; margin: 4px 0 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
+.cc-row { display: flex; justify-content: space-between; align-items: center; width: 100%; margin: 4px 0 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; font-size: 13px; text-align: left; }
+.cc-expand { cursor: pointer; }
+.cc-new-tool { margin: 0 0 8px 10px; }
+.cc-new-tool h5 { margin: 4px 0 2px; }
 .cc-expand:hover, .cc-expand:focus-visible { background: var(--chip); }
 .cc-expand-word { text-transform: uppercase; font-size: 11px; font-weight: 700; letter-spacing: .05em; color: var(--run); }
 .cc-context { border-left: 2px solid var(--line); padding: 2px 0 2px 12px; margin: 0 0 10px; }

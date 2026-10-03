@@ -107,9 +107,8 @@ export function CallPage({ route, run, story, storyId, call, state }: { route: R
       {c === null ? <p className="rp-empty small">Loading…</p> : <>
         <Concertina block="input" label="Input" open={items.input} onToggle={() => toggle("input")}
           figure={c.inTok !== null ? tokens(c.inTok + (c.cacheTok ?? 0)) : missingTokens}>
-          {c.inTok !== null ? <p className="small cc-split">read from the cache {full(c.cacheTok ?? 0)} · new to this call {tokens(c.inTok)}</p> : null}
           {context.length ? <>
-            <button type="button" className="cc-expand" data-part="cache" aria-expanded={showContext} aria-controls="cc-context" onClick={() => setContextOpen(showContext ? null : idx)}>
+            <button type="button" className="cc-row cc-expand" data-part="cache" aria-expanded={showContext} aria-controls="cc-context" onClick={() => setContextOpen(showContext ? null : idx)}>
               <span>{full(c.cacheTok ?? 0)} tokens read from the cache</span><span className="cc-expand-word">{showContext ? "Collapse ▾" : "Expand ▸"}</span>
             </button>
             {showContext ? <div id="cc-context" data-part="context" className="cc-context">
@@ -117,12 +116,15 @@ export function CallPage({ route, run, story, storyId, call, state }: { route: R
               {context.map((t, i) => <ContextTurn key={i} t={t} i={i} />)}
             </div> : null}
           </> : null}
-          {idx === 0 ? <div data-part="opening"><h4>The story's opening message</h4>{opening ? <Quoted text={opening} /> : <Missing why="The conversation has no opening message." />}</div>
-            : before === null ? <p className="small">Loading…</p>
-            : before === false || before.tools.length === 0 ? <p className="small">The call before returned no tool results.</p>
-            : <div data-part="returned"><h4>What the call before returned</h4>{before.tools.map((t) => (
-                <div key={t.idx} data-prev-tool={t.idx}><h5><ToolName t={t} /></h5>{t.result !== null ? <Quoted text={t.result} /> : <Missing why="This tool call has no result yet." />}</div>
-              ))}</div>}
+          <div data-part="new">
+            <div className="cc-row">{c.inTok !== null ? `${full(c.inTok)} tokens new to this call` : "New to this call"}: {idx === 0 ? "the story's opening message" : `what call ${idx}'s tools returned`}</div>
+            {idx === 0 ? (opening ? <Quoted text={opening} /> : <Missing why="The conversation has no opening message." />)
+              : before === null ? <p className="small">Loading…</p>
+              : before === false || before.tools.length === 0 ? <p className="small">The call before returned no tool results.</p>
+              : before.tools.map((t) => (
+                <div key={t.idx} data-prev-tool={t.idx} className="cc-new-tool"><h5><ToolName t={t} /></h5>{t.result !== null ? <Quoted text={t.result} /> : <Missing why="This tool call has no result yet." />}</div>
+              ))}
+          </div>
         </Concertina>
         <Concertina block="thinking" label="Thinking" open={items.thinking} onToggle={() => toggle("thinking")} disabled={withheld || !c.thinking}
           tip={withheld ? undefined : SHARED_OUT}
