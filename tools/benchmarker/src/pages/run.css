@@ -42,10 +42,6 @@
 .engine-speed { margin: 4px 0 12px; color: var(--muted); }
 .engine-speed [data-fact] { color: var(--ink); font-weight: 600; }
 /* Held-out: one square per story, coloured by that story's own tests after it; outlined when not built. */
-.rs-sq { display: block; width: 28px; height: 28px; border-radius: 6px; background: currentColor; }
-.rs-sq.rs-unbuilt { background: none; border: 2px dashed var(--line); color: var(--faint); }
-.rs-sq.rs-noResult { background: none; border: 2px solid var(--line); color: var(--faint); }
-.rs-sq.rs-building { background: none; border: 2px solid var(--run); }
 .unit { font-size: 12px; font-weight: 500; color: var(--faint); }
 .big-n { font-size: 28px; font-weight: 750; letter-spacing: -.01em; line-height: 1.1; }
 .record-n { font-size: 36px; font-weight: 800; letter-spacing: -.02em; line-height: 1; }

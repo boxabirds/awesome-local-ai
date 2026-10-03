@@ -47,9 +47,54 @@ test.describe("a card per machine", () => {
     const a = card(page, "node-a");
     await expect(a.locator(".card-strip .rs-sq")).toHaveCount(11);
     await expect(a.locator(".card-strip .rs-sq").first()).toHaveAttribute("data-state", "result");
-    await expect(a.locator(".card-series .small")).toHaveText(/^run 1 of \d+$/);
+    await expect(a.locator(".card-series .small")).toHaveText(/^run 1 of \d+ in its series$/);
     await expect(a.locator(".card-series .seg-run")).not.toHaveCount(0);
     await expect(a.locator(".card-queue .queue-count")).toHaveText("3 queued");
+  });
+
+  test("read top to bottom as machine, then run, then stories; each level labelled", async ({ page }) => {
+    const a = card(page, "node-a");
+    const order = await a.evaluate((el) => [...el.children].map((c) => (c as HTMLElement).dataset.level ?? c.className));
+    expect(order).toEqual(["card-head", "card-queue", "run", "story"]);
+    await expect(a.locator('[data-level="run"] .card-label')).toHaveText("Run");
+    await expect(a.locator('[data-level="story"] .card-label')).toHaveText("Stories");
+  });
+
+  test("one link per name, each to its own page: machine, queue, combination, run, series segments, story, every square", async ({ page }) => {
+    const a = card(page, "node-a");
+    await expect(a.locator("a.machine-link")).toHaveAttribute("href", "#/machines/node-a");
+    await expect(a.locator(".card-queue a")).toHaveAttribute("href", "#/machines/node-a");
+    await expect(a.locator('[data-level="run"] a.combination-link')).toHaveAttribute("href", /\/c\/.*llamacpp-pi$/);
+    await expect(a.locator('[data-level="run"] a.run-link')).toHaveText("v2-r1");
+    await expect(a.locator('[data-level="story"] a.story-run-link')).toHaveCount(1);
+    await expect(a.locator(".card-strip a.card-sq")).toHaveCount(11);
+    // The story line and its square go to the same page, and the square is marked as the current one.
+    const current = a.locator('.card-sq[aria-current="true"]');
+    await expect(current).toHaveCount(1);
+    await expect(current).toHaveAttribute("href", (await a.locator("a.story-run-link").getAttribute("href"))!);
+    // Each square carries its story's number.
+    await expect(a.locator(".card-sq-no").first()).toHaveText("1");
+  });
+
+  test("a square goes to its story run", async ({ page }) => {
+    await card(page, "node-a").locator("a.card-sq").first().click();
+    await expect(page.locator('[data-page="storyRun"]')).toBeVisible();
+  });
+
+  test("a machine with nothing running has no run or story level", async ({ page }) => {
+    await expect(card(page, "node-d").locator("[data-level]")).toHaveCount(0);
+  });
+
+  test("every square is visible, whichever its state: a filled one, or an outline for a story building, not built or without a result", async ({ page }) => {
+    // The overview never loads the run page's stylesheet, so a square drawn by it alone is invisible here.
+    const squares = card(page, "node-a").locator(".card-strip .rs-sq");
+    const states = await squares.evaluateAll((els) => els.map((e) => {
+      const c = getComputedStyle(e);
+      return { state: (e as HTMLElement).dataset.state, border: parseFloat(c.borderTopWidth), fill: c.backgroundColor !== "rgba(0, 0, 0, 0)" };
+    }));
+    const outlined = states.filter((s) => s.state !== "result");
+    expect(outlined.length).toBeGreaterThan(0);
+    for (const s of states) expect(s.state === "result" ? s.fill : s.border > 0, JSON.stringify(s)).toBe(true);
   });
 
   test("the queue's length is measured from finished runs of its stacks, with the basis on hover; or says no estimate yet", async ({ page }) => {

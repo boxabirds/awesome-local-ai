@@ -225,3 +225,9 @@ table.combos td .amount { display: block; font-size: 11px; white-space: nowrap; 
 .run-group-button .fold { display: inline-block; width: 1em; color: var(--muted); }
 .run-group-button:hover { text-decoration: underline; }
 .run-group-list h3 { margin: 10px 0 4px; font-size: 13px; }
+
+/* A story's square: filled with its result colour, or an outline when it has none. Shared by the run page and the overview. */
+.rs-sq { display: block; width: 28px; height: 28px; border-radius: 6px; background: currentColor; }
+.rs-sq.rs-unbuilt { background: none; border: 2px dashed var(--line); color: var(--faint); }
+.rs-sq.rs-noResult { background: none; border: 2px solid var(--line); color: var(--faint); }
+.rs-sq.rs-building { background: none; border: 2px solid var(--run); }
