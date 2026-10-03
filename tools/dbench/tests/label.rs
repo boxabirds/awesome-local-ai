@@ -116,3 +116,19 @@ fn files_that_disagree_are_refused_at_start() {
     assert!(Session::open(&i, &l, &d).err().unwrap().to_string().contains("line 1"));
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[tokio::test]
+async fn the_page_wraps_its_labels_and_does_not_list_every_answer() {
+    // Owner, 3 Oct 2026: "I need to see all labels, they should wrap. There's a minwidth at play" (a card's long unbreakable text
+    // widened the grid column to 1,161 px in an 860 px window), and "I don't need to see all the answers, it's a distraction".
+    let dir = scratch("page");
+    let (i, l, d) = files(&dir);
+    let base = serve(Session::open(&i, &l, &d).unwrap()).await;
+    let page = reqwest::get(&base).await.unwrap().text().await.unwrap();
+    assert!(page.contains("grid-template-columns: minmax(0, 1fr)"), "the one column must be allowed to shrink");
+    assert!(page.contains(".card { min-width: 0"), "a card must be allowed to shrink below its content");
+    assert!(page.contains("overflow-wrap: anywhere"), "an unbreakable string must wrap");
+    assert!(!page.contains("confcard") && !page.contains("against yours"), "no table of every answer");
+    assert!(!page.contains("blind <b>") && !page.contains("shown <b>"), "no blind and shown split in the header");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
