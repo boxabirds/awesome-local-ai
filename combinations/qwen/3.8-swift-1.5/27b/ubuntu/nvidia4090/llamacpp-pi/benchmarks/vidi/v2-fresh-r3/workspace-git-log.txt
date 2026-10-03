@@ -1,3 +1,64 @@
+commit c4ac4c37039160d4ef341a03f7905b80fb9ef577
+agent  Sat Oct 3 20:15:37 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ PROGRESS.md                        |   2 +-
+ src/client/App.tsx                 |  14 ++-
+ src/client/canvas/testHooks.ts     |   5 +
+ src/worker/board-room.ts           |  54 ++++++----
+ src/worker/cloudflare-workers.d.ts |   2 +-
+ tests/e2e/persistence.spec.ts      | 209 +++++++++++++++++++++++++++++++++++++
+ 6 files changed, 261 insertions(+), 25 deletions(-)
+commit 6d389f10a8b6f668231188d62864dace0fe9fc28
+agent  Sat Oct 3 19:15:08 2026 +0100
+
+    story 4: tasks 4-5 — persistent BoardRoom (hibernation API, load/store-before-broadcast, failure handling) + integration tests
+
+
+ PROGRESS.md                               |   6 +-
+ src/worker/board-room.ts                  | 261 +++++++++++++++++++------
+ tests/integration/persistent-room.test.ts | 307 ++++++++++++++++++++++++++++++
+ vitest.integration.config.ts              |   2 +-
+ 4 files changed, 518 insertions(+), 58 deletions(-)
+commit 40c7fdcd63ca29cb1c066a78b4a7ec134c7711fb
+agent  Sat Oct 3 18:55:04 2026 +0100
+
+    story 4: task 3 — BoardStore integration tests (real DO SQLite)
+
+
+ PROGRESS.md                            |   6 +-
+ src/worker/board-store.ts              | 211 +++++++++++++++++++++---
+ src/worker/cloudflare-workers.d.ts     |  40 +++++
+ src/worker/room-state.ts               |  21 ++-
+ tests/fixtures/boards.ts               | 166 +++++++++++++++++++
+ tests/integration/board-store.test.ts  | 286 +++++++++++++++++++++++++++++++++
+ tests/integration/cloudflare-test.d.ts |  31 ++++
+ vitest.integration.config.ts           |   3 +-
+ 8 files changed, 735 insertions(+), 29 deletions(-)
+commit f3398997a5d0afac5ab866c2e0df4f347c6db358
+agent  Sat Oct 3 18:38:51 2026 +0100
+
+    story 4: task 1 — storage and room-state unit tests (test-first)
+
+
+ PROGRESS.md                           |   4 +-
+ src/shared/config.ts                  |   9 +++
+ src/shared/protocol.ts                |  12 ++++
+ src/worker/board-store.ts             |  95 ++++++++++++++++++++++++++++
+ src/worker/room-state.ts              |  52 +++++++++++++++
+ tests/unit/board-store-chunks.test.ts |  91 +++++++++++++++++++++++++++
+ tests/unit/room-state.test.ts         | 115 ++++++++++++++++++++++++++++++++++
+ 7 files changed, 376 insertions(+), 2 deletions(-)
+commit b3a4cdb4188864df56a1574be1e0fe332130e6f5
+vidi-agent  Sat Oct 3 18:29:32 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 35 +++++++++++++----------------------
+ 1 file changed, 13 insertions(+), 22 deletions(-)
 commit 4e32596532856d0863166c43bf3465d85971c699
 agent  Sat Oct 3 18:27:37 2026 +0100
 
