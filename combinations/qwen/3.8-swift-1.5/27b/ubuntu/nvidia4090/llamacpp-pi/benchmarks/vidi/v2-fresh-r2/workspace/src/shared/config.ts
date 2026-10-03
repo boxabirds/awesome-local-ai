@@ -115,6 +115,25 @@ export const LINK_COPIED_MS = 2000;
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
 
 /**
+ * Story 9: free text objects.
+ */
+/** Maximum automatic width in board units; longer lines wrap. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Minimum fixed width in board units (side-handle drag lower bound). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Maximum characters in a text object. */
+export const TEXT_MAX_CHARS = 5000;
+/** Text size presets in board units (font px at 100% zoom). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Default size for newly created text objects. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Line height multiplier for text layout (height = lines × size × this). */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** Font family for text objects (the board's standard sans-serif). */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/**
  * Story 8: undo and redo settings.
  */
 /** Typing pause (ms) that ends a burst into one undo step. */

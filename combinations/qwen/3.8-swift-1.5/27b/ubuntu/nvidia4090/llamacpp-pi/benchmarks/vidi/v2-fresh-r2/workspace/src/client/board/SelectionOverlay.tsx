@@ -14,6 +14,7 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { unionRects, type Handle, type Rect } from '../../shared/geometry';
 import { HANDLE_SIZE_PX } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
+import { getObjectType } from '../objects/registry';
 
 /** Outline colour for selection outlines and the bounding box. */
 const OUTLINE_COLOR = '#1a73e8';
@@ -64,6 +65,17 @@ export function SelectionOverlay({
   const handleSize = HANDLE_SIZE_PX / zoom;
   const halfHandle = handleSize / 2;
 
+  // A single text object shows only the left/right (e/w) handles — its
+  // height always follows the content (story 9, text.fixed_width).
+  const singleHorizontal =
+    ids.size === 1 &&
+    selected.length === 1 &&
+    getObjectType(selected[0].type)?.handles === 'horizontal';
+  const handleDefs: Array<{ h: Handle; cx: number; cy: number; cursor: string }> = singleHorizontal
+    ? HANDLE_DEFS.filter((d) => d.h === 'e' || d.h === 'w')
+    : HANDLE_DEFS;
+  const showHandles = box && (singleHorizontal || (ids.size > 1 && resizable));
+
   return (
     <div
       data-testid="selection-overlay"
@@ -90,8 +102,9 @@ export function SelectionOverlay({
         );
       })}
 
-      {/* Bounding box + handles (multi-select, resizable only). */}
-      {ids.size > 1 && resizable && box ? (
+      {/* Bounding box + handles: multi-select (resizable) or a single text
+          object (horizontal-only handles). */}
+      {showHandles ? (
         <>
           <div
             data-testid="selection-box"
@@ -106,7 +119,7 @@ export function SelectionOverlay({
               pointerEvents: 'none',
             }}
           />
-          {HANDLE_DEFS.map((def) => {
+          {handleDefs.map((def) => {
             const p = handlePosition(box, def);
             return (
               <div

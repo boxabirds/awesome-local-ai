@@ -11,7 +11,8 @@
  *     reachable again, without a reload
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { JSX } from 'react';
+import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
+import * as Y from 'yjs';
 import { canZoomIn, canZoomOut, zoomPercent, screenToWorld } from '../canvas/camera';
 import type { Size } from '../canvas/camera';
 import { BoardViewport } from '../canvas/BoardViewport';
@@ -29,6 +30,7 @@ import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { Toolbar } from '../board/Toolbar';
 import { createUndo } from '../board/undo';
 import { useUndo } from '../board/useUndo';
+import { useTool } from '../board/useTool';
 import { getObjectType } from '../objects/registry';
 import {
   createSticky,
@@ -36,9 +38,11 @@ import {
   objectBounds,
   setStickyColor,
 } from '../../shared/board-model';
-import type { Rect } from '../../shared/geometry';
+import { createText, setTextSize, setTextWidthFixed } from '../../shared/objects/text';
+import type { Rect, Handle } from '../../shared/geometry';
 import type { StickySnapshot } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
+import { sessionIdentity } from '../identity';
 import { isValidBoardId } from '../../shared/board-id';
 import { checkBoard } from '../api';
 import { SharePanel } from '../share/SharePanel';
@@ -149,10 +153,15 @@ export function BoardView({
   }, []);
 
   const controls = useCamera(size);
+  const controlsRef = useRef(controls);
+  controlsRef.current = controls;
   const { doc, objects, connectionState } = useBoardDoc(boardId, deps);
   const selection = useSelection(objects);
   const isLoadFailed = connectionState === 'load-failed';
   const canEdit = !isLoadFailed;
+
+  // Story 9: board tool (select / text).
+  const tool = useTool(canEdit);
 
   // Story 8: per-user undo controller (one per board doc, destroyed on unmount).
   const undoRef = useRef<ReturnType<typeof createUndo> | null>(null);
@@ -182,8 +191,20 @@ export function BoardView({
     },
   });
 
-  // Board keyboard commands (story 7: select all, nudge, delete, …; story 8: undo/redo).
-  useBoardKeys({ doc, objects, selection, canEdit, startEdit: selection.startEdit, undo: undoController });
+  // Board keyboard commands (story 7: select all, nudge, delete, …; story 8: undo/redo;
+  // story 9: V/T/N/Escape tool shortcuts). The N handler reads through a ref
+  // so the keyboard wiring stays stable across renders.
+  const handleCreateStickyRef = useRef<(() => void) | null>(null);
+  useBoardKeys({
+    doc,
+    objects,
+    selection,
+    canEdit,
+    startEdit: selection.startEdit,
+    undo: undoController,
+    tool: { setTool: tool.setTool },
+    onCreateStickyCenter: () => handleCreateStickyRef.current?.(),
+  });
 
   // Marquee (story 7): Shift+drag on empty space selects by containment.
   const marquee = useMarquee(controls.camera, objects, (ids) => selection.setMany(ids, true));
@@ -212,12 +233,27 @@ export function BoardView({
     [doc, controls.camera, selection, isLoadFailed],
   );
 
-  // Create from toolbar button (centre of viewport)
+  // Create from toolbar button / N shortcut (centre of viewport)
   const handleCreateSticky = useCallback(() => {
     if (isLoadFailed) return;
     const centre = { x: size.width / 2, y: size.height / 2 };
     handleCreateAtScreenPoint(centre);
   }, [size, handleCreateAtScreenPoint, isLoadFailed]);
+  handleCreateStickyRef.current = handleCreateSticky;
+
+  // Text tool: click anywhere (even on an object) creates a text object on
+  // top at that point, then starts editing it (story 9, text.tool).
+  const handleTextToolClick = useCallback(
+    (screenPoint: { x: number; y: number }) => {
+      if (isLoadFailed) return;
+      const worldPoint = screenToWorld(controls.camera, screenPoint);
+      const id = createText(doc, worldPoint, sessionIdentity());
+      if (!id) return;
+      tool.setTool('select');
+      selection.startEdit(id);
+    },
+    [doc, controls.camera, selection, isLoadFailed, tool],
+  );
 
   // Double-click on empty board space
   const handleDblClickEmpty = useCallback(
@@ -250,25 +286,90 @@ export function BoardView({
     [doc, selection],
   );
 
+  // Change the single selected text object's size preset (story 9, text.size).
+  // The box-sync hook re-measures the height in the same capture window.
+  const handleTextSize = useCallback(
+    (s: TextSize) => {
+      if (selection.ids.size !== 1) return;
+      const [id] = [...selection.ids];
+      setTextSize(doc, id, s);
+    },
+    [doc, selection],
+  );
+
+  // Story 9: fixed-width drag on a single text object's e/w handle. Sets a
+  // fixed width (clamped to TEXT_MIN_WIDTH_WORLD); the box-sync hook rewrites
+  // the height. The top-left position is unchanged.
+  const startTextWidthDrag = useCallback(
+    (e: ReactPointerEvent, id: string, handle: 'e' | 'w') => {
+      const objMap = doc.getMap('objects').get(id) as Y.Map<unknown> | undefined;
+      if (!objMap) return;
+      const objX = objMap.get('x') as number;
+      const objW = objMap.get('width') as number;
+      undoController.boundary();
+      let raf: number | null = null;
+      const onMove = (ev: PointerEvent) => {
+        const w = screenToWorld(controlsRef.current.camera, { x: ev.clientX, y: ev.clientY });
+        const newWidth = handle === 'e' ? w.x - objX : objX + objW - w.x;
+        if (raf !== null) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => {
+          raf = null;
+          setTextWidthFixed(doc, id, newWidth);
+        });
+      };
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        if (raf !== null) cancelAnimationFrame(raf);
+        undoController.boundary();
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    },
+    [doc, undoController],
+  );
+
+  // Wrap the generic handle gesture: a single text object's e/w handle drives
+  // the fixed-width drag instead of a proportional group resize.
+  const onHandlePointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLElement>, handle: Handle) => {
+      if (selection.ids.size === 1 && (handle === 'e' || handle === 'w')) {
+        const [id] = [...selection.ids];
+        const obj = objects.find((o) => o.id === id);
+        if (obj && obj.type === 'text') {
+          e.stopPropagation();
+          startTextWidthDrag(e, id, handle);
+          return;
+        }
+      }
+      gesture.onHandlePointerDown(e, handle);
+    },
+    [selection, objects, startTextWidthDrag, gesture],
+  );
+
   const selectedObjects = objects.filter((o) => selection.ids.has(o.id));
   const resizable =
     selectedObjects.length > 0 &&
     selectedObjects.every((o) => getObjectType(o.type)?.resizable === true);
+  const singleSelected =
+    selection.ids.size === 1 ? selectedObjects[0] : undefined;
   const singleSticky =
-    selection.ids.size === 1
-      ? selectedObjects.find((o): o is StickySnapshot => o.type === 'sticky')
+    singleSelected && singleSelected.type === 'sticky'
+      ? (singleSelected as StickySnapshot)
       : undefined;
 
   // Screen-space anchor (top-centre) of the single selected object, for the
-  // note toolbar in the screen-space selection bar.
+  // per-type toolbar in the screen-space selection bar.
   const singleAnchor = useMemo(() => {
-    if (!singleSticky) return undefined;
-    const b = objectBounds(singleSticky);
+    if (!singleSelected) return undefined;
+    const b = objectBounds(singleSelected);
     return {
       x: (b.x + b.width / 2 - controls.camera.x) * controls.camera.zoom,
       y: (b.y - controls.camera.y) * controls.camera.zoom,
     };
-  }, [singleSticky, controls.camera]);
+  }, [singleSelected, controls.camera]);
 
   return (
     <div ref={shellRef} style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
@@ -277,6 +378,8 @@ export function BoardView({
         onDblClickEmpty={handleDblClickEmpty}
         onClickEmpty={handleClickEmpty}
         marquee={canEdit ? marquee : undefined}
+        textTool={tool.tool === 'text'}
+        onTextToolClick={handleTextToolClick}
       >
         {objects.map((obj) => {
           const spec = getObjectType(obj.type);
@@ -290,6 +393,7 @@ export function BoardView({
               zoom={controls.camera.zoom}
               selected={selection.ids.has(obj.id)}
               editing={selection.editingId === obj.id}
+              canEdit={canEdit}
               onObjectPointerDown={gesture.onObjectPointerDown}
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
@@ -302,18 +406,25 @@ export function BoardView({
           ids={selection.ids}
           zoom={controls.camera.zoom}
           resizable={resizable}
-          onHandlePointerDown={gesture.onHandlePointerDown}
+          onHandlePointerDown={onHandlePointerDown}
         />
         <MarqueeRect rect={marquee.rect} camera={controls.camera} />
       </BoardViewport>
       <SelectionBar
         count={selection.ids.size}
-        singleColor={singleSticky?.color}
+        single={singleSelected}
         anchor={singleAnchor}
         onColor={handleColor}
+        onTextSize={handleTextSize}
         onDelete={handleDeleteSelection}
       />
-      <Toolbar onCreateSticky={handleCreateSticky} undo={undoState} />
+      <Toolbar
+        tool={tool.tool}
+        setTool={tool.setTool}
+        canEdit={canEdit}
+        onCreateSticky={handleCreateSticky}
+        undo={undoState}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(controls.camera)}
         canZoomIn={canZoomIn(controls.camera)}

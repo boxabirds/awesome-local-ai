@@ -96,6 +96,15 @@ export function insertTestBox(x: number, y: number, width: number, height: numbe
   return id;
 }
 
+/** Insert a free text object at a top-left world point and return its id. */
+export function insertText(x: number, y: number): string {
+  let id = '';
+  act(() => {
+    id = hook().insertText!(x, y) ?? '';
+  });
+  return id;
+}
+
 /** Flush rAF-throttled gesture writes (fake timers). */
 export function advance(ms = 32): void {
   act(() => {

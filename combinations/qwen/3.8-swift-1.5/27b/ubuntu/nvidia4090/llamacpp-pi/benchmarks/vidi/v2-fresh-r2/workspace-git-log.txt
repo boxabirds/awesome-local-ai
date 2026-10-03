@@ -1,3 +1,104 @@
+commit 57e8ba4e1de14948a6d64594b6fcff411625b17d
+agent  Sat Oct 3 14:56:00 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ PROGRESS.md                         |   2 +-
+ src/client/objects/TextObject.tsx   |   8 +-
+ tests/component/TextObject.test.tsx |   2 +-
+ tests/e2e/text.spec.ts              | 270 ++++++++++++++++++++++++++++++++++++
+ tests/fixtures/texts.ts             |   7 +
+ 5 files changed, 285 insertions(+), 4 deletions(-)
+commit 29e7378ad8c2e0c42da74286be7807201ba49452
+agent  Sat Oct 3 14:31:17 2026 +0100
+
+    story 9: component tests for tool mode and text objects
+
+
+ PROGRESS.md                         |   4 +-
+ src/client/board/useBoardDoc.ts     |   3 +
+ src/client/canvas/testHooks.ts      |   4 +
+ src/client/objects/TextObject.tsx   |  13 +-
+ src/client/objects/textLayout.ts    |  18 +++
+ tests/component/TextObject.test.tsx | 228 ++++++++++++++++++++++++++++++++++++
+ tests/component/ToolMode.test.tsx   | 119 +++++++++++++++++++
+ tests/component/harness.tsx         |   9 ++
+ 8 files changed, 385 insertions(+), 13 deletions(-)
+commit 17442b13ab5252f6dff5d85ea78b554116b0aa85
+agent  Sat Oct 3 14:24:17 2026 +0100
+
+    story 9: implement text object, tool mode, text editor and toolbar
+
+
+ PROGRESS.md                             |   5 +-
+ src/client/board/SelectionBar.tsx       |  38 ++++--
+ src/client/board/SelectionOverlay.tsx   |  19 ++-
+ src/client/board/Toolbar.tsx            | 128 ++++++++++++++----
+ src/client/board/useBoardKeys.ts        |  45 ++++++-
+ src/client/board/useTool.ts             |  36 +++++
+ src/client/canvas/BoardViewport.tsx     |  40 +++++-
+ src/client/identity.ts                  |  17 +++
+ src/client/objects/StickyTextEditor.tsx | 230 +++++++-------------------------
+ src/client/objects/TextEditor.tsx       | 225 +++++++++++++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 152 +++++++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  86 ++++++++++++
+ src/client/objects/registry.tsx         |  27 +++-
+ src/client/pages/BoardPage.tsx          | 141 +++++++++++++++++---
+ tests/component/Toolbars.test.tsx       |  10 +-
+ tests/unit/text-model.test.ts           |   2 +-
+ 16 files changed, 951 insertions(+), 250 deletions(-)
+commit 740b2e0cee648b0965237dbf511fd52f1080314e
+agent  Sat Oct 3 14:16:24 2026 +0100
+
+    story 9 (task 5): box sync component tests (TC-12, TC-13)
+
+
+ PROGRESS.md                          |   7 +-
+ tests/component/TextBoxSync.test.tsx | 176 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 180 insertions(+), 3 deletions(-)
+commit 9e833f2dddd100d1acffd1652a276d8a50d2ea89
+agent  Sat Oct 3 14:11:14 2026 +0100
+
+    story 9 (tasks 3-4): text layout with canvas measurer + local-only box sync
+
+
+ src/client/objects/useTextBoxSync.ts | 116 +++++++++++++++++++++++++++++++++++
+ tests/unit/text-layout.test.ts       |  31 ++++++----
+ 2 files changed, 136 insertions(+), 11 deletions(-)
+commit 0eb139c865e8edc2084c34ac6d18bf7eb5a997fe
+agent  Sat Oct 3 14:08:34 2026 +0100
+
+    story 9 (task 3): text layout unit tests with fake measurer (red phase)
+
+
+ PROGRESS.md                      |   6 +-
+ src/client/objects/StickyText.ts |  69 ++--------------
+ src/client/objects/textLayout.ts | 140 +++++++++++++++++++++++++++++++
+ src/shared/objects/text.ts       | 174 ++++++++++++++++++++++++++++++++++-----
+ tests/unit/text-layout.test.ts   | 112 +++++++++++++++++++++++++
+ tests/unit/text-model.test.ts    |  10 +--
+ 6 files changed, 423 insertions(+), 88 deletions(-)
+commit e651cb992c12998e60330392a42b1c3370ad4c6a
+agent  Sat Oct 3 14:06:45 2026 +0100
+
+    story 9 (task 1): text model unit tests (TC-01..TC-06) red phase
+
+
+ PROGRESS.md                   |   2 +-
+ src/shared/config.ts          |  19 ++++
+ src/shared/objects/text.ts    |  43 ++++++++++
+ src/shared/text-edit.ts       |  67 +++++++++++++++
+ tests/unit/text-model.test.ts | 195 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 325 insertions(+), 1 deletion(-)
+commit 30275d2d55810eb36c5dd2d534ab70375eedd225
+vidi-agent  Sat Oct 3 13:54:13 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 commit 95df9115ba5e92efe1a248be03d8dac2556f26aa
 agent  Sat Oct 3 13:50:12 2026 +0100
 

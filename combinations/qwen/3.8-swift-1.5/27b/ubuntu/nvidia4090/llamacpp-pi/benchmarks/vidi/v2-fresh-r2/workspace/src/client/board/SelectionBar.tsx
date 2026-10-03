@@ -1,34 +1,40 @@
 /**
- * Floating selection bar (story 7, sel.selectall / sel.delete).
+ * Floating selection bar (story 7, sel.selectall / sel.delete; story 9,
+ * text.size).
  *
  * Rendered in screen space above the board. For a multi-selection it shows a
  * live "N selected" count and a Delete button; for a single sticky note it
- * keeps the story 2 note toolbar (colours + delete).
+ * keeps the story 2 note toolbar (colours + delete); for a single text
+ * object it shows the text toolbar (size presets + delete).
  */
 
 import type { JSX } from 'react';
-import { STICKY_COLORS, type StickyColor } from '../../shared/config';
+import type { StickyColor } from '../../shared/config';
+import type { TextSize } from '../../shared/config';
+import type { ObjectSnapshot } from '../../shared/board-model';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 
 interface SelectionBarProps {
   /** Number of selected objects. */
   count: number;
-  /** The single selected object's colour (only when count === 1). */
-  singleColor?: StickyColor;
+  /** The single selected object (only when count === 1). */
+  single?: ObjectSnapshot;
   /**
    * Screen-space anchor (top-centre of the single selected object) for the
-   * note toolbar. The bar itself is screen-space, so the toolbar must be
-   * positioned against the note, not against the viewport corner.
+   * per-type toolbar. The bar itself is screen-space, so the toolbar must be
+   * positioned against the object, not against the viewport corner.
    */
   anchor?: { x: number; y: number };
   onColor(c: StickyColor): void;
+  onTextSize(s: TextSize): void;
   onDelete(): void;
 }
 
-export function SelectionBar({ count, singleColor, anchor, onColor, onDelete }: SelectionBarProps): JSX.Element | null {
+export function SelectionBar({ count, single, anchor, onColor, onTextSize, onDelete }: SelectionBarProps): JSX.Element | null {
   if (count === 0) return null;
 
-  if (count === 1) {
+  if (count === 1 && single) {
     return (
       <div
         style={{
@@ -39,7 +45,19 @@ export function SelectionBar({ count, singleColor, anchor, onColor, onDelete }: 
           height: 0,
         }}
       >
-        <NoteToolbar color={singleColor ?? 'yellow'} onColor={onColor} onDelete={onDelete} />
+        {single.type === 'text' ? (
+          <TextToolbar
+            size={(single as unknown as { size: TextSize }).size}
+            onSize={onTextSize}
+            onDelete={onDelete}
+          />
+        ) : (
+          <NoteToolbar
+            color={single.type === 'sticky' ? (single as unknown as { color: StickyColor }).color : 'yellow'}
+            onColor={onColor}
+            onDelete={onDelete}
+          />
+        )}
       </div>
     );
   }

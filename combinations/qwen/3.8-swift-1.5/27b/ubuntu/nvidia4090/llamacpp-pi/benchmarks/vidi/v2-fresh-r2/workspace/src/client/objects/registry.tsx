@@ -14,8 +14,9 @@ import * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { markObjectTypeRegistered } from '../../shared/object-types';
 import type { Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 import type { UndoController } from '../board/undo';
 
 /** Props every board object component receives (generic, per-type agnostic). */
@@ -25,6 +26,11 @@ export interface ObjectProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * Whether the board is editable (story 9, text.editing): gates double-click
+   * editing. Defaults to true for existing types.
+   */
+  canEdit?: boolean;
   /** Delegate pointerdown to the generic transform gesture (story 7). */
   onObjectPointerDown(e: ReactPointerEvent<HTMLElement>, id: string): void;
   onStartEdit(id: string): void;
@@ -40,6 +46,12 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  /**
+   * Which resize handles a single selected object of this type shows
+   * (story 9, text.fixed_width): 'all' (default, sticky) or 'horizontal'
+   * (text — left/right only; height always follows the content).
+   */
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -80,5 +92,18 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  handles: 'all',
+  hitTest: boundsHitTest,
+});
+
+// The free text type (story 9): resizable via the horizontal (e/w) handles
+// only — the height always follows the content (text.fixed_width).
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: boundsHitTest,
 });

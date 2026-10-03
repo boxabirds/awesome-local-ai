@@ -28,6 +28,13 @@ export interface BoardViewportProps {
    * drives begin/move/end; pointercancel and Escape drive cancel.
    */
   marquee?: Marquee;
+  /**
+   * Text tool active (story 9, text.tool): the cursor is a text caret and a
+   * click anywhere (even on an existing object) calls `onTextToolClick` with
+   * the local screen point. Object and pan gestures are suppressed.
+   */
+  textTool?: boolean;
+  onTextToolClick?(point: { x: number; y: number }): void;
 }
 
 /** Positive modulo: result in [0, modulus). */
@@ -53,6 +60,8 @@ export function BoardViewport({
   onDblClickEmpty,
   onClickEmpty,
   marquee,
+  textTool = false,
+  onTextToolClick,
 }: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const panningRef = useRef(false);
@@ -64,6 +73,11 @@ export function BoardViewport({
   marqueeRef.current = marquee;
   // Suppress the click that follows a drag (pan or marquee).
   const suppressClickRef = useRef(false);
+  // Text tool refs (stable window/capture listeners).
+  const textToolRef = useRef(textTool);
+  textToolRef.current = textTool;
+  const onTextToolClickRef = useRef(onTextToolClick);
+  onTextToolClickRef.current = onTextToolClick;
 
   const setPanningState = (value: boolean) => {
     panningRef.current = value;
@@ -75,8 +89,22 @@ export function BoardViewport({
     return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
   };
 
+  // Text tool: suppress pan and object gestures in the capture phase so a
+  // click anywhere (even on an existing object) creates text on top.
+  useEffect(() => {
+    if (!textTool) return;
+    const el = viewportRef.current;
+    if (!el) return;
+    const onPointerDownCapture = (e: PointerEvent) => {
+      e.stopPropagation();
+    };
+    el.addEventListener('pointerdown', onPointerDownCapture, true);
+    return () => el.removeEventListener('pointerdown', onPointerDownCapture, true);
+  }, [textTool]);
+
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    if (textToolRef.current) return; // the text tool creates text on click
     // Drag starts only on empty board space (the viewport/grid itself), so
     // later object stories can stop propagation on their own elements.
     if (e.target !== viewportRef.current) return;
@@ -99,6 +127,16 @@ export function BoardViewport({
   };
 
   const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (textToolRef.current) {
+      if (suppressClickRef.current) {
+        suppressClickRef.current = false;
+        return;
+      }
+      // Text tool: a click anywhere (even on an object) creates text on top
+      // at that point (text.tool).
+      onTextToolClickRef.current?.(localPoint(e.clientX, e.clientY));
+      return;
+    }
     if (e.target !== viewportRef.current) return;
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
@@ -243,7 +281,7 @@ export function BoardViewport({
         position: 'fixed',
         inset: 0,
         overflow: 'hidden',
-        cursor: panning ? 'grabbing' : 'grab',
+        cursor: textTool ? 'text' : panning ? 'grabbing' : 'grab',
         backgroundColor: '#f7f7f4',
         backgroundImage: 'radial-gradient(circle, #c8c8c0 1px, transparent 1.6px)',
         backgroundSize: `${spacingPx}px ${spacingPx}px`,

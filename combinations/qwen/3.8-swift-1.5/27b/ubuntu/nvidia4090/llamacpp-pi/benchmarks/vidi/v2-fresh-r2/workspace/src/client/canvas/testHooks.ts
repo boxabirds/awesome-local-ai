@@ -31,6 +31,8 @@ declare global {
       insertSticky?: (x: number, y: number) => string;
       /** Insert a testbox (registered in test builds) at a top-left (test only). */
       insertTestBox?: (x: number, y: number, width: number, height: number) => string;
+      /** Insert a free text object at a top-left world point (test only). Returns the id. */
+      insertText?: (x: number, y: number) => string | null;
       /**
        * Transform-gesture lifecycle log (test only): 'start'/'end' entries,
        * one pair per completed drag (sel.transform onGestureStart/End).
@@ -108,6 +110,7 @@ export function setBoardHooks(
   setConnState?: (s: string) => void,
   insertSticky?: (x: number, y: number) => string,
   insertTestBox?: (x: number, y: number, width: number, height: number) => string,
+  insertText?: (x: number, y: number) => string | null,
 ): void {
   if (import.meta.env.MODE !== 'test') return;
   const hook = window.__vidi6;
@@ -119,5 +122,6 @@ export function setBoardHooks(
     hook.setConnState = setConnState;
     hook.insertSticky = insertSticky;
     hook.insertTestBox = insertTestBox;
+    hook.insertText = insertText;
   }
 }

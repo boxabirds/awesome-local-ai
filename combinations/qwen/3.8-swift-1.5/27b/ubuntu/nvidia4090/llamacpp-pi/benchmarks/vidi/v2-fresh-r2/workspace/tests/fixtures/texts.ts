@@ -44,3 +44,10 @@ if (LONG_PARAGRAPH.length !== 1000) {
     // This shouldn't happen since we slice, but just in case
   }
 }
+
+/** A 300-character annotation (story 9, text e2e TC-26). */
+export const LONG_ANNOTATION = LONG_PARAGRAPH.slice(0, 300);
+
+if (LONG_ANNOTATION.length !== 300) {
+  throw new Error(`LONG_ANNOTATION must be 300 chars, got ${LONG_ANNOTATION.length}`);
+}

@@ -2,70 +2,19 @@
  * Sticky note text utilities: clamp, diff, counter visibility, font fit.
  */
 
-import * as Y from 'yjs';
-import {
-  STICKY_TEXT_MAX_CHARS,
-  STICKY_COUNTER_THRESHOLD_CHARS,
-  STICKY_FONT_MAX_PX,
-  STICKY_FONT_MIN_PX,
-} from '../../shared/config';
+import { STICKY_TEXT_MAX_CHARS, STICKY_COUNTER_THRESHOLD_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX } from '../../shared/config';
+import { clampToLimit as sharedClampToLimit, applyTextDiff } from '../../shared/text-edit';
+
+// Story 9: clamp/diff moved to src/shared/text-edit.ts so both object types
+// share them. Re-exported here (with the sticky default) so story 2 callers
+// and tests are unchanged.
+export { applyTextDiff };
 
 /**
- * Clamp a string to at most `max` characters.
+ * Clamp a string to at most `max` characters (default: sticky limit).
  */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (next.length <= max) return next;
-  return next.slice(0, max);
-}
-
-/**
- * Apply a minimal text diff (common prefix + suffix) to a Y.Text.
- * Uses one transaction with the given origin.
- *
- * Computes the common prefix and common suffix of the current and next
- * strings, then performs at most one delete and one insert.
- * Surrogate-pair safe: operates on code units but the prefix/suffix
- * computation naturally respects pair boundaries since we compare
- * character by character.
- */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-
-  // Find common prefix length
-  let prefixLen = 0;
-  const minLen = Math.min(current.length, next.length);
-  while (prefixLen < minLen && current[prefixLen] === next[prefixLen]) {
-    prefixLen++;
-  }
-
-  // Find common suffix length (not overlapping with prefix)
-  let suffixLen = 0;
-  while (
-    suffixLen < minLen - prefixLen &&
-    current[current.length - 1 - suffixLen] === next[next.length - 1 - suffixLen]
-  ) {
-    suffixLen++;
-  }
-
-  const deleteStart = prefixLen;
-  const deleteLen = current.length - prefixLen - suffixLen;
-  const insertStr = next.slice(prefixLen, next.length - suffixLen);
-
-  const apply = () => {
-    if (deleteLen > 0) {
-      ytext.delete(deleteStart, deleteLen);
-    }
-    if (insertStr.length > 0) {
-      ytext.insert(prefixLen, insertStr);
-    }
-  };
-
-  if (ytext.doc) {
-    ytext.doc.transact(apply, origin as any);
-  } else {
-    apply();
-  }
+  return sharedClampToLimit(next, max);
 }
 
 /**

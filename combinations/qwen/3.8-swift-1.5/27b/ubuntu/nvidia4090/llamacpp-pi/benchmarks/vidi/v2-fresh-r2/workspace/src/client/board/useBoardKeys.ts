@@ -3,10 +3,12 @@
  * story 8, undo.shortcuts).
  *
  * - Ctrl/Cmd+A → select all registered objects;
- * - Escape → clear the selection;
+ * - Escape → clear the selection AND switch to the Select tool;
  * - arrows → nudge the selection by NUDGE_STEP_WORLD (Shift: ×10);
  * - Delete/Backspace → delete the selection;
- * - Enter → start editing the single selected text object;
+ * - Enter → start editing the single selected object with editable text;
+ * - V → Select tool; T → Text tool (editable boards only); N → new sticky
+ *   at the view centre (story 9, text.tool);
  * - Ctrl/Cmd+Z → undo; Ctrl/Cmd+Shift+Z or Ctrl+Y → redo.
  *
  * Ignored while focus is in a text field or while an object is being edited
@@ -18,8 +20,10 @@ import type { Doc as YDoc } from 'yjs';
 import { allObjectIds, deleteObjects, moveObjects } from '../../shared/board-model';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
+import { getObjectType } from '../objects/registry';
 import type { Selection } from './useSelection';
 import type { UndoController } from './undo';
+import type { Tool } from './useTool';
 
 export function useBoardKeys(opts: {
   doc: YDoc;
@@ -28,6 +32,10 @@ export function useBoardKeys(opts: {
   canEdit: boolean;
   startEdit: (id: string) => void;
   undo?: UndoController;
+  /** Board tool (story 9): V/T/Escape drive it. */
+  tool?: { setTool: (tool: Tool) => void };
+  /** N shortcut: create a sticky at the view centre (story 9). */
+  onCreateStickyCenter?: () => void;
 }): void {
   const { doc, selection, startEdit } = opts;
 
@@ -41,6 +49,10 @@ export function useBoardKeys(opts: {
   startEditRef.current = opts.startEdit;
   const undoRef = useRef(opts.undo);
   undoRef.current = opts.undo;
+  const setToolRef = useRef(opts.tool?.setTool);
+  setToolRef.current = opts.tool?.setTool;
+  const onCreateStickyCenterRef = useRef(opts.onCreateStickyCenter);
+  onCreateStickyCenterRef.current = opts.onCreateStickyCenter;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -83,11 +95,36 @@ export function useBoardKeys(opts: {
         return;
       }
 
+      // Tool shortcuts (story 9, text.tool): plain keys, no modifiers.
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'v') {
+          e.preventDefault();
+          setToolRef.current?.('select');
+          return;
+        }
+        if (key === 't') {
+          if (!canEditRef.current) return;
+          e.preventDefault();
+          setToolRef.current?.('text');
+          return;
+        }
+        if (key === 'n') {
+          if (!canEditRef.current) return;
+          e.preventDefault();
+          onCreateStickyCenterRef.current?.();
+          return;
+        }
+      }
+
       switch (e.key) {
         case 'Escape':
-          if (sel.ids.size > 0) {
+          // Escape clears the selection AND reverts to the Select tool
+          // (story 9, text.tool).
+          if (sel.ids.size > 0 || setToolRef.current) {
             e.preventDefault();
             sel.clear();
+            setToolRef.current?.('select');
           }
           return;
         case 'ArrowUp':
@@ -118,7 +155,7 @@ export function useBoardKeys(opts: {
           if (sel.ids.size === 1) {
             const [id] = [...sel.ids];
             const obj = objects.find((o) => o.id === id);
-            if (obj && obj.type === 'sticky') {
+            if (obj && getObjectType(obj.type)?.editableText) {
               e.preventDefault();
               startEditRef.current(id);
             }

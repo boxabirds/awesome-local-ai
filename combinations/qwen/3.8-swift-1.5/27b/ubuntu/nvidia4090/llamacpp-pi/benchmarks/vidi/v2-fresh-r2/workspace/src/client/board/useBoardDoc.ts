@@ -15,6 +15,8 @@ import { connectBoard, type ConnectionState, type ConnectBoardDeps } from '../sy
 import { setDisconnectHook, setBoardHooks } from '../canvas/testHooks';
 import { createSticky, snapshot as boardSnapshot } from '../../shared/board-model';
 import { insertRawObject } from '../../shared/board-model';
+import { createText } from '../../shared/objects/text';
+import { sessionIdentity } from '../identity';
 
 export interface BoardDoc {
   doc: Y.Doc;
@@ -62,6 +64,7 @@ export function useBoardDoc(boardId: string, deps: ConnectBoardDeps = {}): Board
       (x: number, y: number) => createSticky(doc, { x, y }),
       (x: number, y: number, width: number, height: number) =>
         insertRawObject(doc, 'testbox', { x, y }, { width, height }),
+      (x: number, y: number) => createText(doc, { x, y }, sessionIdentity()),
     );
     if (import.meta.env.MODE === 'test' && window.__vidi6) {
       window.__vidi6.getDoc = () => doc;
