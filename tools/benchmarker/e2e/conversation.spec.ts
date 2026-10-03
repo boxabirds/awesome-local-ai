@@ -312,12 +312,16 @@ test.describe("B. the call page", () => {
     await page.goto(call(SWIFT, "v2-r5", "2", 1));
     await head(page, "input").click();
     const body = item(page, "input").locator(".cc-body");
+    // Two rows that mirror the two figures: the cache (expandable) and the new tokens, with what they were right under.
+    await expect(body.locator(".cc-row")).toHaveCount(2);
+    await expect(body.locator(".cc-split, h4")).toHaveCount(0);
+    await expect(body.locator('[data-part="new"] .cc-row')).toHaveText(/^1,800 tokens new to this call: what call 1's tools returned$/);
     await expect(body.locator('[data-prev-tool="0"] h5')).toHaveText("read");          // the name once, not the name and its kind twice
     await expect(body.locator('[data-prev-tool="0"] pre[data-quoted="agent"]')).toBeVisible();
-    await expect(body.locator(".cc-split")).toHaveText(/^read from the cache [\d,]+ · new to this call [\d,]+ tokens$/);
     await page.goto(call(SWIFT, "v2-r5", "2", 0));
     await head(page, "input").click();
-    await expect(item(page, "input").locator('[data-part="opening"] pre[data-quoted="agent"]')).toHaveText("Implement story 2 now.");
+    await expect(item(page, "input").locator('[data-part="new"] .cc-row')).toHaveText(/^1,500 tokens new to this call: the story's opening message$/);
+    await expect(item(page, "input").locator('[data-part="new"] pre[data-quoted="agent"]')).toHaveText("Implement story 2 now.");
   });
 
   test("what was read from the cache expands to the context as the transcript gives it: the turns since the start or the last compaction", async ({ page }) => {
@@ -368,6 +372,7 @@ test.describe("B. the call page", () => {
     await expect(item(page, "input").locator(".cc-body")).toContainText(/read from the cache/i);
     await expect(item(page, "input").locator(".cc-body")).toContainText(/new to this call/i);
     await expect(item(page, "input").locator(".cc-body [data-prev-tool]")).not.toHaveCount(0);
+    await expect(item(page, "input").locator(".cc-body")).not.toContainText(/what the call before returned/i);
   });
 
   test("the way back and the calls either side stay on the call's row", async ({ page }) => {
