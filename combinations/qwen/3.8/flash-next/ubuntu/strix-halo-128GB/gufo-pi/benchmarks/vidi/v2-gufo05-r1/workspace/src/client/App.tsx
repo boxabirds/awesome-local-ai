@@ -28,7 +28,11 @@ import {
   type ObjectSnapshot,
 } from '../shared/board-model';
 import { createText } from '../shared/objects/text';
+import { createShape } from '../shared/objects/shape';
+import { createConnector } from '../shared/objects/connector';
+import type { Endpoint } from '../shared/geometry/connector-geometry';
 import { unionRects } from '../shared/geometry';
+import type { Rect } from '../shared/geometry';
 import { MarqueeRect } from './board/Marquee';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
@@ -37,7 +41,9 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useMarquee } from './board/useMarquee';
 import { useSelection } from './board/useSelection';
-import { useTool } from './board/useTool';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
 import { useUndo, useUndoController } from './board/useUndo';
 import { SELF } from './identity';
 import { useTransformGesture } from './board/useTransformGesture';
@@ -142,8 +148,17 @@ function BoardLayout({ doc, boardId }: AppProps) {
 
   const selection = useSelection(objects);
   const canEdit = connectionAllowsEditing(board.connectionState);
-  // Which tool a click on the board is in: Select, or Text (`text.tool_ui`).
-  const tools = useTool(canEdit);
+
+  // Latest values for the callbacks that are created once (and for the tool hook, which
+  // selects through them).
+  const latestRef = useRef({ camera, selection, doc: board.doc, connectionState: board.connectionState });
+  latestRef.current = { camera, selection, doc: board.doc, connectionState: board.connectionState };
+
+  // Which tool a click on the board is in: Select, Text, Shape or Connector
+  // (`text.tool_ui`, `shape.tool`, `connector.tool`). Creating an item hands the pointer
+  // back to Select through the same hook (`tools.return_to_select`).
+  const tools = useActiveTool({ canEdit, select: (id) => selection.add(id) });
+  const createToolActive = tools.tool === 'shape' || tools.tool === 'connector';
 
   // One undo history per board document, for this person alone (story 8). It watches the
   // document rather than being told about the changes, so nothing here has to remember to
@@ -154,10 +169,6 @@ function BoardLayout({ doc, boardId }: AppProps) {
 
   /** One model call is one undo step, whatever the pointer did around it. */
   const stepBoundary = undoController.boundary;
-
-  // Latest values for the callbacks that are created once.
-  const latestRef = useRef({ camera, selection, doc: board.doc, connectionState: board.connectionState });
-  latestRef.current = { camera, selection, doc: board.doc, connectionState: board.connectionState };
 
   /** Delete everything selected, and clear the selection (`sel.group_delete`). */
   const deleteSelection = useCallback(() => {
@@ -245,6 +256,42 @@ function BoardLayout({ doc, boardId }: AppProps) {
     [selection, stepBoundary, tools],
   );
 
+  /**
+   * Draw a shape where the Shape tool dragged (`shape.create`, `shape.click`,
+   * `shape.square`).
+   *
+   * The tool has already turned the gesture into a world rectangle (or a click point) and
+   * Shift into a flag; here it is one model call, one undo step, and then the pointer goes
+   * back to Select with the new shape in hand (`tools.return_to_select`). A rejected draw
+   * writes nothing and leaves the tool armed.
+   */
+  const createShapeAt = useCallback(
+    (args: { rect: Rect | null; at: Point; square: boolean }) => {
+      if (!connectionAllowsEditing(latestRef.current.connectionState)) return;
+      stepBoundary();
+      const id = createShape(
+        latestRef.current.doc,
+        { kind: tools.shapeKind, rect: args.rect, at: args.at, square: args.square },
+        SELF.id,
+      );
+      stepBoundary();
+      if (id) tools.toolCreated(id);
+    },
+    [stepBoundary, tools],
+  );
+
+  /** Draw an arrow between two objects (`connector.tool`), then hand the pointer back. */
+  const createConnectorFlow = useCallback(
+    (from: Endpoint, to: Endpoint) => {
+      if (!connectionAllowsEditing(latestRef.current.connectionState)) return;
+      stepBoundary();
+      const id = createConnector(latestRef.current.doc, from, to, SELF.id);
+      stepBoundary();
+      if (id) tools.toolCreated(id);
+    },
+    [stepBoundary, tools],
+  );
+
   const anchor = selectionAnchor(camera, objects, selection.ids);
 
   return (
@@ -255,6 +302,8 @@ function BoardLayout({ doc, boardId }: AppProps) {
         tool={tools.tool}
         canEdit={canEdit}
         onTool={tools.setTool}
+        shapeKind={tools.shapeKind}
+        onShapeKind={tools.setShapeKind}
         undo={undo}
       />
       <BoardViewport
@@ -296,6 +345,18 @@ function BoardLayout({ doc, boardId }: AppProps) {
         <MarqueeRect rect={marquee.rect} camera={camera} />
       </BoardViewport>
       {/*
+       * The Shape and Connector tools (`shape.tool`, `connector.tool`): a full-board sheet
+       * that claims every press while one is armed, so a drag draws a shape or an arrow
+       * rather than selecting, moving or panning what is under it (TC-28). The toolbar, a
+       * higher layer, stays clickable, and Escape puts the tool away mid-drag.
+       */}
+      {canEdit && tools.tool === 'shape' ? (
+        <ShapeTool camera={camera} shapeKind={tools.shapeKind} onCreate={createShapeAt} />
+      ) : null}
+      {canEdit && tools.tool === 'connector' ? (
+        <ConnectorTool camera={camera} objects={objects} onCreate={createConnectorFlow} />
+      ) : null}
+      {/*
        * Screen space, above the board: the bar first, then the outlines and handles.
        *
        * The order is the tab order. A person on a keyboard who has selected a note reaches
@@ -303,7 +364,7 @@ function BoardLayout({ doc, boardId }: AppProps) {
        * established and what eight new stops would otherwise have buried. z-index, not
        * this order, decides what is drawn on top.
        */}
-      {anchor && !gesture.isTransforming ? (
+      {anchor && !gesture.isTransforming && !createToolActive ? (
         <div
           className="selection-anchor"
           style={{ left: anchor.x, top: anchor.y }}
@@ -318,7 +379,7 @@ function BoardLayout({ doc, boardId }: AppProps) {
         </div>
       ) : null}
       <SelectionOverlay
-        selection={[...selection.ids]}
+        selection={createToolActive ? [] : [...selection.ids]}
         snapshot={objects}
         camera={camera}
         onHandlePointerDown={gesture.onHandlePointerDown}

@@ -26,6 +26,14 @@ import * as Y from 'yjs';
 
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
 import { snapshotFrom as readText, TEXT_TYPE } from './objects/text';
+import {
+  CONNECTOR_TYPE,
+  connectorSnapshotFrom,
+  detachConnectorsTo,
+  resolveConnector,
+  type ConnectorSnapshot,
+} from './objects/connector';
+import { SHAPE_TYPE, snapshotFrom as readShape } from './objects/shape';
 import { rectContains, isFiniteRect, type Point, type Rect } from './geometry';
 
 /**
@@ -153,6 +161,11 @@ function readObject(id: string, map: Y.Map<unknown>): ObjectSnapshot | null {
   if (typeof x !== 'number' || typeof y !== 'number' || typeof z !== 'number') return null;
   // Text carries its own box and font size, so it reads itself (`text.model`).
   if (type === TEXT_TYPE) return readText(id, map);
+  if (type === SHAPE_TYPE) return readShape(id, map);
+  // A connector's box is derived from the objects it is attached to; `objectSnapshots`
+  // reads those with every other rectangle in hand. Read alone here, it gets a placeholder
+  // box from its endpoints' own reference points.
+  if (type === CONNECTOR_TYPE) return connectorSnapshotFrom(id, map);
   if (type === STICKY_TYPE) return readSticky(id, map);
 
   const createdAt = map.get('createdAt');
@@ -255,10 +268,23 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
  */
 export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects: ObjectSnapshot[] = [];
+  // Connectors are read second: an attached end is anchored against the *current* rectangle
+  // of the object it follows, so every other object has to be read into a rectangle first
+  // (`connector.follow`).
+  const rects = new Map<string, Rect>();
+  const connectors: ConnectorSnapshot[] = [];
   for (const [id, map] of objectsMap(doc)) {
+    if (map.get('type') === CONNECTOR_TYPE) {
+      const connector = connectorSnapshotFrom(id, map);
+      if (connector) connectors.push(connector);
+      continue;
+    }
     const obj = readObject(id, map);
-    if (obj) objects.push(obj);
+    if (!obj) continue;
+    objects.push(obj);
+    rects.set(id, objectBounds(obj));
   }
+  for (const connector of connectors) objects.push(resolveConnector(connector, rects));
   objects.sort(compareStack);
   return Object.freeze(objects);
 }
@@ -358,6 +384,23 @@ export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): 
   return targets.length;
 }
 
+/**
+ * The ids a move gesture may actually translate.
+ *
+ * Only notes and shapes have a position of their own. A piece of text re-lays itself out
+ * from its words, and a connector's box is *derived* from the objects it is attached to,
+ * so translating either would be meaningless — dragging a selection moves the shapes and
+ * the arrows follow them (`connector.follow`). A transform gesture filters its ids through
+ * this so a connector in the selection set never gets an `x`/`y` written.
+ */
+export function moveableIds(doc: Y.Doc, ids: readonly string[]): string[] {
+  const objects = objectsMap(doc);
+  return ids.filter((id) => {
+    const type = objects.get(id)?.get('type');
+    return type === STICKY_TYPE || type === SHAPE_TYPE;
+  });
+}
+
 /** Write a new rectangle for each id, making an implicit size explicit. */
 export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): number {
   if (rects.size === 0) return 0;
@@ -427,6 +470,10 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (present.length === 0) return 0;
 
   doc.transact(() => {
+    // Free every arrow end attached to something about to go, while those objects are still
+    // here to anchor it, in this same transaction: the delete and the detach are one update
+    // and one undo step (`connector.target_deleted`).
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;

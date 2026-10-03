@@ -64,9 +64,11 @@ describe('the sticky note registration', () => {
     expect(spec.hitTest(note, { x: box.x, y: box.y + box.height + 1 })).toBe(false);
   });
 
-  it('TC-12 knows nothing about a type that no story has registered yet', () => {
-    expect(getObjectType('shape')).toBeUndefined();
-    expect(getObjectType('connector')).toBeUndefined();
+  it('TC-12 registers the types this build draws, and no others', () => {
+    // Story 10 registers `shape` and `connector`, so they are no longer unknown.
+    expect(getObjectType('shape')).toBeDefined();
+    expect(getObjectType('connector')).toBeDefined();
+    // Types no story in this build gives a component are still not drawn at all.
     expect(getObjectType('image')).toBeUndefined();
     expect(getObjectType('pen')).toBeUndefined();
     expect(getObjectType('')).toBeUndefined();

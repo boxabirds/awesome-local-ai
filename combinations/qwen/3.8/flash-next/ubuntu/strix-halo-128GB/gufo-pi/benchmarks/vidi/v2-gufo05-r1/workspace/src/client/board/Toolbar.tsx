@@ -4,37 +4,61 @@
  * Two kinds of control live here, and the difference is what a click on the board
  * does afterwards:
  *
- * - **Modes** — Select and Text (`text.tool_ui`). One of them is always armed
- *   (`aria-pressed`), and arming one changes what the next click means without
- *   changing anything on the board. `V` and `T` are the same two choices; the
- *   shortcut is in the label so a person can read the pairing off the button.
- * - **Actions** — Sticky note, which puts a note in the middle of the visible
- *   board and puts its text straight into edit mode (`N` does the same thing), and
- *   the undo pair, which steps back over what the tools did.
+ * - **Modes** — Select, Text, Shape and Connector (`text.tool_ui`, `shape.tool`,
+ *   `connector.tool`). One is always armed (`aria-pressed`), and arming one changes what
+ *   the next click means without changing anything on the board. `V`, `T`, `S` and `L`
+ *   are the same choices; the shortcut is in the label so a person can read it off the
+ *   button.
+ * - **Actions** — Sticky note, which puts a note in the middle of the visible board and
+ *   puts its text straight into edit mode (`N` does the same thing), and the undo pair,
+ *   which steps back over what the tools did.
  *
- * Text is disabled when the board cannot be written: offering a mode whose clicks
- * go nowhere is worse than saying the board cannot be edited (`text.tool_ui`).
+ * The Shape tool carries a second choice — which shape the next drag draws — shown as a
+ * small menu of kinds under its button while it is armed (`shape.tool`).
  *
- * It is a fixed overlay outside the world layer, so it does not pan or zoom and
- * stays reachable at any zoom level.
+ * Text, Shape and Connector are disabled when the board cannot be written: offering a
+ * mode whose clicks go nowhere is worse than saying the board cannot be edited.
+ *
+ * It is a fixed overlay outside the world layer, so it does not pan or zoom and stays
+ * reachable at any zoom level.
  */
+import { SHAPE_KINDS, type ShapeKind } from '../../shared/config';
+import type { ToolId } from '../tools/useActiveTool';
 import { UndoButtons } from './UndoButtons';
-import type { Tool } from './useTool';
 import type { UndoHandle } from './useUndo';
+
+/** The Shape-menu label for a kind. */
+const KIND_LABELS: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
 
 export interface ToolbarProps {
   onCreateSticky(): void;
   /** Which mode a click on the board is in. Defaults to Select for a caller with no modes. */
-  tool?: Tool;
-  /** False on a board that cannot be written: Text is disabled (`text.tool_ui`). */
+  tool?: ToolId;
+  /** False on a board that cannot be written: Text, Shape and Connector are disabled. */
   canEdit?: boolean;
   /** Arm a mode. Absent means the toolbar has no modes to offer. */
-  onTool?(tool: Tool): void;
+  onTool?(tool: ToolId): void;
+  /** The kind the Shape tool will draw next. */
+  shapeKind?: ShapeKind;
+  /** Choose the kind the Shape tool will draw next. */
+  onShapeKind?(kind: ShapeKind): void;
   /** This person's history, for the buttons underneath the tools. */
   undo: UndoHandle;
 }
 
-export function Toolbar({ onCreateSticky, tool = 'select', canEdit = true, onTool, undo }: ToolbarProps) {
+export function Toolbar({
+  onCreateSticky,
+  tool = 'select',
+  canEdit = true,
+  onTool,
+  shapeKind = 'rect',
+  onShapeKind,
+  undo,
+}: ToolbarProps) {
   return (
     <div className="toolbar" data-testid="toolbar" role="toolbar" aria-label="Board tools">
       <button
@@ -81,6 +105,78 @@ export function Toolbar({ onCreateSticky, tool = 'select', canEdit = true, onToo
           />
         </svg>
         <span>Text</span>
+      </button>
+      <div className="toolbar__shape">
+        <button
+          type="button"
+          className="toolbar__button"
+          data-testid="tool-shape"
+          aria-label="Shape (S)"
+          aria-pressed={tool === 'shape'}
+          disabled={!canEdit}
+          title="Shape — drag a box, or click for a standard one"
+          onClick={() => {
+            onTool?.('shape');
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <rect
+              x="2.5"
+              y="4.5"
+              width="11"
+              height="7"
+              rx="1"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+            />
+          </svg>
+          <span>Shape</span>
+        </button>
+        {tool === 'shape' ? (
+          <div className="toolbar__kinds" data-testid="shape-kind-menu" role="group" aria-label="Shape kind">
+            {SHAPE_KINDS.map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                className="toolbar__kind"
+                data-testid={`shape-kind-${kind}`}
+                aria-label={KIND_LABELS[kind]}
+                aria-pressed={kind === shapeKind}
+                title={KIND_LABELS[kind]}
+                onClick={() => {
+                  onShapeKind?.(kind);
+                }}
+              >
+                {KIND_LABELS[kind]}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        className="toolbar__button"
+        data-testid="tool-connector"
+        aria-label="Connector (L)"
+        aria-pressed={tool === 'connector'}
+        disabled={!canEdit}
+        title="Connector — drag from one object to another"
+        onClick={() => {
+          onTool?.('connector');
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path
+            d="M3 13L13 3M13 3H8M13 3v5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span>Connector</span>
       </button>
       <button
         type="button"

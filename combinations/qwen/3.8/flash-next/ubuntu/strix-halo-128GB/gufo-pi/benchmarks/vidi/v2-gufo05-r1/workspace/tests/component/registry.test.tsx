@@ -45,15 +45,16 @@ async function add(kind: 'note' | 'box', x: number, y: number): Promise<string> 
 async function addUnregistered(id: string): Promise<void> {
   await act(async () => {
     const objects = board.doc.getMap('objects') as Y.Map<Y.Map<unknown>>;
-    const shape = new Y.Map<unknown>();
-    shape.set('type', 'shape');
-    shape.set('x', 0);
-    shape.set('y', 0);
-    shape.set('width', 100);
-    shape.set('height', 100);
-    shape.set('z', 1);
-    shape.set('createdAt', Date.now());
-    objects.set(id, shape);
+        // A type no story in this build gives a component: `image`.
+    const phantom = new Y.Map<unknown>();
+    phantom.set('type', 'image');
+    phantom.set('x', 0);
+    phantom.set('y', 0);
+    phantom.set('width', 100);
+    phantom.set('height', 100);
+    phantom.set('z', 1);
+    phantom.set('createdAt', Date.now());
+    objects.set(id, phantom);
   });
   await advanceFrames();
 }
@@ -87,13 +88,13 @@ describe('TC-11 an object type the app has never seen', () => {
 
   it('leaves a type nothing has registered unrendered', async () => {
     const noteId = await add('note', 0, 0);
-    await addUnregistered('shape-1');
+    await addUnregistered('image-1');
 
-    // The note is drawn, the shape is not: the app draws what it has a component
+    // The note is drawn, the image is not: the app draws what it has a component
     // for, so an object from a newer client cannot end up on screen — or in a
     // selection, which is built from what is on screen.
     expect(elements('sticky-note').map((note) => note.dataset.noteId)).toEqual([noteId]);
-    expect(document.querySelector('[data-object-id="shape-1"]')).toBeNull();
-    expect(document.querySelector('[data-note-id="shape-1"]')).toBeNull();
+    expect(document.querySelector('[data-object-id="image-1"]')).toBeNull();
+    expect(document.querySelector('[data-note-id="image-1"]')).toBeNull();
   });
 });

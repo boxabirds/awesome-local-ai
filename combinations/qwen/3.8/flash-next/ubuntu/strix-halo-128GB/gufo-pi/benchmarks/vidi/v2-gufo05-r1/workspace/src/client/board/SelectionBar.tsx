@@ -32,7 +32,10 @@ import {
   setTextWidthFixed,
   type TextSnapshot,
 } from '../../shared/objects/text';
+import { setShapeStyle, SHAPE_TYPE, type ShapeSnapshot } from '../../shared/objects/shape';
+import type { FillColor, StrokeColor } from '../../shared/config';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
 import { remeasureTextBox } from '../objects/useTextBoxSync';
 
@@ -74,6 +77,17 @@ function singleText(
   const id = [...ids][0];
   const object = snapshot.find((candidate) => candidate.id === id);
   return object && object.type === 'text' ? (object as TextSnapshot) : null;
+}
+
+/** The one selected object, when a single shape is all there is. */
+function singleShape(
+  ids: ReadonlySet<string>,
+  snapshot: readonly ObjectSnapshot[],
+): ShapeSnapshot | null {
+  if (ids.size !== 1) return null;
+  const id = [...ids][0];
+  const object = snapshot.find((candidate) => candidate.id === id);
+  return object && object.type === SHAPE_TYPE ? (object as ShapeSnapshot) : null;
 }
 
 export function SelectionBar(props: SelectionBarProps) {
@@ -126,6 +140,30 @@ export function SelectionBar(props: SelectionBarProps) {
             props.boundary?.();
           }}
           onDelete={onDelete}
+        />
+      </div>
+    );
+  }
+
+  const shape = singleShape(ids, snapshot);
+  if (shape) {
+    // One shape: its own toolbar — fills and outlines (`shape.style`). A colour change
+    // touches only that key, and is one undo step.
+    return (
+      <div className="selection-bar selection-bar--shape" data-testid="selection-bar">
+        <ShapeToolbar
+          fill={shape.fill}
+          stroke={shape.stroke}
+          onFill={(color: FillColor) => {
+            props.boundary?.();
+            setShapeStyle(doc, shape.id, { fill: color });
+            props.boundary?.();
+          }}
+          onStroke={(color: StrokeColor) => {
+            props.boundary?.();
+            setShapeStyle(doc, shape.id, { stroke: color });
+            props.boundary?.();
+          }}
         />
       </div>
     );

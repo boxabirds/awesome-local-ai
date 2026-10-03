@@ -954,3 +954,86 @@ camera hooks and `connectionState` — into the bundle. A production build leave
 absent, every `waitForConnection` then waits fifteen seconds for a property that will never
 exist, and the multi-participant tests fail with what looks exactly like a broken sync server.
 The full command is `npm run test:e2e`.
+
+---
+
+## Story 10 — shapes and connectors
+
+All tasks 7 to 15 are done. Unit 260 pass, component 199 pass, the whole chromium e2e run
+(58 tests, including the 5 new story-10 ones) passes; `npm run typecheck` and `npm run build`
+are clean. Firefox and WebKit are still skipped on this host for the same library reason as
+every prior story. TC-23 is deliberately **not** gated to a browser, so it runs on every engine
+this machine can start, exactly as the tasks ask.
+
+### Where the build differs from the design's letter, and why
+
+None of these change behaviour a person sees; they are choices about *where* side-effects live
+so the pieces stay testable and the undo boundaries stay correct.
+
+- **The tools describe a gesture, `App` performs the write.** The design's `ShapeTool`/`ConnectorTool`
+  call `createShape`/`createConnector` themselves. Here each tool reports a finished gesture
+  (`onCreate({rect, at, square})`, and a connector's two resolved endpoints) and `App` does the model
+  write inside one `undoController.boundary()`. This keeps the presentational components free of the
+  document and makes one creation exactly one undo step regardless of how many pointer frames led to
+  it. The public props in the design (`camera`, `onCreated(id)`) are respected in spirit: the tool
+  still owns the camera→world maths and still tells `App` which id came back.
+- **`useActiveTool` does not install its own keydown listener.** The design lists tool shortcuts
+  (`s`, `l`) alongside the existing ones; those keys already belong to `useBoardKeys`, so adding a
+  second global listener would double-fire. `useActiveTool` is the *state* (which tool, and the
+  return-to-Select on create), and `useBoardKeys` is the single place that turns a letter into a
+  command — extended with `s`→shape and `l`→connector, guarded by `canEdit`. `TOOL_SHORTCUTS` is
+  exported from the hook so the labels and the handler read the same table.
+- **`connectorHitTest` is a pure predicate on the resolved arrow, not on the DOM.** Design asks for
+  "click within `CONNECTOR_HIT_TOLERANCE_PX` of the line, the same at every zoom". `ConnectorObject`
+  renders a wide invisible stroke of `2·tolerance/zoom` world units (the object layer is scaled by
+  zoom), so the screen tolerance is constant; the unit/component tests assert the pure
+  `connectorHitTest({start,end}, point, zoom)` at 50 % and 200 % because jsdom cannot measure a line.
+  App uses this same predicate for selection; the registry `hitTest` is left for marquee-style callers.
+- **Connector snapshots resolve endpoints in a two-pass read.** `objectSnapshots()` first reads every
+  non-connector object into a rect map, then resolves each connector's `start`/`end` against it, so a
+  connector's stored snapshot already carries the points it is drawn between — which is what makes
+  "the arrow follows the shape when it moves" fall out of a plain re-read, with nothing stored about
+  the line itself.
+
+### Two existing tests were about a different world, and were updated (not weakened)
+
+Both used `shape` as the example of *something the app cannot draw*. Story 10 teaches the app to draw
+shapes, so that example had to move to a type this build genuinely has no component for — `image`.
+Nothing was removed or loosened; the assertion still proves the point with an equal-strength example.
+
+- `tests/unit/registry.test.ts` TC-12 now asserts shape/connector **are** registered and that
+  `image`/`pen` remain undefined.
+- `tests/component/registry.test.tsx` TC-11 now plants an `image` object to prove an unregistered
+  type stays unrendered.
+
+### A shared-model bug the browser found (fixed here because story 10 needs it)
+
+`useBoardDoc`'s `sameObjects` decided whether the object list had changed by comparing only the base
+geometry plus a sticky note's `text`/`color`. A shape's `label`, `fill` and `stroke` live in the same
+snapshot but were **not** compared, so typing a label or recolouring a shape wrote the document but
+never re-rendered the shape — locally. The component suite missed it because it reads the model
+directly rather than the DOM; the e2e label test caught it. `sameObjects` now also compares
+`label`/`fill`/`stroke`. This is a correctness fix for shapes and does not alter note/text behaviour.
+
+### Observability added for the browser tests
+
+`ShapeObject` and `ConnectorObject` carry their world geometry and style in data attributes
+(`data-shape-x/y/width/height`, `data-fill/stroke/label`, `data-kind`; and `data-start-*`,
+`data-end-*`, `data-from-kind/to-kind/id`). The e2e helpers read what is painted rather than reaching
+into app internals, matching the approach of the earlier stories.
+
+### Notes on the delete-race test (TC-27)
+
+The overlap is forced with `page.routeWebSocket` holding Sam's outgoing frames for a moment, so Dana
+is still mid-drag toward B when the delete is on its way. After convergence the arrow is guaranteed to
+survive with its far end resting on a finite point — either freed by `detachConnectorsTo`, or left
+attached to a now-missing object and drawn at its stored `fallback` by `resolveConnector`. The test
+asserts the invariant that actually matters (arrow present, endpoints finite, no console errors)
+rather than pinning one merge order, because CRDT ordering between the two writes is not something the
+test should dictate.
+
+### Running the browser suite
+
+Same as story 9 and noted above for the next author: the e2e run needs `npm run build:test`
+(`npm run test:e2e` does it). Running `npm run build` immediately before `playwright test` produces a
+production bundle with no `window.__vidi6`, and every test times out waiting for a camera hook.

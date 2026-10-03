@@ -79,12 +79,24 @@ function sameObjects(left: readonly ObjectSnapshot[], right: readonly ObjectSnap
     ) {
       return false;
     }
-    // Sticky notes carry their text and colour, and typing must re-render too; any
-    // other type has no extra fields to compare, since the generic snapshot holds only
-    // what every object has in common.
-    const mine = object as Partial<StickySnapshot>;
-    const theirs = other as Partial<StickySnapshot>;
-    return mine.text === theirs.text && mine.color === theirs.color;
+    // A sticky note carries its text and colour, and typing must re-render too. A shape
+    // carries its label and colours, and those must re-render for the same reason — the
+    // generic base fields (x/y/width/height/z) are unchanged when only a label is typed.
+    // Any other type has nothing beyond the base to compare.
+    // A discriminated-union member has a literal `type`, so `StickySnapshot & ShapeSnapshot`
+    // would collapse to `never`; read the few type-specific fields through a loose shape.
+    type Extra = {
+      text?: string;
+      color?: string;
+      label?: string;
+      fill?: string;
+      stroke?: string;
+    };
+    const mine = object as Extra;
+    const theirs = other as Extra;
+    if (mine.text !== theirs.text || mine.color !== theirs.color) return false;
+    if (mine.label !== theirs.label || mine.fill !== theirs.fill || mine.stroke !== theirs.stroke) return false;
+    return true;
   });
 }
 

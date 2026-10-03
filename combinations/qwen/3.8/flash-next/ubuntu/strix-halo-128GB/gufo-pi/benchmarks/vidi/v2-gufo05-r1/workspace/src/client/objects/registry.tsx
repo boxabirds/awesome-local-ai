@@ -24,9 +24,15 @@ import { HANDLES, type HandleId } from '../../shared/geometry';
 import type { Point } from '../canvas/camera';
 import type { UndoController } from '../board/undo';
 import { setTextWidthFixed, TEXT_TYPE } from '../../shared/objects/text';
+import { SHAPE_TYPE } from '../../shared/objects/shape';
+import { SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+import { CONNECTOR_TYPE } from '../../shared/objects/connector';
+import { connectorHitTest } from '../../shared/geometry/connector-geometry';
 import { remeasureTextBox } from './useTextBoxSync';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
 
 /** What the board gives any object component, whatever its type. */
 export interface ObjectProps {
@@ -224,4 +230,27 @@ registerObjectType(TEXT_TYPE, {
   // The narrowest a column of text can be before it is a single letter per line.
   minSize: TEXT_MIN_WIDTH_WORLD,
   editableText: true,
+});
+
+registerObjectType(SHAPE_TYPE, {
+  // The component narrows `obj` to a shape snapshot; the registry hands every type the
+  // same `ObjectProps`, and the board only ever renders a shape from a shape snapshot.
+  Component: ShapeObject as unknown as ComponentType<ObjectProps>,
+  // A shape is resized freely in both axes down to the smallest box the drag tool accepts.
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  // Double-click and Enter open its centred label (`shape.label`).
+  editableText: true,
+});
+
+registerObjectType(CONNECTOR_TYPE, {
+  Component: ConnectorObject as unknown as ComponentType<ObjectProps>,
+  // An arrow has no box of its own to resize: it is wherever its two ends are. So it
+  // offers no handles, and a lone selected arrow shows its re-attach dots instead
+  // (`connector.readjust`).
+  resizable: false,
+  handles: [],
+  // A click lands on an arrow by how close it is to the line, not to its bounding box —
+  // a nearly-straight arrow has almost no box to be inside. The registry signature has no
+  // zoom, so this is the zoom-1 form; the app hits-tests the live line at the real zoom.
+  hitTest: (obj, point) => connectorHitTest(obj as never, point, 1),
 });

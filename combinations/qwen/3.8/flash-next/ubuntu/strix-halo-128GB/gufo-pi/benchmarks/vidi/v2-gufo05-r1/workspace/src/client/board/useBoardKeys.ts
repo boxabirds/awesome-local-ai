@@ -34,7 +34,7 @@ import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import { undoGesture, type UndoController } from './undo';
 import type { SelectionHandle } from './useSelection';
-import type { ToolHandle } from './useTool';
+import type { ActiveToolHandle } from '../tools/useActiveTool';
 
 export interface BoardKeyParams {
   doc: Y.Doc;
@@ -58,7 +58,7 @@ export interface BoardKeyParams {
    * `V` and `T` choose it and Escape leaves it. Without it those keys do nothing,
    * which is the right answer on a board with one kind of pointer.
    */
-  tool?: ToolHandle;
+  tool?: ActiveToolHandle;
   /**
    * Put a sticky note in the middle of the view (`sticky.create`).
    *
@@ -157,6 +157,15 @@ export function useBoardKeys(params: BoardKeyParams): void {
         if (event.key === 't' || event.key === 'T') {
           // A board that cannot be written has no Text tool to arm (`text.tool_ui`).
           if (canEdit) tool?.setTool('text');
+          return;
+        }
+        if (event.key === 's' || event.key === 'S') {
+          // `s` Shape, `l` Connector (`shape.tool`, `connector.tool`) — same rule as `t`.
+          if (canEdit) tool?.setTool('shape');
+          return;
+        }
+        if (event.key === 'l' || event.key === 'L') {
+          if (canEdit) tool?.setTool('connector');
           return;
         }
         if (event.key === 'n' || event.key === 'N') {

@@ -269,3 +269,77 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * reload (`undo.session_only`).
  */
 export const UNDO_MAX_STEPS = 200;
+
+/* Shapes (story 10) ---------------------------------------------------------*/
+
+/** The kinds of shape the Shape tool draws, in toolbar order. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** The size a shape gets when it is clicked rather than dragged (`shape.create_click`). */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/**
+ * The smallest a dragged shape may be; a drag smaller in either direction becomes a
+ * standard shape instead (`shape.create_click`). A drag of exactly this size is kept.
+ */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** Longest shape label; characters beyond this are dropped (`shape.label`). */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** The outline width of a shape, in world units, so it scales with zoom. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** The fill swatches, in toolbar order. `none` draws a shape with no fill. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** The outline swatches, in toolbar order. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** The fill and outline of a newly created shape. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+/* Connectors (story 10) -----------------------------------------------------*/
+
+/**
+ * The shortest a connector may be; a drag that moved less than this creates nothing
+ * (`connector.no_accidental`).
+ */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/**
+ * How close to an arrow's line, in screen pixels, a click has to be to select it
+ * (`connector.select`). Divided by zoom to get a distance in board units.
+ */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** The width of an arrow's line, in world units, so it scales with zoom. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** The length of the arrowhead's two sides, in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** The radius of the connection-point dots, in screen pixels, so they keep their size. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;

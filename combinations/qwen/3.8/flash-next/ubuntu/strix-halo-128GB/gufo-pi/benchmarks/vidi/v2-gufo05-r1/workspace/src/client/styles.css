@@ -808,3 +808,96 @@ button:focus-visible {
   color: var(--text);
   cursor: pointer;
 }
+
+/* Story 10: shapes, connectors, and the Shape / Connector tools --------------*/
+
+.shape-object {
+  cursor: default;
+  /* The world layer is `pointer-events: none`; an object opts back in. */
+  pointer-events: auto;
+}
+
+/* The label is centred in the shape and clips its own overflow (`shape.label`). */
+.shape-object__label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 6px;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.shape-object__label--empty {
+  /* Nothing to click: a click on an empty shape reaches the shape itself. */
+  user-select: none;
+}
+
+.shape-object__label--editing {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+  background: rgb(255 255 255 / 0.6);
+  cursor: text;
+}
+
+.shape-toolbar {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--panel, #fff);
+}
+
+.shape-toolbar__swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 0.2);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.shape-toolbar__swatch--active {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.connector-object {
+  cursor: default;
+}
+
+.connector-handle {
+  z-index: 5;
+}
+
+.toolbar__shape {
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar__kinds {
+  display: flex;
+  gap: 2px;
+  padding: 2px 4px;
+}
+
+.toolbar__kind {
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.toolbar__kind[aria-pressed='true'] {
+  background: rgba(47, 111, 237, 0.16);
+  border-color: var(--focus-ring);
+}
