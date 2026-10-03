@@ -58,6 +58,8 @@ Why: the agent sandbox allowed everything and denied a list of paths. Each leak 
 
 The benchmarker (and anything else a person reads results in) presents benchmark results. It never shows its own or the harness's bugs, diagnoses, likely causes, remedies, shell commands or instructions to the reader, and it has no "needs you" list. Where a figure is unreliable or missing because of an internal fault, it shows as not available, the same as any other missing figure, with nothing about why. A run that an internal fault spoiled (marked invalid) does not appear in the app at all.
 
+Operational observations are not faults and may be shown: an idle machine, a queue's length, a story far slower than its stack's median, a series that has finished. They are facts found in the data of normal operation, stated with their numbers and no cause, remedy or instruction. The test is whether it could be written from the benchmark's own results and schedule without knowing what is broken: if it needs an explanation of a fault, it is a bug and goes to the log (the owner, 3 Oct 2026: "bugs in the app should be logged; operational observations are data insights from normal operation").
+
 Internal faults go where they are worked on: the monitor's log (`ops/anomaly-tracking.md`), tests, and fixes. The fix for a fault is to make the system repair itself or not fail, not to explain the fault better on screen.
 
 Why: on 1 October 2026 the dashboard listed skipped re-scores and failed time-accounting checks under "Needs you", with causes and commands to run on bench machines, and then explained them at greater length. The owner: "Apps don't share their bugs with users like this. Stop it. Everywhere."

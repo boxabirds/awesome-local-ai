@@ -13,33 +13,50 @@ twelve numeric columns and fills two thirds of the page. Neither answers the que
 - **What are the machines doing?** Each line says "story 9 · 49 min" and "3 queued". It does not say how far through the
   run it is (story 9 of 11? run 2 of 5?), how long the story has been silent, how long the queue will take, or how busy
   the machine has been. Nothing is drawn: no bar, no line, no colour but one amber word ("idle").
-- **What needs attention?** By design nothing is shown (see the constraint below). The few operational states that are
-  facts about the work (idle with an empty queue, silent for 20 minutes) are 12 px grey text at the end of a row.
+- **What needs attention?** Nothing is shown. The few operational observations the page makes (idle with an empty queue,
+  silent for 20 minutes) are 12 px grey text at the end of a row, and none of the observations that sit in the data (a
+  story 3.8 times slower than its stack's median, a queue of 70 hours, a series that has finished) is drawn at all.
 - **The bigger table is a research result, not a status.** It ranks combinations on score, with ten more columns of
   medians and ranges, all as text. Useful to read once; not what someone opens the page to see.
 
 Recommended: a dashboard of four bands, top to bottom: **attention** (facts, if any), **machine cards**, **series
 progress**, **the ranking as a chart**; the current tables stay underneath as the detail.
 
-## The constraint that shapes "needs attention"
+## What "needs attention" may show: bugs and observations are different things
 
-The repository's rules (`CLAUDE.md`, 1 Oct 2026) say the app presents benchmark results and **never shows its own or the
-harness's faults, diagnoses, causes, remedies, commands or instructions, and has no "needs you" list**: a figure missing
-because of an internal fault shows as not available with nothing about why; internal faults go to the monitor's log
-(`ops/anomaly-tracking.md`). The overview's tests assert this. So the "attention" band below is limited to **facts about
-the work**, each a state a person can see and decide on, with no cause and no instruction:
+The repository's rule (`CLAUDE.md`, 1 Oct 2026) says the app never shows its own or the harness's faults. The owner has
+clarified, on 3 Oct, what that does and does not cover. Two different things:
 
-| Allowed (a fact about the work) | Not allowed (an internal fault or an instruction) |
+| | Bugs in the app, the harness or the pipeline | Operational observations |
+|---|---|---|
+| What it is | something broken: a failed re-score, a skipped check, a crash, a retry, a record that can't be read | something true about the work, found in the data of normal operation |
+| Where it goes | the monitor's log (`ops/anomaly-tracking.md`), tests, fixes; **never on screen**; a figure it spoils shows as not available, with no reason | **on screen**, as a fact, with the numbers behind it |
+| Wording | no cause, remedy, command or instruction | what was measured and against what, nothing more |
+
+So the attention band is an **observations** band. The test for an item: *could it be written from the benchmark's own
+results and schedule, with no knowledge of what is broken?* If it needs an explanation of a fault, it is a bug and stays
+in the log. Examples, with the live data where there is some:
+
+| Observation (shown) | Source in the state |
 |---|---|
-| "gruntus: idle, nothing queued" | a re-score that failed or was skipped, an accounting check |
-| "tritus: no activity for 25 min" (already shown as `⚠ no activity for N min`) | why it is silent, or what to run |
-| "quintus: held, 9 queued" | harness or dbench errors, retries, restarts |
-| "a series of 5 has finished: score median 66" | "needs you", "action required", commands |
-| "macbook-air: not reachable" (as the app already shows it) | "run `dbench ...`" |
+| gruntus: idle, nothing queued | machine record |
+| quintus: 9 queued, about 70 h of work (median of this stack's runs: 6h20m to 10h23m) | queue and finished runs |
+| tritus: no activity for 25 min | the harness's last report |
+| gruntus, run v2-fresh-r2, story 3 took 2h06m: 3.8 times the median of 33 min for that story across 6 runs of this stack | story timings |
+| mlx-serve series: 3 of 5 done, median 69, range 66 to 72 | finished runs |
+| a series has finished | run states |
+| Swift 1.5 and gufo medians are within 12 tests with n of 5 or fewer: too close to call | the existing small-n rule |
+| Compaction share of story time on quintus is 14% against 6% elsewhere | story time splits |
 
-**Decision needed from the owner:** the question asks "what needs attention". If it means more than the allowed column
-(for example "the monitor's open anomalies"), that changes a rule the owner set after the 1 Oct dashboard; this review
-does not assume it does.
+| Never shown (a bug or its diagnosis) | Where it goes |
+|---|---|
+| a re-score that failed or was skipped; an accounting check | the monitor's log |
+| why a machine is silent; a restart or retry; a dbench or harness error | the monitor's log |
+| "needs you", "action required", a command to run | nowhere on screen |
+
+The existing test that forbids fault words (`no-faults`) stays and gains a list of the observations it must allow; the
+test that forbids a quiet "all clear" line is replaced by one that allows an observations band, and still forbids any
+fault wording inside it. An unreachable machine is shown as the app shows it today, as a state, without a cause.
 
 ## Critical Issues
 
@@ -75,11 +92,12 @@ the strike-through and keep only the opacity.
 ## High Priority Improvements
 
 ### Issue: No at-a-glance attention
-**Recommendation**: An **attention band** at the very top, one line of chips, each a fact from the allowed column above,
-each a link to the page that shows it: "gruntus idle · nothing queued", "tritus silent 25 min", "quintus 9 queued behind
-a 12-hour run". When nothing qualifies, one quiet line: "Every machine is working." (the app already shows no quiet line
-today: its tests forbid a ✓ line; this would need that test relaxed deliberately). Colour carries the state, text carries
-the fact, and it is the only band that changes colour.
+**Recommendation**: An **observations band** at the very top: a short list, most important first, each one a fact from
+the table above with its numbers and a link to the page that shows it ("gruntus idle · nothing queued", "tritus silent
+25 min", "v2-fresh-r2 story 3: 2h06m, 3.8x the 33 min median of this stack", "mlx-serve series 3 of 5 done"). Ranked by
+what a person could act on: idle capacity and short queues first, then outliers, then progress. When nothing qualifies,
+one quiet line: "Every machine is working." Colour carries the state, text carries the fact, and it is the only band
+that changes colour.
 **Impact**: Answers the second half of the question in the first 80 px.
 
 ### Issue: Series progress is a text count in a table cell
