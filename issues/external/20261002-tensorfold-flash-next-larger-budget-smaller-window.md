@@ -1,4 +1,6 @@
-> **Draft**, not filed. For https://github.com/ashhart/TensorFold/issues (no issue template there). Evidence: the
+> **Filed by the owner** on 2 Oct 2026 as TensorFold issue 271, retitled "Tensorfold causes a hard crash on M5 Max"; closed by
+> the maintainer on 3 Oct, who attributes the crash to the startup step 0.6.4 changes (horizon/tensorfold.md). Kept as written.
+> It describes 0.6.0 and the Vontra checkpoint. Originally: For https://github.com/ashhart/TensorFold/issues (no issue template there). Evidence: the
 > startup logs of 2 Oct 2026 on the M5 Max, kept in the run folders named in `horizon/tensorfold.md`.
 
 **Title:** Flash Next on a 128 GB Mac: giving the server more memory makes its context window smaller (48,128 tokens by default, 10,240 with the memory limit raised)
