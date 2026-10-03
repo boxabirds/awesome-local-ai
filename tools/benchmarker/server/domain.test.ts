@@ -275,6 +275,15 @@ describe("every job of a run", () => {
     expect(rows.find((r) => r.runId === "v2-r9")!.jobs).toEqual([]);
   });
 
+  it("a story in a collapsed stretch (three or more in a row that pass none) is marked, and only those", () => {
+    const own = (id: string, p: number, t: number) => ({ id, title: "", status: "DONE", accept: { passed: p, total: t, by_story: { [id.padStart(2, "0")]: { passed: p, total: t } } } });
+    const stories = [own("1", 5, 5), own("2", 0, 4), own("3", 0, 4), own("4", 0, 4), own("5", 2, 4)].map((raw) => storyEntry(raw.id, raw));
+    const rec = { pack: "vidi", stack: SWIFT, runId: "v2-r1", dir: "d", rescores: [], rescoreLast: {}, hasBundle: false,
+      host: "", packVersion: "", state: "finished", stateAt: "", stories, scores: {} };
+    const [row] = buildRows([rec], {}, {}, 0);
+    expect(row.stories.map((st) => [st.id, st.collapsed === true])).toEqual([["1", false], ["2", true], ["3", true], ["4", true], ["5", false]]);
+  });
+
   it("each row carries its record's client, else its job's; one that names none has \"\"", () => {
     const rec = { pack: "vidi", stack: SWIFT, runId: "v2-r1", dir: "d", rescores: [], rescoreLast: {}, hasBundle: false,
       host: "", packVersion: "", state: "finished", stateAt: "", stories: [], scores: {} };

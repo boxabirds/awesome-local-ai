@@ -3,6 +3,9 @@ text): the runs that reach the story's best own held-out pass rate; how many of 
 how much their thinking would fall if each had thought as little as the shortest of them; and the longest over the shortest
 among them. The yardstick is the story's own tests only, and "best" is the best of the few runs there are.
 
+A story run in a collapsed stretch (three or more stories in a row that pass none; shared/collapse.ts, the `collapsed`
+mark on the app's stories) is left out: a broken run's short thinking is not a thrifty path. How many are left out is printed.
+
 Usage: python3 efficiency.py STATE.json
 """
 import collections, json, sqlite3, sys
@@ -15,11 +18,13 @@ MIN_RUNS = 4
 def main(state_path):
     state = json.load(open(state_path))
     q = {f"{r['dir']}/stories/{int(s['id']):02d}": s["ownPassed"] / s["ownTotal"] for r in state["rows"] if r.get("dir") for s in r["stories"] if s.get("ownTotal")}
+    collapsed = {f"{r['dir']}/stories/{int(s['id']):02d}" for r in state["rows"] if r.get("dir") for s in r["stories"] if s.get("collapsed")}
     an = sqlite3.connect(f"file:{INSIGHTS}/analytics.db?mode=ro", uri=True)
     for name, stack in STACKS.items():
-        by = collections.defaultdict(list)
+        by = collections.defaultdict(list); left_out = 0
         for rel, run, story, t in an.execute("select rel, run, story, think_chars from analytics_story where stack = ? and run like 'v2-%' and think_complete = 1 and think_chars > 0", (stack,)):
-            if rel in q: by[story].append((run, t, q[rel]))
+            if rel in q and rel not in collapsed: by[story].append((run, t, q[rel]))
+            elif rel in collapsed: left_out += 1
         best_runs = shorter = zero = cells = 0; best_total = floor_total = 0.0; ratios = []; n = 0
         for v in by.values():
             if len(v) < MIN_RUNS: continue
@@ -33,7 +38,7 @@ def main(state_path):
         print(f"   runs reaching the story's best own pass rate: {best_runs}; at or below the story's median thinking: {shorter} ({shorter / best_runs:.0%})")
         print(f"   their thinking would fall {1 - floor_total / best_total:.0%} if each had thought as little as the shortest of them")
         print(f"   longest over shortest among them, per story: median {np.median(ratios):.1f}x over {len(ratios)} stories")
-        print(f"   story runs with no held-out test passing: {zero} of {cells}")
+        print(f"   story runs with no held-out test passing (collapsed stretches left out first): {zero} of {cells}; story runs left out as collapsed: {left_out}")
 
 if __name__ == "__main__":
     main(sys.argv[1])
