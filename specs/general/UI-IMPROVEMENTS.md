@@ -17,7 +17,7 @@ version of the suite." The intervened mark is the compact ✱ in the Run cell. E
 per page kind (combination, story, run, story-run pages), remembered in the browser. Not done: sticky column
 heads; the span in the History head.
 
-Reviewed from the owner's screenshot of `#/machines/tritus` (18 runs) and the code (`MachineHistory.tsx`,
+Reviewed from the owner's screenshot of `#/machines/<the Strix Halo box>` (18 runs) and the code (`MachineHistory.tsx`,
 `RunGroupHead.tsx`, `shared/overviewView.ts` `machineHistory`, `shared/runGroups.ts`). The owner's words: "I don't
 understand the history information architecture."
 
@@ -146,7 +146,7 @@ with the conversation.
 #### Issue: A page about the conversation starts with a card about something else
 **Current State**: `ConversationPage` renders `<StoryRunHeader>` unchanged under the breadcrumb, then its own
 `conv-head`. The card: eyebrow STORY RUN; h1 "Story 1 · Pan and zoom around an infinite board"; a line "3.8/
-flash-next gufo **v2-gufo05-r1** on tritus · run ▶ running"; then four stats with uppercase labels: STORY
+flash-next gufo **v2-gufo05-r1** on the Strix Halo box · run ▶ running"; then four stats with uppercase labels: STORY
 STATUS "DONE", HELD-OUT "6/6" with "this story's own tests, after it", WHOLE SUITE SO FAR "6/6" with "whole
 suite so far", AGENT TIME "52 min" in the page's largest type.
 **Problem**: The reader has to scroll past the card and the conversation's own head before the first turn.
@@ -159,7 +159,7 @@ names the card's type for nobody.
 **Recommendation**: Delete the card from the conversation page. Put one line at the top of the conversation's
 pinned head, before the "Conversation" row:
 
-    Story 1 · Pan and zoom around an infinite board      done · 6/6 · 52 min · running on tritus
+    Story 1 · Pan and zoom around an infinite board      done · 6/6 · 52 min · running on the Strix Halo box
 
 Left: the story's number and title, the page's h1 (18 px, not 22). Right, in the small muted type the head
 already uses for "count · range · events": the story's status word in its colour, the held-out fraction, the
@@ -179,7 +179,7 @@ one still being built (status "building", no fraction); `no-faults.spec.ts` swee
 #### Issue: The same card on the story-run page carries the same clutter
 **Current State**: On `…/s/1` the card is the page's header and its figures are the page's point, but the
 eyebrow, the two subtitles and the two-status line are the same there.
-**Recommendation**: Keep the card there with: no eyebrow; the of-run line as "v2-gufo05-r1 on tritus · ▶
+**Recommendation**: Keep the card there with: no eyebrow; the of-run line as "v2-gufo05-r1 on the Strix Halo box · ▶
 running" (the combination is in the breadcrumb and the h1 can carry it on hover); the subtitles removed from
 under the fractions and kept as the terms' hovers; the two fractions labelled "This story" and "Suite so far"
 under one heading "Held-out"; agent time at the same size as the other figures. The story's status word stays
@@ -245,7 +245,7 @@ address. That is the "wrong level": Back and the crumb do go where they say, but
 fixed place.
 
 Three further things make the trail feel loose. The breadcrumb's depth and wording differ by page (a machine
-page is "Overview › gruntus", a story page is "Overview › vidi story 3", a combination page omits the pack the
+page is "Overview › the 4090 box", a story page is "Overview › vidi story 3", a combination page omits the pack the
 story page includes). The tab bar highlights nothing on most pages, so the reader's sense of section is lost as
 soon as they leave the overview. And the router scrolls to the top on every address change, Back included
 (`router.ts:8`), so Back from a call page returns to the top of a 300-row conversation, not to the row that was
@@ -266,7 +266,7 @@ breadcrumb's first crumb is always `#/` (`EntityLinks.tsx:52`), `RemoveMachine` 
 showing Machines only because Machines was the last tab chosen.
 **Problem**: The reader cannot predict what "Overview" or Back will show, and nothing on the screen explains
 why it changed. A shared or bookmarked `#/` opens a different screen on another machine. The breadcrumb
-cannot say "Overview › Machines › gruntus" because "Machines" has no address to link to.
+cannot say "Overview › Machines › the 4090 box" because "Machines" has no address to link to.
 **Recommendation**: Give each section an address and drop the remembered tab:
 - `#/` is Runs, always. "Overview" in the breadcrumb means this screen and nothing else.
 - `#/machines` is the Machines index; machine pages move to `#/machines/<name>`. `#/m/<name>` keeps parsing
@@ -295,7 +295,7 @@ assert `#/machines`. Add one test per section address, and one that `#/` is Runs
 | Conversation | … › story 1 › Conversation | capitalised |
 | Call | … › Conversation › call 1 | lower case |
 | Story | Overview › vidi story 3 | no Stories level; the pack is in the label here and nowhere else |
-| Machine | Overview › gruntus | no Machines level |
+| Machine | Overview › the 4090 box | no Machines level |
 
 Trails are built per page by hand (`StoryPage.tsx:24`, `CombinationPage.tsx:48`, `RunPage.tsx:30`,
 `StoryRunPage.tsx:20`, `ConversationPage.tsx:56`, `CallPage.tsx:49`, `MachinePage.tsx:24`).

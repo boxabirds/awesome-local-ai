@@ -37,10 +37,10 @@ describe("buildSearchIndex", () => {
   });
 
   it("one run per row, titled by its run id, with its combination and machine in the subtitle", () => {
-    const rows = [row([], { runId: "v2-r3", label: "Swift 1.5", machine: "gruntus", host: "RTX 4090" })];
+    const rows = [row([], { runId: "v2-r3", label: "Swift 1.5", machine: "node-a", host: "RTX 4090" })];
     const runs = buildSearchIndex({ rows, machines: [] }).filter((i) => i.section === "Runs");
     expect(runs).toHaveLength(1);
-    expect(runs[0]).toMatchObject({ title: "v2-r3", subtitle: "Swift 1.5 · gruntus (RTX 4090)", href: expect.stringContaining("v2-r3") });
+    expect(runs[0]).toMatchObject({ title: "v2-r3", subtitle: "Swift 1.5 · node-a (RTX 4090)", href: expect.stringContaining("v2-r3") });
   });
 
   it("one story per distinct id within a pack; a story with no title anywhere is left out", () => {
@@ -55,9 +55,9 @@ describe("buildSearchIndex", () => {
 
   it("one machine per entry, with its current state as the subtitle", () => {
     const machines = [
-      machine("gruntus", { running: { stack: "a/stack", short: "A", runId: "r1", story: "2", finishing: false, agentMinutes: 5 } }),
-      machine("tritus", { queued: 3 }),
-      machine("quintus"),
+      machine("node-a", { running: { stack: "a/stack", short: "A", runId: "r1", story: "2", finishing: false, agentMinutes: 5 } }),
+      machine("node-b", { queued: 3 }),
+      machine("node-c"),
     ];
     const items = buildSearchIndex({ rows: [], machines }).filter((i) => i.section === "Machines");
     expect(items.map((i) => i.subtitle)).toEqual(["running a/stack", "3 jobs queued", "idle"]);
@@ -68,10 +68,10 @@ describe("buildSearchIndex", () => {
 
 const INDEX: SearchItem[] = [
   { section: "Combinations", id: "c1", title: "Swift 1.5 / 27B llamacpp", subtitle: "vidi · qwen/3.8-swift-1.5/27b", href: "#c1" },
-  { section: "Runs", id: "r1", title: "v2-r3", subtitle: "Swift 1.5 · gruntus (RTX 4090)", href: "#r1" },
-  { section: "Runs", id: "r2", title: "v2-r9", subtitle: "Dense 27B · gruntus (RTX 4090)", href: "#r2" },
+  { section: "Runs", id: "r1", title: "v2-r3", subtitle: "Swift 1.5 · node-a (RTX 4090)", href: "#r1" },
+  { section: "Runs", id: "r2", title: "v2-r9", subtitle: "Dense 27B · node-a (RTX 4090)", href: "#r2" },
   { section: "Stories", id: "s1", title: "Pan and zoom around an infinite board", subtitle: "vidi · story 1", href: "#s1" },
-  { section: "Machines", id: "m1", title: "gruntus", subtitle: "running a/stack", href: "#m1" },
+  { section: "Machines", id: "m1", title: "node-a", subtitle: "running a/stack", href: "#m1" },
 ];
 
 describe("searchIndex", () => {
@@ -81,7 +81,7 @@ describe("searchIndex", () => {
   });
 
   it("every token must be found, in the title or the subtitle, case-insensitively", () => {
-    const groups = searchIndex(INDEX, "gruntus");
+    const groups = searchIndex(INDEX, "node-a");
     expect(groups.map((g) => g.section)).toEqual(["Runs", "Machines"]); // title hit (machine) and subtitle-only hits (runs)
     const runs = groups.find((g) => g.section === "Runs")!;
     expect(runs.matches.map((m) => m.item.id)).toEqual(["r1", "r2"]);
@@ -92,16 +92,16 @@ describe("searchIndex", () => {
   });
 
   it("a multi-word query requires every word to appear somewhere in the item", () => {
-    const groups = searchIndex(INDEX, "swift gruntus");
+    const groups = searchIndex(INDEX, "swift node-a");
     const runs = groups.find((g) => g.section === "Runs")!;
     expect(runs.matches.map((m) => m.item.id)).toEqual(["r1"]); // r2 is "Dense 27B", not Swift
   });
 
   it("a title match outranks a subtitle-only match, within the same section", () => {
     const groups = searchIndex([
-      { section: "Runs", id: "title-hit", title: "v2-gruntus", subtitle: "x", href: "#" },
-      { section: "Runs", id: "subtitle-hit", title: "unrelated", subtitle: "on gruntus", href: "#" },
-    ], "gruntus");
+      { section: "Runs", id: "title-hit", title: "v2-node-a", subtitle: "x", href: "#" },
+      { section: "Runs", id: "subtitle-hit", title: "unrelated", subtitle: "on node-a", href: "#" },
+    ], "node-a");
     expect(groups[0].matches.map((m) => m.item.id)).toEqual(["title-hit", "subtitle-hit"]);
   });
 

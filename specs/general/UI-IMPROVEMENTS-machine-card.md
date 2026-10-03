@@ -1,12 +1,12 @@
 # UI/UX Improvements: the machine card on the overview
 
-Review of one machine card (gruntus, running a Swift 1.5 llama.cpp run), 3 October 2026, from the owner's screenshot and
+Review of one machine card (the 4090 box, running a Swift 1.5 llama.cpp run), 3 October 2026, from the owner's screenshot and
 the live DOM of `http://127.0.0.1:7760/#/` (every link in each card listed). Separate file from the other reviews in this
 folder.
 
 ## Summary
 
-The card holds four different things at the same weight: a **machine** (gruntus, its queue), a **run** (the combination, its
+The card holds four different things at the same weight: a **machine** (the 4090 box, its queue), a **run** (the combination, its
 id, its place in a series), a **story** (its number, title, minutes) and the **run's other stories** (the squares). They are
 laid out as a running sentence ("▶ combination run · story 11 title · 2 min") followed by two strips and a footer, with no
 labels, so a reader must work out which noun each mark belongs to. Links point at three different pages from the same line,
@@ -61,7 +61,7 @@ to the machine and gives no way to see it.
 **Current State**: Five squares ("59", a half-filled one, three dashed) and "run 2 of 5".
 **Problem**: Two strips of squares (stories, then runs) look alike and sit one above the other with no caption. "run 2 of 5" repeats
 what the highlighted segment already shows.
-**Recommendation**: Put the series inside the run level, captioned: "Series v2-fresh on gruntus" then the five segments, with the
+**Recommendation**: Put the series inside the run level, captioned: "Series v2-fresh on the 4090 box" then the five segments, with the
 count in the caption ("run 2 of 5") and no separate text. Visually separate it from the stories strip with its caption and
 spacing, and make the segments a different shape (wider rounded rectangles, as now) from the story squares.
 **Impact**: Two strips, two clear meanings.
@@ -86,7 +86,7 @@ story's own held-out tests, green all pass, amber some, red few". The legend alr
 ## A suggested card
 
 ```
- gruntus                                                  RUNNING          <- machine (link); state once
+ the 4090 box                                                  RUNNING          <- machine (link); state once
  3 queued · about 27 h of work                                              <- the machine's queue (link)
  -------------------------------------------------------------------------
  RUN    3.8-swift-1.5/27b llamacpp · v2-fresh-r2         <- combination (link) · run (link)
