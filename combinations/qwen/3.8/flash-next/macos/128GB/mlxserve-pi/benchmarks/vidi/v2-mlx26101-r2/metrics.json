@@ -1067,6 +1067,17 @@
           "pushed": true
         },
         "commit": "e08a4e023"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 223
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -2145,6 +2156,17 @@
           "pushed": true
         },
         "commit": "cbfeaac71"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 178
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "3": {
@@ -3980,6 +4002,17 @@
           "pushed": true
         },
         "commit": "e867b8b09"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 440
+        },
+        "truncated": false,
+        "reaches": []
       }
     }
   },
