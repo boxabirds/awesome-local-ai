@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 3.1,
+      "tail": "\nadded 208 packages, and audited 209 packages in 3s\n\n38 packages are looking for funding\n  run `npm fund` for details\n\n2 moderate severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.2 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20261001.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 1.2,
+      "tail": "\n> vidi6@0.0.1 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 80 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html        \u001b[39m\u001b[1m\u001b[2m  0.37 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.24 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex.css  \u001b[39m\u001b[1m\u001b[2m  4.64 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  1.47 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mapp.js     \u001b[39m\u001b[1m\u001b[2m307.98 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 96.15 kB\u001b[22m\n\u001b[32m\u2713 built in 686ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.4,
+      "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.6,
+      "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/492da773d5/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m25 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 37\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m67 passed\u001b[39m\u001b[22m\u001b[90m (67)\u001b[39m\n\u001b[2m   Start at \u001b[22m 00:23:50\n\u001b[2m   Duration \u001b[22m 198ms\u001b[2m (transform 80ms, setup 0ms, collect 125ms, tests 57ms, environment 0ms, prepare 85ms)\u001b[22m\n\n",
+      "passed": 67,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.6,
+      "tail": "\n> vidi6@0.0.1 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/492da773d5/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 67\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 145\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 290\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 363\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m25 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 386\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 527\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m82 passed\u001b[39m\u001b[22m\u001b[90m (82)\u001b[39m\n\u001b[2m   Start at \u001b[22m 00:23:51\n\u001b[2m   Duration \u001b[22m 1.26s\u001b[2m (transform 264ms, setup 609ms, collect 955ms, tests 1.78s, environment 1.91s, prepare 175ms)\u001b[22m\n\n",
+      "passed": 82,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 12.4,
+      "tail": "deleting \u203a TC-19: two pixels of movement is a click, not a drag (1.2s)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (9ms)\n  \u2713  34 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:459:3 \u203a sticky notes: text that fits the note \u203a TC-33c: three lines are laid out inside the note, at a size in range (760ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (9ms)\n  \u2713  28 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:281:3 \u203a sticky notes: moving, recolouring and deleting \u203a TC-32: at 200% zoom a 100 x 50 drag is 50 x 25 world units, and the note comes to the front (1.8s)\n  \u2713  35 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:486:3 \u203a sticky notes: text that fits the note \u203a TC-14: nothing is kept beyond a thousand characters (790ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (9ms)\n  \u2713  27 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:254:3 \u203a sticky notes: moving, recolouring and deleting \u203a TC-31: at 50% zoom a 100 x 50 drag is 200 x 100 world units, and the board does not pan (2.1s)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (8ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (10ms)\n  \u2713  26 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:173:3 \u203a sticky notes: moving, recolouring and deleting \u203a workflow: from an idea to a moved, recoloured, deleted note (2.3s)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n  \u2713  36 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:500:3 \u203a sticky notes: text that fits the note \u203a TC-24: Escape keeps the text and the selection (1.0s)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (7ms)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/app.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index.css 200 OK (10ms)\n  \u2713  37 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:513:3 \u203a sticky notes: text that fits the note \u203a TC-38: a click outside the note keeps the text and deselects (953ms)\n  \u2713  39 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:557:3 \u203a sticky notes: a note appears where the board currently is \u203a TC-34b: notes added twice from the button are stacked, the newer one on top (689ms)\n  \u2713  38 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:529:3 \u203a sticky notes: a note appears where the board currently is \u203a TC-34: after panning far away, the Sticky note button puts a note in the middle of the view (933ms)\n  \u2713  43 [chromium] \u203a tests/e2e/touch.spec.ts:42:3 \u203a touch drag panning \u203a the page does not scroll while a touch drag pans the board (477ms)\n  \u2713  40 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:579:3 \u203a sticky notes: a note appears where the board currently is \u203a TC-34c: a note created at 50% zoom is drawn at half size, and its toolbar keeps its size (817ms)\n  \u2713  29 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:325:3 \u203a sticky notes: moving, recolouring and deleting \u203a TC-32b: a note dragged onto another is drawn above it afterwards (2.6s)\n  \u2713  42 [chromium] \u203a tests/e2e/touch.spec.ts:14:3 \u203a touch drag panning \u203a a touch drag moves the board by exactly the drag distance (838ms)\n  \u2713  41 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:598:3 \u203a sticky notes: a note appears where the board currently is \u203a TC-28: the Sticky note button works with a note already on the board (1.0s)\n  \u2713  15 [chromium] \u203a tests/e2e/navigation.spec.ts:125:3 \u203a workflow 2: limits and recovery \u203a TC-25: zooming in with the button ends at 400% with the button disabled (7.1s)\n\n  43 passed (11.9s)\n",
+      "passed": 43,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}

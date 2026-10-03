@@ -1,3 +1,63 @@
+commit 1eb174b2cebd163e1c72cde090b78a7af27e75e8
+agent  Sat Oct 3 23:20:38 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  93 ++++-
+ PROGRESS.md                               |  28 +-
+ src/client/App.tsx                        | 135 ++++++-
+ src/client/board/Toolbar.tsx              |  51 +++
+ src/client/board/useSelection.ts          |  47 +++
+ src/client/canvas/BoardViewport.tsx       |  85 +++-
+ src/client/objects/NoteToolbar.tsx        |  80 ++++
+ src/client/objects/StickyNote.tsx         | 434 +++++++++++++++++++++
+ src/client/objects/StickyText.ts          | 163 +++++++-
+ src/client/objects/StickyTextEditor.tsx   | 211 ++++++++++
+ src/client/styles.css                     | 185 +++++++++
+ src/shared/config.ts                      |   2 +
+ tests/component/StickyNote.test.tsx       | 446 +++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 317 +++++++++++++++
+ tests/component/Toolbars.test.tsx         | 271 +++++++++++++
+ tests/component/helpers/sticky.tsx        | 230 +++++++++++
+ tests/e2e/helpers/sticky.ts               | 273 +++++++++++++
+ tests/e2e/sticky-notes.spec.ts            | 619 ++++++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts            |  10 +-
+ 19 files changed, 3630 insertions(+), 50 deletions(-)
+commit 5e4efa53dcaab92828acda8211f3c7d64ffb3e79
+agent  Sat Oct 3 22:16:17 2026 +0000
+
+    story 2 tasks 2-3: Yjs board model + useBoardDoc; sticky text unit tests (TC-13..TC-17) and prose fixtures
+
+
+ PROGRESS.md                      |   6 +-
+ src/client/board/useBoardDoc.ts  | 104 ++++++++++++++
+ src/client/objects/StickyText.ts |  48 +++++++
+ src/shared/board-model.ts        | 264 ++++++++++++++++++++++++++++++-----
+ tests/fixtures/texts.ts          |  41 ++++++
+ tests/unit/board-model.test.ts   |  13 +-
+ tests/unit/sticky-text.test.ts   | 290 +++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 727 insertions(+), 39 deletions(-)
+commit f13d40e93eabea2665a5a1239e5d3b6a4f90b538
+agent  Sat Oct 3 22:10:30 2026 +0000
+
+    story 2 task 1: board model unit tests (TC-01..TC-12, TC-39) + sticky settings
+
+
+ package-lock.json              |  51 ++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      | 106 ++++++++++
+ src/shared/config.ts           |  30 +++
+ tests/unit/board-model.test.ts | 468 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 656 insertions(+), 2 deletions(-)
+commit a55a3f9eed08b9f71992f6dcab445d786a149251
+vidi-agent  Sat Oct 3 23:01:40 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 25 +++++++++----------------
+ 1 file changed, 9 insertions(+), 16 deletions(-)
 commit c31920175711faacf3463b8368a6ac6faad70d88
 agent  Sat Oct 3 22:00:26 2026 +0000
 
