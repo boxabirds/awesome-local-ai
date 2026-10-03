@@ -60,7 +60,7 @@ async function expectNoPanel(page: Page) {
   expect(await page.title()).not.toMatch(/needs|\(\d+\)|^\d+ |\d+ (problem|issue|fault|unchecked)/i);
 }
 const now = (page: Page) => overview(page).locator('[data-section="now"]');
-const nowRow = (page: Page, machine: string) => now(page).locator(`tr[data-machine="${machine}"]`);
+const nowRow = (page: Page, machine: string) => now(page).locator(`[data-machine="${machine}"]`);
 const tip = (page: Page) => page.getByRole("tooltip");
 
 /** Every running story's progress up to date: reported this minute, so none is silent unless a test says so. */
@@ -102,13 +102,13 @@ test.beforeEach(async ({ request }) => {
 // The owner's decision: issues are program bugs, tracked outside the app. The Overview is "Now" and the Combinations
 // table, with nothing where the panel was.
 test.describe("no Needs you: not a panel, a heading, a quiet line, a count or a gap", () => {
-  test("the fixture as it is (an idle machine and a final score no longer retried): Now is the first thing on the page", async ({ page }) => {
+  test("the fixture as it is (an idle machine and a final score no longer retried): the observations are the first thing on the page", async ({ page }) => {
     await patchState(page);
     await open(page);
     await expectNoPanel(page);
-    expect(await overview(page).evaluate((el) => [...el.children].map((c) => (c as HTMLElement).dataset.section ?? c.className))).toEqual(["now", "combinations"]);   // section.combinations
-    const [pageBox, nowBox] = [await overview(page).boundingBox(), await now(page).boundingBox()];
-    expect(Math.abs(nowBox!.y - pageBox!.y)).toBeLessThanOrEqual(1);   // no gap left above it
+    expect(await overview(page).evaluate((el) => [...el.children].map((c) => (c as HTMLElement).dataset.section ?? c.className))).toEqual(["observations", "now", "ov-pair", "combinations"]);   // the last two are class names: div.ov-pair, section.combinations
+    const [pageBox, obsBox] = [await overview(page).boundingBox(), await overview(page).locator('[data-section="observations"]').boundingBox()];
+    expect(Math.abs(obsBox!.y - pageBox!.y)).toBeLessThanOrEqual(1);   // no gap left above it
     await expect(page.getByRole("banner")).not.toContainText(OWNER_WORDS);
   });
 
@@ -135,10 +135,10 @@ test.describe("no Needs you: not a panel, a heading, a quiet line, a count or a 
     await open(page);
     await page.getByRole("group", { name: "Which runs" }).getByRole("button", { name: /^Complete runs/ }).click();
     await expect(page.getByRole("table", { name: "Combinations" })).toHaveCount(0);  // the fixture has no complete run
-    await expect(now(page).locator("tbody tr")).toHaveCount(4);
+    await expect(now(page).locator("[data-machine]")).toHaveCount(4);
     await page.getByLabel("Version").selectOption("vidi-v1");
     await expectNoPanel(page);
-    await expect(now(page).locator("tbody tr")).toHaveCount(4);
+    await expect(now(page).locator("[data-machine]")).toHaveCount(4);
   });
 });
 
@@ -236,7 +236,7 @@ test.describe("now: one line per machine", () => {
   test("every machine, by name, each linking to its page", async ({ page }) => {
     await patchState(page);
     await open(page);
-    expect(await now(page).locator("tbody tr").evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.machine))).toEqual(["node-a", "node-b", "node-c", "node-d"]);
+    expect(await now(page).locator("[data-machine]").evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.machine))).toEqual(["node-a", "node-b", "node-c", "node-d"]);
     await nowRow(page, "node-c").locator("a.machine-link").click();
     await expect(page.locator('[data-page="machine"] h1')).toHaveText("node-c");
   });
@@ -246,8 +246,8 @@ test.describe("now: one line per machine", () => {
     await open(page);
     const g = nowRow(page, "node-a");
     await expect(g).toHaveAttribute("data-state", "running");
-    await expect(g.locator("td").first()).toHaveText("▶ 3.8-swift-1.5/27b llamacpp v2-r1 · story 3 See other people's edits live · 4 min");
-    await expect(g.locator("td.q")).toHaveText("3 queued");
+    await expect(g.locator(".card-now")).toHaveText("▶ 3.8-swift-1.5/27b llamacpp v2-r1 · story 3 See other people's edits live · 4 min");
+    await expect(g.locator(".card-queue .queue-count")).toHaveText("3 queued");
     await expect(g.locator("a.run-link")).toHaveAttribute("href", runHref(SWIFT, "v2-r1"));
     await g.locator("a.story-run-link").click();
     await expect(page.locator('[data-page="storyRun"]')).toBeVisible();
@@ -273,16 +273,16 @@ test.describe("now: one line per machine", () => {
     await patchState(page);
     await open(page);
     await expect(nowRow(page, "node-d")).toHaveAttribute("data-state", "idle");
-    await expect(nowRow(page, "node-d").locator("td").first()).toHaveText("idle");
-    await expect(nowRow(page, "node-d").locator("td.q")).toHaveText("nothing queued");
+    await expect(nowRow(page, "node-d").locator(".card-now")).toHaveText("idle");
+    await expect(nowRow(page, "node-d").locator(".card-queue .queue-count")).toHaveText("nothing queued");
   });
 
   test("queued only: nothing running, the queue waiting", async ({ page }) => {
     await patchState(page, (s) => { s.machines.find((m) => m.node === "node-d")!.queued = 2; });
     await open(page);
     await expect(nowRow(page, "node-d")).toHaveAttribute("data-state", "queuedOnly");
-    await expect(nowRow(page, "node-d").locator("td").first()).toHaveText("nothing running (2 waiting)");
-    await expect(nowRow(page, "node-d").locator("td.q")).toHaveText("2 queued");
+    await expect(nowRow(page, "node-d").locator(".card-now")).toHaveText("nothing running (2 waiting)");
+    await expect(nowRow(page, "node-d").locator(".card-queue .queue-count")).toHaveText("2 queued");
   });
 
   test("unreachable: says so, never the error; its queue can't be told", async ({ page }) => {
@@ -290,8 +290,8 @@ test.describe("now: one line per machine", () => {
     await patchMachines(page, (ms) => { const t = ms.find((m) => m.name === "node-a")!; t.ok = false; t.error = "timed out"; });
     await open(page);
     await expect(nowRow(page, "node-a")).toHaveAttribute("data-state", "unreachable");
-    await expect(nowRow(page, "node-a").locator("td").first()).toHaveText("unreachable");
-    await expect(nowRow(page, "node-a").locator("td.q .missing")).toHaveText("—");
+    await expect(nowRow(page, "node-a").locator(".card-now")).toHaveText("unreachable");
+    await expect(nowRow(page, "node-a").locator(".card-queue .missing")).toHaveText("—");
   });
 
   test("a machine in the list that dbench's job list doesn't have is listed, as unreachable", async ({ page }) => {
@@ -321,7 +321,6 @@ test.describe("the glossary: every heading and column explains itself", () => {
     await patchState(page);
     await open(page);
     await expect(now(page).locator("h2 .term")).toHaveAttribute("data-tip", GLOSSARY.now.what);
-    await expect(now(page).locator("thead th").last()).toHaveAttribute("data-tip", GLOSSARY.queue.what);
     await expect(nowRow(page, "node-a").locator(".now-min")).toHaveAttribute("data-tip", GLOSSARY.storyMinutes.what);
     await expect(nowRow(page, "node-d").locator(".idle")).toHaveAttribute("data-tip", GLOSSARY.machineIdle.what);
     for (const [id, term] of Object.entries(GLOSSARY)) {
@@ -338,16 +337,20 @@ for (const width of [WIDE, NARROW]) {
       await patchState(page, (s) => { const l = rowOf(s, SWIFT, "v2-r1").live!; l.agentMinutes = 4; l.storyStartedAt = s.now - 2 * HOUR; });
       await open(page);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-      for (const sel of ['[data-section="now"]', "section.combinations"]) {
+      for (const sel of ['[data-section="observations"]', '[data-section="now"]', ".ov-pair", "section.combinations"]) {
         const box = await overview(page).locator(sel).boundingBox();
         expect(box!.x + box!.width).toBeLessThanOrEqual(width);
         expect(await overview(page).locator(sel).evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
       }
-      const [pageBox, nowBox, tableBox] = [await overview(page).boundingBox(), await now(page).boundingBox(), await overview(page).locator("section.combinations").boundingBox()];
-      expect(Math.abs(nowBox!.y - pageBox!.y)).toBeLessThanOrEqual(1);
-      const gap = tableBox!.y - (nowBox!.y + nowBox!.height);
-      expect(gap).toBeGreaterThan(0);
-      expect(gap).toBeLessThanOrEqual(MAX_PANEL_GAP);
+      const sections = [];
+      for (const sel of ['[data-section="observations"]', '[data-section="now"]', ".ov-pair", "section.combinations"]) sections.push((await overview(page).locator(sel).boundingBox())!);
+      const pageBox = (await overview(page).boundingBox())!;
+      expect(Math.abs(sections[0].y - pageBox.y)).toBeLessThanOrEqual(1);
+      for (let i = 1; i < sections.length; i++) {
+        const gap = sections[i].y - (sections[i - 1].y + sections[i - 1].height);
+        expect(gap).toBeGreaterThan(0);
+        expect(gap).toBeLessThanOrEqual(MAX_PANEL_GAP);
+      }
     });
   });
 }

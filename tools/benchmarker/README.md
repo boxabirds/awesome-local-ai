@@ -152,6 +152,27 @@ would show, the page says so in one line with **Show all**, which sets the switc
 It never hides what machines are doing now (the running job, the queue, recently ended jobs), or the
 pack and version pickers.
 
+## The overview: a dashboard
+
+`#/` answers "what are my machines doing, and what is worth noticing?" from top to bottom:
+
+- **Observations**: facts about the work, found in the data of normal operation, most actionable first: a machine
+  that can't be reached, a run that has gone quiet, an idle machine with nothing queued, a story far slower than the
+  same story in the stack's other runs (at least twice its median over three runs or more, and at least 20 minutes;
+  one line per run), and a queue that will run dry within 24 hours. Each states its numbers and no cause or
+  instruction. **Bugs of the app, the harness or the pipeline are never here**; they go to the monitor's log.
+- **Now**: a card per machine: its state, the run and story it is on, the held-out strip of that run, where the run
+  sits in its series ("run 2 of 5"), and its queue with how long the work will take. That duration is measured: the
+  running run's remainder and a median run for each queued one, from the stack's finished runs; the basis is on hover,
+  and where a stack has no finished run it says "no estimate yet" and draws nothing.
+- **Series**: one row per series of runs of a stack (`<prefix>-rN`): the runs as segments, finished ones showing
+  their score, the running one filled by stories done, queued ones outlined.
+- **Score**: a dot per run, the median and the range on one axis, with neighbours the runs can't separate bracketed.
+- **Combinations**: the full table.
+
+The cards, the observations and the series ignore the runs switch (what machines are doing is not a result to
+filter); the score plot and the table follow it. The view logic is `shared/dashboardView.ts`.
+
 ## Combinations
 
 At the top of Runs, one row per combination over the runs the filters show, whichever machines they ran

@@ -132,9 +132,9 @@ test.describe("invalid: not in the app at all", () => {
       const m = s.machines.find((x) => x.node === "node-a")!; m.running = null; m.busy = true;
     });
     await page.goto("/");
-    const now = page.locator('[data-page="overview"] [data-section="now"] tr[data-machine="node-a"]');
+    const now = page.locator('[data-page="overview"] [data-section="now"] [data-machine="node-a"]');
     await expect(now).toHaveAttribute("data-state", "running");
-    await expect(now.locator("td").first()).toHaveText("▶ running");
+    await expect(now.locator(".card-now")).toHaveText("▶ running");
     await page.goto("/#/m/node-a");
     await expect(page.locator('[data-page="machine"] [data-section="now"] .mp-busy')).toHaveText("▶ Running.");
     await expect(page.locator('[data-page="machine"] [data-section="now"] .mp-idle')).toHaveCount(0);

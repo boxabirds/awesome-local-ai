@@ -21,7 +21,7 @@ test("from the combinations table: a combination's name opens its page", async (
 });
 
 test("from the overview's Now: the running run and its machine open their pages", async ({ page }) => {
-  const now = page.getByRole("table", { name: "Now" });
+  const now = page.locator('[data-section="now"]');
   await now.locator("a.run-link").first().click();
   await expect(page$(page, "run")).toBeVisible();
   await page.goBack();
@@ -101,7 +101,7 @@ test.describe("comparisons stay within one version family", () => {
 
 test.describe("machine and story addresses", () => {
   test("every machine name links to its page, from the overview and from a run", async ({ page }) => {
-    await page.getByRole("table", { name: "Now" }).locator("a.machine-link", { hasText: "node-a" }).click();
+    await page.locator('[data-section="now"]').locator("a.machine-link", { hasText: "node-a" }).click();
     await expect(page).toHaveURL(/#\/machines\/node-a$/);
     await expect(page$(page, "machine")).toBeVisible();
     await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5`);

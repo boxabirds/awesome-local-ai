@@ -151,7 +151,7 @@ test("what machines are doing now is never filtered: the Machines tab and the ma
   await completeRuns(page);
   await open(page);
   await complete(page).click();
-  await expect(page.locator('[data-section="now"] tr[data-machine="node-a"]')).toHaveAttribute("data-state", "running");
+  await expect(page.locator('[data-section="now"] [data-machine="node-a"]')).toHaveAttribute("data-state", "running");
   await page.getByRole("tab", { name: "Machines" }).click();
   await expect(page.locator('[data-page="machines"]')).toContainText("v2-r1");
 
