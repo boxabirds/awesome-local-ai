@@ -1,11 +1,23 @@
-# Story 2 Progress
+# Story 3: See other people's edits appear live on the same board
 
-## Tasks
-- [x] Task 1: Write board model unit tests first (TC-01 to TC-12, TC-39)
-- [x] Task 2: Implement Yjs board model and useBoardDoc snapshot hook
-- [x] Task 3: Write sticky text logic unit tests first (TC-13 to TC-17)
-- [x] Task 4: Implement sticky text editing
-- [x] Task 5: Implement sticky note interaction
-- [x] Task 6: Implement toolbars
-- [x] Task 7: Component tests
-- [x] Task 8: E2E tests
+Your progress on this story's tasks. Keep the Status column up to date as you work.
+
+| # | Task | Status |
+|---|---|---|
+| 1 | Write board id and protocol decode unit tests first (TC-01 to TC-03) | done |
+| 2 | Implement Worker entry: /api/rooms/:boardId routing to BoardRoom, static assets fallback | done |
+| 3 | Implement BoardRoom Durable Object: Yjs sync relay, awareness relay, malformed-message handling | done |
+| 4 | Implement client connection: y-websocket provider, /b/:boardId route, connection status badge | done |
+| 5 | Integration tests for Worker routing in workerd (TC-04 to TC-06, TC-13, TC-17) | done |
+| 6 | Integration tests for BoardRoom merging, broadcast and error handling (TC-07 to TC-12, TC-14 to TC-16, TC-18, TC-31) | done |
+| 7 | Component tests for connection status badge (TC-19 to TC-21) | done |
+| 8 | E2E live collaboration with multiple browser contexts (TC-22 to TC-28) | blocked |
+| 9 | Nightly e2e: idle connection stability and capacity soak with latency report (TC-29, TC-30) | blocked |
+
+Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
+
+## Notes
+
+- Tasks 1-7 complete: 93 unit/component tests + 22 integration tests all passing.
+- Tasks 8-9 blocked: proxy environment variables break WebSocket connections to `wrangler dev`.
+  See NOTES.md for details.

@@ -1,3 +1,56 @@
+commit b6d49cc4a32f988a9f532113e9b43d6318aa60d2
+agent  Sat Oct 3 23:52:17 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                          | 13 +++++++++----
+ PROGRESS.md                       |  9 ++++-----
+ tests/e2e/helpers/participants.ts | 17 +++++++++++++++--
+ 3 files changed, 28 insertions(+), 11 deletions(-)
+commit 5451f297cb2687b4fdff11218fb19ac0aeb768f0
+agent  Sat Oct 3 23:49:09 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                  |   86 +-
+ PROGRESS.md                               |   23 +-
+ package-lock.json                         | 1434 +++++++++++++++++++++++++++++
+ package.json                              |    6 +
+ src/client/App.tsx                        |   30 +-
+ src/client/board/useBoardDoc.ts           |   26 +-
+ src/client/board/useSelection.ts          |   18 +-
+ src/client/canvas/testHooks.ts            |   10 +
+ src/client/index.css                      |   32 +
+ src/client/sync/ConnectionStatus.tsx      |   54 ++
+ src/client/sync/connectBoard.ts           |   88 ++
+ src/shared/board-id.ts                    |   34 +
+ src/shared/config.ts                      |   20 +
+ src/shared/protocol.ts                    |   55 ++
+ src/worker/board-room.ts                  |  141 +++
+ src/worker/cloudflare-workers.d.ts        |   14 +
+ src/worker/index.ts                       |   40 +
+ tests/component/ConnectionStatus.test.tsx |   89 ++
+ tests/e2e/helpers/participants.ts         |   85 ++
+ tests/e2e/live-collab.spec.ts             |  219 +++++
+ tests/integration/board-room.test.ts      |  514 +++++++++++
+ tests/integration/worker.test.ts          |   97 ++
+ tests/integration/ws-client.ts            |  161 ++++
+ tests/unit/board-id.test.ts               |   48 +
+ tests/unit/protocol.test.ts               |   67 ++
+ tsconfig.json                             |    2 +-
+ vitest.integration.config.ts              |   19 +
+ wrangler.jsonc                            |   24 +-
+ 28 files changed, 3364 insertions(+), 72 deletions(-)
+commit 3692736568f79cdd4d75815ca532397c4332244d
+vidi-agent  Sat Oct 3 23:02:17 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 26 ++++++++++++++++----------
+ 1 file changed, 16 insertions(+), 10 deletions(-)
 commit d9d7af18209f82b47c63e373f7ff2f0da85a4643
 agent  Sat Oct 3 23:01:04 2026 +0100
 

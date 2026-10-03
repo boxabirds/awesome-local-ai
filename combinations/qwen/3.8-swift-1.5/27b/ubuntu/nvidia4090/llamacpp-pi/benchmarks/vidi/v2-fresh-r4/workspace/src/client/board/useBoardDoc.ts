@@ -1,12 +1,17 @@
-import { useMemo, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 /**
- * Owns the Y.Doc and exposes an immutable snapshot via useSyncExternalStore.
- * Story 3 will attach a network provider here; story 4 will persist it.
+ * Owns the Y.Doc, exposes an immutable snapshot via useSyncExternalStore,
+ * and (when boardId is provided) attaches a network provider for live sync.
  */
-export function useBoardDoc(): { doc: Y.Doc; notes: readonly StickySnapshot[] } {
+export function useBoardDoc(boardId?: string): {
+  doc: Y.Doc;
+  notes: readonly StickySnapshot[];
+  connectionState: ConnectionState;
+} {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     const doc = new Y.Doc();
@@ -14,6 +19,17 @@ export function useBoardDoc(): { doc: Y.Doc; notes: readonly StickySnapshot[] } 
     docRef.current = doc;
   }
   const doc = docRef.current;
+
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+
+  // Attach/detach the network provider when boardId changes
+  useEffect(() => {
+    if (!boardId) return;
+    const conn = connectBoard(doc, boardId, setConnectionState);
+    return () => {
+      conn.destroy();
+    };
+  }, [doc, boardId]);
 
   // Cache the snapshot so getSnapshot returns a stable reference
   // until the doc actually changes.
@@ -51,5 +67,5 @@ export function useBoardDoc(): { doc: Y.Doc; notes: readonly StickySnapshot[] } 
 
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  return { doc, notes };
+  return { doc, notes, connectionState };
 }

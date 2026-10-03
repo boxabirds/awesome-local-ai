@@ -8,16 +8,41 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { setConnectionState } from './canvas/testHooks';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { newBoardId } from '../shared/board-id';
 import type { Point } from './canvas/camera';
+
+/** Extract boardId from pathname: /b/<boardId> → boardId, or null. */
+function getBoardIdFromPath(): string | null {
+  const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]{22})$/);
+  return match ? match[1] : null;
+}
 
 /** Top-level layout: full-window board, zoom controls, first-use hint, sticky notes. */
 export default function App(): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const camera = useCamera(viewport);
-  const { doc, notes } = useBoardDoc();
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+
+  // Read board id from URL; if missing, generate one and update the URL
+  const [boardId, setBoardId] = useState<string | null>(getBoardIdFromPath);
+  useEffect(() => {
+    if (!boardId) {
+      const id = newBoardId();
+      window.history.replaceState(null, '', `/b/${id}`);
+      setBoardId(id);
+    }
+  }, []); // only on mount
+
+  const { doc, notes, connectionState } = useBoardDoc(boardId ?? undefined);
+
+  // Expose connection state on the test hook
+  useEffect(() => {
+    setConnectionState(connectionState);
+  }, [connectionState]);
+  const { selectedId, editingId, select, startEdit, endEdit } = useSelection(notes);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -142,6 +167,7 @@ export default function App(): JSX.Element {
         onReset={camera.reset}
       />
       <NavigationHint visible={!camera.hasNavigated && notes.length === 0} />
+      <ConnectionStatus state={connectionState} />
     </div>
   );
 }

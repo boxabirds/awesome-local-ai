@@ -1,11 +1,25 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
+  "main": "src/worker/index.ts",
   "compatibility_date": "2025-09-01",
-  // The Worker entry point (main) arrives in story 3. Until then this
-  // configuration serves the static client build from dist/client, so
-  // `wrangler dev` is the app server from day one.
   "assets": {
-    "directory": "dist/client"
-  }
+    "directory": "dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ]
 }

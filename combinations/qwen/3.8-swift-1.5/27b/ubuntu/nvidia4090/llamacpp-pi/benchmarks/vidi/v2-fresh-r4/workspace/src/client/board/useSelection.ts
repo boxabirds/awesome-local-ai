@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { StickySnapshot } from '../../shared/board-model';
 
 export interface SelectionState {
   selectedId: string | null;
@@ -10,10 +11,23 @@ export interface SelectionState {
 
 /**
  * Local selection and editing state. Never written to the Y.Doc.
+ * When a note is deleted remotely, selection/editing is cleared automatically.
  */
-export function useSelection(): SelectionState {
+export function useSelection(notes?: readonly StickySnapshot[]): SelectionState {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Clear selection/editing when the referenced note is deleted
+  useEffect(() => {
+    if (!notes) return;
+    const noteIds = new Set(notes.map((n) => n.id));
+    if (selectedId && !noteIds.has(selectedId)) {
+      setSelectedId(null);
+      setEditingId(null);
+    } else if (editingId && !noteIds.has(editingId)) {
+      setEditingId(null);
+    }
+  }, [notes, selectedId, editingId]);
 
   const select = useCallback((id: string | null) => {
     setSelectedId(id);

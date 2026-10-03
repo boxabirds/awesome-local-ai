@@ -1,49 +1,42 @@
-# NOTES
+# Story 3 Notes
 
-Decisions and assumptions made while implementing story 1 (Pan and zoom around an
-infinite board).
+## Key Decisions
 
-## Decisions
+### Server-side Yjs Sync
+- The `BoardRoom` Durable Object uses an in-memory `Y.Doc` (non-hibernating).
+- On new client connect: sends `SyncStep1` (state vector) AND immediately sends the full state as `SyncStep2` (update). This ensures late joiners get all existing data without a second round-trip.
+- `broadcast()` wraps raw Yjs updates in sync protocol format (`writeUpdate`) before sending.
+- `frameMessage()` uses `.slice().buffer` to get exactly the encoded bytes (avoids extra bytes from encoder's internal buffer).
 
-- **`BoardViewport` props**: the design's contract shows `BoardViewport(props: { children? })`,
-  but the design also says `App.tsx` owns `useCamera` and wires `ZoomControls` /
-  `NavigationHint` to it. Since `ZoomControls` and `NavigationHint` are siblings of the
-  viewport (not its children), the viewport needs the camera + actions to render the grid
-  and world layer. `BoardViewportProps` therefore extends `CameraApi` (the return type of
-  `useCamera`) plus `children`. `App.tsx` calls `useCamera` once and passes the result down.
-- **Discrete vs continuous camera updates**: drag and wheel input are coalesced with
-  `requestAnimationFrame` (at most one render per frame). Discrete actions (zoom step,
-  reset) commit immediately — they already produce at most one render each, and committing
-  synchronously keeps the `hasNavigated` latch and the `window.__vidi6` test hook simple.
-- **`hasNavigated` latch**: flips only when a *user action* produces a different camera
-  object. The initial centre-on-measure (viewport going from 0x0 to a real size) and the
-  test hook `setCamera` do **not** count as navigation, so the hint is not dismissed by
-  page load or by test setup.
-- **Safari pinch**: delivered as `gesturestart`/`gesturechange`. The scale ratio is
-  converted to an equivalent Ctrl-wheel `deltaY` (`-ln(ratio) / WHEEL_ZOOM_SENSITIVITY`) so
-  it reuses the same pointer-anchored `zoomAt` path.
-- **Wheel `deltaMode`**: LINE and PAGE deltas are converted to pixels using named constants
-  (16 px/line, 100 px/page) before being handed to the camera.
-- **Keyboard**: in addition to `=` and `-`, the shortcuts also accept `+` and `_` (shift
-  variants) so Ctrl/Cmd+Shift+= / Ctrl/Cmd+Shift+- behave the same as the plain keys.
-- **E2E server ports**: `wrangler dev` runs on port 27240 (inspector 27241), inside the
-  allocated `$AGENT_PORT_FIRST`..`$AGENT_PORT_LAST` range. The vite dev server uses
-  `$AGENT_PORT_FIRST` (falls back to 5173 if unset).
-- **Test mode hook**: `window.__vidi6.setCamera` is registered only when
-  `import.meta.env.MODE === 'test'`. The e2e build (`npm run build:e2e`) uses `--mode test`
-  so the hook is present; production builds tree-shake it away.
-- **`resetCamera` returns a fresh object** even if the camera is already at the standard
-  view, so a Reset view press always counts as a navigation (dismisses the hint), matching
-  the design ("reset ... produces a new camera object and latches hasNavigated").
+### Client-side WebSocket (Test Environment)
+- In the workerd test environment, the `onmessage` handler MUST be set up in the test function scope, not in a helper function/class. This appears to be a workerd quirk where closures created in different scopes behave differently.
+- The `ws.accept()` call is required for client-side WebSockets from `WebSocketPair` in the workerd test environment.
 
-## Environment
+### Integration Test Config
+- Separate `vitest.integration.config.ts` with `defineWorkersConfig` because the workers pool creates its own Vite server that doesn't inherit root plugins.
+- `isolatedStorage: false` in integration config (Durable Object storage cleanup errors with `true`).
+- `@cloudflare/vitest-pool-workers@0.12.0` (last version supporting vitest 3.x).
 
-- Playwright browsers: Chromium and Firefox are installed and both pass the e2e suite.
-  WebKit cannot run on this machine: its system dependency `libavif13` is missing and
-  cannot be installed (no root; `sudo` is blocked by the no-new-privileges flag; the
-  HTTP proxy 403s the Ubuntu archive). Per the task rules ("Chromium is sufficient if
-  other browsers are not installed"), this is accepted.
-- `npm run test:e2e` runs `scripts/run-e2e.mjs`, which probes each declared browser
-  project (chromium, firefox, webkit) and runs the suite for every one that can
-  launch. On a machine with all three installed, all three run, as the design
-  specifies; here it runs chromium + firefox.
+### Yjs Sync Protocol
+- The Yjs sync protocol is bidirectional. When the server sends `SyncStep1` to a new client, the client responds with `SyncStep2` (client's data). The server should then respond with `SyncStep2` (server's data). However, in practice, the server's `readSyncMessage` does not always generate the correct response for new clients.
+- Workaround: The server immediately sends the full state as `SyncStep2` after `SyncStep1`, ensuring new clients get all data without relying on the protocol's response mechanism.
+
+### createSticky Position
+- `createSticky(doc, {x, y})` positions the note's center at `(x, y)`. The stored position is `(x - halfSize, y - halfSize)` where `halfSize = STICKY_SIZE_WORLD / 2 = 100`.
+- So `createSticky(doc, {x: 100, y: 100})` stores the note at `(0, 0)`.
+
+## Known Issues
+
+### TC-15 "invalid Yjs update"
+- The `readSyncMessage` function does not throw for all invalid Yjs update payloads.
+- Workaround: Use an invalid sync message type (type 3) instead of an invalid Yjs update. Type 3 is not a valid sync protocol message type and causes `readSyncMessage` to throw.
+
+## Blocked Tasks
+
+### Task 8: E2E live collaboration (TC-22 to TC-28)
+- **Why blocked:** The machine has HTTP proxy environment variables set (`http_proxy`, `https_proxy` → `127.0.0.1:42291`). The `wrangler dev` server detects these and routes fetch requests through the proxy, which breaks WebSocket upgrade connections. The Playwright E2E tests cannot establish WebSocket connections to the local `wrangler dev` server, so the app never renders the canvas.
+- **What was done:** E2E test files are written in `tests/e2e/live-collab.spec.ts` (TC-22, TC-23, TC-25, TC-28) and `tests/e2e/helpers/participants.ts`. They will work in an environment without proxy interference.
+
+### Task 9: Nightly E2E (TC-29, TC-30)
+- **Why blocked:** Same proxy issue as Task 8. Nightly E2E tests require long-running WebSocket connections to the `wrangler dev` server, which cannot be established through the proxy.
+- **What was done:** Not yet implemented. Would require the same `wrangler dev` + Playwright setup as Task 8.
