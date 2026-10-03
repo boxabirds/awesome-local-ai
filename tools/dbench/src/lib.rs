@@ -8,6 +8,7 @@
 
 pub mod cli;
 pub mod client;
+pub mod collect;
 pub mod control;
 pub mod events;
 pub mod failure;

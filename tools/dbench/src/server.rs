@@ -21,6 +21,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::Notify;
 
 use crate::cli::ServerConfig;
+use crate::collect::{self, FileKind, FileName, Manifest, RunListing};
 use crate::control::{self, SkipStory, SkipStoryRequest};
 use crate::events::parse_log;
 use crate::ids::valid_id;
@@ -252,6 +253,11 @@ pub fn router(shared: Arc<Shared>) -> Router {
         .route("/v1/jobs/{id}/skip-story", post(skip_story))
         .route("/v1/jobs/{id}/log", get(log))
         .route("/v1/jobs/{id}/events", get(events))
+        .route("/v1/jobs/{id}/files", get(job_files))
+        .route("/v1/jobs/{id}/file", get(job_file))
+        .route("/v1/runs", get(list_runs))
+        .route("/v1/runs/files", get(run_files))
+        .route("/v1/runs/file", get(run_file))
         .route_layer(middleware::from_fn_with_state(shared.clone(), auth));
     Router::new()
         .route("/v1/health", get(health))
@@ -588,17 +594,36 @@ fn truthy(v: &Option<String>) -> bool {
     matches!(v.as_deref(), Some("1" | "true" | "yes"))
 }
 
-async fn read_chunk(path: &std::path::Path, offset: u64) -> std::io::Result<Vec<u8>> {
+/// Up to `cap` bytes of a file from `offset`, never past `limit` (a size read before, so a file
+/// growing under the read gives a stable end). A missing file reads as empty.
+async fn read_at(
+    path: &std::path::Path,
+    offset: u64,
+    cap: u64,
+    limit: u64,
+) -> std::io::Result<Vec<u8>> {
     let mut f = match tokio::fs::File::open(path).await {
         Ok(f) => f,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(e) => return Err(e),
     };
     f.seek(std::io::SeekFrom::Start(offset)).await?;
-    let mut buf = vec![0u8; LOG_CHUNK_BYTES];
-    let n = f.read(&mut buf).await?;
-    buf.truncate(n);
+    let want = cap.min(limit.saturating_sub(offset));
+    let mut buf = vec![0u8; usize::try_from(want).unwrap_or(usize::MAX)];
+    let mut filled = 0;
+    while filled < buf.len() {
+        let n = f.read(&mut buf[filled..]).await?;
+        if n == 0 {
+            break;
+        }
+        filled += n;
+    }
+    buf.truncate(filled);
     Ok(buf)
+}
+
+async fn read_chunk(path: &std::path::Path, offset: u64) -> std::io::Result<Vec<u8>> {
+    read_at(path, offset, LOG_CHUNK_BYTES as u64, u64::MAX).await
 }
 
 struct Follow {
@@ -652,6 +677,255 @@ async fn events(State(st): State<Arc<Shared>>, UrlPath(id): UrlPath<String>) -> 
     }
     let bytes = tokio::fs::read(st.log_path(&id)).await.unwrap_or_default();
     Json(json!({ "events": parse_log(&String::from_utf8_lossy(&bytes)) })).into_response()
+}
+
+// ---- Collecting a run's machine-only files (collect.rs) ----
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RunQuery {
+    run: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FileQuery {
+    run: Option<String>,
+    name: String,
+    from: Option<u64>,
+    check: Option<String>,
+}
+
+impl Shared {
+    /// A job's run directory, relative to the repo, when the install it names still resolves.
+    fn job_run_rel(&self, job: &Job) -> Option<String> {
+        let (_, dir) =
+            progress::resolve_run_dir(&self.cfg.repo, &self.cfg.share_dir, &job.spec).ok()?;
+        dir.strip_prefix(&self.cfg.repo)
+            .ok()?
+            .to_str()
+            .map(String::from)
+    }
+
+    /// Every job by its run directory: (job id, state label). Resolved at request time; jobs are few.
+    fn jobs_by_run(&self) -> HashMap<String, (String, String)> {
+        let mut jobs: Vec<Job> = self.lock().jobs.values().cloned().collect();
+        // Oldest first, so the newest job for a run dir (a resumed run has several) is the one kept.
+        jobs.sort_by_key(|j| (j.submitted_at, j.seq));
+        let mut out = HashMap::new();
+        for j in jobs {
+            if let Some(rel) = self.job_run_rel(&j) {
+                out.insert(rel, (j.id.clone(), j.state.label().to_string()));
+            }
+        }
+        out
+    }
+}
+
+/// Every run directory on this node, newest run-status first, with the job (if any) that wrote it.
+async fn list_runs(State(st): State<Arc<Shared>>) -> Json<Vec<RunListing>> {
+    let jobs = st.jobs_by_run();
+    let mut out: Vec<RunListing> = collect::list_runs(&st.cfg.repo, &st.cfg.share_dir)
+        .into_iter()
+        .map(|run| {
+            let (job, job_state) = jobs.get(&run).cloned().unzip();
+            let run_status = collect::run_status(&st.cfg.repo.join(&run));
+            RunListing {
+                run,
+                job,
+                run_status,
+                job_state,
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| {
+        let at = |r: &RunListing| r.run_status.as_ref().and_then(|s| s.at.clone());
+        at(b).cmp(&at(a)).then_with(|| a.run.cmp(&b.run))
+    });
+    Json(out)
+}
+
+fn manifest_of(st: &Shared, run: String, job: Option<(String, String)>) -> Manifest {
+    let dir = st.cfg.repo.join(&run);
+    let (job, job_state) = job.unzip();
+    Manifest {
+        files: collect::manifest(&dir, &st.cfg.bench_home),
+        run_status: collect::run_status(&dir),
+        run,
+        job,
+        job_state,
+    }
+}
+
+/// The run directory a job writes, relative to the repo; 404 for no such job, 409 when its install is gone.
+fn job_run(st: &Shared, id: &str) -> Result<(String, Job), (StatusCode, String)> {
+    let Some(job) = st.job(id) else {
+        return Err((StatusCode::NOT_FOUND, format!("no job {id}")));
+    };
+    match st.job_run_rel(&job) {
+        Some(rel) => Ok((rel, job)),
+        None => Err((
+            StatusCode::CONFLICT,
+            format!("job {id}: its run directory does not resolve on this node"),
+        )),
+    }
+}
+
+/// A run directory named by its repo-relative path; 400 for a path that isn't one, 404 when it has no run.json.
+fn named_run(st: &Shared, run: &str) -> Result<String, (StatusCode, String)> {
+    if !crate::ids::valid_run_dir(run) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("not a run directory path: {run:?}"),
+        ));
+    }
+    match collect::is_run_dir(&st.cfg.repo, run) {
+        Some(_) => Ok(run.to_string()),
+        None => Err((StatusCode::NOT_FOUND, format!("no run {run} on this node"))),
+    }
+}
+
+async fn job_files(State(st): State<Arc<Shared>>, UrlPath(id): UrlPath<String>) -> Response {
+    match job_run(&st, &id) {
+        Ok((rel, job)) => {
+            Json(manifest_of(&st, rel, Some((id, job.state.label().to_string())))).into_response()
+        }
+        Err((status, msg)) => err(status, msg),
+    }
+}
+
+async fn run_files(State(st): State<Arc<Shared>>, Query(q): Query<RunQuery>) -> Response {
+    match named_run(&st, &q.run) {
+        Ok(rel) => {
+            let job = st.jobs_by_run().remove(&rel);
+            Json(manifest_of(&st, rel, job)).into_response()
+        }
+        Err((status, msg)) => err(status, msg),
+    }
+}
+
+async fn job_file(
+    State(st): State<Arc<Shared>>,
+    UrlPath(id): UrlPath<String>,
+    Query(q): Query<FileQuery>,
+) -> Response {
+    match job_run(&st, &id) {
+        Ok((rel, _)) => file_of(&st, &rel, q).await,
+        Err((status, msg)) => err(status, msg),
+    }
+}
+
+async fn run_file(State(st): State<Arc<Shared>>, Query(q): Query<FileQuery>) -> Response {
+    let Some(run) = q.run.clone() else {
+        return err(StatusCode::BAD_REQUEST, "run= names the run directory");
+    };
+    match named_run(&st, &run) {
+        Ok(rel) => file_of(&st, &rel, q).await,
+        Err((status, msg)) => err(status, msg),
+    }
+}
+
+fn hex64(h: u64) -> String {
+    format!("{h:016x}")
+}
+
+fn conflict(reason: &str, size: u64) -> Response {
+    (
+        StatusCode::CONFLICT,
+        Json(json!({ "error": reason, "size": size })),
+    )
+        .into_response()
+}
+
+/// Bytes of one allow-listed file of a run: from `from`, at most `COLLECT_CHUNK_BYTES`, never past the
+/// size seen at the start. An append-only file read from past 0 needs `check`, the FNV-1a-64 of the
+/// last `PREFIX_CHECK_BYTES` bytes before `from` as the client holds them: 409 when they differ or the
+/// file is shorter than `from`, so the client knows to fetch the whole file again. A whole file is
+/// read from 0 only, and refused (413) when it is larger than one chunk.
+async fn file_of(st: &Shared, run: &str, q: FileQuery) -> Response {
+    let Some(name): Option<FileName> = collect::parse_name(&q.name) else {
+        return err(
+            StatusCode::NOT_FOUND,
+            format!("{:?} is not a file the node serves", q.name),
+        );
+    };
+    let Some(path) = collect::resolve(&st.cfg.repo.join(run), &st.cfg.bench_home, &name) else {
+        return err(
+            StatusCode::NOT_FOUND,
+            format!("{} is not on this node", name.name()),
+        );
+    };
+    let meta = match tokio::fs::metadata(&path).await {
+        Ok(m) if m.is_file() => m,
+        _ => {
+            return err(
+                StatusCode::NOT_FOUND,
+                format!("{} is not on this node", name.name()),
+            )
+        }
+    };
+    let size = meta.len();
+    let mtime = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(0.0, |d| d.as_secs_f64());
+    let from = q.from.unwrap_or(0);
+    match name.kind() {
+        FileKind::Whole => {
+            if from != 0 {
+                return err(
+                    StatusCode::BAD_REQUEST,
+                    format!("{} is served whole: from must be 0", name.name()),
+                );
+            }
+            if size > collect::COLLECT_CHUNK_BYTES {
+                return err(
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                    format!(
+                        "{} is {size} bytes, over the {} byte limit",
+                        name.name(),
+                        collect::COLLECT_CHUNK_BYTES
+                    ),
+                );
+            }
+        }
+        FileKind::Append => {
+            if from > size {
+                return conflict("file is shorter than from", size);
+            }
+            if from > 0 {
+                let Some(check) = q.check.as_deref() else {
+                    return err(
+                        StatusCode::BAD_REQUEST,
+                        "check= is needed when from > 0: the hash of the bytes before from",
+                    );
+                };
+                let (start, end) = collect::check_window(from);
+                let held = match read_at(&path, start, end - start, end).await {
+                    Ok(b) if b.len() as u64 == end - start => b,
+                    Ok(_) => return conflict("prefix mismatch", size),
+                    Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+                };
+                if hex64(collect::fnv1a64(&held)) != check.trim().to_ascii_lowercase() {
+                    return conflict("prefix mismatch", size);
+                }
+            }
+        }
+    }
+    let bytes = match read_at(&path, from, collect::COLLECT_CHUNK_BYTES, size).await {
+        Ok(b) => b,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    };
+    let eof = from + bytes.len() as u64 >= size;
+    Response::builder()
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .header(collect::HDR_FROM, from.to_string())
+        .header(collect::HDR_SIZE, size.to_string())
+        .header(collect::HDR_MTIME, format!("{mtime:.3}"))
+        .header(collect::HDR_EOF, if eof { "1" } else { "0" })
+        .body(Body::from(bytes))
+        .unwrap_or_else(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "response"))
 }
 
 fn ensure_dir(path: &std::path::Path) -> Result<()> {

@@ -1,7 +1,7 @@
 //! End-to-end: the real `dbench serve` binary against a temp repo with fake packs.
 
 use serde_json::{json, Value};
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -171,6 +171,28 @@ sleep 300 &
 wait
 "#;
 
+
+/// Writes what the real harness leaves in a run dir that git never carries, and grows it for a
+/// second: the full transcript, the server log, a progress file rewritten in place, the egress
+/// log named by work_dir.txt; then marks the run finished.
+const GROW_LINES: u32 = 10;
+const GROW_BODY: &str = r#"mkdir -p "$RUN_DIR/stories/01" "$HOME/.vidi-bench/egress"
+echo "{\"install_id\": \"$INSTALL_ID\"}" > "$RUN_DIR/run.json"
+echo '{"state": "started", "reason": "", "at": "2026-10-03T10:00:00Z"}' > "$RUN_DIR/run-status.json"
+echo "$HOME/.w/grow-$RUN_ID" > "$RUN_DIR/work_dir.txt"
+echo '{"host": "judge.example", "allowed": true}' > "$HOME/.vidi-bench/egress/grow-$RUN_ID.jsonl"
+echo "=== server start 1790000000 ===" >> "$RUN_DIR/server.log"
+echo '{"stories": {"1": {"title": "One"}}}' > "$RUN_DIR/metrics.json"
+for i in $(seq 1 GROW_LINES); do
+  echo "{\"_rx\": 1790000000.$i, \"type\": \"line\", \"n\": $i}" >> "$RUN_DIR/stories/01/agent-events.jsonl"
+  echo "{\"updated_at\": $i}" > "$RUN_DIR/progress.json.tmp" && mv "$RUN_DIR/progress.json.tmp" "$RUN_DIR/progress.json"
+  echo "slot print_timing $i" >> "$RUN_DIR/server.log"
+  sleep 0.1
+done
+echo '{"state": "finished", "reason": "", "at": "2026-10-03T10:05:00Z"}' > "$RUN_DIR/run-status.json"
+exit 0
+"#;
+
 struct Env {
     root: TempRoot,
     repo: PathBuf,
@@ -205,6 +227,7 @@ fn setup() -> Env {
         ("progresspack", PROGRESS_BODY),
         ("leakpack", &format!("{LEAK_BODY}exit 0\n")),
         ("leakwaitpack", &format!("{LEAK_BODY}sleep 300 &\nwait\n")),
+        ("growpack", &GROW_BODY.replace("GROW_LINES", &GROW_LINES.to_string())),
     ] {
         let dir = repo.join(pack).join("harness");
         std::fs::create_dir_all(&dir).unwrap();
@@ -362,6 +385,26 @@ impl Server {
             Some(body),
         )
         .await
+    }
+    /// A GET as bytes: status, the x-dbench-* headers (name without the prefix), body.
+    async fn get_raw(&self, path: &str) -> (u16, std::collections::BTreeMap<String, String>, Vec<u8>) {
+        let r = self
+            .http
+            .get(format!("{}{path}", self.base))
+            .bearer_auth(&self.token)
+            .send()
+            .await
+            .unwrap();
+        let status = r.status().as_u16();
+        let headers = r
+            .headers()
+            .iter()
+            .filter_map(|(k, v)| {
+                let k = k.as_str().strip_prefix("x-dbench-")?;
+                Some((k.to_string(), v.to_str().unwrap().to_string()))
+            })
+            .collect();
+        (status, headers, r.bytes().await.unwrap().to_vec())
     }
     async fn log(&self, id: &str) -> String {
         let r = self
@@ -1555,4 +1598,244 @@ async fn a_spec_with_a_field_the_node_does_not_know_is_refused_not_run_as_a_plai
     assert!(code == 400 || code == 422, "{code}: {v}");
     assert_eq!(srv.get("/v1/jobs").await.as_array().map_or(0, Vec::len), 0);
     drop(env.root);
+}
+
+const GROW_RUN: &str = "combinations/test/combo/fake/benchmarks/growpack/run-g";
+
+fn fnv_hex(bytes: &[u8]) -> String {
+    format!("{:016x}", dbench::collect::fnv1a64(bytes))
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn files_manifest_by_job_and_by_run_path_lists_only_allow_listed_files() {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(srv.submit("grow", &spec("growpack", "run-g")).await.0, 201);
+    srv.wait_status("grow", "done").await;
+
+    // By job: every allow-listed file the run has, with its kind; nothing else (metrics.json is git's).
+    let m = srv.get("/v1/jobs/grow/files").await;
+    assert_eq!(m["run"], GROW_RUN);
+    assert_eq!(m["job"], "grow");
+    assert_eq!(m["job_state"], "done");
+    assert_eq!(
+        m["run_status"],
+        json!({"state": "finished", "at": "2026-10-03T10:05:00Z"})
+    );
+    let files = m["files"].as_array().unwrap();
+    let names: Vec<(&str, &str)> = files
+        .iter()
+        .map(|f| (f["name"].as_str().unwrap(), f["kind"].as_str().unwrap()))
+        .collect();
+    assert_eq!(
+        names,
+        [
+            ("stories/01/agent-events.jsonl", "append"),
+            ("server.log", "append"),
+            ("progress.json", "whole"),
+            ("egress.jsonl", "append"),
+        ]
+    );
+    let events_size = files[0]["size"].as_u64().unwrap();
+    assert!(
+        events_size > 0 && files.iter().all(|f| f["mtime"].as_f64().unwrap() > 0.0),
+        "{m:#}"
+    );
+
+    // By run path: the same manifest, with the job found from the path.
+    let by_path = srv.get(&format!("/v1/runs/files?run={GROW_RUN}")).await;
+    assert_eq!(by_path, m);
+    // The node's run list names it, newest status first, with its job.
+    let runs = srv.get("/v1/runs").await;
+    assert_eq!(
+        runs,
+        json!([{"run": GROW_RUN, "job": "grow", "run_status": {"state": "finished", "at": "2026-10-03T10:05:00Z"}, "job_state": "done"}])
+    );
+
+    // Refusals.
+    assert_eq!(
+        srv.call(reqwest::Method::GET, "/v1/jobs/nope/files", None)
+            .await
+            .0,
+        404
+    );
+    assert_eq!(
+        srv.call(reqwest::Method::GET, "/v1/runs/files?run=../etc", None)
+            .await
+            .0,
+        400
+    );
+    assert_eq!(
+        srv.call(reqwest::Method::GET, "/v1/runs/files?run=/etc", None)
+            .await
+            .0,
+        400
+    );
+    let (code, v) = srv
+        .call(
+            reqwest::Method::GET,
+            "/v1/runs/files?run=combinations/test/combo/fake/benchmarks/growpack/nope",
+            None,
+        )
+        .await;
+    assert_eq!(code, 404, "{v}");
+    for name in [
+        "metrics.json",
+        "run.json",
+        "work_dir.txt",
+        "../token",
+        "stories/01/accept.json",
+    ] {
+        let (code, v) = srv
+            .call(
+                reqwest::Method::GET,
+                &format!("/v1/jobs/grow/file?name={name}"),
+                None,
+            )
+            .await;
+        assert_eq!(code, 404, "{name}: {v}");
+    }
+    // A query the server doesn't know is refused, not ignored.
+    assert_eq!(
+        srv.call(
+            reqwest::Method::GET,
+            "/v1/jobs/grow/file?name=server.log&path=x",
+            None
+        )
+        .await
+        .0,
+        400
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_ranged_read_follows_growth_and_the_prefix_check_catches_a_rewrite() {
+    let env = setup();
+    // A run dir written directly (no job), as a run from before dbench's time would be.
+    let run_dir = env.repo.join(GROW_RUN);
+    std::fs::create_dir_all(run_dir.join("stories/01")).unwrap();
+    std::fs::write(run_dir.join("run.json"), "{}").unwrap();
+    let events = run_dir.join("stories/01/agent-events.jsonl");
+    let first: Vec<u8> = (0..1000)
+        .flat_map(|i| format!("{{\"_rx\": {i}}}\n").into_bytes())
+        .collect();
+    std::fs::write(&events, &first).unwrap();
+    std::fs::write(run_dir.join("progress.json"), b"{\"updated_at\": 1}").unwrap();
+    let srv = start(&env, false);
+    let file = |q: &str| format!("/v1/runs/file?run={GROW_RUN}&{q}");
+
+    // The whole file from 0, in one chunk, with its size and eof.
+    let (code, h, body) = srv
+        .get_raw(&file("name=stories/01/agent-events.jsonl"))
+        .await;
+    assert_eq!(code, 200);
+    assert_eq!(body, first);
+    assert_eq!(
+        (h["from"].as_str(), h["size"].as_str(), h["eof"].as_str()),
+        ("0", &first.len().to_string()[..], "1")
+    );
+    assert!(h["mtime"].parse::<f64>().unwrap() > 0.0);
+    // The run is listed with no job, and no run-status.
+    assert_eq!(
+        srv.get("/v1/runs").await,
+        json!([{"run": GROW_RUN, "job": null, "run_status": null, "job_state": null}])
+    );
+
+    // The file grows: the client asks from its length, proving the tail it holds.
+    let more = b"{\"_rx\": 1000}\n{\"_rx\": 1001}\n";
+    std::fs::OpenOptions::new()
+        .append(true)
+        .open(&events)
+        .unwrap()
+        .write_all(more)
+        .unwrap();
+    let from = first.len();
+    let window = &first[from.saturating_sub(dbench::collect::PREFIX_CHECK_BYTES as usize)..];
+    let (code, h, body) = srv
+        .get_raw(&file(&format!(
+            "name=stories/01/agent-events.jsonl&from={from}&check={}",
+            fnv_hex(window)
+        )))
+        .await;
+    assert_eq!(code, 200, "{}", String::from_utf8_lossy(&body));
+    assert_eq!(body, more);
+    assert_eq!(
+        (h["from"].as_str(), h["eof"].as_str()),
+        (&from.to_string()[..], "1")
+    );
+    // Without the proof, or with the wrong one, nothing is served.
+    let (code, _, body) = srv
+        .get_raw(&file(&format!(
+            "name=stories/01/agent-events.jsonl&from={from}"
+        )))
+        .await;
+    assert_eq!(code, 400, "{}", String::from_utf8_lossy(&body));
+    let (code, _, body) = srv
+        .get_raw(&file(&format!(
+            "name=stories/01/agent-events.jsonl&from={from}&check={}",
+            fnv_hex(b"other")
+        )))
+        .await;
+    assert_eq!(code, 409, "{}", String::from_utf8_lossy(&body));
+    assert_eq!(
+        serde_json::from_slice::<Value>(&body).unwrap()["error"],
+        "prefix mismatch"
+    );
+    // Past the end (the node's file was truncated and rewritten, say): 409 with the size.
+    let (code, _, body) = srv
+        .get_raw(&file(&format!(
+            "name=stories/01/agent-events.jsonl&from={}&check={}",
+            first.len() * 2,
+            fnv_hex(window)
+        )))
+        .await;
+    assert_eq!(code, 409);
+    let v: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["error"], "file is shorter than from");
+    assert_eq!(v["size"], (first.len() + more.len()) as u64);
+    // A rewrite that keeps the length but changes the bytes is caught by the check too.
+    let mut rewritten = first.clone();
+    rewritten.extend_from_slice(more);
+    rewritten[from - 1] = b'#';
+    std::fs::write(&events, &rewritten).unwrap();
+    let (code, _, _) = srv
+        .get_raw(&file(&format!(
+            "name=stories/01/agent-events.jsonl&from={from}&check={}",
+            fnv_hex(window)
+        )))
+        .await;
+    assert_eq!(code, 409);
+
+    // A whole file: from 0 only.
+    let (code, h, body) = srv.get_raw(&file("name=progress.json")).await;
+    assert_eq!((code, h["eof"].as_str()), (200, "1"));
+    assert_eq!(body, b"{\"updated_at\": 1}");
+    assert_eq!(
+        srv.get_raw(&file("name=progress.json&from=1&check=00"))
+            .await
+            .0,
+        400
+    );
+    // Over one chunk: an append-only file comes in chunks, a whole file is refused.
+    let big = vec![b'a'; dbench::collect::COLLECT_CHUNK_BYTES as usize + 1];
+    std::fs::write(run_dir.join("server.log"), &big).unwrap();
+    std::fs::write(run_dir.join("progress.json"), &big).unwrap();
+    let (code, h, body) = srv.get_raw(&file("name=server.log")).await;
+    assert_eq!(
+        (code, h["eof"].as_str(), body.len() as u64),
+        (200, "0", dbench::collect::COLLECT_CHUNK_BYTES)
+    );
+    let tail = &big[body.len() - dbench::collect::PREFIX_CHECK_BYTES as usize..body.len()];
+    let (code, h, rest) = srv
+        .get_raw(&file(&format!(
+            "name=server.log&from={}&check={}",
+            body.len(),
+            fnv_hex(tail)
+        )))
+        .await;
+    assert_eq!((code, h["eof"].as_str(), rest.len()), (200, "1", 1));
+    assert_eq!(srv.get_raw(&file("name=progress.json")).await.0, 413);
+    // A file the run doesn't have.
+    assert_eq!(srv.get_raw(&file("name=proxy.log")).await.0, 404);
+    assert_eq!(srv.get_raw(&file("name=egress.jsonl")).await.0, 404);
 }
