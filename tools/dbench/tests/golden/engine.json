@@ -174,28 +174,28 @@
     "draft_generated": 90,
     "gen": 103,
     "prompt": 2049,
-    "start": -Infinity
+    "start": "-inf"
    },
    {
     "draft_accepted": 47,
     "draft_generated": 49,
     "gen": 55,
     "prompt": 5534,
-    "start": -Infinity
+    "start": "-inf"
    },
    {
     "draft_accepted": 39,
     "draft_generated": 45,
     "gen": 53,
     "prompt": 12596,
-    "start": -Infinity
+    "start": "-inf"
    },
    {
     "draft_accepted": 49,
     "draft_generated": 62,
     "gen": 70,
     "prompt": 15603,
-    "start": -Infinity
+    "start": "-inf"
    }
   ],
   "mlx-no-draft": [
