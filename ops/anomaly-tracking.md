@@ -43,6 +43,7 @@ test that would reproduce it. Details under the entries.
 
 | # | What | Fix / reproducing test |
 |---|---|---|
+| A-038 | Time accounting fails its check on every story where the hang guard killed a silent tool call (gufo 0.5.0 v2-gufo05-r1 stories 3, 4, 5; 1,240 s, 606 s and 1,221 s over); the three stories show no time breakdown. The killed call's 10 minutes are counted as between-sessions time, and also inside the agent's own clock | accounting.py (or the guard): the guard's kill must be an event in the log, so the call ends at the kill and the wait after it is the only between-sessions time. Test: a real-log replay of v2-gufo05-r1 story 3 (open tool at 6583 s, next session at 7260.6 s, two interventions at 7202 s and 7232 s) → check passes, tool time about 620 s, between sessions under 60 s |
 | A-016 | Survived the automatic repair (13:51): on a restarted story the conversation profile still reports the killed call as the longest tool across the harness's downtime (1389 s, 1460 s) and raises a false `hung-command`; the run's `interventions.md` still omits both swap-guard stops and the restarts. (The accounting check itself is fixed.) | conversation.py: end an attempt's open tool call at that attempt's end, as accounting v4 does; drive/attempts: write a guard stop and each restart to interventions. Test: a two-attempt story whose attempt 1 ends in a guard-killed call → no `hung-command`, longest tool within one attempt, two interventions listed |
 | A-035 | Sonnet v2-r5 has no score of record: story 12's live held-out scoring ran 0 tests (`runner_exit` 1, 0/0, no `harness_fault`), and finalize's guard then flagged the good re-score (74/75) for differing from that void live score | gates: a runner that exits non-zero with 0 tests is a harness fault, never 0/0 (the rule of `40a02fd4` missed this shape); finalize guard: a live score with total 0 is not comparable. Test: an accept result with build 0, runner exit 1, no tests → `harness_fault` set; guard with live 0/0 → not flagged |
 | A-037 | CI red on main (seen 18:07 BST on the stop-rule commits): the harness unit suite and the real-log replay fail; the replay reports 2 problems in mlx v2-r2 story 4's recorded log, and a unit test's `git rev-parse HEAD` exits 128 in its scratch repo | replay: run `test_replay_real_logs.py` on that one log locally to see which reader disagrees with the record repaired at 14:51 BST; unit: the scratch repo has no commit when the test asks for HEAD |
@@ -269,6 +270,23 @@ test that would reproduce it. Details under the entries.
   in the helper as written).
 - **Status:** the race in the test helper is still open (it can fail `dbench harness-release` too). The CI
   part is closed: the hosted workflow was removed on 2 October 2026 at the owner's decision.
+
+### A-038 — Hang-guard kills break the time accounting check (gufo 0.5.0 v2-gufo05-r1 stories 3, 4, 5)
+- **First seen:** 2026-10-03 16:27 BST (owner: "what happened to stories 3,4,5?") · **Where:** qwen 3.8 flash-next,
+  gufo-pi, the Strix Halo box, v2-gufo05-r1.
+- **Observed:** stories 3, 4 and 5 have `accounting.ok: false` ("the agent's own clock (10086.8 s + 1360.7 s between
+  sessions) is 1240.3 s more than the wall's 10207.2 s: agent time was counted twice"; story 4 605.8 s over, story 5
+  1221.4 s over), so the app shows no time breakdown for them. Each also has `interventions.md` lines: the hang guard
+  killed a tool call silent for 600 s (story 3 twice, story 5 twice, story 4 once; each kill logged twice 30 s apart).
+- **Cause (read from the log, not yet reproduced as a test):** story 3's log has an open `bash` tool call at 6583 s and
+  nothing until the next session at 7260.6 s. The guard killed it at about 7202 s, which the log does not record, and
+  the session died with it. accounting.py puts a dead session's end at the last line written, so the call gets 0 s and
+  the 677 s wait is "between sessions"; the agent's own clock ran through the whole hang, so the check sees it twice.
+  Same for the call at 7268 s (685 s). 1360.7 s between sessions is those two waits.
+- **Bucket:** internal bug, **confidence high** on the mechanism (the sums match: 677 + 685 = 1,362). The same shape as
+  A-016's guard-kill note.
+- **Status:** open. Not fixed. Fix and test as in the table above; the three stories need a re-score of their
+  accounting once the harness can end the call at the kill.
 
 ### A-037 — CI red on main: harness unit suite and real-log replay
 - **First seen:** 2026-10-01 18:07 BST · **Last seen:** 2026-10-01 18:20 BST
