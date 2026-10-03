@@ -3967,6 +3967,19 @@
           "8": "done",
           "9": "done"
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-mlx26101-r2/server.log"
+        ],
+        "private": {
+          "copied": 12,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "e867b8b09"
       }
     }
   },
