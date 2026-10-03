@@ -200,10 +200,12 @@ after a call whose tests had failures, +117%, +201%, +83% (all intervals above z
 the last third of the story +10% to +12%; context in its top third against its bottom third +9%, +15%, +24%. Most of the
 extra thinking is the response to failing tests. Compaction and context size are small effects.
 
-**Settings that are not what the config says.** Every stack requests reasoning effort `low`; the recorded gap in
-mlx-serve says neither the engine nor the client applies it, and Swift and gufo record no reasoning effort at all.
-Swift's llama.cpp records thinking mode "unknown" (the chat template's default) and K and V caches at `q4_0`. The first
-three runs of Swift and gufo and the first of mlx-serve have no recorded engine settings.
+**Settings that differ between the stacks.** Reasoning effort `low` is applied by the engine in Swift and gufo
+(`--reasoning-effort low`; their records say it matches the request) and cannot be set in mlx-serve, whose effective effort
+is recorded as unknown. Swift's llama.cpp records thinking mode "unknown" (the chat template's default; gufo records `on`)
+and K and V caches at `q4_0`. Swift and gufo set no thinking budget; mlx-serve sets 32,768. The first three runs of Swift
+and gufo and the first of mlx-serve have no recorded engine settings. (An earlier version of this section said effort
+was applied nowhere; that was a misreading of a nested record.)
 
 **The prize for shorter, as-effective paths is large.** Per story, the runs that reach its best own held-out pass rate:
 40% (Swift), 47% (gufo) and 52% (mlx-serve) of them thought no more than the story's median. Among them, the longest
