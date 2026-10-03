@@ -13,6 +13,9 @@ pub const SCHEMA_VERSION: i64 = 2;
 pub const HEAD_CHARS: usize = 400;
 pub const TAIL_CHARS: usize = 700;
 pub const MSG_HEAD_CHARS: usize = 600;
+/// Where the reference models' runs are published, and what their stacks are called.
+pub const REFERENCE_RUN_PREFIX: &str = "benchmarks/reference/";
+pub const REFERENCE_STACK_PREFIX: &str = "reference/";
 
 pub struct Db {
     pub conn: Connection,
@@ -109,6 +112,23 @@ impl Db {
         anyhow::ensure!(version == SCHEMA_VERSION, "schema version {version}, expected {SCHEMA_VERSION}");
         self.conn.execute("insert or replace into meta(key, value) values ('schema_version', ?1)", params![SCHEMA_VERSION.to_string()])?;
         Ok(())
+    }
+
+    /// Remove every row of a reference model's runs (Claude Opus, Sonnet): they are the benchmark's quality yardstick and
+    /// their conversations do not belong in the warehouse (owner, 3 October 2026). Returns the story runs removed.
+    pub fn purge_reference(&mut self) -> Result<usize> {
+        let tx = self.conn.transaction()?;
+        let cond = format!("run_id like '{REFERENCE_RUN_PREFIX}%' or stack like '{REFERENCE_STACK_PREFIX}%'");
+        let sks = format!("select sk from stories where {cond}");
+        for t in ["calls", "tools", "msgs", "compactions", "attempts", "sessions", "collection", "events", "requests", "conditions"] {
+            tx.execute(&format!("delete from {t} where sk in ({sks})"), [])?;
+        }
+        tx.execute(&format!("delete from requests where run_id like '{REFERENCE_RUN_PREFIX}%'"), [])?;
+        tx.execute(&format!("delete from conditions where run_id like '{REFERENCE_RUN_PREFIX}%'"), [])?;
+        let n = tx.execute(&format!("delete from stories where {cond}"), [])?;
+        tx.execute(&format!("delete from runs where id like '{REFERENCE_RUN_PREFIX}%'"), [])?;
+        tx.commit()?;
+        Ok(n)
     }
 
     pub fn set_meta(&self, key: &str, value: &str) -> Result<()> {
