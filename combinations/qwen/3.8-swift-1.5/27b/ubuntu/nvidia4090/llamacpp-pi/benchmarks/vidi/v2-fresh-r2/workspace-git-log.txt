@@ -1,3 +1,38 @@
+commit b7794af460d88fb711c5818f02ff1613ed093269
+agent  Sat Oct 3 11:29:43 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ PROGRESS.md                           |  18 +-
+ src/client/App.tsx                    |  15 +-
+ src/client/board/useBoardDoc.ts       |  24 +-
+ src/client/canvas/testHooks.ts        |  40 +++-
+ src/client/sync/ConnectionStatus.tsx  |   3 +
+ src/client/sync/connectBoard.ts       |  45 +++-
+ src/shared/config.ts                  |  18 ++
+ src/shared/protocol.ts                |   4 +
+ src/worker/board-room.ts              | 243 ++++++++++++++------
+ src/worker/board-store.ts             | 260 +++++++++++++++++++++
+ src/worker/room-state.ts              | 102 +++++++++
+ tests/component/load-failure.test.tsx | 227 +++++++++++++++++++
+ tests/e2e/broken-board.spec.ts        |  83 +++++++
+ tests/e2e/persistence.spec.ts         | 129 +++++++++++
+ tests/fixtures/boards.ts              | 413 ++++++++++++++++++++++++++++++++++
+ tests/integration/board-store.test.ts | 382 +++++++++++++++++++++++++++++++
+ tests/integration/globals.d.ts        |  16 +-
+ tests/integration/ws-room.test.ts     | 119 +++++++++-
+ tests/unit/board-store-chunks.test.ts | 110 +++++++++
+ tests/unit/room-state.test.ts         | 128 +++++++++++
+ 20 files changed, 2288 insertions(+), 91 deletions(-)
+commit 8bc0c368a5bb30ffda63520cd3f29b4b6a169893
+vidi-agent  Sat Oct 3 10:47:27 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit 6d7e8bfdda9103b75fc7d8d8d3c59787ddc5d376
 agent  Sat Oct 3 10:44:46 2026 +0100
 
