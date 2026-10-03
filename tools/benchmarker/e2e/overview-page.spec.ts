@@ -56,7 +56,8 @@ async function expectNoPanel(page: Page) {
   await expect(page.locator(PANEL)).toHaveCount(0);
   await expect(page.getByRole("button", { name: /copy/i })).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText(OWNER_WORDS);
-  expect(await page.title()).not.toMatch(/needs|\d/i);
+  // The title is the page's trail (a run id has digits); never a count of problems or a call on the owner.
+  expect(await page.title()).not.toMatch(/needs|\(\d+\)|^\d+ |\d+ (problem|issue|fault|unchecked)/i);
 }
 const now = (page: Page) => overview(page).locator('[data-section="now"]');
 const nowRow = (page: Page, machine: string) => now(page).locator(`tr[data-machine="${machine}"]`);

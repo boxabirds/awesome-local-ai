@@ -17,7 +17,10 @@ const FAULT_WORDS = /harness|\bbug\b|since fixed|fixed in [0-9a-f]|\ba fix\b|com
 /** The pages swept: one of each kind, on the fixture's data, including the ones with a fault behind them. */
 const PAGES: [string, string][] = [
   ["overview", "#/"],
-  ["machines list", "#/"],
+  ["machines list", "#/machines"],
+  // Not the setup page: it is instructions for making a node, which name the harness and what happens when a job
+  // fails, not results; network-neutral.spec.ts covers its words.
+  ["stories index", "#/vidi/stories"],
   ["combination (a failed check, a pending score, an invalid run)", `#/vidi/c/${enc(SWIFT)}`],
   ["combination (a cloud model, no accounting)", `#/vidi/c/${enc(OPUS)}`],
   ["combination (a final re-score that failed)", `#/vidi/c/${enc(VK)}`],
@@ -30,8 +33,8 @@ const PAGES: [string, string][] = [
   ["story run (no accounting)", `${runHref(OPUS, "run-9")}/s/1`],
   ["story page", "#/vidi/s/1"],
   ["story page 2", "#/vidi/s/2"],
-  ["machine (running, queue, ended jobs with reasons)", "#/m/node-a"],
-  ["machine (idle)", "#/m/node-d"],
+  ["machine (running, queue, ended jobs with reasons)", "#/machines/node-a"],
+  ["machine (idle)", "#/machines/node-d"],
   ["conversation (complete, with fault words in the agent's own text)", `${runHref(SWIFT, "v2-r5")}/s/2/conversation`],
   ["conversation (not available)", `${runHref(SWIFT, "v2-r5")}/s/1/conversation`],
   ["call (its thinking and a failed tool's result)", `${runHref(SWIFT, "v2-r5")}/s/2/conversation/c/1`],
@@ -77,7 +80,6 @@ test.describe("no page narrates a fault", () => {
   for (const [name, href] of PAGES) {
     test(`${name}: no fault word in its text, hovers or labels`, async ({ page }) => {
       await page.goto(`/${href}`);
-      if (name === "machines list") await page.getByRole("tab", { name: "Machines" }).click();
       await expect(page.locator("[data-page]")).toBeVisible();
       const all = await everything(page);
       const hit = all.match(FAULT_WORDS);

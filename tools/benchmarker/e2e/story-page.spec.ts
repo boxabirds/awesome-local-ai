@@ -59,7 +59,8 @@ test.describe("header", () => {
     await expect(h.locator("h1")).toHaveText("Story 2: Sticky notes");
     await expect(h.locator(".eyebrow")).toHaveText("Story · vidi · vidi-v2");
     const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
-    await expect(crumbs.locator('[aria-current="page"]')).toHaveText("vidi story 2");
+    await expect(crumbs.locator('[aria-current="page"]')).toHaveText("Story 2");
+    await expect(crumbs.getByRole("link", { name: "Stories" })).toHaveAttribute("href", "#/vidi/stories");
     await crumbs.getByRole("link", { name: "Overview" }).click();
     await expect(page.locator("table.combos")).toBeVisible();
   });
@@ -521,7 +522,7 @@ test.describe("every link lands on its entity", () => {
     await open(page, "2");
     const bad = await page$(page).locator("a").evaluateAll((as) => as
       .filter((a) => !a.classList.contains("seg-link"))
-      .filter((a) => !/^#\/(vidi\/(c|r|s)\/|m\/|$)/.test(a.getAttribute("href") ?? "") || !(a.textContent ?? "").trim())
+      .filter((a) => !/^#\/(vidi\/(c|r|s)\/|vidi\/stories$|machines(\/|$)|$)/.test(a.getAttribute("href") ?? "") || !(a.textContent ?? "").trim())
       .map((a) => a.outerHTML));
     expect(bad).toEqual([]);
   });
@@ -532,6 +533,10 @@ test.describe("keyboard", () => {
   test("Tab goes from the breadcrumb into the story list, then the header's links", async ({ page }) => {
     await open(page, "2");
     await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Overview" }).focus();
+    await page.keyboard.press("Tab");
+    await expect(page.locator(":focus")).toHaveText("Stories");             // the Stories crumb, to the index
+    await page.keyboard.press("Tab");
+    await expect(page.locator(":focus")).toHaveText("Stories");             // the list's heading, to the index too
     await page.keyboard.press("Tab");
     await expect(page.locator(":focus")).toHaveText("1 Pan and zoom");
     await expect(page.locator(":focus")).toHaveCSS("outline-style", "solid");

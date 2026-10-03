@@ -1,7 +1,7 @@
 // Who the machine is: its hardware, OS, job service version and reachability, and what is installed on it (each
 // installed combination a link to its page once it has a run).
 import type { Row } from "../../../shared/types.ts";
-import { overviewHref } from "../../../shared/routes.ts";
+import { machinesHref } from "../../../shared/routes.ts";
 import { CombinationLink } from "../EntityLinks.tsx";
 import { Missing, Term } from "../run/bits.tsx";
 import { hardware, type MachineInfo } from "./machineApi.ts";
@@ -35,7 +35,7 @@ export function MachineHeader({ machine, info, listed, runs, all }: { machine: s
       <div className="mp-title">
         <div className="eyebrow">Machine</div>
         <h1>{machine}</h1>
-        <RemoveMachine name={machine} listed={Boolean(info)} onRemoved={() => { location.hash = overviewHref(); }} />
+        <RemoveMachine name={machine} listed={Boolean(info)} onRemoved={() => { location.hash = machinesHref(); }} />
       </div>
       <dl className="mp-facts">
         <div><dt><Term id="hardware" /></dt><dd data-fact="hardware">{hw || (host ? <span data-tip="From its runs' records.">{host}</span> : <Missing why={why} />)}</dd></div>

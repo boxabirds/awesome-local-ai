@@ -260,8 +260,29 @@ export function turnShown(t: Turn, f: TurnFilter): boolean {
 export function kindsFromParam(kind: string | undefined): Set<TurnKind> {
   const all = new Set(TURN_KINDS.map((k) => k.id));
   if (!kind) return all;
-  const one = TURN_KINDS.find((k) => k.id === kind);
-  return one ? new Set([one.id]) : all;
+  const named = kind.split(KIND_SEP).map((k) => TURN_KINDS.find((t) => t.id === k)?.id).filter((k): k is TurnKind => k !== undefined);
+  return named.length ? new Set(named) : all;
+}
+
+const KIND_SEP = ",";
+/** The address's form of the kinds shown: left out when every kind is (the plain address shows everything). */
+export function kindsToParam(kinds: Set<TurnKind>): string | undefined {
+  const ids = TURN_KINDS.map((k) => k.id).filter((k) => kinds.has(k));
+  return ids.length === TURN_KINDS.length ? undefined : ids.join(KIND_SEP);
+}
+
+const SPAN_SEP = "-";
+/** A span of the story in the address: "a-b", whole milliseconds from the story's start; anything else is no span. */
+export function spanFromParam(span: string | undefined, fromMs: number): [number, number] | null {
+  const m = span === undefined ? null : /^(\d+)-(\d+)$/.exec(span);
+  if (!m) return null;
+  const a = Number(m[1]), b = Number(m[2]);
+  return a < b ? [fromMs + a, fromMs + b] : null;
+}
+
+export function spanToParam(range: [number, number] | null, fromMs: number): string | undefined {
+  if (!range) return undefined;
+  return `${Math.round(range[0] - fromMs)}${SPAN_SEP}${Math.round(range[1] - fromMs)}`;
 }
 
 /** `m:ss` past a minute, `s.s s` under it: a moment of the story. */

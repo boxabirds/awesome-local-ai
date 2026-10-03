@@ -310,7 +310,7 @@ test.describe("combination page", () => {
   test("related: each machine links to its page; no other combination of this model", async ({ page }) => {
     const related = page.locator('[data-section="related"]');
     await expect(related.locator(".related-machines li")).toHaveText(["node-a Intel Core i9 + RTX 4090 64GB"]);
-    await expect(related.locator(".related-machines a.machine-link")).toHaveAttribute("href", "#/m/node-a");
+    await expect(related.locator(".related-machines a.machine-link")).toHaveAttribute("href", "#/machines/node-a");
     await expect(related.locator('[data-related="none"]')).toHaveText("No other combination of qwen/3.8-swift-1.5/27b in vidi.");
   });
 

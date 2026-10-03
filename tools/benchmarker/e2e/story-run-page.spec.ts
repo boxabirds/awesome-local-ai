@@ -44,7 +44,7 @@ test.describe("header", () => {
     const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
     await expect(crumbs.locator("a.combination-link")).toHaveAttribute("href", `#/vidi/c/${enc(SWIFT)}`);
     await expect(crumbs.locator("a.run-link")).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r5`);
-    await expect(crumbs.locator('[aria-current="page"]')).toHaveText("story 2");
+    await expect(crumbs.locator('[aria-current="page"]')).toHaveText("Story 2");
     await expect(section(page, "header").locator("h1")).toHaveText("Story 2 · Sticky notes");
     await expect(section(page, "header").locator(".of-run a.run-link")).toHaveText("3.8-swift-1.5/27b llamacpp v2-r5");
     await expect(section(page, "header").locator(".of-run")).toContainText("on node-a");
@@ -880,7 +880,7 @@ test.describe("links and keyboard", () => {
         continue;
       }
       if (route.page === "conversation" || route.page === "call") {
-        await expect(page.locator(`[data-page="${route.page}"] .breadcrumb a.story-run-link`), href).toHaveText(`story ${Number(route.story)}`);
+        await expect(page.locator(`[data-page="${route.page}"] .breadcrumb a.story-run-link`), href).toHaveText(`Story ${Number(route.story)}`);
         continue;
       }
       throw new Error(`${href} names no page`);

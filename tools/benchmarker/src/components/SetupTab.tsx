@@ -1,8 +1,12 @@
 /** How to make a machine a benchmark node, and what access each part needs. Static text: the steps come from
  * tools/dbench/README.md and benchmarks/spec-bench/harness/setup-node.sh, which have the details. */
-export function SetupTab() {
+import type { Route } from "../../shared/routes.ts";
+import { Breadcrumb } from "./EntityLinks.tsx";
+
+export function SetupTab({ route }: { route: Route }) {
   return (
-    <article className="setup">
+    <article className="setup" data-page="setup">
+      <Breadcrumb route={route} />
       <h1>Make a machine a benchmark node</h1>
       <p>A node is a machine that runs benchmark jobs. It runs <code>dbench serve</code>, a small service with a job queue; this page
         and the <code>dbench</code> command line talk to it over a private network you trust (a home or office LAN, a VPN: any will do). Each job runs the harness, which drives the

@@ -26,7 +26,7 @@ test("from the overview's Now: the running run and its machine open their pages"
   await expect(page$(page, "run")).toBeVisible();
   await page.goBack();
   await now.locator("a.machine-link", { hasText: "node-a" }).click();
-  await expect(page).toHaveURL(/#\/m\/node-a$/);
+  await expect(page).toHaveURL(/#\/machines\/node-a$/);
   await expect(page$(page, "machine")).toBeVisible();
 });
 
@@ -34,7 +34,7 @@ test("breadcrumbs: a story run sits under its run, which sits under its combinat
   await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5/s/2`);
   const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
   await expect(crumbs).toContainText("Overview");
-  await expect(crumbs.locator('[aria-current="page"]')).toContainText("story 2");
+  await expect(crumbs.locator('[aria-current="page"]')).toContainText("Story 2");
   await crumbs.locator("a.run-link").click();
   await expect(page$(page, "run")).toBeVisible();
   await page.getByRole("navigation", { name: "Breadcrumb" }).locator("a.combination-link").click();
@@ -59,11 +59,14 @@ test("a run in another pack with the same id is a different page", async ({ page
   await expect(page$(page, "notFound")).toBeVisible();
 });
 
-test("the tabs always go back to the overview", async ({ page }) => {
+test("the tabs are links to their sections' addresses, from any page", async ({ page }) => {
   await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5`);
   await page.getByRole("tab", { name: "Machines" }).click();
-  await expect(page).toHaveURL(/#\/$/);
+  await expect(page).toHaveURL(/#\/machines$/);
   await expect(page$(page, "machines")).toBeVisible();
+  await page.getByRole("tab", { name: "Runs" }).click();
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(page.locator("table.combos")).toBeVisible();
 });
 
 // Runs are only compared with runs of the same pack version family: a v1 run was built against another spec
@@ -99,7 +102,7 @@ test.describe("comparisons stay within one version family", () => {
 test.describe("machine and story addresses", () => {
   test("every machine name links to its page, from the overview and from a run", async ({ page }) => {
     await page.getByRole("table", { name: "Now" }).locator("a.machine-link", { hasText: "node-a" }).click();
-    await expect(page).toHaveURL(/#\/m\/node-a$/);
+    await expect(page).toHaveURL(/#\/machines\/node-a$/);
     await expect(page$(page, "machine")).toBeVisible();
     await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5`);
     await page.locator('[data-fact="machine"] a.machine-link').click();

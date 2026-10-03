@@ -1,6 +1,7 @@
 import type { Row, State } from "../../shared/types.ts";
 import { otherRuns } from "../../shared/runView.ts";
-import { Breadcrumb, CombinationLink } from "../components/EntityLinks.tsx";
+import type { Route } from "../../shared/routes.ts";
+import { Breadcrumb } from "../components/EntityLinks.tsx";
 import { RunHeader } from "../components/run/RunHeader.tsx";
 import { RunStories } from "../components/run/RunStories.tsx";
 import { Ran } from "../components/run/HeldOutAndJobs.tsx";
@@ -22,11 +23,11 @@ function Interventions({ run }: { run: Row }) {
 
 /** Everything about one run, in reading order: identity, outcome, where the time went, cost, evidence, provenance
  * (plan section 4.3). */
-export function RunPage({ run, state, params }: { run: Row; state: State; serverNow: number | null; params?: Record<string, string> }) {
+export function RunPage({ route, run, state, params }: { route: Route; run: Row; state: State; serverNow: number | null; params?: Record<string, string> }) {
   const others = otherRuns(run, state.rows);
   return (
     <div className="page run-page" data-page="run">
-      <Breadcrumb trail={[{ label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> }, { label: run.runId }]} />
+      <Breadcrumb route={route} names={{ combination: run.label }} />
       <RunHeader run={run} state={state} />
       <RunStories run={run} rows={state.rows} />
       <Ran run={run} />

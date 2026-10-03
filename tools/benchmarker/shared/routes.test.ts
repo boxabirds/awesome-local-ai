@@ -111,3 +111,78 @@ describe("conversation addresses", () => {
     expect(parseRoute(`#/vidi/r/${encodeURIComponent(stack)}/v2-r1/s/3/other`).page).toBe("notFound");
   });
 });
+
+// Navigation (specs/general/UI-IMPROVEMENTS.md, Part 1): every screen has an address, each page knows its section,
+// and one function spells every page's trail.
+describe("section addresses", () => {
+  it("the four sections: #/ is runs, and machines, setup and a pack's stories have addresses of their own", async () => {
+    const { machinesHref, setupHref, storiesHref, parseRoute } = await import("./routes.ts");
+    expect(parseRoute(machinesHref())).toEqual({ page: "machines", params: {} });
+    expect(parseRoute(setupHref())).toEqual({ page: "setup", params: {} });
+    expect(parseRoute(storiesHref("vidi"))).toEqual({ page: "stories", pack: "vidi", params: {} });
+    expect(machinesHref()).toBe("#/machines");
+    expect(setupHref()).toBe("#/setup");
+    expect(storiesHref("vidi")).toBe("#/vidi/stories");
+  });
+  it("a machine page sits under machines, and the old #/m/ address still opens it", () => {
+    expect(machineHref("node-a")).toBe("#/machines/node-a");
+    expect(parseRoute("#/machines/node-a")).toEqual({ page: "machine", machine: "node-a", params: {} });
+    expect(parseRoute("#/m/node-a")).toEqual({ page: "machine", machine: "node-a", params: {} });
+  });
+  it.each([
+    ["machines with extra segments", "#/machines/node-a/x"],
+    ["setup with a segment", "#/setup/x"],
+    ["stories with a segment", "#/vidi/stories/2"],
+  ])("%s is not found", (_, h) => expect(parseRoute(h).page).toBe("notFound"));
+  it("every page kind belongs to one section; not found to none", async () => {
+    const { sectionOf, conversationHref, callHref, machinesHref, setupHref, storiesHref } = await import("./routes.ts");
+    const of = (h: string) => sectionOf(parseRoute(h));
+    expect(of(overviewHref())).toBe("runs");
+    expect(of(combinationHref("vidi", SWIFT))).toBe("runs");
+    expect(of(runHref("vidi", SWIFT, "v2-r1"))).toBe("runs");
+    expect(of(storyRunHref("vidi", SWIFT, "v2-r1", "2"))).toBe("runs");
+    expect(of(conversationHref("vidi", SWIFT, "v2-r1", "2"))).toBe("runs");
+    expect(of(callHref("vidi", SWIFT, "v2-r1", "2", 0))).toBe("runs");
+    expect(of(storiesHref("vidi"))).toBe("stories");
+    expect(of(storyHref("vidi", "2"))).toBe("stories");
+    expect(of(machinesHref())).toBe("machines");
+    expect(of(machineHref("node-a"))).toBe("machines");
+    expect(of(setupHref())).toBe("setup");
+    expect(of("#/vidi/x")).toBe(null);
+  });
+});
+
+describe("the trail, one shape per page kind", () => {
+  const names = { combination: "3.8-swift-1.5/27b llamacpp" };
+  const texts = (crumbs: { label: string; href?: string }[]) => crumbs.map((c) => (c.href ? `${c.label}(${c.href})` : c.label));
+  it.each([
+    ["overview", overviewHref(), []],
+    ["combination", combinationHref("vidi", SWIFT), ["Overview(#/)", "3.8-swift-1.5/27b llamacpp"]],
+    ["run", runHref("vidi", SWIFT, "v2-r1"), ["Overview(#/)", `3.8-swift-1.5/27b llamacpp(${combinationHref("vidi", SWIFT)})`, "v2-r1"]],
+    ["story run", storyRunHref("vidi", SWIFT, "v2-r1", "02"), ["Overview(#/)", `3.8-swift-1.5/27b llamacpp(${combinationHref("vidi", SWIFT)})`, `v2-r1(${runHref("vidi", SWIFT, "v2-r1")})`, "Story 2"]],
+    ["conversation", `${storyRunHref("vidi", SWIFT, "v2-r1", "2")}/conversation?kind=tool`, ["Overview(#/)", `3.8-swift-1.5/27b llamacpp(${combinationHref("vidi", SWIFT)})`, `v2-r1(${runHref("vidi", SWIFT, "v2-r1")})`, `Story 2(${storyRunHref("vidi", SWIFT, "v2-r1", "2")})`, "Conversation"]],
+    ["call", `${storyRunHref("vidi", SWIFT, "v2-r1", "2")}/conversation/c/3`, ["Overview(#/)", `3.8-swift-1.5/27b llamacpp(${combinationHref("vidi", SWIFT)})`, `v2-r1(${runHref("vidi", SWIFT, "v2-r1")})`, `Story 2(${storyRunHref("vidi", SWIFT, "v2-r1", "2")})`, `Conversation(${storyRunHref("vidi", SWIFT, "v2-r1", "2")}/conversation)`, "Call 4"]],
+    ["stories", "#/vidi/stories", ["Overview(#/)", "Stories"]],
+    ["story", storyHref("vidi", "7"), ["Overview(#/)", "Stories(#/vidi/stories)", "Story 7"]],
+    ["machines", "#/machines", ["Overview(#/)", "Machines"]],
+    ["machine", machineHref("node-a"), ["Overview(#/)", "Machines(#/machines)", "node-a"]],
+    ["setup", "#/setup", ["Overview(#/)", "Setup"]],
+    ["not found", "#/vidi/x", []],
+  ])("%s", async (_, href, want) => {
+    const { trailFor } = await import("./routes.ts");
+    expect(texts(trailFor(parseRoute(href), names))).toEqual(want);
+  });
+  it("the combination crumb carries the full id as its hover, and each entity crumb its link class", async () => {
+    const { trailFor } = await import("./routes.ts");
+    const trail = trailFor(parseRoute(storyRunHref("vidi", SWIFT, "v2-r1", "2")), names);
+    expect(trail[1]).toMatchObject({ cls: "combination-link", tip: SWIFT });
+    expect(trail[2]).toMatchObject({ cls: "run-link", tip: `${SWIFT} · v2-r1` });
+    expect(trail[3]).not.toHaveProperty("href");
+  });
+  it("a page's title is its trail, nearest first", async () => {
+    const { titleFor, trailFor } = await import("./routes.ts");
+    expect(titleFor(trailFor(parseRoute(runHref("vidi", SWIFT, "v2-r1")), names))).toBe("v2-r1 · 3.8-swift-1.5/27b llamacpp · Benchmarker");
+    expect(titleFor(trailFor(parseRoute(overviewHref()), names))).toBe("Benchmarker");
+    expect(titleFor(trailFor(parseRoute(machineHref("node-a")), names))).toBe("node-a · Machines · Benchmarker");
+  });
+});

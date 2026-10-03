@@ -4,6 +4,7 @@ import type { Row, State } from "../../shared/types.ts";
 import { NOT_COUNTED_ORDER, summarise } from "../../shared/stats.ts";
 import { buildMatrix, DEFAULT_METRIC, METRICS, type Metric } from "../../shared/combinationView.ts";
 import { qualityClass } from "../format.ts";
+import type { Route } from "../../shared/routes.ts";
 import { Breadcrumb, MachineLink } from "../components/EntityLinks.tsx";
 import { Term, termTip } from "../components/combination/Term.tsx";
 import { fmtCount, fmtHours, fmtTokens, SpreadText } from "../components/combination/Spread.tsx";
@@ -31,7 +32,7 @@ function Kpi({ term, s, fmt }: { term: TermId; s: Spread | null; fmt: (n: number
 /** The metric an address names (?metric=calls); the default for none or one that isn't a metric. */
 const metricOf = (m: string | undefined): Metric => (METRICS as string[]).includes(m ?? "") ? (m as Metric) : DEFAULT_METRIC;
 
-export function CombinationPage({ stack, runs, state, params }: { stack: string; runs: Row[]; state: State; serverNow: number | null; params?: Record<string, string> }) {
+export function CombinationPage({ route, stack, runs, state, params }: { route: Route; stack: string; runs: Row[]; state: State; serverNow: number | null; params?: Record<string, string> }) {
   const [metricParam, setMetricParam] = useAddressParam(params, "metric");
   const metric = metricOf(metricParam);
   // The default is left out of the address, so the plain address and "minutes" are one page.
@@ -45,7 +46,7 @@ export function CombinationPage({ stack, runs, state, params }: { stack: string;
   ].filter(Boolean);
   return (
     <div className="page combination-page" data-page="combination" data-stack={stack}>
-      <Breadcrumb trail={[{ label: c.label }]} />
+      <Breadcrumb route={route} names={{ combination: c.label }} />
       <header className="combo-page-head">
         <div className="combo-title">
           <h1>{c.label}</h1>
