@@ -1,9 +1,104 @@
 # UI/UX Improvements
 
-Two reviews of the benchmarker, newest first. Part 1 is navigation across the site (3 October 2026, evening).
-Part 2 is the conversation page (3 October 2026, afternoon; its Critical and most High items are built).
+Three reviews of the benchmarker, newest first. Part 1 is the story-run header as it sits above the
+conversation (3 October 2026, evening). Part 2 is navigation across the site (3 October 2026, evening; built).
+Part 3 is the conversation page (3 October 2026, afternoon; its Critical and most High items are built).
 
-## Part 1: navigation across the site (3 October 2026)
+## Part 1: the story-run header above the conversation (3 October 2026)
+
+Reviewed from the owner's screenshot of `…/v2-gufo05-r1/s/1/conversation`, a story still running, and the code
+that draws it (`StoryRunParts.tsx` `StoryRunHeader`, `run.css`, `ConversationPage.tsx`). The owner's words: "cluttered
+with lots of useless unnecessary information and could take up far less space. Focus on what is essential and
+emphasise that; delete informational clutter and deemphasise the rest."
+
+### Summary
+
+The conversation page opens with the story-run page's header card, whole, and then its own pinned head
+(title, count, range, chips, search, strip). The card was designed for a page about the story run, where its four
+figures are the point. Above a conversation they are context, and most of the card is not even that: a label
+saying what kind of thing the card is, the combination and run and story the breadcrumb has just named, two
+statuses, two held-out fractions with a sentence under each explaining the difference, and a 32 px "52 min".
+Twelve pieces of text, four of them explanations, for a reader who came to read what the agent did.
+
+What is essential here: which story (number and title), whether it is done and how it did (one status, one
+fraction), and that it is still running if it is. Everything else is a click away on the story-run crumb.
+The fix is one line, not a card, and it belongs on the conversation's own pinned head so the page starts
+with the conversation.
+
+### Critical Issues
+
+#### Issue: A page about the conversation starts with a card about something else
+**Current State**: `ConversationPage` renders `<StoryRunHeader>` unchanged under the breadcrumb, then its own
+`conv-head`. The card: eyebrow STORY RUN; h1 "Story 1 · Pan and zoom around an infinite board"; a line "3.8/
+flash-next gufo **v2-gufo05-r1** on tritus · run ▶ running"; then four stats with uppercase labels: STORY
+STATUS "DONE", HELD-OUT "6/6" with "this story's own tests, after it", WHOLE SUITE SO FAR "6/6" with "whole
+suite so far", AGENT TIME "52 min" in the page's largest type.
+**Problem**: The reader has to scroll past the card and the conversation's own head before the first turn.
+The card's loudest element (52 min) is the least relevant figure on this page; the breadcrumb directly above
+already says combination › run › story; "run ▶ running" and "STORY STATUS DONE" are two statuses of two
+things, side by side, which reads as a contradiction until the reader works out that one is the run's and one
+the story's; "whole suite so far" duplicates "held-out" on every story where they agree; the two subtitles
+explain a distinction that belongs in the glossary hover, not on every page load. The eyebrow "STORY RUN"
+names the card's type for nobody.
+**Recommendation**: Delete the card from the conversation page. Put one line at the top of the conversation's
+pinned head, before the "Conversation" row:
+
+    Story 1 · Pan and zoom around an infinite board      done · 6/6 · 52 min · running on tritus
+
+Left: the story's number and title, the page's h1 (18 px, not 22). Right, in the small muted type the head
+already uses for "count · range · events": the story's status word in its colour, the held-out fraction, the
+agent time, and only while the run is still going, "running on <machine>" with the ▶ mark. Nothing else: no
+eyebrow, no labels, no subtitles, no whole-suite fraction (it is on the story-run page, one crumb back), no
+combination or run name (the breadcrumb has both, and the title of the window too).
+**Impact**: The first turn is on screen when the page opens. The reader's eye lands on the story's title and
+then the conversation, not on a 52.
+**Implementation Notes**: a `StoryRunLine` in `StoryRunParts.tsx` (or in `ConversationPage.tsx`, it is used
+nowhere else) taking `run`, `st`, `storyId`, `title`; `ConversationPage` and `CallPage` use it in place of
+`StoryRunHeader`. The glossary hovers stay on the words ("done" carries `storyStatus`, "6/6" carries
+`storyHeldOut`). Tests: `conversation.spec.ts` section A asserts the line's text for a recorded story and for
+one still being built (status "building", no fraction); `no-faults.spec.ts` sweeps it as part of the page.
+
+### High Priority Improvements
+
+#### Issue: The same card on the story-run page carries the same clutter
+**Current State**: On `…/s/1` the card is the page's header and its figures are the page's point, but the
+eyebrow, the two subtitles and the two-status line are the same there.
+**Recommendation**: Keep the card there with: no eyebrow; the of-run line as "v2-gufo05-r1 on tritus · ▶
+running" (the combination is in the breadcrumb and the h1 can carry it on hover); the subtitles removed from
+under the fractions and kept as the terms' hovers; the two fractions labelled "This story" and "Suite so far"
+under one heading "Held-out"; agent time at the same size as the other figures. The story's status word stays
+first and keeps its colour.
+**Impact**: The page about the story run stays a page of figures, a third shorter, with one status per
+thing and nothing explaining itself twice.
+
+#### Issue: Two statuses, one next to the other, for two different things
+**Current State**: "run ▶ running" (the run's) on the of-run line, "STORY STATUS DONE" (the story's) in the
+stats.
+**Recommendation**: The story's status is the one that matters on a story page; show it first and in colour.
+The run's status is shown only when it differs in a way the reader needs: running (so the conversation may
+grow), failed or cancelled (so the story may have been cut short). "finished" adds nothing and goes.
+
+### Medium Priority Enhancements
+
+- **The call page** has the same card above one call. The same one line, with "call 3 of 20" where the
+  conversation page has its count.
+- **"title not known yet"** in the h1 for a story without a title reads as a fault note; show the number alone.
+- **The breadcrumb and the h1 both say "Story 1"**; once the line is one row this is fine, but the crumb could
+  carry the title on hover for a reader scanning the trail.
+
+### Low Priority Suggestions
+
+- Agent time as "52 min" is right; the 32 px `big-n` style is for the one number a page is about (the run
+  page's score), and should not be reused for a context figure anywhere.
+
+### Positive Observations
+
+- The breadcrumb now carries the whole identity (combination › run › story), which is what makes the card's
+  identity lines deletable.
+- The glossary hovers on the labels are the right place for "this story's own tests, after it"; the words
+  only need to move there.
+
+## Part 2: navigation across the site (3 October 2026)
 
 ### Status (3 October 2026, the same evening)
 
@@ -198,7 +293,7 @@ hash. `RemoveMachine` goes to `#/machines`.
 - `links.spec.ts` already pins crumbs and tab targets, so each change above has a test to change rather than a
   test to invent.
 
-## Part 2: the conversation page (3 October 2026)
+## Part 3: the conversation page (3 October 2026)
 Review of the benchmarker's conversation page, 3 October 2026, at
 `#/vidi/r/<stack>/v2-gufo05-r1/s/1/conversation` (a story still running: 154 model calls, 170 tool calls, 651 events,
 52 minutes), 1148 px wide. Reviewed as a reader who has just clicked a time bar to see what the agent did.
