@@ -82,6 +82,7 @@ export function StickyNote({
       role="group"
       aria-label="Sticky note"
       data-note-id={note.id}
+      data-object-id={note.id}
       data-selected={selected ? 'true' : 'false'}
       data-testid={`sticky-note-${note.id}`}
       tabIndex={0}

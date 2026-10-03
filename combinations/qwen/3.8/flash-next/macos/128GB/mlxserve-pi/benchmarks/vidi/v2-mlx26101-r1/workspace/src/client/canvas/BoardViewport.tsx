@@ -14,6 +14,7 @@ import {
 } from '../../shared/config';
 import type { Camera, Point } from './camera';
 import type { WheelInput } from './useCamera';
+import type { Tool } from '../board/useTool';
 
 /** Convert a non-pixel wheel deltaMode to CSS pixels. */
 const PIXELS_PER_LINE = 16;
@@ -42,6 +43,14 @@ export interface BoardViewportProps {
   onEmptyClick?(): void;
   /** Shift + press on empty board space: begin a marquee instead of a pan. */
   onMarqueeStart?(p: Point): void;
+  /** The active tool (story 9): the Text tool changes the cursor and click action. */
+  tool?: Tool;
+  /**
+   * The Text tool is held and the board was clicked (a press-and-release that did not
+   * move, anywhere — empty space or on top of an object) at this surface point. The
+   * board creates a text object there. Takes precedence over pan / marquee / select.
+   */
+  onCreateTextAt?(p: Point): void;
   children?: ReactNode;
 }
 
@@ -68,6 +77,8 @@ export const BoardViewport = forwardRef<HTMLDivElement, BoardViewportProps>(
       onCreateStickyAt,
       onEmptyClick,
       onMarqueeStart,
+      tool = 'select',
+      onCreateTextAt,
       children,
     },
     ref,
@@ -76,6 +87,12 @@ export const BoardViewport = forwardRef<HTMLDivElement, BoardViewportProps>(
     const [panning, setPanning] = useState(false);
     const panStart = useRef<Point | null>(null);
     const movedRef = useRef(false);
+    const textToolActive = tool === 'text';
+
+    // Latest click-to-create callback, read by the (stable) text-tool capture
+    // listener below so it never re-subscribes mid-gesture.
+    const createTextRef = useRef(onCreateTextAt);
+    createTextRef.current = onCreateTextAt;
 
     const setSurface = useCallback(
       (node: HTMLDivElement | null) => {
@@ -238,6 +255,37 @@ export const BoardViewport = forwardRef<HTMLDivElement, BoardViewportProps>(
       return () => window.removeEventListener('keydown', onKeyDown);
     }, [onZoomStep, onReset]);
 
+    // --- Text tool: the next click anywhere places text (story 9) -----------
+    // A capture-phase pointerdown on the surface beats every object's own bubble
+    // handler (capture runs root → target, and stopPropagation here means an
+    // object's onPointerDown never fires), so the Text tool neither pans, marquees
+    // nor selects — it only records the press. Releasing within the click slop
+    // creates text at that point, whether the press landed on empty board or on top
+    // of an existing object ("created on top at that point").
+    useEffect(() => {
+      const el = surfaceRef.current;
+      if (!el || !textToolActive) return;
+      let startX = 0;
+      let startY = 0;
+      const onCaptureDown = (e: PointerEvent) => {
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        e.stopPropagation();
+        startX = e.clientX;
+        startY = e.clientY;
+      };
+      const onUp = (e: PointerEvent) => {
+        if (Math.hypot(e.clientX - startX, e.clientY - startY) >= CLICK_MOVE_SLOP_PX)
+          return;
+        createTextRef.current?.(toLocal(e.clientX, e.clientY));
+      };
+      el.addEventListener('pointerdown', onCaptureDown, true);
+      window.addEventListener('pointerup', onUp);
+      return () => {
+        el.removeEventListener('pointerdown', onCaptureDown, true);
+        window.removeEventListener('pointerup', onUp);
+      };
+    }, [textToolActive, toLocal]);
+
     // --- Rendering derived from the camera ----------------------------------
     const spacing = GRID_SPACING_WORLD * camera.zoom;
     const bgX = mod(-camera.x * camera.zoom, spacing);
@@ -255,7 +303,7 @@ export const BoardViewport = forwardRef<HTMLDivElement, BoardViewportProps>(
           inset: 0,
           overflow: 'hidden',
           touchAction: 'none',
-          cursor: panning ? 'grabbing' : 'grab',
+          cursor: panning ? 'grabbing' : textToolActive ? 'text' : 'grab',
           backgroundColor: '#f7f8fa',
           backgroundImage:
             'radial-gradient(circle, #c4c9d4 1px, transparent 1.5px)',

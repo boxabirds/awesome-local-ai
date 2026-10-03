@@ -47,7 +47,7 @@ describe('sticky.toolbar', () => {
     renderBoard();
     expect(noteCount()).toBe(0);
 
-    clickByRole('Sticky note');
+    clickByRole('Sticky note (N)');
 
     expect(noteCount()).toBe(1);
     const id = snapshot(boardDoc())[0]!.id;

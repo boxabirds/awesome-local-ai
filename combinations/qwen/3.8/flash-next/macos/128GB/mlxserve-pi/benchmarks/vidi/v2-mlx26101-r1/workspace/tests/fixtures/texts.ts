@@ -37,6 +37,36 @@ export const TWELVE_HUNDRED_CHARS: string = (() => {
 })();
 
 /**
+ * A 300 character annotation on one line (story 9). No newline in it, so the whole
+ * thing has to be wrapped by the layout: at M it is far wider than the auto-width cap.
+ */
+export const THREE_HUNDRED_CHARS: string = (() => {
+  let s = '';
+  while (s.length < 300) s += PARAGRAPH_SENTENCES.join('');
+  return s.slice(0, 300);
+})();
+
+/**
+ * A short annotation that fits inside the auto-width cap at M on one line — used to
+ * show a width drag rewrapping it. Varied words, so wrapping is real word wrapping.
+ */
+export const ONE_LINE_ANNOTATION = 'Shipped the infinite board a full day early';
+
+/**
+ * Exactly the text limit (story 9): 5,000 characters, and one more than the limit.
+ * Built from varied prose so a cut in the middle cannot land on a surrogate pair by
+ * accident the way a repeated character could.
+ */
+export const TEXT_LIMIT_CHARS: string = (() => {
+  let s = '';
+  while (s.length < 5_000) s += PARAGRAPH_SENTENCES.join('');
+  return s.slice(0, 5_000);
+})();
+
+/** One character past the text limit; the final character must be dropped. */
+export const TEXT_OVER_LIMIT_CHARS: string = TEXT_LIMIT_CHARS + '!';
+
+/**
  * Everyday retrospective words. The seeded random-op generators type real words
  * (never a repeated character) so generated boards look like real ones.
  */

@@ -19,10 +19,18 @@
 import * as Y from 'yjs';
 import {
   DEFAULT_STICKY_COLOR,
+  DEFAULT_TEXT_SIZE,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  STICKY_TEXT_MAX_CHARS,
+  TEXT_LINE_HEIGHT,
+  TEXT_MIN_WIDTH_WORLD,
+  TEXT_SIZES,
+  TEXT_MAX_CHARS,
   type StickyColor,
+  type TextSize,
 } from './config';
+import { clampToLimit } from './text-edit';
 import {
   rectContains,
   type Point,
@@ -49,7 +57,7 @@ const OBJECTS = 'objects';
  * it here. Stories 9-12 append their type names; the mutation functions below
  * stay type-agnostic so a test-only type can be exercised before it is real.
  */
-const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky']);
+const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text']);
 
 /**
  * The type-agnostic render model every generic operation (selection, marquee,
@@ -72,6 +80,23 @@ export interface StickySnapshot extends ObjectSnapshot {
   type: 'sticky';
   color: StickyColor;
   text: string;
+}
+
+/**
+ * A free text object (story 9). Its box is always explicit (width / height are
+ * written by the client that changed the text), so a text object always carries
+ * them; `widthMode` says whether the width is content-driven ('auto') or a fixed
+ * value the user dragged. `TextSnapshot` re-declares width/height as required so
+ * renderers do not have to re-narrow them.
+ */
+export interface TextSnapshot extends ObjectSnapshot {
+  type: 'text';
+  text: string;
+  size: TextSize;
+  widthMode: 'auto' | 'fixed';
+  width: number;
+  height: number;
+  createdBy: string;
 }
 
 type ObjectMap = Y.Map<unknown>;
@@ -222,9 +247,75 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 }
 
 /**
- * Immutable render model: sticky objects only (unknown types skipped for forward
- * compatibility with stories 9-12), sorted by (z, id) so every client that ever
- * syncs this document renders the same stacking even if two notes share a z.
+ * The full render model: every object of a type the model knows (sticky, text),
+ * as a generic `ObjectSnapshot` carrying that type's own fields. This is what the
+ * board renders and the generic selection / marquee / transform machinery walks,
+ * so a text object selects, moves and resizes exactly like a sticky (text.consistent).
+ * Unknown types are skipped for forward compatibility with stories 10-12. Sorted by
+ * (z, id) so every client that ever syncs this document renders the same stacking.
+ */
+export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const out: ObjectSnapshot[] = [];
+  objects(doc).forEach((obj, id) => {
+    const type = obj.get('type');
+    if (type === 'sticky') {
+      const text = obj.get('text');
+      const color = obj.get('color');
+      const snap: StickySnapshot = {
+        id,
+        type: 'sticky',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        color: isStickyColor(color) ? color : DEFAULT_STICKY_COLOR,
+        text: clampToLimit(text instanceof Y.Text ? text.toString() : '', STICKY_TEXT_MAX_CHARS),
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+      };
+      const width = obj.get('width');
+      const height = obj.get('height');
+      if (isFiniteNumber(width)) snap.width = width;
+      if (isFiniteNumber(height)) snap.height = height;
+      out.push(snap);
+    } else if (type === 'text') {
+      const text = obj.get('text');
+      const size = obj.get('size');
+      const widthMode = obj.get('widthMode');
+      const width = obj.get('width');
+      const height = obj.get('height');
+      const createdBy = obj.get('createdBy');
+      const snap: TextSnapshot = {
+        id,
+        type: 'text',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        text: clampToLimit(text instanceof Y.Text ? text.toString() : '', TEXT_MAX_CHARS),
+        size: typeof size === 'string' && size in TEXT_SIZES ? (size as TextSize) : DEFAULT_TEXT_SIZE,
+        widthMode: widthMode === 'fixed' ? 'fixed' : 'auto',
+        // A text object always carries a finite box; a malformed one falls back to
+        // the minimum width and a single line so it still renders (never vanishes).
+        width: isFiniteNumber(width) ? width : TEXT_MIN_WIDTH_WORLD,
+        height:
+          isFiniteNumber(height)
+            ? height
+            : Math.round(TEXT_SIZES[DEFAULT_TEXT_SIZE] * TEXT_LINE_HEIGHT),
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        createdBy: typeof createdBy === 'string' ? createdBy : '',
+      };
+      out.push(snap);
+    }
+    // any other known-but-unhandled type, and unknown types, are skipped.
+  });
+  out.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return out;
+}
+
+/**
+ * Immutable render model: sticky objects only (text and other types skipped),
+ * sorted by (z, id) so every client that ever syncs this document renders the
+ * same stacking even if two notes share a z. Retained for the story 2 sticky
+ * tests and the sticky-only test handle; the board itself renders via
+ * `objectSnapshots`.
  */
 export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
   const out: StickySnapshot[] = [];

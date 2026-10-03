@@ -33,10 +33,12 @@ import { useBoardKeys } from './useBoardKeys';
 import { SelectionOverlay } from './SelectionOverlay';
 import { useBoardUndoController, UndoControllerContext } from './useUndo';
 import { SelectionBar } from './SelectionBar';
+import { useTool } from './useTool';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit } from '../sync/connectBoard';
 import { IS_TEST_MODE, publishConnectionState } from '../canvas/testHooks';
-import { getObjectType } from '../objects/registry';
+import { getHandles, getObjectType } from '../objects/registry';
+import { author } from './author';
 import {
   allObjectIds,
   createSticky,
@@ -44,6 +46,8 @@ import {
   setStickyColor,
   type ObjectSnapshot,
 } from '../../shared/board-model';
+import { createText, setTextSize } from '../../shared/objects/text';
+import type { TextSize } from '../../shared/config';
 
 /** Viewport size measured from the live board element via a ResizeObserver. */
 function useViewportSize(
@@ -96,6 +100,11 @@ export function Board({ boardId }: BoardProps) {
   // colleague's. Gesture and creation boundaries below make one gesture = one step.
   const undo = useBoardUndoController(doc);
 
+  // Which tool this person is holding (story 9): Select, or Text (the next board
+  // click writes a text object there). Per-client and never persisted, and a board
+  // that stops being editable drops Text back to Select.
+  const tool = useTool(editAllowed);
+
   // The generic transform gesture (group move + resize) and the marquee, both read
   // the live selection / snapshot through refs, so their handler identities are
   // stable and BoardViewport's effects never re-subscribe mid-gesture. A drag opens
@@ -116,8 +125,6 @@ export function Board({ boardId }: BoardProps) {
     selection,
     canEdit: editAllowed,
   });
-  useBoardKeys({ doc, selection, snapshot, canEdit: editAllowed, undo });
-
   // Render objects in a DOM order that never changes (stable by id) and express
   // stacking purely through CSS z-index (obj.z): reordering the DOM on bring-to-
   // front would relocate the node and drop the in-flight pointer (see TC-39).
@@ -132,6 +139,19 @@ export function Board({ boardId }: BoardProps) {
       if (ids.has(obj.id) && getObjectType(obj.type)?.resizable) return true;
     }
     return false;
+  }, [snapshot, ids]);
+
+  // Which handles that box offers: a selection made only of horizontal-only types
+  // (one text object) offers just the two side handles; anything mixed offers all
+  // eight, because the box belongs to the resizable objects as much as to the text.
+  const horizontalOnly = useMemo(() => {
+    let any = false;
+    for (const obj of snapshot) {
+      if (!ids.has(obj.id)) continue;
+      any = true;
+      if (getHandles(obj.type) !== 'horizontal') return false;
+    }
+    return any;
   }, [snapshot, ids]);
 
   // Let e2e assert the badge state itself, not just what is on screen.
@@ -171,6 +191,44 @@ export function Board({ boardId }: BoardProps) {
     const centre: Point = { x: viewport.width / 2, y: viewport.height / 2 };
     createAtScreen(centre);
   }, [viewport.width, viewport.height, createAtScreen, editAllowed]);
+
+  // The board keyboard: Enter edits, Delete deletes, arrows nudge, Ctrl+A selects all
+  // — plus story 9's tool keys (V / T / Escape) and N for a sticky note.
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot,
+    canEdit: editAllowed,
+    undo,
+    tool,
+    onCreateSticky: createAtCentre,
+  });
+
+  /**
+   * The Text tool: a board click places a text object whose TOP-LEFT is the click
+   * (text.create), then the tool returns to Select and the new object is selected and
+   * being edited, ready for typing. One created object is one undo step.
+   */
+  const createTextAt = useCallback(
+    (p: Point) => {
+      if (!editAllowed) return;
+      undo.boundary();
+      const id = createText(doc, screenToWorld(camera, p), author(doc));
+      tool.setTool('select');
+      if (id) startEdit(id);
+    },
+    [camera, doc, startEdit, editAllowed, undo, tool],
+  );
+
+  /** The size toolbar picked a new preset: one undo step; the object re-measures its box. */
+  const onTextSize = useCallback(
+    (id: string, size: TextSize) => {
+      if (!editAllowed) return;
+      undo.boundary();
+      setTextSize(doc, id, size);
+    },
+    [doc, editAllowed, undo],
+  );
 
   const onColor = useCallback(
     (id: string, color: string) => {
@@ -222,6 +280,8 @@ export function Board({ boardId }: BoardProps) {
         onCreateStickyAt={createAtScreen}
         onEmptyClick={clear}
         onMarqueeStart={marquee.start}
+        tool={tool.tool}
+        onCreateTextAt={createTextAt}
       >
         {ordered.map((obj) => {
           const spec = getObjectType(obj.type);
@@ -253,6 +313,7 @@ export function Board({ boardId }: BoardProps) {
         snapshot={snapshot}
         ids={ids}
         showHandles={showHandles}
+        horizontalOnly={horizontalOnly}
         onHandlePointerDown={gesture.onHandlePointerDown}
       />
       {marquee.rect ? <MarqueeRect rect={marquee.rect} camera={camera} /> : null}
@@ -261,9 +322,15 @@ export function Board({ boardId }: BoardProps) {
         snapshot={snapshot}
         ids={ids}
         onDelete={onDeleteSelection}
+        onTextSize={onTextSize}
       />
 
-      <Toolbar onCreateSticky={createAtCentre} disabled={!editAllowed} />
+      <Toolbar
+        onCreateSticky={createAtCentre}
+        tool={tool.tool}
+        onSelectTool={tool.setTool}
+        disabled={!editAllowed}
+      />
       <ConnectionStatus state={connectionState} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

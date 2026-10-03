@@ -17,6 +17,13 @@ import { worldToScreen } from '../canvas/camera';
 
 const HANDLES: readonly Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 
+/**
+ * The handles a horizontal-only type offers. A free text object's height always
+ * follows its content, so it has no top / bottom / corner handle to drag: only the
+ * two side handles, which fix its width and rewrap the text (text.fixed_width).
+ */
+const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
+
 const HANDLE_LABELS: Record<Handle, string> = {
   nw: 'Resize top-left',
   n: 'Resize top',
@@ -61,19 +68,25 @@ export interface SelectionOverlayProps {
   ids: ReadonlySet<string>;
   /** Draw handles only when some selected object's type is resizable. */
   showHandles: boolean;
+  /**
+   * Offer only the two side handles: every selected object is horizontal-only (one
+   * text object). A mixed selection keeps all eight — the group box is the sticky
+   * notes' as much as the text's — and the gesture decides per object what scales.
+   */
+  horizontalOnly?: boolean;
   onHandlePointerDown(e: ReactPointerEvent<HTMLElement>, handle: Handle): void;
 }
 
 /**
- * The screen-space selection overlay: a bounding box and (when resizable) eight
- * resize handles for the whole selection. Renders nothing while the selection is
- * empty.
+ * The screen-space selection overlay: a bounding box and (when resizable) the
+ * selection's resize handles. Renders nothing while the selection is empty.
  */
 export function SelectionOverlay({
   camera,
   snapshot,
   ids,
   showHandles,
+  horizontalOnly = false,
   onHandlePointerDown,
 }: SelectionOverlayProps): ReactElement | null {
   const rects: Rect[] = [];
@@ -83,6 +96,7 @@ export function SelectionOverlay({
   const box = unionRects(rects);
   if (!box) return null;
 
+  const handles = horizontalOnly ? HORIZONTAL_HANDLES : HANDLES;
   const tl = worldToScreen(camera, { x: box.x, y: box.y });
 
   return (
@@ -103,7 +117,7 @@ export function SelectionOverlay({
         }}
       />
       {showHandles
-        ? HANDLES.map((h) => {
+        ? handles.map((h) => {
             const p = worldToScreen(camera, handlePoint(box, h));
             return (
               <div

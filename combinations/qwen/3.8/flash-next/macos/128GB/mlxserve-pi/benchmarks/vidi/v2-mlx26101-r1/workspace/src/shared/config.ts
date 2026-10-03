@@ -208,3 +208,49 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * the oldest one (undo.limit). Generous enough that experimentation feels safe.
  */
 export const UNDO_MAX_STEPS = 200;
+
+// --- Free text settings (story 9) ------------------------------------------
+// Everything a designer might tune about free text objects lives here so the
+// model, the layout maths and the editor all agree on one set of numbers.
+
+/**
+ * The widest an auto-width text box ever grows to, in world units. A line wider
+ * than this wraps (text.auto_width); the box width is capped here.
+ */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/**
+ * Air added to the widest line when an auto-width box sizes itself to its content,
+ * in world units: box width = longest line + this, never past TEXT_MAX_AUTO_WIDTH_WORLD.
+ * Without it the last glyph of the longest line touches the box edge (and rounding
+ * differences make the box flicker between two values while typing).
+ */
+export const TEXT_AUTO_WIDTH_PADDING_WORLD = 16;
+
+/** The narrowest a fixed-width text box may be dragged to, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Hard limit on the number of characters kept in a text object. */
+export const TEXT_MAX_CHARS = 5000;
+
+/** The four text sizes, in board units (font size at 100% zoom), by preset key. */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** The size a freshly created text object starts at (text.create). */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Line-height multiplier: height = lines × font size × this (text.height). */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** The board's standard sans-serif stack; keeps text crisp at every zoom. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/**
+ * Average glyph width as a fraction of the font size, used to *estimate* a line's
+ * width when no canvas text measurer is available (jsdom, or a browser without
+ * OffscreenCanvas). Rough on purpose — it only has to keep the box sane, not be
+ * pixel-exact (measurer-unavailable error path, TC-32).
+ */
+export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.55;

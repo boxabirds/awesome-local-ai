@@ -1,17 +1,16 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import type * as Y from 'yjs';
+// The sticky note's live editor (sticky.text.editing). Story 9 generalised this
+// editor into `TextEditor` so a free text object edits exactly like a note, so what
+// is left here is the sticky note's own settings: its 2 000 character budget, its
+// shrink-to-fit font (notes have a fixed box), the near-limit counter, its classes
+// and its test ids. Every behaviour — caret at the end on mount, minimal Y.Text diff,
+// IME composition, remote typing adopted around the caret, Escape keeps the note
+// selected, a click outside deselects, Ctrl/Cmd+Z goes to this tab's undo controller,
+// undo boundaries around the edit — lives in `TextEditor` and is unchanged.
+
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
-import { LOCAL_ORIGIN } from '../../shared/board-model';
+import type * as Y from 'yjs';
 import { useUndoController } from '../board/useUndo';
-import {
-  applyTextDelta,
-  caretAfterRemoteEdit,
-  clampToLimit,
-  counterVisible,
-  fitFontSize,
-  textDelta,
-  type TextOp,
-} from './StickyText';
+import { TextEditor } from './TextEditor';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -20,217 +19,25 @@ export interface StickyTextEditorProps {
   onEnd(next: 'selected' | 'unselected'): void;
 }
 
-/** The nearest sticky-note ancestor of an element, if any. */
-function noteAncestor(el: Element | null): Element | null {
-  return el?.closest('[role="group"]') ?? null;
-}
-
-/**
- * The textarea shown while a note is being edited. It is the bridge between a
- * plain textarea and the shared Y.Text: every `input` is clamped to the character
- * limit and written to Y.Text as the delta since this box last wrote (see
- * `applyTextDelta`), so story 3's concurrent typing keeps every character.
- * IME composition is deferred to `compositionend` so multibyte input never
- * duplicates characters. Escape ends editing keeping the note selected; a
- * pointerdown outside the note ends editing and deselects. The font auto-fits as
- * text grows, and a fade marks overflow past the smallest readable size.
- */
 export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-  const composingRef = useRef(false);
   // This tab's undo controller (may be absent, e.g. a board that failed to load).
   const undo = useUndoController();
-  /** What this box last wrote to (or read from) the shared text. */
-  const baseRef = useRef<string>(ytext.toString());
-  // A pending value written to the DOM directly but not yet committed (only used
-  // to satisfy the uncontrolled/controlled edge when clamping truncates).
-  const [length, setLength] = useState(() => ytext.toString().length);
-  const [fit, setFit] = useState({ fontPx, overflow: false });
-
-  // Re-measure the textarea and update font size / overflow from real layout.
-  const remeasure = () => {
-    const el = ref.current;
-    if (!el) return;
-    const box = el.clientHeight || el.offsetHeight;
-    const result = fitFontSize(el, box);
-    setFit((prev) =>
-      prev.fontPx === result.fontPx && prev.overflow === result.overflow
-        ? prev
-        : result,
-    );
-  };
-
-  /**
-   * Show `value` in the box with the caret at `caret`, and remember it as the
-   * basis of the next local change.
-   */
-  const adopt = (value: string, caret: number): void => {
-    baseRef.current = value;
-    const el = ref.current;
-    if (!el) return;
-    if (el.value !== value) el.value = value;
-    const at = Math.min(Math.max(caret, 0), value.length);
-    el.setSelectionRange(at, at);
-    setLength(value.length);
-    remeasure();
-  };
-
-  const commit = () => {
-    const el = ref.current;
-    if (!el) return;
-    const next = clampToLimit(el.value);
-    const delta = textDelta(baseRef.current, next);
-    if (delta.deleteCount === 0 && delta.insert.length === 0) {
-      // Nothing changed here; just pick up whatever the other person typed.
-      adopt(ytext.toString(), next.length);
-      return;
-    }
-    // Only this box's own change goes to the shared text, wherever that text has
-    // got to in the meantime — characters typed by someone else survive.
-    const merged = applyTextDelta(ytext, delta, LOCAL_ORIGIN);
-    adopt(merged, delta.start + delta.insert.length);
-  };
-
-  // Mount: seed the textarea, focus it and place the caret at the end of the text.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.value = ytext.toString();
-    baseRef.current = el.value;
-    setLength(el.value.length);
-    el.focus();
-    const end = el.value.length;
-    el.setSelectionRange(end, end);
-    remeasure();
-    // Opening a note ends any in-progress capture so this note's typing is its own
-    // undo step, never merged with a prior move or another note's edit
-    // (undo.boundaries: boundary at edit start).
-    undo?.boundary();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ytext]);
-
-  // The other person's typing on this note appears while we are editing it too:
-  // their change is adopted into the box and the caret is stepped around it.
-  useEffect(() => {
-    const onRemote = (
-      event: Y.YTextEvent,
-      transaction: Y.Transaction,
-    ): void => {
-      if (transaction.origin === LOCAL_ORIGIN) return; // our own write, already adopted
-      if (composingRef.current) return; // never disturb an in-flight composition
-      const value = ytext.toString();
-      const el = ref.current;
-      if (el && el.value === value) {
-        baseRef.current = value;
-        return;
-      }
-      const caret = el
-        ? caretAfterRemoteEdit(
-            el.selectionStart ?? value.length,
-            event.delta as unknown as readonly TextOp[],
-          )
-        : value.length;
-      adopt(value, caret);
-    };
-    ytext.observe(onRemote);
-    return () => ytext.unobserve(onRemote);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ytext]);
-
-  // A pointerdown outside this note ends editing and deselects (sticky.edit_end).
-  // Registered synchronously: editing is always entered by an event (dblclick,
-  // Enter or the create button) whose dispatch has already finished by the time
-  // this effect runs, so the effect never observes its own triggering pointerdown.
-  useEffect(() => {
-    const note = noteAncestor(ref.current);
-    const onPointerDown = (e: PointerEvent) => {
-      const target = e.target as Element | null;
-      if (note && target && note.contains(target)) return; // inside: keep editing
-      commit();
-      undo?.boundary(); // the edit we just left is one undo step
-      onEnd('unselected');
-    };
-    document.addEventListener('pointerdown', onPointerDown, true);
-    return () => document.removeEventListener('pointerdown', onPointerDown, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onEnd]);
-
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Ctrl/Cmd+Z (and Ctrl/Cmd+Shift+Z, Ctrl+Y) undo/redo *this tab's* work while the
-    // caret is in the note, instead of the browser's own textarea history (undo.typing
-    // error path). The inverse arrives with a non-local origin, so the `onRemote`
-    // observer below re-adopts the undone text into the box automatically.
-    const mod = e.metaKey || e.ctrlKey;
-    if (undo && mod && (e.key === 'z' || e.key === 'Z')) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.shiftKey) undo.redo();
-      else undo.undo();
-      return;
-    }
-    if (undo && e.ctrlKey && !e.metaKey && (e.key === 'y' || e.key === 'Y')) {
-      e.preventDefault();
-      e.stopPropagation();
-      undo.redo();
-      return;
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      commit();
-      undo?.boundary(); // leaving the edit closes this note's typing step
-      onEnd('selected');
-    }
-    // Enter inserts a newline (default textarea behaviour); Delete/Backspace edit
-    // characters (and never reach the App-level delete handler, which stops
-    // propagation-aware).
-  };
-
-  const onInput = () => {
-    if (composingRef.current) return; // wait for compositionend
-    commit();
-  };
-
-  const onPointerDownSelf = (e: ReactPointerEvent<HTMLTextAreaElement>) => {
-    // Clicking inside the note must neither pan the board nor start a note drag.
-    e.stopPropagation();
-  };
-
-  const counter = counterVisible(length) ? (
-    <span data-testid="sticky-counter" className="sticky-counter">
-      {length}/{STICKY_TEXT_MAX_CHARS}
-    </span>
-  ) : null;
-
   return (
-    <>
-      <textarea
-        ref={ref}
-        data-testid="sticky-note-text"
-        className="sticky-text sticky-editing"
-        spellCheck={false}
-        onInput={onInput}
-        onKeyDown={onKeyDown}
-        onPointerDown={onPointerDownSelf}
-        onCompositionStart={() => {
-          composingRef.current = true;
-        }}
-        onCompositionEnd={() => {
-          composingRef.current = false;
-          commit();
-        }}
-        onBlur={commit}
-        style={{ fontSize: `${fit.fontPx}px` }}
-        aria-label="Sticky note text"
-      />
-      {fit.overflow ? (
-        <div
-          className="sticky-fade"
-          data-testid="sticky-overflow-fade"
-          aria-hidden="true"
-        />
-      ) : null}
-      {counter}
-    </>
+    <TextEditor
+      ytext={ytext}
+      maxChars={STICKY_TEXT_MAX_CHARS}
+      fontPx={fontPx}
+      width="auto" // the note's own class sizes the box
+      autoFit
+      showCounter
+      testId="sticky-note-text"
+      ariaLabel="Sticky note text"
+      className="sticky-text sticky-editing"
+      fadeTestId="sticky-overflow-fade"
+      counterTestId="sticky-counter"
+      undo={undo}
+      onInput={() => {}} // a note's box never follows its text
+      onEnd={onEnd}
+    />
   );
 }

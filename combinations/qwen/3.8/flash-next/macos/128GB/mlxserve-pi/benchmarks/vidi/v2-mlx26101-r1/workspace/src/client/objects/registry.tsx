@@ -10,13 +10,14 @@
 
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import {
   objectBounds,
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import type { Point } from '../../shared/geometry';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /**
  * The props every board object component receives. The object's own data is
@@ -43,6 +44,13 @@ export interface ObjectProps {
   onDelete(id: string): void;
 }
 
+/**
+ * Which resize handles a type offers. 'all' is the eight handles of stories 1-8;
+ * 'horizontal' (free text) offers only the east / west side handles, because a text
+ * object's height always follows its content and can never be dragged (text.fixed_width).
+ */
+export type Handles = 'all' | 'horizontal';
+
 /** Everything the generic machinery needs to know about one object type. */
 export interface ObjectTypeSpec {
   Component: ComponentType<ObjectProps>;
@@ -53,6 +61,8 @@ export interface ObjectTypeSpec {
   /** The smallest side this type may be resized to, in world units. */
   minSize: number;
   editableText: boolean;
+  /** Which handles to show; omitted means 'all' (every type before story 9). */
+  handles?: Handles;
   /** Does `worldPoint` fall inside this object? */
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
@@ -76,7 +86,16 @@ export function getObjectType(type: string): ObjectTypeSpec | undefined {
   return registry.get(type);
 }
 
-function stickyHitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
+/**
+ * The handles a type offers. Anything unregistered or registered without an explicit
+ * `handles` gets 'all', so the story 1-8 types are untouched by this field.
+ */
+export function getHandles(type: string): Handles {
+  return registry.get(type)?.handles ?? 'all';
+}
+
+/** A rectangle hit-test: the same rule for every axis-aligned object type. */
+function rectHitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
   const b = objectBounds(obj);
   return (
     worldPoint.x >= b.x &&
@@ -94,5 +113,18 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
-  hitTest: stickyHitTest,
+  hitTest: rectHitTest,
+});
+
+// Free text (story 9): resizable only sideways, never aspect-locked (its height is
+// derived from its content), editable, and it selects / moves / deletes through the
+// same generic machinery as a sticky note (text.consistent).
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+  hitTest: rectHitTest,
 });

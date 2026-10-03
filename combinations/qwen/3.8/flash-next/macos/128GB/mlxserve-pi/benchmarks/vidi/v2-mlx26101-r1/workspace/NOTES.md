@@ -363,3 +363,145 @@ an engine-only API (`page.route`, `addInitScript`, `selectionStart`, `data-testi
 they are ready to run wherever those browsers start. TC-26 deliberately holds the only
 clipboard-permission grant in the file, so the two engine-independent recovery tests
 never inherit a Chromium-only assumption.
+
+---
+
+# Notes — story 9 (Write free text anywhere on the board)
+
+## The text box is measured, stored, and only ever re-measured by the client that changed it
+`layoutText` (src/client/objects/textLayout.ts) is pure and takes a `Measurer`, so the
+wrapping rules (auto width = longest line + `TEXT_AUTO_WIDTH_PADDING_WORLD`, capped at
+`TEXT_MAX_AUTO_WIDTH_WORLD`; a line that wraps makes the box fill to the cap; fixed
+width rewraps; `height = lines × font size × TEXT_LINE_HEIGHT`) are unit-tested with a
+fake measurer and exact arithmetic. `useTextBoxSync` calls it and writes the box only
+after a **local** change — a remote keystroke never makes this client write, so nobody
+argues about the box and the document does not fill with redundant updates. `setTextBox`
+skips the write when width and height are unchanged, which is why TC-21's "no third
+rewrite on every edit" is countable with an observer.
+
+## Stored heights are whole numbers
+`heightFor()` rounds: `Math.round(lines × fontPx × TEXT_LINE_HEIGHT)`. With
+`TEXT_LINE_HEIGHT = 1.3` and size XL (56) the exact value is a fraction; storing
+`218.4` and then re-measuring `218.39999...` would look like a real change on every
+keystroke and re-write the box forever. Stored boxes are integers, and the e2e asserts
+heights as exact multiples of `size × 1.3`.
+
+## Auto-width padding is a decision, not a measurement
+Design says "width = the longest line, capped at 600". A box exactly as wide as its
+longest line wraps on the next pixel, so the box is the longest measured line **plus 16
+world units** of padding (`TEXT_AUTO_WIDTH_PADDING_WORLD`), still capped at 600. TC-26
+asserts the cap ±2 and TC-27 asserts a drag's width ±2, so the padding is visible in the
+tests rather than hidden in the layout.
+
+## The measurer is OffscreenCanvas only, with an estimate underneath
+`createCanvasMeasurer()` uses `OffscreenCanvas` and nothing else. It deliberately does
+**not** fall back to a DOM `<canvas>`: in an environment without canvas support (jsdom, a
+server render) asking for a 2d context logs a "Not implemented" error even though the
+call returns null, so the estimate would come with console noise on every test run.
+Where there is no canvas, `estimateTextWidth` (`length × fontPx ×
+TEXT_AVG_Glyph_WIDTH_RATIO`) is used and nothing throws (TC-32). Production gets one
+`Measurer` from `MeasurerProvider` (src/client/objects/textMeasurer.ts); component tests
+hand it a fake `(text, fontPx) => text.length * fontPx * 0.5` so the box arithmetic in
+TC-12/TC-19 is exact instead of "roughly right".
+
+## One editor for notes and text
+`StickyTextEditor` is now a thin wrapper over the new `TextEditor` (character budget,
+auto-fit font, counter, classes, test ids), which is how story 9 gets "text edits
+exactly like a note" for free — the delta-since-last-write commit, IME composition,
+`caretAfterRemoteEdit` adoption, Escape-keeps-selected, click-outside-deselects and the
+undo boundaries are all the same code, still verified by story 2's own component and e2e
+tests. `TextObject` and `StickyNote` both render through it.
+
+## Why `onEnd()` runs before `undo.boundary()` in the editor
+An empty text object is deleted when its editor closes (`deleteIfEmpty`). The editor
+used to open a new undo capture window as it closed; that put the deletion in a *later*
+undo step than the keystroke that emptied the text, so one Ctrl+Z left an empty husk
+object on the board. `onEnd(...)` (which runs the deletion) is now called **before**
+`undo?.boundary()`, so emptying a text and removing it undo together, and TC-25's
+"creation and typing are two steps" still holds because the boundaries around the edit
+itself are unchanged.
+
+## Story 6 identity is not built, so `createdBy` is a client id
+`src/client/board/author.ts` is the one function that answers "who is writing" and it
+returns `String(doc.clientID)` — stable per tab, correct for TC-20's "the object records
+who made it", and it is a one-line replacement when story 6's real identities land.
+
+## A story 9 shortcut must not eat a story 2 keystroke (bug found by the e2e suite)
+Giving the letter `N` to "new sticky note" broke story 2's TC-26 ("a note deleted while
+someone edits it just goes away"), and it is a real product bug, not a test quirk: when
+someone else deletes the note you are typing into, the editor unmounts and the browser
+delivers the **rest of that person's keystrokes** to the board with focus on nothing.
+Their typing was `' while editing'`, so the `n` in *editing* made a new sticky note and
+the `g` after it went inside it — a note appeared out of a deleted note. The guard in
+`useBoardKeys` records the last keystroke a text field actually swallowed and ignores
+letter keys for `TYPING_BURST_MS` (250 ms) after it. Deliberately narrow:
+- Only keys that *insert* text count. Ctrl/Cmd+Z, Ctrl/Cmd+A and Ctrl/Cmd+D are chords,
+  and a person presses undo the instant after they stop typing — the first version of
+  this guard swallowed story 8's TC-24 for exactly that reason.
+- Escape is not text either, so leaving an edit with Escape and then pressing `N` works
+  (that is in TC-18 already).
+- It is a burst guard, not a ban: TC-18b asserts the note reappears once the person has
+  demonstrably stopped typing.
+
+## The Text tool clicks *through* to a new object on top
+With Text held, a click on an existing object still creates text at that point (PRD:
+"new text is created on top at that point"), so the handler is registered in the
+**capture** phase on the viewport: an object's own `pointerdown`/`click` handlers, which
+stop propagation, never get the chance to turn the click into a selection (TC-17).
+
+## Horizontal-only handles, and what a group resize does to text
+`registry.tsx` carries a per-type `handles` field (`'horizontal'` for text) and
+`SelectionOverlay` renders only e/w for such an object: a text object's height is content,
+never a drag target (TC-22). When text is resized in a group with notes, the mixed path in
+`useTransformGesture` scales positions as story 7 does and rewrites a text object's fixed
+width from the same factor — its **font size never changes**, because that is a size
+preset and not a geometric property (TC-23, which measures the group's effective scale
+from the note's own box growth rather than from drag arithmetic, since story 7's
+`clampScale` / `anchoredBox` legitimately adjust a requested factor).
+
+## e2e: counting painted lines
+`Range.getClientRects()` is per **text run**, not per line: a wrapped line whose trailing
+space hangs at the margin yields two rects, so a 300 character annotation that paints 5
+lines reported 9. `paintedLineCount` counts distinct rounded `rect.top` values among the
+non-empty rects, which is the number of painted line boxes — the honest thing to compare
+against the stored height.
+
+## e2e: knowing which object your own click made on a busy board
+`createTextWithTool` used to diff the ids on screen before and after the click. With five
+people clicking at once that is wrong: somebody else's object can replicate in between and
+be mistaken for yours (which is how TC-30 ended up with two people typing into one heading
+and one heading of four characters). It now reads the id from the element that holds the
+focused editor (`document.activeElement.closest('[data-text-object-id]')`).
+
+## e2e: eventual consistency, asserted as such
+TC-29 compares the two documents by polling a function that reads **both** and returns a
+value only once they agree (`expect.poll(() => bothDocsAgree()).not.toBeNull()`), because
+polling one replica against a string read from the other once just loses a race against
+replication. What it then asserts is story 3's promise, unchanged: the same character
+multiset as what was typed, no more and no less, with the words allowed to interleave.
+
+## Naming
+Toolbar buttons carry `data-testid="select-tool"` / `"text-tool"` (the design's
+`toolbar-text-tool` shorthand, shortened to match the existing `select-tool` pair), the
+object is `text-object-<id>` with `data-text-object-id` for the generic selectors stories
+7 and 8 already use, and the editor is `text-editor` — distinct from `sticky-note-text`,
+so a test can tell the two kinds of box apart when both are on screen.
+
+## Snapshot API
+`objectSnapshots(doc)` is what the board renders: every known type as a generic
+`ObjectSnapshot` (sorted by `z, id`). `snapshot(doc)` is left sticky-only, because story
+2's tests read it as "the notes"; `allObjectIds` / `objectBounds` / `objectSnapshots` are
+what the selection, marquee and transform code walk, which is why a text object got
+stories 7 and 8's behaviour without either story being touched.
+
+## A pre-existing race in story 3's TC-25, exposed by this story's extra e2e load
+`live-collaboration.spec.ts` TC-25 polled Sam's screen until the note had *moved*, then
+compared Sam's position with Alex's once. A drag writes a position per frame, so the
+first update to arrive can be a mid-drag position while the last one is still in flight,
+and the compare then compares two different moments. This reproduced on the commit before
+story 9 started (3 of 6 runs with the file's own `--repeat-each`, more under load) — the
+story 9 spec just makes the machine busy enough to show it regularly. The assertion is
+now polled until the two boards agree instead of read once, using the file's own
+`expectEventually` and its propagation guard; the promise is the same (the two screens
+must agree on where the note is), the timing log is still printed, and a board that never
+agrees still fails. Nothing was removed and no threshold was loosened.

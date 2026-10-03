@@ -15,8 +15,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | 5/5 | 0 | 0 | 33/36 |
 | 7 | 8/8 | 0 | 0 | 41/44 |
 | 8 | 7/7 | 0 | 1 | 49/51 |
+| 9 | 6/6 | 1 | 0 | 54/57 |
 
-**New work** 44/47, **regressions** 0, **repairs** 1, **cumulative** 49/51.
+**New work** 50/53, **regressions** 1, **repairs** 1, **cumulative** 54/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,8 +28,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | Share a board with others using a link | DONE | 55.7 | None | None | None | — | — | green | 33/36 |  | 0 / 0 | 3 | — | throttled 97%, server peak 94 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE | 64.4 | None | None | None | — | — | green | 41/44 |  | 0 / 1 | 3 | — | throttled 94%, server peak 94 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 40.3 | None | None | None | — | — | green | 49/51 |  | 0 / 0 | 2 | — | throttled 96%, server peak 94 GB |
+| 9 | Write free text anywhere on the board | DONE | 86.0 | None | None | None | — | — | green | 54/57 |  | 0 / 1 | 5 | — | throttled 93%, server peak 94 GB |
 
-**Totals:** 7 stories, 415 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/7, final acceptance 49/51, stalled 0, partial 0, 18382 lines in src+tests.
+**Totals:** 8 stories, 501 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/8, final acceptance 54/57, stalled 0, partial 0, 22043 lines in src+tests.
 
 ## How it happened
 
@@ -43,11 +45,14 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | 1 by the agent | 2975 / 338 | `App.tsx` (259), `SharePanel.tsx` (241), `Board.tsx` (232), `styles.css` (161), `BoardPage.tsx` (105), `board-store.ts` (97), +15 more |
 | 7 | 2 by the agent | 3583 / 339 | `useTransformGesture.ts` (305), `board-model.ts` (273), `StickyNote.tsx` (210), `geometry.ts` (208), `Board.tsx` (203), `useSelection.ts` (189), +9 more |
 | 8 | 1 by the agent | 1565 / 7 | `undo.ts` (202), `useUndo.ts` (78), `UndoButtons.tsx` (35), `Board.tsx` (27), `useBoardKeys.ts` (27), `StickyTextEditor.tsx` (27), +3 more |
+| 9 | 1 by the agent | 4228 / 425 | `TextEditor.tsx` (298), `text.ts` (261), `StickyTextEditor.tsx` (247), `textLayout.ts` (207), `TextObject.tsx` (158), `text-edit.ts` (151), +21 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 8 broke 0, fixed 1** earlier held-out tests (story 8: Undo and redo my own changes without undoing anyone else's). Source files it changed most: `undo.ts` (202), `useUndo.ts` (78), `UndoButtons.tsx` (35), `Board.tsx` (27), `useBoardKeys.ts` (27), `StickyTextEditor.tsx` (27), +3 more.
   - story 3: 6/7 → 7/7; fixed 1
+- **Story 9 broke 1, fixed 0** earlier held-out tests (story 9: Write free text anywhere on the board). Source files it changed most: `TextEditor.tsx` (298), `text.ts` (261), `StickyTextEditor.tsx` (247), `textLayout.ts` (207), `TextObject.tsx` (158), `text-edit.ts` (151), +21 more.
+  - story 3: 7/7 → 6/7; broke 1.
 
 ### Interruptions and dead time
 

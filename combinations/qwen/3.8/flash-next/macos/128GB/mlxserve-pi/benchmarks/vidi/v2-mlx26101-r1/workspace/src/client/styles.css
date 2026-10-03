@@ -367,3 +367,43 @@ button:disabled {
   font: inherit;
   cursor: pointer;
 }
+
+/* --- Free text objects (story 9) ------------------------------------------- */
+
+/* Plain text on the board: no fill, no border, no shadow. The selection outline is
+   the only chrome it draws; the group bounding box / handles come from the overlay. */
+.text-object {
+  color: #222;
+  cursor: default;
+  user-select: none;
+  touch-action: none;
+}
+
+.text-object[data-selected='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: -1px;
+}
+
+.text-object:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -1px;
+}
+
+/* The editor sits exactly in the object's stored box, so the caret is at the same
+   position the rendered text was and the box the measurer sees is the box we store. */
+.text-object-editing {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  cursor: text;
+  user-select: text;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: hidden;
+}

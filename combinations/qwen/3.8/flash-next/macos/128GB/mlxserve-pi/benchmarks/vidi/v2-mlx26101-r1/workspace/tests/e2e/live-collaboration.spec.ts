@@ -210,7 +210,23 @@ test.describe('live collaboration', () => {
       E2E_PROPAGATION_GUARD_MS,
     );
     console.log(`[TC-25] a move arrived in ${moved.ms} ms`);
-    expect(await sam.notePos(id)).toEqual(await alex.notePos(id));
+    // And the two screens end up agreeing on where it landed. The poll above only
+    // answers "has *a* move arrived": a drag writes a position per frame, so the first
+    // one to arrive can be a mid-drag position while the last is still in flight, and
+    // comparing the two boards at that instant compares different moments. Waiting for
+    // the screens to agree is what this test promises (and what every other
+    // cross-screen assertion in this file waits for), so the same promise is still
+    // checked, just at the moment where it is a fact rather than a race.
+    const agreed = await expectEventually(
+      () =>
+        Promise.all([sam.notePos(id), alex.notePos(id)]).then(([s, a]) =>
+          s.x === a.x && s.y === a.y ? s : null,
+        ),
+      (pos) => pos !== null,
+      E2E_PROPAGATION_GUARD_MS,
+      "the two screens never agreed on the note's position",
+    );
+    expect(agreed.value).not.toBeNull();
 
     const color: StickyColor = 'blue';
     await alex.recolorNote(id, color);

@@ -21,7 +21,9 @@ import {
   objectBounds,
   resizeObjects,
   type ObjectSnapshot,
+  type TextSnapshot,
 } from '../../shared/board-model';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import {
   clampScale,
   resizeRect,
@@ -37,7 +39,7 @@ import {
   STICKY_MIN_SIZE_WORLD,
 } from '../../shared/config';
 import type { Camera } from '../canvas/camera';
-import { getObjectType } from '../objects/registry';
+import { getHandles, getObjectType } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
 
 interface GestureStart {
@@ -53,6 +55,12 @@ interface GestureStart {
   handle: Handle;
   /** Whether this drag keeps the width-to-height ratio. */
   aspect: boolean;
+  /**
+   * Every object in the drag is a horizontal-only type (free text): the drag can only
+   * change a width, and each object's height is re-measured from its own content
+   * rather than scaled (text.fixed_width).
+   */
+  horizontal: boolean;
   startClientX: number;
   startClientY: number;
   /** Pointer position of the latest move, in client pixels. */
@@ -137,6 +145,29 @@ export function useTransformGesture(
       return;
     }
 
+    // resize of horizontal-only objects (one text object): the dragged side moves and
+    // the opposite edge stays put, the width is clamped to the type's minimum, and the
+    // height is left to the object's own re-measure — a text object's height is its
+    // content, never a dragged number.
+    if (g.kind === 'resize' && g.horizontal) {
+      const positions = new Map<string, Point>();
+      for (const id of g.ids) {
+        const r = g.startRects.get(id);
+        if (!r) continue;
+        const type = live.current.snapshot.find((o) => o.id === id)?.type ?? '';
+        const min = getObjectType(type)?.minSize ?? STICKY_MIN_SIZE_WORLD;
+        const dragLeft = LEFT.has(g.handle);
+        const raw = dragLeft ? r.width - dx : r.width + dx;
+        const width = Math.max(min, Math.min(MAX_OBJECT_SIZE_WORLD, raw));
+        positions.set(id, { x: dragLeft ? r.x + r.width - width : r.x, y: r.y });
+        // Also switches the object to a fixed width, so it stops hugging its content
+        // (the state diagram's AutoWidth -> FixedWidth transition).
+        setTextWidthFixed(doc, id, width);
+      }
+      moveObjects(doc, positions);
+      return;
+    }
+
     // resize: scale the selection box, clamp to every object's min size, then
     // reposition each object by its offset from the box (layout preserved).
     const to = resizeRect(g.startBox, g.handle, { x: dx, y: dy }, g.aspect);
@@ -163,7 +194,24 @@ export function useTransformGesture(
     const writes = new Map<string, Rect>();
     for (const id of g.ids) {
       const r = g.startRects.get(id);
-      if (r) writes.set(id, scaleWithin(r, g.startBox, box));
+      if (!r) continue;
+      const scaled = scaleWithin(r, g.startBox, box);
+      const obj = live.current.snapshot.find((o) => o.id === id);
+      if (obj?.type === 'text') {
+        // A text object in a mixed group is *repositioned* with everything else; its
+        // font size never changes, and neither does the width of an auto-width object
+        // (its box hugs its content). A fixed-width one keeps the width the drag gave
+        // it, and its height is re-measured from its content by its own box sync — so
+        // the height a group scale would have written is never kept.
+        writes.set(
+          id,
+          (obj as TextSnapshot).widthMode === 'fixed'
+            ? { x: scaled.x, y: scaled.y, width: scaled.width, height: r.height }
+            : { x: scaled.x, y: scaled.y, width: r.width, height: r.height },
+        );
+      } else {
+        writes.set(id, scaled);
+      }
     }
     resizeObjects(doc, writes);
   }, []);
@@ -225,6 +273,7 @@ export function useTransformGesture(
       kind: 'move' | 'resize',
       handle: Handle,
       aspect: boolean,
+      horizontal = false,
     ): void => {
       const { snapshot } = live.current;
       const startRects = new Map<string, Rect>();
@@ -246,6 +295,7 @@ export function useTransformGesture(
         kind,
         handle,
         aspect,
+        horizontal,
         startClientX: e.clientX,
         startClientY: e.clientY,
         clientX: e.clientX,
@@ -293,7 +343,11 @@ export function useTransformGesture(
       // Shift locks the ratio for any type; a type that is inherently aspect-locked
       // (sticky) is always scaled evenly.
       const aspect = e.shiftKey || objs.some((o) => getObjectType(o.type)?.aspectLocked);
-      arm(e, objs.map((o) => o.id), 'resize', handle, aspect);
+      // Only a selection made entirely of horizontal-only types drags sideways: as
+      // soon as a sticky is in the group the box is scaled on both axes again, and the
+      // text is repositioned with everything else (its font size never changes).
+      const horizontal = objs.every((o) => getHandles(o.type) === 'horizontal');
+      arm(e, objs.map((o) => o.id), 'resize', handle, aspect, horizontal);
     },
     [arm],
   );

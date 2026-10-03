@@ -1,33 +1,56 @@
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import type { Tool } from './useTool';
 import { UndoButtons } from './UndoButtons';
 import { useUndo, useUndoController } from './useUndo';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
   /**
-   * True while the board could not be loaded: the Sticky note button is disabled
-   * so it cannot create a note on a board that is not really there.
+   * The tool the board is holding (story 9): Select or Text. Defaults to 'select'
+   * so a rail rendered on its own (a story 2 / story 8 test) shows Select pressed.
+   */
+  tool?: Tool;
+  /** Hold a tool from the rail (a Select / Text button click). */
+  onSelectTool?(t: Tool): void;
+  /**
+   * True while the board could not be loaded: the Sticky note and Text buttons are
+   * disabled so nothing can be created on a board that is not really there.
    */
   disabled?: boolean;
 }
 
-/**
- * The fixed left-side tool rail. Story 2 adds the Sticky note button; later
- * stories add more tools here. Clicking it creates a note at the centre of the
- * visible board area and starts editing. Pointer events are stopped so a click
- * here never pans the board or clears the selection.
- *
- * The undo / redo pair sits below the tools (story 8). They read the board's undo
- * controller from context and are disabled together with the rest of the rail — a
- * board that is loading or failed to load has `disabled`, and so nothing to undo.
- */
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
+/** The fixed left-side tool rail. */
+export function Toolbar({
+  onCreateSticky,
+  tool = 'select',
+  onSelectTool,
+  disabled = false,
+}: ToolbarProps) {
   const stop = (e: ReactPointerEvent) => e.stopPropagation();
   const fire = () => {
     if (disabled) return;
     onCreateSticky();
   };
+  const pick = (t: Tool) => {
+    if (disabled && t !== 'select') return;
+    onSelectTool?.(t);
+  };
   const undo = useUndo(useUndoController(), !disabled);
+
+  // A shared visual base for the two tool buttons; the active one is filled.
+  const toolBtn = (active: boolean): CSSProperties => ({
+    width: 40,
+    height: 40,
+    border: '1px solid #d0d3da',
+    background: active ? '#dfe6ff' : '#fff',
+    borderRadius: 8,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: 15,
+    fontWeight: 600,
+    lineHeight: 1,
+    opacity: disabled ? 0.4 : 1,
+  });
+
   return (
     <div
       className="toolbar"
@@ -52,8 +75,31 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
     >
       <button
         type="button"
-        aria-label="Sticky note"
-        title="Sticky note – or double-click the board"
+        aria-label="Select (V)"
+        title="Select (V)"
+        aria-pressed={tool === 'select'}
+        data-testid="select-tool"
+        onClick={() => pick('select')}
+        style={toolBtn(tool === 'select')}
+      >
+        {'\u2196'}
+      </button>
+      <button
+        type="button"
+        aria-label="Text (T)"
+        title="Text (T)"
+        aria-pressed={tool === 'text'}
+        data-testid="text-tool"
+        disabled={disabled}
+        onClick={() => pick('text')}
+        style={toolBtn(tool === 'text')}
+      >
+        T
+      </button>
+      <button
+        type="button"
+        aria-label="Sticky note (N)"
+        title="Sticky note (N) – or double-click the board"
         data-testid="create-sticky"
         disabled={disabled}
         onClick={fire}

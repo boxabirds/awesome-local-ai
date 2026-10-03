@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import * as Y from 'yjs';
 import {
   initDoc,
-  snapshot,
-  type StickySnapshot,
+  objectSnapshots,
+  type ObjectSnapshot,
 } from '../../shared/board-model';
 import {
   connectBoard,
@@ -20,7 +20,7 @@ export interface BoardDoc {
    * is a valid `useSyncExternalStore` snapshot. Remote updates arrive with the
    * provider as origin and re-render through the same observer as local ones.
    */
-  notes: readonly StickySnapshot[];
+  notes: readonly ObjectSnapshot[];
   /**
    * What the connection badge shows. A board without a `boardId` is local-only
    * and reported as `connected`, so it never claims to be reconnecting.
@@ -45,14 +45,14 @@ export function useBoardDoc(boardId?: string): BoardDoc {
 
   // Cache the snapshot so getSnapshot returns a stable reference between
   // document changes; only the observer recomputes it.
-  const cacheRef = useRef<readonly StickySnapshot[] | null>(null);
-  if (cacheRef.current === null) cacheRef.current = snapshot(doc);
+  const cacheRef = useRef<readonly ObjectSnapshot[] | null>(null);
+  if (cacheRef.current === null) cacheRef.current = objectSnapshots(doc);
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
       const objects = doc.getMap<Y.Map<unknown>>('objects');
       const observer = () => {
-        cacheRef.current = snapshot(doc);
+        cacheRef.current = objectSnapshots(doc);
         onStoreChange();
       };
       objects.observeDeep(observer);
@@ -62,7 +62,7 @@ export function useBoardDoc(boardId?: string): BoardDoc {
   );
 
   const getSnapshot = useCallback(
-    () => cacheRef.current as readonly StickySnapshot[],
+    () => cacheRef.current as readonly ObjectSnapshot[],
     [],
   );
 
