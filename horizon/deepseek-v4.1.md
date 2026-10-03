@@ -10,6 +10,8 @@ of the model, not a server setting, so it can't be tried on another model.
 the recheck.
 
 **Recheck when:** the owner wants a DeepSeek stack; start by reading V4.1-Flash's size and quantised files.
+See also [DwarfStar](dwarfstar.md) (3 Oct 2026): an engine whose README says V4.1 Flash runs on one 128 GB Mac at Q2 with SSD
+streaming. Unverified here.
 
 Sources: [Engram paper](https://arxiv.org/pdf/2601.07372) ·
 [DeepSeek-V4.1-Flash paper](https://arxiv.org/pdf/2609.19969) ·
