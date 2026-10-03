@@ -1,9 +1,10 @@
-"""The blind recognisability check for the themes: paragraphs drawn at random, a fixed number per theme (by strongest
-theme), from the story runs with complete thinking text. Every item is blind: the labeller sees the paragraph and
-the theme list, not the model's theme. Writes labels.json, items-all.jsonl (for an independent model) and
+"""Proposals for the owner to validate: paragraphs drawn at random, a fixed number per theme (by strongest theme), from the
+story runs with complete thinking text. The model proposes a theme for each, with its reasons (the theme's weight, the
+runner-up, and the theme's strongest terms found in the paragraph); the owner accepts or corrects. `--blind` hides the
+proposal until the owner has decided, for a check that is not anchored. Writes labels.json, items-all.jsonl and
 items-owner.jsonl (a subset for the owner), in the format `dbench label` reads.
 
-Usage: uv run --with scikit-learn --with numpy --with scipy --with joblib python make_validation_set.py OUT_DIR
+Usage: uv run --with scikit-learn --with numpy --with scipy --with joblib python make_validation_set.py OUT_DIR [--blind]
 """
 import json, random, sqlite3, sys
 import numpy as np
@@ -15,7 +16,18 @@ OWNER_ITEMS = 20
 MIN_CHARS, MAX_CHARS = 60, 900       # long enough to carry a theme, short enough to read in a glance
 SEED = 11
 
-def main(out):
+TERMS_SHOWN = 4
+
+def key_terms(model, text, theme):
+    """The theme's strongest terms that this paragraph holds: what the proposal rests on."""
+    from sklearn.preprocessing import normalize
+    row = normalize(model["vectorizer"].transform([text])[:, model["keep"]])
+    contrib = row.multiply(model["nmf"].components_[theme]).tocsr()
+    terms = np.array(model["vectorizer"].get_feature_names_out())[model["keep"]]
+    idx = contrib.indices[np.argsort(-contrib.data)][:TERMS_SHOWN]
+    return terms[idx].tolist()
+
+def main(out, blind=False):
     model = tm.load(f"{INSIGHTS}/themes/theme_model_v1.joblib")
     meta = json.load(open(tm.THEMES_FILE))
     wh = sqlite3.connect(f"file:{INSIGHTS}/conversations.db?mode=ro", uri=True)
@@ -33,8 +45,10 @@ def main(out):
         cand = [i for i in range(len(pool)) if strongest[i] == theme]
         for i in rng.sample(cand, PER_THEME):
             second = np.argsort(-W[i])[1]
-            items.append({"id": f"p{len(items):03d}", "text": pool[i][2], "label": str(theme), "blind": True,
-                          "reason": f"weight {W[i][theme]:.2f}; next {second} at {W[i][second]:.2f}",
+            names = {t["id"]: t["name"] for t in meta["themes"]}
+            terms = ", ".join(f"\"{t}\"" for t in key_terms(model, pool[i][2], theme)) or "no strong term"
+            items.append({"id": f"p{len(items):03d}", "text": pool[i][2], "label": str(theme), "blind": blind,
+                          "reason": f"weight {W[i][theme]:.2f} for this theme; runner-up {names[second]} at {W[i][second]:.2f}; theme terms in it: {terms}",
                           "meta": {"story_run": pool[i][0].split("/benchmarks/")[1], "call": pool[i][1], "theme_weight": round(float(W[i][theme]), 2)}})
     rng.shuffle(items)
     owner = []
@@ -51,4 +65,4 @@ def main(out):
     print(f"{len(items)} items ({PER_THEME} per theme) from {len(pool)} candidate paragraphs; {len(owner)} for the owner")
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], "--blind" in sys.argv[2:])
