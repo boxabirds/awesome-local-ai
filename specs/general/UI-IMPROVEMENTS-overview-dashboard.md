@@ -15,7 +15,7 @@ twelve numeric columns and fills two thirds of the page. Neither answers the que
   the machine has been. Nothing is drawn: no bar, no line, no colour but one amber word ("idle").
 - **What needs attention?** Nothing is shown. The few operational observations the page makes (idle with an empty queue,
   silent for 20 minutes) are 12 px grey text at the end of a row, and none of the observations that sit in the data (a
-  story 3.8 times slower than its stack's median, a queue of 70 hours, a series that has finished) is drawn at all.
+  story 3.8 times slower than its stack's median, a long queue, a series that has finished) is drawn at all.
 - **The bigger table is a research result, not a status.** It ranks combinations on score, with ten more columns of
   medians and ranges, all as text. Useful to read once; not what someone opens the page to see.
 
