@@ -109,7 +109,7 @@ export const GLOSSARY = {
   // The ranking (overview) and the combination page.
   combination: { name: "Combination", what: "A stack: model, quant, engine and client, on one hardware class. Its short label; the full id (its folder under combinations/) on hover." },
   comboMachines: { name: "Machines", what: "The machines its runs ran on, counted or not." },
-  pooledPassRate: { name: "Pooled", what: "Held-out tests passing over all held-out tests, summed over the same finished runs as the score." },
+  meanScore: { name: "Mean", what: "The mean of the same finished runs' scores: every held-out test they attempted, passed over attempted. The headline figure beside it is the median, so the two differ when one run is unlike the rest." },
   notCounted: { name: "Not counted", what: "Runs left out of this row's numbers: running or queued (not finished), pending (finished, no score yet), failed, stopped or cancelled." },
   unranked: { name: "Not ranked", what: "No finished run with a score, so there is nothing to rank it by." },
   outPerStory: { name: "Output tokens per story", what: "Output tokens per story: the median over finished runs, with the range." },

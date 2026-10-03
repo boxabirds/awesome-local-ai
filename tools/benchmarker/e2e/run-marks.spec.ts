@@ -76,7 +76,7 @@ test.describe("invalid: not in the app at all", () => {
     await page.goto("/");
     const row = page.getByRole("table", { name: "Combinations" }).locator(`tr[data-stack="${SWIFT}"]`);
     await expect(row.locator("td.score")).toContainText("63 (58–68) n=3");
-    await expect(row.locator("td.pooled")).toHaveText("84%");
+    await expect(row.locator("td.mean")).toHaveText("84%");
     await expect(row.locator("td.not-counted")).toHaveText("1 running2 queued1 pending1 partial rerun");
     await expect(page.locator("main")).not.toContainText(/invalid|v2-r8/i);
   });
@@ -309,7 +309,7 @@ test.describe("intervened: marked, and still counted", () => {
     await page.goto("/");
     await expect(page.getByRole("table", { name: "Combinations" }).locator(`tr[data-stack="${SWIFT}"] td.score`)).toContainText("63 (58–68) n=3");
     await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
-    await expect(page.locator('[data-kpi="score"] dd')).toHaveText("63 (58–68) n=3 / 75 · pooled 84%");
+    await expect(page.locator('[data-kpi="score"] dd')).toHaveText("63 (58–68) n=3 / 75 · mean 63");
     await expect(matrix(page).locator('tfoot td[data-story="2"]')).toHaveText("17m");
     await expect(mCell(page, "v2-r5", "2").locator(".flag")).toHaveCount(1);          // still judged against the median
     await expect(mCell(page, "v2-r5", "2").locator(".intervened")).toHaveAttribute("data-intervened", "1");

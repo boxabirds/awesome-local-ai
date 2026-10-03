@@ -81,7 +81,7 @@ describe("a partial rerun is never counted as a full run", () => {
   it("finished and scored, but known-good: not of record, whatever its own score", () => {
     expect(standingOf(run("a", { knownGood: true, score: 74 }))).toBe("partial rerun");
   });
-  it("ranking: excluded from n, the median and the pooled rate", () => {
+  it("ranking: excluded from n, the median and the mean", () => {
     const rs = [run("a", { score: 60 }), run("a", { score: 70 }), run("a", { knownGood: true, score: 100, scores: { [SUITE]: 100 } })];
     const sum = summarise("a", rs);
     expect(sum.score?.n).toBe(2);
@@ -125,16 +125,16 @@ describe("summarise: by run set", () => {
   });
   it("one run of record: its numbers, n=1", () => {
     const c = summarise("a", [run("a", { score: 63, secs: [1800, 3600] })]);
-    expect(c.score).toEqual({ median: 63, min: 63, max: 63, n: 1, total: 75, pooled: 63 / 75 });
+    expect(c.score).toEqual({ median: 63, min: 63, max: 63, n: 1, total: 75, mean: 63 / 75 });
     expect(c.hoursPerStory).toEqual({ median: 0.75, min: 0.75, max: 0.75, n: 1 });
     expect(c.unranked).toBeNull();
   });
-  it("several (odd): median, range and pooled over those runs; running and pending runs never fold in", () => {
+  it("several (odd): median, range and mean over those runs; running and pending runs never fold in", () => {
     const c = summarise("a", [
       run("a", { score: 63, secs: [3600] }), run("a", { score: 68, secs: [1800] }), run("a", { score: 58, secs: [7200] }),
       run("a", { status: "running", score: 75, secs: [60] }), run("a", { scores: { [OLD_SUITE]: 75 }, secs: [60] }),
     ]);
-    expect(c.score).toEqual({ median: 63, min: 58, max: 68, n: 3, total: 75, pooled: (63 + 68 + 58) / 225 });
+    expect(c.score).toEqual({ median: 63, min: 58, max: 68, n: 3, total: 75, mean: (63 + 68 + 58) / 225 });
     expect(c.hoursPerStory).toEqual({ median: 1, min: 0.5, max: 2, n: 3 });
     expect(c.notCounted).toEqual({ running: 1, pending: 1 });
     expect(c.byStatus).toEqual({ finished: 4, running: 1 });
@@ -160,7 +160,7 @@ describe("summarise: by run set", () => {
 });
 
 describe("rankCombinations: the order", () => {
-  it("by score median, highest first, whatever the live or pooled figures", () => {
+  it("by score median, highest first, whatever the live or mean figures", () => {
     const ranked = rankCombinations([run("low", { score: 60 }), run("high", { score: 70 }), run("mid", { score: 65 })]);
     expect(ranked.map((c) => c.stack)).toEqual(["high", "mid", "low"]);
   });
@@ -169,7 +169,7 @@ describe("rankCombinations: the order", () => {
     expect(ranked.map((c) => c.stack)).toEqual(["done", "live"]);
     expect(ranked[1].unranked).toBe("no finished run yet");
   });
-  it("ties on median: the higher pooled pass rate first, then more runs, then by name", () => {
+  it("ties on median: the higher mean first, then more runs, then by name", () => {
     const a = rankCombinations([run("a", { score: 60 }), run("a", { score: 60 }), run("a", { score: 70 }),     // median 60, pooled 63.3
                                 run("b", { score: 50 }), run("b", { score: 60 }), run("b", { score: 61 })]);   // median 60, pooled 57
     expect(a.map((c) => c.stack)).toEqual(["a", "b"]);
@@ -182,7 +182,7 @@ describe("rankCombinations: the order", () => {
     const x = summarise("x", [run("x", { status: "queued" })]), y = summarise("y", [run("y", { status: "queued" })]);
     expect(compareRanked(y, x)).toBeGreaterThan(0);
   });
-  it("the old pooled figure's trap: a running run's easy early stories no longer lift a combination", () => {
+  it("the old live figure's trap: a running run's easy early stories no longer lift a combination", () => {
     // Pooled live, "fast" would lead (its running run passes everything so far); of record, "steady" leads.
     const ranked = rankCombinations([run("fast", { score: 55 }), run("fast", { status: "running", score: null }), run("steady", { score: 62 })]);
     expect(ranked[0].stack).toBe("steady");

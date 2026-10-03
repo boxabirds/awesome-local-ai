@@ -118,8 +118,8 @@ export interface RankedCombination {
   ofRecord: Row[];
   /** Every other run, by why it isn't counted. */
   notCounted: Partial<Record<Exclude<Standing, "ofRecord">, number>>;
-  /** Score of record over those runs, with the pooled pass rate (sum passed over sum total). */
-  score: (Spread & { total: number | null; pooled: number }) | null;
+  /** Score of record over those runs, with their mean (sum passed over sum attempted; the plain average when every run has the same total). */
+  score: (Spread & { total: number | null; mean: number }) | null;
   /** Each a median over the runs of record of that run's own per-story figure. */
   hoursPerStory: Spread | null;
   outPerStory: Spread | null;
@@ -149,7 +149,7 @@ export function summarise(stack: string, rs: Row[]): RankedCombination {
   return {
     pack: rs[0]?.pack ?? "", stack, label: rs[0]?.label ?? stack, machines: [...new Set(rs.map((r) => r.machine))].toSorted(),
     byStatus, ofRecord, notCounted,
-    score: s ? { ...s, total: new Set(scores.map((x) => x.total)).size === 1 ? scores[0].total : null, pooled: scores.reduce((t, x) => t + x.passed!, 0) / total } : null,
+    score: s ? { ...s, total: new Set(scores.map((x) => x.total)).size === 1 ? scores[0].total : null, mean: scores.reduce((t, x) => t + x.passed!, 0) / total } : null,
     hoursPerStory: spreadOf(ofRecord, (r) => { const x = perStory(r, (u) => u.agentSeconds); return x === null ? null : x / SECONDS_PER_HOUR; }),
     outPerStory: spreadOf(ofRecord, (r) => perStory(r, (u) => u.outTokens)),
     callsPerStory: spreadOf(ofRecord, (r) => perStory(r, (u) => u.calls)),
@@ -159,7 +159,7 @@ export function summarise(stack: string, rs: Row[]): RankedCombination {
   };
 }
 
-/** Ranked: score of record median, highest first; ties by pooled pass rate, then more runs; unranked last. */
+/** Ranked: score of record median, highest first; ties by the mean, then more runs; unranked last. */
 export function rankCombinations(rows: Row[]): RankedCombination[] {
   const by = new Map<string, Row[]>();
   for (const r of rows) by.set(r.stack, [...(by.get(r.stack) ?? []), r]);
@@ -168,7 +168,7 @@ export function rankCombinations(rows: Row[]): RankedCombination[] {
 
 export function compareRanked(a: RankedCombination, b: RankedCombination): number {
   if (!a.score || !b.score) return a.score === b.score ? a.label.localeCompare(b.label) : a.score ? -1 : 1;
-  return b.score.median - a.score.median || b.score.pooled - a.score.pooled || b.score.n - a.score.n || a.label.localeCompare(b.label);
+  return b.score.median - a.score.median || b.score.mean - a.score.mean || b.score.n - a.score.n || a.label.localeCompare(b.label);
 }
 
 /** True when two ranked combinations can't be told apart: both have few runs and their medians are close. */

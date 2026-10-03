@@ -40,7 +40,7 @@ test.describe("overview: combinations ranked on finished runs of record", () => 
 
   test("ranked by the score-of-record median; combinations without a finished, scored run last, saying why", async ({ page }) => {
     const order = await combos(page).locator("tbody tr").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.stack));
-    // Before, the pooled live figure put Swift (97%, its running run's easy stories included) above Opus.
+    // Before, the live figure put Swift (97%, its running run's easy stories included) above Opus.
     expect(order).toEqual([OPUS, SWIFT, QWEN_27B, VK, MLX]);
     await expect(combos(page).locator(`tr[data-stack="${QWEN_27B}"] td.score`)).toHaveText("not ranked: no finished run yet");
     await expect(combos(page).locator(`tr[data-stack="${MLX}"]`)).toHaveAttribute("data-ranked", "false");
@@ -50,7 +50,7 @@ test.describe("overview: combinations ranked on finished runs of record", () => 
   test("the score is median (range) n over finished runs of record only; an older suite's score and live runs never count", async ({ page }) => {
     const swift = combos(page).locator(`tr[data-stack="${SWIFT}"]`);
     await expect(swift.locator("td.score")).toHaveText("63 (58–68) n=3");          // v2-r7's pre0 score is not a fourth run
-    await expect(swift.locator("td.pooled")).toHaveText("84%");                      // (68 + 63 + 58) / 225
+    await expect(swift.locator("td.mean")).toHaveText("84%");                      // (68 + 63 + 58) / 225
     await expect(swift.locator("td.hours")).toHaveText("0.4 (0.2–0.8)");
     await expect(combos(page).locator(`tr[data-stack="${OPUS}"] td.score`)).toHaveText("74 n=1");   // one run: no range
   });
@@ -117,7 +117,7 @@ test.describe("combination page", () => {
     await expect(heading(page)).toHaveText("3.8-swift-1.5/27b llamacpp");
     await expect(page.locator(".combo-id")).toHaveText(SWIFT);
     await expect(page.locator(".combo-on")).toContainText("on node-a (Intel Core i9 + RTX 4090 64GB)");
-    await expect(page.locator('[data-kpi="score"] dd')).toHaveText("63 (58–68) n=3 / 75 · pooled 84%");
+    await expect(page.locator('[data-kpi="score"] dd')).toHaveText("63 (58–68) n=3 / 75 · mean 63");
     await expect(page.locator('[data-kpi="hoursPerStory"] dd')).toHaveText("0.4 (0.2–0.8)");
     await expect(page.locator('[data-kpi="outPerStory"] dd')).toHaveText("71k (63k–118k)");
     await expect(page.locator('[data-kpi="callsPerStory"] dd')).toHaveText("150 (100–177)");

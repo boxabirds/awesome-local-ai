@@ -58,7 +58,7 @@ export function CombinationPage({ route, stack, runs, state, params }: { route: 
             <dt><Term id="scoreSummary">Score</Term></dt>
             <dd>{c.score ? <>
               <SpreadText s={c.score} fmt={fmtCount} big={`num-xl ${qualityClass(c.score.total ? c.score.median / c.score.total : null)}`} showN />
-              <span className="small">{c.score.total ? ` / ${c.score.total}` : ""} · <Term id="pooledPassRate">pooled</Term> {Math.round(c.score.pooled * PERCENT)}%</span>
+              <span className="small">{c.score.total ? ` / ${c.score.total}` : ""} · <Term id="meanScore">mean</Term> {c.score.total ? fmtCount(Math.round(c.score.mean * c.score.total)) : `${Math.round(c.score.mean * PERCENT)}%`}</span>
             </> : <span className="unranked" data-tip={termTip("unranked")}>not ranked: {c.unranked}</span>}</dd>
           </div>
           <Kpi term="hoursPerStory" s={c.hoursPerStory} fmt={fmtHours} />
