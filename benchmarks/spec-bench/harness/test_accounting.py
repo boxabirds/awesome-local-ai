@@ -71,6 +71,17 @@ class Log:
         self.events.append({"_rx": at + 0.2, "type": "agent_start"})
         return self
 
+    def guard_kill(self, at):
+        """The hang guard killed a silent tool call at `at` (drive.ToolHangGuard writes this line)."""
+        self.events.append({"_rx": at, "type": accounting.TOOL_INTERRUPT_MARK})
+        return self
+
+    def new_session(self, at):
+        """The harness resumed the agent at `at` after a session that died without ending."""
+        self.events.append({"_rx": at, "type": "session", "id": "s"})
+        self.events.append({"_rx": at, "type": "agent_start"})
+        return self
+
     def user(self, at):
         self.events.append({"_rx": at, "type": "message_start", "message": {"role": "user"}})
         self.events.append({"_rx": at, "type": "message_end", "message": {"role": "user"}})
@@ -825,3 +836,38 @@ def test_L3_the_fixtures_exercise_every_part_and_the_digest_notices_a_changed_nu
     before = fixture_digest()
     monkeypatch.setattr(accounting, "SUSPENSION_MIN_S", 10_000.0)      # a changed constant changes a fixture's output
     assert fixture_digest() != before
+
+
+# ---- K. the hang guard's kill (A-038): a tool call hung, the guard killed it, the session died, the harness resumed it ----
+# The shape of v2-gufo05-r1 story 3: a tool call opens at 6583 s, nothing is logged until the next session at 7260.6 s,
+# and the guard killed the call at about 7202 s. Scaled to the 100 s window: opens at 10, killed at 40, resumed at 55.
+
+def test_K1_a_call_the_guard_killed_ends_at_the_kill_and_only_the_wait_after_it_is_between_sessions(tmp_path):
+    s = split(tmp_path, Log().new_session(T0).tool(T0 + 10).guard_kill(T0 + 40).new_session(T0 + 55))
+    assert s["tools_s"] == 30.0 and s["between_sessions_s"] == 15.0
+    assert [(t["seconds"], t["ended_by"]) for t in s["accounting"]["interrupted_tools"]] == [(30.0, accounting.ENDED_BY_GUARD)]
+
+
+def test_K2_the_agents_own_clock_then_agrees_with_the_wall(tmp_path):
+    # The agent's clock runs through the hang and stops when its session dies: wall less the wait after the kill.
+    s = split(tmp_path, Log().new_session(T0).tool(T0 + 10).guard_kill(T0 + 40).new_session(T0 + 55))
+    assert accounting.check(s, agent_seconds=WALL - 15.0) == []
+    assert s["accounting"]["ok"] is True
+
+
+def test_K3_without_the_mark_the_same_log_is_the_failure_the_mark_repairs(tmp_path):
+    s = split(tmp_path, Log().new_session(T0).tool(T0 + 10).new_session(T0 + 55))
+    assert s["tools_s"] == 0.0 and s["between_sessions_s"] == 45.0
+    assert any("counted twice" in p for p in accounting.check(s, agent_seconds=WALL - 15.0))
+
+
+def test_K4_a_call_that_ends_after_the_kill_keeps_its_own_end(tmp_path):
+    # The agent survived the kill: the tool's own end event arrives and is the call's end; nothing is "never started".
+    s = split(tmp_path, Log().tool(T0 + 10, T0 + 45).guard_kill(T0 + 40))
+    assert s["tools_s"] == 35.0 and s["accounting"]["ok"] is True and s["accounting"]["interrupted_tools"] == []
+
+
+def test_K5_a_kill_with_no_call_open_changes_nothing(tmp_path):
+    with_mark = split(tmp_path, Log().tool(T0 + 10, T0 + 20).guard_kill(T0 + 40))
+    without = split(tmp_path, Log().tool(T0 + 10, T0 + 20))
+    assert with_mark["tools_s"] == without["tools_s"] and with_mark["between_sessions_s"] == without["between_sessions_s"]

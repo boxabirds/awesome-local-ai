@@ -285,8 +285,12 @@ test that would reproduce it. Details under the entries.
   Same for the call at 7268 s (685 s). 1360.7 s between sessions is those two waits.
 - **Bucket:** internal bug, **confidence high** on the mechanism (the sums match: 677 + 685 = 1,362). The same shape as
   A-016's guard-kill note.
-- **Status:** open. Not fixed. Fix and test as in the table above; the three stories need a re-score of their
-  accounting once the harness can end the call at the kill.
+- **Status:** fixed in the harness on main, not released (3 Oct 2026): the guard writes a `harness_tool_interrupted`
+  line into the story's events log at each kill; the accounting needed no new rule, because a dead session ends at the
+  last line written. Tests: `test_accounting.py` K1-K5, `test_drive_agent.py` (the guard marks each kill). Replaying
+  story 3's real log with marks at the logged kill times: as recorded, tools 2444.6 s, between sessions 1362.7 s, check
+  fails (1243.0 s over); with marks, tools 3689.3 s, between sessions 118.1 s, check passes. Stories 3, 4 and 5 of
+  v2-gufo05-r1 keep no time breakdown until re-scored from interventions.md's kill times (not decided).
 
 ### A-037 — CI red on main: harness unit suite and real-log replay
 - **First seen:** 2026-10-01 18:07 BST · **Last seen:** 2026-10-01 18:20 BST

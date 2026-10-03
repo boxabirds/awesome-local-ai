@@ -1037,6 +1037,11 @@ class ToolHangGuard(threading.Thread):
                 self.interruptions += 1
                 if CONTAINMENT:
                     CONTAINMENT.reap_interrupted()   # what the cut-off call started, incl. servers it detached
+                try:   # where the accounting reads it: the call was over, and the agent last heard from, now
+                    with self.events.open("a") as f:
+                        f.write(json.dumps({"_rx": round(time.time(), 3), "type": TOOL_INTERRUPT_MARK}, separators=(",", ":")) + "\n")
+                except OSError:
+                    pass   # no log to mark; the guard must go on guarding
                 with self.log.open("a") as f:
                     f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} {self.events.parent.name}: "
                             f"interrupted a tool call silent for {TOOL_HANG_S}s (killed processes under the workspace)\n")
@@ -1141,7 +1146,7 @@ def stamp(line: str, t: float) -> str:
 
 
 # What a tool call was for, from its command: the first match wins.
-from accounting import TOOL_KINDS, tool_kind as _tool_kind  # noqa: E402  (one definition, shared)
+from accounting import TOOL_INTERRUPT_MARK, TOOL_KINDS, tool_kind as _tool_kind  # noqa: E402  (one definition, shared)
 
 
 def _stamped_events(events: Path):

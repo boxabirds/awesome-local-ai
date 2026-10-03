@@ -103,9 +103,11 @@ class Call:
 
 CLIENT_STREAM, CLAUDE_STREAM = "client-stream", "claude-stream"
 RESTART_MARK = "harness_attempt"   # the line the harness writes into the log where it restarts a story (attempts.py)
+TOOL_INTERRUPT_MARK = "harness_tool_interrupted"   # the line the hang guard writes where it kills a silent tool call (drive.py)
 # What showed that a tool call with no end event was over (interrupted_tools' ended_by), in the log's own order.
 ENDED_BY_STEP = "the agent's next step"
 ENDED_BY_SESSION_END = "its session's end"
+ENDED_BY_GUARD = "the hang guard"
 ENDED_BY_RESTART = "a harness restart"
 ENDED_BY_NEW_SESSION = "the next session's start"
 ENDED_BY_WINDOW = "the window's end"
@@ -179,6 +181,8 @@ def parse(events: Path, t_to: float) -> Parsed:
                     out.problems.append(f"a tool call ended without starting ({e.get('toolCallId')})")
                 else:
                     out.tools.append((s[0], rx, s[1]))
+            elif t == TOOL_INTERRUPT_MARK:
+                steps.append((rx, ENDED_BY_GUARD))     # a call with no end of its own was over when the guard killed it
             elif t in ("agent_end", "agent_settled"):
                 settled = rx
                 steps.append((rx, ENDED_BY_SESSION_END))
