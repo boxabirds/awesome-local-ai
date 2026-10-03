@@ -96,6 +96,27 @@ filter** for rejection-sampled SFT (best result at least cost, split by story); 
 for preference optimisation and RL (same state, several continuations, each with outcome and cost). Layer D is built only as
 far as the evidence from A to C supports.
 
+**Layer A, first result (`function_classes.py`, 3 Oct 2026).** For 6, 8, 10, 12 and 14 classes on the cross-story vocabulary,
+two stabilities: across seeds (similar for all, adjusted Rand 0.55 to 0.62), and **across stories**, where a model fitted on half
+the stories assigns every paragraph and is compared with one fitted on the other half:
+
+| Classes | Across-story agreement (adjusted Rand) | Matched-class cosine |
+|---|---|---|
+| 6 | 0.47 | 0.75 |
+| 8 | 0.41 | 0.69 |
+| 10 | 0.34 | 0.63 |
+| 12 | 0.25 | 0.62 |
+| 14 | 0.23 | 0.64 |
+
+The more classes, the more they depend on which stories they were fitted on: **the data supports about 6 universal classes,
+not 10 or 14**, and even 6 agree only moderately across story halves. Read by their strongest terms, the 6 are: weighing and
+correcting ("but", "so", "not"); looking at existing code or the spec ("look at", "understand"); checking a detail ("check");
+running tests and announcing the next action ("run the tests", "now let me write"); code drafted in the thinking ("const",
+"return", "export"); and one **task-subject** class (notes, zoom, widths, selection), which is the app's and not a way of
+thinking. That is five functions and one subject class, and it supersedes the 10-class merge proposed earlier. The 8-class fit
+splits the subject class in two and the checking class in two (a module-and-import form), which is the first step towards
+story-bound classes.
+
 **Order, and what each step costs:**
 
 | Step | Needs |
