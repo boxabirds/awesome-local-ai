@@ -21,6 +21,7 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
 import type { Point } from '../canvas/camera';
+import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 
 /** What the board gives any object component, whatever its type. */
@@ -45,6 +46,14 @@ export interface ObjectProps {
   onStartEdit(id: string): void;
   /** Leave text editing, keeping the selection. */
   onEndEdit(): void;
+  /**
+   * This person's undo history, for a type that edits text in place.
+   *
+   * It is here rather than imported by the editor because the board owns one controller
+   * per document: a type that opens an editor uses that same history, so typing into a
+   * shape from story 10 is undone by the same Ctrl+Z as typing into a note (`undo.steps`).
+   */
+  undo?: UndoController;
 }
 
 /** One object type: how to draw it, and how far the generic code may take it. */

@@ -45,6 +45,7 @@ export function StickyNote(props: ObjectProps) {
     onFocusSelect,
     onStartEdit,
     onEndEdit,
+    undo,
   } = props;
   const note = asSticky(props.obj);
   const textRef = useRef<HTMLDivElement | null>(null);
@@ -128,7 +129,12 @@ export function StickyNote(props: ObjectProps) {
       }}
     >
       {editing && ytext ? (
-        <StickyTextEditor ytext={ytext} fontPx={fontPx ?? STICKY_FONT_MAX_PX} onEnd={onEndEdit} />
+        <StickyTextEditor
+          ytext={ytext}
+          fontPx={fontPx ?? STICKY_FONT_MAX_PX}
+          onEnd={onEndEdit}
+          undo={undo}
+        />
       ) : (
         <div
           ref={textRef}

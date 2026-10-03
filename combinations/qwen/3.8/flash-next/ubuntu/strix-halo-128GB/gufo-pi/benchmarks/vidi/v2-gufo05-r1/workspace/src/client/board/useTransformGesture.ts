@@ -58,6 +58,16 @@ export interface TransformGestureParams {
   snapshot: readonly ObjectSnapshot[];
   /** False when the document failed to load: selecting works, this does not. */
   canEdit: boolean;
+  /**
+   * A gesture is beginning, and a gesture has ended (`undo.steps`).
+   *
+   * The board passes the undo controller's `boundary` here: the two calls put the
+   * whole drag inside one capture window of its own, so the dozen writes a gesture makes
+   * — one per animation frame, plus the raise at the threshold — are one undo step, and
+   * the change made just after the pointer came up is not swallowed into it.
+   */
+  onGestureStart?(): void;
+  onGestureEnd?(): void;
 }
 
 export interface TransformGestureHandlers {
@@ -239,6 +249,10 @@ export function useTransformGesture(params: TransformGestureParams): TransformGe
         pressRef.current = null;
         setIsTransforming(false);
       }
+      // Step boundary, for an ending and for an interruption alike: a drag that was
+      // cancelled is still one step, and it is not extended by the next thing this
+      // person does (`undo.steps`).
+      latest.current.onGestureEnd?.();
     },
     [apply],
   );
@@ -272,6 +286,8 @@ export function useTransformGesture(params: TransformGestureParams): TransformGe
       // One gesture at a time: a second pointer does not start another one.
       if (pressRef.current) return;
       pressRef.current = press;
+      // Step boundary: whatever happened before this press is a step of its own.
+      latest.current.onGestureStart?.();
       // Followed on `window`, not on the element: bringing objects to the front moves
       // their DOM nodes, which drops pointer capture, and the pointer regularly leaves
       // the object that started the press.

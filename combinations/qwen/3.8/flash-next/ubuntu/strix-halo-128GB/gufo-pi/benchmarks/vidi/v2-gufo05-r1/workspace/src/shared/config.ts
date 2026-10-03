@@ -198,3 +198,18 @@ export const NUDGE_STEP_WORLD = 1;
 
 /** Shift + an arrow key moves it this many. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+/* Undo and redo (story 8) ---------------------------------------------------*/
+
+/**
+ * How long a pause ends a burst of typing: keystrokes closer together than this are
+ * one undo step, and a pause of exactly this long starts a new one (`undo.typing`).
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/**
+ * How many of this person's own steps the history keeps. The oldest is dropped when a
+ * new one arrives and the history is full (`undo.limit`); nothing is kept across a
+ * reload (`undo.session_only`).
+ */
+export const UNDO_MAX_STEPS = 200;

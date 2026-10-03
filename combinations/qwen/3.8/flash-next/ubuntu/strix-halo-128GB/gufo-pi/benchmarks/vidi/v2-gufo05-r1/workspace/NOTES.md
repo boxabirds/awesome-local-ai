@@ -683,3 +683,119 @@ TC-05 to TC-10; `tests/unit/registry.test.ts` TC-11, TC-12 plus duplicate regist
 `tests/component/transform.test.tsx` TC-23 to TC-26; `tests/component/registry.test.tsx`
 TC-11, TC-12 as rendered. e2e: `tests/e2e/selection.spec.ts` TC-32 to TC-36. So TC-01 to
 TC-36 are all present, no layer claiming a case that another layer owns.
+
+## Story 8 — undo and redo of my own changes
+
+### Where the history lives, and what is in it
+
+`src/client/board/undo.ts` is the whole undo model: a `Y.UndoManager` over the objects map
+with `trackedOrigins: new Set([LOCAL_ORIGIN])`, so nothing arrives from a peer or from
+story 4's load origin can ever be a step. Everything else in the story is either a boundary
+around that, or a button on top of it. The controller is created per board doc in `App.tsx`
+and destroyed with the doc, which is what makes "reload the board: history is empty" true
+without a line of code about it.
+
+Selection is not in the document, so undo never touches it. That is how "undoing a delete
+that clears selection succeeds" comes for free: the delete took the note out of the doc, the
+selection was pruned by the observer, and the undo has no opinion about either.
+
+### The capture window is ours, not Yjs's
+
+`captureTimeout` on the UndoManager is set to `Number.MAX_SAFE_INTEGER` and the merge rule
+is the controller's own `afterTransaction` hook: a local change joins the step above it
+while it lands within `UNDO_CAPTURE_TIMEOUT_MS` of the previous local change, and opens a
+new step otherwise.
+
+Two reasons, and the second is the one that decided it. Yjs stamps `lastChange` on every
+capturing transaction, so anyone who types one character per second gets one undo step per
+character, and the PRD's slow-thoughtful-note-maker is the person this story is about. And
+`stopCapturing()` — the boundary every gesture and every edit session calls — sets
+`lastChange` to zero, which means a boundary also *starts* the next window: with the library
+clock that is a rule you can only hope behaves, and with our own clock it is a rule we can
+state. TC-13 is the payoff: two writes `UNDO_CAPTURE_TIMEOUT_MS − 1` apart are one step and two
+writes exactly `UNDO_CAPTURE_TIMEOUT_MS` apart are two, against a clock the test turns by
+hand, with no fake timers anywhere.
+
+### One press, one step
+
+`popStackItem` in yjs 13.6.33 keeps popping until it finds a stack item that performs a
+change. For a text field that is right — Ctrl+Z should keep reaching for something you can
+take back. On a shared board it is the opposite of the PRD: one press would undo a colleague's
+change of mine, and then my earlier work, and the person at the keyboard would not be able to
+tell which notes came back and why. So `step()` detaches every step but the top one, performs
+that one, and puts the rest back where they were. TC-07b is the case: two dead steps on top
+(the target of each was deleted remotely), one press, and the board is exactly where it was —
+the press does nothing, it does not do three things.
+
+A step that performs nothing is dropped from the history, and its redo is dropped with it,
+so the buttons never offer a press whose only effect is to make the next press interesting.
+
+### Where the boundaries are
+
+- A drag or a resize: `onGestureStart` and `onGestureEnd` on story 7's
+  `useTransformGesture`, the latter fired on `pointercancel` too. The 30 rAF-coalesced
+  `moveObjects` transactions of one drag are one step, and a press that was cancelled at the
+  window edge is one step rather than zero.
+- Typing in a note: `StickyTextEditor` calls `boundary()` when it mounts and when it
+  unmounts, so a burst is one step, and the two notes I wrote in are two steps even if I
+  typed without a pause.
+- Delete, nudge, colour, and a new note: one model call each, each wrapped in a boundary, so
+  each is exactly one step and none of them can swallow what came before.
+
+### Keys
+
+Ctrl/Cmd+Z is undo, Ctrl/Cmd+Shift+Z and Ctrl+Y are redo, Alt+Z is nothing (Figma's undo is
+Cmd+Z, and the same key meaning two different things in two applications on one keyboard is
+worth avoiding). `Ctrl+Y` is Ctrl only — macOS has no Cmd+Y convention and a Mac user pressing
+Cmd+Y means something else.
+
+The window handler reads the undo keys *before* its own "is this key mine" gate, because a
+keypress that lands on the toolbar's Undo button must be answered by that button and the
+button's default is not text entry. A caret in a note never double-fires: the editor's own
+handler claims the key and stops it reaching the window, which is the only way to stop the
+textarea's native DOM undo diverging from `Y.Text`.
+
+`Toolbar`'s `undo` prop is required, in the same spirit as story 7's `SelectionBar`: a board
+that renders without its history controls is a mistake, not a configuration.
+
+### Deviations, stated
+
+- **TC-08 asserts the content, not the colleague's edit.** The contract line for TC-08 is
+  "undo restores the exact content the note held at the time of my delete, including their
+  edits", and that is what the test asserts. The scenario's sentence "the peer's edit is
+  reverted" is not something an origin-scoped undo does, and cannot be: yjs maps an undo
+  back onto the document with document-global positions, so restoring one person's span is
+  only ever "what was live here when I deleted". The whole-note shape of that scenario is
+  what the browser run asserts (TC-22, TC-23).
+- **TC-21 is both of the two things the two documents ask for.** tasks.md's TC-21 is the
+  share-link input; design.md's TC-21 is two tabs on one board each undoing themselves. The
+  input case carries the id, and the two-tab case sits next to it. In the two-tab case the
+  two people write to two different notes: when both people write the *same* key of the same
+  note, the last live value is what an undo of an earlier value resolves to, so the earlier
+  person's undo performs nothing at all — which is the same "a dead step is a no-op" rule as
+  TC-07b, not a different rule.
+- **The 30-frame drag is 30 synchronous pointer moves and one frame advance**, as story 7's
+  gesture tests already do. What TC-14 is about is thirty transactions becoming one step;
+  the harness already owns the frame clock, and `advanceFrames(1)` at the end is how the
+  house pattern says "the gesture has settled".
+- **TC-22 counts her steps: eleven.** Eight creations, one word, one colour, one delete. The
+  count is the assertion that nothing foreign got into her history — a colleague's note in
+  there would show up as a twelfth press — and unwinding to the bottom is the only place
+  where "Undo becomes disabled once my history is exhausted" can actually be observed.
+- **Firefox and WebKit are still skipped on this host**, as in every story before: the
+  binaries are installed, the system libraries are not, and there is no root. Nothing in
+  `tests/e2e/undo.spec.ts` is engine-specific.
+
+### What was tested where
+
+Unit: `tests/unit/undo-controller.test.ts` TC-01 to TC-13 plus TC-07b (two dead steps),
+against a second real `Y.Doc` relayed in `tests/unit/peer.ts`, which also carries story 4's
+load origin and a pre-existing saved board; `tests/unit/config.test.ts` pins
+`UNDO_CAPTURE_TIMEOUT_MS`, `UNDO_MAX_STEPS` and both button descriptions (ux.md asks every
+control to say which key does the same thing, so the string is part of the contract).
+ui-component: `tests/component/UndoControls.test.tsx` TC-18 to TC-21 on a real `<App>`,
+real doc, real controller for the buttons and a recorded fake for the key table;
+`tests/component/UndoBoundaries.test.tsx` TC-14 to TC-17 against the app's own controller,
+because a boundary is only real if the app is the one calling it. e2e:
+`tests/e2e/undo.spec.ts` TC-22, TC-23, TC-24, plus the toolbar buttons doing what the
+shortcuts do.

@@ -28,6 +28,7 @@ import { allObjectIds, deleteObjects, moveObjects, objectBounds } from '../../sh
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
+import { undoGesture, type UndoController } from './undo';
 import type { SelectionHandle } from './useSelection';
 
 export interface BoardKeyParams {
@@ -39,6 +40,32 @@ export interface BoardKeyParams {
   canEdit: boolean;
   /** Is a selection rectangle being dragged right now? Escape is its business. */
   marqueeActive?(): boolean;
+  /**
+   * This person's undo history (`undo.shortcuts`).
+   *
+   * Without it the keys are left to the browser, which is the right answer on a screen
+   * that has no history of its own to offer.
+   */
+  undo?: UndoController;
+}
+
+/**
+ * Is this a field that takes text? Its caret is its own, and so is its undo.
+ *
+ * A narrower question than `takesItsOwnKeys` below: a focused button does not keep Delete
+ * (that would be the board's), but it has no reason to keep Ctrl+Z either — a person who
+ * has just clicked the Undo button and reaches for the keyboard means the same thing both
+ * times. A note being edited is a textarea, so it is in here, and the editor answers the
+ * key itself (`undo.typing`).
+ */
+function takesTextKeys(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.tagName === 'SELECT'
+  );
 }
 
 /**
@@ -49,15 +76,8 @@ export interface BoardKeyParams {
  * control must not be reinterpreted as a command to the board underneath it.
  */
 function takesItsOwnKeys(target: EventTarget | null): boolean {
+  if (takesTextKeys(target)) return true;
   if (!(target instanceof HTMLElement)) return false;
-  if (
-    target.isContentEditable ||
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.tagName === 'SELECT'
-  ) {
-    return true;
-  }
   return target.tagName === 'BUTTON' || target.tagName === 'A';
 }
 
@@ -69,6 +89,23 @@ export function useBoardKeys(params: BoardKeyParams): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // Undo and redo are read before the "this control keeps its keys" rule, because the
+      // only controls that keep them are the ones that take text: a focused button, a link
+      // and everything else leave the history shortcuts to the board. A field takes them —
+      // including the note being edited, whose editor answers the key itself so that the
+      // browser's own undo never diverges from the shared text.
+      const gesture = undoGesture(event);
+      if (gesture !== null) {
+        if (takesTextKeys(event.target)) return;
+        // A board that cannot be edited has no history either (`undo.not_editable`).
+        if (!latest.current.canEdit) return;
+        // Not the browser's page-level undo, and not a page action.
+        event.preventDefault();
+        event.stopPropagation();
+        latest.current.undo?.[gesture]();
+        return;
+      }
+
       if (takesItsOwnKeys(event.target)) return;
       const { doc, selection, snapshot, canEdit, marqueeActive } = latest.current;
       // Somebody is typing into an object: the keys are theirs.
@@ -99,7 +136,11 @@ export function useBoardKeys(params: BoardKeyParams): void {
         if (ids.length === 0 || !canEdit) return;
         event.preventDefault();
         event.stopPropagation();
+        // One delete of twenty objects is one undo step (`undo.steps`), and it is never
+        // merged with the change before it or after it.
+        latest.current.undo?.boundary();
         deleteObjects(doc, ids);
+        latest.current.undo?.boundary();
         // Everything selected is gone, so nothing is (`sel.group_delete`).
         selection.clear();
         return;
@@ -124,7 +165,11 @@ export function useBoardKeys(params: BoardKeyParams): void {
           const bounds = objectBounds(object);
           positions.set(id, { x: bounds.x + delta.x, y: bounds.y + delta.y });
         }
+        // Each press of an arrow is a step: holding it down walks the selection along,
+        // and undoing walks it back, one press at a time.
+        latest.current.undo?.boundary();
         moveObjects(doc, positions);
+        latest.current.undo?.boundary();
         return;
       }
 

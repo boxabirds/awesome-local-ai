@@ -1,16 +1,24 @@
 /**
- * The left-hand toolbar, open to everyone: the only control in this story is
- * "Sticky note", which puts a note in the middle of the visible board and puts
- * its text straight into edit mode.
+ * The left-hand toolbar: the tools, and under them this person's Undo and Redo.
+ *
+ * "Sticky note" puts a note in the middle of the visible board and puts its text
+ * straight into edit mode. The undo pair sits below the tools because that is the order
+ * the PRD gives the structure — a tool adds, and the history steps back over what the
+ * tools did — and because a divider is cheaper than reasoning about it later.
  *
  * It is a fixed overlay outside the world layer, so it does not pan or zoom and
  * stays reachable at any zoom level.
  */
+import { UndoButtons } from './UndoButtons';
+import type { UndoHandle } from './useUndo';
+
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /** This person's history, for the buttons underneath the tools. */
+  undo: UndoHandle;
 }
 
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, undo }: ToolbarProps) {
   return (
     <div className="toolbar" data-testid="toolbar" role="toolbar" aria-label="Board tools">
       <button
@@ -33,6 +41,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
         </svg>
         <span>Sticky note</span>
       </button>
+      <UndoButtons {...undo} />
     </div>
   );
 }

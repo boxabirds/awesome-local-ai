@@ -208,8 +208,25 @@ button:focus-visible {
   cursor: pointer;
 }
 
-.toolbar__button:hover {
+.toolbar__button:hover:not(:disabled) {
   background: rgba(47, 111, 237, 0.1);
+}
+
+/* Undo and redo sit under the tools, divided from them (story 8). */
+.toolbar__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--panel-border);
+}
+
+/* An empty history says so: the button is out rather than waiting for a click. */
+.toolbar__button:disabled {
+  color: var(--muted);
+  opacity: 0.55;
+  cursor: default;
 }
 
 /* Sticky notes ------------------------------------------------------------- */

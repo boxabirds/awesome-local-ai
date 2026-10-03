@@ -16,12 +16,20 @@
  *   overwriting somebody else's characters.
  * - Escape keeps the selection; a pointerdown outside the note drops it.
  * - Enter inserts a newline (the textarea's own behaviour).
+ * - Undo and redo are the board's, not the field's (`undo.typing`): the browser's own
+ *   history lives in the field and knows nothing about the shared document, so letting it
+ *   answer Ctrl+Z would show this person a text that nobody else has. The keys are taken
+ *   over and handed to the controller instead.
+ * - Opening a note and leaving it are step boundaries, so typing into a note is never
+ *   merged with the gesture before it, and consecutive keystrokes stay one step until the
+ *   person pauses for UNDO_CAPTURE_TIMEOUT_MS.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { undoGesture, type UndoController } from '../board/undo';
 import { applyTextDiff, clampToLimit, counterVisible, fitFontSize, shiftCaret } from './StickyText';
 
 export interface StickyTextEditorProps {
@@ -34,6 +42,8 @@ export interface StickyTextEditorProps {
    * (`sel.clear`).
    */
   onEnd(): void;
+  /** This person's history: step boundaries around the edit, and Ctrl+Z inside it. */
+  undo?: UndoController;
 }
 
 /** The note element this node sits inside, for the "clicked outside" test. */
@@ -51,7 +61,7 @@ function placeCaret(element: HTMLTextAreaElement, offset: number): void {
   }
 }
 
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
+export function StickyTextEditor({ ytext, fontPx, onEnd, undo }: StickyTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [length, setLength] = useState(() => ytext.toString().length);
   const [size, setSize] = useState(fontPx);
@@ -59,6 +69,8 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   const composingRef = useRef(false);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
 
   /**
    * The text this field and the document last agreed on.
@@ -141,6 +153,18 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     setOverflow(fitted.overflow);
   }, [ytext]);
 
+  // Edit start and edit end are step boundaries (`undo.steps`): the first keystroke in a
+  // note never merges into whatever was done before it was opened, and nothing typed here
+  // merges into what is done after. Leaving is caught on unmount rather than in `onEnd`,
+  // because a note can stop being edited in more ways than the ones that call `onEnd` —
+  // for one, the person next door can delete the note being typed into.
+  useEffect(() => {
+    undoRef.current?.boundary();
+    return () => {
+      undoRef.current?.boundary();
+    };
+  }, []);
+
   // A pointerdown outside the note ends editing; it never writes again.
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
@@ -175,6 +199,18 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
           commit(event.currentTarget.value);
         }}
         onKeyDown={(event) => {
+          const gesture = undoGesture(event);
+          if (gesture !== null && undoRef.current) {
+            // The field's own undo would change what this screen shows and nothing else,
+            // and the next keystroke would then diff the document against a text the
+            // field no longer holds. The controller's undo changes the document, and the
+            // observer above writes the result back into this field.
+            event.preventDefault();
+            event.stopPropagation();
+            if (gesture === 'redo') undoRef.current.redo();
+            else undoRef.current.undo();
+            return;
+          }
           if (event.key !== 'Escape') return; // Enter belongs to the textarea
           event.preventDefault(); // the board must not react to it either
           event.stopPropagation();

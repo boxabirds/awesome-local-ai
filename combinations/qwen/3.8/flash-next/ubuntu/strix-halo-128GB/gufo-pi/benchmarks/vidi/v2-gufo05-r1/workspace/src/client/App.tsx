@@ -36,6 +36,7 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useMarquee } from './board/useMarquee';
 import { useSelection } from './board/useSelection';
+import { useUndo, useUndoController } from './board/useUndo';
 import { useTransformGesture } from './board/useTransformGesture';
 import { BoardViewport } from './canvas/BoardViewport';
 import { CameraProvider, useCameraContext } from './canvas/CameraContext';
@@ -139,6 +140,16 @@ function BoardLayout({ doc, boardId }: AppProps) {
   const selection = useSelection(objects);
   const canEdit = connectionAllowsEditing(board.connectionState);
 
+  // One undo history per board document, for this person alone (story 8). It watches the
+  // document rather than being told about the changes, so nothing here has to remember to
+  // report a mutation: what this tab writes with `LOCAL_ORIGIN` is in it, and what arrives
+  // from anybody else is not.
+  const undoController = useUndoController(board.doc);
+  const undo = useUndo(undoController, canEdit);
+
+  /** One model call is one undo step, whatever the pointer did around it. */
+  const stepBoundary = undoController.boundary;
+
   // Latest values for the callbacks that are created once.
   const latestRef = useRef({ camera, selection, doc: board.doc, connectionState: board.connectionState });
   latestRef.current = { camera, selection, doc: board.doc, connectionState: board.connectionState };
@@ -146,9 +157,12 @@ function BoardLayout({ doc, boardId }: AppProps) {
   /** Delete everything selected, and clear the selection (`sel.group_delete`). */
   const deleteSelection = useCallback(() => {
     if (!canEdit) return;
+    // Twenty notes gone is one thing that happened, so it is one step back (`undo.steps`).
+    stepBoundary();
     deleteObjects(latestRef.current.doc, [...latestRef.current.selection.ids]);
+    stepBoundary();
     latestRef.current.selection.clear();
-  }, [canEdit]);
+  }, [canEdit, stepBoundary]);
 
   // Shift+drag on empty space. It adds to the selection, so a second rectangle grows
   // it instead of starting over (`sel.marquee`).
@@ -156,13 +170,17 @@ function BoardLayout({ doc, boardId }: AppProps) {
     selection.setMany(ids, true);
   });
 
-  // Drag an object: move the selection. Drag a handle: resize it.
+  // Drag an object: move the selection. Drag a handle: resize it. The two boundary calls
+  // are what make a whole drag one undo step: every frame it writes falls inside the open
+  // window, and nothing written after the pointer came up does too (`undo.steps`).
   const gesture = useTransformGesture({
     doc: board.doc,
     camera,
     selection,
     snapshot: objects,
     canEdit,
+    onGestureStart: stepBoundary,
+    onGestureEnd: stepBoundary,
   });
 
   useBoardKeys({
@@ -171,13 +189,17 @@ function BoardLayout({ doc, boardId }: AppProps) {
     snapshot: objects,
     canEdit,
     marqueeActive: () => marquee.active,
+    undo: undoController,
   });
 
   /** Put a note on the board centred on a world point and start typing it. */
   const createAt = useCallback(
     (point: Point) => {
       if (!connectionAllowsEditing(latestRef.current.connectionState)) return;
+      // Making a note is a step, and the typing that starts a moment later is another.
+      stepBoundary();
       const id = createSticky(latestRef.current.doc, point);
+      stepBoundary();
       if (!id) return;
       // The note is new, so the selection has not heard of it yet: say that it exists
       // before selecting it, or the check that keeps a stale id out of a selection
@@ -185,7 +207,7 @@ function BoardLayout({ doc, boardId }: AppProps) {
       selection.add(id);
       selection.startEdit(id);
     },
-    [selection],
+    [selection, stepBoundary],
   );
 
   const createAtCentre = useCallback(() => {
@@ -197,7 +219,7 @@ function BoardLayout({ doc, boardId }: AppProps) {
   return (
     <div className={`app${gesture.isTransforming ? ' transform--active' : ''}`}>
       <ConnectionStatus state={board.connectionState} />
-      <Toolbar onCreateSticky={createAtCentre} />
+      <Toolbar onCreateSticky={createAtCentre} undo={undo} />
       <BoardViewport
         onEmptyDoubleClick={(point) => {
           createAt(screenToWorld(camera, point));
@@ -226,6 +248,7 @@ function BoardLayout({ doc, boardId }: AppProps) {
               onFocusSelect={selection.selectOnly}
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
+              undo={undoController}
             />
           );
         })}
@@ -249,6 +272,7 @@ function BoardLayout({ doc, boardId }: AppProps) {
             snapshot={objects}
             doc={board.doc}
             onDelete={deleteSelection}
+            boundary={stepBoundary}
           />
         </div>
       ) : null}

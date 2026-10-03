@@ -30,6 +30,14 @@ export interface SelectionBarProps {
   doc: Y.Doc;
   /** Delete everything selected, and clear the selection (`sel.group_delete`). */
   onDelete(): void;
+  /**
+   * Close the current undo capture window (`undo.steps`).
+   *
+   * A colour change is one step, whatever the pointer did around it. Two clicks on two
+   * swatches within half a second would otherwise look like one burst of typing to the
+   * history and merge into a single undo, which is not how a colour is chosen.
+   */
+  boundary?(): void;
 }
 
 /** The one selected object, when a single sticky note is all there is. */
@@ -55,7 +63,9 @@ export function SelectionBar(props: SelectionBarProps) {
         <NoteToolbar
           color={note.color}
           onColor={(color: StickyColor) => {
+            props.boundary?.();
             setStickyColor(doc, note.id, color);
+            props.boundary?.();
           }}
           onDelete={onDelete}
         />
