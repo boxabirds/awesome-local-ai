@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // workerd is the environment here: the generated runtime types provide the
+    // globals, and the DOM lib would fight them.
+    "lib": ["ES2022"],
+    "types": []
+  },
+  "include": [
+    "worker-configuration.d.ts",
+    "src/worker/**/*.ts",
+    "src/shared/**/*.ts",
+    "tests/integration/**/*.ts"
+  ]
+}

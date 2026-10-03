@@ -63,6 +63,24 @@ function diffRange(current: string, next: string): { start: number; endCurrent: 
 }
 
 /**
+ * Where a caret at `caret` in `previous` belongs in `next`.
+ *
+ * Used when somebody else's typing arrives while this note is being edited: the
+ * text in the field has to change, and the caret has to come with it rather than
+ * jump to the start. The change is treated as one region (the same shape
+ * `diffRange` describes): a caret before it does not move, and a caret at or after
+ * it moves by what the change grew or shrank by, never landing before the start of
+ * the change.
+ */
+export function shiftCaret(caret: number, previous: string, next: string): number {
+  const { start, endCurrent, endNext } = diffRange(previous, next);
+  if (caret <= start) return caret;
+  const deleted = endCurrent - start;
+  const inserted = endNext - start;
+  return Math.max(start, caret - deleted + inserted);
+}
+
+/**
  * Write `next` into `ytext` with the fewest operations possible: at most one
  * delete and one insert, inside a single transaction.
  */

@@ -1,8 +1,35 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-01",
+  // The newest date both the local `wrangler` and the workerd bundled by
+  // `@cloudflare/vitest-pool-workers` accept (see NOTES.md).
+  "compatibility_date": "2026-08-22",
+  // The Worker owns routing: /api/rooms/<boardId> to a BoardRoom, everything
+  // else to the built client (see src/worker/index.ts).
+  "main": "src/worker/index.ts",
   "assets": {
-    "directory": "./dist/client"
-  }
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    // The client is a single-page app: /b/<boardId> has no file behind it.
+    "not_found_handling": "single-page-application",
+    // Every request goes through the Worker first, so the room routes are the
+    // Worker's own decision rather than a gap in the asset listing.
+    "run_worker_first": true
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  // SQLite-backed from the start: story 4 persists the document and must not
+  // need a class migration.
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ]
 }

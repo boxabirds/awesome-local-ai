@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
 
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -20,6 +21,7 @@ import { BoardViewport } from './canvas/BoardViewport';
 import { CameraProvider, useCameraContext } from './canvas/CameraContext';
 import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import {
   canZoomIn,
   canZoomOut,
@@ -51,13 +53,34 @@ function takesItsOwnKeys(target: EventTarget | null): boolean {
 export interface AppProps {
   /** Bring your own document; the default is a fresh one (tests pass one). */
   doc?: Y.Doc;
+  /**
+   * The board this page is showing, from `/b/:boardId`. Without it the board is
+   * local only: no room is opened, and nothing is reported about a connection.
+   */
+  boardId?: string;
 }
 
-function BoardLayout({ doc }: AppProps) {
+/**
+ * The board this address names, or `null` when it names none: anything that is
+ * not `/b/<boardId>`, and `/b/<something that is not an id>`.
+ *
+ * Validation is `isValidBoardId`, the same rule the Worker applies to
+ * `/api/rooms/:boardId`, so a page and its room never disagree about whether an
+ * address can name a board. Saying so on screen is story 5's page; here it simply
+ * means *no room*, which is the honest reading of an address that cannot have one.
+ */
+export function boardIdFromPath(pathname: string): string | null {
+  const match = /^\/b\/([^/]+)\/?$/.exec(pathname);
+  if (!match) return null;
+  const candidate = match[1];
+  return candidate !== undefined && isValidBoardId(candidate) ? candidate : null;
+}
+
+function BoardLayout({ doc, boardId }: AppProps) {
   const nav = useCameraContext();
   const { camera } = nav;
   const viewport = useWindowSize();
-  const board = useBoardDoc(doc);
+  const board = useBoardDoc(boardId, doc);
   const selection = useSelection();
   const { notes } = board;
 
@@ -65,12 +88,18 @@ function BoardLayout({ doc }: AppProps) {
   const latestRef = useRef({ camera, selection, doc: board.doc });
   latestRef.current = { camera, selection, doc: board.doc };
 
-  // A note that disappears stops being selected or edited, so the toolbars and
-  // the keyboard never point at a note that is not there.
+  // A note that disappears stops being selected *and* stops being edited, so the
+  // toolbars and the keyboard never point at a note that is not there. With a room
+  // attached, a note can disappear without this keyboard touching it: somebody else
+  // deleted it while this person was typing in it or dragging it, and the editor
+  // closes on the deletion, not on a keystroke.
   useEffect(() => {
-    const { selectedId } = selection;
-    if (selectedId === null) return;
-    if (!notes.some((note) => note.id === selectedId)) selection.select(null);
+    const { selectedId, editingId } = selection;
+    if (selectedId === null && editingId === null) return;
+    const stillThere = (id: string | null) => id !== null && notes.some((note) => note.id === id);
+    if (stillThere(selectedId) && stillThere(editingId)) return;
+    if (editingId !== null && !stillThere(editingId)) selection.endEdit('unselected');
+    else if (!stillThere(selectedId)) selection.select(null);
   }, [notes, selection]);
 
   // Enter edits the selected note; Delete/Backspace removes it. While a note is
@@ -111,6 +140,7 @@ function BoardLayout({ doc }: AppProps) {
 
   return (
     <div className="app">
+      <ConnectionStatus state={board.connectionState} />
       <Toolbar onCreateSticky={createAtCentre} />
       <BoardViewport
         onEmptyDoubleClick={(point) => {
@@ -151,10 +181,16 @@ function BoardLayout({ doc }: AppProps) {
   );
 }
 
-export function App({ doc }: AppProps = {}) {
+export function App({ doc, boardId }: AppProps = {}) {
+  const fromAddress = boardIdFromPath(window.location.pathname);
   return (
     <CameraProvider>
-      <BoardLayout doc={doc} />
+      <BoardLayout boardId={boardId ?? fromAddress ?? undefined} doc={doc} />
     </CameraProvider>
   );
+}
+
+/** The address of a board nobody has opened yet; story 5 gives it a Share button. */
+export function newBoardPath(): string {
+  return `/b/${newBoardId()}`;
 }

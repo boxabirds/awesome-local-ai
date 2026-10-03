@@ -238,3 +238,135 @@ export) are not implemented and nothing was added for them.
 - **The `App` accepts an optional `doc`**, so a component test can inspect the real document
   while driving the real component tree; the production entry point passes nothing and gets
   its own document.
+
+## Story 3 — live collaboration
+
+- **`compatibility_date` is 2026-08-22, not the newest date.** The workerd that
+  `@cloudflare/vitest-pool-workers` bundles refuses to boot on anything newer
+  ("requires compatibility date 2026-09-01, newest supported is 2026-08-22"), and the
+  integration tests are the reason that runtime exists here. Re-check both runtimes
+  before raising it.
+- **Worker code has its own TypeScript project.** `wrangler types` writes
+  `worker-configuration.d.ts` (checked in), whose globals — `WebSocket`, `Response`,
+  `Blob`, `console` — are workerd's, not the DOM's, and the two declarations are not
+  interchangeable. `tsconfig.worker.json` compiles `src/worker`, `src/shared` and
+  `tests/integration` with `lib: ["ES2022"]`, `types: []`; the root project excludes
+  those paths. `npm run typecheck` runs both.
+- **A room's sockets are set to `binaryType = 'arraybuffer'` right after `accept()`.**
+  workerd hands WebSocket frames to a Durable Object as `Blob`s by default, and
+  `decodeMessage` expects the bytes. `y-websocket` sets `arraybuffer` on the browser
+  side itself, so this only ever affects the room and the in-worker test clients.
+- **A test client must call `accept()` on `response.webSocket`** before sending on it
+  ("You must call one of accept() or state.acceptWebSocket() …"). The socket handed
+  back by an internal fetch is not owned by the caller until it does; messages sent
+  before that throw, and messages arriving before it are buffered, not dropped.
+- **The room writes the outer `MESSAGE_SYNC` byte itself.** `y-protocols`'
+  `writeSyncStep1`, `writeSyncStep2` and `writeUpdate` write their own sub-kind but
+  not the message type; `y-websocket` frames them as `type, sub-kind, payload`. A
+  hello or a broadcast that skips the type byte is read by the client as garbage
+  ("Unexpected end of array") and turns into a reconnect loop.
+- **Awareness is length-prefixed, sync kinds are not.** `y-websocket`'s
+  `messageAwareness` handler reads its body with `readVarUint8Array`, while
+  `messageSync` hands the decoder straight to `readSyncMessage`. Decoding the
+  awareness count directly (which is what `applyAwarenessUpdate` does with the
+  *unwrapped* update) rejects every real frame.
+- **An awareness entry is `clientId, clock, JSON state`** — the order
+  `applyAwarenessUpdate` reads and `encodeAwarenessUpdate` writes. State is a
+  `varString`, so an entry with a non-ASCII name is validated by character count,
+  exactly as the library reads it.
+- **`GET /b/<invalid id>` serves `index.html`.** The 400 in the contract belongs to
+  `/api/rooms/:boardId`, which is a machine endpoint; the page route has to reach the
+  SPA so it can say "That board address is not valid." — the page that says it is
+  story 5's `BoardPage`.
+- **The `/` redirect to a fresh board is temporary.** Story 5 owns board creation and
+  the share button; story 3 needs *a* way to land on `/b/<id>` from a browser, and a
+  redirect is the smallest one.
+
+## Story 3 — text that arrives while a note is open
+
+- **An open editor takes remote text into the field.** `StickyTextEditor` keeps its
+  value in the DOM and writes it to the `Y.Text` with a whole-value diff
+  (`applyTextDiff`). That is correct for one person and quietly destructive for two:
+  if the document has moved on since the field was last written, the diff is
+  computed against a stale copy and the next keystroke deletes whatever the other
+  person typed. The editor now observes its `Y.Text`, writes remote text into the
+  textarea and moves the caret with `shiftCaret`. The invariant that makes the
+  whole-value diff safe again is that field, document and `sharedValueRef` agree
+  between keystrokes, so a commit always describes a local edit.
+  Found by e2e TC-23, not by any single-client test.
+- **The same fix is why nothing is lost when text arrives mid-word.** With the field
+  up to date, a keystroke's diff is one insert at the caret; without it, a keystroke
+  is "replace the tail of the note with what I have".
+- **`shiftCaret` treats a remote change as one region.** A caret before it does not
+  move; a caret at or after it moves by what the change grew or shrank by. Pure, so
+  it has unit tests, including one across a surrogate pair.
+- **Composing text is left alone.** While an IME composition is running, incoming
+  text is not written into the field — replacing what a person is mid-way through
+  composing is worse than a short delay — so composing while somebody else types in
+  the same note can still drop their characters. Fixing that means applying the
+  local *operations* rather than a value diff, which is an editor integration, not a
+  sticky note. Documented rather than hidden.
+
+## Story 3 — the live-collaboration e2e suite
+
+- **One browser context per person.** Two pages in one context could in principle
+  meet through a `BroadcastChannel`, and the test would pass while the relay did
+  nothing. `connectBoard` sets `disableBc`, so the isolation is belt-and-braces; the
+  contexts mean the test does not have to know that.
+- **Notes live on a grid and people act on their own.** `noteWorld(person, slot)`
+  puts notes 260 world units apart, more than a note's 200, so a click can only ever
+  be a click on the note it names. Every e2e edit is a click, so this is what makes
+  multi-person tests deterministic; the capacity soak moves each note back towards
+  its own grid point instead of letting it random-walk into a neighbour.
+- **`waitForChange` waits and times.** Every cross-person assertion goes through it:
+  poll to `E2E_EVENTUAL_TIMEOUT_MS`, then log the elapsed time against
+  `LIVE_UPDATE_LATENCY_BUDGET_MS` with a within/over verdict. It never fails on
+  latency — five browsers, the app, the Worker and the model share one machine — and
+  fails only on a change that never arrives.
+- **Never `fill()` a shared field in a test.** Clearing a textarea is a local edit to
+  a shared note, so a test that "starts clean" deletes the other person's typing. The
+  helper types with the keyboard into whatever is there.
+- **Selection and the editor are local, and stay that way.** TC-28 is a negative
+  test: the text travels, the caret and the highlight do not. It belongs in e2e
+  because the claim is about two screens.
+- **`expect.poll` needs the long budget here.** The default 5 s is enough alone and
+  not enough with three workers on one machine; every poll in this suite passes
+  `EVENTUALLY` so a loaded machine slows a test rather than failing it.
+- **An outage is two things.** `context.setOffline(true)` alone leaves the socket
+  standing until it times out, which is minutes. `goOffline` also tells the board to
+  drop the connection, as a real drop would; the badge reaching "Reconnecting…" is
+  the assertion that the drop actually happened.
+
+## Story 3 — the nightly run
+
+- **`test:e2e:nightly` is a second Playwright config** (`playwright.nightly.config.ts`)
+  over the same directory: one worker, `testMatch: nightly.spec.ts`, and
+  `testIgnore: []` to undo the main config's ignore — a file has to match `testMatch`
+  *and* not match `testIgnore`, so forgetting that gives "no tests found".
+- **Durations are real by default and compressed by `NIGHTLY_SHORT=1`** (45 minutes
+  becomes 45 seconds, `NIGHTLY_SHORT_SCALE` in config). The nightly job does not set
+  it; the flag exists so the tests can be checked while being written.
+- **The soak edits through the UI with the integration fixture's seeded generator**,
+  in the mix the design asks for (40% typing, 30% moving, the rest creating,
+  recolouring, deleting). The check after each edit is the whole board, not the note:
+  convergence is the claim, and comparing shapes catches the things a per-note
+  comparison misses.
+- **Re-joining is asserted as a drop first.** A person is not counted as having
+  re-joined unless their state left `confirmed`, so the test cannot pass by never
+  leaving.
+
+## Story 3 — two things the soak found that are not story 3's to fix
+
+- **A selected note's toolbar can be covered by its neighbours.** The toolbar floats
+  about 34 units above the note, inside the note's own layer, so a neighbour with a
+  higher `z` sitting over that band takes the click. It bit the soak's colour swatch
+  clicks on a 260-unit grid; the soak now uses a 400-unit grid (`SOAK_SPACING`) and
+  does not depend on it. The product question — should the selected note and its
+  toolbar be raised above the rest while selected — belongs to story 2's selection
+  design, and changing it on the way through a sync story would be a change nobody
+  asked for. Left as a note, not a fix.
+- **Playwright's default action timeout is no timeout.** A locator that never matches
+  — a colour renamed, a button that only appears in another state — did not fail the
+  run, it waited. On a nightly run that starts at three in the morning that is a run
+  with no result, so `playwright.config.ts` now sets `actionTimeout` and
+  `navigationTimeout`.

@@ -9,6 +9,11 @@
  *   the limit are dropped and the caret is restored to the end of the kept text.
  * - Each accepted change is one small transaction on the shared document
  *   (`applyTextDiff`), which is why leaving the editor writes nothing.
+ * - Text that arrives while the note is open is written into the field, with the
+ *   caret moved along rather than dropped at the start. Two people typing in one
+ *   note needs this: the field always holds the text the document has plus whatever
+ *   was typed into it since, so a commit describes a local edit instead of
+ *   overwriting somebody else's characters.
  * - Escape keeps the selection; a pointerdown outside the note drops it.
  * - Enter inserts a newline (the textarea's own behaviour).
  */
@@ -17,7 +22,7 @@ import type * as Y from 'yjs';
 
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
-import { applyTextDiff, clampToLimit, counterVisible, fitFontSize } from './StickyText';
+import { applyTextDiff, clampToLimit, counterVisible, fitFontSize, shiftCaret } from './StickyText';
 import type { EndEditNext } from '../board/useSelection';
 
 export interface StickyTextEditorProps {
@@ -51,24 +56,70 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
 
+  /**
+   * The text this field and the document last agreed on.
+   *
+   * Keeping it is what makes two people typing in one note safe. Every keystroke
+   * is committed straight away, so between keystrokes the field, the document and
+   * this value all hold the same string; when somebody else's text arrives, it is
+   * written into the field and this value moves with it. A commit is then always a
+   * diff against the text it started from — a local edit — and never a diff
+   * against a stale copy, which is how the other person's characters would go away.
+   */
+  const sharedValueRef = useRef<string>(ytext.toString());
+
   /** Write a textarea value into the document, keeping the caret in place. */
-  const commit = useCallback((raw: string) => {
-    const element = textareaRef.current;
-    const value = clampToLimit(raw);
-    if (element && value !== raw) {
-      // The characters past the limit never existed; keep the caret at the end
-      // of what is really in the note.
-      const caret = Math.min(element.selectionStart ?? value.length, value.length);
-      element.value = value;
-      placeCaret(element, caret);
-    }
-    applyTextDiff(ytext, value, LOCAL_ORIGIN);
-    setLength(value.length);
-    if (element) {
+  const commit = useCallback(
+    (raw: string) => {
+      const element = textareaRef.current;
+      const value = clampToLimit(raw);
+      if (element && value !== raw) {
+        // The characters past the limit never existed; keep the caret at the end
+        // of what is really in the note.
+        const caret = Math.min(element.selectionStart ?? value.length, value.length);
+        element.value = value;
+        placeCaret(element, caret);
+      }
+      applyTextDiff(ytext, value, LOCAL_ORIGIN);
+      sharedValueRef.current = value;
+      setLength(value.length);
+      if (element) {
+        const fitted = fitFontSize(element, element.clientHeight);
+        setSize(fitted.fontPx);
+        setOverflow(fitted.overflow);
+      }
+    },
+    [ytext],
+  );
+
+  // Somebody else's typing, arriving in the note being edited: it goes into the
+  // field, because a note that shows one thing to each person is not a shared note.
+  //
+  // While an IME composition is running the field is left alone — replacing text a
+  // person is in the middle of composing is worse than a short delay — and the
+  // incoming text lands on the next commit instead.
+  useEffect(() => {
+    const onRemoteChange = (_event: Y.YEvent<Y.Text>, origin: unknown) => {
+      if (origin === LOCAL_ORIGIN) return; // this field wrote it; it already has it
+      const element = textareaRef.current;
+      if (!element || composingRef.current) return;
+      const next = ytext.toString();
+      const previous = sharedValueRef.current;
+      if (previous === next) return;
+      const focused = document.activeElement === element;
+      const caret = element.selectionStart ?? next.length;
+      sharedValueRef.current = next;
+      element.value = next;
+      setLength(next.length);
+      if (focused) placeCaret(element, shiftCaret(caret, previous, next));
       const fitted = fitFontSize(element, element.clientHeight);
       setSize(fitted.fontPx);
       setOverflow(fitted.overflow);
-    }
+    };
+    ytext.observe(onRemoteChange);
+    return () => {
+      ytext.unobserve(onRemoteChange);
+    };
   }, [ytext]);
 
   // Mount: the note's current text, focused, caret at the end (sticky.edit_start).
@@ -76,6 +127,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     const element = textareaRef.current;
     if (!element) return;
     const value = ytext.toString();
+    sharedValueRef.current = value;
     element.value = value;
     setLength(value.length);
     element.focus();

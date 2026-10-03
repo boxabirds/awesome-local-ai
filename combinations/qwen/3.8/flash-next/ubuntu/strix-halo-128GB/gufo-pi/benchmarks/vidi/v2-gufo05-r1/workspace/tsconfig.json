@@ -18,5 +18,9 @@
     "allowJs": false,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  // The Worker and its integration tests run in workerd, not in a browser: they
+  // belong to `tsconfig.worker.json`, because the generated runtime types and
+  // the DOM lib describe the same globals differently.
+  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
+  "exclude": ["src/worker", "tests/integration"]
 }

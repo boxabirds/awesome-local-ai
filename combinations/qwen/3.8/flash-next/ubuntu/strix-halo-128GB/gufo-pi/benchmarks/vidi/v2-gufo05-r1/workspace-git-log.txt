@@ -1,3 +1,93 @@
+commit f5b61cd644310d0ee5acc8694aca092d8a777988
+agent  Sat Oct 3 01:37:09 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ .gitignore                                |   1 +
+ NOTES.md                                  |  89 +++++++
+ PROGRESS.md                               |   6 +-
+ package.json                              |   3 +-
+ playwright.config.ts                      |   9 +
+ playwright.nightly.config.ts              |  21 ++
+ src/client/objects/StickyText.ts          |  18 ++
+ src/client/objects/StickyTextEditor.tsx   |  82 ++++--
+ src/shared/config.ts                      |  21 ++
+ tests/component/StickyTextEditor.test.tsx |  71 ++++++
+ tests/e2e/helpers/participants.ts         | 404 ++++++++++++++++++++++++++++++
+ tests/e2e/helpers/soak.ts                 | 159 ++++++++++++
+ tests/e2e/live-collaboration.spec.ts      | 362 ++++++++++++++++++++++++++
+ tests/e2e/nightly.spec.ts                 | 334 ++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts            |  38 ++-
+ 15 files changed, 1597 insertions(+), 21 deletions(-)
+commit 3f18a8fe87a06c819354b1a55f4a3d833542477e
+agent  Fri Oct 2 23:56:21 2026 +0000
+
+    story 3: room relay, client connection, and the integration and component tests for them
+
+
+ PROGRESS.md                               |  10 +-
+ src/client/App.tsx                        |  54 ++-
+ src/client/board/useBoardDoc.ts           |  52 ++-
+ src/client/canvas/testHooks.ts            |  28 +-
+ src/client/main.tsx                       |  23 +-
+ src/client/styles.css                     |  36 ++
+ src/client/sync/ConnectionStatus.tsx      |  47 +++
+ src/client/sync/connectBoard.ts           | 195 +++++++++++
+ src/worker/board-room.ts                  |   9 +-
+ tests/component/ConnectionStatus.test.tsx | 226 +++++++++++++
+ tests/integration/board-room.test.ts      | 527 ++++++++++++++++++++++++++++++
+ tests/integration/fixtures/random-ops.ts  | 149 +++++++++
+ tests/integration/helpers/room-client.ts  | 258 +++++++++++++++
+ tests/integration/scratch.test.ts         |  72 ----
+ tests/integration/worker.test.ts          | 151 +++++++++
+ 15 files changed, 1740 insertions(+), 97 deletions(-)
+commit 4ec35d0709f9e1fed941a68bfbde28030f4ed09c
+agent  Fri Oct 2 23:25:07 2026 +0000
+
+    story 3: Worker entry and BoardRoom room relay (tasks 2, implementation for 3)
+
+
+ NOTES.md                               |    43 +
+ PROGRESS.md                            |     4 +-
+ package.json                           |     4 +-
+ src/shared/board-id.ts                 |    13 +-
+ src/shared/protocol.ts                 |    95 +-
+ src/worker/board-room.ts               |   164 +
+ src/worker/index.ts                    |    54 +
+ tests/integration/cloudflare-test.d.ts |     1 +
+ tests/integration/scratch.test.ts      |    72 +
+ tests/unit/board-id.test.ts            |     2 +-
+ tests/unit/protocol.test.ts            |     7 +-
+ tsconfig.json                          |     6 +-
+ tsconfig.worker.json                   |    15 +
+ vitest.config.ts                       |    11 +
+ worker-configuration.d.ts              | 16189 +++++++++++++++++++++++++++++++
+ wrangler.jsonc                         |    33 +-
+ 16 files changed, 16696 insertions(+), 17 deletions(-)
+commit 4582e6ec27dcce6e8e4f071c08e8ab1c8f7448c6
+agent  Fri Oct 2 22:57:49 2026 +0000
+
+    story 3: board id and protocol decode unit tests (red) plus sync settings
+
+
+ PROGRESS.md                 |   4 +-
+ package-lock.json           | 787 ++++++++++++++++++++++++++++++++++++++++++++
+ package.json                |   4 +
+ src/shared/board-id.ts      |  26 ++
+ src/shared/config.ts        |  33 ++
+ src/shared/protocol.ts      |  38 +++
+ tests/unit/board-id.test.ts |  74 +++++
+ tests/unit/protocol.test.ts | 143 ++++++++
+ 8 files changed, 1107 insertions(+), 2 deletions(-)
+commit ae02de437519e0ba2e76b9b162cbeed5658ea527
+vidi-agent  Fri Oct 2 22:47:21 2026 +0000
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit 1a8b63df38d7b1b64fa9ef495db1d035a1082701
 agent  Fri Oct 2 22:45:49 2026 +0000
 

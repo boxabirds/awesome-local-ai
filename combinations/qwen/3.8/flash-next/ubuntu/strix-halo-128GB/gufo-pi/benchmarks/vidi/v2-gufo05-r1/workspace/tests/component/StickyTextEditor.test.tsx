@@ -159,6 +159,77 @@ describe('sticky.text: the character limit while typing', () => {
   });
 });
 
+/**
+ * Another person's copy of this board, opened at the current state, for text that
+ * arrives from the room while this board is editing the note.
+ */
+function otherPerson(doc: Y.Doc): {
+  doc: Y.Doc;
+  /** Type into a note, at the end unless somewhere else is asked for. */
+  typeIn(noteId: string, text: string, at?: number): void;
+  /** Send whatever this copy has that `target` does not. */
+  syncInto(target: Y.Doc): void;
+} {
+  const other = new Y.Doc();
+  Y.applyUpdate(other, Y.encodeStateAsUpdate(doc));
+  return {
+    doc: other,
+    typeIn(noteId, text, at) {
+      const ytext = getStickyText(other, noteId);
+      if (!ytext) throw new Error('the other person cannot see that note');
+      ytext.insert(at ?? ytext.length, text);
+    },
+    syncInto(target) {
+      Y.applyUpdate(target, Y.encodeStateAsUpdate(other, Y.encodeStateVector(target)));
+    },
+  };
+}
+
+describe('sticky.text: somebody else typing in the note being edited', () => {
+  it('writes their text into the open field and takes the caret along with it', async () => {
+    const id = await selectedNote('green');
+    await board.pressKey('Enter');
+    expect(board.textarea().selectionStart).toBe('green'.length);
+
+    const person = otherPerson(board.doc);
+    await act(async () => {
+      person.typeIn(id, 'you ', 0);
+      person.syncInto(board.doc);
+    });
+    await advanceFrames();
+
+    const textarea = board.textarea();
+    expect(textarea.value).toBe('you green');
+    // The caret was after 'green'; text arrived before it, so it moved by that much
+    // instead of jumping to the start of the field.
+    expect(textarea.selectionStart).toBe('you green'.length);
+    expect(textarea.selectionEnd).toBe('you green'.length);
+  });
+
+  it('keeps every character when this person types after them', async () => {
+    const id = await selectedNote('green');
+    await board.pressKey('Enter');
+
+    const person = otherPerson(board.doc);
+    await act(async () => {
+      person.typeIn(id, ' and shared');
+      person.syncInto(board.doc);
+    });
+    await advanceFrames();
+
+    // This person adds a '!' where their caret has been sitting, in the middle of
+    // the merged text. Neither the words nor the mark may be lost.
+    await board.type('green! and shared');
+    expect(board.notes()[0]?.text).toBe('green! and shared');
+
+    // And what this board wrote is the whole of both people's text, so the person
+    // who typed the other half gets it back without a hole in it.
+    const shared = new Y.Doc();
+    Y.applyUpdate(shared, Y.encodeStateAsUpdate(board.doc));
+    expect(getStickyText(shared, id)?.toString()).toBe('green! and shared');
+  });
+});
+
 /** How many document updates an action produces. */
 async function countUpdates(doc: Y.Doc, action: () => Promise<void>): Promise<number> {
   let count = 0;

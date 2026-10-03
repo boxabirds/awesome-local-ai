@@ -1,7 +1,8 @@
 /**
  * sticky.text unit tests (TC-13 to TC-17): the pure parts of note text editing
- * - the minimal Y.Text diff, the 1,000 character limit and the counter
- * threshold. Font fitting needs real text layout, so it is covered in e2e.
+ * - the minimal Y.Text diff, the 1,000 character limit, the counter threshold and
+ * where the caret belongs when somebody else's text arrives. Font fitting needs
+ * real text layout, so it is covered in e2e.
  */
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
@@ -12,6 +13,7 @@ import {
   applyTextDiff,
   clampToLimit,
   counterVisible,
+  shiftCaret,
 } from '../../src/client/objects/StickyText';
 import {
   PROSE_LIMIT,
@@ -226,5 +228,37 @@ describe('sticky.text counterVisible', () => {
     expect(counterVisible(0)).toBe(false);
     expect(counterVisible(SHORT_NOTE.length)).toBe(false);
     expect(counterVisible(500)).toBe(false);
+  });
+});
+
+describe('sticky.text shiftCaret', () => {
+  // Story 3: text arriving in a note that is open for editing (TC-23, TC-24).
+  it('leaves a caret before the arriving text where it is', () => {
+    expect(shiftCaret(2, 'green', 'green now')).toBe(2);
+    expect(shiftCaret(0, 'green', 'green now')).toBe(0);
+  });
+
+  it('moves a caret after the arriving text by as much as that text is worth', () => {
+    expect(shiftCaret(5, 'green', 'you green')).toBe(9);
+    expect(shiftCaret(7, '!!green', 'green')).toBe(5);
+    // A change that happens after the caret leaves it alone, even when it deletes.
+    expect(shiftCaret(5, 'green!!', 'green')).toBe(5);
+  });
+
+  it('never puts the caret before the start of the change', () => {
+    // 'abc' became 'xyz': a caret in the middle of what was replaced ends up in
+    // what replaced it, not behind it.
+    expect(shiftCaret(1, 'abc', 'xyz')).toBeGreaterThanOrEqual(1);
+    expect(shiftCaret(1, 'abcd', 'ad')).toBe(1);
+  });
+
+  it('keeps the caret where it is when nothing changed', () => {
+    expect(shiftCaret(3, 'green', 'green')).toBe(3);
+  });
+
+  it('keeps a whole character either side of an emoji', () => {
+    // The caret sits after the surrogate pair; text arrives in front of it.
+    const caret = 'a👍'.length;
+    expect(shiftCaret(caret, 'a👍', 'b/a👍')).toBe(caret + 2);
   });
 });

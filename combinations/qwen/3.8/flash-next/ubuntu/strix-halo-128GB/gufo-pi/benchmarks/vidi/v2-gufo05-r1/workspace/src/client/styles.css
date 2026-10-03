@@ -354,3 +354,39 @@ button:focus-visible {
   background: rgba(214, 40, 57, 0.12);
   color: #d62839;
 }
+
+/* Connection badge (story 3) ------------------------------------------------ */
+
+.connection-status {
+  position: fixed;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 5px 12px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  box-shadow: var(--panel-shadow);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  /* The badge reports on the connection; it never gets in the way of the note
+     underneath it. */
+  pointer-events: none;
+}
+
+/* Amber: this board works, but nobody else can see what happens on it yet. */
+.connection-status--reconnecting {
+  background: #fff4e0;
+  border-color: #e2b872;
+  color: #7a4c05;
+}
+
+/* Green: the boards have caught up. */
+.connection-status--confirmed {
+  background: #e7f6ea;
+  border-color: #86c695;
+  color: #1c5c2c;
+}

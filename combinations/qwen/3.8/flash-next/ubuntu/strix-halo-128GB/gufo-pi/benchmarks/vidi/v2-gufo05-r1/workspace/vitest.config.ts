@@ -1,3 +1,4 @@
+import { cloudflareTest } from '@cloudflare/vitest-pool-workers';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
@@ -20,6 +21,16 @@ export default defineConfig({
           environment: 'jsdom',
           include: ['tests/component/**/*.test.tsx'],
           setupFiles: ['./tests/component/setup.ts'],
+        },
+      },
+      {
+        extends: true,
+        plugins: [
+          cloudflareTest({ wrangler: { configPath: './wrangler.jsonc' } }),
+        ],
+        test: {
+          name: 'integration',
+          include: ['tests/integration/**/*.test.ts'],
         },
       },
     ],

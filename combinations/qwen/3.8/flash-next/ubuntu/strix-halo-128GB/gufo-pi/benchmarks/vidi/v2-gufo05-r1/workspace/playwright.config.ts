@@ -76,12 +76,21 @@ const projects = (requested?.length
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // The nightly capacity and stability runs live in nightly.spec.ts and take the
+  // lengths of real sessions. `npm run test:e2e:nightly` runs them; this run does
+  // not, and no environment variable has to be set right for that to hold.
+  testIgnore: /nightly\.spec\.ts/,
   fullyParallel: true,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: BASE_URL,
     viewport: { width: 1280, height: 800 },
     trace: 'on-first-retry',
+    // A click on something that is not there has to fail rather than wait for it in
+    // silence: Playwright's default is no timeout, which on a long unattended run is
+    // a hung test and no explanation.
+    actionTimeout: 15_000,
+    navigationTimeout: 30_000,
   },
   projects,
   webServer: {

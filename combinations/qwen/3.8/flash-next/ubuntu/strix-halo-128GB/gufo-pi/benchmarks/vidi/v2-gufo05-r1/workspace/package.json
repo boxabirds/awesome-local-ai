@@ -8,18 +8,25 @@
     "build": "vite build",
     "build:test": "vite build --mode test",
     "preview": "vite preview --port 20196 --strictPort",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.worker.json",
+    "types": "wrangler types",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
+    "test:integration": "npm run build && vitest run --project integration",
     "test:e2e": "npm run build:test && playwright test",
-    "wrangler:dev": "wrangler dev --config wrangler.jsonc"
+    "wrangler:dev": "wrangler dev --config wrangler.jsonc",
+    "test:e2e:nightly": "npm run build:test && playwright test --config playwright.nightly.config.ts"
   },
   "dependencies": {
+    "lib0": "^0.2.119",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@playwright/test": "^1.63.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
