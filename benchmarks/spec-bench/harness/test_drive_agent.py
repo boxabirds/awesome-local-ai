@@ -21,6 +21,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import accounting
 import drive
 import hostenv
 import progress
@@ -359,6 +360,19 @@ def test_the_hang_guard_logs_each_interruption_and_counts_them(tmp_path, monkeyp
         assert entry.split(" ", 1)[1] == (f"07: interrupted a tool call silent for {drive.TOOL_HANG_S}s "
                                          f"(killed processes under the workspace)")
     assert capsys.readouterr().out == f"    tool call silent {drive.TOOL_HANG_S // 60} min — interrupted (Ctrl-C equivalent)\n" * 2
+
+
+def test_the_hang_guard_marks_each_kill_in_the_events_log_where_the_accounting_reads_it(tmp_path, monkeypatch):
+    events = tmp_path / "run" / "stories" / "07" / "agent-events.jsonl"
+    events.parent.mkdir(parents=True)
+    events.write_text('{"_rx":1.000,"type":"tool_execution_start"}\n')
+    monkeypatch.setattr(drive, "tool_hang_check", lambda ev, ws: True)
+    monkeypatch.setattr(drive.time, "time", lambda: 1_790_000_000.123456)
+    guard = drive.ToolHangGuard(events, tmp_path / "ws", tmp_path / "interventions.md")
+    run_rounds(guard, 1)
+    assert guard.stop() == 1
+    *_, mark = events.read_text().splitlines()
+    assert json.loads(mark) == {"_rx": 1790000000.123, "type": accounting.TOOL_INTERRUPT_MARK}
 
 
 def test_the_hang_guard_writes_nothing_while_no_tool_call_hangs(tmp_path, monkeypatch, capsys):
