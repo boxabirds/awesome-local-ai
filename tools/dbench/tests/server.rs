@@ -175,7 +175,7 @@ wait
 /// Writes what the real harness leaves in a run dir that git never carries, and grows it for a
 /// second: the full transcript, the server log, a progress file rewritten in place, the egress
 /// log named by work_dir.txt; then marks the run finished.
-const GROW_LINES: u32 = 10;
+const GROW_LINES: u32 = 30;
 const GROW_BODY: &str = r#"mkdir -p "$RUN_DIR/stories/01" "$HOME/.vidi-bench/egress"
 echo "{\"install_id\": \"$INSTALL_ID\"}" > "$RUN_DIR/run.json"
 echo '{"state": "started", "reason": "", "at": "2026-10-03T10:00:00Z"}' > "$RUN_DIR/run-status.json"
@@ -1886,9 +1886,9 @@ async fn collect_pulls_deltas_resumes_after_the_node_was_unreachable_and_complet
     let srv = start(&env, false);
     let config = nodes_toml(&env, &srv, &store, &db);
     assert_eq!(srv.submit("grow", &spec("growpack", "run-g")).await.0, 201);
-    // The job writes for about a second; the first pass lands while it is still running.
-    srv.wait_for("grow", "running with files", |v| v["state"]["status"] == "running" && v["progress"]["run_dir"].is_string()).await;
-    tokio::time::sleep(Duration::from_millis(300)).await;
+    // The job writes for a few seconds; the first pass lands once it has written something.
+    let node_file = env.repo.join(GROW_RUN).join("stories/01/agent-events.jsonl");
+    wait_until("the job's first lines", || std::fs::metadata(&node_file).is_ok_and(|m| m.len() > 0)).await;
     let (ok, v, err) = collect_once(&config, &[]);
     assert!(ok, "{err}");
     let node = &v[0];
@@ -1905,17 +1905,25 @@ async fn collect_pulls_deltas_resumes_after_the_node_was_unreachable_and_complet
     assert_eq!(c["files"]["stories/01/agent-events.jsonl"]["bytes"].as_u64(), Some(len1));
     assert!(c.get("error").is_none() && c.get("reason").is_none());
     // The lake copy is a byte-for-byte prefix of the node's file.
-    let node_file = env.repo.join(GROW_RUN).join("stories/01/agent-events.jsonl");
     assert_eq!(std::fs::read(&events).unwrap(), std::fs::read(&node_file).unwrap()[..len1 as usize]);
 
-    // Once the job is done the next pass pulls only the growth, and the run settles (grace 0) and completes.
+    // Once the job is done the next pass pulls exactly the growth of each file, and the run settles
+    // (grace 0) and completes.
     srv.wait_status("grow", "done").await;
+    let node_dir = env.repo.join(GROW_RUN);
+    let lake_dir = store.join(NODE_NAME).join(GROW_RUN);
+    let held_before: u64 = ["stories/01/agent-events.jsonl", "server.log"].iter().map(|f| std::fs::metadata(lake_dir.join(f)).map_or(0, |m| m.len())).sum();
     let (ok, v, err) = collect_once(&config, &[]);
     assert!(ok, "{err}");
     let run = v[0]["runs"].as_array().unwrap().iter().find(|r| r["run"] == GROW_RUN).unwrap().clone();
     let len2 = std::fs::metadata(&events).unwrap().len();
     assert_eq!(std::fs::read(&events).unwrap(), std::fs::read(&node_file).unwrap());
-    assert!(run["pulled_bytes"].as_u64().unwrap() < len2, "only the delta: {run}");
+    assert_eq!(std::fs::read(lake_dir.join("server.log")).unwrap(), std::fs::read(node_dir.join("server.log")).unwrap());
+    let held_after: u64 = ["stories/01/agent-events.jsonl", "server.log"].iter().map(|f| std::fs::metadata(lake_dir.join(f)).unwrap().len()).sum();
+    let whole_files: u64 = ["progress.json", "egress.jsonl"].iter().map(|f| std::fs::metadata(lake_dir.join(f)).map_or(0, |m| m.len())).sum();
+    // The append-only files' growth, plus the small files fetched whole (progress.json changes with every line).
+    assert!(run["pulled_bytes"].as_u64().unwrap() <= held_after - held_before + whole_files, "only the delta: {run} ({held_before} -> {held_after})");
+    assert!(len2 > len1, "the job wrote more after the first pass");
     let c = read_collection(&store, GROW_RUN);
     assert_eq!(c["run_status"]["state"], "finished");
     assert_eq!(c["job_state"], "done");
