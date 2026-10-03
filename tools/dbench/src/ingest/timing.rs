@@ -46,7 +46,8 @@ fn rx_rx() -> &'static Regex {
     RX.get_or_init(|| Regex::new(r#"^\{"_rx":\s*([0-9.]+)"#).unwrap())
 }
 
-fn kind_of_command(cmd: &str) -> &'static str {
+/// The kind of a bash command: e2e, unit, build, or bash.
+pub fn kind_of_command(cmd: &str) -> &'static str {
     kinds().iter().find(|(_, r)| r.is_match(cmd)).map_or("bash", |(k, _)| k)
 }
 
@@ -262,6 +263,7 @@ impl Parser {
                     fresh: int_or_zero(&u, "input"),
                     cached: int_or_zero(&u, "cacheRead"),
                     out: Some(int_or_zero(&u, "output")),
+                    id: None,
                 });
             }
             _ => {}
@@ -348,6 +350,7 @@ impl Parser {
                     fresh: int_or_zero(&u, "input_tokens") + int_or_zero(&u, "cache_creation_input_tokens"),
                     cached: int_or_zero(&u, "cache_read_input_tokens"),
                     out: None,
+                    id: mid.clone(),
                 };
                 self.out.calls.push(c);
                 self.steps.push((first, ENDED_BY_STEP));
