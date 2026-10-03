@@ -235,7 +235,7 @@ GUIDE_DATA.entities = [
   {
     id: "conversation", name: "Conversation (events)", group: "run", row: 5,
     short: "The agent's complete event log for a story.",
-    what: "The agent's complete event log for a story: every model reply, thought, tool call and tool result, each stamped with its arrival time. It is published whole, compressed (`agent-events.compact.jsonl.gz`); only the repeated stream deltas are dropped. From it the harness counts a conversation profile (thinking, context growth, tools) with no LLM.",
+    what: "The agent's complete event log for a story: every model reply, thought, tool call and tool result, each stamped with its arrival time. It is published whole, compressed (`agent-events.compact.jsonl.gz`); only the repeated stream deltas are dropped (the last one before an agent process died is kept as a bare time stamp, so the log gives the record's figures). From it the harness counts a conversation profile (thinking, context growth, tools) with no LLM.",
     rel: [["includes", "compaction"], ["is collected into", "collection"]],
     repo: [["benchmarks/spec-bench/harness/conversation.py", "harness/conversation.py"], ["benchmarks/spec-bench/harness/accounting.py", "harness/accounting.py"]],
     example: "The insights analysis read 436 story conversations in 52 runs, each from its complete log.",
