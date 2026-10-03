@@ -40,6 +40,16 @@ load it; a new combination, never a change to a baseline.
 - **Hardware, BF16 (about 156 GB):** four 80 GB A100s or H100s, two H200s, or one B200 or B300.
 - A forum thread about running it on NVIDIA's 128 GB DGX Spark class machine exists; I have not read it.
 
+## Quantisations that exist (Hugging Face index, 3 Oct 2026, evening)
+
+- **Official:** `Aleph-Alpha/Kolibri-1` (FP8, 128 by 128 blocks, with the embeddings, output head, norms and router in bf16)
+  and `Aleph-Alpha/Kolibri-1-BF16`.
+- **Community, hours old:** `here-be-dragons-ai/Kolibri-1-MLX-3bit` and `-3bit-mlxlm` (MLX, 3-bit; by arithmetic about 29 GB of
+  weights, not checked), and `audreyt/Kolibri-1-NVFP4-W4A16` (NVFP4 weights, for vLLM).
+- **No Unsloth repo, and no GGUF of any kind**, by the index's search and its base-model listing. A GGUF needs llama.cpp
+  to support the architecture first (sliding-window and full attention in 4:1, the custom tokenizer), and nothing I found says it
+  does. Whether the MLX build loads in mlx-lm, and whether mlx-serve could run it, is not known.
+
 ## What gates it
 
 - **An engine we run has to load it.** The card names only vLLM through a vendor plugin. llama.cpp, mlx-serve, gufo and
