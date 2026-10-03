@@ -1,6 +1,7 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 interface BoardStore {
   subscribe(listener: () => void): () => void;
@@ -47,13 +48,16 @@ export interface UseBoardDocResult {
   doc: Y.Doc;
   /** Immutable snapshot of all sticky notes, sorted by (z, id). */
   notes: readonly StickySnapshot[];
+  /** Current connection state for the status badge. */
+  connectionState: ConnectionState;
 }
 
 /**
- * Owns the local Y.Doc and exposes an immutable snapshot of the board via
- * useSyncExternalStore. The snapshot is recomputed on `objects.observeDeep`.
+ * Owns the local Y.Doc, attaches a network provider for the given boardId,
+ * and exposes an immutable snapshot of the board via useSyncExternalStore.
+ * The snapshot is recomputed on `objects.observeDeep`.
  */
-export function useBoardDoc(): UseBoardDocResult {
+export function useBoardDoc(boardId: string): UseBoardDocResult {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     const doc = new Y.Doc();
@@ -68,11 +72,20 @@ export function useBoardDoc(): UseBoardDocResult {
   }
   const store = storeRef.current;
 
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+
+  // Observe doc changes
   useEffect(() => {
     store.reobserve();
     return () => store.dispose();
   }, [store]);
 
+  // Attach network provider for the given board
+  useEffect(() => {
+    const conn = connectBoard(doc, boardId, setConnectionState);
+    return () => conn.destroy();
+  }, [doc, boardId]);
+
   const notes = useSyncExternalStore(store.subscribe, store.getSnapshot);
-  return { doc, notes };
+  return { doc, notes, connectionState };
 }

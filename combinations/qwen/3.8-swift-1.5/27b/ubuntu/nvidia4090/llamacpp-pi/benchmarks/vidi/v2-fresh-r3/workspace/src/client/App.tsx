@@ -6,13 +6,37 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { newBoardId } from '../shared/board-id';
 import type { Point } from './canvas/camera';
 
 const INITIAL_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
 
+/**
+ * Reads the board id from the URL pathname.
+ * Expected format: /b/<boardId>
+ * If no valid board id is found, redirects to /b/<newBoardId>.
+ */
+function getBoardIdFromUrl(): string | null {
+  const pathname = window.location.pathname;
+  const match = pathname.match(/^\/b\/(.+)$/);
+  if (match) return match[1];
+  return null;
+}
+
+/** Redirect to a new board if no board id in URL. Returns the board id. */
+function resolveBoardId(): string {
+  const id = getBoardIdFromUrl();
+  if (id) return id;
+  const newId = newBoardId();
+  window.history.replaceState(null, '', `/b/${newId}`);
+  return newId;
+}
+
 export function App() {
-  const { doc, notes } = useBoardDoc();
+  const [boardId] = useState(resolveBoardId);
+  const { doc, notes, connectionState } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   const [camera, setCamera] = useState<Camera>(INITIAL_CAMERA);
   const cameraRef = useRef<Camera>(INITIAL_CAMERA);
@@ -25,7 +49,12 @@ export function App() {
   // Test hook for e2e (drives the production build via `wrangler dev`)
   useEffect(() => {
     registerVidi6Hook({ getDoc: () => doc });
-  }, [doc]);
+    // Expose connection state for nightly tests
+    (window as any).__vidi6 = {
+      ...(window as any).__vidi6,
+      connectionState,
+    };
+  }, [doc, connectionState]);
 
   /** Creates a sticky note centred on a screen point, selects it, starts editing. */
   const createStickyAtScreen = useCallback(
@@ -45,9 +74,23 @@ export function App() {
     createStickyAtScreen({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   }, [createStickyAtScreen]);
 
+  // Clear selection/editing when the selected note is deleted remotely
+  useEffect(() => {
+    if (selectedId !== null) {
+      const obj = doc.getMap('objects').get(selectedId);
+      if (!obj) {
+        select(null);
+      }
+    }
+    if (editingId !== null) {
+      const obj = doc.getMap('objects').get(editingId);
+      if (!obj) {
+        endEdit('unselected');
+      }
+    }
+  }, [notes, selectedId, editingId, doc, select, endEdit]);
+
   // Keyboard: Enter edits the selected note; Delete/Backspace delete it.
-  // Both are ignored while editing text (the keys edit characters instead)
-  // and while focus is in any input.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -72,6 +115,7 @@ export function App() {
 
   return (
     <>
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         onCamera={handleCamera}
         onEmptyDoubleClick={createStickyAtScreen}

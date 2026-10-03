@@ -1,18 +1,26 @@
-# Story 2: Capture ideas on sticky notes and rearrange them
+# Story 3: See other people's edits appear live on the same board
 
-Your progress on this story's tasks. Keep the Status column up to date as you work.
+## Task Status
 
 | # | Task | Status |
-|---|---|---|
-| 1 | Write board model unit tests first against a real Y.Doc (TC-01 to TC-12, TC-39) | done |
-| 2 | Implement Yjs board model and useBoardDoc snapshot hook | done |
-| 3 | Write sticky text logic unit tests first (TC-13 to TC-17) | done |
-| 4 | Implement sticky text editing: start/end editing, minimal Y.Text diff, length limit, auto-fit font | done |
-| 5 | Implement sticky note interaction: select, drag to move, double-click create, keyboard delete | done |
-| 6 | Implement toolbars: Sticky note button, colour swatches and delete button | done |
-| 7 | Component tests for sticky interaction, text editor and toolbars | done |
-| 8 | E2E sticky note workflows (create, move at zoom, recolour, delete, long text) | done |
+|---|------|--------|
+| 1 | Unit tests for board ID and protocol | done |
+| 2 | Worker entry: route /api/rooms/:boardId to DO | done |
+| 3 | BoardRoom DO: Y.Doc in memory + relay | done |
+| 4 | Client: y-websocket provider + connection badge | done |
+| 5 | Integration tests (workerd + real server) | done |
+| 6 | E2E: two browsers see each other's edits | todo |
+| 7 | E2E: tab refresh re-syncs | todo |
+| 8 | E2E: 30s outage → catch-up | todo |
+| 9 | Full test suite green + commit | doing |
 
-Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
+## Notes
 
-All gates green: `npm run typecheck`, `npm run build`, `npm run test:unit` (41), `npm run test:component` (31), `npm run test:e2e` (14, chromium).
+- Used `ws.accept()` (non-hibernating) per design. The doc is memory-only in this story.
+- `readSyncMessage` requires an `errorHandler` param to propagate Yjs apply errors (the library swallows them internally).
+- Integration tests use two environments:
+  - `vitest.integration.config.ts`: workerd pool for routing tests (TC-04, 05, 06)
+  - `vitest.integration-server.config.ts`: real `wrangler dev` server for WebSocket tests (TC-07 through TC-31)
+- TestClient uses `y-websocket` WebsocketProvider for normal sync tests.
+- RawTestClient uses raw WebSocket for malformed traffic tests (TC-15).
+- Port range: 23024-23039 ($AGENT_PORT_FIRST to $AGENT_PORT_LAST).

@@ -37,3 +37,17 @@
 9. **E2E viewport**: The Playwright project uses `devices['Desktop Chrome']` which sets a 1280×720 viewport (overriding the top-level 1280×800). Tests that assert positions read the actual size via `page.viewportSize()` instead of hard-coding 800.
 
 10. **E2E grid creation (TC-40)**: Playwright mouse events beyond the viewport are not dispatched, so the 50-note grid is created at zoom 0.4 with 300 world-unit spacing so all 50 dblclick points stay on screen.
+
+## Story 3: See other people's edits appear live on the same board
+
+### Decisions
+
+- **BoardRoom uses `ws.accept()`** (non-hibernating) per design. The Y.Doc is memory-only; an open accepted socket keeps the DO alive.
+- **`readSyncMessage` errorHandler**: The y-protocols library's `readSyncStep2` (alias `readUpdate`) has an internal try/catch that swallows Yjs apply errors and logs them. To detect invalid updates and close the socket with 1003, we must pass an `errorHandler` callback as the 5th argument to `readSyncMessage`.
+- **y-websocket frame format**: `[y-websocket msg type][y-protocols msg]`. For updates: `[0][2][varuint len][update bytes]`. The `sync.writeUpdate()` already writes the y-protocols portion (`[2][varuint len][bytes]`), so we only prepend the y-websocket type byte.
+- **Integration test architecture**: Two separate vitest configs:
+  - `vitest.integration.config.ts` — workerd pool (`@cloudflare/vitest-pool-workers`) for HTTP routing tests only (TC-04/05/06). WebSocketPair in workerd does not deliver messages between sides.
+  - `vitest.integration-server.config.ts` — real `wrangler dev` server (globalSetup) for all WebSocket protocol tests (TC-07 through TC-31). Uses Node 24's built-in WebSocket client.
+- **TestClient uses WebsocketProvider**: The y-websocket `WebsocketProvider` handles the sync protocol correctly. A manual implementation had subtle bugs with update application. For malformed traffic tests (TC-15), a `RawTestClient` with raw WebSocket is used instead.
+- **TC-09 (concurrent text)**: True concurrent edits over a network are timing-sensitive. The test verifies convergence (both clients reach the same text) rather than checking for a specific merged string, since CRDT merge order depends on client IDs and network timing.
+- **`sendRaw` on WebsocketProvider**: The WebsocketProvider intercepts WebSocket messages internally. Sending raw bytes through its underlying `ws` causes decode errors. Hence the separate `RawTestClient` for TC-15.

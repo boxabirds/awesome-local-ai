@@ -22,6 +22,14 @@ export default defineConfig({
           include: ['tests/component/**/*.test.tsx'],
         },
       },
+      {
+        extends: true,
+        test: {
+          name: 'integration',
+          pool: '@cloudflare/vitest-pool-workers',
+          include: ['tests/integration/**/*.test.ts'],
+        },
+      },
     ],
   },
 });

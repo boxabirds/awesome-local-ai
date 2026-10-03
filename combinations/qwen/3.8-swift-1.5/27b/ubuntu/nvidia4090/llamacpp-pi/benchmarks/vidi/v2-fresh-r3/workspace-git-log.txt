@@ -1,3 +1,44 @@
+commit 4e32596532856d0863166c43bf3465d85971c699
+agent  Sat Oct 3 18:27:37 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                               |   14 +
+ PROGRESS.md                            |   33 +-
+ package-lock.json                      | 1724 ++++++++++++++++++++++++++++----
+ package.json                           |   10 +-
+ src/client/App.tsx                     |   52 +-
+ src/client/board/useBoardDoc.ts        |   23 +-
+ src/client/sync/ConnectionStatus.tsx   |   55 +
+ src/client/sync/connectBoard.ts        |  104 ++
+ src/shared/board-id.ts                 |   30 +
+ src/shared/config.ts                   |    8 +
+ src/shared/protocol.ts                 |   60 ++
+ src/worker/board-room.ts               |  157 +++
+ src/worker/cloudflare-workers.d.ts     |   94 ++
+ src/worker/index.ts                    |   40 +
+ tests/integration/board-room.test.ts   |  576 +++++++++++
+ tests/integration/cloudflare-test.d.ts |    5 +
+ tests/integration/global-setup.ts      |   44 +
+ tests/integration/node-types.d.ts      |   10 +
+ tests/integration/worker.test.ts       |   33 +
+ tests/integration/ws-client.ts         |  308 ++++++
+ tests/unit/board-id.test.ts            |   53 +
+ tests/unit/protocol.test.ts            |   50 +
+ vitest.config.ts                       |    8 +
+ vitest.integration-server.config.ts    |   10 +
+ vitest.integration.config.ts           |   14 +
+ wrangler.jsonc                         |   15 +-
+ 26 files changed, 3302 insertions(+), 228 deletions(-)
+commit e25c43ec56190b3eae8e0e9d10d71660871e7c55
+vidi-agent  Sat Oct 3 17:39:38 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 1059b2f82c9e42304ba78e1aed31e36664fcb4f7
 agent  Sat Oct 3 17:38:49 2026 +0100
 
