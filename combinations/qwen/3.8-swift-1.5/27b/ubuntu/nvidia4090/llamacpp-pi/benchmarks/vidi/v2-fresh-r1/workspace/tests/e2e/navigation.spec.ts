@@ -13,6 +13,7 @@ import {
   setCamera,
   zoomLabelText,
 } from './helpers/board';
+import { gotoFreshBoard } from './helpers/goto-board';
 
 const TOLERANCE_PX = 1;
 const VIEWPORT = { width: 1280, height: 800 };
@@ -20,7 +21,7 @@ const CENTER = { x: VIEWPORT.width / 2, y: VIEWPORT.height / 2 };
 
 test.describe('story 1: pan and zoom around an infinite board', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await gotoFreshBoard(page);
   });
 
   // --- Workflow 1: first-visit navigation -----------------------------------

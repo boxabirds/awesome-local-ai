@@ -8,7 +8,18 @@
 // Using KV for BLOB data works in both environments and supports arbitrary sizes.
 
 import * as Y from 'yjs';
-import type { DurableObjectStorage } from 'cloudflare:workers';
+// DurableObjectStorage type: the storage API available inside a DO.
+// (Not directly exported by cloudflare:workers types in this version.)
+type DurableObjectStorage = {
+  sql: {
+    exec(query: string): {
+      next(): { done: boolean; value?: Record<string, unknown> };
+    };
+  };
+  put(key: string, value: unknown): Promise<void>;
+  get(key: string): Promise<unknown>;
+  transactionSync(fn: () => void): void;
+};
 import {
   COMPACTION_BYTES,
   COMPACTION_UPDATE_COUNT,
@@ -70,9 +81,19 @@ export class BoardStore {
   private rowCount = 0;
   /** In-memory byte total. */
   private byteTotal = 0;
+  /** Whether migrate() has been called. */
+  private _migrated = false;
 
   constructor(storage: DurableObjectStorage) {
     this.storage = storage;
+  }
+
+  /** Ensure tables exist; calls migrate() if not already done. */
+  ensureMigrated(): void {
+    if (!this._migrated) {
+      this.migrate();
+      this._migrated = true;
+    }
   }
 
   private get sql(): SqlApi {
@@ -80,10 +101,48 @@ export class BoardStore {
   }
 
   /**
+   * Read-only existence check: true if `storage_meta.created_at` is set,
+   * OR (legacy) there is at least one row in `updates` or `snapshot_chunks`.
+   * Queries `sqlite_master` first; never creates tables.
+   */
+  existsReadOnly(): boolean {
+    // Check if any of our tables exist at all.
+    const tablesCursor = this.sql.exec(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_meta', 'updates', 'snapshot_chunks')",
+    );
+    let hasAnyTable = false;
+    let tc = tablesCursor.next();
+    while (!tc.done) {
+      hasAnyTable = true;
+      break;
+    }
+    if (!hasAnyTable) return false;
+
+    // Check storage_meta.created_at.
+    const metaCursor = this.sql.exec(
+      "SELECT value FROM storage_meta WHERE key = 'created_at'",
+    );
+    const metaRow = metaCursor.next();
+    if (!metaRow.done) return true;
+
+    // Legacy: check for any updates or snapshot_chunks rows.
+    const updatesCursor = this.sql.exec('SELECT 1 FROM updates LIMIT 1');
+    const updatesRow = updatesCursor.next();
+    if (!updatesRow.done) return true;
+
+    const snapCursor = this.sql.exec('SELECT 1 FROM snapshot_chunks LIMIT 1');
+    const snapRow = snapCursor.next();
+    if (!snapRow.done) return true;
+
+    return false;
+  }
+
+  /**
    * Create tables if they don't exist and set schema version.
    * Writes no update rows.
    */
   migrate(): void {
+    this._migrated = true;
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS storage_meta (
         key TEXT PRIMARY KEY,
@@ -131,8 +190,10 @@ export class BoardStore {
 
   /**
    * Append an update to the log. Throws on SQL failure.
+   * Lazily migrates if not yet migrated (legacy boards already have tables).
    */
   async append(update: Uint8Array): Promise<void> {
+    this.ensureMigrated();
     // Use AUTOINCREMENT: insert without specifying seq, then read it back.
     // This ensures seq is always monotonically increasing even after compaction
     // deletes rows (the sqlite_sequence table tracks the high-water mark).

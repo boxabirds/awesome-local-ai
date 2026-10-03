@@ -16,6 +16,29 @@ import {
 import { readSyncMessage, writeSyncStep1, writeUpdate } from 'y-protocols/sync';
 import { initDoc, snapshot, type StickySnapshot } from '../../src/shared/board-model';
 import { MESSAGE_AWARENESS, MESSAGE_SYNC } from '../../src/shared/protocol';
+import { newBoardId } from '../../src/shared/board-id';
+
+/**
+ * Create a board via the API and return its id.
+ * Must be called before connecting a RoomClient to a fresh board id.
+ */
+export async function createBoardViaApi(): Promise<string> {
+  const res = await SELF.fetch('http://localhost/api/boards', { method: 'POST' });
+  if (res.status !== 201) {
+    throw new Error(`createBoard failed: HTTP ${res.status}`);
+  }
+  const body = (await res.json()) as { id: string };
+  return body.id;
+}
+
+/**
+ * Create a board and return both the id and a connected RoomClient.
+ */
+export async function connectToNewBoard(): Promise<{ boardId: string; client: RoomClient }> {
+  const boardId = await createBoardViaApi();
+  const client = await RoomClient.connect(boardId);
+  return { boardId, client };
+}
 
 export class RoomClient {
   readonly doc: Y.Doc;

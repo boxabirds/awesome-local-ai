@@ -18,6 +18,7 @@ import {
   closeAll,
   RoomClient,
   waitForConvergence,
+  createBoardViaApi,
 } from './ws-client';
 import { mulberry32, randomOps } from './random-ops';
 
@@ -39,7 +40,7 @@ function makeDoc(withNote?: { x: number; y: number; text?: string }): {
 
 describe('board room sync', () => {
   it('TC-07: two clients exchange initial state; both see the same note', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const a = await RoomClient.connect(boardId);
     const b = await RoomClient.connect(boardId);
     try {
@@ -61,7 +62,7 @@ describe('board room sync', () => {
   }, 30_000);
 
   it('TC-08: concurrent text edits at different positions merge', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     // Common base: one note with text "green"; both clients start from it.
     const base = new Y.Doc();
     initDoc(base);
@@ -93,7 +94,7 @@ describe('board room sync', () => {
   }, 30_000);
 
   it('TC-09: pre-built docs with concurrent edits converge after joining', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     // Common base: one note with text "green".
     const base = new Y.Doc();
     initDoc(base);
@@ -128,7 +129,7 @@ describe('board room sync', () => {
   }, 30_000);
 
   it('TC-10: concurrent position sets resolve deterministically (same winner on both)', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const base = new Y.Doc();
     initDoc(base);
     const noteId = createSticky(base, { x: 0, y: 0 });
@@ -156,7 +157,7 @@ describe('board room sync', () => {
   }, 30_000);
 
   it('TC-11: delete during edit - note gone on both, edit text nowhere', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const base = new Y.Doc();
     initDoc(base);
     const noteId = createSticky(base, { x: 0, y: 0 });
@@ -192,7 +193,7 @@ describe('board room sync', () => {
   }, 30_000);
 
   it('TC-12: sender gets no echo of its own update', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const a = await RoomClient.connect(boardId);
     const b = await RoomClient.connect(boardId);
     try {
@@ -215,7 +216,7 @@ describe('board room sync', () => {
 
 describe('board room protocol robustness', () => {
   it('TC-14: string frame closes only the sender with 1003', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const a = await RoomClient.connect(boardId);
     const b = await RoomClient.connect(boardId);
     try {
@@ -240,7 +241,7 @@ describe('board room protocol robustness', () => {
   }, 30_000);
 
   it('TC-15: truncated frame closes only the sender with 1003', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const a = await RoomClient.connect(boardId);
     const b = await RoomClient.connect(boardId);
     try {
@@ -267,7 +268,7 @@ describe('board room protocol robustness', () => {
   }, 30_000);
 
   it('TC-16: awareness relayed verbatim to all sockets including the sender', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const a = await RoomClient.connect(boardId);
     const b = await RoomClient.connect(boardId);
     try {
@@ -295,7 +296,7 @@ describe('board room protocol robustness', () => {
 
 describe('board room restart', () => {
   it('TC-18: restarted room is repopulated from storage; late joiner gets the note', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const a = await RoomClient.connect(boardId);
     const noteId = createSticky(a.doc, { x: 42, y: 7 });
     await a.waitForFrames(1);
@@ -331,7 +332,7 @@ describe('board room restart', () => {
 
 describe('convergence stress', () => {
   it('TC-31: 500 random ops each from two participants converge to identical state', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const a = await RoomClient.connect(boardId);
     const b = await RoomClient.connect(boardId);
     try {

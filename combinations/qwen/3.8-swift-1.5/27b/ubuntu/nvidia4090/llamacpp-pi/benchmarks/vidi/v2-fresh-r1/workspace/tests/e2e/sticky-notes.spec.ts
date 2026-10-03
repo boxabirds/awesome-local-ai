@@ -8,6 +8,7 @@ import {
   STICKY_SIZE_WORLD,
 } from '../../src/shared/config';
 import { setCamera } from './helpers/board';
+import { gotoFreshBoard } from './helpers/goto-board';
 import { LONG_PROSE, SHORT_PHRASE } from '../fixtures/texts';
 
 const TOLERANCE_PX = 1;
@@ -15,7 +16,7 @@ const VIEWPORT = { width: 1280, height: 800 };
 
 test.describe('story 2: capture ideas on sticky notes and rearrange them', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await gotoFreshBoard(page);
   });
 
   // TC-30: real dblclick at (400,300) then type "Hello" → note centred at (400,300) ±1px

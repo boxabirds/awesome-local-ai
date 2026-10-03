@@ -16,13 +16,13 @@ import {
   CLOSE_UNSUPPORTED_DATA,
 } from '../../src/shared/protocol';
 import { LOAD_RETRY_MIN_INTERVAL_MS, COMPACTION_UPDATE_COUNT } from '../../src/shared/config';
-import { closeAll, RoomClient, waitForConvergence } from './ws-client';
+import { closeAll, RoomClient, waitForConvergence, createBoardViaApi } from './ws-client';
 import { SELF } from 'cloudflare:test';
 import { makeRetroBoard } from '../fixtures/boards';
 
 describe('persist.room integration', () => {
   it('TC-12: A creates note; by the time B observes it, updates row exists; fresh doc from storage contains note', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const a = await RoomClient.connect(boardId);
     const b = await RoomClient.connect(boardId);
     try {
@@ -59,7 +59,7 @@ describe('persist.room integration', () => {
   }, 30_000);
 
   it('TC-13: all clients leave; new client on fresh room instance over same storage → snapshot equals original', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const a = await RoomClient.connect(boardId);
     const noteId = createSticky(a.doc, { x: 42, y: 7 });
     getStickyTextHelper(a.doc, noteId)?.insert(0, 'hello');
@@ -88,7 +88,7 @@ describe('persist.room integration', () => {
   }, 30_000);
 
   it('TC-14: storage failure → A and B closed 1011; A reconnects → stored and delivered to B', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const a = await RoomClient.connect(boardId);
     const b = await RoomClient.connect(boardId);
     try {
@@ -137,7 +137,7 @@ describe('persist.room integration', () => {
   }, 30_000);
 
   it('TC-15: LoadFailed room → client closed 4500; no updates stored', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const { doc } = makeRetroBoard();
     const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
 
@@ -179,7 +179,7 @@ describe('persist.room integration', () => {
   }, 30_000);
 
   it('TC-16: connect before LOAD_RETRY_MIN_INTERVAL_MS → 4500; repair; connect after interval → loads', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const { doc } = makeRetroBoard();
     const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
 
@@ -243,7 +243,7 @@ describe('persist.room integration', () => {
   }, 30_000);
 
   it('TC-17: garbage update → closed 1003, row count unchanged', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const a = await RoomClient.connect(boardId);
     try {
       // Let the initial handshake complete and the async append finish.
@@ -280,7 +280,7 @@ describe('persist.room integration', () => {
   }, 30_000);
 
   it('TC-18: hibernation path — after reconstruct, new connection triggers reload and syncs', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const a = await RoomClient.connect(boardId);
     const noteId = createSticky(a.doc, { x: 10, y: 10 });
     await a.waitForFrames(1);
@@ -310,7 +310,7 @@ describe('persist.room integration', () => {
   }, 30_000);
 
   it('TC-26: SQL read error → room closes clients with 4500', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const { doc } = makeRetroBoard();
     const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
 

@@ -255,3 +255,58 @@ Decisions and environment facts worth remembering for later stories.
   Gates dblclick, toolbar button, Delete key, and all board-model mutations.
 - **`window.__Y`**: Yjs is exposed as a global in test mode for E2E tests
   that need to manipulate the doc directly (e.g. TC-21 large board seeding).
+
+---
+
+# Story 5 — Notes
+
+## Design decisions
+
+- **Board creation moved server-side**: `POST /api/boards` generates a 128-bit
+  random id and calls `initialize()` RPC on the Durable Object. No retry loop
+  (collision with 128 random bits is not practical).
+
+- **Existence rule**: A board exists if `storage_meta.created_at` is set, OR
+  (legacy) it has at least one row in `updates` or `snapshot_chunks`.
+  `existsReadOnly()` checks `sqlite_master` first and never creates tables.
+
+- **`migrate()` no longer runs on construct**: The BoardRoom constructor only
+  calls `loadDoc()` if `existsReadOnly()` returns true. `migrate()` is called
+  from `initialize()` and lazily before the first `append()` (via
+  `ensureMigrated()`). This ensures probing unknown links writes nothing.
+
+- **`BoardRoom.fetch` returns 404 for non-existent boards**: Before accepting
+  a WebSocket, the room checks `existsReadOnly()`. Unknown boards get 404
+  immediately. This breaks the old pattern where connecting implicitly created
+  a board.
+
+- **Doc lazy-load in fetch**: If the doc is null but the board exists (e.g.,
+  after `seedLegacy()`), the fetch handler loads it before accepting the
+  connection.
+
+- **Router**: Minimal pathname router using History API (`/` home, `/b/:id`
+  board, else not_found). No router library.
+
+- **BoardPage retry**: Exponential backoff from `BOARD_CHECK_RETRY_BASE_MS`
+  (1s) doubling up to `RECONNECT_MAX_BACKOFF_MS` (10s). Timers cleared on
+  unmount.
+
+- **SharePanel focus management**: Focus returns to the Share button on close
+  via `setTimeout(0)` to avoid conflict with the click event's default focus
+  behaviour (the clicked element would steal focus back).
+
+- **Test hook for legacy boards**: `POST /api/test/seed-legacy?id=<id>` with
+  header `x-test-hook: true` seeds a board with update data but no
+  `created_at`. Used by TC-31 e2e test.
+
+## Pre-existing typecheck errors
+
+- `tests/e2e/persistence.spec.ts` and `tests/e2e/share.spec.ts`: Playwright's
+  `test` function type doesn't resolve destructured fixture parameters correctly
+  with `moduleResolution: "bundler"`. These are pre-existing (same pattern in
+  persistence.spec.ts from story 4) and don't affect test execution (Playwright
+  uses its own transpiler).
+- `tests/integration/board-store.test.ts` and
+  `tests/integration/board-room-persistence.test.ts`: Pre-existing type issues
+  with the `DurableObjectStorage` type not being exported from
+  `cloudflare:workers`.

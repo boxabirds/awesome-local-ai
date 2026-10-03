@@ -170,3 +170,127 @@ body {
   background: #d32f2f;
   color: #fff;
 }
+
+/* Home page */
+.home-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+}
+.home-page h1 {
+  font-size: 48px;
+  margin: 0;
+}
+.home-page p {
+  font-size: 18px;
+  color: #555;
+  margin: 0;
+}
+.home-page__error {
+  color: #d32f2f;
+  font-size: 14px;
+}
+
+/* Not found page */
+.not-found-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+}
+.not-found-page h1 {
+  font-size: 32px;
+  margin: 0;
+}
+.not-found-page p {
+  color: #555;
+  margin: 0;
+}
+.not-found-page__error {
+  color: #d32f2f;
+  font-size: 14px;
+}
+.not-found-page a {
+  color: #4a90d9;
+  text-decoration: underline;
+}
+
+/* Board loading / unreachable */
+.board-loading,
+.board-unreachable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 16px;
+  color: #555;
+}
+
+/* Board page wrapper */
+.board-page {
+  position: fixed;
+  inset: 0;
+}
+
+/* Share panel */
+.share-panel-wrapper {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 20;
+}
+.share-button {
+  padding: 6px 14px;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 12%);
+}
+.share-panel {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  width: 320px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 16%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.share-panel__link {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #f5f5f5;
+}
+.share-panel__copy-btn {
+  padding: 8px 14px;
+  border: 1px solid #4a90d9;
+  border-radius: 6px;
+  background: #4a90d9;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+.share-panel__manual {
+  font-size: 13px;
+  color: #555;
+  margin: 0;
+}
+.share-panel__note {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+}

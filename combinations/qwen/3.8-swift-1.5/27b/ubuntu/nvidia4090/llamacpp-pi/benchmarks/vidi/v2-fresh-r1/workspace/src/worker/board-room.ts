@@ -40,15 +40,74 @@ export class BoardRoom extends DurableObject<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.store = new BoardStore(ctx.storage);
-    // Load the document on construct/wake.
-    ctx.blockConcurrencyWhile(async () => {
-      await this.loadDoc();
+    this.store = new BoardStore(ctx.storage as any);
+    // Load the document on construct/wake only if the board exists.
+    // We check existence first to avoid creating tables for unknown boards.
+    if (this.store.existsReadOnly()) {
+      ctx.blockConcurrencyWhile(async () => {
+        await this.loadDoc();
+      });
+    }
+  }
+
+  /**
+   * RPC: initialise a new board. Creates tables and sets created_at.
+   * Returns 'created' if this is a new board, 'exists' if already initialised.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    let result: 'created' | 'exists' = 'exists';
+    await this.ctx.blockConcurrencyWhile(async () => {
+      this.store.migrate();
+      // Check if created_at already exists.
+      const cursor = this.store['sql'].exec(
+        "SELECT value FROM storage_meta WHERE key = 'created_at'",
+      );
+      const row = cursor.next();
+      if (row.done) {
+        // Not yet created — set created_at and load the doc.
+        const now = Date.now();
+        this.store['sql'].exec(
+          `INSERT INTO storage_meta (key, value) VALUES ('created_at', '${now}')`,
+        );
+        if (!this.doc) await this.loadDoc();
+        result = 'created';
+      } else {
+        // Already initialised.
+        if (!this.doc) await this.loadDoc();
+      }
+    });
+    return result;
+  }
+
+  /**
+   * RPC: check if this board exists (read-only).
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  /**
+   * RPC (test-only): seed a legacy board with update data but no created_at.
+   * Simulates a board that existed before the share feature shipped.
+   */
+  async seedLegacy(): Promise<void> {
+    await this.ctx.blockConcurrencyWhile(async () => {
+      this.store.migrate();
+      // Create a Y.Doc with a sticky note and store it as an update.
+      const doc = new Y.Doc();
+      // Import createSticky dynamically to avoid circular deps.
+      const { initDoc, createSticky } = await import('../shared/board-model');
+      initDoc(doc);
+      createSticky(doc, { x: 100, y: 100 });
+      const update = new Uint8Array(Y.encodeStateAsUpdate(doc));
+      await this.store.append(update);
+      // Do NOT set created_at — this is a legacy board.
     });
   }
 
   private async loadDoc(): Promise<void> {
-    this.store.migrate();
+    // Ensure tables exist (migrate is idempotent with IF NOT EXISTS).
+    this.store.ensureMigrated();
     const doc = new Y.Doc();
     const result = await this.store.load(doc);
     if (result.ok) {
@@ -69,6 +128,25 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   async fetch(req: Request): Promise<Response> {
+    // Reject connections to boards that don't exist (share.not_found).
+    if (!this.store.existsReadOnly()) {
+      return new Response('Not Found', { status: 404 });
+    }
+
+    // If the doc hasn't been loaded yet (e.g., board was seeded after
+    // construct), load it now.
+    if (!this.doc && this.state === 'ready') {
+      await this.ctx.blockConcurrencyWhile(async () => {
+        await this.loadDoc();
+      });
+      if (!this.doc) {
+        // Load failed.
+        const server = new WebSocketPair()[1];
+        server.close(CLOSE_BOARD_LOAD_FAILED, 'Board load failed');
+        return new Response(null, { status: 101, webSocket: new WebSocketPair()[0] });
+      }
+    }
+
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
@@ -84,7 +162,8 @@ export class BoardRoom extends DurableObject<Env> {
         await this.ctx.blockConcurrencyWhile(async () => {
           await this.loadDoc();
         });
-        if (this.state === 'ready' && this.doc) {
+        const s: string = this.state;
+        if (s === 'ready' && this.doc) {
           // Load succeeded — proceed normally.
           return this.handleReadyConnection(server, client);
         }
@@ -99,10 +178,11 @@ export class BoardRoom extends DurableObject<Env> {
       await this.ctx.blockConcurrencyWhile(async () => {
         await this.loadDoc();
       });
-      if (this.state === 'ready' && this.doc) {
+      const s: string = this.state;
+      if (s === 'ready' && this.doc) {
         return this.handleReadyConnection(server, client);
       }
-      if (this.state === 'load-failed') {
+      if (s === 'load-failed') {
         server.close(CLOSE_BOARD_LOAD_FAILED, 'Board load failed');
         return new Response(null, { status: 101, webSocket: client });
       }

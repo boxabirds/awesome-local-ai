@@ -11,13 +11,15 @@ export interface Participant {
 }
 
 /**
- * Open a fresh board in a new browser context. The app replaces the address
- * with `/b/<boardId>` on load; we read that id from the test hook.
+ * Open a fresh board in a new browser context. Clicks "New board" on the
+ * home page and waits for the board to load.
  */
 export async function openParticipant(browser: Browser): Promise<Participant> {
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto('/');
+  await page.getByTestId('home-page').waitFor();
+  await page.getByTestId('new-board-button').click();
   await page.getByTestId('app-root').waitFor();
   const boardId = await page.evaluate(() => window.__vidi6?.getBoardId() ?? '');
   expect(boardId).toMatch(/^[A-Za-z0-9_-]{22}$/);

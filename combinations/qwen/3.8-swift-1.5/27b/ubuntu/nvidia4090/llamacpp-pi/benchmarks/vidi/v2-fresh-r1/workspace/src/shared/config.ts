@@ -76,3 +76,12 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Versions the storage tables. */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Story 5: Share a board ---
+
+/** 2-second budget for board creation (PRD share.create). */
+export const CREATE_BUDGET_MS = 2000;
+/** How long "Link copied" stays visible (PRD share.copy). */
+export const LINK_COPIED_MS = 2000;
+/** Base backoff for board existence check retries; doubles up to RECONNECT_MAX_BACKOFF_MS. */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

@@ -7,17 +7,17 @@ import { env, SELF } from 'cloudflare:test';
 import { createSticky } from '../../src/shared/board-model';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
-import { RoomClient, closeAll, waitForConvergence } from './ws-client';
+import { RoomClient, closeAll, waitForConvergence, createBoardViaApi } from './ws-client';
 
 const UPGRADE_HEADERS = { Upgrade: 'websocket', Connection: 'Upgrade' };
 
 describe('worker routing', () => {
-  it('TC-04: invalid board id with Upgrade -> 400, no object instance touched', async () => {
+  it('TC-04: invalid board id with Upgrade -> 404, no object instance touched', async () => {
     const idSpy = vi.spyOn(env.BOARD_ROOM, 'idFromName');
     const res = await SELF.fetch('http://localhost/api/rooms/bad!id', {
       headers: UPGRADE_HEADERS,
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(res.webSocket).toBeNull();
     expect(idSpy).not.toHaveBeenCalled();
     idSpy.mockRestore();
@@ -39,7 +39,7 @@ describe('worker routing', () => {
   });
 
   it(`TC-13: ${MAX_CONCURRENT_EDITORS + 1} participants are all accepted (over capacity not refused)`, async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const clients: RoomClient[] = [];
     try {
       for (let i = 0; i < MAX_CONCURRENT_EDITORS + 1; i++) {
@@ -62,8 +62,8 @@ describe('worker routing', () => {
   }, 30_000);
 
   it('TC-17: boards stay separate (no cross-room updates)', async () => {
-    const board1 = newBoardId();
-    const board2 = newBoardId();
+    const board1 = await createBoardViaApi();
+    const board2 = await createBoardViaApi();
     const a = await RoomClient.connect(board1);
     const b = await RoomClient.connect(board2);
     try {
