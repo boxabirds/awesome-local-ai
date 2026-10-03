@@ -1,3 +1,125 @@
+commit 70785db030ce4ee7dee03c736b76515611b7951c
+agent  Sat Oct 3 18:38:46 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                           |  51 ++++++-
+ PROGRESS.md                        |  35 +++--
+ tests/e2e/helpers/participants.ts  |  14 ++
+ tests/e2e/helpers/random-ui-ops.ts | 276 +++++++++++++++++++++++++++++++++++++
+ tests/e2e/nightly.spec.ts          | 259 ++++++++++++++++++++++++++++++++++
+ tests/integration/random-ops.ts    | 124 ++++++++++++-----
+ 6 files changed, 712 insertions(+), 47 deletions(-)
+commit 5856cc1e177ef3e6cc26178b39c6fb212fc16ae8
+agent  Sat Oct 3 17:57:45 2026 +0000
+
+    wip: live-collaboration e2e (TC-22..TC-28) green in chromium
+
+
+ src/client/canvas/testHooks.ts            |  37 +++
+ src/client/objects/StickyTextEditor.tsx   |  10 +-
+ src/client/sync/connectBoard.ts           |  17 ++
+ tests/component/StickyTextEditor.test.tsx |  90 ++++++
+ tests/e2e/helpers/participants.ts         | 254 ++++++++++++++++
+ tests/e2e/helpers/sticky.ts               |  33 +++
+ tests/e2e/live-collaboration.spec.ts      | 472 ++++++++++++++++++++++++++++++
+ 7 files changed, 912 insertions(+), 1 deletion(-)
+commit 86ffa3a0b60a9bc3a303dc459e21afcf77e02057
+agent  Sat Oct 3 17:37:34 2026 +0000
+
+    task 4+7: WebsocketProvider connection, connection status badge, /b/<boardId> route (TC-19..TC-21 green)
+
+
+ src/client/App.tsx                        |  68 ++++++++++--
+ src/client/board/useBoardDoc.ts           |  55 ++++++++--
+ src/client/canvas/testHooks.ts            |  22 ++++
+ src/client/canvas/useCamera.ts            |   2 +
+ src/client/styles.css                     |  39 +++++++
+ src/client/sync/ConnectionStatus.tsx      |  34 +++++-
+ src/client/sync/connectBoard.ts           | 170 +++++++++++++++++++++++++++---
+ tests/component/ConnectionStatus.test.tsx |  63 +++++++++++
+ tests/component/helpers.tsx               |  27 ++++-
+ 9 files changed, 442 insertions(+), 38 deletions(-)
+commit 0d8641bda865b74cd3ad3156875055886b5e163b
+agent  Sat Oct 3 17:31:13 2026 +0000
+
+    task 7: connection badge component tests with fake timers and a fake provider (TC-19..TC-21, red) + stubs
+
+
+ src/client/sync/ConnectionStatus.tsx      |  16 +++
+ src/client/sync/connectBoard.ts           |  40 ++++++
+ tests/component/ConnectionStatus.test.tsx | 206 ++++++++++++++++++++++++++++++
+ tests/component/fake-link.ts              |  59 +++++++++
+ 4 files changed, 321 insertions(+)
+commit bbc3adb2eeafcf0f4ff8004cbe5b8314f3aec79c
+agent  Sat Oct 3 17:24:32 2026 +0000
+
+    task 5-6: workerd integration tests in the spec's TC numbering (TC-04..TC-06, TC-13, TC-17, TC-07..TC-12, TC-14..TC-16, TC-18, TC-31) + seeded random-ops fixture
+
+
+ NOTES.md                                 |  32 +-
+ PROGRESS.md                              |  22 +-
+ tests/integration/board-room.test.ts     | 850 ++++++++++++++-----------------
+ tests/integration/random-ops.ts          | 132 +++++
+ tests/integration/worker-routing.test.ts | 138 -----
+ tests/integration/worker.test.ts         | 237 +++++++++
+ tests/integration/ws-client.ts           | 495 ++++++++++++++----
+ 7 files changed, 1181 insertions(+), 725 deletions(-)
+commit 2345f2c8b41736c64a6ab9c393e3f06351352986
+agent  Sat Oct 3 16:55:40 2026 +0000
+
+    task 2-4: Worker entry, BoardRoom Durable Object and workerd integration tests (TC-04..TC-18, TC-31)
+
+
+ NOTES.md                                 |  60 ++++
+ PROGRESS.md                              |  25 +-
+ package-lock.json                        |   8 +
+ package.json                             |  10 +-
+ src/worker/board-room.ts                 | 193 +++++++++++
+ src/worker/index.ts                      |  60 ++++
+ tests/integration/board-room.test.ts     | 544 +++++++++++++++++++++++++++++++
+ tests/integration/env.d.ts               |  19 ++
+ tests/integration/worker-routing.test.ts | 138 ++++++++
+ tests/integration/ws-client.ts           | 208 ++++++++++++
+ tsconfig.json                            |  13 +-
+ tsconfig.worker.json                     |  23 ++
+ vitest.config.ts                         |  87 +++--
+ wrangler.jsonc                           |  29 +-
+ 14 files changed, 1381 insertions(+), 36 deletions(-)
+commit e676b495a1ec9c5f92e7aa708d49bec09488e90f
+agent  Sat Oct 3 16:24:01 2026 +0000
+
+    task 1: board id and protocol decode implemented (unit tests green)
+
+
+ PROGRESS.md            |  4 +--
+ src/shared/board-id.ts | 34 ++++++++++++++++++---
+ src/shared/protocol.ts | 81 ++++++++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 107 insertions(+), 12 deletions(-)
+commit a59875c5452d8ec28b4b9c96ddbfc3b99f11ad22
+agent  Sat Oct 3 16:23:06 2026 +0000
+
+    task 1: board id and protocol decode unit tests (red) + story 3 settings
+
+
+ PROGRESS.md                 |    2 +-
+ package-lock.json           | 1109 ++++++++++++++++++++++++++++++++++++++++---
+ package.json                |    6 +-
+ src/shared/board-id.ts      |   24 +
+ src/shared/config.ts        |   33 ++
+ src/shared/protocol.ts      |   41 ++
+ tests/unit/board-id.test.ts |   78 +++
+ tests/unit/protocol.test.ts |  164 +++++++
+ 8 files changed, 1394 insertions(+), 63 deletions(-)
+commit f64dcc8b47bdcd563ee270fc21e553b6dacd9538
+vidi-agent  Sat Oct 3 17:07:45 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 42 ++++++++++--------------------------------
+ 1 file changed, 10 insertions(+), 32 deletions(-)
 commit 0d51188adb916a2122550673ec07152fc98395f5
 agent  Sat Oct 3 16:05:45 2026 +0000
 
