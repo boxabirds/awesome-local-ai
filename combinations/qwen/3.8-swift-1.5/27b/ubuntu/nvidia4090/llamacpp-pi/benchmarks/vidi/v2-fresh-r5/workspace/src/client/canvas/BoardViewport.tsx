@@ -39,12 +39,19 @@ export function BoardViewport(props: {
   onDblClickEmpty?: (screenPoint: { x: number; y: number }) => void;
   onClickEmpty?: () => void;
   onCameraChange?: (cam: { x: number; y: number; zoom: number }) => void;
+  /** Shift+drag marquee callbacks */
+  onMarqueeBegin?: (screen: { x: number; y: number }) => void;
+  onMarqueeMove?: (screen: { x: number; y: number }) => void;
+  onMarqueeEnd?: () => void;
+  onMarqueeCancel?: () => void;
 }): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const panningRef = useRef(false);
   const wasPanningRef = useRef(false);
+  const marqueeRef = useRef(false);
+  const suppressClickRef = useRef(false);
 
   const cam = useCamera(size);
   const camRef = useRef(cam);
@@ -144,34 +151,82 @@ export function BoardViewport(props: {
     installTestHook(camRef.current.setCamera);
   }, []);
 
+  // Ref for marquee end callback (stable across renders)
+  const marqueeEndRef = useRef(props.onMarqueeEnd);
+  marqueeEndRef.current = props.onMarqueeEnd;
+  const marqueeMoveRef = useRef(props.onMarqueeMove);
+  marqueeMoveRef.current = props.onMarqueeMove;
+
   const onPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
     // Start a pan only when pressing on the board surface itself (the viewport
     // or its grid). World content is pointer-events:none in this story.
     if (e.target !== e.currentTarget) return;
     const el = e.currentTarget;
-    if (typeof el.setPointerCapture === 'function') {
-      el.setPointerCapture(e.pointerId);
+
+    // Shift+drag on empty space → marquee selection (no pointer capture needed;
+    // we use window-level listeners in capture phase)
+    if (e.shiftKey) {
+      marqueeRef.current = true;
+      const rect = e.currentTarget.getBoundingClientRect();
+      props.onMarqueeBegin?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+
+      // Document-level native listeners for reliable marquee tracking
+      const onMove = (ev: PointerEvent) => {
+        if (!marqueeRef.current) return;
+        const r = el.getBoundingClientRect();
+        marqueeMoveRef.current?.({ x: ev.clientX - r.left, y: ev.clientY - r.top });
+      };
+      const onUp = () => {
+        if (!marqueeRef.current) return;
+        marqueeRef.current = false;
+        suppressClickRef.current = true;
+        setTimeout(() => { suppressClickRef.current = false; }, 0);
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        window.removeEventListener('mouseup', onUp);
+        marqueeEndRef.current?.();
+      };
+      window.addEventListener('pointermove', onMove, true);
+      window.addEventListener('pointerup', onUp, true);
+      window.addEventListener('pointercancel', onUp, true);
+      window.addEventListener('mouseup', onUp, true);
+      return;
     }
+
     panningRef.current = true;
     wasPanningRef.current = false;
     setIsPanning(true);
+    if (typeof el.setPointerCapture === 'function') {
+      el.setPointerCapture(e.pointerId);
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     camRef.current.beginPan({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  }, []);
+  }, [props.onMarqueeBegin]);
 
   const onPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeRef.current) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      props.onMarqueeMove?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      return;
+    }
     if (!panningRef.current) return;
     wasPanningRef.current = true;
     const rect = e.currentTarget.getBoundingClientRect();
     camRef.current.panMove({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  }, []);
+  }, [props.onMarqueeMove]);
 
   const endPan = useCallback(() => {
+    if (marqueeRef.current) {
+      marqueeRef.current = false;
+      props.onMarqueeEnd?.();
+      return;
+    }
     if (!panningRef.current) return;
     panningRef.current = false;
     setIsPanning(false);
     camRef.current.endPan();
-  }, []);
+  }, [props.onMarqueeEnd]);
 
   // Double-click on empty board space
   const onDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -184,6 +239,8 @@ export function BoardViewport(props: {
   const onClickEmpty = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
     if (wasPanningRef.current) return;
+    if (marqueeRef.current) return;
+    if (suppressClickRef.current) return;
     props.onClickEmpty?.();
   }, [props.onClickEmpty]);
 

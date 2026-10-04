@@ -1,15 +1,32 @@
-# Story 5: Share a board with others using a link
+# vidi6 — progress
 
-Your progress on this story's tasks. Keep the Status column up to date as you work.
+## Story 7: Select, move, resize and delete several objects at once — IN PROGRESS
 
-| # | Task | Status |
-|---|---|---|
-| 1 | Write board id unit test first: link-code format and uniqueness (TC-04) | done |
-| 2 | Implement board API: POST /api/boards, GET existence, 404 for unknown rooms | done |
-| 3 | Integration tests for board API against real Worker, RPC and SQLite (TC-05 to TC-10, TC-12, TC-14, TC-15, TC-32) | done |
-| 4 | Implement router, API client, Home, Board (existence check with retry) and Board not found pages | done |
-| 5 | Implement Share panel with copy link and manual-copy fallback | done |
-| 6 | Component tests for pages and Share panel (TC-16, TC-17, TC-19 to TC-25) | done |
-| 7 | E2E share workflows: create-share-join, bad link, flaky service, clipboard blocked, legacy board (TC-26 to TC-29, TC-31) | done |
+### Tasks
+- [x] Task 1: Read the full spec
+- [x] Task 2: Implement geometry helpers and group operations in board-model
+- [ ] Task 3: (part of task 2 — geometry unit tests are task 6)
+- [ ] Task 4: (part of task 2 — group ops unit tests are task 6)
+- [x] Task 5: E2E TC-35 (colleague deletes one of my selected notes)
+- [x] Task 6: Geometry and group-ops unit tests (TC-01–TC-10)
+- [x] Task 7: Registry unit tests (TC-11, TC-12, duplicate)
+- [x] Task 8: Implement the object type registry
+- [x] Task 9: Selection state unit tests (TC-13–TC-15)
+- [x] Task 10: Implement multi-selection state, outlines, selection bar
+- [x] Task 11: Implement Shift+drag marquee selection
+- [x] Task 12: Implement the generic transform gesture
+- [x] Task 13: Implement keyboard commands
+- [x] Task 14: Component tests (TC-16–TC-31)
+- [x] Task 15: E2E tests (TC-32, TC-33, TC-34, TC-36)
 
-Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
+### Verification
+- [x] `npm run typecheck`
+- [x] `npm run build`
+- [x] `npm run test:unit`
+- [x] `npm run test:component`
+- [x] `npm run test:integration`
+- [x] `npx playwright test` (chromium)
+
+### Final
+- [x] Update PROGRESS.md and NOTES.md
+- [ ] Commit

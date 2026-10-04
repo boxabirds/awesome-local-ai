@@ -82,3 +82,16 @@ export const CREATE_BUDGET_MS = 2000;
 export const LINK_COPIED_MS = 2000;
 /** Base backoff (ms) for board existence checks while the service is unreachable; doubles per attempt, capped at RECONNECT_MAX_BACKOFF_MS. */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+/* --- Story 7: multi-select, move, resize, delete --- */
+
+/** Screen pixel size of selection handles. */
+export const HANDLE_SIZE_PX = 8;
+/** Minimum size in world units for sticky notes. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Maximum size in world units for any object. */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** Nudge step in world units (arrow keys). */
+export const NUDGE_STEP_WORLD = 1;
+/** Large nudge step in world units (Shift+arrow keys). */
+export const NUDGE_LARGE_STEP_WORLD = 10;

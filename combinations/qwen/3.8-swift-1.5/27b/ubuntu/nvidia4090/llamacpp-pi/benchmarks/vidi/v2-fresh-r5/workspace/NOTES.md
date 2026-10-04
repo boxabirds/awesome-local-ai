@@ -255,3 +255,89 @@ faster machine it passes (its design already tolerates per-op failures).
   the `POST /api/boards` stub calls; it reuses `connect`'s locking pattern.
 - The 4500 `board-load-failed` event, `ConnectionStatus` and the story-4
   load-failure UI are unchanged by this story.
+
+---
+
+## Story 7 notes
+
+### Geometry module (`src/shared/geometry.ts`)
+
+Pure functions for rect math: `rectContains`, `unionRects`, `normalizeRect`,
+`resizeRect`, `clampScale`, `scaleWithin`. All operate on plain `{x, y, width,
+height}` objects. `resizeRect` implements the 8-handle bounding-box resize with
+optional aspect lock (uses the dominant scale). `clampScale` prevents any object
+from going below its min size or above `MAX_OBJECT_SIZE_WORLD`.
+
+### Object type registry (`src/client/objects/registry.tsx`)
+
+`registerObjectType(type, spec)` / `getObjectType(type)` — a simple Map-based
+registry. `ObjectTypeSpec` carries `Component`, `minSize`, `aspectLocked`,
+`canMultiSelect`, `defaultSize`. Sticky notes are registered at module load.
+The `Component` type is `ComponentType<ObjectProps>` where `ObjectProps` is the
+minimal interface all object components must accept. StickyNote has extra
+optional props (`doc`, `onEndEdit`) so it's cast via `unknown`.
+
+### Multi-selection state (`useSelection`)
+
+Replaced the old single-id selection with a `Set<string>`-based reducer.
+Actions: `click`, `toggle`, `setMany`, `clear`, `prune`, `edit`. The `prune`
+effect removes ids that are no longer in the snapshot (handles remote deletes).
+The `selection` object returned by the hook is memoized with `useMemo` depending
+on `[state, snapshot]`.
+
+### Transform gesture (`useTransformGesture`)
+
+Generic group move and bounding-box resize. Key design decisions:
+- **`moveIds` captured at pointerdown**: When the user presses an unselected
+  object, `selection.click(id)` dispatches an async React state update. The
+  closure's `selection.ids` is stale (still empty). We capture `moveIds` at
+  pointerdown time: if the object was already selected, use the full selection;
+  otherwise use just `[id]`.
+- **rAF coalescing**: `scheduleFrame` stores the latest pending delta and
+  schedules a single rAF. `flush` reads the refs (always current) and applies
+  the mutation to the Yjs doc.
+- **`onMove` handles both 'pressed' and 'moving' states**: The first move that
+  crosses the 3px threshold transitions from 'pressed' to 'moving'. Subsequent
+  moves must also be processed (the original bug was that they were ignored
+  because the handler only checked for 'pressed').
+- **Pointer capture on the object element**: Ensures all pointer events are
+  delivered to the element even when the pointer moves outside it.
+
+### Marquee selection (`useMarquee` + BoardViewport)
+
+- Shift+drag on empty space triggers the marquee.
+- **Window-level capture-phase listeners** for `pointermove`/`pointerup`:
+  React's synthetic `onPointerUp` on the viewport div is unreliable for the
+  marquee because (a) the pointer may end over a note (which has
+  `pointer-events: auto`), and (b) the `click` event that fires after
+  `pointerup` would clear the selection via `onClickEmpty`.
+- **`suppressClickRef`**: Set to true when the marquee ends, cleared via
+  `setTimeout(0)`. Prevents the subsequent `click` event from clearing the
+  selection.
+- **`rectRef`/`snapshotRef`/`onSelectRef`**: The `end` callback uses refs to
+  avoid stale closures (the rect state updates asynchronously via React).
+
+### Keyboard commands (`useBoardKeys`)
+
+- Ctrl/Cmd+A: select all objects with registered types.
+- Escape: clear selection (or end edit if editing).
+- Arrow keys: nudge selected objects by `NUDGE_STEP_WORLD` (1) or
+  `NUDGE_LARGE_STEP_WORLD` (10 with Shift). `preventDefault` prevents page
+  scroll.
+- Delete/Backspace: delete all selected objects.
+- Enter: start editing the single selected sticky.
+
+### SelectionOverlay and SelectionBar
+
+- `SelectionOverlay`: renders the bounding box (dashed outline) and 8 resize
+  handles for the selected group. Handles are 8×8px screen-sized divs
+  (counter-scaled by `1/zoom` to stay constant size).
+- `SelectionBar`: floating toolbar above the bounding box with count label and
+  delete button. Only visible when 1+ objects are selected.
+
+### Story 3 gap filled
+
+The `bringObjectsToFront` group operation (move all selected objects to the
+front of the z-order in a single transaction) was needed by story 7 but did not
+exist in story 3's board-model. Implemented as a single Yjs transaction that
+sets each object's `z` to `maxZ + index`.
