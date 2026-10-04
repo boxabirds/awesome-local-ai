@@ -98,14 +98,31 @@ yet, so changing the pin costs nothing today; changing it after the series start
 
 ### What this says about our own measurements
 
-The author's IQ3_XXS figures are **46 to 52 tok/s** generation on an RTX 5070. We measured **104 to 173 tok/s** on
-the RTX 4090 on 2 Oct. A faster card explains some of it, but not that much. The likely difference is what was
-measured: ours were synthetic prompts with replies under 200 tokens and drafts accepted 80-95% of the time, which
-flatters decode. Theirs are story and code workloads.
+The project's README publishes its own table, measured on two gaming PCs (4K answers, 32K prompts):
 
-That also reconciles the user reports above: about 60 tok/s sits between the two, and close to the author's own
-numbers. **Our 104-173 tok/s should not be quoted as what a story will see.** The first recorded story will settle
-it.
+| | RTX 5070, 12 GB, 64 GB RAM | RX 9070 XT, 16 GB, 47 GB RAM |
+|---|---|---|
+| Q2_0 | 94 tok/s | 60 tok/s |
+| IQ2_XS | 79 tok/s | 52 tok/s |
+| **IQ3_XXS** (ours) | **62 tok/s** | — |
+| IQ3_S | 53 tok/s | — |
+
+and says in the same breath: *"A card with more VRAM is faster: an RTX 3090 (24 GB) should write about 100-140
+tokens per second."*
+
+Three things follow, and they fit together:
+
+- **Our 104 to 173 tok/s on the RTX 4090 (24 GB) is not anomalous.** It sits in the band the project itself
+  predicts for a 24 GB card. An earlier reading here, that our figure was 2 to 3 times optimistic because the
+  0.1.39 notes quote 46 to 52 tok/s, was wrong: those are a different workload on a 12 GB card.
+- **The user reports of about 60 tok/s are the 12 GB figure**, which is what the README prints for IQ3_XXS.
+  Nothing is in dispute between them and us; they are different machines.
+- **VRAM is a cache, not the model's home.** The card holds the busiest experts; the rest sit in RAM and cross
+  PCIe on a miss. That is why 12 GB works at all, and why the 16 GB AMD machine with only 47 GB of RAM is *slower*
+  than the 12 GB NVIDIA one with 64 GB (60 against 94 tok/s on Q2_0). RAM and PCIe matter as much as VRAM here.
+
+What remains true: ours were synthetic prompts with replies under 200 tokens, and the README's are 4K answers, so
+a recorded story is still the figure that counts.
 
 ## The combination and the harness (3 Oct 2026)
 
