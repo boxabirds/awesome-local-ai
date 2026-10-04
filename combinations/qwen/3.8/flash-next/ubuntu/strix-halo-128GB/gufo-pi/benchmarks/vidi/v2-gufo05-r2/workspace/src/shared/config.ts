@@ -222,3 +222,105 @@ export const TEXT_AUTO_WIDTH_PAD_WORLD = 2;
  * scales with the size preset.
  */
 export const TEXT_ESTIMATED_GLYPH_RATIO = 0.52;
+
+/* ------------------------------------------------------------------ * *
+ * Story 10: shapes, and arrows between them                            *
+ * ------------------------------------------------------------------ */
+
+/** The kinds of shape the tool draws. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/**
+ * The box a click with the shape tool makes, in board units (PRD
+ * shape.create_default): a drag smaller than SHAPE_MIN_SIZE_WORLD in either
+ * direction becomes a square this big, centred on where the pointer went down.
+ */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/** A drag smaller than this in either dimension counts as a click, not a box. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** Hard limit on characters kept in a shape label (PRD shape.label_limit). */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** The fill palette, named so a test can say which swatch it clicks. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** The outline palette. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** The style a fresh shape gets (PRD shape.style_default). */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+/** The thickness of a shape outline, in board units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/**
+ * How far an arrow has to be dragged to count as one (PRD connector.too_short),
+ * measured between its two ends in board units.
+ */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/**
+ * How close to an arrow's line a click has to land to select it, in screen
+ * pixels at any zoom (PRD connector.select). Divided by the zoom, so the band
+ * keeps the same width on the screen however far the board is zoomed.
+ */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** The thickness of an arrow, in board units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** How long the two strokes of an arrowhead are, in board units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** The radius of the four attach dots of a hovered object, in screen pixels. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+/**
+ * The board tools, in the order the toolbar lists them (PRD tools.order).
+ * `pen` and `image` arrive with story 11 and `comment` with story 14; story 10
+ * adds `shape` and `connector`.
+ */
+export const TOOL_IDS = [
+  'select',
+  'sticky',
+  'text',
+  'shape',
+  'connector',
+  'pen',
+  'image',
+  'comment',
+] as const;
+
+export type ToolId = (typeof TOOL_IDS)[number];
+
+/** The keyboard shortcut of each tool that has one (PRD tools.shortcuts). */
+export const TOOL_SHORTCUTS: Record<string, ToolId> = {
+  v: 'select',
+  n: 'sticky',
+  t: 'text',
+  s: 'shape',
+  l: 'connector',
+};

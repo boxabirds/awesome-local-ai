@@ -693,3 +693,155 @@ integration/live (worker) projects, all passing. `npm run test:e2e` is 54 cases,
 including story 9's seven (`tests/e2e/text.spec.ts`): the golden path, TC-26 to TC-31.
 Only chromium runs on this host; firefox and webkit are skipped by the config probe, as
 in stories 5 to 8.
+
+---
+
+# Notes: Story 10 — shapes and arrows that follow
+
+## Deviations from the design
+
+### The click-to-create size is one square number, not a pair
+
+PRD §7 and the design's `SHAPE_DEFAULT_SIZE_WORLD` describe the standard shape as one
+number, and the design's own component table says a click on a Diamond makes "160×160
+centred". Reading it as a 200×120 rectangle first made TC-24 wrong in the test, not in
+the app: the standard box is `{SHAPE_DEFAULT_SIZE_WORLD}²` for every kind, and only a
+*drag* produces a non-square shape (TC-23's 200×120 is the drag rectangle itself). The
+constant is a single `160`, and `defaultShapeBox()` is the only place it becomes a rect.
+
+### Two new files where the design named one, and one it did not
+
+- `src/client/tools/useActiveTool.ts` is a *new* hook rather than an extension of
+  `src/client/board/useTool.ts`, because `useTool` is the sticky/text hand-off already
+  used by three specs' worth of tests and its state shape (a tool that is a *creation*
+  request) differs from a tool that is a mode. `useTool` stays as it is; `BoardSurface`
+  now holds the active tool.
+- `src/client/board/boardEnv.tsx` is not in the design's file table. Shape and connector
+  rendering needs the camera (to convert a client point to board units), the rects of
+  every object (to resolve an attached end), the doc, and whether this page may write —
+  five things the design's `ObjectProps` does not carry. Threading them through every
+  `ObjectTypeSpec` component would have changed story 7 and 9's component signatures; a
+  context provided once by `BoardSurface` does not.
+- `src/shared/geometry/connector-geometry.ts` exports more than the design's four names
+  (`endpointPosition`, `oppositeReference`, `pointOf`) because the rules "where does this
+  end hang" and "what should the other end be measured against" are used by the tool, the
+  object and the model, and inlining them twice is how two screens start disagreeing.
+
+### An arrow may not be created with two free ends, but may end up with them
+
+The design forbids an arrow with "no connection at all" without saying where the rule
+lives. It is a *creation* rule (`createConnector` returns `null` when both ends are
+free), not an invariant: dragging a handle off its object releases that end
+(`setConnectorEndpoint` allows it), and deleting the object at an end releases it too
+(`detachConnectorsTo`). A test asserts both halves, because a client that refused the
+release would make the handle snap back, and one that allowed the creation would let a
+stray click make an arrow to nowhere.
+
+### Story 7's "unknown object type" fixtures use a different word now
+
+`tests/unit/board-model-group.test.ts` used `'shape'` as its stand-in for a type the
+registry does not know. Story 10 makes that type known, so the fixtures say `'widget'`.
+The assertion — an unrecognised type is skipped, not rendered and not crashed on — is
+unchanged.
+
+### The delete race (TC-27) is interleaved by real events, not by delayed frames
+
+The design's route is "route delay to force overlap". Playwright cannot hold a Durable
+Object's outbound frames without a proxy, and standing one up would test the proxy. The
+case instead uses the real interleaving: Dana's hand goes down on the arrow's point and
+is mid-drag when Sam deletes the shape, then Dana lets go over the place it was — so the
+release genuinely races the delete, and which one wins is left to chance. What is
+asserted is the safety property the design is after: the arrow is still drawn, with no
+`NaN` in any coordinate (the helper throws on one), both ends finite, and the two
+screens converge on one identical arrow.
+
+## Decisions
+
+### A connector drag needs two targets, and the first bug was having one
+
+`ConnectorTool`'s drag state is `{ from, fromId, to, toId }`: `fromId` is fixed at
+pointer-down and never changes, `toId` follows the pointer. The first version had a
+single `targetId` for "the object the hand went down on" and "the object the hand is
+over now", and pointer-move cleared it — so an arrow drawn from shape to shape landed
+with a free end, because by the time the hand lifted nothing was remembered about where
+it started. `Connector.test.tsx`'s "an arrow drawn between two shapes hangs on both" is
+the case that found it.
+
+`toId` is left alone when the pointer leaves the window (`clientX/Y` outside
+`innerWidth/innerHeight`): that means the pointer went off the board, not that it moved
+off the object, and the difference is visible as an end that forgets its shape whenever
+the hand wanders.
+
+### Hit-testing gained a context argument, and one door
+
+`ObjectTypeSpec.hitTest(obj, worldPoint, context?)` where context is `{ zoom, rects }`.
+A note and a shape are hit by their box; an arrow is hit by distance to its derived
+polyline, which needs the boxes of the objects it hangs on and the zoom (the tolerance is
+6 screen pixels, so in board units it is `6 / zoom`). `hitTestObject()` is the only
+exported way to ask "what is under this point", which keeps the tool overlays and the
+board's own select path from drifting apart.
+
+### `ShapeObject` measures against a resolved box
+
+`shapePath(shape, size)` and `shapeLabelBox(shape, size)` take the box explicitly rather
+than reading `width`/`height` off the snapshot: those fields are optional on
+`ObjectSnapshot` (story 9's rule), and `objectBounds()` is what resolves them. Passing
+the resolved rect in means the outline and the label cannot be measured against a
+default while the board holds a real size.
+
+### Rendering an arrow: one padded SVG, and `pointer-events` in three places
+
+The connector's box is its two endpoints plus `DRAW_PAD_WORLD` (the head and the handles
+stick out). The wrapper and the `<svg>` are `pointer-events: none`, and only two things
+catch the pointer: the invisible hit line at `CONNECTOR_HIT_TOLERANCE_PX / zoom`
+(`pointer-events: stroke`, so the empty middle of a long arrow's box is left to whatever
+is underneath), and, when selected, the two handle dots. The handle drag listens on
+`window` rather than the circle, because dragging off the arrow's own box — which is the
+normal way to re-attach an end to a far object — would otherwise lose the pointer.
+
+### The tool layer is `position: fixed; inset: 0` at z-index 15, and previews in screen space
+
+Above the board viewport (which paints objects) and below the toolbar (20), so a drag
+that crosses the toolbar still belongs to the tool, and the toolbar stays clickable when
+the tool is picked by its button. The shape preview is a dashed div in *screen* pixels
+converted from the board-space rectangle: 1 CSS pixel wide at every zoom, which is what
+makes the preview read as an intention rather than the object.
+
+### The seed hooks use a `'seed'` origin
+
+`seedShape`/`seedConnector` write with a transaction origin that is not `LOCAL_ORIGIN`,
+so laying out a board for a test never enters that page's undo history. An e2e case that
+presses Ctrl+Z afterwards undoes what the *person* did in that test, which is the thing
+under test.
+
+## Findings worth remembering
+
+- **A drawn arrow's end is the arrowhead's tip, not the line's end.** `ConnectorMark`
+  stops the line `CONNECTOR_ARROWHEAD_SIZE_WORLD` short so the head can sit on the end.
+  Measuring where an arrow points therefore reads the polygon's first corner; reading
+  `line.x2` gives a point 10 board units early, which at 100% zoom is exactly the
+  tolerance these assertions run at.
+- **`window.__vidi6` exists once the board has mounted.** An e2e `beforeEach` that clicks
+  "New board" and immediately calls `setCamera` reads a page that is still navigating and
+  gets "test build" errors that mean nothing of the kind. `openBoard()` waits for the
+  viewport and the origin marker first, and every spec should reach for it.
+- **A keydown dispatched on `window` has `window` as its target.** The real browser sends
+  the key to the focused element, so the "a shortcut typed into a field is a letter" case
+  has to dispatch on the field itself; firing at `window` tests the wrong thing and passes.
+- **jsdom gives no `getBoundingClientRect` for SVG**, so the component tests assert an
+  arrow's geometry through the document and the derived points, and where it is *drawn* is
+  asserted in the browser (TC-25, TC-26). The helper converts an SVG element's local
+  coordinates to screen pixels through `viewBox.baseVal` and the element's own box, which
+  keeps the assertion true at 400% zoom.
+- **`foreignObject` inside an SVG works in all three target browsers** for the label
+  editor, but a `textarea` in it inherits no font from the shape: the label's font comes
+  from `.shape-object__label`, and the editor reuses the sticky/text `TextEditor` with
+  `variant="plain"`.
+
+## What the suites look like here
+
+Unit 266 (20 files), component 166 (20 files), integration+live 63 (6 files), e2e 63
+cases including story 10's nine (`tests/e2e/shapes.spec.ts`,
+`tests/e2e/connectors.spec.ts`). Only chromium runs on this host, as in stories 5 to 9.
+Two-person arrow cases land in the 3–20 ms delivery range against the 1000 ms budget,
+logged rather than asserted.

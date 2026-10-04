@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import type * as Y from 'yjs';
 
 import { BoardViewport } from '../canvas/BoardViewport';
 import { NavigationHint } from '../canvas/NavigationHint';
@@ -33,7 +34,10 @@ import { Toolbar } from './Toolbar';
 import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
 import { useBoardKeys } from './useBoardKeys';
-import { useTool } from './useTool';
+import { BoardEnvProvider, type BoardEnv } from './boardEnv';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
 import { useTransformGesture } from './useTransformGesture';
 import { createUndo } from './undo';
 import { UndoControllerContext, useUndo } from './useUndo';
@@ -48,6 +52,10 @@ import {
   type ObjectProps,
 } from '../objects/registry';
 import { createText, textSnapshot } from '../../shared/objects/text';
+import { createShape, readShapes } from '../../shared/objects/shape';
+import { createConnector, readConnectors } from '../../shared/objects/connector';
+import { nearestSide, sideAnchor } from '../../shared/geometry/connector-geometry';
+import type { ShapeKind } from '../../shared/config';
 import {
   allObjectIds,
   createSticky,
@@ -87,6 +95,10 @@ export function BoardSurface({ boardId }: { boardId: string }) {
 
   // The one thing the connection state changes about the board itself.
   const editable = canEdit(connection);
+  // Story 10: the box of every object, and the shape this page draws next. The rects
+  // are computed once per snapshot and given to the objects through context, so an
+  // arrow's ends and a tool's hover test read the same boxes the board is drawing.
+  const appRef = useRef<HTMLDivElement>(null);
 
   // What this page has selected, kept honest about what the board still holds: an
   // object somebody else deleted leaves the selection here (TC-35).
@@ -124,7 +136,16 @@ export function BoardSurface({ boardId }: { boardId: string }) {
       doc,
       getNotes: () => snapshot(doc) as StickySnapshot[],
       getTexts: () => [...textSnapshot(doc)],
+      getShapes: () => readShapes(doc),
+      getConnectors: () => readConnectors(doc),
       seedSticky: (x: number, y: number) => createSticky(doc, { x, y }),
+      // Story 10: lay out a board for a test instead of drawing it by hand. The point is
+      // the centre, the way `seedSticky` reads, and the box is the standard one.
+      seedShape: (kind: ShapeKind, x: number, y: number) =>
+        createShape(doc, { kind, rect: null, at: { x, y }, square: false }, 'seed') ?? '',
+      // …and an arrow between two objects that are already there, each end hanging from
+      // the side that faces the other, which is what a drag between them would make.
+      seedConnector: (fromId: string, toId: string) => seedConnector(doc, fromId, toId),
       selectedIds: () => [...selectionRef.current.ids],
       objectCount: () => objectSnapshots(doc).length,
       canUndo: () => undoController.canUndo(),
@@ -152,14 +173,50 @@ export function BoardSurface({ boardId }: { boardId: string }) {
     createAtWorld(screenCentre(camera, viewport));
   }, [camera, viewport, createAtWorld]);
 
-  // Story 9: the tool this page is holding, and the `N` shortcut, which does what
-  // the Sticky note button does.
-  const tools = useTool(editable, { sticky: createAtCentre });
+  // The tool this page is holding, the `N` shortcut (which does what the Sticky note
+  // button does), the shape the Shape tool will draw next, and `toolCreated`: the one
+  // call every creating tool makes when it has made something, which selects it and puts
+  // the hand back to Select (PRD tool.return_to_select).
+  const tools = useActiveTool({
+    canEdit: editable,
+    onCreateSticky: createAtCentre,
+    select: (id: string) => selection.select(id),
+  });
 
   // Story 6 owns identity; until it exists, a text object records the page that
   // made it. A random per-load id is enough for `createdBy` (presence and export),
   // and nothing on the board changes because of it. See NOTES.md.
   const identity = useRef(`page_${crypto.randomUUID()}`).current;
+
+  // Story 10: what the objects and tools can look at beyond their own fields — the
+  // boxes of everything, the live document, and the way from a screen point to a board
+  // point. One value, given once, for the arrow that derives its line from the boxes of
+  // two other objects and for the tools that need to know what is under the pointer.
+  const rects = useMemo(
+    () => new Map(objects.map((object) => [object.id, objectBounds(object)])),
+    [objects],
+  );
+  const env = useMemo<BoardEnv>(
+    () => ({
+      camera,
+      objects,
+      rects,
+      doc,
+      editable,
+      identity,
+      toWorld: (client) => {
+        // The board area fills the window, and the app element is that area: subtracting
+        // its box costs nothing where it is at the origin, and keeps the conversion right
+        // if a later story puts the board inside a page with margins.
+        const box = appRef.current?.getBoundingClientRect();
+        return screenToWorld(camera, {
+          x: client.x - (box?.left ?? 0),
+          y: client.y - (box?.top ?? 0),
+        });
+      },
+    }),
+    [camera, objects, rects, doc, editable, identity],
+  );
 
   // Text is created where the pointer clicked — its top-left, not its centre — and
   // is edited straight away, with the tool put back in its box (PRD text.create).
@@ -246,7 +303,8 @@ export function BoardSurface({ boardId }: { boardId: string }) {
   return (
     <UndoControllerContext.Provider value={undoController}>
     <CameraContext.Provider value={board}>
-      <div className="vidi6-app">
+      <BoardEnvProvider value={env}>
+      <div className="vidi6-app" ref={appRef}>
         <BoardViewport
           onCreateStickyAt={createAtWorld}
           onClearSelection={selection.clear}
@@ -302,6 +360,8 @@ export function BoardSurface({ boardId }: { boardId: string }) {
           undo={undoState}
           tool={tools.tool}
           onTool={tools.setTool}
+          shapeKind={tools.shapeKind}
+          onShapeKind={tools.setShapeKind}
         />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
@@ -311,9 +371,20 @@ export function BoardSurface({ boardId }: { boardId: string }) {
           onZoomOut={() => board.zoomStep('out')}
           onReset={board.reset}
         />
+        {/* Story 10: the tools that own the pointer. Each covers the board, so a gesture
+            that happens to start on an object belongs to the tool rather than to the
+            object — a drag from a note with the Shape tool draws a shape and leaves the
+            note where it was (PRD tool.owns_gesture). */}
+        {editable && tools.tool === 'shape' ? (
+          <ShapeTool kind={tools.shapeKind} camera={camera} onCreated={tools.toolCreated} />
+        ) : null}
+        {editable && tools.tool === 'connector' ? (
+          <ConnectorTool camera={camera} snapshot={objects} onCreated={tools.toolCreated} />
+        ) : null}
         <NavigationHint visible={!board.hasNavigated} />
         <ConnectionStatus state={connection} />
       </div>
+      </BoardEnvProvider>
     </CameraContext.Provider>
     </UndoControllerContext.Provider>
   );
@@ -357,6 +428,32 @@ function endEditWith(selection: ReturnType<typeof useSelection>) {
     if (next === 'selected') selection.stopEdit();
     else selection.clear();
   };
+}
+
+/**
+ * An arrow between two objects that are already on the board, for tests that lay a
+ * board out rather than dragging one together. Each end hangs from the side facing the
+ * other object, which is exactly what a drag between them would have stored.
+ */
+function seedConnector(doc: Y.Doc, fromId: string, toId: string): string {
+  const rects = new Map(objectSnapshots(doc).map((object) => [object.id, objectBounds(object)]));
+  const a = rects.get(fromId);
+  const b = rects.get(toId);
+  if (!a || !b) return '';
+  const centre = (r: { x: number; y: number; width: number; height: number }) => ({
+    x: r.x + r.width / 2,
+    y: r.y + r.height / 2,
+  });
+  const from = sideAnchor(a, nearestSide(a, centre(b)));
+  const to = sideAnchor(b, nearestSide(b, centre(a)));
+  return (
+    createConnector(
+      doc,
+      { kind: 'attached', objectId: fromId, fallbackX: from.x, fallbackY: from.y },
+      { kind: 'attached', objectId: toId, fallbackX: to.x, fallbackY: to.y },
+      'seed',
+    ) ?? ''
+  );
 }
 
 function screenCentre(

@@ -25,6 +25,11 @@ export const EMPTY_SELECTION: SelectionState = { ids: new Set<string>(), editing
 export type SelectionAction =
   /** A plain click: this one object, nothing else. */
   | { type: 'click'; id: string }
+  /**
+   * This one object, and nothing else — for an object that has just been created and
+   * so is not in `present` yet. See the `edit` case below for the same reason.
+   */
+  | { type: 'select'; id: string }
   /** Shift-click: add this object, or take it back out if it is already in. */
   | { type: 'toggle'; id: string }
   /** Marquee and select all: these objects, added to the selection or replacing it. */
@@ -57,6 +62,15 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
   switch (action.type) {
     case 'click': {
       if (!onBoard(action.id)) return state;
+      if (state.ids.size === 1 && state.ids.has(action.id) && state.editingId === null) {
+        return state;
+      }
+      return { ...state, ids: new Set([action.id]), editingId: null };
+    }
+    case 'select': {
+      // Not checked against `present`, like `edit`: the object most often selected this
+      // way is one this very action has just put on the board (story 10: draw a shape,
+      // and it is the thing you can now adjust). `prune` drops an id that is really gone.
       if (state.ids.size === 1 && state.ids.has(action.id) && state.editingId === null) {
         return state;
       }
@@ -122,6 +136,8 @@ export interface Selection {
   isSelected(id: string): boolean;
   isEditing(id: string): boolean;
   click(id: string): void;
+  /** Make this one object the whole selection, newly created ones included. */
+  select(id: string): void;
   toggle(id: string): void;
   setMany(ids: string[], additive: boolean): void;
   clear(): void;
@@ -156,6 +172,7 @@ export function useSelection(presentIds: ReadonlySet<string>): Selection {
       isSelected,
       isEditing,
       click: (id) => dispatch({ type: 'click', id }),
+      select: (id) => dispatch({ type: 'select', id }),
       toggle: (id) => dispatch({ type: 'toggle', id }),
       setMany: (ids, additive) => dispatch({ type: 'setMany', ids, additive }),
       clear: () => dispatch({ type: 'clear' }),

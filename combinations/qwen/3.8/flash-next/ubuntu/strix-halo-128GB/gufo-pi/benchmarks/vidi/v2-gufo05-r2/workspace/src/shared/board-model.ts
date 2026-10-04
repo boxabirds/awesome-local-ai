@@ -9,6 +9,13 @@ import {
   type StickyColor,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+import {
+  connectorSnapshotOf,
+  deriveConnectorBox,
+  detachConnectorsTo,
+  type ConnectorSnapshot,
+} from './objects/connector';
+import { shapeSnapshotOf, type ShapeSnapshot } from './objects/shape';
 
 /**
  * The board document model: the Yjs schema and every mutation. Framework-free
@@ -194,12 +201,32 @@ function isCoordinate(value: number): boolean {
  */
 export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects: ObjectSnapshot[] = [];
+  const connectors: ConnectorSnapshot[] = [];
   for (const [id, entry] of objectsMap(doc)) {
     const object = readSnapshot(entry, id);
-    if (object) objects.push(object);
+    if (!object) continue;
+    // An arrow's box is wherever the objects it joins currently are, so it is filled
+    // in once every other box is known — the same pass for every reader, which is why
+    // two boards draw one arrow from one document identically.
+    if (isConnectorSnapshot(object)) connectors.push(object);
+    else objects.push(object);
+  }
+  if (connectors.length > 0) {
+    const rects = rectIndex(objects);
+    for (const connector of connectors) objects.push(deriveConnectorBox(connector, rects));
   }
   objects.sort(byZThenId);
   return objects;
+}
+
+/** The box of every object that owns one, by id. */
+function rectIndex(objects: readonly ObjectSnapshot[]): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const object of objects) {
+    if (object.type === 'connector') continue;
+    rects.set(object.id, objectBounds(object));
+  }
+  return rects;
 }
 
 /**
@@ -209,7 +236,12 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
  */
 export function objectSnapshot(doc: Y.Doc, id: string): ObjectSnapshot | undefined {
   const entry = objectsMap(doc).get(id);
-  return entry ? readSnapshot(entry, id) ?? undefined : undefined;
+  if (!entry) return undefined;
+  const object = readSnapshot(entry, id);
+  if (!object) return undefined;
+  // An arrow read on its own still needs the boxes of the objects it joins.
+  if (!isConnectorSnapshot(object)) return object;
+  return deriveConnectorBox(object, rectIndex(objectSnapshots(doc)));
 }
 
 /** One entry of the objects map, or null when it carries no usable type. */
@@ -249,6 +281,10 @@ function readSnapshot(entry: Y.Map<unknown>, id: string): ObjectSnapshot | null 
       base.color = isStickyColor(color) ? color : DEFAULT_STICKY_COLOR;
       base.text = text instanceof Y.Text ? text.toString() : '';
     }
+    // Story 10: a shape and an arrow each hold fields the common record cannot
+    // express — an arrow's box is not stored at all — so each reads itself.
+    if (type === 'shape') return shapeSnapshotOf(id, entry);
+    if (type === 'connector') return connectorSnapshotOf(id, entry);
     return base as unknown as ObjectSnapshot;
   }
 }
@@ -258,6 +294,15 @@ function readSnapshot(entry: Y.Map<unknown>, id: string): ObjectSnapshot | null 
  * every component the common shape, so a component that draws a type's own fields
  * says so once, with this, instead of casting.
  */
+export function isConnectorSnapshot(obj: ObjectSnapshot): obj is ConnectorSnapshot {
+  return obj.type === 'connector';
+}
+
+/** Narrow a snapshot back to a shape (story 10). */
+export function isShapeSnapshot(obj: ObjectSnapshot): obj is ShapeSnapshot {
+  return obj.type === 'shape';
+}
+
 export function isStickySnapshot(obj: ObjectSnapshot): obj is StickySnapshot {
   return obj.type === 'sticky';
 }
@@ -289,7 +334,12 @@ function numberOr(value: unknown, fallback: number): number {
  * decision 5); this copy exists only so the shared model works without client
  * code (see `allObjectIds`'s predicate).
  */
-const MODEL_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky', 'text']);
+const MODEL_OBJECT_TYPES: ReadonlySet<string> = new Set([
+  'sticky',
+  'text',
+  'shape',
+  'connector',
+]);
 
 export function isKnownObjectType(type: string): boolean {
   return MODEL_OBJECT_TYPES.has(type);
@@ -429,6 +479,9 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = [...new Set(ids)].filter((id) => objects.has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Any arrow hanging off one of them is set free first, where it hangs, in this
+    // same step: nobody is left looking at an arrow tied to a gone object.
+    detachConnectorsTo(doc, new Set(present));
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;

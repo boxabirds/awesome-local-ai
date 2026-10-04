@@ -2,6 +2,9 @@ import type * as Y from 'yjs';
 
 import type { StickySnapshot } from '../../shared/board-model';
 import type { TextSnapshot } from '../../shared/objects/text';
+import type { ConnectorSnapshot } from '../../shared/objects/connector';
+import type { ShapeSnapshot } from '../../shared/objects/shape';
+import type { ShapeKind } from '../../shared/config';
 import type { Camera } from './camera';
 import type { ConnectionState } from '../sync/connectBoard';
 
@@ -27,6 +30,23 @@ export interface Vidi6TestHooks {
    * Story 9: current text-object snapshots, for e2e assertions about free text.
    */
   getTexts?(): TextSnapshot[];
+  /** Story 10: current shape snapshots, for e2e assertions about drawn shapes. */
+  getShapes?(): ShapeSnapshot[];
+  /**
+   * Story 10: current connector snapshots, ends included — which is what an assertion
+   * about an arrow is really about, since its line is derived from them.
+   */
+  getConnectors?(): ConnectorSnapshot[];
+  /**
+   * Put a shape on the board and return its id, centred on the given point at the
+   * standard size, so a test can lay out a board instead of dragging one.
+   */
+  seedShape?(kind: ShapeKind, centreX: number, centreY: number): string;
+  /**
+   * Draw an arrow between two objects that are already there, by id. An empty string
+   * means it could not be made — one of the two is not on the board.
+   */
+  seedConnector?(fromId: string, toId: string): string;
   /** What this page has selected, for assertions about the selection itself. */
   selectedIds?(): string[];
   /** Every object on the board, of any type. */

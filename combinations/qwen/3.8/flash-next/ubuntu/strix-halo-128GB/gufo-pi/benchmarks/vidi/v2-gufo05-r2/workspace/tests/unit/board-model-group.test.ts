@@ -68,10 +68,10 @@ describe('board.model — objectSnapshots and objectBounds', () => {
     const doc = new Y.Doc();
     const b = createSticky(doc, { x: 300, y: 0 });
     const a = createSticky(doc, { x: 0, y: 0 });
-    entryOf(doc, 'a-shape', { type: 'shape', x: 10, y: 20, z: 0 });
+    entryOf(doc, 'a-widget', { type: 'widget', x: 10, y: 20, z: 0 });
 
-    // z order: a-shape 0, the first note 1, the second note 2.
-    expect(objectSnapshots(doc).map((obj) => obj.id)).toEqual(['a-shape', b, a]);
+    // z order: a-widget 0, the first note 1, the second note 2.
+    expect(objectSnapshots(doc).map((obj) => obj.id)).toEqual(['a-widget', b, a]);
     // `snapshot` keeps reporting notes only, exactly as before story 7.
     expect(snapshot(doc).map((note) => note.id)).toEqual([b, a]);
   });
@@ -275,7 +275,9 @@ describe('board.model — objectsInRect', () => {
   it('skips object types that cannot be selected', () => {
     const doc = new Y.Doc();
     entryOf(doc, 'note', { type: 'sticky', x: 0, y: 0, width: 100, height: 100 });
-    entryOf(doc, 'shape', { type: 'shape', x: 0, y: 0, width: 100, height: 100 });
+    // 'widget' stands for any type this model does not know (story 10 filled in
+    // the 'shape' this test used before shapes were a thing).
+    entryOf(doc, 'widget', { type: 'widget', x: 0, y: 0, width: 100, height: 100 });
     expect(objectsInRect(objectSnapshots(doc), { x: 0, y: 0, width: 500, height: 500 })).toEqual([
       'note',
     ]);
@@ -283,9 +285,9 @@ describe('board.model — objectsInRect', () => {
       objectsInRect(
         objectSnapshots(doc),
         { x: 0, y: 0, width: 500, height: 500 },
-        (type) => type === 'shape',
+        (type) => type === 'widget',
       ),
-    ).toEqual(['shape']);
+    ).toEqual(['widget']);
   });
 
   it('an implicit-size note is measured at STICKY_SIZE_WORLD', () => {
@@ -305,14 +307,14 @@ describe('board.model — allObjectIds', () => {
     const doc = new Y.Doc();
     const a = createSticky(doc, { x: 0, y: 0 });
     const b = createSticky(doc, { x: 300, y: 0 });
-    entryOf(doc, 'a-shape', { type: 'shape' });
+    entryOf(doc, 'a-widget', { type: 'widget' });
 
     const ids = allObjectIds(objectSnapshots(doc));
     expect(ids.sort()).toEqual([a, b].sort());
 
     // A caller-supplied predicate (the client's registry) decides instead.
-    const shapes = allObjectIds(objectSnapshots(doc), (type) => type === 'shape');
-    expect(shapes).toEqual(['a-shape']);
+    const widgets = allObjectIds(objectSnapshots(doc), (type) => type === 'widget');
+    expect(widgets).toEqual(['a-widget']);
     expect(allObjectIds([])).toEqual([]);
   });
 });

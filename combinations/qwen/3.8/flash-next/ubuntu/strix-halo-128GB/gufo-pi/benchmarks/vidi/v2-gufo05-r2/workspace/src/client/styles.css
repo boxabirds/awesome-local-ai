@@ -862,3 +862,231 @@ a:focus-visible,
 .text-toolbar__size--XL {
   font-size: 20px;
 }
+
+/* ------------------------------------------------------------------ *
+ * Story 10: shapes, arrows, and the two tools that draw them           *
+ * ------------------------------------------------------------------ */
+
+/* The shape and connector buttons sit in the same rail as the others; the shape
+   kinds are a small set next to the button that owns them, so picking a kind never
+   changes which tool is held. */
+.toolbar__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0;
+  border-top: 1px solid var(--ui-border);
+}
+
+.toolbar__kinds {
+  display: flex;
+  gap: 2px;
+}
+
+.toolbar__kind {
+  font: inherit;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ui-text);
+  background: var(--ui-background);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.toolbar__kind:hover {
+  background: #f1f3f7;
+}
+
+.toolbar__kind[aria-pressed='true'] {
+  border-color: var(--note-outline);
+  background: #eaf2ff;
+}
+
+/* A tool that owns the pointer covers the board, and everything under it: a drag
+   that starts on a sticky note belongs to the tool, so the note stays where it is
+   (PRD tool.owns_gesture). Below the rails (z 20), above the board. */
+.tool-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* The shape being dragged out: a promise, not the thing — hence dashed, and drawn
+   in screen pixels so the dashes stay one pixel wide at every zoom. */
+.shape-preview {
+  border: 1px dashed var(--note-outline);
+  background: rgb(30 136 229 / 8%);
+  pointer-events: none;
+}
+
+.shape-preview--ellipse {
+  border-radius: 50%;
+}
+
+.shape-preview--diamond {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.connector-tool__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-tool__preview {
+  stroke: var(--note-outline);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  fill: none;
+}
+
+/* The four sides an arrow could leave from. They are a preview of a decision the
+   model has already made, not a target that must be hit, so they are small and they
+   never take a pointer. */
+.connector-dot {
+  fill: var(--ui-background);
+  stroke: var(--note-outline);
+  stroke-width: 1.5;
+}
+
+.connector-dot--active {
+  fill: var(--note-outline);
+}
+
+/* A shape: the box the document holds, with its outline drawn inside it. The
+   stacking, position and size are set inline from the snapshot, and nothing here
+   touches them. */
+.shape-object {
+  position: absolute;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.shape-object:active {
+  cursor: grabbing;
+}
+
+.shape-object__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The label is centred both ways inside the inset box it is given, which is why
+   resizing a shape re-wraps it and keeps it in the middle. */
+.shape-object__label {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--note-text);
+  font-size: 16px;
+  line-height: 1.25;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: hidden;
+}
+
+/* Inside a `foreignObject` the editor is the same words, editable. */
+.shape-object .text-object__editor {
+  color: var(--note-text);
+  text-align: center;
+  line-height: 1.25;
+}
+
+/* An arrow. The wrapper is transparent to the pointer in everything but its own
+   drawing: a diagonal arrow's box is most of the board, and clicking inside it must
+   still reach whatever is underneath. */
+.connector-object__line,
+.connector-object__head {
+  stroke: var(--connector-stroke, #263238);
+  fill: var(--connector-stroke, #263238);
+}
+
+.connector-object__hit {
+  stroke: transparent;
+  fill: none;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+.connector-object__handle {
+  fill: var(--ui-background);
+  stroke: var(--note-outline);
+  stroke-width: calc(1.5px / var(--zoom, 1));
+  cursor: grab;
+}
+
+/* Fill and outline swatches of a selected shape: two groups, each with exactly one
+   pressed, and each swatch named by the colour it applies. */
+.shape-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  box-shadow: var(--ui-shadow);
+}
+
+.shape-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.shape-toolbar__swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: var(--swatch, transparent);
+  border: 1px solid rgb(18 22 31 / 25%);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* An outline swatch shows the colour it sets as a ring around empty space, so
+   "no fill" and a dark outline are not two ways of drawing nothing. */
+.shape-toolbar__swatch--stroke {
+  background: var(--ui-background);
+  border: 3px solid var(--swatch, transparent);
+}
+
+.shape-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--note-outline);
+  outline-offset: 1px;
+}
+
+.shape-toolbar__delete {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #b3261e;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.shape-toolbar__delete:hover {
+  background: #fdecea;
+}

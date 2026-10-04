@@ -5,9 +5,11 @@ import {
   setStickyColor,
   type ObjectSnapshot,
 } from '../../shared/board-model';
-import type { StickyColor, TextSize } from '../../shared/config';
+import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
 import { setTextSize, isTextSnapshot } from '../../shared/objects/text';
+import { isShapeSnapshot, setShapeStyle } from '../../shared/objects/shape';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
 import { boardMeasurerRef } from '../objects/textLayout';
 import { writeTextBox } from '../objects/useTextBoxSync';
@@ -56,6 +58,35 @@ export function SelectionBar({ ids, objects, doc, editable, onDelete }: Selectio
             undoController?.boundary();
             setTextSize(doc, only.id, size);
             writeTextBox(doc, only.id, boardMeasurerRef());
+            undoController?.boundary();
+          }}
+          onDelete={() => {
+            if (editable) onDelete();
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Exactly one shape: its fill and its outline (PRD shape.style). A swatch changes one
+  // key of the shape, so its label, its box and the selection are exactly as they were.
+  if (only && isShapeSnapshot(only)) {
+    return (
+      <div data-testid="selection-bar" data-selection-count={1}>
+        <ShapeToolbar
+          fill={only.fill}
+          stroke={only.stroke}
+          disabled={!editable}
+          onFill={(colour: FillColor) => {
+            if (!editable) return;
+            undoController?.boundary();
+            setShapeStyle(doc, only.id, { fill: colour });
+            undoController?.boundary();
+          }}
+          onStroke={(colour: StrokeColor) => {
+            if (!editable) return;
+            undoController?.boundary();
+            setShapeStyle(doc, only.id, { stroke: colour });
             undoController?.boundary();
           }}
           onDelete={() => {

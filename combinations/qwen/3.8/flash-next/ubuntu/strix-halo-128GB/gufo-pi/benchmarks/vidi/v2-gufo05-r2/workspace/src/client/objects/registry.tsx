@@ -2,7 +2,17 @@ import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
+import type { Point, Rect } from '../../shared/geometry';
+import { connectorPoints, isConnectorSnapshot } from '../../shared/objects/connector';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { ConnectorObject } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 
@@ -23,8 +33,13 @@ export interface ObjectProps {
   editing: boolean;
   /** False while this page may not change the board (story 4's `canEdit`). */
   editable: boolean;
-  /** Selection, group move and the drag threshold: see `useTransformGesture`. */
-  onObjectPointerDown(event: ReactPointerEvent<HTMLElement>, id: string): void;
+  /**
+   * Selection, group move and the drag threshold: see `useTransformGesture`.
+   *
+   * An SVG element is allowed as well as an HTML one, because a type whose drawing is a
+   * picture rather than a box (story 10's arrow) receives its presses on a `<line>`.
+   */
+  onObjectPointerDown(event: ReactPointerEvent<HTMLElement | SVGElement>, id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
 }
@@ -43,7 +58,23 @@ export interface ObjectTypeSpec {
    * text.height). A mixed selection shows the eight.
    */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: { x: number; y: number }): boolean;
+  /**
+   * Whether `worldPoint` counts as being on this object.
+   *
+   * The third argument is what the hit needs beyond the object: the zoom, because a
+   * tolerance stated in screen pixels is a different number of board units at every
+   * zoom, and the boxes of the other objects, because a connector's line is not in its
+   * own record. Types that are their own box ignore it, so every hit test written
+   * before story 10 still works when called with two arguments.
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, context?: HitTestContext): boolean;
+}
+
+export interface HitTestContext {
+  /** Screen pixels per board unit. Defaults to 1, which is 100%. */
+  zoom?: number;
+  /** The box of every object by id, for a type whose geometry is derived. */
+  rects?: ReadonlyMap<string, Rect>;
 }
 
 const types = new Map<string, ObjectTypeSpec>();
@@ -68,8 +99,24 @@ export function isSelectableObjectType(type: string): boolean {
   return types.has(type);
 }
 
+/**
+ * Whether a board point is on this object, by the rules of its type — false for a
+ * type this client cannot draw, which is the same answer as "not there".
+ *
+ * This is the one door to the per-type rule, so the tool that asks "what is under the
+ * pointer" (story 10's Connector tool, a selected arrow's end handle) asks it here
+ * rather than repeating each type's geometry.
+ */
+export function hitTestObject(
+  obj: ObjectSnapshot,
+  worldPoint: Point,
+  context: HitTestContext = {},
+): boolean {
+  return getObjectType(obj.type)?.hitTest(obj, worldPoint, context) ?? false;
+}
+
 /** A rectangle's own hit test: the box, edges included. */
-function boxHitTest(obj: ObjectSnapshot, worldPoint: { x: number; y: number }): boolean {
+function boxHitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
   const box = objectBounds(obj);
   return (
     worldPoint.x >= box.x &&
@@ -100,6 +147,42 @@ registerObjectType('text', {
   handles: 'horizontal',
   hitTest: boxHitTest,
 });
+
+// Story 10: the three drawn shapes are one type. They share a component, a toolbar and
+// these rules, and differ only in the outline drawn inside the box — so a box hit test
+// is right for all three, and story 7's move, resize and delete apply untouched.
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  // A rectangle, an ellipse and a diamond all take the shape of the box they are
+  // given, so no drag has to keep the proportions.
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: boxHitTest,
+});
+
+// An arrow is not its box: a diagonal across the board has a box the size of the board,
+// and clicking in the middle of it selects nothing. What counts is being within six
+// screen pixels of the line — which, at this zoom, in these board units, is however far
+// six screen pixels is.
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  // Its geometry belongs to its ends, so there is nothing for a box handle to mean;
+  // the two ends are dragged instead, and the component draws them.
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest(obj, worldPoint, context = {}) {
+    if (!isConnectorSnapshot(obj)) return false;
+    const zoom = context.zoom && context.zoom > 0 ? context.zoom : 1;
+    const points = connectorPoints(obj, context.rects ?? EMPTY_RECTS);
+    return distanceToPolyline(points, worldPoint) <= CONNECTOR_HIT_TOLERANCE_PX / zoom;
+  },
+});
+
+const EMPTY_RECTS: ReadonlyMap<string, Rect> = new Map();
 
 /**
  * The handles a selection of exactly these types should draw: the two edges when
