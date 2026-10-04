@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.4,
+      "tail": "\nadded 252 packages, and audited 253 packages in 2s\n\n43 packages are looking for funding\n  run `npm fund` for details\n\n11 vulnerabilities (4 moderate, 6 high, 1 critical)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm WARN deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm WARN deprecated rollup-plugin-inject@3.0.2: This package has been deprecated and is no longer maintained. Please use @rollup/plugin-inject.\nnpm WARN deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 1.6,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v6.4.3 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 80 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.39 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.26 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-BYtS5-KJ.css  \u001b[39m\u001b[1m\u001b[2m  4.61 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  1.36 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-Hx9sushk.js   \u001b[39m\u001b[1m\u001b[2m307.58 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 96.04 kB\u001b[22m\n\u001b[32m\u2713 built in 1.24s\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.4,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 1.0,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m~/.w/85d91f6bb9/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 47\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m31 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 26\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 19\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m67 passed\u001b[39m\u001b[22m\u001b[90m (67)\u001b[39m\n\u001b[2m   Start at \u001b[22m 17:04:17\n\u001b[2m   Duration \u001b[22m 442ms\u001b[2m (transform 91ms, setup 0ms, collect 166ms, tests 92ms, environment 0ms, prepare 159ms)\u001b[22m\n\n",
+      "passed": 67,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.5,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m~/.w/85d91f6bb9/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 34\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 57\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 87\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/StickyNoteRemote.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 162\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 230\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 252\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 324\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m7 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m62 passed\u001b[39m\u001b[22m\u001b[90m (62)\u001b[39m\n\u001b[2m   Start at \u001b[22m 17:04:18\n\u001b[2m   Duration \u001b[22m 1.02s\u001b[2m (transform 179ms, setup 468ms, collect 541ms, tests 1.15s, environment 1.54s, prepare 400ms)\u001b[22m\n\n",
+      "passed": 62,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 6.2,
+      "tail": "] \u203a tests/e2e/navigation.spec.ts:53:3 \u203a Story 1 navigation \u203a Workflow 1: first-visit hint -> exact drag -> pointer zoom keeps point fixed (443ms)\n[WebServer] [wrangler:inf] GET / 200 OK (3ms)\n[WebServer] [wrangler:inf] GET /assets/index-DiMAKOiW.js 200 OK (3ms)\n  \u2713  20 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:372:3 \u203a sticky.text \u203a Escape keeps what I typed and leaves the note selected (197ms)\n  \u2713  18 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:358:3 \u203a sticky.text \u203a Delete on a selected (not edited) note removes it (222ms)\n[WebServer] [wrangler:inf] GET /assets/index-BYtS5-KJ.css 200 OK (11ms)\n  \u2713  11 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:222:3 \u203a sticky.drag_no_pan \u203a dragging the board background pans the camera and leaves the note where it was (446ms)\n[WebServer] [wrangler:inf] GET / 200 OK (3ms)\n[WebServer] [wrangler:inf] GET / 200 OK (2ms)\n  \u2713  19 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:345:3 \u203a sticky.text \u203a Backspace while editing edits text and never deletes the note (238ms)\n[WebServer] [wrangler:inf] GET /assets/index-DiMAKOiW.js 200 OK (3ms)\n[WebServer] [wrangler:inf] GET /assets/index-DiMAKOiW.js 200 OK (7ms)\n[WebServer] [wrangler:inf] GET /assets/index-BYtS5-KJ.css 200 OK (7ms)\n[WebServer] [wrangler:inf] GET /assets/index-BYtS5-KJ.css 200 OK (13ms)\n[WebServer] [wrangler:inf] GET / 200 OK (7ms)\n  \u2713  15 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:204:3 \u203a sticky.drag_no_pan \u203a a press shorter than the drag threshold selects instead of moving (453ms)\n[WebServer] [wrangler:inf] GET /assets/index-DiMAKOiW.js 200 OK (3ms)\n  \u2713   9 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:269:3 \u203a sticky.drag_no_pan \u203a at 200% the gesture moves the note half as far in board units and lifts it above the note it overlaps (511ms)\n[WebServer] [wrangler:inf] GET /assets/index-BYtS5-KJ.css 200 OK (9ms)\n  \u2713  21 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:383:3 \u203a sticky.text \u203a clicking the board while editing keeps the text and drops the selection (216ms)\n  \u2713  12 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:158:3 \u203a sticky.drag_no_pan \u203a at 100% a note drag moves the note by exactly the gesture and leaves the camera alone (493ms)\n  \u2713  23 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:447:3 \u203a sticky.counter_layout \u203a the counter only appears within 50 characters of the limit (180ms)\n  \u2713  16 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:182:3 \u203a sticky.drag_no_pan \u203a at 50% the same gesture moves the note twice as far in board units (499ms)\n  \u2713  22 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:397:3 \u203a sticky.counter_layout \u203a 1,000 characters: the counter sits inside the note, the overflow fades out, the font stays in range (224ms)\n  \u2713  26 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:537:3 \u203a sticky.toolbar_layout \u203a swatches and the bin are labelled, keyboard reachable and show a tooltip (173ms)\n  \u2713  24 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:457:3 \u203a sticky.counter_layout \u203a short text is centred, auto-fitted to the largest size and shows no placeholder (234ms)\n  \u2713  27 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:561:3 \u203a sticky.toolbar_layout \u203a using the note toolbar does not start a pan or clear the selection (194ms)\n  \u2713  17 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:319:3 \u203a sticky.text \u203a three lines are kept, and a 1,200 character paste is cut to 1,000 (439ms)\n  \u2713  14 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:241:3 \u203a sticky.drag_no_pan \u203a a dragged note keeps its position while the board is panned and zoomed (620ms)\n  \u2713  25 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:490:3 \u203a sticky.toolbar_layout \u203a the note toolbar keeps its screen size at 100% and 50%, centred above the note (307ms)\n\n  27 passed (5.6s)\n[WebServer] \u25b2 [WARNING] The version of Wrangler you are using is now out-of-date.\n[WebServer] \n[WebServer]   Please update to the latest version to prevent critical errors.\n[WebServer]   Run `npm install --save-dev wrangler@4` to update to the latest version.\n[WebServer]   After installation, run Wrangler with `npx wrangler`.\n[WebServer] \n[WebServer] \n",
+      "passed": 27,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { worldToScreen, type Size } from './camera';
+import type * as Y from 'yjs';
+import { screenToWorld, worldToScreen, type Point, type Size } from './camera';
 import { useCamera } from './useCamera';
 import { ZoomControls } from './ZoomControls';
 import { NavigationHint } from './NavigationHint';
 import { installTestHook } from './testHooks';
-import { GRID_SPACING_WORLD } from '../../shared/config';
+import { createSticky } from '../../shared/board-model';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 
 /** Pixels per LINE deltaMode unit (mouse wheel notch). */
 const LINE_HEIGHT_PX = 16;
@@ -20,14 +22,45 @@ function isControlTarget(target: EventTarget | null): boolean {
   );
 }
 
+/** Imperative geometry handle, handed to the owner of the viewport. */
+export interface BoardViewportApi {
+  /** World point at the centre of the visible board area. */
+  viewportCentreWorld(): Point;
+  /** Viewport-relative screen point to world point. */
+  screenPointToWorld(point: Point): Point;
+  /** Current zoom (screen pixels per board unit). */
+  getZoom(): number;
+}
+
+/** What a render-prop `children` receives. */
+export interface BoardViewportRenderContext {
+  zoom: number;
+}
+
 export interface BoardViewportProps {
-  children?: React.ReactNode;
+  /**
+   * Board objects, rendered inside the scaled world layer. A render function is
+   * supported so the owner can position objects at the camera's zoom.
+   */
+  children?: React.ReactNode | ((ctx: BoardViewportRenderContext) => React.ReactNode);
+  /** Board document: enables double-click-on-empty-space to create a note. */
+  doc?: Y.Doc;
+  /** Filled with a geometry handle while mounted. */
+  viewportApi?: { current: BoardViewportApi | null };
+  /** Called after a note was created by double-click, so it can be edited. */
+  onStickyCreated?(id: string): void;
+  /** Called when the user clicks empty board space without panning. */
+  onClearSelection?(): void;
 }
 
 /**
  * The input surface for the infinite board. Owns viewport sizing, the camera,
  * all navigation gestures (drag, wheel, Safari gesture, keyboard) and the
  * overlay controls + first-use hint. Renders the dot grid and the world layer.
+ *
+ * Story 2 adds board content wiring: a double-click on empty board space (not
+ * on a note, control or toolbar) creates a sticky note centred on that point,
+ * and a click on empty space without panning clears the local selection.
  */
 export function BoardViewport(props: BoardViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,6 +81,27 @@ export function BoardViewport(props: BoardViewportProps) {
     panMove,
     endPan,
   } = camera;
+
+  const panStartRef = useRef<Point | null>(null);
+  const panMovedRef = useRef(false);
+
+  // --- Geometry handle for the owner (toolbar creation, tests) --------------
+  const viewportApi = props.viewportApi;
+  useLayoutEffect(() => {
+    if (!viewportApi) return;
+    viewportApi.current = {
+      viewportCentreWorld: () =>
+        screenToWorld(apiRef.current.camera, {
+          x: viewportRef.current.width / 2,
+          y: viewportRef.current.height / 2,
+        }),
+      screenPointToWorld: (point: Point) => screenToWorld(apiRef.current.camera, point),
+      getZoom: () => apiRef.current.camera.zoom,
+    };
+    return () => {
+      viewportApi.current = null;
+    };
+  }, [viewportApi]);
 
   // --- Viewport measurement (ResizeObserver) --------------------------------
   useLayoutEffect(() => {
@@ -166,14 +220,43 @@ export function BoardViewport(props: BoardViewportProps) {
     } catch {
       /* not supported (e.g. jsdom) */
     }
-    beginPan(pointFromEvent(e.clientX, e.clientY));
+    panStartRef.current = pointFromEvent(e.clientX, e.clientY);
+    panMovedRef.current = false;
+    beginPan(panStartRef.current);
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!panning) return;
-    panMove(pointFromEvent(e.clientX, e.clientY));
+    const point = pointFromEvent(e.clientX, e.clientY);
+    const start = panStartRef.current;
+    if (start && Math.hypot(point.x - start.x, point.y - start.y) >= DRAG_THRESHOLD_PX) {
+      panMovedRef.current = true;
+    }
+    panMove(point);
   };
-  const onPointerUp = () => endPan();
-  const onPointerCancel = () => endPan();
+
+  // --- Double-click on empty board space creates a sticky note -------------
+  const isBoardSpace = (target: EventTarget | null): boolean =>
+    !(target instanceof Element && target.closest('[data-sticky-note], [data-zoom-controls], [data-toolbar], [data-note-toolbar]') != null);
+
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!props.doc || !isBoardSpace(e.target)) return;
+    e.preventDefault();
+    const world = screenToWorld(apiRef.current.camera, pointFromEvent(e.clientX, e.clientY));
+    const id = createSticky(props.doc, world);
+    if (id) props.onStickyCreated?.(id);
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    endPan();
+    // A click on empty board space (no pan) clears the local selection. Notes
+    // stop propagation, so selecting a note never gets here.
+    if (!panMovedRef.current && isBoardSpace(e.target)) props.onClearSelection?.();
+    panMovedRef.current = false;
+  };
+  const onPointerCancel = () => {
+    endPan();
+    panMovedRef.current = false;
+  };
   const onLostPointerCapture = () => endPan();
 
   // --- Derived styles -------------------------------------------------------
@@ -193,6 +276,7 @@ export function BoardViewport(props: BoardViewportProps) {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onLostPointerCapture={onLostPointerCapture}
+      onDoubleClick={onDoubleClick}
     >
       {/* Dot grid surface: pointer target for panning. */}
       <div
@@ -215,7 +299,9 @@ export function BoardViewport(props: BoardViewportProps) {
           transformOrigin: '0 0',
         }}
       >
-        {props.children}
+        {typeof props.children === 'function'
+          ? props.children({ zoom: cam.zoom })
+          : props.children}
       </div>
 
       {/* Origin marker: stable pixel target for tests, world (0,0). */}
