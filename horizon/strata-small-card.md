@@ -26,20 +26,25 @@ SSD** — hardware that costs a fraction of either configuration above.
 ## A reference build, and why it is shaped oddly
 
 **The CPU computes a share of the experts**, it does not merely feed the card: `docs/INSTALL.md` says "the CPU's
-share of the experts runs on its kernels", and the instruction set decides how fast that share is. On one machine
-(Ryzen 5 7600 + RTX 5070, expert cache held at 1,500 slots, Coder and IQ3_XXS, greedy decode), the maintainer
-measured **26 tok/s** on the normal build against **11 to 17** forced to AVX and **3.5 to 3.8** forced to SSE4.2.
-AVX-512 is also what the Q2_0 pack needs; without it, only the i-quant packs install.
+share of the experts runs on its kernels". What that needs, in the project's own words: "x86-64 with AVX2 (any
+Intel/AMD desktop CPU from the last ~8 years). **AVX-512 (Ryzen 7000/9000) is a bit faster.** Older CPUs without
+AVX2 are experimental and slow."
+
+So **AVX2 is the line, and AVX-512 is a bonus, not a requirement.** The one number the project publishes here is
+for CPUs *below* AVX2: on a Ryzen 5 7600 with an RTX 5070 (expert cache held at 1,500 slots, greedy decode), forcing
+the older paths took 26 tok/s down to 11-17 on AVX and 3.5-3.8 on SSE4.2. **That gap is AVX2 against AVX, not AVX2
+against AVX-512**, and must not be read as the cost of choosing an Intel desktop CPU. The only AVX-512-specific
+thing documented is the Q2_0 pack's fast CPU kernel, which also writes a one-time ~40 GB copy of its experts.
 
 | | Pick | Why |
 |---|---|---|
-| CPU | A modern Ryzen; the project's own reference machine is a **Ryzen 5 7600**, six cores | **AVX-512, not core count**: 26 against 11-17 tok/s on the same box, and the Q2_0 pack needs it. Check the instruction set of whatever is chosen rather than its tier |
+| CPU | Any desktop CPU of the last ~8 years with **AVX2**; the project's own machine is a **Ryzen 5 7600**, six cores | Core count is not the thing. AVX-512 (Ryzen 7000/9000) is "a bit faster" and unlocks the Q2_0 fast kernel; an Intel desktop part without it is supported and normal |
 | RAM | **64 GB minimum, 96 to 128 GB comfortable**, the fastest DDR5 the board runs | The experts live here and the CPU computes on them, so bandwidth is on the critical path |
 | GPU | The most VRAM affordable, on **x16 lanes**; 16 GB over 12 | VRAM is the expert cache, and every miss crosses PCIe |
 | Disk | 1 TB **NVMe** | 70-92 GB of model plus ~6 GB of MTP layer, read per token, beside the agent's workspace |
 
-Two of those are the opposite of the usual advice: the expensive part is **RAM, not the graphics card**, and a
-cheap six-core CPU with the right instruction set beats an expensive one without it. For the same reason the
+The striking part is that the expensive component is **RAM, not the graphics card or the CPU**: six cores and
+AVX2 are enough, and 64 GB "runs every size". For the same reason the
 gaming hierarchy can invert between cards — what matters is how many experts fit, so a 16 GB card one tier down
 should beat a 12 GB card one tier up.
 
