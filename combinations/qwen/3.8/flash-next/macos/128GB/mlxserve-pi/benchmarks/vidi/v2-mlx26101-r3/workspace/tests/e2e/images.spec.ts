@@ -1,0 +1,409 @@
+/**
+ * Pictures on a board, in a real browser, over a real network, with two people on it.
+ *
+ * Everything the previous stories could check with a document and a jsdom div is checked here against the
+ * three things this story actually depends on and jsdom has never had: a file that came off a disk, a
+ * decoder that turns bytes into pixels, and a server that stores those bytes and hands them back. The
+ * Worker is the real one, the asset bucket is the real local R2, the two people are two browser contexts,
+ * and the files are the fixtures in `tests/fixtures/images/` - a 1440x900 PNG, a 4032x3024 JPEG, a PDF
+ * wearing a `.png` name, a PNG whose pixel data stops halfway through.
+ *
+ * What is *not* here is any assertion about how long anything takes. Uploads are made slow on purpose, in
+ * the browser's own network layer, so that a state which normally lasts six milliseconds can be looked at;
+ * the wait for the state that follows is the functional one (E2E_EVENTUAL_TIMEOUT_MS), and how long the
+ * picture took to cross is printed against the latency budget, as every story since story 3 has done.
+ *
+ * The wording the board uses is pinned word for word here, including the ellipsis in "Uploading…" and the
+ * apostrophe in "Image upload didn't finish". A test that matched those with a pattern would pass while the
+ * board said something close, and the story is precise about the sentences.
+ */
+import { expect, test, type Page } from '@playwright/test';
+import {
+  E2E_EVENTUAL_TIMEOUT_MS,
+  IMAGE_LAYOUT_GAP_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
+} from '../../src/shared/config';
+import { setCamera, settle, zoomNumber } from './helpers/board';
+import { Cast, logLatency, waitConnected } from './helpers/participants';
+import {
+  dragHandleBy,
+  handleOnScreen,
+  placeOf,
+  resizeHandles,
+  selectObject,
+} from './helpers/selection';
+import {
+  aFile,
+  anOversizeJpeg,
+  breakUploads,
+  bringPicturesBack,
+  chooseWithImageTool,
+  delayUploads,
+  dropFiles,
+  dropOneFile,
+  imageFace,
+  imageFaces,
+  imageFacesInOrder,
+  losePictures,
+  mendUploads,
+  pickFiles,
+  removeButton,
+  retryButton,
+  stopDelayingUploads,
+  waitForImageCount,
+  waitForImageStatus,
+  waitForPicture,
+} from './helpers/drop-files';
+
+/** The board's own sentences, in the exact characters it uses them in. */
+const UPLOADING = 'Uploading…';
+const UPLOAD_FAILED = 'Upload failed';
+const UNAVAILABLE = 'Image unavailable';
+const WRONG_TYPE = 'Only PNG, JPEG, GIF and WebP images can be added.';
+const TOO_BIG = 'Images must be 10 MB or smaller.';
+
+/**
+ * The three screenshots, with the sizes they really are (see `tests/fixtures/images/generate.mjs`, which is
+ * where they come from). The largest side of any one of them is 1440 pixels, and the board places a picture
+ * no bigger than 800 world units, so the first is drawn at 800x500, the second at its own 800x600, and the
+ * third at its own 400x300 - three different sizes, in one row, along one top edge.
+ */
+const SCREENSHOTS = [
+  { file: 'screenshot.png', natural: [1440, 900] },
+  { file: 'screenshot-2.png', natural: [800, 600] },
+  { file: 'screenshot-3.png', natural: [400, 300] },
+] as const;
+
+/** A ratio, to the precision a person can perceive. */
+function ratioOf(face: { width: number; height: number }): number {
+  return face.width / face.height;
+}
+
+test.describe('dropping pictures on a board', () => {
+  test('Leo drops three screenshots and Sam watches them arrive (TC-25)', async ({ browser }) => {
+    const cast = await Cast.open(browser, 'Leo', 'Sam');
+    try {
+      const leo = cast.by('Leo').page;
+      const sam = cast.by('Sam').page;
+
+      // Three screenshots side by side is about two and a half screens wide, because a 1440x900 picture is
+      // placed at the largest size the board allows in one go. A person who wants to see all of them zooms
+      // out first, which is what the board's own zoom control does; the pictures are placed in world units,
+      // so zooming changes only how much of the row fits on the screen.
+      await setCamera(leo, { zoom: 0.4 });
+      await settle(leo);
+
+      // Hold the bytes back long enough that the state before the picture can be seen by both of them.
+      // Nothing tells the client what state to be in: the placeholder, the progress, the colleague's copy
+      // of the document and the picture itself are all the client's own work, at its own speed.
+      await delayUploads(leo, 2_000);
+
+      // Where the pointer lets go is where the row begins, and the row is wide, so the pointer starts it
+      // towards the left: not to be clever about the layout, but because a browser does not go and fetch the
+      // picture in a box nobody can see, and a test that put the third one off the edge of the window would
+      // spend its time waiting for a request nobody had made. Any point in this region is bare board - the
+      // toolbar is up in the corner, the zoom controls in the other one.
+      const where = { x: 300, y: 240 };
+      const started = Date.now();
+      const dropped = await dropFiles(leo, where, SCREENSHOTS.map((shot) => aFile(shot.file)));
+
+      // The boxes are on Leo's board, where the pointer was and in the order the files were dropped.
+      const placed = await waitForImageCount(leo, 3);
+      const row = await imageFacesInOrder(leo);
+      expect(row.map((face) => face.id).sort()).toEqual(placed.map((face) => face.id).sort());
+      // The row starts where the pointer was, in world units: those pixels were turned into a place on the
+      // board by the camera this page has, and the first picture's corner is that place.
+      expect(row[0]!.x).toBeCloseTo(dropped.x, 0);
+      expect(row[0]!.y).toBeCloseTo(dropped.y, 0);
+      let expectedX = dropped.x;
+      for (const [index, face] of row.entries()) {
+        const shot = SCREENSHOTS[index]!;
+        expect(face.x, 'the pictures are laid out in the order they were dropped').toBeCloseTo(
+          expectedX,
+          0,
+        );
+        // The shape is the file's own, whatever size it had to be drawn at: the 1440x900 screenshot is the
+        // one that had to be shrunk, and shrinking it moved both of its sides by the same factor.
+        expect(ratioOf(face), `${shot.file} is a ${shot.natural[0]}x${shot.natural[1]} picture`).toBeCloseTo(
+          shot.natural[0] / shot.natural[1],
+          3,
+        );
+        expectedX += face.width + IMAGE_LAYOUT_GAP_WORLD;
+      }
+      // A row, not a stack: the same height along the top, and the widths are the three pictures' own.
+      expect(new Set(row.map((face) => face.y)).size).toBe(1);
+      expect(row.map((face) => Math.round(face.width))).toEqual([800, 800, 400]);
+
+      // Sam's screen. Three boxes, and the only thing they can honestly say is that pictures are coming -
+      // in words, because a percentage would be a number about somebody else's upload.
+      const theirs = await waitForImageCount(sam, 3);
+      for (const face of theirs) {
+        expect(face.text).toBe(UPLOADING);
+        expect(face.picture).toBe(false);
+      }
+      // Sam's boxes are in the same places, at the same sizes, because they are the same objects.
+      expect(
+        (await imageFacesInOrder(sam)).map((face) => [Math.round(face.x), Math.round(face.width)]),
+      ).toEqual(row.map((face) => [Math.round(face.x), Math.round(face.width)]));
+      // The one latency on this path that is worth printing as it stands: the boxes are made on Leo's board
+      // and appear on Sam's by nothing but the document being shared, which is the number the budget is
+      // about. The time from there to the pictures is not measurable here, because the seconds spent in the
+      // upload are the ones this test put there.
+      logLatency('drop to boxes on a colleague screen', started);
+
+      // And then the pictures, on both screens.
+      const drawn = await Promise.all(
+        placed.map(async (face) => {
+          const onLeosScreen = await waitForPicture(leo, face.id);
+          const onSamsScreen = await waitForPicture(sam, face.id);
+          expect(onSamsScreen.src).toBe(onLeosScreen.src);
+          return face.id;
+        }),
+      );
+      expect(drawn).toHaveLength(3);
+
+      // What the service answers when a finished picture is asked for: the bytes, the type, and a promise
+      // that this answer will never change - which is safe only because a picture is never overwritten.
+      for (const face of await imageFaces(sam)) {
+        const url = new URL(face.src ?? '', sam.url()).href;
+        const response = await sam.context().request.get(url);
+        expect(response.status(), `the picture at ${url} should be there`).toBe(200);
+        expect(response.headers()['cache-control']).toBe(
+          'public, max-age=31536000, immutable',
+        );
+        expect(response.headers()['content-type']).toBe('image/png');
+      }
+
+      // The whole road, at full speed: the delay is off, so one more picture - from the pointer letting go,
+      // across an upload, into the bucket, into a second document, out of the bucket again, onto a second
+      // screen - is measured with nothing artificial in it. This is the number the budget exists for, and
+      // the reason the delay above had to be taken away rather than divided out afterwards.
+      await stopDelayingUploads(leo);
+      const uncorked = Date.now();
+      const again = await dropOneFile(leo, { x: 300, y: 620 }, aFile('screenshot-3.png'));
+      await waitForImageCount(leo, 4);
+      await waitForImageCount(sam, 4);
+      const newcomer = (await imageFaces(sam)).find(
+        (face) => Math.abs(face.x - again.x) < 1 && Math.abs(face.y - again.y) < 1,
+      );
+      expect(
+        newcomer,
+        "the fourth picture should be on Sam's board where Leo dropped it",
+      ).toBeTruthy();
+      await waitForPicture(sam, newcomer!.id);
+      logLatency('drop to picture on a colleague screen', uncorked);
+    } finally {
+      await cast.putAway();
+    }
+  });
+
+  test('the picker takes the picture and refuses the other two, in words (TC-26)', async ({
+    browser,
+  }) => {
+    // Only the ceiling on total test time is raised here, never a waiting window: every assertion in this
+    // test still gives the board E2E_EVENTUAL_TIMEOUT_MS to show what it should show. What the ceiling has to
+    // cover is the eleven megabytes of file this test hands to the dialog - it has to be a file that really is
+    // a megabyte past the limit, because the rule under test is about how big the file is - plus a reload and
+    // four picture fetches. On a busy machine the suite's ordinary thirty seconds ran out partway through,
+    // and "test timeout" named nothing; with the ceiling raised the run says which act is still waiting.
+    test.setTimeout(90_000);
+    const cast = await Cast.open(browser, 'Leo');
+    try {
+      const leo = cast.by('Leo').page;
+      await setCamera(leo, { zoom: 0.5 });
+      await settle(leo);
+
+      // Three files chosen in one go: one real screenshot, one PDF whose name ends in `.png`, and a JPEG
+      // that is a megabyte past the limit. The dialog is opened by the tool and by nothing else.
+      await chooseWithImageTool(leo, [
+        aFile('screenshot-3.png'),
+        aFile('renamed-pdf.png'),
+        anOversizeJpeg(),
+      ]);
+
+      // One picture on the board, and it is the screenshot: 400x300, which is the only one of the three
+      // that has a shape at all.
+      const added = await waitForImageCount(leo, 1);
+      const [face] = added;
+      expect(face!.width).toBeCloseTo(400, 0);
+      expect(face!.height).toBeCloseTo(300, 0);
+      await waitForPicture(leo, face!.id);
+
+      // Both refusals, in the board's own sentences, on the screen of the person who chose the files - and
+      // the ones that were refused are not on the board in any state, not even as a box.
+      const toast = leo.getByTestId('toast-message');
+      await expect(toast, 'the file that is not a picture should be named').toContainText(
+        WRONG_TYPE,
+      );
+      await expect(toast, 'the file that is too big should be named').toContainText(TOO_BIG);
+      await leo.getByTestId('toast-dismiss').click();
+      await expect(toast).toHaveCount(0, { timeout: E2E_EVENTUAL_TIMEOUT_MS });
+
+      // The picker is emptied between uses, so the same file can be added a second time. This is the one
+      // claim that goes to the input directly: it is a claim about the input, and asking the tool twice
+      // would be a claim about dialogs.
+      await pickFiles(leo, [aFile('screenshot-3.png')]);
+      const two = await waitForImageCount(leo, 2);
+      const second = two.find((candidate) => candidate.id !== face!.id);
+      expect(second, 'the same file, chosen twice, should be on the board twice').toBeTruthy();
+      // Waited for rather than merely present. The next act pulls the network away, and a box whose upload a
+      // reload cut short tells its own story ("this upload did not finish") that is not the story being told
+      // here - which is about a picture that was on the board and then stopped being there. Letting it settle
+      // also puts the two boxes in the order the board puts them in, which is what lets a mouse reach the one
+      // the test goes on to click.
+      await waitForPicture(leo, second!.id);
+
+      // A picture can stop being there after it was. The object on the board says where the bytes live, the
+      // bytes have gone, and the only way the board learns that is that the browser asked and was answered
+      // with nothing. A reload is part of this act rather than a way of forcing it: the picture is in this
+      // browser's memory by then, and a person sees the bad news the next time they come looking.
+      await losePictures(leo);
+      await leo.reload();
+      await settle(leo);
+      const still = await waitForImageCount(leo, 2);
+      // The top box rather than the bottom one, and the reason is in the way the board lays a picked file
+      // out: one picture goes in the middle of the view, so the second pick landed on top of the first, and
+      // of two boxes in the same place a mouse can only ever reach the one on top. The world layer draws
+      // them in the order they stand, so the last one in the document is the one a pointer finds.
+      const broken = still.filter((face) => face.status === 'ready').at(-1);
+      expect(broken, 'the object is still there, and still says where its picture should be').toBeTruthy();
+      const unavailable = leo.locator(
+        `[data-image-object][data-object-id="${broken!.id}"] [data-testid="image-unavailable"]`,
+      );
+      await expect(unavailable, 'the box should say the picture is not there').toBeVisible();
+      await expect(unavailable).toContainText(UNAVAILABLE);
+      // The box is the size the file was measured at, which is the one claim a box with no pixels in it can
+      // still make, and the one that keeps everything around it where it was.
+      const empty = await placeOf(leo, broken!.id);
+      expect(empty.width).toBeCloseTo(400, 0);
+      expect(empty.height).toBeCloseTo(300, 0);
+
+      // And the box can be taken away by a mouse clicking the button on it, which is a different thing from
+      // a test placing a click on it: a press on the box belongs to the board, and a press on its button
+      // belongs to the button, and if the first wins the second never gets told. One Ctrl+Z brings the whole
+      // box back, picture and all - the removal was one step, not a box with its status written back.
+      await bringPicturesBack(leo);
+      await removeButton(leo, broken!.id).click();
+      await expect(leo.locator(`[data-image-object][data-object-id="${broken!.id}"]`)).toHaveCount(0);
+      await expect(leo.locator(`[data-image-object]`)).toHaveCount(1);
+      await leo.keyboard.press('Control+z');
+      await expect(leo.locator(`[data-image-object][data-object-id="${broken!.id}"]`)).toHaveCount(1);
+      await waitForPicture(leo, broken!.id);
+    } finally {
+      await cast.putAway();
+    }
+  });
+
+  test('a picture resized by hand keeps its shape, and is still there tomorrow (TC-27)', async ({
+    browser,
+  }) => {
+    const cast = await Cast.open(browser, 'Leo');
+    try {
+      const leo = cast.by('Leo').page;
+      await dropOneFile(leo, { x: 620, y: 380 }, aFile('screenshot-3.png'));
+      const [dropped] = await waitForImageCount(leo, 1);
+      await waitForPicture(leo, dropped!.id);
+      const shape = ratioOf(dropped!);
+
+      await selectObject(leo, dropped!.id);
+      await expect(resizeHandles(leo), 'a picture can be resized from any of eight points').toHaveCount(
+        8,
+      );
+
+      // Drag the bottom-right corner two hundred units to the right and not at all down. A free resize
+      // would give a box two hundred units wider than the picture; this one has to decide how wide it can
+      // get while still being the same picture, and make the height come with it.
+      await dragHandleBy(leo, 'se', { x: 200, y: 0 });
+      const grown = await placeOf(leo, dropped!.id);
+      expect(grown.width).toBeGreaterThan(dropped!.width);
+      expect(ratioOf(grown)).toBeCloseTo(shape, 3);
+      // It grew from the corner that was held: the top-left did not move.
+      expect(grown.x).toBeCloseTo(dropped!.x, 0);
+      expect(grown.y).toBeCloseTo(dropped!.y, 0);
+
+      // Now the same corner is driven up into the top-left of the window and past it. The pointer stays
+      // inside the page, because a mouse cannot be taken outside one - and it does not need to be: the box
+      // is a few tens of pixels across, so anywhere near the corner of the screen is far past the smallest
+      // size the board allows.
+      const zoom = await zoomNumber(leo);
+      const corner = await handleOnScreen(leo, 'se');
+      await dragHandleBy(leo, 'se', { x: (10 - corner.x) / zoom, y: (10 - corner.y) / zoom });
+      const floor = await placeOf(leo, dropped!.id);
+      expect(floor.width).toBeGreaterThanOrEqual(IMAGE_MIN_SIZE_WORLD);
+      expect(floor.height).toBeGreaterThanOrEqual(IMAGE_MIN_SIZE_WORLD);
+      expect(ratioOf(floor)).toBeCloseTo(shape, 2);
+      // Still the same picture at the same address: a resize is a change of box, not a change of bytes.
+      expect((await imageFace(leo, dropped!.id)).status).toBe('ready');
+
+      // Somebody new, in a browser that has never seen any of this, arriving afterwards.
+      const late = await cast.add('Nadia');
+      await waitConnected(late.page);
+      const remembered = await waitForImageCount(late.page, 1);
+      expect(Math.round(remembered[0]!.width)).toBe(Math.round(floor.width));
+      expect(Math.round(remembered[0]!.height)).toBe(Math.round(floor.height));
+      await waitForPicture(late.page, remembered[0]!.id);
+
+      // And the box is where it was left, on a screen that was never there when it was moved.
+      const seenByLatecomer = await placeOf(late.page, remembered[0]!.id);
+      expect(Math.round(seenByLatecomer.x)).toBe(Math.round(floor.x));
+      expect(Math.round(seenByLatecomer.y)).toBe(Math.round(floor.y));
+    } finally {
+      await cast.putAway();
+    }
+  });
+
+  test('an upload that fails can be sent again, and nobody loses the box (TC-28)', async ({
+    browser,
+  }) => {
+    const cast = await Cast.open(browser, 'Leo', 'Sam');
+    try {
+      const leo = cast.by('Leo').page;
+      const sam = cast.by('Sam').page;
+
+      await breakUploads(leo);
+      await dropOneFile(leo, { x: 620, y: 380 }, aFile('screenshot-3.png'));
+      const [dropped] = await waitForImageCount(leo, 1);
+
+      // Leo's box says the file did not arrive, and offers to send it again - because the file is still in
+      // this browser's memory, which is the only reason the offer can be made.
+      await waitForImageStatus(leo, dropped!.id, 'failed');
+      await expect(leo.getByTestId('image-failed')).toContainText(UPLOAD_FAILED);
+      await expect(retryButton(leo, dropped!.id)).toBeVisible();
+      await expect(removeButton(leo, dropped!.id)).toBeVisible();
+
+      // Sam's box says the same thing about the picture and nothing about the upload, and offers no second
+      // attempt: Sam has no file to send.
+      await waitForImageStatus(sam, dropped!.id, 'failed');
+      await expect(boxText(sam, dropped!.id)).toContainText(UNAVAILABLE);
+      await expect(retryButton(sam, dropped!.id)).toHaveCount(0);
+      await expect(removeButton(sam, dropped!.id)).toBeVisible();
+
+      // The network comes back, and Leo presses the button.
+      await mendUploads(leo);
+      const started = Date.now();
+      await retryButton(leo, dropped!.id).click();
+
+      // Both of them get the picture: the same picture, at the same address, in the place the box was
+      // drawn in from the beginning - which is the point of keeping a box around for a picture that had
+      // not turned up yet.
+      const retried = await waitForPicture(leo, dropped!.id);
+      const onSamsScreen = await waitForPicture(sam, dropped!.id);
+      expect(onSamsScreen.src).toBe(retried.src);
+      expect(retried.status).toBe('ready');
+      logLatency('retry to picture on a colleague screen', started);
+
+      // The size the file was measured at is the size it is drawn at: nothing about the failed attempt
+      // left the box a different shape.
+      const place = await placeOf(leo, dropped!.id);
+      expect(ratioOf(place)).toBeCloseTo(4 / 3, 2);
+    } finally {
+      await cast.putAway();
+    }
+  });
+
+});
+
+/** The words on one box. */
+function boxText(page: Page, id: string) {
+  return page.locator(`[data-image-object][data-object-id="${id}"]`);
+}

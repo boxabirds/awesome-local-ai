@@ -63,8 +63,10 @@ export const WRITING_TOOLS: readonly ToolId[] = [
  * a tool that has to be pointed, and a board with two answers to one key is a board where one of
  * them is a lie. It is still in {@link TOOL_SHORTCUTS} because the map is the keyboard's map, not
  * the set of armed tools. `pen` joins the list in story 11, and is the first tool that does not put
- * itself away when it has made a thing. `image` and `comment` are missing because nothing in this
- * build draws them: a shortcut that armed a tool with no behaviour behind it would leave the
+ * itself away when it has made a thing. `image` joins in story 12, and is the first of a third
+ * kind again: asking for it is not a mode, it is a request for a file, so it is an
+ * {@link ActiveToolOptions.actionTools} tool and is never up. `comment` is missing because nothing
+ * in this build draws it: a shortcut that armed a tool with no behaviour behind it would leave the
  * pointer doing nothing at all, which is worse than the key doing nothing.
  */
 export const DEFAULT_AVAILABLE_TOOLS: readonly ToolId[] = [
@@ -73,10 +75,13 @@ export const DEFAULT_AVAILABLE_TOOLS: readonly ToolId[] = [
   'shape',
   'connector',
   'pen',
+  'image',
 ];
 
 /** The tool a board starts in, and returns to: pointing at things rather than making them. */
 export const DEFAULT_TOOL: ToolId = 'select';
+/** Tools that are never up, which is most of them. */
+const NO_ACTION_TOOLS: readonly ToolId[] = [];
 /** The kind a Shape tool with nothing chosen yet draws. */
 export const DEFAULT_SHAPE_KIND: ShapeKind = 'rect';
 
@@ -101,6 +106,18 @@ export interface ActiveToolOptions {
    * the new object in it. Left out, `toolCreated` still puts the tool back to Select.
    */
   onSelect?(id: string): void;
+  /**
+   * Tools that do their thing when asked for, and are never *up*.
+   *
+   * The Image tool is one: what it does is open the person's file picker, and a tool that stayed armed
+   * while they were choosing a file would be a tool that changed the meaning of every click in between. A
+   * tool that has no pointer behaviour of its own has no business holding the pointer - so the click and
+   * the key call {@link ActiveToolOptions.onActionTool} instead of changing which tool is up, and the
+   * answer to "which tool is up" never stops being the answer to "what does a click on the board do".
+   */
+  actionTools?: readonly ToolId[];
+  /** An action tool was asked for, by its button or by its key. */
+  onActionTool?(tool: ToolId): void;
 }
 
 export interface ActiveTool {
@@ -134,6 +151,7 @@ export interface ActiveTool {
 export function useActiveTool(options: ActiveToolOptions = {}): ActiveTool {
   const { canEdit = true, availableTools = DEFAULT_AVAILABLE_TOOLS, editing = false, onSelect } =
     options;
+  const { actionTools = NO_ACTION_TOOLS, onActionTool } = options;
   const [tool, setToolState] = useState<ToolId>(DEFAULT_TOOL);
   const [shapeKind, setShapeKindState] = useState<ShapeKind>(DEFAULT_SHAPE_KIND);
 
@@ -142,6 +160,16 @@ export function useActiveTool(options: ActiveToolOptions = {}): ActiveTool {
   const rulesRef = useRef({ canEdit, availableTools, editing });
   useEffect(() => {
     rulesRef.current = { canEdit, availableTools, editing };
+  });
+
+  // The action tool's handler is called from listeners and callbacks that are installed once, so it is
+  // read from a ref for the same reason the rules above are: the version made on the first render is not
+  // the version that is still true.
+  const actionRef = useRef(onActionTool);
+  const actionToolsRef = useRef(actionTools);
+  useEffect(() => {
+    actionRef.current = onActionTool;
+    actionToolsRef.current = actionTools;
   });
 
   const setTool = useCallback(
@@ -157,6 +185,12 @@ export function useActiveTool(options: ActiveToolOptions = {}): ActiveTool {
         // A board that cannot be written to keeps Select up. The tool that was up before stays
         // where it was asked for, which is nowhere: what is on screen is a tool that works.
         setToolState('select');
+        return;
+      }
+      if (actionToolsRef.current.includes(wanted)) {
+        // Asked for, done, over. Nothing about which tool is up changes, because nothing about what a
+        // click on the board means should have changed either.
+        actionRef.current?.(wanted);
         return;
       }
       setToolState(wanted);
@@ -227,6 +261,13 @@ export function useActiveTool(options: ActiveToolOptions = {}): ActiveTool {
         return;
       }
       event.preventDefault();
+      if (actionToolsRef.current.includes(toolFor)) {
+        // The key asks for the thing rather than arming the tool that would do it - and still swallows the
+        // key, because a key this board answers is a key the browser does not get, whether the answer was a
+        // mode or a file picker.
+        actionRef.current?.(toolFor);
+        return;
+      }
       setToolState(toolFor);
     };
     window.addEventListener('keydown', onKeyDown);

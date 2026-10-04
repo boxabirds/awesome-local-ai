@@ -1308,3 +1308,188 @@ a:focus-visible {
   font-size: 10px;
   line-height: 1;
 }
+
+/* Images (story 12) ---------------------------------------------------- */
+
+/*
+ * The outline that says "let go here". It covers the whole board area, inset a little so its own edge is
+ * visible against the window's, and it is drawn above the objects below it because it is about the board as
+ * a whole rather than about anything on it. It must not intercept the drag it is advertising: a highlight
+ * that swallowed the drop event would be a highlight that made the drop fail.
+ */
+.drop-highlight {
+  position: fixed;
+  inset: 8px;
+  border: 3px dashed var(--accent);
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.06);
+  pointer-events: none;
+  z-index: 15;
+}
+
+/*
+ * The board's message, at the bottom, above the navigation hint that lives there. The region is always in
+ * the page and only its contents come and go - `role="status"` announces a change to what is inside, and an
+ * element that appears already holding its text is a change a screen reader may never hear.
+ */
+.toast {
+  position: fixed;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(31, 41, 55, 0.94);
+  color: #f8fafc;
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
+  z-index: 30;
+  /* The board stays usable while a message is up - except over the message itself, which has a button. */
+  pointer-events: none;
+}
+
+.toast__lines {
+  display: flex;
+  flex-direction: column;
+}
+
+.toast__dismiss {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/*
+ * The file picker, kept out of the way but in the page. Not `display: none`: an element the browser does not
+ * lay out at all is also an element the person's keyboard and any automation driving the page cannot find,
+ * and this is a control rather than a detail.
+ */
+.image-file-picker {
+  position: fixed;
+  right: 8px;
+  bottom: 8px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/*
+ * An image on the board is its box, and its box is the image: the object is placed in world units like
+ * everything else, and the picture fills it. `overflow: hidden` because a picture and its box can differ by
+ * a fraction of a pixel after a resize, and a picture that sticks out of the selection outline around it is
+ * a picture that looks like it is in a different place than it is.
+ */
+.image-object {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.image-object__picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* A picture is a thing to look at, not a thing to drag into another application - and a browser that
+     starts a picture drag would be a browser that cancelled the move the person was making. */
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/*
+ * Everything that is not a picture - waiting, failed, unfinished, unavailable - is drawn in the same grey
+ * box, at the same size, so that the state an image is in is the only thing that changes about it.
+ */
+.image-object__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  background: #eef1f5;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* A failure is the one state worth seeing at a glance, so it is the one state with a colour of its own. */
+.image-object__panel--failed {
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.image-object__icon {
+  flex: none;
+  opacity: 0.75;
+}
+
+.image-object__text {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.image-object__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.image-object__button {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.image-object__button:hover {
+  background: #eef1f5;
+}
+
+/* The uploader's own progress: a bar, and the same number in words beside it. */
+.image-object__bar {
+  display: block;
+  width: min(120px, 80%);
+  height: 6px;
+  border-radius: 999px;
+  background: #d7dce4;
+  overflow: hidden;
+}
+
+.image-object__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  /* Progress that jumped backwards would look like a mistake; the transition smooths forwards and cannot
+     hide the fact of it, because the number next to the bar is the same number, unsmoothed. */
+  transition: width 120ms linear;
+}
+
+.image-object__percent {
+  font-variant-numeric: tabular-nums;
+}

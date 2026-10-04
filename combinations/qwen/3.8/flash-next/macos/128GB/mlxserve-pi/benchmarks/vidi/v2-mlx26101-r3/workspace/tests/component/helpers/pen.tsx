@@ -43,7 +43,7 @@ export function strokeElement(board: MountedSticky, id: string): HTMLElement {
 
 /** The stroke this id holds; throws when the board has no stroke of that name. */
 export function strokeOf(board: MountedSticky, id: string): StrokeSnapshot {
-  const stroke = asStrokeSnapshot(board.objects().find((object) => object.id === id));
+  const stroke = asStrokeSnapshot(board.objects().find((object) => object.id === id)!);
   if (stroke === null) {
     throw new Error(`object ${id} is not a stroke the board can read`);
   }
@@ -240,7 +240,9 @@ export async function dragPen(
     throw new Error('dragPen needs a path with at least one point');
   }
 
-  press(target, first, options);
+  // The drag's own options are not pointer options - there is nothing in them for `press` to read - so the
+  // press goes out with the defaults, as every other pen drag in these tests has had it.
+  press(target, first);
   if (options.everyMove === true) {
     await flushFrames();
   }
@@ -285,7 +287,7 @@ export async function dragPen(
       clientY: up.y,
     });
   } else {
-    release(target, up, options);
+    release(target, up);
   }
   await flushFrames();
   return board.objects().filter((object) => !before.has(object.id)).map((object) => object.id);
@@ -331,5 +333,5 @@ export function onlyStroke(board: MountedSticky): StrokeSnapshot {
 
 /** A stroke read out of a document that was not written by this client. */
 export function strokeIn(doc: Y.Doc, id: string): StrokeSnapshot | undefined {
-  return asStrokeSnapshot(snapshot(doc).find((object: ObjectSnapshot) => object.id === id));
+  return asStrokeSnapshot(snapshot(doc).find((object: ObjectSnapshot) => object.id === id)!) ?? undefined;
 }

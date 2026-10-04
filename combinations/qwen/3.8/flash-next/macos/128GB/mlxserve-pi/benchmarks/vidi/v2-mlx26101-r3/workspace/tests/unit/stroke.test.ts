@@ -15,7 +15,6 @@ import {
 } from '../../src/shared/objects/stroke';
 import {
   OBJECTS_MAP,
-  STROKE_TYPE,
   resizeObjects,
   snapshot,
   type StrokeSnapshot,
@@ -68,9 +67,9 @@ function onlyStroke(doc: Y.Doc): StrokeSnapshot {
   if (objects.length !== 1) {
     throw new Error(`expected one object on the board, found ${objects.length}`);
   }
-  const stroke = asStrokeSnapshot(objects[0]);
+  const stroke = asStrokeSnapshot(objects[0]!);
   if (stroke === null) {
-    throw new Error(`the object on the board is a ${objects[0].type}, not a readable stroke`);
+    throw new Error(`the object on the board is a ${objects[0]!.type}, not a readable stroke`);
   }
   return stroke;
 }
@@ -138,7 +137,7 @@ describe('simplify (TC-01, TC-02)', () => {
 
   it('survives paths too short to have anything to drop', () => {
     expect(simplify([], 1)).toEqual([]);
-    expect(simplify([CORNER[0]], 1)).toEqual([CORNER[0]]);
+    expect(simplify([CORNER[0]!], 1)).toEqual([CORNER[0]]);
     expect(simplify(FLAT_LINE, 1)).toEqual([FLAT_LINE[0], FLAT_LINE[FLAT_LINE.length - 1]]);
   });
 
@@ -161,9 +160,9 @@ describe('splitPoints (TC-03)', () => {
       LONG_SPIRAL.length - STROKE_MAX_POINTS + 1,
     ]);
     // The join: the second part starts where the first one ended, so the drawing is not cut open.
-    expect(parts[1][0]).toEqual(parts[0][parts[0].length - 1]);
+    expect(parts[1]![0]).toEqual(parts[0]![parts[0]!.length - 1]);
     // Nothing is lost between them but the duplicated joint.
-    const rejoined = [...parts[0], ...parts[1].slice(1)];
+    const rejoined = [...parts[0]!, ...parts[1]!.slice(1)];
     expect(rejoined).toEqual([...LONG_SPIRAL]);
   });
 
@@ -189,7 +188,7 @@ describe('splitPoints (TC-03)', () => {
       expect(part.length).toBeGreaterThan(1);
     }
     for (let part = 1; part < parts.length; part += 1) {
-      expect(parts[part][0]).toEqual(parts[part - 1][parts[part - 1].length - 1]);
+      expect(parts[part]![0]).toEqual(parts[part - 1]![parts[part - 1]!.length - 1]);
     }
   });
 
@@ -205,7 +204,7 @@ describe('smoothPath (TC-08)', () => {
     expect(path.startsWith('M')).toBe(true);
     expect(path).toContain('Q');
     // Ends on the last point, so the drawing does not stop short of where the pen was lifted.
-    expect(path.endsWith(`${CORNER[2].x} ${CORNER[2].y}`)).toBe(true);
+    expect(path.endsWith(`${CORNER[2]!.x} ${CORNER[2]!.y}`)).toBe(true);
   });
 
   it('gives the same answer twice, so a re-render cannot redraw the stroke', () => {
@@ -216,7 +215,7 @@ describe('smoothPath (TC-08)', () => {
 
   it('draws a straight line for two points and a dot for one', () => {
     expect(smoothPath(FLAT_LINE.slice(0, 2))).toBe('M 0 0 L 50 0');
-    expect(smoothPath([CORNER[0]])).toBe('M 10 10 L 10 10');
+    expect(smoothPath([CORNER[0]!])).toBe('M 10 10 L 10 10');
     expect(smoothPath([])).toBe('');
   });
 
@@ -259,8 +258,8 @@ describe('createStroke (TC-04, TC-05)', () => {
     expect(stroke.color).toBe('blue');
     // The document keeps a stroke's colour in the field every object keeps its colour in, and the
     // generic snapshot reports it as `penColor`, because its own `color` is typed as a sticky's.
-    expect(snapshot(doc)[0].penColor).toBe('blue');
-    expect(doc.getMap<Y.Map<unknown>>(OBJECTS_MAP).get(id)?.get('color')).toBe('blue');
+    expect(snapshot(doc)[0]!.penColor).toBe('blue');
+    expect(doc.getMap<Y.Map<unknown>>(OBJECTS_MAP).get(id!)?.get('color')).toBe('blue');
     expect(stroke.thickness).toBe('medium');
     expect(stroke.createdBy).toBe('someone');
     expect(stroke.z).toBeGreaterThan(0);
@@ -351,7 +350,7 @@ describe('createStroke (TC-04, TC-05)', () => {
     createStroke(doc, drawing({ points: FLAT_LINE }), 'someone');
 
     const [first, second] = snapshot(doc);
-    expect(second.z).toBeGreaterThan(first.z);
+    expect(second!.z).toBeGreaterThan(first!.z);
   });
 
   it('refuses to say who made the stroke when nobody is named', () => {
@@ -411,8 +410,8 @@ describe('scaledPoints (TC-06, TC-07)', () => {
     // every gap between two points doubles.
     const before = scaledPoints(stroke);
     for (let index = 0; index < before.length; index += 1) {
-      expect(points[index].x - resized.x).toBeCloseTo((before[index].x - stroke.x) * 2, 6);
-      expect(points[index].y - resized.y).toBeCloseTo((before[index].y - stroke.y) * 2, 6);
+      expect(points[index]!.x - resized.x).toBeCloseTo((before[index]!.x - stroke.x) * 2, 6);
+      expect(points[index]!.y - resized.y).toBeCloseTo((before[index]!.y - stroke.y) * 2, 6);
     }
     // A stroke is a line, not a shape: stretching it does not make it thicker.
     expect(resized.thickness).toBe('medium');
@@ -436,7 +435,7 @@ describe('scaledPoints (TC-06, TC-07)', () => {
   it('falls back to the stored box when there is no original size to scale from', () => {
     const doc = new Y.Doc();
     const stroke = line(doc);
-    const raw = doc.getMap<Y.Map<unknown>>('objects').get(stroke.id);
+    const raw = doc.getMap<Y.Map<unknown>>('objects').get(stroke.id)!;
     raw.delete('baseWidth');
     raw.delete('baseHeight');
 
@@ -522,7 +521,7 @@ describe('a stroke the board cannot read', () => {
   it('falls back to the defaults when the colour or the thickness is not one the pen has', () => {
     const doc = new Y.Doc();
     const id = createStroke(doc, drawing({ points: UNDERLINE.slice(0, 6) }), 'someone');
-    const raw = doc.getMap<Y.Map<unknown>>(OBJECTS_MAP).get(id);
+    const raw = doc.getMap<Y.Map<unknown>>(OBJECTS_MAP).get(id!);
     if (raw === undefined) {
       throw new Error('the stroke was not committed');
     }

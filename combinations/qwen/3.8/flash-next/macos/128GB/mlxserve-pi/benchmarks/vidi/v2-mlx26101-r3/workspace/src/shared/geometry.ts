@@ -14,6 +14,12 @@ export interface Point {
   y: number;
 }
 
+/** A width and a height, in whatever units the thing being measured is in. */
+export interface Size {
+  width: number;
+  height: number;
+}
+
 /** A box in world units. `x`/`y` are its top-left; width and height are never negative. */
 export interface Rect {
   x: number;

@@ -396,4 +396,26 @@ export class Cast {
     }
     this.people.length = 0;
   }
+
+  /**
+   * Everybody goes home, pages first.
+   *
+   * Story 12 found this out the hard way: when the last thing a person did was answer a file dialog, plain
+   * `close()` sometimes never returned - it waited in `browserContext.close()` until the test's own timeout
+   * took it, with every assertion in the test already passed. What the context waits for is its pages'
+   * targets going away, and a renderer that has just been handed an eleven-megabyte file by the debugger has
+   * been seen not to let go of its target. Closing the page first asks for the same thing one page at a time,
+   * and that completes: since this has been used to put the boards of the image tests away, none has hung.
+   *
+   * `close()` is left exactly as it was, because it is correct and it is what every earlier story uses; the
+   * page-by-page order is only needed by a test that has been at the file dialog.
+   */
+  async putAway(): Promise<void> {
+    for (const person of this.people) {
+      // A page that is already gone is not a failure at the end of a test, and a page whose close was
+      // refused has nowhere left to be: the context close that follows will take care of it or say so.
+      await person.page.close().catch(() => undefined);
+    }
+    await this.close();
+  }
 }

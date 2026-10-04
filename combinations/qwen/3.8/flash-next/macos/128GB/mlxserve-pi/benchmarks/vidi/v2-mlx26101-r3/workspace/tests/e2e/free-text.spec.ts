@@ -372,10 +372,13 @@ test.describe('a room full of headings', () => {
     const names = ['alex', 'sam', 'jules', 'ray', 'nadia'].slice(0, MAX_CONCURRENT_EDITORS);
     const cast = await Cast.open(browser, ...names);
     // Spread out, so that nobody's click lands on anybody else's heading, and so that a heading that
-    // arrives late can be told from a heading that never arrived.
+    // arrives late can be told from a heading that never arrived. The band they are in is clear of the
+    // furniture at the edges of the screen: five headings side by side is nearly the width of a window, and
+    // the toolbar down the left occupies a strip of it that a click would otherwise press - a press meant
+    // for the board that lands on the Text button opens a text object under the toolbar instead.
     const places = names.map((_name, index) => ({
-      x: -500 + index * 220,
-      y: index % 2 === 0 ? -160 : 120,
+      x: -440 + index * 220,
+      y: index % 2 === 0 ? -40 : 200,
     }));
     const headings = names.map((_name, index) => `Heading ${index + 1}`);
 

@@ -11,6 +11,7 @@ const TOOL_KEYS: Partial<Record<ToolId, string>> = {
   shape: 'S',
   connector: 'L',
   pen: 'P',
+  image: 'I',
 };
 
 /** Shown when hovering the sticky note button (PRD "Add sticky notes", FR-2). */
@@ -46,6 +47,15 @@ export interface ToolbarProps {
   shapeKind?: ShapeKind;
   /** Choose the shape the Shape tool will draw. Asking for a kind also asks for the tool. */
   onShapeKind?(kind: ShapeKind): void;
+  /**
+   * Ask for the file picker, so a picture can be added (story 12).
+   *
+   * The toolbar does not know what happens to the file, and has no opinion: this button is the only tool on
+   * the toolbar that is not a mode, so there is no `aria-pressed` to set and no tool name to remember -
+   * pressing it asks a question, and the answer is a file. Left out, the button is not drawn at all, which
+   * is the toolbar's way of saying that a button for something nobody wired up is a button people press twice.
+   */
+  onImage?(): void;
 }
 
 /**
@@ -69,6 +79,7 @@ export function Toolbar({
   onTool,
   shapeKind = 'rect',
   onShapeKind,
+  onImage,
 }: ToolbarProps): JSX.Element {
   const stop = (event: ReactPointerEvent<HTMLDivElement>): void => {
     event.stopPropagation();
@@ -221,6 +232,31 @@ export function Toolbar({
         </svg>
         <span className="toolbar__label">Pen</span>
       </button>
+      {onImage === undefined ? null : (
+        // The one button on this toolbar that is not a tool: it does not change what a click on the board
+        // means, it opens the person's file picker and gets out of the way. It sits with the tools because
+        // it is how pictures get here, and it is disabled with them because a board that cannot be written
+        // to has nowhere to put a picture - and unlike the others it must not look pressed, because it is
+        // never up: the pressed state of a button that opens a dialog is the dialog.
+        <button
+          type="button"
+          className="toolbar__tool toolbar__tool--image"
+          data-testid="tool-image"
+          data-tool-name="image"
+          aria-label={`Add images (${TOOL_KEYS.image ?? 'I'})`}
+          title={`Images \u2013 or press ${TOOL_KEYS.image ?? 'I'} \u2013 PNG, JPEG, GIF or WebP`}
+          disabled={!canEdit}
+          onClick={onImage}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M4 5h16v14H4V5Zm1.5 1.5v11h13v-11h-13ZM7 7.5a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2ZM6 17h12l-4.2-5.6-3 3.6-2-2.2L6 17Z"
+            />
+          </svg>
+          <span className="toolbar__label">Image</span>
+        </button>
+      )}
       <button
         type="button"
         className="toolbar__sticky"

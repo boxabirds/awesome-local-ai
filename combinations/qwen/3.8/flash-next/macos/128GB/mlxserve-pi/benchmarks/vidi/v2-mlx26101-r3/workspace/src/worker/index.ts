@@ -1,6 +1,7 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
+import { handleServe, handleUpload } from './assets';
 import { areEnabled, testSwitchIn } from './test-hooks';
 
 /**
@@ -13,14 +14,29 @@ import { areEnabled, testSwitchIn } from './test-hooks';
  * a board is accepted exactly like the first five (live.over_capacity) -
  * MAX_CONCURRENT_EDITORS is a design and test target, never a limit.
  *
- * Story 5 adds two small routes in front of that, because from this story a board is made
- * rather than arrived at: `POST /api/boards` makes one and hands back its id, and
- * `GET /api/boards/:id` answers whether a link leads to one. Both are answered by the board's
- * own object, since nothing outside a Durable Object can see its storage.
+ * Story 5 adds two small routes in front of that, because from this story a board is made rather than
+ * arrived at: `POST /api/boards` makes one and hands back its id, and `GET /api/boards/:id` answers
+ * whether a link leads to one. Both are answered by the board's own object, since nothing outside a
+ * Durable Object can see its storage.
+ *
+ * Story 12 adds two more, for the one kind of thing a board's document cannot hold: the bytes of a
+ * picture. `POST /api/boards/:id/assets` keeps them and `GET /api/assets/:boardId/:assetId` gives them
+ * back, both answered in `assets.ts` and both deciding what they were given from the bytes rather than
+ * from anybody's say-so.
  */
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /**
+   * Where the pictures are kept (story 12). Every board's assets share this one bucket and are told apart
+   * by the board id their key starts with, which is why the key is checked before the bucket is ever read.
+   *
+   * Optional because a Worker can be asked to run without one - a deployment made before this story, an
+   * integration test that only talks to rooms - and the answer to an upload then is `500 storage_failed`,
+   * which is what is true, rather than a type error at build time or an exception on the way to a board
+   * that never wanted to upload anything.
+   */
+  ASSETS_BUCKET?: R2Bucket;
   /**
    * `1` turns on the test switches in `test-hooks.ts`. Set only on the development server the e2e
    * suite starts; absent from this file, from the preview server and from any deployment, which is
@@ -39,6 +55,18 @@ const BOARDS_PATH = /^\/api\/boards$/;
 /** `/api/boards/<boardId>` - is there a board behind this link? (share.not_found). */
 const BOARD_PATH = /^\/api\/boards\/([^/]+)$/;
 
+/** `/api/boards/<boardId>/assets` - keep a picture that belongs to a board (story 12, image.types). */
+const BOARD_ASSETS_PATH = /^\/api\/boards\/([^/]+)\/assets$/;
+
+/**
+ * `/api/assets/<boardId>/<assetId>` - the bytes of one picture (story 12, image.shared).
+ *
+ * Both halves are matched as separate segments, so a path with a third of them is not a key at all and
+ * reaches the static assets instead. What the two are joined back into is what {@link ASSET_KEY_PATTERN}
+ * is checked against in `assets.ts`: the route says where a key may appear, the pattern says what one is.
+ */
+const ASSET_PATH = /^\/api\/assets\/([^/]+)\/([^/]+)$/;
+
 /** True when the request is a websocket upgrade (the header is case-insensitive). */
 function isUpgrade(request: Request): boolean {
   return (request.headers.get('Upgrade') ?? '').toLowerCase() === 'websocket';
@@ -54,6 +82,26 @@ function boardIdIn(pathname: string): string | null {
 function askedBoardIn(pathname: string): string | null {
   const match = BOARD_PATH.exec(pathname);
   return match === null ? null : pathSegment(match[1]);
+}
+
+/** The board id in a `/api/boards/<id>/assets` pathname, or `null` when there is not one. */
+function uploadTargetIn(pathname: string): string | null {
+  const match = BOARD_ASSETS_PATH.exec(pathname);
+  return match === null ? null : pathSegment(match[1]);
+}
+
+/** The asset key in a `/api/assets/...` pathname, or `null` when there is not one. */
+function assetKeyIn(pathname: string): string | null {
+  const match = ASSET_PATH.exec(pathname);
+  if (match === null) {
+    return null;
+  }
+  const boardId = pathSegment(match[1]);
+  const assetId = pathSegment(match[2]);
+  // A segment that could not be decoded is not part of a key, and the two halves are joined here rather
+  // than matched as one so that a `%2F` in either has already become a slash by the time the pattern sees
+  // it - and the pattern, which allows exactly one, says no.
+  return boardId === null || assetId === null ? null : `${boardId}/${assetId}`;
 }
 
 /** A percent-encoded path segment, decoded, or `null` when it cannot be decoded at all. */
@@ -140,6 +188,29 @@ export default {
         console.error(`board ${asked}: could not be checked (${String(error)})`);
         return json({ error: 'check_failed' }, 500);
       }
+    }
+
+    // `POST /api/boards/<id>/assets`: a picture for a board. The body is the file and the answer is the key
+    // its bytes will be served by, which is decided here from the bytes and nowhere else.
+    const uploadTo = uploadTargetIn(pathname);
+    if (uploadTo !== null) {
+      if (request.method !== 'POST') {
+        // Nothing to list and nothing to read: the only thing this address does with a request is store
+        // what the request carries.
+        return json({ error: 'method_not_allowed' }, 405);
+      }
+      return handleUpload(request, env, uploadTo);
+    }
+
+    // `GET /api/assets/<boardId>/<assetId>`: the bytes themselves, with the headers that make it safe to
+    // hand a file somebody chose to a browser. This is what an <img> on the board points at, and the route
+    // story 17 will read from to put the same pictures in an exported document.
+    const assetKey = assetKeyIn(pathname);
+    if (assetKey !== null) {
+      if (request.method !== 'GET') {
+        return json({ error: 'method_not_allowed' }, 405);
+      }
+      return handleServe(env, assetKey);
     }
 
     const boardId = boardIdIn(pathname);

@@ -59,6 +59,13 @@ import { readEndpoint, type Endpoint } from './geometry/connector-geometry';
  *       baseWidth, baseHeight: number,      // the box it was drawn at, which a resize scales against
  *       color: PenColor, thickness: PenThickness, createdBy: string
  *     }
+ *     <id>: Y.Map {            // an image (story 12): a picture whose bytes live outside the document
+ *       type: 'image', assetKey: string | null,  // null until the upload lands; then '<boardId>/<id>'
+ *       contentType: string,                     // what the bytes were found to be, and what they are
+ *                                                  // served as - the bucket is not asked again
+ *       naturalWidth, naturalHeight: number,     // the picture's own pixels: the ratio every box keeps
+ *       status: 'uploading' | 'ready' | 'failed', uploadStartedAt: number, uploaderId?: string
+ *     }
  * ```
  *
  * Two types are written by story 10 and read here: `shape`, which is an ordinary object with three
@@ -106,6 +113,71 @@ export const CONNECTOR_TYPE = 'connector';
  * `objects/stroke.ts` re-exports it for the code that writes strokes.
  */
 export const STROKE_TYPE = 'stroke';
+
+/**
+ * The `type` discriminator of an image (story 12): a picture whose bytes live outside the document.
+ *
+ * Registered here for the same reason as the two above, and with the same consequence: the reader below
+ * learns the name so it can read an image's own fields and refuse an image whose size cannot be read,
+ * and `objects/image.ts` re-exports the name for the code that writes images.
+ *
+ * What is *not* here is worth as much as what is. A sticky note carries its own words, in a `Y.Text`,
+ * because words are small and merge. A picture is two megabytes of bytes that do not merge with anything,
+ * so the document carries a *reference* to it - `assetKey`, a pointer into the bucket - and the bytes are
+ * fetched separately, once, and cached for a year. A board with forty photographs on it is still a small
+ * document, which is the only way it can stay a document that syncs in a blink.
+ */
+export const IMAGE_TYPE = 'image';
+
+/**
+ * Where an image's upload has got to (story 12).
+ *
+ * Three values, and they are the whole of what anybody knows about an upload: `uploading` from the moment
+ * the placeholder is written until the answer comes back, then `ready` or `failed`. There is no `queued`,
+ * no `paused` and no `cancelling`, because nothing in this design queues, pauses or cancels anything.
+ *
+ * A fourth thing the screen shows - "that upload never finished" - is deliberately not in here. It is a
+ * read of `uploading` against a clock (see {@link IMAGE_UPLOAD_STALE_MS}), not a state anything writes,
+ * which is what lets it be true for everybody at once without a message about timeouts ever having to be
+ * sent.
+ */
+export type ImageUploadStatus = 'uploading' | 'ready' | 'failed';
+
+/** Is this one of the three upload statuses? */
+export function isImageUploadStatus(value: unknown): value is ImageUploadStatus {
+  return value === 'uploading' || value === 'ready' || value === 'failed';
+}
+
+/**
+ * An image (story 12), as the board reads it.
+ *
+ * `naturalWidth`/`naturalHeight` are the picture's own pixel size, and the only thing in the document
+ * that says what the picture looks like: the aspect ratio of the box on the board is derived from them,
+ * and they are written once, by the client that adds the image, from a decode of the file. Everything
+ * else about the picture is in the bucket, addressed by `assetKey` - which is `null` right up until the
+ * upload finishes, and is the reason a placeholder can be written immediately and drawn immediately.
+ *
+ * Unlike a stroke, an image has no field that has to be present for there to be something to draw: a
+ * picture still waiting for its bytes is drawn as its own progress, not skipped. So the fields below are
+ * optional on this interface in the way the others are, and it is {@link asImageSnapshot} that decides
+ * what a missing one means.
+ */
+export interface ImageSnapshot extends ObjectSnapshot {
+  readonly type: 'image';
+  /** Where the bytes are, or `null` while they are still on their way. */
+  readonly assetKey: string | null;
+  /** The MIME type the bytes were found to be, which is what they are served as. */
+  readonly contentType: string;
+  /** The picture's own size, in pixels: the aspect ratio every box on the board is kept to. */
+  readonly naturalWidth: number;
+  readonly naturalHeight: number;
+  /** How far the upload has got, as written by the uploader. See {@link displayStatus} for what is shown. */
+  readonly status: ImageUploadStatus;
+  /** When this upload started, epoch ms: the clock the "didn't finish" read is taken against. */
+  readonly uploadStartedAt: number;
+  /** Whose upload it is - the only reason the uploader is asked anything at all. */
+  readonly uploaderId?: string;
+}
 
 /**
  * The object types this client can read.
@@ -264,6 +336,20 @@ export interface ObjectSnapshot {
   /** Who made this object. There is no account system yet, so this is what the creating client
    * called itself; the board does not check it and nothing in the UI reads it. */
   readonly createdBy?: string;
+  /**
+   * An image's reference, size and upload state (story 12), when the object is an image.
+   *
+   * Read the same generic way as every other type's extra fields, and optional for the same reason: a
+   * client that has never heard of images must still read a board that has them on it. `assetKey` is
+   * `null` while an upload is in flight - the field is there, and says it has nothing in it yet.
+   */
+  readonly assetKey?: string | null;
+  readonly contentType?: string;
+  readonly naturalWidth?: number;
+  readonly naturalHeight?: number;
+  readonly status?: ImageUploadStatus;
+  readonly uploadStartedAt?: number;
+  readonly uploaderId?: string;
 }
 
 /**
@@ -742,6 +828,13 @@ function readObject(id: string, object: YObject): ObjectSnapshot | null {
   const thickness = object.get('thickness');
   const baseWidth = object.get('baseWidth');
   const baseHeight = object.get('baseHeight');
+  const assetKey = object.get('assetKey');
+  const contentType = object.get('contentType');
+  const naturalWidth = object.get('naturalWidth');
+  const naturalHeight = object.get('naturalHeight');
+  const status = object.get('status');
+  const uploadStartedAt = object.get('uploadStartedAt');
+  const uploaderId = object.get('uploaderId');
   if (
     typeof x !== 'number' ||
     typeof y !== 'number' ||
@@ -769,6 +862,12 @@ function readObject(id: string, object: YObject): ObjectSnapshot | null {
   if (type === STROKE_TYPE && points === null) {
     return null;
   }
+  // An image with no natural size is the same case one story on: the size is not metadata, it is the
+  // aspect ratio, and an image drawn at no ratio is a grey box that lies about the picture in it. Its
+  // bytes may or may not be in the bucket - that is not a reason to draw a box with no shape in it.
+  if (type === IMAGE_TYPE && !(isPositiveNumber(naturalWidth) && isPositiveNumber(naturalHeight))) {
+    return null;
+  }
   return {
     id,
     type: typeof type === 'string' ? type : STICKY_TYPE,
@@ -794,6 +893,16 @@ function readObject(id: string, object: YObject): ObjectSnapshot | null {
     ...(isPositiveNumber(baseWidth) ? { baseWidth } : {}),
     ...(isPositiveNumber(baseHeight) ? { baseHeight } : {}),
     ...(typeof createdBy === 'string' && createdBy !== '' ? { createdBy } : {}),
+    // Story 12's image fields. `assetKey` is the one field on this interface that may legitimately be
+    // null, and the null is kept: "uploading, no bytes yet" and "not an image" are different answers and
+    // only conflating them would be cheap.
+    ...(typeof assetKey === 'string' || assetKey === null ? { assetKey } : {}),
+    ...(typeof contentType === 'string' && contentType !== '' ? { contentType } : {}),
+    ...(isPositiveNumber(naturalWidth) ? { naturalWidth } : {}),
+    ...(isPositiveNumber(naturalHeight) ? { naturalHeight } : {}),
+    ...(isImageUploadStatus(status) ? { status } : {}),
+    ...(typeof uploadStartedAt === 'number' && Number.isFinite(uploadStartedAt) ? { uploadStartedAt } : {}),
+    ...(typeof uploaderId === 'string' && uploaderId !== '' ? { uploaderId } : {}),
   };
 }
 

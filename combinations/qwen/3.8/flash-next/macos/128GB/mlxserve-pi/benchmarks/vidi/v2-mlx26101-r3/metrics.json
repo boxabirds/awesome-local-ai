@@ -16418,6 +16418,2461 @@
         },
         "heldout_floor": 0.2,
         "heldout_ok": true
+      },
+      "record": {
+        "committed": true,
+        "pushed": false,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-mlx26101-r3/server.log"
+        ],
+        "private": {
+          "copied": 21,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "784accc00",
+        "unpushed": true,
+        "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4/metrics.json' not uptodate. Cannot merge.\n"
+      }
+    },
+    "12": {
+      "title": "Drop images onto the board",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1791129787.3705301,
+      "engine_settings": {
+        "server_started_at": "2026-10-03T21:16:41Z",
+        "engine": "mlx-serve",
+        "engine_version": "mlx-serve 26.10.1",
+        "thinking_mode": {
+          "value": "on",
+          "source": "model config",
+          "evidence": "generation_config.json default_chat_template_kwargs.enable_thinking=true"
+        },
+        "thinking_budget": {
+          "value": 32768,
+          "source": "command line",
+          "evidence": "--reasoning-budget 32768"
+        },
+        "context_size": {
+          "value": 131072,
+          "source": "command line",
+          "evidence": "--ctx-size 131072"
+        },
+        "kv_cache_type": {
+          "value": "off",
+          "source": "command line",
+          "evidence": "--kv-quant off"
+        },
+        "speculative": {
+          "value": {
+            "method": "mtp"
+          },
+          "source": "command line",
+          "evidence": "--mtp (draft depth is mlx-serve's own)"
+        },
+        "temperature": {
+          "value": 1.0,
+          "source": "command line",
+          "evidence": "--temp 1.0"
+        },
+        "top_p": {
+          "value": 0.95,
+          "source": "command line",
+          "evidence": "--top-p 0.95"
+        },
+        "top_k": {
+          "value": 20,
+          "source": "command line",
+          "evidence": "--top-k 20"
+        },
+        "min_p": {
+          "value": "not set",
+          "source": "not set",
+          "evidence": "no --min-p on the command line: mlx-serve's own default applies"
+        },
+        "quantisation": {
+          "value": "mixed-4-8bit",
+          "source": "model file name",
+          "evidence": "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+        },
+        "reasoning_effort": {
+          "requested": "low",
+          "engine": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "mlx-serve has no server-side reasoning-effort setting (lib/runtime/server-mlxserve.sh)"
+          },
+          "client": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "effective": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "neither the engine's command line nor the client sets an effort: mlx-serve renders a request that names no effort by its template's rule; lib/runtime/server-mlxserve.sh reads that as 'low' on Qwen3.8 (chat.zig), unverified here. Engine: mlx-serve has no server-side reasoning-effort setting (lib/runtime/server-mlxserve.sh). Client: pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "matches_request": null
+        },
+        "gaps": [
+          "reasoning effort: 'low' requested, neither the engine nor the client applies one"
+        ]
+      },
+      "agent": {
+        "seconds": 14404.199999999999,
+        "steps": 626,
+        "tool_calls": 625,
+        "compactions": 9,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 1195667,
+          "output": 467988,
+          "reasoning": 0,
+          "cache_read": 43025816,
+          "cache_write": 0
+        },
+        "exit": 143,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 1,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": true,
+        "ended_in_error": false,
+        "sessions": [
+          "01a107a7-a74d-77cd-85c3-59b48c4ca038",
+          "01a107a7-a74d-77cd-85c3-59b48c4ca038"
+        ],
+        "finished": false,
+        "interventions": {
+          "total": 1,
+          "stop_message": 1,
+          "toolcall_text_resumes": 0,
+          "error_resumes": 0
+        }
+      },
+      "agent_finished": 1791144191.75122,
+      "conditions": {
+        "samples": 466,
+        "degraded": false,
+        "throttled_share": 0.67,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791129909.0552
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791129939.5833972
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791129970.020413
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130000.537021
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130031.058649
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130061.441757
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130091.8870962
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130122.302696
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130152.791748
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130183.2750988
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130213.788469
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130244.268652
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130274.781014
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130305.357877
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130335.9206111
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130366.433908
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130396.827977
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130427.217719
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130457.769393
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130488.147229
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130518.666715
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130549.164572
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130579.690596
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130610.091875
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130640.598434
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130671.091527
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130701.607531
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130732.114551
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130762.65261
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130793.018682
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130823.517577
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130854.0322711
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130884.537801
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130914.910869
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130945.427655
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791130975.924574
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131006.4415
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131036.841193
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131067.280951
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131097.6395378
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131128.1544309
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131158.6739159
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131189.178955
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131219.697609
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131250.208222
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131280.672816
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131311.0684211
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131341.582978
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131372.018568
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131402.458177
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131432.9800582
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131463.3388531
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131493.801485
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131524.1854908
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131554.572747
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131585.103596
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131615.611655
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131646.002507
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131676.373882
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131706.889005
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131737.559701
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131769.574922
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791131800.02093
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791131830.466285
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791131860.924937
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791131891.453579
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131921.851726
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131952.364522
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791131982.818605
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132013.237826
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132043.7090812
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132074.215107
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132104.599679
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132135.1206698
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132165.5847611
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132196.056845
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132226.415833
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132256.779436
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132287.198407
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132317.583454
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132348.061781
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132378.560124
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132409.070622
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132439.559
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132470.059186
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132500.563508
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132531.087494
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132561.579902
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132592.078231
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132622.58794
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132653.025162
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132683.5990222
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132714.176687
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132744.7611141
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132775.349712
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132805.816254
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132836.327904
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132866.736501
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132897.2474282
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132927.763532
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132958.174953
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791132988.593337
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133019.065326
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133049.5638452
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133079.9481971
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133110.4436412
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133140.843338
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133171.335649
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133201.845309
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133232.3397472
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133262.808108
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133293.320033
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133323.7784472
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133354.175956
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133384.6999838
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133415.240972
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133445.7682402
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133476.347121
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133506.803189
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133537.2731369
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133567.861938
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133598.456325
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133628.9766688
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133659.5086248
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133689.966274
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133720.484698
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133750.891177
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133781.401721
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133811.826609
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133842.282239
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133872.875644
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133904.40298
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133934.824789
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133965.35214
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791133995.7476249
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134026.102016
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134056.617986
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134087.0146098
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134117.531243
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134148.051
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134178.665856
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134209.005175
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134239.516268
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134270.0231838
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134300.401727
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134330.915966
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134361.422663
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134391.904792
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134422.400662
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134452.827018
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134483.1971
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134513.595975
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134544.0794282
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134574.447659
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134604.962322
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134635.40886
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134665.843136
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134696.279519
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134726.783063
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134757.155278
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134787.55808
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134818.057119
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134848.492112
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134878.9974751
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134909.508009
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134939.876009
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791134970.251599
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135000.6244
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135031.0378098
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135061.534616
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135092.050028
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135122.441094
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135152.8290079
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135184.170225
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135214.5411808
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135245.039603
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135275.428606
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135305.936888
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135336.333719
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135366.8427908
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135397.310661
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135427.8198662
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135458.1788192
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135488.535712
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135518.902265
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135549.4040802
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135579.8368042
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135610.237293
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135640.743812
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135671.231617
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135701.565431
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135731.995827
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135762.4146402
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135792.913374
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791135823.378763
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791135853.859909
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791135884.321929
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791135914.7553332
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791135945.2773938
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791135975.6894221
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136006.104457
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136036.542304
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136066.9968
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136097.377373
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136127.7655628
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136158.203247
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136188.6231492
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136219.030506
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136249.5197492
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136279.95956
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136310.4326599
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791136340.814367
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791136371.316462
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791136401.81267
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791136432.2466948
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136462.750185
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136493.21678
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136523.7304819
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136554.241584
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136584.657314
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136615.157981
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791136645.5813692
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791136676.0462
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136767.4313421
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136797.896874
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136828.375743
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136858.826012
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136889.167935
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136919.6345558
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136950.082732
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791136980.5427148
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791137011.0438359
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791137041.560962
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791137072.03575
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791137102.5241
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791137132.903048
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791137346.321305
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791137377.392969
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791137407.856164
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791137621.280873
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791137652.9455512
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791137683.768805
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791137714.2343318
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791137744.685405
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791137897.020114
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791137927.485245
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791137958.000552
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791137988.503106
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791138018.993601
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791138049.415322
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791138079.864031
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791138171.201052
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791138323.580079
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791138354.120914
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791138384.6406982
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791138415.149374
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791138445.8278131
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791138476.389377
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791138844.756798
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791138875.545501
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791138906.440781
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791138937.334993
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791138968.114016
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791138998.971508
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791139029.800234
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791139341.93984
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791139372.976137
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791139404.043421
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791139435.179877
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791139466.1226041
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791139498.252046
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791139529.221728
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791139809.683021
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791139840.668869
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791139872.310373
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791139903.103473
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791140150.3822489
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791140181.2738938
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791140212.290483
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791140243.357719
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791140274.3357482
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791140305.253422
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791140336.178915
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791140367.2698162
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791140429.2613251
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791140460.544597
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791140491.404248
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791140928.7503161
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791140961.077245
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791140992.877676
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791141025.500374
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791141057.1152792
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791141884.359842
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791141915.2585049
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791141946.2687092
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791141976.904673
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791142008.613642
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791142709.908009
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791142740.927737
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791142773.081899
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791142805.0130188
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791142837.051261
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791142869.065378
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791142901.1580238
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791142933.248131
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791142965.381075
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791142997.5175738
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791143029.1507761
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791143061.185573
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791143093.694732
+          }
+        ],
+        "swap_start_gb": 0.15,
+        "swap_max_gb": 0.15,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 21.0,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": 93.0,
+        "server_footprint_peak_gb": 95.0,
+        "gpu": null
+      },
+      "containment": {
+        "enabled": false
+      },
+      "agent_commits": 0,
+      "provenance": {
+        "harness_commit": "b0fd99246",
+        "harness_dirty": null,
+        "harness_release": "harness-v2026.10.03.1",
+        "pack_version": "vidi-v2.0-pre2+88a5c4002",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 6.1,
+            "tail": "\nadded 227 packages, and audited 228 packages in 6s\n\n43 packages are looking for funding\n  run `npm fund` for details\n\n9 vulnerabilities (1 low, 2 moderate, 6 high)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn allow-scripts 7 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.27.3 (postinstall: node install.js)\nnpm warn allow-scripts   sharp@0.34.5 (install: node install/check.js || npm run build)\nnpm warn allow-scripts   workerd@1.20260310.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.2 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20261001.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 1.3,
+            "tail": "\n> vidi6@0.0.1 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 143 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html        \u001b[39m\u001b[1m\u001b[2m  0.68 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.40 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex.css  \u001b[39m\u001b[1m\u001b[2m 17.95 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   3.66 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mapp.js     \u001b[39m\u001b[1m\u001b[2m435.05 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 134.54 kB\u001b[22m\n\u001b[32m\u2713 built in 807ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 5.0,
+            "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.worker-test.json && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.integration.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 3.9,
+            "tail": "s \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 24\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/image-format.test.ts \u001b[2m(\u001b[22m\u001b[2m35 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 73\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-model.test.ts \u001b[2m(\u001b[22m\u001b[2m24 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 39\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/validate-files.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 116\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 195\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/stroke.test.ts \u001b[2m(\u001b[22m\u001b[2m36 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 83\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/connector-model.test.ts \u001b[2m(\u001b[22m\u001b[2m26 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 67\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-history.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 236\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text-concurrent.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 19\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/router.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/api.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/upload-response.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/pages-state.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 52\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/worker/test-hooks.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 61\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/create-board.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 658\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m the board link code (TC-04, share.unguessable)\u001b[2m > \u001b[22mproduces 10,000 distinct codes, every one of them well-formed \u001b[33m 654\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-boundaries.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2350\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m undo step boundaries (TC-12, TC-13)\u001b[2m > \u001b[22mTC-12 turns a run of typing into one step \u001b[33m 665\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m undo step boundaries (TC-12, TC-13)\u001b[2m > \u001b[22mTC-13 splits typing into two steps when it pauses for longer than the window \u001b[33m 653\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m undo step boundaries (TC-12, TC-13)\u001b[2m > \u001b[22mkeeps a drag in one step however long it lasts \u001b[33m 375\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m undo step boundaries (TC-12, TC-13)\u001b[2m > \u001b[22mkeeps typing and then moving apart as two steps \u001b[33m 651\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/worker/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1872\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-01 chunkBytes splits, joinChunks puts back\u001b[2m > \u001b[22mmakes exactly one chunk out of exactly one chunk-size of bytes \u001b[33m 788\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-01 chunkBytes splits, joinChunks puts back\u001b[2m > \u001b[22mkeeps the order and the bytes of every chunk it made \u001b[33m 1078\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m28 passed\u001b[39m\u001b[22m\u001b[90m (28)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m475 passed\u001b[39m\u001b[22m\u001b[90m (475)\u001b[39m\n\u001b[2m   Start at \u001b[22m 21:03:24\n\u001b[2m   Duration \u001b[22m 3.48s\u001b[2m (transform 2.76s, setup 0ms, collect 6.54s, tests 6.14s, environment 11ms, prepare 3.64s)\u001b[22m\n\n",
+            "passed": 475,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 6.2,
+            "tail": ".test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 96\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 316\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m23 passed\u001b[39m\u001b[22m\u001b[90m (23)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m390 passed\u001b[39m\u001b[22m\u001b[90m (390)\u001b[39m\n\u001b[2m   Start at \u001b[22m 21:03:28\n\u001b[2m   Duration \u001b[22m 5.85s\u001b[2m (transform 3.04s, setup 5.31s, collect 12.75s, tests 36.21s, environment 22.60s, prepare 3.58s)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/ImageObject.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/add-images.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/pages.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/ShapeObject.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/StickyNote.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/StickyTextEditor.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/Transform.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/Toolbars.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/UndoControls.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/SelectionBar.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/TextObject.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/Marquee.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/UndoSteps.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/TextTool.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/ConnectorTool.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/SelectionKeys.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/app-load-failure.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/TextBoxSync.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/connectBoard.test.ts\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/NavigationHint.test.tsx\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n",
+            "passed": 390,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 8.4,
+            "tail": "104e56d0b 104e56db3\n\u001b[90mstderr\u001b[2m | tests/integration/board-api.test.ts\u001b[2m > \u001b[22m\u001b[2mTC-12 the creation call fails: say so, and hand out no link (negative)\u001b[2m > \u001b[22m\u001b[2manswers 500 create_failed when the board could not be made\n\u001b[22m\u001b[39mboard 201WC1K4h_7MzVQvdi8vLg: could not be created (Error: the object could not be reached)\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-api.test.ts\u001b[2m > \u001b[22m\u001b[2mTC-12 the creation call fails: say so, and hand out no link (negative)\u001b[2m > \u001b[22m\u001b[2manswers 500 create_failed when the board could not be made\n\u001b[22m\u001b[39mboard yARnAmy8BAWjwWE0p-zPkQ: could not be created (Error: the object could not be reached)\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-api.test.ts\u001b[2m > \u001b[22m\u001b[2mTC-12 the creation call fails: say so, and hand out no link (negative)\u001b[2m > \u001b[22m\u001b[2mhands out no id when the creation failed\n\u001b[22m\u001b[39mboard -aboH9wWAkz_K-aQp9Ev9Q: could not be created (Error: no storage for this board)\n\nworkerd/jsg/setup.c++:583: info: CODE_MOVED for unknown code block?\nworkerd/jsg/setup.c++:583: info: CODE_MOVED for unknown code block?\nworkerd/jsg/setup.c++:583: info: CODE_MOVED for unknown code block?\nworkerd/jsg/setup.c++:583: info: CODE_MOVED for unknown code block?\nworkerd/jsg/setup.c++:583: info: CODE_MOVED for unknown code block?\nworkerd/jsg/setup.c++:583: info: CODE_MOVED for unknown code block?\nworkerd/jsg/setup.c++:583: info: CODE_MOVED for unknown code block?\nworkerd/jsg/setup.c++:583: info: CODE_MOVED for unknown code block?\n\u001b[90mstderr\u001b[2m | tests/integration/assets.test.ts\u001b[2m > \u001b[22m\u001b[2mwhen the bucket fails, say so (TC-15, error path)\u001b[2m > \u001b[22m\u001b[2manswers 500 when the upload could not be written, and stores nothing\n\u001b[22m\u001b[39masset nTpHgfOoB0TsOwL4jVThnQ/cJWqaFrLsGgDb5viEsWIEw: the bucket refused it (Error: the bucket is not answering)\n\n\u001b[90mstderr\u001b[2m | tests/integration/assets.test.ts\u001b[2m > \u001b[22m\u001b[2mwhen the bucket fails, say so (TC-15, error path)\u001b[2m > \u001b[22m\u001b[2manswers 500 when a picture could not be read\n\u001b[22m\u001b[39masset 7KY1ZbFsCFWRUMHUDmpe8w/gOU3PEs3p3c2UY6esqn3iw: the bucket could not be read (Error: the bucket is not answering)\n\n\u001b[90mstderr\u001b[2m | tests/integration/assets.test.ts\u001b[2m > \u001b[22m\u001b[2mwhen the bucket fails, say so (TC-15, error path)\u001b[2m > \u001b[22m\u001b[2manswers 500 when this deployment has no bucket at all\n\u001b[22m\u001b[39masset upload refused: this deployment has no ASSETS_BUCKET binding\n\n\u001b[90mstderr\u001b[2m | tests/integration/assets.test.ts\u001b[2m > \u001b[22m\u001b[2mwhen the bucket fails, say so (TC-15, error path)\u001b[2m > \u001b[22m\u001b[2manswers 500 when this deployment has no bucket at all\n\u001b[22m\u001b[39masset request refused: this deployment has no ASSETS_BUCKET binding\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2mTC-15 malformed traffic is refused without hurting the board\u001b[2m > \u001b[22m\u001b[2man update yjs cannot read\n\u001b[22m\u001b[39mCaught error while handling a Yjs update Error: Unexpected end of array\n    at Module.create (Users/julian/.w/492da773d5/workspace/node_modules/lib0/error.js:12:28)\n    at Users/julian/.w/492da773d5/workspace/node_modules/lib0/decoding.js:40:41\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2ma board that cannot be read (TC-15, TC-16), and a read that fails (TC-26)\u001b[2m > \u001b[22m\u001b[2mtells a read that failed apart from a board it cannot read, and refuses the connection either way\n\u001b[22m\u001b[39mboard 166fee47a9b8c6c126754b5ddeef358d65f446d891c9d626818178aa73e58e3f: could not be saved (injected storage failure at append); 2 connection(s) are being asked to reconnect and nothing was relayed\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mrefused garbage is not stored (TC-17)\u001b[2m > \u001b[22m\u001b[2mcloses the socket that sent it and leaves the log alone\n\u001b[22m\u001b[39mCaught error while handling a Yjs update Error: Unexpected end of array\n    at Module.create (Users/julian/.w/492da773d5/workspace/node_modules/lib0/error.js:12:28)\n    at Users/julian/.w/492da773d5/workspace/node_modules/lib0/decoding.js:40:41\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 95.8,
+            "tail": "tionHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/b_/66g1274s7_xfw7x984g072s40000gn/T/playwright_chromiumdev_profile-mY7CD8 --remote-debugging-pipe --no-startup-window\n    <launched> pid=47271\n    [pid=47271][err] [1004/210346.985600:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n    [pid=47271][err] [1004/210347.070859:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n    [pid=47271][err] [1004/210348.698953:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n    [pid=47271][err] [1004/210348.749314:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n    [pid=47271] <gracefully close start>\n\n       at helpers/participants.ts:395\n\n      393 |   async close(): Promise<void> {\n      394 |     for (const person of this.people) {\n    > 395 |       await person.context.close();\n          |       ^\n      396 |     }\n      397 |     this.people.length = 0;\n      398 |   }\n        at Cast.close (~/.w/492da773d5/workspace/tests/e2e/helpers/participants.ts:395:7)\n        at Cast.putAway (~/.w/492da773d5/workspace/tests/e2e/helpers/participants.ts:419:5)\n        at ~/.w/492da773d5/workspace/tests/e2e/images.spec.ts:293:7\n\n    Error Context: test-results/images-dropping-pictures-o-7c7be-e-other-two-in-words-TC-26--chromium/error-context.md\n\n  1 failed\n    [chromium] \u203a tests/e2e/images.spec.ts:200:3 \u203a dropping pictures on a board \u203a the picker takes the picture and refuses the other two, in words (TC-26) \n  97 passed (1.6m)\n[WebServer] \u2718 [ERROR] board c8f8aff6400b2dc59f651aa54a2c159e89d21d07a4ad964262c9dac101ab67b7: could not be loaded (snapshot-unreadable: contentRefs[(info & BITS5)] is not a function)\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] board c8f8aff6400b2dc59f651aa54a2c159e89d21d07a4ad964262c9dac101ab67b7: not loaded again 98ms after the last attempt\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught Error: Network connection lost. \n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] board c8f8aff6400b2dc59f651aa54a2c159e89d21d07a4ad964262c9dac101ab67b7: not loaded again 308ms after the last attempt\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught Error: Network connection lost. \n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] board c8f8aff6400b2dc59f651aa54a2c159e89d21d07a4ad964262c9dac101ab67b7: not loaded again 744ms after the last attempt\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught Error: Network connection lost. \n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] board c8f8aff6400b2dc59f651aa54a2c159e89d21d07a4ad964262c9dac101ab67b7: not loaded again 1552ms after the last attempt\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught Error: Network connection lost. \n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] board c8f8aff6400b2dc59f651aa54a2c159e89d21d07a4ad964262c9dac101ab67b7: not loaded again 3196ms after the last attempt\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught Error: Network connection lost. \n[WebServer] \n[WebServer] \n",
+            "passed": 97,
+            "failed": 1
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 74,
+        "total": 75,
+        "on_partial": {
+          "passed": 10,
+          "total": 10
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          },
+          "03": {
+            "passed": 6,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5
+          },
+          "07": {
+            "passed": 8,
+            "total": 8
+          },
+          "08": {
+            "passed": 7,
+            "total": 7
+          },
+          "09": {
+            "passed": 6,
+            "total": 6
+          },
+          "10": {
+            "passed": 8,
+            "total": 8
+          },
+          "11": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          },
+          "12": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "5ba0814df1d5e78bd9b6a376ee0d8936870ef99a",
+      "requests": {},
+      "time_split": {
+        "wall_s": 14404.4,
+        "model": {
+          "source": "client-stream",
+          "requests": 626,
+          "prefill_s": 1119.7,
+          "prefill_tokens": 1195667,
+          "prefill_tok_s": 1067.8,
+          "decode_s": 8183.1,
+          "decode_tokens": 467988,
+          "decode_tok_s": 57.2,
+          "cached_tokens": 43025816,
+          "draft_acceptance": 0.643,
+          "mean_accepted_len": 2.78
+        },
+        "tools_s": 4043.0,
+        "tools_by_kind": {
+          "e2e": 2745.9,
+          "bash": 589.3,
+          "build": 580.8,
+          "unit": 126.8,
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
+        },
+        "compaction_s": 1016.6,
+        "compactions": 9,
+        "between_sessions_s": 3.3,
+        "other_s": 38.7,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        }
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 626,
+        "tool_calls": 625,
+        "thinking_visible": true,
+        "thinking_chars": 839840,
+        "thinking_median": 629,
+        "thinking_median_before": 154,
+        "thinking_median_after": 645,
+        "largest_thinking": {
+          "chars": 31450,
+          "call": 22,
+          "at_s": 200.8
+        },
+        "text_chars": 327,
+        "tool_arg_chars": 819130,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 2359,
+        "context_end": 80092,
+        "largest_context_jump": {
+          "tokens": 10365,
+          "call": 23
+        },
+        "tools_by_name": {
+          "bash": 462,
+          "read": 60,
+          "write": 29,
+          "edit": 73,
+          "Bash": 1
+        },
+        "tool_errors": 32,
+        "longest_tool": {
+          "seconds": 277.6,
+          "name": "bash",
+          "gist": "cd ~/.w/492da773d5/workspace && npx tsc -p tsconfig.test.json --noEmit && echo \"TEST TS OK\"; rm -rf test-res"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 202,
+        "lines": 140445
+      },
+      "finished": 1791144423.621421,
+      "status": "PARTIAL",
+      "ended_by": "operator",
+      "partial_base": [
+        11
+      ],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write image format sniffing and file validation unit tests first (TC-01, TC-02, TC-08, TC-09)",
+          "type": "test:unit",
+          "implements": [
+            "assets.api",
+            "image.insert"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-08",
+            "TC-09"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 2,
+          "title": "Write image object model unit tests first (TC-03 to TC-07)",
+          "type": "test:unit",
+          "implements": [
+            "image.model"
+          ],
+          "tcs": [
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07"
+          ],
+          "status": "written",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 3,
+          "title": "Implement asset API: R2 binding, upload with sniffing and size limit, immutable serving",
+          "type": "implementation",
+          "implements": [
+            "assets.api"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Integration tests for asset API with real R2 and BoardRoom (TC-10 to TC-13, TC-15, TC-16)",
+          "type": "test:integration",
+          "implements": [
+            "assets.api"
+          ],
+          "tcs": [
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-15",
+            "TC-16"
+          ],
+          "status": "written",
+          "found": 6,
+          "total": 6
+        },
+        {
+          "n": 5,
+          "title": "Implement image object model: placement, row layout, placeholders, status updates with untracked origin",
+          "type": "implementation",
+          "implements": [
+            "image.model"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Implement adding images: drop highlight, paste, Image tool picker, validation toasts, XHR upload with progress, retry",
+          "type": "implementation",
+          "implements": [
+            "image.insert"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Implement ImageObject render states and aspect-locked registry entry",
+          "type": "implementation",
+          "implements": [
+            "image.object"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Component tests for image insert flows and ImageObject states (TC-17 to TC-19, TC-21 to TC-24, TC-29)",
+          "type": "test:ui-component",
+          "implements": [
+            "image.insert",
+            "image.object"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-29"
+          ],
+          "status": "written",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 9,
+          "title": "E2E image workflows: moodboard with colleague, mixed picker batch, resize and revisit, flaky upload (TC-25 to TC-28)",
+          "type": "test:e2e",
+          "implements": [
+            "assets.api",
+            "image.insert",
+            "image.object"
+          ],
+          "tcs": [
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 4
+        }
+      ],
+      "end_reason": "cap-time",
+      "tasks_claimed": {
+        "file": "read",
+        "tasks": {
+          "1": "done",
+          "2": "done",
+          "3": "done",
+          "4": "done",
+          "5": "done",
+          "6": "done",
+          "7": "done",
+          "8": "done",
+          "9": "todo"
+        }
+      },
+      "stub_markers": [
+        "src/client/images/useImageInsert.ts: * a size, or a refusal. A GIF's first frame is what it reports, which is the frame the placeholder shows",
+        "src/client/objects/ImageObject.tsx: * around as they arrive, and a placeholder that turns into a picture of a different size is a board that",
+        "src/client/objects/ImageObject.tsx: // to be. It is drawn at the object's own size for the same reason the placeholder is: the box is the",
+        "src/shared/board-model.ts: * the placeholder is written until the answer comes back, then `ready` or `failed`. There is no `queued`,",
+        "src/shared/board-model.ts: * upload finishes, and is the reason a placeholder can be written immediately and drawn immediately.",
+        "src/shared/objects/image.ts: * makes one drop one undo step: the placeholder is written locally, by hand, at the moment the person let",
+        "src/shared/objects/image.ts: * browser already has, and the board can draw it - as a placeholder, with the uploader's own progress on",
+        "src/shared/objects/image.ts: * \"unfinished\", by every client at once, from the timestamp the placeholder already carried. Nobody sends",
+        "src/shared/objects/image.ts: // placeholder is the same instant. With neither, the wait is measured from the beginning of the clock,",
+        "src/worker/assets.ts: * {@link validateFiles}, the decode, the placeholder - is a client's best guess about a file it is"
+      ],
+      "partial_heldout_changes": {
+        "11": {
+          "fixed": 0,
+          "regressed": 0
+        }
+      },
+      "skip": {
+        "story": 12,
+        "reason": "story cap: 4.0 h of agent time (cap 4.0 h)",
+        "by": "harness (cap)",
+        "at": 1791144191.36289
+      },
+      "verdict": {
+        "verdict": "red",
+        "gate_green": false,
+        "unverified_tasks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "unverified_implementation_tasks": [
+          3,
+          5,
+          6,
+          7
+        ],
+        "heldout": {
+          "passed": 5,
+          "total": 5,
+          "on_partial_total": 5,
+          "on_partial_passed": 5
+        },
+        "heldout_floor": 0.6,
+        "heldout_ok": true
       }
     }
   },
@@ -21047,6 +23502,445 @@
           "on_partial_passed": 5
         },
         "heldout_floor": 0.2,
+        "heldout_ok": true
+      }
+    },
+    {
+      "id": 12,
+      "title": "Drop images onto the board",
+      "status": "PARTIAL",
+      "ended_by": "operator",
+      "started_at": 1791129787.3705301,
+      "ended_at": 1791144191.75122,
+      "agent_minutes": 240.1,
+      "calls": 626,
+      "output_tokens": 467988,
+      "compactions": 9,
+      "last_commit_at": null,
+      "accept": {
+        "passed": 5,
+        "total": 5,
+        "on_partial_total": 5,
+        "on_partial_passed": 5
+      },
+      "partial_base": [
+        11
+      ],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write image format sniffing and file validation unit tests first (TC-01, TC-02, TC-08, TC-09)",
+          "type": "test:unit",
+          "implements": [
+            "assets.api",
+            "image.insert"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-08",
+            "TC-09"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 2,
+          "title": "Write image object model unit tests first (TC-03 to TC-07)",
+          "type": "test:unit",
+          "implements": [
+            "image.model"
+          ],
+          "tcs": [
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07"
+          ],
+          "status": "written",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 3,
+          "title": "Implement asset API: R2 binding, upload with sniffing and size limit, immutable serving",
+          "type": "implementation",
+          "implements": [
+            "assets.api"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Integration tests for asset API with real R2 and BoardRoom (TC-10 to TC-13, TC-15, TC-16)",
+          "type": "test:integration",
+          "implements": [
+            "assets.api"
+          ],
+          "tcs": [
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-15",
+            "TC-16"
+          ],
+          "status": "written",
+          "found": 6,
+          "total": 6
+        },
+        {
+          "n": 5,
+          "title": "Implement image object model: placement, row layout, placeholders, status updates with untracked origin",
+          "type": "implementation",
+          "implements": [
+            "image.model"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Implement adding images: drop highlight, paste, Image tool picker, validation toasts, XHR upload with progress, retry",
+          "type": "implementation",
+          "implements": [
+            "image.insert"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Implement ImageObject render states and aspect-locked registry entry",
+          "type": "implementation",
+          "implements": [
+            "image.object"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Component tests for image insert flows and ImageObject states (TC-17 to TC-19, TC-21 to TC-24, TC-29)",
+          "type": "test:ui-component",
+          "implements": [
+            "image.insert",
+            "image.object"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-29"
+          ],
+          "status": "written",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 9,
+          "title": "E2E image workflows: moodboard with colleague, mixed picker batch, resize and revisit, flaky upload (TC-25 to TC-28)",
+          "type": "test:e2e",
+          "implements": [
+            "assets.api",
+            "image.insert",
+            "image.object"
+          ],
+          "tcs": [
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 4
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 30.0,
+          "calls": 78,
+          "output_tokens": 101448,
+          "accept": {
+            "passed": 3,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 166.1,
+          "calls": 568,
+          "output_tokens": 433839,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 66.9,
+          "calls": 278,
+          "output_tokens": 146113,
+          "accept": {
+            "passed": 3,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 178.6,
+          "calls": 534,
+          "output_tokens": 390403,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 147.7,
+          "calls": 503,
+          "output_tokens": 316142,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 111.0,
+          "calls": 373,
+          "output_tokens": 211387,
+          "accept": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 43.0,
+          "calls": 186,
+          "output_tokens": 73807,
+          "accept": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 24.6,
+          "calls": 117,
+          "output_tokens": 54474,
+          "accept": {
+            "passed": 1,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 35.4,
+          "calls": 163,
+          "output_tokens": 55922,
+          "accept": {
+            "passed": 4,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 33.3,
+          "calls": 167,
+          "output_tokens": 64627,
+          "accept": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 38.8,
+          "calls": 155,
+          "output_tokens": 70549,
+          "accept": {
+            "passed": 4,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 31.4,
+          "calls": 184,
+          "output_tokens": 84419,
+          "accept": {
+            "passed": 3,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 34.9,
+          "calls": 140,
+          "output_tokens": 115106,
+          "accept": {
+            "passed": 4,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 14.4,
+          "calls": 139,
+          "output_tokens": 58480,
+          "accept": {
+            "passed": 2,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 38.6,
+          "calls": 204,
+          "output_tokens": 136406,
+          "accept": {
+            "passed": 0,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 21.0,
+          "calls": 136,
+          "output_tokens": 69494,
+          "accept": {
+            "passed": 0,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 23.3,
+          "calls": 103,
+          "output_tokens": 74674,
+          "accept": {
+            "passed": 1,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 74.2,
+          "calls": 302,
+          "output_tokens": 208565,
+          "accept": {
+            "passed": 0,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 16.0,
+          "calls": 83,
+          "output_tokens": 79438,
+          "accept": {
+            "passed": 0,
+            "total": 5
+          }
+        }
+      ],
+      "reason": "story cap: 4.0 h of agent time (cap 4.0 h)",
+      "by": "harness (cap)",
+      "requested_at": 1791144191.36289,
+      "verdict": "red",
+      "health": {
+        "verdict": "red",
+        "gate_green": false,
+        "unverified_tasks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "unverified_implementation_tasks": [
+          3,
+          5,
+          6,
+          7
+        ],
+        "heldout": {
+          "passed": 5,
+          "total": 5,
+          "on_partial_total": 5,
+          "on_partial_passed": 5
+        },
+        "heldout_floor": 0.6,
         "heldout_ok": true
       }
     }

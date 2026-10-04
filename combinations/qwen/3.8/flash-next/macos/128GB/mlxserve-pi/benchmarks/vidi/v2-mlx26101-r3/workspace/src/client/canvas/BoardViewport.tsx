@@ -54,11 +54,41 @@ export interface BoardViewportProps {
   /** The board was pointed at while the Text tool was up, and the press did not travel: put a text
    * object here. The point is relative to the top-left of the board area, in world units at zoom 1. */
   onTextPlace?(point: Point): void;
+  /**
+   * Files being dragged over the board, and dropped on it (story 12).
+   *
+   * Given, the board area takes charge of the browser's own answer to a file: it says "a drop is wanted
+   * here" on every `dragover`, and prevents the default on every file drop - which is what keeps the
+   * browser from throwing away the page and navigating to the dropped file instead. Without it, that
+   * default is exactly what happens, and a board that lost itself because somebody let go of a photograph
+   * over it is not a board anybody would trust with a photograph.
+   *
+   * The handlers are given the events as they came, and the *decision* about the files inside them is the
+   * caller's; this component's decision is only the two things that can only be made here: whether the drag
+   * carries files at all, and whether it has actually left the board area.
+   */
+  filesDrag?: FilesDragHandlers;
 }
 
 /** What a press on the board is for. Every tool the board has, in one list: the viewport takes the
  * pointer over for the ones that place something, and the rest are drawn by their own tool. */
 export type BoardTool = ToolId;
+
+/**
+ * A file being dragged over the board area, and the four moments of it this component tells somebody else
+ * about.
+ *
+ * These are the browser's own drag events, passed on rather than translated, for one reason: everything
+ * worth knowing about a drag - the files, the types, where the pointer is - is on the event, and a
+ * translation would either drop something the caller needs or be the event with extra steps.
+ */
+export interface FilesDragHandlers {
+  onDragEnter(event: DragEvent): void;
+  onDragOver(event: DragEvent): void;
+  /** The files have left the board area - not merely this or that element inside it. */
+  onDragLeave(event: DragEvent): void;
+  onDrop(event: DragEvent): void;
+}
 
 /**
  * The rectangle a person drags across empty board space to select what is inside it.
@@ -101,6 +131,7 @@ export function BoardViewport({
   marquee,
   tool = 'select',
   onTextPlace,
+  filesDrag,
 }: BoardViewportProps): JSX.Element {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [gesture, setGesture] = useState<Gesture>('none');
@@ -127,11 +158,13 @@ export function BoardViewport({
   const emptyClickRef = useRef(onEmptyClick);
   const marqueeHandlerRef = useRef(marquee);
   const textPlaceRef = useRef(onTextPlace);
+  const filesDragRef = useRef(filesDrag);
   useEffect(() => {
     emptyDoubleClickRef.current = onEmptyDoubleClick;
     emptyClickRef.current = onEmptyClick;
     marqueeHandlerRef.current = marquee;
     textPlaceRef.current = onTextPlace;
+    filesDragRef.current = filesDrag;
   });
 
   // The Text tool's claim on the pointer, remembered between the press and its release: where on
@@ -213,6 +246,99 @@ export function BoardViewport({
       placingRef.current = null;
     };
   }, [tool]);
+
+  /**
+   * The drag-and-drop of files, on the board area.
+   *
+   * Listeners rather than React's `onDragOver` and friends, for the same reason the wheel handler below is
+   * one: what has to happen here is a `preventDefault` on events that are not this component's own. React
+   * attaches its drag handlers at the root and does not let `dragenter`/`dragleave` travel through it, and
+   * a file drag spends its whole life over *other* elements - notes, toolbars, the grid - which is precisely
+   * the situation a listener on the board area handles and a per-element prop does not.
+   *
+   * The one question decided here is "has the drag left the board?". Answering it needs to know where the
+   * drag has gone to, which is what `relatedTarget` says, and needs the element the drag is over, which is
+   * this one. `dragleave` is fired every time the pointer crosses into a child of the board area as well as
+   * when it leaves it altogether, and an outline that went away whenever a photograph passed over a sticky
+   * note would be an outline that is never up.
+   */
+  useEffect(() => {
+    const element = surfaceRef.current;
+    if (element === null) {
+      return;
+    }
+    const asFiles = (event: Event): DragEvent | null => {
+      // Duck-typed rather than `event instanceof DragEvent`, and in a way that reads as paranoia until it
+      // is said plainly: a drag event is the only event that carries a `dataTransfer`, so asking for that
+      // is the same question, and the answer does not depend on this environment having a DragEvent
+      // constructor to be `instanceof` - which some testing environments do not have, and a board whose
+      // drag handling threw an exception in one of them would be a board whose drag handling nobody had
+      // ever tested.
+      const dataTransfer = (event as DragEvent).dataTransfer;
+      if (dataTransfer === undefined || dataTransfer === null) {
+        return null;
+      }
+      // Only a drag that carries files is anybody's business here. Anything else a drag can carry - a
+      // selection of text, a link from another tab - goes to whatever would normally have it, which for the
+      // board area is nothing at all.
+      const types = dataTransfer.types;
+      return types !== undefined && Array.from(types).includes('Files') ? (event as DragEvent) : null;
+    };
+    const stillInside = (event: DragEvent): boolean => {
+      const arrived = event.relatedTarget;
+      if (arrived === null || arrived === undefined) {
+        // Nowhere to go: the drag left the window, which is the one case everybody agrees is a leave.
+        return false;
+      }
+      return arrived instanceof Node && element.contains(arrived);
+    };
+    const enter = (event: Event): void => {
+      const drag = asFiles(event);
+      if (drag === null) {
+        return;
+      }
+      // A file drag is always allowed to land on the board area, even one that lands on a note or on a
+      // note's open editor: what it means is "put this on the board", and there is no version of dropping
+      // a file into a sticky note's text that ends well.
+      drag.preventDefault();
+      filesDragRef.current?.onDragEnter(drag);
+    };
+    const over = (event: Event): void => {
+      const drag = asFiles(event);
+      if (drag === null) {
+        return;
+      }
+      // This is the call that makes a drop possible: without it the pointer says "no entry" and the browser
+      // refuses the thing the person is asking for.
+      drag.preventDefault();
+      filesDragRef.current?.onDragOver(drag);
+    };
+    const leave = (event: Event): void => {
+      const drag = asFiles(event);
+      if (drag === null || stillInside(drag)) {
+        return;
+      }
+      filesDragRef.current?.onDragLeave(drag);
+    };
+    const drop = (event: Event): void => {
+      const drag = asFiles(event);
+      if (drag === null) {
+        return;
+      }
+      drag.preventDefault();
+      filesDragRef.current?.onDrop(drag);
+    };
+    element.addEventListener('dragenter', enter);
+    element.addEventListener('dragover', over);
+    element.addEventListener('dragleave', leave);
+    element.addEventListener('drop', drop);
+    return () => {
+      element.removeEventListener('dragenter', enter);
+      element.removeEventListener('dragover', over);
+      element.removeEventListener('dragleave', leave);
+      element.removeEventListener('drop', drop);
+    };
+  }, []);
 
   // Measure the board area; the camera's x/y are not changed by a resize.
   useEffect(() => {

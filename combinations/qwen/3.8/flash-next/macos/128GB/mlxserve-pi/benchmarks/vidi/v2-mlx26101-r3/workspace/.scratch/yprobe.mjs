@@ -1,0 +1,11 @@
+import * as Y from 'yjs';
+const a = new Y.Doc();
+const b = new Y.Doc();
+const seen = [];
+a.on('update', (...args) => { seen.push(args.map(x => (x && x.constructor && x.constructor.name) || typeof x)); Y.applyUpdate(b, args[0]); });
+a.transact(() => { a.getMap('objects').set('x', (() => { const m = new Y.Map(); m.set('type','image'); return m; })()); }, 'my-origin');
+console.log('arg shapes', JSON.stringify(seen));
+console.log('b map', JSON.stringify([...b.getMap('objects').keys()]));
+a.on('update', (update, second, third, fourth) => { console.log('second is origin?', second === 'my-origin', 'third is origin?', third === 'my-origin', 'fourth is origin?', fourth === 'my-origin'); });
+a.transact(() => { a.getMap('objects').set('y', (() => { const m = new Y.Map(); m.set('type','image'); return m; })()); }, 'my-origin');
+console.log('b map2', JSON.stringify([...b.getMap('objects').keys()]));

@@ -30,6 +30,16 @@
       }
     ]
   },
+  // Story 12: where the pictures are kept. One bucket for every board, and every key beginning with the
+  // id of the board it belongs to - which is what lets a bucket that answers for any key it is given still
+  // be a bucket nobody can enumerate. Local development and the integration tests get a bucket of their
+  // own in Miniflare's own directory; nothing here refers to a real Cloudflare bucket by name.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   // SQLite from the first migration, so story 4 (which stores the document) needs no class
   // migration. In this story the room's document lives only in memory.
   "migrations": [

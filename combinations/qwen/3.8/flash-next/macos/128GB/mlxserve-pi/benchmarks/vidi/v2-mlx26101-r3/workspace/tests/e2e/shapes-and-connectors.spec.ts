@@ -459,14 +459,20 @@ test.describe('two people rearranging the flow (TC-25, TC-26)', () => {
   }) => {
     const { cast, ids } = await flowBoard(browser);
     const { dana, sam } = danaAndSam(cast);
+    const cart = shapeBox('cart');
     const declined = shapeBox('declined');
 
     // Dana puts her pointer on the basket, drags an arrow out over the declined shape, and holds it
     // there: her pointer is still down, so the arrow is a preview and nothing in the document.
     await armTool(dana.page, 'connector');
+    // The board is framed on the basket first. Where a board opens with its camera, the top-left of this
+    // flow lies under the toolbar down the left of the window - which is one button taller than it was when
+    // this test was written - and a press on a shape that is behind a button is a press on the button.
+    // `beginArrow` notices and says so; framing the board is the answer it gives for the moving camera.
+    await aimCamera(dana.page, { x: cart.x + cart.width / 2, y: cart.y + cart.height / 2 }, 1);
     const start = await screenOf(dana.page, {
-      x: shapeBox('cart').x + 40,
-      y: shapeBox('cart').y + 40,
+      x: cart.x + 40,
+      y: cart.y + 40,
     });
     const overDeclined = await screenOf(dana.page, {
       x: declined.x + declined.width / 2,

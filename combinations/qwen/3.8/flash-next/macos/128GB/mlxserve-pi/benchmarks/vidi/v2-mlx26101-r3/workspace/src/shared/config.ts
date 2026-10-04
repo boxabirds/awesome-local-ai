@@ -434,3 +434,107 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
 
 /** The smallest box a stroke may be resized to, in world units: a dot is already this big. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+/* --------------------------------------------------------------------- story 12: images */
+
+/**
+ * The image types the board accepts, as the MIME types that name them.
+ *
+ * Four types, and no others: PNG, JPEG, GIF and WebP. The list is the browser's `<input accept>` and
+ * the browser's `File.type` check and the worker's answer to "what is this", all three from one place -
+ * because the PRD's one sentence about what can be added is one sentence, and a client that accepted a
+ * sixth type would be a client whose uploads the worker then refuses.
+ *
+ * SVG is deliberately absent. It is an image format that is also a scripting language, and the board
+ * is a place where other people's content is displayed.
+ */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** One of {@link IMAGE_ACCEPTED_TYPES}. */
+export type AcceptedImageType = (typeof IMAGE_ACCEPTED_TYPES)[number];
+
+/**
+ * The same four formats again, as the extensions a file picker's dialog filters on.
+ *
+ * The types above are what a browser reports once it has a file; these are what it offers before that.
+ * They are said separately because they are not the same list - a `.jpeg` and a `.jpg` are one format -
+ * and because a dialog that was given only MIME types filters badly on the machines where the file
+ * names are how people find what they were sent.
+ */
+export const IMAGE_ACCEPT_EXTENSIONS: readonly string[] = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+
+/** Is this string one of the types the board accepts? */
+export function isAcceptedImageType(value: unknown): value is AcceptedImageType {
+  return typeof value === 'string' && (IMAGE_ACCEPTED_TYPES as readonly string[]).includes(value);
+}
+
+/**
+ * The largest image the board accepts, in bytes: 10 MB.
+ *
+ * The limit the PRD gives, and the limit that is checked twice - once on the way in, from the length
+ * the browser claims, and once again after the bytes have actually arrived, because a claimed length is
+ * a claim. It is a size a phone camera produces without trying (4032x3024 JPEGs are ordinary), so it is
+ * a limit that lets the ordinary case through and stops the unreasonable one rather than the other way
+ * round.
+ */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * How many images one drop, paste or pick may add at once.
+ *
+ * Twenty is enough for anybody's screenshot session and small enough that the row they land in is still
+ * a row a person can see. The point of the number is that a folder of six hundred photos dragged onto
+ * the board becomes twenty images and one message saying what happened, rather than six hundred uploads
+ * and a board nobody can use.
+ */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/**
+ * The largest a new image's box may be, in world units: its longer side is scaled to fit inside this.
+ *
+ * A 4032x3024 photograph dropped at 100% zoom would otherwise be a four-thousand-unit box - forty times
+ * the width of the screen the person is looking through, with a smudge in the middle of it. Scaling the
+ * *placement* by aspect ratio keeps the whole picture in view, which is what a person means by "let me
+ * see the screenshot I just dropped". Resizing is a different question, and is unlimited (PRD
+ * `image.resize_unlimited`): this number only ever applies at the moment the image is placed.
+ */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** The smallest an image may be resized to, in world units: smaller and there is no picture left. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** The space between images placed in a row, in world units. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/**
+ * How long an "uploading" image may sit before everyone calls it unfinished, in milliseconds.
+ *
+ * Five minutes: as long as a slow upload from a phone on a bad connection may honestly take, and no
+ * longer. The rule is a read, not a write - nothing times anything out, and nothing needs a clock that
+ * agrees between machines. An uploader that is still going at five minutes is an uploader whose tab has
+ * gone to sleep or been closed, which is the only way an image gets stuck in this design.
+ *
+ * The number is deliberately bigger than a reconnect. A board that is offline for two minutes still
+ * finishes its upload when the connection comes back, and the image is not called unfinished while it
+ * is on its way.
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/**
+ * How long an asset may be cached, in seconds: one year, and `immutable` beside it.
+ *
+ * An asset's bytes never change - the key is random per upload, and a second upload of the same file
+ * makes a second key - so a cached copy is never stale, and the only thing a revalidation could learn
+ * is nothing. One year is as long as an HTTP cache is allowed to remember, and the `immutable` part is
+ * what stops the browser asking: a board with forty images on it loads them once per visit rather than
+ * sending forty conditional requests every time the tab is opened.
+ */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
+
+/**
+ * How many of an uploaded file's leading bytes the worker reads to decide what it is.
+ *
+ * Twelve is enough for the longest of the four signatures, and it is all that is read: the whole file is
+ * never buffered to answer a question that the first twelve bytes always settle.
+ */
+export const IMAGE_SNIFF_BYTES = 12;

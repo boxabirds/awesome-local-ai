@@ -1,8 +1,15 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import * as Y from 'yjs';
-import { STICKY_MIN_SIZE_WORLD, STROKE_MIN_SIZE_WORLD, TEXT_FONT_FAMILY, SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+import {
+  IMAGE_MIN_SIZE_WORLD,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
+  TEXT_FONT_FAMILY,
+} from '../../shared/config';
 import {
   CONNECTOR_TYPE,
+  IMAGE_TYPE,
   LOCAL_ORIGIN,
   SHAPE_TYPE,
   STICKY_TYPE,
@@ -23,6 +30,7 @@ import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
+import { ImageBoardObject } from './ImageObject';
 import { createCanvasMeasurer } from './textLayout';
 import { remeasureTextBox } from './useTextBoxSync';
 
@@ -72,6 +80,31 @@ export interface ObjectProps {
    * group its own edits - which is what a component mounted on its own, outside a board, does.
    */
   undo?: UndoController;
+  /**
+   * Who this person is, as the board records it. Story 12.
+   *
+   * Added because an image is the first object whose appearance depends on who is looking at it: the person
+   * who uploaded it has a percentage and a Retry button, and everybody else has a grey box that says the
+   * picture is not there. Left out, a component falls back to this document's own id, which is what this
+   * build uses for a person.
+   */
+  identityId?: string;
+  /**
+   * How far this person's own upload of this object has got, `0` to `1`; left out when nothing of theirs is
+   * on its way. Progress is a property of a transfer and is deliberately not in the document - the people
+   * who are not uploading it have nothing to gain from being told about it forty times a second.
+   */
+  progress?: number;
+  /** Whether there is anything this browser could send again. Story 12's Retry button asks this first. */
+  canRetry?: boolean;
+  /** Send this object's bytes again. The object that was uploaded asks; the board decides how. */
+  onRetry?(id: string): void;
+  /**
+   * The clock, for the one type that measures how long something has been going on. Left out, the type asks
+   * the time for itself and keeps asking; given, it is told, which is what a test that wants it to be five
+   * minutes from now needs.
+   */
+  now?: number;
 }
 
 /**
@@ -310,4 +343,29 @@ registerObjectType(STROKE_TYPE, {
     }
     return distanceToPolyline(scaledPoints(stroke), world) <= strokeHitTolerance(stroke, zoom);
   },
+});
+
+/**
+ * A picture (story 12): bytes that live somewhere else, in a box that has always been the size they would
+ * be.
+ *
+ * `aspectLocked` is the whole of this entry's personality. A photograph stretched on one axis only is not
+ * the same photograph drawn wider - a face, a floor plan and a screenshot all stop being themselves when
+ * one of their dimensions is on its own - and unlike a sticky note, which has nothing in it but words that
+ * reflow, an image has nothing that can adapt. The ratio is decided once, by the file's own pixels, at the
+ * moment the object is made, and every resize after that is a scaling of it. `minSize` is where the aspect
+ * maths is stopped: a corner handle dragged past sixteen board units in either direction stops there,
+ * because a proportion kept down to a box two pixels wide is a proportion nobody can see, and a ratio that
+ * is held on both axes has to stop somewhere before one of them reaches nothing.
+ *
+ * `editableText` is false: a picture is not typed into, and a double-click on one is not a request for a
+ * caret. Its two buttons - Retry and Remove - are its only controls, and they are its own.
+ */
+registerObjectType(IMAGE_TYPE, {
+  Component: ImageBoardObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (object, world) => rectContainsPoint(objectBounds(object), world),
 });

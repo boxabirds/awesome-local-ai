@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400"><rect width="640" height="400" fill="#f3a"/><text x="20" y="200" font-size="48">not an image</text><script>alert(1)</script></svg>
