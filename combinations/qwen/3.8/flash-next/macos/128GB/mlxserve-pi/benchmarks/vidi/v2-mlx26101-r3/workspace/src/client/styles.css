@@ -890,12 +890,14 @@ a:focus-visible {
    for over the board *and* over whatever is already on it. A shape is drawn by dragging, and an arrow
    by dragging, so both get the crosshair - the one cursor that says "from here to there". */
 .board-viewport[data-tool='shape'],
-.board-viewport[data-tool='connector'] {
+.board-viewport[data-tool='connector'],
+.board-viewport[data-tool='pen'] {
   cursor: crosshair;
 }
 
 .board-viewport[data-tool='shape'] .board-world [data-object-id],
-.board-viewport[data-tool='connector'] .board-world [data-object-id] {
+.board-viewport[data-tool='connector'] .board-world [data-object-id],
+.board-viewport[data-tool='pen'] .board-world [data-object-id] {
   cursor: crosshair;
 }
 
@@ -1154,4 +1156,155 @@ a:focus-visible {
 .toolbar__kind:disabled {
   color: #a6aebc;
   cursor: default;
+}
+
+/* Pen strokes (story 11) ------------------------------------------------ */
+
+/* A stroke is drawn inside its own box, and - like an arrow - the box is not the thing. A scribble's box
+   is mostly empty board, and a container that answered the pointer would be a scribble that got picked up
+   by a click a foot from its line. The only clickable part of a stroke is its hit path, below. */
+.stroke-object {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.stroke-object__svg {
+  display: block;
+  overflow: visible;
+}
+
+/* The line as it was drawn: the thickness it was drawn at, in board units, whatever box the path is being
+   scaled into. Round caps and round joins because a hand-drawn line has no corners in it, and the last
+   point of one is where the pen left the paper rather than a cut end. */
+.stroke-object__line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The line that is actually clicked: twice the hit tolerance wide, transparent, and answering a press only
+   on the stroke itself - six screen pixels either side of the line, or half its own thickness where the
+   pen was that thick. Divided by the zoom, so it is six pixels of *this* screen at any distance from the
+   board. See `strokeHitTolerance`, which is the same number from the other side. */
+.stroke-object__hit {
+  stroke: transparent;
+  fill: none;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+/* The line being drawn, in the screen-space overlay. It is the stroke in the colour it is about to be, at
+   the width it is about to be at this zoom, and it is not on the board: nobody else can see it, and when
+   the pointer is lifted it is replaced by the thing it was a picture of. */
+.pen-preview__path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The round dot that stands in for the pen, so that where the stroke will land is visible before it lands.
+   Sized in the tool from `thickness x zoom`, in pixels, which is the thickness in board units seen at the
+   distance the board happens to be at - the same number the stroke will be drawn at, on this screen. */
+.pen-cursor {
+  position: fixed;
+  z-index: 6;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.9;
+  /* A thin pen at a zoomed-out board is a dot half a pixel wide, which is invisible rather than small; a
+     floor of four pixels says "the pen is here" without pretending to be the stroke's width. */
+  min-width: 4px;
+  min-height: 4px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+/* The pen's two choices, docked next to the toolbar that armed it: six colours and three widths. It is
+   `data-board-ui`, so a press on a swatch is not the start of a stroke and the pen's own pointer handler
+   stands down over it. */
+.pen-toolbar {
+  position: fixed;
+  /* Clear of the tools on the left, and along the top with them. */
+  left: 140px;
+  top: 16px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.pen-toolbar__colors {
+  display: flex;
+  gap: 4px;
+}
+
+.pen-toolbar__color {
+  font: inherit;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* The pressed colour is a ring with the swatch's own colour in the middle of it, because the thing being
+   confirmed is the colour, and a pressed state that recolours it would be a pressed state that asked you
+   to remember what it had been. */
+.pen-toolbar__color[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+
+.pen-toolbar__color:hover {
+  transform: scale(1.1);
+}
+
+.pen-toolbar__thicknesses {
+  display: flex;
+  gap: 2px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+
+.pen-toolbar__thickness {
+  font: inherit;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 40px;
+  padding: 2px 0;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.pen-toolbar__thickness:hover {
+  color: var(--ink);
+  background: #eef1f5;
+}
+
+.pen-toolbar__thickness[aria-pressed='true'] {
+  color: var(--accent);
+  background: #e6edfb;
+}
+
+.pen-toolbar__sample {
+  display: block;
+  width: 20px;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+.pen-toolbar__sample-label {
+  font-size: 10px;
+  line-height: 1;
 }

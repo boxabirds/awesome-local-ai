@@ -1,17 +1,20 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import * as Y from 'yjs';
-import { STICKY_MIN_SIZE_WORLD, TEXT_FONT_FAMILY, SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, STROKE_MIN_SIZE_WORLD, TEXT_FONT_FAMILY, SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
 import {
   CONNECTOR_TYPE,
   LOCAL_ORIGIN,
   SHAPE_TYPE,
   STICKY_TYPE,
+  STROKE_TYPE,
   moveObjects,
   objectBounds,
   registerObjectReader,
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { rectContainsPoint, type Point, type Rect } from '../../shared/geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { asStrokeSnapshot, scaledPoints, strokeHitTolerance } from '../../shared/objects/stroke';
 import { TEXT_TYPE, getTextFields, setTextWidthFixed } from '../../shared/objects/text';
 import type { EditEnd } from '../board/useSelection';
 import type { UndoController } from '../board/undo';
@@ -19,6 +22,7 @@ import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
 import { createCanvasMeasurer } from './textLayout';
 import { remeasureTextBox } from './useTextBoxSync';
 
@@ -107,8 +111,17 @@ export interface ObjectTypeSpec {
    * anything else offers all eight, because the box being dragged belongs to the group.
    */
   handles?: 'all' | 'horizontal';
-  /** Whether `world` lies on this object; the marquee and future hit-testing use it. */
-  hitTest(object: ObjectSnapshot, world: Point): boolean;
+  /**
+   * Whether `world` lies on this object; the marquee and future hit-testing use it.
+   *
+   * `zoom` is how far away the board is when the question is asked, and it is there for the types whose
+   * hit area is measured in *screen* pixels rather than board units - a thin stroke is two board units,
+   * which is half a pixel at 25% zoom and a band at 200%, and what a person is aiming at is a number of
+   * pixels on their own screen. It is optional and defaults to 1, because a caller with no camera (arrow
+   * ends, story 10) is asking in board units and gets board units: six units, at zoom 1, which is what six
+   * pixels are there.
+   */
+  hitTest(object: ObjectSnapshot, world: Point, zoom?: number): boolean;
   /**
    * This type writes its own resize, given the box the gesture worked out for one object of it:
    * called instead of the generic `resizeObjects` for objects of this type.
@@ -262,4 +275,39 @@ registerObjectType(CONNECTOR_TYPE, {
   editableText: false,
   movable: false,
   hitTest: (object, world) => rectContainsPoint(objectBounds(object), world),
+});
+
+/**
+ * A pen stroke (story 11): a freehand line, stored as the path that was captured inside the box that path
+ * was captured inside.
+ *
+ * It resizes in proportion, and the proportion is the box's rather than the drawing's: a corner handle
+ * gives a new box, and the stored points are read *through* that box (see {@link scaledPoints}), so the
+ * drawing scales with it while the pen that drew it - the line's thickness - stays exactly as thick. That
+ * is also why `aspectLocked` is true: a stroke stretched on one axis only is a drawing pulled out of
+ * shape, which is a thing a person does to a photograph and not to their own sketch.
+ *
+ * `hitTest` is the one that is not a box, and the only one asked about the screen. A stroke's box is
+ * mostly empty board - a line across it, and often a circle *around* something - so a press inside the box
+ * is not a press on the stroke, and falls through to whatever is underneath: a note a loop was drawn
+ * around stays selectable from inside the loop. What is asked instead is how far the point is from the
+ * line, in screen pixels - `max(thickness / 2, STROKE_HIT_TOLERANCE_PX / zoom)`, the line's own half-width
+ * or six of the person's pixels, whichever is wider - which is the same question the invisible line the
+ * stroke is clicked on is drawn wide enough to answer ({@link strokeHitTolerance}), so the drawing and the
+ * answer cannot come apart.
+ */
+registerObjectType(STROKE_TYPE, {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  // A stroke has no words in it: the pen drew it, and the pen is done with it.
+  editableText: false,
+  hitTest: (object, world, zoom = 1) => {
+    const stroke = asStrokeSnapshot(object);
+    if (stroke === null) {
+      return false;
+    }
+    return distanceToPolyline(scaledPoints(stroke), world) <= strokeHitTolerance(stroke, zoom);
+  },
 });

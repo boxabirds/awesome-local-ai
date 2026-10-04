@@ -5,7 +5,13 @@ import type { UndoState } from './useUndo';
 import type { ToolId } from '../tools/useActiveTool';
 
 /** What a tool is called on the screen, so the toolbar and the shortcut say one name. */
-const TOOL_KEYS: Partial<Record<ToolId, string>> = { select: 'V', text: 'T', shape: 'S', connector: 'L' };
+const TOOL_KEYS: Partial<Record<ToolId, string>> = {
+  select: 'V',
+  text: 'T',
+  shape: 'S',
+  connector: 'L',
+  pen: 'P',
+};
 
 /** Shown when hovering the sticky note button (PRD "Add sticky notes", FR-2). */
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note \u2013 or double-click the board';
@@ -193,6 +199,27 @@ export function Toolbar({
           />
         </svg>
         <span className="toolbar__label">Connector</span>
+      </button>
+      <button
+        type="button"
+        className="toolbar__tool toolbar__tool--pen"
+        data-testid="tool-pen"
+        data-tool-name="pen"
+        aria-label={`Pen (${TOOL_KEYS.pen ?? 'P'})`}
+        title={`Pen \u2013 or press ${TOOL_KEYS.pen ?? 'P'}, then draw on the board`}
+        aria-pressed={tool === 'pen'}
+        disabled={!canEdit}
+        onClick={() => {
+          choose('pen');
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M4 19.1 5.1 15 15 5.1 18.9 9 9 18.9 4 19.1Zm12.2-15 1.4-1.4 3.7 3.7-1.4 1.4-3.7-3.7ZM3 21v-2l4.6-.6L3 19.4V21Z"
+          />
+        </svg>
+        <span className="toolbar__label">Pen</span>
       </button>
       <button
         type="button"

@@ -5,11 +5,15 @@ import {
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   isFillColor,
+  isPenColor,
+  isPenThickness,
   isShapeKind,
   isStrokeColor,
   isTextSize,
   isTextWidthMode,
   type FillColor,
+  type PenColor,
+  type PenThickness,
   type ShapeKind,
   type StickyColor,
   type StrokeColor,
@@ -50,6 +54,11 @@ import { readEndpoint, type Endpoint } from './geometry/connector-geometry';
  *     <id>: Y.Map {            // an arrow (story 10); its own box is derived, see `from`/`to`
  *       type: 'connector', from: Endpoint, to: Endpoint, createdBy: string
  *     }
+ *     <id>: Y.Map {            // a pen stroke (story 11): a path inside the box it was drawn in
+ *       type: 'stroke', points: number[],   // flat [x0,y0,x1,y1,…], relative to x/y
+ *       baseWidth, baseHeight: number,      // the box it was drawn at, which a resize scales against
+ *       color: PenColor, thickness: PenThickness, createdBy: string
+ *     }
  * ```
  *
  * Two types are written by story 10 and read here: `shape`, which is an ordinary object with three
@@ -87,6 +96,16 @@ export const STICKY_TYPE = 'sticky';
  */
 export const SHAPE_TYPE = 'shape';
 export const CONNECTOR_TYPE = 'connector';
+
+/**
+ * The `type` discriminator of a pen stroke (story 11): a freehand line, stored as a path inside the
+ * box it was drawn in.
+ *
+ * Registered here for the same reason the two above are - the reader below has to know the name, both
+ * to read the stroke's own four fields and to refuse a stroke whose path cannot be read - and
+ * `objects/stroke.ts` re-exports it for the code that writes strokes.
+ */
+export const STROKE_TYPE = 'stroke';
 
 /**
  * The object types this client can read.
@@ -223,9 +242,57 @@ export interface ObjectSnapshot {
    */
   readonly from?: Endpoint;
   readonly to?: Endpoint;
+  /**
+   * A pen stroke's colour, width, path and original box (story 11), when the object is a stroke.
+   *
+   * `points` is the path as the document stores it: a flat array of numbers, `[x0, y0, x1, y1, …]`,
+   * measured *relative to the box* rather than the board - which is the whole trick of a stroke that
+   * resizes, because scaling the box scales the drawing with it and costs no rewrite of the path (see
+   * {@link scaledPoints}).
+   *
+   * The colour is called `penColor` on this generic snapshot and `color` on {@link StrokeSnapshot}, and
+   * both are the document's one `color` field: a stroke writes its colour where every object keeps its
+   * colour, but `color` on this interface is typed as a sticky note's colour, and a stroke's black, red
+   * and purple are not members of that set. See {@link StrokeSnapshot} for the type that says so.
+   */
+  readonly penColor?: PenColor;
+  readonly thickness?: PenThickness;
+  readonly points?: readonly number[];
+  /** The box the stroke was drawn at, which is the box its path is measured against. */
+  readonly baseWidth?: number;
+  readonly baseHeight?: number;
   /** Who made this object. There is no account system yet, so this is what the creating client
    * called itself; the board does not check it and nothing in the UI reads it. */
   readonly createdBy?: string;
+}
+
+/**
+ * A pen stroke (story 11), as the board reads it.
+ *
+ * The four fields only a stroke has are required here, because the stroke's own reader ({@link
+ * asStrokeSnapshot}) gives all four a value: a stroke drawn in a colour this client has never heard of
+ * is still drawn, in black, and not taken off the board. A stroke whose *path* cannot be read is the
+ * exception - there is no default line to draw in its place - and such a stroke is not read at all, the
+ * way an arrow whose ends cannot be read is not drawn.
+ *
+ * It is `Omit<ObjectSnapshot, 'color'>` rather than a plain extension, and that is the one type-level
+ * decision of this story: the colour a stroke is drawn in is a *drawing* colour - black, red and purple
+ * among them - and `color` on the generic snapshot is a *sticky note* colour, a set those three are not
+ * members of. Rather than widen a field every story since story 2 reads, the stroke's colour is named
+ * `color` here, where it can be given the right type, and reported as `penColor` on the generic
+ * snapshot, where it cannot.
+ */
+export interface StrokeSnapshot extends Omit<ObjectSnapshot, 'color'> {
+  readonly type: 'stroke';
+  /** Which of the six pen colours the line is drawn in, from the document's `color` field. */
+  readonly color: PenColor;
+  /** Which of the three widths the line is drawn at, in world units by {@link PEN_THICKNESS_WORLD}. */
+  readonly thickness: PenThickness;
+  /** The path, flat and relative to the box: `[x0, y0, x1, y1, …]`. Never an odd length. */
+  readonly points: readonly number[];
+  /** The box the stroke was drawn at: the denominator of every resize since. */
+  readonly baseWidth: number;
+  readonly baseHeight: number;
 }
 
 /**
@@ -671,6 +738,10 @@ function readObject(id: string, object: YObject): ObjectSnapshot | null {
   const stroke = object.get('stroke');
   const label = object.get('label');
   const createdBy = object.get('createdBy');
+  const points = readPoints(object.get('points'));
+  const thickness = object.get('thickness');
+  const baseWidth = object.get('baseWidth');
+  const baseHeight = object.get('baseHeight');
   if (
     typeof x !== 'number' ||
     typeof y !== 'number' ||
@@ -693,6 +764,11 @@ function readObject(id: string, object: YObject): ObjectSnapshot | null {
   if (label !== undefined && !(label instanceof Y.Text)) {
     return null;
   }
+  // A stroke with no path is a line nobody drew, and there is no default line to draw instead: it is
+  // dropped the way an arrow with unreadable ends is. Story 10's rule for a box of not-a-number.
+  if (type === STROKE_TYPE && points === null) {
+    return null;
+  }
   return {
     id,
     type: typeof type === 'string' ? type : STICKY_TYPE,
@@ -712,8 +788,33 @@ function readObject(id: string, object: YObject): ObjectSnapshot | null {
     ...(label instanceof Y.Text ? { label: label.toString() } : {}),
     ...(readEndpoint(object.get('from')) !== null ? { from: readEndpoint(object.get('from'))! } : {}),
     ...(readEndpoint(object.get('to')) !== null ? { to: readEndpoint(object.get('to'))! } : {}),
+    ...(isPenColor(color) ? { penColor: color } : {}),
+    ...(isPenThickness(thickness) ? { thickness } : {}),
+    ...(points !== null ? { points } : {}),
+    ...(isPositiveNumber(baseWidth) ? { baseWidth } : {}),
+    ...(isPositiveNumber(baseHeight) ? { baseHeight } : {}),
     ...(typeof createdBy === 'string' && createdBy !== '' ? { createdBy } : {}),
   };
+}
+
+/**
+ * The path of a stroke, as stored: a flat, even-length array of finite numbers. `null` for anything
+ * else, including an array with a `NaN` in it or an odd length - half a point is not a point.
+ */
+function readPoints(value: unknown): readonly number[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length % 2 !== 0) {
+    return null;
+  }
+  for (const part of value) {
+    if (typeof part !== 'number' || !Number.isFinite(part)) {
+      return null;
+    }
+  }
+  return value as readonly number[];
+}
+
+function isPositiveNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
 /**

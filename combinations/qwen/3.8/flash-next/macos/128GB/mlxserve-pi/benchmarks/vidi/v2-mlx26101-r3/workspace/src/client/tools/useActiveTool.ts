@@ -62,11 +62,18 @@ export const WRITING_TOOLS: readonly ToolId[] = [
  * itself: N makes a note where the board is looking at (story 2), which is a friendlier thing than
  * a tool that has to be pointed, and a board with two answers to one key is a board where one of
  * them is a lie. It is still in {@link TOOL_SHORTCUTS} because the map is the keyboard's map, not
- * the set of armed tools. `pen`, `image` and `comment` are missing because nothing in this build
- * draws them: a shortcut that armed a tool with no behaviour behind it would leave the pointer
- * doing nothing at all, which is worse than the key doing nothing.
+ * the set of armed tools. `pen` joins the list in story 11, and is the first tool that does not put
+ * itself away when it has made a thing. `image` and `comment` are missing because nothing in this
+ * build draws them: a shortcut that armed a tool with no behaviour behind it would leave the
+ * pointer doing nothing at all, which is worse than the key doing nothing.
  */
-export const DEFAULT_AVAILABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+export const DEFAULT_AVAILABLE_TOOLS: readonly ToolId[] = [
+  'select',
+  'text',
+  'shape',
+  'connector',
+  'pen',
+];
 
 /** The tool a board starts in, and returns to: pointing at things rather than making them. */
 export const DEFAULT_TOOL: ToolId = 'select';

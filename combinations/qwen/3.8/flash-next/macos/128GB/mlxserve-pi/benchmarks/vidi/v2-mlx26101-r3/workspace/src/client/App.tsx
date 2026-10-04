@@ -18,6 +18,9 @@ import { Toolbar } from './board/Toolbar';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { BoardProvider, type BoardServices } from './board/BoardContext';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
@@ -121,6 +124,10 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
     editing: selection.editingId !== null,
     onSelect: selectOne,
   });
+  // What the pen is set to draw with. Kept here, next to the tool that uses it, because it is the
+  // board's session rather than the toolbar's: the strokes already on the board were drawn with the
+  // colour and width they were drawn with, and changing a swatch changes only the next one.
+  const pen = usePenOptions();
   // The canvas the board's own text measurements are taken against - the ones asked for from the
   // board rather than from inside a text object, which is where a size change or a fresh heading's
   // first box is measured.
@@ -454,6 +461,28 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
       ) : null}
       {tool === 'connector' ? (
         <ConnectorTool camera={camera} snapshot={notes} onCreated={toolCreated} />
+      ) : null}
+      {tool === 'pen' ? (
+        // The pen, and the two choices that go with it. Mounted and unmounted with the tool for the
+        // reason the other two are: unmounting is what makes Escape drop the stroke in progress.
+        // Unlike them it is handed no `onCreated` - a finished stroke leaves the pen up, because
+        // nobody draws exactly one stroke - and it is handed the document and this client's id, which
+        // is who the stroke is signed by.
+        <>
+          <PenTool
+            camera={camera}
+            color={pen.color}
+            thickness={pen.thickness}
+            doc={doc}
+            identityId={String(doc.clientID)}
+          />
+          <PenToolbar
+            color={pen.color}
+            thickness={pen.thickness}
+            onColor={pen.setColor}
+            onThickness={pen.setThickness}
+          />
+        </>
       ) : null}
       <SelectionBar
         ids={selection.ids}

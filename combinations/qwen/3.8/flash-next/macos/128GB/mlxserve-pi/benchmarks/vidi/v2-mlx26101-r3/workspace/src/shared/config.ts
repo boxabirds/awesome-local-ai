@@ -343,3 +343,94 @@ export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 
 /** The radius of the four dots a shape shows on its sides while an arrow is aimed at it. */
 export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+/* ------------------------------------------------------------------ *
+ * The pen (story 11)                                                  *
+ * ------------------------------------------------------------------ */
+
+/**
+ * The six colours the pen draws with, stored in the document by name.
+ *
+ * These are drawing colours, not sticky note colours: a board has both on it, and a black line on a
+ * yellow note is not a colour the note can be. Like the shape palette, the document keeps the name
+ * and the hex lives here, so repainting the palette is a change to one file and not a migration.
+ */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+/** The name a pen colour is stored under. */
+export type PenColor = keyof typeof PEN_COLORS;
+
+/**
+ * The three pen widths, in world units - which is what "keeping the thickness" means when a stroke
+ * is resized: the line is drawn this thick whatever box it is scaled into.
+ */
+export const PEN_THICKNESS_WORLD = {
+  thin: 2,
+  medium: 4,
+  thick: 8,
+} as const;
+
+/** The name a pen width is stored under. */
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** What a pen that has never been configured draws with: black, and the middle of the three widths. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/** Whether `value` is one of the six pen colours; anything else reads back as the default. */
+export function isPenColor(value: unknown): value is PenColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_COLORS, value);
+}
+
+/** Whether `value` is one of the three pen widths; anything else reads back as the default. */
+export function isPenThickness(value: unknown): value is PenThickness {
+  return (
+    typeof value === 'string' &&
+    Object.prototype.hasOwnProperty.call(PEN_THICKNESS_WORLD, value)
+  );
+}
+
+/**
+ * How far a stored path may stray from the captured one, in *screen* pixels.
+ *
+ * A captured stroke is a point per coalesced pointer sample, which is far more than a drawing needs:
+ * most of those points say the same thing as their neighbours to within a pixel. The path is
+ * simplified against this tolerance when the stroke is committed, and the tolerance is divided by the
+ * zoom - so a person sketching zoomed out is simplified more coarsely, in *world* units, than one
+ * sketching zoomed in, and what is thrown away is always about a pixel on their screen. See
+ * {@link STROKE_HIT_TOLERANCE_PX}, which is the same argument for clicks.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * How many captured points one stroke may hold, in world units of patience: a stroke longer than
+ * this is committed in parts, each part starting at the point the part before it ended at.
+ *
+ * The limit is not about storage - a Y.Map holds a thousand numbers without complaining - it is about
+ * the size of a single transaction. A five-minute stroke on a 240 Hz tablet is tens of thousands of
+ * points, and one update carrying all of them is one update nobody can render until it has arrived,
+ * on every peer, every time. Committing every {@link STROKE_MAX_POINTS} points keeps each update the
+ * size of a stroke segment rather than the size of a drawing session.
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/**
+ * How close to a stroke a click has to land to select it, in *screen* pixels.
+ *
+ * The second instance of the argument story 10 made for arrows ({@link CONNECTOR_HIT_TOLERANCE_PX}),
+ * and it is a stronger argument here: a thin stroke is two world units, which at 25% zoom is half a
+ * pixel - and a thin stroke is one of the three widths a person is offered. So the tolerance is
+ * six pixels converted to world units by dividing by the zoom, and a thin stroke stays clickable at
+ * every zoom level.
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/** The smallest box a stroke may be resized to, in world units: a dot is already this big. */
+export const STROKE_MIN_SIZE_WORLD = 4;

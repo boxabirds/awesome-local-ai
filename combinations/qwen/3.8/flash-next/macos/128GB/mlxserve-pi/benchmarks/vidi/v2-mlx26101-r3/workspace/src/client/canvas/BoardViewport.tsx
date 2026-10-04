@@ -310,6 +310,16 @@ export function BoardViewport({
     if (event.pointerType === 'mouse' && event.button !== 0) {
       return;
     }
+    if (tool === 'pen') {
+      // The Pen tool takes every drag on the board, including one that starts on top of something that
+      // is already there: a press with the pen is a line being drawn, never a board being moved and
+      // never a note being picked up. {@link PenTool} listens on the window in the capture phase and
+      // swallows the press before it reaches this handler, so the line below is the rule rather than
+      // the mechanism - and the rule is written here anyway, because a mechanism that lives in another
+      // file is a thing a later story can undo by accident. The wheel, the trackpad and the pinch are
+      // deliberately untouched: while the pen is up, scrolling still navigates (story 1 unchanged).
+      return;
+    }
     // Only empty board space starts a drag; board objects can stop propagation.
     if (!isBoardSurface(element, event.target)) {
       return;
