@@ -1,3 +1,108 @@
+commit fe6d28ec618cea51c665cf27d2c6493a7b7aba4f
+agent  Sun Oct 4 03:07:59 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ PROGRESS.md | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+commit c0a1e5f509a0469de81275cda7247014e4e14984
+agent  Sun Oct 4 03:07:02 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ src/client/App.tsx                        |  23 ++-
+ src/client/board/Toolbar.tsx              |   3 +
+ src/client/sync/ConnectionStatus.tsx      |  13 ++
+ src/client/sync/connectBoard.ts           |  45 +++++-
+ src/worker/board-room.ts                  |  94 ++++++++++--
+ src/worker/index.ts                       |  34 ++++-
+ tests/component/load-failure.test.tsx     | 240 ++++++++++++++++++++++++++++++
+ tests/e2e/helpers/seed-board.ts           |  59 +++-----
+ tests/e2e/helpers/wrangler-process.ts     |  48 ++++--
+ tests/e2e/persistence/persistence.spec.ts |  35 +++++
+ wrangler.jsonc                            |   1 +
+ 11 files changed, 517 insertions(+), 78 deletions(-)
+commit e5d2fc660e73774046398b371e85403d6e549128
+agent  Sun Oct 4 01:53:40 2026 +0100
+
+    story 4 task 6: E2E persistence across real process restarts (TC-19..TC-21)
+
+
+ PROGRESS.md                               |   9 +-
+ package.json                              |   3 +-
+ playwright.config.ts                      |   3 +
+ playwright.persistence.config.ts          |  25 ++++
+ src/client/sync/connectBoard.ts           |   5 +-
+ tests/e2e/helpers/participants.ts         |   4 +-
+ tests/e2e/helpers/seed-board.ts           |  87 ++++++++++++++
+ tests/e2e/helpers/wrangler-process.ts     | 112 ++++++++++++++++++
+ tests/e2e/live-collab.spec.ts             |  20 ++--
+ tests/e2e/persistence/global-setup.ts     |   9 ++
+ tests/e2e/persistence/persistence.spec.ts | 182 ++++++++++++++++++++++++++++++
+ 11 files changed, 442 insertions(+), 17 deletions(-)
+commit 2bb22c6ff83687e0eb0c1950a91ca29de59c6469
+agent  Sun Oct 4 01:29:02 2026 +0100
+
+    story 4 task 5: persistent room integration tests (TC-12..TC-18, TC-26)
+
+
+ PROGRESS.md                                      |   4 +-
+ src/worker/board-room.ts                         |   9 +
+ src/worker/board-store.ts                        |  67 ++--
+ tests/integration/board-room-persistence.test.ts | 471 +++++++++++++++++++++++
+ 4 files changed, 516 insertions(+), 35 deletions(-)
+commit 80bed1c66a70883afe5ac46229d74d14263a7ae7
+agent  Sun Oct 4 01:21:37 2026 +0100
+
+    story 4 task 4: persistent BoardRoom (load on wake, store-before-broadcast, hibernation)
+
+
+ PROGRESS.md              |   4 +-
+ src/worker/board-room.ts | 269 +++++++++++++++++++++++++++++++++++------------
+ 2 files changed, 204 insertions(+), 69 deletions(-)
+commit 15e2a519fd11de4f22b993fe9e53a2eeb4e11638
+agent  Sun Oct 4 01:12:54 2026 +0100
+
+    story 4 tasks 2-3: BoardStore (schema, append, load+quarantine, chunked compaction) and integration tests
+
+
+ PROGRESS.md                               |   6 +-
+ package.json                              |   2 +-
+ src/worker/board-store.ts                 | 362 ++++++++++++++++++++---
+ src/worker/room-state.ts                  |  40 ++-
+ tests/component/ConnectionStatus.test.tsx |   5 +-
+ tests/e2e/helpers/participants.ts         |   2 +-
+ tests/fixtures/boards.ts                  | 185 ++++++++++++
+ tests/integration/board-room.test.ts      |   3 +-
+ tests/integration/board-store.test.ts     | 473 ++++++++++++++++++++++++++++++
+ tests/integration/worker.test.ts          |   2 +-
+ tests/integration/ws-client.ts            |   2 +-
+ tests/types/cloudflare-test.d.ts          |  23 ++
+ 12 files changed, 1056 insertions(+), 49 deletions(-)
+commit 98e7a5c3f47fa76aeee8fcc75a1e52ec422ae1af
+agent  Sun Oct 4 00:10:31 2026 +0100
+
+    story 4 task 1: unit tests for chunking, compaction threshold, room state (TC-01, TC-02, TC-27)
+
+
+ PROGRESS.md                           |   2 +-
+ src/shared/config.ts                  |  23 ++++
+ src/shared/protocol.ts                |   6 +
+ src/worker/board-store.ts             |  72 ++++++++++++
+ src/worker/room-state.ts              |  49 ++++++++
+ tests/unit/board-store-chunks.test.ts |  78 +++++++++++++
+ tests/unit/room-state.test.ts         | 203 ++++++++++++++++++++++++++++++++++
+ 7 files changed, 432 insertions(+), 1 deletion(-)
+commit a37639b6ebd2c8d4d94ae8756614ef4eb451c85b
+vidi-agent  Sun Oct 4 00:01:30 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 26 ++++++++++----------------
+ 1 file changed, 10 insertions(+), 16 deletions(-)
 commit b6d49cc4a32f988a9f532113e9b43d6318aa60d2
 agent  Sat Oct 3 23:52:17 2026 +0100
 

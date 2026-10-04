@@ -2,6 +2,8 @@ import type { JSX } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /** When true the button is inert (the board is not editable, e.g. load failed). */
+  disabled?: boolean;
 }
 
 /**
@@ -20,6 +22,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         className="board-toolbar-sticky"
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
+        disabled={props.disabled}
         onClick={props.onCreateSticky}
       >
         <span className="board-toolbar-sticky-icon" aria-hidden="true">📝</span>

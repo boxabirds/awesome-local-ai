@@ -3,7 +3,7 @@ import { SELF } from 'cloudflare:test';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { createClient, type WsClient } from "./ws-client";
-import { createSticky, snapshot } from '../../src/shared/board-model';
+import { createSticky } from '../../src/shared/board-model';
 
 describe('TC-04: invalid board id → 400', () => {
   it('returns 400 for invalid board id with Upgrade header', async () => {

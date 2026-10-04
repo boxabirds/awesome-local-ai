@@ -23,22 +23,20 @@ async function firstNoteText(p: Participant): Promise<string> {
 }
 
 /**
- * Create a sticky note by clicking on the canvas.
+ * Create a sticky note by double-clicking the board (the app's create gesture).
+ * Leaves the new note in edit mode, ready to receive typed text.
  */
 async function createNote(p: Participant, x: number, y: number): Promise<void> {
-  await p.page.mouse.click(x, y);
+  await p.page.mouse.dblclick(x, y);
 }
 
 /**
- * Type text into the selected note.
+ * Type text into the note that is currently in edit mode (created by
+ * createNote), then commit it with Escape.
  */
 async function typeInNote(p: Participant, text: string): Promise<void> {
-  // Double-click to edit
-  const note = p.page.locator('[data-vidi6="sticky-note"]').first();
-  await note.dblclick();
   await p.page.keyboard.type(text);
-  // Click outside to deselect
-  await p.page.mouse.click(10, 10);
+  await p.page.keyboard.press('Escape');
 }
 
 test.describe('TC-22: Two-person workshop', () => {
@@ -114,10 +112,8 @@ test.describe('TC-23: Concurrent typing', () => {
       'Sam sees the note'
     );
     
-    // Both type into the note
-    // Alex types "Hello "
-    const alexNote = alex.page.locator('[data-vidi6="sticky-note"]').first();
-    await alexNote.dblclick();
+    // Both type into the note.
+    // Alex's note is already in edit mode (from createNote), so just type.
     await alex.page.keyboard.type('Hello ');
     
     // Sam types "World"

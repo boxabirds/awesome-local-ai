@@ -8,6 +8,9 @@ const INSPECTOR_PORT = 27241;
 
 export default defineConfig({
   testDir: 'tests/e2e',
+  // Persistence E2E runs its own `wrangler dev --persist-to` process per suite
+  // (see playwright.persistence.config.ts), so it is excluded here.
+  testIgnore: 'persistence/**',
   fullyParallel: true,
   forbidOnly: true,
   retries: 0,

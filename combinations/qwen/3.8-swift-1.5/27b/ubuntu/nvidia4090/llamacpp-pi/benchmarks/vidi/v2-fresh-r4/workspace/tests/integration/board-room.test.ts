@@ -93,7 +93,6 @@ async function waitFor(cond: () => boolean, timeoutMs = 10000): Promise<void> {
 
 function snapshotsEqual(a: readonly StickySnapshot[], b: readonly StickySnapshot[]): boolean {
   if (a.length !== b.length) return false;
-  const aIds = new Set(a.map(n => n.id));
   for (const na of a) {
     const nb = b.find(n => n.id === na.id);
     if (!nb) return false;
@@ -268,7 +267,7 @@ describe('TC-10: concurrent position sets converge', () => {
     await waitFor(() => {
       const sa = snapshot(docA).find(n => n.id === id);
       const sb = snapshot(docB).find(n => n.id === id);
-      return sa && sb && sa.x === sb.x;
+      return !!(sa && sb && sa.x === sb.x);
     });
     expect(snapshot(docA).find(n => n.id === id)!.x)
       .toBe(snapshot(docB).find(n => n.id === id)!.x);

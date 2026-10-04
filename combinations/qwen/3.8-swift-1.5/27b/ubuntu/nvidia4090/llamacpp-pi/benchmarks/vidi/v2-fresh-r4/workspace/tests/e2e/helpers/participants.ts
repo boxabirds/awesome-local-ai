@@ -1,4 +1,4 @@
-import { type Page, type BrowserContext, expect } from '@playwright/test';
+import { type Page, type BrowserContext } from '@playwright/test';
 
 // Inline constants (Playwright tests can't import from src/)
 const LIVE_UPDATE_LATENCY_BUDGET_MS = 500;
@@ -34,8 +34,8 @@ export async function openParticipant(
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto(`${baseURL}/b/${boardId}`);
-  // Wait for the board to be ready (canvas visible)
-  await page.waitForSelector('canvas', { timeout: E2E_EVENTUAL_TIMEOUT_MS });
+  // Wait for the board to be ready (the viewport is present once the app mounts)
+  await page.waitForSelector('[data-vidi6="board-viewport"]', { timeout: E2E_EVENTUAL_TIMEOUT_MS });
   return { context, page, boardId };
 }
 

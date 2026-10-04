@@ -77,7 +77,7 @@ export async function createClient(boardId: string): Promise<WsClient> {
   let msgCount = 0;
   let closed = false;
   let closeCode: number | null = null;
-  const closeResolvers: ((code: number | null) => void)[] = [];
+  let closeResolvers: ((code: number | null) => void)[] = [];
 
   // This is the critical part - the handler is set up here,
   // in the same async context as the test.

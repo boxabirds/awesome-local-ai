@@ -1,8 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import type { ConnectionState } from '../../src/client/sync/connectBoard';
-import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 
 function getBadgeText(): string | null {
   const badge = screen.queryByRole('status');

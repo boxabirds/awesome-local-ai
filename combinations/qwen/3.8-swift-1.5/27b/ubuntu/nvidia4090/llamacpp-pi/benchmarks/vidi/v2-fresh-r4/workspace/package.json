@@ -10,8 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:integration": "vitest run --project integration",
-    "test:e2e": "node scripts/run-e2e.mjs"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "node scripts/run-e2e.mjs",
+    "test:e2e:persistence": "playwright test --config playwright.persistence.config.ts"
   },
   "dependencies": {
     "lib0": "^0.2.119",

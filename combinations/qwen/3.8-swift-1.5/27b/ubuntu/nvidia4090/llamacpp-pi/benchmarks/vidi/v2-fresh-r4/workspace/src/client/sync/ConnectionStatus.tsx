@@ -6,6 +6,7 @@ import type { ConnectionState } from './connectBoard';
  * - "Connecting…" while first loading
  * - Amber "Reconnecting…" while disconnected
  * - Green "Connected" for 2 seconds after reconnection
+ * - Red "This board couldn't be loaded. Retrying…" when the saved state failed to load
  */
 export function ConnectionStatus(props: { state: ConnectionState }): import('react').JSX.Element | null {
   const { state } = props;
@@ -46,6 +47,18 @@ export function ConnectionStatus(props: { state: ConnectionState }): import('rea
         className="connection-status connection-status--connected"
       >
         Connected
+      </div>
+    );
+  }
+
+  if (state === 'load_failed') {
+    return (
+      <div
+        role="status"
+        aria-label="Load failed"
+        className="connection-status connection-status--load-failed"
+      >
+        This board couldn't be loaded. Retrying…
       </div>
     );
   }

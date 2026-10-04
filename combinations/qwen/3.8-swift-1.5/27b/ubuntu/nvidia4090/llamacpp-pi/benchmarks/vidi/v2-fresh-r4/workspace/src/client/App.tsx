@@ -20,6 +20,17 @@ function getBoardIdFromPath(): string | null {
   return match ? match[1] : null;
 }
 
+/**
+ * Whether the board is editable in the given connection state.
+ * Only `load_failed` disables editing: the saved state is unreadable, so the
+ * board must not be presented as an empty editable board. Transient states
+ * (reconnecting after a storage/network close) keep editing enabled because
+ * the board is readable and unsaved changes are retried on reconnection.
+ */
+export function canEdit(state: import('./sync/connectBoard').ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
 /** Top-level layout: full-window board, zoom controls, first-use hint, sticky notes. */
 export default function App(): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -37,6 +48,7 @@ export default function App(): JSX.Element {
   }, []); // only on mount
 
   const { doc, notes, connectionState } = useBoardDoc(boardId ?? undefined);
+  const editable = canEdit(connectionState);
 
   // Expose connection state on the test hook
   useEffect(() => {
@@ -75,15 +87,16 @@ export default function App(): JSX.Element {
     [camera.camera],
   );
 
-  // Create a sticky note at a world point
+  // Create a sticky note at a world point (no-op while the board is not editable)
   const createStickyAt = useCallback(
     (worldPoint: Point) => {
+      if (!canEdit(connectionState)) return;
       const id = createSticky(doc, worldPoint);
       if (id) {
         startEdit(id);
       }
     },
-    [doc, startEdit],
+    [doc, startEdit, connectionState],
   );
 
   // Double-click on empty board space → create note centred there
@@ -116,6 +129,8 @@ export default function App(): JSX.Element {
         return;
       }
 
+      if (!canEdit(connectionState)) return;
+
       if (e.key === 'Enter' && selectedId && !editingId) {
         e.preventDefault();
         startEdit(selectedId);
@@ -127,7 +142,7 @@ export default function App(): JSX.Element {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedId, editingId, doc, select, startEdit]);
+  }, [selectedId, editingId, doc, select, startEdit, connectionState]);
 
   return (
     <div className="app-root" ref={rootRef}>
@@ -157,7 +172,7 @@ export default function App(): JSX.Element {
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={handleCreateSticky} />
+      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} />
       <ZoomControls
         zoomPercent={zoomPercent(camera.camera)}
         canZoomIn={canZoomIn(camera.camera)}
