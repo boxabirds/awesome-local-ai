@@ -581,3 +581,118 @@ a:focus-visible {
   font-size: 13px;
 }
 
+
+/* Selection overlay (story 7) ------------------------------------------- */
+
+/* A zero-size box at the world origin: the outlines and handles inside it are placed in
+   world coordinates, exactly as the objects they mark are. It draws over the objects and
+   lets every press through to them - except on the handles themselves, which are the only
+   part of a selection you can press. */
+.selection-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* One line per selected object, so a selection of nine says which nine they are. The
+   thickness is set inline as 1/zoom, so the line is one screen pixel at any zoom: a
+   selection indicator that disappears when you zoom out is not one. */
+.selection-outline {
+  position: absolute;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: var(--accent);
+  pointer-events: none;
+}
+
+/* The one box around the whole selection, which is what the handles belong to. */
+.selection-bounds {
+  position: absolute;
+  box-sizing: border-box;
+  border-style: dashed;
+  border-color: var(--accent);
+  background: rgba(37, 99, 235, 0.04);
+  pointer-events: none;
+}
+
+/* Eight handles, HANDLE_SIZE_PX across on the screen for the same reason: divided by the
+   zoom in the inline style. A control you cannot point at is not a control. */
+.selection-handle {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 0;
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--surface);
+  border-radius: 2px;
+  /* The one part of the overlay that takes a press. */
+  pointer-events: auto;
+}
+
+.selection-handle:hover {
+  background: var(--accent);
+}
+
+/* The marquee rectangle, drawn where it is in the world rather than where it is on the
+   screen: it is the same box the selection is taken from. */
+.marquee-rect {
+  position: absolute;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: var(--accent);
+  background: rgba(37, 99, 235, 0.12);
+  pointer-events: none;
+}
+
+/* The bar over the board while several objects are selected. It is fixed to the window,
+   not to the selection: the selection moves when the board does, and a bar that followed
+   nine notes around would be nine notes' worth of movement added to a drag that is
+   already moving nine notes. */
+.selection-bar {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  z-index: 20;
+}
+
+.selection-bar__count {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.selection-bar__delete {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.selection-bar__delete:hover:not(:disabled) {
+  color: #b42318;
+  background: #eef1f5;
+}
+
+.selection-bar__delete:disabled {
+  color: #a6aebc;
+  cursor: default;
+}

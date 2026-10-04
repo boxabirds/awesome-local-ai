@@ -120,3 +120,21 @@ export const BOARD_CHECK_RETRY_BASE_MS = 1000;
  * server all share one machine, so wall-clock timing there is not a pass/fail signal.
  */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+/* Multi-selection (story 7). -------------------------------------------------- */
+
+/** Size of a resize handle in screen pixels; handles stay this big at every zoom level. */
+export const HANDLE_SIZE_PX = 8;
+/** Smallest a sticky note can be resized to, in world units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/**
+ * Largest any single object may be resized to, in world units (story 7).
+ *
+ * One global number rather than one per type, so that the types stories 9 to 12 add stop at
+ * the same size as a sticky note instead of inventing their own limit.
+ */
+export const MAX_OBJECT_SIZE_WORLD = 20000;
+/** How far an arrow key moves the selection, in world units. */
+export const NUDGE_STEP_WORLD = 1;
+/** How far Shift + arrow moves the selection: a nudge that covers ground. */
+export const NUDGE_LARGE_STEP_WORLD = 10;

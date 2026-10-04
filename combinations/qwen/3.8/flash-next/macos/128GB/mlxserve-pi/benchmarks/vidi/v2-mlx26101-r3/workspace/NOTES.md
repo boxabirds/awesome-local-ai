@@ -13,15 +13,15 @@ story design, and gotchas for the next story.
 | `npm run build:test` | Same build with `MODE=test`, which compiles in the `window.__vidi6` e2e hook. Playwright's `globalSetup` runs it before any test, so a server that is already listening (and reads its assets off disk per request) serves fresh code too. |
 | `npm run preview` | `wrangler dev` serving `dist/client` at `http://127.0.0.1:23612` (inspector port 23613) — the same serving path later stories use. |
 | `npm run typecheck` | `tsc --noEmit` over `tsconfig.json` (client + shared), `tsconfig.worker.json` (Worker + shared, `@cloudflare/workers-types`), `tsconfig.test.json` (unit/component tests + Playwright) and `tsconfig.integration.json` (workerd tests). |
-| `npm run test:unit` | 158 tests, 13 files, node environment (camera 23, board model 25, sticky text 19 + 15 concurrent, board id 6, link-code generation 5, protocol 10, room state machine 12, board store framing/queue 12+, test-hook routing 6, board API answers 9, page state machines 10, router 6, …). |
-| `npm run test:component` | 128 jsdom tests (viewport input, zoom controls, hint, sticky note, sticky text editor, toolbars, connection status badge, close codes, the edit lock when a board cannot be read, the three pages and the Share panel 16). |
+| `npm run test:unit` | 230 tests, 17 files, node environment (camera 23, board model 25 + group operations 23, geometry 25, object registry 7, selection reducer 17, sticky text 19 + 15 concurrent, board id 6, link-code generation 5, protocol 10, room state machine 12, board store framing/queue 12+, test-hook routing 6, board API answers 9, page state machines 10, router 6, …). |
+| `npm run test:component` | 209 jsdom tests, 14 files (viewport input, zoom controls, hint, sticky note, sticky text editor, toolbars, selection bar 13, marquee 16, transform gesture 31, selection keys 21, connection status badge, close codes, the edit lock when a board cannot be read, the three pages and the Share panel 16). |
 | `npm run test:integration` | 68 tests, 6 files, in **workerd** via `@cloudflare/vitest-pool-workers` (`SELF.fetch`, real `BoardRoom` Durable Object, real WebSockets, real Yjs, real DO SQLite). Needs `npm run build` first, because TC-06 asks the assets binding for `index.html` (and story 5's TC-32 reads the built file for the `no-referrer` meta). |
 | `npm test` | All three vitest projects (unit, component, integration) in one run. |
-| `npm run test:e2e` | Playwright. Builds in `globalSetup`, then starts `npx wrangler dev --ip 127.0.0.1 --port 23614 --inspector-port 23615 --var TEST_HOOKS:1` (or reuses one already listening), viewport 1280×800, **Chromium only by default** (see deviation 1). 63 tests (story 1 23, story 2 20, story 3 8, story 4 broken board 2, story 4 persistence 3, story 5 sharing 7). The two `@nightly` tests are excluded here. |
+| `npm run test:e2e` | Playwright. Builds in `globalSetup`, then starts `npx wrangler dev --ip 127.0.0.1 --port 23614 --inspector-port 23615 --var TEST_HOOKS:1` (or reuses one already listening), viewport 1280×800, **Chromium only by default** (see deviation 1). 71 tests (story 1 23, story 2 20, story 3 8, story 4 broken board 2 + persistence 3, story 5 sharing 7, story 7 8 — 3 in `selection.spec.ts`, 5 in `reorganisation.spec.ts`). The two `@nightly` tests are excluded here. |
 | `BROWSERS=all npm run test:e2e` (or `npm run test:e2e:all-browsers`) | Chromium + Firefox + WebKit. |
 | `npm run test:e2e:nightly` | Only the `@nightly` tests (TC-29 idle connection, TC-30 capacity soak). About 2 minutes; `NIGHTLY=1` is the switch, so `NIGHTLY=1 npx playwright test -g "TC-30"` runs one of them. |
 | `npm run check:no-test-hook` | Fails if a built asset contains `__vidi6` (run after `npm run build`). |
-| `npm run verify` | typecheck → build → no-test-hook → unit → component → e2e(Chromium). One command for the whole gate. |
+| `npm run verify` | typecheck → build → no-test-hook → unit → component → integration → e2e (Chromium). One command for the whole gate. |
 
 Ports in use: dev `23600`, preview `23612/23613`, e2e `23614/23615` (override with
 `DEV_PORT`, `E2E_PORT`, `E2E_INSPECTOR_PORT`). The persistence tests own their server and start
@@ -239,6 +239,89 @@ above.
     green and the other two die in `browserType.launch` (`Abort trap: 6`) before a page opens, which
     is the same sandbox limit story 1 met. Nothing in the two tests is Chromium-specific, so the full
     matrix is one env var away on a machine where those binaries start.
+
+33. **`selectionReducer` takes the ids the board holds as a third, optional argument.** The
+    contract is `selectionReducer(state, action)`; the implementation is
+    `(state, action, present?)`. Without it, "a press on an object somebody else deleted a moment
+    ago is ignored" can only be implemented in the hook, which is a thing unit tests cannot reach -
+    and that case (a click racing a remote delete) is the one the design's own edge list asks for.
+    With `present` omitted the reducer behaves exactly as the contract says, and every contract case
+    is tested that way too.
+34. **`SelectionAction`'s edit actions are `startEdit`/`endEdit`, not the contract's `edit`.**
+    `endEdit` carries `next: 'selected' | 'unselected'`, because story 2 already decided that Escape
+    keeps the note selected and a click outside does not, and a no-arg `edit: null` cannot say which
+    of the two happened. `useSelection` therefore hands back `startEdit(id)` / `endEdit(next)` plus
+    `size`, `onlyId` and `selectAll(ids)` (`selectAll` is the design's `setMany(all, false)` named,
+    because `useBoardKeys` is the only caller and "select all" is what it means).
+35. **`useMarquee` takes an options object, and `end` takes the pointer position.** The contract is
+    `useMarquee(camera, snapshot, onSelect)` with `onSelect(ids)` and an argument-less `end()`; the
+    implementation is `useMarquee({ camera, objects, onSelect })` with `onSelect(ids, additive)` and
+    `end(screen)`. `end` has to know where the pointer was let go - a rectangle whose last position
+    is a frame stale is a rectangle that misses objects at its edge - and `additive` is the design's
+    own rule ("Objects already selected stay selected (additive)") stated where the caller can see it.
+    `MarqueeController` also carries `active()` so `App` can tell "a marquee is being dragged" from
+    "a marquee was dragged and has just finished" when Escape is pressed.
+36. **The transform gesture grows two members: `onTransformingChange` and
+    `onObjectLostPointerCapture`.** The first tells the board which objects are being carried, which
+    is how they get `data-dragging` (story 2 established that a note being dragged must not also be
+    hit-testable by the toolbar). The second is not optional in a browser: bringing a selection to
+    the front moves its DOM nodes, and Chromium answers that with `lostpointercapture` on the first
+    `pointermove` - the story-2 gotcha, one level up. It ends the gesture only when the button is
+    off (`event.buttons === 0`), and ignores the reorder otherwise.
+37. **Escape aborts a marquee before it empties a selection.** `useBoardKeys` implements the
+    design's `Escape → clear`; `App`'s handler asks the marquee first whether one is in flight, and
+    if so calls `cancel()` and leaves the selection exactly as it was. The design says the same
+    thing in its marquee error line ("pointercancel/Escape → cancel(), selection unchanged"); it
+    just does not say who arbitrates between the two Escapes.
+38. **Enter / F2 (edit the one selected sticky) stayed in `App.tsx`.** The design's keyboard section
+    says `useBoardKeys` "replaces story 2's Delete/Enter handling in App.tsx". Delete, Backspace,
+    Ctrl/Cmd+A, Escape and the arrows are all in the hook; Enter-to-edit is not, because starting to
+    edit means telling `StickyNote` to mount its editor, which is a callback `App` owns
+    (`startEdit` → `setEditingId`), and a hook that had to reach it would need `App`'s state in its
+    options. What `useBoardKeys` does own is `isTextEntryTarget`, which is the shared "is somebody
+    typing?" question both handlers ask.
+39. **A second object type exists, in the tests.** TC-24 is specified against a "registered non-locked
+    type" - a type that is resizable but does not keep its proportions - and a sticky note is the
+    only real type until story 9. `tests/fixtures/testbox.tsx` registers one (`testbox`, resizable,
+    not aspect-locked, `minSize` 10) so the edge handle, Shift, and the per-type minimum are all
+    tested against a type that *declares* something different from a sticky note, instead of being
+    tested only against the one type that agrees with itself. It is in `tests/fixtures`, never
+    imported by `src/`, and it writes the `objects` map the same way the model does.
+40. **Objects carry `data-object-id`.** The outline, the marquee and the transform gesture all need
+    "which object is this element", and story 2's `data-note-id` is a sticky-note name on a
+    board-wide job. Both attributes are on the element (the second is what the generic code reads),
+    so story 2's helpers keep working and story 9's shapes can be found by the same queries.
+41. **Story 7's e2e work is two files: `tests/e2e/selection.spec.ts` (TC-35) and
+    `tests/e2e/reorganisation.spec.ts` (TC-32, TC-33, TC-34, TC-36), plus
+    `tests/e2e/helpers/selection.ts`.** The split is by what a test needs: TC-35 is two people and a
+    remote delete, and it runs on the ordinary view; the cluster tests need a camera of their own, six
+    notes per test, and world-unit reading of positions and sizes (`placeOf`, `places`,
+    `boundsOfSelection`, `paintTopId`, `handleSizeOnScreen`, `marqueeBox`), which is a helper module of
+    some thirty functions that no earlier story has any use for.
+42. **Story 3's TC-24 now puts both pointers down before either moves.** The test used to read both
+    people's press points, then start both drags in parallel. Under load, one person's first write can
+    move the note - 200 units wide - by twenty units before the other person presses, and the second
+    person then carries it twenty units further than the test allows: the note lands at a position
+    neither pointer was dragged to, and the assertion says so. That is the app being correct (a gesture
+    carries an object from where it was when the press happened, which is Key decision 1 and the reason
+    five people can share one board), and the test never having decided who pressed first. Both
+    pointers are now down, and `before` is read after that, so the race the test is named after is the
+    only race left. It passed 10/10 in isolation and failed once in a full parallel run; the ordering
+    removes the race rather than widening the tolerance.
+43. **`tsconfig.worker-test.json`'s include is narrowed to `tests/fixtures/*.ts`.** It used to pull in
+    `tests/**/*`, which meant the Worker type set (no DOM lib) was being pointed at React component
+    tests. Adding `tests/fixtures/testbox.tsx` would have made that visible as a hundred errors, so
+    the include says what it means: fixtures that are not `.tsx` and are not DOM code.
+
+44. **`SelectionBar` takes an optional `canEdit`, and the drawing carries `data-testid`s the design
+    does not name.** The bar's contract is `{ ids, snapshot, onDelete }`; the implementation adds
+    `canEdit?: boolean` (default `true`), because story 4's rule is that a board which could not be
+    read still shows the board and refuses to write, and a Delete button that deletes nothing is
+    worse than one that is visibly disabled. `SelectionOverlay` labels its three drawings
+    (`selection-outline`, `selection-bounds`, `resize-handle`); the design asks for outlines and
+    handles in the DOM but does not say what they are called, and without names on them the e2e
+    claims about the drawing - which objects are outlined, that eight handles appear, that they keep
+    their size at 50% zoom - cannot be made at all.
 
 ## Gotchas / findings for the next story
 
@@ -508,6 +591,59 @@ above.
   "Couldn't reach vidi6. Retrying…" and asks again), `route.fulfill({ status: 500 })` is the same
   news, and a 200 that names a different board is a different thing entirely.
 
+- **A double-click outside the window is a double-click on nothing** (story 7). A fresh board's
+  standard view is `camera { x: -640, y: -400, zoom: 1 }` in a 1280×800 viewport, so the board a test
+  can click without moving the camera is world `x ∈ [-640, 640]`, `y ∈ [-400, 400]`. A
+  `mouse.dblclick` at world `{x: 700, y: 0}` asks for screen `{x: 1340, y: 400}`, `elementFromPoint`
+  answers `null`, no note is made, and a helper that identifies the note it just made by "which id is
+  new?" reports something impossible. Either keep the layout inside one screen or set the camera
+  first.
+- **A selected note's toolbar is a button laid over the board above the note, and it eats
+  double-clicks** (story 7). `createNoteAt` used to double-click straight away; on a board whose
+  previous note was selected, the point 100 units above and 150 units left of that note is exactly
+  where `.note-toolbar__swatch--orange` is, and the note that was supposed to appear there never
+  appeared. `putThePenDown(page)` (in `tests/e2e/helpers/selection.ts`) presses Escape with the board
+  holding the keyboard, which clears the selection and hides the toolbar. Note the asymmetry it works
+  around: Escape *from inside the editor* keeps the note selected (story 2's rule, TC-24), so it does
+  not by itself clear the toolbar.
+- **A sticky note's stored `x`/`y` is its centre; the DOM's `style.left`/`top` is the box's top-left
+  corner** (story 7). `data-x`/`data-y` and `faces()` speak centres, `placeOf()` reads
+  `style.left/top/width/height` and speaks the box, and the two differ by half the note's size -
+  100 units for a default note, and a different amount for a resized one. Reading one where the other
+  is expected gives numbers that are wrong by a size, in a test that then asserts a tolerance and
+  fails for a reason that reads like a rounding problem. `objectBounds()` in the model is the one
+  function that converts between them.
+- **A marquee *adds* to the selection** (story 7, and the design says so: "Objects already selected
+  stay selected (additive)"). A test that draws a box and asserts "the selection is exactly these
+  notes" is therefore also asserting that nothing was selected before it, which is true only if the
+  test put the pen down first - notes a test created are notes the board holds selected. And a box
+  drawn round clear board space selects nothing *and clears nothing*: Escape is what empties a
+  selection.
+- **Outlines carry `data-object-id` too, so any "what is on the board" query must exclude them**
+  (story 7). The selection outline is drawn over the note it belongs to and names the same object;
+  `element(id)` is `[data-object-id]:not(.selection-outline)`, `elementsOf()` filters the class out,
+  and `paintTopId()` - which asks `document.elementFromPoint` who is really on top - walks up the
+  parent chain and skips any ancestor carrying `.selection-outline` before it reports an id. Without
+  that, "the bystander note is on top before the move" is answered by an outline and means nothing.
+- **Object sizes are read from `style.width`/`style.height`, never from
+  `getBoundingClientRect()`** (story 7). The rect is scaled by the camera's zoom (and picks up the
+  outline's border), so a resized-note assertion written against it either needs the zoom in the
+  expectation or is true at one zoom and false at another. The style is in world units, which is what
+  a size assertion is about; where the claim *is* about pixels - `handleSizeOnScreen`, "handles stay
+  HANDLE_SIZE_PX whatever the zoom" - the bounding box is the right thing to measure.
+- **"Two people drag the same object at the same time" needs both pointers down before either
+  moves** (story 7, deviation 42). `Promise.all([dragPointer(a, …), dragPointer(b, …)])` reads both
+  press points first, and under parallel load the first page's first write shifts a 200-unit object
+  by a fraction of its width before the second page presses - so the second person is legitimately
+  dragging from where the object now is, and the result belongs to neither pointer. The gesture is
+  *designed* to write `start + delta` from the press, so this is not a bug to fix in the app; press
+  both, read the "before" state, then move both.
+- **jsdom cannot test any of the handle or hit-area claims** (story 7). Element rects are 0×0 there,
+  so "eight handles of HANDLE_SIZE_PX", "the handle's screen box is where the corner is", and "the
+  drawn marquee is the requested marquee in world units" are e2e-only (`SelectionOverlay`'s handles,
+  `marqueeBox()`, `handleSizeOnScreen()`). The component tests cover the *decisions* - which object
+  a scale applies to, what a clamp returns - and should not pretend to cover the drawing.
+
 ## Where the next stories plug in
 
 - `src/client/board/useBoardDoc.ts` owns the `Y.Doc` (one per mounted board, `initDoc` makes
@@ -580,3 +716,31 @@ above.
   "not found" said too early. The two state machines (`pageAfter`, `homeAfter`) and the retry schedule
   (`retryDelayFor`) are pure and unit-tested in `tests/unit/pages-state.test.ts`, so a change to them
   is a change to a test table first.
+
+## Where story 7 leaves the board
+
+- **`src/client/objects/registry.tsx` is where a new object type arrives.** One
+  `registerObjectType({ type, draw, resizable, aspectLocked, minSize, defaultSize })` call per type
+  (idempotent, throws only on a *different* spec for the same name) is the whole registration: the
+  board draws it, selects it, boxes it, moves it, resizes it and deletes it without anything else
+  knowing the type exists. `resizable: false` hides the handles for that selection; a selection of
+  mixed types shows the box but writes only the types that declared a size, and only their
+  `minSize` is asked. Stories 9-12 add a call each; `tests/fixtures/testbox.tsx` is the example of a
+  type that answers differently from a sticky note.
+- **Per-type geometry rules are declared, never asked for by name.** `clampScale` and
+  `scaleWithin` in `src/shared/geometry.ts` take a `Rect`, a minimum and the global
+  `MAX_OBJECT_SIZE_WORLD`; none of them mentions `sticky`. A story that wants rotation, snapping or
+  alignment guides adds a pure function there and a `ObjectTypeSpec` field, and the gesture calls it.
+- **Story 8's undo boundaries are already wired.** `useTransformGesture`'s `onGestureStart` /
+  `onGestureEnd` fire exactly once per gesture (not per frame, not per object), so moving nine notes
+  is one thing to undo; `useBoardKeys` and `useSelection` are where the other undoable actions are
+  (delete, resize, text). Every model mutation is still one transaction with `LOCAL_ORIGIN`, which is
+  how a local change is told from an echo.
+- **`useSelection` is per-browser and stays that way**: nothing about a selection is ever written to
+  the `Y.Doc`, and story 6's presence reads awareness for who is here rather than for what anybody
+  has picked. The one shared consequence of a selection is `data-selected`, which is a local attribute
+  on a local element.
+- **The selection prunes itself from the snapshot** (`selectionReducer`'s `prune`), so a story whose
+  objects can disappear under a person - story 10's groups, story 12's undo, story 14's permissions -
+  has that already handled, in unit tests (TC-35 e2e, TC-13/14 component); it does not need its own
+  cleanup and must not add a second one.

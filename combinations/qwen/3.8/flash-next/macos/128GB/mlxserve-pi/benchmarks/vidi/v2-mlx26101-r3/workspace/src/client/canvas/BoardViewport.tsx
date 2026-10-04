@@ -35,7 +35,29 @@ export interface BoardViewportProps {
   onEmptyDoubleClick?(point: Point): void;
   /** A press on empty board space that did not turn into a pan: clears the selection. */
   onEmptyClick?(): void;
+  /**
+   * The selection rectangle gesture. Given, a shift+drag on empty board space draws a marquee
+   * instead of panning the board; not given, shift+drag pans like any other drag.
+   */
+  marquee?: MarqueeHandlers;
 }
+
+/**
+ * The rectangle a person drags across empty board space to select what is inside it.
+ * Points are relative to the top-left of the board area; who they are given to is the board's
+ * business - this component only knows that shift+drag is a rectangle and not a pan.
+ */
+export interface MarqueeHandlers {
+  begin(point: Point): void;
+  move(point: Point): void;
+  /** Let go: whatever the box contains is the caller's to select. */
+  end(point: Point): void;
+  /** Interrupted: the box is thrown away, and nothing else is touched. */
+  cancel(): void;
+}
+
+/** Which gesture the board area is in the middle of. */
+type Gesture = 'none' | 'pan' | 'marquee';
 
 /** Safari's non-standard pinch gesture event (carries a `scale` and pointer position). */
 interface SafariGestureEvent extends MouseEvent {
@@ -58,10 +80,11 @@ export function BoardViewport({
   onViewportResize,
   onEmptyDoubleClick,
   onEmptyClick,
+  marquee,
 }: BoardViewportProps): JSX.Element {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
-  const [panning, setPanning] = useState(false);
-  const panningRef = useRef(false);
+  const [gesture, setGesture] = useState<Gesture>('none');
+  const gestureRef = useRef<Gesture>('none');
   const pointerIdRef = useRef<number | null>(null);
   // Where the current press went down, and whether it travelled far enough to be a pan.
   // A press that stayed put is a click on the board, which deselects.
@@ -82,9 +105,11 @@ export function BoardViewport({
   // The two callbacks above are optional; refs keep the handlers above stable.
   const emptyDoubleClickRef = useRef(onEmptyDoubleClick);
   const emptyClickRef = useRef(onEmptyClick);
+  const marqueeHandlerRef = useRef(marquee);
   useEffect(() => {
     emptyDoubleClickRef.current = onEmptyDoubleClick;
     emptyClickRef.current = onEmptyClick;
+    marqueeHandlerRef.current = marquee;
   });
 
   // Measure the board area; the camera's x/y are not changed by a resize.
@@ -187,17 +212,33 @@ export function BoardViewport({
     if (!isBoardSurface(element, event.target)) {
       return;
     }
+    const point = boardPoint(element, event.clientX, event.clientY);
+
+    if (event.shiftKey && marqueeHandlerRef.current !== undefined) {
+      // Shift + drag draws the selection rectangle instead of moving the board. Shift is borrowed
+      // because the board has no tools and a drag is the only thing a pointer does on empty space
+      // - and because it is what every design tool does, so nobody has to be told about it.
+      capturePointer(element, event.pointerId);
+      gestureRef.current = 'marquee';
+      pointerIdRef.current = event.pointerId;
+      pressOriginRef.current = point;
+      movedRef.current = false;
+      setGesture('marquee');
+      marqueeHandlerRef.current.begin(point);
+      return;
+    }
+
     capturePointer(element, event.pointerId);
-    panningRef.current = true;
+    gestureRef.current = 'pan';
     pointerIdRef.current = event.pointerId;
-    pressOriginRef.current = boardPoint(element, event.clientX, event.clientY);
+    pressOriginRef.current = point;
     movedRef.current = false;
-    setPanning(true);
-    inputRef.current.beginPan(boardPoint(element, event.clientX, event.clientY));
+    setGesture('pan');
+    inputRef.current.beginPan(point);
   };
 
   const movePan = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (!panningRef.current || event.pointerId !== pointerIdRef.current) {
+    if (gestureRef.current === 'none' || event.pointerId !== pointerIdRef.current) {
       return;
     }
     const element = surfaceRef.current;
@@ -205,6 +246,11 @@ export function BoardViewport({
       return;
     }
     const point = boardPoint(element, event.clientX, event.clientY);
+    if (gestureRef.current === 'marquee') {
+      movedRef.current = true;
+      marqueeHandlerRef.current?.move(point);
+      return;
+    }
     const origin = pressOriginRef.current;
     if (
       origin !== null &&
@@ -223,18 +269,30 @@ export function BoardViewport({
   const stopPan = (event: ReactPointerEvent<HTMLDivElement>, reason: 'up' | 'cancel'): void => {
     // A press on a note is stopped by the note, so no pan was started: without this guard
     // every click on a note would also deselect it.
-    if (!panningRef.current || event.pointerId !== pointerIdRef.current) {
+    if (gestureRef.current === 'none' || event.pointerId !== pointerIdRef.current) {
       return;
     }
     const element = surfaceRef.current;
     if (element === null) {
       return;
     }
+    const rectangle = gestureRef.current === 'marquee';
     releasePointer(element, event.pointerId);
-    panningRef.current = false;
+    gestureRef.current = 'none';
     pointerIdRef.current = null;
     pressOriginRef.current = null;
-    setPanning(false);
+    setGesture('none');
+    if (rectangle) {
+      // A marquee ends by selecting what its box contains; an interrupted one selects nothing at
+      // all, and leaves the selection that was there before it untouched. It is never a click on
+      // the board, so it never clears the selection either.
+      if (reason === 'cancel') {
+        marqueeHandlerRef.current?.cancel();
+      } else {
+        marqueeHandlerRef.current?.end(boardPoint(element, event.clientX, event.clientY));
+      }
+      return;
+    }
     inputRef.current.endPan();
     if (reason === 'up' && !movedRef.current) {
       emptyClickRef.current?.();
@@ -267,7 +325,8 @@ export function BoardViewport({
       className="board-viewport"
       data-testid="board-viewport"
       data-board-surface=""
-      data-panning={panning ? 'true' : 'false'}
+      data-panning={gesture === 'pan' ? 'true' : 'false'}
+      data-marquee={gesture === 'marquee' ? 'true' : 'false'}
       onPointerDown={startPan}
       onPointerMove={movePan}
       onPointerUp={(event) => {

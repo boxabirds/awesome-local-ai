@@ -7,10 +7,23 @@ import {
   type Camera,
   type Point,
 } from '../../../src/client/canvas/camera';
-import { snapshot, type StickySnapshot } from '../../../src/shared/board-model';
+import {
+  snapshot,
+  type ObjectSnapshot,
+  type StickySnapshot,
+} from '../../../src/shared/board-model';
 import { STICKY_SIZE_WORLD } from '../../../src/shared/config';
+import type { Handle, Rect } from '../../../src/shared/geometry';
+import { TESTBOX_TYPE } from '../../fixtures/testbox';
 import { flushFrames, VIEWPORT } from '../helpers';
 import { setObservedSize } from '../resizeObserver';
+
+/**
+ * Where a pointer event is fired. The app listens for moves and releases on `window`, because a
+ * pointer that leaves the note mid-drag still has to be followed - so tests fire those events there,
+ * exactly as the browser does.
+ */
+export type PointerTarget = Element | Document | Window;
 
 export interface PointerOptions {
   pointerId?: number;
@@ -39,6 +52,40 @@ export interface MountedSticky {
   toolbarOrNull(): HTMLElement | null;
   /** Where a world point is drawn on screen, given the camera the app has now. */
   screenOf(point: Point): Point;
+  /** Every object on the board, whatever type it is, in draw order. */
+  objects(): readonly ObjectSnapshot[];
+  /** One object by id; throws when it is not there. */
+  object(id: string): ObjectSnapshot;
+  /** The note or box elements of a given object type. */
+  elementsOf(type: string): HTMLElement[];
+  /** The element an object is drawn in, by id: where a press on that object has to land. */
+  element(id: string): HTMLElement;
+  /** Where an object is, read off the element it is drawn in. */
+  place(id: string): Rect;
+  /** The sticky note at index `index`, whatever is drawn on top of it. */
+  box(index?: number): HTMLElement;
+  /** The selection bar, or null when the selection is too small for one. */
+  barOrNull(): HTMLElement | null;
+  /** The selection bar; throws when there is none. */
+  bar(): HTMLElement;
+  /** What the bar's live region says, or null when there is no bar. */
+  barText(): string | null;
+  /** The selection bar's Delete button; throws when there is no bar. */
+  barDelete(): HTMLElement;
+  /** How many objects are showing a selection outline. */
+  outlineCount(): number;
+  /** The ids the overlay has drawn an outline around. */
+  outlinedIds(): string[];
+  /** The bounding box around a whole selection, or null when there is no box. */
+  boundsOrNull(): HTMLElement | null;
+  /** The resize handles currently on screen, by their `data-handle`. */
+  handleList(): HTMLElement[];
+  /** One resize handle; throws when it is not on screen. */
+  handle(handle: Handle): HTMLElement;
+  /** The marquee rectangle, or null while nothing is being dragged around. */
+  marqueeOrNull(): HTMLElement | null;
+  /** How many objects the app says are being carried by a gesture. */
+  draggingCount(): number;
 }
 
 /**
@@ -74,6 +121,21 @@ export async function mountSticky(
 
   const editorOrNull = (): HTMLTextAreaElement | null =>
     view.container.querySelector<HTMLTextAreaElement>('[data-testid="sticky-note-editor"]');
+
+  /**
+   * The element an object is drawn in - the one a press on that object has to land on. The
+   * outline drawn around a selected object carries the same id, so it is left out: pressing the
+   * outline is not pressing the object.
+   */
+  const elementFor = (id: string): HTMLElement => {
+    const found = view.container.querySelector<HTMLElement>(
+      `[data-object-id="${id}"]:not(.selection-outline)`,
+    );
+    if (found === null) {
+      throw new Error(`no element on the board for object ${id}`);
+    }
+    return found;
+  };
 
   return {
     view,
@@ -119,6 +181,87 @@ export async function mountSticky(
     toolbarOrNull: () =>
       view.container.querySelector<HTMLElement>('[data-testid="note-toolbar"]'),
     screenOf: (point: Point) => worldToScreen(camera(), point),
+    objects: () => snapshot(doc),
+    object: (id: string): ObjectSnapshot => {
+      const found = snapshot(doc).find((object) => object.id === id);
+      if (found === undefined) {
+        throw new Error(`no object with id ${id} on the board`);
+      }
+      return found;
+    },
+    // The outline drawn around a selected object names the same type, and is left out for the same
+    // reason the outline itself is: it is a marking on top of the board, not an object.
+    elementsOf: (type: string): HTMLElement[] => [
+      ...view.container.querySelectorAll<HTMLElement>(
+        `[data-object-type="${type}"]:not(.selection-outline)`,
+      ),
+    ],
+    /**
+     * The element an object is drawn in - the one a press on that object has to land on. The
+     * outline drawn around a selected object carries the same id, so it is left out: pressing the
+     * outline is not pressing the object.
+     */
+    element: elementFor,
+    /** Where an object is, read off the element it is drawn in. */
+    place: (id: string): Rect => {
+      const element = elementFor(id);
+      return {
+        x: Number.parseFloat(element.style.left),
+        y: Number.parseFloat(element.style.top),
+        width: Number.parseFloat(element.style.width),
+        height: Number.parseFloat(element.style.height),
+      };
+    },
+    box: (index = 0): HTMLElement => {
+      const elements = [...view.container.querySelectorAll<HTMLElement>('[data-object-type]')].filter(
+        (element) => element.classList.contains('sticky-note') || element.classList.contains('testbox'),
+      );
+      const element = elements[index];
+      if (element === undefined) {
+        throw new Error(`no board object at index ${index} (found ${elements.length})`);
+      }
+      return element;
+    },
+    barOrNull: () => view.container.querySelector<HTMLElement>('[data-testid="selection-bar"]'),
+    bar(): HTMLElement {
+      const bar = view.container.querySelector<HTMLElement>('[data-testid="selection-bar"]');
+      if (bar === null) {
+        throw new Error('no selection bar is shown (are two or more objects selected?)');
+      }
+      return bar;
+    },
+    barText: (): string | null =>
+      view.container.querySelector<HTMLElement>('[data-testid="selection-count"]')?.textContent ??
+      null,
+    barDelete(): HTMLElement {
+      const button = view.container.querySelector<HTMLElement>(
+        '[data-testid="selection-delete"]',
+      );
+      if (button === null) {
+        throw new Error('the selection bar has no Delete button');
+      }
+      return button;
+    },
+    outlineCount: () => view.container.querySelectorAll('[data-testid="selection-outline"]').length,
+    outlinedIds: (): string[] =>
+      [...view.container.querySelectorAll<HTMLElement>('[data-testid="selection-outline"]')].map(
+        (element) => element.dataset.objectId ?? '',
+      ),
+    boundsOrNull: () => view.container.querySelector<HTMLElement>('[data-testid="selection-bounds"]'),
+    handleList: (): HTMLElement[] => [
+      ...view.container.querySelectorAll<HTMLElement>('[data-testid="resize-handle"]'),
+    ],
+    handle(handle: Handle): HTMLElement {
+      const element = view.container.querySelector<HTMLElement>(
+        `[data-testid="resize-handle"][data-handle="${handle}"]`,
+      );
+      if (element === null) {
+        throw new Error(`no resize handle for ${handle} (is a resizable object selected?)`);
+      }
+      return element;
+    },
+    marqueeOrNull: () => view.container.querySelector<HTMLElement>('[data-testid="marquee"]'),
+    draggingCount: () => view.container.querySelectorAll('[data-dragging="true"]').length,
   };
 }
 
@@ -137,19 +280,19 @@ function pointerInit(options: PointerOptions, point: Point, buttons: number): Re
   };
 }
 
-export function press(target: Element, point: Point, options: PointerOptions = {}): void {
+export function press(target: PointerTarget, point: Point, options: PointerOptions = {}): void {
   fireEvent.pointerDown(target, { ...pointerInit(options, point, 1), button: options.button ?? 0 });
 }
 
-export function moveTo(target: Element, point: Point, options: PointerOptions = {}): void {
+export function moveTo(target: PointerTarget, point: Point, options: PointerOptions = {}): void {
   fireEvent.pointerMove(target, pointerInit(options, point, 1));
 }
 
-export function release(target: Element, point: Point, options: PointerOptions = {}): void {
+export function release(target: PointerTarget, point: Point, options: PointerOptions = {}): void {
   fireEvent.pointerUp(target, { ...pointerInit(options, point, 0), button: options.button ?? 0 });
 }
 
-export function cancelDrag(target: Element, point: Point, options: PointerOptions = {}): void {
+export function cancelDrag(target: PointerTarget, point: Point, options: PointerOptions = {}): void {
   fireEvent.pointerCancel(target, pointerInit(options, point, 0));
 }
 
@@ -158,19 +301,19 @@ export function cancelDrag(target: Element, point: Point, options: PointerOption
  * (`buttons: 1`) in the case that matters: bringing a note to the front moves its element,
  * and Chromium answers that by ending the capture, mid-drag.
  */
-export function loseCapture(target: Element, point: Point, options: PointerOptions = {}): void {
+export function loseCapture(target: PointerTarget, point: Point, options: PointerOptions = {}): void {
   fireEvent.lostPointerCapture(target, pointerInit(options, point, options.buttons ?? 1));
 }
 
 /** Press and release without moving: a click. */
-export function clickAt(target: Element, point: Point, options: PointerOptions = {}): void {
+export function clickAt(target: PointerTarget, point: Point, options: PointerOptions = {}): void {
   press(target, point, options);
   release(target, point, options);
 }
 
 /** A drag with the pointer: enough movement to cross the drag threshold on the way. */
 export async function dragWithPointer(
-  target: Element,
+  target: PointerTarget,
   from: Point,
   to: Point,
   options: PointerOptions = {},
@@ -182,7 +325,7 @@ export async function dragWithPointer(
   await flushFrames();
 }
 
-export function doubleClick(target: Element, point: Point, options: PointerOptions = {}): void {
+export function doubleClick(target: PointerTarget, point: Point, options: PointerOptions = {}): void {
   fireEvent.doubleClick(target, pointerInit(options, point, 0));
 }
 
@@ -210,7 +353,7 @@ export function pressKey(key: string): void {
  * A key pressed while a field has focus: the keydown starts on that element, which is where
  * the editor listens for Escape.
  */
-export function pressKeyIn(target: Element, key: string): void {
+export function pressKeyIn(target: PointerTarget, key: string): void {
   fireEvent.keyDown(target, { key });
 }
 
@@ -224,12 +367,86 @@ export function pasteInto(editor: HTMLTextAreaElement, text: string): void {
   fireEvent.change(editor, { target: { value: text } });
 }
 
-/** The centre of a note, read off the element the app drew. */
+/** The centre of an object, read off the element the app drew - so it is right for an object
+that has been resized, not only for a note of the size it was made at. */
 export function centreOf(note: HTMLElement): Point {
+  const width = Number.parseFloat(note.style.width);
+  const height = Number.parseFloat(note.style.height);
   return {
-    x: Number.parseFloat(note.style.left) + STICKY_SIZE_WORLD / 2,
-    y: Number.parseFloat(note.style.top) + STICKY_SIZE_WORLD / 2,
+    x: Number.parseFloat(note.style.left) + (Number.isFinite(width) ? width : STICKY_SIZE_WORLD) / 2,
+    y: Number.parseFloat(note.style.top) + (Number.isFinite(height) ? height : STICKY_SIZE_WORLD) / 2,
   };
+}
+
+/** The middle of the box an object is drawn in, from the document. */
+export function centreOfObject(object: ObjectSnapshot): Point {
+  return { x: object.x + object.width / 2, y: object.y + object.height / 2 };
+}
+
+/** Where an object's centre is on the screen, given the camera the app has now. */
+export function centreOnScreen(board: MountedSticky, object: ObjectSnapshot): Point {
+  return board.screenOf(centreOfObject(object));
+}
+
+/**
+ * Shift + drag across empty board space: the marquee. The press lands on the board surface
+ * (given an element of its own, use `shiftDragFrom`), the box grows as it goes.
+ */
+export async function shiftDrag(
+  board: MountedSticky,
+  from: Point,
+  to: Point,
+  steps = 2,
+): Promise<void> {
+  const target = board.board;
+  fireEvent.pointerDown(target, {
+    pointerId: 1,
+    pointerType: 'mouse',
+    button: 0,
+    buttons: 1,
+    shiftKey: true,
+    clientX: from.x,
+    clientY: from.y,
+  });
+  for (let step = 1; step <= steps; step += 1) {
+    fireEvent.pointerMove(target, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+      shiftKey: true,
+      clientX: from.x + ((to.x - from.x) * step) / steps,
+      clientY: from.y + ((to.y - from.y) * step) / steps,
+    });
+  }
+  fireEvent.pointerUp(target, {
+    pointerId: 1,
+    pointerType: 'mouse',
+    button: 0,
+    buttons: 0,
+    shiftKey: true,
+    clientX: to.x,
+    clientY: to.y,
+  });
+  await flushFrames();
+}
+
+/** Shift + drag whose press lands on a particular element (the object type's own element). */
+export function shiftPress(target: PointerTarget, point: Point, options: PointerOptions = {}): void {
+  fireEvent.pointerDown(target, {
+    ...pointerInit(options, point, 1),
+    button: 0,
+    shiftKey: true,
+  });
+}
+
+/** The testboxes on the board, by id, in draw order. */
+/** The test type's elements: the boxes themselves, not the markings drawn over them. */
+export function testboxElements(view: RenderResult): HTMLElement[] {
+  return [
+    ...view.container.querySelectorAll<HTMLElement>(
+      `[data-object-type="${TESTBOX_TYPE}"]:not(.selection-outline)`,
+    ),
+  ];
 }
 
 export function positionOf(note: HTMLElement): { x: number; y: number } {

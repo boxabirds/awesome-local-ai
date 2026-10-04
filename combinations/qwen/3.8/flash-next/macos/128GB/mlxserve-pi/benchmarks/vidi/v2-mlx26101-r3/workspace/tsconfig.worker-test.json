@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.worker.json",
-  "//": "Unit tests of the Worker-side pure modules (board-store maths, room-state) run in node but import modules written for the Workers type set, so they are checked with it. See NOTES.md.",
-  "include": ["tests/unit/worker", "tests/fixtures", "src/shared", "src/worker"]
+  "//": "Unit tests of the Worker-side pure modules (board-store maths, room-state) run in node but import modules written for the Workers type set, so they are checked with it. Only the .ts fixtures: tests/fixtures/testbox.tsx is a browser-side object type, checked with the DOM type set (tsconfig.test.json). See NOTES.md.",
+  "include": ["tests/unit/worker", "tests/fixtures/*.ts", "src/shared", "src/worker"]
 }

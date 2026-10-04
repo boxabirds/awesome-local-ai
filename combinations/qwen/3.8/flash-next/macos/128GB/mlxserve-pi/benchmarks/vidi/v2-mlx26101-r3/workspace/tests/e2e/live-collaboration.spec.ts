@@ -252,15 +252,28 @@ test.describe('both people working on the same note', () => {
       await settle(alex.page);
       await settle(sam.page);
 
-      const before = await stateById(alex.page, id);
       const onAlex = await centreByIdOnScreen(alex.page, id);
       const onSam = await centreByIdOnScreen(sam.page, id);
 
       // One note, two drags, at the same time, to opposite corners of the screen.
+      //
+      // Both hands go down before either of them moves. That ordering is not decoration: a note that
+      // has already travelled thirty units by the time the second person presses is a note that
+      // person then drags from thirty units on, and the position it ends at belongs to neither
+      // pointer - which is the app being right (a drag carries an object from where it was when the
+      // press happened, which is the only way a board with five people on it stays one board) and the
+      // test asking a question its own setup never settled. Both pointers are therefore already
+      // holding the note when the note starts moving, which is the situation this test is named after.
+      await Promise.all([alex.page.mouse.move(onAlex.x, onAlex.y), sam.page.mouse.move(onSam.x, onSam.y)]);
+      await Promise.all([alex.page.mouse.down(), sam.page.mouse.down()]);
+      const before = await stateById(alex.page, id);
       await Promise.all([
-        dragPointer(alex.page, onAlex, { x: onAlex.x - 160, y: onAlex.y - 90 }),
-        dragPointer(sam.page, onSam, { x: onSam.x + 160, y: onSam.y + 90 }),
+        alex.page.mouse.move(onAlex.x - 160, onAlex.y - 90, { steps: 8 }),
+        sam.page.mouse.move(onSam.x + 160, onSam.y + 90, { steps: 8 }),
       ]);
+      await Promise.all([alex.page.mouse.up(), sam.page.mouse.up()]);
+      await settle(alex.page);
+      await settle(sam.page);
 
       const started = Date.now();
       const settled = await waitForSameBoard(cast.people);
