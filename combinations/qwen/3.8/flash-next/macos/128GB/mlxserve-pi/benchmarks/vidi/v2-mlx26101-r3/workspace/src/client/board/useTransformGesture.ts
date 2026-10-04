@@ -20,7 +20,7 @@ import {
   type Point,
   type Rect,
 } from '../../shared/geometry';
-import { getObjectType, type ObjectPointerEvent } from '../objects/registry';
+import { getObjectType, type ObjectTypeSpec, type ObjectPointerEvent } from '../objects/registry';
 import type { MultiSelection } from './useSelection';
 
 /** The two ways a pointer on the board can move something. */
@@ -52,6 +52,12 @@ interface Running {
   minSizes: number[];
   /** Whether the proportions of the box are held. */
   aspect: boolean;
+  /**
+   * Whether this resize only has one axis to it, because every object in it is a type that is only
+   * offered on the sides. The pointer can travel in any direction at all; on such a gesture its
+   * up-and-down is not part of what is being asked for, and is dropped.
+   */
+  widthOnly: boolean;
   /** True once the pointer has travelled enough for this to be a drag and not a click. */
   dragging: boolean;
   /** The movement the next frame will write, in world units. */
@@ -250,20 +256,41 @@ export function useTransformGesture({
       scaleX = scale;
       scaleY = scale;
     }
+    if (running.widthOnly) {
+      // A drag of a side handle of an object that is only resized sideways: the pointer's
+      // up-and-down is dropped, because there is no height on offer for it to be about. Without
+      // this, dragging the side handle of a heading on a diagonal would walk the heading down the
+      // board while it was being widened.
+      scaleY = 1;
+    }
     const to = scaleRect(running.box, { x: scaleX, y: scaleY }, running.anchor);
     const rects = new Map<string, Rect>();
+    // Objects whose type writes its own resize, given the box worked out for it: a text object takes
+    // the width and measures its own height, and this gesture does not know that is happening.
+    const own: Array<{ id: string; rect: Rect; write: NonNullable<ObjectTypeSpec['applyResize']> }> = [];
+    const types = new Map(objectsRef.current.map((object) => [object.id, object.type]));
     for (const id of running.ids) {
       if (!running.writable.has(id)) {
         // A type with no size to change is left where it is, inside a box that scaled without it.
         continue;
       }
       const start = running.startRects.get(id);
-      if (start !== undefined) {
-        // Position and size both follow the box, so the gaps between objects scale with it.
-        rects.set(id, scaleWithin(start, running.box, to));
+      if (start === undefined) {
+        continue;
+      }
+      // Position and size both follow the box, so the gaps between objects scale with it.
+      const rect = scaleWithin(start, running.box, to);
+      const write = getObjectType(types.get(id) ?? '')?.applyResize;
+      if (write === undefined) {
+        rects.set(id, rect);
+      } else {
+        own.push({ id, rect, write });
       }
     }
     resizeObjects(doc, rects);
+    for (const object of own) {
+      object.write(doc, object.id, object.rect, running.widthOnly);
+    }
   }, [doc]);
 
   const schedule = useCallback((): void => {
@@ -362,6 +389,7 @@ export function useTransformGesture({
       ids: readonly string[],
       writable: readonly string[],
       aspect: boolean,
+      widthOnly: boolean,
     ): void => {
       const byId = new Map(objectsRef.current.map((object) => [object.id, object]));
       const startRects = new Map<string, Rect>();
@@ -400,6 +428,7 @@ export function useTransformGesture({
         rects,
         minSizes,
         aspect,
+        widthOnly,
         dragging: false,
         delta: null,
         frame: null,
@@ -447,6 +476,7 @@ export function useTransformGesture({
         ids,
         ids,
         false,
+        false,
       );
     },
     [prepare],
@@ -476,6 +506,11 @@ export function useTransformGesture({
       const aspect =
         writable.some((id) => spec(id)?.aspectLocked === true) ||
         ('shiftKey' in event && event.shiftKey);
+      // Whether the handles being pressed are the ones this type offers by itself. A selection of
+      // nothing but sideways-only objects is being dragged by one of their own two handles; add any
+      // other shape to the selection and the eight handles belong to the group's box instead, which
+      // is a different question about what to do with an object that is only being carried along.
+      const widthOnly = writable.every((id) => spec(id)?.handles === 'horizontal');
       prepare(
         'pointerId' in event ? event.pointerId : 1,
         event,
@@ -485,6 +520,7 @@ export function useTransformGesture({
         present,
         writable,
         aspect,
+        widthOnly,
       );
     },
     [prepare],

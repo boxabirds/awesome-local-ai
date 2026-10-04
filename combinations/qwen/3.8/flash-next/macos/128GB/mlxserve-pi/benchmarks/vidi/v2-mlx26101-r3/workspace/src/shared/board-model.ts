@@ -3,7 +3,11 @@ import {
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  isTextSize,
+  isTextWidthMode,
   type StickyColor,
+  type TextSize,
+  type TextWidthMode,
 } from './config';
 import { rectContains, unionRects, type Point, type Rect } from './geometry';
 
@@ -27,6 +31,9 @@ import { rectContains, unionRects, type Point, type Rect } from './geometry';
  *       text: Y.Text
  *       z: number              // stacking; higher is on top
  *       createdAt: number      // epoch ms
+ *     }
+ *     <id>: Y.Map {            // a text object (story 9), which has no colour and instead:
+ *       type: 'text', size: TextSize, widthMode: 'auto' | 'fixed', createdBy: string
  *     }
  * ```
  *
@@ -97,6 +104,17 @@ export interface ObjectSnapshot {
   readonly text: string;
   readonly z: number;
   readonly createdAt: number;
+  /**
+   * How big the letters of a text object are (story 9). Only a type that has a size has one, so
+   * it is absent for a sticky note - which is why it is optional here rather than a field every
+   * object is asked to fill in.
+   */
+  readonly size?: TextSize;
+  /** Whether a text object's width follows its longest line or the width it was given. */
+  readonly widthMode?: TextWidthMode;
+  /** Who made this object. There is no account system yet, so this is what the creating client
+   * called itself; the board does not check it and nothing in the UI reads it. */
+  readonly createdBy?: string;
 }
 
 /**
@@ -105,6 +123,25 @@ export interface ObjectSnapshot {
  * saying this.
  */
 export type StickySnapshot = ObjectSnapshot;
+
+/**
+ * A free text object (story 9), as the board reads it.
+ *
+ * The two fields a text object has that no other type has are required here, because the reader
+ * gives both of them a value: an object written before a field existed, or carrying a size from a
+ * future version this client does not know, reads back as the default rather than as nothing. That
+ * is what lets the drawing code say `object.size` instead of asking what size an unknown size
+ * means, at every place it draws.
+ */
+export interface TextSnapshot extends ObjectSnapshot {
+  readonly type: 'text';
+  /** Which of the four sizes the letters are drawn at. */
+  readonly size: TextSize;
+  /** Whether the width follows the longest line, or the width the last drag gave it. */
+  readonly widthMode: TextWidthMode;
+  /** Who made it, when the creating client recorded that. Nothing checks it and nothing shows it. */
+  readonly createdBy?: string;
+}
 
 /** Point in world units. */
 export interface WorldPoint {
@@ -453,7 +490,15 @@ function readSize(object: YObject, key: string): number {
  *
  * A sticky note is only readable with a colour and a `Y.Text` of its own, because a note without
  * either could not be drawn. Other readable types are held to their geometry alone: an object of
- * a type a later story adds that has no text of its own is not malformed.
+ * a type a later story adds that has no text of its own is not malformed. What is held to the same
+ * rule wherever it comes from is a text that is not a `Y.Text`: an object whose text is a plain
+ * string cannot be typed into or merged with, so an object that has a `text` field of the wrong
+ * kind is skipped rather than drawn with somebody else's idea of a string in it.
+ *
+ * The fields no other type has - `size`, `widthMode` - are read the same generic way, because the
+ * object type modules cannot be imported here without a cycle (they read the model to be written
+ * at all): a value that is not one of the named settings is left out, and the type's own reader
+ * falls back to its default.
  */
 function readObject(id: string, object: YObject): ObjectSnapshot | null {
   const type = object.get('type');
@@ -463,6 +508,9 @@ function readObject(id: string, object: YObject): ObjectSnapshot | null {
   const text = object.get('text');
   const z = object.get('z');
   const createdAt = object.get('createdAt');
+  const size = object.get('size');
+  const widthMode = object.get('widthMode');
+  const createdBy = object.get('createdBy');
   if (
     typeof x !== 'number' ||
     typeof y !== 'number' ||
@@ -477,6 +525,8 @@ function readObject(id: string, object: YObject): ObjectSnapshot | null {
     if (!isStickyColor(color) || !(text instanceof Y.Text)) {
       return null;
     }
+  } else if (text !== undefined && !(text instanceof Y.Text)) {
+    return null;
   }
   return {
     id,
@@ -489,6 +539,9 @@ function readObject(id: string, object: YObject): ObjectSnapshot | null {
     text: text instanceof Y.Text ? text.toString() : '',
     z,
     createdAt: typeof createdAt === 'number' ? createdAt : 0,
+    ...(isTextSize(size) ? { size } : {}),
+    ...(isTextWidthMode(widthMode) ? { widthMode } : {}),
+    ...(typeof createdBy === 'string' && createdBy !== '' ? { createdBy } : {}),
   };
 }
 

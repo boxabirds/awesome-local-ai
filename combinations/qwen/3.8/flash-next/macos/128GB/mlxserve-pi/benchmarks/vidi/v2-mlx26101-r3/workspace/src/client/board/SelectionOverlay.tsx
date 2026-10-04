@@ -55,6 +55,16 @@ const HANDLE_CURSOR: Record<Handle, string> = {
 };
 
 /**
+ * The handles of something that is only resized sideways: the two sides, and nothing else.
+ *
+ * These are the handles such an object offers when it is selected on its own. The reason is not
+ * decoration: a handle that offered the top edge of a heading would be offering to make the words
+ * taller, which is not a thing that can be done to them - their height is how many lines they came
+ * to, and the only size to be given is how wide the line is allowed to get before it turns over.
+ */
+const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
+
+/**
  * What this user's selection looks like on the board: an outline around every selected object,
  * a dashed box around all of them, and eight handles to resize the whole lot at once.
  *
@@ -72,6 +82,11 @@ const HANDLE_CURSOR: Record<Handle, string> = {
  * size to change has no business offering handles - and the box only when there is more than one
  * object, because around a single object the outline and the box would be the same line drawn
  * twice.
+ *
+ * Which handles, when: a selection of nothing but objects that are only resized sideways offers the
+ * two sides, because those are the handles those objects have. Add anything that can be stretched
+ * both ways - a note, or a group's own box - and all eight come back, because the box being dragged
+ * is now the *group's* box, which has four corners whether or not everything inside it does.
  */
 export function SelectionOverlay({
   ids,
@@ -88,9 +103,17 @@ export function SelectionOverlay({
   const line = 1 / zoom;
   const size = HANDLE_SIZE_PX / zoom;
   const resizable = selected.some((object) => getObjectType(object.type)?.resizable === true);
+  const sideways =
+    resizable && selected.every((object) => getObjectType(object.type)?.handles === 'horizontal');
+  const handles = sideways ? HORIZONTAL_HANDLES : HANDLES;
 
   return (
-    <div className="selection-overlay" data-testid="selection-overlay" data-resizable={resizable ? 'true' : 'false'}>
+    <div
+      className="selection-overlay"
+      data-testid="selection-overlay"
+      data-resizable={resizable ? 'true' : 'false'}
+      data-handles={sideways ? 'horizontal' : 'all'}
+    >
       {selected.map((object) => (
         <div
           key={object.id}
@@ -125,7 +148,7 @@ export function SelectionOverlay({
         />
       ) : null}
       {box !== null && resizable
-        ? HANDLES.map((handle) => {
+        ? handles.map((handle) => {
             const point = handlePoint(box, handle);
             return (
               <button
@@ -134,6 +157,7 @@ export function SelectionOverlay({
                 className="selection-handle"
                 data-testid="resize-handle"
                 data-handle={handle}
+                data-board-ui=""
                 aria-label={`Resize ${HANDLE_POSITION[handle]}`}
                 title={`Resize ${HANDLE_POSITION[handle]}`}
                 style={{

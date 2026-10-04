@@ -40,7 +40,23 @@ export interface BoardViewportProps {
    * instead of panning the board; not given, shift+drag pans like any other drag.
    */
   marquee?: MarqueeHandlers;
+  /**
+   * Which tool the board is in, which decides what a press on the board's own space is *for*.
+   *
+   * `'text'` takes the board's pointer over completely: the cursor says text, and a press - on
+   * empty space or on top of something already there - writes a text object at that point instead
+   * of panning, drawing a marquee or dragging anything. It is taken over rather than added to the
+   * handlers because the two cannot be asked the same question: a press that is about to become a
+   * word is not a press that is about to become a movement, and the tool is what knows which.
+   */
+  tool?: BoardTool;
+  /** The board was pointed at while the Text tool was up, and the press did not travel: put a text
+   * object here. The point is relative to the top-left of the board area, in world units at zoom 1. */
+  onTextPlace?(point: Point): void;
 }
+
+/** What a press on the board is for: the two tools this story has. */
+export type BoardTool = 'select' | 'text';
 
 /**
  * The rectangle a person drags across empty board space to select what is inside it.
@@ -81,6 +97,8 @@ export function BoardViewport({
   onEmptyDoubleClick,
   onEmptyClick,
   marquee,
+  tool = 'select',
+  onTextPlace,
 }: BoardViewportProps): JSX.Element {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [gesture, setGesture] = useState<Gesture>('none');
@@ -106,11 +124,93 @@ export function BoardViewport({
   const emptyDoubleClickRef = useRef(onEmptyDoubleClick);
   const emptyClickRef = useRef(onEmptyClick);
   const marqueeHandlerRef = useRef(marquee);
+  const textPlaceRef = useRef(onTextPlace);
   useEffect(() => {
     emptyDoubleClickRef.current = onEmptyDoubleClick;
     emptyClickRef.current = onEmptyClick;
     marqueeHandlerRef.current = marquee;
+    textPlaceRef.current = onTextPlace;
   });
+
+  // The Text tool's claim on the pointer, remembered between the press and its release: where on
+  // the board the press went down (which is the point the text object is put at - where somebody
+  // aimed, not where the finger happened to leave) and where it was on the screen, to tell a click
+  // from a drag afterwards.
+  const placingRef = useRef<{ pointerId: number; point: Point; clientX: number; clientY: number } | null>(
+    null,
+  );
+
+  /**
+   * While the Text tool is up, the board takes the pointer back in the *capture* phase, before any
+   * of the handlers above - and before any object - get to see it.
+   *
+   * Capture rather than the component's own `onPointerDown`, because the press has to be taken from
+   * under an object too: a text object placed on top of a sticky note is placed on top of a sticky
+   * note, and a handler that only fires on empty space could not do that. The press is swallowed
+   * outright, so the board neither pans nor draws a marquee nor drags the thing under the cursor,
+   * and the double-click is swallowed with it - otherwise a double-click with the Text tool would
+   * make a sticky note as well as a text object, which is two objects for one gesture and a note
+   * nobody asked for.
+   *
+   * A press that travels is not a place: it is nothing at all. The Text tool has one action, and
+   * dragging is not it, so a drag is dropped rather than turned into a pan the person did not ask
+   * for while a text was half in their head.
+   */
+  useEffect(() => {
+    const element = surfaceRef.current;
+    if (element === null || tool !== 'text') {
+      return;
+    }
+    const isBoardUi = (target: EventTarget | null): boolean =>
+      target instanceof Element && target.closest('[data-board-ui]') !== null;
+    const claim = (event: PointerEvent): void => {
+      if (isBoardUi(event.target)) {
+        // The toolbars, the selection bar and the resize handles are still themselves: a press on
+        // one of those changes a tool or a size, it does not write a text object behind them.
+        return;
+      }
+      if (event.pointerType === 'mouse' && event.button !== 0) {
+        return;
+      }
+      placingRef.current = {
+        pointerId: event.pointerId,
+        point: boardPoint(element, event.clientX, event.clientY),
+        clientX: event.clientX,
+        clientY: event.clientY,
+      };
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const release = (event: PointerEvent): void => {
+      const placing = placingRef.current;
+      if (placing === null || event.pointerId !== placing.pointerId) {
+        return;
+      }
+      placingRef.current = null;
+      if (Math.hypot(event.clientX - placing.clientX, event.clientY - placing.clientY) >= DRAG_THRESHOLD_PX) {
+        return;
+      }
+      textPlaceRef.current?.(placing.point);
+    };
+    const swallowDoubleClick = (event: MouseEvent): void => {
+      if (isBoardUi(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    element.addEventListener('pointerdown', claim, true);
+    element.addEventListener('dblclick', swallowDoubleClick, true);
+    // The release is listened for on the window, because a press that went down on the board can be
+    // let go anywhere, and the text is placed where it started either way.
+    window.addEventListener('pointerup', release);
+    return () => {
+      element.removeEventListener('pointerdown', claim, true);
+      element.removeEventListener('dblclick', swallowDoubleClick, true);
+      window.removeEventListener('pointerup', release);
+      placingRef.current = null;
+    };
+  }, [tool]);
 
   // Measure the board area; the camera's x/y are not changed by a resize.
   useEffect(() => {
@@ -325,6 +425,7 @@ export function BoardViewport({
       className="board-viewport"
       data-testid="board-viewport"
       data-board-surface=""
+      data-tool={tool}
       data-panning={gesture === 'pan' ? 'true' : 'false'}
       data-marquee={gesture === 'marquee' ? 'true' : 'false'}
       onPointerDown={startPan}

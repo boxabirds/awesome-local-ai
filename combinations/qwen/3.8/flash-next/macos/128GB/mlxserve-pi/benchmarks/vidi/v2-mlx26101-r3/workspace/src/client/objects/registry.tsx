@@ -1,16 +1,22 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import * as Y from 'yjs';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_FONT_FAMILY } from '../../shared/config';
 import {
+  LOCAL_ORIGIN,
   STICKY_TYPE,
+  moveObjects,
   objectBounds,
   registerObjectReader,
   type ObjectSnapshot,
 } from '../../shared/board-model';
-import { rectContainsPoint, type Point } from '../../shared/geometry';
+import { rectContainsPoint, type Point, type Rect } from '../../shared/geometry';
+import { TEXT_TYPE, getTextFields, setTextWidthFixed } from '../../shared/objects/text';
 import type { EditEnd } from '../board/useSelection';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
+import { createCanvasMeasurer } from './textLayout';
+import { remeasureTextBox } from './useTextBoxSync';
 
 /** A pointer event as it arrives from React or from the window. */
 export type ObjectPointerEvent = ReactPointerEvent<HTMLElement> | PointerEvent;
@@ -80,8 +86,30 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Whether the object has text a person can type into (Enter opens it). */
   editableText: boolean;
+  /**
+   * Which resize handles a selection of nothing but this type offers. `'all'` (or left out) is the
+   * usual eight, because both axes are sizes this object can be given. `'horizontal'` is for an
+   * object whose height is not a size but a consequence - a text object's height is how many lines
+   * its words came to - so it is offered on the two sides only. A selection that also holds
+   * anything else offers all eight, because the box being dragged belongs to the group.
+   */
+  handles?: 'all' | 'horizontal';
   /** Whether `world` lies on this object; the marquee and future hit-testing use it. */
   hitTest(object: ObjectSnapshot, world: Point): boolean;
+  /**
+   * This type writes its own resize, given the box the gesture worked out for one object of it:
+   * called instead of the generic `resizeObjects` for objects of this type.
+   *
+   * `direct` says whether the person is dragging one of *this type's own* handles - a `'horizontal'`
+   * type's side handle, on a selection of nothing but this type - in which case the width in the box
+   * is the thing they asked for. In a mixed selection the handles belong to the group's shape and
+   * the object is only being carried along with it, which is a different question to answer.
+   *
+   * A text object uses this to keep its height for itself: take the width, go where the group's
+   * scaling put the top-left, then measure the height the words need at that width. The gesture has
+   * no idea any of that is happening, which is the point of asking the type rather than knowing.
+   */
+  applyResize?(doc: Y.Doc, id: string, box: Rect, direct: boolean): void;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -120,4 +148,59 @@ registerObjectType(STICKY_TYPE, {
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
   hitTest: (object, world) => rectContainsPoint(objectBounds(object), world),
+});
+
+/**
+ * The canvas that resize gestures measure text against: made once, like every other measurer here,
+ * and on a machine that will not give a context it measures by estimate.
+ */
+const resizeMeasurer = createCanvasMeasurer(TEXT_FONT_FAMILY);
+
+/**
+ * Free text anywhere on the board (story 9): words with nothing around them, sized by four buttons
+ * and as tall as the lines they come to.
+ */
+registerObjectType(TEXT_TYPE, {
+  Component: TextObject,
+  resizable: true,
+  // Four sizes, no way to set a font size, and a height that belongs to the words: a shape that
+  // cannot be stretched in one direction has no proportion for a resize to hold on to.
+  aspectLocked: false,
+  // No minimum through the generic resize clamp, deliberately: a minimum there is a minimum on
+  // *both* axes, and a minimum height for a text object would be a limit on how short a line of
+  // text is allowed to be - one line of small text selected alongside a note would make the group
+  // refuse to be scaled down at all. The width has its own minimum (TEXT_MIN_WIDTH_WORLD), applied
+  // where the width is written; the height is measured, not given.
+  minSize: 0,
+  // Takes text entry exactly as a note does: the same editing state, the same Escape and Enter keys.
+  editableText: true,
+  // The height is the lines the words came to, so the width is the only size to be had.
+  handles: 'horizontal',
+  hitTest: (object, world) => rectContainsPoint(objectBounds(object), world),
+  applyResize: (doc, id, box, direct) => {
+    const fields = getTextFields(doc, id);
+    if (fields === null) {
+      // Gone from the board while the gesture was underway: there is nothing here to resize, and
+      // writing a box would not bring it back.
+      return;
+    }
+    // The width is what was asked for when the person has this type's own side handle in hand, and
+    // when the box already had a width written down for it. Otherwise the words keep the width they
+    // were wrapped at: rewrapping a sentence because a *note* in the same selection was scaled is
+    // not a thing anybody meant when they dragged its corner.
+    const wantsWidth = direct || fields.widthMode === 'fixed';
+    // One transaction for the whole of this object's resize, so a frame of a drag is one update on
+    // the wire, and so the resize is one undoable thing rather than a move, a width and a height.
+    doc.transact(() => {
+      if (fields.x !== box.x || fields.y !== box.y) {
+        moveObjects(doc, new Map<string, Point>([[id, { x: box.x, y: box.y }]]));
+      }
+      if (wantsWidth) {
+        setTextWidthFixed(doc, id, box.width);
+      }
+      // Never the height that came in the box: the height is what the words need at this width and
+      // this size, which is the one measurement on the board that is not a matter of opinion.
+      remeasureTextBox(doc, id, resizeMeasurer);
+    }, LOCAL_ORIGIN);
+  },
 });

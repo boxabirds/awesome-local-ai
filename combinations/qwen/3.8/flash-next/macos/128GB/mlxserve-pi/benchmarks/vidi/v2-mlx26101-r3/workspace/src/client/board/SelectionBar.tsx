@@ -1,5 +1,8 @@
 import type { JSX } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
+import { DEFAULT_TEXT_SIZE, type TextSize } from '../../shared/config';
+import { TEXT_TYPE } from '../../shared/objects/text';
+import { TextToolbar } from '../objects/TextToolbar';
 
 export interface SelectionBarProps {
   /** What this user has selected. */
@@ -10,6 +13,12 @@ export interface SelectionBarProps {
   onDelete(): void;
   /** Whether the board may be written to; a board that could not be loaded only reads. */
   canEdit?: boolean;
+  /** The object being typed into, or `null`. A text object that is being typed into is not being
+   * sized at the same time: its size buttons are for the moment before or after. */
+  editingId?: string | null;
+  /** Make the one selected text object bigger or smaller, which is the only thing a text object
+   * can be made, and the only thing a bar about a single text object has to offer. */
+  onTextSize?(id: string, size: TextSize): void;
 }
 
 /**
@@ -29,12 +38,22 @@ export interface SelectionBarProps {
  * That count is in an `aria-live` region, because "which three did I just get?" is a question
  * asked with the eyes on the board and not on the bar; the announcement is what makes the number
  * reach a person who is not looking for it.
+ *
+ * There is one exception to the rule that this bar is for two or more, and it is a text object on
+ * its own. A single sticky note needs no bar because it carries its own toolbar on its face; a
+ * single piece of free text has no face to carry anything on - it is words, with no box drawn round
+ * them to put buttons in - so its four sizes are shown here, in the place a person has already
+ * learned to look for what the selection can do. This is the only type-specific thing the bar
+ * knows, and it knows it as a question about the selection's size rather than about the board: one
+ * object, of this type, not being typed into.
  */
 export function SelectionBar({
   ids,
   snapshot,
   onDelete,
   canEdit = true,
+  editingId = null,
+  onTextSize,
 }: SelectionBarProps): JSX.Element | null {
   const present = new Set(snapshot.map((object) => object.id));
   let count = 0;
@@ -42,6 +61,25 @@ export function SelectionBar({
     if (present.has(id)) {
       count += 1;
     }
+  }
+  if (count === 1) {
+    const only = snapshot.find(
+      (object) => ids.has(object.id) && object.type === TEXT_TYPE,
+    );
+    if (only === undefined || editingId === only.id || onTextSize === undefined) {
+      return null;
+    }
+    return (
+      <div className="selection-bar selection-bar--single" data-board-ui="">
+        <TextToolbar
+          size={only.size ?? DEFAULT_TEXT_SIZE}
+          onSize={(size) => {
+            onTextSize(only.id, size);
+          }}
+          onDelete={onDelete}
+        />
+      </div>
+    );
   }
   if (count < 2) {
     return null;

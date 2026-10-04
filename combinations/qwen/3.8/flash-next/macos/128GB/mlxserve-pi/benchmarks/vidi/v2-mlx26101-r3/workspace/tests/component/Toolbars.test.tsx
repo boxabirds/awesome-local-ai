@@ -42,7 +42,7 @@ describe('sticky.toolbar: the board toolbar', () => {
   it('has a Sticky note button with an accessible name, and is board UI', async () => {
     const board = await mountSticky();
 
-    const button = within(board.view.container).getByRole('button', { name: 'Sticky note' });
+    const button = within(board.view.container).getByRole('button', { name: 'Sticky note (N)' });
     expect(button).toBeTruthy();
     expect(button.closest('[data-board-ui]')).not.toBeNull();
     // The tooltip tells the user the other way to do the same thing.
@@ -52,7 +52,7 @@ describe('sticky.toolbar: the board toolbar', () => {
   it('TC-28: the button adds a note in the middle of the view and starts typing', async () => {
     const board = await mountSticky();
 
-    clickButton(board, 'Sticky note');
+    clickButton(board, 'Sticky note (N)');
     await flushFrames();
 
     expect(board.notes()).toHaveLength(1);
@@ -70,10 +70,10 @@ describe('sticky.toolbar: the board toolbar', () => {
   it('TC-28b: notes created twice are stacked one above the other', async () => {
     const board = await mountSticky();
 
-    clickButton(board, 'Sticky note');
+    clickButton(board, 'Sticky note (N)');
     await flushFrames();
     // The first note is being edited; a second one needs the button again.
-    clickButton(board, 'Sticky note');
+    clickButton(board, 'Sticky note (N)');
     await flushFrames();
 
     const notes = board.notes();
@@ -91,7 +91,7 @@ describe('sticky.toolbar: the board toolbar', () => {
     const centre = viewCentreWorld(board);
     expect(Math.abs(centre.x)).toBeGreaterThan(100);
 
-    clickButton(board, 'Sticky note');
+    clickButton(board, 'Sticky note (N)');
     await flushFrames();
 
     expect(centreOf(board.note())).toEqual(centre);

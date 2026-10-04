@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { Doc } from 'yjs';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { allObjectIds, moveObjects, type ObjectSnapshot } from '../../shared/board-model';
+import type { Tool } from './useTool';
 import type { UndoController } from './undo';
 import type { MultiSelection } from './useSelection';
 
@@ -47,6 +48,20 @@ export interface BoardKeyOptions {
    * and the browser's own undo is left alone.
    */
   undo?: UndoController;
+  /**
+   * Put a tool up, and say which one is up now.
+   *
+   * The keys are given rather than the state because a tool is not a thing a key decides on its own:
+   * V and T say which tool the *person* wants, and whether the board will have it - a board that
+   * cannot be written to will not take the Text tool - is something the caller knows and this does
+   * not. Left out, the tool keys are not taken, and V, T and N go back to being the browser's keys.
+   */
+  onTool?(tool: Tool): void;
+  /** The tool that is up, so Escape can put it back the way it came. */
+  tool?: Tool;
+  /** A new sticky note, in the middle of what the person is looking at: the N key, which is the
+   * sticky note button's job and nothing else. */
+  onCreateSticky?(): void;
 }
 
 /**
@@ -75,16 +90,18 @@ export function useBoardKeys({
   onDeleteSelection,
   onEscape,
   undo,
+  onTool,
+  onCreateSticky,
 }: BoardKeyOptions): (event: KeyboardEvent) => void {
   const objectsRef = useRef(objects);
   const selectionRef = useRef(selection);
   const stateRef = useRef({ canEdit, editing });
-  const callbacksRef = useRef({ onDeleteSelection, onEscape });
+  const callbacksRef = useRef({ onDeleteSelection, onEscape, onTool, onCreateSticky });
   useEffect(() => {
     objectsRef.current = objects;
     selectionRef.current = selection;
     stateRef.current = { canEdit, editing };
-    callbacksRef.current = { onDeleteSelection, onEscape };
+    callbacksRef.current = { onDeleteSelection, onEscape, onTool, onCreateSticky };
   });
 
   return useCallback((event: KeyboardEvent): void => {
@@ -97,6 +114,35 @@ export function useBoardKeys({
     }
 
     const meta = event.metaKey || event.ctrlKey;
+
+    if (!meta && !event.altKey && !event.shiftKey) {
+      // The tools, and the one key that makes a thing rather than choosing a tool to make it with.
+      // These three are taken only on their own: Ctrl+T is a new tab, Cmd+N is a new window, and a
+      // board that took either would be a board that stole a key from the browser for a second
+      // purpose nobody agreed to.
+      const key = event.key.toLowerCase();
+      if (key === 'v' && callbacksRef.current.onTool !== undefined) {
+        event.preventDefault();
+        callbacksRef.current.onTool?.('select');
+        return;
+      }
+      if (key === 't' && callbacksRef.current.onTool !== undefined) {
+        // Taken from the browser only when there is a tool to give: on a board that cannot be
+        // written to, T stays the browser's key rather than becoming a dead one.
+        if (state.canEdit) {
+          event.preventDefault();
+        }
+        callbacksRef.current.onTool?.('text');
+        return;
+      }
+      if (key === 'n' && callbacksRef.current.onCreateSticky !== undefined) {
+        if (state.canEdit) {
+          event.preventDefault();
+          callbacksRef.current.onCreateSticky();
+        }
+        return;
+      }
+    }
 
     if (
       undo !== undefined &&
@@ -138,6 +184,11 @@ export function useBoardKeys({
 
     if (event.key === 'Escape') {
       event.preventDefault();
+      // Escape is the way out of everything that is happening and has not been written down: the
+      // marquee gets first refusal (an Escape that cancels a marquee should not also throw away the
+      // selection behind it), and the tool comes back to Select on the way past, because a person
+      // who presses Escape is saying "whatever that was, I am done with it".
+      callbacksRef.current.onTool?.('select');
       callbacksRef.current.onEscape();
       return;
     }

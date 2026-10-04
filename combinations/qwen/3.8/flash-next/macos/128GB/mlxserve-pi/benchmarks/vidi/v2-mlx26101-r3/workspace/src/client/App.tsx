@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { JSX } from 'react';
 import * as Y from 'yjs';
 import { BoardViewport } from './canvas/BoardViewport';
@@ -15,6 +15,7 @@ import {
 } from './canvas/camera';
 import { useCamera } from './canvas/useCamera';
 import { Toolbar } from './board/Toolbar';
+import { useTool } from './board/useTool';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { useBoardKeys, isTextEntryTarget } from './board/useBoardKeys';
@@ -26,7 +27,11 @@ import { useTransformGesture } from './board/useTransformGesture';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
 import { getObjectType } from './objects/registry';
+import { applyTextSize } from './objects/TextObject';
+import { createCanvasMeasurer } from './objects/textLayout';
 import { createSticky, deleteObjects } from '../shared/board-model';
+import { createText } from '../shared/objects/text';
+import { TEXT_FONT_FAMILY, type TextSize } from '../shared/config';
 
 function initialViewport(): Size {
   return { width: window.innerWidth, height: window.innerHeight };
@@ -93,6 +98,12 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
   const { doc, notes, connection } = useBoardDoc(boardId, injectedDoc);
   const selection = useSelection(notes);
   const editable = canEdit(connection);
+  // Which tool this person's pointer is: pointing at things, or writing on them.
+  const { tool, setTool } = useTool(editable);
+  // The canvas the board's own text measurements are taken against - the ones asked for from the
+  // board rather than from inside a text object, which is where a size change or a fresh heading's
+  // first box is measured.
+  const textMeasurer = useMemo(() => createCanvasMeasurer(TEXT_FONT_FAMILY), []);
   // One undo history for this document, and the button state that reads it.
   const undoHistory = useUndoHistory(doc);
   const undoState = useUndo(undoHistory, editable);
@@ -143,6 +154,34 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
     [doc, selection, undoHistory],
   );
 
+  /**
+   * Write a heading, a caption, a sentence at a point of the board, and hand the pointer straight
+   * back to the person's fingers: the Text tool's whole job is to put one object down and get out of
+   * the way, so a second click is a second heading rather than a first one that never came.
+   *
+   * The object is made empty and is typed into immediately, which is the same order a note is born
+   * in, and it means the same thing here: a text object nobody typed into is removed when the
+   * editing stops, so clicking the board and then clicking away leaves a board with nothing new on
+   * it. Who made it is recorded as this client, which is the closest this product has to a name till
+   * story 6 arrives with one.
+   */
+  const createTextAt = useCallback(
+    (world: Point): void => {
+      if (!canEditRef.current) {
+        return;
+      }
+      undoHistory.boundary();
+      const id = createText(doc, world, String(doc.clientID));
+      undoHistory.boundary();
+      if (id !== null) {
+        selection.setMany([id], false);
+        selection.startEdit(id);
+      }
+      setTool('select');
+    },
+    [doc, selection, setTool, undoHistory],
+  );
+
   /** Start typing a note - the one thing a board that could not be loaded will not do. */
   const requestEdit = useCallback(
     (id: string): void => {
@@ -171,6 +210,38 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
   const handleEmptyClick = useCallback((): void => {
     selection.clear();
   }, [selection]);
+
+  /**
+   * The Text tool's click: the board was pointed at, and what was pointed at is where the words go.
+   * The point comes in as a place on the board area and is turned into world units here, which is
+   * the same conversion a note's double-click goes through - one conversion, in one place, so that
+   * two ways of putting something on the board cannot end up disagreeing about where the pointer was.
+   */
+  const handleTextPlace = useCallback(
+    (point: Point): void => {
+      createTextAt(screenToWorld(cameraRef.current, point));
+    },
+    [createTextAt],
+  );
+
+  /**
+   * One of the four size buttons under a selected text object.
+   *
+   * The size and the box are one action, so the two boundaries are one step: a heading made large
+   * and then undone with a single Ctrl+Z is what a person expects, and a step that only put the
+   * letters back to Medium while leaving the box XL-tall is a box with nothing in it.
+   */
+  const handleTextSize = useCallback(
+    (id: string, size: TextSize): void => {
+      if (!canEditRef.current) {
+        return;
+      }
+      undoHistory.boundary();
+      applyTextSize(doc, id, size, textMeasurer);
+      undoHistory.boundary();
+    },
+    [doc, textMeasurer, undoHistory],
+  );
 
   /** Everything selected goes, in one transaction, and the selection goes with it. */
   const deleteSelection = useCallback((): void => {
@@ -236,6 +307,10 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
     onDeleteSelection: deleteSelection,
     onEscape: handleEscape,
     undo: undoHistory,
+    // V, T and N. The tool goes through the same hook that holds it, because the rule about which
+    // tools a board will accept belongs with the tool, not with whichever key was pressed.
+    onTool: setTool,
+    onCreateSticky: handleCreateSticky,
   });
 
   useEffect(() => {
@@ -276,6 +351,8 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
         onEmptyDoubleClick={handleEmptyDoubleClick}
         onEmptyClick={handleEmptyClick}
         marquee={marquee}
+        tool={tool}
+        onTextPlace={handleTextPlace}
       >
         {notes.map((object) => {
           // An object of a type this client has no component for is skipped: the board shows
@@ -316,8 +393,16 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
         snapshot={notes}
         onDelete={deleteSelection}
         canEdit={editable}
+        editingId={selection.editingId}
+        onTextSize={handleTextSize}
       />
-      <Toolbar onCreateSticky={handleCreateSticky} canEdit={editable} undo={undoState} />
+      <Toolbar
+        onCreateSticky={handleCreateSticky}
+        canEdit={editable}
+        undo={undoState}
+        tool={tool}
+        onTool={setTool}
+      />
       <ConnectionStatus state={connection} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

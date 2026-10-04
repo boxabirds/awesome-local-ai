@@ -150,3 +150,73 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** How many steps one person's undo history keeps; older steps are dropped first. */
 export const UNDO_MAX_STEPS = 200;
+
+/* Free text (story 9). ------------------------------------------------------- */
+
+/**
+ * Widest a text box of its own accord ever gets, in world units: a comfortable line length.
+ * A longer line is wrapped rather than drawn wider, which is what "grows then wraps" means.
+ */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/**
+ * Narrowest a text box can be given with the side handle, in world units. Below this the words
+ * would be broken to one letter per line, which is not a width a person meant to choose.
+ */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Hard limit on the characters of text a text object holds. */
+export const TEXT_MAX_CHARS = 5000;
+/**
+ * The four text sizes, as the font size in world units (so 20 world units is 20 px at 100% zoom).
+ * The key is what the document stores.
+ */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/**
+ * What each size is called where a person reads it, in the toolbar's button names. The letter on
+ * the button is the size; the word is for the screen reader, and for the tooltip.
+ */
+export const TEXT_SIZE_LABELS: Record<TextSize, string> = {
+  S: 'Small',
+  M: 'Medium',
+  L: 'Large',
+  XL: 'Extra large',
+};
+/** Text made with the Text tool starts in the middle size. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/**
+ * Line height as a multiple of the font size: the box's height is lines x size x this.
+ * A line of text needs a little more room than the letters themselves have.
+ */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** The board's standard sans-serif: text objects are plain text, and this is the font they are in. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/**
+ * How wide a character is taken to be when there is no canvas to measure with, as a fraction of
+ * the font size. Only a fallback - the estimate exists so a text object still has a box, and so
+ * a change is never lost, where `measureText` cannot run (jsdom, and any worker without canvas).
+ */
+export const TEXT_ESTIMATED_GLYPH_RATIO = 0.5;
+
+/**
+ * How a text object's width is decided: `auto` follows the longest line, `fixed` is the width a
+ * person dragged the side handle to. Height is never either: height always follows the content.
+ */
+export type TextWidthMode = 'auto' | 'fixed';
+
+/**
+ * True for one of the four size names.
+ *
+ * A runtime check, because the value comes out of a document that a peer - or an older client,
+ * or a hand-written import - may have put anything in. The board model reads a size with it and
+ * falls back to the default rather than drawing a text object at a font size the product has not
+ * got. It is a setting's own guard, so it sits next to the setting: the model and the text object
+ * model both need it, and this is the one module neither has to import through the other.
+ */
+export function isTextSize(value: unknown): value is TextSize {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, value);
+}
+
+/** Whether `value` is one of the two width modes; anything else reads back as `'auto'`. */
+export function isTextWidthMode(value: unknown): value is TextWidthMode {
+  return value === 'auto' || value === 'fixed';
+}

@@ -56,6 +56,18 @@ body {
   cursor: grabbing;
 }
 
+/* While the Text tool is up the board's pointer says what it is for, over the board *and* over
+   whatever is already on it: a tool that put a cursor back to an arrow whenever it passed over a
+   note would be a tool that denied it was a tool every time it was needed most. The resize handles
+   keep their own arrows, because those are not the text tool's to answer. */
+.board-viewport[data-tool='text'] {
+  cursor: text;
+}
+
+.board-viewport[data-tool='text'] .board-world [data-object-id] {
+  cursor: text;
+}
+
 .board-grid {
   position: absolute;
   inset: 0;
@@ -233,6 +245,20 @@ a:focus-visible {
   cursor: default;
 }
 
+/* The tool that is up is drawn as pressed, and it is the pressed state rather than a colour that
+   says which one it is: two buttons that both look ready and do different things with the same
+   gesture is a board you have to remember, and a board you have to remember is a board you stop
+   using. */
+.toolbar__tool[aria-pressed='true'] {
+  color: var(--accent);
+  background: #e6edfb;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.toolbar__tool[aria-pressed='true']:hover {
+  background: #dbe6fa;
+}
+
 .toolbar button:disabled:hover {
   background: transparent;
 }
@@ -383,6 +409,148 @@ a:focus-visible {
 .note-toolbar__delete:hover {
   color: #b42318;
   background: #eef1f5;
+}
+
+/* Free text (story 9) -------------------------------------------------- */
+
+/* Words on the board, with nothing drawn around them: no fill, no border, no shadow. The box is
+   there - it is where the words go, and what the handles are drawn around - but it is not *seen*,
+   which is the whole difference between a text object and a note. */
+.text-object {
+  position: absolute;
+  box-sizing: border-box;
+  color: var(--ink);
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+}
+
+.text-object[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.text-object[data-selected='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The words themselves. The line breaks where the box says it does, and a word too long for the
+   widest box there is gets broken rather than left to hang outside it. */
+.text-object__text {
+  width: 100%;
+  height: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Typing into a text object: the textarea takes the box the words are drawn in, at the same size,
+   so that the line turns over under the caret exactly where it will afterwards. */
+.text-object__editor {
+  position: absolute;
+  inset: 0;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  /* A text object is born forty units wide and thirty feet of sentence has to be typed somewhere,
+     so an empty one gives itself room enough for a word before the first measurement arrives. */
+  min-width: 8ch;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font-family: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* The four sizes of the one selected text object, in the bar over the board. Each letter is drawn
+   at roughly the size it is offering, so the bar can be read at a glance rather than read. */
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.text-toolbar__size {
+  min-width: 26px;
+  height: 24px;
+  padding: 0 5px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.text-toolbar__size--S {
+  font-size: 10px;
+}
+
+.text-toolbar__size--M {
+  font-size: 12px;
+}
+
+.text-toolbar__size--L {
+  font-size: 14px;
+}
+
+.text-toolbar__size--XL {
+  font-size: 17px;
+}
+
+.text-toolbar__size:hover:not(:disabled) {
+  background: #eef1f5;
+}
+
+.text-toolbar__size[aria-pressed='true'] {
+  color: #fff;
+  background: var(--accent);
+}
+
+.text-toolbar__delete {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.text-toolbar__delete:hover {
+  color: #b42318;
+  background: #eef1f5;
+}
+
+/* The bar holding a single text object's sizes brings its own chrome, so it brings no padding,
+   no background and no shadow of its own: one box, not a box inside a box. */
+.selection-bar--single {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 /* Connection status ----------------------------------------------------- */
