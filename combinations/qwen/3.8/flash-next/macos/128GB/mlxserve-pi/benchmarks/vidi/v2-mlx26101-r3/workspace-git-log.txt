@@ -1,3 +1,54 @@
+commit 95c929ed708aee61930a48ad998f3f49e9a0636a
+agent  Sun Oct 4 06:49:57 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                               | 124 +++++++-
+ PROGRESS.md                            |  14 +-
+ index.html                             |   6 +
+ src/client/Root.tsx                    |  26 ++
+ src/client/api.ts                      | 170 ++++++++++
+ src/client/main.tsx                    |  92 ++----
+ src/client/pages/BoardPage.tsx         | 133 ++++++++
+ src/client/pages/HomePage.tsx          |  26 ++
+ src/client/pages/NewBoardButton.tsx    |  75 +++++
+ src/client/pages/NotFoundPage.tsx      |  38 +++
+ src/client/pages/state.ts              | 147 +++++++++
+ src/client/router.ts                   |  99 ++++++
+ src/client/share/SharePanel.tsx        | 163 ++++++++++
+ src/client/styles.css                  | 160 +++++++++-
+ src/shared/config.ts                   |  16 +
+ src/worker/board-room.ts               | 111 ++++++-
+ src/worker/board-store.ts              | 120 +++++++
+ src/worker/create-board.ts             |  43 +++
+ src/worker/index.ts                    | 112 ++++++-
+ src/worker/test-hooks.ts               | 101 ++++++
+ tests/component/pages.test.tsx         | 556 +++++++++++++++++++++++++++++++++
+ tests/e2e/broken-board.spec.ts         |  15 +-
+ tests/e2e/helpers/board.ts             |  67 +++-
+ tests/e2e/helpers/participants.ts      |  45 ++-
+ tests/e2e/persistence.spec.ts          |  17 +-
+ tests/e2e/share.spec.ts                | 459 +++++++++++++++++++++++++++
+ tests/integration/board-api.test.ts    | 472 ++++++++++++++++++++++++++++
+ tests/integration/board-room.test.ts   |  89 ++++++
+ tests/integration/board-store.test.ts  |  26 +-
+ tests/integration/helpers/ws-client.ts |  19 ++
+ tests/integration/test-hooks.test.ts   |   3 +
+ tests/integration/worker.test.ts       |   7 +-
+ tests/unit/api.test.ts                 | 127 ++++++++
+ tests/unit/create-board.test.ts        | 114 +++++++
+ tests/unit/pages-state.test.ts         | 149 +++++++++
+ tests/unit/router.test.ts              |  74 +++++
+ 36 files changed, 3870 insertions(+), 145 deletions(-)
+commit d64de09bef6dd5c3a3f9997b63f18bd7bb91a412
+vidi-agent  Sun Oct 4 06:25:33 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit e9d888b3979156a8b95053247b1b06c690af052f
 agent  Sun Oct 4 05:20:56 2026 +0000
 
