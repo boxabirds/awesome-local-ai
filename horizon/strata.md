@@ -100,14 +100,18 @@ yet, so changing the pin costs nothing today; changing it after the series start
 
 The project's README publishes its own table, measured on two gaming PCs (4K answers, 32K prompts):
 
-| | RTX 5070, 12 GB, 64 GB RAM | RX 9070 XT, 16 GB, 47 GB RAM |
-|---|---|---|
-| Q2_0 | 94 tok/s | 60 tok/s |
-| IQ2_XS | 79 tok/s | 52 tok/s |
-| **IQ3_XXS** (ours) | **62 tok/s** | — |
-| IQ3_S | 53 tok/s | — |
+| RTX 5070, 12 GB, 64 GB RAM | short chat | **at 128K context** | prompt |
+|---|---|---|---|
+| Q2_0 | 94 tok/s | 76 tok/s | 2,650 tok/s |
+| IQ2_XS | 79 tok/s | 63 tok/s | 2,090 tok/s |
+| **IQ3_XXS** (ours) | **62 tok/s** | **49 tok/s** | **1,750 tok/s** |
+| IQ3_S | 53 tok/s | 46 tok/s | 1,620 tok/s |
 
-and says in the same breath: *"A card with more VRAM is faster: an RTX 3090 (24 GB) should write about 100-140
+The same page gives the AMD machine (16 GB, 47 GB RAM): Q2_0 60 short, 48 at 128K. **The fall from a short chat to
+128K is 20 to 30% on both machines, not a collapse**, and the benchmark's own context (131,072) is the column on
+the right. The README's headline figures are the short-chat ones at 32K prompts; docs/MODELS.md has these.
+
+The README also says: *"A card with more VRAM is faster: an RTX 3090 (24 GB) should write about 100-140
 tokens per second."*
 
 Three things follow, and they fit together:
@@ -123,6 +127,13 @@ Three things follow, and they fit together:
 
 What remains true: ours were synthetic prompts with replies under 200 tokens, and the README's are 4K answers, so
 a recorded story is still the figure that counts.
+
+**A gap in our own measurement.** The 2 Oct table above records the prompt side at the benchmark's context
+(111,583 tokens read at 4,412 tok/s; 127,962 of 128,001 tokens reused; about 1 s a turn), but its generation figure
+does not say at what context it was taken, and short replies on a nearly empty context are the easy case. Taking
+the 12 GB machine's ratio (49/62, a 21% fall) as a guide, a 24 GB card might write 80 to 135 tok/s at 128K — an
+inference from someone else's hardware, not a measurement. **Measure decode at 128K before the series**, in the
+same ten-minute check that re-pins the version.
 
 ## The combination and the harness (3 Oct 2026)
 
