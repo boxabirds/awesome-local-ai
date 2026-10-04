@@ -13,6 +13,7 @@
     "tests/integration/worker.test.ts",
     "tests/integration/board-store.test.ts",
     "tests/integration/room-hibernation.test.ts",
+    "tests/integration/board-api.test.ts",
     "tests/types/worker-shapes.ts",
     "tests/unit/board-store-chunks.test.ts"
   ]

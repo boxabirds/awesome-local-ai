@@ -34,6 +34,7 @@ import {
 import { newBoardId } from '../../src/shared/board-id';
 import { CLOSE_UNSUPPORTED_DATA, MESSAGE_SYNC } from '../../src/shared/protocol';
 import { applyRandomOp, seededRandom } from '../fixtures/random-ops';
+import { ensureBoard } from './helpers/hooks';
 import {
   allConverged,
   RoomClient,
@@ -45,6 +46,9 @@ import {
 const open: RoomClient[] = [];
 
 async function join(boardId: string, options: RoomClientOptions = {}): Promise<RoomClient> {
+  // Story 5: nobody gets onto a board that was never created, and a test cannot
+  // press the button that creates one.
+  await ensureBoard(boardId);
   const client = await RoomClient.connectSynced(boardId, options);
   open.push(client);
   return client;

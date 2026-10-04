@@ -14,7 +14,6 @@ import {
   type Page,
 } from '@playwright/test';
 
-import { newBoardId } from '../../../src/shared/board-id';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
 import { getNotes, noteBoxes, type NoteBox } from './notes';
 import { expectNoPendingCameraFrame, type Pixel } from './board';
@@ -165,11 +164,18 @@ export interface LiveBoards {
  * participants on a shared board and cleans them up afterwards.
  */
 export const test = base.extend<{ liveBoards: LiveBoards }>({
-  liveBoards: async ({ browser }, use) => {
+  liveBoards: async ({ browser, request }, use) => {
     const opened: Participant[] = [];
     await use({
       async open(names: string[]) {
-        const boardId = newBoardId();
+        // A board is created, not invented: this is the same request the home page's
+        // button makes, and the id it hands back is the link a person would share.
+        const response = await request.post('/api/boards');
+        if (!response.ok()) {
+          throw new Error(`could not create a board for the test: ${response.status()}`);
+        }
+        const { id } = (await response.json()) as { id: string };
+        const boardId = id;
         const people = await openBoardAs(browser, boardId, names);
         opened.push(...people);
         return { boardId, people };

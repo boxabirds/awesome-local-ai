@@ -62,8 +62,10 @@ function centredOn(worldX: number, worldY: number, zoom: number) {
   };
 }
 
-test('a bare address gives you a board of your own', async ({ page }) => {
+test('the home page offers a board, and taking it opens one', async ({ page }) => {
   await page.goto('/');
+  await expect(page.getByText('A shared board for thinking together')).toBeVisible();
+  await page.getByTestId('new-board-button').click();
   await expect(page).toHaveURL(/\/b\/[A-Za-z0-9_-]{22}$/);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   // The board is empty and in sync, so there is nothing to report.

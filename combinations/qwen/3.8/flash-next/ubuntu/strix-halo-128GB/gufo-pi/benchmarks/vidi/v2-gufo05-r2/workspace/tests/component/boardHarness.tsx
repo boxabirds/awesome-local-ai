@@ -2,7 +2,7 @@ import { act, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import type * as Y from 'yjs';
 
-import App from '../../src/client/App';
+import { BoardSurface } from '../../src/client/board/BoardSurface';
 import type { Camera } from '../../src/client/canvas/camera';
 import { newBoardId } from '../../src/shared/board-id';
 
@@ -15,12 +15,19 @@ function dispatch<T extends Event>(target: EventTarget, event: T): T {
 }
 
 /**
- * Render the real app: viewport, zoom controls and hint wired together, showing
+ * Render the real board: viewport, zoom controls and hint wired together, showing
  * one board of its own (the address decides which board the page connects to).
+ *
+ * Story 5 is why this mounts `BoardSurface` rather than `App`: the page in front of
+ * the board now asks the server whether that board exists, and there is no server in
+ * a component test — so mounting the whole app here would spend the test waiting on a
+ * request instead of looking at the board. The board itself is unchanged, and the
+ * address, the check and the pages have their own tests (`pages.test.tsx`, and the
+ * e2e share workflows, which run against a real server).
  */
 export function renderBoard(boardId = newBoardId()) {
   window.history.pushState({}, '', `/b/${boardId}`);
-  return render(<App />);
+  return render(<BoardSurface boardId={boardId} />);
 }
 
 export function surface(): HTMLElement {

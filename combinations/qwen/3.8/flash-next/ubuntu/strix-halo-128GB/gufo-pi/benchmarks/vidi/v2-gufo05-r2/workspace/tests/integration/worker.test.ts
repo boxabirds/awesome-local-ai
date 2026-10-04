@@ -2,7 +2,9 @@
  * sync.worker_entry, integration: the real Worker `fetch` handler in workerd,
  * with the real `wrangler.jsonc` (Durable Object binding + assets SPA fallback).
  *
- * TC-04 invalid id → 400 and the Durable Object is never touched;
+ * TC-04 invalid id → 404 and the Durable Object is never touched (story 5 changed
+ * this answer from story 3's 400: a malformed address is simply not a board, and
+ * 400 would tell a stranger which guesses are well formed);
  * TC-05 valid id without `Upgrade` → 426; TC-06 `/b/:boardId` serves the client.
  *
  * The tests that need an open WebSocket (TC-13 capacity, TC-17 isolation) are in
@@ -41,7 +43,7 @@ function spyingNamespace(
 }
 
 describe('worker routing', () => {
-  it('TC-04: rejects an invalid board id with 400 without touching the Durable Object', async () => {
+  it('TC-04: rejects an invalid board id with 404 without touching the Durable Object', async () => {
     const calls: string[] = [];
     const spyEnv: Env = {
       BOARD_ROOM: spyingNamespace(workerEnv.BOARD_ROOM, calls),
@@ -55,7 +57,7 @@ describe('worker routing', () => {
       spyEnv,
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
     // No id lookup means no stub, which means no object instance was created.
     expect(calls).toEqual([]);
   });
@@ -72,7 +74,8 @@ describe('worker routing', () => {
       const response = await SELF.fetch(`http://vidi6.test${path}`, {
         headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
       });
-      expect(`${path} -> ${response.status}`).toBe(`${path} -> 400`);
+      // 404, not story 3's 400: see the note at the top of this file (share.not_found).
+      expect(`${path} -> ${response.status}`).toBe(`${path} -> 404`);
     }
   });
 

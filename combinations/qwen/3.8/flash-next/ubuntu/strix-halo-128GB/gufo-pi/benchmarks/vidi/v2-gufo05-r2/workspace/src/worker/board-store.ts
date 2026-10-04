@@ -16,6 +16,16 @@
  * A board is therefore the snapshot plus every log row after it, which is what
  * makes saving continuous (persist.automatic) and independent of anyone being
  * present (persist.restart, persist.reopen).
+ *
+ * Story 5 adds the question "is this board one of ours?" — `existsReadOnly()`.
+ * A board exists once its `storage_meta` carries `created_at` (written by
+ * `initialize()`, the only way a board is deliberately started) or, for boards
+ * that already had content before creation existed, once the log or the snapshot
+ * holds anything at all (share.legacy_boards). That question only ever reads:
+ * `load()` treats missing tables as an empty board instead of making them, and
+ * `migrate()` runs from `initialize()`, from a load that found the tables already
+ * there, and lazily before the first `append()` — so nobody can create a board,
+ * or leave a trace of one, by pointing a browser at an address.
  */
 
 import * as Y from 'yjs';
@@ -40,6 +50,12 @@ const QUARANTINE_TABLE = 'quarantined_updates';
 
 const META_SCHEMA_VERSION_KEY = 'storage_schema_version';
 const META_THROUGH_SEQ_KEY = 'snapshot_through_seq';
+
+/** When this board was deliberately created; its absence means "never created". */
+const META_CREATED_AT_KEY = 'created_at';
+
+/** Every table this store owns, for "does this board have any storage at all?". */
+const BOARD_TABLES = [META_TABLE, LOG_TABLE, CHUNK_TABLE, QUARANTINE_TABLE];
 
 export type LoadResult =
   | { ok: true; quarantined: number }
@@ -128,6 +144,13 @@ export class BoardStore {
   /** Highest log sequence already folded into the snapshot. */
   private throughSeq = 0;
 
+  /**
+   * Whether this instance knows the tables are there. Set by `migrate()` and by a
+   * load that found them, so appending to a running board costs no `sqlite_master`
+   * lookup.
+   */
+  private tablesVerified = false;
+
   constructor(private readonly storage: DurableObjectStorage) {}
 
   /** Create the tables and stamp the schema version. Writes no update rows. */
@@ -159,6 +182,72 @@ export class BoardStore {
         String(STORAGE_SCHEMA_VERSION),
       );
     });
+    this.tablesVerified = true;
+  }
+
+  /**
+   * Make sure the tables exist before something writes to them. A board that is
+   * being created gets them from `initialize()`; a legacy board already has them;
+   * this is the case that somehow has neither (a board whose first change arrives
+   * without an `initialize()`), and it must still be able to save.
+   */
+  ensureTables(): void {
+    if (this.tablesVerified) return;
+    if (this.hasTables()) {
+      this.tablesVerified = true;
+      return;
+    }
+    this.migrate();
+  }
+
+  /**
+   * Does this board need its schema? Only when it has no tables at all: a board
+   * nobody created must be read without being given any (share.not_found).
+   */
+  needsSchema(): boolean {
+    return !this.tableExists(META_TABLE);
+  }
+
+  /** True when this board has any of its tables at all. Reads, never writes. */
+  hasTables(): boolean {
+    return BOARD_TABLES.some((table) => this.tableExists(table));
+  }
+
+  /** Does a table exist? `sqlite_master` is the only thing asked. */
+  tableExists(name: string): boolean {
+    const row = this.storage.sql
+      .exec<{ n: number | string }>(
+        `SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = ?`,
+        name,
+      )
+      .one();
+    return (typeof row.n === 'number' ? row.n : Number(row.n)) > 0;
+  }
+
+  /**
+   * Is this a board of ours? True when it was created on purpose, or when it has
+   * board content from before creation existed.
+   *
+   * Read-only on purpose (share.not_found): a stranger pointing a browser at a
+   * guessed address must not leave so much as a table behind.
+   */
+  existsReadOnly(): boolean {
+    if (this.createdAt() !== null) return true;
+    if (this.tableExists(LOG_TABLE) && this.count(`SELECT COUNT(*) AS n FROM ${LOG_TABLE}`) > 0) {
+      return true;
+    }
+    return this.tableExists(CHUNK_TABLE) && this.count(`SELECT COUNT(*) AS n FROM ${CHUNK_TABLE}`) > 0;
+  }
+
+  /** When this board was created, or null when nobody ever created it. */
+  createdAt(): number | null {
+    if (!this.tableExists(META_TABLE)) return null;
+    return this.metaNumber(META_CREATED_AT_KEY);
+  }
+
+  /** Stamp the moment this board was created. Called once, by `initialize()`. */
+  markCreated(now: number): void {
+    this.metaSet(META_CREATED_AT_KEY, String(now));
   }
 
   /**
@@ -167,6 +256,10 @@ export class BoardStore {
    * serving a board whose changes are not being kept.
    */
   append(update: Uint8Array): void {
+    // The first change to a board is what proves its tables are needed: until now
+    // an unknown address may never have had any, and reading it must not have made
+    // any (share.not_found).
+    this.ensureTables();
     this.storage.sql.exec(
       `INSERT INTO ${LOG_TABLE} (data, bytes) VALUES (?, ?)`,
       toArrayBuffer(update),
@@ -189,6 +282,16 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // A board that was never created has no tables. It reads as empty — and is
+      // left exactly as it was found, because nothing below creates them.
+      if (!this.hasTables()) {
+        this.throughSeq = 0;
+        this.logCount = 0;
+        this.logBytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
+      this.tablesVerified = true;
+
       this.throughSeq = this.metaNumber(META_THROUGH_SEQ_KEY) ?? 0;
 
       const chunks = this.snapshotChunks();
@@ -247,6 +350,7 @@ export class BoardStore {
   // fatal: the room still remembers it for as long as it lives.
 
   health(): BoardHealth {
+    if (!this.tableExists(META_TABLE)) return { failedAt: null, failure: '' };
     const rows = this.storage.sql
       .exec(`SELECT key, value FROM ${META_TABLE} WHERE key IN ('load_failed_at', 'load_failure')`)
       .toArray();
@@ -269,6 +373,7 @@ export class BoardStore {
 
   /** A read worked: forget the recorded failure. */
   recordLoadSuccess(): void {
+    if (!this.tableExists(META_TABLE)) return;
     this.storage.sql.exec(
       `DELETE FROM ${META_TABLE} WHERE key = 'load_failed_at' OR key = 'load_failure'`,
     );
@@ -332,8 +437,16 @@ export class BoardStore {
     }
   }
 
-  /** Row counts and sizes, for the room's status and for tests. */
+  /**
+   * One key/value pair in `storage_meta`, creating the table if it is not there.
+   * The only case that matters is a board with no tables whose read failed: the
+   * retry interval still has to be remembered, and a failure record does not make
+   * a board exist (`existsReadOnly()` asks for `created_at`, not for any row).
+   */
   private metaSet(key: string, value: string): void {
+    this.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS ${META_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+    );
     this.storage.sql.exec(
       `INSERT INTO storage_meta (key, value) VALUES (?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
@@ -343,18 +456,22 @@ export class BoardStore {
   }
 
   summary(): StorageSummary {
+    const counts = (table: string, query: string): number =>
+      this.tableExists(table) ? this.count(query) : 0;
+    const hasMeta = this.tableExists(META_TABLE);
     return {
-      schemaVersion: this.metaNumber(META_SCHEMA_VERSION_KEY),
-      updateCount: this.count(`SELECT COUNT(*) AS n FROM ${LOG_TABLE}`),
-      updateBytes: this.count(`SELECT COALESCE(SUM(bytes), 0) AS n FROM ${LOG_TABLE}`),
-      snapshotChunks: this.count(`SELECT COUNT(*) AS n FROM ${CHUNK_TABLE}`),
-      snapshotThroughSeq: this.metaNumber(META_THROUGH_SEQ_KEY) ?? 0,
-      quarantined: this.count(`SELECT COUNT(*) AS n FROM ${QUARANTINE_TABLE}`),
+      schemaVersion: hasMeta ? this.metaNumber(META_SCHEMA_VERSION_KEY) : null,
+      updateCount: counts(LOG_TABLE, `SELECT COUNT(*) AS n FROM ${LOG_TABLE}`),
+      updateBytes: counts(LOG_TABLE, `SELECT COALESCE(SUM(bytes), 0) AS n FROM ${LOG_TABLE}`),
+      snapshotChunks: counts(CHUNK_TABLE, `SELECT COUNT(*) AS n FROM ${CHUNK_TABLE}`),
+      snapshotThroughSeq: hasMeta ? this.metaNumber(META_THROUGH_SEQ_KEY) ?? 0 : 0,
+      quarantined: counts(QUARANTINE_TABLE, `SELECT COUNT(*) AS n FROM ${QUARANTINE_TABLE}`),
     };
   }
 
   /** The log rows a reload still has to apply, in the order they were written. */
   private logRowsAfter(seq: number): UpdateRow[] {
+    if (!this.tableExists(LOG_TABLE)) return [];
     const rows = this.storage.sql
       .exec<{ seq: number; data: ArrayBuffer; bytes: number }>(
         `SELECT seq, data, bytes FROM ${LOG_TABLE} WHERE seq > ? ORDER BY seq ASC`,
@@ -366,6 +483,7 @@ export class BoardStore {
 
   /** The snapshot's chunks, in the order they concatenate to. */
   private snapshotChunks(): Uint8Array[] {
+    if (!this.tableExists(CHUNK_TABLE)) return [];
     return this.storage.sql
       .exec<{ data: ArrayBuffer }>(`SELECT data FROM ${CHUNK_TABLE} ORDER BY idx ASC`)
       .toArray()
@@ -397,6 +515,7 @@ export class BoardStore {
   }
 
   private metaNumber(key: string): number | null {
+    if (!this.tableExists(META_TABLE)) return null;
     const rows = this.storage.sql
       .exec<{ value: string }>(`SELECT value FROM ${META_TABLE} WHERE key = ?`, key)
       .toArray();

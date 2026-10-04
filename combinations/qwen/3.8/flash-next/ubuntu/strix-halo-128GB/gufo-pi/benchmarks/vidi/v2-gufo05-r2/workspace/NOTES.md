@@ -319,3 +319,167 @@ server, 28744/28745 each persistence case's own `wrangler dev`, 28746 the
 "deployment without `TEST_HOOKS`" server. The persistence cases run serially
 (`test.describe.configure({ mode: 'serial' })`) because they share 28744; they can
 still run alongside the browser cases, which never touch that port.
+
+# Notes: Story 5 — sharing a board by link
+
+## Deviations from the design
+
+### Story 3's 400 for a malformed room address becomes 404 (test updated)
+
+`design.md`'s HTTP table asks for this by name ("story 3's 400 becomes 404"), so
+`tests/integration/worker.test.ts` TC-04 changed: both assertions, and the test title.
+What the case is really guarding is untouched and still asserted — `idFromName` is never
+called for a malformed address, so no object is instantiated. The status is the part the
+new story has an opinion about: answering `400 Invalid board id` to somebody walking the
+namespace tells them which guesses are well formed, and a link code is supposed to be the
+thing that cannot be probed (share.unguessable).
+
+### The live integration tests now create the board they join
+
+`tests/integration/helpers/hooks.ts` gained `ensureBoard()`, called once from `join()` in
+`board-room.test.ts` and `board-room-persistence.test.ts` (27 tests). Story 5's central
+rule — nobody gets onto a board that was never created — breaks the old habit of
+inventing an id and connecting to it, and that is the story working as intended.
+
+The alternative was to let the live server accept unknown rooms, which would have meant
+the rule is never tested where the real sockets are. So the tests ask for boards, through
+the test-only route that calls the *same* `initialize()` `POST /api/boards` calls: the
+board that turns up is built the normal way, and only its address comes from the test —
+which is the one thing the real API deliberately never offers.
+
+### The e2e helpers create boards instead of inventing addresses
+
+- `helpers/board.ts`'s `openBoard()` goes to `/` and presses **New board**, and returns the
+  id it landed on; it does nothing if the page is already on a board, so a helper called
+  later in the same test cannot quietly make a second one.
+- `helpers/live.ts`'s `liveBoards.open` POSTs `/api/boards` with Playwright's `request`.
+- `persistence.spec.ts` TC-19 and TC-20 use `createBoardAt(board.origin)`.
+- Anything that *seeds* (`TC-21`, `TC-24`, share `TC-31`) still seeds: those cases are
+  about a board that already has content on disk, which is a different thing from a board
+  that exists.
+
+### The component harness mounts the board, not the whole app
+
+`boardHarness.renderBoard()` renders `BoardSurface` instead of `<App/>`. Story 5 put a
+question to the server between an address and a board, and a component test has no server
+— so mounting the app there would spend 71 story 1–4 tests waiting on a request instead of
+looking at the board. No assertion in those files changed. The address, the check and the
+pages are covered by `pages.test.tsx` (jsdom) and `share.spec.ts` (real server), which is
+where those things belong.
+
+### The pages tests stub `fetch`, not `api.ts`
+
+The design's D2 says "mocked api". Stubbing one level lower keeps `api.ts`'s status
+mapping inside the test, which is where the interesting mistake lives: a 500 read as a 404
+would tell a person their board is gone when all that happened is a bad moment on the
+network (share.unreachable). TC-19's "no request was made" is asserted over the recorded
+URLs, which says more than "the mock was not called".
+
+### TC-26 is chromium-only, and this host has only chromium
+
+`clipboard-read` is not a grantable permission in the other two browsers, so that case
+skips by project name. Separately, firefox and webkit cannot start here at all (missing
+system libraries; `playwright.config.ts` probes and reports it), so TC-27 and TC-29's
+"also in firefox and webkit" was verified in chromium only. Nothing those two cases touch
+is chromium-specific: a 404, a read-only field, and a rejected promise.
+
+### `nextBoardPageState` takes the board id as a fourth argument
+
+The design's signature is (state, event, now). The `ready` state has to carry the id for
+the board to mount, and a state machine that read `window.location` to get it would not be
+a state machine.
+
+## Decisions
+
+### A board exists when it was created, or when it has content
+
+`storage_meta.created_at` is the fact. Rows in `updates` or `snapshot_chunks` are the
+fallback for boards written before this story existed, so nobody is locked out of work they
+already have (share.legacy_boards). Empty tables are neither: they are what a probe leaves
+behind if you are not careful, and treating them as content would make the first guess
+create the thing it was looking for.
+
+### Probing writes nothing, at every layer
+
+- a malformed address is answered without naming a Durable Object at all;
+- `exists()` is a read of `sqlite_master` plus at most three `COUNT`s;
+- `load()` treats "no tables" as an empty board instead of migrating, `migrate()` runs
+  from `initialize()`, and `append()` makes the tables lazily for a board that predates
+  them;
+- the room returns 404 *before* accepting a WebSocket, so a socket is never half-open on a
+  board that does not exist.
+
+This is why story 4's `load()` no longer "just works": making a question harmless meant
+threading "this board may not exist" through every place that had assumed it did —
+`health()`, `summary()`, `recordLoadSuccess()`, the chunk reader. Each of those guards is
+a one-line early return, and together they are the difference between a share link and a
+way to fill a database with empty boards.
+
+### `initialize()` is the only thing that stamps a board
+
+One write of `created_at`, and it returns `created` or `exists`; a second call changes
+nothing, the timestamp included (TC-15). Creation is therefore not repeatable, and an
+accidental double POST cannot reset a board somebody is already working on.
+
+### Creation is one RPC, with no retry loop
+
+128-bit ids do not collide in practice. If one ever did, `initialize()` would answer
+`exists` for an id we did not make, and the API says 500 `create_failed` — which is the
+honest answer, and strictly better than the alternative of opening a board someone else
+made and showing it as yours.
+
+### Everything under `/api/boards` belongs to the boards handler
+
+`/api/boardsfoo` is a 404, not the web page: a path that starts like our API should not be
+answered with HTML. `OPTIONS` and every other method are 405 with an `Allow` header. This
+is not a CORS service — the client is the only caller and is same-origin — so there is no
+preflight to support, and "no, and here is what this address does" is the useful answer.
+
+### The copied confirmation ends by reverting, not by closing
+
+`Copied → Open` after `LINK_COPIED_MS`, as in the design's diagram, with the panel still
+open. The person has just copied a link and is about to paste it somewhere; a panel that
+vanished, and moved focus back to a button, in the middle of that would be the one
+annoying thing this feature could do. Escape and an outside click remain the only ways out.
+
+### The link is `${window.location.origin}/b/${id}`
+
+Same-origin by construction, so `location.origin` is exactly what the address bar shows —
+behind any host, port or proxy prefix, with no configuration to get wrong and nothing to
+keep in step.
+
+### Stories 6 and 13–17 stay out of this
+
+No presence, no board list, no hooks. The Share panel answers one question — how do I get
+somebody else onto this board — and a panel that also offered membership management would
+be a different story's UI.
+
+## Findings worth remembering
+
+- In the `vitest-pool-workers` pool, `SELF.fetch` with `Upgrade: websocket` headers returns
+  the *right status* — 101 for a board that exists, 404 for one that does not — but
+  `response.webSocket` is `null` in both cases. So TC-09 asserts "404 and no tables", and
+  "sync works after a POST" (TC-10) is carried by the live project's joins. Story 3's note
+  about the pool's loopback still stands.
+- `sql.exec` against a Durable Object whose SQLite has never been created throws rather
+  than returning no rows. Existence has to ask `sqlite_master` first.
+- `Object.assign(navigator, { clipboard })` does nothing: `clipboard` is an accessor on
+  `Navigator.prototype`. Both the component test and the e2e init script redefine it there
+  with `configurable: true`.
+- `{'✓'} {'Link copied'}` has no space in `textContent` — JSX drops whitespace between
+  expressions. (This repo has no jest-dom, so assertions are `.textContent` and `toBeNull`
+  anyway, which turns out to be a reasonable house style.)
+- Playwright's `test.skip(predicate)` only works inside a `describe`; in a test body it is
+  `test.skip(testInfo.project.name !== 'chromium', …)`.
+- With `page.route('**/api/boards/*', abort)` in TC-28, the page's own backoff is what
+  eventually succeeds: the board appears about a second after the unroute, with no reload,
+  which is the retry doing its job rather than the test hurrying it.
+
+## What the timings look like here
+
+| measurement | on this machine |
+|---|---|
+| TC-26: click **New board** → board on screen | 137 ms against `CREATE_BUDGET_MS = 2000` — logged, not asserted |
+| TC-28: unreachable → route restored → board on screen | ~1 s, which is the first retry interval |
+| `npm run test:integration` (36 pool + 27 live) | ~78 s |
+| `npm run test:e2e` (38 cases, chromium only on this host) | ~38 s |

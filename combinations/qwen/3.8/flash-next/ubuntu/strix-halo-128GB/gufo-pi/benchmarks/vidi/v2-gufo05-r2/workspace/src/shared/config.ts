@@ -122,3 +122,22 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 
 /** Version of the storage tables (not of the Yjs document schema). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+/* ------------------------------------------------------------------ * *
+ * Story 5: sharing a board by link                                      *
+ * ------------------------------------------------------------------ */
+
+/**
+ * Click to board: how long creating a board may take from the click on
+ * "New board" to the empty board being on screen (PRD share.create).
+ */
+export const CREATE_BUDGET_MS = 2000;
+
+/** How long the Share panel's button says "Link copied" (PRD share.copy). */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * First wait before asking again whether a board exists, when the service could
+ * not be reached (PRD share.unreachable). Doubles up to RECONNECT_MAX_BACKOFF_MS.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

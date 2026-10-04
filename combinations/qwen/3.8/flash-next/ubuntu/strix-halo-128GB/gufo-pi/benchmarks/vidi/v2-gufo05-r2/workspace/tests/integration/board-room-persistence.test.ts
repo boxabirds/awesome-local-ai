@@ -39,7 +39,7 @@ import {
 } from '../../src/shared/protocol';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
 import { retroBoard } from '../fixtures/boards';
-import { hooks } from './helpers/hooks';
+import { ensureBoard, hooks } from './helpers/hooks';
 import { closeWait, sleep, untilAsync } from './helpers/util';
 import {
   allConverged,
@@ -53,6 +53,10 @@ import {
 const open: RoomClient[] = [];
 
 async function join(boardId: string, options: RoomClientOptions = {}): Promise<RoomClient> {
+  // Story 5: a board has to be created before anyone can join it, and a test cannot
+  // press the button that does it. (Boards seeded through the test hooks already
+  // exist; `initialize` reports that and changes nothing.)
+  await ensureBoard(boardId);
   const client = await RoomClient.connectSynced(boardId, options);
   open.push(client);
   return client;

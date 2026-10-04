@@ -17,10 +17,25 @@ export interface BoardGridStyle {
 
 export const VIEWPORT_SIZE = { width: 1280, height: 800 };
 
-export async function openBoard(page: Page): Promise<void> {
-  await page.goto('/');
+/**
+ * Open a board of this test's own, the way a person does it: the home page, then
+ * "New board". Story 5 removed the old shortcut of landing on a random address and
+ * having the board appear there — nothing exists until somebody asks for it — so a
+ * test that wants a board makes one, exactly once, and gets its address back.
+ *
+ * Idempotent: a test already standing on a board (one it made a moment ago) is left
+ * where it is, so a helper further down the test does not quietly create a second one.
+ */
+export async function openBoard(page: Page): Promise<string> {
+  if (!/\/b\//.test(page.url())) {
+    await page.goto('/');
+    await page.getByTestId('new-board-button').click();
+  }
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await expect(page.getByTestId('origin-marker')).toBeVisible();
+  const address = /\/b\/([A-Za-z0-9_-]{22})/.exec(page.url());
+  if (!address) throw new Error(`not standing on a board: ${page.url()}`);
+  return address[1]!;
 }
 
 export async function setCamera(page: Page, camera: Camera): Promise<void> {

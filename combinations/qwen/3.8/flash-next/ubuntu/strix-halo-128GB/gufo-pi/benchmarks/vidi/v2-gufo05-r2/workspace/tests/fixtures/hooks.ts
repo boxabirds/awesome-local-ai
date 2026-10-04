@@ -52,6 +52,12 @@ export interface BoardHooks {
   compact(boardId: string): Promise<{ compacted: boolean; storage: StorageSummary }>;
   corruptSnapshot(boardId: string): Promise<{ corrupted: true; chunk: number; bytes: number }>;
   repairSnapshot(boardId: string): Promise<{ repaired: true; bytes: number }>;
+  /**
+   * Story 5: start this board at this exact id, through the same `initialize()` that
+   * `POST /api/boards` calls. A test needs a board at an address it chose, and the
+   * API only ever picks its own — which is the whole point of a link code.
+   */
+  initialize(boardId: string): Promise<{ created: boolean }>;
   failAppend(boardId: string, times?: number): Promise<{ armed: number }>;
   failLoad(boardId: string, times?: number): Promise<{ armed: number }>;
   seed(
@@ -94,6 +100,7 @@ export function boardHooks(httpBaseUrl: string, fetchImpl: typeof fetch = fetch)
     compact: (boardId) => call(boardId, 'compact', { method: 'POST' }),
     corruptSnapshot: (boardId) => call(boardId, 'corrupt-snapshot', { method: 'POST' }),
     repairSnapshot: (boardId) => call(boardId, 'repair', { method: 'POST' }),
+    initialize: (boardId) => call(boardId, 'initialize', { method: 'POST' }),
     failAppend: (boardId, times = 1) => call(boardId, 'fail-append', { method: 'POST', body: JSON.stringify({ times }) }),
     failLoad: (boardId, times = 1) => call(boardId, 'fail-load', { method: 'POST', body: JSON.stringify({ times }) }),
     seed: (boardId, kind, notes) => call(boardId, 'seed', { method: 'POST', body: JSON.stringify({ kind, notes }) }),

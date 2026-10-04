@@ -402,3 +402,266 @@ a:focus-visible,
   background: #e3f6e8;
   border-color: #86d3a3;
 }
+
+/* ------------------------------------------------------------------ *
+ * Story 5: pages, and sharing a board by link                         *
+ * ------------------------------------------------------------------ */
+
+/* Home and "Board not found": one centred card, nothing else on the page —
+   there is nothing to navigate while there is no board to navigate on. */
+.page {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.page-card {
+  width: min(440px, 100%);
+  text-align: center;
+}
+
+.page-title {
+  margin: 0 0 8px;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.page-tagline {
+  margin: 0 0 28px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ui-muted);
+}
+
+.page-footnote {
+  margin: 28px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ui-muted);
+}
+
+.new-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.new-board-button {
+  padding: 12px 28px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--note-outline);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  box-shadow: var(--ui-shadow);
+  cursor: pointer;
+}
+
+.new-board-button:hover {
+  filter: brightness(0.94);
+}
+
+/* While the board is being made the button says so, and is not a second click
+   waiting to happen. */
+.new-board-button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.create-error {
+  margin: 0;
+  font-size: 14px;
+  color: #b3261e;
+}
+
+/* Share, top right of a board. Fixed rather than absolute because the board it
+   belongs to is the whole window. */
+.share {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.share-open {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ui-text);
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  box-shadow: var(--ui-shadow);
+  cursor: pointer;
+}
+
+.share-panel {
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgb(18 22 31 / 18%);
+}
+
+.share-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ui-muted);
+}
+
+.share-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* The link itself, in full: read-only, selectable, and the thing the person came
+   here for. */
+.share-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ui-text);
+  background: #f7f8fa;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+}
+
+.share-copy {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--note-outline);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.share-tick {
+  font-weight: 700;
+}
+
+/* The clipboard refused: the fallback, in the amber the app already uses for
+   "nothing is lost, do this instead". */
+.share-manual {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #8a5300;
+  background: #fff4d6;
+  border: 1px solid #f0c26b;
+  border-radius: 8px;
+}
+
+.share-close {
+  align-self: flex-end;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--ui-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* The board page before the board: the paper and its grid, with the one thing that
+   is happening — asking whether this board exists. */
+.board-pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--board-background);
+  background-image: radial-gradient(var(--grid-dot) 1.5px, transparent 1.5px);
+  background-size: 32px 32px;
+}
+
+.board-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 24px;
+  text-align: center;
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  box-shadow: var(--ui-shadow);
+}
+
+.board-loading-message {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.board-loading-detail {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ui-muted);
+}
+
+.board-loading-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--ui-border);
+  border-top-color: var(--note-outline);
+  border-radius: 50%;
+  animation: vidi6-spin 900ms linear infinite;
+}
+
+@keyframes vidi6-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.board-retry {
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ui-text);
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Someone who prefers the keyboard to a spinner: the wait is not announced. */
+@media (prefers-reduced-motion: reduce) {
+  .board-loading-spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+/* A way home written as a link, but it changes the address rather than going
+   somewhere, so it is a button and not an <a>. */
+.link-button {
+  padding: 0;
+  font-size: inherit;
+  color: var(--note-outline);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}

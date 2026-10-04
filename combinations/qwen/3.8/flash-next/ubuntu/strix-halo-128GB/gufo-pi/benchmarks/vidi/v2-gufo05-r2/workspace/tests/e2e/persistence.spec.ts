@@ -26,6 +26,7 @@ import {
 } from '../../src/shared/config';
 import type { StickySnapshot } from '../../src/shared/board-model';
 import { newBoardId } from '../../src/shared/board-id';
+import { createBoardAt } from '../fixtures/board-api';
 import { boardHooks } from '../fixtures/hooks';
 import {
   boardJson,
@@ -120,7 +121,8 @@ test.afterEach(async () => {
 
 test('TC-19: the board a person left is the board they come back to', async ({ browser }) => {
   const board = await startServer();
-  const boardId = newBoardId();
+  // Story 5: this board has to be created before anyone can open it.
+  const boardId = await createBoardAt(board.origin);
 
   const people = await openBoardAs(browser, boardId, ['Alex']);
   const alex = people[0]!;
@@ -149,7 +151,8 @@ test('TC-20: what somebody has already seen was on the disk before they left', a
   browser,
 }) => {
   const board = await startServer();
-  const boardId = newBoardId();
+  // Story 5: this board has to be created before anyone can open it.
+  const boardId = await createBoardAt(board.origin);
 
   const people = await openBoardAs(browser, boardId, ['Alex', 'Sam']);
   const alex = people[0]!;

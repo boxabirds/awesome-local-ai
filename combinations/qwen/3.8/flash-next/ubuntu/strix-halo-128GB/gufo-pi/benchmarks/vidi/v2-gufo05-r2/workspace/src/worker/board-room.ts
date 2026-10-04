@@ -20,6 +20,11 @@
  *    `CLOSE_BOARD_LOAD_FAILED`, and the page says so (persist.damaged_board). A new
  *    connection retries the load, but no more often than LOAD_RETRY_MIN_INTERVAL_MS.
  *
+ * Story 5 adds the door: `fetch` answers 404 for a board nobody created, so a
+ * guessed or mistyped address cannot open one (share.not_found), and the two RPC
+ * methods `initialize()` / `exists()` are what makes "does this board exist?" a
+ * question with an answer in storage rather than a guess from a URL.
+ *
  * WebSockets use the *hibernation* API (`ctx.acceptWebSocket`): the socket set is
  * the runtime's, so an idle board costs no compute even while people hold their
  * tabs open, and the document — which now lives in storage — can be reread when a
@@ -114,6 +119,15 @@ export class BoardRoom extends DurableObject<Env> implements HookedRoom {
       return new Response('Upgrade Required', { status: 426 });
     }
 
+    // Nobody joins a board into existence (share.not_found): an address that was
+    // never created — and has no content from before creation existed — is turned
+    // away here, before anything is read or written. `GET /api/boards/:id` has
+    // already asked the same question, so this is the answer holding the door when
+    // a board vanished between that check and this connection.
+    if (!this.store.existsReadOnly()) {
+      return new Response('Board not found', { status: 404 });
+    }
+
     this.transition({ type: 'connection', now: Date.now(), lastLoadAttemptAt: this.lastLoadAttemptAt });
     if (this.needsLoad) this.loadNow();
 
@@ -143,6 +157,36 @@ export class BoardRoom extends DurableObject<Env> implements HookedRoom {
     // just lost a write) gets back everything a page is still holding.
     trySend(server, syncStep1(this.doc));
     return new Response(null, { status: 101, webSocket: client } as Response);
+  }
+
+  /* ------------------------------------------------------------------ * *
+   * Existence (Durable Object RPC: share.board_api)
+   * ------------------------------------------------------------------ */
+
+  /**
+   * Start this board: build its tables and stamp the moment it was created.
+   *
+   * The one way `created_at` is written, and so the one way a board begins to
+   * exist. Asking twice is harmless — the second answer is `exists` and the stamp
+   * is left alone, because re-initialising a board would be rewriting a board
+   * somebody is working on (share.not_found).
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    if (this.store.createdAt() !== null) return 'exists';
+    this.store.markCreated(Date.now());
+    console.log(
+      JSON.stringify({ event: 'board_initialized', board: this.ctx.id.toString() }),
+    );
+    return 'created';
+  }
+
+  /**
+   * Does this board exist? A read of storage and nothing else: no tables created,
+   * no document built, no sockets touched (share.not_found, share.legacy_boards).
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
   }
 
   /* ------------------------------------------------------------------ * *
@@ -290,7 +334,11 @@ export class BoardRoom extends DurableObject<Env> implements HookedRoom {
     }
 
     try {
-      this.store.migrate();
+      // Story 5: a board nobody created has no tables, and reading it must not give
+      // it any — probing an unknown address leaves no storage behind. Where the
+      // tables are already there (a created board, or a legacy one) `migrate()`
+      // still runs, so a schema version catch-up happens where it always did.
+      if (!this.store.needsSchema()) this.store.migrate();
     } catch (error) {
       return this.failLoad(`schema could not be created: ${describe(error)}`);
     }

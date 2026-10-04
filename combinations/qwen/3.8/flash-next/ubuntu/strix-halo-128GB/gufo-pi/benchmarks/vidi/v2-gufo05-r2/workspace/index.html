@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- A board's whole address is its only secret (share.not_found, privacy).
+         With no referrer policy set, a browser tells the next site where the
+         visitor came from — and that "where" would be somebody's board link,
+         which is a link anyone can open. So: never send one. -->
+    <meta name="referrer" content="no-referrer" />
     <title>vidi6</title>
   </head>
   <body>

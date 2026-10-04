@@ -2,7 +2,8 @@
  * The test-only half of a board room: a handful of routes under
  * `/__test/boards/:boardId/` that let the tests do what no user flow can —
  * damage a board's stored snapshot, repair it, force a reload, make the next
- * write or read fail, and put a big board into storage without a browser.
+ * write or read fail, put a big board into storage without a browser, and start a
+ * board at an address the test chose.
  *
  * They exist only when `env.TEST_HOOKS === '1'`, which is passed to `wrangler dev`
  * by the test servers and never by a production deploy; without it the Worker does
@@ -41,6 +42,8 @@ export interface HookedRoom {
   compactBoard(): boolean;
   noteCount(): number;
   applySeed(update: Uint8Array): void;
+  /** Start this board, exactly as `POST /api/boards` does (story 5). */
+  initialize(): Promise<'created' | 'exists'>;
   /** Tear this object down abruptly, so the next request reconstructs it. */
   abortSelf(): void;
 }
@@ -114,6 +117,14 @@ export async function handleTestHook(room: HookedRoom, request: Request, pathnam
       // fail, which is why the answer is sent first.
       setTimeout(() => room.abortSelf(), 0);
       return json({ aborting: true });
+
+    case 'initialize': {
+      // Story 5: creation normally picks its own id, which is the whole point of a
+      // link code. A test that needs a board to exist at an address it knows asks
+      // here instead, through the same `initialize()` the API path calls.
+      const outcome = await room.initialize();
+      return json({ created: outcome === 'created', storage: room.store.summary() });
+    }
 
     case 'seed': {
       const body = await readJsonBody(request);
