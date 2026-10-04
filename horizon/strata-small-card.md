@@ -39,7 +39,7 @@ thing documented is the Q2_0 pack's fast CPU kernel, which also writes a one-tim
 | | Pick | Why |
 |---|---|---|
 | CPU | Any desktop CPU of the last ~8 years with **AVX2**; the project's own machine is a **Ryzen 5 7600**, six cores | Core count is not the thing. AVX-512 (Ryzen 7000/9000) is "a bit faster" and unlocks the Q2_0 fast kernel; an Intel desktop part without it is supported and normal |
-| RAM | **64 GB minimum, 96 to 128 GB comfortable**, the fastest DDR5 the board runs | The experts live here and the CPU computes on them, so bandwidth is on the critical path |
+| RAM | **64 GB minimum, 96 to 128 GB comfortable**, and **DDR5, not DDR4** | The experts live here and the CPU computes on them, so bandwidth is on the critical path. Every figure the project publishes is from a Ryzen 5 7600, which is AM5 and therefore DDR5: a DDR4 board has roughly half the bandwidth and those numbers should not be assumed to carry over |
 | GPU | The most VRAM affordable, on **x16 lanes**; 16 GB over 12 | VRAM is the expert cache, and every miss crosses PCIe |
 | Disk | 1 TB **NVMe** | 70-92 GB of model plus ~6 GB of MTP layer, read per token, beside the agent's workspace |
 
