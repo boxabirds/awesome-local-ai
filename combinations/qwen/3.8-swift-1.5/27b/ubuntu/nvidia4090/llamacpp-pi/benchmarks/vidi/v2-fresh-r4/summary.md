@@ -15,8 +15,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | 5/5 | 0 | 1 | 27/36 |
 | 7 | 3/8 | 2 | 0 | 28/44 |
 | 8 | 7/7 | 0 | 0 | 35/51 |
+| 9 | 6/6 | 0 | 9 | 50/57 |
 
-**New work** 29/47, **regressions** 15, **repairs** 18, **cumulative** 35/51.
+**New work** 35/53, **regressions** 15, **repairs** 27, **cumulative** 50/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,8 +28,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | Share a board with others using a link | DONE | 30.6 | None | None | None | — | — | red | 27/36 |  | 0 / 0 | 1 | — | throttled 0%, server peak 25 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE | 24.8 | None | None | None | — | — | red | 28/44 |  | 0 / 0 | 1 | — | throttled 0%, server peak 25 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 89.6 | None | None | None | — | — | red | 35/51 |  | 0 / 0 | 3 | — | throttled 0%, server peak 25 GB |
+| 9 | Write free text anywhere on the board | DONE | 67.9 | None | None | None | — | — | red | 50/57 |  | 0 / 1 | 3 | — | throttled 0%, server peak 26 GB |
 
-**Totals:** 7 stories, 423 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/7, final acceptance 35/51, stalled 0, partial 0, 14392 lines in src+tests.
+**Totals:** 8 stories, 491 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/8, final acceptance 50/57, stalled 0, partial 0, 16538 lines in src+tests.
 
 ## How it happened
 
@@ -43,6 +45,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | 1 by the agent | 1966 / 236 | `App.tsx` (200), `index.css` (187), `BoardContent.tsx` (158), `SharePanel.tsx` (148), `index.ts` (89), `BoardPage.tsx` (82), +12 more |
 | 7 | 1 by the agent | 3029 / 350 | `useTransformGesture.ts` (314), `board-model.ts` (268), `StickyNote.tsx` (238), `geometry.ts` (196), `BoardContent.tsx` (148), `useSelection.ts` (132), +11 more |
 | 8 | 1 by the agent | 1689 / 36 | `undo.ts` (116), `useUndo.ts` (53), `StickyTextEditor.tsx` (50), `UndoButtons.tsx` (39), `useBoardKeys.ts` (34), `BoardContent.tsx` (30), +6 more |
+| 9 | 8 by the agent | 2376 / 219 | `text.ts` (229), `index.css` (219), `BoardContent.tsx` (161), `TextEditor.tsx` (158), `textLayout.ts` (112), `useTextBoxSync.ts` (102), +15 more |
 
 ### Earlier stories broken or fixed
 
@@ -58,6 +61,11 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 - **Story 7 broke 2, fixed 0** earlier held-out tests (story 7: Select, move, resize and delete several objects at once). Source files it changed most: `useTransformGesture.ts` (314), `board-model.ts` (268), `StickyNote.tsx` (238), `geometry.ts` (196), `BoardContent.tsx` (148), `useSelection.ts` (132), +11 more.
   - story 2: 5/10 → 4/10; broke 1.
   - story 3: 5/7 → 4/7; broke 1.
+- **Story 9 broke 0, fixed 9** earlier held-out tests (story 9: Write free text anywhere on the board; story 9: Write free text anywhere on the board; story 9 task 7: wire text tool into board (T/V/N keys, toolbar, click-to-create, e/w handles, text toolbar); story 9 task 6: TextObject, TextEditor, TextToolbar components with tests (TC-14 to TC-22); story 9 task 5: box-sync component tests (local-only writes, no-remote-writes, idempotent remeasure); story 9 tasks 2-4: text object model, shared text-edit helpers, layout and local-only box sync; story 9 tasks 2-4: text object model, shared text-edit helpers, layout and local-only box sync; story 9 task 1: text model unit tests first (TC-01 to TC-06) + TEXT_* settings and stubs). Source files it changed most: `text.ts` (229), `index.css` (219), `BoardContent.tsx` (161), `TextEditor.tsx` (158), `textLayout.ts` (112), `useTextBoxSync.ts` (102), +15 more.
+  - story 1: 8/10 → 10/10; fixed 2
+  - story 2: 4/10 → 7/10; fixed 3
+  - story 3: 4/7 → 5/7; fixed 1
+  - story 7: 3/8 → 6/8; fixed 3
 
 ### Interruptions and dead time
 

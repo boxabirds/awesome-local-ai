@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import * as Y from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds, moveObjects, resizeObjects, bringObjectsToFront } from '../../shared/board-model';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import { resizeRect, clampScale, scaleWithin, unionRects, type Rect, type Point, type Handle } from '../../shared/geometry';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
@@ -197,6 +198,10 @@ export function useTransformGesture(opts: UseTransformGestureOpts) {
       const anyResizable = selectedObjs.some((o) => getObjectType(o.type)?.resizable);
       if (!anyResizable) return;
 
+      // Story 9: when every selected object is a horizontal-only type (text),
+      // e/w handles change fixed width; height always follows the content.
+      const allHorizontal = selectedObjs.every((o) => getObjectType(o.type)?.horizontalOnly);
+
       const startBounds = unionRects(selectedObjs.map(objectBounds))!;
       const startRects = new Map<string, Rect>();
       for (const obj of selectedObjs) {
@@ -220,6 +225,42 @@ export function useTransformGesture(opts: UseTransformGestureOpts) {
         const dx = (me.clientX - state.startScreen.x) / cameraRef.current.zoom;
         const dy = (me.clientY - state.startScreen.y) / cameraRef.current.zoom;
         const delta: Point = { x: dx, y: dy };
+
+        // Horizontal-only resize (story 9 text): width follows the pointer,
+        // x tracks the western handle, height is left to the box sync.
+        if (allHorizontal) {
+          const newBounds = resizeRect(state.startBounds, state.handle, delta, false);
+          const minSizes = selectedObjs.map((o) => getObjectType(o.type)?.minSize ?? 50);
+          const clamped = clampScale(
+            { x: newBounds.width / state.startBounds.width, y: 1 },
+            [...state.startRects.values()],
+            minSizes,
+            MAX_OBJECT_SIZE_WORLD,
+          );
+          const newBoundsH: Rect = {
+            x: newBounds.x,
+            y: newBounds.y,
+            width: state.startBounds.width * clamped.x,
+            height: state.startBounds.height,
+          };
+          const rectsH = new Map<string, Rect>();
+          for (const [objId, objRect] of state.startRects) {
+            const scaled = scaleWithin(objRect, state.startBounds, newBoundsH);
+            rectsH.set(objId, { x: scaled.x, y: objRect.y, width: scaled.width, height: objRect.height });
+          }
+          schedule(() => {
+            resizeObjects(doc, rectsH);
+            // A width drag makes the text fixed-width: mark widthMode so the
+            // box sync keeps the user's width instead of reverting to auto.
+            for (const [objId, r] of rectsH) {
+              const obj = selectedObjs.find((o) => o.id === objId);
+              if (obj?.type === 'text') {
+                setTextWidthFixed(doc, objId, r.width);
+              }
+            }
+          });
+          return;
+        }
 
         // Aspect lock: any selected type is aspectLocked, or Shift is held
         const anyAspectLocked = selectedObjs.some((o) => getObjectType(o.type)?.aspectLocked);

@@ -16,6 +16,10 @@ export interface UseBoardKeysOpts {
   onRedo?(): void;
   /** Close the current undo step before a discrete action — story 8. */
   onBoundary?(): void;
+  /** Activate the text tool (T) or the select tool (V, Escape) — story 9. */
+  onActivateTextTool?(active: boolean): void;
+  /** Create a sticky note at the board centre (N) — story 9. */
+  onCreateStickyNote?(): void;
 }
 
 /**
@@ -26,11 +30,13 @@ export interface UseBoardKeysOpts {
  * - Arrow keys: nudge selection (nudges within the capture timeout merge
  *   into one undo step)
  * - Delete/Backspace: delete selection (its own undo step)
+ * - T: activate the text tool; V / Escape: select tool (story 9)
+ * - N: create a sticky note at the board centre (story 9)
  *
  * Ignored when editing text or focus is in an input/textarea.
  */
 export function useBoardKeys(opts: UseBoardKeysOpts): void {
-  const { doc, selection, snapshot, canEdit, onUndo, onRedo, onBoundary } = opts;
+  const { doc, selection, snapshot, canEdit, onUndo, onRedo, onBoundary, onActivateTextTool, onCreateStickyNote } = opts;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -67,9 +73,28 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         return;
       }
 
-      // Escape: clear selection
+      // Escape: clear selection (also deactivates the text tool)
       if (e.key === 'Escape') {
         selection.clear();
+        onActivateTextTool?.(false);
+        return;
+      }
+
+      // T: activate the text tool; V: select tool (story 9)
+      if (!mod && (e.key === 't' || e.key === 'T')) {
+        e.preventDefault();
+        onActivateTextTool?.(true);
+        return;
+      }
+      if (!mod && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        onActivateTextTool?.(false);
+        return;
+      }
+      // N: create a sticky note at the board centre (story 9)
+      if (!mod && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        onCreateStickyNote?.();
         return;
       }
 

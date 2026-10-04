@@ -178,7 +178,7 @@ test.describe('sticky notes e2e', () => {
     await settle(page);
 
     // Click the Sticky note toolbar button
-    await page.click('[data-vidi6="board-toolbar"] button[aria-label="Sticky note"]');
+    await page.click('[data-vidi6="board-toolbar"] button[aria-label="Sticky note (N)"]');
 
     // A note should appear
     await expect(page.locator('[data-vidi6="sticky-note"]')).toHaveCount(1);

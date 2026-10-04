@@ -24,8 +24,10 @@ export interface BoardViewportProps extends CameraApi {
   children?: ReactNode;
   /** Called when the user double-clicks empty board space. */
   onDblClickEmpty?(screenX: number, screenY: number): void;
-  /** Called when the user clicks empty board space (no drag). */
-  onClickEmpty?(): void;
+  /** Called when the user clicks empty board space (no drag), with client coords. */
+  onClickEmpty?(screenX: number, screenY: number): void;
+  /** The active board tool (story 9): sets the cursor style. */
+  tool?: 'select' | 'text';
   /** Called when Shift+pointerdown on empty space (starts marquee). */
   onShiftPointerDownEmpty?(screenPoint: { x: number; y: number }): void;
   /** Called during Shift+drag marquee. */
@@ -47,7 +49,7 @@ function positiveMod(value: number, modulus: number): number {
  * transformed world layer.
  */
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
-  const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset, children, onDblClickEmpty, onClickEmpty, onShiftPointerDownEmpty, onShiftPointerMove, onShiftPointerUp, onShiftPointerCancel } = props;
+  const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset, children, onDblClickEmpty, onClickEmpty, tool, onShiftPointerDownEmpty, onShiftPointerMove, onShiftPointerUp, onShiftPointerCancel } = props;
   const viewportRef = useRef<HTMLDivElement>(null);
   const gestureScaleRef = useRef(GESTURE_START_SCALE);
   const [panning, setPanning] = useState(false);
@@ -65,10 +67,18 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       if (e.button !== 0) return;
       const viewport = viewportRef.current;
       if (!viewport) return;
-      // Drag only starts on empty board space (the viewport or the grid
-      // itself); future object stories can stopPropagation from their nodes.
+      // Drag only starts on empty board space (the viewport, the grid, or
+      // the world layer itself — the world layer only covers the area the
+      // camera has panned over, so it must be a valid drag target too);
+      // object nodes stopPropagation from their own handlers.
       const grid = viewport.querySelector('.board-grid');
-      if (e.target !== viewport && e.target !== grid) return;
+      const target = e.target as HTMLElement;
+      const isBoardSurface =
+        target === viewport ||
+        target === grid ||
+        target.classList.contains('board-world') ||
+        target.classList.contains('board-objects');
+      if (!isBoardSurface) return;
       try {
         viewport.setPointerCapture(e.pointerId);
       } catch {
@@ -133,7 +143,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       endPan();
       // If we didn't actually pan (no movement), treat as a click on empty space
       if (!wasPanningRef.current && onClickEmpty) {
-        onClickEmpty();
+        onClickEmpty(e.clientX, e.clientY);
       }
       wasPanningRef.current = false;
     },
@@ -268,6 +278,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       className="board-viewport"
       data-vidi6="board-viewport"
       data-panning={panning ? 'true' : 'false'}
+      data-tool={tool ?? 'select'}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onEndPan}

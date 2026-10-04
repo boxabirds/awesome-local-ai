@@ -553,3 +553,222 @@ body {
   color: #5f6368;
   margin: 0;
 }
+
+/* --- Story 9: free text objects --- */
+
+/* Text tool: the board cursor becomes a text cursor */
+.board-viewport[data-tool='text'] {
+  cursor: text;
+}
+
+/* Objects wrapper: a zero-height flow box; object nodes are absolutely
+   positioned, so it never intercepts empty-space clicks. Its capture-phase
+   pointer handler implements the text tool (story 9). */
+.board-objects {
+  display: block;
+}
+
+.text-object {
+  display: block;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  color: var(--vidi6-ink);
+  line-height: 1.3;
+  overflow: hidden;
+}
+
+.text-object:active {
+  cursor: grabbing;
+}
+
+.text-object.is-selected {
+  outline: 3px solid var(--vidi6-focus-ring);
+  outline-offset: 1px;
+}
+
+.text-object.is-editing {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  outline: 3px solid var(--vidi6-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Displayed text: plain, no background, pre-wrap so newlines survive */
+.text-content {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  pointer-events: none;
+  word-break: break-word;
+}
+
+/* The editing textarea: borderless, transparent, inherits the size preset */
+.text-editor {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  resize: none;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  overflow: hidden;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Size presets (the component also sets font-size inline; classes are the
+   source of truth for the editor and toolbar) */
+.text-size-S { font-size: 14px; }
+.text-size-M { font-size: 20px; }
+.text-size-L { font-size: 32px; }
+.text-size-XL { font-size: 56px; }
+
+/* Text toolbar (floating above a single selected text object) */
+.text-toolbar {
+  position: absolute;
+  top: -44px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--vidi6-control-bg);
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+  z-index: 1000;
+  white-space: nowrap;
+}
+
+.text-toolbar-size {
+  min-width: 26px;
+  height: 24px;
+  padding: 0 5px;
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 4px;
+  background: var(--vidi6-control-bg);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vidi6-ink);
+}
+
+.text-toolbar-size--active {
+  border-color: var(--vidi6-ink);
+  font-weight: 700;
+}
+
+.text-toolbar-size:focus-visible {
+  outline: 2px solid var(--vidi6-focus-ring);
+  outline-offset: 1px;
+}
+
+.text-toolbar-undo,
+.text-toolbar-redo,
+.text-toolbar-delete {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 4px;
+  background: var(--vidi6-control-bg);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.text-toolbar-undo:focus-visible,
+.text-toolbar-redo:focus-visible,
+.text-toolbar-delete:focus-visible {
+  outline: 2px solid var(--vidi6-focus-ring);
+  outline-offset: 1px;
+}
+
+.text-toolbar-delete:hover {
+  background: #ffe0e0;
+}
+
+/* Select + Text tool buttons in the left toolbar */
+.board-toolbar-select,
+.board-toolbar-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 8px;
+  background: var(--vidi6-control-bg);
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--vidi6-ink);
+}
+
+.board-toolbar-select:hover,
+.board-toolbar-text:hover {
+  background: #f0f2f5;
+}
+
+.board-toolbar-select:focus-visible,
+.board-toolbar-text:focus-visible {
+  outline: 2px solid var(--vidi6-focus-ring);
+  outline-offset: 1px;
+}
+
+.board-toolbar-select--active,
+.board-toolbar-text--active {
+  border-color: var(--vidi6-focus-ring);
+  background: #e8f0fe;
+}
+
+.board-toolbar-select-icon,
+.board-toolbar-text-icon {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.board-toolbar-select-label,
+.board-toolbar-text-label {
+  font-size: 10px;
+}
+
+/* Selection toolbars anchor: positioned (inline) at the top-centre of the
+   selection bounding box; the toolbars float above it. */
+.selection-bar-container {
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.selection-bar-container > * {
+  pointer-events: auto;
+}
+
+/* Multi-select "N selected" bar (2+ objects) */
+.selection-bar {
+  position: absolute;
+  top: -44px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--vidi6-control-bg);
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+  white-space: nowrap;
+}

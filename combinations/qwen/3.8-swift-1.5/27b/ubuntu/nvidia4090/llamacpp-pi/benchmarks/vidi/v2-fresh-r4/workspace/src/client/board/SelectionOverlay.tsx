@@ -41,11 +41,22 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
   const boundingBox = unionRects(rects);
   if (!boundingBox) return null;
 
-  // Check if any selected type is resizable
-  const anyResizable = selectedObjs.some((obj) => {
-    const spec = getObjectType(obj.type);
-    return spec?.resizable ?? false;
-  });
+  // Decide which handles to show (story 9):
+  // - all selected types resizable + horizontal-only (text) → e/w only
+  // - all selected types resizable (sticky) → all 8
+  // - mixed resizable semantics (sticky + text) → no handles
+  const specs = selectedObjs.map((obj) => getObjectType(obj.type));
+  const resizableObjs = selectedObjs.filter((_, i) => specs[i]?.resizable);
+  const horizontalObjs = selectedObjs.filter((_, i) => specs[i]?.resizable && specs[i]?.horizontalOnly);
+  const fullObjs = selectedObjs.filter((_, i) => specs[i]?.resizable && !specs[i]?.horizontalOnly);
+  let handles: typeof HANDLES;
+  if (resizableObjs.length === selectedObjs.length && horizontalObjs.length === selectedObjs.length) {
+    handles = HANDLES.filter((h) => h.handle === 'e' || h.handle === 'w');
+  } else if (fullObjs.length > 0 && horizontalObjs.length === 0) {
+    handles = HANDLES;
+  } else {
+    handles = [];
+  }
 
   // Convert bounding box to screen space
   const screenX = (boundingBox.x - camera.x) * camera.zoom;
@@ -70,8 +81,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
         }}
       />
       {/* Resize handles */}
-      {anyResizable &&
-        HANDLES.map(({ handle, label, pos }) => {
+      {handles.map(({ handle, label, pos }) => {
           const worldPos = pos(boundingBox);
           const sx = (worldPos.x - camera.x) * camera.zoom;
           const sy = (worldPos.y - camera.y) * camera.zoom;

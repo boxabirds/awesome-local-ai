@@ -1,7 +1,8 @@
 import type { JSX } from 'react';
-import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot, StickySnapshot, TextSnapshot } from '../../shared/board-model';
 import { NoteToolbar } from '../objects/NoteToolbar';
-import { type StickyColor } from '../../shared/config';
+import { TextToolbar } from '../objects/TextToolbar';
+import { type StickyColor, type TextSize } from '../../shared/config';
 import * as Y from 'yjs';
 import { deleteObject } from '../../shared/board-model';
 
@@ -11,20 +12,29 @@ export interface SelectionBarProps {
   doc: Y.Doc;
   onDelete(): void;
   onColorChange(id: string, color: StickyColor): void;
+  /** Text size change (story 9); its own undo step. */
+  onTextSize?(id: string, size: TextSize): void;
+  /** Delete a single text object (story 9); its own undo step. */
+  onTextDelete?(id: string): void;
+  /** Undo (story 8) — text toolbar. */
+  onUndo?(): void;
+  /** Redo (story 8) — text toolbar. */
+  onRedo?(): void;
 }
 
 /**
  * Selection bar: shown above the selection bounding box.
  * - 2+ objects: "N selected" + Delete button
  * - Exactly 1 sticky note: NoteToolbar (colours + delete)
+ * - Exactly 1 text object: TextToolbar (sizes + undo/redo + delete, story 9)
  * - 0 objects: nothing
  */
 export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
-  const { ids, snapshot, doc, onDelete, onColorChange } = props;
+  const { ids, snapshot, doc, onDelete, onColorChange, onTextSize, onTextDelete, onUndo, onRedo } = props;
 
   if (ids.size === 0) return null;
 
-  // Exactly one sticky note → show NoteToolbar
+  // Exactly one object → type-specific toolbar
   if (ids.size === 1) {
     const [id] = ids.values();
     const obj = snapshot.find((s) => s.id === id);
@@ -38,6 +48,19 @@ export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
             deleteObject(doc, id);
             onDelete();
           }}
+        />
+      );
+    }
+    if (obj && obj.type === 'text') {
+      const text = obj as TextSnapshot;
+      return (
+        <TextToolbar
+          snap={text}
+          doc={doc}
+          onSize={(tid, size) => onTextSize?.(tid, size)}
+          onDelete={() => onTextDelete?.(id)}
+          onUndo={() => onUndo?.()}
+          onRedo={() => onRedo?.()}
         />
       );
     }

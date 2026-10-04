@@ -7,6 +7,7 @@ import {
 } from './config';
 import { isKnownType } from './known-types';
 import type { Rect, Point } from './geometry';
+import type { TextSize } from './config';
 
 /** Origin symbol for local transactions (used by story 8 undo and story 3 to avoid echo). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('LOCAL_ORIGIN');
@@ -39,6 +40,19 @@ export interface StickySnapshot extends ObjectSnapshot {
 /** Type guard for sticky snapshots. */
 export function isStickySnapshot(obj: ObjectSnapshot): obj is StickySnapshot {
   return obj.type === 'sticky';
+}
+
+/** Text object snapshot (story 9). */
+export interface TextSnapshot extends ObjectSnapshot {
+  type: 'text';
+  text: string;
+  size: TextSize;
+  widthMode: 'auto' | 'fixed';
+}
+
+/** Type guard for text snapshots. */
+export function isTextSnapshot(obj: ObjectSnapshot): obj is TextSnapshot {
+  return obj.type === 'text';
 }
 
 /**
@@ -373,6 +387,12 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       const color = (obj.get('color') as StickyColor) ?? DEFAULT_STICKY_COLOR;
       const text = (obj.get('text') as Y.Text)?.toString() ?? '';
       result.push({ ...base, type: 'sticky' as const, color, text });
+    } else if (type === 'text') {
+      const text = (obj.get('text') as Y.Text)?.toString() ?? '';
+      const size = (obj.get('size') as TextSize) ?? 'M';
+      const widthMode = (obj.get('widthMode') as 'auto' | 'fixed') ?? 'auto';
+      const textSnap: TextSnapshot = { ...base, type: 'text', text, size, widthMode };
+      result.push(textSnap);
     } else {
       result.push(base);
     }

@@ -13,6 +13,13 @@ export const RETRO_ITEM =
  * A 1,000-character English paragraph (not repeated single characters,
  * which lay out unrealistically).
  */
+/**
+ * A 300-character annotation (story 9 TC-26): long enough to hit the
+ * maximum automatic width of a text object and wrap onto several lines.
+ */
+export const ANNOTATION_300 =
+  'This annotation is long enough to hit the maximum automatic width of the text object, so it must wrap onto multiple lines and keep its top-left corner in place while it grows. It keeps going until it reaches exactly three hundred characters in total, no more and no less, which is what the E2E tests.';
+
 export const LONG_PARAGRAPH = (
   'The quick brown fox jumps over the lazy dog near the riverbank. ' +
   'Pack my box with five dozen liquor jugs and carry them home. ' +

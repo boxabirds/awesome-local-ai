@@ -16,13 +16,17 @@ import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { useBoardKeys } from '../board/useBoardKeys';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
-import { Toolbar } from '../board/Toolbar';
+import { Toolbar, type BoardTool } from '../board/Toolbar';
 import { StickyNote } from '../objects/StickyNote';
+import { TextObject } from '../objects/TextObject';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { setConnectionState } from '../canvas/testHooks';
-import { createSticky, deleteObjects, setStickyColor } from '../../shared/board-model';
+import { createSticky, deleteObjects, objectBounds, setStickyColor } from '../../shared/board-model';
+import { unionRects } from '../../shared/geometry';
+import { createText } from '../../shared/objects/text';
 import { SharePanel } from '../share/SharePanel';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
+import { LOCAL_USER_ID } from '../../shared/config';
 
 export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -31,6 +35,9 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
 
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const editable = connectionState !== 'load_failed';
+
+  // Active board tool (story 9): 'select' (default) or 'text' (click to place)
+  const [tool, setTool] = useState<BoardTool>('select');
 
   // Per-user undo history (story 8): session-only, LOCAL_ORIGIN changes only.
   const undoController = useUndoController(doc);
@@ -85,17 +92,53 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
     [doc, selection, editable, undo],
   );
 
+  const createTextAt = useCallback(
+    (worldPoint: Point) => {
+      if (!editable) return;
+      undo.boundary();
+      const id = createText(doc, worldPoint, LOCAL_USER_ID);
+      if (id) {
+        selection.startEdit(id);
+        setTool('select');
+      }
+    },
+    [doc, selection, editable, undo],
+  );
+
   const handleDblClickEmpty = useCallback(
     (clientX: number, clientY: number) => {
       const world = screenPointToWorld(clientX, clientY);
+      // The text tool places text on double-click too
+      if (tool === 'text') {
+        createTextAt(world);
+        return;
+      }
       createStickyAt(world);
     },
-    [screenPointToWorld, createStickyAt],
+    [screenPointToWorld, createStickyAt, createTextAt, tool],
   );
 
-  const handleClickEmpty = useCallback(() => {
-    selection.clear();
-  }, [selection]);
+  const handleClickEmpty = useCallback(
+    (clientX: number, clientY: number) => {
+      if (tool === 'text') {
+        createTextAt(screenPointToWorld(clientX, clientY));
+        return;
+      }
+      selection.clear();
+    },
+    [tool, createTextAt, screenPointToWorld, selection],
+  );
+
+  // Text tool: clicking anywhere (including over objects) places a text
+  // object. Capture phase so the object's own handlers never run.
+  const handleTextToolPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (tool !== 'text' || !editable) return;
+      e.stopPropagation();
+      createTextAt(screenPointToWorld(e.clientX, e.clientY));
+    },
+    [tool, editable, createTextAt, screenPointToWorld],
+  );
 
   const handleCreateSticky = useCallback(() => {
     const centre: Point = { x: viewport.width / 2, y: viewport.height / 2 };
@@ -128,6 +171,8 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
     onUndo: undo.undo,
     onRedo: undo.redo,
     onBoundary: undo.boundary,
+    onActivateTextTool: (active) => setTool(active ? 'text' : 'select'),
+    onCreateStickyNote: handleCreateSticky,
   });
 
   // Handle for double-click on a note (start editing)
@@ -155,6 +200,36 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
     },
     [doc, undo],
   );
+
+  // Text size change (its own undo step — story 9). The TextToolbar already
+  // applied setTextSize; the boundary closes the step it landed in.
+  const handleTextSize = useCallback(
+    (_id: string, _size: TextSize) => {
+      undo.boundary();
+    },
+    [undo],
+  );
+
+  // Delete a single text object (its own undo step — story 9)
+  const handleTextDelete = useCallback(
+    (id: string) => {
+      undo.boundary();
+      deleteObjects(doc, [id]);
+      selection.clear();
+    },
+    [doc, selection, undo],
+  );
+
+  // Screen-space anchor for the selection toolbars: the top-centre of the
+  // selection bounding box (the toolbars float just above it).
+  const selectedSnaps = notes.filter((n) => selection.ids.has(n.id));
+  const selectionBox = selectedSnaps.length > 0 ? unionRects(selectedSnaps.map(objectBounds)) : undefined;
+  const barAnchor = selectionBox
+    ? {
+        x: (selectionBox.x + selectionBox.width / 2 - camera.camera.x) * camera.camera.zoom,
+        y: (selectionBox.y - camera.camera.y) * camera.camera.zoom,
+      }
+    : undefined;
 
   // Marquee handlers for the viewport
   const handleMarqueeBegin = useCallback(
@@ -190,6 +265,7 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
         wheel={camera.wheel}
         zoomStep={camera.zoomStep}
         reset={camera.reset}
+        tool={tool}
         onDblClickEmpty={handleDblClickEmpty}
         onClickEmpty={handleClickEmpty}
         onShiftPointerDownEmpty={handleMarqueeBegin}
@@ -197,22 +273,40 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
         onShiftPointerUp={handleMarqueeEnd}
         onShiftPointerCancel={handleMarqueeCancel}
       >
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
-            obj={note}
-            doc={doc}
-            zoom={camera.camera.zoom}
-            selected={selection.ids.has(note.id)}
-            editing={selection.editingId === note.id}
-            onPointerDown={gesture.onObjectPointerDown}
-            onDoubleClick={handleNoteDoubleClick}
-            onEndEdit={() => selection.endEdit()}
-            onBoundary={undo.boundary}
-            onUndo={undo.undo}
-            onRedo={undo.redo}
-          />
-        ))}
+        <div className="board-objects" onPointerDownCapture={handleTextToolPointerDown}>
+          {notes.map((note) =>
+            note.type === 'text' ? (
+              <TextObject
+                key={note.id}
+                obj={note}
+                doc={doc}
+                selected={selection.ids.has(note.id)}
+                editing={selection.editingId === note.id}
+                onPointerDown={gesture.onObjectPointerDown}
+                onDoubleClick={handleNoteDoubleClick}
+                onEndEdit={() => selection.endEdit()}
+                onBoundary={undo.boundary}
+                onUndo={undo.undo}
+                onRedo={undo.redo}
+              />
+            ) : (
+              <StickyNote
+                key={note.id}
+                obj={note}
+                doc={doc}
+                zoom={camera.camera.zoom}
+                selected={selection.ids.has(note.id)}
+                editing={selection.editingId === note.id}
+                onPointerDown={gesture.onObjectPointerDown}
+                onDoubleClick={handleNoteDoubleClick}
+                onEndEdit={() => selection.endEdit()}
+                onBoundary={undo.boundary}
+                onUndo={undo.undo}
+                onRedo={undo.redo}
+              />
+            ),
+          )}
+        </div>
       </BoardViewport>
 
       {/* Marquee rectangle (screen space) */}
@@ -226,18 +320,33 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
         onHandlePointerDown={gesture.onHandlePointerDown}
       />
 
-      {/* Selection bar (screen space) */}
-      <div className="selection-bar-container" data-vidi6="selection-bar-container">
+      {/* Selection bar (screen space), anchored above the selection bbox */}
+      <div
+        className="selection-bar-container"
+        data-vidi6="selection-bar-container"
+        style={barAnchor ? { position: 'absolute', left: barAnchor.x, top: barAnchor.y, width: 0, height: 0 } : undefined}
+      >
         <SelectionBar
           ids={selection.ids}
           snapshot={notes}
           doc={doc}
           onDelete={handleSelectionDelete}
           onColorChange={handleColorChange}
+          onTextSize={handleTextSize}
+          onTextDelete={handleTextDelete}
+          onUndo={undo.undo}
+          onRedo={undo.redo}
         />
       </div>
 
-      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} undo={undo} />
+      <Toolbar
+        onCreateSticky={handleCreateSticky}
+        onToolText={() => setTool('text')}
+        onToolSelect={() => setTool('select')}
+        activeTool={tool}
+        disabled={!editable}
+        undo={undo}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(camera.camera)}
         canZoomIn={canZoomIn(camera.camera)}

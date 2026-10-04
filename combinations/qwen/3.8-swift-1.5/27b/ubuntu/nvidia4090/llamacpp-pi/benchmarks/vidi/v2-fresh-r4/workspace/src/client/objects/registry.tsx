@@ -8,7 +8,7 @@ import type { ComponentType } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import type { Point } from '../../shared/geometry';
 import { addKnownType } from '../../shared/known-types';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 
 export interface ObjectProps {
   obj: ObjectSnapshot;
@@ -22,6 +22,11 @@ export interface ObjectTypeSpec {
   Component: ComponentType<ObjectProps>;
   resizable: boolean;
   aspectLocked: boolean;
+  /**
+   * When true, resize handles are horizontal-only (e/w) and dragging them
+   * changes the object's fixed width (story 9 text objects).
+   */
+  horizontalOnly?: boolean;
   minSize: number;
   editableText: boolean;
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
@@ -75,6 +80,28 @@ registerObjectType('sticky', {
   hitTest(obj, worldPoint) {
     const w = obj.width ?? 200; // STICKY_SIZE_WORLD
     const h = obj.height ?? 200;
+    return (
+      worldPoint.x >= obj.x &&
+      worldPoint.y >= obj.y &&
+      worldPoint.x < obj.x + w &&
+      worldPoint.y < obj.y + h
+    );
+  },
+});
+
+// --- Register the text type (story 9) ---
+import { TextObject as TextObjectComponent } from '../objects/TextObject';
+
+registerObjectType('text', {
+  Component: TextObjectComponent as unknown as ComponentType<ObjectProps>,
+  resizable: true,
+  aspectLocked: false,
+  horizontalOnly: true,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  hitTest(obj, worldPoint) {
+    const w = obj.width ?? 0;
+    const h = obj.height ?? 0;
     return (
       worldPoint.x >= obj.x &&
       worldPoint.y >= obj.y &&

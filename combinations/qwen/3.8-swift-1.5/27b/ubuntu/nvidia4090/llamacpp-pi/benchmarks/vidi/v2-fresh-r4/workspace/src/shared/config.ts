@@ -131,3 +131,40 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 
 /** Maximum number of undo steps kept per user; the oldest step is discarded beyond this. */
 export const UNDO_MAX_STEPS = 200;
+
+// --- Story 9: Write free text anywhere on the board ---
+
+/** Maximum automatic width in world units; longer lines wrap at this width. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** Minimum width for fixed-width text in world units (side-handle drag clamp). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Maximum characters a text object can hold. */
+export const TEXT_MAX_CHARS = 5000;
+
+/** Font size presets in world units (px at 100% zoom). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** Default size for new text objects. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Line height factor applied to the font size. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** Font family for text objects. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/** Horizontal padding added to the longest measured line for auto width. */
+export const TEXT_PADDING_X_WORLD = 4;
+
+/** Average glyph width as a fraction of the font size (measurement fallback). */
+export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.5;
+
+/**
+ * Local user id for object attribution. Story 6 (user identity) is not in
+ * this build; the local client uses a fixed placeholder id.
+ */
+export const LOCAL_USER_ID = 'local';

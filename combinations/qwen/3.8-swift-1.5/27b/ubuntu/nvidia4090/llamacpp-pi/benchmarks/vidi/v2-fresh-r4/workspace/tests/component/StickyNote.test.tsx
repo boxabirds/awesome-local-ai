@@ -213,7 +213,7 @@ describe('Toolbar component tests', () => {
 
     render(<Toolbar onCreateSticky={onCreateSticky} />);
 
-    const btn = screen.getByRole('button', { name: 'Sticky note' });
+    const btn = screen.getByRole('button', { name: 'Sticky note (N)' });
     fireEvent.click(btn);
 
     expect(onCreateSticky).toHaveBeenCalled();
@@ -224,7 +224,7 @@ describe('Toolbar component tests', () => {
 
     render(<Toolbar onCreateSticky={onCreateSticky} />);
 
-    const btn = screen.getByRole('button', { name: 'Sticky note' });
-    expect(btn.getAttribute('title')).toBe('Sticky note – or double-click the board');
+    const btn = screen.getByRole('button', { name: 'Sticky note (N)' });
+    expect(btn.getAttribute('title')).toBe('Sticky note (N) – or double-click the board');
   });
 });
