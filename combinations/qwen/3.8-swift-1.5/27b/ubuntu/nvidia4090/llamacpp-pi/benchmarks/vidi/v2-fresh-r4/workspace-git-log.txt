@@ -1,3 +1,115 @@
+commit 2b34a0b6f30e62ec3f70f1adeff03cb8dff0d3ec
+agent  Sun Oct 4 06:58:04 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ PROGRESS.md | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)
+commit dea5eb691dff76d2576cda4ee2cc8f3506bcb705
+agent  Sun Oct 4 06:57:32 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ src/client/board/Toolbar.tsx            |   8 +-
+ src/client/board/useTransformGesture.ts |   9 ++
+ src/client/index.css                    |  28 ++++
+ src/client/objects/TextEditor.tsx       |  55 ++++++-
+ src/client/objects/TextObject.tsx       |   5 +-
+ src/client/pages/BoardContent.tsx       |  22 ++-
+ tests/component/StickyNote.test.tsx     |   6 +-
+ tests/component/TextObject.test.tsx     |   8 +-
+ tests/e2e/sticky-notes.spec.ts          |   2 +-
+ tests/e2e/text-objects.spec.ts          | 269 ++++++++++++++++++++++++++++++++
+ tests/fixtures/texts.ts                 |   7 +
+ 11 files changed, 402 insertions(+), 17 deletions(-)
+commit 4aedeb80596ea5e5dc91836465ce5d2a5a6c4112
+agent  Sun Oct 4 06:17:46 2026 +0100
+
+    story 9 task 7: wire text tool into board (T/V/N keys, toolbar, click-to-create, e/w handles, text toolbar)
+
+
+ src/client/board/SelectionBar.tsx       |  31 +++++-
+ src/client/board/SelectionOverlay.tsx   |  24 ++--
+ src/client/board/Toolbar.tsx            |  41 ++++++-
+ src/client/board/useBoardKeys.ts        |  29 ++++-
+ src/client/board/useTransformGesture.ts |  32 ++++++
+ src/client/canvas/BoardViewport.tsx     |  25 +++--
+ src/client/index.css                    | 191 ++++++++++++++++++++++++++++++++
+ src/client/objects/registry.tsx         |  29 ++++-
+ src/client/pages/BoardContent.tsx       | 139 +++++++++++++++++++----
+ src/shared/config.ts                    |   6 +
+ tests/component/StickyNote.test.tsx     |   2 +-
+ 11 files changed, 501 insertions(+), 48 deletions(-)
+commit cdc71ab2bb095736217f5a24b9632465dc3046c6
+agent  Sun Oct 4 06:09:56 2026 +0100
+
+    story 9 task 6: TextObject, TextEditor, TextToolbar components with tests (TC-14 to TC-22)
+
+
+ src/client/objects/TextEditor.tsx   | 103 ++++++++++++++++++++
+ src/client/objects/TextObject.tsx   |  95 +++++++++++++++++++
+ src/client/objects/TextToolbar.tsx  |  87 +++++++++++++++++
+ tests/component/TextObject.test.tsx | 182 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 467 insertions(+)
+commit 26f7e6cc0b8a6f24edb9c2350d516e44bd122a7b
+agent  Sun Oct 4 06:07:19 2026 +0100
+
+    story 9 task 5: box-sync component tests (local-only writes, no-remote-writes, idempotent remeasure)
+
+
+ PROGRESS.md                          |  10 +--
+ src/client/objects/useTextBoxSync.ts |  12 +--
+ tests/component/TextBoxSync.test.tsx | 156 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 167 insertions(+), 11 deletions(-)
+commit 3b3a3c03cfbb304788fd537f2f2d26ea54b531da
+agent  Sun Oct 4 06:02:29 2026 +0100
+
+    story 9 tasks 2-4: text object model, shared text-edit helpers, layout and local-only box sync
+
+
+ src/client/objects/StickyText.ts     |  2 +-
+ src/client/objects/useTextBoxSync.ts | 18 ++++++++++++------
+ src/shared/board-model.ts            |  3 ++-
+ tests/unit/text-model.test.ts        |  3 +--
+ 4 files changed, 16 insertions(+), 10 deletions(-)
+commit 3b471dfc6c0b0cb0ae05eeeda4e65d63667471ad
+agent  Sun Oct 4 06:00:51 2026 +0100
+
+    story 9 tasks 2-4: text object model, shared text-edit helpers, layout and local-only box sync
+
+
+ src/client/objects/StickyText.ts     |  82 +++---------------
+ src/client/objects/textLayout.ts     | 112 ++++++++++++++++++++++++
+ src/client/objects/useTextBoxSync.ts |  72 ++++++++++++++++
+ src/shared/board-model.ts            |  19 +++++
+ src/shared/known-types.ts            |   2 +-
+ src/shared/objects/text.ts           | 161 ++++++++++++++++++++++++++---------
+ src/shared/text-edit.ts              |  80 ++++++++++++++---
+ tests/unit/text-layout.test.ts       |  99 +++++++++++++++++++++
+ tests/unit/text-model.test.ts        |  10 ++-
+ 9 files changed, 511 insertions(+), 126 deletions(-)
+commit f300ccd5f93b502304a9218e35798932cb968abb
+agent  Sun Oct 4 05:57:55 2026 +0100
+
+    story 9 task 1: text model unit tests first (TC-01 to TC-06) + TEXT_* settings and stubs
+
+
+ PROGRESS.md                   |   2 +-
+ src/shared/config.ts          |  31 ++++++++
+ src/shared/objects/text.ts    |  68 ++++++++++++++++
+ src/shared/text-edit.ts       |  20 +++++
+ tests/unit/text-model.test.ts | 175 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 295 insertions(+), 1 deletion(-)
+commit ec7f46f9ca8b1c4512193d563d1a9c3c35ece8c7
+vidi-agent  Sun Oct 4 05:50:15 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 commit 1a4b1e9aa2b36104f549024ffab4ebdc9c994c29
 agent  Sun Oct 4 05:45:00 2026 +0100
 
