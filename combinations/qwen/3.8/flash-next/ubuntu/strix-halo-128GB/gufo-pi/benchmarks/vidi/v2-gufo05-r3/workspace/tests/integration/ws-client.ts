@@ -6,7 +6,7 @@
  * provider uses, so the server is tested against a faithful peer rather than a
  * hand-rolled one.
  */
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import * as awarenessProtocol from 'y-protocols/awareness';
 import * as syncProtocol from 'y-protocols/sync';
 import * as decoding from 'lib0/decoding';
@@ -14,6 +14,7 @@ import * as encoding from 'lib0/encoding';
 import * as Y from 'yjs';
 
 import { snapshot, type StickySnapshot } from '../../src/shared/board-model';
+import { isValidBoardId } from '../../src/shared/board-id';
 import {
   MESSAGE_AWARENESS,
   MESSAGE_SYNC,
@@ -65,6 +66,12 @@ export class RoomClient {
   static async connect(boardId: string, options: RoomClientOptions = {}): Promise<RoomClient> {
     const client = new RoomClient(boardId, options);
     if (options.seed) Y.applyUpdate(client.doc, options.seed);
+    // A board must exist before it can be joined (story 5): connecting no longer
+    // creates one implicitly (share.not_found). These tests open boards by id, so
+    // ensure it exists first — the same thing a browser does opening a link a POST
+    // created. Memoised so repeated joins (and the routing tests that count
+    // `idFromName`) see the one lookup the socket itself performs.
+    await ensureBoard(boardId);
     const response = await SELF.fetch(`http://whiteboard.local/api/rooms/${boardId}`, {
       headers: { upgrade: 'websocket' },
     });
@@ -287,6 +294,18 @@ function classify(frame: Uint8Array): ReceivedFrame {
 }
 
 /** A board id that has never been seen before (boards are per-test isolated). */
+/**
+ * Make a board exist before a test joins it (story 5 removed implicit creation).
+ * Memoised per id, so a test that opens a board many times triggers exactly one
+ * `idFromName` for creation — and can measure the socket's own lookup separately.
+ */
+const ensuredBoards = new Set<string>();
+export async function ensureBoard(boardId: string): Promise<void> {
+  if (!isValidBoardId(boardId) || ensuredBoards.has(boardId)) return;
+  await env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).initialize();
+  ensuredBoards.add(boardId);
+}
+
 export function freshBoardId(): string {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
   let id = '';

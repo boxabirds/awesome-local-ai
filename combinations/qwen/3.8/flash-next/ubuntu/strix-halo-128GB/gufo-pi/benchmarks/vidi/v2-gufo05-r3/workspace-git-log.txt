@@ -1,3 +1,51 @@
+commit 5af7d90753909023680c00dbb1ae742e2e2e05ef
+agent  Sun Oct 4 23:31:33 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                          | 484 +++++-----------------
+ PROGRESS.md                                       |  14 +-
+ index.html                                        |   3 +
+ src/client/App.tsx                                |  64 +--
+ src/client/Root.tsx                               |  20 +
+ src/client/api.ts                                 |  50 +++
+ src/client/main.tsx                               |   4 +-
+ src/client/pages/BoardPage.tsx                    |  87 ++++
+ src/client/pages/HomePage.tsx                     |  78 ++++
+ src/client/pages/NotFoundPage.tsx                 |  29 ++
+ src/client/pages/state.ts                         |  57 +++
+ src/client/router.ts                              |  63 +++
+ src/client/share/SharePanel.tsx                   | 167 ++++++++
+ src/client/styles.css                             | 145 +++++++
+ src/shared/config.ts                              |  20 +
+ src/worker/board-room.ts                          |  41 +-
+ src/worker/board-store.ts                         |  83 ++++
+ src/worker/create-board.ts                        |  40 ++
+ src/worker/index.ts                               |  40 +-
+ tests/component/pages.test.tsx                    | 172 ++++++++
+ tests/component/share.test.tsx                    | 118 ++++++
+ tests/e2e/helpers/board.ts                        |   9 +-
+ tests/e2e/helpers/participants.ts                 |  25 +-
+ tests/e2e/live-collaboration-nightly.spec.ts      |  13 +-
+ tests/e2e/live-collaboration.spec.ts              |  24 +-
+ tests/e2e/persistence/board-survival.spec.ts      |   7 +-
+ tests/e2e/persistence/legacy-board.spec.ts        |  67 +++
+ tests/e2e/share.spec.ts                           | 157 +++++++
+ tests/e2e/storage-hooks-not-in-production.spec.ts |   6 +-
+ tests/integration/board-api.test.ts               | 182 ++++++++
+ tests/integration/worker.test.ts                  |  23 +-
+ tests/integration/ws-client.ts                    |  21 +-
+ tests/unit/create-board.test.ts                   |  65 +++
+ 33 files changed, 1900 insertions(+), 478 deletions(-)
+commit ff217f618c8d687630bdb7266ea9f8ff58fdb448
+vidi-agent  Sun Oct 4 22:30:22 2026 +0000
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit 2ae5d48262b0108f271a4bf79069019c51b283ee
 agent  Sun Oct 4 22:27:35 2026 +0000
 

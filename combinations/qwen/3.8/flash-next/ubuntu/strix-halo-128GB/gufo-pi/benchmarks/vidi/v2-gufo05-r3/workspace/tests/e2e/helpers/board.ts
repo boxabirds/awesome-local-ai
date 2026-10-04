@@ -6,9 +6,16 @@ export interface Camera {
   zoom: number;
 }
 
+/** The label on the control that opens a fresh board from the home page. */
+export const NEW_BOARD_LABEL = 'New board';
+
 export async function gotoBoard(page: Page): Promise<void> {
+  // Story 5: the root is the home page, and a board is created by the New board
+  // button (opening an unknown `/b/:id` now shows Board not found). Clicking it
+  // waits on the board API, then routes to the new board.
   await page.goto('/');
-  // Wait for the test hook + camera-driven UI to be present.
+  await page.getByRole('button', { name: NEW_BOARD_LABEL }).click();
+  // Wait for the board to open (test hook + camera-driven UI present).
   await page.waitForSelector('[data-board-surface]');
 }
 

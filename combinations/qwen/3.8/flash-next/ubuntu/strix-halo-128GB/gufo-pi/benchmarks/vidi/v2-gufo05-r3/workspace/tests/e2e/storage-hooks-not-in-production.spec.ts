@@ -12,7 +12,7 @@
  */
 import { expect, test } from '@playwright/test';
 
-import { freshBoardId } from './helpers/participants';
+import { createBoard, freshBoardId } from './helpers/participants';
 
 const HOOKS = ['seed', 'compact', 'corrupt-snapshot', 'repair'] as const;
 
@@ -46,10 +46,10 @@ test.describe('the shipped configuration has no test hooks', () => {
     expect(body).not.toContain('"ok"');
   });
 
-  test('a board is untouched by a request to a hook path', async ({ browser }) => {
+  test('a board is untouched by a request to a hook path', async ({ browser, request }) => {
     // The board a person opens afterwards is a normal empty board on a normally
     // opened connection: no failure, no damaged state, nothing half done.
-    const boardId = freshBoardId();
+    const boardId = await createBoard(request);
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
     await page.goto(`/b/${boardId}`);

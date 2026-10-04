@@ -20,6 +20,7 @@ import {
   boardOf,
   closeParticipants,
   expectEventually,
+  createBoard,
   freshBoardId,
   openParticipant,
   openParticipants,
@@ -117,8 +118,9 @@ test.describe('overnight return (TC-19)', () => {
 
   test('a board comes back exactly as it was left, after the server forgets it', async ({
     browser,
+    request,
   }) => {
-    const boardId = freshBoardId();
+    const boardId = await createBoard(request);
     const alex = await openParticipant(browser, 'Alex', boardId);
     await buildBoardByHand(alex.page, 25);
 
@@ -154,8 +156,9 @@ test.describe('leave immediately (TC-20)', () => {
 
   test('a note both editors have seen survives an abrupt stop one second later', async ({
     browser,
+    request,
   }) => {
-    const boardId = freshBoardId();
+    const boardId = await createBoard(request);
     const [alex, sam] = await openParticipants(browser, boardId, ['Alex', 'Sam']);
     await aimAt(alex.page, 0);
     await createStickyByButton(alex.page);

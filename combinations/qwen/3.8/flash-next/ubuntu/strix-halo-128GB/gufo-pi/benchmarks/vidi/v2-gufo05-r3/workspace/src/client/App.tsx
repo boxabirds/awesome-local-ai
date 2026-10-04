@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type * as Y from 'yjs';
 import { BoardViewport, type BoardViewportApi } from './canvas/BoardViewport';
 import { Toolbar } from './board/Toolbar';
@@ -8,7 +8,6 @@ import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
-import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { installBoardHook, reportConnectionState } from './canvas/testHooks';
 
 export interface AppProps {
@@ -20,24 +19,11 @@ export interface AppProps {
    */
   doc?: Y.Doc;
   /**
-   * Board to connect to. Omitted in production, where it comes from the address
-   * bar (`/b/:boardId`).
+   * Board to connect to. Omitted in production when there is no board to open
+   * (the Home and Board-not-found pages do not render the board at all); the
+   * board page passes the id from the address bar (`/b/:boardId`).
    */
   boardId?: string;
-}
-
-/** The board address shape: `/b/<boardId>`. */
-const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
-
-/**
- * The board id carried by an address, or `null` when the address does not name
- * a board (`/`, a malformed or unguessable id). Story 5 replaces the `null`
- * case with server-side board creation and a "board not found" page.
- */
-export function boardIdFromPathname(pathname: string): string | null {
-  const match = BOARD_PATH.exec(pathname);
-  if (!match) return null;
-  return isValidBoardId(match[1]) ? match[1] : null;
 }
 
 /** True when the keyboard belongs to a text field (so keys edit text). */
@@ -59,43 +45,15 @@ function isControlTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * The board this tab is on, read from the address bar.
- *
- * An address that does not name a board (notably `/`) opens a fresh board and
- * puts its address in the bar, so the tab has something to sync on. This is a
- * stand-in: story 5 creates boards server-side.
- */
-function useBoardRoute(enabled: boolean): string | null {
-  const [boardId, setBoardId] = useState<string | null>(() =>
-    boardIdFromPathname(window.location.pathname),
-  );
-
-  useEffect(() => {
-    if (!enabled || boardId !== null) return;
-    const id = newBoardId();
-    window.history.replaceState(null, '', `/b/${id}`);
-    setBoardId(id);
-  }, [enabled, boardId]);
-
-  useEffect(() => {
-    const onPopState = () => setBoardId(boardIdFromPathname(window.location.pathname));
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
-
-  return boardId;
-}
-
-/**
- * Composition root: the board document, the live connection, the local
- * selection, the toolbars and the board shortcuts, wired into the viewport.
+ * The board: the document, the live connection, the local selection, the
+ * toolbars and the board shortcuts, wired into the viewport. Story 5 moved the
+ * routing (which board, or the home page, or Board not found) out of here and
+ * into `router.ts`; `App` is now just the board, given an id to open. It stays
+ * mounted only in the board page's `ready` state, where the board exists.
  */
 export default function App({ doc, boardId }: AppProps = {}) {
-  const routeBoardId = useBoardRoute(doc === undefined);
-  const { doc: boardDoc, notes, connection } = useBoardDoc(
-    doc,
-    boardId ?? routeBoardId ?? undefined,
-  );
+  const { doc: boardDoc, notes, connection } = useBoardDoc(doc, boardId);
+
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   const viewportApi = useRef<BoardViewportApi | null>(null);
   /**

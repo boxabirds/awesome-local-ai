@@ -1,4 +1,11 @@
-import { expect, type Browser, type BrowserContext, type Page, type WebSocketRoute } from '@playwright/test';
+import {
+  expect,
+  type APIRequestContext,
+  type Browser,
+  type BrowserContext,
+  type Page,
+  type WebSocketRoute,
+} from '@playwright/test';
 
 import type { ConnectionState } from '../../../src/client/sync/connectBoard';
 import type { StickySnapshot } from '../../../src/shared/board-model';
@@ -56,6 +63,22 @@ export interface OpenOptions {
 /** A board nobody has opened yet. */
 export function freshBoardId(): string {
   return newBoardId();
+}
+
+/**
+ * Create a board through the API and return its id.
+ *
+ * Story 5 removed implicit creation: opening `/b/:id` for an id that was never
+ * created shows Board not found, so a test that wants a real board must make one
+ * first — exactly what the New board button does. Needs a `request` fixture.
+ */
+export async function createBoard(request: APIRequestContext): Promise<string> {
+  const response = await request.post('/api/boards');
+  if (!response.ok()) {
+    throw new Error(`createBoard failed with HTTP ${response.status()}`);
+  }
+  const body = (await response.json()) as { id: string };
+  return body.id;
 }
 
 export async function openParticipant(

@@ -10,7 +10,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createSticky } from '../../src/shared/board-model';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
-import { boardState, connectAll, converge, freshBoardId, RoomClient } from './ws-client';
+import { boardState, connectAll, converge, ensureBoard, freshBoardId, RoomClient } from './ws-client';
 
 const VALID_ID = newBoardId();
 
@@ -61,14 +61,17 @@ describe('board routes (TC-04, TC-06)', () => {
 });
 
 describe('room sockets (TC-05, TC-13)', () => {
-  it('answers 400 for a bad board id without touching a Durable Object', async () => {
+  // Story 5 changed a malformed board id from 400 to 404 (share.not_found): a
+  // probe must not be able to tell a malformed id from an unknown one, and the
+  // id must still never reach a Durable Object.
+  it('answers 404 for a bad board id without touching a Durable Object', async () => {
     const watched = watchIdFromName();
     try {
       const before = watched.count();
       const response = await SELF.fetch(roomUrl('/api/rooms/bad!id'), {
         headers: { upgrade: 'websocket' },
       });
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(404);
       expect(response.status).toBeGreaterThanOrEqual(400);
       expect(response.status).toBeLessThan(500);
       expect(watched.count()).toBe(before);
@@ -77,21 +80,24 @@ describe('room sockets (TC-05, TC-13)', () => {
     }
   });
 
-  it('answers 400 for too-short, too-long and non-base64url ids', async () => {
+  it('answers 404 for too-short, too-long and non-base64url ids', async () => {
     const invalid = ['', 'short', 'a'.repeat(23), 'has spaces!!!!!!!!!!!!!!', 'üüüüüüüüüüüüüüüüüüüü'];
     for (const id of invalid) {
       const response = await SELF.fetch(roomUrl(`/api/rooms/${encodeURIComponent(id)}`), {
         headers: { upgrade: 'websocket' },
       });
-      expect(response.status, `id ${JSON.stringify(id)}`).toBe(400);
+      expect(response.status, `id ${JSON.stringify(id)}`).toBe(404);
     }
   });
 
-  it('upgrades a valid board id', async () => {
+  it('upgrades a valid board id once the board exists', async () => {
+    // Connecting no longer creates a board (story 5), so create it first through
+    // the real API, then measure only the socket's Durable Object lookup.
+    const created = await SELF.fetch(roomUrl('/api/boards'), { method: 'POST' });
+    const { id: boardId } = (await created.json()) as { id: string };
     const watched = watchIdFromName();
     try {
       const before = watched.count();
-      const boardId = freshBoardId();
       const response = await SELF.fetch(roomUrl(`/api/rooms/${boardId}`), {
         headers: { upgrade: 'websocket' },
       });
@@ -129,6 +135,9 @@ describe('bad requests never create rooms (TC-04)', () => {
 describe(`capacity is soft (TC-13: ${MAX_CONCURRENT_EDITORS + 1} sockets)`, () => {
   it('accepts everybody and relays to all of them', async () => {
     const boardId = freshBoardId();
+    // Create the board before watching, so the only `idFromName` calls counted are
+    // the routing's own — one per socket (story 5 keeps creation out of joining).
+    await ensureBoard(boardId);
     const watched = watchIdFromName();
     try {
       const before = watched.count();

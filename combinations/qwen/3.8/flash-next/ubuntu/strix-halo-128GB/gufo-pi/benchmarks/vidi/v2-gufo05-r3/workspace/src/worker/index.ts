@@ -15,6 +15,7 @@
 
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { createBoard } from './create-board';
 import { TEST_HOOK_PREFIX, parseTestHook, testHooksEnabled } from './test-hooks';
 
 export interface Env {
@@ -32,10 +33,20 @@ export interface Env {
 
 /** Everything under this prefix is a board's WebSocket endpoint. */
 const ROOM_PREFIX = '/api/rooms/';
+/** The board collection (POST to create) and a single board (GET to check). */
+const BOARDS_PATH = '/api/boards';
+const BOARD_PREFIX = '/api/boards/';
 
 /** True for `Upgrade: websocket` (case-insensitive, as HTTP requires). */
 function isUpgradeToWebsocket(request: Request): boolean {
   return request.headers.get('upgrade')?.toLowerCase() === 'websocket';
+}
+
+function json(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
 }
 
 export default {
@@ -51,13 +62,38 @@ export default {
       return room.fetch(request);
     }
 
+    // --- the board API ------------------------------------------------------
+
+    if (pathname === BOARDS_PATH) {
+      if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const result = await createBoard(env);
+      if (result.ok) return json({ id: result.id }, 201);
+      return json({ error: 'create_failed' }, 500);
+    }
+
+    if (pathname.startsWith(BOARD_PREFIX)) {
+      if (request.method !== 'GET') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const boardId = pathname.slice(BOARD_PREFIX.length);
+      // A malformed id is not a board, and must never reach (or create) a Durable
+      // Object. Unknown and malformed ids get the same 404: nothing is leaked.
+      if (!isValidBoardId(boardId)) return json({ error: 'not_found' }, 404);
+      const room = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+      const exists = await room.exists();
+      return exists ? json({ id: boardId }, 200) : json({ error: 'not_found' }, 404);
+    }
+
     if (!pathname.startsWith(ROOM_PREFIX)) return env.ASSETS.fetch(request);
 
     const boardId = pathname.slice(ROOM_PREFIX.length);
     // A board address is 22 base64url characters; anything else is a mistake or
-    // a probe, and must not reach (or create) a Durable Object.
+    // a probe, and must not reach (or create) a Durable Object. Reported as 404
+    // so a probe cannot tell a malformed id from an unknown one (share.not_found).
     if (!isValidBoardId(boardId)) {
-      return new Response('Invalid board id', { status: 400 });
+      return new Response('Board not found', { status: 404 });
     }
     if (!isUpgradeToWebsocket(request)) {
       return new Response('Upgrade Required', { status: 426 });

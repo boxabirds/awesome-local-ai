@@ -26,8 +26,8 @@ import {
   boardOf,
   closeParticipants,
   connectionLog,
+  createBoard,
   expectEventually,
-  freshBoardId,
   latencySamplesSnapshot,
   openParticipants,
   type Participant,
@@ -143,9 +143,12 @@ function percentiles(values: number[]): { p50: number; p95: number; max: number 
 }
 
 test.describe('@nightly live collaboration soak', () => {
-  test('TC-29 two idle tabs stay connected for the whole idle period', async ({ browser }) => {
+  test('TC-29 two idle tabs stay connected for the whole idle period', async ({
+    browser,
+    request,
+  }) => {
     test.setTimeout(IDLE_MS + 5 * MINUTE);
-    const [alex, sam] = await openParticipants(browser, freshBoardId(), ['Alex', 'Sam'], {
+    const [alex, sam] = await openParticipants(browser, await createBoard(request), ['Alex', 'Sam'], {
       controllableLink: true,
     });
     const participants = [alex, sam];
@@ -207,12 +210,12 @@ test.describe('@nightly live collaboration soak', () => {
     }
   });
 
-  test('TC-30 a full room keeps up with continuous edits', async ({ browser }) => {
+  test('TC-30 a full room keeps up with continuous edits', async ({ browser, request }) => {
     test.setTimeout(SOAK_MS + 10 * MINUTE);
     const people = MAX_CONCURRENT_EDITORS;
     const participants = await openParticipants(
       browser,
-      freshBoardId(),
+      await createBoard(request),
       Array.from({ length: people }, (_, i) => `Editor${i + 1}`),
       { controllableLink: true },
     );

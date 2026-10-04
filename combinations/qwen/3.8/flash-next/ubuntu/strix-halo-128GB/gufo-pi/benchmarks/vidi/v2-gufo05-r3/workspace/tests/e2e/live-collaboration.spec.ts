@@ -24,7 +24,7 @@ import {
   connectionLog,
   expectEventually,
   simulateOutage,
-  freshBoardId,
+  createBoard,
   openParticipant,
   openParticipants,
   printLatencyReport,
@@ -96,8 +96,9 @@ test.beforeEach(() => {
 test.describe('live collaboration', () => {
   test('TC-22 create, move, recolour, type and delete all reach the other person', async ({
     browser,
+    request,
   }) => {
-    const [alex, sam] = await openParticipants(browser, freshBoardId(), ['Alex', 'Sam']);
+    const [alex, sam] = await openParticipants(browser, await createBoard(request), ['Alex', 'Sam']);
     try {
       await createStickyByButton(alex.page);
       await typeIntoEditor(alex, 'retro item');
@@ -136,8 +137,9 @@ test.describe('live collaboration', () => {
 
   test('TC-23 both type into one note at the same time: identical text holding every character', async ({
     browser,
+    request,
   }) => {
-    const [alex, sam] = await openParticipants(browser, freshBoardId(), ['Alex', 'Sam']);
+    const [alex, sam] = await openParticipants(browser, await createBoard(request), ['Alex', 'Sam']);
     try {
       await createStickyByButton(alex.page);
       await typeIntoEditor(alex, 'shared');
@@ -183,8 +185,9 @@ test.describe('live collaboration', () => {
 
   test('TC-24 both drag the same note at the same time: one shared settled position', async ({
     browser,
+    request,
   }) => {
-    const [alex, sam] = await openParticipants(browser, freshBoardId(), ['Alex', 'Sam']);
+    const [alex, sam] = await openParticipants(browser, await createBoard(request), ['Alex', 'Sam']);
     try {
       await createStickyByButton(alex.page);
       await stopEditing(alex.page);
@@ -213,8 +216,9 @@ test.describe('live collaboration', () => {
 
   test('TC-25 deleting a note someone else is editing closes their editor', async ({
     browser,
+    request,
   }) => {
-    const [alex, sam] = await openParticipants(browser, freshBoardId(), ['Alex', 'Sam']);
+    const [alex, sam] = await openParticipants(browser, await createBoard(request), ['Alex', 'Sam']);
     try {
       await createStickyByButton(alex.page);
       await typeIntoEditor(alex, 'up for debate');
@@ -243,8 +247,9 @@ test.describe('live collaboration', () => {
 
   test('TC-26 every editor of a full board sees every other editor change', async ({
     browser,
+    request,
   }) => {
-    const boardId = freshBoardId();
+    const boardId = await createBoard(request);
     const names = Array.from({ length: MAX_CONCURRENT_EDITORS }, (_, i) => `Editor${i + 1}`);
     const participants = await openParticipants(browser, boardId, names);
     try {
@@ -302,10 +307,11 @@ test.describe('live collaboration', () => {
 
   test('TC-27 edits made while the connection is down catch up on reconnect', async ({
     browser,
+    request,
   }) => {
     // The outage itself lasts CATCH_UP_TEST_OUTAGE_MS, so this one is slow by design.
     test.setTimeout(CATCH_UP_TEST_TIMEOUT_MS);
-    const boardId = freshBoardId();
+    const boardId = await createBoard(request);
     // Alex's socket runs through the harness so the outage can be forced.
     const alex = await openParticipant(browser, 'Alex', boardId, { controllableLink: true });
     const sam = await openParticipant(browser, 'Sam', boardId);
@@ -375,8 +381,8 @@ test.describe('live collaboration', () => {
     }
   });
 
-  test('TC-28 selection and editing stay on their own screen', async ({ browser }) => {
-    const [alex, sam] = await openParticipants(browser, freshBoardId(), ['Alex', 'Sam']);
+  test('TC-28 selection and editing stay on their own screen', async ({ browser, request }) => {
+    const [alex, sam] = await openParticipants(browser, await createBoard(request), ['Alex', 'Sam']);
     try {
       await createStickyByButton(alex.page);
       await stopEditing(alex.page);

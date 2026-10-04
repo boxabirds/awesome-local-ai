@@ -57,6 +57,14 @@ export type LoadFailure =
 const META_SCHEMA_VERSION = 'storage_schema_version';
 const META_SNAPSHOT_THROUGH = 'snapshot_through_seq';
 const META_SNAPSHOT_DIGEST = 'snapshot_digest';
+/**
+ * When this board was created (epoch ms), written once by
+ * {@link BoardStore.markCreated}. Its presence is what makes a board "exist"
+ * in the story-5 sense; a board that predates story 5 has no such row but does
+ * have saved content, and still counts as existing (see {@link
+ * BoardStore.existsReadOnly}).
+ */
+const META_CREATED_AT = 'created_at';
 
 /**
  * Integrity check of the snapshot as it was written.
@@ -218,6 +226,10 @@ export class BoardStore {
   /**
    * Create the tables if needed and record the storage version. Writes no
    * update rows: opening a board that was never edited must not create content.
+   *
+   * Runs from {@link BoardRoom.initialize} (a board created through the API) and
+   * lazily before the first {@link append} (a legacy board's first new change).
+   * Reading a board never calls it, so probing an unknown link writes nothing.
    */
   migrate(): void {
     this.storage.transactionSync(() => {
@@ -231,8 +243,69 @@ export class BoardStore {
     });
   }
 
+  /**
+   * True when this board exists. Read-only: it never creates a table, so asking
+   * about an id that was never created leaves no storage behind (share.not_found).
+   *
+   * A board exists once {@link markCreated} has run (a board made through the
+   * API), or — the legacy case, share.legacy_boards — it already has a saved
+   * update or snapshot row from before story 5 shipped.
+   */
+  existsReadOnly(): boolean {
+    if (!this.tableExists('storage_meta')) return false;
+    if (this.meta(META_CREATED_AT) !== null) return true;
+    const update = this.storage.sql.exec('SELECT 1 FROM updates LIMIT 1').toArray();
+    if (update.length > 0) return true;
+    const chunk = this.storage.sql.exec('SELECT 1 FROM snapshot_chunks LIMIT 1').toArray();
+    return chunk.length > 0;
+  }
+
+  /** True when the board was created through the API (`created_at` is set). */
+  isCreated(): boolean {
+    return this.tableExists('storage_meta') && this.meta(META_CREATED_AT) !== null;
+  }
+
+  /** Record the creation time, once. Idempotent: a second call changes nothing. */
+  markCreated(at = Date.now()): void {
+    this.storage.transactionSync(() => {
+      if (this.meta(META_CREATED_AT) === null) {
+        this.setMeta(META_CREATED_AT, String(at));
+      }
+    });
+  }
+
+  /** The creation time (epoch ms), or `null` for a legacy or unknown board. */
+  createdAt(): number | null {
+    if (!this.tableExists('storage_meta')) return null;
+    const raw = this.meta(META_CREATED_AT);
+    if (raw === null) return null;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  /** The app tables present right now (diagnostics and the no-write guarantee). */
+  tableNames(): string[] {
+    return this.storage.sql
+      .exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+      .toArray()
+      .map((row) => row.name);
+  }
+
+  /** Does this one table exist? Read-only; touches nothing else. */
+  private tableExists(name: string): boolean {
+    const rows = this.storage.sql
+      .exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", name)
+      .toArray();
+    return rows.length > 0;
+  }
+
   /** Everything the storage of one board holds, for diagnostics and tests. */
   stats(): { updates: number; updateBytes: number; chunks: number; throughSeq: number } {
+    // A board that was never created has no tables; its stats are simply empty,
+    // not an error (story 5: reads never create tables).
+    if (!this.tableExists('updates')) {
+      return { updates: 0, updateBytes: 0, chunks: 0, throughSeq: 0 };
+    }
     const row = this.storage.sql
       .exec<{ count: number | null; bytes: number | null }>(
         'SELECT COUNT(*) AS count, COALESCE(SUM(bytes), 0) AS bytes FROM updates',
@@ -254,6 +327,9 @@ export class BoardStore {
    * longer promise that anything is saved and resets the room.
    */
   append(update: Uint8Array): void {
+    // The first write to a board creates its tables. Reads never do (so probing
+    // an unknown link writes nothing); this is the one place that may.
+    if (!this.tableExists('updates')) this.migrate();
     const bytes = update.byteLength;
     this.storage.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', toBinding(update), bytes);
     this.logCount += 1;
@@ -275,6 +351,13 @@ export class BoardStore {
    * shown as a whole board is the outcome this story exists to prevent.
    */
   load(doc: Y.Doc): LoadResult {
+    // A board whose tables were never created is simply empty — and stays that
+    // way. Creating them here would mean reading an unknown link wrote storage.
+    if (!this.tableExists('storage_meta')) {
+      this.logCount = 0;
+      this.logBytes = 0;
+      return { ok: true, quarantined: 0 };
+    }
     try {
       const through = this.snapshotThroughSeq();
       const chunks = this.storage.sql

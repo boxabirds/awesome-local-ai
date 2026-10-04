@@ -119,13 +119,9 @@ export class BoardRoom extends DurableObject<Env> {
           );
 
     const doc = new Y.Doc();
-    try {
-      this.store.migrate();
-    } catch (error) {
-      doc.destroy();
-      return this.failLoad('storage unavailable', error);
-    }
-
+    // No `migrate()` here: loading a board must never create it. The tables are
+    // made by `initialize()` (a board created through the API) or lazily by the
+    // first `append()`; a board that has none loads as empty (share.not_found).
     const result: LoadResult = this.store.load(doc);
     if (!result.ok) {
       doc.destroy();
@@ -195,6 +191,31 @@ export class BoardRoom extends DurableObject<Env> {
     await this.ensureReady();
   }
 
+  // --- Durable Object RPC (story 5: board creation and existence) -----------
+
+  /**
+   * Create this board: make its tables and stamp `created_at` if it has none.
+   * Returns `'created'` the first time and `'exists'` after that, so a fresh id
+   * that somehow already existed is reported, not silently reused. Callable on
+   * the stub (`env.BOARD_ROOM.get(id).initialize()`).
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    // `migrate()` may throw (storage unavailable); the caller turns a throw into
+    // a create failure, so it is deliberately not caught here.
+    this.store.migrate();
+    if (this.store.isCreated()) return 'exists';
+    this.store.markCreated();
+    return 'created';
+  }
+
+  /**
+   * Does this board exist? Read-only — it never creates the tables, so probing
+   * an unknown id leaves no storage behind (share.not_found).
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   // --- Durable Object entry points ------------------------------------------
 
   async fetch(request: Request): Promise<Response> {
@@ -206,6 +227,12 @@ export class BoardRoom extends DurableObject<Env> {
     const upgrade = request.headers.get('upgrade')?.toLowerCase();
     if (upgrade !== 'websocket') {
       return new Response('Upgrade Required', { status: 426 });
+    }
+
+    // A board is only joinable once it exists: connecting can no longer create
+    // it implicitly (share.not_found). Read-only, so a probe writes nothing.
+    if (!this.store.existsReadOnly()) {
+      return new Response('Board not found', { status: 404 });
     }
 
     const canServe = await this.ensureReady();

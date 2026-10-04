@@ -131,3 +131,23 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 
 /** Version of the *storage* tables (the Yjs document schema has its own). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Story 5: sharing a board ----------------------------------------------
+
+/**
+ * Time budget from clicking "New board" to the empty board being visible
+ * (PRD `share.create`). e2e logs the measured click-to-board time against it;
+ * it is not a pass/fail gate, because model, browsers and server share one
+ * machine.
+ */
+export const CREATE_BUDGET_MS = 2000;
+
+/** How long the Share panel's "Link copied" confirmation shows (PRD `share.copy`). */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * First retry interval when the board-existence check cannot reach the service
+ * (PRD `share.unreachable`). The backoff doubles on each further failure, up to
+ * {@link RECONNECT_MAX_BACKOFF_MS}.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
