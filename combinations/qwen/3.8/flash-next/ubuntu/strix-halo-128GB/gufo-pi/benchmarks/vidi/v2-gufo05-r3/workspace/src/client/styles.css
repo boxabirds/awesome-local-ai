@@ -356,3 +356,41 @@ body,
   white-space: nowrap;
   border: 0;
 }
+
+/* --- Story 3: connection status badge (top centre) ------------------------- */
+
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  line-height: 1.2;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(20, 30, 60, 0.12);
+}
+
+/* Amber: the connection is lost; the board stays editable. */
+.connection-status--reconnecting {
+  background: #fff3cd;
+  border-color: #f0c36d;
+  color: #7a4d00;
+}
+
+/* Green: brief confirmation that the connection is back. */
+.connection-status--confirmed {
+  background: #d7f5dd;
+  border-color: #86d39a;
+  color: #14602a;
+}
+
+/* Neutral: first load. */
+.connection-status--connecting {
+  background: #eef1f6;
+  border-color: #d7dbe4;
+  color: #4a5568;
+}

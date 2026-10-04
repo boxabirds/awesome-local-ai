@@ -137,3 +137,116 @@ asserted in e2e.
 `window.__vidi6.getBoard()` (test builds only) returns the board snapshot the UI
 rendered, so e2e can assert positions/scale/colour/z from the user's point of view
 without scraping styles. Production bundle verified not to contain `__vidi6`.
+
+---
+
+# Story 3: live collaboration
+
+## The y-websocket frame is three parts, not one
+A client frame is `varUint(outerType)` followed by the payload for that type, so a
+sync message on the wire is `[MESSAGE_SYNC][varUint syncRank][varUint8Array
+update]` and an awareness message is `[MESSAGE_AWARENESS][varUint8Array update]`.
+`decodeMessage` reads the outer byte first and, for awareness, `readVarUint8Array`
+to get at the actual update — reading the payload raw produced awareness state that
+decoded to garbage. The room then reframes before broadcasting, so what a peer
+receives is byte-identical to what the author sent (pinned in the unit tests).
+
+## `accept()` closes the door on the Response
+In workerd the `101` response carrying the client half of the pair must be built
+**before** `server.accept()`; afterwards the runtime refuses with "Can't return
+WebSocket in a Response after calling accept()". The same ordering rule applies in
+tests that drive a room through `SELF.fetch`: the client socket needs `.accept()`
+before the test can `send()` on it.
+
+## An empty state vector is not a thing
+`Y.encodeStateAsUpdate(doc, new Uint8Array())` throws "Unexpected end of array" —
+lib0 cannot read a zero-byte state vector, and no real client ever sends one
+(`Y.encodeStateVector` always writes at least the client id). The room therefore
+treats an undecodable sync step 1 as a protocol error (close 1003) instead of
+trying to answer it with "everything".
+
+## `y-protocols` swallows apply errors
+An update that parses but cannot be applied never reaches the caller's `catch`:
+`readSyncStep2` wraps the apply in its own try/catch and reports through the
+`errorHandler` argument. The room passes a callback that records the failure and
+then closes the socket with 1003, which is what makes TC-12 ("a broken update
+hurts nobody but its author") hold for both flavours of bad payload. Related:
+this version of lib0 has `decoding.hasContent(decoder)`, not `hasRemaining`.
+
+## The badge's state machine is tested with a fake provider
+`connectBoard(doc, boardId, onState)` is the seam the design names, so it was not
+given a provider parameter. `tests/component/ConnectionStatus.test.tsx` mocks
+`y-websocket` with a small emitter-shaped fake and uses fake timers, which makes
+the `CONNECTED_CONFIRMATION_MS - 1` / `+1` boundary (TC-20) exact instead of a
+race, and lets TC-21 prove the confirmation timer is cleared when a second outage
+arrives.
+
+## Switching a browser "offline" does not drop its sockets
+`context.setOffline(true)` refuses new connections but leaves an established
+WebSocket alone, and a `ws.close()` from the page in that state stalls in CLOSING
+forever — the app never learns anything happened. So the outage test registers
+`page.routeWebSocket('**/api/rooms/**')` before the page loads and closes the
+socket from the harness side, which does produce a real close event. Two notes on
+that API: attaching `route.onMessage` disables Playwright's automatic bridging, so
+both directions have to be forwarded by hand (`server.send(message)` /
+`route.send(message)`), and the harness therefore also gets to observe frame times
+and close times, which is what TC-29's keepalive measurement and TC-30's
+"nobody reconnects after close" check read. A `window.__vidi6.dropSocket` hook was
+tried first and removed: it could not do anything the offline browser would not
+sit on.
+
+## Confirming the green badge without racing it
+"Connected" is visible for exactly 2 seconds. The outage test samples both the
+badge text and `window.__vidi6.connectionLog` while it waits, then asserts the
+log went `reconnecting → confirmed → connected` and that "Connected" was among the
+samples — a plain `toHaveText` after a `waitFor` would be flipping a coin.
+
+## Nightly runs are the same code path, shorter
+TC-29/TC-30 are tagged `@nightly`; `test:e2e` runs `--grep-invert @nightly` and
+`test:e2e:nightly` runs `--grep @nightly`. Durations come from
+`NIGHTLY_IDLE_SECONDS` (default 45) and `NIGHTLY_SOAK_SECONDS` (default 60), so a
+longer soak is an environment variable rather than an edit. `wrangler dev` does
+not expose the Durable Object `hibernate` flag, so only the no-traffic case is
+covered, as the design anticipated: 45 idle seconds with two connections shows no
+reconnect, a badge that never appears and keepalive frames ~15 s apart, well
+inside the provider's 30-second watchdog. The soak at
+`MAX_CONCURRENT_EDITORS` connections made 545 changes in 60 s with propagation
+p50 8 ms / p95 13 ms / max 41 ms against the 1-second budget (reported, not
+asserted), and no tab tried to reconnect after its context closed.
+
+## Teardown tears down the transport only
+`destroy()` calls `provider.destroy()`, which removes the listeners and closes the
+socket but leaves the `Y.Doc` alone — closing a tab never takes board content with
+it (story 4 owns persistence). Measured catch-up after a 30-second outage was
+~2.4 s, dominated by the reconnect backoff (200 ms doubling to
+`RECONNECT_MAX_BACKOFF_MS`); like every other latency in the e2e suite it is
+reported against `LIVE_UPDATE_LATENCY_BUDGET_MS` rather than asserted.
+
+## A soak addresses notes by id, and drags far enough to be a drag
+The soak's edit sequence is seeded (`NIGHTLY_SEED`, printed in the report) so a
+failure can be replayed, and it drives the real UI — double-click, drag, toolbar
+swatch, Delete key. Notes are addressed as `[data-note-id=...]` and their drag
+start is read from the live element rather than from coordinates the test
+remembered, because a remembered position drifts and the drag then grabs
+whatever is actually there. Two traps showed up while writing it: a press that
+travels less than `DRAG_THRESHOLD_PX` is a *selection* and moves nothing, so a
+soak drag aims a fixed 15 pixels (back toward the note's slot, or away from it
+when it is already there); and a note's colour toolbar floats above the note at a
+constant screen size, so the slots are spaced for note body **plus** toolbar or
+the click on a swatch is intercepted by the neighbour's corner. A move is checked
+as "every board settles on the same position, the note actually moved, and it
+ended within a few screen pixels of where it was aimed" — arrival is what this
+story is about, drag arithmetic is story 2's.
+
+Playwright also waited forever for the intercepted swatch click, turning a real
+failure into a hung run: `actionTimeout` is now 30 seconds in
+`playwright.config.ts`, and the soak prints what each board saw when something
+fails to converge.
+
+## Multi-participant e2e layout
+Participants are separate browser contexts on `/b/<boardId>` — separate storage,
+cookies and sockets, so nothing can pass by accident through a shared tab. Where a
+test needs several notes it creates them by double-clicking distinct screen points
+(notes are centred on the click point) at a chosen zoom, so drags never grab
+somebody else's note. Firefox and WebKit remain opt-in with
+`E2E_ALL_BROWSERS=1` — this host is missing the OS libraries to launch them.

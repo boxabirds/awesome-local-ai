@@ -1,11 +1,16 @@
 import type { Camera } from './camera';
 import type { StickySnapshot } from '../../shared/board-model';
+import type { ConnectionState } from '../sync/connectBoard';
 
 declare global {
   interface Window {
     __vidi6?: {
       setCamera?(next: Camera): void;
       getBoard?(): readonly StickySnapshot[];
+      /** Current mapped connection state (test builds only). */
+      connectionState?: ConnectionState;
+      /** Every connection state this tab has been in, oldest first. */
+      connectionLog?: { state: ConnectionState; at: number }[];
     };
   }
 }
@@ -32,6 +37,19 @@ export function installTestHook(setCamera: (next: Camera) => void): void {
 export function installBoardHook(getBoard: () => readonly StickySnapshot[]): void {
   if (!enabled()) return;
   window.__vidi6 = { ...window.__vidi6, getBoard };
+}
+
+/**
+ * Record the mapped connection state on `window.__vidi6.connectionState` (plus a
+ * transition log) so e2e can assert the state machine behind the badge, not just
+ * the badge.
+ */
+export function reportConnectionState(state: ConnectionState): void {
+  if (!enabled()) return;
+  const hook = window.__vidi6 ?? {};
+  hook.connectionState = state;
+  hook.connectionLog = [...(hook.connectionLog ?? []), { state, at: Date.now() }];
+  window.__vidi6 = hook;
 }
 
 export function isTestMode(): boolean {

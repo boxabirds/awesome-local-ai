@@ -69,3 +69,34 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** Colour of a newly created sticky note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// --- Story 3: live collaboration -------------------------------------------
+
+/**
+ * Simultaneous-editors capacity. A soft target: it drives the design and the
+ * tests, and is never enforced — the 6th person is never turned away.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/**
+ * Time budget for a change to appear on another person's screen once it is
+ * visible on the sender's screen (PRD `live.propagate`). e2e reports the
+ * measured value against this budget; it is not a pass/fail gate.
+ */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Upper bound of the reconnect backoff, passed to `WebsocketProvider`. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" confirmation badge shows after a reconnect. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** Outage length used to verify that offline edits catch up (PRD `live.catch_up`). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/**
+ * Generous functional wait used by every e2e story: tests wait up to this long
+ * for an outcome to appear and log the measured latency against
+ * {@link LIVE_UPDATE_LATENCY_BUDGET_MS} instead of asserting on it.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;

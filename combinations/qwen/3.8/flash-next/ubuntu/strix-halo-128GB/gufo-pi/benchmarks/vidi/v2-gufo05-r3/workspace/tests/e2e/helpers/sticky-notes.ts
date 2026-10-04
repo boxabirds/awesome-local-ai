@@ -19,6 +19,11 @@ export function note(page: Page, index = 0): Locator {
   return notes(page).nth(index);
 }
 
+/** A specific note, addressed by its model id. */
+export function noteById(page: Page, id: string): Locator {
+  return page.locator(`[data-note-id="${id}"]`);
+}
+
 export function editor(page: Page): Locator {
   return page.locator('[data-sticky-textarea]');
 }

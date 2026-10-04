@@ -1,7 +1,9 @@
+import { defineWorkersProject } from '@cloudflare/vitest-pool-workers/config';
 import { defineWorkspace } from 'vitest/config';
 
-// Two projects per the design's "vitest.config.ts projects" intent.
-// Vitest 2.x expresses projects via a workspace file; `--project unit|component` selects them.
+// Three projects per the design's "vitest.config.ts projects" intent.
+// Vitest 2.x expresses projects via a workspace file; `--project unit|component|integration`
+// selects them.
 export default defineWorkspace([
   {
     test: {
@@ -19,4 +21,22 @@ export default defineWorkspace([
       setupFiles: ['tests/component/setup.ts'],
     },
   },
+  // Integration tests run inside the Workers runtime (workerd) against the real
+  // Worker entry, real Durable Objects and real WebSockets.
+  defineWorkersProject({
+    test: {
+      name: 'integration',
+      include: ['tests/integration/**/*.test.ts'],
+      pool: '@cloudflare/vitest-pool-workers',
+      poolOptions: {
+        workers: {
+          wrangler: { configPath: './wrangler.jsonc' },
+          // Storage is in memory only in this story; boards are keyed by a fresh
+          // random id per test, so tests may share one instance state.
+          isolatedStorage: false,
+          singleWorker: true,
+        },
+      },
+    },
+  }),
 ]);

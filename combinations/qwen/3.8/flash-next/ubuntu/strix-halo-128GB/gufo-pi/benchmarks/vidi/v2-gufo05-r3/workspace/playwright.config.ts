@@ -17,6 +17,9 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: 'on-first-retry',
     viewport: { width: 1280, height: 800 },
+    // Playwright waits forever for an action by default, which turns a UI that
+    // stopped responding into a hung run instead of a failure.
+    actionTimeout: 30_000,
   },
   // Chromium always runs. Firefox and WebKit are opt-in via E2E_ALL_BROWSERS=1
   // because their browsers are installed but the host is missing OS libraries
