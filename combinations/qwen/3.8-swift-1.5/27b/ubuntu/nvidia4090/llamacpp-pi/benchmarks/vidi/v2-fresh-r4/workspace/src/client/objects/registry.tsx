@@ -15,6 +15,7 @@ import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
 import { addKnownType } from '../../shared/known-types';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
@@ -196,5 +197,27 @@ registerObjectType('stroke', {
       STROKE_HIT_TOLERANCE_PX / zoom,
     );
     return distanceToPolyline(pts, worldPoint) <= tolerance;
+  },
+});
+
+// --- Register the image type (story 12) ---
+import { ImageObject as ImageObjectComponent } from '../objects/ImageObject';
+
+registerObjectType('image', {
+  Component: ImageObjectComponent as unknown as ComponentType<ObjectProps>,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  // Bounding-box hit test.
+  hitTest(obj, worldPoint) {
+    const w = obj.width ?? 0;
+    const h = obj.height ?? 0;
+    return (
+      worldPoint.x >= obj.x &&
+      worldPoint.y >= obj.y &&
+      worldPoint.x < obj.x + w &&
+      worldPoint.y < obj.y + h
+    );
   },
 });

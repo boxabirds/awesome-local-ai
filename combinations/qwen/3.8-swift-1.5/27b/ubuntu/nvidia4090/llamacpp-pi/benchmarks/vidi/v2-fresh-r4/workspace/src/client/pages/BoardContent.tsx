@@ -43,6 +43,13 @@ import { createText } from '../../shared/objects/text';
 import { setShapeStyle } from '../../shared/objects/shape';
 import { StrokeObject } from '../objects/StrokeObject';
 import { SharePanel } from '../share/SharePanel';
+import { useImageInsert } from '../images/useImageInsert';
+import { ImageFileInput } from '../images/ImageFileInput';
+
+import { ImageObject } from '../objects/ImageObject';
+import { Toast, useToast } from '../ui/Toast';
+import type { ImageSnap } from '../../shared/objects/image';
+import { deleteObjects as deleteObjectsFn } from '../../shared/board-model';
 import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
 import { LOCAL_USER_ID } from '../../shared/config';
 
@@ -68,6 +75,11 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
   // keyboard shortcuts (v, t, s, l, n, Escape). (`createStickyAt` and
   // `screenPointToWorld`-level helpers are defined below; the sticky
   // shortcut is inlined here to keep this hook call early.)
+  const toast = useToast();
+
+  // Ref to break the circular dependency between useActiveTool and useImageInsert
+  const imagePickerRef = useRef<(() => void) | null>(null);
+
   const {
     tool,
     shapeKind,
@@ -80,7 +92,22 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
       const centre: Point = { x: viewport.width / 2, y: viewport.height / 2 };
       createStickyAt(screenToWorld(camera.camera, centre));
     },
+    onImagePicker: () => {
+      imagePickerRef.current?.();
+    },
   });
+
+  // Image insertion (story 12)
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera: camera.camera,
+    connection: connectionState,
+    identityId: LOCAL_USER_ID,
+    viewportSize: viewport,
+    showToast: toast.show,
+  });
+  imagePickerRef.current = imageInsert.openPicker;
 
   // Pen options (session-only, story 11)
   const penOptions = usePenOptions();
@@ -116,6 +143,15 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
   useEffect(() => {
     setConnectionState(connectionState);
   }, [connectionState]);
+
+  // Paste handler for image insertion (story 12)
+  useEffect(() => {
+    const handler = (e: globalThis.ClipboardEvent) => {
+      imageInsert.onPaste(e as unknown as React.ClipboardEvent);
+    };
+    window.addEventListener('paste', handler);
+    return () => window.removeEventListener('paste', handler);
+  }, [imageInsert.onPaste]);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -339,6 +375,8 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
         onShiftPointerMove={handleMarqueeMove}
         onShiftPointerUp={handleMarqueeEnd}
         onShiftPointerCancel={handleMarqueeCancel}
+        onDragOver={imageInsert.onDragOver}
+        onDrop={imageInsert.onDrop}
       >
         <div className="board-objects" onPointerDownCapture={handleTextToolPointerDown}>
           {notes.map((note) => {
@@ -403,6 +441,25 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
                   selected={selection.ids.has(note.id)}
                   zoom={camera.camera.zoom}
                   camera={camera.camera}
+                  onPointerDown={gesture.onObjectPointerDown}
+                />
+              );
+            }
+            if (note.type === 'image') {
+              const img = note as ImageSnap;
+              return (
+                <ImageObject
+                  key={note.id}
+                  image={img}
+                  isUploader={img.uploaderId === LOCAL_USER_ID}
+                  progress={imageInsert.progress.get(note.id)}
+                  canRetry={imageInsert.canRetry(note.id)}
+                  now={Date.now()}
+                  onRetry={() => imageInsert.retry(note.id)}
+                  onRemove={() => {
+                    undo.boundary();
+                    deleteObjectsFn(doc, [note.id]);
+                  }}
                   onPointerDown={gesture.onObjectPointerDown}
                 />
               );
@@ -500,6 +557,7 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
         onToolShape={() => setTool('shape')}
         onToolConnector={() => setTool('connector')}
         onToolPen={() => setTool('pen')}
+        onImagePicker={imageInsert.openPicker}
         activeTool={tool}
         shapeKind={shapeKind}
         onShapeKind={setShapeKind}
@@ -525,6 +583,12 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
       <NavigationHint visible={!camera.hasNavigated && notes.length === 0} />
       <ConnectionStatus state={connectionState} />
       <SharePanel boardId={boardId} />
+
+      {/* Image file input (hidden) */}
+      <ImageFileInput ref={imageInsert.fileInputRef} onFileChange={imageInsert.handleFileInputChange} />
+
+      {/* Toast */}
+      <Toast message={toast.message} onDismiss={toast.dismiss} />
     </div>
   );
 }

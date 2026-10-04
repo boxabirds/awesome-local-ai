@@ -1,10 +1,12 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
+import { handleUpload, handleServe } from './assets';
 
 type Env = {
   BOARD_ROOM: DurableObjectNamespace;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   /** When '1', exposes the test-only /test/corrupt and /test/repair hooks. Never set in production. */
   TEST_HOOKS?: string;
 }
@@ -141,6 +143,33 @@ export default {
           headers: { 'content-type': 'application/json' },
         });
       }
+    }
+
+    // POST /api/boards/:id/assets — upload an image asset (story 12)
+    const assetsUploadMatch = url.pathname.match(/^\/api\/boards\/([^/]+)\/assets$/);
+    if (assetsUploadMatch) {
+      if (req.method !== 'POST') {
+        return new Response(JSON.stringify({ error: 'method_not_allowed' }), {
+          status: 405,
+          headers: { 'content-type': 'application/json', 'allow': 'POST' },
+        });
+      }
+      const boardId = assetsUploadMatch[1];
+      return handleUpload(req, env, boardId);
+    }
+
+    // GET /api/assets/:boardId/:assetId — serve a stored image (story 12)
+    const assetsServeMatch = url.pathname.match(/^\/api\/assets\/([^/]+)\/([^/]+)$/);
+    if (assetsServeMatch) {
+      if (req.method !== 'GET') {
+        return new Response(JSON.stringify({ error: 'method_not_allowed' }), {
+          status: 405,
+          headers: { 'content-type': 'application/json', 'allow': 'GET' },
+        });
+      }
+      const boardId = assetsServeMatch[1];
+      const assetId = assetsServeMatch[2];
+      return handleServe(env, `${boardId}/${assetId}`);
     }
 
     // Everything else → static assets (SPA fallback)

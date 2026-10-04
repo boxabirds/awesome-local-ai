@@ -12,6 +12,7 @@ import type { ShapeKind, ShapeSnap } from './objects/shape';
 import { detachConnectorsTo, type ConnectorSnap, type Endpoint } from './objects/connector';
 import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 import type { PenColor, PenThickness, StrokeSnap } from './objects/stroke';
+import type { ImageSnap } from './objects/image';
 
 /**
  * Connector object snapshot (story 10); the canonical type lives in
@@ -477,6 +478,26 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         thickness,
       };
       result.push(strokeSnap);
+    } else if (type === 'image') {
+      const assetKey = (obj.get('assetKey') as string | null) ?? null;
+      const contentType = (obj.get('contentType') as string) ?? '';
+      const naturalWidth = (obj.get('naturalWidth') as number) ?? 0;
+      const naturalHeight = (obj.get('naturalHeight') as number) ?? 0;
+      const status = (obj.get('status') as 'uploading' | 'ready' | 'failed') ?? 'uploading';
+      const uploadStartedAt = (obj.get('uploadStartedAt') as number) ?? 0;
+      const uploaderId = (obj.get('uploaderId') as string) ?? '';
+      const imageSnap: ImageSnap = {
+        ...base,
+        type: 'image',
+        assetKey,
+        contentType,
+        naturalWidth,
+        naturalHeight,
+        status,
+        uploadStartedAt,
+        uploaderId,
+      };
+      result.push(imageSnap);
     } else {
       result.push(base);
     }

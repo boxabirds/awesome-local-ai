@@ -19,6 +19,8 @@ export interface ToolbarProps {
   onToolConnector?(): void;
   /** Activate the pen tool (P, story 11). */
   onToolPen?(): void;
+  /** Open the image file picker (I, story 12). */
+  onImagePicker?(): void;
   /** The currently active tool (for the pressed state). */
   activeTool?: BoardTool;
   /** The shape kind used by the shape tool (story 10). */
@@ -124,6 +126,18 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
       >
         <span className="board-toolbar-pen-icon" aria-hidden="true">✏</span>
         <span className="board-toolbar-pen-label">Pen</span>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar-image"
+        aria-label="Image (I)"
+        title="Image – press I to add an image"
+        disabled={props.disabled}
+        data-vidi6="toolbar-image"
+        onClick={() => props.onImagePicker?.()}
+      >
+        <span className="board-toolbar-image-icon" aria-hidden="true">🖼</span>
+        <span className="board-toolbar-image-label">Image</span>
       </button>
       {activeTool === 'shape' && (
         <div

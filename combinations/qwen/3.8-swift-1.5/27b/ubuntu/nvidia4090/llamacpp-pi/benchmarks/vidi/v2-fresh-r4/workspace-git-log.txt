@@ -1,3 +1,50 @@
+commit f7490a2e02efe1dbea7a919eb9a77cadf399d0bf
+agent  Sun Oct 4 09:03:33 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ PROGRESS.md                          |  34 +--
+ src/client/board/Toolbar.tsx         |  14 ++
+ src/client/canvas/BoardViewport.tsx  |   8 +-
+ src/client/images/DropHighlight.tsx  |  15 ++
+ src/client/images/ImageFileInput.tsx |  24 ++
+ src/client/images/uploadImage.ts     |  65 ++++++
+ src/client/images/useImageInsert.ts  | 289 ++++++++++++++++++++++++
+ src/client/images/validateFiles.ts   |  56 +++++
+ src/client/index.css                 | 185 +++++++++++++++
+ src/client/objects/ImageObject.tsx   | 213 ++++++++++++++++++
+ src/client/objects/registry.tsx      |  23 ++
+ src/client/pages/BoardContent.tsx    |  64 ++++++
+ src/client/tools/useActiveTool.ts    |  12 +-
+ src/client/ui/Toast.tsx              |  64 ++++++
+ src/shared/board-model.ts            |  21 ++
+ src/shared/config.ts                 |  29 +++
+ src/shared/image-format.ts           |  65 ++++++
+ src/shared/known-types.ts            |   2 +-
+ src/shared/objects/image.ts          | 236 +++++++++++++++++++
+ src/worker/assets.ts                 | 102 +++++++++
+ src/worker/index.ts                  |  29 +++
+ tests/component/image.test.tsx       | 425 +++++++++++++++++++++++++++++++++++
+ tests/e2e/images.spec.ts             | 206 +++++++++++++++++
+ tests/fixtures/images/corrupt.png    | Bin 0 -> 10 bytes
+ tests/fixtures/images/fake.png       |   7 +
+ tests/fixtures/images/malicious.svg  |   1 +
+ tests/fixtures/images/small.jpg      | Bin 0 -> 160 bytes
+ tests/fixtures/images/small.png      | Bin 0 -> 70 bytes
+ tests/integration/assets.test.ts     | 195 ++++++++++++++++
+ tests/unit/image-format.test.ts      | 145 ++++++++++++
+ tests/unit/image-model.test.ts       | 208 +++++++++++++++++
+ wrangler.jsonc                       |   6 +
+ 32 files changed, 2726 insertions(+), 17 deletions(-)
+commit 6d54548497e74cee37715a83c17e6f6889ff634e
+vidi-agent  Sun Oct 4 08:49:13 2026 +0100
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
 commit d94c46dbcc8ae380481d3ba4d8729bd015b751a5
 agent  Sun Oct 4 08:44:10 2026 +0100
 

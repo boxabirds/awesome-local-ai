@@ -267,3 +267,32 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
 
 /** Minimum size for a stroke object in world units. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// --- Story 12: Drop images onto the board ---
+
+/** The accepted image MIME types. */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** Maximum file size in bytes (10 MB). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Maximum number of files accepted in one add action. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/** Maximum longest side in world units for placement sizing. */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** Minimum size in world units for resize (either dimension). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** Gap between images in a row layout, in world units. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/** An uploading image older than this is considered unfinished (5 minutes). */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** Cache-Control max-age for served assets (1 year in seconds). */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/** Number of leading bytes read for magic-byte type sniffing. */
+export const IMAGE_SNIFF_BYTES = 12;

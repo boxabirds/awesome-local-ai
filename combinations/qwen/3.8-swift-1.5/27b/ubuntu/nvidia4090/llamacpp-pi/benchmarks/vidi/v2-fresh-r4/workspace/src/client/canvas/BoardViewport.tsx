@@ -37,6 +37,10 @@ export interface BoardViewportProps extends CameraApi {
   onShiftPointerUp?(): void;
   /** Called on pointercancel during marquee. */
   onShiftPointerCancel?(): void;
+  /** Called when files are dragged over the board (story 12). */
+  onDragOver?(e: React.DragEvent): void;
+  /** Called when files are dropped on the board (story 12). */
+  onDrop?(e: React.DragEvent): void;
 }
 
 /** a mod b with a non-negative result. */
@@ -50,7 +54,7 @@ function positiveMod(value: number, modulus: number): number {
  * transformed world layer.
  */
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
-  const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset, children, onDblClickEmpty, onClickEmpty, tool, onShiftPointerDownEmpty, onShiftPointerMove, onShiftPointerUp, onShiftPointerCancel } = props;
+  const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset, children, onDblClickEmpty, onClickEmpty, tool, onShiftPointerDownEmpty, onShiftPointerMove, onShiftPointerUp, onShiftPointerCancel, onDragOver, onDrop } = props;
   const viewportRef = useRef<HTMLDivElement>(null);
   const gestureScaleRef = useRef(GESTURE_START_SCALE);
   const [panning, setPanning] = useState(false);
@@ -286,6 +290,8 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       onPointerCancel={onPointerCancel}
       onLostPointerCapture={onEndPan}
       onDoubleClick={onDoubleClick}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
     >
       <div
         className="board-grid"

@@ -41,6 +41,11 @@ export interface UseActiveToolOpts {
    * is not a persistent tool, so it is handled here via this callback.
    */
   onStickyNote?(): void;
+  /**
+   * The `i` shortcut opens the image file picker (story 12); it is not a
+   * persistent tool, so it is handled here via this callback.
+   */
+  onImagePicker?(): void;
 }
 
 export interface ActiveToolState {
@@ -93,8 +98,13 @@ export function useActiveTool(opts: UseActiveToolOpts): ActiveToolState {
         optsRef.current.onStickyNote?.();
         return;
       }
+      // `i` opens the image picker (not a persistent tool, story 12).
+      if (t === 'image') {
+        optsRef.current.onImagePicker?.();
+        return;
+      }
       // Tools from stories not in this build are no-ops.
-      if (t === 'image' || t === 'comment') return;
+      if (t === 'comment') return;
       e.preventDefault();
       setToolState(t);
     };
