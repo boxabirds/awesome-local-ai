@@ -20,6 +20,9 @@ import { Toolbar } from '../board/Toolbar';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { StickyNote } from '../objects/StickyNote';
 import { TextObject } from '../objects/TextObject';
 import { ShapeObject } from '../objects/ShapeObject';
@@ -34,9 +37,11 @@ import {
   type ConnectorSnapshot,
   type ShapeSnapshot,
 } from '../../shared/board-model';
+import type { StrokeSnap } from '../../shared/objects/stroke';
 import { unionRects, type Rect } from '../../shared/geometry';
 import { createText } from '../../shared/objects/text';
 import { setShapeStyle } from '../../shared/objects/shape';
+import { StrokeObject } from '../objects/StrokeObject';
 import { SharePanel } from '../share/SharePanel';
 import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
 import { LOCAL_USER_ID } from '../../shared/config';
@@ -77,11 +82,14 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
     },
   });
 
+  // Pen options (session-only, story 11)
+  const penOptions = usePenOptions();
+
   // Per-user undo history (story 8): session-only, LOCAL_ORIGIN changes only.
   const undoController = useUndoController(doc);
   const undo = useUndo(undoController, editable);
 
-  // A shape/connector was created: one undo step, select it, back to Select.
+  // A shape/connector/stroke was created: one undo step, select it, back to Select.
   const handleToolCreated = useCallback(
     (id: string) => {
       undo.boundary();
@@ -89,6 +97,11 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
     },
     [undo, toolCreated],
   );
+
+  // Pen stroke committed: one undo step (pen stays active, no selection change)
+  const handlePenCommit = useCallback(() => {
+    undo.boundary();
+  }, [undo]);
 
   // Shape style change (its own undo step — story 10).
   const handleShapeStyle = useCallback(
@@ -381,6 +394,19 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
                 />
               );
             }
+            if (note.type === 'stroke') {
+              const stroke = note as StrokeSnap;
+              return (
+                <StrokeObject
+                  key={note.id}
+                  stroke={stroke}
+                  selected={selection.ids.has(note.id)}
+                  zoom={camera.camera.zoom}
+                  camera={camera.camera}
+                  onPointerDown={gesture.onObjectPointerDown}
+                />
+              );
+            }
             return (
               <StickyNote
                 key={note.id}
@@ -401,7 +427,7 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
         </div>
       </BoardViewport>
 
-      {/* Shape / connector tool overlays (screen space, story 10) */}
+      {/* Shape / connector / pen tool overlays (screen space) */}
       {tool === 'shape' && editable && (
         <ShapeTool kind={shapeKind} camera={camera.camera} doc={doc} onCreated={handleToolCreated} />
       )}
@@ -412,6 +438,27 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
           rects={rects}
           doc={doc}
           onCreated={handleToolCreated}
+        />
+      )}
+      {tool === 'pen' && editable && (
+        <PenTool
+          camera={camera.camera}
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          doc={doc}
+          identityId={LOCAL_USER_ID}
+          onCommit={handlePenCommit}
+          onWheel={(e) => {
+            const rect = rootRef.current?.getBoundingClientRect();
+            const sx = e.clientX - (rect?.left ?? 0);
+            const sy = e.clientY - (rect?.top ?? 0);
+            camera.wheel({
+              deltaX: e.deltaX,
+              deltaY: e.deltaY,
+              ctrlOrMeta: e.ctrlKey || e.metaKey,
+              point: { x: sx, y: sy },
+            });
+          }}
         />
       )}
 
@@ -452,12 +499,21 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
         onToolSelect={() => setTool('select')}
         onToolShape={() => setTool('shape')}
         onToolConnector={() => setTool('connector')}
+        onToolPen={() => setTool('pen')}
         activeTool={tool}
         shapeKind={shapeKind}
         onShapeKind={setShapeKind}
         disabled={!editable}
         undo={undo}
       />
+      {tool === 'pen' && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
+        />
+      )}
       <ZoomControls
         zoomPercent={zoomPercent(camera.camera)}
         canZoomIn={canZoomIn(camera.camera)}

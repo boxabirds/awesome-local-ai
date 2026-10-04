@@ -15,10 +15,14 @@ import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
 import { addKnownType } from '../../shared/known-types';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
+import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
 
 export interface ObjectProps {
   obj: ObjectSnapshot;
@@ -170,5 +174,27 @@ registerObjectType('connector', {
       distanceToPolyline([ends.from, ends.to], worldPoint) <=
       CONNECTOR_HIT_TOLERANCE_PX / zoom
     );
+  },
+});
+
+// --- Register the stroke type (story 11) ---
+import { StrokeObject as StrokeObjectComponent } from '../objects/StrokeObject';
+
+registerObjectType('stroke', {
+  Component: StrokeObjectComponent as unknown as ComponentType<ObjectProps>,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  // Select only when within max(thickness/2, STROKE_HIT_TOLERANCE_PX/zoom) of the line.
+  hitTest(obj, worldPoint, zoom = 1) {
+    if (obj.type !== 'stroke') return false;
+    const s = obj as StrokeSnap;
+    const pts = scaledPoints(s);
+    const tolerance = Math.max(
+      PEN_THICKNESS_WORLD[s.thickness] / 2,
+      STROKE_HIT_TOLERANCE_PX / zoom,
+    );
+    return distanceToPolyline(pts, worldPoint) <= tolerance;
   },
 });

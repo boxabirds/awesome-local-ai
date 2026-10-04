@@ -966,3 +966,95 @@ body {
   border-color: #1e88e5;
   color: #fff;
 }
+
+/* --- Story 11: Pen toolbar and stroke object --- */
+
+.pen-toolbar {
+  position: absolute;
+  left: 56px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--vidi6-surface, #fff);
+  border: 1px solid var(--vidi6-border, #e0e0e0);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+}
+
+.pen-toolbar-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pen-toolbar-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.pen-toolbar-swatch:focus-visible {
+  outline: 2px solid #1e88e5;
+  outline-offset: 1px;
+}
+
+.pen-toolbar-swatch--active {
+  border-color: #1e88e5;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1e88e5;
+}
+
+.pen-toolbar-thickness {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.pen-toolbar-thickness-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.pen-toolbar-thickness-btn:focus-visible {
+  outline: 2px solid #1e88e5;
+  outline-offset: 1px;
+}
+
+.pen-toolbar-thickness-btn--active {
+  background: #1e88e5;
+  border-color: #1e88e5;
+}
+
+.pen-toolbar-thickness-dot {
+  display: block;
+  border-radius: 50%;
+  background: var(--vidi6-ink, #263238);
+}
+
+.pen-toolbar-thickness-btn--active .pen-toolbar-thickness-dot {
+  background: #fff;
+}
+
+.stroke-object {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.stroke-object--selected {
+  filter: drop-shadow(0 0 2px #1e88e5);
+}

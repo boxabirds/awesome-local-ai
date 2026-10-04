@@ -11,6 +11,7 @@ import type { FillColor, StrokeColor, TextSize } from './config';
 import type { ShapeKind, ShapeSnap } from './objects/shape';
 import { detachConnectorsTo, type ConnectorSnap, type Endpoint } from './objects/connector';
 import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import type { PenColor, PenThickness, StrokeSnap } from './objects/stroke';
 
 /**
  * Connector object snapshot (story 10); the canonical type lives in
@@ -460,6 +461,22 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         to,
       };
       result.push(connSnap);
+    } else if (type === 'stroke') {
+      const points = (obj.get('points') as number[]) ?? [];
+      const baseWidth = (obj.get('baseWidth') as number) ?? 0;
+      const baseHeight = (obj.get('baseHeight') as number) ?? 0;
+      const color = (obj.get('color') as PenColor) ?? 'black';
+      const thickness = (obj.get('thickness') as PenThickness) ?? 'medium';
+      const strokeSnap: StrokeSnap = {
+        ...base,
+        type: 'stroke',
+        points,
+        baseWidth,
+        baseHeight,
+        color,
+        thickness,
+      };
+      result.push(strokeSnap);
     } else {
       result.push(base);
     }

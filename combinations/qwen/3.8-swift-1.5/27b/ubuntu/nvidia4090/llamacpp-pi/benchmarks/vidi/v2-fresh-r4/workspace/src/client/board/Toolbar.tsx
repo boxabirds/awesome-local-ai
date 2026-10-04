@@ -17,6 +17,8 @@ export interface ToolbarProps {
   onToolShape?(): void;
   /** Activate the connector tool (L, story 10). */
   onToolConnector?(): void;
+  /** Activate the pen tool (P, story 11). */
+  onToolPen?(): void;
   /** The currently active tool (for the pressed state). */
   activeTool?: BoardTool;
   /** The shape kind used by the shape tool (story 10). */
@@ -109,6 +111,19 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
       >
         <span className="board-toolbar-connector-icon" aria-hidden="true">↝</span>
         <span className="board-toolbar-connector-label">Connector</span>
+      </button>
+      <button
+        type="button"
+        className={`board-toolbar-pen${activeTool === 'pen' ? ' board-toolbar-pen--active' : ''}`}
+        aria-label="Pen (P)"
+        title="Pen – press P, then draw on the board"
+        aria-pressed={activeTool === 'pen'}
+        disabled={props.disabled}
+        data-vidi6="toolbar-pen"
+        onClick={() => props.onToolPen?.()}
+      >
+        <span className="board-toolbar-pen-icon" aria-hidden="true">✏</span>
+        <span className="board-toolbar-pen-label">Pen</span>
       </button>
       {activeTool === 'shape' && (
         <div

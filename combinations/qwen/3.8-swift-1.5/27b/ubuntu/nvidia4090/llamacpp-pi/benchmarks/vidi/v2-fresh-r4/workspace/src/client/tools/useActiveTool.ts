@@ -79,7 +79,7 @@ export function useActiveTool(opts: UseActiveToolOpts): ActiveToolState {
       }
 
       if (e.key === 'Escape') {
-        if (toolRef.current === 'shape' || toolRef.current === 'connector') {
+        if (toolRef.current === 'shape' || toolRef.current === 'connector' || toolRef.current === 'pen') {
           e.preventDefault();
           setToolState('select');
         }
@@ -94,7 +94,7 @@ export function useActiveTool(opts: UseActiveToolOpts): ActiveToolState {
         return;
       }
       // Tools from stories not in this build are no-ops.
-      if (t === 'pen' || t === 'image' || t === 'comment') return;
+      if (t === 'image' || t === 'comment') return;
       e.preventDefault();
       setToolState(t);
     };
