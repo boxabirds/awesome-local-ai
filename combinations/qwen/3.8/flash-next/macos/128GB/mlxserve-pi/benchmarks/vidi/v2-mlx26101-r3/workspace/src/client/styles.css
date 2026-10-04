@@ -218,6 +218,25 @@ a:focus-visible {
   font-size: 13px;
 }
 
+/* Undo and redo (story 8) hang below the tools, behind a rule, because they are not tools: they
+   work on what this person has already done to the board. */
+.toolbar__history {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.toolbar button:disabled {
+  color: #97a1b0;
+  cursor: default;
+}
+
+.toolbar button:disabled:hover {
+  background: transparent;
+}
+
 /* Sticky notes --------------------------------------------------------- */
 
 .sticky-note {

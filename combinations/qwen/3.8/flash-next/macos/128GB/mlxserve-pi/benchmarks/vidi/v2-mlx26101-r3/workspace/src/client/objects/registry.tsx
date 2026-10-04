@@ -9,6 +9,7 @@ import {
 } from '../../shared/board-model';
 import { rectContainsPoint, type Point } from '../../shared/geometry';
 import type { EditEnd } from '../board/useSelection';
+import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 
 /** A pointer event as it arrives from React or from the window. */
@@ -50,6 +51,13 @@ export interface ObjectProps {
   onStartEdit(id: string): void;
   /** Escape keeps the object selected; a press outside it deselects. */
   onEndEdit(next: EditEnd): void;
+  /**
+   * This person's undo history, for the two things an object type owns and the board cannot
+   * know about: a spell of typing, which is one step rather than one per letter, and Ctrl/Cmd+Z
+   * pressed while the object's own text field has the keyboard. Left out, the object does not
+   * group its own edits - which is what a component mounted on its own, outside a board, does.
+   */
+  undo?: UndoController;
 }
 
 /**

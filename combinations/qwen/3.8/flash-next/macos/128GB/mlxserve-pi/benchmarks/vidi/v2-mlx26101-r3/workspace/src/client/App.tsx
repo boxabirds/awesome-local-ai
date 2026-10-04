@@ -18,6 +18,7 @@ import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { useBoardKeys, isTextEntryTarget } from './board/useBoardKeys';
+import { useUndo, useUndoHistory } from './board/useUndo';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
@@ -77,6 +78,13 @@ export function canEdit(state: ConnectionState): boolean {
  * somebody else's outlines. Everything the selection does - the marquee, the drag, the handles,
  * the Delete key - goes through the board model as a group operation, so nine selected objects
  * move, resize and disappear as one change to one document.
+ *
+ * Story 8 adds the history of those operations, and it is one per document: this person's undo
+ * stack, in this tab, over this document. Everything that writes through the board model is
+ * remembered by it, everything that arrives from anyone else is not, and the places where an
+ * action begins and ends - a drag, a spell of typing - say so to it. That is why the controller is
+ * made here, next to the document, and handed down rather than being made by whatever object
+ * happens to be on screen: nine notes dragged at once are one action, and no note can know that.
  */
 export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
   const [viewport, setViewport] = useState<Size>(initialViewport);
@@ -85,6 +93,9 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
   const { doc, notes, connection } = useBoardDoc(boardId, injectedDoc);
   const selection = useSelection(notes);
   const editable = canEdit(connection);
+  // One undo history for this document, and the button state that reads it.
+  const undoHistory = useUndoHistory(doc);
+  const undoState = useUndo(undoHistory, editable);
   // Which objects a gesture is carrying, so each one can say so while it lasts.
   const [transformed, setTransformed] = useState<ReadonlySet<string>>(NO_OBJECTS_TRANSFORMED);
 
@@ -115,7 +126,12 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
       if (!canEditRef.current) {
         return;
       }
+      // The note appearing is one step; what is typed into it afterwards is another. The editor
+      // says the same thing when it opens, and one of the two is enough - but saying it at both
+      // ends of a write is what makes each call here one step, whatever else happens around it.
+      undoHistory.boundary();
       const id = createSticky(doc, world);
+      undoHistory.boundary();
       if (id !== '') {
         // The new note is the selection, and the thing being typed into. Replacing the selection
         // rather than adding to it is deliberate: nine notes selected and a double-click on the
@@ -124,7 +140,7 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
         selection.startEdit(id);
       }
     },
-    [doc, selection],
+    [doc, selection, undoHistory],
   );
 
   /** Start typing a note - the one thing a board that could not be loaded will not do. */
@@ -165,9 +181,13 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
     if (ids.length === 0) {
       return;
     }
+    // One delete of nine notes is one step: the boundary before it stops it merging with whatever
+    // moved those notes here, and the one after stops the next action merging into it.
+    undoHistory.boundary();
     deleteObjects(doc, ids);
+    undoHistory.boundary();
     selection.clear();
-  }, [doc, editable, selection]);
+  }, [doc, editable, selection, undoHistory]);
 
   /** The marquee: a rectangle dragged over empty board space, selecting what is inside it. */
   const marquee = useMarquee({
@@ -188,6 +208,11 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
     onTransformingChange: (ids) => {
       setTransformed(new Set(ids));
     },
+    // A drag is one action however many frames it takes: sixty writes that belong to one movement
+    // go back as one step, and the step ends when the pointer is let go - including when the
+    // gesture is cancelled, which is a gesture that ended and must not leak into the next one.
+    onGestureStart: undoHistory.boundary,
+    onGestureEnd: undoHistory.boundary,
   });
 
   /** Escape aborts a marquee if one is being dragged, and clears the selection otherwise. */
@@ -210,6 +235,7 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
     editing: selection.editingId !== null,
     onDeleteSelection: deleteSelection,
     onEscape: handleEscape,
+    undo: undoHistory,
   });
 
   useEffect(() => {
@@ -273,6 +299,7 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
               onObjectLostPointerCapture={transform.onObjectLostPointerCapture}
               onStartEdit={requestEdit}
               onEndEdit={selection.endEdit}
+              undo={undoHistory}
             />
           );
         })}
@@ -290,7 +317,7 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
         onDelete={deleteSelection}
         canEdit={editable}
       />
-      <Toolbar onCreateSticky={handleCreateSticky} canEdit={editable} />
+      <Toolbar onCreateSticky={handleCreateSticky} canEdit={editable} undo={undoState} />
       <ConnectionStatus state={connection} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

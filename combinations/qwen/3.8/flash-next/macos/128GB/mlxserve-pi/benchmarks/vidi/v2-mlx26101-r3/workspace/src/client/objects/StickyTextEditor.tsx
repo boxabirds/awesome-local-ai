@@ -16,6 +16,7 @@ import {
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
+import type { UndoController } from '../board/undo';
 import {
   applyAddedText,
   applyLocalEdit,
@@ -36,6 +37,14 @@ export interface StickyTextEditorProps {
   fontPx: number;
   /** Escape (stay selected) or a click outside (deselect). */
   onEnd(next: EditEnd): void;
+  /**
+   * This person's undo history. A spell of typing is one step rather than one per letter, and
+   * the boundary of that step is known here and nowhere else - the editor knows when the note was
+   * opened and when it was closed, and the history does not. While this textarea has the keyboard,
+   * Ctrl/Cmd+Z is this note's typing going back, not the browser's own undo of the textarea.
+   * Left out, the editor neither opens a step nor answers the key.
+   */
+  undo?: UndoController;
 }
 
 /** Height available for text: the note minus its padding (jsdom has no layout at all). */
@@ -79,7 +88,12 @@ function noteElementOf(el: HTMLElement): HTMLElement | null {
  * ever written back over somebody else's text - a keystroke is written as the difference it
  * made, never as the whole value of the textarea.
  */
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
+export function StickyTextEditor({
+  ytext,
+  fontPx,
+  onEnd,
+  undo,
+}: StickyTextEditorProps): JSX.Element {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const [value, setValue] = useState<string>(() => ytext.toString());
   const [font, setFont] = useState<number>(() => clampFont(fontPx));
@@ -101,6 +115,16 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   useEffect(() => {
     onEndRef.current = onEnd;
   });
+
+  // Opening the note and closing it are the two ends of one undo step. Everything typed between
+  // them is one thing that happened to the board, so the history is told to start a step here and
+  // to stop one there - and closing covers both ways out, Escape and a click outside alike.
+  useEffect(() => {
+    undo?.boundary();
+    return () => {
+      undo?.boundary();
+    };
+  }, [undo]);
 
   /** Show `next`, and afterwards put the caret at `caret` once it is in the DOM. */
   const show = (next: string, caret?: number): void => {
@@ -249,8 +273,27 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       event.preventDefault();
       event.stopPropagation();
       onEndRef.current('selected');
+      return;
     }
     // Enter is left to the textarea, which inserts a newline.
+    const meta = event.metaKey || event.ctrlKey;
+    if (
+      undo !== undefined &&
+      meta &&
+      (event.key === 'z' || event.key === 'Z' || event.key === 'y' || event.key === 'Y')
+    ) {
+      // Taken from the browser either way: the page's own undo would wind the textarea back behind
+      // the document, and the two would never agree again. What it does instead is undo this
+      // person's last step, which is the same thing as pressing the key anywhere else on the board.
+      event.preventDefault();
+      event.stopPropagation();
+      const redoing = event.key === 'y' || event.key === 'Y' || event.shiftKey;
+      if (redoing) {
+        undo.redo();
+      } else {
+        undo.undo();
+      }
+    }
   };
 
   const onBlur = (): void => {

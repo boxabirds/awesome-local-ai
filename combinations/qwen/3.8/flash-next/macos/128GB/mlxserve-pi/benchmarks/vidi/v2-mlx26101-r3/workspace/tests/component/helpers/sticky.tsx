@@ -350,11 +350,98 @@ export function pressKey(key: string): void {
 }
 
 /**
- * A key pressed while a field has focus: the keydown starts on that element, which is where
- * the editor listens for Escape.
+ * A shortcut: a key with modifiers, pressed while the page has focus. The board reads its
+ * shortcuts off the window, the way a browser delivers them.
+ *
+ * The `code` is the physical key ('KeyZ'), because that is what the app matches on; the `key` is
+ * worked out from it unless given, which is what lets a test press the same key with a capital on
+ * it. What comes back is whether the app took the keystroke - `event.defaultPrevented` - which is
+ * the difference between the app having done this thing and the app leaving the browser to it.
  */
-export function pressKeyIn(target: PointerTarget, key: string): void {
-  fireEvent.keyDown(target, { key });
+export function pressCombo(
+  code: string,
+  mods: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean; key?: string } = {},
+): boolean {
+  const event = new KeyboardEvent('keydown', {
+    bubbles: true,
+    cancelable: true,
+    code,
+    key: mods.key ?? (code.startsWith('Key') ? code.slice(3).toLowerCase() : code),
+    ctrlKey: mods.ctrlKey ?? false,
+    metaKey: mods.metaKey ?? false,
+    shiftKey: mods.shiftKey ?? false,
+  });
+  window.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
+/** One of the toolbar's two history buttons; throws when the toolbar has none. */
+function historyButton(board: MountedSticky, testId: string): HTMLElement {
+  const button = board.view.container.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
+  if (button === null) {
+    throw new Error(`the toolbar has no ${testId} button`);
+  }
+  return button;
+}
+
+/** The toolbar's Undo button. */
+export function undoButton(board: MountedSticky): HTMLElement {
+  return historyButton(board, 'undo');
+}
+
+/** The toolbar's Redo button. */
+export function redoButton(board: MountedSticky): HTMLElement {
+  return historyButton(board, 'redo');
+}
+
+/**
+ * Whether the toolbar says the button would do nothing. `aria-disabled` rather than `disabled`,
+ * because a button that is not there at all cannot tell you why it is not there.
+ */
+export function isDisabled(button: HTMLElement): boolean {
+  return button.getAttribute('aria-disabled') === 'true';
+}
+
+/** Press the toolbar's Undo button. */
+export function clickUndo(board: MountedSticky): void {
+  fireEvent.click(undoButton(board));
+}
+
+/** Press the toolbar's Redo button. */
+export function clickRedo(board: MountedSticky): void {
+  fireEvent.click(redoButton(board));
+}
+
+/** What the toolbar's Undo button offers to take back, or why it offers nothing. */
+export function undoTitle(board: MountedSticky): string {
+  return undoButton(board).title;
+}
+
+/** What the toolbar's Redo button offers to put back. */
+export function redoTitle(board: MountedSticky): string {
+  return redoButton(board).title;
+}
+
+/**
+ * A key pressed while a field has focus: the keydown starts on that element, which is where
+ * the editor listens for Escape, and for the undo shortcut it keeps for itself.
+ *
+ * Whether the field's own handler took the keystroke - whether something along the way called
+ * `preventDefault` - so a test can tell "the editor did this" apart from "this fell through to the
+ * window, and something else did". Same sense as `pressCombo`.
+ */
+export function pressKeyIn(
+  target: PointerTarget,
+  key: string,
+  mods: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean } = {},
+): boolean {
+  const prevented = !fireEvent.keyDown(target, {
+    key,
+    ctrlKey: mods.ctrlKey ?? false,
+    metaKey: mods.metaKey ?? false,
+    shiftKey: mods.shiftKey ?? false,
+  });
+  return prevented;
 }
 
 /** Type into the editor the way a user does: the value grows, one change event per burst. */

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { Doc } from 'yjs';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { allObjectIds, moveObjects, type ObjectSnapshot } from '../../shared/board-model';
+import type { UndoController } from './undo';
 import type { MultiSelection } from './useSelection';
 
 /**
@@ -37,6 +38,15 @@ export interface BoardKeyOptions {
   /** Escape, before it reaches the selection: the marquee gets first refusal, so an Escape that
    * cancels a marquee in progress does not also throw away the selection behind it. */
   onEscape(): void;
+  /**
+   * This person's own undo history, which is what these keys undo and redo.
+   *
+   * It is the controller rather than the button state because the keys need the boundary as well:
+   * sixty frames of a drag is one step and one press of an arrow is one step, and the only thing
+   * that knows which is which is the code making the change. Left out, these keys are not taken,
+   * and the browser's own undo is left alone.
+   */
+  undo?: UndoController;
 }
 
 /**
@@ -51,6 +61,10 @@ export interface BoardKeyOptions {
  * the page and Ctrl/Cmd+A does not select the interface's own text; nothing at all happens while
  * somebody is typing, because a Delete pressed over half-written text means the text; and nudging
  * is one transaction for the whole selection, so a nudge is one thing to undo.
+ *
+ * Undo and redo are the same story in different keys: they belong to the selection too, because
+ * what they undo is what this person did, and they are handed to the undo controller rather than
+ * answered here. A board that may not be written to does not undo either - undo is a write.
  */
 export function useBoardKeys({
   doc,
@@ -60,6 +74,7 @@ export function useBoardKeys({
   editing,
   onDeleteSelection,
   onEscape,
+  undo,
 }: BoardKeyOptions): (event: KeyboardEvent) => void {
   const objectsRef = useRef(objects);
   const selectionRef = useRef(selection);
@@ -82,6 +97,32 @@ export function useBoardKeys({
     }
 
     const meta = event.metaKey || event.ctrlKey;
+
+    if (
+      undo !== undefined &&
+      meta &&
+      (event.key === 'z' || event.key === 'Z' || event.key === 'y' || event.key === 'Y')
+    ) {
+      // Shift turns undo into redo, and Ctrl+Y is the other way people ask for it. What decides
+      // which way this key goes is the history, not the key: nothing is taken from the browser
+      // unless there is a step of mine to go through, because a shortcut that takes a key it
+      // cannot answer is a key that silently stops working somewhere else.
+      const redoing =
+        event.key === 'y' || event.key === 'Y' || (event.shiftKey && (event.key === 'z' || event.key === 'Z'));
+      const available = redoing ? undo.canRedo() : undo.canUndo();
+      if (state.canEdit && available) {
+        event.preventDefault();
+      }
+      if (!state.canEdit) {
+        return;
+      }
+      if (redoing) {
+        undo.redo();
+      } else {
+        undo.undo();
+      }
+      return;
+    }
 
     if (meta && (event.key === 'a' || event.key === 'A')) {
       // Everything on the board, not everything under the box: the board is what "all" means.
@@ -120,7 +161,10 @@ export function useBoardKeys({
         return;
       }
       // Positions, not offsets: the nudge is added to where each object is now, so the whole
-      // selection moves together in one transaction, however many objects it holds.
+      // selection moves together in one transaction, however many objects it holds. The two
+      // boundaries make this nudge its own undo step: without them a run of arrow presses would
+      // merge into one, and one press of Ctrl+Z would take the whole walk back.
+      undo?.boundary();
       const byId = new Map(objectsRef.current.map((object) => [object.id, object]));
       const positions = new Map<string, { x: number; y: number }>();
       for (const id of selectionNow.ids) {
@@ -130,6 +174,7 @@ export function useBoardKeys({
         }
       }
       moveObjects(doc, positions);
+      undo?.boundary();
       return;
     }
 

@@ -138,3 +138,15 @@ export const MAX_OBJECT_SIZE_WORLD = 20000;
 export const NUDGE_STEP_WORLD = 1;
 /** How far Shift + arrow moves the selection: a nudge that covers ground. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+/* Undo and redo (story 8). --------------------------------------------------- */
+
+/**
+ * How long a pause it takes to end an undo step (spec: `undo.capture_timeout_ms`).
+ *
+ * A run of changes made within this many milliseconds of each other is one step, which is what
+ * makes a burst of typing go back a word rather than a letter, and one drag go back in one go.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/** How many steps one person's undo history keeps; older steps are dropped first. */
+export const UNDO_MAX_STEPS = 200;

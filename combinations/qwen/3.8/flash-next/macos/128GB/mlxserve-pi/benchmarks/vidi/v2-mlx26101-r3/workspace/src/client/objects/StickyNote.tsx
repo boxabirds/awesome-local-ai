@@ -60,6 +60,7 @@ export function StickyNote({
   onObjectLostPointerCapture,
   onStartEdit,
   onEndEdit,
+  undo,
 }: StickyNoteProps): JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
@@ -97,7 +98,11 @@ export function StickyNote({
     if (!canEdit) {
       return;
     }
+    // Choosing a colour is one step of its own: one transaction, and a boundary on each side of
+    // it so it neither merges with the drag that brought the note here nor with the next thing.
+    undo?.boundary();
     setStickyColor(doc, object.id, color);
+    undo?.boundary();
   };
 
   // Auto-fit: the largest font in the allowed range at which the text still fits, so a
@@ -190,6 +195,7 @@ export function StickyNote({
           <StickyTextEditor
             ytext={ytext}
             fontPx={fontPx}
+            undo={undo}
             onEnd={(next: EditEnd) => {
               onEndEdit(next);
             }}
@@ -235,7 +241,9 @@ export function StickyNote({
               }
               // The board forgets the note entirely; the selection goes with it.
               onEndEdit('unselected');
+              undo?.boundary();
               deleteObject(doc, object.id);
+              undo?.boundary();
             }}
           />
         </div>

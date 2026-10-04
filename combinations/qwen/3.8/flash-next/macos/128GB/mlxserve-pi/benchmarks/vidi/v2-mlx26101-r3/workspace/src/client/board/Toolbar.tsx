@@ -1,4 +1,6 @@
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UndoState } from './useUndo';
 
 /** Shown when hovering the sticky note button (PRD "Add sticky notes", FR-2). */
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note \u2013 or double-click the board';
@@ -12,6 +14,11 @@ export interface ToolbarProps {
    * people press it twice. Left out, the tool is available, which is the normal case.
    */
   canEdit?: boolean;
+  /**
+   * This person's own undo history, shown under the tools. Left out, the toolbar offers no
+   * undo - which is what a toolbar that is not standing in front of a board document shows.
+   */
+  undo?: UndoState;
 }
 
 /**
@@ -19,7 +26,11 @@ export interface ToolbarProps {
  * on it never pans the board and a wheel over it never zooms - and it stays a fixed
  * screen-space control while the notes around it move.
  */
-export function Toolbar({ onCreateSticky, canEdit = true }: ToolbarProps): JSX.Element {
+export function Toolbar({
+  onCreateSticky,
+  canEdit = true,
+  undo,
+}: ToolbarProps): JSX.Element {
   const stop = (event: ReactPointerEvent<HTMLDivElement>): void => {
     event.stopPropagation();
   };
@@ -53,6 +64,7 @@ export function Toolbar({ onCreateSticky, canEdit = true }: ToolbarProps): JSX.E
         </svg>
         <span className="toolbar__label">Sticky note</span>
       </button>
+      {undo === undefined ? null : <UndoButtons {...undo} />}
     </div>
   );
 }
