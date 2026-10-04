@@ -8,9 +8,14 @@
  * something, the new thing is selected and the hand goes back to Select
  * (`toolCreated`), so it can be adjusted straight away.
  *
- * A tool that has no behaviour yet — the Pen, Image and Comment of settings' tool list
- * — has a shortcut that does nothing. Accepting it would leave the page holding a tool
- * that cannot draw, which is worse than an ignored key.
+ * A tool that has no behaviour yet — the Image and Comment of settings' tool list — has a
+ * shortcut that does nothing. Accepting it would leave the page holding a tool that cannot
+ * draw, which is worse than an ignored key.
+ *
+ * One tool breaks the rule every creating tool follows, and does so on purpose: after the
+ * pen finishes a stroke nothing calls `toolCreated`, so the page is still holding the pen
+ * (PRD pen.stay_active). A sketch is usually more than one line, and the alternative —
+ * reaching for the toolbar after every stroke — is the thing the PRD asks not to do.
  *
  * The keys live here because they belong to the tool, not to an object. They are
  * skipped while a person is typing (the target is a field, or the board has an object
@@ -25,7 +30,14 @@ import type { ShapeKind } from '../../shared/objects/shape';
 export type ToolId = (typeof TOOL_IDS)[number];
 
 /** The tools that do something when picked: everything story 12 has interfaces for. */
-export const AVAILABLE_TOOLS: readonly ToolId[] = ['select', 'sticky', 'text', 'shape', 'connector'];
+export const AVAILABLE_TOOLS: readonly ToolId[] = [
+  'select',
+  'sticky',
+  'text',
+  'shape',
+  'connector',
+  'pen',
+];
 
 export function toolHasInterface(id: ToolId): boolean {
   return AVAILABLE_TOOLS.includes(id);
@@ -88,7 +100,9 @@ export function useActiveTool(options: ActiveToolOptions = {}): ActiveToolState 
       if (isEditableTarget(event.target)) return;
       if (event.key === 'Escape') {
         // Escape puts the tool back and creates nothing — including mid-drag, which
-        // is the tool's own business: it drops the gesture when it unmounts.
+        // is the tool's own business: it drops the gesture when it unmounts. For the pen
+        // that is the difference between a hand that left the surface (which keeps what it
+        // drew) and a person who decided not to draw it (PRD pen.cancel).
         setToolState('select');
         return;
       }

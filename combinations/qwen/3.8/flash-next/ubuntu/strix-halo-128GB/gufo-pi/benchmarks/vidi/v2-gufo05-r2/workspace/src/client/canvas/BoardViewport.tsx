@@ -39,6 +39,17 @@ export interface BoardViewportProps {
   textToolActive?: boolean;
   /** The click the Text tool is waiting for, with the point under the pointer. */
   onCreateTextAt?(world: Point): void;
+  /**
+   * A layer pinned to the screen rather than to the board, above the world layer and
+   * below the toolbars.
+   *
+   * It is a child of the surface, not a neighbour of it, because the surface owns the
+   * wheel and pinch listeners: an overlay inside it lets a wheel bubble on to them and
+   * pan or zoom the board for nothing else's sake (story 11's pen keeps story 1's
+   * navigation by not being in the way of it). An overlay beside the surface would have
+   * to implement that navigation a second time.
+   */
+  screenOverlay?: ReactNode;
 }
 
 /** Safari's pinch gestures, which are not part of the standard DOM types. */
@@ -63,6 +74,7 @@ export function BoardViewport({
   onMarqueeSelect,
   textToolActive = false,
   onCreateTextAt,
+  screenOverlay,
 }: BoardViewportProps) {
   const board = useBoard();
   const boardRef = useRef(board);
@@ -291,6 +303,7 @@ export function BoardViewport({
         {children}
         <MarqueeRect rect={marquee.rect} />
       </div>
+      {screenOverlay}
     </div>
   );
 }

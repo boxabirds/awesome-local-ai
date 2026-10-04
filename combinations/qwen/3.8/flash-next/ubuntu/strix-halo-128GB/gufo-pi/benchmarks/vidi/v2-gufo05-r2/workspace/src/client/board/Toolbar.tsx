@@ -31,6 +31,8 @@ export const TEXT_TOOL_TOOLTIP = 'Text – or press T, then click the board';
 export const SHAPE_TOOL_TOOLTIP = 'Shape – or press S, then drag on the board';
 /** Exact tooltip shown on the Connector tool button. */
 export const CONNECTOR_TOOL_TOOLTIP = 'Connector – or press L, then drag between two objects';
+/** Exact tooltip shown on the Pen tool button. */
+export const PEN_TOOL_TOOLTIP = 'Pen – or press P, then drag on the board';
 
 /** What each shape kind is called, in the menu and on the button. */
 export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
@@ -184,6 +186,31 @@ export function Toolbar({
           />
           <path d="M9.5 4.5h6v6" fill="none" stroke="currentColor" strokeWidth="1.4" />
           <circle cx="4" cy="15.5" r="2" fill="currentColor" />
+        </svg>
+      </button>
+      {/* Story 11: the pen. Unlike the two tools above it, the pen is not put back after a
+          stroke — you are sketching, and the next line is usually wanted too (PRD
+          pen.stay_active) — so it is a held tool like Text, and its colour and weight are
+          chosen in the toolbar that appears beside this one while it is held. */}
+      <button
+        type="button"
+        className="toolbar__button"
+        aria-label="Pen (P)"
+        title={PEN_TOOL_TOOLTIP}
+        data-testid="pen-tool-button"
+        aria-pressed={tool === 'pen'}
+        disabled={createDisabled}
+        onClick={() => onTool?.('pen')}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path
+            d="M2.5 15.5c2.6-6.4 5.4 3.4 8-2.6 1.8-4.2 3.6-6 7-8.4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+          <circle cx="2.5" cy="15.5" r="1.5" fill="currentColor" />
         </svg>
       </button>
       <button

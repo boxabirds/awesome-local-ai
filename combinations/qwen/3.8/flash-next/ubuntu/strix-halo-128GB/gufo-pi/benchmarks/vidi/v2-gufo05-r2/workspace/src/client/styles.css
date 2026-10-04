@@ -1090,3 +1090,152 @@ a:focus-visible,
 .shape-toolbar__delete:hover {
   background: #fdecea;
 }
+
+/* ------------------------------------------------------------------ * *
+ * Story 11: sketching freehand with a pen                              *
+ * ------------------------------------------------------------------ */
+
+/* The pen's layer, like every other tool's: it owns the pointer, and everything
+   under it keeps its place (PRD tool.owns_gesture). It is `absolute` rather than
+   `fixed` because it sits inside the board surface — which is what lets a wheel
+   over it bubble to the surface's own wheel handler, so the pen keeps story 1's
+   navigation without implementing any of it (PRD pen.navigation). The real cursor
+   is hidden: the ring below is the cursor, and it is the size of the stroke. */
+.pen-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  cursor: none;
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* The line being drawn, in screen pixels. No viewBox: one user unit is one CSS
+   pixel, so the width of the preview is the width of the pen at this zoom and the
+   path needs no conversion of its own. */
+.pen-layer__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* The pointer as a ring the size of the stroke, centred on the pointer by the
+   transform the tool writes into it. Hidden until the pointer has been seen, so a
+   pen picked from the keyboard does not leave a ring in the top-left corner. */
+.pen-layer__cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 1px solid var(--ui-text);
+  border-radius: 50%;
+  background: rgb(33 33 33 / 10%);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* The pen's two choices, next to the rail that holds the pen. Above the tool layer
+   (z 15), because choosing a colour is never the start of a stroke. */
+.pen-toolbar {
+  position: fixed;
+  left: 76px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  box-shadow: var(--ui-shadow);
+}
+
+.pen-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pen-toolbar__swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgb(18 22 31 / 25%);
+  border-radius: 50%;
+  background: var(--swatch, transparent);
+  cursor: pointer;
+}
+
+.pen-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--note-outline);
+  outline-offset: 1px;
+}
+
+.pen-toolbar__thickness {
+  width: 28px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  color: var(--ui-text);
+  background: var(--ui-background);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.pen-toolbar__thickness:hover {
+  background: #f1f3f7;
+}
+
+.pen-toolbar__thickness[aria-pressed='true'] {
+  border-color: var(--note-outline);
+  background: #eaf2ff;
+}
+
+/* The weight, drawn at the ratio of the three: the marks side by side are what
+   says which of them is "Thick". */
+.pen-toolbar__mark {
+  display: block;
+  width: 16px;
+  border-radius: 999px;
+}
+
+/* A sketch on the board: a path in its own box, and the box is exactly the room the
+   ink needs (the points, padded by half the pen's width), so nothing is clipped.
+   `overflow: visible` only ever shows the round cap of an open end. */
+.stroke-object {
+  position: absolute;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.stroke-object__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The ink is drawn, never clicked: the band below it is what answers a press. The round
+   caps and joins are on the path itself, because they are what a pen stroke is. */
+.stroke-object__line {
+  pointer-events: none;
+}
+
+/* The click band, as wide as the rule about how close a click has to be, and
+   `stroke` rather than `all`: the empty middle of a sketch's box belongs to whatever
+   is underneath it, which is the whole of PRD pen.select. */
+.stroke-object__hit {
+  fill: none;
+  stroke: transparent;
+  pointer-events: stroke;
+  cursor: pointer;
+}

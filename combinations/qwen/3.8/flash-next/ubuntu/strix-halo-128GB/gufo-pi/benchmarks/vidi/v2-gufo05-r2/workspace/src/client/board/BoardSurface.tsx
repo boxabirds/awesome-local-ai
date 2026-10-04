@@ -38,6 +38,9 @@ import { BoardEnvProvider, type BoardEnv } from './boardEnv';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { useTransformGesture } from './useTransformGesture';
 import { createUndo } from './undo';
 import { UndoControllerContext, useUndo } from './useUndo';
@@ -54,8 +57,14 @@ import {
 import { createText, textSnapshot } from '../../shared/objects/text';
 import { createShape, readShapes } from '../../shared/objects/shape';
 import { createConnector, readConnectors } from '../../shared/objects/connector';
+import { createStroke, readStrokes } from '../../shared/objects/stroke';
+import type { PenColor, PenThickness } from '../../shared/config';
 import { nearestSide, sideAnchor } from '../../shared/geometry/connector-geometry';
 import type { ShapeKind } from '../../shared/config';
+import {
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
+} from '../../shared/config';
 import {
   allObjectIds,
   createSticky,
@@ -138,6 +147,21 @@ export function BoardSurface({ boardId }: { boardId: string }) {
       getTexts: () => [...textSnapshot(doc)],
       getShapes: () => readShapes(doc),
       getConnectors: () => readConnectors(doc),
+      // Story 11: the sketches on the board, for assertions about a finished stroke.
+      getStrokes: () => readStrokes(doc),
+      // …and one laid out from a recorded pointer path, so an e2e test does not have to
+      // draw a big loop by mouse to have something to select. The points are board
+      // points, and the defaults are the pen's own.
+      seedStroke: (points: readonly Point[], color?: PenColor, thickness?: PenThickness) =>
+        createStroke(
+          doc,
+          {
+            points,
+            color: color ?? DEFAULT_PEN_COLOR,
+            thickness: thickness ?? DEFAULT_PEN_THICKNESS,
+          },
+          'seed',
+        ) ?? '',
       seedSticky: (x: number, y: number) => createSticky(doc, { x, y }),
       // Story 10: lay out a board for a test instead of drawing it by hand. The point is
       // the centre, the way `seedSticky` reads, and the box is the standard one.
@@ -187,6 +211,11 @@ export function BoardSurface({ boardId }: { boardId: string }) {
   // made it. A random per-load id is enough for `createdBy` (presence and export),
   // and nothing on the board changes because of it. See NOTES.md.
   const identity = useRef(`page_${crypto.randomUUID()}`).current;
+
+  // Story 11: what this page's pen is set to. Session state, exactly like the shape kind:
+  // a colour two people are holding is not something the board has to agree about, and
+  // the choice lasts until the page is reloaded (PRD pen.options.reload).
+  const pen = usePenOptions();
 
   // Story 10: what the objects and tools can look at beyond their own fields — the
   // boxes of everything, the live document, and the way from a screen point to a board
@@ -311,6 +340,20 @@ export function BoardSurface({ boardId }: { boardId: string }) {
           onMarqueeSelect={marqueeSelect}
           textToolActive={tools.tool === 'text' && editable}
           onCreateTextAt={createTextAtWorld}
+          // The pen draws inside the surface, so a wheel over it still reaches the
+          // surface's own wheel handler and the board pans and zooms as story 1 taught it
+          // while the pen holds every drag (PRD pen.navigation).
+          screenOverlay={
+            editable && tools.tool === 'pen' ? (
+              <PenTool
+                camera={camera}
+                color={pen.color}
+                thickness={pen.thickness}
+                doc={doc}
+                identityId={identity}
+              />
+            ) : null
+          }
         >
           {renderObjects.map((object) => (
             <ObjectView
@@ -380,6 +423,17 @@ export function BoardSurface({ boardId }: { boardId: string }) {
         ) : null}
         {editable && tools.tool === 'connector' ? (
           <ConnectorTool camera={camera} snapshot={objects} onCreated={tools.toolCreated} />
+        ) : null}
+        {/* Story 11: the pen's two choices, beside the toolbar that holds the pen itself.
+            They are only on screen while the pen is held, and picking one changes the next
+            stroke and never a stroke that is already there (PRD pen.options.no_restyle). */}
+        {editable && tools.tool === 'pen' ? (
+          <PenToolbar
+            color={pen.color}
+            thickness={pen.thickness}
+            onColor={pen.setColor}
+            onThickness={pen.setThickness}
+          />
         ) : null}
         <NavigationHint visible={!board.hasNavigated} />
         <ConnectionStatus state={connection} />

@@ -1,10 +1,12 @@
 import type * as Y from 'yjs';
 
+import type { Point } from '../../shared/geometry';
 import type { StickySnapshot } from '../../shared/board-model';
 import type { TextSnapshot } from '../../shared/objects/text';
 import type { ConnectorSnapshot } from '../../shared/objects/connector';
 import type { ShapeSnapshot } from '../../shared/objects/shape';
-import type { ShapeKind } from '../../shared/config';
+import type { StrokeSnapshot } from '../../shared/objects/stroke';
+import type { PenColor, PenThickness, ShapeKind } from '../../shared/config';
 import type { Camera } from './camera';
 import type { ConnectionState } from '../sync/connectBoard';
 
@@ -47,6 +49,17 @@ export interface Vidi6TestHooks {
    * means it could not be made — one of the two is not on the board.
    */
   seedConnector?(fromId: string, toId: string): string;
+  /**
+   * Story 11: current stroke snapshots, for e2e assertions about a finished sketch — its
+   * box, its style, and the path it stored.
+   */
+  getStrokes?(): StrokeSnapshot[];
+  /**
+   * Put a stroke on the board from a recorded pointer path in board units, and return its
+   * id, so a test has something to select, resize or delete without drawing it by mouse
+   * first. An empty string means the path could not be drawn (it was empty).
+   */
+  seedStroke?(points: readonly Point[], color?: PenColor, thickness?: PenThickness): string;
   /** What this page has selected, for assertions about the selection itself. */
   selectedIds?(): string[];
   /** Every object on the board, of any type. */

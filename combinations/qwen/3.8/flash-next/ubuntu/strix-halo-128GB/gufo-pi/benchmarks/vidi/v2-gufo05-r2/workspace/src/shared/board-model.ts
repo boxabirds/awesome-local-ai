@@ -16,6 +16,7 @@ import {
   type ConnectorSnapshot,
 } from './objects/connector';
 import { shapeSnapshotOf, type ShapeSnapshot } from './objects/shape';
+import { strokeSnapshotOf, type StrokeSnapshot } from './objects/stroke';
 
 /**
  * The board document model: the Yjs schema and every mutation. Framework-free
@@ -285,6 +286,9 @@ function readSnapshot(entry: Y.Map<unknown>, id: string): ObjectSnapshot | null 
     // express — an arrow's box is not stored at all — so each reads itself.
     if (type === 'shape') return shapeSnapshotOf(id, entry);
     if (type === 'connector') return connectorSnapshotOf(id, entry);
+    // Story 11: a sketch holds a path and the box it was drawn at, neither of which the
+    // common record can express.
+    if (type === 'stroke') return strokeSnapshotOf(id, entry);
     return base as unknown as ObjectSnapshot;
   }
 }
@@ -302,6 +306,19 @@ export function isConnectorSnapshot(obj: ObjectSnapshot): obj is ConnectorSnapsh
 export function isShapeSnapshot(obj: ObjectSnapshot): obj is ShapeSnapshot {
   return obj.type === 'shape';
 }
+
+/**
+ * Narrow a snapshot back to a freehand stroke (story 11).
+ *
+ * A stroke reads itself through `strokeSnapshotOf`; `snapshot()` is unchanged and still
+ * returns only sticky notes, so every story up to 10 reads the board exactly as it did
+ * and a sketch is asked for by name, through `objectSnapshots()` and `readStrokes()`.
+ */
+export function isStrokeSnapshot(obj: ObjectSnapshot): obj is StrokeSnapshot {
+  return obj.type === 'stroke';
+}
+
+export type { StrokeSnapshot };
 
 export function isStickySnapshot(obj: ObjectSnapshot): obj is StickySnapshot {
   return obj.type === 'sticky';
@@ -339,6 +356,7 @@ const MODEL_OBJECT_TYPES: ReadonlySet<string> = new Set([
   'text',
   'shape',
   'connector',
+  'stroke',
 ]);
 
 export function isKnownObjectType(type: string): boolean {

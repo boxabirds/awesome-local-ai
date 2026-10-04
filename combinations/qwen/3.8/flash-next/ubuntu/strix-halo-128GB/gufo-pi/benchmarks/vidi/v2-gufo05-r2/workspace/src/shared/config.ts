@@ -323,4 +323,59 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
   t: 'text',
   s: 'shape',
   l: 'connector',
+  p: 'pen',
 };
+
+/* ------------------------------------------------------------------ * *
+ * Story 11: sketching freehand with a pen                               *
+ * ------------------------------------------------------------------ */
+
+/** The six pen colours, named so a test can say which swatch it clicks (PRD pen.options). */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+export type PenColor = keyof typeof PEN_COLORS;
+
+/**
+ * The three thicknesses, in board units — so a stroke scales with the zoom like
+ * everything else on the board (PRD pen.options), and a click's dot is exactly this
+ * wide.
+ */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** The colour and weight a fresh pen is set to (PRD pen.draw: black, medium). */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/**
+ * How far a point the user drew may end up from the finished line, in *screen*
+ * pixels at the zoom used while drawing (PRD pen.smooth). Ramer–Douglas–Peucker
+ * simplification is run at this tolerance divided by the zoom, which is what makes
+ * smoothing both faithful and point-saving.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * How many recorded points one stroke holds before it is finished and the drawing
+ * continues as a new stroke (PRD pen.long_stroke). 5,000 is well past any stroke a
+ * hand makes in one breath, and small enough that one object stays cheap to sync.
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/**
+ * How far from a stroke's line a click has to land to select it, in screen pixels
+ * at any zoom (PRD pen.select) — the same reach an arrow's line has, and divided by
+ * the zoom for the same reason.
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/** The smallest a stroke may be resized to, in board units. */
+export const STROKE_MIN_SIZE_WORLD = 4;

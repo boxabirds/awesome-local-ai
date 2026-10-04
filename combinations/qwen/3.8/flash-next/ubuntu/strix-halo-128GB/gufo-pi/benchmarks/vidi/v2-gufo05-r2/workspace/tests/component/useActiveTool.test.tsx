@@ -94,11 +94,31 @@ describe('tool.shortcut — the keys that pick a tool', () => {
     expect(tool()).toBe('select');
   });
 
+  it('P picks the pen, and a pen stroke does not put the pen down', () => {
+    mount();
+    press('p');
+    expect(tool()).toBe('pen');
+    // Nothing about holding a pen creates an object, so nothing hands the selection back
+    // and nothing returns the hand to Select (PRD pen.stay_active): the next line is
+    // usually wanted too.
+    expect(created).toEqual([]);
+    press('p');
+    expect(tool()).toBe('pen');
+    // What puts it down is Escape, or another tool.
+    press('Escape');
+    expect(tool()).toBe('select');
+    press('p');
+    press('v');
+    expect(tool()).toBe('select');
+  });
+
   it('a tool with no interface is not held, and an unknown key does nothing', () => {
     mount();
-    // The Pen, Image and Comment are in settings' list, and have shortcuts, but no
-    // behaviour yet: holding them would leave the page promising to draw.
-    for (const key of ['p', 'i', 'c', 'x', 'z', '1']) {
+    // The Image and the Comment are in settings' list of tools with no behaviour yet, so
+    // they are not held and have no key of their own: holding them would leave the page
+    // promising to draw. (The Pen was one of these until story 11 gave it a gesture; it is
+    // tested with the other tools, above.)
+    for (const key of ['i', 'c', 'x', 'z', '1']) {
       press(key);
       expect(tool()).toBe('select');
     }

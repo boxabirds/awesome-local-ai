@@ -4,15 +4,20 @@ import type * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import type { Point, Rect } from '../../shared/geometry';
 import { connectorPoints, isConnectorSnapshot } from '../../shared/objects/connector';
+import { isStrokeSnapshot, scaledPoints } from '../../shared/objects/stroke';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { ConnectorObject } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
+import { StrokeObject } from './StrokeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 
@@ -179,6 +184,37 @@ registerObjectType('connector', {
     const zoom = context.zoom && context.zoom > 0 ? context.zoom : 1;
     const points = connectorPoints(obj, context.rects ?? EMPTY_RECTS);
     return distanceToPolyline(points, worldPoint) <= CONNECTOR_HIT_TOLERANCE_PX / zoom;
+  },
+});
+
+// Story 11: a freehand sketch is not its box either. A loop drawn round three notes has a
+// box the size of those notes, most of it empty, and clicking in the middle of it selects
+// nothing — what counts is being within six screen pixels of the line, or half the pen's
+// width if the pen was thicker. The same rule is drawn as an invisible stroke by the
+// component, so the picture you can hit and the test that selects it agree.
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  // A sketch is a box that story 7 can move and resize like any other: the drawing inside
+  // it is scaled by `scaledPoints`, and the pen's weight is not scaled at all (PRD
+  // pen.resize).
+  resizable: true,
+  // Freehand art has proportions, and they are the ones it was drawn with: a drag of a
+  // corner scales the sketch, it does not stretch it.
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest(obj, worldPoint, context = {}) {
+    if (!isStrokeSnapshot(obj)) return false;
+    const zoom = context.zoom && context.zoom > 0 ? context.zoom : 1;
+    const points = scaledPoints(obj);
+    if (points.length === 0) return false;
+    // The points are measured from the box's own origin, so the question is asked there.
+    const box = objectBounds(obj);
+    const local = { x: worldPoint.x - box.x, y: worldPoint.y - box.y };
+    return (
+      distanceToPolyline(points, local) <=
+      Math.max(PEN_THICKNESS_WORLD[obj.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom)
+    );
   },
 });
 
