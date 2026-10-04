@@ -2,11 +2,14 @@ import { useEffect, useRef, useCallback, type JSX } from 'react';
 import * as Y from 'yjs';
 import { clampToLimit, applyTextDiff, counterVisible } from './StickyText';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 
 interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
   onEnd: (next: 'selected' | 'unselected') => void;
+  /** Per-user undo controller (story 8). */
+  undo?: UndoController | null;
 }
 
 /**
@@ -14,19 +17,21 @@ interface StickyTextEditorProps {
  * with a Y.Text using minimal diffs.
  */
 export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
-  const { ytext, fontPx, onEnd } = props;
+  const { ytext, fontPx, onEnd, undo } = props;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
 
-  // On mount: set value from Y.Text, focus, caret at end
+  // On mount: start a fresh undo step for the editing session (story 8),
+  // set value from Y.Text, focus, caret at end.
   useEffect(() => {
+    undo?.boundary();
     const ta = textareaRef.current;
     if (!ta) return;
     ta.value = ytext.toString();
     ta.focus();
     const len = ta.value.length;
     ta.setSelectionRange(len, len);
-  }, [ytext]);
+  }, [ytext, undo]);
 
   // Remote Y.Text changes → textarea, preserving the caret. Without this,
   // a peer's insert lands in Y.Text but not in the textarea; the next local
@@ -61,17 +66,26 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     return () => ytext.unobserve(handler);
   }, [ytext]);
 
+  // End editing, closing the typing step first (story 8).
+  const endEditing = useCallback(
+    (next: 'selected' | 'unselected') => {
+      undo?.boundary();
+      onEnd(next);
+    },
+    [undo, onEnd],
+  );
+
   // Handle pointerdown outside → end editing as unselected
   useEffect(() => {
     const handler = (e: PointerEvent) => {
       const ta = textareaRef.current;
       if (ta && !ta.contains(e.target as Node)) {
-        onEnd('unselected');
+        endEditing('unselected');
       }
     };
     document.addEventListener('pointerdown', handler, true);
     return () => document.removeEventListener('pointerdown', handler, true);
-  }, [onEnd]);
+  }, [endEditing]);
 
   const handleInput = useCallback(() => {
     const ta = textareaRef.current;
@@ -85,18 +99,37 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
       ta.value = clamped;
       ta.setSelectionRange(clamped.length, clamped.length);
     }
-    applyTextDiff(ytext, ta.value, 'editor');
+    applyTextDiff(ytext, ta.value);
   }, [ytext]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      onEnd('selected');
-    }
-    // Enter inserts a newline (default textarea behaviour)
-    // Delete/Backspace edit text (default textarea behaviour)
-  }, [onEnd]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // Ctrl/Cmd+Z / Ctrl+Shift+Z / Ctrl+Y: undo/redo my changes (story 8).
+      // Handled here while editing so typing steps are undone, not the
+      // browser's native textarea undo.
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && (e.key === 'z' || e.key === 'Z' || e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (undo) {
+          if (e.shiftKey || e.key === 'y' || e.key === 'Y') {
+            undo.redo();
+          } else {
+            undo.undo();
+          }
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        endEditing('selected');
+      }
+      // Enter inserts a newline (default textarea behaviour)
+      // Delete/Backspace edit text (default textarea behaviour)
+    },
+    [undo, endEditing],
+  );
 
   const handleCompositionStart = useCallback(() => {
     composingRef.current = true;
@@ -112,7 +145,7 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
       ta.value = clamped;
       ta.setSelectionRange(clamped.length, clamped.length);
     }
-    applyTextDiff(ytext, ta.value, 'editor');
+    applyTextDiff(ytext, ta.value);
   }, [ytext]);
 
   const handleBlur = useCallback(() => {
@@ -122,7 +155,7 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     const current = ytext.toString();
     if (ta.value !== current) {
       const clamped = clampToLimit(ta.value);
-      applyTextDiff(ytext, clamped, 'editor');
+      applyTextDiff(ytext, clamped);
     }
   }, [ytext]);
 

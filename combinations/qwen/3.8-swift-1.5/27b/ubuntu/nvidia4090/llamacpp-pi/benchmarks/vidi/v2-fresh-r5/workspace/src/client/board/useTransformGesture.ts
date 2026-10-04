@@ -22,6 +22,12 @@ interface TransformGestureOpts {
   };
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /**
+   * Close the current undo capture window (story 8). Called before the
+   * first local change of a gesture and when the gesture ends, so each
+   * gesture is exactly one undo step.
+   */
+  boundary?: () => void;
   onGestureStart?: () => void;
   onGestureEnd?: () => void;
 }
@@ -145,6 +151,9 @@ export function useTransformGesture(opts: TransformGestureOpts) {
       flush();
     }
     stateRef.current = { kind: 'idle' };
+    // Close the capture window so the next gesture starts a new undo step
+    // even if it begins within the capture timeout.
+    opts.boundary?.();
     opts.onGestureEnd?.();
   }, [flush, opts]);
 
@@ -202,6 +211,8 @@ export function useTransformGesture(opts: TransformGestureOpts) {
             ids,
           };
 
+          // New undo step for this gesture (story 8).
+          opts.boundary?.();
           opts.onGestureStart?.();
           bringObjectsToFront(doc, ids);
 
@@ -293,6 +304,8 @@ export function useTransformGesture(opts: TransformGestureOpts) {
       const el = e.currentTarget as Element;
       el.setPointerCapture(e.pointerId);
 
+      // New undo step for this gesture (story 8).
+      opts.boundary?.();
       opts.onGestureStart?.();
 
       const onMove = (ev: Event) => {

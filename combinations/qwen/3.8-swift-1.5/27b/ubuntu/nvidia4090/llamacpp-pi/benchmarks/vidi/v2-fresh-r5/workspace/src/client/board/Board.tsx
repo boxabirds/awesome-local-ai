@@ -21,6 +21,8 @@ import { useTransformGesture } from './useTransformGesture';
 import { SelectionOverlay } from './SelectionOverlay';
 import { SelectionBar } from './SelectionBar';
 import { useBoardKeys } from './useBoardKeys';
+import { createUndo, type UndoController } from './undo';
+import { useUndo } from './useUndo';
 import type { Handle } from '../../shared/geometry';
 
 /**
@@ -42,6 +44,21 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   const cameraRef = useRef<Camera>({ x: -640, y: -400, zoom: 1 });
   const [camera, setCamera] = useState<Camera>({ x: -640, y: -400, zoom: 1 });
 
+  // Per-user undo controller (story 8): session-only, scoped to this doc.
+  const [undo, setUndo] = useState<UndoController | null>(null);
+  useEffect(() => {
+    const controller = createUndo(doc);
+    setUndo(controller);
+    return () => {
+      controller.destroy();
+      setUndo(null);
+    };
+  }, [doc]);
+  const undoBinding = useUndo(undo, editable);
+  const undoBoundary = useCallback(() => {
+    undo?.boundary();
+  }, [undo]);
+
   // Marquee
   const marquee = useMarquee(camera, notes, (ids) => {
     selection.setMany(ids, true);
@@ -54,6 +71,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     selection,
     snapshot: notes,
     canEdit: editable,
+    boundary: undoBoundary,
   });
 
   // Keyboard commands
@@ -62,6 +80,8 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     selection,
     snapshot: notes,
     canEdit: editable,
+    boundary: undoBoundary,
+    undo,
   });
 
   const onDblClickEmpty = useCallback(
@@ -86,11 +106,13 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     const cam = cameraRef.current;
     const centre = { x: 640, y: 400 };
     const world = screenToWorld(cam, centre);
+    undoBoundary();
     const id = createSticky(doc, world);
+    undoBoundary();
     if (id) {
       selection.startEdit(id);
     }
-  }, [doc, selection, editable]);
+  }, [doc, selection, editable, undoBoundary]);
 
   const onHandlePointerDown = useCallback(
     (e: React.PointerEvent, handle: Handle) => {
@@ -119,18 +141,22 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
 
   const onDeleteSelection = useCallback(() => {
     if (!editable) return;
+    undoBoundary();
     deleteObjects(doc, Array.from(selection.ids));
+    undoBoundary();
     selection.clear();
-  }, [doc, selection, editable]);
+  }, [doc, selection, editable, undoBoundary]);
 
   const onColorChange = useCallback(
     (color: StickyColor) => {
       if (!editable) return;
       if (selection.ids.size !== 1) return;
       const [id] = selection.ids;
+      undoBoundary();
       setStickyColor(doc, id, color);
+      undoBoundary();
     },
-    [doc, selection, editable],
+    [doc, selection, editable, undoBoundary],
   );
 
   // Render objects through the registry
@@ -152,6 +178,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           onEndEdit={(next: 'selected' | 'unselected') => {
             selection.endEdit(next);
           }}
+          undo={undo}
         />
       );
     });
@@ -219,7 +246,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         </div>
       )}
 
-      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
+      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoBinding} />
     </>
   );
 }

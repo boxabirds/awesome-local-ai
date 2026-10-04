@@ -1,4 +1,5 @@
 import * as Y from 'yjs';
+import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS, STICKY_COUNTER_THRESHOLD_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX } from '../../shared/config';
 
 /**
@@ -11,12 +12,15 @@ export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS):
 
 /**
  * Apply a minimal diff (common prefix + common suffix) from the current Y.Text
- * content to the next string. Uses one delete and/or one insert in a single transaction.
- * Surrogate-pair safe.
+ * content to the next string. Uses one delete and/or one insert in a single
+ * LOCAL_ORIGIN transaction (story 8: typing must be captured by the per-user
+ * undo history). Surrogate-pair safe.
  */
 export function applyTextDiff(ytext: Y.Text, next: string, _origin?: unknown): void {
   const current = ytext.toString();
   if (current === next) return;
+  const doc = ytext.doc;
+  if (!doc) return;
 
   // Find common prefix
   let prefixLen = 0;
@@ -39,12 +43,17 @@ export function applyTextDiff(ytext: Y.Text, next: string, _origin?: unknown): v
   const deleteLen = current.length - prefixLen - suffixLen;
   const insertStr = next.slice(prefixLen, next.length - suffixLen);
 
-  if (deleteLen > 0) {
-    ytext.delete(deleteStart, deleteLen);
-  }
-  if (insertStr.length > 0) {
-    ytext.insert(deleteStart, insertStr);
-  }
+  doc.transact(
+    () => {
+      if (deleteLen > 0) {
+        ytext.delete(deleteStart, deleteLen);
+      }
+      if (insertStr.length > 0) {
+        ytext.insert(deleteStart, insertStr);
+      }
+    },
+    LOCAL_ORIGIN,
+  );
 }
 
 /**

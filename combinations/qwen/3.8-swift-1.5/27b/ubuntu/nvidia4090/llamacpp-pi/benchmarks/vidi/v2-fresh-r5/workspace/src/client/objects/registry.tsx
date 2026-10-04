@@ -9,6 +9,7 @@ import type * as Y from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import type { Point } from '../../shared/geometry';
 import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 
 /** Props passed to every object component by the Board renderer. */
 export interface ObjectProps {
@@ -24,6 +25,8 @@ export interface ObjectProps {
   doc?: Y.Doc;
   /** End editing callback. */
   onEndEdit?: (next: 'selected' | 'unselected') => void;
+  /** Per-user undo controller (story 8). */
+  undo?: UndoController | null;
 }
 
 export interface ObjectTypeSpec {

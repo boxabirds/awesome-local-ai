@@ -4,6 +4,7 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { getStickyText } from '../../shared/board-model';
 import { STICKY_SIZE_WORLD, STICKY_COLORS, type StickyColor } from '../../shared/config';
 import { StickyTextEditor } from './StickyTextEditor';
+import type { UndoController } from '../board/undo';
 
 interface StickyNoteProps {
   obj: ObjectSnapshot;
@@ -18,6 +19,8 @@ interface StickyNoteProps {
   doc?: Y.Doc;
   /** End editing callback. */
   onEndEdit?: (next: 'selected' | 'unselected') => void;
+  /** Per-user undo controller (story 8). */
+  undo?: UndoController | null;
 }
 
 /**
@@ -26,7 +29,7 @@ interface StickyNoteProps {
  * is handled internally via the StickyTextEditor.
  */
 export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { obj, selected, editing, canEdit, onPointerDown, onDoubleClick, doc, onEndEdit } = props;
+  const { obj, selected, editing, canEdit, onPointerDown, onDoubleClick, doc, onEndEdit, undo } = props;
 
   const note = obj as ObjectSnapshot & { color: StickyColor; text: string };
 
@@ -90,6 +93,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
           ytext={ytext}
           fontPx={24}
           onEnd={onEndEdit ?? (() => {})}
+          undo={undo}
         />
       ) : (
         <div

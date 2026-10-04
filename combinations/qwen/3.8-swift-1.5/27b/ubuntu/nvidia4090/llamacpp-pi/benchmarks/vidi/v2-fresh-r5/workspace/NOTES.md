@@ -341,3 +341,82 @@ The `bringObjectsToFront` group operation (move all selected objects to the
 front of the z-order in a single transaction) was needed by story 7 but did not
 exist in story 3's board-model. Implemented as a single Yjs transaction that
 sets each object's `z` to `maxZ + index`.
+
+## Story 8: per-user undo/redo
+
+### Controller shape
+
+- `createUndo(doc, { captureTimeoutMs = UNDO_CAPTURE_TIMEOUT_MS, maxSteps = UNDO_MAX_STEPS })`
+  wraps `new Y.UndoManager(doc.getMap('objects'), { trackedOrigins: new Set([LOCAL_ORIGIN]), captureTimeout })`.
+  Only this tab's own `LOCAL_ORIGIN` transactions are captured, so remote (provider
+  origin) and story-4 load updates are never undone (undo.own).
+- `undo()`/`redo()` normalise yjs's `StackItem | null` return to `boolean`.
+- **Trimming:** on `stack-item-added`, `undoStack` is trimmed from the front while
+  longer than `maxSteps` (undo.limit). yjs has no built-in cap.
+- `boundary()` = `manager.stopCapturing()`. `addScope` delegates to
+  `manager.addToScope` (yjs API name; the controller interface keeps `addScope`).
+- `onChange` subscribes to `stack-item-added` / `stack-item-popped` /
+  `stack-item-updated` / `stack-cleared` and fans out to listeners.
+- History is session-only: the controller is created per board doc and destroyed
+  on board change/unmount, so a fresh controller after reload starts empty.
+
+### Where the controller lives
+
+`Board.tsx` (not `App.tsx`) owns the doc after the story-5 refactor, so it also
+owns the controller: `useState<UndoController | null>(null)` + an effect that
+creates the controller when the doc arrives and destroys it on cleanup. The
+`useUndo(controller, canEdit)` hook tolerates `null` (behaves like an empty
+history) and masks `canUndo`/`canRedo`/actions by `canEdit`, so a load-failed
+board exposes no undo/redo at all.
+
+### Step boundaries (one user action = one undo step)
+
+- **Gestures:** `useTransformGesture` takes an optional `boundary` callback,
+  called before the first committed change of a drag and on every end path
+  (pointerup, pointercancel, pointerleave), so all rAF-frame transactions of one
+  drag merge into a single step — including cancelled drags.
+- **Text editor:** `StickyTextEditor` calls `boundary()` on mount and on end, and
+  intercepts Ctrl/Cmd+Z / Ctrl+Shift+Z inside the textarea (`preventDefault`) so
+  native textarea undo never diverges from the Y.Text history.
+- **`applyTextDiff` now wraps its diff in a single `LOCAL_ORIGIN` transaction.**
+  This fills a story 2/3 gap: typing was never part of any undo history before.
+  The optional third `origin` parameter is kept (unused) for source compatibility
+  with the existing unit tests.
+- **Keyboard/model single-calls:** `useBoardKeys` (nudge, Delete) and `Board.tsx`
+  (create sticky, recolour, delete via the selection bar) call `boundary()`
+  before and after the model call.
+
+### Sliding capture window
+
+yjs compares each new change against `lastChange` (updated on every tracked
+transaction, even merged ones), so the 500 ms capture window is measured between
+consecutive changes, not from the first change of a burst. A gap of exactly
+`UNDO_CAPTURE_TIMEOUT_MS` starts a new step (yjs uses a strict `<`); a gap of
+`UNDO_CAPTURE_TIMEOUT_MS − 1` merges. This matches TC-13.
+
+### Fake-time unit tests
+
+yjs captures `Date.now` by reference at module-evaluation time, so
+`vi.useFakeTimers()` / `vi.setSystemTime()` after import have no effect. The
+boundary unit tests stub `Date.now` at the top of the test file (before any yjs
+import) and `await import('yjs')` in `beforeAll`; Vitest gives each test file a
+fresh module graph, so the stub is the one yjs sees.
+
+### E2E specifics
+
+- **TC-22:** the 8 grid notes are created by *Raj*, not Mia — the spec only says
+  "Mia box-selects 8 notes". This keeps Mia's personal history limited to the
+  delete step, so her Undo button is genuinely exhausted (disabled) after the
+  undo → redo → undo cycle. Note that after a redo the re-applied step returns to
+  the undo stack (standard behaviour), so the disabled assertion is made after
+  the second undo.
+- Marquee selection uses **containment** (`objectsInRect` → `rectContains`), and
+  `createNote` centres a note on the dblclick point, so the marquee rectangle
+  must fully contain every note's bounds.
+- **TC-23:** undoing a move whose target was remotely deleted is a silent no-op
+  (yjs applies the inverse to nothing); the test asserts zero console/page errors
+  and that the note stays absent on both screens, plus that the *next* undo also
+  works.
+- **TC-24:** each of the 5 participants moves one note and types in another,
+  then everyone presses Ctrl+Z twice (typing step, then move step). All five
+  boards converge to the initial snapshot.

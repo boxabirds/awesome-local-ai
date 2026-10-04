@@ -1,16 +1,20 @@
 import type { JSX } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UndoBinding } from './useUndo';
 
 interface ToolbarProps {
   onCreateSticky: () => void;
   /** When true the create button is disabled (board failed to load). */
   disabled?: boolean;
+  /** Undo/redo binding (story 8). */
+  undo?: UndoBinding;
 }
 
 /**
- * Fixed left-side toolbar with a Sticky note button.
+ * Fixed left-side toolbar with a Sticky note button and undo/redo buttons.
  */
 export function Toolbar(props: ToolbarProps): JSX.Element {
-  const { onCreateSticky, disabled = false } = props;
+  const { onCreateSticky, disabled = false, undo } = props;
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -60,6 +64,10 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
       >
         +
       </button>
+      {undo && (
+        <div style={{ height: '1px', background: 'rgba(0,0,0,0.15)', margin: '0 2px' }} />
+      )}
+      {undo && <UndoButtons {...undo} />}
     </div>
   );
 }
