@@ -1,6 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
 import * as Y from 'yjs';
-import { newBoardId } from '../../src/shared/board-id';
 import {
   BOARD_LOAD_BUDGET_MS,
   E2E_EVENTUAL_TIMEOUT_MS,
@@ -11,6 +10,7 @@ import { initDoc, snapshot } from '../../src/shared/board-model';
 import { BoardServer, storageDir } from './helpers/wrangler-process';
 import { seedBoard } from './helpers/room-client';
 import { Cast, boardJson, openBoardAt, waitConnected, waitForSameBoard } from './helpers/participants';
+import { createBoard } from './helpers/board';
 import {
   centreByIdOnScreen,
   doubleClickBoard,
@@ -144,9 +144,12 @@ test.describe('returning to a board', () => {
   }) => {
     test.setTimeout(420_000);
     const server = await BoardServer.start({ port: PORT, persistTo: storageDir() });
-    const boardId = newBoardId();
 
     const before = await browser.newContext({ baseURL: server.origin });
+    // The board is asked for, and the id is the service's answer. A test of "coming back to a board
+    // and finding it" that invented the address instead would be testing the page that says there
+    // is nothing there - which is a real page, but not the one this test is about.
+    const boardId = await createBoard(before.request);
     const working = await before.newPage();
     await openBoardAt(working, boardId);
     await waitConnected(working);
@@ -223,7 +226,11 @@ test.describe('returning to a board', () => {
   }) => {
     test.setTimeout(900_000);
     const server = await BoardServer.start({ port: PORT, persistTo: storageDir() });
-    const boardId = newBoardId();
+
+    // The board is asked for before anything is written into it, and the same context that asked
+    // goes on to look at the result - one browser, one board, from beginning to end.
+    const looking = await browser.newContext({ baseURL: server.origin });
+    const boardId = await createBoard(looking.request);
 
     const seededAt = Date.now();
     const seeds = denseNoteSeeds();
@@ -240,7 +247,7 @@ test.describe('returning to a board', () => {
       'what the room holds is what the fixture wrote',
     ).toBe(writtenShape(seeds));
 
-    const page = await browser.newPage({ baseURL: server.origin });
+    const page = await looking.newPage();
     const openedAt = Date.now();
     await openBoardAt(page, boardId);
     // The ordinary wait, for the ordinary thing: every note drawn.
@@ -272,7 +279,7 @@ test.describe('returning to a board', () => {
     ).toBeNull();
     expect(shown.length).toBe(PERSIST_TESTED_NOTES);
 
-    await page.close();
+    await looking.close();
     await server.dispose();
   });
 });

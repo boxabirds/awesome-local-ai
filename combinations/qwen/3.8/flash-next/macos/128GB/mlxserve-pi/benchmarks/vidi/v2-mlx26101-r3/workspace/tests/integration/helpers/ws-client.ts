@@ -203,6 +203,7 @@ export class SocketLog {
 
 /** Open a socket through the Worker route and record it, without speaking any protocol. */
 export async function rawSocket(boardId: string): Promise<SocketLog> {
+  await createBoardNamed(boardId);
   const response = await SELF.fetch(
     new Request(`http://localhost/api/rooms/${boardId}`, { headers: { Upgrade: 'websocket' } }),
   );
@@ -284,6 +285,7 @@ export class Participant {
 
   /** Connect to `boardId` through the Worker route, as a browser does. */
   async connect(boardId: string): Promise<this> {
+    await createBoardNamed(boardId);
     const response = await SELF.fetch(
       new Request(`http://localhost/api/rooms/${boardId}`, {
         headers: { Upgrade: 'websocket' },
@@ -299,6 +301,7 @@ export class Participant {
    */
   async connectStub(namespace: DurableObjectNamespace<BoardRoom>, name: string): Promise<this> {
     const stub = namespace.get(namespace.idFromName(name));
+    await stub.initialize();
     const response = await stub.fetch(
       new Request('http://board-room/', { headers: { Upgrade: 'websocket' } }),
     );
@@ -486,6 +489,22 @@ export class Participant {
 /** A board id nobody has used before; the tests never hand-write ids. */
 export function boardId(): string {
   return newBoardId();
+}
+
+/**
+ * Give a board its storage, by a name the test chose.
+ *
+ * Story 5: a board is made before anybody can join one, and joining a link that is not a board is
+ * the Board not found answer (share.not_found). Most tests here want a board to work on and choose
+ * its name themselves, so that they can also reach into its storage - so they ask for this first.
+ * It is the same call `POST /api/boards` makes, for an id the test picked instead of one the
+ * service generated; for a board that is already there it changes nothing.
+ */
+export async function createBoardNamed(
+  name: string,
+  namespace: DurableObjectNamespace<BoardRoom> = env.BOARD_ROOM,
+): Promise<'created' | 'exists'> {
+  return namespace.get(namespace.idFromName(name)).initialize();
 }
 
 /** Two boards, in the order they should be compared. */

@@ -1,7 +1,7 @@
 import { test, expect, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
 import { LOAD_RETRY_MIN_INTERVAL_MS, E2E_EVENTUAL_TIMEOUT_MS } from '../../src/shared/config';
 import { noteSeeds, type NoteSeed } from '../fixtures/boards';
+import { createBoard } from './helpers/board';
 import { RoomClient, seedBoard } from './helpers/room-client';
 import { badge, boardJson, openBoardAt, waitConnected } from './helpers/participants';
 import {
@@ -99,7 +99,11 @@ test.describe('a board that could not be read', () => {
     request,
   }, testInfo) => {
     test.setTimeout(300_000);
-    const boardId = newBoardId();
+    // The board is asked for, in the same breath as the damage switches are asked for afterwards.
+    // Since story 5 an address the service has not been asked to make is a page that says "Board not
+    // found", and this test is about a board that cannot be *read* - a different sentence, and the
+    // only difference between them is whether anybody made the board in the first place.
+    const boardId = await createBoard(request);
     const origin = originOf(testInfo);
 
     // A board, and the room's own answer about what it holds: twenty-five notes with text on them.
@@ -237,7 +241,12 @@ test.describe('a board that could not be read', () => {
     // A switch that cannot do its job says so, with a reason. The test above reads these answers as
     // facts, so they have to be able to say no: if a corrupt that damaged nothing reported success,
     // the failure being watched for afterwards would be about something else entirely.
-    const boardId = newBoardId();
+    //
+    // The board is asked for first. Since story 5 a room that was never made is not a board at all -
+    // the door is shut before anything is read - and a switch asked of it would be refused for the
+    // wrong reason: this test is about a board that exists and has nothing to damage, not about a
+    // board that does not exist.
+    const boardId = await createBoard(request);
 
     // A board with notes on it and no snapshot, which is where every board of this size starts: the
     // story's own sync path writes two notes, the room appends two rows, and nobody has folded

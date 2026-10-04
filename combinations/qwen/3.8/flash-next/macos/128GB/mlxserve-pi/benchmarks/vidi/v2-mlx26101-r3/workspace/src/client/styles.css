@@ -416,7 +416,14 @@ a:focus-visible {
 
 /* An address that names no board ---------------------------------------- */
 
-.no-board {
+/* Pages that are not a board ------------------------------------------- */
+
+/*
+ * The home page, the page for a link that leads nowhere and the page that is still waiting for
+ * an answer all share this shape: one column of short sentences, wide enough to read, high enough
+ * up to be the first thing seen. They are not the board, so they take none of its chrome.
+ */
+.page {
   max-width: 34rem;
   margin: 15vh auto;
   padding: 0 1rem;
@@ -424,8 +431,153 @@ a:focus-visible {
   line-height: 1.5;
 }
 
-.no-board code {
-  background: #eef1f5;
-  padding: 0 4px;
-  border-radius: 4px;
+.page__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.75rem;
 }
+
+.page__lede {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+/* The board's id, shown where a person is being told it is wrong. */
+.page__code {
+  margin: 0 0 1rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #eef1f5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.page__button,
+.page button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.page__button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.page__button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.page__button--link,
+.page__link {
+  display: inline-block;
+  text-decoration: none;
+}
+
+/* The sentence that says something did not work, in the colour of "this one is on us". */
+.page__failure {
+  margin: 0 0 1rem;
+  color: #b42318;
+}
+
+/* The sentence that says something is still happening, in the colour of "not yet". */
+.page__status {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+/* A board, and the one control that reaches outside the tab. */
+.board-page {
+  position: relative;
+  height: 100%;
+}
+
+/* Share -----------------------------------------------------------------
+ *
+ * Top-right, because that is the corner this board has left empty, and a control that shares the
+ * board should not have to fight the tools for the space the board is made of.
+ */
+.share {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.share__trigger,
+.share__copy {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.share__trigger:hover,
+.share__copy:hover {
+  border-color: var(--accent);
+}
+
+.share__body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 22rem;
+  max-width: calc(100vw - 32px);
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.share__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.share__link {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--board-bg);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+/* What a link is for, said once and quietly: the panel's business is the link itself. */
+.share__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* The button that has just done the thing, in the colour of "this worked". */
+.share__copy[data-copied='true'] {
+  border-color: #14532d;
+  color: #14532d;
+}
+
+/* Amber, not red: the link is on the screen and the person can still take it. */
+.share__manual {
+  margin: 0;
+  color: #9a3412;
+  font-size: 13px;
+}
+

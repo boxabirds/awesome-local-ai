@@ -13,11 +13,11 @@ story design, and gotchas for the next story.
 | `npm run build:test` | Same build with `MODE=test`, which compiles in the `window.__vidi6` e2e hook. Playwright's `globalSetup` runs it before any test, so a server that is already listening (and reads its assets off disk per request) serves fresh code too. |
 | `npm run preview` | `wrangler dev` serving `dist/client` at `http://127.0.0.1:23612` (inspector port 23613) — the same serving path later stories use. |
 | `npm run typecheck` | `tsc --noEmit` over `tsconfig.json` (client + shared), `tsconfig.worker.json` (Worker + shared, `@cloudflare/workers-types`), `tsconfig.test.json` (unit/component tests + Playwright) and `tsconfig.integration.json` (workerd tests). |
-| `npm run test:unit` | 128 tests, node environment (camera 23, board model 25, sticky text 27, board id 5, protocol 7, room state machine 12, board store framing/queue 20+, test-hook routing 6, …). |
-| `npm run test:component` | 112 jsdom tests (viewport input, zoom controls, hint, sticky note, sticky text editor, toolbars, connection status badge, close codes, the edit lock when a board cannot be read). |
-| `npm run test:integration` | 47 tests, 5 files, in **workerd** via `@cloudflare/vitest-pool-workers` (`SELF.fetch`, real `BoardRoom` Durable Object, real WebSockets, real Yjs, real DO SQLite). Needs `npm run build` first, because TC-06 asks the assets binding for `index.html`. |
+| `npm run test:unit` | 158 tests, 13 files, node environment (camera 23, board model 25, sticky text 19 + 15 concurrent, board id 6, link-code generation 5, protocol 10, room state machine 12, board store framing/queue 12+, test-hook routing 6, board API answers 9, page state machines 10, router 6, …). |
+| `npm run test:component` | 128 jsdom tests (viewport input, zoom controls, hint, sticky note, sticky text editor, toolbars, connection status badge, close codes, the edit lock when a board cannot be read, the three pages and the Share panel 16). |
+| `npm run test:integration` | 68 tests, 6 files, in **workerd** via `@cloudflare/vitest-pool-workers` (`SELF.fetch`, real `BoardRoom` Durable Object, real WebSockets, real Yjs, real DO SQLite). Needs `npm run build` first, because TC-06 asks the assets binding for `index.html` (and story 5's TC-32 reads the built file for the `no-referrer` meta). |
 | `npm test` | All three vitest projects (unit, component, integration) in one run. |
-| `npm run test:e2e` | Playwright. Builds in `globalSetup`, then starts `npx wrangler dev --ip 127.0.0.1 --port 23614 --inspector-port 23615 --var TEST_HOOKS:1` (or reuses one already listening), viewport 1280×800, **Chromium only by default** (see deviation 1). 56 tests (story 1 23, story 2 20, story 3 8, story 4 broken board 2, story 4 persistence 3). The two `@nightly` tests are excluded here. |
+| `npm run test:e2e` | Playwright. Builds in `globalSetup`, then starts `npx wrangler dev --ip 127.0.0.1 --port 23614 --inspector-port 23615 --var TEST_HOOKS:1` (or reuses one already listening), viewport 1280×800, **Chromium only by default** (see deviation 1). 63 tests (story 1 23, story 2 20, story 3 8, story 4 broken board 2, story 4 persistence 3, story 5 sharing 7). The two `@nightly` tests are excluded here. |
 | `BROWSERS=all npm run test:e2e` (or `npm run test:e2e:all-browsers`) | Chromium + Firefox + WebKit. |
 | `npm run test:e2e:nightly` | Only the `@nightly` tests (TC-29 idle connection, TC-30 capacity soak). About 2 minutes; `NIGHTLY=1` is the switch, so `NIGHTLY=1 npx playwright test -g "TC-30"` runs one of them. |
 | `npm run check:no-test-hook` | Fails if a built asset contains `__vidi6` (run after `npm run build`). |
@@ -198,6 +198,47 @@ above.
     "damaged rows are quarantined" covers update rows only: a damaged *snapshot* cannot be skipped
     (see the gotcha below), so a snapshot that will not decode is a load failure and the person is
     told, in as many words, that the board could not be loaded.
+
+28. **`src/client/Root.tsx` is the router shell; `App.tsx` is still the board.** The design's file
+    table has `App.tsx` "renders router; story 3 redirect removed". The redirect did come out of
+    `main.tsx` (which now renders `<Root/>`), but `App.tsx` was left alone on purpose: it is the
+    component that owns the `Y.Doc` and the WebSocket, and `BoardPage` has to be able to show it for
+    a board the address named, hold a `SharePanel` beside it, and *not* mount either of them while
+    it is still asking whether the board exists. Making the board also be the router would tie the
+    address to the component holding the connection, and would mean mounting a board to find out it
+    is not there. `App` takes `boardId` and is told when to exist.
+29. **A legacy board is made by the room, not by the test.** The design's fixtures section asks for a
+    legacy board as "real Yjs updates from `tests/fixtures/boards.ts` written as `updates` rows".
+    A test process cannot write into a Durable Object's SQLite from outside, and writing the rows
+    with anything other than the room's own store would produce a board that looks like story 4's
+    without being it. So `src/worker/test-hooks.ts` grew a fifth switch, `seed-legacy`, which takes a
+    list of notes and appends them through the same `store.append` a real edit uses - and
+    deliberately does not write `created_at`, which is the whole of what makes the board a legacy
+    one. It is the second half of the existence rule (`created_at`, or any content at all) being
+    tested rather than asserted. Like the other switches it is only a route when `TEST_HOOKS=1`,
+    which only the e2e server sets.
+30. **The board page gives up, and says so.** The design's board-page states are checking, ready,
+    not-found and unreachable; the implementation adds a fifth, `error` ("Something went wrong" and
+    a `Try again` button), reached two ways: an answer that is not an answer - a 200 whose body names
+    a different board, or a status that is neither yes nor no - or six unreachable checks, which with
+    the 1 s doubling schedule is about half a minute of "Retrying…". An infinite retry with no way
+    out is a page that can never be right, and the PRD's "without the person reloading" is about not
+    losing the thread rather than about never stopping. Every state the design names is implemented
+    and tested; `error` is tested too (unit, component and e2e).
+31. **`tests/e2e/share.spec.ts` has two cases beside the five the coverage table names.** One does
+    the home page and the browser's Back and Forward in a real browser (the design puts TC-16 and
+    TC-21 at ui-component only; history is the one thing a jsdom history object cannot vouch for).
+    The other draws the line between a service that is unwell and a service that talks nonsense: a
+    500 is waited out and the board arrives by itself, a 200 naming some other board is reported and
+    only `Try again` moves it. Both are e2e because both are about the real request cycle.
+32. **"TC-27 and TC-29 also in firefox and webkit" is blocked by deviation 1, not by these tests.**
+    Story 5's `Done when` asks for those two in all three engines. They are written for any engine -
+    neither uses CDP, neither needs a clipboard that works (TC-29 is the test where the clipboard
+    *refuses*), neither grants a permission - and both pass in Chromium. With
+    `BROWSERS=all npx playwright test tests/e2e/share.spec.ts -g "TC-27|TC-29"` the Chromium run is
+    green and the other two die in `browserType.launch` (`Abort trap: 6`) before a page opens, which
+    is the same sandbox limit story 1 met. Nothing in the two tests is Chromium-specific, so the full
+    matrix is one env var away on a machine where those binaries start.
 
 ## Gotchas / findings for the next story
 
@@ -423,6 +464,49 @@ above.
   drawing that is slow. Nothing in storage is at fault - the read is measured in the store's own
   tests - and a story that wants the budget enforced should measure a served board on hardware that
   is not also running the writer.
+- **`vi.useFakeTimers()` does not take over `setTimeout` when the jsdom setup has already faked a
+  clock** (found the hard way in story 5). `tests/component/setup.ts` calls
+  `vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] })` at file scope; a
+  test that then calls `vi.useFakeTimers()` on top of it gets a *second* clock, and the module under
+  test keeps arming timers on the first one. The symptom is bizarre: `vi.getTimerCount()` says 0, and
+  `vi.advanceTimersByTimeAsync(1000)` returns instantly having done nothing, so a retry test passes
+  without ever having retried. The fix is to put the real clock back first - see `takeTheClock()` in
+  `tests/component/pages.test.tsx`, which is `vi.useRealTimers(); vi.useFakeTimers();`. Any component
+  test that waits on a timer needs it.
+- **Every e2e board has to be asked for now.** A room that somebody connects to is not a board:
+  `/api/rooms/:id` answers 404 unless the board was created, so a test that writes an id down and
+  opens it gets the "Board not found" page. Use `openBoard(page)` (home page, one click, returns the
+  id out of the address bar) or `createBoard(request)` for a board nobody is looking at yet;
+  `Cast.open` / `Cast.openAt` do the latter themselves, which is why every story 3 and 4 test went on
+  passing unchanged. The one legitimate way to have a board that was *not* created is the
+  `seed-legacy` test switch, whose notes are written by the room's own store.
+- **The colours on the wire are the model's names, not hex.** `isStickyColor` asks whether the value
+  is a key of `STICKY_COLORS`, so a note's `color` is `'yellow'`, `'blue'`, and the hex
+  (`#FFF59D`) is what the renderer turns it into. `legacyNotesIn` refuses anything else, and it
+  refuses with the reason in the body - so print the body of a refused test switch before guessing
+  (`expect(response.status(), JSON.stringify(await response.json())).toBe(200)` is worth copying into
+  any switch-calling test).
+- **`openBoardAt(page, boardId)` takes an id, not a path.** Handing it a `/b/<id>` string navigates to
+  `/b/%2Fb%2F<id>` - the server 307s the doubled path, the app loads, and the page says "Board not
+  found" for a board that exists, which reads like a bug in the existence rule and is a bug in the
+  test. When what you have is a link someone copied, `page.goto(link)` it and assert the id afterwards
+  with `boardIdOf(page)`; that also asserts the thing you actually care about, which is that the
+  copied text is a working address.
+- **A real clipboard in Playwright needs two permissions and a focused document.**
+  `context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin })` (the `origin` is
+  required by Chromium, and `browser.newContext({ permissions })` alone is not enough here); writing
+  then works, and `navigator.clipboard.readText()` is how a test reads back what a copy actually put
+  there - which is a stronger assertion than reading the field the panel displayed. To *refuse* the
+  clipboard, replace the one method in an `addInitScript`:
+  `Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText:
+  () => Promise.reject(...) } })`; `navigator.clipboard` lives on `Navigator.prototype`, so it has to
+  be defined on the instance, and `value: undefined` is how you test "this browser has no clipboard".
+- **A board page's own check is a `fetch` to `/api/boards/<id>`, so `page.route('**/api/boards/*')`
+  is the way to make a service that cannot be reached** - and `context.request` goes *past* that
+  interception, which is what lets a test create the board it is about to lose contact with. Note the
+  distinction the routes have to keep: `route.abort()` is a request that never arrives (the page says
+  "Couldn't reach vidi6. Retrying…" and asks again), `route.fulfill({ status: 500 })` is the same
+  news, and a 200 that names a different board is a different thing entirely.
 
 ## Where the next stories plug in
 
@@ -455,7 +539,7 @@ above.
   is a prop that defaults to `true`, so anything new that can edit a board takes the same prop
   rather than reading the connection state for itself.
 - `useSelection` stays local UI state. The provider's awareness carries who is on the board and
-  is relayed verbatim by the room; story 5's presence/cursors should read it from
+  is relayed verbatim by the room; story 6's presence/cursors should read it from
   `provider.awareness` rather than invent a second channel, and must not put selection in it.
 - `tests/e2e/helpers/participants.ts` is the multi-client fixture now: `Cast.open(browser,
   ...names)` for one page per person with console watching (`person.problems`),
@@ -467,4 +551,32 @@ above.
   known at run time (every context is given its `baseURL`), and `RoomClient` / `seedBoard` in
   `tests/e2e/helpers/room-client.ts`, which put notes on a board from Node over the room's own sync
   path - what TC-21's 2000 notes are written with, because doing it through 2000 `page.evaluate`
-  calls would measure the test runner.
+  calls would measure the test runner. Story 5 changed one thing about it and added one: a `Cast`
+  asks the service for its board (`createBoard` on a throwaway context's request) instead of writing
+  an id down, because a Cast that invented its board would now be a Cast of people standing outside
+  a 404; and `tests/e2e/helpers/board.ts` is where a board is *born* in a test - `openBoard(page)`
+  returns the id the address bar ended up with, `createBoard(request)` makes one nobody is looking at,
+  `boardIdOf(page)` reads one back, and `linkFor(origin, id)` is the link a person would be sent.
+- **The client has a router, and it is the smallest thing that could work.**
+  `src/client/router.ts` knows `/` and `/b/:id` and nothing else; `useRoute()` is a
+  `useSyncExternalStore` over `popstate`, and `navigateTo(path)` is the only way anything in the client
+  changes the address. A story that wants a new page - story 15's dashboard is the obvious one - adds
+  a member to `Route`, a case to `routeOf` and a component in `Root.tsx`; it does not add a second
+  router, a history library or a query string. `boardPath(id)` is what an address is built from - in
+  the client (`BoardPage`'s share link) and in the tests (`linkFor`) - so a link is never assembled by
+  hand.
+- **`src/client/api.ts` is the only place that asks the service about a board.** It answers two
+  questions and returns one of four named answers (`found`, `not-found`, `unreachable`, `failed`) for
+  the second one; the pages are built out of those names and never look at a `Response`. A story that
+  needs a third question - renaming a board, listing mine - adds a method to `BoardApi` and an outcome
+  type here, plus `apiWith` / `apiAnswering` cases in the component tests, which is where every page
+  state gets exercised without a server. `apiAnswering([...])` hands out answers in order and ignores
+  the URL, which is deliberate: a page that asked twice when the test said once fails loudly.
+- **A board's page is `BoardPage`, and it owns the question "is this here?".** It asks, shows one of
+  five states, retries on the schedule in `src/client/pages/state.ts`, and only then mounts `App` (the
+  board, and its WebSocket) with `key={boardId}` plus the `SharePanel` beside it. Anything new that
+  has to know whether a board exists - story 14's sign-in, story 15's dashboard - goes through that
+  state machine rather than fetching alongside it, because the dangerous answer in this product is
+  "not found" said too early. The two state machines (`pageAfter`, `homeAfter`) and the retry schedule
+  (`retryDelayFor`) are pure and unit-tested in `tests/unit/pages-state.test.ts`, so a change to them
+  is a change to a test table first.

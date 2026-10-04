@@ -46,6 +46,18 @@ export const LOAD_ORIGIN: unique symbol = Symbol('vidi6-load');
 /** Keys of the `storage_meta` table. */
 const META_SCHEMA_VERSION = 'storage_schema_version';
 const META_SNAPSHOT_THROUGH = 'snapshot_through_seq';
+/**
+ * When this board was created, in epoch milliseconds: the mark {@link BoardStore.markCreated}
+ * writes once, and the thing that says a link belongs to a board (share.not_found). A board
+ * stored before story 5 has no such row and still exists, by its content alone - see
+ * {@link BoardStore.existsReadOnly}.
+ */
+const META_CREATED_AT = 'created_at';
+
+/** The store's own tables, named because "does this address have a board?" asks for them. */
+const TABLE_META = 'storage_meta';
+const TABLE_UPDATES = 'updates';
+const TABLE_CHUNKS = 'snapshot_chunks';
 
 /**
  * The points inside the store's own work where something can be made to fail.
@@ -195,6 +207,13 @@ export class BoardStore {
    */
   private readonly note: (message: string) => void;
 
+  /**
+   * True once this instance knows the tables are there, so the log does not ask for them
+   * before every one of thousands of appends. Only ever set from {@link migrate} and
+   * {@link load}, both of which have just looked.
+   */
+  private tablesWritten = false;
+
   constructor(
     private readonly storage: DurableObjectStorage,
     options: { faults?: StoreFaults; note?: (message: string) => void } = {},
@@ -229,6 +248,87 @@ export class BoardStore {
       META_SCHEMA_VERSION,
       String(STORAGE_SCHEMA_VERSION),
     );
+    this.tablesWritten = true;
+  }
+
+  /**
+   * Write the one row that says this address is a board, and say whether it was already.
+   *
+   * This is the moment a board begins: {@link createBoard} generates an id and calls it, and
+   * from then on every route agrees the link leads somewhere. It is written once and never
+   * again, which is what lets {@link initialize} answer `exists` the second time instead of
+   * starting a second board over the top of the first (TC-15).
+   */
+  markCreated(): 'created' | 'exists' {
+    this.migrate();
+    if (this.createdAt() !== null) {
+      return 'exists';
+    }
+    this.sql.exec(
+      'INSERT INTO storage_meta (key, value) VALUES (?, ?)',
+      META_CREATED_AT,
+      String(Date.now()),
+    );
+    return 'created';
+  }
+
+  /**
+   * Whether a board is stored here, reading and writing nothing.
+   *
+   * Two things make a board exist: the creation date {@link markCreated} writes, and - for a
+   * board that predates that row (share.legacy_boards) - a log row or a snapshot chunk, since
+   * nothing else could have put one there. The first question is asked of `sqlite_master`, so
+   * that a link typed at random is answered "no board here" without this call having created
+   * the tables it is asking about: a probe of an unknown link has to leave the address exactly
+   * as it found it (TC-06, TC-09), which is also why a board is not created by connecting to it.
+   *
+   * It does not swallow a storage error: a database that cannot be read is not a database with
+   * no board in it, and the caller would rather say "could not reach vidi6" than "board not
+   * found".
+   */
+  existsReadOnly(): boolean {
+    if (this.createdAt() !== null) {
+      return true;
+    }
+    // A board saved before this row existed is a board all the same: it has content.
+    return this.hasRow(TABLE_UPDATES) || this.hasRow(TABLE_CHUNKS);
+  }
+
+  /** The creation date, or null when this address has never been created as a board. */
+  private createdAt(): number | null {
+    if (!this.hasTable(TABLE_META)) {
+      return null;
+    }
+    for (const row of this.sql.exec(
+      'SELECT value FROM storage_meta WHERE key = ?',
+      META_CREATED_AT,
+    )) {
+      const at = Number(row.value);
+      return Number.isFinite(at) && at > 0 ? at : null;
+    }
+    return null;
+  }
+
+  /** Table names this storage holds right now - read fresh, because a test may have just made one. */
+  private hasTable(name: string): boolean {
+    for (const row of this.sql.exec(
+      "SELECT 1 AS here FROM sqlite_master WHERE type = 'table' AND name = ?",
+      name,
+    )) {
+      return row.here === 1;
+    }
+    return false;
+  }
+
+  /** True when the table is there and holds at least one row; a missing table holds nothing. */
+  private hasRow(table: string): boolean {
+    if (!this.hasTable(table)) {
+      return false;
+    }
+    for (const row of this.sql.exec(`SELECT COUNT(*) AS n FROM ${table}`)) {
+      return Number(row.n) > 0;
+    }
+    return false;
   }
 
   /**
@@ -241,6 +341,13 @@ export class BoardStore {
    */
   append(update: Uint8Array): void {
     this.faults.hit('append');
+    // Story 5 moved the tables off the room's constructor, because creating them is how an
+    // address becomes a board. A board that gets this far exists - a connection to one that
+    // does not is refused before the room relays anything - so making sure they are here costs
+    // one remembered flag, not a query per change.
+    if (!this.tablesWritten) {
+      this.migrate();
+    }
     for (const row of this.sql.exec(
       'INSERT INTO updates (data, bytes) VALUES (?, ?) RETURNING seq',
       update,
@@ -264,6 +371,19 @@ export class BoardStore {
   load(doc: Y.Doc): LoadResult {
     try {
       this.faults.hit('load:read-snapshot');
+      if (!this.hasTable(TABLE_UPDATES) && !this.hasTable(TABLE_CHUNKS) && !this.hasTable(TABLE_META)) {
+        // Nothing has ever been written at this address, which is an empty board rather than a
+        // broken one - and it stays that way: reading a board that is not there must not put
+        // tables in, or every mistyped link would leave a board behind it (share.not_found).
+        this.throughSeq = 0;
+        this.rows = 0;
+        this.bytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
+      // A board that has some of these tables but not others came from an earlier version of
+      // this file; `migrate` is `CREATE TABLE IF NOT EXISTS`, so this fills in what is missing
+      // and leaves what is there alone.
+      this.migrate();
       const chunks: Uint8Array[] = [];
       for (const row of this.sql.exec('SELECT data FROM snapshot_chunks ORDER BY idx')) {
         chunks.push(asBytes(row.data));

@@ -23,6 +23,7 @@ import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config.js';
 import {
   Participant,
   boardId,
+  createBoardNamed,
   encodeFrame,
   encodeSync,
   env,
@@ -30,7 +31,37 @@ import {
   waitForConvergence,
   type ReceivedFrame,
 } from './helpers/ws-client.js';
+import { updateOfNote } from '../fixtures/boards.js';
 import { ScriptedEditor } from './helpers/random-ops.js';
+import { boardStub, insideBoard, selectRows } from './helpers/storage.js';
+
+/** The tables a board's storage holds; empty means nothing was ever written here. */
+async function tablesIn(name: string): Promise<string[]> {
+  const rows = await selectRows(
+    boardStub(name),
+    "SELECT name FROM sqlite_master WHERE type = 'table'",
+  );
+  return rows.map((row) => String(row['name']));
+}
+
+/** Give a board its storage, by the name the test chose (what `POST /api/boards` does). */
+function makeBoard(name: string): Promise<'created' | 'exists'> {
+  return createBoardNamed(name);
+}
+
+/**
+ * Take the socket a room handed over and hang up.
+ *
+ * A response that carries a WebSocket has one that has not been accepted yet, and workerd insists
+ * on it being dealt with one way or the other before the test moves on.
+ */
+function hangUp(response: Response): void {
+  const socket = response.webSocket;
+  if (socket !== null && socket !== undefined) {
+    socket.accept();
+    socket.close();
+  }
+}
 
 /** The text of the first note on the board, or null when there is none. */
 function firstText(participant: Participant): string | null {
@@ -465,5 +496,63 @@ describe('TC-31 a socket that died does not take the room with it', () => {
     } finally {
       board.close();
     }
+  });
+});
+
+describe('story 5: a room with no board behind it (TC-10, TC-11)', () => {
+  it('serves a board that was made, and nobody else (TC-10)', async () => {
+    const id = boardId();
+    const made = await makeBoard(id);
+    expect(made).toBe('created');
+
+    const response = await boardStub(id).fetch(
+      new Request('http://board-room/', { headers: { Upgrade: 'websocket' } }),
+    );
+    expect(response.status).toBe(101);
+    hangUp(response);
+
+    // The board next door, which nobody made, is not served by the same room's success.
+    const stranger = await boardStub(boardId()).fetch(
+      new Request('http://board-room/', { headers: { Upgrade: 'websocket' } }),
+    );
+    expect(stranger.status).toBe(404);
+    hangUp(stranger);
+  });
+
+  it('refuses an upgrade to a link that was never a board, and writes nothing (TC-11, negative)', async () => {
+    const id = boardId();
+    const response = await boardStub(id).fetch(
+      new Request('http://board-room/', { headers: { Upgrade: 'websocket' } }),
+    );
+    // 404, and not a WebSocket: the answer a mistyped link gets, before anything is accepted,
+    // relayed or stored. The client turns this into "Board not found" without any code of its own
+    // about why.
+    expect(response.status).toBe(404);
+    expect(response.webSocket ?? null).toBeNull();
+
+    // Asking for a board is not what makes one: the address is as empty as it was, so the next
+    // person to mistype it gets the same answer for the same reason.
+    expect(await tablesIn(id)).toEqual([]);
+
+    // And the room still says no when asked again, in the same instance that said it the first
+    // time - it is not a question that answers itself by being asked.
+    const again = await boardStub(id).fetch(
+      new Request('http://board-room/', { headers: { Upgrade: 'websocket' } }),
+    );
+    expect(again.status).toBe(404);
+    expect(await tablesIn(id)).toEqual([]);
+  });
+
+  it('lets a board made the old way in, on the strength of its log (share.legacy_boards)', async () => {
+    const id = boardId();
+    await insideBoard(boardStub(id), (store) => {
+      store.append(updateOfNote('The board stays where we left it'));
+      return true;
+    });
+    const response = await boardStub(id).fetch(
+      new Request('http://board-room/', { headers: { Upgrade: 'websocket' } }),
+    );
+    expect(response.status).toBe(101);
+    hangUp(response);
   });
 });

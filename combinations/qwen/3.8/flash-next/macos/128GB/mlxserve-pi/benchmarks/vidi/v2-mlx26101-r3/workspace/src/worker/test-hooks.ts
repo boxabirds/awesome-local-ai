@@ -43,7 +43,21 @@
  *   wake path, entered through the two transitions a quiet room is in anyway (`hibernate`, then
  *   `wake`), and it refuses to run while anybody is connected, because a room being woken is a room
  *   nobody is looking at.
+ * `seed-legacy`
+ *   Put a board into storage the way a board of story 4 looks: log rows, and no creation date.
+ *   Story 5 promises those boards carry on working (share.legacy_boards), and the only honest way
+ *   to hold one is to write what that story wrote - which is this. It deliberately does not write
+ *   `created_at`, and that is why "does this board exist?" has a second half to it.
  */
+
+import * as Y from 'yjs';
+import {
+  LOCAL_ORIGIN,
+  createSticky,
+  getStickyText,
+  initDoc,
+  isStickyColor,
+} from '../shared/board-model';
 
 /** The steps a test can ask a room to run, in the order the story's workflow uses them. */
 export const ROOM_TEST_STEPS = [
@@ -51,6 +65,7 @@ export const ROOM_TEST_STEPS = [
   'corrupt-snapshot',
   'repair-snapshot',
   'read-again',
+  'seed-legacy',
 ] as const;
 
 export type RoomTestStep = (typeof ROOM_TEST_STEPS)[number];
@@ -80,6 +95,92 @@ export interface TestHookEnv {
 /** The room, as far as these hooks are concerned: only its storage, and only to damage it. */
 export interface RoomStorage {
   storage: DurableObjectStorage;
+}
+
+/** One note of a board a test asks to be put into storage. */
+export interface LegacyNote {
+  text: string;
+  x: number;
+  y: number;
+  color: string;
+}
+
+/**
+ * The notes a `seed-legacy` step is asked to write, or `null` for anything else.
+ *
+ * A board is seeded from a list and not from a guess, so the test can say exactly what it expects
+ * to read back; anything that is not a list of notes with a text, a place and a colour is refused
+ * rather than quietly turned into a board of its own.
+ */
+export function legacyNotesIn(body: unknown): LegacyNote[] | null {
+  const notes = (body as { notes?: unknown } | null)?.notes;
+  if (!Array.isArray(notes) || notes.length === 0) {
+    return null;
+  }
+  const parsed: LegacyNote[] = [];
+  for (const note of notes) {
+    const value = note as Partial<LegacyNote> | null;
+    if (
+      typeof value?.text !== 'string' ||
+      typeof value.x !== 'number' ||
+      typeof value.y !== 'number' ||
+      !Number.isFinite(value.x) ||
+      !Number.isFinite(value.y) ||
+      typeof value.color !== 'string'
+    ) {
+      return null;
+    }
+    parsed.push({ text: value.text, x: value.x, y: value.y, color: value.color });
+  }
+  return parsed;
+}
+
+/** Where a legacy board's rows go: the same log a room appends its own changes to. */
+export interface LegacyBoardLog {
+  append(update: Uint8Array): void;
+}
+
+/**
+ * Write a board the way story 4 wrote one, and say how much went in.
+ *
+ * Every change the board model makes becomes a row of its own, through the log it is handed - the
+ * same call a room makes when somebody edits a board - and nothing here writes a creation date,
+ * because a board of story 4 had no such row. That is the whole of the legacy shape: a log, and no
+ * mark telling anybody when the board began.
+ *
+ * The notes go in through the board model rather than as bytes, so that what lands in storage is
+ * what the product writes and not a picture of it.
+ */
+export function createLegacyBoard(
+  log: LegacyBoardLog,
+  notes: readonly LegacyNote[],
+): { seeded: number; rows: number } {
+  const doc = new Y.Doc();
+  let rows = 0;
+  doc.on('update', (update: Uint8Array) => {
+    log.append(update);
+    rows += 1;
+  });
+  initDoc(doc);
+  for (const note of notes) {
+    if (!isStickyColor(note.color)) {
+      throw new Error(`a legacy note's colour has to be one of the board's colours, got ${note.color}`);
+    }
+    const id = createSticky(doc, { x: note.x, y: note.y }, note.color);
+    if (id === '') {
+      throw new Error(`the board model refused the note at ${note.x}, ${note.y}`);
+    }
+    const text = getStickyText(doc, id);
+    if (text === undefined) {
+      throw new Error('the board model made a note with no text to write on');
+    }
+    // The local origin, so that it reads as somebody typing on that board.
+    doc.transact(() => {
+      text.insert(0, note.text);
+    }, LOCAL_ORIGIN);
+  }
+  doc.destroy();
+  return { seeded: notes.length, rows };
 }
 
 /** What a step says back. Always JSON, so a test can read the reason a step was refused. */

@@ -54,7 +54,7 @@ function handlerWithWatch(): {
 }
 
 describe('worker routing (TC-04 to TC-06)', () => {
-  it('answers an invalid board id with 400 and never creates a room (TC-04, negative)', async () => {
+  it('answers an invalid board id with 404 and never creates a room (TC-04, negative)', async () => {
     // A board id is 22 characters of base64url and nothing else, so none of these is allowed
     // to reach a Durable Object at all.
     const invalid = [
@@ -73,7 +73,10 @@ describe('worker routing (TC-04 to TC-06)', () => {
           headers: { Upgrade: 'websocket' },
         }),
       );
-      expect(response.status, candidate).toBe(400);
+      // 404, where story 3 answered 400: from story 5 a link that is not a board id and a link
+      // to a board that was never made get the same answer, because the difference between them
+      // is information about which links are real (share.not_found).
+      expect(response.status, candidate).toBe(404);
     }
     expect(handler.names).toEqual([]);
   });

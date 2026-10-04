@@ -16,7 +16,9 @@ import { BoardStore, LOAD_ORIGIN, type LoadResult } from './board-store';
 import { nextRoomState, type LifecycleState, type RoomEvent } from './room-state';
 import { storeFaultsFor } from './store-faults';
 import {
+  createLegacyBoard,
   damageSnapshot,
+  legacyNotesIn,
   report,
   repairSnapshot,
   roomTestStepIn,
@@ -125,31 +127,28 @@ export class BoardRoom extends DurableObject<Env> {
    * Always a fresh `Y.Doc`, because a document that was half-read is not something to serve: the
    * board either comes back whole or the room says it could not be read. Must be called with the
    * room already in `loading`, which is where the lifecycle diagram puts a wake or a connection
-   * that leads to a read.
+   * that leads to a read. Returns where the room ended up, which is what a caller that asked for a
+   * read - a test step, say - reports.
    */
-  private read(): void {
+  private read(): LifecycleState {
     this.loadAttempts += 1;
     this.lastLoadAttemptAt = Date.now();
     const doc = new Y.Doc();
     let result: LoadResult;
     try {
-      // Before anything else, because a board whose tables are not there is not a board that can
-      // be read - and this is the one place that knows when the room last tried, so it is where a
-      // retry gets the chance to put them back.
-      this.store.migrate();
       result = this.store.load(doc);
     } catch (error) {
       // Storage itself failed, which is a different thing from the board's contents being
       // unreadable. Nobody is connected yet when this happens on a wake, so there is nobody to
       // mislead; the room says so and tries again when somebody arrives.
       this.storageFailed(error);
-      return;
+      return this.lifecycle;
     }
     if (!result.ok) {
       this.loadFailure = `${result.reason}: ${result.error}`;
       this.moveTo({ type: 'load-error' });
       console.error(line(this.boardId, `could not be loaded (${this.loadFailure})`));
-      return;
+      return this.lifecycle;
     }
     this.doc = doc;
     this.listen();
@@ -163,6 +162,7 @@ export class BoardRoom extends DurableObject<Env> {
         ),
       );
     }
+    return this.lifecycle;
   }
 
   /** One listener per document, so a document that replaces another gets its own. */
@@ -177,6 +177,33 @@ export class BoardRoom extends DurableObject<Env> {
     });
   }
 
+  /**
+   * Make this address a board.
+   *
+   * Called through Durable Object RPC by the route that makes boards (`create-board.ts`), which is
+   * the only place a board begins: the tables, and the one row that says when this board was
+   * created. A second call says `exists` and changes nothing - not the creation date, and not the
+   * board - so an id that landed on a board that is already there cannot overwrite it, and the
+   * route can say so instead of serving somebody else's work (TC-15).
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    // A board that has content but no creation date is one from before that row existed: it is
+    // already here, and this is not the thing that made it.
+    if (this.store.existsReadOnly()) {
+      return 'exists';
+    }
+    return this.store.markCreated();
+  }
+
+  /**
+   * Whether a board is stored here, for the routes that have to answer before a connection is
+   * accepted - the link check, and the room's own door. Reading only, so that asking a board
+   * whether it exists costs that board nothing.
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   /** WebSocket upgrade only: everything else is a misdirected request. */
   override async fetch(request: Request): Promise<Response> {
     // The test switches come first, because they are the only thing here that arrives as a plain
@@ -187,10 +214,21 @@ export class BoardRoom extends DurableObject<Env> {
       if (!this.testHooks) {
         return new Response('Not found', { status: 404 });
       }
-      return this.runTestStep(step);
+      // `seed-legacy` is the one step that has to be told what to write; the rest only ask the
+      // room to do something it already knows how to do.
+      const body = step === 'seed-legacy' ? await jsonIn(request) : null;
+      return this.runTestStep(step, body);
     }
     if ((request.headers.get('Upgrade') ?? '').toLowerCase() !== 'websocket') {
       return new Response('Expected a WebSocket upgrade', { status: 426 });
+    }
+    // Nothing is served for a board that is not here: not an upgrade, not a relayed update, not a
+    // table in storage. A link that was mistyped, or mangled by whatever it passed through on its
+    // way to the person holding it, gets this answer and the client turns it into the Board not
+    // found page (share.not_found) - and it is the same answer for "never a board" as for "not a
+    // board id", because telling those apart would tell a stranger which links are real.
+    if (!this.store.existsReadOnly()) {
+      return new Response('Board not found', { status: 404 });
     }
     // A connection is also the moment a room that failed tries again: after a storage failure there
     // are people waiting whose work is not saved, so it goes back to storage as soon as one of them
@@ -256,7 +294,7 @@ export class BoardRoom extends DurableObject<Env> {
    * Every step reports what it found rather than assuming it worked, because the thing a test is
    * watching for is a *recovery*, and a recovery from damage that was never done proves nothing.
    */
-  private runTestStep(step: RoomTestStep): Response {
+  private runTestStep(step: RoomTestStep, body: unknown = null): Response {
     switch (step) {
       case 'compact': {
         if (this.lifecycle !== 'ready') {
@@ -309,6 +347,47 @@ export class BoardRoom extends DurableObject<Env> {
         return this.lifecycle === 'load-failed'
           ? report(true, { state: this.lifecycle, failure: this.loadFailure })
           : report(true, { state: this.lifecycle });
+      }
+      case 'seed-legacy': {
+        // A board under test is a board nobody is looking at, for the same reason `read-again` is:
+        // these rows would arrive after a document that does not know about them.
+        const connected = this.ctx.getWebSockets().length;
+        if (connected > 0) {
+          return report(false, {
+            connected,
+            error: 'somebody is still connected; a board is only seeded when nobody is',
+          });
+        }
+        if (this.lifecycle !== 'ready') {
+          return report(false, {
+            error: `the room is ${this.lifecycle}, so there is no board here to seed into`,
+          });
+        }
+        const notes = legacyNotesIn(body);
+        if (notes === null) {
+          return report(false, { error: 'a legacy board is seeded from a list of notes', body });
+        }
+        try {
+          // Log rows and no creation date: the shape a board of story 4 was left in. This room's
+          // own store, so the rows are written by the same code that writes a real change.
+          const seeded = createLegacyBoard({ append: (update) => this.store.append(update) }, notes);
+          // The room cannot go on serving a document that has never seen the rows it just wrote,
+          // so it reads its board back the way a wake does - which is also the thing that proves
+          // the seeded board is readable, rather than merely present.
+          this.moveTo({ type: 'hibernate' });
+          this.moveTo({ type: 'wake' });
+          // The read the room does when it wakes, and the state it ended in: a seeded board that
+          // cannot be read back is a seeded board nobody would ever see.
+          const state = this.read();
+          return state === 'load-failed'
+            ? report(false, {
+                ...seeded,
+                error: `the board was seeded but could not be read back (${this.loadFailure})`,
+              })
+            : report(true, { ...seeded, state, exists: this.store.existsReadOnly() });
+        } catch (error) {
+          return report(false, { error: reason(error) });
+        }
       }
     }
   }
@@ -515,4 +594,16 @@ function updateFrame(update: Uint8Array): Uint8Array {
 
 function reason(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * The JSON a request was sent with, or `null` when it was sent without one. The one test step that
+ * has to be told what to write takes it in a body; nothing else that reaches a room carries one.
+ */
+async function jsonIn(request: Request): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch {
+    return null;
+  }
 }

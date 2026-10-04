@@ -180,6 +180,9 @@ describe('the doors, with the switches left off (TC-24, negative)', () => {
     // answer this room gives to any other request that is not a connection.
     const stub = boardStub(boardId());
     expect(await openRoom(stub)).toBe(426);
+    // A board has to have been made before there is storage for it to refuse to damage: story 5
+    // took the tables off "somebody opened this address".
+    expect(await stub.initialize()).toBe('created');
     const response = await stub.fetch(
       new Request('http://board-room/internal/test/corrupt-snapshot', { method: 'POST' }),
     );

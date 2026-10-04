@@ -24,7 +24,6 @@ import {
   countRows,
   insideBoard,
   openRoom,
-  selectNumber,
   selectRows,
   selectText,
 } from './helpers/storage';
@@ -33,8 +32,9 @@ import {
  * persist.board_store against the storage it will really use.
  *
  * Everything below runs inside a Durable Object, on that object's own SQLite database: a
- * `BoardStore` writing real rows, a real `Y.Doc` read back out of them, and the room's own
- * `migrate` having built the tables in the first place. A description of a board is not what is
+ * `BoardStore` writing real rows, a real `Y.Doc` read back out of them, and the board's own
+ * `initialize` having built the tables in the first place - which, since story 5, is what making
+ * a board means, rather than anybody opening the address. A description of a board is not what is
  * being tested here; the rows are.
  *
  * Every test gets a board nobody has used before, so no test reads another test's storage.
@@ -104,8 +104,8 @@ describe('TC-03 a board that was never used loads as an empty one', () => {
     expect(await openRoom(stub)).toBe(426);
 
     const seen = await insideBoard(stub, (store, storage) => {
-      // Running migrate again over the tables the room just made is what opening the same board
-      // for the hundredth time does: it must neither fail nor change anything.
+      // Running migrate again over the tables the board was created with is what opening the same
+      // board for the hundredth time does: it must neither fail nor change anything.
       store.migrate();
       const doc = new Y.Doc();
       return {
@@ -134,6 +134,8 @@ describe('TC-04 one appended update is one row', () => {
     const stub = boardStub();
     await openRoom(stub);
     const update = updateOfNote('Faster onboarding');
+    // The board has to have been made for there to be a log to append to.
+    expect(await stub.initialize()).toBe('created');
 
     expect(await countRows(stub, 'updates')).toBe(0);
 
@@ -590,11 +592,23 @@ describe('TC-25 opening a board nobody has edited writes nothing', () => {
   it('creates tables and no rows', async () => {
     const stub = boardStub();
     expect(await openRoom(stub)).toBe(426);
+    // Story 5 moved the tables off "somebody looked at this address" and onto "this address was
+    // made into a board", so that a mistyped link leaves nothing behind it. Making the board is
+    // the one thing that writes here; opening it - even by a room that read its storage and found
+    // nothing - is still nothing at all.
+    expect(await stub.initialize()).toBe('created');
 
     expect(await countRows(stub, 'updates')).toBe(0);
     expect(await countRows(stub, 'snapshot_chunks')).toBe(0);
     expect(await countRows(stub, 'quarantined_updates')).toBe(0);
-    expect(await selectNumber(stub, 'SELECT COUNT(*) AS count FROM storage_meta')).toBe(1);
+    // Two rows of metadata, and only ever these two: the version of the schema the tables are in,
+    // and the moment the board was created. Story 5 added the second one, and it is the row every
+    // other route now asks about - "is there a board here?" - which is why writing it is something
+    // only making a board does.
+    expect(await selectRows(stub, 'SELECT key FROM storage_meta ORDER BY key')).toEqual([
+      { key: 'created_at' },
+      { key: 'storage_schema_version' },
+    ]);
     expect(
       await selectText(stub, 'SELECT value FROM storage_meta WHERE key = ?', 'storage_schema_version'),
     ).toBe(String(STORAGE_SCHEMA_VERSION));

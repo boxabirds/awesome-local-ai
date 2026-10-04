@@ -9,12 +9,12 @@
  */
 
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LIVE_UPDATE_LATENCY_BUDGET_MS,
 } from '../../../src/shared/config';
-import { board } from './board';
+import { board, createBoard } from './board';
+import { boardPath } from '../../../src/client/router';
 
 /** Everything a note shows on screen, as one comparable value. */
 export interface NoteFace {
@@ -39,10 +39,20 @@ export interface Person {
   readonly problems: string[];
 }
 
-/** Open a board by address. The id is part of the address, so this is the whole setup. */
+/**
+ * Open a board by address, the way a person does from a link.
+ *
+ * The message on the wait is part of the helper: since story 5 an address that leads nowhere is an
+ * answer rather than a board, so a test that invented an id instead of asking for one fails here
+ * with the reason, not with a timeout on a canvas.
+ */
 export async function openBoardAt(page: Page, boardId: string): Promise<void> {
-  await page.goto(`/b/${boardId}`);
-  await expect(board(page)).toBeVisible();
+  await page.goto(boardPath(boardId));
+  await expect(
+    board(page),
+    'a board should open from its link. If this page says "Board not found", the board was never '
+      + 'created: make it with createBoard() or openBoard() rather than writing an id down.',
+  ).toBeVisible();
 }
 
 /** The connection message, whatever it says. */
@@ -274,8 +284,7 @@ export function badgeStory(seen: readonly (string | null)[]): string {
   return seen.map((text) => text ?? '(hidden)').join(' -> ');
 }
 
-/** Watch a page for anything it complains about. */
-function watchProblems(page: Page): string[] {
+/** Watch a page for anything it complains about. */function watchProblems(page: Page): string[] {
   const problems: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') {
@@ -290,6 +299,21 @@ function watchProblems(page: Page): string[] {
     void dialog.dismiss();
   });
   return problems;
+}
+
+/**
+ * Ask the service for a board from a browser that has no page to spare.
+ *
+ * A browser context can make a request of its own, which is the smallest possible way to want a
+ * board: nobody is looking at anything, and the answer is an id that people can then be sent to.
+ */
+async function createBoardOfOne(browser: Browser, at: string | undefined): Promise<string> {
+  const context = await browser.newContext(at === undefined ? {} : { baseURL: at });
+  try {
+    return await createBoard(context.request);
+  } finally {
+    await context.close();
+  }
 }
 
 /**
@@ -327,7 +351,12 @@ export class Cast {
     browser: Browser,
     ...names: string[]
   ): Promise<Cast> {
-    const cast = new Cast(browser, newBoardId(), at);
+    // The board is asked for, and its id is what the service answers with. Since story 5 there is
+    // no other way for a board to begin, and a room that somebody connects to on its own is not a
+    // board - it is an address with a stranger at it. So this is the one place a Cast's board comes
+    // from, and it is the same request the home page's button makes.
+    const boardId = await createBoardOfOne(browser, at);
+    const cast = new Cast(browser, boardId, at);
     for (const name of names) {
       await cast.add(name);
     }

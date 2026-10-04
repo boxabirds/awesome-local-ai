@@ -2,6 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!--
+      The board link is the whole of a board's access control, so it is not handed to anybody who
+      has not been given it - including a site the person clicks through to, which would learn it
+      from the referrer (story 5, share.privacy).
+    -->
+    <meta name="referrer" content="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>vidi6</title>
   </head>

@@ -98,6 +98,22 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Version of the room's storage tables; written once into `storage_meta`. */
 export const STORAGE_SCHEMA_VERSION = 1;
 
+/* Sharing a board (story 5). -------------------------------------------------- */
+
+/**
+ * How long creating a board may take from the click on New board to the empty board being
+ * on screen (share.create). Reported by the e2e run, not asserted: the model, the browsers
+ * and the server all share one machine.
+ */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the Share panel's "Link copied" confirmation stays up (share.copy). */
+export const LINK_COPIED_MS = 2000;
+/**
+ * First wait before a board-link check is tried again; each further failure doubles it, up to
+ * {@link RECONNECT_MAX_BACKOFF_MS} (share.unreachable).
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
 /**
  * Functional wait used by every e2e test. Latency is measured and logged against
  * LIVE_UPDATE_LATENCY_BUDGET_MS, never asserted here: the model, the browsers and the
