@@ -11,16 +11,18 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 1 | 6/6 | 0 | 0 | 6/6 |
 | 2 | 10/10 | 0 | 0 | 20/20 |
 | 3 | 6/7 | 0 | 0 | 26/27 |
+| 4 | 4/4 | 0 | 1 | 31/31 |
 
-**New work** 22/23, **regressions** 0, **repairs** 0, **cumulative** 26/27.
+**New work** 26/27, **regressions** 0, **repairs** 1, **cumulative** 31/31.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 43.9 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 1 | — | throttled 93%, server peak 93 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 82.0 | None | None | None | — | — | green | 20/20 |  | 0 / 1 | 4 | — | throttled 97%, server peak 93 GB |
 | 3 | See other people's edits appear live on the same board | DONE | 194.1 | None | None | None | — | — | green | 26/27 |  | 0 / 1 | 6 | — | throttled 54%, server peak 93 GB |
+| 4 | Return to a board and find everything as it was left | DONE | 160.8 | None | None | None | — | — | green | 31/31 |  | 0 / 1 | 7 | — | throttled 91%, server peak 93 GB |
 
-**Totals:** 3 stories, 320 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/3, final acceptance 26/27, stalled 0, partial 0, 11715 lines in src+tests.
+**Totals:** 4 stories, 481 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/4, final acceptance 31/31, stalled 0, partial 0, 17325 lines in src+tests.
 
 ## How it happened
 
@@ -31,10 +33,12 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 1 | 3 by the agent | 8166 / 114 | `BoardViewport.tsx` (302), `useCamera.ts` (249), `camera.ts` (188), `styles.css` (182), `NOTES.md` (129), `ZoomControls.tsx` (91), +17 more |
 | 2 | 3 by the agent | 5013 / 91 | `StickyNote.tsx` (434), `board-model.ts` (370), `StickyText.ts` (211), `StickyTextEditor.tsx` (211), `styles.css` (185), `App.tsx` (135), +9 more |
 | 3 | 5 by the agent | 5866 / 118 | `NOTES.md` (218), `board-room.ts` (209), `StickyText.ts` (127), `protocol.ts` (112), `StickyTextEditor.tsx` (110), `connectBoard.ts` (101), +19 more |
+| 4 | 8 by the agent | 5939 / 189 | `board-store.ts` (500), `board-room.ts` (417), `test-hooks.ts` (197), `NOTES.md` (142), `room-state.ts` (96), `store-faults.ts` (54), +17 more |
 
 ### Earlier stories broken or fixed
 
-No story changed an earlier story's held-out results.
+- **Story 4 broke 0, fixed 1** earlier held-out tests (story 4: Return to a board and find everything as it was left; story 4 task 8: the load-failure badge, the edit lock and the close codes (TC-22, TC-23, TC-28); story 4 task 7: the client says so when the board could not be loaded; story 4 task 6: e2e persistence - the service restarted under the board (TC-19..TC-21); story 4 task 5: room persistence integration tests (TC-12..TC-18, TC-26); story 4 tasks 3+4: the store tested against real storage, and a BoardRoom that saves; story 4 task 2: BoardStore - the log, the snapshot and the quarantine; story 4 task 1: storage/room-state settings, close codes and failing unit tests (TC-01, TC-02, TC-27)). Source files it changed most: `board-store.ts` (500), `board-room.ts` (417), `test-hooks.ts` (197), `NOTES.md` (142), `room-state.ts` (96), `store-faults.ts` (54), +17 more.
+  - story 3: 6/7 → 7/7; fixed 1
 
 ### Interruptions and dead time
 
