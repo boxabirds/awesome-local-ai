@@ -232,7 +232,7 @@ def test_publishing_redacts_text_files_and_leaves_everything_else_as_it_is(tmp_p
         "image.png": f"{home} in a file that isn't text",
         "node_modules/pkg/readme.md": f"{home}/pkg",
         ".git/config.txt": f"{home}/repo",
-        "stories/01/agent-events.jsonl": f'{{"cwd": "{home}"}}\n',     # the git-ignored raw log: kept, and redacted too
+        "stories/01/agent-events.jsonl": f'{{"cwd": "{home}"}}\n',     # the git-ignored raw log: never published, kept as written
     }
     for rel, text in files.items():
         (run / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -243,11 +243,31 @@ def test_publishing_redacts_text_files_and_leaves_everything_else_as_it_is(tmp_p
     assert (run / "notes.md").read_text() == "built in ~/work"
     assert json.loads((run / "metrics.json").read_text()) == {"dir": "~/x"}
     assert (run / "clean.txt").read_text() == "nothing personal"
-    assert (run / "stories" / "01" / "agent-events.jsonl").read_text() == '{"cwd": "~"}\n'     # "everywhere": not compacted, still redacted
     for rel in ("work_dir.txt", "progress.json", "current_story", "image.png", "node_modules/pkg/readme.md",
-                ".git/config.txt"):
+                ".git/config.txt", "stories/01/agent-events.jsonl"):
         assert (run / rel).read_text() == files[rel], rel
     assert (run / "broken.log").read_bytes() == undecodable            # can't be read as text: not rewritten
+
+
+def test_publishing_leaves_the_raw_story_logs_as_written_so_the_lake_gets_the_thinking_that_was_counted(tmp_path):
+    """The story's conversation profile counts its thinking from the raw log; the collector then pulls that log into
+    the lake, where the analysis counts it again. Publishing rewrote the git-ignored raw log (the home path to ~), so
+    every mention of it in the thinking left the lake 12 characters short (11 on Linux) and the analysis set the story
+    aside as incomplete: 14 story runs by 4 October 2026."""
+    import conversation
+    home = str(Path.home())
+    run = tmp_path / "run"
+    (run / "stories" / "01").mkdir(parents=True)
+    raw = run / "stories" / "01" / "agent-events.jsonl"
+    raw.write_text(lines({"type": "message_end", "_rx": 1.0, "message": {"role": "assistant", "content": [
+        {"type": "thinking", "thinking": f"the error loads {home}/cloudflare as a file"}]}}))
+    conditions = run / "stories" / "01" / drive.CONDITIONS_FILE
+    conditions.write_text(json.dumps({"at": 1.0, "cwd": f"{home}/work"}) + "\n")
+    counted = conversation.profile(raw, 0, 10)["thinking_chars"]
+    as_written = {f: f.read_bytes() for f in (raw, conditions)}
+    drive.make_publishable(run)
+    assert {f: f.read_bytes() for f in (raw, conditions)} == as_written
+    assert conversation.profile(raw, 0, 10)["thinking_chars"] == counted
 
 
 def test_publishing_compacts_a_raw_log_outside_stories_and_cuts_a_compact_log_over_its_cap(tmp_path, monkeypatch):

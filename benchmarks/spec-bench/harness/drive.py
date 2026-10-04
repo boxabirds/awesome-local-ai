@@ -422,6 +422,12 @@ def _over_limit(f: Path) -> bool:
     return f.stat().st_size > publicise.size_limit(f.as_posix())
 
 
+def _raw_story_file(f: Path) -> bool:
+    """A story's raw log or conditions (git-ignored, never published): kept exactly as written, because the story's
+    profile is counted from it and the collector pulls it into the lake, where it is counted again."""
+    return f.parent.parent.name == "stories" and f.name in ("agent-events.jsonl", CONDITIONS_FILE)
+
+
 def make_publishable(run: Path) -> list[str]:
     """Make a run dir safe to commit: redact home paths everywhere, compact any raw event log that
     is not git-ignored, and cut a compact log only if it is over its own cap. Returns files still over their cap."""
@@ -432,7 +438,7 @@ def make_publishable(run: Path) -> list[str]:
     for f in run.rglob("*"):
         if not f.is_file() or ".git" in f.parts or "node_modules" in f.parts:
             continue
-        if f.name in LOCAL_ONLY_FILES:          # git-ignored, machine-local: keep real paths
+        if f.name in LOCAL_ONLY_FILES or _raw_story_file(f):     # git-ignored, machine-local: keep real paths
             continue
         if f.name.endswith(".compact.jsonl.gz"):
             # Written redacted by compact_events; left byte for byte as it is unless it is over its cap.
@@ -446,8 +452,7 @@ def make_publishable(run: Path) -> list[str]:
             if str(Path.home()) in t:
                 f.write_text(_redact(t))
     return [str(f) for f in run.rglob("*") if f.is_file() and ".git" not in f.parts and "node_modules" not in f.parts
-            and not (f.name == "agent-events.jsonl" and f.parent.parent.name == "stories")
-            and _over_limit(f)]
+            and not _raw_story_file(f) and _over_limit(f)]
 
 
 RUN_GITIGNORE = """# Written by benchmarks/spec-bench/harness/drive.py. Raw agent logs are kept compacted
