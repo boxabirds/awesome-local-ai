@@ -56,3 +56,20 @@ export const CONNECTED_CONFIRMATION_MS = 2000;
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
 /** Functional wait (ms) for eventual-consistency assertions in e2e tests. */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+/* --- Story 4: persistence --- */
+
+/** Compact the update log when this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** …or when the log's total bytes reach this. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/** Snapshot chunk size: keeps every row well under the platform per-row size limit. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A LoadFailed room retries loading at most this often (per new connection). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** Tested board size for persist.large_board (PRD). */
+export const PERSIST_TESTED_NOTES = 2000;
+/** Open-time budget (ms) for a PERSIST_TESTED_NOTES board (PRD persist.large_board). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the board storage schema (storage_meta.storage_schema_version). */
+export const STORAGE_SCHEMA_VERSION = 1;

@@ -10,6 +10,8 @@ interface StickyNoteProps {
   note: StickySnapshot;
   doc: Y.Doc;
   zoom: number;
+  /** When false the note is read-only: no drag, no text edit. */
+  canEdit: boolean;
   selected: boolean;
   editing: boolean;
   onSelect: (id: string | null) => void;
@@ -19,10 +21,12 @@ interface StickyNoteProps {
 
 /**
  * A single sticky note on the board. Handles selection, drag-to-move,
- * double-click to edit, and renders the text editor or display text.
+ * double-click to edit, and renders the text editor or display text. When
+ * `canEdit` is false (board failed to load) the note is read-only.
  */
 export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const { note, doc, zoom, canEdit, selected, editing, onSelect, onStartEdit, onEndEdit } =
+    props;
   const [dragging, setDragging] = useState(false);
 
   const dragStateRef = useRef<{
@@ -40,6 +44,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
     // Stop propagation so the board doesn't pan
     e.stopPropagation();
 
+    if (!canEdit) return; // Read-only: no selection or drag.
     if (editing) return; // Don't start drag while editing
 
     const el = e.currentTarget;
@@ -53,7 +58,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
       noteStartY: note.y,
       moved: false,
     };
-  }, [editing, note.x, note.y]);
+  }, [canEdit, editing, note.x, note.y]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const state = dragStateRef.current;
@@ -132,10 +137,14 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
     endDrag();
   }, [endDrag]);
 
-  const handleDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    onStartEdit(note.id);
-  }, [note.id, onStartEdit]);
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      if (!canEdit) return; // Read-only: no text editing.
+      onStartEdit(note.id);
+    },
+    [canEdit, note.id, onStartEdit],
+  );
 
   const ytext = getStickyText(doc, note.id);
 

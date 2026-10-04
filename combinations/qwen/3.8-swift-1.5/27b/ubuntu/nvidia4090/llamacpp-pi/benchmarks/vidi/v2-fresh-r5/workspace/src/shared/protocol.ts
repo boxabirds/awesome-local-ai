@@ -18,6 +18,14 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code for unsupported/undecodable data. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/**
+ * WebSocket close code: the board's saved state could not be loaded.
+ * In the 4500–4599 "try again later" range so y-websocket clients keep
+ * retrying with backoff until the board loads.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/** WebSocket close code: the room's storage failed; the room was reset. */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 /** Result of decoding one wire frame. */
 export type Decoded =

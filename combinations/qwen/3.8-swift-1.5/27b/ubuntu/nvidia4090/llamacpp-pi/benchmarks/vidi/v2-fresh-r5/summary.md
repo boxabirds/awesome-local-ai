@@ -11,20 +11,23 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 1 | 6/6 | 0 | 0 | 6/6 |
 | 2 | 7/10 | 0 | 0 | 17/20 |
 | 3 | 6/7 | 0 | 0 | 23/27 |
+| 4 | 4/4 | 0 | 0 | 27/31 |
 
-**New work** 19/23, **regressions** 0, **repairs** 0, **cumulative** 23/27.
+**New work** 23/27, **regressions** 0, **repairs** 0, **cumulative** 27/31.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 32.9 | None | None | None | — | — | green | 6/6 |  | 0 / 1 | 1 | — | throttled 0%, server peak 20 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 25.5 | None | None | None | — | — | green | 17/20 |  | 0 / 0 | 1 | — | throttled 0%, server peak 25 GB |
 | 3 | See other people's edits appear live on the same board | PARTIAL (red) | 237.0 | None | None | None | — | — | red | 23/27 |  | 3 / 0 | 4 | — | throttled 0%, server peak 25 GB |
+| 4 | Return to a board and find everything as it was left | DONE, on partial 3 | 172.5 | None | None | None | — | — | red | 27/31 |  | 0 / 0 | 6 | — | throttled 0%, server peak 25 GB |
 
-**Totals:** 3 stories, 295 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/3, final acceptance 23/27, stalled 0, partial 1, 6224 lines in src+tests.
+**Totals:** 4 stories, 468 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/4, final acceptance 27/31, stalled 0, partial 1, 8681 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 3 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **red**: gate red, tasks not verified [4, 7, 8, 9] (implementation: [4]), held-out 6/7 (floor 0.571).
+- Story 4, built on partial 3: held-out tests on the partial base 10/11; partial story's tests fixed 0, regressed 0; 3 stub-like lines added to src/.
 
 ## How it happened
 
@@ -35,6 +38,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 1 | 1 by the agent | 6702 / 7 | `BoardViewport.tsx` (254), `useCamera.ts` (164), `camera.ts` (112), `ZoomControls.tsx` (92), `NOTES.md` (79), `playwright.config.ts` (46), +16 more |
 | 2 | 1 by the agent | 2256 / 15 | `StickyNote.tsx` (210), `board-model.ts` (201), `StickyTextEditor.tsx` (155), `App.tsx` (105), `StickyText.ts` (82), `NoteToolbar.tsx` (81), +8 more |
 | 3 | 2 by the agent, + harness snapshot | 3868 / 109 | `board-room.ts` (251), `connectBoard.ts` (134), `protocol.ts` (115), `App.tsx` (52), `ConnectionStatus.tsx` (50), `index.ts` (46), +16 more |
+| 4 | 1 by the agent | 2755 / 191 | `board-room.ts` (467), `board-store.ts` (283), `room-state.ts` (130), `index.ts` (59), `App.tsx` (41), `connectBoard.ts` (37), +14 more |
 
 ### Earlier stories broken or fixed
 

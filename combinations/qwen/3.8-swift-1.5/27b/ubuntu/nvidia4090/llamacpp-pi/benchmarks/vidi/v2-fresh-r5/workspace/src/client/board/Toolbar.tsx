@@ -2,13 +2,15 @@ import type { JSX } from 'react';
 
 interface ToolbarProps {
   onCreateSticky: () => void;
+  /** When true the create button is disabled (board failed to load). */
+  disabled?: boolean;
 }
 
 /**
  * Fixed left-side toolbar with a Sticky note button.
  */
 export function Toolbar(props: ToolbarProps): JSX.Element {
-  const { onCreateSticky } = props;
+  const { onCreateSticky, disabled = false } = props;
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -41,17 +43,19 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         title="Sticky note – or double-click the board"
         data-testid="create-sticky-btn"
         onClick={onCreateSticky}
+        disabled={disabled}
         style={{
           width: '40px',
           height: '40px',
           borderRadius: '6px',
           border: '1px solid rgba(0,0,0,0.2)',
-          background: '#FFF59D',
-          cursor: 'pointer',
+          background: disabled ? '#E8EAED' : '#FFF59D',
+          cursor: disabled ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: '20px',
+          opacity: disabled ? 0.6 : 1,
         }}
       >
         +

@@ -25,12 +25,17 @@ function setup() {
     selectMock,
     startEditMock,
     endEditMock,
-    render: (overrides: { selected?: boolean; editing?: boolean } = {}) => {
+    render: (overrides: {
+      selected?: boolean;
+      editing?: boolean;
+      canEdit?: boolean;
+    } = {}) => {
       return render(
         <StickyNote
           note={note}
           doc={doc}
           zoom={1}
+          canEdit={overrides.canEdit ?? true}
           selected={overrides.selected ?? false}
           editing={overrides.editing ?? false}
           onSelect={selectMock}

@@ -1,7 +1,8 @@
 {
+  // Test-only config: identical to wrangler.jsonc but with TEST_HOOKS enabled
+  // so the /__test/ storage hooks (corrupt/repair a board's snapshot) are live.
+  // Used by the broken-board E2E case via `wrangler dev --config wrangler.test-hooks.jsonc`.
   "name": "vidi6",
-  // 2025-06-30 enables the Durable Object hibernation API (acceptWebSocket,
-  // getWebSockets, runInDurableObject) used by story 4's persistent room.
   "compatibility_date": "2025-06-30",
   "main": "src/worker/index.ts",
   "assets": {
@@ -22,5 +23,8 @@
       "tag": "v1",
       "new_sqlite_classes": ["BoardRoom"]
     }
-  ]
+  ],
+  "vars": {
+    "TEST_HOOKS": "1"
+  }
 }

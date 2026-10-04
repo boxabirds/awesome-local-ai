@@ -8,6 +8,12 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // The persistence and broken-board suites manage their OWN `wrangler dev`
+  // processes (no shared webServer) and run under their dedicated configs
+  // (playwright.persistence.config.ts / playwright.broken-board.config.ts).
+  // Exclude them here so `test:e2e` only runs the fast collaboration cases
+  // against the shared webServer on PORT below.
+  testIgnore: ['**/persistence/**', '**/broken-board/**'],
   timeout: 30_000,
   expect: { timeout: 5_000 },
   fullyParallel: true,

@@ -7,6 +7,7 @@ import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 import { reportConnectionState } from './canvas/testHooks';
 import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
 import { STICKY_SIZE_WORLD } from '../shared/config';
@@ -47,6 +48,8 @@ export default function App() {
 function Board({ boardId }: { boardId: string }) {
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit, prune } = useSelection();
+  // Editing is locked only while the board failed to load (close code 4500).
+  const editable = canEdit(connectionState);
 
   // Publish the mapped state for long-running e2e tests (test builds only).
   useEffect(() => {
@@ -62,20 +65,25 @@ function Board({ boardId }: { boardId: string }) {
   // Camera ref updated by BoardViewport via onCameraChange callback
   const cameraRef = useRef({ x: -640, y: -400, zoom: 1 });
 
-  const onDblClickEmpty = useCallback((screenPoint: { x: number; y: number }) => {
-    const cam = cameraRef.current;
-    const world = screenToWorld(cam, screenPoint);
-    const id = createSticky(doc, world);
-    if (id) {
-      startEdit(id);
-    }
-  }, [doc, startEdit]);
+  const onDblClickEmpty = useCallback(
+    (screenPoint: { x: number; y: number }) => {
+      if (!editable) return;
+      const cam = cameraRef.current;
+      const world = screenToWorld(cam, screenPoint);
+      const id = createSticky(doc, world);
+      if (id) {
+        startEdit(id);
+      }
+    },
+    [doc, startEdit, editable],
+  );
 
   const onClickEmpty = useCallback(() => {
     select(null);
   }, [select]);
 
   const onCreateSticky = useCallback(() => {
+    if (!editable) return;
     const cam = cameraRef.current;
     // Centre of the visible board area (viewport is 1280x800 default)
     const centre = { x: 640, y: 400 };
@@ -84,7 +92,7 @@ function Board({ boardId }: { boardId: string }) {
     if (id) {
       startEdit(id);
     }
-  }, [doc, startEdit]);
+  }, [doc, startEdit, editable]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -94,9 +102,11 @@ function Board({ boardId }: { boardId: string }) {
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
       if (e.key === 'Enter' && selectedId && !editingId) {
+        if (!editable) return;
         e.preventDefault();
         startEdit(selectedId);
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingId) {
+        if (!editable) return;
         e.preventDefault();
         deleteObject(doc, selectedId);
         select(null);
@@ -104,7 +114,7 @@ function Board({ boardId }: { boardId: string }) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedId, editingId, doc, startEdit, select]);
+  }, [selectedId, editingId, doc, startEdit, select, editable]);
 
   return (
     <>
@@ -120,6 +130,7 @@ function Board({ boardId }: { boardId: string }) {
             note={note}
             doc={doc}
             zoom={cameraRef.current.zoom}
+            canEdit={editable}
             selected={selectedId === note.id}
             editing={editingId === note.id}
             onSelect={select}
@@ -128,7 +139,7 @@ function Board({ boardId }: { boardId: string }) {
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={onCreateSticky} />
+      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
       {selectedId && !editingId && (() => {
         const selNote = notes.find(n => n.id === selectedId);
         if (!selNote) return null;
@@ -138,8 +149,12 @@ function Board({ boardId }: { boardId: string }) {
           <div style={{ position: 'fixed', left: screen.x + (STICKY_SIZE_WORLD / 2) * cam.zoom, top: screen.y + STICKY_SIZE_WORLD * cam.zoom + 8, transform: 'translateX(-50%)', zIndex: 1000 }}>
             <NoteToolbar
               color={selNote.color}
-              onColor={(c) => setStickyColor(doc, selectedId, c)}
-              onDelete={() => { deleteObject(doc, selectedId); select(null); }}
+              onColor={(c) => { if (editable) setStickyColor(doc, selectedId, c); }}
+              onDelete={() => {
+                if (!editable) return;
+                deleteObject(doc, selectedId);
+                select(null);
+              }}
             />
           </div>
         );

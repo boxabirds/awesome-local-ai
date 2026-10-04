@@ -5,6 +5,14 @@ const STATE_TEXT: Record<Exclude<ConnectionState, 'connected'>, string> = {
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
   confirmed: 'Connected',
+  load_failed: "This board couldn't be loaded. Retrying…",
+};
+
+const STATE_BACKGROUND: Record<Exclude<ConnectionState, 'connected'>, string> = {
+  connecting: '#9AA0A6',
+  reconnecting: '#FFB300',
+  confirmed: '#34A853',
+  load_failed: '#D93025',
 };
 
 /**
@@ -13,15 +21,15 @@ const STATE_TEXT: Record<Exclude<ConnectionState, 'connected'>, string> = {
  * - "Connecting…" during the first load.
  * - Amber "Reconnecting…" while the connection is lost.
  * - Green "Connected" for 2 seconds after a reconnection.
- * The board stays fully editable in every state.
+ * - Red "This board couldn't be loaded. Retrying…" while the room is
+ *   unreadable (close code 4500); editing is locked (see {@link canEdit}).
  */
 export function ConnectionStatus(props: { state: ConnectionState }): JSX.Element | null {
   const { state } = props;
   if (state === 'connected') return null;
 
   const text = STATE_TEXT[state];
-  const background =
-    state === 'reconnecting' ? '#FFB300' : state === 'confirmed' ? '#34A853' : '#9AA0A6';
+  const background = STATE_BACKGROUND[state];
 
   return (
     <div

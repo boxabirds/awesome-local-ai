@@ -9,12 +9,26 @@
  * - `reconnecting` — disconnected after having been connected (badge amber).
  * - `confirmed`    — re-synced after a reconnect; held for
  *   CONNECTED_CONFIRMATION_MS, then back to `connected` (badge green).
+ * - `load_failed`  — the server rejected the room with CLOSE_BOARD_LOAD_FAILED
+ *   (4500); the board is unreadable and editing is locked until a later
+ *   successful sync (the provider keeps retrying, so recovery needs no reload).
  */
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
+
+/** Editing is allowed in every state except `load_failed`. */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 /** The y-websocket provider's raw status values. */
 export type ProviderStatus = 'connecting' | 'connected' | 'disconnected';
@@ -23,6 +37,8 @@ export type ProviderStatus = 'connecting' | 'connected' | 'disconnected';
 export interface ConnectionController {
   onProviderStatus(status: ProviderStatus): void;
   onProviderSync(sync: boolean): void;
+  /** A socket close; `code` is the WebSocket close code (0 if unknown). */
+  onProviderClose(code: number): void;
   dispose(): void;
 }
 
@@ -36,6 +52,7 @@ export function createConnectionController(
   let providerStatus: ProviderStatus = 'connecting';
   let synced = false;
   let hasConnected = false;
+  let loadFailed = false;
   let current: ConnectionState = 'connecting';
   let confirmTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -53,6 +70,7 @@ export function createConnectionController(
   };
   const onEstablished = () => {
     clearConfirm();
+    loadFailed = false; // A successful sync means the board loaded: recover.
     if (!hasConnected) {
       hasConnected = true;
       set('connected');
@@ -72,6 +90,9 @@ export function createConnectionController(
       clearConfirm();
       if (status === 'connected' && synced) {
         onEstablished();
+      } else if (loadFailed) {
+        // The board failed to load; stay locked until a successful sync.
+        set('load_failed');
       } else if (status === 'disconnected') {
         set(hasConnected ? 'reconnecting' : 'connecting');
       } else if (!hasConnected) {
@@ -83,6 +104,16 @@ export function createConnectionController(
       if (providerStatus === 'connected' && sync) {
         onEstablished();
       }
+    },
+    onProviderClose(code: number) {
+      // `connection-close` fires before `status: disconnected`.
+      if (code === CLOSE_BOARD_LOAD_FAILED) {
+        loadFailed = true;
+        set('load_failed');
+      }
+      // CLOSE_STORAGE_FAILURE (1011) and any other code: the board is readable
+      // and unsaved changes are re-sent on reconnect, so the `status:
+      // disconnected` handler moves to `reconnecting` (no lockout).
     },
     dispose() {
       clearConfirm();
@@ -112,8 +143,11 @@ export function connectBoard(
   const onStatus = (event: { status: ProviderStatus }) =>
     controller.onProviderStatus(event.status);
   const onSync = (sync: boolean) => controller.onProviderSync(sync);
+  const onClose = (event: { code: number } | null) =>
+    controller.onProviderClose(event?.code ?? 0);
   provider.on('status', onStatus);
   provider.on('sync', onSync);
+  provider.on('connection-close', onClose);
 
   // Test-only: let e2e simulate a network break (see testHooks).
   const hook = (window as { __vidi6?: { dropConnection?: () => void } }).__vidi6;
@@ -127,6 +161,7 @@ export function connectBoard(
     destroy() {
       provider.off('status', onStatus);
       provider.off('sync', onSync);
+      provider.off('connection-close', onClose);
       controller.dispose();
       provider.destroy();
     },

@@ -12,6 +12,8 @@
     "test:component": "vitest run tests/component",
     "test:integration": "vitest run --project integration",
     "test:e2e": "PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1 playwright test",
+    "test:e2e:persistence": "npm run build:e2e && PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1 playwright test -c playwright.persistence.config.ts",
+    "test:e2e:broken-board": "npm run build:e2e && PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1 playwright test -c playwright.broken-board.config.ts",
     "test:e2e:nightly": "playwright test -c playwright.nightly.config.ts"
   },
   "dependencies": {
