@@ -91,7 +91,7 @@ session commands, and smoke-tests the model.
 
 | Run | Build order | Notes |
 |---|---|---|
-| `canvas-gufo-01` | **user journey**: story 5 first, then 1, 2, 3, 4, 7, … | [interventions](benchmarks/vidi/canvas-gufo-01/interventions.md): its per-story scores are not directly comparable with number-order runs; its end-of-run total over the same scope is |
+| `canvas-gufo-01` | **user journey**: story 5 first, then 1, 2, 3, 4, 7, … | its interventions (archived 4 Oct 2026): its per-story scores are not directly comparable with number-order runs; its end-of-run total over the same scope is |
 
 ## Usage
 

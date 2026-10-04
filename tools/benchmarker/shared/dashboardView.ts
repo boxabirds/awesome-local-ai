@@ -5,7 +5,7 @@
 // Observations are facts about the work, found in the data of normal operation. A bug in the app, the harness or the
 // pipeline is not one and never appears here (CLAUDE.md, "The app shows results, never its own faults").
 import type { Row } from "./types.ts";
-import { closeCalls, INDISTINGUISHABLE_TESTS, isComplete, median, rankCombinations, scoreOfRecord, SMALL_N } from "./stats.ts";
+import { closeCalls, INDISTINGUISHABLE_TESTS, isComplete, median, rankCombinations, scoreOfRecord, seriesPrefix, SMALL_N } from "./stats.ts";
 import { SILENT_MINUTES, type NowLine } from "./overviewView.ts";
 import { runOrder } from "./runGroups.ts";
 
@@ -86,8 +86,6 @@ export interface Series { stack: string; label: string; machine: string; prefix:
   /** The median, lowest and highest score of record over the finished runs; null while none is scored. */
   score: SeriesScore | null }
 
-const SERIES_NUMBER = /-r(\d+)$/;
-const seriesPrefix = (runId: string) => runId.replace(SERIES_NUMBER, "");
 
 /** Runs named `<prefix>-rN` of one stack are one series. Cancelled, failed and stopped runs are not in it, and neither
  * are partial reruns. A series with work in hand comes first. */

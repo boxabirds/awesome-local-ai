@@ -18,7 +18,7 @@ On 24 Sep 2026 a 128 GB M5 Max kernel-panicked from GPU memory exhaustion while
 MTPLX served this model: a ~97 GiB peak at ~115k context, with a leaking 10 GB
 third-party process resident beside it. The record is in the MTPLX
 combination's Vidi run,
-[interventions.md](../mtplx-pi/benchmarks/vidi/canvas-pi-01/interventions.md).
+the MTPLX run `canvas-pi-01`'s interventions (archived 4 Oct 2026; `archive/MANIFEST.json`).
 What that means here:
 
 - **Stop MTPLX (or any other model server) first.** This pack is ~70 GiB of

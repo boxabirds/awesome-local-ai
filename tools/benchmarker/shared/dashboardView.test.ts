@@ -183,7 +183,8 @@ describe("observations: facts about the work, in the order a person could act on
 describe("the score plot: a dot for every run of record, the median and the range, on one axis", () => {
   const ref = (n: string) => `reference/${n}`;
   it("one row per combination with a score, best median first: the dots, median, range and runs", () => {
-    const rs = [finished("a1", HOUR, { score: 50 }), finished("a2", HOUR, { score: 60 }), finished("a3", HOUR, { score: 70 }), finished("b1", HOUR, { stack: STACK_B, score: 66 })];
+    // Series-shaped ids: a stack's runs are one experiment, and the headline is that series' (shared/stats.ts).
+    const rs = [finished("v2-r1", HOUR, { score: 50 }), finished("v2-r2", HOUR, { score: 60 }), finished("v2-r3", HOUR, { score: 70 }), finished("v2-r1", HOUR, { stack: STACK_B, score: 66 })];
     const p = scorePlot(rs);
     expect(p.total).toBe(75);
     expect(p.rows.map((r) => r.stack)).toEqual([STACK_B, STACK_A]);
@@ -212,9 +213,9 @@ describe("the score plot: a dot for every run of record, the median and the rang
   });
   it("says it in words: how to read it, the top, the best that is not a reference, the groups, the off-scale run", () => {
     const rs = [
-      ...[75, 75, 74].map((s, i) => finished(`o${i}`, HOUR, { stack: ref("opus-5.5"), score: s })),
-      ...[70, 66, 72].map((s, i) => finished(`m${i}`, HOUR, { stack: STACK_B, score: s })),
-      ...[1, 61, 63].map((s, i) => finished(`a${i}`, HOUR, { score: s })),
+      ...[75, 75, 74].map((s, i) => finished(`v2-r${i + 1}`, HOUR, { stack: ref("opus-5.5"), score: s })),
+      ...[70, 66, 72].map((s, i) => finished(`v2-r${i + 1}`, HOUR, { stack: STACK_B, score: s })),
+      ...[1, 61, 63].map((s, i) => finished(`v2-r${i + 1}`, HOUR, { score: s })),
     ];
     const n = scorePlot(rs).narrative;
     expect(n[0]).toBe("Each dot is one finished run: how many of the 75 hidden tests it passed. The black bar is the middle run; the grey line runs from the lowest to the highest. Further right is better.");
