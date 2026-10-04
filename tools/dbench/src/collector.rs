@@ -299,10 +299,13 @@ pub struct NodeSummary {
     pub problems: Vec<String>,
 }
 
-/// Whether a pass pulls this run: never an archived one, even when asked for by name; otherwise every run, or only the
+/// Whether a pass pulls this run: never a reference model's (the warehouse holds none of their conversations, and
+/// neither should the lake) and never an archived one, even when asked for by name; otherwise every run, or only the
 /// ones asked for.
 pub fn wanted(run: &str, only_runs: &[String], archived: &BTreeSet<String>) -> bool {
-    !archived.contains(run) && (only_runs.is_empty() || only_runs.iter().any(|r| r == run))
+    !run.starts_with(crate::ingest::db::REFERENCE_RUN_PREFIX)
+        && !archived.contains(run)
+        && (only_runs.is_empty() || only_runs.iter().any(|r| r == run))
 }
 
 /// The archived runs, from the same published tree the ingest reads. None known (no repo, or it can't be read) means
@@ -484,6 +487,18 @@ pub async fn cmd_collect(ctx: &Ctx, args: &CollectArgs) -> Result<()> {
 mod tests {
     use super::*;
     use crate::collect::{FileEntry, FileKind};
+
+    #[test]
+    fn a_reference_models_run_is_never_pulled_so_the_lake_holds_no_claude_transcript() {
+        // The warehouse holds none of them (ingest), and since 4 Oct 2026 neither does the lake: the raw pulls were
+        // Claude's conversations sitting on disk under state/collected (owner, 3 Oct: not in our data).
+        let none = std::collections::BTreeSet::new();
+        assert!(!wanted("benchmarks/reference/vidi/opus-5.5/v2-r1", &[], &none));
+        assert!(!wanted("benchmarks/reference/vidi/sonnet-5.5/v2-r4", &[], &none));
+        // named explicitly: still not pulled
+        assert!(!wanted("benchmarks/reference/vidi/opus-5.5/v2-r1", &["benchmarks/reference/vidi/opus-5.5/v2-r1".to_string()], &none));
+        assert!(wanted("combinations/a/benchmarks/vidi/v2-r1", &[], &none));
+    }
 
     #[test]
     fn an_archived_run_is_never_pulled_even_when_asked_for_and_only_runs_still_narrows() {
