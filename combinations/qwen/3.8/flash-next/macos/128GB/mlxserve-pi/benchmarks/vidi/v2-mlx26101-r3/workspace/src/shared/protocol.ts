@@ -25,6 +25,14 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code sent to a socket that sent something undecodable (RFC 6455 §7.4.1). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/**
+ * Close code sent by a room that could not load its saved board (story 4). It says "this
+ * board is not readable yet", never "this board is empty", and it is deliberately outside
+ * the 4400-4499 range `WebsocketProvider` treats as terminal, so the client keeps retrying.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/** Close code sent when the room could not write to storage (RFC 6455 §7.4.1). */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 /** A frame that decoded, with the reason it did not otherwise. */
 export type Decoded =

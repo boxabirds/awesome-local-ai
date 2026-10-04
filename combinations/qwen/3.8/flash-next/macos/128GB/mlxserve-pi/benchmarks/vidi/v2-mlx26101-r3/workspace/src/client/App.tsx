@@ -18,6 +18,7 @@ import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject } from '../shared/board-model';
 
@@ -53,6 +54,19 @@ export interface AppProps {
 }
 
 /**
+ * Whether the user may write to the board in this connection state.
+ *
+ * Everything except `load_failed` leaves the board editable, including a connection that is
+ * down: those edits go into the local document and reach the room when the connection does.
+ * `load_failed` is different in kind - the room could not read the board, so what is on screen
+ * is not known to be anybody's board, and an edit made on it would be built on a state nobody
+ * can vouch for. That is why this one state stops the tools instead of merely explaining itself.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
+/**
  * Top-level layout: the infinite board fills the window, the tools are docked top-left,
  * the zoom control in the bottom-right corner and the first-use hint near the bottom
  * centre.
@@ -67,6 +81,14 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
     useCamera(viewport);
   const { doc, notes, connection } = useBoardDoc(boardId, injectedDoc);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const editable = canEdit(connection);
+
+  // The editable flag is read inside callbacks and window listeners that are not rebuilt when it
+  // changes, so they read it from a ref rather than from a copy taken when they were made.
+  const canEditRef = useRef(editable);
+  useEffect(() => {
+    canEditRef.current = editable;
+  });
 
   // The camera is needed inside event handlers that are attached to the window.
   const cameraRef = useRef<Camera>(camera);
@@ -85,12 +107,26 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
   /** Add a note at a point of the board and start typing it straight away. */
   const createAt = useCallback(
     (world: Point): void => {
+      if (!canEditRef.current) {
+        return;
+      }
       const id = createSticky(doc, world);
       if (id !== '') {
         startEdit(id);
       }
     },
     [doc, startEdit],
+  );
+
+  /** Start typing a note - the one thing a board that could not be loaded will not do. */
+  const requestEdit = useCallback(
+    (id: string): void => {
+      if (!canEditRef.current) {
+        return;
+      }
+      startEdit(id);
+    },
+    [startEdit],
   );
 
   /** Double-click on empty board space: a note appears under the pointer. */
@@ -119,14 +155,14 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
         return;
       }
       if (event.key === 'Enter' || event.key === 'F2') {
-        if (editingId === null) {
+        if (editingId === null && canEditRef.current) {
           event.preventDefault();
           startEdit(selectedId);
         }
         return;
       }
       if (event.key === 'Delete' || event.key === 'Backspace') {
-        if (editingId !== null) {
+        if (editingId !== null || !canEditRef.current) {
           return;
         }
         event.preventDefault();
@@ -158,13 +194,14 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
             zoom={camera.zoom}
             selected={note.id === selectedId}
             editing={note.id === editingId}
+            canEdit={editable}
             onSelect={select}
-            onStartEdit={startEdit}
+            onStartEdit={requestEdit}
             onEndEdit={endEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={handleCreateSticky} />
+      <Toolbar onCreateSticky={handleCreateSticky} canEdit={editable} />
       <ConnectionStatus state={connection} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

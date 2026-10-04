@@ -7,12 +7,13 @@ import type { ConnectionState } from './connectBoard';
  * What the badge shows, which is not exactly what the connection does: the badge stops
  * showing "Connected" after a while, whereas the connection just stays connected.
  */
-type Phase = 'connecting' | 'reconnecting' | 'confirming' | 'hidden';
+type Phase = 'connecting' | 'reconnecting' | 'confirming' | 'load_failed' | 'hidden';
 
 const LABELS: Record<Exclude<Phase, 'hidden'>, string> = {
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
   confirming: 'Connected',
+  load_failed: "This board couldn't be loaded. Retrying…",
 };
 
 /** The connection's state as the badge would show it, before the confirmation timer ran. */
@@ -27,6 +28,10 @@ function phaseFor(state: ConnectionState, wasInterrupted: boolean): Phase {
       return 'reconnecting';
     case 'connecting':
       return 'connecting';
+    case 'load_failed':
+      // Not a phase the connection goes through on the way anywhere: it is the board being
+      // unreadable, and it stays on screen until the board is not.
+      return 'load_failed';
   }
 }
 
@@ -43,6 +48,11 @@ export interface ConnectionStatusProps {
  * {@link CONNECTED_CONFIRMATION_MS} and then disappears, so that being connected - the normal
  * state of a board - is the only state that takes up no room on screen.
  *
+ * A board that could not be loaded is the exception, and is shown in red for as long as it
+ * lasts: what is on screen is not known to be the board, so the tab says so instead of
+ * carrying on as if nothing had happened. It says "Retrying" because it is - the room reads
+ * the board again, and when it succeeds this message goes away by itself.
+ *
  * The confirmation message is shown on the way *back*, and a state that arrives as
  * `connected` straight after an interruption counts as the way back just as much as one that
  * announces itself as `confirmed`.
@@ -52,7 +62,7 @@ export function ConnectionStatus({ state }: ConnectionStatusProps): JSX.Element 
 
   useEffect(() => {
     setPhase((current) =>
-      phaseFor(state, current === 'reconnecting' || current === 'confirming'),
+      phaseFor(state, current === 'reconnecting' || current === 'confirming' || current === 'load_failed'),
     );
   }, [state]);
 

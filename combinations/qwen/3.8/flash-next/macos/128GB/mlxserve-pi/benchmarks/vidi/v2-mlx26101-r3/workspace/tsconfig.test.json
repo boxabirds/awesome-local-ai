@@ -4,6 +4,7 @@
     "types": ["node", "vite/client"]
   },
   "include": ["playwright.config.ts", "tests"],
-  // tests/integration runs inside workerd and is checked with the Workers types.
-  "exclude": ["tests/integration"]
+  // tests/integration runs inside workerd and is checked with the Workers types; so do the
+  // unit tests under tests/unit/worker, which import Worker modules (tsconfig.worker-test.json).
+  "exclude": ["tests/integration", "tests/unit/worker"]
 }

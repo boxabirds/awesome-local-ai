@@ -15,7 +15,11 @@
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "run_worker_first": [
-      "/api/*"
+      "/api/*",
+      // Story 4's e2e suite damages a board's storage through /__test/..., which only exists when
+      // the server was started with TEST_HOOKS=1. Everywhere else the Worker has no route for it
+      // and the answer is the app, so it has to reach the Worker to be found missing there too.
+      "/__test/*"
     ]
   },
   "durable_objects": {

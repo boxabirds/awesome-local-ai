@@ -13,18 +13,20 @@ story design, and gotchas for the next story.
 | `npm run build:test` | Same build with `MODE=test`, which compiles in the `window.__vidi6` e2e hook. Playwright's `globalSetup` runs it before any test, so a server that is already listening (and reads its assets off disk per request) serves fresh code too. |
 | `npm run preview` | `wrangler dev` serving `dist/client` at `http://127.0.0.1:23612` (inspector port 23613) — the same serving path later stories use. |
 | `npm run typecheck` | `tsc --noEmit` over `tsconfig.json` (client + shared), `tsconfig.worker.json` (Worker + shared, `@cloudflare/workers-types`), `tsconfig.test.json` (unit/component tests + Playwright) and `tsconfig.integration.json` (workerd tests). |
-| `npm run test:unit` | 98 tests, node environment (camera 23, board model 25, sticky text 27, board id 5, protocol 7, …). |
-| `npm run test:component` | 90 jsdom tests (viewport input, zoom controls, hint, sticky note, sticky text editor, toolbars, connection status badge). |
-| `npm run test:integration` | 22 tests, 2 files, in **workerd** via `@cloudflare/vitest-pool-workers` (`SELF.fetch`, real `BoardRoom` Durable Object, real WebSockets, real Yjs). Needs `npm run build` first, because TC-06 asks the assets binding for `index.html`. |
+| `npm run test:unit` | 128 tests, node environment (camera 23, board model 25, sticky text 27, board id 5, protocol 7, room state machine 12, board store framing/queue 20+, test-hook routing 6, …). |
+| `npm run test:component` | 112 jsdom tests (viewport input, zoom controls, hint, sticky note, sticky text editor, toolbars, connection status badge, close codes, the edit lock when a board cannot be read). |
+| `npm run test:integration` | 47 tests, 5 files, in **workerd** via `@cloudflare/vitest-pool-workers` (`SELF.fetch`, real `BoardRoom` Durable Object, real WebSockets, real Yjs, real DO SQLite). Needs `npm run build` first, because TC-06 asks the assets binding for `index.html`. |
 | `npm test` | All three vitest projects (unit, component, integration) in one run. |
-| `npm run test:e2e` | Playwright. Builds in `globalSetup`, then starts `npx wrangler dev --ip 127.0.0.1 --port 23614 --inspector-port 23615` (or reuses one already listening), viewport 1280×800, **Chromium only by default** (see deviation 1). 51 tests (story 1 23, story 2 20, story 3 8). The two `@nightly` tests are excluded here. |
+| `npm run test:e2e` | Playwright. Builds in `globalSetup`, then starts `npx wrangler dev --ip 127.0.0.1 --port 23614 --inspector-port 23615 --var TEST_HOOKS:1` (or reuses one already listening), viewport 1280×800, **Chromium only by default** (see deviation 1). 56 tests (story 1 23, story 2 20, story 3 8, story 4 broken board 2, story 4 persistence 3). The two `@nightly` tests are excluded here. |
 | `BROWSERS=all npm run test:e2e` (or `npm run test:e2e:all-browsers`) | Chromium + Firefox + WebKit. |
 | `npm run test:e2e:nightly` | Only the `@nightly` tests (TC-29 idle connection, TC-30 capacity soak). About 2 minutes; `NIGHTLY=1` is the switch, so `NIGHTLY=1 npx playwright test -g "TC-30"` runs one of them. |
 | `npm run check:no-test-hook` | Fails if a built asset contains `__vidi6` (run after `npm run build`). |
 | `npm run verify` | typecheck → build → no-test-hook → unit → component → e2e(Chromium). One command for the whole gate. |
 
 Ports in use: dev `23600`, preview `23612/23613`, e2e `23614/23615` (override with
-`DEV_PORT`, `E2E_PORT`, `E2E_INSPECTOR_PORT`).
+`DEV_PORT`, `E2E_PORT`, `E2E_INSPECTOR_PORT`). The persistence tests own their server and start
+looking for a free port at `49701` (`PERSIST_E2E_PORT`) — see deviation 26 for why not in the band
+above.
 
 ## Deviations from `spec/stories/.../design.md`
 
@@ -36,7 +38,10 @@ Ports in use: dev `23600`, preview `23612/23613`, e2e `23614/23615` (override wi
    pinch path does is covered in jsdom with synthetic `gesturestart/gesturechange` events
    (`tests/component/BoardViewport.test.tsx`, TC-17/TC-17b).
 2. **e2e runs on port 23614 (+ inspector 23615)** instead of a 3000-class port, because this
-   agent may only bind 23600–23615.
+   agent may only bind 23600–23615. Story 4 found the other half of that rule: binding is allowed
+   anywhere, but a *connection* to a localhost port outside 23600–23615 (and the operating system's
+   ephemeral range from 49152) is refused by the sandbox itself, with `EPERM` before anything is
+   answered. See deviation 26.
 3. **`wrangler.jsonc` has no Worker `main` and no `ASSETS` binding.** wrangler 4 rejects
    `Cannot use assets with a binding in an assets-only Worker`. Story 3 adds `main`; that is
    when `"binding": "ASSETS"` goes back in. `dev.port` / `dev.inspector_port` are set so
@@ -121,10 +126,19 @@ Ports in use: dev `23600`, preview `23612/23613`, e2e `23614/23615` (override wi
     back to the fresh object, so nobody loses notes while one person still has the board open.
     The design puts reconnection in story 4; the room's half of it costs four lines and is the
     only way a restart can be tested without mocking.
-20. **`BoardRoom` does not hibernate** (`server.accept()` + `addEventListener`, no
-    `getWebSockets()`), because the document lives in memory and hibernation would evict the
-    object and lose the board. Story 4 (storage) is where hibernation belongs. See the class
-    comment in `src/worker/board-room.ts`.
+    **Story 4 has landed, so this is no longer the only way a restarted board comes back** - the
+    room reads it out of its own SQLite now (deviation 27). What the room's SyncStep1 still does
+    is put into storage an update the room has never seen, which is what a room re-created under
+    clients that still hold the document needs, and it is still how TC-18 is set up.
+20. **`BoardRoom` hibernates its sockets** (`ctx.acceptWebSocket` + the `webSocketMessage` /
+    `webSocketClose` / `webSocketError` handlers + `ctx.getWebSockets()` as the only socket list),
+    as story 4's design asks. This replaces the story-3 note that said the room must *not*
+    hibernate: that was true while the document lived only in memory, and story 4 is the story
+    that gives it somewhere to come back from. There is no `setWebSocketAutoResponse`, because
+    there is no message the runtime can answer without Yjs; what keeps an idle-but-attached
+    connection alive is the awareness traffic of deviation 18. The room's own `hibernated`
+    lifecycle state means "nobody is connected and nothing is in memory that is not in storage",
+    and the room refuses to go to sleep while a read or a compaction is in flight.
 22. **Two e2e tests are tagged `@nightly` and excluded from `npm run test:e2e`.** TC-29 waits
     45 s to outlast the provider's 30 s silence timeout, and TC-30 soaks five browsers on one
     board for a minute (about 150 rounds of editing, 200-odd notes made and deleted). Together
@@ -147,6 +161,43 @@ Ports in use: dev `23600`, preview `23612/23613`, e2e `23614/23615` (override wi
     Durable Object `src/worker/board-room.ts`", so those two paths are used, with their own
     `tsconfig.worker.json` (`@cloudflare/workers-types`, no DOM lib) and `tsconfig.json`
     excluding `src/worker`.
+
+25. **The damage switches are gated at run time, not at build time.** The design's
+    `env.TEST_HOOKS === '1'` is kept exactly as written: `src/worker/test-hooks.ts` is compiled
+    into the Worker always, and the switch is the variable, which only Playwright's
+    `wrangler dev` command passes (`--var TEST_HOOKS:1` in `playwright.config.ts`).
+    `wrangler.jsonc` does not define it, so `npm run dev` and a deployment have a route that
+    answers "test hooks are not on" and then falls through to the assets router. Two things follow
+    that are worth knowing before trusting the claim:
+    - `run_worker_first` in `wrangler.jsonc` had to gain `/__test/*`, or the assets router answers
+      those paths first in dev and the Worker never sees them.
+    - `npm run check:no-test-hook` is *not* the check that the switches are off. It looks for
+      `__vidi6` in the built **client** assets and says nothing about Worker code. What says the
+      deployed configuration has no hook is the last two tests of
+      `tests/integration/test-hooks.test.ts`: with the shipped `wrangler.jsonc`, a `POST`
+      `/__test/boards/<id>/corrupt-snapshot` gets the assets binding's 405 and a `GET` gets the
+      SPA's HTML, and the room's own door answers 404 to `/internal/test/read-again`.
+
+26. **The persistence tests serve from the ephemeral port range** (`PERSIST_E2E_PORT`, starting
+    at 49701) rather than from the 23600-band every other server here lives in. Binding is allowed
+    anywhere in this sandbox, but a *connection* to a localhost port outside 23600-23615 and
+    49152-65535 is refused by the sandbox itself (`EPERM`, before anything answers) - so a server
+    on 23616 can be up, listening and correct while every question the test asks of it is
+    unanswered. Three things in `tests/e2e/helpers/wrangler-process.ts` keep that from being a
+    mystery: the free-port look-up asks `netstat -anv -p tcp`, which names the process holding a
+    port (a connect says nothing when the sandbox is the one refusing), a process that dies saying
+    "Address already in use" is started again on the next port, and a readiness check that is
+    refused by the machine fails immediately and names the port instead of waiting three minutes.
+
+27. **A board is stored as its own updates, and the room writes before it relays.**
+    `src/worker/board-store.ts` keeps `updates(seq, data)` plus a chunked `snapshot_chunks` table,
+    compacts the log into a snapshot every `COMPACTION_UPDATE_COUNT` (500) updates, and quarantines
+    a damaged update row rather than failing the whole read. The room writes an update *before*
+    broadcasting it (that ordering is the whole of `persist.seen_is_saved`), and reports a board it
+    could not read with close code 4500 rather than serving an empty or stale document. The design's
+    "damaged rows are quarantined" covers update rows only: a damaged *snapshot* cannot be skipped
+    (see the gotcha below), so a snapshot that will not decode is a load failure and the person is
+    told, in as many words, that the board could not be loaded.
 
 ## Gotchas / findings for the next story
 
@@ -335,8 +386,45 @@ Ports in use: dev `23600`, preview `23612/23613`, e2e `23614/23615` (override wi
 - **A room that relays awareness to the sender is what an idle connection hears.** See
   deviation 18; the measurement is in TC-29's console line, and the reason TC-29 asserts "no
     new WebSocket was dialled" rather than merely "the badge never appeared".
+- **A damaged snapshot chunk cannot be read around.** Yjs cannot skip a gap in one client's clock
+  chain: an update that refers to a struct the client has never seen is refused, and truncated
+  bytes, random bytes and garbage bytes all fail the same way ("Unexpected end of array"). So a
+  corrupt chunk 0 is a *load* failure, not a partial read, and `BoardStore.load()` fails as a whole
+  rather than returning a board that looks fine and is missing something. `isHoldingContentBack(doc`
+  ) is how the room tells "there is content here and I cannot read it" from "this board is empty",
+  and the answer to the first is close code 4500 and one honest sentence, not an empty canvas.
+  Damaged *update rows* are the case the design's quarantining applies to.
+- **`<output>` has an implicit `role="status"`.** On the board page that makes three matches for
+  `page.getByRole('status')` - the connection badge, the zoom readout and the navigation hint - and
+  Playwright's strict mode refuses the assertion. Assert the text on
+  `getByTestId('connection-status')`; where the claim is "a screen reader is told", add
+  `toHaveAttribute('role', 'status')` to the same locator, which is the part worth asserting.
+- **`workerd` ignores SIGTERM on macOS** and can orphan out of the process group it was started
+  in, so `BoardServer.stop()` escalates to SIGKILL on the group and then on the pids `netstat`
+  names for its ports. Interrupting a persistence run leaves `wrangler` parents that respawn their
+  `workerd`, which is why the ports of an interrupted run look unkillable from the outside: stop
+  the parent, or let `findAPort` move on (deviation 26).
+- **y-websocket 3.1.0 retries every close code outside 4400-4499.** 4500 is "try again later" and
+  is retried, which is what lets a board that could not be read come back by itself - TC-24
+  measures that at ~6.5 s, of which 5 s is the room's own `LOAD_RETRY_MIN_INTERVAL_MS` throttle and
+  the rest is the client's backoff. `connectBoard`'s `connection-close` handler returns early while
+  the state is `load_failed`, so "Reconnecting…" never contradicts the red message while a retry is
+  in flight.
+- **`Uncaught Error: Network connection lost.` in the dev server's log is the runtime, not the
+  app.** workerd raises it itself when the other end of a WebSocket goes away, so it appears whenever a
+  browser hangs up - story 3's `dropConnection()` and story 4's refusal of a connection to a board it
+  cannot read (close code 4500) both leave it in the log several times in a run, once per retry. The
+  room's `webSocketError` handler is a deliberate no-op: the socket is already out of
+  `ctx.getWebSockets()`, and there is nothing the room can do about a connection that has ended. Do
+  not write a test that fails on it.
+- **A board of 2000 notes is drawn in 6-8 s on this machine.** TC-21 reports the number instead of
+  asserting `BOARD_LOAD_BUDGET_MS` (3000), because the model, the browser and the server are all
+  one machine here: the board *is* complete and byte-for-byte what was written, and it is the
+  drawing that is slow. Nothing in storage is at fault - the read is measured in the store's own
+  tests - and a story that wants the budget enforced should measure a served board on hardware that
+  is not also running the writer.
 
-## Where story 4 plugs in
+## Where the next stories plug in
 
 - `src/client/board/useBoardDoc.ts` owns the `Y.Doc` (one per mounted board, `initDoc` makes
   sure the `objects` map exists) and `useBoardDoc().notes` gives the render list, sorted by
@@ -349,14 +437,23 @@ Ports in use: dev `23600`, preview `23612/23613`, e2e `23614/23615` (override wi
 - Text lives in a `Y.Text` per note (`getStickyText`). `applyTextDiff` writes the smallest diff
   (still the right tool for a whole-value replace from a test or a model operation); a *typing*
   person goes through `applyLocalEdit` with a baseline instead — see the gotcha above.
-- `src/worker/board-room.ts` holds the document in memory only: `state` is unused, nothing is
-  written to SQLite, and a restart is survived today only because a client re-sends its
-  document (deviation 19). Story 4's persistence belongs in `state.blockStorage`/`list` with
-  `setWebSocketAutoResponse` hibernation replacing the `addEventListener` wiring — but only once
-  the document can be reloaded, because hibernation evicts the object and this story's room
-  would lose the board. `MAX_CONCURRENT_EDITORS` is *reported* by the design as a capacity, not
-  enforced: nothing in the room turns a sixth socket away, and TC-30's soak is what says five
-  browsers on one in-memory board is fine.
+- `src/worker/` is now five files, and they divide the work in a way later stories should keep:
+  `board-store.ts` owns the rows (`updates`, `snapshot_chunks`, chunking, compaction, the
+  quarantine) and knows nothing about sockets; `board-room.ts` decides when they are written and
+  what a failure means; `room-state.ts` is the state machine of the *serving* states (`ready`,
+  `load-failed`, `storage-failed`) plus the transient ones the room keeps for itself (`loading`,
+  `compacting`, `hibernated`) - every edge is enumerated in `tests/unit/worker/room-state.test.ts`,
+  so adding one is a deliberate act; `store-faults.ts` is how a test makes storage fail on one
+  named board; `test-hooks.ts` is how a test damages a board that is really stored. A story that
+  needs "the service lost its memory" should reuse `BoardServer`
+  (`tests/e2e/helpers/wrangler-process.ts`) rather than starting a dev server of its own.
+- `MAX_CONCURRENT_EDITORS` is still *reported*, not enforced: nothing in the room turns a sixth
+  socket away, and TC-30's soak is what says five browsers on one board is fine. Story 12's
+  capacity work is where enforcement belongs, if it comes to that.
+- The client's `ConnectionState` has a `load_failed` member, and `canEdit(state)` in `App.tsx` is
+  the one place that decides whether an edit is allowed. The edit lock in `Toolbar` and `StickyNote`
+  is a prop that defaults to `true`, so anything new that can edit a board takes the same prop
+  rather than reading the connection state for itself.
 - `useSelection` stays local UI state. The provider's awareness carries who is on the board and
   is relayed verbatim by the room; story 5's presence/cursors should read it from
   `provider.awareness` rather than invent a second channel, and must not put selection in it.
@@ -365,4 +462,9 @@ Ports in use: dev `23600`, preview `23612/23613`, e2e `23614/23615` (override wi
   `waitForSameBoard` / `boardJson` / `faces` for "the whole room agrees", `loseConnection` /
   `restoreConnection` for an outage, `stayShowing(page, text, ms)` for "the badge never
   flickered", and `logScenario` / `logLatency` for the numbers the nightly tests print. Adding a
-  sixth person is `Cast.open(browser, ...NAMES)` — `NAMES` has six.
+  sixth person is `Cast.open(browser, ...NAMES)` — `NAMES` has six. Story 4 added two things beside
+  it: `Cast.openAt(at, browser, ...names)`, which opens pages against a server whose port was only
+  known at run time (every context is given its `baseURL`), and `RoomClient` / `seedBoard` in
+  `tests/e2e/helpers/room-client.ts`, which put notes on a board from Node over the room's own sync
+  path - what TC-21's 2000 notes are written with, because doing it through 2000 `page.evaluate`
+  calls would measure the test runner.

@@ -45,13 +45,20 @@ export interface MountedSticky {
  * Mount the whole app against a document the test can read and write, with the jsdom window
  * emulated at 1280x800 and the world layer reporting no transform of its own.
  *
+ * `boardId` is left out unless a test needs the app to be connected to a room - which, in the
+ * component suite, means it has stubbed `y-websocket` and wants to hand the app a close code.
+ * Without it the app renders a board that syncs with nothing, which is every other test here.
+ *
  * jsdom does not lay text out: `scrollHeight`/`clientHeight` are 0 and ranges return no
  * boxes. Anything that needs real glyph geometry (font fitting, caret line breaks) is left
  * to the Playwright tests.
  */
-export async function mountSticky(doc: Y.Doc = new Y.Doc()): Promise<MountedSticky> {
+export async function mountSticky(
+  doc: Y.Doc = new Y.Doc(),
+  { boardId }: { boardId?: string } = {},
+): Promise<MountedSticky> {
   setObservedSize(VIEWPORT);
-  const view = render(<App doc={doc} />);
+  const view = render(<App doc={doc} boardId={boardId} />);
   await flushFrames(2);
   const board = view.getByTestId('board-viewport');
   const world = view.getByTestId('world-layer');

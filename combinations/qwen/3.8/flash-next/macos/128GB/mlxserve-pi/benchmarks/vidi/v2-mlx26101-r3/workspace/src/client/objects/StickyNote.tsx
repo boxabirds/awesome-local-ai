@@ -36,6 +36,12 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * Whether this note may be written to. False while the board could not be loaded: the note
+   * can still be looked at and selected, but nothing here writes to the document, because what
+   * is on screen is not known to be the board.
+   */
+  canEdit: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   /** Escape keeps the note selected; a press outside the note deselects it. */
@@ -102,6 +108,9 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  // A note is editable unless the app says the board it belongs to is not; component tests that
+  // mount a note on its own get the normal case.
+  canEdit = true,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -118,6 +127,7 @@ export function StickyNote({
   const zoomRef = useRef(zoom);
   const idRef = useRef(note.id);
   const onSelectRef = useRef(onSelect);
+  const canEditRef = useRef(canEdit);
 
   useEffect(() => {
     zoomRef.current = zoom;
@@ -127,6 +137,9 @@ export function StickyNote({
   });
   useEffect(() => {
     onSelectRef.current = onSelect;
+  });
+  useEffect(() => {
+    canEditRef.current = canEdit;
   });
 
   // A drag that ends because the note itself went away must not leave a frame or a window
@@ -182,6 +195,11 @@ export function StickyNote({
       return;
     }
     const id = idRef.current;
+    if (!canEditRef.current) {
+      // A drag that was underway when the board stopped being editable stops being a drag here:
+      // the position it would write is a position on a board nobody knows the state of.
+      return;
+    }
     moveObject(doc, id, target.x, target.y);
     if (getStickyText(doc, id) === undefined) {
       // The note is gone (deleted by somebody else, story 3): stop dragging it.
@@ -212,6 +230,10 @@ export function StickyNote({
     onSelectRef.current(note.id);
     if (document.activeElement !== el) {
       el.focus({ preventScroll: true });
+    }
+    if (!canEdit) {
+      // Selected, and that is as far as it goes: no reorder, no grab, nothing to write.
+      return;
     }
     // The note comes to the front as it is grabbed, so it is never dragged out of sight
     // behind its neighbours.
@@ -306,6 +328,9 @@ export function StickyNote({
   };
 
   const onColor = (color: StickyColor): void => {
+    if (!canEdit) {
+      return;
+    }
     setStickyColor(doc, note.id, color);
   };
 
@@ -422,6 +447,9 @@ export function StickyNote({
             color={note.color}
             onColor={onColor}
             onDelete={() => {
+              if (!canEdit) {
+                return;
+              }
               // The board forgets the note entirely; the selection goes with it.
               onEndEdit('unselected');
               deleteObject(doc, note.id);

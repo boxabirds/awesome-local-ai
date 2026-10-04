@@ -78,6 +78,26 @@ export const RECONNECT_MAX_BACKOFF_MS = 10_000;
 export const CONNECTED_CONFIRMATION_MS = 2000;
 /** Outage length the catch-up test uses (live.catch_up). */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/* Persistence (story 4). ----------------------------------------------------- */
+
+/** Compact the update log into a snapshot once this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ...or once the log rows reach this many bytes, whichever comes first. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/**
+ * Size of a snapshot chunk. Keeps every stored row well under the per-row size limit of
+ * SQLite-backed Durable Objects (measured locally at 2,000,000 bytes; see NOTES.md).
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A room that failed to load its board retries the load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** The board size the product is tested at (PRD persist.large_board). */
+export const PERSIST_TESTED_NOTES = 2000;
+/** How long a saved board of PERSIST_TESTED_NOTES notes may take to show (PRD persist.large_board). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the room's storage tables; written once into `storage_meta`. */
+export const STORAGE_SCHEMA_VERSION = 1;
+
 /**
  * Functional wait used by every e2e test. Latency is measured and logged against
  * LIVE_UPDATE_LATENCY_BUDGET_MS, never asserted here: the model, the browsers and the

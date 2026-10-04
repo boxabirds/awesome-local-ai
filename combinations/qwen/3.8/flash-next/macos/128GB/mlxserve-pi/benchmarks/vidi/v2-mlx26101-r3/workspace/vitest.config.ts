@@ -58,7 +58,8 @@ export default defineConfig({
         test: {
           name: 'component',
           environment: 'jsdom',
-          include: ['tests/component/**/*.test.tsx'],
+          // Both extensions: a test of how the client reads a close code needs no JSX to write.
+          include: ['tests/component/**/*.test.tsx', 'tests/component/**/*.test.ts'],
           setupFiles: ['./tests/component/setup.ts'],
         },
       },

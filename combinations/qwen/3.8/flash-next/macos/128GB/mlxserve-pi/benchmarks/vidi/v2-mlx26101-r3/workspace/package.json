@@ -8,7 +8,7 @@
     "build": "vite build",
     "build:test": "vite build --mode test",
     "preview": "wrangler dev",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.integration.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.worker-test.json && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.integration.json",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
     "test:integration": "vitest run --project integration",

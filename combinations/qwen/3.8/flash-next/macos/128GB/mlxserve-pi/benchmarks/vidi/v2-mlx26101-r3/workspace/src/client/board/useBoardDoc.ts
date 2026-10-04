@@ -14,7 +14,8 @@ import { connectBoard, type ConnectionState } from '../sync/connectBoard';
  *
  * `connection` says what the room this document syncs with is doing. Edits go into the
  * document whether or not it says `connected`, which is why the board keeps working through
- * an interruption.
+ * an interruption. The one exception is `load_failed`, where the room could not read the board
+ * and the app stops the tools (see `canEdit` in App).
  */
 export interface BoardDoc {
   readonly doc: Y.Doc;

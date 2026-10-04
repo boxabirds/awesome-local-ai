@@ -393,6 +393,16 @@ a:focus-visible {
   border-color: #fdba74;
 }
 
+/*
+ * A board that could not be read is red, and deliberately not the amber of "Reconnecting…":
+ * amber means the board is there and the way to it is down, which is a different thing to say.
+ */
+.connection-status--load_failed {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
 .connection-status--connecting {
   color: var(--muted);
 }

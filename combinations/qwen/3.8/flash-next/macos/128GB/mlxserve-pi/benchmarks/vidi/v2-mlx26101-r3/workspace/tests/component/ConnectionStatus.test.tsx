@@ -168,3 +168,67 @@ describe('TC-21 the badge when the way back does not hold', () => {
     ]);
   });
 });
+
+describe('TC-22 the badge when the board could not be loaded', () => {
+  const UNLOADABLE = "This board couldn't be loaded. Retrying…";
+
+  it('says the board is not there, as a message rather than a decoration', () => {
+    fakeClock();
+    render(<ConnectionStatus state="load_failed" />);
+
+    const element = screen.getByTestId('connection-status');
+    expect(element.textContent).toBe(UNLOADABLE);
+    // `role=status` is what makes a screen reader say it. This message is the only thing that
+    // tells a person the board on their screen is not the board, so it has to arrive without
+    // anybody going looking for it.
+    expect(element.getAttribute('role')).toBe('status');
+    // jsdom applies no stylesheet, so the red itself is checked in a real browser (TC-24). What
+    // is checked here is that the badge picks the class the stylesheet paints red, and not the
+    // amber one it uses for a connection that is merely down.
+    expect(element.className).toContain('connection-status--load_failed');
+    expect(element.className).not.toContain('connection-status--reconnecting');
+  });
+
+  it('keeps saying it for as long as the board cannot be read', () => {
+    fakeClock();
+    render(<ConnectionStatus state="load_failed" />);
+
+    // The one message with no timer behind it. "Connected" leaves after a while because being
+    // connected is normal; a board nobody can read is not, and it would be a lie to stop saying
+    // so because a minute has gone by.
+    advance(CONNECTED_CONFIRMATION_MS);
+    expect(badge()).toBe(UNLOADABLE);
+    advance(4 * 60 * 1000);
+    expect(badge()).toBe(UNLOADABLE);
+  });
+
+  it('goes away by itself when the board turns up, and says it came back', () => {
+    fakeClock();
+    const { rerender } = render(<ConnectionStatus state="load_failed" />);
+    expect(badge()).toBe(UNLOADABLE);
+
+    // The room read its board on a later try. Nobody reloaded the page and nobody dismissed
+    // anything: the state arrives as `connected` and the message is gone.
+    rerender(<ConnectionStatus state="connected" />);
+    expect(badge()).toBe('Connected');
+    advance(CONNECTED_CONFIRMATION_MS);
+    expect(badge()).toBeNull();
+  });
+
+  it('has no memory of it once the board is there again', () => {
+    fakeClock();
+    const { rerender } = render(<ConnectionStatus state="load_failed" />);
+    expect(badge()).toBe(UNLOADABLE);
+
+    rerender(<ConnectionStatus state="connected" />);
+    advance(CONNECTED_CONFIRMATION_MS);
+    expect(badge()).toBeNull();
+
+    // A week of interrupted connections later, the badge says the amber thing and not the red
+    // thing. The board is readable: the message that a board could not be read is the client's
+    // to say again if it happens again, and this component is not in the business of remembering
+    // that it once did.
+    rerender(<ConnectionStatus state="reconnecting" />);
+    expect(badge()).toBe('Reconnecting…');
+  });
+});

@@ -300,15 +300,34 @@ export class Cast {
   readonly boardId: string;
   readonly people: Person[] = [];
   private readonly browser: Browser;
+  private readonly at: string | undefined;
 
-  private constructor(browser: Browser, boardId: string) {
+  private constructor(browser: Browser, boardId: string, at: string | undefined) {
     this.browser = browser;
     this.boardId = boardId;
+    this.at = at;
   }
 
   /** A board nobody has opened before, with `names` people arriving on it together. */
   static async open(browser: Browser, ...names: string[]): Promise<Cast> {
-    const cast = new Cast(browser, newBoardId());
+    return Cast.openAt(undefined, browser, ...names);
+  }
+
+  /**
+   * The same, with `at` saying where the board is served from - or `undefined`, meaning whatever
+   * address the run is configured with, which is what every other test wants.
+   *
+   * The ordinary tests are pointed at one address by the project's `baseURL`, which is right when
+   * one server answers the whole run. A test that starts its own service - and story 4 has to, in
+   * order to stop one - cannot say in advance which port it will get, so it says where the board is
+   * instead. Contexts are given it, and the pages open the board by path as ever.
+   */
+  static async openAt(
+    at: string | undefined,
+    browser: Browser,
+    ...names: string[]
+  ): Promise<Cast> {
+    const cast = new Cast(browser, newBoardId(), at);
     for (const name of names) {
       await cast.add(name);
     }
@@ -321,7 +340,7 @@ export class Cast {
 
   /** Another person opening the same board, which is how a late joiner arrives. */
   async add(name: string): Promise<Person> {
-    const context = await this.browser.newContext();
+    const context = await this.browser.newContext(this.at === undefined ? {} : { baseURL: this.at });
     const page = await context.newPage();
     const person: Person = { name, context, page, problems: watchProblems(page) };
     this.people.push(person);

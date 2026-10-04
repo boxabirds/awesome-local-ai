@@ -6,6 +6,12 @@ export const STICKY_BUTTON_TOOLTIP = 'Sticky note \u2013 or double-click the boa
 export interface ToolbarProps {
   /** Add a sticky note in the middle of what the user is looking at. */
   onCreateSticky(): void;
+  /**
+   * False while the board could not be loaded. The button is disabled rather than quietly
+   * doing nothing: a tool that looks available and then adds no note is the thing that makes
+   * people press it twice. Left out, the tool is available, which is the normal case.
+   */
+  canEdit?: boolean;
 }
 
 /**
@@ -13,7 +19,7 @@ export interface ToolbarProps {
  * on it never pans the board and a wheel over it never zooms - and it stays a fixed
  * screen-space control while the notes around it move.
  */
-export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, canEdit = true }: ToolbarProps): JSX.Element {
   const stop = (event: ReactPointerEvent<HTMLDivElement>): void => {
     event.stopPropagation();
   };
@@ -36,6 +42,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
         data-testid="create-sticky"
         aria-label="Sticky note"
         title={STICKY_BUTTON_TOOLTIP}
+        disabled={!canEdit}
         onClick={onCreateSticky}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">

@@ -3,6 +3,11 @@ import { defineConfig, devices, type Project } from '@playwright/test';
 const E2E_PORT = Number(process.env.E2E_PORT ?? 23614);
 const E2E_INSPECTOR_PORT = Number(process.env.E2E_INSPECTOR_PORT ?? E2E_PORT + 1);
 const BASE_URL = `http://127.0.0.1:${E2E_PORT}`;
+// Story 4's tests serve on a port of their own, because the server they test is theirs: they stop
+// it and start it again, and a port is the one thing two servers cannot share. This is only where
+// that server starts looking for a free one - the port it ends up with is the process's own
+// (`server.origin`, given to every page) - see the note on PORT in tests/e2e/persistence.spec.ts.
+const PERSIST_PORT = Number(process.env.PERSIST_E2E_PORT ?? 49_701);
 const VIEWPORT = { width: 1280, height: 800 };
 
 /**
@@ -16,14 +21,31 @@ function projects(): Project[] {
   const chromium: Project = {
     name: 'chromium',
     use: { ...devices['Desktop Chrome'], viewport: VIEWPORT },
+    // Story 4's tests start and stop their own server, on their own port, and are run by the
+    // project below. Handing them this one would have them open a board on the server this file's
+    // webServer owns, which is the one thing a test about a service losing its memory must not do.
+    testIgnore: 'persistence.spec.ts',
+  };
+  // The persistence project is chromium-only: the story is about storage and about a board opening,
+  // and a browser engine does not change either. The other two are configured above for the tests
+  // that are about what a person sees.
+  const persistence: Project = {
+    name: 'persistence',
+    testMatch: 'persistence.spec.ts',
+    use: {
+      baseURL: `http://127.0.0.1:${PERSIST_PORT}`,
+      ...devices['Desktop Chrome'],
+      viewport: VIEWPORT,
+    },
   };
   if (process.env.BROWSERS !== 'all') {
-    return [chromium];
+    return [chromium, persistence];
   }
   return [
     chromium,
     { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: VIEWPORT } },
     { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: VIEWPORT } },
+    persistence,
   ];
 }
 
@@ -50,7 +72,12 @@ export default defineConfig({
   webServer: {
     // Story 1 serves the client through the same path later stories use: a Cloudflare
     // Worker (wrangler) serving the static assets in dist/client.
-    command: `npx wrangler dev --ip 127.0.0.1 --port ${E2E_PORT} --inspector-port ${E2E_INSPECTOR_PORT}`,
+    //
+    // TEST_HOOKS turns on the damage switches in src/worker/test-hooks.ts, which the broken-board
+    // test uses to take a saved board apart. They are on for the suite and for the suite only:
+    // `wrangler.jsonc` does not define the variable, so `npm run dev` and a deployment have no such
+    // route. See tests/e2e/broken-board.spec.ts.
+    command: `npx wrangler dev --ip 127.0.0.1 --port ${E2E_PORT} --inspector-port ${E2E_INSPECTOR_PORT} --var TEST_HOOKS:1`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

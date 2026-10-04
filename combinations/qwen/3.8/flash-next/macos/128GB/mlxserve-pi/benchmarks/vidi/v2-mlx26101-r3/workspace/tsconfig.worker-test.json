@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.worker.json",
+  "//": "Unit tests of the Worker-side pure modules (board-store maths, room-state) run in node but import modules written for the Workers type set, so they are checked with it. See NOTES.md.",
+  "include": ["tests/unit/worker", "tests/fixtures", "src/shared", "src/worker"]
+}
