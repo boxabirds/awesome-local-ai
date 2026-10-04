@@ -12,10 +12,13 @@ D. How much is excess, and what does it buy? Per story, thinking above the story
 
 Usage: python3 runtime_bias.py STATE.json
 """
-import collections, json, random, sqlite3, sys
+import collections, json, os, pathlib, random, sqlite3, sys
 import numpy as np
 
-INSIGHTS = "/Users/julian/expts/awesome-local-ai-bench-private/state/insights"
+# The repository this script is in, and the private repo beside it (as the harness finds it, packdir.private_checkout).
+# INSIGHTS_DIR overrides, for a checkout somewhere else. No absolute path is written here: this repo is public.
+REPO = pathlib.Path(__file__).resolve().parents[4]
+INSIGHTS = os.environ.get("INSIGHTS_DIR") or str(REPO.parent / "awesome-local-ai-bench-private" / "state" / "insights")
 PERMUTATIONS = 4000
 BOOT = 1000
 SEED = 5

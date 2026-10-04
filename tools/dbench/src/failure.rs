@@ -366,9 +366,9 @@ mod tests {
             "[story 4] Board — agent starting\n\
              [story 4] agent done in 812.4s; running gates\n\
              Traceback (most recent call last):\n\
-             \x20 File \"/home/bench/awesome-local-ai/benchmarks/spec-bench/harness/drive.py\", line 1210, in <module>\n\
+             \x20 File \"/home/tester/awesome-local-ai/benchmarks/spec-bench/harness/drive.py\", line 1210, in <module>\n\
              \x20   main()\n\
-             \x20 File \"/home/bench/awesome-local-ai/benchmarks/spec-bench/harness/drive.py\", line 1180, in main\n\
+             \x20 File \"/home/tester/awesome-local-ai/benchmarks/spec-bench/harness/drive.py\", line 1180, in main\n\
              \x20   record = finish_story(story, held)\n\
              \x20            ^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
              UnboundLocalError: cannot access local variable 'held' where it is not associated with a value\n",
@@ -419,11 +419,11 @@ mod tests {
              llama_model_load: error loading model: unable to allocate ROCm0 buffer\n\
              srv    load_model: failed to load model, '/models/qwen.gguf'\n\
              main: exiting due to model loading error\n\
-             server exited; see /home/bench/awesome-local-ai/combinations/x/benchmarks/vidi/v2-r1/server.log\n",
+             server exited; see /home/tester/awesome-local-ai/combinations/x/benchmarks/vidi/v2-r1/server.log\n",
         );
         assert_eq!(
             sig(1, &log),
-            "exit 1: server exited; see /home/bench/awesome-local-ai/combinations/x/benchmarks/vidi/v2-r1/server.log"
+            "exit 1: server exited; see /home/tester/awesome-local-ai/combinations/x/benchmarks/vidi/v2-r1/server.log"
         );
     }
 
@@ -507,7 +507,7 @@ mod tests {
         differ("accept 3/4", "accept 4/4");
         differ("File \"drive.py\", line 52", "File \"drive.py\", line 53");
         differ("KeyError: 'a'", "KeyError: 'b'");
-        differ("see /home/bench/a.log", "see /home/bench/b.log");
+        differ("see /home/tester/a.log", "see /home/tester/b.log");
         differ("qwen 3.8 flash", "qwen 3.9 flash");
         // Kept as written.
         assert_eq!(normalise("  RuntimeError:   fake  crash \t"), "RuntimeError: fake crash");

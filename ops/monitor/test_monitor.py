@@ -43,10 +43,10 @@ def test_labels_name_the_hardware():
 
 def test_redact_replaces_every_node_name_and_home_path():
     labels = {"node-c": "Apple M5 Max"}
-    rec = {"id": "machine_idle:node-c", "detail": {"node": "node-c", "path": "/Users/someone/x and /home/other/y"}}
+    rec = {"id": "machine_idle:node-c", "detail": {"node": "node-c", "path": "/Users/tester/x and /home/someoneelse/y"}}
     out = monitor.redact(rec, labels)
     text = json.dumps(out)
-    assert "node-c" not in text and "/Users/someone" not in text and "/home/other" not in text
+    assert "node-c" not in text and "/Users/tester" not in text and "/home/someoneelse" not in text
     assert out["id"] == "machine_idle:Apple M5 Max"
 
 

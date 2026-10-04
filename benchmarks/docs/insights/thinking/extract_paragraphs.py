@@ -4,9 +4,12 @@ think_complete = 1), Qwen combinations only: the raw material for finding what t
 Reads the warehouse and analytics.db read-only; writes one parquet-free pickle (a list of tuples) and prints counts.
 Usage: uv run --with numpy python extract_paragraphs.py OUT.pkl
 """
-import pickle, re, sqlite3, sys
+import os, pathlib, pickle, re, sqlite3, sys
 
-INSIGHTS = "/Users/julian/expts/awesome-local-ai-bench-private/state/insights"
+# The repository this script is in, and the private repo beside it (as the harness finds it, packdir.private_checkout).
+# INSIGHTS_DIR overrides, for a checkout somewhere else. No absolute path is written here: this repo is public.
+REPO = pathlib.Path(__file__).resolve().parents[4]
+INSIGHTS = os.environ.get("INSIGHTS_DIR") or str(REPO.parent / "awesome-local-ai-bench-private" / "state" / "insights")
 MIN_CHARS = 40          # a shorter paragraph is a fragment ("Let me check.") and carries no theme of its own
 BLANK = re.compile(r"\n\s*\n")
 
