@@ -1,0 +1,176 @@
+:root {
+  --board-bg: #fbfbfd;
+  --grid-dot: #c8ced9;
+  --grid-dot-radius: 1.4px;
+  --ink: #1c2027;
+  --ink-muted: #6c7480;
+  --panel-bg: #ffffff;
+  --panel-border: #d9dde4;
+  --panel-hover: #eef0f4;
+  --accent: #e5484d;
+  --focus-ring: #2f6fed;
+  --origin-marker-size: 24px;
+  --origin-marker-bar: 16px;
+  --origin-marker-thickness: 2px;
+  --hint-bg: rgb(28 32 39 / 88%);
+  --hint-fg: #ffffff;
+
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  color: var(--ink);
+  background: var(--board-bg);
+  /* The board owns wheel and pinch gestures, so the page itself must not scroll. */
+  overscroll-behavior: none;
+}
+
+.board-app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ board ---- */
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  background-color: var(--board-bg);
+  /* Dot grid: one dot per grid cell, positioned by the camera in JS so the grid
+     looks attached to the board. `background-size`/`background-position` are set
+     inline from the camera. */
+  background-image: radial-gradient(
+    circle at 0 0,
+    var(--grid-dot) var(--grid-dot-radius),
+    transparent calc(var(--grid-dot-radius) + 0.6px)
+  );
+}
+
+.board-viewport[data-interaction-state='panning'] {
+  cursor: grabbing;
+}
+
+/* Board content, positioned in world coordinates. */
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+/* Crosshair marking the board's starting point (world 0,0). Its centre is exactly
+   the starting point; the counter-scale keeps it a constant size on screen. */
+.origin-marker {
+  position: absolute;
+  top: calc(var(--origin-marker-size) / -2);
+  left: calc(var(--origin-marker-size) / -2);
+  width: var(--origin-marker-size);
+  height: var(--origin-marker-size);
+  transform-origin: 50% 50%;
+  pointer-events: none;
+  opacity: 0.75;
+  background-image:
+    linear-gradient(var(--accent), var(--accent)),
+    linear-gradient(var(--accent), var(--accent));
+  background-size:
+    var(--origin-marker-thickness) var(--origin-marker-bar),
+    var(--origin-marker-bar) var(--origin-marker-thickness);
+  background-position: center, center;
+  background-repeat: no-repeat;
+}
+
+/* ----------------------------------------------------------- zoom control ---- */
+
+.zoom-controls {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgb(18 22 30 / 12%);
+}
+
+.zoom-controls__button {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  min-width: 30px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.zoom-controls__button--text {
+  min-width: 72px;
+}
+
+.zoom-controls__button:hover:not(:disabled) {
+  background: var(--panel-hover);
+}
+
+.zoom-controls__button:disabled {
+  color: var(--ink-muted);
+  cursor: default;
+  opacity: 0.6;
+}
+
+.zoom-controls__button:focus-visible,
+.zoom-controls__label:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.zoom-controls__label {
+  min-width: 52px;
+  padding: 0 4px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--ink);
+}
+
+/* -------------------------------------------------------- navigation hint ---- */
+
+.navigation-hint {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--hint-bg);
+  color: var(--hint-fg);
+  font-size: 13px;
+  white-space: nowrap;
+  /* The hint is informational only; drags must pass through it to the board. */
+  pointer-events: none;
+}

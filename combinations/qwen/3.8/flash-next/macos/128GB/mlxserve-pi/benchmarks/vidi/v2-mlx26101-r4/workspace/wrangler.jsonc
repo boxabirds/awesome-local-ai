@@ -1,0 +1,19 @@
+{
+  // Static assets only for now; the Worker `main` entrypoint arrives in story 3.
+  // An assets-only Worker has no `binding`: wrangler rejects an assets binding in a
+  // Worker without a script.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2026-09-01",
+  "send_metrics": false,
+  "assets": {
+    // The built client, so `wrangler dev` serves the same path the e2e tests use.
+    // No `not_found_handling` rewrite: story 1 has one route, and serving index.html
+    // for a missing path would turn a stale or missing bundle into a confusing 200.
+    "directory": "./dist/client"
+  },
+  "dev": {
+    "ip": "127.0.0.1",
+    "port": 22880
+  }
+}

@@ -1,0 +1,9 @@
+node_modules
+dist
+.wrangler
+.playwright
+playwright-report
+test-results
+*.log
+.DS_Store
+.ua
