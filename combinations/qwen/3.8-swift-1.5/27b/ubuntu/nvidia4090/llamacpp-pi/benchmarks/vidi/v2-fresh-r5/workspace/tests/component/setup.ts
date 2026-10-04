@@ -70,3 +70,14 @@ class PointerEventPolyfill extends MouseEvent {
 if (typeof globalThis.PointerEvent === 'undefined') {
   globalThis.PointerEvent = PointerEventPolyfill as unknown as typeof PointerEvent;
 }
+
+// jsdom does not implement setPointerCapture/releasePointerCapture.
+// Provide no-op mocks so components that call them don't crash.
+if (typeof Element !== 'undefined') {
+  if (!Element.prototype.setPointerCapture) {
+    Element.prototype.setPointerCapture = function (_pointerId: number) {};
+  }
+  if (!Element.prototype.releasePointerCapture) {
+    Element.prototype.releasePointerCapture = function (_pointerId: number) {};
+  }
+}

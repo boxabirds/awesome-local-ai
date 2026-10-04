@@ -77,3 +77,61 @@ has no Worker code — an asset binding would require a Worker script and error 
 Per the PRD, the board is empty in this story: no shapes, no presence, no
 persistence, no sign-in. Only navigation (pan/zoom), the dot grid, the zoom
 controls, the first-use hint, and the "no page zoom" guarantee are implemented.
+
+---
+
+## Story 2 notes
+
+### Yjs board model
+
+- `Y.Map<string, Y.Map>` at `doc.getMap('objects')` — one entry per object.
+- Sticky notes: `{ type: 'sticky', x, y, color, z, text: Y.Text }`.
+- `createSticky` generates an id via `crypto.randomUUID()`, sets `z` to
+  `maxZ + 1` (read from all existing objects), and creates the `Y.Text` outside
+  the transaction (Yjs requirement), then sets it as a map value inside.
+- `moveObject` / `bringToFront` / `setStickyColor` / `deleteObject` are all
+  single-transaction mutations.
+- `snapshot(doc)` produces a plain immutable array for React rendering.
+
+### useBoardDoc: useSyncExternalStore with cached snapshot
+
+`useSyncExternalStore` requires `getSnapshot` to return a **stable reference**
+when the store hasn't changed. The hook keeps a `stateRef` that is only updated
+inside the Yjs `observeDeep` callback. `getSnapshot` simply returns
+`stateRef.current.notes`, which is a stable array reference between changes.
+
+### StickyNote drag: pointer events with capture
+
+- `pointerdown` on the note → `setPointerCapture` → track moves.
+- 3px threshold before drag starts (below = click/select).
+- `pointerup` / `pointercancel` release capture and end the interaction.
+- Drag calls `moveObject` + `bringToFront` on every move (single transaction).
+- `stopPropagation` on pointerdown prevents the board's pan handler from firing.
+
+### StickyTextEditor: uncontrolled textarea + minimal Y.Text diff
+
+- The textarea is **uncontrolled** (no `value` prop); initial value set via
+  `defaultValue`. On each `onChange`, `applyTextDiff` computes the common
+  prefix/suffix and issues a single `delete` + `insert` on the `Y.Text`.
+- Length limit enforced by slicing the new value to `STICKY_TEXT_MAX_CHARS`
+  before diffing.
+- Focus + caret-at-end on mount via `useEffect`.
+- Escape → `onEnd('selected')`; outside pointerdown → `onEnd('unselected')`.
+
+### NoteToolbar at App level
+
+The NoteToolbar is rendered by `App` (not by `StickyNote`) as a `position:fixed`
+element with `zIndex:1000`, positioned below the selected note using
+`worldToScreen`. This avoids duplicate toolbars and keeps the note component
+focused on its own interaction.
+
+### Component-test: setPointerCapture polyfill
+
+jsdom does not implement `Element.prototype.setPointerCapture` /
+`releasePointerCapture`. No-op mocks are installed in `tests/component/setup.ts`.
+
+### E2E: waiting for editor focus
+
+After double-click creates a note, the `StickyTextEditor` mounts asynchronously.
+E2E tests must `await expect(textarea).toBeVisible()` before typing to ensure
+the textarea is focused.

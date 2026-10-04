@@ -34,11 +34,17 @@ function mod(a: number, b: number): number {
  * marker, the zoom controls and the first-use hint. Owns the camera via
  * {@link useCamera}.
  */
-export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
+export function BoardViewport(props: {
+  children?: ReactNode;
+  onDblClickEmpty?: (screenPoint: { x: number; y: number }) => void;
+  onClickEmpty?: () => void;
+  onCameraChange?: (cam: { x: number; y: number; zoom: number }) => void;
+}): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const panningRef = useRef(false);
+  const wasPanningRef = useRef(false);
 
   const cam = useCamera(size);
   const camRef = useRef(cam);
@@ -147,6 +153,7 @@ export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
       el.setPointerCapture(e.pointerId);
     }
     panningRef.current = true;
+    wasPanningRef.current = false;
     setIsPanning(true);
     const rect = e.currentTarget.getBoundingClientRect();
     camRef.current.beginPan({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -154,6 +161,7 @@ export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
 
   const onPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
     if (!panningRef.current) return;
+    wasPanningRef.current = true;
     const rect = e.currentTarget.getBoundingClientRect();
     camRef.current.panMove({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   }, []);
@@ -165,7 +173,27 @@ export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
     camRef.current.endPan();
   }, []);
 
+  // Double-click on empty board space
+  const onDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    props.onDblClickEmpty?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }, [props.onDblClickEmpty]);
+
+  // Click on empty board space (without panning) → clear selection
+  const onClickEmpty = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    if (wasPanningRef.current) return;
+    props.onClickEmpty?.();
+  }, [props.onClickEmpty]);
+
   const { camera } = cam;
+
+  // Notify parent of camera changes
+  useEffect(() => {
+    props.onCameraChange?.(camera);
+  }, [camera, props.onCameraChange]);
+
   const spacing = GRID_SPACING_WORLD * camera.zoom;
   const bgX = mod(-camera.x * camera.zoom, spacing);
   const bgY = mod(-camera.y * camera.zoom, spacing);
@@ -183,6 +211,8 @@ export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
         onPointerUp={endPan}
         onPointerCancel={endPan}
         onLostPointerCapture={endPan}
+        onDoubleClick={onDoubleClick}
+        onClick={onClickEmpty}
         style={{
           position: 'fixed',
           inset: 0,
