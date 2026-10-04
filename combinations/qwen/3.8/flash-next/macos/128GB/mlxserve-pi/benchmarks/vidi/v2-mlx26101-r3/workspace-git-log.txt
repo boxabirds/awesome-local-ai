@@ -1,3 +1,36 @@
+commit 673df4d2386551a644b08c9e58bd8657663673f1
+agent  Sun Oct 4 10:30:14 2026 +0000
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ src/client/App.tsx                      |  33 ++-
+ src/client/board/Toolbar.tsx            |  14 +-
+ src/client/board/UndoButtons.tsx        |  56 +++++
+ src/client/board/undo.ts                | 218 +++++++++++++++++++
+ src/client/board/useBoardKeys.ts        |  47 +++-
+ src/client/board/useUndo.ts             |  84 +++++++
+ src/client/objects/StickyNote.tsx       |   8 +
+ src/client/objects/StickyTextEditor.tsx |  45 +++-
+ src/client/objects/registry.tsx         |   8 +
+ src/client/styles.css                   |  19 ++
+ src/shared/config.ts                    |  12 +
+ tests/component/UndoControls.test.tsx   | 375 ++++++++++++++++++++++++++++++++
+ tests/component/UndoSteps.test.tsx      | 346 +++++++++++++++++++++++++++++
+ tests/component/helpers/sticky.tsx      |  93 +++++++-
+ tests/e2e/undo.spec.ts                  | 336 ++++++++++++++++++++++++++++
+ tests/unit/helpers/peer.ts              | 115 ++++++++++
+ tests/unit/undo-boundaries.test.ts      | 264 ++++++++++++++++++++++
+ tests/unit/undo-history.test.ts         | 361 ++++++++++++++++++++++++++++++
+ 18 files changed, 2425 insertions(+), 9 deletions(-)
+commit c7bd31ce19cbcbf1c0fb508cd44a1a37c607512d
+vidi-agent  Sun Oct 4 10:08:14 2026 +0100
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 49 +++++++++----------------------------------------
+ 1 file changed, 9 insertions(+), 40 deletions(-)
 commit b336928591c5e1e4b972ba9dc9d45721c0c19677
 agent  Sun Oct 4 09:05:12 2026 +0000
 
