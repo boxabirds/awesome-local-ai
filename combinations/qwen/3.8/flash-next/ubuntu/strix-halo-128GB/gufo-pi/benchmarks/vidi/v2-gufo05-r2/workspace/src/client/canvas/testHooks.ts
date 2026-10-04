@@ -6,6 +6,7 @@ import type { TextSnapshot } from '../../shared/objects/text';
 import type { ConnectorSnapshot } from '../../shared/objects/connector';
 import type { ShapeSnapshot } from '../../shared/objects/shape';
 import type { StrokeSnapshot } from '../../shared/objects/stroke';
+import type { ImageSnapshot } from '../../shared/objects/image';
 import type { PenColor, PenThickness, ShapeKind } from '../../shared/config';
 import type { Camera } from './camera';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -54,6 +55,10 @@ export interface Vidi6TestHooks {
    * box, its style, and the path it stored.
    */
   getStrokes?(): StrokeSnapshot[];
+  /**
+   * Story 12: current image snapshots, for e2e assertions about image objects.
+   */
+  getImages?(): ImageSnapshot[];
   /**
    * Put a stroke on the board from a recorded pointer path in board units, and return its
    * id, so a test has something to select, resize or delete without drawing it by mouse

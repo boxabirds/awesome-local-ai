@@ -124,7 +124,7 @@ describe('POST /api/boards (TC-05, TC-12, TC-14)', () => {
 
     const response = await worker.fetch(
       new Request('http://vidi6.test/api/boards', { method: 'POST' }),
-      { BOARD_ROOM: throwingNamespace, ASSETS: workerEnv.ASSETS } satisfies Env,
+      { BOARD_ROOM: throwingNamespace, ASSETS: workerEnv.ASSETS, ASSETS_BUCKET: workerEnv.ASSETS_BUCKET } satisfies Env,
     );
     expect(response.status).toBe(500);
     const body = (await response.json()) as { error?: string; id?: string };
@@ -146,7 +146,7 @@ describe('POST /api/boards (TC-05, TC-12, TC-14)', () => {
 
     const response = await worker.fetch(
       new Request('http://vidi6.test/api/boards', { method: 'POST' }),
-      { BOARD_ROOM: rejectingNamespace, ASSETS: workerEnv.ASSETS } satisfies Env,
+      { BOARD_ROOM: rejectingNamespace, ASSETS: workerEnv.ASSETS, ASSETS_BUCKET: workerEnv.ASSETS_BUCKET } satisfies Env,
     );
     expect(response.status).toBe(500);
     expect(((await response.json()) as { error: string }).error).toBe('create_failed');
@@ -200,6 +200,7 @@ describe('GET /api/boards/:id (TC-06, TC-07, TC-08)', () => {
     const spyEnv: Env = {
       BOARD_ROOM: spyingNamespace(workerEnv.BOARD_ROOM, calls),
       ASSETS: workerEnv.ASSETS,
+      ASSETS_BUCKET: workerEnv.ASSETS_BUCKET,
     };
 
     const unknown = newBoardId();

@@ -4,6 +4,7 @@ import type * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
@@ -17,6 +18,7 @@ import { isStrokeSnapshot, scaledPoints } from '../../shared/objects/stroke';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { ConnectorObject } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
+import { ImageObject } from './ImageObject';
 import { StrokeObject } from './StrokeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
@@ -216,6 +218,17 @@ registerObjectType('stroke', {
       Math.max(PEN_THICKNESS_WORLD[obj.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom)
     );
   },
+});
+
+// Story 12: an image on the board. It keeps its aspect ratio when resized, like a
+// stroke, and has a minimum size floor so it cannot be squashed to nothing.
+registerObjectType('image', {
+  Component: ImageObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: boxHitTest,
 });
 
 const EMPTY_RECTS: ReadonlyMap<string, Rect> = new Map();

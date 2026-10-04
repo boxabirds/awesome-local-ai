@@ -27,10 +27,12 @@ import { isValidBoardId } from '../shared/board-id';
 import { createBoard } from './create-board';
 import { BoardRoom } from './board-room';
 import { TEST_HOOK_PREFIX } from './test-hooks';
+import { handleServe, handleUpload } from './assets';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   /**
    * '1' in the test servers, unset in a production deploy. Only then are the
    * `/__test/boards/:id/...` routes forwarded to a room; without it those paths are
@@ -49,6 +51,9 @@ const ROOM_PATH_PREFIX = '/api/rooms/';
 /** Prefix of the board routes; the next segment, if any, is a board id. */
 const BOARDS_PATH_PREFIX = '/api/boards';
 
+/** Prefix of the asset serving route. */
+const ASSETS_PATH_PREFIX = '/api/assets/';
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url);
@@ -62,6 +67,11 @@ export default {
 
     if (pathname.startsWith(BOARDS_PATH_PREFIX)) {
       return boards(request, env, pathname);
+    }
+
+    if (pathname.startsWith(ASSETS_PATH_PREFIX)) {
+      const key = pathname.slice(ASSETS_PATH_PREFIX.length);
+      return handleServe(env, key);
     }
 
     if (!pathname.startsWith(ROOM_PATH_PREFIX)) {
@@ -112,11 +122,21 @@ async function boards(request: Request, env: Env, pathname: string): Promise<Res
     return methodNotAllowed('POST');
   }
 
-  // Everything under the collection is one board's address. `isValidBoardId` is the
-  // whole of the question: 22 link characters, or it is not a board of ours — which
-  // is also the answer to a path with extra segments under it.
-  const boardId = decodeURIComponent(pathname.slice(`${BOARDS_PATH_PREFIX}/`.length));
+  // Everything under the collection is one board's address, possibly with a sub-path
+  // like `/assets`. The board id is the first segment after `/api/boards/`.
+  const afterPrefix = pathname.slice(`${BOARDS_PATH_PREFIX}/`.length);
+  const boardId = decodeURIComponent(afterPrefix.split('/')[0] ?? '');
   if (!isValidBoardId(boardId)) return jsonResponse(404, { error: 'not_found' });
+
+  // POST /api/boards/:boardId/assets — upload an image to the board
+  const subPath = afterPrefix.slice(boardId.length);
+  if (subPath === '/assets') {
+    if (request.method === 'POST') {
+      return handleUpload(request, env, boardId);
+    }
+    return methodNotAllowed('POST');
+  }
+  if (subPath !== '') return jsonResponse(404, { error: 'not_found' });
 
   switch (request.method) {
     case 'GET':

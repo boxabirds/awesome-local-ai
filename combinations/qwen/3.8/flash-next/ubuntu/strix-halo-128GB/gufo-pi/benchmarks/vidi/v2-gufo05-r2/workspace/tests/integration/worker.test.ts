@@ -48,6 +48,7 @@ describe('worker routing', () => {
     const spyEnv: Env = {
       BOARD_ROOM: spyingNamespace(workerEnv.BOARD_ROOM, calls),
       ASSETS: workerEnv.ASSETS,
+      ASSETS_BUCKET: workerEnv.ASSETS_BUCKET,
     };
 
     const response = await worker.fetch(

@@ -1239,3 +1239,113 @@ a:focus-visible,
   pointer-events: stroke;
   cursor: pointer;
 }
+
+/* Story 12: image objects and states. */
+
+.image-object {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.image-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  color: #616161;
+  font-size: 13px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.image-placeholder--uploader {
+  border: 2px dashed #bdbdbd;
+}
+
+.image-placeholder--failed {
+  border: 2px solid #e53935;
+  background: #fce4ec;
+  color: #c62828;
+}
+
+.image-failed__text {
+  font-weight: 500;
+}
+
+.image-failed__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.image-failed__retry,
+.image-failed__remove,
+.image-unfinished__remove {
+  padding: 2px 8px;
+  border: 1px solid #999;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.image-failed__retry:hover,
+.image-failed__remove:hover,
+.image-unfinished__remove:hover {
+  background: #f5f5f5;
+}
+
+.image-progress {
+  width: 80%;
+  height: 6px;
+  background: #bdbdbd;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.image-progress__bar {
+  height: 100%;
+  background: #1e88e5;
+  transition: width 100ms;
+}
+
+.image-progress__text {
+  font-size: 11px;
+  color: #757575;
+}
+
+/* Drop highlight: dashed outline over the board area while files are dragged over it. */
+.drop-highlight {
+  position: absolute;
+  inset: 0;
+  border: 3px dashed #1e88e5;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 100;
+  background: rgba(30, 136, 229, 0.05);
+}
+
+/* Toast: bottom-centre status messages. */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast {
+  background: #323232;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}

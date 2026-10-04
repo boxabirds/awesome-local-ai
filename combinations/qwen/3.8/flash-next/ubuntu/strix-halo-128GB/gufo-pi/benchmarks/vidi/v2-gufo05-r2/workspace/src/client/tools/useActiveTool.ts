@@ -37,6 +37,7 @@ export const AVAILABLE_TOOLS: readonly ToolId[] = [
   'shape',
   'connector',
   'pen',
+  'image',
 ];
 
 export function toolHasInterface(id: ToolId): boolean {
@@ -48,6 +49,8 @@ export interface ActiveToolOptions {
   canEdit?: boolean;
   /** `N`: the same thing the Sticky note button does (story 2's creation). */
   onCreateSticky?(): void;
+  /** `I`: opens the file picker (story 12's image insertion). */
+  onOpenImagePicker?(): void;
   /** Make this object the only thing selected — what `toolCreated` does after a create. */
   select?(id: string): void;
 }
@@ -80,6 +83,13 @@ export function useActiveTool(options: ActiveToolOptions = {}): ActiveToolState 
     if (next === 'sticky') {
       if (!current.current.canEdit) return;
       current.current.options.onCreateSticky?.();
+      setToolState('select');
+      return;
+    }
+    // Story 12: the Image tool opens the file picker and returns to Select immediately.
+    if (next === 'image') {
+      if (!current.current.canEdit) return;
+      current.current.options.onOpenImagePicker?.();
       setToolState('select');
       return;
     }

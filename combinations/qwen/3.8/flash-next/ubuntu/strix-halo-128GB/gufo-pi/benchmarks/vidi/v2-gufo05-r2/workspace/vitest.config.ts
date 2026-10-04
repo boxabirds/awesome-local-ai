@@ -49,6 +49,7 @@ export default defineConfig({
             'tests/integration/board-store.test.ts',
             'tests/integration/room-hibernation.test.ts',
             'tests/integration/board-api.test.ts',
+            'tests/integration/assets.test.ts',
           ],
           pool: 'workers',
           testTimeout: 30_000,

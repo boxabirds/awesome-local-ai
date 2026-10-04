@@ -17,6 +17,7 @@ import {
 } from './objects/connector';
 import { shapeSnapshotOf, type ShapeSnapshot } from './objects/shape';
 import { strokeSnapshotOf, type StrokeSnapshot } from './objects/stroke';
+import { imageSnapshotOf } from './objects/image';
 
 /**
  * The board document model: the Yjs schema and every mutation. Framework-free
@@ -289,6 +290,8 @@ function readSnapshot(entry: Y.Map<unknown>, id: string): ObjectSnapshot | null 
     // Story 11: a sketch holds a path and the box it was drawn at, neither of which the
     // common record can express.
     if (type === 'stroke') return strokeSnapshotOf(id, entry);
+    // Story 12: an image holds upload status, asset key and natural dimensions.
+    if (type === 'image') return imageSnapshotOf(id, entry);
     return base as unknown as ObjectSnapshot;
   }
 }

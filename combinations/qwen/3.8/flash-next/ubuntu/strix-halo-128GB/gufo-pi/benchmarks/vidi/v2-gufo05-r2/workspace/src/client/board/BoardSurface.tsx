@@ -14,7 +14,7 @@
  * at once.
  */
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 
 import { BoardViewport } from '../canvas/BoardViewport';
@@ -58,6 +58,11 @@ import { createText, textSnapshot } from '../../shared/objects/text';
 import { createShape, readShapes } from '../../shared/objects/shape';
 import { createConnector, readConnectors } from '../../shared/objects/connector';
 import { createStroke, readStrokes } from '../../shared/objects/stroke';
+import { readImages } from '../../shared/objects/image';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { Toast, useToast } from '../ui/Toast';
+import { ImageInsertProvider } from '../images/ImageInsertContext';
 import type { PenColor, PenThickness } from '../../shared/config';
 import { nearestSide, sideAnchor } from '../../shared/geometry/connector-geometry';
 import type { ShapeKind } from '../../shared/config';
@@ -149,6 +154,7 @@ export function BoardSurface({ boardId }: { boardId: string }) {
       getConnectors: () => readConnectors(doc),
       // Story 11: the sketches on the board, for assertions about a finished stroke.
       getStrokes: () => readStrokes(doc),
+      getImages: () => readImages(doc),
       // …and one laid out from a recorded pointer path, so an e2e test does not have to
       // draw a big loop by mouse to have something to select. The points are board
       // points, and the defaults are the pen's own.
@@ -201,16 +207,36 @@ export function BoardSurface({ boardId }: { boardId: string }) {
   // button does), the shape the Shape tool will draw next, and `toolCreated`: the one
   // call every creating tool makes when it has made something, which selects it and puts
   // the hand back to Select (PRD tool.return_to_select).
-  const tools = useActiveTool({
-    canEdit: editable,
-    onCreateSticky: createAtCentre,
-    select: (id: string) => selection.select(id),
-  });
-
   // Story 6 owns identity; until it exists, a text object records the page that
   // made it. A random per-load id is enough for `createdBy` (presence and export),
   // and nothing on the board changes because of it. See NOTES.md.
   const identity = useRef(`page_${crypto.randomUUID()}`).current;
+
+  // Story 12: a timestamp that updates every 30s for stale-upload detection.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Story 12: images
+  const toast = useToast();
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    viewport,
+    connection,
+    identityId: identity,
+    toast,
+  });
+
+  const tools = useActiveTool({
+    canEdit: editable,
+    onCreateSticky: createAtCentre,
+    select: (id: string) => selection.select(id),
+    onOpenImagePicker: imageInsert.openPicker,
+  });
 
   // Story 11: what this page's pen is set to. Session state, exactly like the shape kind:
   // a colour two people are holding is not something the board has to agree about, and
@@ -333,7 +359,37 @@ export function BoardSurface({ boardId }: { boardId: string }) {
     <UndoControllerContext.Provider value={undoController}>
     <CameraContext.Provider value={board}>
       <BoardEnvProvider value={env}>
-      <div className="vidi6-app" ref={appRef}>
+      <ImageInsertProvider value={{
+        progress: imageInsert.progress,
+        retry: imageInsert.retry,
+        canRetry: imageInsert.canRetry,
+        remove: (id) => deleteObjects(doc, [id]),
+        now: nowTick,
+      }}>
+      <div
+        className="vidi6-app"
+        ref={appRef}
+        onDragEnter={(e) => imageInsert.onDragEnter(e as unknown as DragEvent)}
+        onDragOver={(e) => imageInsert.onDragOver(e as unknown as DragEvent)}
+        onDragLeave={(e) => imageInsert.onDragLeave(e as unknown as DragEvent)}
+        onDrop={(e) => imageInsert.onDrop(e as unknown as DragEvent)}
+        onPaste={(e) => imageInsert.onPaste(e as unknown as ClipboardEvent)}
+      >
+        {/* Hidden file input for the image picker (E2E-targetable via data-testid). */}
+        <input
+          type="file"
+          multiple
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          data-testid="image-file-input"
+          className="visually-hidden"
+          onChange={(e) => {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+              imageInsert.handleFiles(Array.from(files));
+            }
+            e.target.value = '';
+          }}
+        />
         <BoardViewport
           onCreateStickyAt={createAtWorld}
           onClearSelection={selection.clear}
@@ -405,6 +461,7 @@ export function BoardSurface({ boardId }: { boardId: string }) {
           onTool={tools.setTool}
           shapeKind={tools.shapeKind}
           onShapeKind={tools.setShapeKind}
+          onOpenImagePicker={imageInsert.openPicker}
         />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
@@ -437,7 +494,10 @@ export function BoardSurface({ boardId }: { boardId: string }) {
         ) : null}
         <NavigationHint visible={!board.hasNavigated} />
         <ConnectionStatus state={connection} />
+        <DropHighlight visible={imageInsert.isDragging} />
+        <Toast messages={toast.messages} />
       </div>
+      </ImageInsertProvider>
       </BoardEnvProvider>
     </CameraContext.Provider>
     </UndoControllerContext.Provider>

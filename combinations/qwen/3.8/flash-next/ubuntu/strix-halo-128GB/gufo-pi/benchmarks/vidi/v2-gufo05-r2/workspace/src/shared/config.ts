@@ -324,6 +324,7 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
   s: 'shape',
   l: 'connector',
   p: 'pen',
+  i: 'image',
 };
 
 /* ------------------------------------------------------------------ * *
@@ -379,3 +380,34 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
 
 /** The smallest a stroke may be resized to, in board units. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+/* ------------------------------------------------------------------ * *
+ * Story 12: images on the board                                         *
+ * ------------------------------------------------------------------ */
+
+/** Accepted MIME types for image uploads. */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** Maximum upload size in bytes (10 MB). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Maximum number of images that can be added in one action. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/** Maximum longest side of a placed image, in board units. */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** Minimum size of an image when resizing, in board units. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** Gap between images placed in a row, in board units. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/** How long an upload may stay in 'uploading' state before being marked unfinished (5 minutes). */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** Cache-Control max-age for served assets (1 year). */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/** Number of leading bytes needed to sniff image type. */
+export const IMAGE_SNIFF_BYTES = 12;

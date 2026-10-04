@@ -13,6 +13,8 @@ export interface ToolbarProps {
   /** Story 10: which shape the Shape tool will draw next, and the menu that picks it. */
   shapeKind?: ShapeKind;
   onShapeKind?(kind: ShapeKind): void;
+  /** Story 12: opens the file picker for images. */
+  onOpenImagePicker?(): void;
   /**
    * True while this page must not be adding to the board — story 4 sets it when the
    * room could not load the board, because a note created on top of a board that
@@ -33,6 +35,8 @@ export const SHAPE_TOOL_TOOLTIP = 'Shape – or press S, then drag on the board'
 export const CONNECTOR_TOOL_TOOLTIP = 'Connector – or press L, then drag between two objects';
 /** Exact tooltip shown on the Pen tool button. */
 export const PEN_TOOL_TOOLTIP = 'Pen – or press P, then drag on the board';
+/** Exact tooltip shown on the Image tool button. */
+export const IMAGE_TOOL_TOOLTIP = 'Image – or press I, then choose files';
 
 /** What each shape kind is called, in the menu and on the button. */
 export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
@@ -75,6 +79,7 @@ export function Toolbar({
   onTool,
   shapeKind = 'rect',
   onShapeKind,
+  onOpenImagePicker,
 }: ToolbarProps) {
   const stop = (event: { stopPropagation(): void }) => event.stopPropagation();
   return (
@@ -211,6 +216,25 @@ export function Toolbar({
             strokeLinecap="round"
           />
           <circle cx="2.5" cy="15.5" r="1.5" fill="currentColor" />
+        </svg>
+      </button>
+      {/* Story 12: the Image button opens the file picker. */}
+      <button
+        type="button"
+        className="toolbar__button"
+        aria-label="Image (I)"
+        title={IMAGE_TOOL_TOOLTIP}
+        data-testid="image-tool-button"
+        disabled={createDisabled}
+        onClick={() => {
+          onOpenImagePicker?.();
+          onTool?.('select');
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <rect x="3" y="4" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+          <circle cx="7" cy="8" r="1.2" fill="currentColor" />
+          <path d="M17 13l-4-4-6 6" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
         </svg>
       </button>
       <button
