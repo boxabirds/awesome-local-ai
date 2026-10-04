@@ -1,3 +1,50 @@
+commit fefcb28ebbf3803f12c6b539763b283447c9164c
+agent  Sun Oct 4 17:29:23 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ .gitignore                                       |   1 +
+ PROGRESS.md                                      |  18 +-
+ package.json                                     |   2 +
+ playwright.broken-board.config.ts                |  32 ++
+ playwright.config.ts                             |   6 +
+ playwright.persistence.config.ts                 |  34 ++
+ src/client/App.tsx                               |  41 +-
+ src/client/board/Toolbar.tsx                     |  10 +-
+ src/client/objects/StickyNote.tsx                |  23 +-
+ src/client/sync/ConnectionStatus.tsx             |  14 +-
+ src/client/sync/connectBoard.ts                  |  37 +-
+ src/shared/config.ts                             |  17 +
+ src/shared/protocol.ts                           |   8 +
+ src/worker/board-room.ts                         | 467 +++++++++++++++++------
+ src/worker/board-store.ts                        | 283 ++++++++++++++
+ src/worker/index.ts                              |  59 +--
+ src/worker/room-state.ts                         | 130 +++++++
+ src/worker/test-hooks.ts                         |  30 ++
+ tests/component/StickyNote.test.tsx              |   7 +-
+ tests/component/load-failure.test.tsx            | 165 ++++++++
+ tests/e2e/broken-board/broken-board.spec.ts      | 112 ++++++
+ tests/e2e/helpers/seed-board.ts                  |  77 ++++
+ tests/e2e/helpers/wrangler-process.ts            | 127 ++++++
+ tests/e2e/helpers/ws.d.ts                        |  14 +
+ tests/e2e/persistence/persistence.spec.ts        | 191 +++++++++
+ tests/fixtures/boards.ts                         | 161 ++++++++
+ tests/integration/board-room-persistence.test.ts | 352 +++++++++++++++++
+ tests/integration/board-store.test.ts            | 339 ++++++++++++++++
+ tests/unit/board-store-chunks.test.ts            |  79 ++++
+ tests/unit/room-state.test.ts                    |  76 ++++
+ wrangler.jsonc                                   |   4 +-
+ wrangler.test-hooks.jsonc                        |  30 ++
+ 32 files changed, 2755 insertions(+), 191 deletions(-)
+commit eb9b54fc7e775982d3a451bbed8f8d68d4f1eb96
+vidi-agent  Sun Oct 4 14:37:06 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit 26687ecdd23eb242865ac61a98bad10b1a31de76
 vidi-agent  Sun Oct 4 14:36:55 2026 +0100
 
