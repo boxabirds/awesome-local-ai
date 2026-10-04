@@ -148,9 +148,19 @@ describe("now: one line per machine", () => {
   it("before /api/machines answers, dbench's nodes are listed as dbench sees them", () => {
     expect(nowLines([machine("node-d"), busy("node-a")], [], null, NOW).map((l) => [l.machine, l.state])).toEqual([["node-a", "running"], ["node-d", "idle"]]);
   });
-  it("one line per machine, by name with numbers in order, each machine once", () => {
+  it("one line per machine, each machine once, idle before an unreachable one and numbers in order", () => {
     const lines = nowLines([machine("node-10"), machine("node-9")], [], { "node-9": { ok: true }, alpha: { ok: false } }, NOW);
-    expect(lines.map((l) => l.machine)).toEqual(["alpha", "node-9", "node-10"]);
+    expect(lines.map((l) => l.machine)).toEqual(["node-9", "node-10", "alpha"]);
+  });
+  it("the machines doing something come first: running, then a queue waiting, then idle, then unreachable", () => {
+    const lines = nowLines(
+      [machine("zeta-unreachable"), machine("alpha-idle"), machine("yankee-waiting", { queued: 2 }), machine("mike-running")
+        , busy("beta-running")],
+      [], { "zeta-unreachable": { ok: false }, "alpha-idle": { ok: true }, "yankee-waiting": { ok: true }, "mike-running": { ok: true }, "beta-running": { ok: true } }, NOW);
+    expect(lines.map((l) => [l.machine, l.state])).toEqual([
+      ["beta-running", "running"], ["yankee-waiting", "queuedOnly"],
+      ["alpha-idle", "idle"], ["mike-running", "idle"], ["zeta-unreachable", "unreachable"],
+    ]);
   });
 });
 
