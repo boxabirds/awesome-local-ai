@@ -60,3 +60,36 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** Colour of a freshly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/* ------------------------------------------------------------------ * *
+ * Story 3: live collaboration                                           *
+ * ------------------------------------------------------------------ */
+
+/**
+ * Simultaneous-editor capacity: the number of people per board the product is
+ * designed and tested for. Soft — never enforced; a 6th person joins and edits
+ * normally, the 1-second delivery guarantee simply stops being promised.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/**
+ * Time from a change appearing on the sender's screen to it appearing on every
+ * other connected screen (PRD live.propagate).
+ */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Upper bound of the reconnect backoff (passed to WebsocketProvider). */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays up after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** Outage length used to verify offline edits catch up (PRD live.catch_up). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/**
+ * Functional wait in e2e tests (all stories): every change is given this long to
+ * arrive. Wall-clock latency is logged against LIVE_UPDATE_LATENCY_BUDGET_MS,
+ * never asserted, because the model, browsers and server share one machine.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;

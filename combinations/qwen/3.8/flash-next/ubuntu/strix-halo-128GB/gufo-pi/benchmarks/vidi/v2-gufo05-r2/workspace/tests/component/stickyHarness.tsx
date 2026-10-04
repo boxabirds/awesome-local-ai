@@ -1,13 +1,14 @@
-import { act, render } from '@testing-library/react';
+import { act } from '@testing-library/react';
 import type * as Y from 'yjs';
 
-import App from '../../src/client/App';
 import { createSticky, getStickyText } from '../../src/shared/board-model';
 import {
   fireKey,
   firePointer,
   flushFrames,
+  readBoardDoc,
   readCamera,
+  renderBoard,
   surface,
 } from './boardHarness';
 
@@ -15,10 +16,8 @@ export { fireKey, firePointer, flushFrames, readCamera, surface };
 
 /** Render the real app and return its live board document. */
 export function renderApp(): Y.Doc {
-  render(<App />);
-  const doc = window.__vidi6?.doc;
-  if (!doc) throw new Error('window.__vidi6.doc missing: MODE must be "test"');
-  return doc;
+  renderBoard();
+  return readBoardDoc();
 }
 
 /** Create a note through the model (selects nothing). */

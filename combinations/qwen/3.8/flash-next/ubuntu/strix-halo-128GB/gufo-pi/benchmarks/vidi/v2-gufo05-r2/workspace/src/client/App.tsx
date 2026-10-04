@@ -15,7 +15,8 @@ import { CameraContext, useCamera, useViewportSize } from './canvas/useCamera';
 import { registerTestHooks } from './canvas/testHooks';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
-import { useSelection } from './board/useSelection';
+import { useForgetMissingNotes, useSelection } from './board/useSelection';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
 import {
@@ -25,17 +26,40 @@ import {
   snapshot,
   type StickySnapshot,
 } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import type { StickyColor } from '../shared/config';
 
 /** Screen offset between a note's top-left and its floating toolbar. */
 const NOTE_TOOLBAR_GAP = 8;
 
+/**
+ * The whole routing of this app: `/b/<board id>` shows one board, and any other
+ * address gets a brand-new board of its own (temporary — story 5 replaces the
+ * client-side id with a board created by the server).
+ */
 export default function App() {
+  const boardId = boardIdFromPath(window.location.pathname);
+
+  useEffect(() => {
+    if (boardId === null) window.location.replace(`/b/${newBoardId()}`);
+  }, [boardId]);
+
+  if (boardId === null) return null; // redirecting; nothing to show yet
+
+  // `key` keeps two boards from ever sharing a document: opening another board
+  // tears this one down completely instead of re-pointing it.
+  return <Board key={boardId} boardId={boardId} />;
+}
+
+function Board({ boardId }: { boardId: string }) {
   const viewport = useViewportSize();
   const board = useCamera(viewport);
   const { camera } = board;
-  const { doc, notes } = useBoardDoc();
+  const { doc, notes, connection } = useBoardDoc(boardId);
   const selection = useSelection();
+
+  // A note somebody else deleted stops being selected, edited or dragged here.
+  useForgetMissingNotes(selection, notes);
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -157,9 +181,26 @@ export default function App() {
           onReset={board.reset}
         />
         <NavigationHint visible={!board.hasNavigated} />
+        <ConnectionStatus state={connection} />
       </div>
     </CameraContext.Provider>
   );
+}
+
+/** The board id in `/b/<board id>`, or null when the address names no board. */
+function boardIdFromPath(pathname: string): string | null {
+  const segments = pathname.split('/').filter((segment) => segment !== '');
+  if (segments.length !== 2 || segments[0] !== 'b') return null;
+  const candidate = decode(segments[1] ?? '');
+  return isValidBoardId(candidate) ? candidate : null;
+}
+
+function decode(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
 }
 
 function byId(a: { id: string }, b: { id: string }): number {

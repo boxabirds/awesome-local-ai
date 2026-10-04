@@ -1,8 +1,10 @@
 import { act, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
+import type * as Y from 'yjs';
 
 import App from '../../src/client/App';
 import type { Camera } from '../../src/client/canvas/camera';
+import { newBoardId } from '../../src/shared/board-id';
 
 /** Dispatch a native event inside React's act() so updates flush. */
 function dispatch<T extends Event>(target: EventTarget, event: T): T {
@@ -12,13 +14,24 @@ function dispatch<T extends Event>(target: EventTarget, event: T): T {
   return event;
 }
 
-/** Render the real app: viewport, zoom controls and hint wired together. */
-export function renderBoard() {
+/**
+ * Render the real app: viewport, zoom controls and hint wired together, showing
+ * one board of its own (the address decides which board the page connects to).
+ */
+export function renderBoard(boardId = newBoardId()) {
+  window.history.pushState({}, '', `/b/${boardId}`);
   return render(<App />);
 }
 
 export function surface(): HTMLElement {
   return screen.getByTestId('board-viewport');
+}
+
+/** The document of the board the rendered page is showing. */
+export function readBoardDoc(): Y.Doc {
+  const doc = window.__vidi6?.doc;
+  if (!doc) throw new Error('window.__vidi6.doc missing: MODE must be "test"');
+  return doc;
 }
 
 export function zoomLabel(): HTMLElement {

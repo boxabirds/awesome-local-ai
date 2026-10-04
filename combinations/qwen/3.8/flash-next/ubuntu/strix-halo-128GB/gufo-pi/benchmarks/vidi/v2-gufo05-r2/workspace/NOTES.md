@@ -1,173 +1,200 @@
-# Notes
+# Notes: Story 3 — live collaboration
 
-Decisions and deviations recorded while implementing **story 1 — Pan and zoom
-around an infinite board**.
+## Deviations from the design
 
-## Followed from the design
+### Integration tests use a real `wrangler dev` server, not `SELF.fetch`
 
-- Repository layout, file names and the named settings in
-  `src/shared/config.ts` are exactly as specified
-  (`ZOOM_MIN`, `ZOOM_MAX`, `ZOOM_STEP_FACTOR`, `WHEEL_ZOOM_SENSITIVITY`,
-  `GRID_SPACING_WORLD`, `UNBOUNDED_PAN_TESTED_EXTENT`).
-- `camera.ts` implements the pure contract (`screenToWorld`, `worldToScreen`,
-  `panBy`, `zoomAt`, `zoomStep`, `resetCamera`, `canZoomIn`, `canZoomOut`,
-  `zoomPercent`), immutable cameras, same-object returns for no-ops, and no
-  throw for invalid zoom factors.
-- Step zoom snaps to `ZOOM_STEP_FACTOR^n` within a named epsilon so
-  100% → 125% → 100% is exact (TC-09).
-- Non-passive `wheel` listener, Safari `gesturestart`/`gesturechange`
-  handlers and the window `keydown` handler for Ctrl/Cmd + `=`, `−`, `0` all
-  call `preventDefault`, so page zoom/scroll never changes (TC-24, TC-31).
-- Test hook `window.__vidi6.setCamera()` only exists when
-  `import.meta.env.MODE === 'test'`; verified: the production bundle contains
-  0 occurrences of `__vidi6`, the `--mode test` bundle contains 1.
-- e2e runs against `wrangler dev` serving `dist/client` (assets-only config).
+The design has the Worker/Durable Object tests call `SELF.fetch` inside
+`@cloudflare/vitest-pool-workers` (workerd). That works for HTTP, but the pool's
+loopback service cannot carry a WebSocket conversation: the upgrade succeeds and
+exactly one frame gets through in each direction, after which the socket goes
+silent (each `SELF.fetch` lives in its own request context, which is gone before
+the conversation starts). Everything this story has to test about the room —
+sync handshake, broadcast, catch-up — needs a real conversation.
+
+So the test projects are split:
+
+- `integration` (workerd pool, `tests/integration/worker.test.ts`): the real
+  Worker `fetch` handler with the real `wrangler.jsonc` bindings, for HTTP
+  behaviour — TC-04 (invalid id → 400, Durable Object never touched, asserted
+  with a `BOARD_ROOM` proxy that records `idFromName`), TC-05 (no `Upgrade` →
+  426), TC-06 (SPA fallback for `/b/:boardId`).
+- `live` (Node, `tests/integration/board-room.test.ts`): TC-13, TC-17 and
+  TC-07…TC-18, TC-31 against a real `wrangler dev` instance started in-process
+  with `unstable_dev` (`tests/integration/helpers/live-server.ts`, port
+  `VIDI6_LIVE_PORT ?? 28741`). The Worker, the `BoardRoom`, its `Y.Doc` and the
+  assets all run unmocked inside workerd; the test client is a real `Y.Doc`
+  speaking real `y-protocols` framing over a real WebSocket. The design's
+  "WebSocket obtained from a `SELF.fetch` upgrade response" is the only part
+  that changed; nothing about the room is mocked.
+
+Consequences of the split:
+
+- `compatibility_date` in `wrangler.jsonc` is pinned to `2026-08-15` — the
+  newest date both the `wrangler` binary and the runtime bundled with
+  `@cloudflare/vitest-pool-workers` accept (`2026-09-01` makes the pool refuse to
+  start).
+- TC-13 and TC-17 are listed under `sync.worker_entry` in the design but need
+  open sockets, so they live in `board-room.test.ts` (documented in its header).
+- TC-18 ("restart with all sockets closed") cannot call
+  `evictDurableObject()` from the Node project. It instead uses a brand-new
+  board id, which is a room object whose `Y.Doc` just was created — i.e. exactly
+  the state after a runtime restart that discarded the in-memory doc — and is
+  verified to be empty with a probe client before the first client reconnects to
+  it.
+- `npm run test:integration` builds the client (the Worker serves it from assets)
+  and runs both projects.
 
 ## Decisions
 
-1. **Where the camera lives.** The design fixes
-   `BoardViewport(props: { children?: ReactNode })` *and* says `App.tsx` wires
-   `useCamera` to `ZoomControls`. To satisfy both, `App.tsx` owns
-   `useViewportSize()` + `useCamera()` and provides the controller through a
-   `CameraContext` exported from `useCamera.ts`; `BoardViewport` reads it with
-   `useBoard()`. Children still render inside the world layer, and the
-   `ZoomControls` element is a *sibling* of the viewport, so a wheel gesture
-   over the controls can never reach the board (TC-30); the controls also stop
-   wheel propagation as the design asks.
-2. **Extra `useCamera` controller members.** The contract listed
-   `camera, hasNavigated, beginPan, panMove, endPan, wheel, zoomStep, reset`.
-   Safari pinch and the test hook need three more: `gestureStart(point)`,
-   `gestureZoom(point, scale)` (scale is cumulative, so it is applied to the
-   camera snapshotted at `gesturestart`) and `setCamera(camera)`
-   (test hook only). Nothing else uses them.
-3. **Viewport size source.** The board fills the window, so
-   `useViewportSize()` measures `document.documentElement` (falling back to
-   `window.innerWidth/innerHeight`) with a `ResizeObserver` when one exists and
-   a `resize` listener otherwise. jsdom has no `ResizeObserver`, so component
-   tests resize by overriding `window.innerWidth/innerHeight` and dispatching
-   `resize`. Camera `x, y` are deliberately untouched on resize (TC-07):
-   content keeps its position relative to the top-left.
-4. **No-op detection uses values, not identity.** `useCamera` skips an update
-   when the new camera has the same `x`, `y` and `zoom` (`sameCamera()` added
-   to `camera.ts`), not only when it is the same object. `resetCamera()`
-   always builds a new object, so pressing Ctrl/Cmd + 0 while already at the
-   standard view must not count as "navigated" and must not dismiss the hint.
-5. **Grid dot radius** is a UI choice (1 px, 0.5 px when cells are smaller than
-   8 px) so the grid does not turn into a grey wash at 10%. Spacing and offset
-   are exactly `GRID_SPACING_WORLD * zoom` and `-x * zoom mod spacing`.
-6. **Wheel delta units.** `deltaMode` LINE/PAGE are converted to pixels with
-   named constants in `useCamera.ts` (`WHEEL_LINE_PX = 16`,
-   `WHEEL_PAGE_PX = 800`).
-7. **Absurd wheel deltas.** A delta so large that `exp(-deltaY *
-   WHEEL_ZOOM_SENSITIVITY)` overflows to `Infinity` is rejected by the
-   camera contract (invalid factor → camera unchanged). Tests use large but
-   finite deltas (e.g. `deltaY = -1000` → factor ≈ 22 000, which clamps to
-   ZOOM_MAX).
-8. **Origin marker.** Rendered in all builds as a crosshair whose 14 px size is
-   inverse-scaled, so it is always a stable target for e2e at any zoom. The
-   test id is on the visible shape (`width/height > 0`) because Playwright
-   treats zero-size elements as invisible.
-9. **Drag only from the board surface.** A `pointerdown` starts a pan only when
-   `event.target` is the viewport element itself, leaving room for objects in
-   stories 2+ to own their pointer events.
-10. **`wrangler.jsonc` has no `assets.binding`**: wrangler rejects an assets
-    binding in an assets-only Worker ("Cannot use assets with a binding in an
-    assets-only Worker"). Story 3 adds `main` and can add the binding back.
-11. **Ports.** Everything listens inside the allowed range: `wrangler dev` on
-    28736 (inspector 28737), Vite dev/preview default to 28736
-    (`VIDI6_PORT` / `VIDI6_E2E_PORT` override).
+### Binary frames arrive as `Blob` in the Workers runtime
 
-## Test notes
+`MessageEvent.data` for a binary WebSocket message inside a Worker is a `Blob`,
+not an `ArrayBuffer`. `BoardRoom.fetch` sets `server.binaryType = 'arraybuffer'`
+before `accept()`; `decodeMessage` additionally accepts a `Uint8Array` so it
+cannot be tripped up by runtime differences.
 
-- Component tests dispatch native events (jsdom has no `PointerEvent`, so
-  pointer events are `MouseEvent`s named `pointerdown`/`pointermove`/…, which
-  React dispatches by type) inside `act()`, and use fake timers to flush the
-  `requestAnimationFrame`-coalesced camera updates.
-- Component tests derive the camera from the rendered world-layer transform
-  (`scale(zoom) translate(-x px, -y px)`) so they assert what the user sees.
-- e2e: 15 tests cover TC-23…TC-28, TC-31 and the three workflows.
-- **Blocked on this host: Firefox and WebKit e2e.** The browsers are
-  downloaded but the host lacks their system libraries (Firefox:
-  `libgtk-3-0t64`; WebKit: `libhyphen.so.0`, `libsecret-1.so.0`,
-  `libGLESv2.so.2`, `libx264.so`, …) and the sandbox has no root
-  (`sudo` is blocked by "no new privileges"), so they cannot start. The
-  Playwright config probes each browser at start-up, skips the ones the host
-  cannot run with a printed warning, and runs the rest; `VIDI6_BROWSERS=…`
-  forces a specific list. All 15 e2e tests pass in Chromium.
-- Not covered, per the design's "Not covered" list: trackpad hardware
-  behaviour, Safari `GestureEvent` in e2e (TC-17 covers the handler in jsdom),
-  touch input.
+### `readSyncMessage` does not report broken Yjs updates
 
-## Story 2 — Sticky notes
+`y-protocols` catches errors from `Y.applyUpdate` inside `readSyncStep2` /
+`readUpdate` and only reports them to its optional `errorHandler` (after
+`console.error`-ing them). The room passes that handler, so a payload that is not
+a decodable Yjs update closes the offending socket with 1003 like any other
+malformed traffic; without it the room would silently ignore corrupt updates.
+The y-protocols log line during TC-15 is therefore expected output.
 
-### Followed from the design
+### Non-hibernating sockets on purpose
 
-- `src/shared/board-model.ts` implements the framework-free contract on a real
-  `Y.Doc`: `initDoc` sets `meta.schemaVersion` once; `objects: Y.Map<id,
-  Y.Map>` with `type, x, y, color, text: Y.Text, z, createdAt`; every success
-  is one `doc.transact(run, LOCAL_ORIGIN)`; rejections return before opening a
-  transaction (0 `update` events). `snapshot` is sorted by `(z, id)` and skips
-  unknown types. Ids via `crypto.randomUUID()`.
-- Config additions are exactly the named settings: `STICKY_SIZE_WORLD`,
-  `STICKY_TEXT_MAX_CHARS`, `STICKY_COUNTER_THRESHOLD_CHARS`,
-  `STICKY_FONT_MAX_PX`, `STICKY_FONT_MIN_PX`, `DRAG_THRESHOLD_PX`,
-  `STICKY_COLORS`, `DEFAULT_STICKY_COLOR`.
-- `applyTextDiff` emits a single insert and/or single delete (common prefix +
-  suffix) inside one transaction; surrogate-pair safe (TC-13). `counterVisible`
-  is based on remaining budget (remaining ≤ threshold), so a full 1,000-char
-  note shows `1000/1000` (TC-17).
-- `useBoardDoc()` uses `useSyncExternalStore` over `objects.observeDeep`, so
-  the snapshot only changes on a real document update (TC-18 model test).
+`BoardRoom` uses `WebSocketPair` + `accept()` and keeps sockets in a `Set`.
+Hibernation would let workerd evict the object while sockets stay open, and the
+`Y.Doc` — which has no storage until story 4 — would be lost with it. An open,
+accepted socket keeps the object alive, which is the behaviour story 3 needs
+("notes are not lost while one person keeps the board open"). Story 4 switches
+to `acceptWebSocket` + `setStateCallback` together with persistence; the sync and
+awareness handling moves over unchanged.
 
-### Decisions
+The room also sends SyncStep1 to each newcomer (not only answering the
+client's): that is the mechanism that lets the first client back repopulate a
+room that lost its doc, without depending on the client provider's own sync step.
 
-12. **`createSticky` return type on a bad point.** The design signature returns
-    `string`; for a non-finite point there is no id to give, so it returns the
-    empty string `''` and opens no transaction (TC-39). `moveObject` returns
-    `false` as specified.
-13. **Extra config `STICKY_PADDING_WORLD`.** The design lists padding behaviour
-    but not a named constant; a single `STICKY_PADDING_WORLD = 16` drives both
-    the note's inner box and the text `box-sizing`, so the auto-fit
-    measurement and the visible text share one number.
-14. **`window.__vidi6` now merges hooks.** `registerTestHooks` merges into the
-    existing object and exposes `doc` and `getNotes()` (a `snapshot(doc)`
-    getter) in addition to story 1's `setCamera`, so component/e2e tests read
-    the live model. Still guarded by `import.meta.env.MODE === 'test'`; the
-    production bundle contains 0 occurrences of `__vidi6`.
+### Awareness is relayed, not interpreted
 
-### Bugs found by the e2e suite (fixed)
+Awareness frames are forwarded verbatim to every socket *including* the sender,
+which keeps idle clients receiving traffic (TC-16 asserts sender and receiver get
+byte-identical payloads). `QueryAwareness` (frame type 3) is accepted and ignored
+— there is no awareness state to answer with until story 6 — and the test
+asserts that no reply is produced.
 
-- **Drag remount on bring-to-front.** Notes were rendered in z-order, so the
-  `bringToFront` call at drag start reordered the array and React remounted the
-  dragged note, resetting its drag refs (the rAF-coalesced `moveObject` was
-  then cancelled and the note never moved). Fix: render notes in a **stable
-  id order** (`renderNotes` in `App.tsx`) and let each note's CSS `zIndex:
-  note.z` provide stacking. `bringToFront` now changes only z-index, never DOM
-  order. The golden-path and 200% drag both move the grabbed point exactly
-  (world delta = screen delta ÷ zoom).
-- **Origin marker swallowed double-clicks.** `.origin-marker` sits at world
-  0,0 (the viewport centre at the default camera) and, being interactive, was
-  the double-click target, so `handleDoubleClick`'s `target === surface` guard
-  blocked creating a note at the centre. It is purely decorative
-  (`aria-hidden`), so it is now `pointer-events: none`.
+## Findings worth remembering
 
-### Test notes (story 2)
+- `lib0`'s `writeUint8Array` appends raw bytes; `writeVarUint8Array` is the
+  length-prefixed one. `syncProtocol.writeUpdate` does its own length prefix, so
+  a sync frame is `varUint(0)` + `varUint(2)` + `varUint(len)` + update.
+- The room's broadcast skips the socket an update came from by comparing the
+  `origin` that `Y.Doc` reports, so no client ever receives an echo of its own
+  change (TC-08).
+- `Y.Doc.toJSON()` is not a reliable read of a freshly-synced document: until a
+  shared type has been accessed at least once, `toJSON()` reports it as
+  `undefined`, so `JSON.stringify(doc.toJSON())` is `{}` for a doc that plainly
+  contains data (verified with yjs 13.6.33 on Node). Every
+  test compares boards with `snapshot()` from `board-model`, which materialises
+  and reads the `objects` `Y.Map` directly.
 
-- Unit: `board-model.test.ts` (TC-01..TC-12, TC-39) and `sticky-text.test.ts`
-  (TC-13..TC-17) run against a real `Y.Doc`; 53 tests.
-- Component (jsdom, real `Y.Doc`, dispatch native events + fake timers): 18
-  new tests across `StickyNote`, `StickyTextEditor`, `Toolbars` covering
-  TC-18..TC-22, TC-24..TC-29, TC-35..TC-38; 54 total.
-- e2e (Chromium, `wrangler dev`, test hooks): 4 new specs — the brainstorm
-  golden path (TC-30 → TC-31 → recolour → delete), TC-32 (200% drag +
-  bring-to-front), TC-33 (auto-fit 24px → clip with fade + counter at the
-  limit), TC-34 (create at the view centre far from the start); 19 total.
-- Text fixtures live in `tests/fixtures/texts.ts` (realistic prose, plus the
-  1,000-char paste used by TC-33).
+### The status mapping is exported separately from `connectBoard`
 
-## Not implemented (other stories)
+`connectBoard` only exists to build a real `WebsocketProvider`; the interesting
+part — provider events → `ConnectionState` — is `observeConnectionStatus`, which
+takes the two events the mapping listens to (`status`, `sync`) from any emitter.
+That is the fake the design asks for in the badge tests, and it means TC-19 to
+TC-21 run without a socket. One detail the design's wording leaves open: a real
+provider reports `connected` a moment *before* the board's content has arrived,
+so `connecting` ends on `sync(true)`, not on `status: 'connected'` — otherwise
+the badge would disappear before the notes are on the screen.
 
-Presence/cursors (6), realtime/offline sync (3, 13), sign-in (14), dashboard
-(15), comments (16), export (17), and the remaining board objects (7–12).
-Sticky notes (story 2) are implemented. The Worker entry point is intentionally
-absent; `wrangler dev` serves static assets only.
+### Component tests need a room, because the app connects on render
+
+`useBoardDoc` attaches a provider as soon as the board renders, so every
+component test that renders `App` opens a WebSocket — and jsdom has no server to
+open one against. `tests/component/standInRoom.ts` stands in for the room: real
+`decodeMessage`, real `y-protocols`, real `Y.Doc`, only the socket transport
+replaced. It syncs, relays between sockets, closes unreadable frames, and can cut
+its connections so a test can watch the page react to an outage (TC-22 negative).
+It is installed in `tests/component/setup.ts` and reset before every test so one
+test cannot see another's notes.
+
+`renderBoard()` now navigates to `/b/<new board id>` first: the address decides
+which board a page connects to, and at `/` the page redirects instead of
+rendering. `tests/e2e/helpers/board.ts` does the same, which also keeps the
+story-2 e2e specs off a page-load race with that redirect.
+
+### The badge's test hooks log every state, and count sockets
+
+The design asks for `window.__vidi6.connectionState` so a nightly test can check the
+mapped state while a board sits idle. A single value read by polling can miss a state
+that arrived and left between two reads, which is exactly the failure worth catching,
+so the test build also exposes `connectionStates()` (every state, oldest first —
+`useBoardDoc` pushes each one as it happens) plus `connectionAttempts()` and
+`disconnectBoard()`. The last two exist for the design's teardown point: a test can
+destroy the connection the way leaving the board does and check no further socket is
+opened. Note that `WebsocketProvider` dials from inside its own constructor, before any
+listener can be attached, so the attempt count starts at one rather than zero.
+
+## Running the nightly tests
+
+`npm run test:e2e:nightly` (`VIDI6_NIGHTLY=1 playwright test --grep @nightly`). Long
+cases are tagged `@nightly` and `playwright.config.ts` sets
+`grepInvert: /@nightly/` unless `VIDI6_NIGHTLY` is set, so an ordinary
+`npm run test:e2e` never waits on them. TC-29 idles for 45 s — longer than the
+provider's own 30 s tolerance for a silent connection, which is the point: the room
+relays awareness to everyone including the sender, so traffic keeps flowing and the
+badge never has anything to say.
+
+## Running the nightly soak without the tests falling over
+
+TC-30 puts five browser contexts on one board, each editing continuously for a minute
+(~1,600 changes on a quiet run). Four things about that setup are not obvious and each
+one cost a debugging round:
+
+- **"Which note did I just create?" cannot be answered by diffing ids.** Story 2's
+  `createNoteByDblClick` compares the note ids before and after the double-click and
+  insists exactly one is new — true when one person works, false when five do, because
+  somebody else's note lands in the same gap. `createNoteAt` (in
+  `tests/e2e/helpers/live.ts`) picks the new note by *where* it is: the one that
+  appeared centred under the pointer.
+- **A selected note's toolbar covers the note above it.** `.note-toolbar-anchor` is
+  `position: fixed` with `translateY(-100%)`, so it floats over whatever is ~36 px above
+  the selected note — another note, if rows are packed tightly, and then a click there
+  waits out the action timeout. The soak gives each writer a single row with 150 px
+  between rows, and limits each drag to 6 px with the note pulled back toward where it
+  was created, so notes never drift onto their neighbours (a covered click, and a drag
+  that grabs the wrong note).
+- **Clicking a toolbar button with a real mouse can hang on a busy board.** Playwright
+  retries a click until the element is stable and still attached; the toolbar's row is
+  re-rendered as other people's changes stream in, and three of five participants
+  eventually sat in that retry loop until the test timed out. `pressNoteToolbarButton`
+  dispatches the press on the button itself — the app's own `onClick`, with no
+  hit-testing. Everything else in the soak (double-clicks, drags, typing) is a real
+  input.
+- **Chrome reports a console error for every socket it cannot connect.** Cutting the
+  network on purpose (TC-27) therefore fills the error list with
+  `ERR_INTERNET_DISCONNECTED`, which is the outage talking rather than the app.
+  `expectNoErrors` filters that pattern and nothing else.
+
+`VIDI6_SOAK_MS` shortens the soak (and `VIDI6_SOAK_TRACE=1` prints each participant's
+step timings) — both are for working on the test, not for CI. TC-30's own timeout is
+150 s, close to what a minute of editing plus the checks needs, so a hang fails loudly
+instead of idling for four minutes.
+
+## What the latency actually looks like here
+
+Reported, never asserted (one machine runs the server, five browsers and the test
+runner). Nightly runs on this host, against `LIVE_UPDATE_LATENCY_BUDGET_MS = 1000`:
+
+| run | changes | p50 | p95 | max |
+|---|---|---|---|---|
+| TC-30, 60 s, 5 people | 1,602–1,623 | 135–142 ms | 430–442 ms | 578–615 ms |
+| TC-29, first change after 45 s idle | 1 | 2–4 ms | — | — |
+
+Two-person e2e cases (TC-22 to TC-28) land in the 4–30 ms range; the soak's p95 grows
+with the number of simultaneous writers, which is what you would expect from a relay
+that fans every update out to everyone.

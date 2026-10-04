@@ -1,0 +1,11 @@
+{
+  // Type-checks the Cloudflare Worker and the integration tests that run inside
+  // workerd. The Workers runtime type surface replaces the DOM and Node libs, so
+  // this program is separate from the browser/client program (`tsconfig.json`).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"]
+  },
+  "include": ["src/worker", "src/shared", "tests/integration/worker.test.ts"]
+}

@@ -2,6 +2,7 @@ import type * as Y from 'yjs';
 
 import type { StickySnapshot } from '../../shared/board-model';
 import type { Camera } from './camera';
+import type { ConnectionState } from '../sync/connectBoard';
 
 /**
  * Hooks used only by the end-to-end and component tests (e.g. jumping a
@@ -15,6 +16,17 @@ export interface Vidi6TestHooks {
   doc?: Y.Doc;
   /** Current sticky-note snapshots (sorted by z, id), for e2e assertions. */
   getNotes?(): StickySnapshot[];
+  /** What the connection badge is being told, straight from the provider. */
+  connectionState?(): ConnectionState;
+  /** Every connection state this page has been in, oldest first. */
+  connectionStates?(): ConnectionState[];
+  /** Sockets this page has opened at the room, retries included. */
+  connectionAttempts?(): number;
+  /**
+   * Drop the board connection the way leaving the board does, so a test can check
+   * nothing reconnects afterwards.
+   */
+  disconnectBoard?(): void;
 }
 
 declare global {

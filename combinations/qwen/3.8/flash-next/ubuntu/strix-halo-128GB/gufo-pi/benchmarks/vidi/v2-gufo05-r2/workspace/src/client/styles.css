@@ -356,3 +356,41 @@ a:focus-visible,
 .note-toolbar__delete:hover {
   background: #fdecea;
 }
+
+/* ------------------------------------------------------------------ *
+ * Story 3: live collaboration                                         *
+ * ------------------------------------------------------------------ */
+
+/* Connection badge, top centre. Sits above the notes: it is about the whole
+   board, and it must never be covered by what arrives on it. */
+.connection-status {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  font-size: 14px;
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  box-shadow: var(--ui-shadow);
+  color: var(--ui-muted);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 30;
+}
+
+/* The connection dropped and is being retried: amber, and the board stays
+   editable while it says so. */
+.connection-status--reconnecting {
+  color: #8a5300;
+  background: #fff4d6;
+  border-color: #f0c26b;
+}
+
+/* The connection is back: green, for CONNECTED_CONFIRMATION_MS only. */
+.connection-status--confirmed {
+  color: #14532d;
+  background: #e3f6e8;
+  border-color: #86d3a3;
+}

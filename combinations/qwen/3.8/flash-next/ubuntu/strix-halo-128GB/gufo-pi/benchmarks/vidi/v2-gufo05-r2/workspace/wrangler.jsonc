@@ -1,13 +1,22 @@
 {
-  // Cloudflare Worker configuration. Story 1 serves the client as static
-  // assets only; Worker code (Durable Objects for realtime) arrives in story 3.
+  // Cloudflare Worker configuration: the client bundle is served as static
+  // assets, and /api/rooms/:boardId upgrades into the BoardRoom Durable Object
+  // that relays live edits between everyone on a board.
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-01",
+  "main": "src/worker/index.ts",
+  // Pinned to the runtime version the vitest Workers pool ships: the newest date
+  // both `wrangler dev` and `@cloudflare/vitest-pool-workers` accept.
+  "compatibility_date": "2026-08-15",
   "compatibility_flags": ["nodejs_compat"],
-  // Assets-only for now: an `assets.binding` requires a Worker script, which
-  // story 3 adds together with the realtime Durable Object.
   "assets": {
-    "directory": "./dist/client"
-  }
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
+  },
+  // SQLite-backed from the start so story 4 (persistence) needs no class migration.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
 }

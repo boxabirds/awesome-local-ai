@@ -63,6 +63,9 @@ const projects: Project[] = selectedBrowsers().map((name) => ({
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
+  // The idle and soak cases (@nightly) run for minutes. They are kept out of the
+  // ordinary run and started with `npm run test:e2e:nightly`.
+  grepInvert: process.env.VIDI6_NIGHTLY ? undefined : /@nightly/,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: BASE_URL,

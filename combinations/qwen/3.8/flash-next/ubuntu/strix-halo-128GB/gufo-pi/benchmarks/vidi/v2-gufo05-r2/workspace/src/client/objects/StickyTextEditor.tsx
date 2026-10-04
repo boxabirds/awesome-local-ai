@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -13,6 +14,7 @@ import {
 } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { applyTextDiff, clampToLimit, counterVisible, fitFontSize } from './StickyText';
+import { mapCaretPosition } from './caret';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -56,6 +58,47 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     const result = fitFontSize(el, stickyContentBox(el));
     setOverflow(result.overflow);
   };
+
+  /**
+   * Show text that arrived while you were editing, and put the caret back where
+   * it belongs. The textarea cannot simply own its value once other people can
+   * edit the same text: every keystroke is diffed against the shared text, so a
+   * value that is missing somebody else's typing would delete it.
+   */
+  const applyRemoteText = () => {
+    const el = ref.current;
+    if (!el) return;
+    const next = ytextRef.current.toString();
+    const before = el.value;
+    if (next === before) return;
+    const selectionStart = el.selectionStart ?? next.length;
+    const selectionEnd = el.selectionEnd ?? next.length;
+    el.value = next;
+    setLength(next.length);
+    fit(el);
+    try {
+      el.setSelectionRange(
+        mapCaretPosition(before, next, selectionStart),
+        mapCaretPosition(before, next, selectionEnd),
+      );
+    } catch {
+      /* selection range is unsupported on some elements; ignore */
+    }
+  };
+  const applyRemoteTextRef = useRef(applyRemoteText);
+  applyRemoteTextRef.current = applyRemoteText;
+
+  // Somebody else's typing, arriving into the note you are typing in.
+  const waitingForCompositionToEnd = useRef(false);
+  useEffect(() => {
+    const ytext = ytextRef.current;
+    const observer = () => {
+      if (composingRef.current) waitingForCompositionToEnd.current = true;
+      else applyRemoteTextRef.current();
+    };
+    ytext.observe(observer);
+    return () => ytext.unobserve(observer);
+  }, []);
 
   // Write the current textarea value into Y.Text, clamped to the limit.
   const flush = () => {
@@ -132,6 +175,10 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
         onCompositionEnd={() => {
           composingRef.current = false;
           flush();
+          if (waitingForCompositionToEnd.current) {
+            waitingForCompositionToEnd.current = false;
+            applyRemoteText();
+          }
         }}
         onInput={() => {
           // During IME composition the value is provisional; wait for
