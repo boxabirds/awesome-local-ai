@@ -11,6 +11,7 @@ import { ZoomControls } from '../canvas/ZoomControls';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
+import { useUndoController, useUndo } from '../board/useUndo';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { useBoardKeys } from '../board/useBoardKeys';
 import { SelectionOverlay } from '../board/SelectionOverlay';
@@ -30,6 +31,10 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
 
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const editable = connectionState !== 'load_failed';
+
+  // Per-user undo history (story 8): session-only, LOCAL_ORIGIN changes only.
+  const undoController = useUndoController(doc);
+  const undo = useUndo(undoController, editable);
 
   // Expose connection state on the test hook
   useEffect(() => {
@@ -71,12 +76,13 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
   const createStickyAt = useCallback(
     (worldPoint: Point) => {
       if (!editable) return;
+      undo.boundary();
       const id = createSticky(doc, worldPoint);
       if (id) {
         selection.startEdit(id);
       }
     },
-    [doc, selection, editable],
+    [doc, selection, editable, undo],
   );
 
   const handleDblClickEmpty = useCallback(
@@ -97,13 +103,15 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
     createStickyAt(world);
   }, [viewport, camera.camera, createStickyAt]);
 
-  // Transform gesture
+  // Transform gesture (each drag/resize is one undo step — story 8)
   const gesture = useTransformGesture({
     doc,
     camera: camera.camera,
     selection,
     snapshot: notes,
     canEdit: editable,
+    onGestureStart: undo.boundary,
+    onGestureEnd: undo.boundary,
   });
 
   // Marquee
@@ -117,6 +125,9 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
     selection,
     snapshot: notes,
     canEdit: editable,
+    onUndo: undo.undo,
+    onRedo: undo.redo,
+    onBoundary: undo.boundary,
   });
 
   // Handle for double-click on a note (start editing)
@@ -129,18 +140,20 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
     [selection, editable],
   );
 
-  // Selection bar delete
+  // Selection bar delete (its own undo step — story 8)
   const handleSelectionDelete = useCallback(() => {
+    undo.boundary();
     deleteObjects(doc, [...selection.ids]);
     selection.clear();
-  }, [doc, selection]);
+  }, [doc, selection, undo]);
 
-  // Selection bar color change
+  // Selection bar color change (its own undo step — story 8)
   const handleColorChange = useCallback(
     (id: string, color: StickyColor) => {
+      undo.boundary();
       setStickyColor(doc, id, color);
     },
-    [doc],
+    [doc, undo],
   );
 
   // Marquee handlers for the viewport
@@ -195,6 +208,9 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
             onPointerDown={gesture.onObjectPointerDown}
             onDoubleClick={handleNoteDoubleClick}
             onEndEdit={() => selection.endEdit()}
+            onBoundary={undo.boundary}
+            onUndo={undo.undo}
+            onRedo={undo.redo}
           />
         ))}
       </BoardViewport>
@@ -221,7 +237,7 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
         />
       </div>
 
-      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} />
+      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} undo={undo} />
       <ZoomControls
         zoomPercent={zoomPercent(camera.camera)}
         canZoomIn={canZoomIn(camera.camera)}

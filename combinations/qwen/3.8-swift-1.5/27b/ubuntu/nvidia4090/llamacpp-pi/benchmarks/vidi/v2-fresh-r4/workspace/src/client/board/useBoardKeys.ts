@@ -10,19 +10,27 @@ export interface UseBoardKeysOpts {
   selection: UseSelectionResult;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** Undo (Ctrl/Cmd+Z) — story 8. */
+  onUndo?(): void;
+  /** Redo (Ctrl/Cmd+Shift+Z, Ctrl+Y) — story 8. */
+  onRedo?(): void;
+  /** Close the current undo step before a discrete action — story 8. */
+  onBoundary?(): void;
 }
 
 /**
  * Window keyboard handler for selection commands:
  * - Ctrl/Cmd+A: select all
+ * - Ctrl/Cmd+Z: undo, Ctrl/Cmd+Shift+Z / Ctrl+Y: redo (story 8)
  * - Escape: clear selection
- * - Arrow keys: nudge selection
- * - Delete/Backspace: delete selection
+ * - Arrow keys: nudge selection (nudges within the capture timeout merge
+ *   into one undo step)
+ * - Delete/Backspace: delete selection (its own undo step)
  *
  * Ignored when editing text or focus is in an input/textarea.
  */
 export function useBoardKeys(opts: UseBoardKeysOpts): void {
-  const { doc, selection, snapshot, canEdit } = opts;
+  const { doc, selection, snapshot, canEdit, onUndo, onRedo, onBoundary } = opts;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -39,6 +47,23 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         e.preventDefault();
         const ids = allObjectIds(snapshot);
         selection.setMany(ids, false);
+        return;
+      }
+
+      // Undo / redo shortcuts (story 8)
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          onRedo?.();
+        } else {
+          onUndo?.();
+        }
+        return;
+      }
+      if (mod && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        onRedo?.();
         return;
       }
 
@@ -71,9 +96,10 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
           return;
         }
 
-        // Delete/Backspace: delete selection
+        // Delete/Backspace: delete selection (its own undo step)
         if (e.key === 'Delete' || e.key === 'Backspace') {
           e.preventDefault();
+          onBoundary?.();
           deleteObjects(doc, [...selection.ids]);
           selection.clear();
           return;

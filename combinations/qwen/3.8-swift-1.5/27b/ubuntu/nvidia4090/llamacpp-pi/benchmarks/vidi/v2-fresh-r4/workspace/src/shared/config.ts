@@ -123,3 +123,11 @@ export const NUDGE_STEP_WORLD = 1;
 
 /** Shift+arrow key nudge step in world units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// --- Story 8: Undo and redo my own changes ---
+
+/** Typing pause (ms) that ends a burst: typing without a pause of at least this long is one undo step. */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/** Maximum number of undo steps kept per user; the oldest step is discarded beyond this. */
+export const UNDO_MAX_STEPS = 200;

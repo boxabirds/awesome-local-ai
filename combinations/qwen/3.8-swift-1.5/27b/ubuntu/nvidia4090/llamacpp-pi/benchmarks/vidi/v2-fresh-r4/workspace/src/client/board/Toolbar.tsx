@@ -1,13 +1,17 @@
 import type { JSX } from 'react';
+import type { UseUndoResult } from './useUndo';
+import { UndoButtons } from './UndoButtons';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
   /** When true the button is inert (the board is not editable, e.g. load failed). */
   disabled?: boolean;
+  /** Undo/redo state and actions (story 8). */
+  undo?: Pick<UseUndoResult, 'canUndo' | 'canRedo' | 'undo' | 'redo'>;
 }
 
 /**
- * Fixed left-side vertical toolbar with a Sticky note button.
+ * Fixed left-side vertical toolbar with a Sticky note button and undo/redo.
  */
 export function Toolbar(props: ToolbarProps): JSX.Element {
   return (
@@ -28,6 +32,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         <span className="board-toolbar-sticky-icon" aria-hidden="true">📝</span>
         <span className="board-toolbar-sticky-label">Sticky note</span>
       </button>
+      {props.undo && <UndoButtons undo={props.undo} />}
     </div>
   );
 }

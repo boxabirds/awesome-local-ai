@@ -73,12 +73,16 @@ export function applyTextDiff(ytext: Y.Text, next: string, _origin: unknown): vo
   const deleteLen = current.length - prefixLen - suffixLen;
   const insertStr = next.slice(prefixLen, next.length - suffixLen);
 
-  if (deleteLen > 0) {
-    ytext.delete(deleteStart, deleteLen);
-  }
-  if (insertStr.length > 0) {
-    ytext.insert(deleteStart, insertStr);
-  }
+  // One transaction with the caller's origin so the whole diff is atomic and
+  // (with LOCAL_ORIGIN) captured in this tab's undo history (story 8).
+  ytext.doc!.transact(() => {
+    if (deleteLen > 0) {
+      ytext.delete(deleteStart, deleteLen);
+    }
+    if (insertStr.length > 0) {
+      ytext.insert(deleteStart, insertStr);
+    }
+  }, _origin);
 }
 
 /**

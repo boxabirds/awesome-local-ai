@@ -17,6 +17,12 @@ export interface StickyNoteProps extends ObjectProps {
   zoom?: number;
   /** Called when editing ends. */
   onEndEdit?: (next: 'selected' | 'unselected') => void;
+  /** Close the current undo step (editing start/end) — story 8. */
+  onBoundary?: () => void;
+  /** Undo (Ctrl/Cmd+Z inside the editor) — story 8. */
+  onUndo?: () => void;
+  /** Redo (Ctrl/Cmd+Shift+Z, Ctrl+Y inside the editor) — story 8. */
+  onRedo?: () => void;
 }
 
 /**
@@ -24,7 +30,7 @@ export interface StickyNoteProps extends ObjectProps {
  * Renders width/height from the object snapshot (falls back to STICKY_SIZE_WORLD).
  */
 export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { obj, selected, editing, onPointerDown, onDoubleClick, doc, onEndEdit } = props;
+  const { obj, selected, editing, onPointerDown, onDoubleClick, doc, onEndEdit, onBoundary, onUndo, onRedo } = props;
   const noteRef = useRef<HTMLDivElement>(null);
 
   const width = obj.width ?? STICKY_SIZE_WORLD;
@@ -78,7 +84,14 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
       }}
     >
       {editing && ytext ? (
-        <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit ?? (() => {})} />
+        <StickyTextEditor
+          ytext={ytext}
+          fontPx={fontPx}
+          onEnd={onEndEdit ?? (() => {})}
+          onBoundary={onBoundary}
+          onUndo={onUndo}
+          onRedo={onRedo}
+        />
       ) : (
         <div
           className="sticky-text-display"

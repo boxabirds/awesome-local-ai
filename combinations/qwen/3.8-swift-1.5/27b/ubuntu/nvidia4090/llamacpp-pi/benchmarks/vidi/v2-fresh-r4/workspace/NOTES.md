@@ -135,3 +135,32 @@
 ### Task 9: Nightly E2E (TC-29, TC-30)
 - **Why blocked:** Same proxy issue as Task 8. Nightly E2E tests require long-running WebSocket connections to the `wrangler dev` server, which cannot be established through the proxy.
 - **What was done:** Not yet implemented. Would require the same `wrangler dev` + Playwright setup as Task 8.
+
+# Story 8 Notes
+
+## Key Decisions
+
+### Per-user undo controller (`src/client/board/undo.ts`)
+- `createUndo(doc, opts?)` returns an `UndoController` wrapping a yjs `UndoManager` scoped to the objects map + per-note text YTexts, with `trackedOrigins: [LOCAL_ORIGIN]` so only the local user's transactions are captured. Remote (provider) and load-origin updates are never undoable.
+- `UNDO_CAPTURE_TIMEOUT_MS = 500` merges rapid changes (e.g. a drag, a typing burst) into one step; `UNDO_MAX_STEPS = 200` trims the oldest stack items on `stack-item-added`.
+- History is session-only: the controller lives in `BoardContent` and is discarded on reload/board change.
+
+### Absorption compensation
+- yjs `UndoManager.popStackItem` absorbs no-op stack items (e.g. the target was remotely deleted) and keeps popping until one change applies — which would silently consume multiple of the user's steps in one Ctrl+Z.
+- The wrapper counts items consumed (`undoStack` length before/after) and, if more than one was consumed and the redo stack grew, calls `manager.redo()` once to re-apply the absorbed step. The re-applied change is re-captured as a new undo step (yjs self-tracks: the UndoManager adds itself to `trackedOrigins`).
+
+### Step boundaries
+- `boundary()` (a zero-op local transaction) flushes the capture window so the next change starts a new step. Called: on text-editor mount/end, before create/delete/color, and via `onGestureStart`/`onGestureEnd` for drag/resize. Arrow-key nudges rely on the 500ms capture timeout to merge into one step (no explicit boundary).
+- `applyTextDiff` now transacts with `LOCAL_ORIGIN` so typing is captured (was a plain string origin).
+
+### E2E: background-tab rAF throttling (Firefox)
+- Drag moves are batched through `requestAnimationFrame` (`useTransformGesture` → `schedule`). Browsers throttle rAF in background tabs, so with 5 concurrent tabs only the foreground tab's drag ever applies its position — a concurrent background drag appears to "do nothing".
+- TC-24 therefore performs each editor's *edit* phase (drag + type) sequentially with `page.bringToFront()`, then exercises the story-8 behaviour — the **undo** phase — concurrently. Undo is synchronous (not rAF-batched) and works in background tabs.
+- Note: TC-36's loose bounds assertion (`maxX > 1980`) cannot detect a missed background drag; TC-24's per-note position assertions can.
+- E2E drags/typing locate notes by **world position** (`style.left`) + real `getBoundingClientRect()`, never by DOM index: `bringObjectsToFront` reorders the rendered list on every drag.
+- `keyboard.insertText()` (one InputEvent → one Yjs transaction → one undo step) is used for typed text; `keyboard.type()` can exceed the 500ms capture timeout between keystrokes under 5-browser load.
+
+### Pre-existing failures (verified on clean tree, story 8 unrelated)
+- Component: 13 failures (viewport/nav/load_failed suites).
+- E2E: live-collab TC-23 + TC-25 (chromium & firefox), sticky-notes TC-32 (chromium & firefox), share TC-26 (firefox).
+- Webkit project cannot launch in this environment (missing system libs); `scripts/run-e2e.mjs` skips it automatically.
