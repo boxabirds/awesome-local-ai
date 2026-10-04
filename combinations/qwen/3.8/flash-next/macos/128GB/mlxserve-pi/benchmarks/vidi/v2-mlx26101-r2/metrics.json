@@ -875,7 +875,7 @@
         "calls": 224,
         "tool_calls": 223,
         "thinking_visible": true,
-        "thinking_chars": 388862,
+        "thinking_chars": 388790,
         "thinking_median": 329,
         "thinking_median_before": 71,
         "thinking_median_after": 336,
@@ -885,7 +885,7 @@
           "at_s": 450.5
         },
         "text_chars": 1482,
-        "tool_arg_chars": 258840,
+        "tool_arg_chars": 257472,
         "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
@@ -3784,7 +3784,7 @@
         "calls": 440,
         "tool_calls": 440,
         "thinking_visible": true,
-        "thinking_chars": 711987,
+        "thinking_chars": 711963,
         "thinking_median": 413,
         "thinking_median_before": 140,
         "thinking_median_after": 443,
@@ -3794,7 +3794,7 @@
           "at_s": 619.2
         },
         "text_chars": 2279,
-        "tool_arg_chars": 503139,
+        "tool_arg_chars": 498579,
         "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
@@ -3814,7 +3814,7 @@
         "longest_tool": {
           "seconds": 531.5,
           "name": "bash",
-          "gist": "cd ~/.w/c0b6692872/workspace && VIDI6_NIGHTLY=1 npx playwright test --grep @nightly --project=chromium --rep"
+          "gist": "cd ~/.w/c0b6692872/workspace && VIDI6_NIGHTLY=1 npx playwright test --grep @nightly --project=chromium --reporter=line 2"
         },
         "signals": [],
         "subagent_calls": 0
