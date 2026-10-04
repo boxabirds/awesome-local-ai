@@ -20,6 +20,8 @@ export interface StickyTextEditorProps {
   ytext: Y.Text;
   /** Initial font size; the editor re-fits itself after every edit. */
   fontPx: number;
+  /** The board is locked (see `canEdit`): the text can be read, not changed. */
+  readOnly?: boolean;
   /** Escape → 'selected'; a pointerdown outside the note → 'unselected'. */
   onEnd(next: 'selected' | 'unselected'): void;
 }
@@ -43,7 +45,7 @@ export function stickyContentBox(el: HTMLElement): number {
  * note (drop selection). Every input is already written, so ending editing
  * performs no additional write and all text typed so far is kept.
  */
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
+export function StickyTextEditor({ ytext, fontPx, readOnly = false, onEnd }: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const [overflow, setOverflow] = useState(false);
@@ -168,6 +170,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
         className="sticky-note__textarea"
         aria-label="Sticky note text"
         defaultValue=""
+        readOnly={readOnly}
         spellCheck={false}
         onCompositionStart={() => {
           composingRef.current = true;

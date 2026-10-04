@@ -40,7 +40,11 @@ export default defineConfig({
         plugins: [cloudflareTest({ wrangler: { configPath: './wrangler.jsonc' } })],
         test: {
           name: 'integration',
-          include: ['tests/integration/worker.test.ts'],
+          include: [
+            'tests/integration/worker.test.ts',
+            'tests/integration/board-store.test.ts',
+            'tests/integration/room-hibernation.test.ts',
+          ],
           pool: 'workers',
           testTimeout: 30_000,
           hookTimeout: 30_000,
@@ -51,7 +55,10 @@ export default defineConfig({
         test: {
           name: 'live',
           environment: 'node',
-          include: ['tests/integration/board-room.test.ts'],
+          include: [
+            'tests/integration/board-room.test.ts',
+            'tests/integration/board-room-persistence.test.ts',
+          ],
           globalSetup: ['./tests/integration/global-setup.ts'],
           // One server for the whole project; tests are separated by board id.
           fileParallelism: false,

@@ -16,6 +16,18 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code: endpoint received data of an unexpected type. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/**
+ * WebSocket close code: the room could not load its board from storage. The
+ * client says so instead of showing an empty board, and keeps retrying — 4500
+ * is in `y-websocket`'s "try again later" range, so the provider reconnects.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/**
+ * WebSocket close code: the room could not write to storage. Unsaved changes
+ * stay in each open page and are re-sent by the next handshake; the client
+ * shows "Reconnecting…", never the load-failure message.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }

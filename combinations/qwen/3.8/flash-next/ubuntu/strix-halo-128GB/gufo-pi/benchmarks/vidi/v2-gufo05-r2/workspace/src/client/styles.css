@@ -388,6 +388,14 @@ a:focus-visible,
   border-color: #f0c26b;
 }
 
+/* The room could not load this board: red, and the only state in which the board
+   is locked. It is shown until the board itself arrives. */
+.connection-status--load_failed {
+  color: #8f1616;
+  background: #ffe4e4;
+  border-color: #f0a2a2;
+}
+
 /* The connection is back: green, for CONNECTED_CONFIRMATION_MS only. */
 .connection-status--confirmed {
   color: #14532d;

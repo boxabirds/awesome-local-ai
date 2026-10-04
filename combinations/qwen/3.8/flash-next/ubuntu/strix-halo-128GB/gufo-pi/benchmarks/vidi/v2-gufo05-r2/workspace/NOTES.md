@@ -198,3 +198,124 @@ runner). Nightly runs on this host, against `LIVE_UPDATE_LATENCY_BUDGET_MS = 100
 Two-person e2e cases (TC-22 to TC-28) land in the 4–30 ms range; the soak's p95 grows
 with the number of simultaneous writers, which is what you would expect from a relay
 that fans every update out to everyone.
+
+---
+
+# Notes: Story 4 — returning to a board
+
+## Deviations from the design
+
+### TC-18 cannot evict a Durable Object that is holding sockets, on this toolchain
+
+The design says: hibernate, `evictDurableObject()` the object, and show that the
+sockets are still there afterwards. On this machine (`@cloudflare/vitest-pool-workers`
+0.22 and the workerd it bundles) that route does not exist:
+
+- `evictDurableObject()` on an object with an open hibernatable WebSocket never
+  returns. Probed both ways: socket created from an upgrade request, and socket
+  created by hand from a `WebSocketPair` with a peer held by the test.
+- `ctx.abort()` — the other way to force eviction — closes those sockets: their
+  `readyState` is 3 by the time the object comes back.
+- `evictDurableObject()` on an object that has never been instantiated hangs too,
+  and interleaving `room.fetch()` with evict-and-wake hangs even when it is awake.
+  `runInDurableObject()` is the reliable wake: it runs the constructor, which is
+  where the load happens.
+
+So `tests/integration/room-hibernation.test.ts` proves the two things eviction was a
+stand-in for, without it:
+
+- **the room has no audience of its own.** After one accepted socket and one stored
+  change, `room.socketCount()` still equals `ctx.getWebSockets().length`. There is no
+  private list for hibernation to lose, which is the property the design wanted.
+- **a room that comes back finds the connections that are really there** — in the
+  `live` project, after `ctx.abort()`: a newcomer is the room's only socket
+  (`sockets: 1`), gets the board's 25 notes, and a third client joining the rebuilt
+  room receives a change the newcomer makes. That project also shows PING answered
+  with PONG and no app code running, which is the runtime's own hibernation doing its
+  job.
+
+### There is no `loads` counter in `StorageSummary`
+
+The design's status block lists "reads of this board". TC-25 in the same story says
+opening an untouched board must write nothing, and a counter that goes up when you
+read contradicts it. It is also unnecessary: the durable evidence that a woken room
+did *not* read its board is the `load_failed_at` timestamp, because a read that fails
+rewrites it and a read that succeeds deletes it. TC-16 asserts that timestamp
+unchanged across three wake-ups, then aged past `LOAD_RETRY_MIN_INTERVAL_MS`, then
+gone, with the room's state back to `ready`.
+
+### Room-persistence tests are split across two projects
+
+Anything that needs real sockets is in `live` (`tests/integration/board-room-persistence
+.test.ts`), anything that needs the clock is in the workerd pool
+(`tests/integration/room-hibernation.test.ts`). That is because Miniflare's clock jumps
+by about ten seconds whenever a socketless Durable Object is evicted during a WebSocket
+close — production workerd does not do this, and a test in the live project that reads
+a timestamp would sometimes see the future. `boardStats()` on a live server therefore
+reports `updates` only.
+
+### Tasks 7 and 8 were done in one pass, not test-first
+
+tasks.md asks for the client tests before the client state. The state machine, its
+badge and its lock went in together with the tests that pin them. Nothing was learned
+late that a different order would have caught earlier, but it is a deviation.
+
+## Decisions
+
+### What a refusal costs
+
+- A board that cannot be read closes the joining socket with **4500**; the client maps
+  that one code to `load_failed`. **1011** (the room's storage failed mid-change) and
+  **1003** (frames it cannot read) stay `reconnecting`: the board is readable, this
+  page's edits are kept, and the promise that the wait is temporary is true.
+- The client's `load_failed` is **sticky until content arrives**. Status events from
+  the provider's retries are ignored while it is set, because "Connecting…" would be
+  a promise about a board that is not on its way. Two facts about `y-websocket` make
+  this work and were checked in `node_modules/y-websocket/src/y-websocket.js`: its
+  band of "do not retry" codes is 4400–4499, so 4500 retries on its own; and
+  `connection-close` is emitted only for a socket that had opened — the room accepts
+  before it closes, so the code always reaches the page.
+- The room's retry gate is a timestamp in storage, and a *refused* join does not move
+  it. A page hammering a broken board must not postpone its own recovery.
+
+### Where the edit lock lives
+
+In the places a write enters the document — double-click on the board, the Delete key,
+the note toolbar's colour and delete, `StickyNote`'s drag and its double-click, the
+text editor as `readOnly` — plus the toolbar button's `disabled` attribute. Not by
+hiding the board or the tools: TC-23 asserts the *document* is byte-for-byte
+unchanged after every attempted edit, and recovery is asserted by trying them again in
+the same, un-reloaded page.
+
+## Findings worth remembering (`wrangler dev`, workerd)
+
+- `--persist-to <dir>` puts DO SQLite on disk and survives `SIGKILL`; the WAL
+  recovery on restart is exactly what TC-19 leans on.
+- `wrangler dev --var NAME:value` (colon, not `=`) injects a variable. The e2e server
+  passes `TEST_HOOKS:1`; the same command without it answers `/__test/...` with the
+  SPA fallback, which `broken-board.spec.ts` asserts rather than assumes.
+- Stopping `wrangler dev` means stopping its process group: `spawn(..., { detached:
+  true })` and `process.kill(-pid, 'SIGKILL')`. workerd is a child of the wrangler
+  process, and killing only the parent leaves the port occupied.
+- A `WebSocketPair` created *inside* a Durable Object does not deliver frames to its
+  peer half in the vitest pool. You cannot watch a frame arrive at a socket you made
+  yourself; you can only count what the runtime holds.
+- A note created by double-click opens straight into editing. A component test that
+  drags "the note just created" is dragging a textarea; drag one that has been sitting
+  there.
+
+## What the timings look like here
+
+| measurement | on this machine |
+|---|---|
+| TC-21: `PERSIST_TESTED_NOTES` (2000) notes, compacted into chunks, room aborted, until every note is rendered in Chromium | ~900 ms against `BOARD_LOAD_BUDGET_MS = 3000` — reported, not asserted, because one host runs the Worker, the browser and the runner |
+| TC-20: from "the second person has seen the note" to "the process is gone" | 11–14 ms, and the note came back |
+| TC-24: damaged snapshot → red message, and repair → board back on the page's own retries | ~2 s to the message; the recovery waits out `LOAD_RETRY_MIN_INTERVAL_MS` plus the provider's backoff |
+
+## Ports used by the suites
+
+28736/28737 the shared e2e server (`npm run e2e:serve`), 28741 the live integration
+server, 28744/28745 each persistence case's own `wrangler dev`, 28746 the
+"deployment without `TEST_HOOKS`" server. The persistence cases run serially
+(`test.describe.configure({ mode: 'serial' })`) because they share 28744; they can
+still run alongside the browser cases, which never touch that port.

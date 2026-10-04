@@ -15,7 +15,7 @@
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
     "test:integration": "npm run build && vitest run --project integration --project live",
-    "e2e:serve": "npm run build:test && wrangler dev --ip 127.0.0.1 --port ${VIDI6_E2E_PORT:-28736} --inspector-port 28737",
+    "e2e:serve": "npm run build:test && wrangler dev --ip 127.0.0.1 --port ${VIDI6_E2E_PORT:-28736} --inspector-port 28737 --var TEST_HOOKS:1",
     "test:e2e": "playwright test",
     "test:e2e:nightly": "VIDI6_NIGHTLY=1 playwright test --grep @nightly"
   },

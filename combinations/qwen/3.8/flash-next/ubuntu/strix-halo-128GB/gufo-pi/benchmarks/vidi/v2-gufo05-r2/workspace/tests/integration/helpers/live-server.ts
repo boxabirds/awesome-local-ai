@@ -28,6 +28,9 @@ export async function startLiveServer(): Promise<void> {
       inspectorPort: LIVE_PORT + 1,
       persist: false,
       logLevel: 'error',
+      // Arms /__test/boards/:id/... in the Worker (src/worker/test-hooks.ts); a
+      // production deploy never sets it.
+      vars: { TEST_HOOKS: '1' },
     } satisfies Unstable_DevOptions,
   );
   await waitForServer();

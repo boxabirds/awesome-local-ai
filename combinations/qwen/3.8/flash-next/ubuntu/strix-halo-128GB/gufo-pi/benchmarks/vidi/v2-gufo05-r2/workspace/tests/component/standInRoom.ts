@@ -64,6 +64,18 @@ class StandInSocket {
     standInRoom.forget(this);
     this.onclose?.({ code: 1006, reason: '' });
   }
+
+  /**
+   * Close it the way the room does when it has a reason to give: the code is the
+   * message, and the page is expected to read it. 4500 means "this board could not
+   * be loaded"; 1011 means the room's own storage failed.
+   */
+  refuse(code: number, reason: string): void {
+    if (this.readyState !== StandInSocket.OPEN) return;
+    this.readyState = StandInSocket.CLOSED;
+    standInRoom.forget(this);
+    this.onclose?.({ code, reason });
+  }
 }
 
 export class StandInRoom {
@@ -120,6 +132,15 @@ export class StandInRoom {
   /** Cut every open connection, as a network outage does to a page. */
   cutConnections(): void {
     for (const socket of [...this.sockets]) socket.cut();
+  }
+
+  /**
+   * Turn every connection away with a reason, as the room does when it cannot do
+   * what the page asked of it. `cutConnections` says the wire went bad; this says
+   * the room looked at the board and could not read it.
+   */
+  refuseConnections(code: number, reason = ''): void {
+    for (const socket of [...this.sockets]) socket.refuse(code, reason);
   }
 
   receive(socket: StandInSocket, data: ArrayBuffer | ArrayBufferView | string): void {

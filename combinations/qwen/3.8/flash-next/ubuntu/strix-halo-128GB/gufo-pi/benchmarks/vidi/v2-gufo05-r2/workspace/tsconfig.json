@@ -16,6 +16,11 @@
     "noEmit": true,
     "types": ["vite/client", "node"]
   },
+  "exclude": [
+    // Checked by tsconfig.worker.json: they cover the Durable Object side, whose
+    // platform types replace the DOM ones.
+    "tests/unit/board-store-chunks.test.ts"
+  ],
   "include": [
     "src/client",
     "src/shared",
@@ -24,8 +29,9 @@
     "tests/e2e",
     "tests/fixtures",
     // The integration tests that run on Node (a real server + real WebSockets).
-    // The one that runs inside workerd is in tsconfig.worker.json.
+    // The ones that run inside workerd are in tsconfig.worker.json.
     "tests/integration/board-room.test.ts",
+    "tests/integration/board-persistence.test.ts",
     "tests/integration/global-setup.ts",
     "tests/integration/helpers",
     "vite.config.ts",

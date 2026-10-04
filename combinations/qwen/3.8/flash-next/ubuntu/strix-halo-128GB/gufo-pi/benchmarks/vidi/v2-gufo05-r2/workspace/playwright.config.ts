@@ -55,10 +55,25 @@ const DEVICE_NAMES: Record<BrowserName, string> = {
   webkit: 'Desktop Safari',
 };
 
+/**
+ * Story 4's persistence cases own a `wrangler dev` process each (they stop it and
+ * start it again), so they must not be served by the shared one below, and they run
+ * one at a time on a port of their own. Chromium only: what is under test is the
+ * disk and the Worker, not the browser.
+ */
+const PERSISTENCE_SPEC = /persistence\.spec\.ts/;
+
 const projects: Project[] = selectedBrowsers().map((name) => ({
   name,
   use: { ...devices[DEVICE_NAMES[name]], viewport: VIEWPORT },
+  testIgnore: PERSISTENCE_SPEC,
 }));
+
+projects.push({
+  name: 'persistence-chromium',
+  use: { ...devices['Desktop Chrome'], viewport: VIEWPORT },
+  testMatch: PERSISTENCE_SPEC,
+});
 
 export default defineConfig({
   testDir: './tests/e2e',

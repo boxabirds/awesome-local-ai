@@ -93,3 +93,32 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
  * never asserted, because the model, browsers and server share one machine.
  */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+/* ------------------------------------------------------------------ * *
+ * Story 4: persistence                                                  *
+ * ------------------------------------------------------------------ */
+
+/** Compact the update log when this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** …or when the log reaches this many bytes. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Size of one snapshot chunk. Keeps every row well under the per-row size limit
+ * of SQLite-backed Durable Objects (re-checked against Cloudflare's documented
+ * limits during implementation: 512 KiB is below every limit published there).
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** A board that failed to load is retried at most this often (per connection). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** The board size the PRD tests opening against (PRD persist.large_board). */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/** Time in which a saved board of PERSIST_TESTED_NOTES notes must be on screen. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/** Version of the storage tables (not of the Yjs document schema). */
+export const STORAGE_SCHEMA_VERSION = 1;

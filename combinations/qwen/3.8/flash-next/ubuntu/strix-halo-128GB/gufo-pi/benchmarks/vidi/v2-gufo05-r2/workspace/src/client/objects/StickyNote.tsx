@@ -35,6 +35,12 @@ export interface StickyNoteProps {
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
   onDraggingChange?(dragging: boolean): void;
+  /**
+   * False while this page may not change the board (see `canEdit`): the note can
+   * still be looked at, and panning the board under it still works, but it cannot
+   * be dragged or typed into.
+   */
+  editable?: boolean;
 }
 
 type DragState = 'idle' | 'pressed' | 'dragging';
@@ -55,6 +61,7 @@ export function StickyNote({
   onStartEdit,
   onEndEdit,
   onDraggingChange,
+  editable = true,
 }: StickyNoteProps) {
   const textRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);
@@ -104,6 +111,7 @@ export function StickyNote({
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (editing) return; // the textarea owns events while editing
     event.stopPropagation(); // the board must not pan (sticky.no_pan)
+    if (!editable) return; // nothing to move: this page may not change the board
     dragState.current = 'pressed';
     start.current = {
       sx: event.clientX,
@@ -164,6 +172,7 @@ export function StickyNote({
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     // Editing this note, never creating a new one (sticky.edit_start).
     event.stopPropagation();
+    if (!editable) return;
     onStartEdit(note.id);
   };
 
@@ -199,7 +208,12 @@ export function StickyNote({
       onDragStart={(event) => event.preventDefault()}
     >
       {editing && ytext ? (
-        <StickyTextEditor ytext={ytext} fontPx={STICKY_FONT_MAX_PX} onEnd={onEndEdit} />
+        <StickyTextEditor
+          ytext={ytext}
+          fontPx={STICKY_FONT_MAX_PX}
+          readOnly={!editable}
+          onEnd={onEndEdit}
+        />
       ) : (
         <div
           ref={textRef}

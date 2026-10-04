@@ -1,3 +1,87 @@
+commit 94bca757afe844a31c48900be3d928c0aa4b7fcc
+agent  Sun Oct 4 04:46:02 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                           | 121 +++++++++++
+ PROGRESS.md                                        |  21 +-
+ package.json                                       |   2 +-
+ playwright.config.ts                               |  15 ++
+ src/client/App.tsx                                 |  37 +++-
+ src/client/board/Toolbar.tsx                       |   9 +-
+ src/client/objects/StickyNote.tsx                  |  16 +-
+ src/client/objects/StickyTextEditor.tsx            |   5 +-
+ src/client/styles.css                              |   8 +
+ src/client/sync/ConnectionStatus.tsx               |  10 +-
+ src/client/sync/connectBoard.ts                    |  55 ++++-
+ tests/component/ConnectionStatus.test.tsx          | 104 +++++++++-
+ tests/component/boardEditLock.test.tsx             | 142 +++++++++++++
+ tests/component/standInRoom.ts                     |  21 ++
+ tests/e2e/broken-board.spec.ts                     | 175 ++++++++++++++++
+ tests/e2e/helpers/wrangler-process.ts              | 203 ++++++++++++++++++
+ tests/e2e/persistence.spec.ts                      | 226 +++++++++++++++++++++
+ tests/fixtures/hooks.ts                            |   5 +-
+ ...ence.test.ts => board-room-persistence.test.ts} |   0
+ vitest.config.ts                                   |   2 +-
+ 20 files changed, 1148 insertions(+), 29 deletions(-)
+commit 606c77d6d4ed72a45436038563d29e1c92b238dc
+agent  Sun Oct 4 04:10:08 2026 +0000
+
+    task 4+5: the room reads its board on the way up, writes before it speaks, and refuses to guess
+
+
+ src/worker/board-room.ts                    | 588 ++++++++++++++++++++++++----
+ src/worker/board-store.ts                   |  65 +++
+ src/worker/index.ts                         |  16 +
+ src/worker/test-hooks.ts                    | 257 ++++++++++++
+ tests/fixtures/hooks.ts                     | 105 +++++
+ tests/integration/board-persistence.test.ts | 386 ++++++++++++++++++
+ tests/integration/helpers/hooks.ts          |  11 +
+ tests/integration/helpers/live-server.ts    |   3 +
+ tests/integration/helpers/util.ts           |  65 +++
+ tests/integration/room-hibernation.test.ts  | 160 ++++++++
+ tests/types/worker-shapes.ts                |  26 ++
+ tsconfig.json                               |   3 +-
+ tsconfig.worker.json                        |   2 +
+ vitest.config.ts                            |  11 +-
+ 14 files changed, 1619 insertions(+), 79 deletions(-)
+commit 397230c1726c1eb24a9adce68c8ef0ed49e81921
+agent  Sun Oct 4 02:37:43 2026 +0000
+
+    story 4 tasks 2-3: BoardStore on Durable Object SQLite, with quarantine and gap collection
+
+
+ src/worker/board-store.ts             | 342 ++++++++++++++++++++--
+ src/worker/room-state.ts              |  50 +++-
+ tests/fixtures/boards.ts              | 201 +++++++++++++
+ tests/integration/board-store.test.ts | 515 ++++++++++++++++++++++++++++++++++
+ vitest.config.ts                      |   2 +-
+ 5 files changed, 1080 insertions(+), 30 deletions(-)
+commit 0b4632dfc4d5130b4f4404abacfa17f8645021b4
+agent  Sun Oct 4 02:10:33 2026 +0000
+
+    story 4 task 1: storage + room-state unit tests (red) and story 4 settings
+
+
+ PROGRESS.md                           |   4 +-
+ src/shared/config.ts                  |  29 ++++++
+ src/shared/protocol.ts                |  12 +++
+ src/worker/board-store.ts             | 115 +++++++++++++++++++++
+ src/worker/room-state.ts              |  69 +++++++++++++
+ tests/unit/board-store-chunks.test.ts |  81 +++++++++++++++
+ tests/unit/room-state.test.ts         | 183 ++++++++++++++++++++++++++++++++++
+ tsconfig.json                         |   5 +
+ tsconfig.worker.json                  |   8 +-
+ 9 files changed, 503 insertions(+), 3 deletions(-)
+commit b96dd51674bb1650bd2715ed1093bff4fc37923a
+vidi-agent  Sun Oct 4 01:51:59 2026 +0000
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit 6dd2a27adfa15206b32e4c0815426af9e913c178
 agent  Sun Oct 4 01:49:15 2026 +0000
 

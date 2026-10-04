@@ -17,6 +17,7 @@ import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useForgetMissingNotes, useSelection } from './board/useSelection';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
 import {
@@ -31,6 +32,21 @@ import type { StickyColor } from '../shared/config';
 
 /** Screen offset between a note's top-left and its floating toolbar. */
 const NOTE_TOOLBAR_GAP = 8;
+
+/**
+ * Whether this page may change the board right now.
+ *
+ * Everything the user does here is a local change to a document that syncs later, so
+ * almost every state leaves the board editable: a dropped connection keeps the edits,
+ * and they go out when it returns. One state is different. When the room says it
+ * could not load the board, the document in front of the person is not a copy of
+ * anything — an edit made now is a change to a board that does not exist, by them
+ * alone. So creating, dragging, typing, recolouring and deleting stop while it says
+ * so, and start again on their own the moment the board arrives.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 /**
  * The whole routing of this app: `/b/<board id>` shows one board, and any other
@@ -58,6 +74,9 @@ function Board({ boardId }: { boardId: string }) {
   const { doc, notes, connection } = useBoardDoc(boardId);
   const selection = useSelection();
 
+  // The one thing the connection state changes about the board itself.
+  const editable = canEdit(connection);
+
   // A note somebody else deleted stops being selected, edited or dragged here.
   useForgetMissingNotes(selection, notes);
 
@@ -71,10 +90,11 @@ function Board({ boardId }: { boardId: string }) {
   // Create a note centred on a world point, then select + edit it.
   const createAtWorld = useCallback(
     (world: Point) => {
+      if (!canEdit(connection)) return; // a note added to a board that never arrived
       const id = createSticky(doc, world);
       if (id) selection.startEdit(id);
     },
-    [doc, selection],
+    [doc, selection, connection],
   );
 
   // The Sticky note button creates a note at the centre of the visible area.
@@ -92,6 +112,9 @@ function Board({ boardId }: { boardId: string }) {
   const selectRef = useRef(selection.select);
   startEditRef.current = selection.startEdit;
   selectRef.current = selection.select;
+  // The key handler is attached once, so it reads this rather than a stale render.
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -101,9 +124,10 @@ function Board({ boardId }: { boardId: string }) {
       if (!id) return;
       if (event.key === 'Enter') {
         event.preventDefault();
-        startEditRef.current(id);
+        if (editableRef.current) startEditRef.current(id);
       } else if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault();
+        if (!editableRef.current) return;
         deleteObject(doc, id);
         selectRef.current(null);
       }
@@ -148,6 +172,7 @@ function Board({ boardId }: { boardId: string }) {
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
               onDraggingChange={(dragging) => setDraggingId(dragging ? note.id : null)}
+              editable={editable}
             />
           ))}
         </BoardViewport>
@@ -162,8 +187,12 @@ function Board({ boardId }: { boardId: string }) {
           >
             <NoteToolbar
               color={selectedNote.color}
-              onColor={(color: StickyColor) => setStickyColor(doc, selectedNote.id, color)}
+              onColor={(color: StickyColor) => {
+                if (!editable) return;
+                setStickyColor(doc, selectedNote.id, color);
+              }}
               onDelete={() => {
+                if (!editable) return;
                 deleteObject(doc, selectedNote.id);
                 selection.select(null);
               }}
@@ -171,7 +200,7 @@ function Board({ boardId }: { boardId: string }) {
           </div>
         )}
 
-        <Toolbar onCreateSticky={createAtCentre} />
+        <Toolbar onCreateSticky={createAtCentre} createDisabled={!editable} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}
