@@ -108,6 +108,24 @@ export function runTokS(row: Row): number | null {
 
 const spreadOf = (rows: Row[], f: (r: Row) => number | null) => spread(rows.map(f).filter((x): x is number => x !== null));
 
+/** The series a run belongs to: its id without the trailing `-rN`. Runs named `<prefix>-rN` of one stack are one
+ * series, which is one experiment: a different engine build, quantisation or setting. A run with no such suffix is a
+ * series of its own. (shared/dashboardView.ts groups by the same rule.) */
+const SERIES_NUMBER = /-r(\d+)$/;
+export const seriesPrefix = (runId: string) => runId.replace(SERIES_NUMBER, "");
+
+/** One series of a combination: its runs of record and what they scored. */
+export interface CombinationSeries {
+  prefix: string;
+  /** Finished runs of record in this series. */
+  ofRecord: Row[];
+  score: (Spread & { total: number | null; mean: number }) | null;
+  /** A run of this series is running or queued. */
+  inHand: boolean;
+  /** The latest stateAt among its runs, as epoch seconds; 0 when none parses. */
+  latest: number;
+}
+
 export interface RankedCombination {
   pack: string;
   stack: string;
@@ -118,8 +136,13 @@ export interface RankedCombination {
   ofRecord: Row[];
   /** Every other run, by why it isn't counted. */
   notCounted: Partial<Record<Exclude<Standing, "ofRecord">, number>>;
-  /** Score of record over those runs, with their mean (sum passed over sum attempted; the plain average when every run has the same total). */
+  /** Score of record over the **current series'** runs, with their mean (sum passed over sum attempted; the plain
+   * average when every run has the same total). Never across series: each is a separate experiment. */
   score: (Spread & { total: number | null; mean: number }) | null;
+  /** Every series of this combination, the current one first, then by how recently each was worked on. */
+  series: CombinationSeries[];
+  /** The prefix of the series the headline figures are over; "" when there are no runs of record. */
+  currentSeries: string;
   /** Each a median over the runs of record of that run's own per-story figure. */
   hoursPerStory: Spread | null;
   outPerStory: Spread | null;
@@ -130,7 +153,40 @@ export interface RankedCombination {
   unranked: string | null;
 }
 
-/** One summary per combination in `rows`: numbers over its finished runs of record only. */
+const MS_PER_S = 1000;
+const secondsOf = (at: string | undefined): number => {
+  const t = Date.parse(at ?? "");
+  return Number.isFinite(t) ? t / MS_PER_S : 0;
+};
+
+/** The score of a set of runs of record: the median, the range, n, and the mean over their tests. */
+function scoreOver(ofRecord: Row[]): (Spread & { total: number | null; mean: number }) | null {
+  const scores = ofRecord.map((r) => scoreOfRecord(r)!);
+  const s = spread(scores.map((x) => x.passed!));
+  if (!s) return null;
+  const total = scores.reduce((t, x) => t + x.total!, 0);
+  return { ...s, total: new Set(scores.map((x) => x.total)).size === 1 ? scores[0].total : null, mean: scores.reduce((t, x) => t + x.passed!, 0) / total };
+}
+
+/** The combination's series, the current one first: a series with a run in hand, else the one worked on most
+ * recently. Each series is one experiment, so its runs are the only ones comparable with each other. */
+function seriesWithin(rs: Row[], ofRecord: Row[]): CombinationSeries[] {
+  const prefixes = [...new Set(rs.filter((r) => !r.knownGood).map((r) => seriesPrefix(r.runId)))];
+  const out = prefixes.map((prefix): CombinationSeries => {
+    const mine = rs.filter((r) => !r.knownGood && seriesPrefix(r.runId) === prefix);
+    return {
+      prefix,
+      ofRecord: ofRecord.filter((r) => seriesPrefix(r.runId) === prefix),
+      score: scoreOver(ofRecord.filter((r) => seriesPrefix(r.runId) === prefix)),
+      inHand: mine.some((r) => r.status === "running" || r.status === "queued"),
+      latest: Math.max(0, ...mine.map((r) => secondsOf(r.stateAt))),
+    };
+  });
+  return out.toSorted((a, b) => Number(b.inHand) - Number(a.inHand) || b.latest - a.latest
+    || b.prefix.localeCompare(a.prefix, undefined, { numeric: true }));
+}
+
+/** One summary per combination in `rows`: its headline numbers over the current series' finished runs of record. */
 export function summarise(stack: string, rs: Row[]): RankedCombination {
   const ofRecord = rs.filter((r) => standingOf(r) === "ofRecord");
   const byStatus: RankedCombination["byStatus"] = {};
@@ -140,21 +196,24 @@ export function summarise(stack: string, rs: Row[]): RankedCombination {
     const st = standingOf(r);
     if (st !== "ofRecord") notCounted[st] = (notCounted[st] ?? 0) + 1;
   }
-  const scores = ofRecord.map((r) => scoreOfRecord(r)!);
-  const s = spread(scores.map((x) => x.passed!));
-  const total = scores.reduce((t, x) => t + x.total!, 0);
+  const series = seriesWithin(rs, ofRecord);
+  // The headline is the current series' own, never a median across experiments. Where a series has nothing scored
+  // yet (its first run is still building), the newest series that has is the one that can speak.
+  const current = series.find((x) => x.score) ?? series[0];
+  const head = current?.ofRecord ?? [];
+  const s = current?.score ?? null;
   // A partial rerun that finished isn't "a finished run with its score pending": it has no full-run score to wait
   // for. Counted here as a full run only, so the message below never claims one exists when it doesn't.
   const finished = rs.filter((r) => r.status === "finished" && !r.knownGood).length;
   return {
     pack: rs[0]?.pack ?? "", stack, label: rs[0]?.label ?? stack, machines: [...new Set(rs.map((r) => r.machine))].toSorted(),
-    byStatus, ofRecord, notCounted,
-    score: s ? { ...s, total: new Set(scores.map((x) => x.total)).size === 1 ? scores[0].total : null, mean: scores.reduce((t, x) => t + x.passed!, 0) / total } : null,
-    hoursPerStory: spreadOf(ofRecord, (r) => { const x = perStory(r, (u) => u.agentSeconds); return x === null ? null : x / SECONDS_PER_HOUR; }),
-    outPerStory: spreadOf(ofRecord, (r) => perStory(r, (u) => u.outTokens)),
-    callsPerStory: spreadOf(ofRecord, (r) => perStory(r, (u) => u.calls)),
-    readPerStory: spreadOf(ofRecord, (r) => perStory(r, (u) => u.readTokens)),
-    tokS: spreadOf(ofRecord, runTokS),
+    byStatus, ofRecord, notCounted, series, currentSeries: s ? current.prefix : "",
+    score: s,
+    hoursPerStory: spreadOf(head, (r) => { const x = perStory(r, (u) => u.agentSeconds); return x === null ? null : x / SECONDS_PER_HOUR; }),
+    outPerStory: spreadOf(head, (r) => perStory(r, (u) => u.outTokens)),
+    callsPerStory: spreadOf(head, (r) => perStory(r, (u) => u.calls)),
+    readPerStory: spreadOf(head, (r) => perStory(r, (u) => u.readTokens)),
+    tokS: spreadOf(head, runTokS),
     unranked: s ? null : finished ? `${finished} finished, score${finished === 1 ? "" : "s"} pending` : "no finished run yet",
   };
 }

@@ -35,12 +35,13 @@ const OLD_SUITE = "p-v1.9";
 interface RunOpts { status?: RunStatus; score?: number | null; scores?: Record<string, number>; secs?: (number | null)[]; out?: number[]; calls?: number[]; read?: number[]; machine?: string }
 let seq = 0;
 /** A run of stack `stack`: finished and scored `score`/75 under the current suite unless told otherwise. */
-interface RunOptsExt extends RunOpts { knownGood?: boolean }
+interface RunOptsExt extends RunOpts { runId?: string; stateAt?: string; knownGood?: boolean }
 const run = (stack: string, o: RunOptsExt = {}): Row => {
   const secs = o.secs ?? [3600];
   const scores = o.scores ?? (o.score === undefined ? { [SUITE]: 60 } : o.score === null ? {} : { [SUITE]: o.score });
   return {
-    pack: "p", stack, label: stack, runId: `r${++seq}`, machine: o.machine ?? "m1", status: o.status ?? "finished", suite: SUITE, knownGood: o.knownGood ?? false,
+    pack: "p", stack, label: stack, runId: o.runId ?? `v2-r${++seq}`, machine: o.machine ?? "m1", status: o.status ?? "finished", suite: SUITE, knownGood: o.knownGood ?? false,
+    stateAt: o.stateAt ?? "2026-10-01T00:00:00Z",
     scores: Object.fromEntries(Object.entries(scores).map(([v, p]) => [v, { passed: p, total: 75, flaky: 0, at: "" }])),
     stories: secs.map((s, i) => ({ id: String(i + 1), usage: { agentSeconds: s, outTokens: o.out?.[i] ?? null, calls: o.calls?.[i] ?? null, readTokens: o.read?.[i] ?? null } as Usage })),
     storiesWorking: { squares: [] }, usage: { tokS: null }, interventions: [],
@@ -117,6 +118,35 @@ describe("summarise: by run set", () => {
     expect(c.hoursPerStory).toBeNull();
     expect(c.unranked).toBe("no finished run yet");
     expect(c.notCounted).toEqual({ running: 1, queued: 2 });
+  });
+  it("two series: the headline is the current one's, never a median across both", () => {
+    // A series is one experiment (an engine build, a quant, a setting). Pooling two answers no question: Swift 1.5
+    // read 61.5 on 4 Oct 2026 from v2 (median 61) and v2-fresh (median 66), a figure neither series ever scored.
+    const c = summarise("a", [
+      run("a", { runId: "v2-r1", score: 58, stateAt: "2026-10-01T00:00:00Z" }),
+      run("a", { runId: "v2-r2", score: 61, stateAt: "2026-10-01T01:00:00Z" }),
+      run("a", { runId: "v2-r3", score: 63, stateAt: "2026-10-01T02:00:00Z" }),
+      run("a", { runId: "v2-fresh-r1", score: 66, stateAt: "2026-10-03T00:00:00Z" }),
+      run("a", { runId: "v2-fresh-r2", score: 67, stateAt: "2026-10-03T01:00:00Z" }),
+    ]);
+    expect(c.score).toMatchObject({ median: 66.5, min: 66, max: 67, n: 2 });   // v2-fresh, the newest
+    expect(c.series.map((x) => [x.prefix, x.score?.median, x.score?.n])).toEqual([["v2-fresh", 66.5, 2], ["v2", 61, 3]]);
+    expect(c.currentSeries).toBe("v2-fresh");
+  });
+  it("the current series is the one with work in hand, even when another finished later", () => {
+    const c = summarise("a", [
+      run("a", { runId: "v2-r1", score: 58, stateAt: "2026-10-01T00:00:00Z" }),
+      run("a", { runId: "v2-r2", score: 62, stateAt: "2026-10-01T01:00:00Z" }),
+      run("a", { runId: "old-r1", score: 70, stateAt: "2026-10-05T00:00:00Z" }),   // finished later, but nothing in hand
+      run("a", { runId: "v2-r3", status: "queued", score: null, stateAt: "2026-10-02T00:00:00Z" }),
+    ]);
+    expect(c.currentSeries).toBe("v2");
+    expect(c.score).toMatchObject({ median: 60, n: 2 });
+  });
+  it("one series: exactly as before, and no series is singled out", () => {
+    const c = summarise("a", [run("a", { score: 63 }), run("a", { score: 67 })]);
+    expect(c.score).toMatchObject({ median: 65, n: 2 });
+    expect(c.series).toHaveLength(1);
   });
   it("finished but none scored: unranked, with how many finished", () => {
     const c = summarise("a", [run("a", { score: null }), run("a", { scores: { [OLD_SUITE]: 74 } })]);
