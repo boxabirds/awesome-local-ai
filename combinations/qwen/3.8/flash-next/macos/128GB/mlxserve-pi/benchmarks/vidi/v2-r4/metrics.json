@@ -1978,7 +1978,7 @@
         "calls": 172,
         "tool_calls": 178,
         "thinking_visible": true,
-        "thinking_chars": 458931,
+        "thinking_chars": 458919,
         "thinking_median": 561,
         "thinking_median_before": 115,
         "thinking_median_after": 675,
@@ -1988,7 +1988,7 @@
           "at_s": 431.5
         },
         "text_chars": 2539,
-        "tool_arg_chars": 248642,
+        "tool_arg_chars": 247802,
         "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
@@ -2008,7 +2008,7 @@
         "longest_tool": {
           "seconds": 72.8,
           "name": "bash",
-          "gist": "cd ~/.w/44bdddeb9b/workspace && E2E_PORT=21062 E2E_INSPECTOR_PORT=21063 npx playwright test tests/e2e/sticky"
+          "gist": "cd ~/.w/44bdddeb9b/workspace && E2E_PORT=21062 E2E_INSPECTOR_PORT=21063 npx playwright test tests/e2e/sticky-notes.spec."
         },
         "signals": [],
         "subagent_calls": 0
@@ -3622,7 +3622,7 @@
         "calls": 331,
         "tool_calls": 339,
         "thinking_visible": true,
-        "thinking_chars": 589537,
+        "thinking_chars": 589513,
         "thinking_median": 555,
         "thinking_median_before": 181,
         "thinking_median_after": 585,
@@ -3632,7 +3632,7 @@
           "at_s": 270.8
         },
         "text_chars": 2658,
-        "tool_arg_chars": 383656,
+        "tool_arg_chars": 380800,
         "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
@@ -3652,7 +3652,7 @@
         "longest_tool": {
           "seconds": 426.8,
           "name": "bash",
-          "gist": "cd ~/.w/44bdddeb9b/workspace && rm -f tests/e2e/zz-spike.spec.ts && E2E_PORT=21066 npx playwright test --pro"
+          "gist": "cd ~/.w/44bdddeb9b/workspace && rm -f tests/e2e/zz-spike.spec.ts && E2E_PORT=21066 npx playwright test --project=chromiu"
         },
         "signals": [],
         "subagent_calls": 0

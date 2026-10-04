@@ -4000,11 +4000,11 @@
         }
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 406,
         "tool_calls": 414,
         "thinking_visible": true,
-        "thinking_chars": 752943,
+        "thinking_chars": 752895,
         "thinking_median": 697,
         "thinking_median_before": 236,
         "thinking_median_after": 712,
@@ -4014,7 +4014,7 @@
           "at_s": 739.2
         },
         "text_chars": 4122,
-        "tool_arg_chars": 601051,
+        "tool_arg_chars": 596071,
         "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
@@ -4034,7 +4034,7 @@
         "longest_tool": {
           "seconds": 300.0,
           "name": "bash",
-          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace &&"
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace && cat > .scra"
         },
         "signals": [],
         "subagent_calls": 0
@@ -16016,11 +16016,11 @@
         }
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 503,
         "tool_calls": 505,
         "thinking_visible": true,
-        "thinking_chars": 558219,
+        "thinking_chars": 558195,
         "thinking_median": 408,
         "thinking_median_before": 203,
         "thinking_median_after": 422,

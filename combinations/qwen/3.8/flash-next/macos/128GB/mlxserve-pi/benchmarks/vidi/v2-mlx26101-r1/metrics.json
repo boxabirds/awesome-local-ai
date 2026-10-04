@@ -5667,7 +5667,7 @@
         "calls": 253,
         "tool_calls": 269,
         "thinking_visible": true,
-        "thinking_chars": 319042,
+        "thinking_chars": 319018,
         "thinking_median": 464,
         "thinking_median_before": 250,
         "thinking_median_after": 489,
@@ -5677,7 +5677,7 @@
           "at_s": 323.1
         },
         "text_chars": 1795,
-        "tool_arg_chars": 266729,
+        "tool_arg_chars": 263477,
         "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
@@ -5697,7 +5697,7 @@
         "longest_tool": {
           "seconds": 25.5,
           "name": "bash",
-          "gist": "cd ~/.w/bcdbc27587/workspace && git status --porcelain && echo \"CLEAN-CHECK-DONE\" && npm run build 2>&1 | ta"
+          "gist": "cd ~/.w/bcdbc27587/workspace && git status --porcelain && echo \"CLEAN-CHECK-DONE\" && npm run build 2>&1 | tail -2 && npm"
         },
         "signals": [],
         "subagent_calls": 0
@@ -9362,7 +9362,7 @@
         "calls": 353,
         "tool_calls": 364,
         "thinking_visible": true,
-        "thinking_chars": 418356,
+        "thinking_chars": 418332,
         "thinking_median": 455,
         "thinking_median_before": 162,
         "thinking_median_after": 474,
@@ -9372,7 +9372,7 @@
           "at_s": 357.8
         },
         "text_chars": 4982,
-        "tool_arg_chars": 428220,
+        "tool_arg_chars": 423780,
         "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
@@ -9392,7 +9392,7 @@
         "longest_tool": {
           "seconds": 42.2,
           "name": "bash",
-          "gist": "cd ~/.w/bcdbc27587/scratch/base9 && npx playwright test live-collaboration.spec.ts --repeat-each=6 --reporte"
+          "gist": "cd ~/.w/bcdbc27587/scratch/base9 && npx playwright test live-collaboration.spec.ts --repeat-each=6 --reporter=line 2>&1 "
         },
         "signals": [],
         "subagent_calls": 0
@@ -15594,7 +15594,7 @@
         "calls": 568,
         "tool_calls": 566,
         "thinking_visible": true,
-        "thinking_chars": 815917,
+        "thinking_chars": 815905,
         "thinking_median": 621,
         "thinking_median_before": 135,
         "thinking_median_after": 652,
@@ -15604,7 +15604,7 @@
           "at_s": 377.8
         },
         "text_chars": 2575,
-        "tool_arg_chars": 707508,
+        "tool_arg_chars": 700692,
         "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
@@ -15624,7 +15624,7 @@
         "longest_tool": {
           "seconds": 51.3,
           "name": "bash",
-          "gist": "cd ~/.w/bcdbc27587/workspace && npm run test:e2e -- images.spec.ts --reporter=list --workers=1 2>&1 | grep -"
+          "gist": "cd ~/.w/bcdbc27587/workspace && npm run test:e2e -- images.spec.ts --reporter=list --workers=1 2>&1 | grep -vE \"^\\[WebSe"
         },
         "signals": [],
         "subagent_calls": 0
