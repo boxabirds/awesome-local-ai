@@ -1,3 +1,101 @@
+commit ae971a40b461340366eab7f0da6308a5a8e2cbe4
+agent  Sun Oct 4 02:37:59 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                  | 138 ++++-
+ PROGRESS.md                               |   8 +-
+ playwright.config.ts                      |  11 +-
+ src/client/objects/StickyText.ts          | 127 ++++-
+ src/client/objects/StickyTextEditor.tsx   | 110 +++-
+ src/client/sync/connectBoard.ts           |  12 +
+ src/client/testHooks.ts                   |  48 +-
+ tests/e2e/global-setup.ts                 |  18 +
+ tests/e2e/helpers/board.ts                |  11 +-
+ tests/e2e/helpers/participants.ts         | 351 ++++++++++++
+ tests/e2e/helpers/sticky.ts               |  38 ++
+ tests/e2e/live-collaboration.spec.ts      | 875 ++++++++++++++++++++++++++++++
+ tests/unit/sticky-text-concurrent.test.ts | 197 +++++++
+ 13 files changed, 1882 insertions(+), 62 deletions(-)
+commit edfe0286b5ace70cc2515e82f2651febeb75dc11
+agent  Sun Oct 4 01:18:28 2026 +0000
+
+    story 3 tasks 4+7: the board connects, and says what the connection is doing
+
+
+ src/client/App.tsx                        |  12 ++-
+ src/client/board/useBoardDoc.ts           |  40 +++++--
+ src/client/main.tsx                       |  82 ++++++++++++--
+ src/client/styles.css                     |  54 ++++++++++
+ src/client/sync/ConnectionStatus.tsx      |  84 +++++++++++++++
+ src/client/sync/connectBoard.ts           |  89 ++++++++++++++++
+ src/shared/config.ts                      |   6 --
+ src/shared/protocol.ts                    |  20 +++-
+ src/worker/board-room.ts                  |  15 ++-
+ tests/component/ConnectionStatus.test.tsx | 170 ++++++++++++++++++++++++++++++
+ tests/integration/helpers/ws-client.ts    |   5 +
+ tests/unit/protocol.test.ts               |  34 ++++++
+ 12 files changed, 586 insertions(+), 25 deletions(-)
+commit 042468940fb55bf9420799019860a37451b81de1
+agent  Sun Oct 4 00:57:59 2026 +0000
+
+    story 3 task 6: BoardRoom merge/broadcast/error integration tests (TC-07..12, TC-14..16, TC-18, TC-31)
+
+
+ NOTES.md                                |   9 +
+ PROGRESS.md                             |   2 +-
+ src/worker/board-room.ts                |  11 +
+ tests/integration/board-room.test.ts    | 469 ++++++++++++++++++++++++++++++++
+ tests/integration/helpers/random-ops.ts |  99 +++++++
+ tests/integration/helpers/ws-client.ts  | 104 ++++++-
+ 6 files changed, 682 insertions(+), 12 deletions(-)
+commit fbe6d434855d8f54413956e666c4ff3c27586fcf
+agent  Sun Oct 4 00:46:43 2026 +0000
+
+    story 3 tasks 2-3, 5: Worker entry, BoardRoom relay, workerd routing tests (TC-04..06, TC-13, TC-17)
+
+
+ NOTES.md                               |  71 +++++-
+ PROGRESS.md                            |  10 +-
+ package-lock.json                      |   8 +
+ package.json                           |   7 +-
+ src/shared/board-id.ts                 |  12 +-
+ src/shared/board-model.ts              |   4 +-
+ src/shared/protocol.ts                 |  49 +++-
+ src/worker/board-room.ts               | 183 ++++++++++++++
+ src/worker/index.ts                    |  60 +++++
+ tests/integration/helpers/ws-client.ts | 426 +++++++++++++++++++++++++++++++++
+ tests/integration/worker.test.ts       | 151 ++++++++++++
+ tsconfig.integration.json              |  20 ++
+ tsconfig.json                          |   4 +-
+ tsconfig.test.json                     |   4 +-
+ tsconfig.worker.json                   |  19 ++
+ vitest.config.ts                       |  45 +++-
+ wrangler.jsonc                         |  33 ++-
+ 17 files changed, 1087 insertions(+), 19 deletions(-)
+commit abea721c65a974b43310669f74e1fd49a2fb97c4
+agent  Sat Oct 3 23:32:37 2026 +0000
+
+    story 3 task 1: board id + protocol decode unit tests (TC-01..TC-03), live settings, stubs
+
+
+ package-lock.json           | 1360 +++++++++++++++++++++++++++++++++++++++++++
+ package.json                |    4 +
+ src/shared/board-id.ts      |   23 +
+ src/shared/config.ts        |   28 +
+ src/shared/protocol.ts      |   43 ++
+ tests/unit/board-id.test.ts |   66 +++
+ tests/unit/protocol.test.ts |  105 ++++
+ 7 files changed, 1629 insertions(+)
+commit 136c9f15b58870de53136a6e8b93e2a2e8dd6d3a
+vidi-agent  Sun Oct 4 00:24:39 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 35 ++++++++++-------------------------
+ 1 file changed, 10 insertions(+), 25 deletions(-)
 commit 1eb174b2cebd163e1c72cde090b78a7af27e75e8
 agent  Sat Oct 3 23:20:38 2026 +0000
 
