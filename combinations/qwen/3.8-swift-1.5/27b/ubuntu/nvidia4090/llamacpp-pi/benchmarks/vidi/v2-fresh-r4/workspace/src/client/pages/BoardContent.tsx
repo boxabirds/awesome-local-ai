@@ -2,7 +2,7 @@
  * Board content: the stories 1–7 board UI with the Share panel.
  * Only mounted when the board exists (BoardPage state = ready).
  */
-import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { type Size, canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Point } from '../canvas/camera';
 import { NavigationHint } from '../canvas/NavigationHint';
@@ -16,16 +16,29 @@ import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { useBoardKeys } from '../board/useBoardKeys';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
-import { Toolbar, type BoardTool } from '../board/Toolbar';
+import { Toolbar } from '../board/Toolbar';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
 import { StickyNote } from '../objects/StickyNote';
 import { TextObject } from '../objects/TextObject';
+import { ShapeObject } from '../objects/ShapeObject';
+import { ConnectorObject } from '../objects/ConnectorObject';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { setConnectionState } from '../canvas/testHooks';
-import { createSticky, deleteObjects, objectBounds, setStickyColor } from '../../shared/board-model';
-import { unionRects } from '../../shared/geometry';
+import {
+  createSticky,
+  deleteObjects,
+  objectBounds,
+  setStickyColor,
+  type ConnectorSnapshot,
+  type ShapeSnapshot,
+} from '../../shared/board-model';
+import { unionRects, type Rect } from '../../shared/geometry';
 import { createText } from '../../shared/objects/text';
+import { setShapeStyle } from '../../shared/objects/shape';
 import { SharePanel } from '../share/SharePanel';
-import type { StickyColor, TextSize } from '../../shared/config';
+import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
 import { LOCAL_USER_ID } from '../../shared/config';
 
 export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
@@ -36,19 +49,60 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const editable = connectionState !== 'load_failed';
 
-  // Active board tool (story 9): 'select' (default) or 'text' (click to place)
-  const [tool, setTool] = useState<BoardTool>('select');
+  const selection = useSelection(notes);
+
+  // Current bounds of all objects (story 10): connector endpoint resolution
+  // and tool hit tests resolve against these.
+  const rects = useMemo(() => {
+    const m = new Map<string, Rect>();
+    for (const s of notes) m.set(s.id, objectBounds(s));
+    return m;
+  }, [notes]);
+
+  // Active board tool (story 9/10): select / text / shape / connector with
+  // keyboard shortcuts (v, t, s, l, n, Escape). (`createStickyAt` and
+  // `screenPointToWorld`-level helpers are defined below; the sticky
+  // shortcut is inlined here to keep this hook call early.)
+  const {
+    tool,
+    shapeKind,
+    setTool,
+    setShapeKind,
+    toolCreated,
+  } = useActiveTool({
+    select: (id) => selection.click(id),
+    onStickyNote: () => {
+      const centre: Point = { x: viewport.width / 2, y: viewport.height / 2 };
+      createStickyAt(screenToWorld(camera.camera, centre));
+    },
+  });
 
   // Per-user undo history (story 8): session-only, LOCAL_ORIGIN changes only.
   const undoController = useUndoController(doc);
   const undo = useUndo(undoController, editable);
 
+  // A shape/connector was created: one undo step, select it, back to Select.
+  const handleToolCreated = useCallback(
+    (id: string) => {
+      undo.boundary();
+      toolCreated(id);
+    },
+    [undo, toolCreated],
+  );
+
+  // Shape style change (its own undo step — story 10).
+  const handleShapeStyle = useCallback(
+    (id: string, style: { fill?: FillColor; stroke?: StrokeColor }) => {
+      undo.boundary();
+      setShapeStyle(doc, id, style);
+    },
+    [doc, undo],
+  );
+
   // Expose connection state on the test hook
   useEffect(() => {
     setConnectionState(connectionState);
   }, [connectionState]);
-
-  const selection = useSelection(notes);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -274,22 +328,60 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
         onShiftPointerCancel={handleMarqueeCancel}
       >
         <div className="board-objects" onPointerDownCapture={handleTextToolPointerDown}>
-          {notes.map((note) =>
-            note.type === 'text' ? (
-              <TextObject
-                key={note.id}
-                obj={note}
-                doc={doc}
-                selected={selection.ids.has(note.id)}
-                editing={selection.editingId === note.id}
-                onPointerDown={gesture.onObjectPointerDown}
-                onDoubleClick={handleNoteDoubleClick}
-                onEndEdit={() => selection.endEdit()}
-                onBoundary={undo.boundary}
-                onUndo={undo.undo}
-                onRedo={undo.redo}
-              />
-            ) : (
+          {notes.map((note) => {
+            if (note.type === 'text') {
+              return (
+                <TextObject
+                  key={note.id}
+                  obj={note}
+                  doc={doc}
+                  selected={selection.ids.has(note.id)}
+                  editing={selection.editingId === note.id}
+                  onPointerDown={gesture.onObjectPointerDown}
+                  onDoubleClick={handleNoteDoubleClick}
+                  onEndEdit={() => selection.endEdit()}
+                  onBoundary={undo.boundary}
+                  onUndo={undo.undo}
+                  onRedo={undo.redo}
+                />
+              );
+            }
+            if (note.type === 'shape') {
+              const shape = note as ShapeSnapshot;
+              return (
+                <ShapeObject
+                  key={note.id}
+                  shape={shape}
+                  doc={doc}
+                  selected={selection.ids.has(note.id)}
+                  editing={selection.editingId === note.id}
+                  onPointerDown={gesture.onObjectPointerDown}
+                  onDoubleClick={handleNoteDoubleClick}
+                  onEndEdit={() => selection.endEdit()}
+                  onBoundary={undo.boundary}
+                  onUndo={undo.undo}
+                  onRedo={undo.redo}
+                />
+              );
+            }
+            if (note.type === 'connector') {
+              const connector = note as ConnectorSnapshot;
+              return (
+                <ConnectorObject
+                  key={note.id}
+                  connector={connector}
+                  rects={rects}
+                  snapshot={notes}
+                  doc={doc}
+                  selected={selection.ids.has(note.id)}
+                  zoom={camera.camera.zoom}
+                  camera={camera.camera}
+                  onPointerDown={gesture.onObjectPointerDown}
+                  onBoundary={undo.boundary}
+                />
+              );
+            }
+            return (
               <StickyNote
                 key={note.id}
                 obj={note}
@@ -304,10 +396,24 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
                 onUndo={undo.undo}
                 onRedo={undo.redo}
               />
-            ),
-          )}
+            );
+          })}
         </div>
       </BoardViewport>
+
+      {/* Shape / connector tool overlays (screen space, story 10) */}
+      {tool === 'shape' && editable && (
+        <ShapeTool kind={shapeKind} camera={camera.camera} doc={doc} onCreated={handleToolCreated} />
+      )}
+      {tool === 'connector' && editable && (
+        <ConnectorTool
+          camera={camera.camera}
+          snapshot={notes}
+          rects={rects}
+          doc={doc}
+          onCreated={handleToolCreated}
+        />
+      )}
 
       {/* Marquee rectangle (screen space) */}
       <MarqueeRect rect={marquee.rect} camera={camera.camera} />
@@ -334,6 +440,7 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
           onColorChange={handleColorChange}
           onTextSize={handleTextSize}
           onTextDelete={handleTextDelete}
+          onShapeStyle={handleShapeStyle}
           onUndo={undo.undo}
           onRedo={undo.redo}
         />
@@ -343,7 +450,11 @@ export function BoardContent({ boardId }: { boardId: string }): JSX.Element {
         onCreateSticky={handleCreateSticky}
         onToolText={() => setTool('text')}
         onToolSelect={() => setTool('select')}
+        onToolShape={() => setTool('shape')}
+        onToolConnector={() => setTool('connector')}
         activeTool={tool}
+        shapeKind={shapeKind}
+        onShapeKind={setShapeKind}
         disabled={!editable}
         undo={undo}
       />

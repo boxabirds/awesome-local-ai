@@ -5,10 +5,20 @@
  * its minimum size, and whether it has editable text.
  */
 import type { ComponentType } from 'react';
-import type { ObjectSnapshot } from '../../shared/board-model';
-import type { Point } from '../../shared/geometry';
+import type {
+  ConnectorSnapshot,
+  ObjectSnapshot,
+} from '../../shared/board-model';
+import type { Point, Rect } from '../../shared/geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
 import { addKnownType } from '../../shared/known-types';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 
 export interface ObjectProps {
   obj: ObjectSnapshot;
@@ -29,7 +39,17 @@ export interface ObjectTypeSpec {
   horizontalOnly?: boolean;
   minSize: number;
   editableText: boolean;
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Hit-test a world point for this object type. `zoom` is the current camera
+   * zoom (for screen-pixel tolerances) and `rects` the current bounds of all
+   * objects (needed to resolve connector endpoints).
+   */
+  hitTest(
+    obj: ObjectSnapshot,
+    worldPoint: Point,
+    zoom?: number,
+    rects?: ReadonlyMap<string, Rect>,
+  ): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -107,6 +127,48 @@ registerObjectType('text', {
       worldPoint.y >= obj.y &&
       worldPoint.x < obj.x + w &&
       worldPoint.y < obj.y + h
+    );
+  },
+});
+
+// --- Register the shape type (story 10) ---
+import { ShapeObject as ShapeObjectComponent } from '../objects/ShapeObject';
+
+registerObjectType('shape', {
+  Component: ShapeObjectComponent as unknown as ComponentType<ObjectProps>,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  // Bounding-box hit test (the default for shapes).
+  hitTest(obj, worldPoint) {
+    const w = obj.width ?? 0;
+    const h = obj.height ?? 0;
+    return (
+      worldPoint.x >= obj.x &&
+      worldPoint.y >= obj.y &&
+      worldPoint.x < obj.x + w &&
+      worldPoint.y < obj.y + h
+    );
+  },
+});
+
+// --- Register the connector type (story 10) ---
+import { ConnectorObject as ConnectorObjectComponent } from '../objects/ConnectorObject';
+
+registerObjectType('connector', {
+  Component: ConnectorObjectComponent as unknown as ComponentType<ObjectProps>,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  // Select when within CONNECTOR_HIT_TOLERANCE_PX (screen px) of the line.
+  hitTest(obj, worldPoint, zoom = 1, rects) {
+    if (obj.type !== 'connector') return false;
+    const ends = resolveEndpoints(obj as ConnectorSnapshot, rects ?? new Map());
+    return (
+      distanceToPolyline([ends.from, ends.to], worldPoint) <=
+      CONNECTOR_HIT_TOLERANCE_PX / zoom
     );
   },
 });

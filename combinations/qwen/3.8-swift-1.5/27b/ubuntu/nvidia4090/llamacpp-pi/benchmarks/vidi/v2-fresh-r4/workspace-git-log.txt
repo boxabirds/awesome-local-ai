@@ -1,3 +1,46 @@
+commit 04d88ddd71f71049f0f47bf7f87d96d2f445473e
+agent  Sun Oct 4 08:20:23 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ PROGRESS.md                               |  18 +-
+ src/client/board/SelectionBar.tsx         |  20 +-
+ src/client/board/Toolbar.tsx              |  83 +++++-
+ src/client/canvas/BoardViewport.tsx       |   5 +-
+ src/client/index.css                      | 196 +++++++++++-
+ src/client/objects/ConnectorObject.tsx    | 241 +++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 201 +++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  59 ++++
+ src/client/objects/registry.tsx           |  70 ++++-
+ src/client/pages/BoardContent.tsx         | 165 +++++++++--
+ src/client/tools/ConnectorTool.tsx        | 208 +++++++++++++
+ src/client/tools/ShapeTool.tsx            | 155 ++++++++++
+ src/client/tools/useActiveTool.ts         | 114 +++++++
+ src/shared/board-model.ts                 |  69 ++++-
+ src/shared/config.ts                      |  62 ++++
+ src/shared/geometry/connector-geometry.ts |  80 +++++
+ src/shared/geometry/polyline.ts           |  31 ++
+ src/shared/known-types.ts                 |   2 +-
+ src/shared/objects/connector.ts           | 198 +++++++++++++
+ src/shared/objects/shape.ts               | 160 ++++++++++
+ tests/component/story10.test.tsx          | 475 ++++++++++++++++++++++++++++++
+ tests/e2e/helpers/seed-checkout.ts        |  58 ++++
+ tests/e2e/shapes-connectors.spec.ts       | 332 +++++++++++++++++++++
+ tests/fixtures/checkout-flow.ts           |  92 ++++++
+ tests/unit/board-model.test.ts            |   2 +-
+ tests/unit/connector-model.test.ts        | 334 +++++++++++++++++++++
+ tests/unit/registry.test.ts               |   7 +-
+ tests/unit/shape-model.test.ts            | 233 +++++++++++++++
+ 28 files changed, 3612 insertions(+), 58 deletions(-)
+commit 6ff385d247b517bdfb1a3422acad37a6d907425d
+vidi-agent  Sun Oct 4 07:02:48 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 32 ++++++++++----------------------
+ 1 file changed, 10 insertions(+), 22 deletions(-)
 commit 2b34a0b6f30e62ec3f70f1adeff03cb8dff0d3ec
 agent  Sun Oct 4 06:58:04 2026 +0100
 

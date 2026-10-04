@@ -10,6 +10,7 @@ import {
 import { GRID_SPACING_WORLD, WHEEL_ZOOM_SENSITIVITY } from '../../shared/config';
 import type { Point } from './camera';
 import type { CameraApi } from './useCamera';
+import type { ToolId } from '../tools/useActiveTool';
 
 /** Wheel deltaMode values (WheelEvent.DOM_DELTA_*) as named constants. */
 const DELTA_MODE_LINE = 1;
@@ -26,8 +27,8 @@ export interface BoardViewportProps extends CameraApi {
   onDblClickEmpty?(screenX: number, screenY: number): void;
   /** Called when the user clicks empty board space (no drag), with client coords. */
   onClickEmpty?(screenX: number, screenY: number): void;
-  /** The active board tool (story 9): sets the cursor style. */
-  tool?: 'select' | 'text';
+  /** The active board tool (story 9/10): sets the cursor style. */
+  tool?: ToolId;
   /** Called when Shift+pointerdown on empty space (starts marquee). */
   onShiftPointerDownEmpty?(screenPoint: { x: number; y: number }): void;
   /** Called during Shift+drag marquee. */

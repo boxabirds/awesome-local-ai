@@ -168,3 +168,65 @@ export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.5;
  * this build; the local client uses a fixed placeholder id.
  */
 export const LOCAL_USER_ID = 'local';
+
+// --- Story 10: Draw shapes and connect them with arrows ---
+
+/** The three shape kinds a user can draw. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+
+/** Standard size (world units) for a shape created by clicking. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/** Minimum size (world units, either dimension) kept as a drawn drag. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** Maximum characters a shape label can hold. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** Shape outline width in world units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** The six shape fill colours plus "no fill". */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+
+/** The six shape outline colours. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** Default fill for new shapes. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+
+/** Default outline for new shapes. */
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+/** Minimum length (world units) for a created arrow. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/** Screen-pixel tolerance for selecting an arrow by clicking near its line. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** Arrow line width in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** Arrowhead size in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** Radius (screen px) of connector hover dots. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;

@@ -1,8 +1,9 @@
 import type { JSX } from 'react';
-import type { ObjectSnapshot, StickySnapshot, TextSnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot, ShapeSnapshot, StickySnapshot, TextSnapshot } from '../../shared/board-model';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
-import { type StickyColor, type TextSize } from '../../shared/config';
+import { type FillColor, type StickyColor, type StrokeColor, type TextSize } from '../../shared/config';
 import * as Y from 'yjs';
 import { deleteObject } from '../../shared/board-model';
 
@@ -16,6 +17,8 @@ export interface SelectionBarProps {
   onTextSize?(id: string, size: TextSize): void;
   /** Delete a single text object (story 9); its own undo step. */
   onTextDelete?(id: string): void;
+  /** Shape style change (story 10); its own undo step. */
+  onShapeStyle?(id: string, style: { fill?: FillColor; stroke?: StrokeColor }): void;
   /** Undo (story 8) — text toolbar. */
   onUndo?(): void;
   /** Redo (story 8) — text toolbar. */
@@ -30,7 +33,7 @@ export interface SelectionBarProps {
  * - 0 objects: nothing
  */
 export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
-  const { ids, snapshot, doc, onDelete, onColorChange, onTextSize, onTextDelete, onUndo, onRedo } = props;
+  const { ids, snapshot, doc, onDelete, onColorChange, onTextSize, onTextDelete, onShapeStyle, onUndo, onRedo } = props;
 
   if (ids.size === 0) return null;
 
@@ -61,6 +64,17 @@ export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
           onDelete={() => onTextDelete?.(id)}
           onUndo={() => onUndo?.()}
           onRedo={() => onRedo?.()}
+        />
+      );
+    }
+    if (obj && obj.type === 'shape') {
+      const shape = obj as ShapeSnapshot;
+      return (
+        <ShapeToolbar
+          fill={shape.fill}
+          stroke={shape.stroke}
+          onFill={(f) => onShapeStyle?.(id, { fill: f })}
+          onStroke={(s) => onShapeStyle?.(id, { stroke: s })}
         />
       );
     }

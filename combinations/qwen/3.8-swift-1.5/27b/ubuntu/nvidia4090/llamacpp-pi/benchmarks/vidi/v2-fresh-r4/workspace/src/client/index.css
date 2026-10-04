@@ -301,7 +301,9 @@ body {
   border: 1px solid var(--vidi6-control-border);
   border-radius: 10px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
-  z-index: 100;
+  /* Above the tool overlays (z-index 500) so the kind picker and tool
+     buttons stay clickable while a drawing tool is active. */
+  z-index: 600;
 }
 
 .board-toolbar-sticky {
@@ -771,4 +773,196 @@ body {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
   white-space: nowrap;
+}
+
+/* --- Story 10: shapes and connectors ----------------------------------- */
+
+/* Shape / connector tool overlays: full-viewport, above the board, below
+   the floating controls. */
+.tool-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 500;
+}
+
+/* Dashed preview while dragging a shape. */
+.shape-preview {
+  border: 2px dashed var(--vidi6-ink, #263238);
+  background: rgb(38 50 56 / 8%);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* Shape label: centred in the shape's foreignObject. */
+.shape-label {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 16px;
+  line-height: 1.2;
+  color: #263238;
+  overflow: hidden;
+  word-wrap: break-word;
+  pointer-events: none;
+  box-sizing: border-box;
+  padding: 4px;
+}
+
+/* Shape label editor (double-click): textarea centred in the shape. */
+.shape-label-editor {
+  width: 100%;
+  height: 100%;
+  display: block;
+  box-sizing: border-box;
+  border: none;
+  outline: 2px solid var(--vidi6-focus-ring, #1e88e5);
+  background: rgb(255 255 255 / 85%);
+  color: #263238;
+  font-size: 16px;
+  line-height: 1.2;
+  text-align: center;
+  resize: none;
+  padding: 4px;
+}
+
+/* Shape toolbar (single shape selection): fill row + outline row. */
+.shape-toolbar {
+  position: absolute;
+  top: -52px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--vidi6-control-bg);
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+  z-index: 1000;
+  white-space: nowrap;
+}
+
+.shape-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.shape-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--vidi6-control-border);
+  cursor: pointer;
+  padding: 0;
+}
+
+.shape-swatch[aria-pressed='true'] {
+  border-color: var(--vidi6-ink);
+  box-shadow: 0 0 0 1px var(--vidi6-ink);
+}
+
+.shape-swatch:focus-visible {
+  outline: 2px solid var(--vidi6-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Connector hover / snap dots (screen space, in the connector tool overlay). */
+.connector-dot {
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #263238;
+  pointer-events: none;
+}
+
+.connector-dot[data-highlighted='true'] {
+  background: #1e88e5;
+  border-color: #1e88e5;
+  transform: scale(1.4);
+}
+
+/* Shape / connector tool buttons (story 10) — same shape as the text button. */
+.board-toolbar-shape,
+.board-toolbar-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--vidi6-ink, #263238);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.board-toolbar-shape:hover,
+.board-toolbar-connector:hover {
+  background: rgb(0 0 0 / 6%);
+}
+
+.board-toolbar-shape:focus-visible,
+.board-toolbar-connector:focus-visible {
+  outline: 2px solid #1e88e5;
+  outline-offset: 1px;
+}
+
+.board-toolbar-shape--active,
+.board-toolbar-connector--active {
+  background: #1e88e5;
+  border-color: #1e88e5;
+  color: #fff;
+}
+
+.board-toolbar-shape-icon,
+.board-toolbar-connector-icon {
+  font-size: 16px;
+}
+
+/* Shape kind picker in the toolbar (visible while the shape tool is active). */
+.board-toolbar-kind {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--vidi6-control-border, #cfd8dc);
+  border-radius: 8px;
+}
+
+.board-toolbar-kind-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--vidi6-ink, #263238);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.board-toolbar-kind-btn:hover {
+  background: rgb(0 0 0 / 6%);
+}
+
+.board-toolbar-kind-btn:focus-visible {
+  outline: 2px solid #1e88e5;
+  outline-offset: 1px;
+}
+
+.board-toolbar-kind-btn--active {
+  background: #1e88e5;
+  border-color: #1e88e5;
+  color: #fff;
 }

@@ -33,8 +33,13 @@ describe('object type registry', () => {
   // TC-12
   it('TC-12: getObjectType("unknown") → undefined', () => {
     expect(getObjectType('unknown')).toBeUndefined();
-    expect(getObjectType('shape')).toBeUndefined();
+    expect(getObjectType('mystery-type-12')).toBeUndefined();
     expect(getObjectType('')).toBeUndefined();
+    // Known types are registered (sticky, text, shape, connector — story 10)
+    expect(getObjectType('sticky')).toBeDefined();
+    expect(getObjectType('text')).toBeDefined();
+    expect(getObjectType('shape')).toBeDefined();
+    expect(getObjectType('connector')).toBeDefined();
   });
 
   it('duplicate registration throws', () => {

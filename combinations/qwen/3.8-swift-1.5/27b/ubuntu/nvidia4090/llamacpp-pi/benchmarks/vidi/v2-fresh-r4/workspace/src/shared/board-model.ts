@@ -7,7 +7,20 @@ import {
 } from './config';
 import { isKnownType } from './known-types';
 import type { Rect, Point } from './geometry';
-import type { TextSize } from './config';
+import type { FillColor, StrokeColor, TextSize } from './config';
+import type { ShapeKind, ShapeSnap } from './objects/shape';
+import { detachConnectorsTo, type ConnectorSnap, type Endpoint } from './objects/connector';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+
+/**
+ * Connector object snapshot (story 10); the canonical type lives in
+ * objects/connector. `x/y/width/height` are the bounding box of the resolved
+ * endpoints (for selection); the line itself is derived from `from`/`to`.
+ */
+export type ConnectorSnapshot = ConnectorSnap;
+
+/** Shape object snapshot (story 10); the canonical type lives in objects/shape. */
+export type ShapeSnapshot = ShapeSnap;
 
 /** Origin symbol for local transactions (used by story 8 undo and story 3 to avoid echo). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('LOCAL_ORIGIN');
@@ -53,6 +66,11 @@ export interface TextSnapshot extends ObjectSnapshot {
 /** Type guard for text snapshots. */
 export function isTextSnapshot(obj: ObjectSnapshot): obj is TextSnapshot {
   return obj.type === 'text';
+}
+
+/** Type guard for shape snapshots. */
+export function isShapeSnapshot(obj: ObjectSnapshot): obj is ShapeSnapshot {
+  return obj.type === 'shape';
 }
 
 /**
@@ -280,6 +298,10 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   let count = 0;
 
   doc.transact(() => {
+    // Detach connector ends pointing at the deleted objects first (their
+    // geometry is still available for the last-known anchor), then remove.
+    // One transaction total (story 10 TC-13).
+    detachConnectorsTo(doc, ids);
     for (const id of ids) {
       if (!objects.has(id)) continue;
       objects.delete(id);
@@ -363,10 +385,31 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 /**
  * Return a snapshot of all objects, sorted by (z, id).
  * Unknown object types are skipped.
+ *
+ * Connectors (story 10) get `x/y/width/height` set to the bounding box of
+ * their resolved endpoints, computed against the current rects of all other
+ * objects — this is what makes arrows follow when objects move.
  */
 export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects = getObjects(doc);
   const result: ObjectSnapshot[] = [];
+
+  // First pass: collect the live rects of all bounded objects so connector
+  // endpoints can be resolved against the current geometry.
+  const rects = new Map<string, Rect>();
+  objects.forEach((obj, id) => {
+    const type = obj.get('type') as string;
+    if (type === 'sticky' || type === 'shape' || type === 'text') {
+      const width = (obj.get('width') as number | undefined) ?? STICKY_SIZE_WORLD;
+      const height = (obj.get('height') as number | undefined) ?? STICKY_SIZE_WORLD;
+      rects.set(id, {
+        x: (obj.get('x') as number) ?? 0,
+        y: (obj.get('y') as number) ?? 0,
+        width,
+        height,
+      });
+    }
+  });
 
   objects.forEach((obj, id) => {
     const type = obj.get('type') as string;
@@ -393,6 +436,30 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       const widthMode = (obj.get('widthMode') as 'auto' | 'fixed') ?? 'auto';
       const textSnap: TextSnapshot = { ...base, type: 'text', text, size, widthMode };
       result.push(textSnap);
+    } else if (type === 'shape') {
+      const kind = (obj.get('kind') as ShapeKind) ?? 'rect';
+      const fill = (obj.get('fill') as FillColor) ?? 'white';
+      const stroke = (obj.get('stroke') as StrokeColor) ?? 'dark';
+      const label = (obj.get('label') as Y.Text)?.toString() ?? '';
+      const shapeSnap: ShapeSnapshot = { ...base, type: 'shape', kind, fill, stroke, label };
+      result.push(shapeSnap);
+    } else if (type === 'connector') {
+      const from = obj.get('from') as Endpoint | undefined;
+      const to = obj.get('to') as Endpoint | undefined;
+      if (!from || !to) return;
+      const ends = resolveEndpoints({ from, to }, rects);
+      const bbox = connectorBBox(ends.from, ends.to);
+      const connSnap: ConnectorSnapshot = {
+        ...base,
+        type: 'connector',
+        x: bbox.x,
+        y: bbox.y,
+        width: bbox.width,
+        height: bbox.height,
+        from,
+        to,
+      };
+      result.push(connSnap);
     } else {
       result.push(base);
     }
