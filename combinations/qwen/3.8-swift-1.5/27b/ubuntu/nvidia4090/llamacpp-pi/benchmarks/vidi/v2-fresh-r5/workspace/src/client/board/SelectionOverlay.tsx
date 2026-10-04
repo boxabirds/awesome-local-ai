@@ -7,7 +7,7 @@ import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { HANDLE_SIZE_PX } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
 
-const HANDLES: { handle: Handle; label: string; pos: (r: Rect) => Point }[] = [
+const ALL_HANDLES: { handle: Handle; label: string; pos: (r: Rect) => Point }[] = [
   { handle: 'nw', label: 'Resize top-left', pos: (r) => ({ x: r.x, y: r.y }) },
   { handle: 'n', label: 'Resize top', pos: (r) => ({ x: r.x + r.width / 2, y: r.y }) },
   { handle: 'ne', label: 'Resize top-right', pos: (r) => ({ x: r.x + r.width, y: r.y }) },
@@ -15,6 +15,11 @@ const HANDLES: { handle: Handle; label: string; pos: (r: Rect) => Point }[] = [
   { handle: 'se', label: 'Resize bottom-right', pos: (r) => ({ x: r.x + r.width, y: r.y + r.height }) },
   { handle: 's', label: 'Resize bottom', pos: (r) => ({ x: r.x + r.width / 2, y: r.y + r.height }) },
   { handle: 'sw', label: 'Resize bottom-left', pos: (r) => ({ x: r.x, y: r.y + r.height }) },
+  { handle: 'w', label: 'Resize left', pos: (r) => ({ x: r.x, y: r.y + r.height / 2 }) },
+];
+
+const HORIZONTAL_HANDLES: { handle: Handle; label: string; pos: (r: Rect) => Point }[] = [
+  { handle: 'e', label: 'Resize right', pos: (r) => ({ x: r.x + r.width, y: r.y + r.height / 2 }) },
   { handle: 'w', label: 'Resize left', pos: (r) => ({ x: r.x, y: r.y + r.height / 2 }) },
 ];
 
@@ -37,12 +42,14 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
   // Compute bounding box in world space
   const rects: Rect[] = [];
   let anyResizable = false;
+  let allHorizontal = true;
   for (const id of ids) {
     const obj = snapshot.find((o) => o.id === id);
     if (!obj) continue;
     rects.push(objectBounds(obj));
     const spec = getObjectType(obj.type);
     if (spec?.resizable) anyResizable = true;
+    if (spec?.handles !== 'horizontal') allHorizontal = false;
   }
 
   const bounds = unionRects(rects);
@@ -81,7 +88,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
 
       {/* Resize handles */}
       {anyResizable &&
-        HANDLES.map(({ handle, label, pos }) => {
+        (allHorizontal ? HORIZONTAL_HANDLES : ALL_HANDLES).map(({ handle, label, pos }) => {
           const worldPos = pos(bounds);
           const screenPos = worldToScreen(camera, worldPos);
           return (

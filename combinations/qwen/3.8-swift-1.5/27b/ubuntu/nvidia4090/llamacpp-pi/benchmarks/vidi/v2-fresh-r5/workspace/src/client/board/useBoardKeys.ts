@@ -26,6 +26,12 @@ interface UseBoardKeysOpts {
     undo(): boolean;
     redo(): boolean;
   } | null;
+  /** Active tool (story 9). */
+  tool?: 'select' | 'text';
+  /** Change the active tool (story 9). */
+  setTool?: (t: 'select' | 'text') => void;
+  /** Create a sticky at the view centre (story 9 N shortcut). */
+  onCreateSticky?: () => void;
 }
 
 /**
@@ -41,7 +47,7 @@ interface UseBoardKeysOpts {
  * shortcuts are handled by the editor itself, not here.
  */
 export function useBoardKeys(opts: UseBoardKeysOpts): void {
-  const { doc, selection, snapshot, canEdit, boundary, undo } = opts;
+  const { doc, selection, snapshot, canEdit, boundary, undo, tool, setTool, onCreateSticky } = opts;
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -80,9 +86,37 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         return;
       }
 
-      // Escape: clear selection
+      // Escape: clear selection OR return to select tool (story 9)
       if (e.key === 'Escape') {
-        selection.clear();
+        if (tool === 'text') {
+          setTool?.('select');
+        } else {
+          selection.clear();
+        }
+        return;
+      }
+
+      // V: select tool (story 9)
+      if (e.key === 'v' || e.key === 'V') {
+        if (setTool) {
+          setTool('select');
+        }
+        return;
+      }
+
+      // T: text tool (story 9, only if canEdit)
+      if (e.key === 't' || e.key === 'T') {
+        if (canEdit && setTool) {
+          setTool('text');
+        }
+        return;
+      }
+
+      // N: create sticky at view centre (story 9)
+      if (e.key === 'n' || e.key === 'N') {
+        if (canEdit && onCreateSticky) {
+          onCreateSticky();
+        }
         return;
       }
 
@@ -124,11 +158,11 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         return;
       }
 
-      // Enter: start editing single selected sticky
+      // Enter: start editing single selected sticky or text
       if (e.key === 'Enter' && selection.ids.size === 1 && canEdit) {
         const [id] = selection.ids;
         const obj = snapshot.find((o) => o.id === id);
-        if (obj && obj.type === 'sticky') {
+        if (obj && (obj.type === 'sticky' || obj.type === 'text')) {
           e.preventDefault();
           selection.startEdit(id);
         }

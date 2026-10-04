@@ -1,31 +1,51 @@
 import type { JSX } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { NoteToolbar } from '../objects/NoteToolbar';
-import { type StickyColor } from '../../shared/config';
+import { TextToolbar } from '../objects/TextToolbar';
+import { type StickyColor, type TextSize } from '../../shared/config';
 
 interface SelectionBarProps {
   ids: ReadonlySet<string>;
   snapshot: readonly ObjectSnapshot[];
   onDelete: () => void;
   onColor?: (color: StickyColor) => void;
+  onTextSize?: (size: TextSize) => void;
 }
 
 /**
  * Selection bar shown above the selection bounding box.
  * - 2+ objects: "N selected" + Delete button
  * - Exactly 1 sticky: NoteToolbar (colours + delete)
+ * - Exactly 1 text: TextToolbar (sizes + delete)
  * - aria-live="polite" announces the count
  */
 export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
-  const { ids, snapshot, onDelete, onColor } = props;
+  const { ids, snapshot, onDelete, onColor, onTextSize } = props;
 
   if (ids.size === 0) return null;
 
-  // Exactly one sticky note → show NoteToolbar
+  // Exactly one object
   if (ids.size === 1) {
     const [id] = ids;
     const obj = snapshot.find((o) => o.id === id);
-    if (!obj || obj.type !== 'sticky') return null;
+    if (!obj) return null;
+
+    // Text object → TextToolbar
+    if (obj.type === 'text') {
+      const size = (obj as ObjectSnapshot & { size?: TextSize }).size ?? 'M';
+      return (
+        <div data-testid="selection-bar" role="toolbar" aria-label="Text toolbar">
+          <TextToolbar
+            size={size}
+            onSize={onTextSize ?? (() => {})}
+            onDelete={onDelete}
+          />
+        </div>
+      );
+    }
+
+    // Sticky note → NoteToolbar
+    if (obj.type !== 'sticky') return null;
     const color = (obj.color ?? 'yellow') as StickyColor;
     return (
       <div data-testid="selection-bar" role="toolbar" aria-label="Note toolbar">

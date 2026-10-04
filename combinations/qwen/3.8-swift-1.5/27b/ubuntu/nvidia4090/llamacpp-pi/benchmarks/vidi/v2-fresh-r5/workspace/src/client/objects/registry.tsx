@@ -8,7 +8,7 @@ import type { ComponentType } from 'react';
 import type * as Y from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import type { Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import type { UndoController } from '../board/undo';
 
 /** Props passed to every object component by the Board renderer. */
@@ -17,6 +17,8 @@ export interface ObjectProps {
   selected: boolean;
   editing: boolean;
   canEdit: boolean;
+  /** When true, the object does not capture pointer events (text tool active). */
+  pointerDisabled?: boolean;
   /** Delegate pointerdown to the transform gesture. */
   onPointerDown: (e: React.PointerEvent, id: string) => void;
   /** Double-click handler (e.g. start editing). */
@@ -35,6 +37,8 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  /** Handle mode: 'all' shows 8 handles, 'horizontal' shows only e/w. Default 'all'. */
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -78,5 +82,31 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  handles: 'all',
   hitTest: stickyHitTest,
+});
+
+// ─── Register text objects (story 9) ─────────────────────────────────────────
+
+import { TextObject } from './TextObject';
+
+function textHitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
+  const w = obj.width ?? 0;
+  const h = obj.height ?? 0;
+  return (
+    worldPoint.x >= obj.x &&
+    worldPoint.x < obj.x + w &&
+    worldPoint.y >= obj.y &&
+    worldPoint.y < obj.y + h
+  );
+}
+
+registerObjectType('text', {
+  Component: TextObject as unknown as ComponentType<ObjectProps>,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+  hitTest: textHitTest,
 });

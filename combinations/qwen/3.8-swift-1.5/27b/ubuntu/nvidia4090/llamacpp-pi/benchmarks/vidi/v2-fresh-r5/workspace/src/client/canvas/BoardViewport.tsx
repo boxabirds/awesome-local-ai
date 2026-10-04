@@ -37,13 +37,15 @@ function mod(a: number, b: number): number {
 export function BoardViewport(props: {
   children?: ReactNode;
   onDblClickEmpty?: (screenPoint: { x: number; y: number }) => void;
-  onClickEmpty?: () => void;
+  onClickEmpty?: (screenPoint?: { x: number; y: number }) => void;
   onCameraChange?: (cam: { x: number; y: number; zoom: number }) => void;
   /** Shift+drag marquee callbacks */
   onMarqueeBegin?: (screen: { x: number; y: number }) => void;
   onMarqueeMove?: (screen: { x: number; y: number }) => void;
   onMarqueeEnd?: () => void;
   onMarqueeCancel?: () => void;
+  /** Override cursor style (story 9: text tool). */
+  cursor?: string;
 }): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
@@ -163,6 +165,9 @@ export function BoardViewport(props: {
     if (e.target !== e.currentTarget) return;
     const el = e.currentTarget;
 
+    // Text tool active: don't pan (story 9)
+    if (props.cursor === 'text') return;
+
     // Shift+drag on empty space → marquee selection (no pointer capture needed;
     // we use window-level listeners in capture phase)
     if (e.shiftKey) {
@@ -235,14 +240,18 @@ export function BoardViewport(props: {
     props.onDblClickEmpty?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   }, [props.onDblClickEmpty]);
 
-  // Click on empty board space (without panning) → clear selection
+  // Click on empty board space (without panning) → clear selection or create text
   const onClickEmpty = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target !== e.currentTarget) return;
+    // When text tool is active, clicks on objects also create text (story 9)
+    const isTextTool = props.cursor === 'text';
+    if (!isTextTool && e.target !== e.currentTarget) return;
     if (wasPanningRef.current) return;
     if (marqueeRef.current) return;
     if (suppressClickRef.current) return;
-    props.onClickEmpty?.();
-  }, [props.onClickEmpty]);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    props.onClickEmpty?.(screenPoint);
+  }, [props.onClickEmpty, props.cursor]);
 
   const { camera } = cam;
 
@@ -274,7 +283,7 @@ export function BoardViewport(props: {
           position: 'fixed',
           inset: 0,
           overflow: 'hidden',
-          cursor: isPanning ? 'grabbing' : 'grab',
+          cursor: isPanning ? 'grabbing' : (props.cursor ?? 'grab'),
           touchAction: 'none',
           backgroundColor: '#fafafa',
           backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.28) 1px, transparent 1px)',

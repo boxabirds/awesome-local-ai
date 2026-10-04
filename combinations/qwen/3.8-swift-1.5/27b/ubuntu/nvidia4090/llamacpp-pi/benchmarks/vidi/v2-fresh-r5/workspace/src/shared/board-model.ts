@@ -183,21 +183,23 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
 
   objects.forEach((obj, id) => {
     const type = obj.get('type');
-    if (type !== 'sticky') return; // skip unknown types
+    if (type !== 'sticky' && type !== 'text') return; // skip unknown types
 
     const text = obj.get('text') as Y.Text | undefined;
     const width = obj.get('width') as number | undefined;
     const height = obj.get('height') as number | undefined;
     const entry: ObjectSnapshot = {
       id,
-      type: 'sticky',
+      type: type as string,
       x: obj.get('x') as number,
       y: obj.get('y') as number,
-      color: obj.get('color') as StickyColor,
       text: text ? text.toString() : '',
       z: obj.get('z') as number,
       createdAt: obj.get('createdAt') as number,
     };
+    if (type === 'sticky') {
+      entry.color = obj.get('color') as StickyColor;
+    }
     if (width !== undefined) entry.width = width;
     if (height !== undefined) entry.height = height;
     result.push(entry);
@@ -243,7 +245,7 @@ export function allObjectIds(doc: Y.Doc): string[] {
   objects.forEach((_obj, id) => {
     // Only include objects with a known type
     const type = (_obj as Y.Map<unknown>).get('type');
-    if (type === 'sticky') ids.push(id);
+    if (type === 'sticky' || type === 'text') ids.push(id);
   });
   return ids;
 }

@@ -11,6 +11,7 @@ interface StickyNoteProps {
   selected: boolean;
   editing: boolean;
   canEdit: boolean;
+  pointerDisabled?: boolean;
   /** Delegate pointerdown to the transform gesture. */
   onPointerDown: (e: React.PointerEvent, id: string) => void;
   /** Double-click handler (e.g. start editing). */
@@ -29,18 +30,19 @@ interface StickyNoteProps {
  * is handled internally via the StickyTextEditor.
  */
 export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { obj, selected, editing, canEdit, onPointerDown, onDoubleClick, doc, onEndEdit, undo } = props;
+  const { obj, selected, editing, canEdit, pointerDisabled, onPointerDown, onDoubleClick, doc, onEndEdit, undo } = props;
 
   const note = obj as ObjectSnapshot & { color: StickyColor; text: string };
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      if (pointerDisabled) return;
       e.stopPropagation();
       if (!canEdit) return;
       if (editing) return;
       onPointerDown(e, obj.id);
     },
-    [canEdit, editing, obj.id, onPointerDown],
+    [canEdit, editing, obj.id, onPointerDown, pointerDisabled],
   );
 
   const handleDoubleClick = useCallback(
@@ -80,7 +82,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
           ? '0 0 0 2px #1a73e8, 0 4px 12px rgba(0,0,0,0.15)'
           : '0 2px 8px rgba(0,0,0,0.12)',
         cursor: 'grab',
-        pointerEvents: 'auto',
+        pointerEvents: pointerDisabled ? 'none' : 'auto',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

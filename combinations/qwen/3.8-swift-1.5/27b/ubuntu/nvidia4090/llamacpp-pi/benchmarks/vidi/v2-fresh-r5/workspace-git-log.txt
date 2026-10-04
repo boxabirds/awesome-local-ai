@@ -1,3 +1,46 @@
+commit 2d4ba349531f87ca9a21a42bd1f08a6dbd9d9469
+agent  Mon Oct 5 00:09:02 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                              | 428 +---------------------------------
+ PROGRESS.md                           |  20 +-
+ src/client/board/Board.tsx            |  76 ++++--
+ src/client/board/SelectionBar.tsx     |  28 ++-
+ src/client/board/SelectionOverlay.tsx |  11 +-
+ src/client/board/Toolbar.tsx          |  65 +++++-
+ src/client/board/useBoardKeys.ts      |  44 +++-
+ src/client/board/useTool.ts           |  33 +++
+ src/client/canvas/BoardViewport.tsx   |  21 +-
+ src/client/objects/StickyNote.tsx     |   8 +-
+ src/client/objects/StickyText.ts      |  51 +---
+ src/client/objects/TextEditor.tsx     | 199 ++++++++++++++++
+ src/client/objects/TextObject.tsx     | 149 ++++++++++++
+ src/client/objects/TextToolbar.tsx    |  84 +++++++
+ src/client/objects/registry.tsx       |  32 ++-
+ src/client/objects/textLayout.ts      | 118 ++++++++++
+ src/client/objects/useTextBoxSync.ts  |  59 +++++
+ src/shared/board-model.ts             |  10 +-
+ src/shared/config.ts                  |  18 ++
+ src/shared/objects/text.ts            | 148 ++++++++++++
+ src/shared/text-edit.ts               |  59 +++++
+ tests/component/TextBoxSync.test.tsx  | 127 ++++++++++
+ tests/component/TextObject.test.tsx   | 326 ++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx         | 146 ++++++++++++
+ tests/component/Toolbars.test.tsx     |   4 +-
+ tests/e2e/text.spec.ts                | 262 +++++++++++++++++++++
+ tests/unit/text-layout.test.ts        | 132 +++++++++++
+ tests/unit/text-model.test.ts         | 257 ++++++++++++++++++++
+ 28 files changed, 2394 insertions(+), 521 deletions(-)
+commit 1b4ee83844cfee2fee106433b54efa67426a7007
+vidi-agent  Sun Oct 4 23:52:53 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 commit a564bb386b4d8c7bc433f2f3a48857bbbfc228f9
 agent  Sun Oct 4 23:30:11 2026 +0100
 

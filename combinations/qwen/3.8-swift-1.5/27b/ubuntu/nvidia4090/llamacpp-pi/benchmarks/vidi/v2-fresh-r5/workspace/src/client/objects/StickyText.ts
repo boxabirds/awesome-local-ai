@@ -1,59 +1,20 @@
 import * as Y from 'yjs';
-import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS, STICKY_COUNTER_THRESHOLD_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX } from '../../shared/config';
+import { clampToLimit as _clampToLimit, applyTextDiff as _applyTextDiff } from '../../shared/text-edit';
 
 /**
- * Clamp a string to the maximum character limit.
+ * Clamp a string to the sticky note's maximum character limit.
+ * Re-exported from shared text-edit module with the sticky default.
  */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (next.length <= max) return next;
-  return next.slice(0, max);
+  return _clampToLimit(next, max);
 }
 
 /**
- * Apply a minimal diff (common prefix + common suffix) from the current Y.Text
- * content to the next string. Uses one delete and/or one insert in a single
- * LOCAL_ORIGIN transaction (story 8: typing must be captured by the per-user
- * undo history). Surrogate-pair safe.
+ * Apply a minimal diff to a Y.Text. Re-exported from shared text-edit module.
  */
 export function applyTextDiff(ytext: Y.Text, next: string, _origin?: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-  const doc = ytext.doc;
-  if (!doc) return;
-
-  // Find common prefix
-  let prefixLen = 0;
-  const minLen = Math.min(current.length, next.length);
-  while (prefixLen < minLen && current[prefixLen] === next[prefixLen]) {
-    prefixLen++;
-  }
-
-  // Find common suffix (not overlapping with prefix)
-  let suffixLen = 0;
-  while (
-    suffixLen < minLen - prefixLen &&
-    current[current.length - 1 - suffixLen] === next[next.length - 1 - suffixLen]
-  ) {
-    suffixLen++;
-  }
-
-  // The middle parts
-  const deleteStart = prefixLen;
-  const deleteLen = current.length - prefixLen - suffixLen;
-  const insertStr = next.slice(prefixLen, next.length - suffixLen);
-
-  doc.transact(
-    () => {
-      if (deleteLen > 0) {
-        ytext.delete(deleteStart, deleteLen);
-      }
-      if (insertStr.length > 0) {
-        ytext.insert(deleteStart, insertStr);
-      }
-    },
-    LOCAL_ORIGIN,
-  );
+  _applyTextDiff(ytext, next, _origin);
 }
 
 /**

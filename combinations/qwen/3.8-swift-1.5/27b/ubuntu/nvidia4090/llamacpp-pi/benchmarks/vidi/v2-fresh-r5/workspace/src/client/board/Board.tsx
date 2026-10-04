@@ -14,13 +14,15 @@ import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit } from '../sync/connectBoard';
 import { reportConnectionState } from '../canvas/testHooks';
 import { createSticky, setStickyColor, deleteObjects } from '../../shared/board-model';
-import { STICKY_SIZE_WORLD, type StickyColor } from '../../shared/config';
+import { createText, setTextSize } from '../../shared/objects/text';
+import { STICKY_SIZE_WORLD, type StickyColor, type TextSize } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
 import { useMarquee, MarqueeRect } from './Marquee';
 import { useTransformGesture } from './useTransformGesture';
 import { SelectionOverlay } from './SelectionOverlay';
 import { SelectionBar } from './SelectionBar';
 import { useBoardKeys } from './useBoardKeys';
+import { useTool } from './useTool';
 import { createUndo, type UndoController } from './undo';
 import { useUndo } from './useUndo';
 import type { Handle } from '../../shared/geometry';
@@ -74,15 +76,8 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     boundary: undoBoundary,
   });
 
-  // Keyboard commands
-  useBoardKeys({
-    doc,
-    selection,
-    snapshot: notes,
-    canEdit: editable,
-    boundary: undoBoundary,
-    undo,
-  });
+  // Tool state (story 9)
+  const { tool, setTool } = useTool(editable);
 
   const onDblClickEmpty = useCallback(
     (screenPoint: { x: number; y: number }) => {
@@ -97,9 +92,32 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     [doc, selection, editable],
   );
 
-  const onClickEmpty = useCallback(() => {
-    selection.clear();
-  }, [selection]);
+  // Text tool: click on board to create text (story 9)
+  const onTextToolClick = useCallback(
+    (screenPoint: { x: number; y: number }) => {
+      if (!editable) return;
+      const cam = cameraRef.current;
+      const world = screenToWorld(cam, screenPoint);
+      const id = createText(doc, world, 'local');
+      if (id) {
+        setTool('select');
+        selection.setMany([id], false);
+        selection.startEdit(id);
+      }
+    },
+    [doc, selection, editable, setTool],
+  );
+
+  const onClickEmpty = useCallback(
+    (screenPoint?: { x: number; y: number }) => {
+      if (tool === 'text' && screenPoint) {
+        onTextToolClick(screenPoint);
+      } else {
+        selection.clear();
+      }
+    },
+    [tool, onTextToolClick, selection],
+  );
 
   const onCreateSticky = useCallback(() => {
     if (!editable) return;
@@ -113,6 +131,19 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
       selection.startEdit(id);
     }
   }, [doc, selection, editable, undoBoundary]);
+
+  // Keyboard commands
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+    boundary: undoBoundary,
+    undo,
+    tool,
+    setTool,
+    onCreateSticky,
+  });
 
   const onHandlePointerDown = useCallback(
     (e: React.PointerEvent, handle: Handle) => {
@@ -132,7 +163,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     (id: string) => {
       if (!editable) return;
       const obj = notes.find((o) => o.id === id);
-      if (obj && obj.type === 'sticky') {
+      if (obj && (obj.type === 'sticky' || obj.type === 'text')) {
         selection.startEdit(id);
       }
     },
@@ -159,6 +190,18 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     [doc, selection, editable, undoBoundary],
   );
 
+  const onTextSizeChange = useCallback(
+    (size: TextSize) => {
+      if (!editable) return;
+      if (selection.ids.size !== 1) return;
+      const [id] = selection.ids;
+      undoBoundary();
+      setTextSize(doc, id, size);
+      undoBoundary();
+    },
+    [doc, selection, editable, undoBoundary],
+  );
+
   // Render objects through the registry
   const renderObjects = () => {
     return notes.map((obj) => {
@@ -172,6 +215,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           selected={selection.ids.has(obj.id)}
           editing={selection.editingId === obj.id}
           canEdit={editable}
+          pointerDisabled={tool === 'text'}
           onPointerDown={onObjectPointerDown}
           onDoubleClick={onObjectDoubleClick}
           doc={doc}
@@ -215,6 +259,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         onMarqueeMove={(screen) => marquee.move(screen)}
         onMarqueeEnd={() => marquee.end()}
         onMarqueeCancel={() => marquee.cancel()}
+        cursor={tool === 'text' ? 'text' : undefined}
       >
         {renderObjects()}
         <MarqueeRect rect={marquee.rect} />
@@ -242,11 +287,12 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
             snapshot={notes}
             onDelete={onDeleteSelection}
             onColor={onColorChange}
+            onTextSize={onTextSizeChange}
           />
         </div>
       )}
 
-      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoBinding} />
+      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoBinding} tool={tool} onToolChange={setTool} />
     </>
   );
 }

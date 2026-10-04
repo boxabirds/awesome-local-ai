@@ -102,3 +102,21 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Number of undo steps kept per user (undo.limit). */
 export const UNDO_MAX_STEPS = 200;
+
+/* --- Story 9: Free text --- */
+
+/** Maximum automatic width in board units (text wraps beyond this). */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Minimum fixed width in board units (set by handle drag). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Maximum characters in a text object. */
+export const TEXT_MAX_CHARS = 5000;
+/** Text size presets in board units. */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Default text size for new text objects. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Line height multiplier for text objects. */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** Font family for text objects. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';

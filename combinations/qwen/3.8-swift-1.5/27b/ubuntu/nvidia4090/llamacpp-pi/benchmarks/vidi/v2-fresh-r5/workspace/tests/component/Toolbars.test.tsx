@@ -56,9 +56,9 @@ describe('Toolbars', () => {
     const onCreateStickyMock = vi.fn();
     render(<Toolbar onCreateSticky={onCreateStickyMock} />);
 
-    const btn = screen.getByLabelText('Sticky note');
+    const btn = screen.getByLabelText('Sticky note (N)');
     expect(btn).toBeInTheDocument();
-    expect(btn).toHaveAttribute('title', 'Sticky note – or double-click the board');
+    expect(btn).toHaveAttribute('title', 'Sticky note – N');
 
     fireEvent.click(btn);
     expect(onCreateStickyMock).toHaveBeenCalled();

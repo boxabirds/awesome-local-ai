@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { UndoButtons } from './UndoButtons';
 import type { UndoBinding } from './useUndo';
+import type { Tool } from './useTool';
 
 interface ToolbarProps {
   onCreateSticky: () => void;
@@ -8,13 +9,17 @@ interface ToolbarProps {
   disabled?: boolean;
   /** Undo/redo binding (story 8). */
   undo?: UndoBinding;
+  /** Active tool (story 9). */
+  tool?: Tool;
+  /** Change the active tool. */
+  onToolChange?: (t: Tool) => void;
 }
 
 /**
- * Fixed left-side toolbar with a Sticky note button and undo/redo buttons.
+ * Fixed left-side toolbar with tool buttons, a Sticky note button and undo/redo buttons.
  */
 export function Toolbar(props: ToolbarProps): JSX.Element {
-  const { onCreateSticky, disabled = false, undo } = props;
+  const { onCreateSticky, disabled = false, undo, tool = 'select', onToolChange } = props;
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -41,10 +46,61 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         zIndex: 100,
       }}
     >
+      {/* Select tool */}
       <button
         type="button"
-        aria-label="Sticky note"
-        title="Sticky note – or double-click the board"
+        aria-label="Select (V)"
+        aria-pressed={tool === 'select'}
+        title="Select – V"
+        data-testid="tool-select-btn"
+        onClick={() => onToolChange?.('select')}
+        style={{
+          width: '40px',
+          height: '40px',
+          borderRadius: '6px',
+          border: tool === 'select' ? '2px solid #1a73e8' : '1px solid rgba(0,0,0,0.2)',
+          background: tool === 'select' ? '#E8F0FE' : 'white',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '18px',
+        }}
+      >
+        ↖
+      </button>
+
+      {/* Text tool */}
+      <button
+        type="button"
+        aria-label="Text (T)"
+        aria-pressed={tool === 'text'}
+        title="Text – T"
+        data-testid="tool-text-btn"
+        onClick={() => onToolChange?.('text')}
+        disabled={disabled}
+        style={{
+          width: '40px',
+          height: '40px',
+          borderRadius: '6px',
+          border: tool === 'text' ? '2px solid #1a73e8' : '1px solid rgba(0,0,0,0.2)',
+          background: tool === 'text' ? '#E8F0FE' : 'white',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '18px',
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        T
+      </button>
+
+      {/* Sticky note button */}
+      <button
+        type="button"
+        aria-label="Sticky note (N)"
+        title="Sticky note – N"
         data-testid="create-sticky-btn"
         onClick={onCreateSticky}
         disabled={disabled}
@@ -64,6 +120,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
       >
         +
       </button>
+
       {undo && (
         <div style={{ height: '1px', background: 'rgba(0,0,0,0.15)', margin: '0 2px' }} />
       )}
