@@ -29,6 +29,14 @@ const RENAMED_TO: &str = "-pi/";
 /// Where published records and compact logs are read from. Not `benchmarks/reference`: the reference models (Claude
 /// Opus, Sonnet) are the quality yardstick and their conversations are not kept in the warehouse.
 const PUBLISHED_ROOTS: [&str; 1] = ["combinations"];
+
+/// A run directory under one of the published roots. The lake is pulled from the machines and holds whatever they
+/// ran, the reference models included, so it is filtered by the same rule as the published tree: without this, the
+/// purge at the start of an ingest is undone by the same pass (4 Oct 2026; 86 story runs of Claude's conversations
+/// were in the warehouse, and served from it to the benchmarker).
+fn under_published_root(rel: &str) -> bool {
+    PUBLISHED_ROOTS.iter().any(|root| rel.starts_with(&format!("{root}/")))
+}
 /// A run directory holding this file is archived (owner, 4 Oct 2026): superseded, its record removed from the published
 /// tree, and kept out of the lake, the warehouse and the analytics file. Only the marker stays, saying what it was.
 pub const ARCHIVED_MARKER: &str = "archived.json";
@@ -273,7 +281,9 @@ pub fn candidates(published: &dyn Published, lake: &BTreeMap<String, LakeRun>) -
         }
     }
     for (run, lr) in lake {
-        if run.contains(RESCORE_DIR) || archived.contains(run) || archived.contains(&run.replace(RENAMED_FROM, RENAMED_TO)) {
+        if !under_published_root(run) || run.contains(RESCORE_DIR) || archived.contains(run)
+            || archived.contains(&run.replace(RENAMED_FROM, RENAMED_TO))
+        {
             continue;
         }
         let Ok(stories) = std::fs::read_dir(lr.dir.join(STORIES_DIR)) else { continue };
