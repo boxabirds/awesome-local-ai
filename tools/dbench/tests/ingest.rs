@@ -730,3 +730,31 @@ fn an_archived_runs_rows_already_in_the_warehouse_are_purged_from_every_table_by
     assert_eq!(left, "combinations/q/run-1");
     assert_eq!(db.purge_runs(&archived).unwrap(), 0); // idempotent
 }
+
+// ---- the warehouse holds no reference model's conversations, pass after pass (owner, 3 Oct 2026) ----
+
+#[test]
+fn a_reference_run_in_the_lake_is_not_a_candidate_either() {
+    // purge_reference runs at the start of an ingest. Until 4 Oct 2026 the same pass then put the reference runs
+    // straight back, because only the published side was filtered to PUBLISHED_ROOTS and the lake side was not: the
+    // collector pulls the reference runs from the machine that runs them. 86 story runs of Claude's conversations
+    // were in the warehouse, re-ingested every few minutes, and served from there to the benchmarker.
+    use dbench::ingest::inputs::{candidates, lake_runs, TreeSource};
+    use std::collections::BTreeSet;
+    let root = std::env::temp_dir().join(format!("dbench-ingest-lake-ref-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let kept = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/v2-r1";
+    let reference = "benchmarks/reference/vidi/opus-5.5/v2-r1";
+    for run in [kept, reference] {
+        let dir = root.join("store/node-a").join(run).join("stories/01");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("agent-events.jsonl"), "{}\n").unwrap();
+        std::fs::write(root.join("store/node-a").join(run).join("collection.json"),
+            r#"{"node": "node-a", "complete": true, "collected_at": 1.0, "files": {"stories/01/agent-events.jsonl": {"bytes": 3}}}"#).unwrap();
+    }
+    let lake = lake_runs(&root.join("store")).unwrap();
+    assert!(lake.contains_key(reference), "the fixture's lake must hold the reference run");
+    let src = TreeSource { root: root.clone() };
+    assert_eq!(candidates(&src, &lake).unwrap(), BTreeSet::from([format!("{kept}/stories/01")]));
+    std::fs::remove_dir_all(&root).unwrap();
+}
