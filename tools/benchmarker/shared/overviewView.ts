@@ -82,9 +82,13 @@ export interface NowLine {
   queued: number;
 }
 
-/** One line per machine known or named in the machine list, by name. An unreachable machine says so whatever was
- * last said about it; a machine with a queue and nothing running is not idle (its queue is waiting); one busy with
- * a run the page doesn't show is running, with no run named. */
+/** The machines that are doing something, first: running, then a queue waiting to start, then idle, then
+ * unreachable; by name within each. The reader looks at what is in flight, not at what is quiet. */
+const NOW_ORDER: Record<NowState, number> = { running: 0, queuedOnly: 1, idle: 2, unreachable: 3 };
+
+/** One line per machine known or named in the machine list, in NOW_ORDER. An unreachable machine says so whatever
+ * was last said about it; a machine with a queue and nothing running is not idle (its queue is waiting); one busy
+ * with a run the page doesn't show is running, with no run named. */
 export function nowLines(machines: Machine[], all: Row[], reach: Reachability, now: number): NowLine[] {
   const names = [...new Set([...machines.map((m) => m.node), ...Object.keys(reach ?? {})])]
     .toSorted((a, b) => a.localeCompare(b, undefined, { numeric: true }));
@@ -105,7 +109,7 @@ export function nowLines(machines: Machine[], all: Row[], reach: Reachability, n
       };
     }
     return { ...base, state: m.queued > 0 ? "queuedOnly" as const : "idle" as const };
-  });
+  }).toSorted((a, b) => NOW_ORDER[a.state] - NOW_ORDER[b.state]);
 }
 
 // ---------- a machine's jobs now ----------
