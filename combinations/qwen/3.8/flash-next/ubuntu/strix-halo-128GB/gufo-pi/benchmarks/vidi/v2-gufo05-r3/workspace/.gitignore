@@ -1,0 +1,16 @@
+# Build output
+dist/
+
+# Wrangler / Cloudflare
+.wrangler/
+
+# Playwright
+playwright-report/
+test-results/
+playwright/.cache/
+
+# Dependencies
+node_modules/
+
+# Env
+*.local
