@@ -29,7 +29,7 @@ const METRIC_VIEW: Record<Metric, { term: TermId; label: string; cell: (v: numbe
     cell: (v, c) => (c?.story?.ownTotal ? `${c.story.ownPassed ?? 0}/${c.story.ownTotal}` : `${Math.round(v * PERCENT)}%`),
     total: (v, run) => `${v} of ${run.stories.filter((s) => s.ownTotal).length} pass`,
   },
-  tokS: { term: "tokS", label: "generated tok/s", cell: (v) => v.toFixed(SPEED_DECIMALS), total: (v) => v.toFixed(SPEED_DECIMALS) },
+  tokS: { term: "tokS", label: "Effective story tok/s", cell: (v) => v.toFixed(SPEED_DECIMALS), total: (v) => v.toFixed(SPEED_DECIMALS) },
 };
 
 export const metricLabel = (m: Metric) => METRIC_VIEW[m].label;

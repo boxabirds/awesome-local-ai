@@ -213,7 +213,7 @@ test.describe("by combination", () => {
   test("the measures of a story run: every column, from the glossary", async ({ page }) => {
     await open(page, "1");
     const heads = await section(page, "combinations").locator("thead th[data-measure] > .term").allTextContents();
-    expect(heads).toEqual(["Agent time", "Output tokens", "Tool calls", "Held-out", "Input tokens", "generated tok/s", "generation tok/s", "Compactions", "Nudges"]);
+    expect(heads).toEqual(["Agent time", "Output tokens", "Tool calls", "Held-out", "Input tokens", "Effective story tok/s", "Output tok/s", "Compactions", "Nudges"]);
     const values = await row(page, SWIFT, "v2-r4").locator("td[data-measure]").evaluateAll((tds) => tds.map((td) => (td.firstChild?.textContent ?? "").trim()));
     expect(values).toEqual(["12 min", "55k", "88", "6/6", "4.4M", "79.7", "102.0", "1", "0"]);
     await expect(cell(page, SWIFT, "v2-r4", "heldOut").locator(".ho")).toHaveText("6/6");

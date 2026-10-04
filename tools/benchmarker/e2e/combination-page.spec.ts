@@ -218,7 +218,7 @@ test.describe("combination page", () => {
     await expect(cell(page, "v2-r4", "2").locator(".sq")).toHaveClass(/q-part/);
     await expect(rowOf(page, "v2-r4").locator("td.m-total")).toHaveText("1 of 2 pass");
 
-    await show(page, "generated tok/s");
+    await show(page, "Effective story tok/s");
     await expect(cell(page, "v2-r5", "2").locator(".v")).toHaveText("36");
     await expect(cell(page, "v2-r5", "2").locator(".sq")).toHaveClass(/q-ok/);
   });

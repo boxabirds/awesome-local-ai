@@ -171,7 +171,7 @@ test.describe("cost", () => {
     ];
     for (const [term, text] of want) await expect(stat(page, "cost", term).locator(".stat-value"), term).toHaveText(text);
     await expect(stat(page, "cost", "inputRead").locator(".stat-sub")).toHaveText("90% cached");
-    await expect(stat(page, "cost", "tokS").locator(".term")).toHaveText("generated tok/s");
+    await expect(stat(page, "cost", "tokS").locator(".term")).toHaveText("Effective story tok/s");
     await expect(section(page, "cost").locator('[data-stat="engineSpeed"]')).toHaveText("engine speed: generation 41.7 tok/s · reading 750.0 tok/s");
   });
 

@@ -300,14 +300,14 @@ test.describe("one panel: each story's held-out result and where its time went",
     await expect(page.locator('[data-page="run"] [data-section="cost"], [data-page="run"] [data-section="time"]')).toHaveCount(0);
   });
 
-  test("each row has its figures: calls, output tokens, input tokens, cached share, generated tok/s, draft; the heldout is the story's own result, said once", async ({ page }) => {
+  test("each row has its figures: calls, output tokens, input tokens, cached share, effective story tok/s, draft; the heldout is the story's own result, said once", async ({ page }) => {
     await open(page, SWIFT, "v2-r4");
     const r2 = rows(page).nth(1);
     await expect(r2.locator(".held")).toHaveText("12/14");                                        // the square's own measure
     await expect(r2.locator(".rs-sq")).toHaveAttribute("data-tip", "story 2: 12/14 of its own tests");
     await expect(r2.locator(".held")).toHaveClass(/q-mid/);                                      // the same colour rule as its square
     await expect(r2.locator(".rs-sq")).toHaveClass(/q-mid/);
-    await expect(section(page, "stories").locator("thead th")).toHaveText(["", "Held-out", "Story", "Where the time went", "Agent time", "Tool calls", "Output tokens", "Input tokens", "Cached", "generated tok/s", "Draft", ""]);
+    await expect(section(page, "stories").locator("thead th")).toHaveText(["", "Held-out", "Story", "Where the time went", "Agent time", "Tool calls", "Output tokens", "Input tokens", "Cached", "Effective story tok/s", "Draft", ""]);
   });
 
   test("the engine's generation and reading speeds for a story are in the tok/s hover, not two more columns", async ({ page }) => {
@@ -401,7 +401,7 @@ test.describe("cost", () => {
       ["outTokens", "235k"], ["inputRead", "10.0M"], ["calls", "299"], ["tokS", "43.0"], ["compactions", "3"], ["nudges", "2"],
     ];
     for (const [term, text] of want) await expect(stat(page, term), term).toHaveText(text);
-    await expect(section(page, "stories").locator('[data-stat="tokS"] .term')).toHaveText("generated tok/s");
+    await expect(section(page, "stories").locator('[data-stat="tokS"] .term')).toHaveText("Effective story tok/s");
     await expect(section(page, "stories").locator(".rp-head")).toContainText("over 2 stories");
   });
 
