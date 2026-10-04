@@ -1,3 +1,35 @@
+commit e917c104614596aa1a7243989424a49a5f9ecf84
+vidi-agent  Sun Oct 4 17:02:55 2026 +0100
+
+    harness: snapshot after story 11 (uncommitted agent work)
+
+
+ src/client/App.tsx                  |  29 ++
+ src/client/board/Toolbar.tsx        |  29 +-
+ src/client/canvas/BoardViewport.tsx |  10 +
+ src/client/objects/StrokeObject.tsx | 124 ++++++++
+ src/client/objects/registry.tsx     |  54 +++-
+ src/client/styles.css               | 157 +++++++++-
+ src/client/tools/PenTool.tsx        | 392 ++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx     | 133 +++++++++
+ src/client/tools/useActiveTool.ts   |  15 +-
+ src/client/tools/usePenOptions.ts   |  51 ++++
+ src/shared/board-model.ts           | 101 +++++++
+ src/shared/config.ts                |  91 ++++++
+ src/shared/geometry/simplify.ts     | 189 ++++++++++++
+ src/shared/objects/stroke.ts        | 315 ++++++++++++++++++++
+ tests/component/helpers/pen.tsx     | 335 +++++++++++++++++++++
+ tests/fixtures/pen-paths.ts         | 103 +++++++
+ tests/unit/stroke.test.ts           | 573 ++++++++++++++++++++++++++++++++++++
+ 17 files changed, 2691 insertions(+), 10 deletions(-)
+commit 8da9c0b88a32913985d671a602f56f6a14dc9927
+vidi-agent  Sun Oct 4 16:16:36 2026 +0100
+
+    harness: PROGRESS.md for story 11
+
+
+ PROGRESS.md | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
 commit 83d3ef7f89beb9bc9f9c95f0ee027b17317c093a
 agent  Sun Oct 4 15:13:15 2026 +0000
 
