@@ -2,9 +2,40 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
   "compatibility_date": "2026-09-01",
+  // The Worker is the entry point: it routes /api/rooms/:boardId to a BoardRoom and hands
+  // everything else to the assets. `run_worker_first` is what makes that order possible -
+  // without it the asset router answers the SPA fallback for /api/* and the Worker never
+  // sees the WebSocket upgrade.
+  "main": "src/worker/index.ts",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "assets": {
-    "directory": "./dist/client"
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*"
+    ]
   },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  // SQLite from the first migration, so story 4 (which stores the document) needs no class
+  // migration. In this story the room's document lives only in memory.
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "BoardRoom"
+      ]
+    }
+  ],
   "dev": {
     "ip": "127.0.0.1",
     "port": 23612,

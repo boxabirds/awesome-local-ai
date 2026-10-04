@@ -1,7 +1,8 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { OBJECTS_MAP, initDoc, snapshot } from '../../shared/board-model';
 import type { StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 /**
  * The board document plus the notes it contains.
@@ -11,13 +12,16 @@ import type { StickySnapshot } from '../../shared/board-model';
  * changes, which is what `useSyncExternalStore` needs: a stable value between changes, so
  * rendering never re-derives the list.
  *
- * Story 3 attaches a network provider to `doc` and story 4 persists it; nothing here has
- * to change for that, which is the reason notes live in Yjs from the first story.
+ * `connection` says what the room this document syncs with is doing. Edits go into the
+ * document whether or not it says `connected`, which is why the board keeps working through
+ * an interruption.
  */
 export interface BoardDoc {
   readonly doc: Y.Doc;
   /** Notes in render order (by `z`, then id). */
   readonly notes: readonly StickySnapshot[];
+  /** What the connection to the board's room is doing. */
+  readonly connection: ConnectionState;
 }
 
 interface DocStore {
@@ -80,18 +84,25 @@ function createStore(injected?: Y.Doc): DocStore {
 }
 
 /**
- * Own the board document for this component.
+ * Own the board document for this component, and keep it in sync with the board's room.
  *
- * @param initialDoc optional document to use instead of creating one. Tests pass their
- * own so they can drive the model directly; production calls leave it out.
+ * @param boardId the board to sync with. Left out, the document is not connected to anything,
+ * which is what a component test does with a document of its own.
+ * @param initialDoc optional document to use instead of creating one. Tests pass their own so
+ * they can drive the model directly; production calls leave it out.
+ *
+ * The connection belongs to this component: it is opened when the component mounts and hung up
+ * when it goes away or when the address moves to a different board, so a tab never sends one
+ * board's edits into another board's room.
  */
-export function useBoardDoc(initialDoc?: Y.Doc): BoardDoc {
+export function useBoardDoc(boardId?: string, initialDoc?: Y.Doc): BoardDoc {
   const ref = useRef<DocStore | null>(null);
   if (ref.current === null) {
     ref.current = createStore(initialDoc);
   }
   const store = ref.current;
   const notes = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const [connection, setConnection] = useState<ConnectionState>('connecting');
 
   useEffect(() => {
     store.attach();
@@ -100,5 +111,18 @@ export function useBoardDoc(initialDoc?: Y.Doc): BoardDoc {
     };
   }, [store]);
 
-  return { doc: store.doc, notes };
+  useEffect(() => {
+    if (boardId === undefined) {
+      return;
+    }
+    setConnection('connecting');
+    // Remote edits arrive as document updates and re-render the board through the same
+    // observer as local ones; nothing here has to know who made a change.
+    const handle = connectBoard(store.doc, boardId, setConnection);
+    return () => {
+      handle.destroy();
+    };
+  }, [store, boardId]);
+
+  return { doc: store.doc, notes, connection };
 }

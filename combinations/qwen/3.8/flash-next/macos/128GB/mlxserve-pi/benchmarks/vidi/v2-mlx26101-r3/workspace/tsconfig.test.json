@@ -3,5 +3,7 @@
   "compilerOptions": {
     "types": ["node", "vite/client"]
   },
-  "include": ["playwright.config.ts", "tests"]
+  "include": ["playwright.config.ts", "tests"],
+  // tests/integration runs inside workerd and is checked with the Workers types.
+  "exclude": ["tests/integration"]
 }

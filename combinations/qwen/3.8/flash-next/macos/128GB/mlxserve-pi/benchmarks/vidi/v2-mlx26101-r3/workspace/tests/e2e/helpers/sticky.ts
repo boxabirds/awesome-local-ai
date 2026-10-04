@@ -46,6 +46,18 @@ export const colourSwatch = (page: Page, colour: StickyColor): Locator =>
 export const deleteNoteButton = (page: Page): Locator =>
   page.getByRole('button', { name: 'Delete note' });
 
+/**
+ * The two buttons of a note's toolbar, reached through that note rather than by name across the
+ * whole page. The page-wide versions are exact while exactly one note has its toolbar open, which
+ * is the usual case in a test about one note; they are ambiguous the moment a second one is - a
+ * note still being edited keeps its toolbar up while another is selected - and a test that clicks
+ * 'Delete note' without saying which one is not clicking what it means.
+ */
+export const colourSwatchIn = (page: Page, id: string, colour: StickyColor): Locator =>
+  toolbarById(page, id).getByRole('button', { name: `${LABELS[colour]} colour` });
+export const deleteNoteButtonIn = (page: Page, id: string): Locator =>
+  toolbarById(page, id).getByRole('button', { name: 'Delete note' });
+
 export interface NoteState {
   x: number;
   y: number;
@@ -247,6 +259,32 @@ export async function setColour(page: Page, id: string, colour: StickyColor): Pr
   await expect
     .poll(async () => (await stateById(page, id)).color, { timeout: 5_000 })
     .toBe(colour);
+}
+
+/**
+ * Whether a click on this locator would land on it *now*: it is drawn, it has a size, and the top
+ * element at its own centre is itself. A test that clicks at random among notes that people are
+ * dragging around has to ask this, because a note lying under another one is not unreachable in
+ * the way a missing element is unreachable - it is unreachable from this point, and the right
+ * thing for the round to do is nothing, rather than wait ten seconds for a click that cannot land.
+ */
+export async function isClickable(locator: Locator): Promise<boolean> {
+  if ((await locator.count()) === 0) {
+    return false;
+  }
+  return locator
+    .evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      if (box.width === 0 || box.height === 0) {
+        return false;
+      }
+      const hit = document.elementFromPoint(
+        Math.round(box.x + box.width / 2),
+        Math.round(box.y + box.height / 2),
+      );
+      return hit !== null && (element === hit || element.contains(hit));
+    })
+    .catch(() => false);
 }
 
 /** The note's background colour as the browser paints it, e.g. "rgb(244, 143, 177)". */

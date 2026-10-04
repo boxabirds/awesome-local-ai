@@ -104,7 +104,9 @@ function maxZ(objects: Y.Map<YObject>): number {
  * never collide. The fallback only runs where the Web Crypto UUID helper is missing.
  */
 function newId(): string {
-  const cryptoObject = globalThis.crypto as Crypto | undefined;
+  // `crypto` is a global in the browser and in the Worker; read it as one, not as a property
+  // of `globalThis`, which only the browser's type library puts there.
+  const cryptoObject: Crypto | undefined = typeof crypto === 'undefined' ? undefined : crypto;
   if (typeof cryptoObject?.randomUUID === 'function') {
     return cryptoObject.randomUUID();
   }

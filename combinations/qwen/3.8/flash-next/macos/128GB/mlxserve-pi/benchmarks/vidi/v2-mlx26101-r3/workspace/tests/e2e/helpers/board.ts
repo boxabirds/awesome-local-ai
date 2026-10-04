@@ -1,12 +1,9 @@
+/// <reference path="../../../src/client/testHooks.ts" />
+// The one declaration of `window.__vidi6` lives in src/client/testHooks.ts - the file that
+// puts the hooks there - and this reaches for it by path rather than by import, so that a test
+// helper does not pull a client module into the test run.
 import { expect, type Locator, type Page } from '@playwright/test';
 import type { Camera } from '../../../src/client/canvas/camera';
-
-declare global {
-  interface Window {
-    /** Test-only hook compiled into the test build (see src/client/testHooks.ts). */
-    __vidi6?: { setCamera(camera: Partial<Camera>): void };
-  }
-}
 
 export const VIEWPORT = { width: 1280, height: 800 };
 

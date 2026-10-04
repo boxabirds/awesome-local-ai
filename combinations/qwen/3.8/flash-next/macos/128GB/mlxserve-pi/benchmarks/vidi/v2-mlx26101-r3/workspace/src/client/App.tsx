@@ -17,6 +17,7 @@ import { useCamera } from './canvas/useCamera';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject } from '../shared/board-model';
 
@@ -38,6 +39,12 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 export interface AppProps {
   /**
+   * The board to show, as named by the address. Left out, the document is not connected to a
+   * room at all - which is what a component test does with a document of its own, and what
+   * happens on an address that names no board.
+   */
+  boardId?: string;
+  /**
    * Board document to render. Left out in production, where the app owns one; tests pass
    * a document they can read and drive directly, which is also how story 3's two-peer test
    * and story 4's loaded board will be mounted.
@@ -54,11 +61,11 @@ export interface AppProps {
  * the toolbar button add notes through the board model, notes re-render from the snapshot
  * the document gives them, and nothing here holds a copy of a note.
  */
-export function App({ doc: injectedDoc }: AppProps = {}): JSX.Element {
+export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
   const [viewport, setViewport] = useState<Size>(initialViewport);
   const { camera, hasNavigated, beginPan, panMove, endPan, wheel, gesture, zoomStep, reset } =
     useCamera(viewport);
-  const { doc, notes } = useBoardDoc(injectedDoc);
+  const { doc, notes, connection } = useBoardDoc(boardId, injectedDoc);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   // The camera is needed inside event handlers that are attached to the window.
@@ -158,6 +165,7 @@ export function App({ doc: injectedDoc }: AppProps = {}): JSX.Element {
         ))}
       </BoardViewport>
       <Toolbar onCreateSticky={handleCreateSticky} />
+      <ConnectionStatus state={connection} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

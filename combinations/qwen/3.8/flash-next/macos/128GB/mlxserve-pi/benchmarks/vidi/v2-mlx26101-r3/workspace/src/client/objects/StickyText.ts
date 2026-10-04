@@ -20,8 +20,7 @@ import {
  *
  * A cut that would land in the middle of an emoji drops the dangling high surrogate
  * instead of storing half a character.
- */
-export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
+ */export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
   if (!(max > 0)) {
     return '';
   }
@@ -90,18 +89,128 @@ function diffRange(current: string, next: string): DiffRange {
  * Writing the text it already has emits nothing at all.
  */
 export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) {
+  // The whole-value write, which is what a keystroke looks like when nobody else is typing:
+  // the baseline is the document, so the change can only be what `next` differs by.
+  applyLocalEdit(ytext, ytext.toString(), next, origin);
+}
+
+/** One text turned into another: where it starts, how much goes, what comes instead. */
+export interface TextEdit {
+  start: number;
+  removed: number;
+  inserted: string;
+}
+
+/** The one delete-plus-insert that turns `from` into `to`. */
+export function textEdit(from: string, to: string): TextEdit {
+  const { start, delete: removed, insert: inserted } = diffRange(from, to);
+  return { start, removed, inserted };
+}
+
+/**
+ * Write what this person changed - the difference between `baseline` and `next` - into the
+ * note's text, in one transaction tagged with `origin`.
+ *
+ * `baseline` is the text this editor was looking at when the keystroke was taken. It is not
+ * the same question as "what does the document hold now?": with one person typing either
+ * way is the same, and with two a whole-value write eats the other person's letters. Two
+ * people append to an empty note: the second one's textarea holds `b` and never saw the `a`,
+ * so the difference between the document's `ab` and that value is a deletion of the `a`.
+ * The difference between `b` and the empty text the keystroke was taken from can only say
+ * "an was added here", which is what this writes, and both letters survive.
+ */
+export function applyLocalEdit(
+  ytext: Y.Text,
+  baseline: string,
+  next: string,
+  origin: unknown,
+): void {
+  const { start, removed, inserted } = textEdit(baseline, next);
+  if (removed === 0 && inserted.length === 0) {
     return;
   }
-  const { start, delete: remove, insert } = diffRange(current, next);
   const write = (): void => {
-    if (remove > 0) {
-      ytext.delete(start, remove);
+    // Only what is actually there can be removed: this person's view and the document are
+    // the same text, except for what this person did to it.
+    const cut = Math.min(removed, Math.max(0, ytext.length - start));
+    if (cut > 0) {
+      ytext.delete(start, cut);
     }
-    if (insert.length > 0) {
-      ytext.insert(start, insert);
+    if (inserted.length > 0) {
+      ytext.insert(start, inserted);
     }
+  };
+  const doc = ytext.doc;
+  if (doc === null) {
+    write();
+    return;
+  }
+  doc.transact(write, origin);
+}
+
+/** One operation of a change to a text, as yjs reports it. */
+export interface TextDeltaOp {
+  retain?: number;
+  insert?: string;
+  delete?: number;
+}
+
+/**
+ * The same place in a text, after a change: where a caret that was at `position` ends up once
+ * the change has been applied. Text added in front of it pushes it along, text taken out in
+ * front of it pulls it back, and a caret inside text that was taken out lands where the
+ * replacement went in. Selections are collapsed to a caret, which is the most that can be said
+ * about where the cursor belongs in text that grew underneath somebody typing in it.
+ */
+export function mapCaret(delta: readonly TextDeltaOp[], position: number): number {
+  let oldIndex = 0; // characters of the text as it was, counted so far
+  let newIndex = 0; // the same stretch, in the text as it is now
+  for (const op of delta) {
+    if (op.retain !== undefined) {
+      if (position <= oldIndex + op.retain) {
+        return newIndex + (position - oldIndex);
+      }
+      oldIndex += op.retain;
+      newIndex += op.retain;
+    } else if (op.insert !== undefined) {
+      newIndex += op.insert.length;
+    } else if (op.delete !== undefined) {
+      if (position <= oldIndex) {
+        return newIndex;
+      }
+      if (position >= oldIndex + op.delete) {
+        oldIndex += op.delete;
+        continue;
+      }
+      // The caret was inside what got taken out: it goes where the replacement went.
+      return newIndex;
+    }
+  }
+  return newIndex + (position - oldIndex);
+}
+
+/**
+ * Put the characters that were added between `baseline` and `next` into the note's text, and
+ * take nothing out.
+ *
+ * This is for text that was being composed - Japanese input, or anything else the browser is
+ * still underlining - when somebody else's change arrived underneath it. What the composition
+ * *added* is certainly this person's work and belongs in the note; what it looks like it
+ * *removed* may perfectly well be text that arrived after the composition started, which this
+ * person never had a chance to see, let alone delete.
+ */
+export function applyAddedText(
+  ytext: Y.Text,
+  baseline: string,
+  next: string,
+  origin: unknown,
+): void {
+  const { start, inserted } = textEdit(baseline, next);
+  if (inserted.length === 0) {
+    return;
+  }
+  const write = (): void => {
+    ytext.insert(Math.min(start, ytext.length), inserted);
   };
   const doc = ytext.doc;
   if (doc === null) {

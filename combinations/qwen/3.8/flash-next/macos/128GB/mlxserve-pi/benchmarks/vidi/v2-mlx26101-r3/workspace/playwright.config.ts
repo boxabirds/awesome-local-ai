@@ -38,10 +38,19 @@ export default defineConfig({
     viewport: VIEWPORT,
   },
   projects: projects(),
+  // The two tests that are long on purpose - a board left alone for half a minute, and a full
+  // room editing continuously for a minute - are tagged `@nightly` and kept out of the ordinary
+  // run in both directions: `npm run test:e2e` does not wait for them, and
+  // `npm run test:e2e:nightly` runs nothing else. They are tagged rather than filed somewhere
+  // else, because they belong next to the tests they are bigger versions of.
+  ...(process.env.NIGHTLY === undefined ? { grepInvert: /@nightly/ } : { grep: /@nightly/ }),
+  // The bundle is built before any test runs, not as part of the server command: see
+  // tests/e2e/global-setup.ts for why that order matters when a server is reused.
+  globalSetup: 'tests/e2e/global-setup.ts',
   webServer: {
     // Story 1 serves the client through the same path later stories use: a Cloudflare
     // Worker (wrangler) serving the static assets in dist/client.
-    command: `npm run build:test && npx wrangler dev --ip 127.0.0.1 --port ${E2E_PORT} --inspector-port ${E2E_INSPECTOR_PORT}`,
+    command: `npx wrangler dev --ip 127.0.0.1 --port ${E2E_PORT} --inspector-port ${E2E_INSPECTOR_PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

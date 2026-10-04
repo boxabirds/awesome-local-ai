@@ -16,7 +16,15 @@ import {
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
-import { applyTextDiff, clampToLimit, counterVisible, fitFontSize } from './StickyText';
+import {
+  applyAddedText,
+  applyLocalEdit,
+  clampToLimit,
+  counterVisible,
+  fitFontSize,
+  mapCaret,
+  type TextDeltaOp,
+} from './StickyText';
 
 /** Where the note ends up when editing stops. */
 export type EditEnd = 'selected' | 'unselected';
@@ -65,6 +73,11 @@ function noteElementOf(el: HTMLElement): HTMLElement | null {
  * the font shrinks to fit as the text grows and a counter appears near the limit.
  * Escape keeps the note selected, a pointer press outside the note deselects it, and
  * Enter inserts a newline rather than closing the editor.
+ *
+ * And, because two people can be in one note at once: a change that arrives from anywhere
+ * else is shown as it arrives, and the caret is put where it belongs afterwards. Nothing is
+ * ever written back over somebody else's text - a keystroke is written as the difference it
+ * made, never as the whole value of the textarea.
  */
 export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
   const ref = useRef<HTMLTextAreaElement | null>(null);
@@ -75,11 +88,29 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   const mountedRef = useRef(false);
   const onEndRef = useRef(onEnd);
 
+  // The text this editor last saw in the document, whether from its own typing or from
+  // somebody else's. Keystrokes are written as the difference from it, which is what keeps
+  // somebody else's letters in the note: see `applyLocalEdit`.
+  const baselineRef = useRef<string>(ytext.toString());
+  // A caret to put back once React has written a new value into the textarea - React resets it.
+  const caretRef = useRef<number | null>(null);
+  // A change that arrived in the middle of Japanese input: the text it went to, and the text
+  // it went from.
+  const pendingRef = useRef<{ from: string; to: string } | null>(null);
+
   useEffect(() => {
     onEndRef.current = onEnd;
   });
 
-  /** Clamp, remember locally and write the minimal change to the document. */
+  /** Show `next`, and afterwards put the caret at `caret` once it is in the DOM. */
+  const show = (next: string, caret?: number): void => {
+    setValue(next);
+    if (caret !== undefined) {
+      caretRef.current = caret;
+    }
+  };
+
+  /** Clamp, show, and write what this person changed - and nothing that anyone else did. */
   const write = (next: string): void => {
     const el = ref.current;
     const clamped = clampToLimit(next);
@@ -88,9 +119,55 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       el.value = clamped;
       setCaretToEnd(el);
     }
-    setValue(clamped);
-    applyTextDiff(ytext, clamped, LOCAL_ORIGIN);
+    show(clamped);
+    applyLocalEdit(ytext, baselineRef.current, clamped, LOCAL_ORIGIN);
+    // The document's own text, rather than what we meant to put in it: if the two ever
+    // disagree, it is the document that is right.
+    baselineRef.current = ytext.toString();
   };
+
+  // Somebody else's change to this note's text, arriving while it is being edited. The
+  // textarea shows what the note holds, and the note holds both people's letters - every
+  // keystroke of this person's went into it as it was typed - so what is left to work out is
+  // where the caret is afterwards. Changes this editor made itself are ignored: the textarea
+  // already has them.
+  useEffect(() => {
+    const onText = (event: Y.YEvent<Y.Text>, transaction: Y.Transaction): void => {
+      if (transaction.origin === LOCAL_ORIGIN) {
+        return;
+      }
+      const remote = ytext.toString();
+      const baseline = baselineRef.current;
+      if (remote === baseline) {
+        return;
+      }
+      if (composingRef.current) {
+        // Mid-word in Japanese input: putting text into the textarea underneath an underlined
+        // composition would break the composition, so this waits for it to end (see below).
+        pendingRef.current = { from: baseline, to: remote };
+        return;
+      }
+      baselineRef.current = remote;
+      const el = ref.current;
+      if (el === null) {
+        return;
+      }
+      const caret = mapCaret(event.delta as unknown as TextDeltaOp[], el.selectionStart);
+      show(remote, caret);
+      try {
+        el.setSelectionRange(caret, caret);
+      } catch {
+        // A textarea that cannot take a selection still shows the text.
+      }
+    };
+    ytext.observe(onText);
+    return () => {
+      ytext.unobserve(onText);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `show` only touches refs and
+    // setState, so the version from the first render stays correct; `ytext` is the thing that
+    // would have to be re-subscribed to.
+  }, [ytext]);
 
   // Mount: take the focus with the caret at the end of the existing text. Later runs of
   // this effect only re-fit the font, which is what keeps long notes readable.
@@ -103,6 +180,16 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       mountedRef.current = true;
       el.focus();
       setCaretToEnd(el);
+    }
+    const caret = caretRef.current;
+    if (caret !== null) {
+      // Writing a value into a textarea puts the caret at the end; this is where it belonged.
+      caretRef.current = null;
+      try {
+        el.setSelectionRange(caret, caret);
+      } catch {
+        // A textarea that cannot take a selection still shows the text.
+      }
     }
     const fit = fitFontSize(el, textBox(el));
     setFont(fit.fontPx);
@@ -140,7 +227,20 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
 
   const onCompositionEnd = (event: CompositionEvent<HTMLTextAreaElement>): void => {
     composingRef.current = false;
-    write(event.currentTarget.value);
+    const el = event.currentTarget;
+    const pending = pendingRef.current;
+    pendingRef.current = null;
+    if (pending !== null) {
+      // Somebody changed the text while this composition was open. The characters the
+      // composition added go in, and nothing that arrived in the meantime is taken out: see
+      // `applyAddedText`.
+      applyAddedText(ytext, pending.from, el.value, LOCAL_ORIGIN);
+      baselineRef.current = ytext.toString();
+      show(baselineRef.current);
+      setCaretToEnd(el);
+      return;
+    }
+    write(el.value);
   };
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>): void => {

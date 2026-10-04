@@ -365,3 +365,57 @@ a:focus-visible {
   color: #b42318;
   background: #eef1f5;
 }
+
+/* Connection status ----------------------------------------------------- */
+
+.connection-status {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  white-space: nowrap;
+  /* The board stays fully usable behind the message, so it must not swallow input. */
+  pointer-events: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  color: var(--muted);
+}
+
+/* A connection this tab had is gone: the loudest of the three, because it is the one that
+   tells the person their edits are not going anywhere yet. */
+.connection-status--reconnecting {
+  color: #9a3412;
+  background: #ffedd5;
+  border-color: #fdba74;
+}
+
+.connection-status--connecting {
+  color: var(--muted);
+}
+
+/* The way back is green, and only for CONNECTED_CONFIRMATION_MS. */
+.connection-status--confirming {
+  color: #14532d;
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+/* An address that names no board ---------------------------------------- */
+
+.no-board {
+  max-width: 34rem;
+  margin: 15vh auto;
+  padding: 0 1rem;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.no-board code {
+  background: #eef1f5;
+  padding: 0 4px;
+  border-radius: 4px;
+}

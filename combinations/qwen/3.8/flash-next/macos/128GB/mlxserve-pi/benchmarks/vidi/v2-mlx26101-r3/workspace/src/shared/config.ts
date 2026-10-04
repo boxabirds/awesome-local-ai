@@ -62,3 +62,25 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS;
 /** New notes are yellow. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/* Live collaboration (story 3). --------------------------------------------- */
+
+/**
+ * Simultaneous-editor capacity the product is designed and tested for. Soft: it is a
+ * design and test target and is never enforced - a 6th person joins like anyone else.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** How long a change is allowed to take to reach every other screen (live.propagate). */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Longest wait between reconnection attempts; handed to the websocket provider. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** How long the green "Connected" badge stays up after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** Outage length the catch-up test uses (live.catch_up). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/**
+ * Functional wait used by every e2e test. Latency is measured and logged against
+ * LIVE_UPDATE_LATENCY_BUDGET_MS, never asserted here: the model, the browsers and the
+ * server all share one machine, so wall-clock timing there is not a pass/fail signal.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
