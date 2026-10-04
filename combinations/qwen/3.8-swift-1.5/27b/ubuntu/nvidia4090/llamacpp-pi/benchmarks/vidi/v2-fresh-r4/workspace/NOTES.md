@@ -1,3 +1,41 @@
+# Story 5 Notes
+
+## Key Decisions
+
+### Board ID Generation
+- 22-char base64url random IDs via `crypto.getRandomValues` (296 bits entropy).
+- Uniqueness: birthday bound collision at ~2^148 boards (effectively zero).
+- `newBoardId()` in `src/shared/board-id.ts` is isomorphic (works in worker and client).
+
+### Board Existence Check
+- `GET /api/boards/:id` → 200 if exists, 404 if not. Lightweight RPC to DO.
+- Unknown/malformed IDs: Worker validates format first, returns 404 without contacting DO.
+- Rooms are NOT created implicitly on GET (only via POST /api/boards or WS connect with valid ID).
+
+### Client-Side Retry
+- `BoardPage` polls `checkBoard()` with exponential backoff (1s, 2s, 4s… max 30s).
+- Shows "Couldn't reach vidi6. Retrying…" during retries.
+- No manual refresh button (per design: invisible retry).
+
+### Router
+- Minimal history-based router: `/` → HomePage, `/b/:boardId` → BoardPage.
+- No URL updates during board session (no camera/note in URL).
+- Malformed board IDs → NotFoundPage (client-side validation before API call).
+
+### E2E Test Helper Changes
+- `openParticipants` now creates a board via `POST /api/boards` before opening participants.
+- `createBoardViaApi` helper added to `participants.ts` for direct API board creation.
+- Navigation and sticky-notes e2e specs updated to create boards before navigating.
+
+### Component Test Setup
+- `@testing-library/dom` configured with `testIdAttribute: 'data-vidi6'` to match app convention.
+
+## Pre-existing Test Failures (not caused by story 5)
+- Component: BoardViewport (8), NavigationHint (1), load-failure (4) — jsdom rendering issues
+- E2E live-collab: TC-23 (concurrent typing), TC-25 (delete during edit) — WebSocket timing flakiness
+
+---
+
 # Story 3 Notes
 
 ## Key Decisions

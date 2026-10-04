@@ -33,7 +33,7 @@ import {
   snapshot,
   type StickySnapshot,
 } from '../../src/shared/board-model';
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoardViaApi } from './ws-client';
 import { BoardStore } from '../../src/worker/board-store';
 import {
   LOAD_RETRY_MIN_INTERVAL_MS,
@@ -200,7 +200,7 @@ function snapshotsEqual(a: readonly StickySnapshot[], b: readonly StickySnapshot
 
 describe('TC-12: append-before-broadcast', () => {
   it('by the time B observes A note, the updates row exists and a fresh load has it', async () => {
-    const bid = newBoardId();
+    const bid = await createBoardViaApi();
     const a = await connect(bid);
     const b = await connect(bid);
     await new Promise((r) => setTimeout(r, 300));
@@ -235,7 +235,7 @@ describe('TC-12: append-before-broadcast', () => {
 
 describe('TC-13: durability across a reopen', () => {
   it('data is in storage; a new client after all leave sees the original snapshot', async () => {
-    const bid = newBoardId();
+    const bid = await createBoardViaApi();
     const a = await connect(bid);
     await new Promise((r) => setTimeout(r, 200));
 
@@ -277,7 +277,7 @@ describe('TC-13: durability across a reopen', () => {
 
 describe('TC-14: storage failure closes 1011 and recovers on reconnect', () => {
   it('append throws → A and B closed 1011, B never got it; A reconnects → stored, B gets it', async () => {
-    const bid = newBoardId();
+    const bid = await createBoardViaApi();
     const a = await connect(bid);
     const b = await connect(bid);
     await new Promise((r) => setTimeout(r, 300));
@@ -331,7 +331,7 @@ describe('TC-14: storage failure closes 1011 and recovers on reconnect', () => {
 
 describe('TC-15: corrupted snapshot → 4500, nothing stored', () => {
   it('client closed 4500; a SyncStep2 sent before close stores nothing', async () => {
-    const bid = newBoardId();
+    const bid = await createBoardViaApi();
     const a = await connect(bid);
     await new Promise((r) => setTimeout(r, 200));
     for (let i = 0; i < 3; i++) createSticky(a.doc, { x: i * 30, y: 0 });
@@ -374,7 +374,7 @@ describe('TC-15: corrupted snapshot → 4500, nothing stored', () => {
 
 describe('TC-16: load retry boundary', () => {
   it('connect before interval → 4500; after interval (repaired) → loads', async () => {
-    const bid = newBoardId();
+    const bid = await createBoardViaApi();
 
     // Arm a one-shot load failure and force a reload so the room enters
     // load-failed (with a fresh sinceMs).
@@ -408,7 +408,7 @@ describe('TC-16: load retry boundary', () => {
 
 describe('TC-17: malformed update → 1003, row count unchanged', () => {
   it('garbage sync closes 1003 and stores nothing', async () => {
-    const bid = newBoardId();
+    const bid = await createBoardViaApi();
     const a = await connect(bid);
     await new Promise((r) => setTimeout(r, 200));
 
@@ -428,7 +428,7 @@ describe('TC-17: malformed update → 1003, row count unchanged', () => {
 
 describe('TC-18: hibernation via ctx.getWebSockets', () => {
   it('accepted sockets are tracked by the runtime and reachable via getWebSockets', async () => {
-    const bid = newBoardId();
+    const bid = await createBoardViaApi();
     const a = await connect(bid);
     const b = await connect(bid);
     await new Promise((r) => setTimeout(r, 300));
@@ -453,7 +453,7 @@ describe('TC-18: hibernation via ctx.getWebSockets', () => {
 
 describe('TC-26: SQL read error on load → 4500', () => {
   it('a load that hits a SQL error closes the client with 4500', async () => {
-    const bid = newBoardId();
+    const bid = await createBoardViaApi();
     await inBoard(bid, (obj) => {
       obj.ctx.storage.sql.exec(
         "INSERT INTO storage_meta (key, value) VALUES ('test_fail_load', '1') " +

@@ -7,6 +7,7 @@ import {
   setCamera,
   zoomLabel,
 } from './helpers/board';
+import { createBoardViaApi } from './helpers/participants';
 
 const HINT_TEXT = 'Drag to move around · Ctrl/Cmd + scroll or pinch to zoom';
 const VIEWPORT_CENTER = { x: 640, y: 400 }; // 1280x800 fixture
@@ -20,8 +21,10 @@ async function drag(page: import('@playwright/test').Page, dx: number, dy: numbe
 }
 
 test.describe('story 1: pan and zoom around an infinite board', () => {
-  test('workflow 1: first visit — hint, exact drag, pointer-anchored zoom (TC-28, TC-23, TC-24)', async ({ page }) => {
-    await page.goto('/');
+  test('workflow 1: first visit — hint, exact drag, pointer-anchored zoom (TC-28, TC-23, TC-24)', async ({ page, baseURL }) => {
+    const boardId = await createBoardViaApi(baseURL!);
+    await page.goto(`/b/${boardId}`);
+    await page.waitForSelector('[data-vidi6="board-viewport"]', { timeout: 15000 });
 
     // TC-28: the first-use hint is visible on load.
     const hint = page.getByText(HINT_TEXT);
@@ -58,8 +61,10 @@ test.describe('story 1: pan and zoom around an infinite board', () => {
     await expect(hint).toBeHidden();
   });
 
-  test('workflow 2: zoom to the limit, then reset (TC-25, TC-26)', async ({ page }) => {
-    await page.goto('/');
+  test('workflow 2: zoom to the limit, then reset (TC-25, TC-26)', async ({ page, baseURL }) => {
+    const boardId = await createBoardViaApi(baseURL!);
+    await page.goto(`/b/${boardId}`);
+    await page.waitForSelector('[data-vidi6="board-viewport"]', { timeout: 15000 });
 
     // TC-25: click + until it is disabled; the label ends at 400%.
     const zoomIn = page.getByRole('button', { name: 'Zoom in' });
@@ -83,8 +88,10 @@ test.describe('story 1: pan and zoom around an infinite board', () => {
     expect(Math.abs(origin.y - VIEWPORT_CENTER.y)).toBeLessThanOrEqual(1);
   });
 
-  test('workflow 3: panning exactly one million units away (TC-27)', async ({ page }) => {
-    await page.goto('/');
+  test('workflow 3: panning exactly one million units away (TC-27)', async ({ page, baseURL }) => {
+    const boardId = await createBoardViaApi(baseURL!);
+    await page.goto(`/b/${boardId}`);
+    await page.waitForSelector('[data-vidi6="board-viewport"]', { timeout: 15000 });
 
     await setCamera(page, {
       x: UNBOUNDED_PAN_TESTED_EXTENT,
@@ -103,8 +110,10 @@ test.describe('story 1: pan and zoom around an infinite board', () => {
     expect(await gridSpacingPx(page)).toBeCloseTo(GRID_SPACING_WORLD * 1, 3);
   });
 
-  test('board gestures never change the page zoom (TC-31)', async ({ page }) => {
-    await page.goto('/');
+  test('board gestures never change the page zoom (TC-31)', async ({ page, baseURL }) => {
+    const boardId = await createBoardViaApi(baseURL!);
+    await page.goto(`/b/${boardId}`);
+    await page.waitForSelector('[data-vidi6="board-viewport"]', { timeout: 15000 });
 
     const before = await page.evaluate(() => ({
       scale: window.visualViewport?.scale,

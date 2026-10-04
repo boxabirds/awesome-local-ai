@@ -2,18 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { SELF } from 'cloudflare:test';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
-import { createClient, type WsClient } from "./ws-client";
+import { createClient, createBoardViaApi, type WsClient } from "./ws-client";
 import { createSticky } from '../../src/shared/board-model';
 
-describe('TC-04: invalid board id → 400', () => {
-  it('returns 400 for invalid board id with Upgrade header', async () => {
+describe('TC-04: invalid board id → 404', () => {
+  it('returns 404 for invalid board id with Upgrade header', async () => {
     const response = await SELF.fetch('http://localhost/api/rooms/bad!id', {
       headers: {
         'Upgrade': 'websocket',
         'Connection': 'Upgrade',
       },
     });
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
   });
 });
 
@@ -37,7 +37,7 @@ describe('TC-06: SPA fallback', () => {
 
 describe('TC-13: over capacity not refused', () => {
   it(`accepts ${MAX_CONCURRENT_EDITORS + 1} sockets and all receive updates`, async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const clients: WsClient[] = [];
 
     // Open MAX_CONCURRENT_EDITORS + 1 connections
@@ -68,8 +68,8 @@ describe('TC-13: over capacity not refused', () => {
 
 describe('TC-17: boards stay separate', () => {
   it('updates do not cross boards', async () => {
-    const boardId1 = newBoardId();
-    const boardId2 = newBoardId();
+    const boardId1 = await createBoardViaApi();
+    const boardId2 = await createBoardViaApi();
 
     const clientA = await createClient(boardId1);
     await clientA.waitForSync();

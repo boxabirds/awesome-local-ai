@@ -41,7 +41,38 @@ export class BoardRoom extends DurableObject {
     super(ctx, env);
     this.store = createBoardStore(ctx.storage);
     // Load on wake: reconstruct the doc from storage before serving anyone.
+    // Note: migrate() is NOT called here; it runs in initialize() or lazily
+    // before the first append(). load() treats missing tables as an empty board.
     this.doLoad();
+  }
+
+  /**
+   * RPC: initialise a new board. Creates tables (if absent) and sets
+   * storage_meta.created_at. Returns 'created' on first call, 'exists' if
+   * the board was already initialised.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    // Check if created_at already exists
+    const row = this.ctx.storage.sql
+      .exec("SELECT value FROM storage_meta WHERE key = 'created_at'")
+      .next();
+    if (!row.done) {
+      return 'exists';
+    }
+    this.ctx.storage.sql.exec(
+      "INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)",
+      String(Date.now()),
+    );
+    return 'created';
+  }
+
+  /**
+   * RPC: read-only existence check. True if the board has created_at or
+   * (legacy) any updates/snapshot_chunks rows.
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
   }
 
   async fetch(req: Request): Promise<Response> {
@@ -52,6 +83,12 @@ export class BoardRoom extends DurableObject {
         JSON.stringify({ state: this.state.name }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       );
+    }
+
+    // Reject non-existent boards before accepting (share.not_found).
+    // A board exists if it has created_at or (legacy) any data rows.
+    if (!this.store.existsReadOnly()) {
+      return new Response('Not Found', { status: 404 });
     }
 
     // A connection wakes a storage-failed or hibernated room: reload first.
@@ -178,6 +215,25 @@ export class BoardRoom extends DurableObject {
   }
 
   /**
+   * Test-only: seed a legacy board with updates rows but no created_at.
+   * This simulates a board that existed before the initialize() RPC was added.
+   * Does NOT call doLoad() so the data stays in the updates table.
+   */
+  async seedLegacyForTest(data: ArrayBuffer): Promise<void> {
+    // Create tables (as a legacy board would have them) but do NOT set created_at
+    this.store.migrate();
+    // Remove created_at if it was set (ensure legacy state)
+    this.ctx.storage.sql.exec("DELETE FROM storage_meta WHERE key = 'created_at'");
+    // Insert the update data as a log row
+    const bytes = new Uint8Array(data);
+    this.ctx.storage.sql.exec(
+      'INSERT INTO updates (data, bytes) VALUES (?, ?)',
+      bytes,
+      bytes.length,
+    );
+  }
+
+  /**
    * Test-only: restore the snapshot from the backup made by
    * {@link corruptSnapshotForTest} so the next load succeeds.
    */
@@ -210,7 +266,8 @@ export class BoardRoom extends DurableObject {
     doc.on('update', (update: Uint8Array, origin: unknown) => {
       this.handleDocUpdate(update, origin);
     });
-    this.store.migrate();
+    // NOTE: migrate() is NOT called here. It runs in initialize() or lazily
+    // before the first append(). load() treats missing tables as an empty board.
     const result = this.store.load(doc);
     if (result.ok) {
       this.state = nextRoomState(this.state, {

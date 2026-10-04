@@ -1,5 +1,9 @@
 import { cleanup } from '@testing-library/react';
+import { configure } from '@testing-library/dom';
 import { afterEach } from 'vitest';
+
+// Use data-vidi6 as the test ID attribute (matches the app's convention)
+configure({ testIdAttribute: 'data-vidi6' });
 
 // jsdom has no ResizeObserver; the app guards against its absence, but a stub
 // keeps behaviour consistent.

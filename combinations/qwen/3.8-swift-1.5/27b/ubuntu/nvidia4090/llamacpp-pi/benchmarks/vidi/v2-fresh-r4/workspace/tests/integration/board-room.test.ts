@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SELF } from 'cloudflare:test';
 import * as Y from 'yjs';
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoardViaApi } from './ws-client';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import {
   createSticky,
@@ -105,7 +105,7 @@ function snapshotsEqual(a: readonly StickySnapshot[], b: readonly StickySnapshot
 
 describe('TC-07: create propagates to other client', () => {
   it('client B snapshot equals A after A creates a sticky', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const wsA = await openWs(boardId);
     const wsB = await openWs(boardId);
     const docA = makeDoc();
@@ -125,7 +125,7 @@ describe('TC-07: create propagates to other client', () => {
 
 describe('TC-08: move, recolour, text insert, delete propagate', () => {
   it('move propagates to B', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const wsA = await openWs(boardId);
     const wsB = await openWs(boardId);
     const docA = makeDoc();
@@ -150,7 +150,7 @@ describe('TC-08: move, recolour, text insert, delete propagate', () => {
   });
 
   it('recolour propagates to B', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const wsA = await openWs(boardId);
     const wsB = await openWs(boardId);
     const docA = makeDoc();
@@ -171,7 +171,7 @@ describe('TC-08: move, recolour, text insert, delete propagate', () => {
   });
 
   it('text insert propagates to B', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const wsA = await openWs(boardId);
     const wsB = await openWs(boardId);
     const docA = makeDoc();
@@ -192,7 +192,7 @@ describe('TC-08: move, recolour, text insert, delete propagate', () => {
   });
 
   it('delete propagates to B', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const wsA = await openWs(boardId);
     const wsB = await openWs(boardId);
     const docA = makeDoc();
@@ -215,7 +215,7 @@ describe('TC-08: move, recolour, text insert, delete propagate', () => {
 
 describe('TC-09: concurrent text merge', () => {
   it('A inserts "red " at 0, B inserts " blue" → both "red green blue"', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const wsA = await openWs(boardId);
     const wsB = await openWs(boardId);
     const docA = makeDoc();
@@ -246,7 +246,7 @@ describe('TC-09: concurrent text merge', () => {
 
 describe('TC-10: concurrent position sets converge', () => {
   it('A sets x=100, B sets x=300 → both converge', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const wsA = await openWs(boardId);
     const wsB = await openWs(boardId);
     const docA = makeDoc();
@@ -277,7 +277,7 @@ describe('TC-10: concurrent position sets converge', () => {
 
 describe('TC-11: delete wins over concurrent edit', () => {
   it('A deletes while B inserts → absent on both', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const wsA = await openWs(boardId);
     const wsB = await openWs(boardId);
     const docA = makeDoc();
@@ -306,7 +306,7 @@ describe('TC-11: delete wins over concurrent edit', () => {
 
 describe('TC-12: MAX_CONCURRENT_EDITORS clients converge', () => {
   it(`${MAX_CONCURRENT_EDITORS} clients × 200 ops → identical snapshots`, async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const wss: WebSocket[] = [];
     const docs: Y.Doc[] = [];
 
@@ -359,7 +359,7 @@ describe('TC-12: MAX_CONCURRENT_EDITORS clients converge', () => {
 
 describe('TC-14: late joiner sees current board', () => {
   it('C connects after A and B create 20 notes → C snapshot equals A', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const wsA = await openWs(boardId);
     const wsB = await openWs(boardId);
     const docA = makeDoc();
@@ -393,7 +393,7 @@ describe('TC-15: malformed traffic closes only the offending socket', () => {
 
   for (const { name, data } of cases) {
     it(`${name}: A closed with 1003, B still open`, async () => {
-      const boardId = newBoardId();
+      const boardId = await createBoardViaApi();
       const wsA = await openWs(boardId);
       const wsB = await openWs(boardId);
       const docA = makeDoc();
@@ -422,7 +422,7 @@ describe('TC-15: malformed traffic closes only the offending socket', () => {
 
 describe('TC-16: awareness relay', () => {
   it('A sends awareness → both receive', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const wsA = await openWs(boardId);
     const wsB = await openWs(boardId);
     const docA = makeDoc();
@@ -451,7 +451,7 @@ describe('TC-16: awareness relay', () => {
 
 describe('TC-18: room restart simulation', () => {
   it('A reconnects, then B → both converge', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
 
     const wsA1 = await openWs(boardId);
     const wsB1 = await openWs(boardId);
@@ -487,7 +487,7 @@ describe('TC-18: room restart simulation', () => {
 
 describe('TC-31: dead socket error path', () => {
   it('B closes, A sends update, C receives', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi();
     const wsA = await openWs(boardId);
     const wsB = await openWs(boardId);
     const docA = makeDoc();

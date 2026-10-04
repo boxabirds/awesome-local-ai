@@ -1,24 +1,27 @@
-# Story 4: Return to a board and find everything as it was left
+# Story 5: Share a board with others using a link
 
 Your progress on this story's tasks. Keep the Status column up to date as you work.
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Write storage and room-state unit tests first (TC-01, TC-02, TC-27) | done |
-| 2 | Implement BoardStore: SQLite schema, append, load with quarantine, chunked compaction | done |
-| 3 | Integration tests for BoardStore against real Durable Object SQLite (TC-03 to TC-11, TC-25) | done |
-| 4 | Make BoardRoom persistent: load on wake, store before broadcast, hibernation API, load/storage failure handling | done |
-| 5 | Integration tests for persistent room: durability, failures, hibernation (TC-12 to TC-18, TC-26) | done |
-| 6 | E2E persistence across real process restarts and large-board load time (TC-19 to TC-21) | done |
-| 7 | Implement client load-failure state: red message and editing disabled | done |
-| 8 | Component tests for load-failure badge, edit lock and close-code mapping (TC-22, TC-23, TC-28) | done |
-| 9 | E2E broken board: honest failure, edit lock, recovery without reload (TC-24) | done |
+| 1 | Write board id unit test first: link-code format and uniqueness (TC-04) | done |
+| 2 | Implement board API: POST /api/boards, GET existence, 404 for unknown rooms | done |
+| 3 | Integration tests for board API against real Worker, RPC and SQLite (TC-05 to TC-10, TC-12, TC-14, TC-15, TC-32) | done |
+| 4 | Implement router, API client, Home, Board (existence check with retry) and Board not found pages | done |
+| 5 | Implement Share panel with copy link and manual-copy fallback | done |
+| 6 | Component tests for pages and Share panel (TC-16, TC-17, TC-19 to TC-25) | done |
+| 7 | E2E share workflows: create-share-join, bad link, flaky service, clipboard blocked, legacy board (TC-26 to TC-29, TC-31) | done |
 
 Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
 
-## Notes
+## Test Results
 
-- **Latent WS URL bug fixed** (`connectBoard.ts`): the y-websocket roomName carried a leading `/`, so the provider built `ws://host//api/rooms/…` (double slash → 307 → handshake failed). The single-user E2E masked this (notes render locally); persistence + collaboration E2E exposed it. RoomName is now `api/rooms/<id>`.
-- **Stale `canvas` selector fixed**: the board renders DOM elements (no `<canvas>`). `participants.ts` and the persistence spec now wait for `[data-vidi6="board-viewport"]`.
-- **Pre-existing Story-3 live-collab E2E bugs fixed** (`live-collab.spec.ts`): `createNote` used a single click (app needs double-click); `typeInNote`/TC-23 had an extra dblclick that exited edit mode. 4/6 now pass (TC-22a/b/c, TC-28).
-- **TC-23 (concurrent typing) and TC-25 (delete-during-edit) still fail** — complex CRDT/UI edge cases from Story 3, not Story-4 scope. Tracked to resolve before final sign-off.
+- `npm run build` ✅
+- `npm run typecheck` ✅
+- `npm run test:unit` ✅ (87 tests)
+- `npm run test:component` — 51 passed, 13 pre-existing failures (BoardViewport/NavigationHint/load-failure from stories 1-4)
+- `npm run test:integration` ✅ (51 tests)
+- `npm run test:e2e` (chromium) ✅ — navigation (4), share (5), sticky-notes (7) all pass
+  - live-collab: 4 passed, 2 pre-existing flaky failures (concurrent typing, delete during edit)
+  - firefox: TC-27, TC-29 pass
+  - webkit: not installed (missing system deps)

@@ -159,3 +159,17 @@ export async function createClient(boardId: string): Promise<WsClient> {
 
 // Alias for backward compatibility
 export { createClient as connectToRoomClient };
+
+/**
+ * Create a board via the API and return its id.
+ * Must be called before connecting to a room (story 5: rooms are no longer
+ * created implicitly by connecting).
+ */
+export async function createBoardViaApi(): Promise<string> {
+  const res = await SELF.fetch('http://localhost/api/boards', { method: 'POST' });
+  if (res.status !== 201) {
+    throw new Error(`Failed to create board: ${res.status}`);
+  }
+  const body = (await res.json()) as { id: string };
+  return body.id;
+}

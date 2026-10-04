@@ -95,3 +95,14 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 
 /** Versions the storage tables (storage_meta key: storage_schema_version). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Story 5: Share a board with others using a link ---
+
+/** PRD share.create: click-to-board time budget. */
+export const CREATE_BUDGET_MS = 2000;
+
+/** PRD share.copy: "Link copied" confirmation duration. */
+export const LINK_COPIED_MS = 2000;
+
+/** Base backoff for board existence check retry (doubles up to RECONNECT_MAX_BACKOFF_MS). */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

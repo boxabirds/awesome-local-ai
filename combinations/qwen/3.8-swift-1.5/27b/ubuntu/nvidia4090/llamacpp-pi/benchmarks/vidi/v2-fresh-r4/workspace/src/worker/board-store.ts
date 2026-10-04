@@ -108,6 +108,39 @@ export class BoardStore {
   }
 
   /**
+   * Read-only existence check: true if `storage_meta.created_at` exists,
+   * or (legacy) if there is at least one row in `updates` or `snapshot_chunks`.
+   * Queries `sqlite_master` first; never creates tables.
+   */
+  existsReadOnly(): boolean {
+    // Check if any of our tables exist
+    const tables = this.storage.sql
+      .exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('storage_meta', 'updates', 'snapshot_chunks')")
+      .toArray() as Array<{ name: string }>;
+    if (tables.length === 0) return false;
+
+    // Check storage_meta.created_at
+    if (tables.some((t) => t.name === 'storage_meta')) {
+      const row = this.storage.sql
+        .exec("SELECT value FROM storage_meta WHERE key = 'created_at'")
+        .next();
+      if (!row.done) return true;
+    }
+
+    // Legacy: check for any updates or snapshot_chunks rows
+    if (tables.some((t) => t.name === 'updates')) {
+      const row = this.storage.sql.exec('SELECT COUNT(*) AS c FROM updates').one() as { c: number };
+      if (row.c > 0) return true;
+    }
+    if (tables.some((t) => t.name === 'snapshot_chunks')) {
+      const row = this.storage.sql.exec('SELECT COUNT(*) AS c FROM snapshot_chunks').one() as { c: number };
+      if (row.c > 0) return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Create tables (if not present) and set storage_schema_version.
    * Idempotent; writes zero log/snapshot rows for a new board.
    */
@@ -151,6 +184,11 @@ export class BoardStore {
    * Rethrows SQL errors (the room must enter the storage-failure state).
    */
   append(update: Uint8Array): number {
+    // Lazily migrate if tables don't exist (safety net for legacy boards
+    // that have data but were created before initialize() existed).
+    if (!this.hasTables()) {
+      this.migrate();
+    }
     this.invokeFault('append:insert');
     if (this.consumeTestFault('test_fail_append')) {
       throw new Error('injected append failure (test)');
@@ -192,6 +230,12 @@ export class BoardStore {
           reason: 'sql-error',
           error: 'injected load failure (test)',
         };
+      }
+      // If tables don't exist, treat as an empty board (no data to load).
+      // This happens when a DO is constructed for a board that has never been
+      // initialized (the fetch method will return 404 before serving anyone).
+      if (!this.hasTables()) {
+        return { ok: true, quarantined: 0 };
       }
       // 1. Snapshot
       const throughSeq = this.getSnapshotThroughSeq();
@@ -356,6 +400,14 @@ export class BoardStore {
       // storage_meta may not exist yet (pre-migrate); no fault
     }
     return false;
+  }
+
+  /** Check if any of our tables exist in sqlite_master. */
+  private hasTables(): boolean {
+    const row = this.storage.sql
+      .exec("SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'table' AND name IN ('storage_meta', 'updates', 'snapshot_chunks')")
+      .one() as { c: number };
+    return row.c > 0;
   }
 }
 

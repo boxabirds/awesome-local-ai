@@ -24,7 +24,18 @@ export interface Participant {
 }
 
 /**
+ * Create a board via the API and return its ID.
+ */
+export async function createBoardViaApi(baseURL: string): Promise<string> {
+  const res = await fetch(`${baseURL}/api/boards`, { method: 'POST' });
+  if (res.status !== 201) throw new Error(`Failed to create board: ${res.status}`);
+  const body = (await res.json()) as { id: string };
+  return body.id;
+}
+
+/**
  * Open a new browser context on the given board ID.
+ * The board must already exist (create it via createBoardViaApi first).
  */
 export async function openParticipant(
   browser: import('@playwright/test').Browser,
@@ -40,17 +51,21 @@ export async function openParticipant(
 }
 
 /**
- * Open N participants on the same board.
+ * Open N participants on the same board. Creates the board via API first.
+ * The boardId parameter is ignored; a new board is created and its ID is used.
+ * Returns the participants (all sharing the same actual board ID).
  */
 export async function openParticipants(
   browser: import('@playwright/test').Browser,
   baseURL: string,
-  boardId: string,
+  _boardId: string,
   count: number,
 ): Promise<Participant[]> {
+  // Create a real board via the API
+  const actualBoardId = await createBoardViaApi(baseURL);
   const participants: Participant[] = [];
   for (let i = 0; i < count; i++) {
-    participants.push(await openParticipant(browser, baseURL, boardId));
+    participants.push(await openParticipant(browser, baseURL, actualBoardId));
   }
   // Wait a bit for all participants to sync
   await new Promise(r => setTimeout(r, 1000));

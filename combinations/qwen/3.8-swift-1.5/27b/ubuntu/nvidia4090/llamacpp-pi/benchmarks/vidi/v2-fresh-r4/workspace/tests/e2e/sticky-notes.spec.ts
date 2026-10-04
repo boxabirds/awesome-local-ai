@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { setCamera, settle } from './helpers/board';
+import { createBoardViaApi } from './helpers/participants';
 import { SHORT_PHRASE, LONG_PARAGRAPH } from '../fixtures/texts';
 
 /**
@@ -23,8 +24,11 @@ async function noteText(page: Page, index = 0): Promise<string> {
 }
 
 test.describe('sticky notes e2e', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+  test.beforeEach(async ({ page, baseURL }) => {
+    // Create a board and navigate to it
+    const boardId = await createBoardViaApi(baseURL!);
+    await page.goto(`/b/${boardId}`);
+    await page.waitForSelector('[data-vidi6="board-viewport"]', { timeout: 15000 });
     // Reset to default camera
     await setCamera(page, { x: -640, y: -400, zoom: 1 });
     await settle(page);

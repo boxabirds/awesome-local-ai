@@ -366,3 +366,190 @@ body {
   color: #155724;
   border: 1px solid #28a745;
 }
+
+/* --- Story 5: Home page --- */
+
+.home-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+}
+
+.home-page h1 {
+  font-size: 48px;
+  margin: 0;
+}
+
+.home-page p {
+  font-size: 18px;
+  color: #5f6368;
+  margin: 0;
+}
+
+.home-page button {
+  padding: 12px 32px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--vidi6-focus-ring);
+  color: #fff;
+  cursor: pointer;
+  margin-top: 16px;
+}
+
+.home-page button:hover:not(:disabled) {
+  background: #3a7bef;
+}
+
+.home-page button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.home-page [data-vidi6='home-error'] {
+  color: #d32f2f;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+/* --- Story 5: Board loading / unreachable --- */
+
+.board-loading,
+.board-unreachable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 16px;
+  color: #5f6368;
+}
+
+/* --- Story 5: Not found page --- */
+
+.not-found-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.not-found-page h1 {
+  font-size: 32px;
+  margin: 0;
+}
+
+.not-found-page p {
+  font-size: 16px;
+  color: #5f6368;
+  margin: 0;
+}
+
+.not-found-page button {
+  padding: 10px 24px;
+  font-size: 15px;
+  border: none;
+  border-radius: 8px;
+  background: var(--vidi6-focus-ring);
+  color: #fff;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.not-found-page button:hover:not(:disabled) {
+  background: #3a7bef;
+}
+
+.not-found-page button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.not-found-page a {
+  color: var(--vidi6-focus-ring);
+  text-decoration: underline;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+/* --- Story 5: Share panel --- */
+
+.share-panel-wrapper {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 300;
+}
+
+.share-panel-wrapper > button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 8px;
+  background: var(--vidi6-control-bg);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+}
+
+.share-panel-wrapper > button:hover {
+  background: #f0f2f5;
+}
+
+.share-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  padding: 16px;
+  background: var(--vidi6-control-bg);
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 300px;
+}
+
+.share-panel input {
+  padding: 8px;
+  font-size: 13px;
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 6px;
+  background: #f7f8fa;
+  color: var(--vidi6-ink);
+  width: 100%;
+}
+
+.share-panel button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 6px;
+  background: var(--vidi6-control-bg);
+  cursor: pointer;
+}
+
+.share-panel button:hover {
+  background: #f0f2f5;
+}
+
+.share-panel [data-vidi6='manual-copy-message'] {
+  font-size: 12px;
+  color: #5f6368;
+  margin: 0;
+}
+
+.share-panel [data-vidi6='share-note'] {
+  font-size: 12px;
+  color: #5f6368;
+  margin: 0;
+}

@@ -1,188 +1,30 @@
-import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
-import { BoardViewport } from './canvas/BoardViewport';
-import { type Size, canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
-import { NavigationHint } from './canvas/NavigationHint';
-import { useCamera } from './canvas/useCamera';
-import { ZoomControls } from './canvas/ZoomControls';
-import { useBoardDoc } from './board/useBoardDoc';
-import { useSelection } from './board/useSelection';
-import { Toolbar } from './board/Toolbar';
-import { StickyNote } from './objects/StickyNote';
-import { ConnectionStatus } from './sync/ConnectionStatus';
-import { setConnectionState } from './canvas/testHooks';
-import { createSticky, deleteObject } from '../shared/board-model';
-import { newBoardId } from '../shared/board-id';
-import type { Point } from './canvas/camera';
-
-/** Extract boardId from pathname: /b/<boardId> → boardId, or null. */
-function getBoardIdFromPath(): string | null {
-  const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]{22})$/);
-  return match ? match[1] : null;
-}
+/**
+ * Top-level app: renders the router which selects Home, Board, or NotFound.
+ */
+import { type JSX } from 'react';
+import { useRoute } from './router';
+import { HomePage } from './pages/HomePage';
+import { BoardPage } from './pages/BoardPage';
+import { NotFoundPage } from './pages/NotFoundPage';
+import type { ConnectionState } from './sync/connectBoard';
 
 /**
  * Whether the board is editable in the given connection state.
- * Only `load_failed` disables editing: the saved state is unreadable, so the
- * board must not be presented as an empty editable board. Transient states
- * (reconnecting after a storage/network close) keep editing enabled because
- * the board is readable and unsaved changes are retried on reconnection.
+ * Only `load_failed` disables editing.
  */
-export function canEdit(state: import('./sync/connectBoard').ConnectionState): boolean {
+export function canEdit(state: ConnectionState): boolean {
   return state !== 'load_failed';
 }
 
-/** Top-level layout: full-window board, zoom controls, first-use hint, sticky notes. */
 export default function App(): JSX.Element {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
-  const camera = useCamera(viewport);
+  const route = useRoute();
 
-  // Read board id from URL; if missing, generate one and update the URL
-  const [boardId, setBoardId] = useState<string | null>(getBoardIdFromPath);
-  useEffect(() => {
-    if (!boardId) {
-      const id = newBoardId();
-      window.history.replaceState(null, '', `/b/${id}`);
-      setBoardId(id);
-    }
-  }, []); // only on mount
-
-  const { doc, notes, connectionState } = useBoardDoc(boardId ?? undefined);
-  const editable = canEdit(connectionState);
-
-  // Expose connection state on the test hook
-  useEffect(() => {
-    setConnectionState(connectionState);
-  }, [connectionState]);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection(notes);
-
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el) return;
-    const measure = () => {
-      const rect = el.getBoundingClientRect();
-      setViewport((prev) =>
-        prev.width === rect.width && prev.height === rect.height
-          ? prev
-          : { width: rect.width, height: rect.height },
-      );
-    };
-    measure();
-    if (typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(measure);
-      observer.observe(el);
-      return () => observer.disconnect();
-    }
-    return undefined;
-  }, []);
-
-  // Convert screen coordinates to world coordinates
-  const screenPointToWorld = useCallback(
-    (clientX: number, clientY: number): Point => {
-      const rect = rootRef.current?.getBoundingClientRect();
-      const sx = clientX - (rect?.left ?? 0);
-      const sy = clientY - (rect?.top ?? 0);
-      return screenToWorld(camera.camera, { x: sx, y: sy });
-    },
-    [camera.camera],
-  );
-
-  // Create a sticky note at a world point (no-op while the board is not editable)
-  const createStickyAt = useCallback(
-    (worldPoint: Point) => {
-      if (!canEdit(connectionState)) return;
-      const id = createSticky(doc, worldPoint);
-      if (id) {
-        startEdit(id);
-      }
-    },
-    [doc, startEdit, connectionState],
-  );
-
-  // Double-click on empty board space → create note centred there
-  const handleDblClickEmpty = useCallback(
-    (clientX: number, clientY: number) => {
-      const world = screenPointToWorld(clientX, clientY);
-      createStickyAt(world);
-    },
-    [screenPointToWorld, createStickyAt],
-  );
-
-  // Click on empty board space → clear selection
-  const handleClickEmpty = useCallback(() => {
-    select(null);
-  }, [select]);
-
-  // Toolbar button → create note at viewport centre
-  const handleCreateSticky = useCallback(() => {
-    const centre: Point = { x: viewport.width / 2, y: viewport.height / 2 };
-    const world = screenToWorld(camera.camera, centre);
-    createStickyAt(world);
-  }, [viewport, camera.camera, createStickyAt]);
-
-  // Keyboard: Enter to edit, Delete/Backspace to delete
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      // Ignore if focus is in an input/textarea
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-        return;
-      }
-
-      if (!canEdit(connectionState)) return;
-
-      if (e.key === 'Enter' && selectedId && !editingId) {
-        e.preventDefault();
-        startEdit(selectedId);
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingId) {
-        e.preventDefault();
-        deleteObject(doc, selectedId);
-        select(null);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selectedId, editingId, doc, select, startEdit, connectionState]);
-
-  return (
-    <div className="app-root" ref={rootRef}>
-      <BoardViewport
-        camera={camera.camera}
-        hasNavigated={camera.hasNavigated}
-        beginPan={camera.beginPan}
-        panMove={camera.panMove}
-        endPan={camera.endPan}
-        wheel={camera.wheel}
-        zoomStep={camera.zoomStep}
-        reset={camera.reset}
-        onDblClickEmpty={handleDblClickEmpty}
-        onClickEmpty={handleClickEmpty}
-      >
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={camera.camera.zoom}
-            selected={selectedId === note.id}
-            editing={editingId === note.id}
-            onSelect={select}
-            onStartEdit={startEdit}
-            onEndEdit={endEdit}
-          />
-        ))}
-      </BoardViewport>
-      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} />
-      <ZoomControls
-        zoomPercent={zoomPercent(camera.camera)}
-        canZoomIn={canZoomIn(camera.camera)}
-        canZoomOut={canZoomOut(camera.camera)}
-        onZoomIn={() => camera.zoomStep('in')}
-        onZoomOut={() => camera.zoomStep('out')}
-        onReset={camera.reset}
-      />
-      <NavigationHint visible={!camera.hasNavigated && notes.length === 0} />
-      <ConnectionStatus state={connectionState} />
-    </div>
-  );
+  switch (route.name) {
+    case 'home':
+      return <HomePage />;
+    case 'board':
+      return <BoardPage id={route.id} />;
+    case 'not_found':
+      return <NotFoundPage />;
+  }
 }
