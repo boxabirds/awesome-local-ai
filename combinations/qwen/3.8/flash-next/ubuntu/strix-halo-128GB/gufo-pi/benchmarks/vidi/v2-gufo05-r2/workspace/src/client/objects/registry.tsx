@@ -2,8 +2,9 @@ import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /**
  * Everything the board needs to know about one kind of object.
@@ -33,7 +34,15 @@ export interface ObjectTypeSpec {
   resizable: boolean;
   aspectLocked: boolean;
   minSize: number;
+  /** Whether it holds editable text: `Enter` opens it for typing. */
   editableText: boolean;
+  /**
+   * Which handles a selection of only this type draws. `all` is the eight of a
+   * box; `horizontal` is the left and right edges only, for a type whose height is
+   * derived from its content and must not be dragged (story 9's text, PRD
+   * text.height). A mixed selection shows the eight.
+   */
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: { x: number; y: number }): boolean;
 }
 
@@ -79,3 +88,28 @@ registerObjectType('sticky', {
   editableText: true,
   hitTest: boxHitTest,
 });
+
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  // Text keeps its proportions only in the sense that it has none to keep: its
+  // height is always its content's height.
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+  hitTest: boxHitTest,
+});
+
+/**
+ * The handles a selection of exactly these types should draw: the two edges when
+ * every type in it derives its height, the eight of a box otherwise (story 9,
+ * design key decision 2). An unknown type is treated as an ordinary box, which is
+ * what a newer client's object looks like from here.
+ */
+export function handlesFor(objectTypes: readonly string[]): 'all' | 'horizontal' {
+  if (objectTypes.length === 0) return 'all';
+  return objectTypes.every((type) => types.get(type)?.handles === 'horizontal')
+    ? 'horizontal'
+    : 'all';
+}

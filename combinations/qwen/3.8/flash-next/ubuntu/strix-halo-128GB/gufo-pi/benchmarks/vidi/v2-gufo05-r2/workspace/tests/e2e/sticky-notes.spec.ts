@@ -162,7 +162,7 @@ test.describe('sticky notes', () => {
     await openBoard(page);
     await setCamera(page, { x: 500_000, y: 500_000, zoom: 1 });
 
-    await page.getByRole('button', { name: 'Sticky note' }).click();
+    await page.getByRole('button', { name: 'Sticky note (N)' }).click();
     await expectNoPendingCameraFrame(page);
 
     const notes = await getNotes(page);

@@ -5,8 +5,12 @@ import {
   setStickyColor,
   type ObjectSnapshot,
 } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
+import { setTextSize, isTextSnapshot } from '../../shared/objects/text';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
+import { boardMeasurerRef } from '../objects/textLayout';
+import { writeTextBox } from '../objects/useTextBoxSync';
 import { getObjectType } from '../objects/registry';
 import { useUndoController } from './useUndo';
 
@@ -34,8 +38,34 @@ export function SelectionBar({ ids, objects, doc, editable, onDelete }: Selectio
   const selected = objects.filter((object) => ids.has(object.id));
   if (selected.length === 0) return null;
 
-  // A single sticky note keeps the toolbar it has always had.
+  // One object of one type gets that type's own toolbar, if it has one.
   const only = selected.length === 1 ? selected[0]! : undefined;
+
+  // Exactly one text object: the four sizes and delete (PRD text.size). Picking a
+  // size keeps the top-left corner where it is and re-measures the box, which is
+  // what makes a heading grow to the right and downwards from the same point.
+  if (only && isTextSnapshot(only) && getObjectType('text')?.editableText) {
+    return (
+      <div data-testid="selection-bar" data-selection-count={1}>
+        <TextToolbar
+          size={only.size}
+          disabled={!editable}
+          onSize={(size: TextSize) => {
+            if (!editable) return;
+            // One size change is one undo step, text and box together.
+            undoController?.boundary();
+            setTextSize(doc, only.id, size);
+            writeTextBox(doc, only.id, boardMeasurerRef());
+            undoController?.boundary();
+          }}
+          onDelete={() => {
+            if (editable) onDelete();
+          }}
+        />
+      </div>
+    );
+  }
+
   if (only && isStickySnapshot(only) && getObjectType('sticky')?.editableText) {
     return (
       <div data-testid="selection-bar" data-selection-count={1}>

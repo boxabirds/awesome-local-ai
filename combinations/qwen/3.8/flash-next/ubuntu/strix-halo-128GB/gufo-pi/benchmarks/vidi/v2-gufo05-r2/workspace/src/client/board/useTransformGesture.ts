@@ -5,6 +5,7 @@ import {
   bringObjectsToFront,
   moveObjects,
   objectBounds,
+  objectSnapshot,
   resizeObjects,
   type ObjectSnapshot,
 } from '../../shared/board-model';
@@ -21,6 +22,9 @@ import {
 } from '../../shared/geometry';
 import { screenDeltaToWorld, type Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
+import { getTextObject, setTextWidthFixed } from '../../shared/objects/text';
+import { boardMeasurerRef } from '../objects/textLayout';
+import { writeTextBox } from '../objects/useTextBoxSync';
 
 /** What the pointer is doing right now. */
 export type TransformMode = 'idle' | 'pressed' | 'moving' | 'resizing';
@@ -72,6 +76,16 @@ interface Active {
   toggleSelection: boolean;
   /** The press landed on an object outside the selection, which it joins alone. */
   selectOnDrag: boolean;
+  /**
+   * The selected ids whose type derives its height from its content (story 9's
+   * text). Such an object is never given a dragged height: in a mixed group it is
+   * repositioned, and a fixed width scales; then it is re-measured.
+   */
+  horizontal: string[];
+  /** How each of them decided its width, read once when the press happened. */
+  widthModes: Map<string, 'auto' | 'fixed'>;
+  /** A side handle on nothing but text: the drag sets a fixed width (PRD text.fixed_width). */
+  textWidth: boolean;
 }
 
 /** Whole board units: the document keeps whole numbers, see `moveObjects`. */
@@ -165,6 +179,10 @@ export function useTransformGesture(options: TransformOptions): TransformGesture
 
     if (current.mode === 'resizing' && current.baseBox) {
       const world = screenDeltaToWorld(opts.current.camera, delta);
+      if (current.textWidth) {
+        resizeTextWidth(current, opts.current.doc, world, setBox);
+        return;
+      }
       const dragged = resizeRect(current.baseBox, current.handle, world, current.aspectLocked);
       const requested = {
         x: dragged.width / current.baseBox.width,
@@ -175,12 +193,24 @@ export function useTransformGesture(options: TransformOptions): TransformGesture
       const rects = new Map<string, Rect>();
       for (const id of current.ids) {
         const from = current.base.get(id);
-        if (from) rects.set(id, round(scaleWithin(from, current.baseBox, to)));
+        if (!from) continue;
+        let next = round(scaleWithin(from, current.baseBox, to));
+        // Story 9: text in a mixed group is moved with it. Its width follows only
+        // when it already had a fixed one, and its height is never whatever the
+        // drag multiplied — the content says that (PRD text.height).
+        if (current.horizontal.includes(id)) {
+          next =
+            current.widthModes.get(id) === 'fixed'
+              ? { ...next, height: from.height }
+              : { x: next.x, y: next.y, width: from.width, height: from.height };
+        }
+        rects.set(id, next);
       }
       if (resizeObjects(opts.current.doc, rects) === 0) {
         finish(false);
         return;
       }
+      for (const id of current.horizontal) writeTextBox(opts.current.doc, id, boardMeasurerRef());
       current.box = to;
       setBox(to);
     }
@@ -252,6 +282,9 @@ export function useTransformGesture(options: TransformOptions): TransformGesture
         box: null,
         toggleSelection: event.shiftKey,
         selectOnDrag: !inSelection,
+        horizontal: [],
+        widthModes: new Map(),
+        textWidth: false,
       });
     },
     [begin, groupFor],
@@ -274,6 +307,14 @@ export function useTransformGesture(options: TransformOptions): TransformGesture
       const specs = ids.map((id) => getObjectType(objectTypeOf(opts.current.objects, id)));
       if (specs.some((spec) => spec === undefined || !spec.resizable)) return;
       const locked = specs.every((spec) => spec?.aspectLocked);
+      // Story 9: text derives its height, so it is never resized as a box. A side
+      // handle on a selection of nothing but text sets a fixed width instead
+      // (PRD text.fixed_width); anywhere else it is repositioned with the group.
+      const horizontal = ids.filter((id) =>
+        getObjectType(objectTypeOf(opts.current.objects, id))?.handles === 'horizontal',
+      );
+      const textWidth =
+        (handle === 'e' || handle === 'w') && horizontal.length === ids.length;
       begin({
         mode: 'resizing',
         id: null,
@@ -287,6 +328,11 @@ export function useTransformGesture(options: TransformOptions): TransformGesture
         box: baseBox,
         toggleSelection: false,
         selectOnDrag: false,
+        horizontal,
+        widthModes: new Map(
+          horizontal.map((id) => [id, getTextObject(opts.current.doc, id)?.widthMode ?? 'auto']),
+        ),
+        textWidth,
       });
       opts.current.onGestureStart?.();
       setBox(baseBox);
@@ -295,6 +341,56 @@ export function useTransformGesture(options: TransformOptions): TransformGesture
   );
 
   return { mode, box, onObjectPointerDown, onHandlePointerDown };
+}
+
+/**
+ * A side-handle drag over nothing but text (PRD text.fixed_width).
+ *
+ * The drag asks for the selection's box to be a different width; that request is
+ * turned into a width for every object in it, each one clamped to its type's own
+ * minimum, and then written the way a width is written for text: `widthMode`
+ * becomes `fixed`, and the height comes back from the content. A handle on the
+ * left moves the object as it widens it, the way a real box does.
+ */
+function resizeTextWidth(
+  current: Active,
+  doc: Y.Doc,
+  world: Point,
+  setBox: (box: Rect) => void,
+): void {
+  if (!current.baseBox) return;
+  // Height is not part of this drag, so only the horizontal request is honoured.
+  const dragged = resizeRect(current.baseBox, current.handle, world, false);
+  const requested = { x: dragged.width / current.baseBox.width, y: 1 };
+  const scale = clampScale(
+    requested,
+    [...current.base.values()],
+    current.minSizes,
+    MAX_OBJECT_SIZE_WORLD,
+  );
+  const to = scaleRectAbout(current.baseBox, current.handle, { ...scale, y: 1 });
+  const positions = new Map<string, Point>();
+  for (const id of current.ids) {
+    const from = current.base.get(id);
+    if (!from) continue;
+    const next = round(scaleWithin(from, current.baseBox, to));
+    setTextWidthFixed(doc, id, next.width);
+    positions.set(id, { x: next.x, y: from.y });
+  }
+  if (positions.size > 0) moveObjects(doc, positions);
+  for (const id of current.ids) writeTextBox(doc, id, boardMeasurerRef());
+  // The outline follows what the document now holds, which is the wrapped height
+  // rather than whatever the pointer asked for.
+  const written: Rect[] = [];
+  for (const id of current.ids) {
+    const object = objectSnapshot(doc, id);
+    if (object) written.push(objectBounds(object));
+  }
+  const box = unionRects(written);
+  if (box) {
+    current.box = box;
+    setBox(box);
+  }
 }
 
 function objectTypeOf(objects: readonly ObjectSnapshot[], id: string): string {

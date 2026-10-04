@@ -2,8 +2,10 @@ import * as Y from 'yjs';
 
 import {
   DEFAULT_STICKY_COLOR,
+  DEFAULT_TEXT_SIZE,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  TEXT_SIZES,
   type StickyColor,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
@@ -45,6 +47,11 @@ export interface ObjectSnapshot {
   height?: number;
   z: number;
   createdAt: number;
+  /**
+   * Who made the object, when the type records it (story 9's text objects).
+   * Presence and export read it; nothing on the board changes because of it.
+   */
+  createdBy?: string;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -188,8 +195,28 @@ function isCoordinate(value: number): boolean {
 export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects: ObjectSnapshot[] = [];
   for (const [id, entry] of objectsMap(doc)) {
+    const object = readSnapshot(entry, id);
+    if (object) objects.push(object);
+  }
+  objects.sort(byZThenId);
+  return objects;
+}
+
+/**
+ * The same view of one object, without walking the board. Text objects are
+ * measured after every keystroke, and measuring one heading should not cost a
+ * read of every object on it.
+ */
+export function objectSnapshot(doc: Y.Doc, id: string): ObjectSnapshot | undefined {
+  const entry = objectsMap(doc).get(id);
+  return entry ? readSnapshot(entry, id) ?? undefined : undefined;
+}
+
+/** One entry of the objects map, or null when it carries no usable type. */
+function readSnapshot(entry: Y.Map<unknown>, id: string): ObjectSnapshot | null {
+  {
     const type = entry.get('type');
-    if (typeof type !== 'string') continue; // unreadable: not on the board
+    if (typeof type !== 'string') return null; // unreadable: not on the board
     const base: Record<string, unknown> = {
       id,
       type,
@@ -203,16 +230,27 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (width !== undefined) base.width = width;
     const height = finiteNumber(entry.get('height'));
     if (height !== undefined) base.height = height;
+    const createdBy = entry.get('createdBy');
+    if (typeof createdBy === 'string') base.createdBy = createdBy;
+    if (type === 'text') {
+      // Story 9: plain text, its size preset and how its width is decided.
+      const text = entry.get('text');
+      base.text = text instanceof Y.Text ? text.toString() : '';
+      const size = entry.get('size');
+      base.size =
+        typeof size === 'string' && Object.hasOwn(TEXT_SIZES, size)
+          ? size
+          : DEFAULT_TEXT_SIZE;
+      base.widthMode = entry.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
+    }
     if (type === 'sticky') {
       const color = entry.get('color');
       const text = entry.get('text');
       base.color = isStickyColor(color) ? color : DEFAULT_STICKY_COLOR;
       base.text = text instanceof Y.Text ? text.toString() : '';
     }
-    objects.push(base as unknown as ObjectSnapshot);
+    return base as unknown as ObjectSnapshot;
   }
-  objects.sort(byZThenId);
-  return objects;
 }
 
 /**
@@ -251,7 +289,7 @@ function numberOr(value: unknown, fallback: number): number {
  * decision 5); this copy exists only so the shared model works without client
  * code (see `allObjectIds`'s predicate).
  */
-const MODEL_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky']);
+const MODEL_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky', 'text']);
 
 export function isKnownObjectType(type: string): boolean {
   return MODEL_OBJECT_TYPES.has(type);

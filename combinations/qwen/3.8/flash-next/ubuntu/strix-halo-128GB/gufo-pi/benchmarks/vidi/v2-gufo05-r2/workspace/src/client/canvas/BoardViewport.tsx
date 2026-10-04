@@ -31,6 +31,14 @@ export interface BoardViewportProps {
    * owns the pointer and the camera and nothing else.
    */
   onMarqueeSelect?(rect: Rect, additive: boolean): void;
+  /**
+   * Story 9: the Text tool is in this page's hand. The board says so with a text
+   * cursor, and the next click anywhere on it places text instead of panning,
+   * marqueeing or selecting.
+   */
+  textToolActive?: boolean;
+  /** The click the Text tool is waiting for, with the point under the pointer. */
+  onCreateTextAt?(world: Point): void;
 }
 
 /** Safari's pinch gestures, which are not part of the standard DOM types. */
@@ -53,6 +61,8 @@ export function BoardViewport({
   onCreateStickyAt,
   onClearSelection,
   onMarqueeSelect,
+  textToolActive = false,
+  onCreateTextAt,
 }: BoardViewportProps) {
   const board = useBoard();
   const boardRef = useRef(board);
@@ -66,6 +76,9 @@ export function BoardViewport({
   const camera = board.camera;
   const marquee = useMarquee((rect, additive) => onMarqueeSelect?.(rect, additive));
   const marqueeingRef = useRef(false);
+  // A Text-tool click is a creation, not a double-click: without this, a fast
+  // second click would also run story 2's "double-click makes a note".
+  const textToolClickRef = useRef(false);
 
   // Non-passive listeners: the board owns wheel and pinch gestures over itself
   // so the browser never scrolls or zooms the page instead (zoom.no_page_zoom).
@@ -133,6 +146,9 @@ export function BoardViewport({
   }, []);
 
   const beginDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    // Any pointer press that gets here was not a Text-tool click, so whatever the
+    // last one left behind is stale now.
+    textToolClickRef.current = false;
     // Only the board surface itself starts a pan; objects added in later
     // stories handle (or stop) their own pointer events.
     if (event.target !== surfaceRef.current) return;
@@ -210,8 +226,31 @@ export function BoardViewport({
     if (wasClick) onClearSelection?.();
   };
 
+  /**
+   * The Text tool's click (PRD text.create). It is caught on the way *in*, before
+   * any object under the pointer sees it, because a click on top of an existing
+   * object creates new text there too (PRD: text tool click on top of an object) —
+   * and stopping here means no note is dragged and no selection is lost while
+   * doing it.
+   */
+  const handleTextToolPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const surface = surfaceRef.current;
+    if (!surface || !onCreateTextAt) return;
+    if (event.pointerType === 'mouse' && event.button !== PRIMARY_MOUSE_BUTTON) return;
+    event.preventDefault();
+    event.stopPropagation();
+    textToolClickRef.current = true;
+    onCreateTextAt(screenToWorld(boardRef.current.camera, clientPoint(surface, event)));
+  };
+
   // A double-click on empty board space creates a note at that world point.
   const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (textToolClickRef.current) {
+      // The first click of this double-click placed text; the note shortcut is
+      // over, and the second click does nothing.
+      textToolClickRef.current = false;
+      return;
+    }
     if (event.target !== surfaceRef.current) return; // notes handle their own
     if (!onCreateStickyAt) return;
     const point = clientPoint(surfaceRef.current, event);
@@ -221,10 +260,12 @@ export function BoardViewport({
   return (
     <div
       ref={surfaceRef}
-      className="board-viewport"
+      className={`board-viewport${textToolActive ? ' board-viewport--text' : ''}`}
       data-testid="board-viewport"
       data-panning={panning ? 'true' : 'false'}
+      data-text-tool={textToolActive ? 'true' : 'false'}
       style={gridStyle(camera)}
+      onPointerDownCapture={textToolActive ? handleTextToolPointerDown : undefined}
       onPointerDown={beginDrag}
       onPointerMove={moveDrag}
       onPointerUp={finishDrag}

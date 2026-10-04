@@ -22,7 +22,7 @@ describe('sticky.toolbar', () => {
 
   it('TC-28: the Sticky note button creates a centred yellow note in edit mode', () => {
     const doc = renderApp();
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     flushFrames();
     const notes = snapshot(doc);
     expect(notes).toHaveLength(1);

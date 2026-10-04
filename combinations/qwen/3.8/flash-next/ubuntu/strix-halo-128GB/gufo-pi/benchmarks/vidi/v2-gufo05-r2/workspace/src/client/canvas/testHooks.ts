@@ -1,6 +1,7 @@
 import type * as Y from 'yjs';
 
 import type { StickySnapshot } from '../../shared/board-model';
+import type { TextSnapshot } from '../../shared/objects/text';
 import type { Camera } from './camera';
 import type { ConnectionState } from '../sync/connectBoard';
 
@@ -22,6 +23,10 @@ export interface Vidi6TestHooks {
    * double-click would have made it — the note's centre.
    */
   seedSticky?(centreX: number, centreY: number): string;
+  /**
+   * Story 9: current text-object snapshots, for e2e assertions about free text.
+   */
+  getTexts?(): TextSnapshot[];
   /** What this page has selected, for assertions about the selection itself. */
   selectedIds?(): string[];
   /** Every object on the board, of any type. */

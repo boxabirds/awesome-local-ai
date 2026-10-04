@@ -245,7 +245,7 @@ describe('ConnectionStatus', () => {
     expect(status?.textContent).toBe('Reconnecting…');
 
     // Nothing is locked: a new note is created exactly as it would be online.
-    act(() => screen.getByRole('button', { name: 'Sticky note' }).click());
+    act(() => screen.getByRole('button', { name: 'Sticky note (N)' }).click());
     const notes = window.__vidi6?.getNotes?.() ?? [];
     expect(notes).toHaveLength(1);
     expect(badge()?.textContent).toBe('Reconnecting…');

@@ -177,3 +177,48 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * beyond this discards the oldest one (PRD undo.limit).
  */
 export const UNDO_MAX_STEPS = 200;
+
+/* ------------------------------------------------------------------ * *
+ * Story 9: free text anywhere on the board                              *
+ * ------------------------------------------------------------------ */
+
+/**
+ * How wide a text object with no fixed width may get (PRD text.auto_width):
+ * the box is as wide as its longest line, up to this, and longer lines wrap.
+ */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** The narrowest a fixed text width can be set to (PRD text.fixed_width). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Hard limit on characters kept in a single text object (PRD text.limit). */
+export const TEXT_MAX_CHARS = 5000;
+
+/** The four text sizes, in board units, as stored preset keys (PRD text.size). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** The size of freshly created text. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Line spacing of text objects, as a multiple of the font size. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** The board's standard sans-serif, used by every text object. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/**
+ * Slack added to an automatic width, so a line measured exactly as wide as its
+ * box still has room to be drawn on one line (sub-pixel differences between the
+ * measurer and the layout engine would otherwise wrap it). Capped away when the
+ * width is TEXT_MAX_AUTO_WIDTH_WORLD itself, which stays exactly 600.
+ */
+export const TEXT_AUTO_WIDTH_PAD_WORLD = 2;
+
+/**
+ * Average glyph width used to estimate text width where there is no canvas to
+ * measure with (a worker, jsdom). A ratio of the font size, so the estimate
+ * scales with the size preset.
+ */
+export const TEXT_ESTIMATED_GLYPH_RATIO = 0.52;

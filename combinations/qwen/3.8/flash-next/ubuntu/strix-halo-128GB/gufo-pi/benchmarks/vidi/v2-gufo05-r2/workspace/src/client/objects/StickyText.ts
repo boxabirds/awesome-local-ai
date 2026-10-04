@@ -1,4 +1,6 @@
-import type * as Y from 'yjs';
+import {
+  clampToLimit as clampToCharLimit,
+} from '../../shared/text-edit';
 
 import {
   STICKY_COUNTER_THRESHOLD_CHARS,
@@ -11,84 +13,17 @@ import {
  * Pure text helpers for sticky notes: length clamping, minimal Y.Text diffing,
  * the counter visibility rule and font auto-fit. Kept free of React so the diff
  * and clamp logic is unit-testable against a real Y.Text.
+ *
+ * Story 9 moved the two editing primitives to `shared/text-edit.ts`, where a
+ * text object can use them too; they are re-exported here with the sticky note's
+ * own character limit so story 2's callers and tests are unchanged.
  */
 
-function isHighSurrogate(code: number): boolean {
-  return code >= 0xd800 && code <= 0xdbff;
-}
-
-function isLowSurrogate(code: number): boolean {
-  return code >= 0xdc00 && code <= 0xdfff;
-}
+export { applyTextDiff } from '../../shared/text-edit';
 
 /** Keep at most `max` characters (default STICKY_TEXT_MAX_CHARS). */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  return next.length <= max ? next : next.slice(0, max);
-}
-
-/**
- * Update `ytext` from its current string to `next` with the minimal
- * delete-and/or-insert (common prefix + common suffix), inside one transaction.
- * A minimal diff (not replace-all) means concurrent typing by others (story 3)
- * is never destroyed. Surrogate-pair safe: boundaries never split an emoji.
- */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-
-  // Common prefix.
-  const maxPrefix = Math.min(current.length, next.length);
-  let prefix = 0;
-  while (prefix < maxPrefix && current[prefix] === next[prefix]) prefix += 1;
-  // Back the prefix off a split surrogate pair (the two strings share it).
-  if (
-    prefix > 0 &&
-    prefix < current.length &&
-    isHighSurrogate(current.charCodeAt(prefix - 1)) &&
-    isLowSurrogate(current.charCodeAt(prefix))
-  ) {
-    prefix -= 1;
-  }
-
-  // Common suffix (bounded so it cannot overlap the prefix).
-  const maxSuffix = Math.min(current.length, next.length) - prefix;
-  let suffix = 0;
-  while (
-    suffix < maxSuffix &&
-    current[current.length - 1 - suffix] === next[next.length - 1 - suffix]
-  ) {
-    suffix += 1;
-  }
-  // Back the suffix off a split surrogate pair in either string.
-  const cutCurrent = current.length - suffix;
-  if (
-    suffix > 0 &&
-    cutCurrent > 0 &&
-    isLowSurrogate(current.charCodeAt(cutCurrent)) &&
-    isHighSurrogate(current.charCodeAt(cutCurrent - 1))
-  ) {
-    suffix -= 1;
-  }
-  const cutNext = next.length - suffix;
-  if (
-    suffix > 0 &&
-    cutNext > 0 &&
-    isLowSurrogate(next.charCodeAt(cutNext)) &&
-    isHighSurrogate(next.charCodeAt(cutNext - 1))
-  ) {
-    suffix -= 1;
-  }
-
-  const deleteLength = current.length - prefix - suffix;
-  const inserted = next.slice(prefix, next.length - suffix);
-
-  const run = () => {
-    if (deleteLength > 0) ytext.delete(prefix, deleteLength);
-    if (inserted.length > 0) ytext.insert(prefix, inserted);
-  };
-  const doc = ytext.doc;
-  if (doc) doc.transact(run, origin);
-  else run();
+  return clampToCharLimit(next, max);
 }
 
 /**

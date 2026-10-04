@@ -567,3 +567,129 @@ browser's native textarea history (TC-21).
 the soak for local work. TC-30 passes repeatedly after the slot-origin change
 (p50 ~115 ms, p95 ~300 ms on this host). Ordinary `npm run test:e2e` (47 cases) and the
 full unit (167) / component (114) / integration+live (63) suites all pass.
+
+---
+
+# Notes: Story 9 — free text anywhere on the board
+
+## Deviations from the design
+
+### Text objects record a page id, not a person, until story 6 exists
+
+Design §3.2 stores `createdBy` "from the current session identity". Story 6 (identity)
+has not been built yet, and there is no session identity to read — `sessionStorage`
+holds nothing, `BoardRoom` carries no user. So `BoardSurface` mints one id per page —
+`page_<crypto.randomUUID()>` — and passes it to `createText`. It is a stable author for
+the lifetime of a page, which is all the field is used for today (attribution, and
+nothing in this story branches on it). When story 6 lands, that one expression is the
+only place to change.
+
+### The box write is Pattern A (explicit call in the edit capture), not an observer
+
+Design §4.3 allows three placements and recommends A or C. A Yjs observer (C) was
+tried first, and it fails undo in a way the design's own §4.4 says is disqualifying:
+`boxSyncObserver` only fires when the *text* changes, so a remote edit restores the
+words and leaves the stored box stale — two screens then disagree about where the
+same words end. The unit tests in `tests/unit/text-layout.test.ts` keep that failure
+as a named case ("an observer-only sync leaves the box stale after a remote edit"),
+so the reason the implementation writes from the editor stays on the record.
+
+What runs instead: `TextEditor`'s `onInput` → `useTextBoxSync.remeasureAfterLocalChange`
+→ `writeTextBox`, i.e. one explicit write inside the transaction window that the edit
+already opened (`useStickyTextEditing`'s origin-tagged debounce, the same place sticky
+notes write text). Resize gestures call `writeTextBox` on the frames where they change
+a text object's width or size. Remote transactions reach no local callback at all, and
+`TextBoxSync.test.tsx` asserts that with an instrumented measurer.
+
+### `createText` takes an optional size
+
+Design §3.2 shows `createText(doc, at, createdBy)`. `createTextAtWorld` needs the
+active size preset at the moment of creation, and doing it in one transaction is what
+keeps "create + pick a size" a single undo step and the box measured once. The
+parameter defaults to `TEXT_DEFAULT_SIZE`, so every existing call reads as designed.
+
+### The toolbar is a branch of `SelectionBar`, and the editor is one component
+
+`TextToolbar` is rendered by `SelectionBar` for a text-only selection, next to the
+existing "N objects / Delete" bar, because that is where the selection's actions
+already live and the floating position is already computed there. `StickyTextEditor`
+is now a thin wrapper over `TextEditor` with `variant="sticky"`; the sticky variant
+keeps its own DOM (`.sticky-note__editor` wrapper, fit-to-box font, the 480 ms
+fade-out on unmount), so story 7's component and e2e tests pass against the shared
+component unchanged.
+
+### `handles` is declared on the registry, and read through `handlesFor`
+
+Design §4.6 says "horizontal handles only for text-only selection". Rather than a
+text check in `BoardSurface`, `ObjectTypeSpec` gained `handles?: 'all' | 'horizontal'`
+and `registry.tsx` exports `handlesFor(types)`, which returns `'horizontal'` only if
+every selected type declares it. `SelectionOverlay` renders `['e','w']` for that, and
+`useTransformGesture` turns those drags into width, ignores the y axis, and never
+writes height.
+
+## Decisions
+
+### `width`, `height` stay optional and are always present in practice
+
+The design keeps them optional (a pre-story-9 board has no text objects, and an
+auto-width measurement is a browser's). Every creation writes them, and every path
+that reads them for layout falls back to `TEXT_DEFAULT_SIZE` metrics. Nothing in the
+client has to branch on `undefined` except the model's own defaults.
+
+### Plain text does not use `fitFontSize`
+
+The four presets are the font size — S/M/L/XL map to px numbers in `TEXT_SIZES` — and
+the content never changes them. `TextEditor`'s `plain` variant therefore bypasses the
+sticky fitter entirely; there is no 10 px floor to defend because there is no fitting.
+
+### While typing, the editor is as wide as the object's stored box
+
+Auto width grows the box as the words grow, so the caret never sits in a box narrower
+than the line being typed; the fixed variant is exactly the fixed width, which is what
+makes the wrap visible while typing (PRD §7). Before the first measurement arrives the
+box is 0×0, and the editor falls back to the CSS defaults (`min-width: 60px`) with the
+shared character-count estimate for the wrap — the "narrow then jump" look the design
+warns about, only in the first frame of a brand-new object.
+
+### Character limit is enforced in `editText` and mirrored in the DOM
+
+`TEXT_MAX_CHARS` (5 000) is applied by `applyEdit` for both object kinds, so every
+path — keystroke, paste, undo-restore of an older long value — lands inside the limit,
+and `maxLength` on the textarea keeps the browser from offering more. TC-28 pastes
+5 250 characters through the DOM and reads 5 000 back out of the document.
+
+## Findings worth remembering
+
+### jsdom has no text metrics, and this is fine but noisy
+
+`CanvasTextMeasurer` asks a `<canvas>` for `measureText`. jsdom's canvas is a stub that
+throws "Not implemented", so the measurer catches once, logs a single
+`console.warn` per instance, and estimates from an average glyph advance
+(`TEXT_ESTIMATED_GLYPH_RATIO`). Layout unit tests never touch it — they pass a fake
+measurer, as the design asks — and the component tests that mount a board use the
+fallback only to place a plausible box. Chromium measures for real in the e2e suite,
+which is where box equality across two screens is actually asserted (TC-26, TC-30).
+
+### `Object.is` in a Yjs observer would have deleted nothing
+
+Worth recording because it cost an hour: a Yjs `Map` returns fresh wrappers for nested
+values, so `prevValue === newValue` is false even when the stored text is identical —
+an observer that "skips no-op writes" on identity either never writes or always
+writes, depending on the branch. `writeTextBox` compares the numbers it is about to
+store instead, which is the comparison that matters.
+
+### Removing an empty text object happens on edit end, not on empty
+
+The design's "leaving an empty text object deletes it" is implemented in
+`TextObject.endEditing` (with a re-read of the shared `Y.Text`, because a colleague may
+have typed into it during the same frame) plus the existing empty-selection delete and
+`Delete` in the toolbar. A "delete as soon as it is empty" rule would delete the object
+between a backspace and the next keystroke, and take the caret with it.
+
+## What the suites look like here
+
+`npm test` is 406 tests over unit (204 in 17 files), component (139 in 17 files) and
+integration/live (worker) projects, all passing. `npm run test:e2e` is 54 cases,
+including story 9's seven (`tests/e2e/text.spec.ts`): the golden path, TC-26 to TC-31.
+Only chromium runs on this host; firefox and webkit are skipped by the config probe, as
+in stories 5 to 8.

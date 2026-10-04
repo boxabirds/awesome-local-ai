@@ -33,6 +33,7 @@ import { Toolbar } from './Toolbar';
 import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
 import { useBoardKeys } from './useBoardKeys';
+import { useTool } from './useTool';
 import { useTransformGesture } from './useTransformGesture';
 import { createUndo } from './undo';
 import { UndoControllerContext, useUndo } from './useUndo';
@@ -40,7 +41,13 @@ import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
-import { getObjectType, isSelectableObjectType, type ObjectProps } from '../objects/registry';
+import {
+  getObjectType,
+  handlesFor,
+  isSelectableObjectType,
+  type ObjectProps,
+} from '../objects/registry';
+import { createText, textSnapshot } from '../../shared/objects/text';
 import {
   allObjectIds,
   createSticky,
@@ -116,6 +123,7 @@ export function BoardSurface({ boardId }: { boardId: string }) {
     registerTestHooks({
       doc,
       getNotes: () => snapshot(doc) as StickySnapshot[],
+      getTexts: () => [...textSnapshot(doc)],
       seedSticky: (x: number, y: number) => createSticky(doc, { x, y }),
       selectedIds: () => [...selectionRef.current.ids],
       objectCount: () => objectSnapshots(doc).length,
@@ -143,6 +151,29 @@ export function BoardSurface({ boardId }: { boardId: string }) {
   const createAtCentre = useCallback(() => {
     createAtWorld(screenCentre(camera, viewport));
   }, [camera, viewport, createAtWorld]);
+
+  // Story 9: the tool this page is holding, and the `N` shortcut, which does what
+  // the Sticky note button does.
+  const tools = useTool(editable, { sticky: createAtCentre });
+
+  // Story 6 owns identity; until it exists, a text object records the page that
+  // made it. A random per-load id is enough for `createdBy` (presence and export),
+  // and nothing on the board changes because of it. See NOTES.md.
+  const identity = useRef(`page_${crypto.randomUUID()}`).current;
+
+  // Text is created where the pointer clicked — its top-left, not its centre — and
+  // is edited straight away, with the tool put back in its box (PRD text.create).
+  const createTextAtWorld = useCallback(
+    (world: Point) => {
+      if (!canEdit(connection)) return; // text added to a board that never arrived
+      undoController.boundary();
+      const id = createText(doc, world, identity);
+      undoController.boundary();
+      tools.setTool('select');
+      if (id) selection.startEdit(id);
+    },
+    [doc, identity, selection, connection, undoController, tools],
+  );
 
   // One delete (of any number of objects) is one undo step, bounded on each side.
   const deleteSelection = useCallback(() => {
@@ -220,6 +251,8 @@ export function BoardSurface({ boardId }: { boardId: string }) {
           onCreateStickyAt={createAtWorld}
           onClearSelection={selection.clear}
           onMarqueeSelect={marqueeSelect}
+          textToolActive={tools.tool === 'text' && editable}
+          onCreateTextAt={createTextAtWorld}
         >
           {renderObjects.map((object) => (
             <ObjectView
@@ -263,7 +296,13 @@ export function BoardSurface({ boardId }: { boardId: string }) {
           {selection.count > 1 ? `${selection.count} selected` : ''}
         </div>
 
-        <Toolbar onCreateSticky={createAtCentre} createDisabled={!editable} undo={undoState} />
+        <Toolbar
+          onCreateSticky={createAtCentre}
+          createDisabled={!editable}
+          undo={undoState}
+          tool={tools.tool}
+          onTool={tools.setTool}
+        />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}
@@ -299,8 +338,14 @@ function ObjectView(props: ObjectProps) {
  */
 function resizeHandlesFor(objects: readonly ObjectSnapshot[]): readonly Handle[] {
   if (objects.length === 0) return [];
-  return objects.every((object) => getObjectType(object.type)?.resizable) ? HANDLES : [];
+  if (!objects.every((object) => getObjectType(object.type)?.resizable)) return [];
+  // Story 9: a selection of nothing but text gets the left and right edges, because
+  // its height belongs to its content and no drag should set it (PRD text.height).
+  return handlesFor(objects.map((object) => object.type)) === 'horizontal' ? SIDE_HANDLES : HANDLES;
 }
+
+/** The two edges of a text object, in the order the ring draws them. */
+const SIDE_HANDLES: readonly Handle[] = ['e', 'w'];
 
 function byId(a: { id: string }, b: { id: string }): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
