@@ -74,6 +74,10 @@ chased twice. If the gap matters later, the likely causes are a smaller card, no
 quantisation, or longer replies than the short ones measured here. Our own figures are from synthetic prompts with
 replies under 200 tokens, and a real story's decode rate will be lower.
 
+**What this combination also answers:** its runs use the same IQ3_XXS pack as a 12 GB card would, so their
+held-out score decides whether the floor for a useful coding agent drops to much cheaper hardware. See
+[Strata on a small card](strata-small-card.md).
+
 ## Three releases since our pin (read 4 Oct 2026)
 
 We pin **v0.1.36** (commit `36fa455e`). Upstream is now **v0.1.39** (`6f32ec07`, 4 Oct). Nothing has run on 0.1.36
