@@ -1,3 +1,86 @@
+commit 066ba5aee31a93260620f87245040aac5638bf9e
+agent  Sun Oct 4 18:44:03 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                     | 113 ++++++++
+ PROGRESS.md                                  |   4 +-
+ playwright.config.ts                         |   3 +
+ tests/e2e/helpers/participants.ts            |  30 +-
+ tests/e2e/helpers/sticky-notes.ts            |   5 +
+ tests/e2e/live-collaboration-nightly.spec.ts | 412 +++++++++++++++++++++++++++
+ 6 files changed, 561 insertions(+), 6 deletions(-)
+commit b3507ebe1c0903cec085f5cb065d13d44ffe22c0
+agent  Sun Oct 4 18:27:46 2026 +0000
+
+    story 3: e2e live collaboration across isolated browser contexts (task 8)
+
+
+ package.json                         |   4 +-
+ tests/e2e/helpers/participants.ts    | 278 ++++++++++++++++++++++++
+ tests/e2e/live-collaboration.spec.ts | 407 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 687 insertions(+), 2 deletions(-)
+commit 78f2d73e9a31cd65d948e8c6f45e4cc67d24be44
+agent  Sun Oct 4 17:57:49 2026 +0000
+
+    story 3: connection status component tests (task 7)
+
+
+ PROGRESS.md                               |   4 +-
+ tests/component/ConnectionStatus.test.tsx | 251 ++++++++++++++++++++++++++++++
+ 2 files changed, 253 insertions(+), 2 deletions(-)
+commit a84ac0728c9582860bf5b87860e3963d3371914b
+agent  Sun Oct 4 17:54:54 2026 +0000
+
+    story 3: integration tests for the Worker entry and BoardRoom (tasks 5-6)
+
+
+ PROGRESS.md                          |   6 +-
+ package.json                         |   4 +-
+ src/shared/protocol.ts               |  15 +-
+ src/worker/board-room.ts             |  27 ++-
+ tests/integration/board-room.test.ts | 340 +++++++++++++++++++++++++++++++++++
+ tests/integration/env.d.ts           |   7 +
+ tests/integration/random-ops.ts      | 113 ++++++++++++
+ tests/integration/worker.test.ts     | 199 ++++++++++++++++++++
+ tests/integration/ws-client.ts       | 305 +++++++++++++++++++++++++++++++
+ tests/unit/protocol.test.ts          |  17 +-
+ vitest.workspace.ts                  |  24 ++-
+ 11 files changed, 1041 insertions(+), 16 deletions(-)
+commit e25617c5b2ea170abdd0b974a133548bd5f2ac89
+agent  Sun Oct 4 17:28:30 2026 +0000
+
+    story 3: board id, protocol decode, Worker entry, BoardRoom and client connection (tasks 1-4)
+
+
+ PROGRESS.md                          |   8 +-
+ package-lock.json                    | 696 +++++++++++++++++++++++++++++++++++
+ package.json                         |   5 +
+ src/client/App.tsx                   |  89 ++++-
+ src/client/board/useBoardDoc.ts      |  38 +-
+ src/client/canvas/testHooks.ts       |  18 +
+ src/client/styles.css                |  38 ++
+ src/client/sync/ConnectionStatus.tsx |  37 ++
+ src/client/sync/connectBoard.ts      | 108 ++++++
+ src/shared/board-id.ts               |  48 +++
+ src/shared/config.ts                 |  31 ++
+ src/shared/protocol.ts               | 110 ++++++
+ src/worker/board-room.ts             | 171 +++++++++
+ src/worker/index.ts                  |  54 +++
+ tests/unit/board-id.test.ts          |  59 +++
+ tests/unit/protocol.test.ts          | 144 ++++++++
+ tsconfig.json                        |   9 +-
+ wrangler.jsonc                       |  12 +-
+ 18 files changed, 1645 insertions(+), 30 deletions(-)
+commit 944d313eaa59a7d8b6d262d927bad0d98eee3173
+vidi-agent  Sun Oct 4 17:04:55 2026 +0000
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 38 ++++++++++----------------------------
+ 1 file changed, 10 insertions(+), 28 deletions(-)
 commit 11e71cdecb573f209ba00f1fe71a23433e455a84
 agent  Sun Oct 4 17:03:21 2026 +0000
 
