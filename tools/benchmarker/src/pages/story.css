@@ -56,7 +56,7 @@
   table.sp-table thead th { font-size: 11.5px; line-height: 1.25; vertical-align: bottom; white-space: normal; text-transform: none; letter-spacing: 0; }
   table.sp-table thead th.n { text-align: right; }
   table.sp-table .n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  table.sp-table thead th.n { white-space: normal; }   /* a two-word heading ("generated tok/s") may wrap: the numbers under it never do */
+  table.sp-table thead th.n { white-space: normal; }   /* a long heading ("Effective story tok/s") may wrap: the numbers under it never do */
   table.sp-table tbody + tbody tr.sp-group th { border-top: 2px solid var(--line); }
   tr.sp-group th { background: var(--panel); text-transform: none; letter-spacing: 0; color: var(--ink); font-size: 14px; padding: 10px 10px 4px; border-bottom: 0; }
   tr.sp-group a.combination-link { font-weight: 700; }
