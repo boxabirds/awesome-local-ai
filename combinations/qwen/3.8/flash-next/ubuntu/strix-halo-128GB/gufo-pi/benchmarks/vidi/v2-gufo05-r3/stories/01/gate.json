@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.4,
+      "tail": "\nadded 249 packages, and audited 250 packages in 2s\n\n40 packages are looking for funding\n  run `npm fund` for details\n\n11 vulnerabilities (4 moderate, 6 high, 1 critical)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm WARN deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm WARN deprecated rollup-plugin-inject@3.0.2: This package has been deprecated and is no longer maintained. Please use @rollup/plugin-inject.\nnpm WARN deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 1.3,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v6.4.3 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 36 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.39 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.26 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-CtTDm6oT.css  \u001b[39m\u001b[1m\u001b[2m  1.72 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.74 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-BUm3VRNa.js   \u001b[39m\u001b[1m\u001b[2m230.46 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 71.88 kB\u001b[22m\n\u001b[32m\u2713 built in 912ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.2,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.9,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m~/.w/85d91f6bb9/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 33\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m14 passed\u001b[39m\u001b[22m\u001b[90m (14)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:43:38\n\u001b[2m   Duration \u001b[22m 418ms\u001b[2m (transform 23ms, setup 0ms, collect 29ms, tests 33ms, environment 0ms, prepare 37ms)\u001b[22m\n\n",
+      "passed": 14,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.2,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m~/.w/85d91f6bb9/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 31\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 54\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 79\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m17 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:43:38\n\u001b[2m   Duration \u001b[22m 698ms\u001b[2m (transform 77ms, setup 176ms, collect 128ms, tests 163ms, environment 605ms, prepare 219ms)\u001b[22m\n\n",
+      "passed": 17,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 4.5,
+      "tail": "\n> vidi6@0.0.0 test:e2e\n> playwright test --project=chromium\n\n[WebServer] \n[WebServer] > vidi6@0.0.0 build:test\n[WebServer] > vite build --mode test\n[WebServer] \n[WebServer] vite v6.4.3 building for test...\n[WebServer] transforming...\n[WebServer] \u2713 36 modules transformed.\n[WebServer] rendering chunks...\n[WebServer] computing gzip size...\n[WebServer] dist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\n[WebServer] dist/client/assets/index-CtTDm6oT.css    1.72 kB \u2502 gzip:  0.74 kB\n[WebServer] dist/client/assets/index-D6A_p8ib.js   230.53 kB \u2502 gzip: 71.92 kB\n[WebServer] \u2713 built in 888ms\n[WebServer] \n[WebServer] Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md\n[WebServer] \n[WebServer]  \u26c5\ufe0f wrangler 3.114.17 (update available 4.147.0)\n[WebServer] ----------------------------------------------------------\n[WebServer] \n[WebServer] No bindings found.\n[WebServer] \u2394 Starting local server...\n[WebServer] [wrangler:inf] Ready on http://127.0.0.1:23620\n[WebServer] [wrangler:inf] GET / 200 OK (7ms)\n\nRunning 5 tests using 5 workers\n\n[WebServer] [wrangler:inf] GET / 200 OK (2ms)\n[WebServer] [wrangler:inf] GET / 200 OK (3ms)\n[WebServer] [wrangler:inf] GET / 200 OK (3ms)\n[WebServer] [wrangler:inf] GET /assets/index-D6A_p8ib.js 200 OK (3ms)\n[WebServer] [wrangler:inf] GET /assets/index-D6A_p8ib.js 200 OK (7ms)\n[WebServer] [wrangler:inf] GET /assets/index-CtTDm6oT.css 200 OK (8ms)\n[WebServer] [wrangler:inf] GET /assets/index-CtTDm6oT.css 200 OK (9ms)\n[WebServer] [wrangler:inf] GET /assets/index-CtTDm6oT.css 200 OK (7ms)\n[WebServer] [wrangler:inf] GET /assets/index-D6A_p8ib.js 200 OK (7ms)\n[WebServer] [wrangler:inf] GET / 200 OK (2ms)\n[WebServer] [wrangler:inf] GET / 200 OK (2ms)\n[WebServer] [wrangler:inf] GET /assets/index-D6A_p8ib.js 200 OK (3ms)\n[WebServer] [wrangler:inf] GET /assets/index-CtTDm6oT.css 200 OK (8ms)\n[WebServer] [wrangler:inf] GET /assets/index-D6A_p8ib.js 200 OK (1ms)\n[WebServer] [wrangler:inf] GET /assets/index-CtTDm6oT.css 200 OK (6ms)\n  \u2713  1 [chromium] \u203a tests/e2e/navigation.spec.ts:127:3 \u203a Story 1 navigation \u203a TC-31: board zoom gestures never change page zoom or devicePixelRatio (170ms)\n  \u2713  2 [chromium] \u203a tests/e2e/navigation.spec.ts:94:3 \u203a Story 1 navigation \u203a TC-26: Reset view returns to 100% centred from far away at max zoom (172ms)\n  \u2713  5 [chromium] \u203a tests/e2e/navigation.spec.ts:109:3 \u203a Story 1 navigation \u203a TC-27: panning at 1,000,000 units is exact and the grid stays evenly spaced (286ms)\n  \u2713  3 [chromium] \u203a tests/e2e/navigation.spec.ts:83:3 \u203a Story 1 navigation \u203a TC-25: zoom in to the maximum disables the button and label stops at 400% (363ms)\n  \u2713  4 [chromium] \u203a tests/e2e/navigation.spec.ts:53:3 \u203a Story 1 navigation \u203a Workflow 1: first-visit hint -> exact drag -> pointer zoom keeps point fixed (365ms)\n\n  5 passed (3.8s)\n[WebServer] \u25b2 [WARNING] The version of Wrangler you are using is now out-of-date.\n[WebServer] \n[WebServer]   Please update to the latest version to prevent critical errors.\n[WebServer]   Run `npm install --save-dev wrangler@4` to update to the latest version.\n[WebServer]   After installation, run Wrangler with `npx wrangler`.\n[WebServer] \n[WebServer] \n",
+      "passed": 5,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
