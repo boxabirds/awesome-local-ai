@@ -1,0 +1,46 @@
+{
+  "version": "vidi-v2.0-pre2",
+  "pack_ref": "vidi-v2.0-pre2",
+  "at": "2026-10-04T20:07:17Z",
+  "bundle": "workspace.bundle",
+  "outside_workspace": {
+    "ok": true,
+    "reached": [],
+    "unjudged": []
+  },
+  "repair": {
+    "repaired": [],
+    "left": {},
+    "accounting_version": 4,
+    "harness_commit": "b0fd99246"
+  },
+  "guard": {
+    "story": 12,
+    "record": "15/75",
+    "live": "74/75",
+    "live_version": "vidi-v2.0-pre2+88a5c4002",
+    "comparable": false,
+    "threshold": 3,
+    "difference": null,
+    "failures": 60,
+    "one_signature": true,
+    "live_same_signature": false,
+    "flagged": "all 60 failures share one error signature across stories, and the live scoring of the same code cannot vouch for it (not comparable)"
+  },
+  "rescore": "flagged",
+  "reason": "all 60 failures share one error signature across stories, and the live scoring of the same code cannot vouch for it (not comparable)",
+  "reason_kind": "flagged",
+  "needs_person": false,
+  "retries_exhausted": false,
+  "attempts": 1,
+  "max_attempts": 5,
+  "last_attempt_at": "2026-10-04T20:07:17Z",
+  "history": [
+    {
+      "at": "2026-10-04T20:07:17Z",
+      "rescore": "flagged",
+      "reason_kind": "flagged",
+      "reason": "all 60 failures share one error signature across stories, and the live scoring of the same code cannot vouch for it (not comparable)"
+    }
+  ]
+}
