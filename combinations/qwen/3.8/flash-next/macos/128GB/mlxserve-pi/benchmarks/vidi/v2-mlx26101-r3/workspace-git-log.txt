@@ -1,3 +1,49 @@
+commit b336928591c5e1e4b972ba9dc9d45721c0c19677
+agent  Sun Oct 4 09:05:12 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                | 172 ++++++-
+ PROGRESS.md                             |  51 +-
+ src/client/App.tsx                      | 207 +++++---
+ src/client/board/Marquee.tsx            | 144 ++++++
+ src/client/board/SelectionBar.tsx       |  86 ++++
+ src/client/board/SelectionOverlay.tsx   | 162 ++++++
+ src/client/board/useBoardKeys.ts        | 147 ++++++
+ src/client/board/useSelection.ts        | 263 ++++++++--
+ src/client/board/useTransformGesture.ts | 522 ++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  81 ++-
+ src/client/objects/StickyNote.tsx       | 381 ++++----------
+ src/client/objects/registry.tsx         | 115 +++++
+ src/client/styles.css                   | 115 +++++
+ src/shared/board-model.ts               | 366 ++++++++++++--
+ src/shared/config.ts                    |  18 +
+ src/shared/geometry.ts                  | 333 +++++++++++++
+ tests/component/Marquee.test.tsx        | 341 +++++++++++++
+ tests/component/SelectionBar.test.tsx   | 288 +++++++++++
+ tests/component/SelectionKeys.test.tsx  | 468 ++++++++++++++++++
+ tests/component/Transform.test.tsx      | 846 ++++++++++++++++++++++++++++++++
+ tests/component/helpers/sticky.tsx      | 243 ++++++++-
+ tests/e2e/helpers/selection.ts          | 390 +++++++++++++++
+ tests/e2e/live-collaboration.spec.ts    |  19 +-
+ tests/e2e/reorganisation.spec.ts        | 638 ++++++++++++++++++++++++
+ tests/e2e/selection.spec.ts             | 199 ++++++++
+ tests/fixtures/testbox.tsx              | 124 +++++
+ tests/unit/board-model-group.test.ts    | 497 +++++++++++++++++++
+ tests/unit/geometry.test.ts             | 337 +++++++++++++
+ tests/unit/registry.test.ts             | 169 +++++++
+ tests/unit/selection-reducer.test.ts    | 218 ++++++++
+ tsconfig.worker-test.json               |   4 +-
+ 31 files changed, 7459 insertions(+), 485 deletions(-)
+commit f85bb6ad18b87fafbeec289497297c4055debeb4
+vidi-agent  Sun Oct 4 07:54:57 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit 95c929ed708aee61930a48ad998f3f49e9a0636a
 agent  Sun Oct 4 06:49:57 2026 +0000
 
