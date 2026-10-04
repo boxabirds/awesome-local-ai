@@ -8,7 +8,9 @@ import {
   type ReactNode,
 } from 'react';
 
+import type { Rect } from '../../shared/geometry';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { screenToWorld, type Camera, type Point } from './camera';
 import { registerTestHooks } from './testHooks';
 import { useBoard } from './useCamera';
@@ -22,6 +24,13 @@ export interface BoardViewportProps {
   onCreateStickyAt?(world: Point): void;
   /** Called on a click (no drag) of empty board space, to clear selection. */
   onClearSelection?(): void;
+  /**
+   * Shift + drag over empty board space, finished. The rectangle is in board
+   * units; deciding which objects it selects is the board model's rule
+   * (`objectsInRect`), applied by the caller, so the viewport stays the thing that
+   * owns the pointer and the camera and nothing else.
+   */
+  onMarqueeSelect?(rect: Rect, additive: boolean): void;
 }
 
 /** Safari's pinch gestures, which are not part of the standard DOM types. */
@@ -39,7 +48,12 @@ const GRID_DENSE_SPACING_PX = 8;
 /** Left mouse button / primary pointer. */
 const PRIMARY_MOUSE_BUTTON = 0;
 
-export function BoardViewport({ children, onCreateStickyAt, onClearSelection }: BoardViewportProps) {
+export function BoardViewport({
+  children,
+  onCreateStickyAt,
+  onClearSelection,
+  onMarqueeSelect,
+}: BoardViewportProps) {
   const board = useBoard();
   const boardRef = useRef(board);
   boardRef.current = board;
@@ -50,6 +64,8 @@ export function BoardViewport({ children, onCreateStickyAt, onClearSelection }: 
   const downRef = useRef<Point | null>(null);
   const movedRef = useRef(false);
   const camera = board.camera;
+  const marquee = useMarquee((rect, additive) => onMarqueeSelect?.(rect, additive));
+  const marqueeingRef = useRef(false);
 
   // Non-passive listeners: the board owns wheel and pinch gestures over itself
   // so the browser never scrolls or zooms the page instead (zoom.no_page_zoom).
@@ -121,6 +137,21 @@ export function BoardViewport({ children, onCreateStickyAt, onClearSelection }: 
     // stories handle (or stop) their own pointer events.
     if (event.target !== surfaceRef.current) return;
     if (event.pointerType === 'mouse' && event.button !== PRIMARY_MOUSE_BUTTON) return;
+    // Shift turns a press on empty board space into a selection rectangle instead
+    // of a pan: the same modifier that starts one is the one that makes it add to
+    // what is already selected.
+    if (event.shiftKey && onMarqueeSelect) {
+      marqueeingRef.current = true;
+      marquee.start(screenToWorld(boardRef.current.camera, clientPoint(surfaceRef.current!, event)), true);
+      // Captured for the same reason a pan is: the rectangle keeps following the
+      // pointer across objects, out of the board and back in.
+      try {
+        surfaceRef.current?.setPointerCapture?.(event.pointerId);
+      } catch {
+        // Pointer capture can fail for synthetic events; the rectangle still follows.
+      }
+      return;
+    }
     panningRef.current = true;
     setPanning(true);
     const point = clientPoint(surfaceRef.current!, event);
@@ -135,6 +166,10 @@ export function BoardViewport({ children, onCreateStickyAt, onClearSelection }: 
   };
 
   const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeingRef.current) {
+      marquee.move(screenToWorld(boardRef.current.camera, clientPoint(surfaceRef.current!, event)));
+      return;
+    }
     if (!panningRef.current) return;
     const point = clientPoint(surfaceRef.current!, event);
     const down = downRef.current;
@@ -145,14 +180,32 @@ export function BoardViewport({ children, onCreateStickyAt, onClearSelection }: 
   };
 
   const endPan = () => {
+    if (marqueeingRef.current) {
+      // An interrupted marquee selects nothing: the rectangle just goes away.
+      marqueeingRef.current = false;
+      marquee.cancel();
+      return;
+    }
     panningRef.current = false;
     setPanning(false);
+    downRef.current = null;
     boardRef.current.endPan();
   };
 
   // A click (no drag) on empty board space clears the note selection.
   const finishDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const wasClick = !movedRef.current && event.target === surfaceRef.current;
+    if (marqueeingRef.current) {
+      marqueeingRef.current = false;
+      marquee.end();
+      return;
+    }
+    // Only a press this viewport itself began can be a click on empty board space.
+    // A move or resize gesture (story 7) started on an object and lets go out here
+    // too — often over empty space, because the object moved away from the pointer —
+    // and treating that as a background click would take the selection away the
+    // moment you finished working.
+    const wasClick =
+      downRef.current !== null && !movedRef.current && event.target === surfaceRef.current;
     endPan();
     if (wasClick) onClearSelection?.();
   };
@@ -182,7 +235,10 @@ export function BoardViewport({ children, onCreateStickyAt, onClearSelection }: 
       <div
         className="board-world"
         data-testid="board-world"
-        style={{ transform: worldLayerTransform(camera) }}
+        // `--zoom` lets anything drawn here (the selection outline, the marquee)
+        // divide its line weight by the board's scale, so a border stays a hairline
+        // at 400% and never disappears at 20%.
+        style={{ transform: worldLayerTransform(camera), ['--zoom' as string]: String(camera.zoom) } as CSSProperties}
       >
         <div className="origin-marker" aria-hidden="true">
           <div
@@ -192,6 +248,7 @@ export function BoardViewport({ children, onCreateStickyAt, onClearSelection }: 
           />
         </div>
         {children}
+        <MarqueeRect rect={marquee.rect} />
       </div>
     </div>
   );

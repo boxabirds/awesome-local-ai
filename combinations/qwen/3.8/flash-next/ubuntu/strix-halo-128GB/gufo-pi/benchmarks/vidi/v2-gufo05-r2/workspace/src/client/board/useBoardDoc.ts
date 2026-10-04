@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import {
+  initDoc,
+  objectSnapshots,
+  type ObjectSnapshot,
+  type StickySnapshot,
+} from '../../shared/board-model';
 import { registerTestHooks } from '../canvas/testHooks';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 export interface BoardDoc {
   readonly doc: Y.Doc;
   readonly notes: readonly StickySnapshot[];
+  /** Every object on the board, of every type this client can read (story 7). */
+  readonly objects: readonly ObjectSnapshot[];
   /** Live connection to this board's room; see `connectBoard`. */
   readonly connection: ConnectionState;
 }
@@ -49,13 +56,14 @@ export function useBoardDoc(boardId: string): BoardDoc {
 
   // The snapshot is recomputed only when the objects map changes. `subscribe`
   // wires observeDeep; `getSnapshot` returns the cached value so React only
-  // re-renders when the snapshot reference actually changes.
+  // re-renders when the snapshot reference actually changes. Story 7 reads every
+  // object, and the notes are those of them that are sticky.
   const store = useMemo(() => {
-    let current = snapshot(doc);
+    let current = objectSnapshots(doc);
     const objects = doc.getMap<Y.Map<unknown>>('objects');
     const listeners = new Set<() => void>();
     const emit = () => {
-      current = snapshot(doc);
+      current = objectSnapshots(doc);
       for (const listener of listeners) listener();
     };
     return {
@@ -74,6 +82,10 @@ export function useBoardDoc(boardId: string): BoardDoc {
   const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
   const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
 
-  const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return { doc, notes, connection };
+  const objects = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const notes = useMemo(
+    () => objects.filter((object): object is StickySnapshot => object.type === 'sticky'),
+    [objects],
+  );
+  return { doc, notes, objects, connection };
 }

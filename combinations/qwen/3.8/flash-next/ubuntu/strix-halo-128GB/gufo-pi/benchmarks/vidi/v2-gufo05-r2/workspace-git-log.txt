@@ -1,3 +1,71 @@
+commit 402d085fb2f316f9e96a78fbaa973d098a919b60
+agent  Sun Oct 4 07:54:56 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ PROGRESS.md                           |   4 +-
+ src/client/board/SelectionOverlay.tsx |  10 +-
+ src/client/canvas/BoardViewport.tsx   |  16 +-
+ src/client/canvas/testHooks.ts        |   7 +-
+ tests/e2e/selection.spec.ts           | 402 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 430 insertions(+), 9 deletions(-)
+commit 366785a1b4693f9501509c8fb89eefe849cc7a9a
+agent  Sun Oct 4 07:15:35 2026 +0000
+
+    story 7 tasks 8,10,11,12,13,14: registry-backed objects, one selection UI, marquee, group transform gesture, keyboard commands
+
+
+ PROGRESS.md                             |  20 +-
+ src/client/board/BoardSurface.tsx       | 256 ++++++++-----
+ src/client/board/Marquee.tsx            |  76 ++++
+ src/client/board/SelectionBar.tsx       |  80 ++++
+ src/client/board/SelectionOverlay.tsx   |  73 ++++
+ src/client/board/useBoardDoc.ts         |  24 +-
+ src/client/board/useBoardKeys.ts        | 132 +++++++
+ src/client/board/useSelection.ts        | 193 ++++++----
+ src/client/board/useTransformGesture.ts | 300 +++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  47 ++-
+ src/client/canvas/camera.ts             |  20 +-
+ src/client/canvas/testHooks.ts          |   9 +
+ src/client/objects/StickyNote.tsx       | 223 +++--------
+ src/client/objects/registry.tsx         |  61 +++-
+ src/client/styles.css                   | 120 +++++-
+ src/shared/board-model.ts               | 225 +++++++++---
+ src/shared/geometry.ts                  | 169 ++++++++-
+ tests/component/Selection.test.tsx      | 629 ++++++++++++++++++++++++++++++++
+ tests/component/boardHarness.tsx        |  14 +-
+ tests/component/selectionHarness.tsx    | 213 +++++++++++
+ tests/unit/board-model-group.test.ts    |   8 +-
+ tests/unit/geometry.test.ts             |  41 ++-
+ tests/unit/selection.test.ts            |  13 +-
+ 23 files changed, 2506 insertions(+), 440 deletions(-)
+commit 7bc87349bedfe447963a19fd93ef3c9dfff39dc5
+agent  Sun Oct 4 06:23:10 2026 +0000
+
+    story 7 tasks 6,7,9: red unit tests for geometry, group ops, registry and the selection reducer
+
+
+ PROGRESS.md                          |   4 +-
+ src/client/board/useSelection.ts     |  35 ++++
+ src/client/objects/registry.tsx      |  46 +++++
+ src/shared/board-model.ts            |  97 ++++++++++-
+ src/shared/config.ts                 |  19 ++
+ src/shared/geometry.ts               |  64 +++++++
+ tests/fixtures/testbox.tsx           |  94 ++++++++++
+ tests/unit/board-model-group.test.ts | 325 +++++++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts          | 232 +++++++++++++++++++++++++
+ tests/unit/registry.test.ts          |  81 +++++++++
+ tests/unit/selection.test.ts         | 132 ++++++++++++++
+ 11 files changed, 1123 insertions(+), 6 deletions(-)
+commit fbcaa53f9856e4771d00ed69df8286dcf415f586
+vidi-agent  Sun Oct 4 05:59:38 2026 +0000
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit b8bd397a5cd6bc11c9e02d8724372a5882eae975
 agent  Sun Oct 4 05:55:01 2026 +0000
 

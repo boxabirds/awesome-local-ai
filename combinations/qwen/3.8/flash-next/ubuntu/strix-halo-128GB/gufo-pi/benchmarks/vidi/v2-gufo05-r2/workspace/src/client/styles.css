@@ -229,10 +229,9 @@ a:focus-visible,
   -webkit-user-select: none;
 }
 
-.sticky-note[data-selected='true'] {
-  outline: 2px solid var(--note-outline);
-  outline-offset: 0;
-}
+/* Selection is drawn once, around whatever is selected, by `.selection-overlay`
+   below — not per object — so a note, a shape and a future stroke all look
+   selected the same way. */
 
 .sticky-note:active {
   cursor: grabbing;
@@ -355,6 +354,119 @@ a:focus-visible,
 
 .note-toolbar__delete:hover {
   background: #fdecea;
+}
+
+/* ------------------------------------------------------------------ *
+ * Story 7: select, move, resize and delete several objects at once     *
+ * ------------------------------------------------------------------ */
+
+/* The one selection outline, for every object type. It lives in the world layer,
+   so it is placed in board units exactly like the objects it surrounds and cannot
+   drift from them at any zoom or pan. `--zoom` is the board's scale, set on the
+   world layer; every line here is divided by it so the outline stays a hairline at
+   400% and never vanishes at 20%. `pointer-events: none` keeps the outline from
+   standing between a pointer and an object; the handles turn them back on. */
+.selection-overlay {
+  position: absolute;
+  border: calc(1.5px / var(--zoom, 1)) solid var(--note-outline);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* The eight resize handles: the same size on screen at any zoom, and each one
+   says by its cursor which way it pulls. */
+.selection-handle {
+  position: absolute;
+  background: #fff;
+  border: calc(1px / var(--zoom, 1)) solid var(--note-outline);
+  border-radius: calc(1px / var(--zoom, 1));
+  pointer-events: auto;
+}
+
+.selection-handle--n,
+.selection-handle--s {
+  cursor: ns-resize;
+}
+
+.selection-handle--e,
+.selection-handle--w {
+  cursor: ew-resize;
+}
+
+.selection-handle--nw,
+.selection-handle--se {
+  cursor: nwse-resize;
+}
+
+.selection-handle--ne,
+.selection-handle--sw {
+  cursor: nesw-resize;
+}
+
+/* The shift + drag rectangle: on the board, above the objects, and never in the
+   way of the pointer that follows it. */
+.marquee {
+  position: absolute;
+  background: rgb(26 115 232 / 12%);
+  border: calc(1px / var(--zoom, 1)) dashed rgb(26 115 232 / 90%);
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* The actions for two or more selected objects: the same two things for every
+   kind of thing, however many kinds are in the selection. */
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  box-shadow: var(--ui-shadow);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.selection-bar__count {
+  padding: 0 4px;
+  color: var(--note-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.selection-bar__delete {
+  padding: 2px 8px;
+  color: #b3261e;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.selection-bar__delete:hover:not(:disabled) {
+  background: #fdecea;
+}
+
+.selection-bar__delete:disabled {
+  color: rgb(31 36 48 / 40%);
+  cursor: default;
+}
+
+/* Text meant for a screen reader only: the selection outline and the count in it
+   say nothing to someone who cannot see the screen. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ------------------------------------------------------------------ *

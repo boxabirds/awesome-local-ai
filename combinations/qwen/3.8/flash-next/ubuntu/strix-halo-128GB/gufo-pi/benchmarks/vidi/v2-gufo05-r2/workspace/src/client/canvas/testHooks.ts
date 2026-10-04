@@ -16,6 +16,16 @@ export interface Vidi6TestHooks {
   doc?: Y.Doc;
   /** Current sticky-note snapshots (sorted by z, id), for e2e assertions. */
   getNotes?(): StickySnapshot[];
+  /**
+   * Put a sticky note on the board and return its id, so an e2e test can lay out a
+   * selection instead of dragging notes into place by hand. The point is where a
+   * double-click would have made it — the note's centre.
+   */
+  seedSticky?(centreX: number, centreY: number): string;
+  /** What this page has selected, for assertions about the selection itself. */
+  selectedIds?(): string[];
+  /** Every object on the board, of any type. */
+  objectCount?(): number;
   /** What the connection badge is being told, straight from the provider. */
   connectionState?(): ConnectionState;
   /** Every connection state this page has been in, oldest first. */

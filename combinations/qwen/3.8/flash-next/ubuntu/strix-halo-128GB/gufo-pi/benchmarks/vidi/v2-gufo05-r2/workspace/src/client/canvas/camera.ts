@@ -1,4 +1,9 @@
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP_FACTOR } from '../../shared/config';
+import type { Point } from '../../shared/geometry';
+
+// A point is a point, whether it is read off the screen or measured on the
+// board; story 7 put the one definition in `shared/geometry` with the maths.
+export type { Point };
 
 /**
  * The camera describes what part of the (infinite) board is on screen.
@@ -11,11 +16,6 @@ export interface Camera {
   readonly x: number;
   readonly y: number;
   readonly zoom: number;
-}
-
-export interface Point {
-  readonly x: number;
-  readonly y: number;
 }
 
 export interface Size {
@@ -40,6 +40,16 @@ export function screenToWorld(cam: Camera, p: Point): Point {
 
 export function worldToScreen(cam: Camera, p: Point): Point {
   return { x: (p.x - cam.x) * cam.zoom, y: (p.y - cam.y) * cam.zoom };
+}
+
+/** A screen distance measured on the board: the pan drops out, the scale does not. */
+export function screenDeltaToWorld(cam: Camera, delta: Point): Point {
+  return { x: delta.x / cam.zoom, y: delta.y / cam.zoom };
+}
+
+/** A board distance as it appears on screen. */
+export function worldDeltaToScreen(cam: Camera, delta: Point): Point {
+  return { x: delta.x * cam.zoom, y: delta.y * cam.zoom };
 }
 
 /** Move the camera by a screen-space pointer/scroll delta (in CSS pixels). */

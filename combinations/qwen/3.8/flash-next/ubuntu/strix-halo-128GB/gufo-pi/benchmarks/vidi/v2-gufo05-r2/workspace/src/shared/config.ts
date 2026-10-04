@@ -141,3 +141,22 @@ export const LINK_COPIED_MS = 2000;
  * not be reached (PRD share.unreachable). Doubles up to RECONNECT_MAX_BACKOFF_MS.
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+/* ------------------------------------------------------------------ * *
+ * Story 7: selecting, moving and resizing objects                       *
+ * ------------------------------------------------------------------ */
+
+/** Side of a resize handle's square, in screen pixels at any zoom level. */
+export const HANDLE_SIZE_PX = 8;
+
+/** Smallest a sticky note may be resized to, in board units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/** Largest any object may be resized to, in board units (every object type). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** How far one arrow key moves the selection, in board units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** How far Shift + arrow key moves the selection, in board units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;

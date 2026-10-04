@@ -91,7 +91,13 @@ type PointerKind =
  * jsdom has no PointerEvent, so pointer events are dispatched as MouseEvent
  * with the pointer type name; React dispatches on the type name.
  */
-export function firePointer(el: Element, kind: PointerKind, x: number, y: number): Event {
+export function firePointer(
+  el: Element,
+  kind: PointerKind,
+  x: number,
+  y: number,
+  modifiers: { shift?: boolean; ctrl?: boolean; meta?: boolean } = {},
+): Event {
   const event = new MouseEvent(kind, {
     bubbles: true,
     cancelable: true,
@@ -99,6 +105,9 @@ export function firePointer(el: Element, kind: PointerKind, x: number, y: number
     clientY: y,
     button: 0,
     buttons: kind === 'pointerup' || kind === 'pointercancel' ? 0 : 1,
+    shiftKey: modifiers.shift ?? false,
+    ctrlKey: modifiers.ctrl ?? false,
+    metaKey: modifiers.meta ?? false,
   });
   Object.defineProperty(event, 'pointerId', { value: 1 });
   Object.defineProperty(event, 'pointerType', { value: 'mouse' });
@@ -146,7 +155,7 @@ export function fireGesture(
 
 export function fireKey(
   key: string,
-  modifiers: { ctrl?: boolean; meta?: boolean; alt?: boolean } = {},
+  modifiers: { ctrl?: boolean; meta?: boolean; alt?: boolean; shift?: boolean } = {},
 ): Event {
   const event = new KeyboardEvent('keydown', {
     key,
@@ -155,6 +164,7 @@ export function fireKey(
     ctrlKey: modifiers.ctrl ?? false,
     metaKey: modifiers.meta ?? false,
     altKey: modifiers.alt ?? false,
+    shiftKey: modifiers.shift ?? false,
   });
   return dispatch(window, event);
 }
