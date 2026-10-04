@@ -20,14 +20,41 @@ echo "no home paths in tracked files"
 # account name. A match must start a path (not `next/prev/home/end` in prose),
 # and a hidden folder such as /home/.cache is not an account.
 # Nor is a regular expression for the word, with its flags: `/home/i` (in an agent's own tests).
-leaks() {
-  git ls-files -z \
-    | xargs -0 grep -hoE '(^|[^A-Za-z0-9_.-])/(Users|home)/[A-Za-z0-9._${}<>-]+' 2>/dev/null \
+# The detector, over NUL-separated paths on stdin. Separate from `git ls-files` so it can be tested, and it always
+# returns 0: grep exits 1 when a file has no match and xargs exits 123 when a whole batch has none, so the exit
+# status says nothing about whether anything leaked. Only the output does. Reading the status as "no leaks" is how
+# this check passed on 4 Oct 2026 with nine tracked files holding a real home path (A-040): with `pipefail` set, one
+# batch without a match made the whole pipeline non-zero and the `&&` below fell through to the pass.
+scan_paths() {
+  xargs -0 ${PRIVACY_BATCH:+-n "$PRIVACY_BATCH"} grep -hoE '(^|[^A-Za-z0-9_.-])/(Users|home)/[A-Za-z0-9._${}<>-]+' 2>/dev/null \
     | sed -E 's|^[^/]||' \
     | grep -vE '/(Users|home)/((you|user|username|name|me|tester|someoneelse|u|x|i|g|gi|ig)$|\.|\$|<|\{)' \
     | sort -u
+  return 0
 }
-if out="$(leaks)" && [[ -n "$out" ]]; then
+# The whole decision, so the self-check below exercises what the repo is judged by, not just the detector.
+found_leak() {
+  local found
+  found="$(scan_paths)"
+  [[ -n "$found" ]] && printf '%s' "$found"
+}
+
+# A leak in a file after one with no match: the case the old check read as a pass.
+selfcheck_dir="$(mktemp -d)"
+printf 'nothing personal here\n' > "$selfcheck_dir/clean.txt"
+# The account name is joined to the path at run time, so this file never holds a string the check would flag.
+selfcheck_home="/Users""/arealname"
+printf 'built in %s/work\n' "$selfcheck_home" > "$selfcheck_dir/leaky.txt"
+selfcheck="$(printf '%s\0' "$selfcheck_dir/clean.txt" "$selfcheck_dir/leaky.txt" | PRIVACY_BATCH=1 found_leak)"
+rm -rf "$selfcheck_dir"
+if [[ "$selfcheck" == "$selfcheck_home" ]]; then
+  _pass "a leak is found when an earlier file has none"
+else
+  _fail "a leak is found when an earlier file has none" "$selfcheck_home" "${selfcheck:-nothing}"
+fi
+
+out="$(git ls-files -z | found_leak)"
+if [[ -n "$out" ]]; then
   _fail "no /Users/<name> or /home/<name> in tracked files" "none" "$(printf '%s' "$out" | tr '\n' ' ')"
 else
   _pass "no /Users/<name> or /home/<name> in tracked files"

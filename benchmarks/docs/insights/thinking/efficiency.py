@@ -8,10 +8,13 @@ mark on the app's stories) is left out: a broken run's short thinking is not a t
 
 Usage: python3 efficiency.py STATE.json
 """
-import collections, json, sqlite3, sys
+import collections, json, os, pathlib, sqlite3, sys
 import numpy as np
 
-INSIGHTS = "/Users/julian/expts/awesome-local-ai-bench-private/state/insights"
+# The repository this script is in, and the private repo beside it (as the harness finds it, packdir.private_checkout).
+# INSIGHTS_DIR overrides, for a checkout somewhere else. No absolute path is written here: this repo is public.
+REPO = pathlib.Path(__file__).resolve().parents[4]
+INSIGHTS = os.environ.get("INSIGHTS_DIR") or str(REPO.parent / "awesome-local-ai-bench-private" / "state" / "insights")
 STACKS = {"Swift 1.5 / llama.cpp": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi", "Flash-Next / gufo": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi", "Flash-Next / mlx-serve": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi"}
 MIN_RUNS = 4
 

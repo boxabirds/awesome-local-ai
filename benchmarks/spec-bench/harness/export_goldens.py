@@ -224,7 +224,7 @@ def engine_cases() -> dict:
 
 
 FLAG_PROBES = [
-    "Permission denied: EACCES on /Users/julian/x", "zsh: command not found: foo", "ENOENT: No such file or directory",
+    "Permission denied: EACCES on /Users/tester/x", "zsh: command not found: foo", "ENOENT: No such file or directory",
     "Error: listen EADDRINUSE: address already in use", "Test timeout of 30000ms exceeded", "Could not find oldText in file",
     "src/a.ts(1,2): error TS2345", "SyntaxError: Unexpected token", "Cannot find module 'x'", "npm ERR! code 1",
     "Killed", "FATAL ERROR: heap out of memory", "ENOSPC: No space left on device", "Segmentation fault (core dumped)",

@@ -6,11 +6,14 @@ items-owner.jsonl (a subset for the owner), in the format `dbench label` reads.
 
 Usage: uv run --with scikit-learn --with numpy --with scipy --with joblib python make_validation_set.py OUT_DIR [--blind]
 """
-import json, random, sqlite3, sys
+import json, os, pathlib, random, sqlite3, sys
 import numpy as np
 import theme_model as tm
 
-INSIGHTS = "/Users/julian/expts/awesome-local-ai-bench-private/state/insights"
+# The repository this script is in, and the private repo beside it (as the harness finds it, packdir.private_checkout).
+# INSIGHTS_DIR overrides, for a checkout somewhere else. No absolute path is written here: this repo is public.
+REPO = pathlib.Path(__file__).resolve().parents[4]
+INSIGHTS = os.environ.get("INSIGHTS_DIR") or str(REPO.parent / "awesome-local-ai-bench-private" / "state" / "insights")
 PER_THEME = 7
 OWNER_ITEMS = 20
 MIN_CHARS, MAX_CHARS = 60, 900       # long enough to carry a theme, short enough to read in a glance

@@ -413,7 +413,7 @@ def compacted_again(plain: Path) -> list[str]:
 
 def test_compacting_a_published_log_again_does_not_depend_on_this_machine_s_home(tmp_path):
     """A published log can hold, as text, the home directory of the machine the replay runs on: Swift 1.5 v2-r4
-    story 12's has miniflare's source, built on GitHub Actions under /home/runner, which is CI's home too. The
+    story 12's has miniflare's source, built on GitHub Actions under its runner's own home, which is CI's home too. The
     second compaction then redacted it, and the replay reported the log as changed, on CI only."""
     line = json.dumps({"_rx": 1.0, "type": "tool_execution_end", "result": f"// embed-worker:{Path.home()}/work/sdk/x.ts"})
     plain = tmp_path / "plain.jsonl"

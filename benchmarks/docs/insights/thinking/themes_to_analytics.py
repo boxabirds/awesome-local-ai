@@ -4,13 +4,16 @@ analytics source digest or the model version changed. Reads the warehouse and wr
 
 Usage: uv run --with scikit-learn --with numpy --with scipy --with joblib python themes_to_analytics.py [--insights DIR] [--model FILE]
 """
-import argparse, json, os, sqlite3, time
+import argparse, json, os, pathlib, sqlite3, time
 import numpy as np
 import theme_model as tm
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCHEMA = os.path.join(HERE, "../../../../tools/dbench/src/analytics/schema.sql")
-DEFAULT_INSIGHTS = "/Users/julian/expts/awesome-local-ai-bench-private/state/insights"
+# The repository this script is in, and the private repo beside it (as the harness finds it, packdir.private_checkout).
+# INSIGHTS_DIR overrides, for a checkout somewhere else. No absolute path is written here: this repo is public.
+REPO = pathlib.Path(__file__).resolve().parents[4]
+DEFAULT_INSIGHTS = os.environ.get("INSIGHTS_DIR") or str(REPO.parent / "awesome-local-ai-bench-private" / "state" / "insights")
 LOCK_WAIT_S = 120
 
 def aggregate(texts, w):

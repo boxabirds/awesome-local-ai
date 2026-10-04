@@ -5,11 +5,13 @@ stories (1 to 4) predict its late ones (7 to 12).
 
 Usage: python3 run_traits.py
 """
-import collections, glob, json, sqlite3
+import collections, glob, json, os, pathlib, sqlite3
 import numpy as np
 
-INSIGHTS = "/Users/julian/expts/awesome-local-ai-bench-private/state/insights"
-REPO = "/Users/julian/expts/awesome-local-ai"
+# The repository this script is in, and the private repo beside it (as the harness finds it, packdir.private_checkout).
+# INSIGHTS_DIR overrides, for a checkout somewhere else. No absolute path is written here: this repo is public.
+REPO = pathlib.Path(__file__).resolve().parents[4]
+INSIGHTS = os.environ.get("INSIGHTS_DIR") or str(REPO.parent / "awesome-local-ai-bench-private" / "state" / "insights")
 STACKS = {"gufo": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi", "swift": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi", "mlx": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi"}
 MIN_RUNS = 4
 EARLY, LATE = 4, 7

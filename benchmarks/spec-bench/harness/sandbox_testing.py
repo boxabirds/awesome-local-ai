@@ -54,7 +54,7 @@ def fake_sandbox_env() -> dict:
 
 def no_sandbox(monkeypatch) -> None:
     """For a test of the story loop that runs a fake agent as an ordinary process: no sandbox, and the agent sees its
-    run's directory where it really is (not at /w, not under /Users/Shared). A test that is about the sandbox does
+    run's directory where it really is (not at /w, not under the Mac's shared folder). A test that is about the sandbox does
     not call this."""
     monkeypatch.setattr(drive, "launch_agent", unsandboxed)
     monkeypatch.setattr(sandbox, "view_root", lambda work, enforced=None: work)

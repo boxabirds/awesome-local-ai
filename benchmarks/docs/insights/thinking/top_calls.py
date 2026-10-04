@@ -2,11 +2,14 @@
 (runs, stories, position, compaction), what came before and after them, how repetitive they are against ordinary calls, and
 which themes they are made of. Qwen, family v2-*, complete thinking text. Usage: python3 top_calls.py [STACK_SUBSTRING] [CHARS]
 """
-import collections, sqlite3, sys
+import collections, os, pathlib, sqlite3, sys
 import numpy as np
 import theme_model as tm
 
-INSIGHTS = "/Users/julian/expts/awesome-local-ai-bench-private/state/insights"
+# The repository this script is in, and the private repo beside it (as the harness finds it, packdir.private_checkout).
+# INSIGHTS_DIR overrides, for a checkout somewhere else. No absolute path is written here: this repo is public.
+REPO = pathlib.Path(__file__).resolve().parents[4]
+INSIGHTS = os.environ.get("INSIGHTS_DIR") or str(REPO.parent / "awesome-local-ai-bench-private" / "state" / "insights")
 DEFAULT_STACK, DEFAULT_CHARS = "swift-1.5", 10_000
 
 def q(a, p): return float(np.percentile(a, p)) if len(a) else float("nan")
