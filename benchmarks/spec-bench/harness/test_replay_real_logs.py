@@ -100,8 +100,11 @@ MODEL_KEYS = {"source", "requests", "prefill_s", "prefill_tokens", "prefill_tok_
               "decode_tok_s", "cached_tokens"}
 ACCOUNTING_KEYS = {"version", "ok", "problems", "abandoned_calls", "interrupted_tools", "interrupted_compactions"}
 INTERRUPTED_KEYS = {"kind", "seconds", "ended_by"}          # one of accounting.interrupted_tools; with "attempt" when summed
-ENDED_BY = {accounting.ENDED_BY_STEP, accounting.ENDED_BY_SESSION_END, accounting.ENDED_BY_RESTART,
-            accounting.ENDED_BY_NEW_SESSION, accounting.ENDED_BY_WINDOW}
+# Every end a cut-off tool call can be given, taken from accounting itself rather than copied: a hand-written list
+# goes stale silently. It did: accounting gained ENDED_BY_GUARD on 3 Oct 2026 ("the hang guard marks each kill in the
+# events log") and this set, last written on 1 Oct, rejected it. Nothing failed until the first story with a guard
+# kill was published on the new harness, on 4 Oct, and then no release could be made.
+ENDED_BY = {v for k, v in vars(accounting).items() if k.startswith("ENDED_BY_") and isinstance(v, str)}
 SAME_UNLESS_CUT_OFF = 3                          # the accounting version whose records still compare (replay_accounting)
 NO_END_PROBLEM = "never ended"                   # what a cut-off tool call or compaction was reported as, before version 4
 # Owned by compactions and tools, which outrank model time: the same whichever log the model's time came from.
