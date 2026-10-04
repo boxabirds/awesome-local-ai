@@ -1,3 +1,68 @@
+commit 9e63a009c262302ae2efbd88113edd118fe46de1
+agent  Sun Oct 4 13:56:34 2026 +0000
+
+    story 11: Sketch freehand with a pen
+
+
+ NOTES.md                    |  56 +++++++
+ PROGRESS.md                 |   2 +-
+ tests/e2e/helpers/sketch.ts | 288 +++++++++++++++++++++++++++++++++++
+ tests/e2e/sketch.spec.ts    | 355 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 700 insertions(+), 1 deletion(-)
+commit 2513e3fa0200c8b7eec0eff67a406b6a938f3169
+agent  Sun Oct 4 13:35:23 2026 +0000
+
+    story 11: component tests for the pen gesture and the sketch object
+
+
+ NOTES.md                              |  98 ++++++++
+ PROGRESS.md                           |   6 +-
+ tests/component/PenTool.test.tsx      | 408 ++++++++++++++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx | 219 ++++++++++++++++++
+ tests/component/story11Harness.tsx    | 286 ++++++++++++++++++++++++
+ 5 files changed, 1014 insertions(+), 3 deletions(-)
+commit da22c8416a4be138f3101d3ed370871015604bf3
+agent  Sun Oct 4 13:35:23 2026 +0000
+
+    story 11: draw with the pen, and let the board keep the wheel
+
+
+ src/client/board/BoardSurface.tsx      |  54 ++++++
+ src/client/board/Toolbar.tsx           |  27 +++
+ src/client/canvas/BoardViewport.tsx    |  13 ++
+ src/client/canvas/testHooks.ts         |  15 +-
+ src/client/objects/StrokeObject.tsx    | 137 ++++++++++++++
+ src/client/objects/registry.tsx        |  36 ++++
+ src/client/styles.css                  | 149 +++++++++++++++
+ src/client/tools/PenTool.tsx           | 326 +++++++++++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx        | 105 +++++++++++
+ src/client/tools/useActiveTool.ts      |  24 ++-
+ src/client/tools/usePenOptions.ts      |  55 ++++++
+ tests/component/useActiveTool.test.tsx |  26 ++-
+ 12 files changed, 958 insertions(+), 9 deletions(-)
+commit b4409ad25460a7d525a946ec2c48d09e86404822
+agent  Sun Oct 4 12:57:11 2026 +0000
+
+    story 11: model a sketch as a stroke object, with tests first
+
+
+ NOTES.md                        | 911 +++-------------------------------------
+ PROGRESS.md                     |   4 +-
+ src/shared/board-model.ts       |  18 +
+ src/shared/config.ts            |  55 +++
+ src/shared/geometry/simplify.ts | 155 +++++++
+ src/shared/objects/stroke.ts    | 234 +++++++++++
+ tests/fixtures/pen-paths.ts     | 126 ++++++
+ tests/unit/stroke.test.ts       | 425 +++++++++++++++++++
+ 8 files changed, 1079 insertions(+), 849 deletions(-)
+commit 56800c706d8f4c423b526903681f9c229ebeb007
+vidi-agent  Sun Oct 4 12:37:14 2026 +0000
+
+    harness: PROGRESS.md for story 11
+
+
+ PROGRESS.md | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
 commit d69055140a051522be389f086db63095b79ffb6c
 agent  Sun Oct 4 12:32:24 2026 +0000
 
