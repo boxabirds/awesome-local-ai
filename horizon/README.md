@@ -53,7 +53,8 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [llama.cpp Vulkan on Strix Halo](llamacpp-vulkan-strix-halo.md) | parked | Strix Halo | dropped from v2: prompt reading 4-7x slower than gufo |
 | [llama.cpp Metal on the M5 Max](llamacpp-metal-m5-max.md) | parked | M5 Max | paused after canvas-metal-01 story 1 |
 | [Fable 5.1 reference](fable-5.1-reference.md) | parked | this Mac | a second frontier reference next to Opus 5.5; after the Opus v2 runs |
-| [DwarfStar (ds4)](dwarfstar.md) | gated | M5 Max | native engine incl. Qwen3.8 Flash Next on Metal (Q4 69.7 GiB resident); not for the 4090 by its docs; tool-call and cache checks first |
+| [DwarfStar (ds4)](dwarfstar.md) | gated | M5 Max | native engine incl. Qwen3.8 Flash Next on Metal (Q4 69.7 GiB resident); not for the 4090 by its docs, and its Qwen page says ROCm is unsupported; publishes no Mac figure |
+| [sf-q3-8flash](sf-q3-8flash.md) | gated | M5 Max | ds4 cut to Qwen Flash-Next on Metal alone, developed on an M5 Max; +6 to 11% over ds4 by its own A/B harness with token-identity checks; nothing published past 65k context |
 | [K2 Horizon (MBZUAI IFM)](k2-horizon.md) | gated | any machine (new model family) | six open models, 0.9B to 375B; vLLM and SGLang support real, Ollama not, llama.cpp pull request approved but unmerged; gate: the merge |
 | [LightRSI / TokenPilot](lightrsi.md) | parked | pi and OpenCode (a client extension) | context manager for long sessions; fixes dollar and cache-miss costs we do not have; assessed on paper, never run |
 | [Caveman](caveman.md) | on the horizon | pi (a prompt) | terse-output prompt skill; reported for replies, not thinking; first find out whether it reaches Qwen's thinking; read only from write-ups |

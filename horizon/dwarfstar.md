@@ -4,6 +4,8 @@
 does not fit the RTX 4090 machine, and its Qwen page says outright "ROCm is not supported", which rules out the
 Strix Halo box rather than leaving it undocumented.
 **Kind:** a new engine on the model we already benchmark: a direct rival to mlx-serve, MTPLX, TensorFold and gufo.
+**Superseded for the M5 Max** by [sf-q3-8flash](sf-q3-8flash.md), a reduction of this engine to Qwen Flash-Next on
+Metal alone, developed on an M5 Max and faster than it by its own measurements. Read that note first.
 **Sources:** github.com/antirez/ds4 (MIT), read 3 Oct 2026: README, `docs/QWEN38_FLASH_NEXT.md`, `docs/MODELS.md`,
 `docs/CLIENTS.md`, `docs/CUDA_MULTI_GPU.md`, `docs/STRIX_HALO.md`, `docs/PERFORMANCE.md`, and its open issues. Nothing
 here was run.
