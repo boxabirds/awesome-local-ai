@@ -61,6 +61,19 @@ with ranged requests over 16 connections and setup accepted them as already down
 `serve/server.py --engine strata --config strata-iq3_xxs.json --host 127.0.0.1 --port N` (drop the start script's
 `--open`, which opens a browser).
 
+## What other people report (4 Oct 2026, unverified)
+
+Relayed by the owner, with no source or machine given: users running GSQ-RCO on Strata report about **60 tok/s
+generation and 1,000 tok/s prefill**, against about **30 tok/s and 300 tok/s prefill** for Unsloth's IQ3_XXS on
+llama.cpp. Memory use not reported.
+
+Both figures are **well below what this machine measured** on 2 Oct (104 to 173 tok/s generation, 4,300 to 4,400
+tok/s prefill), and the memory question is answered above: 43.5 GiB of RAM and 24.0 GiB of VRAM at 128k context.
+So the reports neither add nor contradict anything we need; they are kept here only so the same claim is not
+chased twice. If the gap matters later, the likely causes are a smaller card, no MTP drafting, a larger
+quantisation, or longer replies than the short ones measured here. Our own figures are from synthetic prompts with
+replies under 200 tokens, and a real story's decode rate will be lower.
+
 ## The combination and the harness (3 Oct 2026)
 
 `combinations/qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi/` exists (backend `lib/strata.sh`, launcher
@@ -70,7 +83,7 @@ engine log, which the launcher follows into the server's output. Not yet install
 machine, and the harness changes need a harness release before a run can carry them. The owner's order: five runs of
 Strata after the Swift 1.5 baseline on the RTX 4090 machine. No smoke story: the ten-minute checks are above.
 
-**Last checked:** 3 Oct 2026. **Recheck when:** the real install has run and the first Strata story is recorded.
+**Last checked:** 4 Oct 2026 (third-party reports noted; nothing re-measured). **Recheck when:** the real install has run and the first Strata story is recorded.
 
 Sources: [Strata](https://github.com/Niko1221/Strata) ·
 [DETAILS.md](https://github.com/Niko1221/Strata/blob/main/docs/DETAILS.md) ·
