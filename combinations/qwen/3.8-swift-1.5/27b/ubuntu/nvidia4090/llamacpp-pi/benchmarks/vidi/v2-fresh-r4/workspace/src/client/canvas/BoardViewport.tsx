@@ -26,6 +26,14 @@ export interface BoardViewportProps extends CameraApi {
   onDblClickEmpty?(screenX: number, screenY: number): void;
   /** Called when the user clicks empty board space (no drag). */
   onClickEmpty?(): void;
+  /** Called when Shift+pointerdown on empty space (starts marquee). */
+  onShiftPointerDownEmpty?(screenPoint: { x: number; y: number }): void;
+  /** Called during Shift+drag marquee. */
+  onShiftPointerMove?(screenPoint: { x: number; y: number }): void;
+  /** Called on Shift+pointerup (ends marquee). */
+  onShiftPointerUp?(): void;
+  /** Called on pointercancel during marquee. */
+  onShiftPointerCancel?(): void;
 }
 
 /** a mod b with a non-negative result. */
@@ -39,18 +47,19 @@ function positiveMod(value: number, modulus: number): number {
  * transformed world layer.
  */
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
-  const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset, children, onDblClickEmpty, onClickEmpty } = props;
+  const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset, children, onDblClickEmpty, onClickEmpty, onShiftPointerDownEmpty, onShiftPointerMove, onShiftPointerUp, onShiftPointerCancel } = props;
   const viewportRef = useRef<HTMLDivElement>(null);
   const gestureScaleRef = useRef(GESTURE_START_SCALE);
   const [panning, setPanning] = useState(false);
   const wasPanningRef = useRef(false);
+  const marqueeActiveRef = useRef(false);
 
   const toViewportPoint = useCallback((clientX: number, clientY: number): Point => {
     const rect = viewportRef.current?.getBoundingClientRect();
     return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
   }, []);
 
-  // --- Pointer drag (pan.drag) -------------------------------------------------
+  // --- Pointer drag (pan.drag) / Marquee (Shift+drag) ---------------------------
   const onPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (e.button !== 0) return;
@@ -65,24 +74,52 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       } catch {
         // Pointer capture unsupported (e.g. jsdom): drag still works.
       }
+
+      // Shift+drag on empty space → marquee selection
+      if (e.shiftKey && onShiftPointerDownEmpty) {
+        marqueeActiveRef.current = true;
+        onShiftPointerDownEmpty(toViewportPoint(e.clientX, e.clientY));
+        return;
+      }
+
       wasPanningRef.current = false;
       setPanning(true);
       beginPan(toViewportPoint(e.clientX, e.clientY));
     },
-    [beginPan, toViewportPoint],
+    [beginPan, toViewportPoint, onShiftPointerDownEmpty],
   );
 
   const onPointerMove = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
+      // Marquee move
+      if (marqueeActiveRef.current) {
+        onShiftPointerMove?.(toViewportPoint(e.clientX, e.clientY));
+        return;
+      }
       if (!panning) return;
       wasPanningRef.current = true;
       panMove(toViewportPoint(e.clientX, e.clientY));
     },
-    [panning, panMove, toViewportPoint],
+    [panning, panMove, toViewportPoint, onShiftPointerMove],
   );
 
   const onEndPan = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
+      // Marquee end
+      if (marqueeActiveRef.current) {
+        marqueeActiveRef.current = false;
+        const viewport = viewportRef.current;
+        if (
+          viewport &&
+          typeof viewport.hasPointerCapture === 'function' &&
+          viewport.hasPointerCapture(e.pointerId)
+        ) {
+          viewport.releasePointerCapture(e.pointerId);
+        }
+        onShiftPointerUp?.();
+        return;
+      }
+
       if (!panning) return;
       setPanning(false);
       const viewport = viewportRef.current;
@@ -100,7 +137,29 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       }
       wasPanningRef.current = false;
     },
-    [panning, endPan, onClickEmpty],
+    [panning, endPan, onClickEmpty, onShiftPointerUp],
+  );
+
+  const onPointerCancel = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      // Marquee cancel
+      if (marqueeActiveRef.current) {
+        marqueeActiveRef.current = false;
+        const viewport = viewportRef.current;
+        if (
+          viewport &&
+          typeof viewport.hasPointerCapture === 'function' &&
+          viewport.hasPointerCapture(e.pointerId)
+        ) {
+          viewport.releasePointerCapture(e.pointerId);
+        }
+        onShiftPointerCancel?.();
+        return;
+      }
+      // Regular pan cancel
+      onEndPan(e);
+    },
+    [onEndPan, onShiftPointerCancel],
   );
 
   // --- Double-click on empty space → create note ---
@@ -212,7 +271,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onEndPan}
-      onPointerCancel={onEndPan}
+      onPointerCancel={onPointerCancel}
       onLostPointerCapture={onEndPan}
       onDoubleClick={onDoubleClick}
     >

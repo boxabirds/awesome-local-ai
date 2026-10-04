@@ -5,19 +5,76 @@ import {
   STICKY_SIZE_WORLD,
   type StickyColor,
 } from './config';
+import { isKnownType } from './known-types';
+import type { Rect, Point } from './geometry';
 
 /** Origin symbol for local transactions (used by story 8 undo and story 3 to avoid echo). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('LOCAL_ORIGIN');
 
-export interface StickySnapshot {
+/**
+ * Generic object snapshot: the common fields shared by all board object types.
+ * Sticky notes extend this with color and text.
+ */
+export interface ObjectSnapshot {
   id: string;
-  type: 'sticky';
+  type: string;
   x: number;
   y: number;
-  color: StickyColor;
-  text: string;
   z: number;
   createdAt: number;
+  /** Optional explicit size; falls back to type default if absent. */
+  width?: number;
+  height?: number;
+  /** Sticky-note specific (present when type === 'sticky'). */
+  color?: string;
+  text?: string;
+}
+
+export interface StickySnapshot extends ObjectSnapshot {
+  type: 'sticky';
+  color: StickyColor;
+  text: string;
+}
+
+/** Type guard for sticky snapshots. */
+export function isStickySnapshot(obj: ObjectSnapshot): obj is StickySnapshot {
+  return obj.type === 'sticky';
+}
+
+/**
+ * Get the bounding rect of an object in world units.
+ * Uses explicit width/height if present, otherwise falls back to STICKY_SIZE_WORLD.
+ */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  const w = obj.width ?? STICKY_SIZE_WORLD;
+  const h = obj.height ?? STICKY_SIZE_WORLD;
+  return { x: obj.x, y: obj.y, width: w, height: h };
+}
+
+/**
+ * Return ids of objects whose bounds are entirely within the given rect.
+ */
+export function objectsInRect(snapshot: readonly ObjectSnapshot[], rect: Rect): string[] {
+  const result: string[] = [];
+  for (const obj of snapshot) {
+    const bounds = objectBounds(obj);
+    if (
+      bounds.x >= rect.x &&
+      bounds.y >= rect.y &&
+      bounds.x + bounds.width <= rect.x + rect.width &&
+      bounds.y + bounds.height <= rect.y + rect.height
+    ) {
+      result.push(obj.id);
+    }
+  }
+  return result;
+}
+
+/**
+ * Return ids of all objects with a registered type.
+ */
+export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
+  return snapshot.filter((obj) => isKnownType(obj.type)).map((obj) => obj.id);
 }
 
 /**
@@ -39,6 +96,15 @@ function getObjects(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
 
 function isFinitePair(x: number, y: number): boolean {
   return Number.isFinite(x) && Number.isFinite(y);
+}
+
+function isFiniteRect(r: Rect): boolean {
+  return (
+    Number.isFinite(r.x) &&
+    Number.isFinite(r.y) &&
+    Number.isFinite(r.width) &&
+    Number.isFinite(r.height)
+  );
 }
 
 function isValidColor(c: string): c is StickyColor {
@@ -81,6 +147,137 @@ export function createSticky(doc: Y.Doc, at: { x: number; y: number }, color: St
   return id;
 }
 
+// --- Group operations (story 7) ---
+
+/**
+ * Move multiple objects to absolute world positions.
+ * Returns the count of objects actually moved.
+ * Missing ids are skipped. Non-finite positions cause 0 return with no transaction.
+ */
+export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): number {
+  if (positions.size === 0) return 0;
+
+  // Validate all positions are finite
+  for (const [, p] of positions) {
+    if (!isFinitePair(p.x, p.y)) return 0;
+  }
+
+  const objects = getObjects(doc);
+  let count = 0;
+
+  doc.transact(() => {
+    for (const [id, pos] of positions) {
+      const obj = objects.get(id);
+      if (!obj) continue;
+      obj.set('x', pos.x);
+      obj.set('y', pos.y);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+
+  return count;
+}
+
+/**
+ * Resize multiple objects to the given rects (absolute world units).
+ * Writes both width and height, making implicit-size objects explicit.
+ * Returns the count of objects actually resized.
+ * Missing ids are skipped. Non-finite rects cause 0 return with no transaction.
+ */
+export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): number {
+  if (rects.size === 0) return 0;
+
+  // Validate all rects are finite
+  for (const [, r] of rects) {
+    if (!isFiniteRect(r)) return 0;
+  }
+
+  const objects = getObjects(doc);
+  let count = 0;
+
+  doc.transact(() => {
+    for (const [id, rect] of rects) {
+      const obj = objects.get(id);
+      if (!obj) continue;
+      obj.set('x', rect.x);
+      obj.set('y', rect.y);
+      obj.set('width', rect.width);
+      obj.set('height', rect.height);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+
+  return count;
+}
+
+/**
+ * Bring multiple objects to the front, above all unselected objects,
+ * while preserving their relative z-order among themselves.
+ * Returns the count of objects whose z changed.
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+
+  const objects = getObjects(doc);
+  const idSet = new Set(ids);
+
+  // Find max z among non-selected objects
+  let maxUnselectedZ = 0;
+  objects.forEach((obj, id) => {
+    if (idSet.has(id)) return;
+    const z = (obj.get('z') as number) ?? 0;
+    if (z > maxUnselectedZ) maxUnselectedZ = z;
+  });
+
+  // Get current z of selected objects, sorted by (z, id) to preserve order
+  const selectedEntries: { id: string; z: number }[] = [];
+  for (const id of ids) {
+    const obj = objects.get(id);
+    if (!obj) continue;
+    selectedEntries.push({ id, z: (obj.get('z') as number) ?? 0 });
+  }
+  selectedEntries.sort((a, b) => a.z - b.z || a.id.localeCompare(b.id));
+
+  let count = 0;
+  doc.transact(() => {
+    for (let i = 0; i < selectedEntries.length; i++) {
+      const obj = objects.get(selectedEntries[i].id);
+      if (!obj) continue;
+      const newZ = maxUnselectedZ + i + 1;
+      if (newZ !== selectedEntries[i].z) {
+        obj.set('z', newZ);
+        count++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+
+  return count;
+}
+
+/**
+ * Delete multiple objects by id.
+ * Returns the count of objects actually deleted.
+ * Missing ids are skipped.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+
+  const objects = getObjects(doc);
+  let count = 0;
+
+  doc.transact(() => {
+    for (const id of ids) {
+      if (!objects.has(id)) continue;
+      objects.delete(id);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+
+  return count;
+}
+
+// --- Single-object wrappers (story 2 compatibility) ---
+
 /**
  * Move an object to new world coordinates (top-left).
  * Returns true if the move was applied, false if the id is unknown or coords are non-finite.
@@ -88,14 +285,9 @@ export function createSticky(doc: Y.Doc, at: { x: number; y: number }, color: St
 export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolean {
   if (!isFinitePair(x, y)) return false;
   const objects = getObjects(doc);
-  const obj = objects.get(id);
-  if (!obj) return false;
-
-  doc.transact(() => {
-    obj.set('x', x);
-    obj.set('y', y);
-  }, LOCAL_ORIGIN);
-  return true;
+  if (!objects.has(id)) return false;
+  const count = moveObjects(doc, new Map([[id, { x, y }]]));
+  return count > 0;
 }
 
 /**
@@ -104,10 +296,9 @@ export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolea
  */
 export function bringToFront(doc: Y.Doc, id: string): boolean {
   const objects = getObjects(doc);
-  const obj = objects.get(id);
-  if (!obj) return false;
+  if (!objects.has(id)) return false;
 
-  const currentZ = (obj.get('z') as number) ?? 0;
+  const currentZ = (objects.get(id)!.get('z') as number) ?? 0;
   let maxZ = 0;
   objects.forEach((o) => {
     const z = (o.get('z') as number) ?? 0;
@@ -116,10 +307,8 @@ export function bringToFront(doc: Y.Doc, id: string): boolean {
 
   if (currentZ >= maxZ) return false;
 
-  doc.transact(() => {
-    obj.set('z', maxZ + 1);
-  }, LOCAL_ORIGIN);
-  return true;
+  const count = bringObjectsToFront(doc, [id]);
+  return count > 0;
 }
 
 /**
@@ -143,13 +332,8 @@ export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
  * Returns true if deleted, false if id not found.
  */
 export function deleteObject(doc: Y.Doc, id: string): boolean {
-  const objects = getObjects(doc);
-  if (!objects.has(id)) return false;
-
-  doc.transact(() => {
-    objects.delete(id);
-  }, LOCAL_ORIGIN);
-  return true;
+  const count = deleteObjects(doc, [id]);
+  return count > 0;
 }
 
 /**
@@ -163,27 +347,45 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 }
 
 /**
- * Return a snapshot of all sticky notes, sorted by (z, id).
+ * Return a snapshot of all objects, sorted by (z, id).
  * Unknown object types are skipped.
  */
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects = getObjects(doc);
-  const result: StickySnapshot[] = [];
+  const result: ObjectSnapshot[] = [];
 
   objects.forEach((obj, id) => {
     const type = obj.get('type') as string;
-    if (type !== 'sticky') return;
+    if (!isKnownType(type)) return;
 
     const x = (obj.get('x') as number) ?? 0;
     const y = (obj.get('y') as number) ?? 0;
-    const color = (obj.get('color') as StickyColor) ?? DEFAULT_STICKY_COLOR;
-    const text = (obj.get('text') as Y.Text)?.toString() ?? '';
     const z = (obj.get('z') as number) ?? 0;
     const createdAt = (obj.get('createdAt') as number) ?? 0;
+    const width = obj.has('width') ? (obj.get('width') as number) : undefined;
+    const height = obj.has('height') ? (obj.get('height') as number) : undefined;
 
-    result.push({ id, type: 'sticky', x, y, color, text, z, createdAt });
+    const base: ObjectSnapshot = { id, type, x, y, z, createdAt };
+    if (width !== undefined) base.width = width;
+    if (height !== undefined) base.height = height;
+
+    if (type === 'sticky') {
+      const color = (obj.get('color') as StickyColor) ?? DEFAULT_STICKY_COLOR;
+      const text = (obj.get('text') as Y.Text)?.toString() ?? '';
+      result.push({ ...base, type: 'sticky' as const, color, text });
+    } else {
+      result.push(base);
+    }
   });
 
   result.sort((a, b) => a.z - b.z || a.id.localeCompare(b.id));
   return result;
+}
+
+/**
+ * Return a snapshot of all sticky notes only, sorted by (z, id).
+ * Kept for backward compatibility with story 2 code.
+ */
+export function snapshotSticky(doc: Y.Doc): readonly StickySnapshot[] {
+  return snapshot(doc).filter(isStickySnapshot);
 }

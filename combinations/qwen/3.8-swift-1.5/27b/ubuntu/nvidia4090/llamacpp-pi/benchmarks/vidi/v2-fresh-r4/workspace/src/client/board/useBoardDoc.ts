@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshot, type ObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 /**
@@ -9,7 +9,7 @@ import { connectBoard, type ConnectionState } from '../sync/connectBoard';
  */
 export function useBoardDoc(boardId?: string): {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  notes: readonly ObjectSnapshot[];
   connectionState: ConnectionState;
 } {
   const docRef = useRef<Y.Doc | null>(null);
@@ -33,7 +33,7 @@ export function useBoardDoc(boardId?: string): {
 
   // Cache the snapshot so getSnapshot returns a stable reference
   // until the doc actually changes.
-  const snapshotCacheRef = useRef<{ version: number; value: readonly StickySnapshot[] }>({
+  const snapshotCacheRef = useRef<{ version: number; value: readonly ObjectSnapshot[] }>({
     version: -1,
     value: [],
   });

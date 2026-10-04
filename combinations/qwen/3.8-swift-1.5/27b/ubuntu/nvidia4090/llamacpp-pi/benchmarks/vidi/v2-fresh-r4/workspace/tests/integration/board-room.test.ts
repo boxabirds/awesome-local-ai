@@ -11,7 +11,7 @@ import {
   getStickyText,
   snapshot,
   initDoc,
-  type StickySnapshot,
+  type ObjectSnapshot,
 } from '../../src/shared/board-model';
 import {
   createEncoder, toUint8Array, writeUint8, writeUint8Array,
@@ -91,7 +91,7 @@ async function waitFor(cond: () => boolean, timeoutMs = 10000): Promise<void> {
   }
 }
 
-function snapshotsEqual(a: readonly StickySnapshot[], b: readonly StickySnapshot[]): boolean {
+function snapshotsEqual(a: readonly ObjectSnapshot[], b: readonly ObjectSnapshot[]): boolean {
   if (a.length !== b.length) return false;
   for (const na of a) {
     const nb = b.find(n => n.id === na.id);

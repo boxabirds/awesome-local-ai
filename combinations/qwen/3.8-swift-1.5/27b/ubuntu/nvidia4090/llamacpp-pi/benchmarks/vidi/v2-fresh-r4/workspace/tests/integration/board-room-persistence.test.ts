@@ -31,7 +31,7 @@ import {
   createSticky,
   getStickyText,
   snapshot,
-  type StickySnapshot,
+  type ObjectSnapshot,
 } from '../../src/shared/board-model';
 import { createBoardViaApi } from './ws-client';
 import { BoardStore } from '../../src/worker/board-store';
@@ -186,7 +186,7 @@ async function waitForStorage<T>(
   }
 }
 
-function snapshotsEqual(a: readonly StickySnapshot[], b: readonly StickySnapshot[]): boolean {
+function snapshotsEqual(a: readonly ObjectSnapshot[], b: readonly ObjectSnapshot[]): boolean {
   if (a.length !== b.length) return false;
   for (const na of a) {
     const nb = b.find((n) => n.id === na.id);

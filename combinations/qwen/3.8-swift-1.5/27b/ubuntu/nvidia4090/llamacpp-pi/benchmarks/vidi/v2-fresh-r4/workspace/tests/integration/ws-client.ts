@@ -16,7 +16,7 @@ import * as Y from 'yjs';
 import * as syncProtocol from 'y-protocols/sync';
 import { createEncoder, toUint8Array, writeUint8, writeUint8Array } from 'lib0/encoding';
 import { createDecoder, readUint8, readTailAsUint8Array } from 'lib0/decoding';
-import { initDoc, snapshot, type StickySnapshot } from '../../src/shared/board-model';
+import { initDoc, snapshot, type ObjectSnapshot } from '../../src/shared/board-model';
 
 const MESSAGE_SYNC = 0;
 const MESSAGE_AWARENESS = 1;
@@ -26,7 +26,7 @@ export interface WsClient {
   doc: Y.Doc;
   flush: () => void;
   waitForSync: (timeoutMs?: number) => Promise<void>;
-  getSnapshot: () => readonly StickySnapshot[];
+  getSnapshot: () => readonly ObjectSnapshot[];
   readonly messageCount: number;
   readonly closed: boolean;
   readonly closeCode: number | null;

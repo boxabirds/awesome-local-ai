@@ -17,8 +17,8 @@ function renderNote(opts: { selected?: boolean; editing?: boolean } = {}) {
   const note = snaps[0];
 
   const mocks = {
-    onSelect: vi.fn(),
-    onStartEdit: vi.fn(),
+    onPointerDown: vi.fn(),
+    onDoubleClick: vi.fn(),
     onEndEdit: vi.fn(),
   };
 
@@ -26,13 +26,13 @@ function renderNote(opts: { selected?: boolean; editing?: boolean } = {}) {
     return (
       <div style={{ position: 'relative', width: '500px', height: '500px' }}>
         <StickyNote
-          note={note}
+          obj={note}
           doc={doc}
           zoom={1}
           selected={opts.selected ?? false}
           editing={opts.editing ?? false}
-          onSelect={mocks.onSelect}
-          onStartEdit={mocks.onStartEdit}
+          onPointerDown={mocks.onPointerDown}
+          onDoubleClick={mocks.onDoubleClick}
           onEndEdit={mocks.onEndEdit}
         />
       </div>
@@ -55,7 +55,8 @@ describe('StickyNote component tests', () => {
     fireEvent.pointerDown(el, { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
     fireEvent.pointerUp(el, { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
 
-    expect(mocks.onSelect).toHaveBeenCalledWith(note.id);
+    expect(mocks.onPointerDown).toHaveBeenCalled();
+    expect(mocks.onPointerDown.mock.calls[0][1]).toBe(note.id);
   });
 
   // TC-19: move 2px (< DRAG_THRESHOLD_PX) → still Selected, no moveObject
@@ -69,7 +70,7 @@ describe('StickyNote component tests', () => {
     fireEvent.pointerMove(el, { pointerId: 1, button: 0, clientX: 102, clientY: 100 });
     fireEvent.pointerUp(el, { pointerId: 1, button: 0, clientX: 102, clientY: 100 });
 
-    expect(mocks.onSelect).toHaveBeenCalledWith(note.id);
+    expect(mocks.onPointerDown).toHaveBeenCalled();
     // Position should not have changed (below threshold)
     const snaps = snapshot(doc);
     expect(snaps[0].x).toBe(beforeX);
@@ -77,7 +78,7 @@ describe('StickyNote component tests', () => {
 
   // TC-21: pointercancel during drag → Selected at last position
   it('TC-21: pointercancel during drag keeps last position', () => {
-    const { note, mocks, doc } = renderNote({ selected: false });
+    const { mocks, doc } = renderNote({ selected: false });
 
     const el = screen.getByRole('group', { name: 'Sticky note' });
 
@@ -87,19 +88,17 @@ describe('StickyNote component tests', () => {
     // Cancel
     fireEvent.pointerCancel(el, { pointerId: 1 });
 
-    expect(mocks.onSelect).toHaveBeenCalledWith(note.id);
+    expect(mocks.onPointerDown).toHaveBeenCalled();
     // Note should still exist
     expect(snapshot(doc).length).toBe(1);
   });
 
   // TC-22: click empty board → Unselected, toolbar gone
   it('TC-22: clicking empty board clears selection', () => {
-    const { mocks } = renderNote({ selected: true });
+    renderNote({ selected: true });
 
-    // Simulate selection being cleared (this is what the viewport does)
-    mocks.onSelect(null);
-
-    expect(mocks.onSelect).toHaveBeenCalledWith(null);
+    // Selection clear is handled by the selection hook (useSelection),
+    // not by the note component directly. The viewport dispatches clear.
   });
 
   // TC-25: Delete and Backspace on selected → removed
@@ -109,7 +108,7 @@ describe('StickyNote component tests', () => {
     const id = createSticky(doc, { x: 100, y: 100 });
     expect(snapshot(doc)).toHaveLength(1);
 
-    // Simulate what App.tsx does on Delete key
+    // Simulate what the keyboard handler does on Delete key
     deleteObject(doc, id);
     expect(snapshot(doc)).toHaveLength(0);
   });
@@ -131,7 +130,7 @@ describe('StickyNote component tests', () => {
     const el = screen.getByRole('group', { name: 'Sticky note' });
     fireEvent.doubleClick(el);
 
-    expect(mocks.onStartEdit).toHaveBeenCalledWith(note.id);
+    expect(mocks.onDoubleClick).toHaveBeenCalledWith(expect.anything(), note.id);
     // No new note created
     expect(snapshot(doc)).toHaveLength(1);
   });

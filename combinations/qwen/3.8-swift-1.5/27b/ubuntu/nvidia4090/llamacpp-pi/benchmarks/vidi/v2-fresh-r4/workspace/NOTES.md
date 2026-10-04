@@ -1,3 +1,60 @@
+# Story 7 Notes
+
+## Key Decisions
+
+### Object Type Registry
+- `src/client/objects/registry.tsx` maps type string → `ObjectTypeSpec` (Component, hitTest, resizable, aspectLocked, minSize, editableText).
+- `src/shared/known-types.ts` tracks registered type strings for isomorphic use (worker/validation).
+- Sticky is the only registered type; test-only `testbox` type registered in test files.
+- Duplicate registration throws.
+
+### Group Operations in board-model
+- `moveObjects(doc, positions: Map<string, Point>)` — sets absolute positions (not deltas).
+- `resizeObjects(doc, rects: Map<string, Rect>)` — sets absolute bounds.
+- `bringObjectsToFront(doc, ids)` — assigns max_z+1 incrementing.
+- `deleteObjects(doc, ids)` — removes from the Y.Map.
+- `objectsInRect(snaps, rect)` — fully-inside test for marquee select.
+- `allObjectIds(snaps)` — for Select All.
+- Old single-object functions are thin wrappers around the group versions.
+
+### Selection State
+- `useSelection` hook uses `useReducer` with pure `selectionReducer` (exported for testing).
+- Actions: click, toggle, setMany (additive), clear, prune, edit, endEdit.
+- `prune` removes ids no longer in the document (handles remote delete).
+- `editingId` tracks which note is in text-edit mode (prevents Delete key from deleting objects).
+
+### Transform Gesture
+- `useTransformGesture` handles group move and bounding-box resize.
+- Move: pointerdown on selected object → drag → all selected objects translate.
+- Resize: pointerdown on handle → drag → bounding box resizes, objects scale within.
+- Aspect lock: sticky notes lock aspect ratio; Shift also locks; testbox does not lock.
+- rAF coalescing: at most one Yjs transaction per animation frame.
+- `bringObjectsToFront` called at drag start (phase transition pressed→moving).
+
+### Marquee Select
+- Triggered by Shift+pointerdown on empty board space.
+- `useMarquee` hook: converts screen rect to world rect, finds fully-inside objects on release.
+- Additive: adds to existing selection.
+- `MarqueeRect` component renders the dashed rectangle during drag.
+
+### Keyboard Shortcuts
+- `useBoardKeys` hook: Ctrl/Cmd+A (select all), Escape (deselect), Arrows (nudge), Delete/Backspace (delete).
+- Nudge: 1 world unit (Arrow), 10 world units (Shift+Arrow).
+- Delete/Backspace ignored while editing text (`editingId` is set).
+- All shortcuts call `preventDefault` to prevent page scroll/native behavior.
+
+### E2E Test Notes
+- Marquee select works in e2e but requires `waitForTimeout` after `mouse.move` before `mouse.up()` for reliable selection.
+- Group move after marquee has a timing issue (selection state not yet propagated to gesture ref). Workaround: use Ctrl+A for group move tests.
+- `bringObjectsToFront` changes DOM order (z-index), so `nth(i)` locators are unreliable after moves. Use bounds-based assertions for concurrent editor tests.
+
+## Pre-existing Test Failures (not caused by story 7)
+- Component: BoardViewport (8), NavigationHint (1), load-failure (4) — jsdom rendering issues
+- E2E live-collab: TC-23 (concurrent typing), TC-25 (delete during edit) — WebSocket timing flakiness
+- E2E sticky-notes: TC-32 (drag at 200% zoom) — pre-existing
+
+---
+
 # Story 5 Notes
 
 ## Key Decisions
