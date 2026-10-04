@@ -1,3 +1,124 @@
+commit 6dd2a27adfa15206b32e4c0815426af9e913c178
+agent  Sun Oct 4 01:49:15 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                             |  72 ++++++++
+ PROGRESS.md                          |   4 +-
+ package.json                         |   3 +-
+ playwright.config.ts                 |   3 +
+ src/client/board/useBoardDoc.ts      |  15 +-
+ src/client/canvas/testHooks.ts       |  12 ++
+ src/client/sync/connectBoard.ts      |  20 +++
+ tests/e2e/helpers/live.ts            | 101 +++++++++++-
+ tests/e2e/live-collaboration.spec.ts | 311 ++++++++++++++++++++++++++++++++++-
+ 9 files changed, 534 insertions(+), 7 deletions(-)
+commit fa2aef7f8518fb50508758f3cec0c8c8c165d18a
+agent  Sun Oct 4 00:43:09 2026 +0000
+
+    story 3: live-collaboration e2e cases; sticky editor follows text arriving mid-typing
+
+
+ src/client/objects/StickyTextEditor.tsx    |  47 ++++
+ src/client/objects/caret.ts                |  40 +++
+ tests/component/standInRoom.ts             |  18 ++
+ tests/component/sticky-notes-sync.test.tsx | 237 +++++++++++++++++
+ tests/e2e/helpers/live.ts                  | 124 +++++++++
+ tests/e2e/live-collaboration.spec.ts       | 409 +++++++++++++++++++++++++++++
+ tests/unit/caret.test.ts                   |  56 ++++
+ 7 files changed, 931 insertions(+)
+commit c42f8be7693acfcf1aab4bf09fcbfc245517ea46
+agent  Sun Oct 4 00:13:45 2026 +0000
+
+    story 3: client provider connection, /b/:boardId route, status badge; badge component tests
+
+
+ NOTES.md                                  |  27 +++++
+ PROGRESS.md                               |   4 +-
+ src/client/App.tsx                        |  45 +++++++-
+ src/client/board/useBoardDoc.ts           |  27 +++--
+ src/client/board/useSelection.ts          |  26 ++++-
+ src/client/styles.css                     |  38 +++++++
+ src/client/sync/ConnectionStatus.tsx      |  30 ++++++
+ src/client/sync/connectBoard.ts           | 129 +++++++++++++++++++++++
+ tests/component/ConnectionStatus.test.tsx | 157 ++++++++++++++++++++++++++++
+ tests/component/boardHarness.tsx          |  17 ++-
+ tests/component/setup.ts                  |   7 ++
+ tests/component/standInRoom.ts            | 167 ++++++++++++++++++++++++++++++
+ tests/component/stickyHarness.tsx         |  11 +-
+ 13 files changed, 665 insertions(+), 20 deletions(-)
+commit a8b70866ac2bb626ace0f8075c8922abff47f506
+agent  Sat Oct 3 23:54:24 2026 +0000
+
+    story 3: BoardRoom room relay with Yjs sync, plus room and routing integration tests
+
+
+ NOTES.md                                 | 268 ++++++++--------------
+ PROGRESS.md                              |   6 +-
+ package.json                             |   2 +-
+ src/shared/protocol.ts                   |   7 +-
+ src/worker/board-room.ts                 | 202 +++++++++++++++-
+ tests/fixtures/random-ops.ts             | 127 +++++++++++
+ tests/integration/board-room.test.ts     | 380 +++++++++++++++++++++++++++++++
+ tests/integration/global-setup.ts        |  15 ++
+ tests/integration/helpers/live-server.ts |  55 +++++
+ tests/integration/helpers/ws-client.ts   | 345 ++++++++++++++++++++++++++++
+ tests/integration/worker.test.ts         |  93 ++++++++
+ tsconfig.json                            |   5 +
+ tsconfig.worker.json                     |   2 +-
+ vitest.config.ts                         |  35 ++-
+ wrangler.jsonc                           |   4 +-
+ 15 files changed, 1355 insertions(+), 191 deletions(-)
+commit f5b0445d1d3a1d96a91e980ba50640b59e96aaea
+agent  Sat Oct 3 23:10:04 2026 +0000
+
+    story 3: progress task 1-2
+
+
+ PROGRESS.md | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+commit ffb8a2c993cd6a2575e4fe080a062292b5f6080b
+agent  Sat Oct 3 23:10:04 2026 +0000
+
+    story 3 task 2: Worker entry routing, board ids, protocol decode, workerd test project
+
+
+ package-lock.json           |  8 +++++++
+ package.json                |  6 +++++-
+ src/shared/board-id.ts      | 14 ++++++++++---
+ src/shared/protocol.ts      | 35 +++++++++++++++++++++++++++++--
+ src/worker/board-room.ts    | 15 +++++++++++++
+ src/worker/index.ts         | 51 +++++++++++++++++++++++++++++++++++++++++++++
+ tests/unit/board-id.test.ts | 16 +++++++-------
+ tsconfig.json               | 12 ++++++++++-
+ tsconfig.worker.json        | 11 ++++++++++
+ vitest.config.ts            | 18 ++++++++++++++++
+ wrangler.jsonc              | 19 +++++++++++------
+ 11 files changed, 184 insertions(+), 21 deletions(-)
+commit 8024c3e1fde92cd485f1135343b1a65af4c4b81a
+agent  Sat Oct 3 23:00:20 2026 +0000
+
+    story 3 task 1: board id + protocol decode unit tests (red) and story 3 settings
+
+
+ PROGRESS.md                 |    2 +-
+ package-lock.json           | 1120 ++++++++++++++++++++++++++++++++++++++++---
+ package.json                |    6 +-
+ src/shared/board-id.ts      |   23 +
+ src/shared/config.ts        |   33 ++
+ src/shared/protocol.ts      |   33 ++
+ tests/unit/board-id.test.ts |   63 +++
+ tests/unit/protocol.test.ts |  113 +++++
+ 8 files changed, 1330 insertions(+), 63 deletions(-)
+commit 6ef390a8aa9f9df62835b51892ba13142714a0bc
+vidi-agent  Sat Oct 3 22:53:48 2026 +0000
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit 7feea7992bcf3ca288909d040e24daf01540d0a2
 agent  Sat Oct 3 22:52:30 2026 +0000
 
