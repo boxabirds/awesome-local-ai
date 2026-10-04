@@ -26,7 +26,7 @@ disk, 41.73 GiB resident) and Q4 (165.11 GiB, 69.74 GiB resident).
 ## What it measured against ds4 (its own figures, 27 and 29 Sep 2026, one M5 Max)
 
 Its headline claim is that it is faster than its parent on the same machine and the same weights. Q4, the size we
-would run:
+would run (and see "What testing it would actually achieve" below: speed is not the reason to run it):
 
 | | ds4 | sf | |
 |---|---:|---:|---:|
@@ -59,6 +59,23 @@ benchmarks stop short of the context a coding agent actually carries.
 
 Quantisation also differs from everything else on that machine, so a quality difference could not be attributed to
 the engine (see Confounds).
+
+## What testing it would actually achieve
+
+Not memory: the M5 Max has 128 GB, and the whole ds4 design — small resident weights, the n-gram table left on
+disk — answers a problem that machine does not have. Not speed either, on the published figures: 44.1 t/s at 65,536
+context is below the **58 tok/s median our mlx-serve runs already measure** at the benchmark's own context, and the
+one row that beats it (85.9 with MTP) is a short-prompt CLI benchmark.
+
+**The reason to run it is quality, and it is specific.** Flash-Next's n-gram table is 51B parameters. Our mlx-serve
+pack carries it as **one 4-bit `ngram_table.bin` (32.00 GB)**, dequantised 16 rows at a time on the CPU per token.
+This fork carries the **original BF16 table**, read from the GGUF. Nobody has measured what quantising a
+51B-parameter table to 4 bits costs, and our best Mac stack is the one doing it.
+
+A series here would not isolate the table — engine, expert quantisation and MTP all differ at once — but it would
+answer the question the owner actually has: whether a stack that keeps the table at BF16 scores better on the
+held-out suite than one that quantises it. If it does, the next question is whether mlx-serve can be made to keep
+it too.
 
 ## Checks before a run
 
