@@ -1,7 +1,8 @@
 # DwarfStar (ds4): a native engine for a few large models, Qwen3.8 Flash Next among them
 
 **Status:** candidate for the M5 Max, gated on the checks below (3 Oct 2026). Not run. By its own documentation it
-does not fit the RTX 4090 machine, and Strix Halo is not documented for Qwen.
+does not fit the RTX 4090 machine, and its Qwen page says outright "ROCm is not supported", which rules out the
+Strix Halo box rather than leaving it undocumented.
 **Kind:** a new engine on the model we already benchmark: a direct rival to mlx-serve, MTPLX, TensorFold and gufo.
 **Sources:** github.com/antirez/ds4 (MIT), read 3 Oct 2026: README, `docs/QWEN38_FLASH_NEXT.md`, `docs/MODELS.md`,
 `docs/CLIENTS.md`, `docs/CUDA_MULTI_GPU.md`, `docs/STRIX_HALO.md`, `docs/PERFORMANCE.md`, and its open issues. Nothing
@@ -41,7 +42,7 @@ issues were still being filed on 26 Sep. 754 issues are open.
 |---|---|
 | M5 Max, 128 GB (Metal, its primary target) | Fits: Q4 resident weights are 69.74 GiB (our mlx-serve pack: 75.6 GiB resident). Context and KV at 131,072 are not stated, so the memory at our minimum context is unknown |
 | RTX 4090, 24 GB VRAM and 62 GB RAM | Does not fit by its docs: 41.73 GiB of resident weights (Q2) against 24 GiB of VRAM, and its CUDA placement refuses layouts that need CPU execution. Its Qwen CUDA support is described as single-GPU, with the DGX Spark as the example. Not tried |
-| Strix Halo, 128 GB (ROCm) | The ROCm guide lists DeepSeek and GLM; Qwen is not mentioned there, and the Qwen page says Metal and CUDA only. Not documented |
+| Strix Halo, 128 GB (ROCm) | **Ruled out, not merely undocumented.** `docs/QWEN38_FLASH_NEXT.md` (last changed 16 Sep 2026, re-read 4 Oct): "ROCm is not supported. CPU code is a correctness reference, not a general inference backend." The ROCm guide itself covers only DeepSeek Flash and GLM. The same page adds that tensor parallelism, pipeline execution and SSD expert streaming "are not implemented for this model yet" |
 
 So the one candidate is the M5 Max, compared with mlx-serve (same model, a 4/8-bit pack), MTPLX and TensorFold.
 
@@ -82,5 +83,5 @@ The same engine changes one line of [DeepSeek V4.1](deepseek-v4.1.md). That note
 Q2 using SSD streaming on one 128 GB Mac (the Engram tables stay on disk in every mode, so it wants a fast SSD). That is a
 fact to weigh, unverified here, and not a decision to add a DeepSeek stack.
 
-**Last checked:** 3 Oct 2026. **Recheck when:** the owner wants another Flash-Next engine on the M5 Max after the
+**Last checked:** 4 Oct 2026 (the Qwen page re-read: ROCm unsupported, stated outright; nothing else re-read). **Recheck when:** the owner wants another Flash-Next engine on the M5 Max after the
 mlx-serve and MTPLX series; or its tool-call and caching issues (999, 1076, 1133) close; or it tags a release.
