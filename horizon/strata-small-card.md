@@ -23,6 +23,32 @@ SSD** — hardware that costs a fraction of either configuration above.
 | Disk | 70-80 GB for the model and ~6 GB for the MTP layer; NVMe strongly recommended |
 | Engine, model, client | as [our combination](../combinations/qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi/) pins them: Strata by commit, `ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF`, pi, 131,072 context, `--kv int8`, `--spec 4`, MTP draft layer |
 
+## A reference build, and why it is shaped oddly
+
+**The CPU computes a share of the experts**, it does not merely feed the card: `docs/INSTALL.md` says "the CPU's
+share of the experts runs on its kernels", and the instruction set decides how fast that share is. On one machine
+(Ryzen 5 7600 + RTX 5070, expert cache held at 1,500 slots, Coder and IQ3_XXS, greedy decode), the maintainer
+measured **26 tok/s** on the normal build against **11 to 17** forced to AVX and **3.5 to 3.8** forced to SSE4.2.
+AVX-512 is also what the Q2_0 pack needs; without it, only the i-quant packs install.
+
+| | Pick | Why |
+|---|---|---|
+| CPU | A modern Ryzen; the project's own reference machine is a **Ryzen 5 7600**, six cores | **AVX-512, not core count**: 26 against 11-17 tok/s on the same box, and the Q2_0 pack needs it. Check the instruction set of whatever is chosen rather than its tier |
+| RAM | **64 GB minimum, 96 to 128 GB comfortable**, the fastest DDR5 the board runs | The experts live here and the CPU computes on them, so bandwidth is on the critical path |
+| GPU | The most VRAM affordable, on **x16 lanes**; 16 GB over 12 | VRAM is the expert cache, and every miss crosses PCIe |
+| Disk | 1 TB **NVMe** | 70-92 GB of model plus ~6 GB of MTP layer, read per token, beside the agent's workspace |
+
+Two of those are the opposite of the usual advice: the expensive part is **RAM, not the graphics card**, and a
+cheap six-core CPU with the right instruction set beats an expensive one without it. For the same reason the
+gaming hierarchy can invert between cards — what matters is how many experts fit, so a 16 GB card one tier down
+should beat a 12 GB card one tier up.
+
+**How much system RAM, precisely.** Our own measurement on the RTX 4090 is the only agent-shaped evidence: the
+engine was resident at **42.7 to 43.5 GiB** at 131,072 context, on a 62 GB machine that also ran the agent, Node,
+browsers and test servers. Our combination guards at a 50 GB minimum. So 64 GB carries IQ3_XXS with little slack,
+and 96 GB or more buys both the better packs and page cache for the model file, which is where the misses are
+served from.
+
 ## What the project publishes for it (not ours)
 
 An RTX 5070 (12 GB) with 64 GB of RAM, from `docs/MODELS.md`:
@@ -56,6 +82,10 @@ is narrow and can be put to someone who owns a 12 GB card.
 
 Only the speed half, and only if quality passes: a 12 GB card with 64 GB of RAM, running one story at 131,072
 context, with the expert cache hit rate and PCIe miss share captured from `/metrics` beside it.
+
+Card and CPU model numbers above are from the project's documentation where it names them (the Ryzen 5 7600 and the
+RTX 5070 are its own machines). The VRAM of any particular card, and its PCIe lane count, are not stated there and
+should be checked before anything is bought on the strength of this note.
 
 **Last checked:** 4 Oct 2026 (Strata's README, `docs/INSTALL.md` and `docs/MODELS.md`; nothing run).
 **Recheck when:** the first Strata story is scored on the RTX 4090.
