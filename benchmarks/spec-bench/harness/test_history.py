@@ -10,10 +10,11 @@ import pytest
 import heldout
 import history
 import report
+from conftest import record_before_archive
 from drive import REPO_ROOT
 
-RTX4090_RUN = (REPO_ROOT / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi"
-               / "canvas-pi-03")
+# Archived (4 Oct 2026): read from git history by record_before_archive.
+RTX4090_RUN = "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-pi-03"
 
 # The real runs' held-out detail lives in the private repo's copy (the public record has counts only): these tests
 # read it there, read-only, and are skipped where it isn't checked out.
@@ -108,9 +109,9 @@ def test_the_report_has_a_how_it_happened_section(tmp_path):
 
 
 @has_private
-@pytest.mark.skipif(not RTX4090_RUN.exists(), reason="no canvas-pi-03 records in this checkout")
-def test_rtx4090_story_7_is_found_as_the_story_that_broke_stories_1_to_5(real_private):
-    h = history.analyse(RTX4090_RUN)
+def test_rtx4090_story_7_is_found_as_the_story_that_broke_stories_1_to_5(real_private, tmp_path):
+    run = record_before_archive(RTX4090_RUN, tmp_path)
+    h = history.analyse(run)
     by7 = {c["of_story"]: c for c in h["changes"] if c["by_story"] == "7"}
     assert {"01", "02", "03", "04", "05"} <= set(by7), by7.keys()
     assert sum(len(c["broke"]) for c in by7.values()) >= 10
@@ -125,11 +126,10 @@ def test_rtx4090_story_7_is_found_as_the_story_that_broke_stories_1_to_5(real_pr
     # the error says what was wrong: the typed text never arrived
     typed = next(c for c in h["changes"] if c["by_story"] == "7" and c["of_story"] == "02")
     assert "Received" in typed["common_error"], typed["common_error"]
-    assert "## How it happened" in report.summary(RTX4090_RUN)
+    assert "## How it happened" in report.summary(run)
 
 
-M5_MAX_RUN = (REPO_ROOT / "combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/benchmarks/vidi"
-               / "canvas-pi-03")
+M5_MAX_RUN = "combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/benchmarks/vidi/canvas-pi-03"   # archived, as above
 
 
 def interrupted_run(tmp_path: Path) -> Path:
@@ -176,9 +176,8 @@ def test_the_report_states_interruptions_and_totals(tmp_path):
     assert "machine freeze" in text and "1 machine freeze" in text and "32 min" in text
 
 
-@pytest.mark.skipif(not M5_MAX_RUN.exists(), reason="no M5 Max canvas-pi-03 records in this checkout")
-def test_m5_max_freeze_2_is_found_in_story_3_with_its_logged_cause():
-    h = history.analyse(M5_MAX_RUN)
+def test_m5_max_freeze_2_is_found_in_story_3_with_its_logged_cause(tmp_path):
+    h = history.analyse(record_before_archive(M5_MAX_RUN, tmp_path))
     s3 = [i for i in h["interruptions"] if i["story"] == "3"]
     assert s3 and s3[0]["kind"] == "machine freeze" and 20 * 60 <= s3[0]["gap_s"] <= 25 * 60, s3
     st = h["stories"]["3"]

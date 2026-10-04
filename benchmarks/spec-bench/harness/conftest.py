@@ -23,6 +23,7 @@ $SPEC_BENCH_REQUIRE_SANDBOX set (CI sets it) it fails instead, so the sandbox ca
 import atexit
 import os
 import shutil
+import subprocess
 import tempfile
 import uuid
 from pathlib import Path
@@ -104,3 +105,21 @@ def outside_shared_temp():
         yield d
     finally:
         shutil.rmtree(d, ignore_errors=True)
+
+
+# Records archived on 4 October 2026 (plans/20261003-archive-superseded-records.md) left the working tree. A test built
+# on a real incident in one of them reads it from the last commit that still held it.
+RECORDS_BEFORE_ARCHIVE = "3ff97db22d29ea7ff64422a10fb40634b2b07759"
+
+
+def record_before_archive(rel: str, root: Path) -> Path:
+    """The run record at repo-relative `rel` as it was committed before it was archived, extracted under `root`.
+    `root` is marked as a checkout, so the record's repo-relative path, and with it its private copy
+    (heldout.private_copy), is what it was. Skips the test where this clone lacks that commit."""
+    repo = Path(__file__).resolve().parents[3]
+    tar = subprocess.run(["git", "-C", str(repo), "archive", RECORDS_BEFORE_ARCHIVE, rel], capture_output=True)
+    if tar.returncode != 0:
+        pytest.skip(f"this clone has no {RECORDS_BEFORE_ARCHIVE[:9]}, the last commit with {rel}")
+    (root / ".git").mkdir(parents=True, exist_ok=True)
+    subprocess.run(["tar", "-x", "-C", str(root)], input=tar.stdout, check=True)
+    return root / rel
