@@ -15,6 +15,7 @@ import {
   WHEEL_LINE_HEIGHT_PX,
 } from '../../shared/config';
 import type { Camera, Point, Size } from './camera';
+import type { ToolId } from '../tools/useActiveTool';
 import type { CameraInputHandlers } from './useCamera';
 
 export interface BoardViewportProps {
@@ -55,8 +56,9 @@ export interface BoardViewportProps {
   onTextPlace?(point: Point): void;
 }
 
-/** What a press on the board is for: the two tools this story has. */
-export type BoardTool = 'select' | 'text';
+/** What a press on the board is for. Every tool the board has, in one list: the viewport takes the
+ * pointer over for the ones that place something, and the rest are drawn by their own tool. */
+export type BoardTool = ToolId;
 
 /**
  * The rectangle a person drags across empty board space to select what is inside it.

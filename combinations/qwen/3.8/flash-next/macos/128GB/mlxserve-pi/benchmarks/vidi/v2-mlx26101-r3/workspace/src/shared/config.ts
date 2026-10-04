@@ -220,3 +220,126 @@ export function isTextSize(value: unknown): value is TextSize {
 export function isTextWidthMode(value: unknown): value is TextWidthMode {
   return value === 'auto' || value === 'fixed';
 }
+
+/* Shapes and arrows (story 10) ------------------------------------------------
+ *
+ * The numbers behind "draw a shape, point an arrow at another shape". The sizes
+ * are world units - the same units a sticky note is measured in, so a rectangle
+ * drawn at 200% zoom is twice as many *pixels* but the same 160 units, and the
+ * arrow that joins it is still 2 units thick.
+ */
+
+/** The three shapes there are to draw. A shape's kind is chosen as it is made. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+
+/** One of the three shapes the Shape tool draws. */
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** What each shape is called in the interface. */
+export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+
+/**
+ * The shape somebody gets when they click without dragging, or drag a line: there
+ * is no such thing as a shape of no size, so a drag too small to be one is
+ * treated as a click and this is the size it becomes.
+ */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/** The smallest a shape may be left at, whatever a resize gesture was dragged to. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/**
+ * How much a shape's label may hold. It is half what a free text object may hold
+ * because the label has to fit *inside* the shape that carries it, and a shape is
+ * drawn as a button somebody points at, not as a page.
+ */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** How the label is drawn: the font is in world units, so it scales with the board. */
+export const SHAPE_LABEL_FONT_WORLD = 20;
+
+/** How thick a shape's outline is drawn, in world units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** The fills a shape may have. `none` first, because that is the swatch on the left. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+
+/** The colours a shape's outline may be given. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+
+/** The name a fill is stored under - `'none'` for a shape with no fill. */
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** The name an outline colour is stored under. */
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** A new shape is a white rectangle with a dark outline: what a flowchart box looks like. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+/** Whether `value` is one of the three shape kinds; anything else reads back as `'rect'`. */
+export function isShapeKind(value: unknown): value is ShapeKind {
+  return typeof value === 'string' && (SHAPE_KINDS as readonly string[]).includes(value);
+}
+
+/**
+ * Whether `value` is one of the fill names. The document stores the *name*, never
+ * the hex, so a value that is not one of these is not a colour somebody chose - it
+ * is a corruption or a foreign write, and the shape is drawn with the default
+ * rather than with whatever string arrived.
+ */
+export function isFillColor(value: unknown): value is FillColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_FILL_COLORS, value);
+}
+
+/** The same for an outline colour. */
+export function isStrokeColor(value: unknown): value is StrokeColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_STROKE_COLORS, value);
+}
+
+/**
+ * The shortest an arrow may be. An arrow shorter than this is not an arrow, it is
+ * a stray mark on the board: it cannot show an arrowhead, and it is far more
+ * likely to be a slip of the pointer than something somebody meant to draw. A
+ * release this close to where it started changes nothing and leaves the tool up.
+ */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/**
+ * How close to an arrow a click has to land to select it, in *screen* pixels.
+ *
+ * The one tolerance in the product that is deliberately not measured in world
+ * units: a line two units thick is a hair's width at 200% zoom and a band at 25%,
+ * and what a person is aiming at is a number of pixels on their own screen. So the
+ * distance is converted to world units by dividing by the zoom when the line is
+ * tested, and the same 6 pixels mean 12 world units at 50% zoom and 3 at 200%.
+ */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** How thick an arrow is drawn, in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** How long the arrowhead's two sides are, in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** The radius of the four dots a shape shows on its sides while an arrow is aimed at it. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;

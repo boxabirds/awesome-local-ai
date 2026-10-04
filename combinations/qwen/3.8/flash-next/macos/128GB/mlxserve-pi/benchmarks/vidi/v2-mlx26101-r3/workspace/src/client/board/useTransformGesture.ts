@@ -467,6 +467,13 @@ export function useTransformGesture({
         return;
       }
       const ids = selectionNow.ids.has(id) ? [...selectionNow.ids] : [id];
+      const pressed = objectsRef.current.find((each) => each.id === id);
+      if (pressed !== undefined && getObjectType(pressed.type)?.movable === false) {
+        // Selected, and that is as far as it goes. An arrow's place is a consequence of the two things
+        // it is drawn between, so there is nothing here for a drag to write: its own two handles move
+        // its two ends, and the line follows them on its own.
+        return;
+      }
       prepare(
         'pointerId' in event ? event.pointerId : 1,
         event,

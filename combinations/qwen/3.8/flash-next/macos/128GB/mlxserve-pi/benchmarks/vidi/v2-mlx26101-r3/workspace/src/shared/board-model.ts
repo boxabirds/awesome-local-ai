@@ -1,15 +1,23 @@
 import * as Y from 'yjs';
 import {
   DEFAULT_STICKY_COLOR,
+  SHAPE_DEFAULT_SIZE_WORLD,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  isFillColor,
+  isShapeKind,
+  isStrokeColor,
   isTextSize,
   isTextWidthMode,
+  type FillColor,
+  type ShapeKind,
   type StickyColor,
+  type StrokeColor,
   type TextSize,
   type TextWidthMode,
 } from './config';
 import { rectContains, unionRects, type Point, type Rect } from './geometry';
+import { readEndpoint, type Endpoint } from './geometry/connector-geometry';
 
 /**
  * The board document schema and every mutation of it.
@@ -35,7 +43,19 @@ import { rectContains, unionRects, type Point, type Rect } from './geometry';
  *     <id>: Y.Map {            // a text object (story 9), which has no colour and instead:
  *       type: 'text', size: TextSize, widthMode: 'auto' | 'fixed', createdBy: string
  *     }
+ *     <id>: Y.Map {            // a shape (story 10): a box, an oval or a diamond with a label
+ *       type: 'shape', kind: ShapeKind, fill: FillColor | 'none', stroke: StrokeColor,
+ *       label: Y.Text, width, height, createdBy: string
+ *     }
+ *     <id>: Y.Map {            // an arrow (story 10); its own box is derived, see `from`/`to`
+ *       type: 'connector', from: Endpoint, to: Endpoint, createdBy: string
+ *     }
  * ```
+ *
+ * Two types are written by story 10 and read here: `shape`, which is an ordinary object with three
+ * extra fields, and `connector`, whose `x`/`y`/`width`/`height` are not its own but worked out from
+ * the objects its two ends are fastened to - the one place in this module where a box is a
+ * consequence rather than a fact (see {@link registerDerivedBounds}).
  *
  * Every successful mutation is exactly one `doc.transact(fn, LOCAL_ORIGIN)`; a rejected
  * mutation (stale id, unknown colour, non-finite coordinates, pointless re-stack) returns
@@ -55,6 +75,18 @@ export const OBJECTS_MAP = 'objects';
 
 /** The `type` discriminator of a sticky note. Unknown values are skipped by the reader. */
 export const STICKY_TYPE = 'sticky';
+
+/**
+ * The `type` discriminator of a shape (story 10) and of an arrow between objects (story 10).
+ *
+ * These two live here rather than in `objects/shape.ts` and `objects/connector.ts`, next to the
+ * functions that write them, because the reader below has to know the names to give a shape its
+ * default size and to leave an arrow's box to be worked out - and those modules import this one to
+ * be written at all. Each of them re-exports the name it owns, so the code that *writes* a shape
+ * keeps saying `SHAPE_TYPE` from where it stands.
+ */
+export const SHAPE_TYPE = 'shape';
+export const CONNECTOR_TYPE = 'connector';
 
 /**
  * The object types this client can read.
@@ -80,6 +112,65 @@ export function registerObjectReader(type: string): void {
 /** Whether {@link snapshot} reads objects of this `type`. */
 export function canReadObjectType(type: unknown): boolean {
   return typeof type === 'string' && readableTypes.has(type);
+}
+
+/**
+ * Something that may delete other objects as a consequence of a deletion, in the same transaction.
+ */
+type DeletionObserver = (doc: Y.Doc, ids: readonly string[]) => void;
+
+const deletionObservers = new Set<DeletionObserver>();
+
+/**
+ * Ask to be told when objects are deleted.
+ *
+ * The board cannot import the object types - they import the board - so a type with work to do when
+ * something else leaves registers that work here, the same way it registers itself as readable.
+ * There is one such piece of work today, and it belongs to arrows: an arrow attached to a shape
+ * that is being deleted is detached from it first, so that no client, on no board, is ever left
+ * looking at an arrowhead floating over the place a shape used to be. It runs inside
+ * {@link deleteObjects}' transaction, which is what makes the two deletions one change to the board
+ * - one undo, one update on the wire.
+ *
+ * @returns whether this exact observer was already registered (registering it twice is harmless)
+ */
+export function onObjectsDeleted(observer: DeletionObserver): boolean {
+  const already = deletionObservers.has(observer);
+  deletionObservers.add(observer);
+  return already;
+}
+
+/**
+ * Where an object is drawn, for a type whose box is not its own (story 10).
+ *
+ * Every other type owns its box: a note, a shape and a piece of text are drawn at the `x`, `y`,
+ * `width` and `height` written in them. An arrow is drawn where its two ends are, and an end is
+ * attached to another object - so its box is a consequence of that object's box, which is exactly
+ * why an arrow follows a shape that is dragged across the board and needs nothing of anybody but
+ * the next read of the document.
+ *
+ * The resolver is asked once per object per {@link snapshot}, with the boxes of everything on the
+ * board that owns its own. The box it returns is written over the object's stored one, which is
+ * what lets selection, marquee, bounds, paste and the Durable Object's validation keep asking the
+ * one question they have always asked - `where is this object` - and get an answer that is true for
+ * arrows too.
+ */
+export type BoundsResolver = (
+  object: ObjectSnapshot,
+  rects: ReadonlyMap<string, Rect>,
+) => Rect | null;
+
+const boundsResolvers = new Map<string, BoundsResolver>();
+
+export function registerDerivedBounds(type: string, resolver: BoundsResolver): void {
+  if (type !== '') {
+    boundsResolvers.set(type, resolver);
+  }
+}
+
+/** Whether objects of this `type` have a box that has to be worked out before it can be used. */
+export function hasDerivedBounds(type: unknown): boolean {
+  return typeof type === 'string' && boundsResolvers.has(type);
 }
 
 /**
@@ -112,9 +203,49 @@ export interface ObjectSnapshot {
   readonly size?: TextSize;
   /** Whether a text object's width follows its longest line or the width it was given. */
   readonly widthMode?: TextWidthMode;
+  /**
+   * A shape's kind, colours and label (story 10), when the object is a shape. Read the same generic
+   * way `size` and `widthMode` are - a value that is not one of the named settings is left out and
+   * the type's own reader falls back to its default - and optional for the same reason: a client
+   * that has never heard of shapes must still be able to read a board that has them on it.
+   */
+  readonly kind?: ShapeKind;
+  readonly fill?: FillColor;
+  readonly stroke?: StrokeColor;
+  readonly label?: string;
+  /**
+   * Where an arrow starts and where it ends (story 10), when the object is an arrow.
+   *
+   * These are the arrow's *cause*; its `x`/`y`/`width`/`height` above are its *consequence*, worked
+   * out from these and from the box of whatever the ends are attached to (see
+   * {@link registerDerivedBounds}). That is the whole reason an arrow follows a shape: nobody
+   * rewrites the arrow when the shape moves, the arrow is simply asked where it is again.
+   */
+  readonly from?: Endpoint;
+  readonly to?: Endpoint;
   /** Who made this object. There is no account system yet, so this is what the creating client
    * called itself; the board does not check it and nothing in the UI reads it. */
   readonly createdBy?: string;
+}
+
+/**
+ * A shape (story 10), as the board reads it.
+ *
+ * The three fields only a shape has are required here, because the shape's own reader gives all
+ * three a value: a shape written by a client that knew a kind this one does not is still drawn -
+ * as a rectangle, in the default colours - rather than disappearing from the board. Story 9 did the
+ * same for a text object's size.
+ */
+export interface ShapeSnapshot extends ObjectSnapshot {
+  readonly type: 'shape';
+  /** Which of the three shapes it is drawn as. */
+  readonly kind: ShapeKind;
+  /** Which of the palette's fills, or `'none'`. */
+  readonly fill: FillColor;
+  /** Which of the palette's outline colours. */
+  readonly stroke: StrokeColor;
+  /** The shape's label, '' when it has nothing written in it. */
+  readonly label: string;
 }
 
 /**
@@ -462,6 +593,13 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
     return 0;
   }
   doc.transact(() => {
+    // Whatever was pointing at these objects is told first, and its work goes in the same
+    // transaction: a board saved in between the two would be a board with an arrow pointing at
+    // nothing, which is the one thing story 10 promises nobody ever sees.
+    const gone = [...present];
+    for (const observer of deletionObservers) {
+      observer(doc, gone);
+    }
     for (const id of present) {
       objects.delete(id);
     }
@@ -480,9 +618,27 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 }
 
 /** A positive stored size, or the size every object was before story 7 let them be resized. */
-function readSize(object: YObject, key: string): number {
+/**
+ * The size an object of `type` is drawn at when the document holds no size for it.
+ *
+ * A note is 240 units square, because that is the only size a note has ever been. A shape gets the
+ * size a click gives it, so an object written by a client that did not store a size is drawn the way
+ * it would be drawn by a click today rather than at the size of a note. An arrow is the odd one: it
+ * has no size of its own at all - it is drawn where its ends are - so it is read at nothing and
+ * given its box from its ends a few lines later, or dropped if they cannot be read.
+ */
+function defaultSize(type: unknown): number {
+  if (type === SHAPE_TYPE) {
+    return SHAPE_DEFAULT_SIZE_WORLD;
+  }
+  return type === CONNECTOR_TYPE ? 0 : STICKY_SIZE_WORLD;
+}
+
+function readSize(object: YObject, key: string, type: unknown): number {
   const size = object.get(key);
-  return typeof size === 'number' && Number.isFinite(size) && size > 0 ? size : STICKY_SIZE_WORLD;
+  return typeof size === 'number' && Number.isFinite(size) && size > 0
+    ? size
+    : defaultSize(type);
 }
 
 /**
@@ -510,6 +666,10 @@ function readObject(id: string, object: YObject): ObjectSnapshot | null {
   const createdAt = object.get('createdAt');
   const size = object.get('size');
   const widthMode = object.get('widthMode');
+  const kind = object.get('kind');
+  const fill = object.get('fill');
+  const stroke = object.get('stroke');
+  const label = object.get('label');
   const createdBy = object.get('createdBy');
   if (
     typeof x !== 'number' ||
@@ -528,19 +688,30 @@ function readObject(id: string, object: YObject): ObjectSnapshot | null {
   } else if (text !== undefined && !(text instanceof Y.Text)) {
     return null;
   }
+  // A label is typed into, and merged with somebody else's typing, exactly like a `text` field is,
+  // so it is held to the same rule: a plain string where a `Y.Text` belongs is not readable.
+  if (label !== undefined && !(label instanceof Y.Text)) {
+    return null;
+  }
   return {
     id,
     type: typeof type === 'string' ? type : STICKY_TYPE,
     x,
     y,
-    width: readSize(object, 'width'),
-    height: readSize(object, 'height'),
+    width: readSize(object, 'width', type),
+    height: readSize(object, 'height', type),
     color: isStickyColor(color) ? color : DEFAULT_STICKY_COLOR,
     text: text instanceof Y.Text ? text.toString() : '',
     z,
     createdAt: typeof createdAt === 'number' ? createdAt : 0,
     ...(isTextSize(size) ? { size } : {}),
     ...(isTextWidthMode(widthMode) ? { widthMode } : {}),
+    ...(isShapeKind(kind) ? { kind } : {}),
+    ...(isFillColor(fill) ? { fill } : {}),
+    ...(isStrokeColor(stroke) ? { stroke } : {}),
+    ...(label instanceof Y.Text ? { label: label.toString() } : {}),
+    ...(readEndpoint(object.get('from')) !== null ? { from: readEndpoint(object.get('from'))! } : {}),
+    ...(readEndpoint(object.get('to')) !== null ? { to: readEndpoint(object.get('to'))! } : {}),
     ...(typeof createdBy === 'string' && createdBy !== '' ? { createdBy } : {}),
   };
 }
@@ -548,8 +719,13 @@ function readObject(id: string, object: YObject): ObjectSnapshot | null {
 /**
  * Render order: objects sorted by `(z, id)`. The id tie-break matters as soon as two peers
  * stack at the same time (story 3): equal `z` values still give every client the same
- * order. Objects of unknown `type` - the shapes and frames of later stories - and
- * malformed notes are skipped rather than thrown on.
+ * order. Objects of unknown `type` - the frames of later stories - and malformed notes are
+ * skipped rather than thrown on.
+ *
+ * An object whose box is derived - an arrow, today - is read twice: once for what it is, and then
+ * once more with its box worked out from the objects its ends are attached to. The boxes of the
+ * objects that own their own are all known before any derived one is asked, so an arrow attached
+ * to a shape that was moved one transaction ago is drawn where that shape now is.
  */
 export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects: ObjectSnapshot[] = [];
@@ -563,7 +739,45 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     }
   }
   objects.sort(compareNotes);
-  return objects;
+  return resolveDerivedBoxes(objects);
+}
+
+/** The boxes of everything that carries its own, in the order the board draws things. */
+function intrinsicRects(objects: readonly ObjectSnapshot[]): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const object of objects) {
+    if (!hasDerivedBounds(object.type)) {
+      rects.set(object.id, objectBounds(object));
+    }
+  }
+  return rects;
+}
+
+/** Write every derived box over the object it belongs to, dropping what cannot be drawn. */
+function resolveDerivedBoxes(objects: readonly ObjectSnapshot[]): ObjectSnapshot[] {
+  const derived = objects.filter((object) => hasDerivedBounds(object.type));
+  if (derived.length === 0) {
+    // The answer for every board without arrows in it, which is every board until story 10.
+    return [...objects];
+  }
+  const rects = intrinsicRects(objects);
+  const result: ObjectSnapshot[] = [];
+  for (const object of objects) {
+    const resolver = boundsResolvers.get(object.type);
+    if (resolver === undefined) {
+      result.push(object);
+      continue;
+    }
+    const box = resolver(object, rects);
+    if (box === null) {
+      // It is on the board, but this client cannot tell where it would be drawn. Story 9's rule for
+      // a box of not-a-number applies unchanged: an object with no box is not drawn, not selected
+      // and not hit - and an arrow with no line to draw is not an arrow.
+      continue;
+    }
+    result.push({ ...object, x: box.x, y: box.y, width: box.width, height: box.height });
+  }
+  return result;
 }
 
 function compareNotes(a: ObjectSnapshot, b: ObjectSnapshot): number {

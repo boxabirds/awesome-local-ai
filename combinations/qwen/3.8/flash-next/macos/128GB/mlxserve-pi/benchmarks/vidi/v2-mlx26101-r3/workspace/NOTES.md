@@ -744,3 +744,80 @@ above.
   objects can disappear under a person - story 10's groups, story 12's undo, story 14's permissions -
   has that already handled, in unit tests (TC-35 e2e, TC-13/14 component); it does not need its own
   cleanup and must not add a second one.
+
+## Where story 10 leaves the board
+
+- **An arrow stores a relationship, not a picture of one.** `shared/objects/connector.ts` writes an
+  endpoint as *an object and a side* (or a point, for the one end that was let go in the air), and
+  `shared/geometry/connector-geometry.ts` is the only thing that turns that back into points. The
+  board model, the drawing, the hit test and the tests all call it, so "the arrow followed the shape"
+  is not a synchronisation feature: a shape moves, the snapshot changes, every screen that draws the
+  arrow asks the same question of the new box and gets the same answer. Nothing is written down to be
+  kept up to date. The one rule that keeps this from being a loop is that **ends are found by
+  `attached.objectId`, never by position** - two shapes parked on top of each other do not exchange
+  their arrows.
+- **`registerDerivedBounds` is how an object whose box belongs to other objects gets one.**
+  `board-model`'s `snapshot()` runs resolvers in a second pass and drops an object whose resolver says
+  `null` - an arrow between two shapes that have gone - from *every* reader's result, so a client, a
+  reloaded board and the Durable Object's `validateBoard` all agree that such an arrow is not there.
+  It deliberately does not touch `objectsMap`, so the arrow is still in the document, still selected,
+  still deletable by id, and comes back the moment its shapes do.
+- **A deletion that others depend on is announced, not chased.** `onObjectsDeleted(observer)` is
+  registered by `connector.ts` next to the type itself: when shapes go, `detachConnectorsTo` turns the
+  arrows' attached ends into the free points the geometry had just been drawing at, in one
+  transaction, and *nothing else runs* that frame - no re-resolve, because there is no second place
+  where those points live. Deleting a shape takes its own arrows' boxes with it and leaves the arrows;
+  deleting everything in one go cannot contradict itself because one pass sees one consistent view.
+- **Tools that sweep an area claim the window, not the board.** `tools/boardPointer.ts` +
+  `ShapeTool` / `ConnectorTool` take the pointerdown at the window in the **capture** phase, decide
+  with `isBoardUi` / `isGrabbed` and the object registry whether it is a board gesture at all, and
+  `stopPropagation` before the pan and the marquee can see it. This is what story 8's touch pan and
+  story 9's free text both needed and did not have: a second gesture tool used to be a special case in
+  `useSelection`. A `click` at the end of a drag that created something is swallowed the same way,
+  because otherwise the board's own click handler - and, with the pen still up, a sticky note - fires
+  on a pointer that was drawing a rectangle.
+- **The arrow's box is written once, at creation, and never maintained.** `createConnector` stores the
+  rectangle around its two ends so that a client which cannot do the endpoint arithmetic still has a
+  box; `ConnectorObject` reads the live ends and uses the stored box only to know how much world to
+  draw on. An object that has no position of its own is `movable: false` in its registry entry, so the
+  generic drag leaves it alone and its two handles are the only way to change it.
+- **`src/client/board/BoardContext.tsx` is where an object type stops needing props to be passed
+  through ten components.** It carries `doc`, `objects`, `rects`, `camera`, `canEdit`, `undo` and
+  `who`; a shape's toolbar and an arrow's handles read it instead of being handed what they need.
+  `rects` is memoised off the snapshot, and its dependency is the whole `objects` object, so a move
+  makes one new map per change and not one per object.
+- **`tools/useActiveTool.ts` is the tool state, and `TOOL_SHORTCUTS` is the only table of keys that
+  exists.** A story that adds a tool adds an id and a shortcut there plus one component in `App.tsx`;
+  the Toolbar, the keyboard and the pointer read the same state. When a text field is open the shortcuts
+  are deaf (`isTextEntryTarget`, which is the same question `useBoardKeys` asks) - a `t` typed into a
+  label is not a tool change, and that is why the listener does not hang off the tool's own component.
+
+### Findings from story 10, for whoever reads it next
+
+- **A drawing bug in an object's own coordinate space is invisible to every test but a browser's.**
+  `ConnectorObject` positions its `<div>` at `object.x - PAD` and then mapped its ends with
+  `local(p) = p - origin + PAD`, adding the room around the box twice: every arrow on every board was
+  drawn two rooms' width below and right of the ends it was fastened to - while still reporting its
+  ends correctly, still following its shapes, and still passing all 700-odd jsdom tests, which read
+  attributes rather than measure anything. It was found by a real-browser test that asked where a click
+  seven pixels off an arrow's line lands. Anything that draws into a box it computed for itself wants
+  at least one assertion measured in the browser, in pixels.
+- **Six screen pixels is a tolerance a browser will honour exactly, if the drawing is right.** With
+  `strokeWidth = CONNECTOR_HIT_TOLERANCE_PX * 2 / zoom` and `pointer-events: stroke` on an invisible
+  line, `document.elementFromPoint` hit up to 6.0 px off the arrow and missed from 6.25 px, at 50%,
+  100% and 200% zoom alike - no antialiasing fuzz, no browser padding. If a tolerance test ever comes
+  back fuzzy, look for a drawing bug before blaming the engine.
+- **`Range.getClientRects()` gives a rectangle to a trailing space.** A test that measured a label's
+  lines one `Range` at a time found the last word of a wrapped line "widest on the board" by exactly
+  one space's width, because Chromium hands out a rect for the space a line-break swallowed. Measure
+  words, not lines, when the question is which line is widest; `labelLines` in
+  `tests/e2e/helpers/shapes.ts` walks the text nodes and puts a `Range` round one word at a time.
+- **A gesture test has to know where the furniture is.** With the default camera the toolbar occupies
+  the screen as far right as x ≈ 110, and a gesture started there is ignored by the tools on purpose,
+  which looks exactly like a tool that does not work. `ontoTheBoard()` in that same helper asks
+  `document.elementFromPoint` (with the same `data-board-ui` escape the app uses) and says so in words
+  before the test times out; use it in any helper that takes a point someone wrote down as a literal.
+- **`data-from-target` / `data-to-target` on the drawn arrow are what make "which shape is this end
+  fastened to?" observable.** The model says which object an end names; the element says which object
+  this browser's geometry put the end on *now*, and the difference between the two is exactly the class
+  of bug this story could have had. Keep them when the drawing changes.

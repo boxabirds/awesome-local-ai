@@ -1,7 +1,11 @@
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
+import { SHAPE_KINDS, SHAPE_KIND_LABELS, type ShapeKind } from '../../shared/config';
 import { UndoButtons } from './UndoButtons';
 import type { UndoState } from './useUndo';
-import type { Tool } from './useTool';
+import type { ToolId } from '../tools/useActiveTool';
+
+/** What a tool is called on the screen, so the toolbar and the shortcut say one name. */
+const TOOL_KEYS: Partial<Record<ToolId, string>> = { select: 'V', text: 'T', shape: 'S', connector: 'L' };
 
 /** Shown when hovering the sticky note button (PRD "Add sticky notes", FR-2). */
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note \u2013 or double-click the board';
@@ -25,9 +29,17 @@ export interface ToolbarProps {
    * because a toolbar drawn on its own in front of nothing is pointing at things rather than
    * writing them.
    */
-  tool?: Tool;
+  tool?: ToolId;
   /** Put a tool up. The board decides whether it will take it; the toolbar only asks. */
-  onTool?(tool: Tool): void;
+  onTool?(tool: ToolId): void;
+  /**
+   * Which shape the Shape button will draw next. It is the toolbar's business because it is on the
+   * toolbar that it is chosen, and the board's business nowhere else: the tool is told which shape
+   * to make, and does not have an opinion of its own.
+   */
+  shapeKind?: ShapeKind;
+  /** Choose the shape the Shape tool will draw. Asking for a kind also asks for the tool. */
+  onShapeKind?(kind: ShapeKind): void;
 }
 
 /**
@@ -49,11 +61,13 @@ export function Toolbar({
   undo,
   tool = 'select',
   onTool,
+  shapeKind = 'rect',
+  onShapeKind,
 }: ToolbarProps): JSX.Element {
   const stop = (event: ReactPointerEvent<HTMLDivElement>): void => {
     event.stopPropagation();
   };
-  const choose = (next: Tool): void => {
+  const choose = (next: ToolId): void => {
     onTool?.(next);
   };
   return (
@@ -109,6 +123,79 @@ export function Toolbar({
       </button>
       <button
         type="button"
+        className="toolbar__tool toolbar__tool--shape"
+        data-testid="tool-shape"
+        data-tool-name="shape"
+        aria-label={`Shape (${TOOL_KEYS.shape ?? 'S'})`}
+        title={`Shape \u2013 or press ${TOOL_KEYS.shape ?? 'S'}, then drag the board`}
+        aria-pressed={tool === 'shape'}
+        disabled={!canEdit}
+        onClick={() => {
+          choose('shape');
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M4 5h16v14H4V5Zm1.5 1.5v11h13v-11h-13Z"
+          />
+        </svg>
+        <span className="toolbar__label">Shape</span>
+      </button>
+      {tool === 'shape' ? (
+        // The three kinds, shown under the button that draws one of them. They appear when the tool
+        // is up rather than being permanently docked because a shape to draw is a question asked at
+        // the moment of drawing, and the toolbar is 34 pixels wide: three icons always visible would
+        // be three icons competing with the four tools for the same strip of screen.
+        <span
+          className="toolbar__kinds"
+          data-testid="shape-kinds"
+          role="group"
+          aria-label="Shape kind"
+        >
+          {SHAPE_KINDS.map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              className="toolbar__kind"
+              data-testid={`shape-kind-${kind}`}
+              data-kind={kind}
+              aria-label={`${SHAPE_KIND_LABELS[kind]} shape`}
+              title={`${SHAPE_KIND_LABELS[kind]} \u2013 the Shape tool will draw this`}
+              aria-pressed={shapeKind === kind}
+              disabled={!canEdit}
+              onClick={() => {
+                onShapeKind?.(kind);
+              }}
+            >
+              <KindIcon kind={kind} />
+            </button>
+          ))}
+        </span>
+      ) : null}
+      <button
+        type="button"
+        className="toolbar__tool toolbar__tool--connector"
+        data-testid="tool-connector"
+        data-tool-name="connector"
+        aria-label={`Connector (${TOOL_KEYS.connector ?? 'L'})`}
+        title={`Connector \u2013 or press ${TOOL_KEYS.connector ?? 'L'}, then drag from one thing to another`}
+        aria-pressed={tool === 'connector'}
+        disabled={!canEdit}
+        onClick={() => {
+          choose('connector');
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M5 4a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm14 12a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm-12.6-9.4 11.2 11.2-1.4 1.4L2 10l1.4-1.4Z"
+          />
+        </svg>
+        <span className="toolbar__label">Connector</span>
+      </button>
+      <button
+        type="button"
         className="toolbar__sticky"
         data-testid="create-sticky"
         aria-label="Sticky note (N)"
@@ -126,5 +213,29 @@ export function Toolbar({
       </button>
       {undo === undefined ? null : <UndoButtons {...undo} />}
     </div>
+  );
+}
+
+/**
+ * The three shapes, drawn small enough to fit on a toolbar button and different enough to tell apart
+ * at that size: a box, a circle and a diamond.
+ *
+ * They are the same three figures as the shapes themselves, in the same SVG, at a third of the size -
+ * which is the only reason a person can trust that pressing the round one will give them a round
+ * thing. A stroke rather than a fill, because a filled blob of one colour at 18 pixels is three blobs
+ * of one colour, and the outline is what carries the shape of a shape.
+ */
+export function KindIcon({ kind }: { kind: ShapeKind }): JSX.Element {
+  const stroke = 'currentColor';
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {kind === 'ellipse' ? (
+        <ellipse cx="12" cy="12" rx="8.5" ry="6.5" fill="none" stroke={stroke} strokeWidth="1.6" />
+      ) : kind === 'diamond' ? (
+        <polygon points="12,3 21,12 12,21 3,12" fill="none" stroke={stroke} strokeWidth="1.6" />
+      ) : (
+        <rect x="3.5" y="5.5" width="17" height="13" fill="none" stroke={stroke} strokeWidth="1.6" />
+      )}
+    </svg>
   );
 }

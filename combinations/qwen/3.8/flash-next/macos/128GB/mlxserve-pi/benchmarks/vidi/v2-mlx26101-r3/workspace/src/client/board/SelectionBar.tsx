@@ -1,8 +1,10 @@
 import type { JSX } from 'react';
-import type { ObjectSnapshot } from '../../shared/board-model';
-import { DEFAULT_TEXT_SIZE, type TextSize } from '../../shared/config';
+import { SHAPE_TYPE, type ObjectSnapshot } from '../../shared/board-model';
+import { DEFAULT_TEXT_SIZE, type FillColor, type StrokeColor, type TextSize } from '../../shared/config';
 import { TEXT_TYPE } from '../../shared/objects/text';
+import { asShapeSnapshot } from '../../shared/objects/shape';
 import { TextToolbar } from '../objects/TextToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 
 export interface SelectionBarProps {
   /** What this user has selected. */
@@ -19,6 +21,12 @@ export interface SelectionBarProps {
   /** Make the one selected text object bigger or smaller, which is the only thing a text object
    * can be made, and the only thing a bar about a single text object has to offer. */
   onTextSize?(id: string, size: TextSize): void;
+  /**
+   * Change the colour of the one selected shape. Given as an object of what changed rather than as
+   * one colour, because a shape has two colours and the bar is not to know which was pressed: the
+   * shape's toolbar knows whether it was asked about the inside or the outline, and says so.
+   */
+  onShapeStyle?(id: string, style: { fill?: FillColor; stroke?: StrokeColor }): void;
 }
 
 /**
@@ -54,6 +62,7 @@ export function SelectionBar({
   canEdit = true,
   editingId = null,
   onTextSize,
+  onShapeStyle,
 }: SelectionBarProps): JSX.Element | null {
   const present = new Set(snapshot.map((object) => object.id));
   let count = 0;
@@ -63,6 +72,28 @@ export function SelectionBar({
     }
   }
   if (count === 1) {
+    // A shape on its own gets its two colours, for the same reason a heading on its own gets its
+    // four sizes: a shape carries nothing on its own face (its label is words in the middle of it,
+    // not a place to put buttons), and this is where the board shows what the selection can do.
+    const shape = asShapeSnapshot(
+      snapshot.find((object) => ids.has(object.id) && object.type === SHAPE_TYPE),
+    );
+    if (shape !== null && onShapeStyle !== undefined && editingId !== shape.id) {
+      return (
+        <div className="selection-bar selection-bar--single" data-board-ui="">
+          <ShapeToolbar
+            fill={shape.fill}
+            stroke={shape.stroke}
+            onFill={(color) => {
+              onShapeStyle(shape.id, { fill: color });
+            }}
+            onStroke={(color) => {
+              onShapeStyle(shape.id, { stroke: color });
+            }}
+          />
+        </div>
+      );
+    }
     const only = snapshot.find(
       (object) => ids.has(object.id) && object.type === TEXT_TYPE,
     );

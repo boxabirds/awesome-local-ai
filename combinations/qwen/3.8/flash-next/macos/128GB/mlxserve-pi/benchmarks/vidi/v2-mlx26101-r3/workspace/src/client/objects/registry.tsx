@@ -1,8 +1,10 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import * as Y from 'yjs';
-import { STICKY_MIN_SIZE_WORLD, TEXT_FONT_FAMILY } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_FONT_FAMILY, SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
 import {
+  CONNECTOR_TYPE,
   LOCAL_ORIGIN,
+  SHAPE_TYPE,
   STICKY_TYPE,
   moveObjects,
   objectBounds,
@@ -15,11 +17,13 @@ import type { EditEnd } from '../board/useSelection';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
 import { createCanvasMeasurer } from './textLayout';
 import { remeasureTextBox } from './useTextBoxSync';
 
 /** A pointer event as it arrives from React or from the window. */
-export type ObjectPointerEvent = ReactPointerEvent<HTMLElement> | PointerEvent;
+export type ObjectPointerEvent = ReactPointerEvent<HTMLElement | SVGElement> | PointerEvent;
 
 /**
  * What the board hands an object component to draw it.
@@ -86,6 +90,15 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Whether the object has text a person can type into (Enter opens it). */
   editableText: boolean;
+  /**
+   * Whether a press on this object can pick it up at all. True of everything that sits somewhere on
+   * the board, and false of an arrow: an arrow is not somewhere, it is between two places, and its
+   * position is a consequence of where they are. A type that cannot be moved is still selected, still
+   * deleted, still resized by nothing - its ends are moved, one at a time, by its own handles.
+   *
+   * Left out, the type can be moved, which is right of every type that came before story 10.
+   */
+  movable?: boolean;
   /**
    * Which resize handles a selection of nothing but this type offers. `'all'` (or left out) is the
    * usual eight, because both axes are sizes this object can be given. `'horizontal'` is for an
@@ -203,4 +216,50 @@ registerObjectType(TEXT_TYPE, {
       remeasureTextBox(doc, id, resizeMeasurer);
     }, LOCAL_ORIGIN);
   },
+});
+
+/**
+ * A shape (story 10): a rectangle, an ellipse or a diamond with words in the middle of it.
+ *
+ * Resizable on both axes and not tied to a proportion, because the three kinds are drawn from their
+ * box: whatever box they are given is the shape they are. The minimum is the smallest shape that can
+ * hold a word, and it is also the line the drawing tool uses to tell a drag from a click.
+ */
+registerObjectType(SHAPE_TYPE, {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  // A shape is labelled by typing into it, exactly as a note is: the same editing state, the same
+  // Enter and Escape keys, the same one step of undo per spell of typing.
+  editableText: true,
+  hitTest: (object, world) => rectContainsPoint(objectBounds(object), world),
+});
+
+/**
+ * An arrow between two objects (story 10): a line, a head, and two ends that are each either fastened
+ * to something or a point on the board.
+ *
+ * It cannot be moved and it cannot be resized, which is what its two ends mean: an arrow does not have
+ * a position, it has a relationship, and the only way to change where it goes is to change one of the
+ * two things it is about. Its handles are drawn by the object itself and call `setConnectorEndpoint`;
+ * the generic resize would have nothing to write, since its box is a consequence of the boxes of
+ * others.
+ *
+ * `hitTest` is the box around the two ends, which is the widest question this signature can ask: it is
+ * given one object and one point, and an arrow's ends can only be resolved against every *other*
+ * object's box and the zoom. The precise question the design asks - is this point within six screen
+ * pixels of the line - is answered where the zoom and the resolved ends both are, by the drawn hit
+ * stroke of `ConnectorObject`, whose width is that same tolerance divided by the zoom. Which is why an
+ * arrow can be clicked on its line and cannot be clicked inside the empty middle of its box, which is
+ * the behaviour, and why `distanceToPolyline` is what the tests measure it with.
+ */
+registerObjectType(CONNECTOR_TYPE, {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  movable: false,
+  hitTest: (object, world) => rectContainsPoint(objectBounds(object), world),
 });

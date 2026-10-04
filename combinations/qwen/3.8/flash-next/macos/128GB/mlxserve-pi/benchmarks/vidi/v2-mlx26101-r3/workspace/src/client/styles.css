@@ -883,3 +883,275 @@ a:focus-visible {
   color: #a6aebc;
   cursor: default;
 }
+
+/* Shapes and arrows (story 10) ---------------------------------------- */
+
+/* Two more tools, and the same courtesy the Text tool is paid: the cursor says what the pointer is
+   for over the board *and* over whatever is already on it. A shape is drawn by dragging, and an arrow
+   by dragging, so both get the crosshair - the one cursor that says "from here to there". */
+.board-viewport[data-tool='shape'],
+.board-viewport[data-tool='connector'] {
+  cursor: crosshair;
+}
+
+.board-viewport[data-tool='shape'] .board-world [data-object-id],
+.board-viewport[data-tool='connector'] .board-world [data-object-id] {
+  cursor: crosshair;
+}
+
+/* The layer a tool draws its preview in: stretched over the board, in screen space, and out of the
+   pointer's way entirely. Screen space is the point - a dashed box drawn on the board would be drawn
+   at the board's size, and a drag that two people at different zooms made would preview at two
+   different thicknesses. Here the dashes are dashes, on every screen. */
+.tool-preview {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* Above the board and its objects, below the toolbars, which stay pressable while a drag is on. */
+  z-index: 5;
+  color: var(--accent);
+}
+
+.tool-preview__shape {
+  fill: rgba(37, 99, 235, 0.06);
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+
+.tool-preview__line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  stroke-linecap: round;
+}
+
+/* The four sides of the object under the pointer. Outlined rather than filled, so that a dot on the
+   edge of a shape reads as a dot *on* it: the middle of each side is where an arrow would go, and the
+   dot is drawn exactly there. */
+.connector-tool__dot {
+  fill: var(--surface);
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+/* The one that will be used: filled in, and ringed in the surface colour so it stays readable on top
+   of the accent-blue line of the preview. */
+.connector-tool__dot--target {
+  fill: currentColor;
+  stroke: var(--surface);
+}
+
+/* A shape on the board: the SVG is stretched over the object's box, and the label is laid out in HTML
+   inside it. The box is positioned in world units like every other object, so the whole shape - the
+   outline's thickness included - scales with the camera, which is what makes a two-unit outline two
+   units at every zoom instead of a two-pixel line at some zooms and twenty at others. */
+.shape-object {
+  position: absolute;
+  box-sizing: border-box;
+  color: var(--ink);
+  cursor: grab;
+  touch-action: none;
+}
+
+.shape-object[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.shape-object__svg {
+  display: block;
+  overflow: visible;
+}
+
+/* The outline is drawn in board units and scales with the camera, like the rest of the shape - which
+   is the only reason a rectangle, an ellipse and a diamond can be one type at all, with one thickness
+   and one colour, instead of three tricks. */
+
+/* The label: centred in the shape, and wrapped to it. The box it is in is the shape's box, which is
+   why resizing a shape re-wraps its label without a line of code about it - the box got bigger, so the
+   lines the words came to got fewer, and the centring is done by flexbox either way. */
+.shape-object__label {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+  padding: 0 8px;
+  overflow: hidden;
+  /* The label is a shape's face, and a shape's face is not something you select letters in with the
+     mouse while dragging about the board. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.shape-object__editor {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0 4px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font-family: inherit;
+  line-height: 1.3;
+  text-align: center;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.shape-object[data-selected='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* An arrow: drawn inside its own box, which is the rectangle around its two ends. Nothing about the
+   container takes pointer events - an arrow's box contains mostly board, and a box you could click
+   anywhere in would be an arrow that got selected by a click a foot away from it. The only part of it
+   that answers the pointer is its hit stroke, below, and its two handles. */
+.connector-object {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.connector-object__svg {
+  display: block;
+  overflow: visible;
+}
+
+.connector-object__line {
+  fill: none;
+  stroke: var(--connector, #263238);
+  stroke-linecap: round;
+}
+
+.connector-object__head {
+  fill: var(--connector, #263238);
+  stroke: none;
+}
+
+/* The line that is actually clicked. Twice the tolerance wide, transparent, and only answering a press
+   that lands on the stroke itself: six screen pixels on either side of the line, which is the design's
+   tolerance divided by the zoom so that it is six pixels of *screen* at forty zoom and at four. */
+.connector-object__hit {
+  stroke: transparent;
+  fill: none;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.connector-object[data-selected='true'] .connector-object__line {
+  stroke: var(--accent);
+}
+
+.connector-object[data-selected='true'] .connector-object__head {
+  fill: var(--accent);
+}
+
+/* The two ends, drawn big enough to catch a thumb and grabbable in a world that is being zoomed. They
+   are the only way to move an arrow, which is why they are drawn on the arrow's ends and not floating
+   around its box the way resize handles do for a thing that has a size. */
+.connector-object__handle {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 2;
+  pointer-events: all;
+  cursor: grab;
+}
+
+.connector-object__handle:active {
+  cursor: grabbing;
+}
+
+/* A shape's two colours, in the bar over the board. The empty fill is drawn as a white swatch with a
+   line through it, which is the one convention every drawing program agrees on for "nothing here", and
+   a blank button would be a button that had lost its colour rather than one that takes the colour out.
+   */
+.shape-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.shape-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.shape-toolbar__divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+}
+
+.shape-toolbar__swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: var(--swatch, transparent);
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.shape-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The three kinds, under the Shape button, shown while the Shape tool is up. */
+.toolbar__kinds {
+  display: flex;
+  gap: 2px;
+  padding: 2px 4px 4px 8px;
+}
+
+.toolbar__kind {
+  width: 24px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.toolbar__kind:hover:not(:disabled) {
+  color: var(--ink);
+  background: #eef1f5;
+}
+
+.toolbar__kind[aria-pressed='true'] {
+  color: var(--accent);
+  background: #e6efff;
+}
+
+.toolbar__kind:disabled {
+  color: #a6aebc;
+  cursor: default;
+}

@@ -3,8 +3,19 @@ import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
 import { MESSAGE_SYNC, decodeMessage } from '../../../src/shared/protocol';
-import { initDoc, snapshot, type StickySnapshot } from '../../../src/shared/board-model';
+import {
+  initDoc,
+  snapshot,
+  type ObjectSnapshot,
+  type StickySnapshot,
+} from '../../../src/shared/board-model';
 import { writeNote, type NoteSeed } from '../../fixtures/boards';
+import {
+  checkoutFlowEdits,
+  emptyFlowIds,
+  type FlowEdit,
+  type FlowIds,
+} from '../../fixtures/checkout-flow';
 
 /**
  * A client that is not a browser, for the fixtures a browser test needs.
@@ -107,6 +118,24 @@ export class RoomClient {
   }
 
   /**
+   * Write a fixture onto the board one edit at a time.
+   *
+   * The notes have their own method because story 4's tests count rows, and a fixture that arrives as
+   * one update would be a board that the room's log says somebody made in a single motion. This is the
+   * general form of the same trick: the schema version and then one row per edit, each sent as what the
+   * board does not have yet.
+   */
+  async writeEdits(edits: readonly FlowEdit[]): Promise<void> {
+    initDoc(this.doc);
+    this.sendUpdate(Y.encodeStateAsUpdate(this.doc));
+    for (const edit of edits) {
+      const since = Y.encodeStateVector(this.doc);
+      edit.apply(this.doc);
+      this.sendUpdate(Y.encodeStateAsUpdate(this.doc, since));
+    }
+  }
+
+  /**
    * Write the notes onto the board one at a time, as a person's edits arrive one at a time.
    *
    * Each note is sent as what the board does not have yet, which is the only thing a client ever
@@ -136,6 +165,28 @@ export class RoomClient {
   /** What this client has been told about the board. */
   notes(): readonly StickySnapshot[] {
     return snapshot(this.doc);
+  }
+
+  /** Everything on the board, of whatever kind: shapes and arrows are objects too. */
+  objects(): readonly ObjectSnapshot[] {
+    return snapshot(this.doc);
+  }
+
+  /** Wait until the room has said it has this many objects of any kind. */
+  async waitForObjects(count: number): Promise<void> {
+    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+    for (;;) {
+      if (this.objects().length >= count) {
+        return;
+      }
+      if (this.closed || Date.now() > deadline) {
+        throw new Error(
+          `the room offered ${String(this.objects().length)} object(s) and wanted ${String(count)}` +
+            `${this.closed ? ' before the socket closed' : ''}`,
+        );
+      }
+      await sleep(50);
+    }
   }
 
   /** Wait until the room has said it has this many notes. */
@@ -199,4 +250,39 @@ export interface WrittenNote {
   readonly z: number;
   readonly color: string;
   readonly text: string;
+}
+
+/** The number of objects the checkout flow puts on a board: four shapes and four arrows. */
+const FLOW_OBJECT_COUNT = 8;
+
+/**
+ * Put the checkout flow on a board from outside the browser, and hand back the ids it was given.
+ *
+ * The ids are made by the fixture as it writes, and read back from a second connection: the writer's
+ * own document would agree with itself no matter what the room had done with the bytes, so what is
+ * checked here is the room's answer - the same one a browser arriving next will be given. A shape
+ * whose id did not come back is a shape that never arrived, and a test that pressed where it thought a
+ * shape was would then be pressing on empty board.
+ */
+export async function seedCheckoutFlow(url: string): Promise<FlowIds> {
+  const ids = emptyFlowIds();
+  const writer = await RoomClient.connect(url);
+  await writer.writeEdits(checkoutFlowEdits(ids));
+  const newcomer = await RoomClient.connect(url);
+  try {
+    await newcomer.waitForObjects(FLOW_OBJECT_COUNT);
+    const present = new Set(newcomer.objects().map((object) => object.id));
+    for (const [name, id] of [
+      ...Object.entries(ids.shapes),
+      ...Object.entries(ids.connectors),
+    ] as [string, string][]) {
+      if (!present.has(id)) {
+        throw new Error(`the room never told anybody about the flow's ${name}`);
+      }
+    }
+    return ids;
+  } finally {
+    writer.close();
+    newcomer.close();
+  }
 }

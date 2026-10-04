@@ -15,7 +15,10 @@ import {
 } from './canvas/camera';
 import { useCamera } from './canvas/useCamera';
 import { Toolbar } from './board/Toolbar';
-import { useTool } from './board/useTool';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
+import { BoardProvider, type BoardServices } from './board/BoardContext';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { useBoardKeys, isTextEntryTarget } from './board/useBoardKeys';
@@ -31,6 +34,9 @@ import { applyTextSize } from './objects/TextObject';
 import { createCanvasMeasurer } from './objects/textLayout';
 import { createSticky, deleteObjects } from '../shared/board-model';
 import { createText } from '../shared/objects/text';
+import { setShapeStyle } from '../shared/objects/shape';
+import { boardRects } from '../shared/objects/connector';
+import type { FillColor, StrokeColor } from '../shared/config';
 import { TEXT_FONT_FAMILY, type TextSize } from '../shared/config';
 
 function initialViewport(): Size {
@@ -98,8 +104,23 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
   const { doc, notes, connection } = useBoardDoc(boardId, injectedDoc);
   const selection = useSelection(notes);
   const editable = canEdit(connection);
-  // Which tool this person's pointer is: pointing at things, or writing on them.
-  const { tool, setTool } = useTool(editable);
+  // Which tool this person's pointer is: pointing at things, or writing on them - and, for the
+  // Shape tool, which of the three shapes it is about to write.
+  const selectOne = useCallback(
+    (id: string): void => {
+      // The new object is the whole selection: the same reasoning the sticky note's birth uses, and
+      // the reason a tool hands its id back to the board instead of selecting things for itself.
+      selection.setMany([id], false);
+    },
+    [selection],
+  );
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
+    canEdit: editable,
+    // The keys stand down while a caret is somewhere on the board, which is the rule the board's
+    // other keys already keep: one letter, one answer, and the text gets it first.
+    editing: selection.editingId !== null,
+    onSelect: selectOne,
+  });
   // The canvas the board's own text measurements are taken against - the ones asked for from the
   // board rather than from inside a text object, which is where a size change or a fresh heading's
   // first box is measured.
@@ -174,12 +195,14 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
       const id = createText(doc, world, String(doc.clientID));
       undoHistory.boundary();
       if (id !== null) {
-        selection.setMany([id], false);
+        // The heading is the selection and the thing being typed into, and the tool that made it is
+        // done with: `toolCreated` is the one call that says both, so the Text tool, the Shape tool
+        // and the Connector tool all go back to Select the same way rather than three ways.
+        toolCreated(id);
         selection.startEdit(id);
       }
-      setTool('select');
     },
-    [doc, selection, setTool, undoHistory],
+    [doc, selection, toolCreated, undoHistory],
   );
 
   /** Start typing a note - the one thing a board that could not be loaded will not do. */
@@ -286,6 +309,39 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
     onGestureEnd: undoHistory.boundary,
   });
 
+  /** One of the eight swatches under a selected shape: the inside, or the outline, one of the two. */
+  const handleShapeStyle = useCallback(
+    (id: string, style: { fill?: FillColor; stroke?: StrokeColor }): void => {
+      if (!canEditRef.current) {
+        return;
+      }
+      // A colour is one step, and one transaction: `setShapeStyle` writes whichever of the two was
+      // asked for and leaves the label, the box and the stacking order where they were, and the two
+      // boundaries keep it from merging into the drag that brought the shape here.
+      undoHistory.boundary();
+      setShapeStyle(doc, id, style);
+      undoHistory.boundary();
+    },
+    [doc, undoHistory],
+  );
+
+  /**
+   * What the board hands the things inside it that are not objects: the tools that draw a shape or
+   * an arrow need the document, the right to write and the boxes of everything else, and none of
+   * them is in the loop that draws objects, because none of them is an object.
+   */
+  const services: BoardServices = useMemo(
+    () => ({
+      doc,
+      canEdit: editable,
+      undo: undoHistory,
+      objects: notes,
+      rects: boardRects(notes),
+      camera,
+    }),
+    [camera, doc, editable, notes, undoHistory],
+  );
+
   /** Escape aborts a marquee if one is being dragged, and clears the selection otherwise. */
   const handleEscape = useCallback((): void => {
     if (marquee.rect !== null) {
@@ -342,7 +398,8 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
   }, [requestEdit, selection.editingId, selection.onlyId]);
 
   return (
-    <div className="app" data-testid="app">
+    <BoardProvider services={services}>
+      <div className="app" data-testid="app">
       <BoardViewport
         camera={camera}
         viewport={viewport}
@@ -388,6 +445,16 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
         />
         <MarqueeRect rect={marquee.rect} camera={camera} />
       </BoardViewport>
+      {tool === 'shape' ? (
+        // The two tools that draw something are mounted only while they are up, and draw in screen
+        // space rather than on the board: a dashed box that is the size of the drag, not a shape that
+        // is not there yet. Mounted and unmounted with the tool because that is what makes Escape drop
+        // an unfinished drag - the component goes away, and the drag it was holding goes with it.
+        <ShapeTool kind={shapeKind} camera={camera} onCreated={toolCreated} />
+      ) : null}
+      {tool === 'connector' ? (
+        <ConnectorTool camera={camera} snapshot={notes} onCreated={toolCreated} />
+      ) : null}
       <SelectionBar
         ids={selection.ids}
         snapshot={notes}
@@ -395,6 +462,7 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
         canEdit={editable}
         editingId={selection.editingId}
         onTextSize={handleTextSize}
+        onShapeStyle={handleShapeStyle}
       />
       <Toolbar
         onCreateSticky={handleCreateSticky}
@@ -402,6 +470,13 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
         undo={undoState}
         tool={tool}
         onTool={setTool}
+        shapeKind={shapeKind}
+        onShapeKind={(kind) => {
+          // Choosing the kind is also asking for the tool that draws it: nobody picks "ellipse" in
+          // order to then go and press the Shape button.
+          setShapeKind(kind);
+          setTool('shape');
+        }}
       />
       <ConnectionStatus state={connection} />
       <ZoomControls
@@ -417,6 +492,7 @@ export function App({ boardId, doc: injectedDoc }: AppProps = {}): JSX.Element {
         onReset={reset}
       />
       <NavigationHint visible={!hasNavigated} />
-    </div>
+      </div>
+    </BoardProvider>
   );
 }
