@@ -74,6 +74,39 @@ chased twice. If the gap matters later, the likely causes are a smaller card, no
 quantisation, or longer replies than the short ones measured here. Our own figures are from synthetic prompts with
 replies under 200 tokens, and a real story's decode rate will be lower.
 
+## Three releases since our pin (read 4 Oct 2026)
+
+We pin **v0.1.36** (commit `36fa455e`). Upstream is now **v0.1.39** (`6f32ec07`, 4 Oct). Nothing has run on 0.1.36
+yet, so changing the pin costs nothing today; changing it after the series starts would break comparability.
+
+- **v0.1.37** (2 Oct): `--vram-reserve-mib N` is documented, which is the flag our startup warning asked for. A
+  **silent-engine watchdog**: if the engine prints nothing for `engine_silence_s` (default 300, longer while a long
+  prompt is read; 0 turns it off), the server ends the request and the next one restarts the engine. Our own guard
+  interrupts a tool call silent for 600 s, so the two now overlap — worth setting deliberately rather than
+  discovering on a story. Steadier PCIe probe; AMD-on-Windows fixes we don't need.
+- **v0.1.38** (3 Oct): **a security change that could break our install.** Without an `api_key` the server answers
+  only requests addressed to a name it knows and returns 403 to cross-site requests; `/unload` and `/load` take
+  JSON only. Our launcher binds 127.0.0.1 and pi uses an SDK that sends no `Origin`, so it should be unaffected —
+  but that is a check, not an assumption. Also: faster prompts (Q2_0 +10% at 4K, +3% at 128K), `--kv q4_0` on
+  tensor cores, and a 6 GB card that starts.
+- **v0.1.39** (4 Oct): decode **+6%** (IQ3_XXS 46.1 -> 48.8 tok/s on their RTX 5070), long prompts **+18.5%** at 32K
+  for IQ3_XXS *with a 1,500-slot expert cache* and unchanged with setup's default config, `POST /v1/responses` (the
+  OpenAI Responses API, for Codex), several requests at once (opt-in, off by default), and a fix for prompts under a
+  RAM budget that 0.1.38 made 15-40% slower. **A long prompt's output bits change against 0.1.38**, because the
+  experts go through a different mix of cached and streamed groups; the author's teacher-forced check puts the
+  quality in the same band (IQ3_XXS, 32K prompt: KL 0.020, top-1 95.3%).
+
+### What this says about our own measurements
+
+The author's IQ3_XXS figures are **46 to 52 tok/s** generation on an RTX 5070. We measured **104 to 173 tok/s** on
+the RTX 4090 on 2 Oct. A faster card explains some of it, but not that much. The likely difference is what was
+measured: ours were synthetic prompts with replies under 200 tokens and drafts accepted 80-95% of the time, which
+flatters decode. Theirs are story and code workloads.
+
+That also reconciles the user reports above: about 60 tok/s sits between the two, and close to the author's own
+numbers. **Our 104-173 tok/s should not be quoted as what a story will see.** The first recorded story will settle
+it.
+
 ## The combination and the harness (3 Oct 2026)
 
 `combinations/qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi/` exists (backend `lib/strata.sh`, launcher
@@ -83,7 +116,7 @@ engine log, which the launcher follows into the server's output. Not yet install
 machine, and the harness changes need a harness release before a run can carry them. The owner's order: five runs of
 Strata after the Swift 1.5 baseline on the RTX 4090 machine. No smoke story: the ten-minute checks are above.
 
-**Last checked:** 4 Oct 2026 (third-party reports noted; nothing re-measured). **Recheck when:** the real install has run and the first Strata story is recorded.
+**Last checked:** 4 Oct 2026 (releases 0.1.37 to 0.1.39 read; nothing re-measured, nothing re-pinned). **Recheck when:** the real install has run and the first Strata story is recorded.
 
 Sources: [Strata](https://github.com/Niko1221/Strata) ·
 [DETAILS.md](https://github.com/Niko1221/Strata/blob/main/docs/DETAILS.md) ·
