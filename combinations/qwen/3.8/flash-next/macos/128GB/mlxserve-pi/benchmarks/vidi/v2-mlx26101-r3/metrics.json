@@ -941,6 +941,17 @@
           "pushed": true
         },
         "commit": "494b7b5a6"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 191
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -2367,6 +2378,17 @@
           "pushed": true
         },
         "commit": "6d1f4e7b0"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 246
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "3": {
@@ -4118,6 +4140,17 @@
           "pushed": true
         },
         "commit": "681a7014f"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 458
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "4": {
@@ -6350,6 +6383,17 @@
           "pushed": true
         },
         "commit": "8a464b154"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 524
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "5": {
@@ -7807,6 +7851,17 @@
           "pushed": true
         },
         "commit": "9a2c56345"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 339
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "7": {
@@ -9839,6 +9894,17 @@
           "pushed": true
         },
         "commit": "8801f85c3"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 406
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "8": {
@@ -11193,6 +11259,17 @@
           "pushed": true
         },
         "commit": "60326ae62"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 330
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "9": {
@@ -13274,6 +13351,17 @@
         "commit": "6a7ef035b",
         "unpushed": true,
         "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4/metrics.json' not uptodate. Cannot merge.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 517
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "10": {
@@ -15426,6 +15514,17 @@
         "commit": "d7f74d472",
         "unpushed": true,
         "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4/metrics.json' not uptodate. Cannot merge.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 385
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "11": {
@@ -16433,6 +16532,17 @@
         "commit": "784accc00",
         "unpushed": true,
         "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4/metrics.json' not uptodate. Cannot merge.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 176
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "12": {
@@ -18873,6 +18983,32 @@
         },
         "heldout_floor": 0.6,
         "heldout_ok": true
+      },
+      "record": {
+        "committed": true,
+        "pushed": false,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-mlx26101-r3/server.log"
+        ],
+        "private": {
+          "copied": 22,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "ec85adad8",
+        "unpushed": true,
+        "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4/metrics.json' not uptodate. Cannot merge.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 625
+        },
+        "truncated": false,
+        "reaches": []
       }
     }
   },
