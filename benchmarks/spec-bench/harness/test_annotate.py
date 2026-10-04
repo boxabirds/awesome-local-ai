@@ -6,6 +6,7 @@ import threading
 import pytest
 
 import annotate
+from conftest import record_before_archive
 import heldout
 
 
@@ -83,6 +84,11 @@ def test_labels_are_saved_updated_and_validated(tmp_path):
 REAL_PRIVATE = annotate.REPO.parent / "awesome-local-ai-bench-private"
 
 
+# The current records hold this many story attempts or more (99 on 4 Oct 2026, after the v1 runs were archived).
+FEWEST_REAL_ATTEMPTS = 90
+PI03 = "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-pi-03"   # archived 4 Oct 2026
+
+
 # The real runs' held-out detail is in the private repo's copy (the public record keeps counts): read it there,
 # read-only, and skip where it isn't checked out.
 @pytest.mark.skipif(not (REAL_PRIVATE / heldout.PRIVATE_RUNS).is_dir(), reason="no private repo copy of the runs")
@@ -90,13 +96,16 @@ def test_attempts_build_from_the_real_records(tmp_path, monkeypatch):
     monkeypatch.setenv(heldout.PRIVATE_ENV, str(REAL_PRIVATE))
     attempts = annotate.load_attempts(annotate.REPO, tmp_path / "cache.json", rebuild=True)
     ids = {a["id"] for a in attempts}
-    assert len(ids) == len(attempts) and len(attempts) >= 100
-    pi03_s7 = next(a for a in attempts if a["id"].endswith("27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-pi-03#07"))
-    assert pi03_s7["title"].startswith("Select") and pi03_s7["timeline"] and pi03_s7["commits"]
-    assert pi03_s7["behaviour"]["own_total"] == 8
+    assert len(ids) == len(attempts) and len(attempts) >= FEWEST_REAL_ATTEMPTS
     # cached on the second load
     again = annotate.load_attempts(annotate.REPO, tmp_path / "cache.json", rebuild=False)
     assert [a["id"] for a in again] == [a["id"] for a in attempts]
+    # One attempt checked in detail: the 4090's story 7, from the record as it was before it was archived.
+    old = tmp_path / "before-archive"
+    record_before_archive(PI03, old)
+    pi03_s7 = next(a for a in annotate.load_attempts(old, tmp_path / "old-cache.json", rebuild=True) if a["id"].endswith(f"{PI03}#07"))
+    assert pi03_s7["title"].startswith("Select") and pi03_s7["timeline"] and pi03_s7["commits"]
+    assert pi03_s7["behaviour"]["own_total"] == 8
 
 
 def test_review_leaves_out_known_good_runs(tmp_path):

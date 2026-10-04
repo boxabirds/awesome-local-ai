@@ -91,8 +91,8 @@ def test_scorer_faults_are_caught_on_real_records(tmp_path):
 def test_scored_commit_is_the_last_recorded_story_commit(tmp_path):
     (tmp_path / "metrics.json").write_text(json.dumps({"stories": {"11": {"commit": "aaa"}, "12": {"commit": "bbb"}, "13": {}}}))
     assert judge.scored_commit(tmp_path) == "bbb"
-    real = judge.REPO / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-pi-03"
-    assert judge.scored_commit(real).startswith("70f7075")
+    real = judge.REPO / "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1"
+    assert judge.scored_commit(real).startswith("b478230")
 
 
 LOG = """commit bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
@@ -137,12 +137,21 @@ def test_a_snapshot_that_is_not_the_scored_commit_is_refused(tmp_path):
         judge.record_workspace(fake_record(tmp_path, scored="ccccccc"), tmp_path / "ws")
 
 
+# Every finished record in the repository, not a named few: records are archived (4 Oct 2026 took the v1 runs this test
+# named), and a test of "every record" must not fail because one has gone, nor pass because none are left.
+FEWEST_FINISHED_RECORDS = 10
+
+
 def test_every_finished_record_snapshot_matches_its_scored_commit():
-    for rec in ["benchmarks/reference/vidi/opus-5.5/run-1",
-                "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-pi-03"]:
-        r = judge.REPO / rec
+    logs = subprocess.run(["git", "-C", str(judge.REPO), "ls-files", "--", "combinations/*/workspace-git-log.txt",
+                           "benchmarks/reference/*/workspace-git-log.txt"], capture_output=True, text=True, check=True).stdout.split()
+    status = lambda r: json.loads((r / "run-status.json").read_text()) if (r / "run-status.json").exists() else {}
+    finished = [r for r in (judge.REPO / p.rsplit("/", 1)[0] for p in logs) if status(r).get("state") == "finished"]
+    assert len(finished) >= FEWEST_FINISHED_RECORDS
+    # Opus run-1 was built outside the harness and has no run-status.json; its snapshot is checked all the same.
+    for r in [*finished, judge.REPO / "benchmarks/reference/vidi/opus-5.5/run-1"]:
         head = (r / "workspace-git-log.txt").read_text().split("\n", 1)[0].split()[-1]
-        assert head.startswith(judge.scored_commit(r)[:7])
+        assert head.startswith(judge.scored_commit(r)[:7]), r
 
 
 def test_claims_come_from_agent_reports_for_a_run_built_outside_the_harness(tmp_path):

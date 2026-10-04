@@ -15,8 +15,9 @@ import pack
 from drive import REPO_ROOT
 
 HARNESS = Path(__file__).resolve().parent
-RECORDED_RUN = (REPO_ROOT / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi"
-                / "canvas-pi-03")
+# A current run's recorded prompts (the v1 run this used, 27B canvas-pi-03, was archived on 4 Oct 2026).
+RECORDED_RUN = (REPO_ROOT / "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi"
+                / "v2-r1")
 
 
 def spec_only_pack(root: Path) -> Path:
@@ -99,7 +100,7 @@ def test_vidi_renders_exactly_the_prompts_its_runs_recorded(sid):
     import drive
     recorded = RECORDED_RUN / "stories" / f"{sid:02d}" / "prompt.md"
     if not recorded.exists():
-        pytest.skip("no recorded canvas-pi-03 prompt in this checkout")
+        pytest.skip("no recorded v2-r1 prompt in this checkout")
     drive.set_pack("benchmarks/vidi")
     scope = drive.PK.scope(scope="canvas")
     story = next(s for s in scope["stories"] if s["id"] == sid)
