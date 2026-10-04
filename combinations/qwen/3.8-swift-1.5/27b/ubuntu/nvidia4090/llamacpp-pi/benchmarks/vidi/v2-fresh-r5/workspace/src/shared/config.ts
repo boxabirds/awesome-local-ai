@@ -73,3 +73,12 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Version of the board storage schema (storage_meta.storage_schema_version). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+/* --- Story 5: sharing --- */
+
+/** Creation budget (ms): click New board → new board visible (PRD share.create). */
+export const CREATE_BUDGET_MS = 2000;
+/** How long (ms) the Share panel shows "Link copied" (PRD share.copy). */
+export const LINK_COPIED_MS = 2000;
+/** Base backoff (ms) for board existence checks while the service is unreachable; doubles per attempt, capped at RECONNECT_MAX_BACKOFF_MS. */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

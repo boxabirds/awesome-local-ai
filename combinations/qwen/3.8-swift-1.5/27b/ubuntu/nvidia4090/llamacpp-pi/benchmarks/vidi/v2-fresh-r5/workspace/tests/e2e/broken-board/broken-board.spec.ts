@@ -12,7 +12,7 @@
 import { test, expect } from '@playwright/test';
 import { startWranglerProcess, type WranglerProcess } from '../helpers/wrangler-process';
 import { seedBoard } from '../helpers/seed-board';
-import { newBoardId } from '../../../src/shared/board-id';
+import { createBoard } from '../helpers/api';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LOAD_RETRY_MIN_INTERVAL_MS,
@@ -41,10 +41,9 @@ test.describe('broken board (persist.client_status)', () => {
       wrangler = await startWranglerProcess(PORT, undefined, {
         config: 'wrangler.test-hooks.jsonc',
       });
-      const boardId = newBoardId();
-
-      // 1. Create a 25-note board and corrupt its snapshot.
-      await seedBoard(PORT, boardId, 25);
+      // 1. Create a 25-note board (story 5: seedBoard creates it via
+      // POST /api/boards) and corrupt its snapshot.
+      const boardId = await seedBoard(PORT, 25);
       await postHook(PORT, boardId, 'corrupt-snapshot');
 
       // 2. Open the board in a fresh context → red badge, editing locked.
@@ -93,7 +92,7 @@ test.describe('broken board (persist.client_status)', () => {
     let wrangler: WranglerProcess | null = null;
     try {
       wrangler = await startWranglerProcess(PORT); // no TEST_HOOKS var
-      const boardId = newBoardId();
+      const boardId = await createBoard(`http://127.0.0.1:${PORT}`);
       const res = await fetch(
         `http://127.0.0.1:${PORT}/__test/boards/${boardId}/corrupt-snapshot`,
         { method: 'POST' },

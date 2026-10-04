@@ -1,7 +1,8 @@
 {
   "name": "vidi6",
   // 2025-06-30 enables the Durable Object hibernation API (acceptWebSocket,
-  // getWebSockets, runInDurableObject) used by story 4's persistent room.
+  // getWebSockets, runInDurableObject) used by story 4's persistent room and
+  // the Durable Object RPC (initialize/exists) used by story 5's board API.
   "compatibility_date": "2025-06-30",
   "main": "src/worker/index.ts",
   "assets": {

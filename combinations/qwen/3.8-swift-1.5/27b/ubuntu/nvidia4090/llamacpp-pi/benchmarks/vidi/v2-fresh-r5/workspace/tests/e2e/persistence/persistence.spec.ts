@@ -12,7 +12,7 @@ import { startWranglerProcess, type WranglerProcess } from '../helpers/wrangler-
 import { seedBoard } from '../helpers/seed-board';
 import { Participant } from '../helpers/participants';
 import { setCamera } from '../helpers/board';
-import { newBoardId } from '../../../src/shared/board-id';
+import { createBoard } from '../helpers/api';
 import {
   BOARD_LOAD_BUDGET_MS,
   E2E_EVENTUAL_TIMEOUT_MS,
@@ -60,7 +60,7 @@ test.describe('persistence across process restarts', () => {
     let wrangler: WranglerProcess | null = null;
     try {
       wrangler = await startWranglerProcess(PORT);
-      const boardId = newBoardId();
+      const boardId = await createBoard(`http://127.0.0.1:${PORT}`);
 
       // Phase 1: create 25 varied notes in the browser.
       const context = await browser.newContext();
@@ -116,7 +116,7 @@ test.describe('persistence across process restarts', () => {
     let wrangler: WranglerProcess | null = null;
     try {
       wrangler = await startWranglerProcess(PORT);
-      const boardId = newBoardId();
+      const boardId = await createBoard(`http://127.0.0.1:${PORT}`);
 
       // Alex and Sam on the same board.
       const alexCtx = await browser.newContext();
@@ -161,10 +161,10 @@ test.describe('persistence across process restarts', () => {
     let wrangler: WranglerProcess | null = null;
     try {
       wrangler = await startWranglerProcess(PORT);
-      const boardId = newBoardId();
 
-      // Seed the board's persisted state directly (no browser).
-      await seedBoard(PORT, boardId, PERSIST_TESTED_NOTES);
+      // Seed the board's persisted state directly (no browser; the board is
+      // created via POST /api/boards inside seedBoard — story 5).
+      const boardId = await seedBoard(PORT, PERSIST_TESTED_NOTES);
 
       // Open a fresh context and wait until every note element is rendered.
       const context = await browser.newContext();

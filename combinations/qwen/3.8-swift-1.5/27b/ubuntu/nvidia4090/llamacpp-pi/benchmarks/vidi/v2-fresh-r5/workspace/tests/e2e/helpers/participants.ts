@@ -1,5 +1,5 @@
 import { Browser, BrowserContext, Page, expect } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
+import { E2E_BASE_URL, createBoard } from './api';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LIVE_UPDATE_LATENCY_BUDGET_MS,
@@ -97,16 +97,25 @@ export class Participant {
     throw new Error(`createNote(${text}) failed at all candidate points near (${x},${y})`);
   }
 
-  /** Enter edit mode on the note with `text` (retrying the dblclick). */
+  /** Enter edit mode on the note with `text` (retrying the dblclick).
+   *
+   * Verification uses the `data-editing` attribute, NOT the hasText note
+   * filter: the moment a note enters edit mode its text moves into the
+   * textarea, so `filter({ hasText })` no longer matches and a retry loop
+   * built on it hangs.
+   */
   async startEditNote(text: string): Promise<void> {
     await this.ensureNoEditing();
     const note = this.note(text);
+    const editing = this.page.locator('[data-testid="sticky-note"][data-editing="true"]');
     for (let attempt = 0; attempt < 4; attempt++) {
       await note.dblclick();
-      if (await note.locator('[data-testid="sticky-textarea"]').isVisible().catch(() => false)) return;
+      if (await editing.first().isVisible().catch(() => false)) return;
+      // The dblclick did not enter edit mode: end any partial state and retry.
+      await this.page.keyboard.press('Escape');
       await this.page.waitForTimeout(150);
     }
-    expect(await note.locator('[data-testid="sticky-textarea"]').count()).toBe(1);
+    expect(await editing.count()).toBe(1);
   }
 
   /** Drag the note with `text` by (dx, dy) screen pixels. */
@@ -206,12 +215,15 @@ export class Participant {
 /**
  * Open `n` isolated browser contexts on the same fresh board and wait until
  * each is connected and synced (badge hidden / connectionState 'connected').
+ * Story 5: the board is created via POST /api/boards first (rooms are no
+ * longer created implicitly by connecting).
  */
 export async function createParticipants(
   browser: Browser,
   n: number,
+  baseUrl: string = E2E_BASE_URL,
 ): Promise<Participant[]> {
-  const boardId = newBoardId();
+  const boardId = await createBoard(baseUrl);
   const participants: Participant[] = [];
   for (let i = 0; i < n; i++) {
     const context = await browser.newContext();

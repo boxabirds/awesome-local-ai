@@ -93,6 +93,13 @@ vi.mock('../../src/client/board/useBoardDoc', () => ({
   useBoardDoc: () => ({ doc: mockDoc, notes: mockNotes, connectionState: mockState }),
 }));
 
+// Story 5: the board page checks the board exists before mounting the board
+// UI. The check resolves to `exists` here so the (load-failed) board renders.
+vi.mock('../../src/client/api', () => ({
+  checkBoard: () => Promise.resolve({ kind: 'exists' }),
+  createBoardRequest: () => Promise.resolve({ kind: 'failed' }),
+}));
+
 // Imported after the mock is registered (hoisting-safe: the factory's inner
 // function reads the module-scoped lets at render time, not import time).
 import App from '../../src/client/App';
@@ -112,7 +119,7 @@ describe('TC-23: App edit lock while load_failed', () => {
     window.history.pushState({}, '', `/b/${boardId}`);
   });
 
-  it('create (dblclick + button), delete, drag and type are all no-ops', () => {
+  it('create (dblclick + button), delete, drag and type are all no-ops', async () => {
     // Spy on every board-model mutation the App could perform.
     const createSpy = vi.spyOn(boardModel, 'createSticky').mockImplementation(() => '');
     const deleteSpy = vi.spyOn(boardModel, 'deleteObject').mockImplementation(() => false);
@@ -120,6 +127,9 @@ describe('TC-23: App edit lock while load_failed', () => {
     const moveSpy = vi.spyOn(boardModel, 'moveObject').mockImplementation(() => false);
 
     const { container } = render(<App />);
+
+    // The board page's existence check (mocked) resolves before the board renders.
+    await screen.findByTestId('connection-status');
 
     // The load-failed badge is shown and the create button is disabled.
     expect(screen.getByTestId('connection-status')).toHaveTextContent(LOAD_FAILED_TEXT);

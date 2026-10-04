@@ -166,7 +166,9 @@ test.describe('story 3: nightly sync.client contract', () => {
           const oldText = target;
           const newText = oldText + ch;
           await p.startEditNote(oldText);
-          const ta = p.note(oldText).getByTestId('sticky-textarea');
+          // Page-scoped: once the note is in edit mode its text is in the
+          // textarea, so the hasText note filter no longer matches it.
+          const ta = p.page.getByTestId('sticky-textarea');
           await ta.fill(newText);
           await p.ensureNoEditing();
           latencies.push(

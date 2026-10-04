@@ -11,13 +11,19 @@
  *     Restores the backed-up chunk and invalidates the doc, so the next
  *     connection loads the board successfully again.
  *
+ *   POST /__test/boards/:boardId/seed-legacy
+ *     Seeds a legacy board (story 5): real Yjs updates as `updates` rows
+ *     WITHOUT `storage_meta.created_at`.
+ *
  * The hooks forward to the room's fetch with a `__test` query parameter;
  * the room performs the storage work (it owns the Durable Object storage).
  */
 import type { Env } from './index';
 
 export async function handleTestHooks(req: Request, env: Env, url: URL): Promise<Response> {
-  const match = url.pathname.match(/^\/__test\/boards\/([^/]+)\/(corrupt-snapshot|repair)$/);
+  const match = url.pathname.match(
+    /^\/__test\/boards\/([^/]+)\/(corrupt-snapshot|repair|seed-legacy)$/,
+  );
   if (req.method !== 'POST' || !match) {
     return new Response('Not Found', { status: 404 });
   }

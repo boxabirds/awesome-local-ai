@@ -2,9 +2,12 @@
  * Integration tests for sync.worker_entry: the real Worker `fetch` handler
  * and Durable Object namespace in workerd (via SELF.fetch), no mocks.
  *
- * Covers TC-04 (invalid id → 400, no instance), TC-05 (missing Upgrade → 426),
+ * Covers TC-04 (invalid id → 404, no instance), TC-05 (missing Upgrade → 426),
  * TC-06 (SPA fallback), TC-13 (over-capacity joiners accepted),
  * TC-17 (boards stay separate).
+ *
+ * Story 5: rooms are no longer created implicitly by connecting — the test
+ * fixtures initialize each board (the RPC the board API uses) first.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
@@ -40,6 +43,7 @@ async function waitFor<T>(
 async function connectBoard(boardId: string): Promise<WsClient> {
   const id = env.BOARD_ROOM.idFromName(boardId);
   const stub = env.BOARD_ROOM.get(id);
+  await stub.initialize(); // story 5: create the board before connecting
   const ws = await openSocket((req) => stub.fetch(req), boardId);
   const client = new WsClient(ws);
   await client.waitForSync();
@@ -62,11 +66,13 @@ describe('sync.worker_entry', () => {
     idFromNameSpy.mockRestore();
   });
 
-  it('TC-04: invalid board id with Upgrade → 400, no object instance looked up', async () => {
+  it('TC-04: invalid board id with Upgrade → 404, no object instance looked up', async () => {
+    // Story 5: story 3's 400 for malformed ids became 404 (unknown and
+    // malformed are indistinguishable; nothing is leaked).
     const res = await SELF.fetch(
       new Request('http://localhost/api/rooms/bad!id', { headers: UPGRADE_HEADERS }),
     );
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(idFromNameSpy).not.toHaveBeenCalled();
   });
 

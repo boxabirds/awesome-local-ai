@@ -32,6 +32,7 @@ import {
 import { LOAD_ORIGIN, BoardStore, type BoardStorage, type LoadResult } from './board-store';
 import { nextRoomState, type RoomState } from './room-state';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config';
+import { createSticky, getStickyText, initDoc } from '../shared/board-model';
 import type { Env } from './index';
 
 /** The Durable Object storage surface, as handed to BoardStore. */
@@ -68,6 +69,8 @@ export class BoardRoom extends DurableObject<Env> {
   /**
    * (Re)load the board from storage. Synchronous: Durable Object SQLite is
    * synchronous. On failure the room is left in "load-failed" with no doc.
+   * Story 5: no `migrate()` here — a board with no tables loads as empty
+   * without creating anything (probing unknown links writes nothing).
    */
   private load(): void {
     const doc = new Y.Doc();
@@ -75,7 +78,6 @@ export class BoardRoom extends DurableObject<Env> {
     let result: LoadResult;
     try {
       const s = new BoardStore(this.ctx.storage as unknown as Storage);
-      s.migrate();
       result = s.load(doc);
       if (result.ok) store = s;
     } catch (err) {
@@ -170,6 +172,38 @@ export class BoardRoom extends DurableObject<Env> {
     }
   }
 
+  /**
+   * RPC (story 5, share.board_api): create the board's storage. Runs
+   * `migrate()` and sets `storage_meta.created_at` (epoch ms) if absent.
+   * Idempotent: a second call returns 'exists' and changes nothing — an
+   * existing board is never re-initialised.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    const store = this.store ?? new BoardStore(this.ctx.storage as unknown as Storage);
+    if (!this.store) this.store = store;
+    store.migrate();
+    const sql = (this.ctx.storage as unknown as Storage).sql;
+    const row = (
+      sql.exec("SELECT value FROM storage_meta WHERE key = 'created_at'").toArray()[0]
+    ) as { value: string } | undefined;
+    if (row) return 'exists';
+    sql
+      .exec("INSERT INTO storage_meta (key, value) VALUES (?, ?)", 'created_at', String(Date.now()))
+      .toArray();
+    return 'created';
+  }
+
+  /**
+   * RPC (story 5, share.board_api): read-only existence check —
+   * `created_at`, or any updates/snapshot rows (legacy boards). Never
+   * writes storage.
+   */
+  async exists(): Promise<boolean> {
+    const store = this.store ?? new BoardStore(this.ctx.storage as unknown as Storage);
+    if (!this.store) this.store = store;
+    return store.existsReadOnly();
+  }
+
   async fetch(req: Request): Promise<Response> {
     // Test-only storage hooks (enabled only when env.TEST_HOOKS === "1"): the
     // /__test/ routes forward here as ?__test=corrupt-snapshot|repair.
@@ -180,6 +214,8 @@ export class BoardRoom extends DurableObject<Env> {
           this.testCorruptSnapshot();
         } else if (testAction === 'repair') {
           this.testRepairSnapshot();
+        } else if (testAction === 'seed-legacy') {
+          this.testSeedLegacy();
         } else {
           return new Response('Unknown test action', { status: 400 });
         }
@@ -192,6 +228,14 @@ export class BoardRoom extends DurableObject<Env> {
           headers: { 'Content-Type': 'application/json' },
         });
       }
+    }
+
+    // Story 5 (share.not_found): a board that does not exist is a 404 before
+    // any socket is accepted — rooms are no longer created implicitly by
+    // connecting. Skipped while the load failed: that board's state (4500
+    // path) is more specific and must win.
+    if (this.state !== 'load-failed' && this.store && !this.store.existsReadOnly()) {
+      return new Response('Board not found', { status: 404 });
     }
 
     // A new connection is the retry vector for a broken room.
@@ -325,6 +369,26 @@ export class BoardRoom extends DurableObject<Env> {
       sql.exec('UPDATE snapshot_chunks SET data = ? WHERE idx = ?', backup, 0).toArray();
       sql.exec('DELETE FROM test_backups WHERE key = ?', 'chunk_0').toArray();
     }
+    this.state = 'storage-failed';
+    this.doc = null;
+    this.store = null;
+  }
+
+  /**
+   * Test-only (story 5, share.legacy_boards): seed a legacy board — real
+   * Yjs updates written as `updates` rows WITHOUT `storage_meta.created_at`.
+   * Such boards must count as existing and open with their content.
+   */
+  testSeedLegacy(): void {
+    const storage = this.ctx.storage as unknown as Storage;
+    const store = new BoardStore(storage);
+    store.migrate(); // tables + schema version; deliberately NO created_at
+    const doc = new Y.Doc();
+    initDoc(doc);
+    const id = createSticky(doc, { x: 100, y: 100 });
+    getStickyText(doc, id)?.insert(0, 'legacy note');
+    store.append(Y.encodeStateAsUpdate(doc));
+    // Invalidate any in-memory doc so the next connection loads from disk.
     this.state = 'storage-failed';
     this.doc = null;
     this.store = null;

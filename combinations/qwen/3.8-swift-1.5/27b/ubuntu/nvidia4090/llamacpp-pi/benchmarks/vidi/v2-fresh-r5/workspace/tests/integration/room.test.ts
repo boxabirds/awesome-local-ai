@@ -40,6 +40,7 @@ async function waitFor<T>(
 async function connectBoard(boardId: string): Promise<WsClient> {
   const id = env.BOARD_ROOM.idFromName(boardId);
   const stub = env.BOARD_ROOM.get(id);
+  await stub.initialize(); // story 5: create the board before connecting
   const ws = await openSocket((req) => stub.fetch(req), boardId);
   const client = new WsClient(ws);
   await client.waitForSync();
@@ -50,6 +51,7 @@ async function connectBoard(boardId: string): Promise<WsClient> {
 async function reconnectBoard(doc: Y.Doc, boardId: string): Promise<WsClient> {
   const id = env.BOARD_ROOM.idFromName(boardId);
   const stub = env.BOARD_ROOM.get(id);
+  await stub.initialize(); // story 5: create the board before connecting
   const ws = await openSocket((req) => stub.fetch(req), boardId);
   const client = new WsClient(ws, doc);
   await client.waitForSync();

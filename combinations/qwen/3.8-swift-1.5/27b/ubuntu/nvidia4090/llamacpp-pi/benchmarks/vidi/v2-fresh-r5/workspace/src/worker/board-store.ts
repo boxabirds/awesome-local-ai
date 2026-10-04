@@ -119,6 +119,8 @@ export class BoardStore {
   /** In-memory log stats, maintained to avoid COUNT(*) per write. */
   private rowCount = 0;
   private byteTotal = 0;
+  /** True once the schema is known to exist (story 5 lazy migrate). */
+  private schemaReady = false;
 
   constructor(storage: BoardStorage) {
     // Test seam: a registered wrapper (integration tests only) can replace
@@ -148,9 +150,59 @@ export class BoardStore {
 
   /** Append one update to the log. Throws on SQL failure. */
   append(update: Uint8Array): void {
+    this.ensureSchema();
     this.storage.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length).toArray();
     this.rowCount += 1;
     this.byteTotal += update.length;
+  }
+
+  /**
+   * Read-only existence check (story 5, share.board_api): true when the
+   * board has `storage_meta.created_at`, or (legacy, share.legacy_boards)
+   * at least one row in `updates` or `snapshot_chunks`. Queries
+   * `sqlite_master` first and NEVER creates tables, so probing an unknown
+   * link leaves no storage behind.
+   */
+  existsReadOnly(): boolean {
+    const sql = this.storage.sql;
+    const tables = new Set(
+      (sql.exec("SELECT name FROM sqlite_master WHERE type = 'table'").toArray() as { name: string }[])
+        .map((r) => r.name),
+    );
+    if (tables.has('storage_meta')) {
+      const row = (sql
+        .exec("SELECT value FROM storage_meta WHERE key = 'created_at'")
+        .toArray()[0]) as { value: string } | undefined;
+      if (row) return true;
+    }
+    for (const table of ['updates', 'snapshot_chunks']) {
+      if (tables.has(table)) {
+        const row = sql.exec(`SELECT COUNT(*) AS c FROM ${table}`).toArray()[0] as { c: number };
+        if (row.c > 0) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Create the schema if it does not exist yet. Story 5: `migrate()` no
+   * longer runs on construct — it runs inside `initialize()` and lazily
+   * before the first `append()`/`compact()` (legacy boards already have
+   * tables).
+   */
+  private ensureSchema(): void {
+    if (this.schemaReady) return;
+    const row = (
+      this.storage.sql
+        .exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'updates'")
+        .toArray()[0]
+    ) as { name: string } | undefined;
+    if (row) {
+      this.schemaReady = true;
+      return;
+    }
+    this.migrate();
+    this.schemaReady = true;
   }
 
   /**
@@ -162,6 +214,20 @@ export class BoardStore {
   load(doc: Y.Doc): LoadResult {
     try {
       const sql = this.storage.sql;
+
+      // 0. A board with no tables is an empty board (story 5): return without
+      // creating anything — probing an unknown link must write nothing.
+      const tables = new Set(
+        (sql.exec("SELECT name FROM sqlite_master WHERE type = 'table'").toArray() as { name: string }[])
+          .map((r) => r.name),
+      );
+      if (
+        !tables.has('storage_meta') &&
+        !tables.has('updates') &&
+        !tables.has('snapshot_chunks')
+      ) {
+        return { ok: true, quarantined: 0 };
+      }
 
       // 1. The chunked snapshot (if any).
       const chunkRows = sql
@@ -228,6 +294,7 @@ export class BoardStore {
   compact(doc: Y.Doc): boolean {
     try {
       const sql = this.storage.sql;
+      this.ensureSchema();
       const maxSeq = (
         sql.exec('SELECT MAX(seq) AS m FROM updates').toArray()[0] as { m: number | null }
       ).m ?? 0;

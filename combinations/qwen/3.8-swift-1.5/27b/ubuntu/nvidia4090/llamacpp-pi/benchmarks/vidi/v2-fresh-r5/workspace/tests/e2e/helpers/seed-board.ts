@@ -16,6 +16,7 @@ import {
   initDoc,
 } from '../../../src/shared/board-model';
 import { STICKY_COLORS, type StickyColor } from '../../../src/shared/config';
+import { createBoard } from './api';
 
 const ALL_COLORS = Object.keys(STICKY_COLORS) as StickyColor[];
 
@@ -35,12 +36,13 @@ function mulberry32(seed: number): () => number {
  * Create `nNotes` notes on the board at `/api/rooms/<boardId>` on `port`,
  * laid out on a grid so they occupy distinct positions. Resolves once the
  * provider has synced and the writes have had time to flush to storage.
+ * Story 5: the board is created via POST /api/boards first; returns its id.
  */
 export async function seedBoard(
   port: number,
-  boardId: string,
   nNotes: number,
-): Promise<void> {
+): Promise<string> {
+  const boardId = await createBoard(`http://127.0.0.1:${port}`);
   const doc = new Y.Doc();
   initDoc(doc);
   const provider = new WebsocketProvider(
@@ -74,4 +76,5 @@ export async function seedBoard(
     provider.destroy();
     doc.destroy();
   }
+  return boardId;
 }
