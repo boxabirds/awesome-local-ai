@@ -1,3 +1,78 @@
+commit 44c7555431975dbafead33e8bd2745f39f74ffd2
+agent  Sun Oct 4 22:49:33 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                |  62 +++-
+ PROGRESS.md                             |  10 +-
+ playwright.config.ts                    |  85 +++++-
+ src/client/App.tsx                      |  14 +-
+ src/client/objects/StickyNote.tsx       |  33 ++-
+ tests/component/StickyNote.test.tsx     |  31 ++
+ tests/component/helpers/stickyBoard.tsx |  14 +-
+ tests/e2e/helpers/sticky.ts             | 222 ++++++++++++++
+ tests/e2e/sticky-notes.spec.ts          | 501 ++++++++++++++++++++++++++++++++
+ 9 files changed, 948 insertions(+), 24 deletions(-)
+commit 79315fada4b40452abc8bc9603cbc578a6887ee8
+agent  Sun Oct 4 22:17:42 2026 +0000
+
+    story 2: sticky note, editor and toolbar component tests
+
+
+ src/client/App.tsx                        | 109 +++++++-
+ src/client/board/useBoardDoc.ts           |   5 +
+ src/client/board/useSelection.ts          |  54 ++++
+ src/client/canvas/BoardViewport.tsx       |  56 +++-
+ src/client/canvas/testHooks.ts            |  42 ++-
+ src/client/components/Toolbar.tsx         |  50 ++++
+ src/client/objects/NoteToolbar.tsx        |  82 ++++++
+ src/client/objects/StickyNote.tsx         | 325 ++++++++++++++++++++++
+ src/client/objects/StickyText.ts          | 124 +++++++--
+ src/client/objects/StickyTextEditor.tsx   | 175 ++++++++++++
+ src/client/styles.css                     | 240 +++++++++++++++++
+ src/shared/config.ts                      |   3 +
+ tests/component/StickyNote.test.tsx       | 430 ++++++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 300 +++++++++++++++++++++
+ tests/component/Toolbars.test.tsx         | 287 ++++++++++++++++++++
+ tests/component/helpers/stickyBoard.tsx   | 195 ++++++++++++++
+ tests/unit/sticky-text.test.ts            |  74 +++--
+ 17 files changed, 2489 insertions(+), 62 deletions(-)
+commit d3b20620c2d6ec4d3b057126453ef4b813208af2
+agent  Sun Oct 4 21:38:51 2026 +0000
+
+    story 2: board model, useBoardDoc, red sticky text unit tests
+
+
+ PROGRESS.md                      |   8 +-
+ src/client/board/useBoardDoc.ts  |  79 +++++++++
+ src/client/objects/StickyText.ts |  33 ++++
+ src/shared/board-model.ts        | 284 ++++++++++++++++++++++++++----
+ tests/fixtures/texts.ts          |  51 ++++++
+ tests/unit/board-model.test.ts   |   5 +-
+ tests/unit/sticky-text.test.ts   | 360 +++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 780 insertions(+), 40 deletions(-)
+commit f9ecd1cd6d593c30e8197381e004e7f54cfdad2f
+agent  Sun Oct 4 21:33:09 2026 +0000
+
+    story 2: red board model unit tests (TC-01..TC-12, TC-39)
+
+
+ PROGRESS.md                    |   2 +-
+ package-lock.json              |  51 ++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  78 ++++++++
+ src/shared/config.ts           |  35 ++++
+ tests/unit/board-model.test.ts | 437 +++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 603 insertions(+), 3 deletions(-)
+commit 07e0af97b6afeaaef303baff0753d24d9b3ec4c6
+vidi-agent  Sun Oct 4 22:29:47 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 35 +++++++++--------------------------
+ 1 file changed, 9 insertions(+), 26 deletions(-)
 commit 3ffa8285cced6d345cd62e41c3eb8d0cfe1d1f0c
 agent  Sun Oct 4 21:28:51 2026 +0000
 

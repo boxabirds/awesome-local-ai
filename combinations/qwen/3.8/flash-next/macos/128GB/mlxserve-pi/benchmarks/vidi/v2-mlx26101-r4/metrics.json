@@ -1206,6 +1206,1360 @@
           "6": "done",
           "7": "done (Firefox run blocked, see below)"
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": false,
+        "over_size_limit": [],
+        "private": {
+          "copied": 7,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "2e9b78b54",
+        "unpushed": true,
+        "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4/metrics.json' not uptodate. Cannot merge.\n"
+      }
+    },
+    "2": {
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1791149448.5760121,
+      "engine_settings": {
+        "server_started_at": "2026-10-04T20:18:52Z",
+        "engine": "mlx-serve",
+        "engine_version": "mlx-serve 26.10.1",
+        "thinking_mode": {
+          "value": "on",
+          "source": "model config",
+          "evidence": "generation_config.json default_chat_template_kwargs.enable_thinking=true"
+        },
+        "thinking_budget": {
+          "value": 32768,
+          "source": "command line",
+          "evidence": "--reasoning-budget 32768"
+        },
+        "context_size": {
+          "value": 131072,
+          "source": "command line",
+          "evidence": "--ctx-size 131072"
+        },
+        "kv_cache_type": {
+          "value": "off",
+          "source": "command line",
+          "evidence": "--kv-quant off"
+        },
+        "speculative": {
+          "value": {
+            "method": "mtp"
+          },
+          "source": "command line",
+          "evidence": "--mtp (draft depth is mlx-serve's own)"
+        },
+        "temperature": {
+          "value": 1.0,
+          "source": "command line",
+          "evidence": "--temp 1.0"
+        },
+        "top_p": {
+          "value": 0.95,
+          "source": "command line",
+          "evidence": "--top-p 0.95"
+        },
+        "top_k": {
+          "value": 20,
+          "source": "command line",
+          "evidence": "--top-k 20"
+        },
+        "min_p": {
+          "value": "not set",
+          "source": "not set",
+          "evidence": "no --min-p on the command line: mlx-serve's own default applies"
+        },
+        "quantisation": {
+          "value": "mixed-4-8bit",
+          "source": "model file name",
+          "evidence": "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+        },
+        "reasoning_effort": {
+          "requested": "low",
+          "engine": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "mlx-serve has no server-side reasoning-effort setting (lib/runtime/server-mlxserve.sh)"
+          },
+          "client": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "effective": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "neither the engine's command line nor the client sets an effort: mlx-serve renders a request that names no effort by its template's rule; lib/runtime/server-mlxserve.sh reads that as 'low' on Qwen3.8 (chat.zig), unverified here. Engine: mlx-serve has no server-side reasoning-effort setting (lib/runtime/server-mlxserve.sh). Client: pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "matches_request": null
+        },
+        "gaps": [
+          "reasoning effort: 'low' requested, neither the engine nor the client applies one"
+        ]
+      },
+      "agent": {
+        "seconds": 4792.0,
+        "steps": 320,
+        "tool_calls": 332,
+        "compactions": 3,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 540840,
+          "output": 225692,
+          "reasoning": 0,
+          "cache_read": 21852899,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 1,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a108d3-a945-721b-bf92-8ea7936799cc",
+          "01a108d3-a945-721b-bf92-8ea7936799cc"
+        ],
+        "finished": true,
+        "interventions": {
+          "total": 1,
+          "stop_message": 1,
+          "toolcall_text_resumes": 0,
+          "error_resumes": 0
+        }
+      },
+      "agent_finished": 1791154241.173383,
+      "conditions": {
+        "samples": 157,
+        "degraded": false,
+        "throttled_share": 0.92,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791149539.493438
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791149569.915682
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149600.281539
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149630.7552269
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149661.249915
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149691.722987
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149722.178365
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149752.665361
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149783.0521579
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149813.4316921
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149843.784003
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149874.243964
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149904.735102
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149935.098911
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149965.59185
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791149995.927132
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150026.318217
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150056.785324
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150087.186762
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150117.63242
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150148.156099
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150178.718029
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150209.111592
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150239.53304
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150270.1039941
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150300.540253
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150331.030615
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150361.508086
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150391.9431329
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150422.49928
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150452.8888829
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150483.252108
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150513.671846
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150544.244738
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150574.8078442
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150605.3674722
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150635.91757
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150666.430538
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150696.999252
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150727.516066
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150758.014221
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150788.489588
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150818.9650402
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150849.47069
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150879.9550452
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150910.313214
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150940.8014898
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791150971.3018281
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151001.789073
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151032.281329
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151062.782283
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151093.1925728
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151123.672367
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151154.1676958
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151184.5244951
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151214.873472
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151245.223226
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151275.572522
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151305.9325929
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151336.316163
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151366.694162
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151397.1848252
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791151427.572305
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791151457.9680262
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791151488.436327
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791151518.907603
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791151549.408468
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791151579.8284101
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791151610.3043442
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791151640.754623
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791151671.1359239
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151701.564933
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151732.0585852
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151762.481554
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151792.949412
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151823.3507142
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151853.6867158
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151884.07534
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151914.54174
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151945.03725
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791151975.531085
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152005.870364
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152036.2606678
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152066.741801
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152097.217828
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152127.608595
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152158.1319659
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152188.603713
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152219.094005
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152249.437003
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152279.9069262
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152310.278355
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152340.673599
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152371.164157
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152401.6070058
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152432.089494
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152462.574156
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152492.974373
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152523.3476748
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152553.813236
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791152584.27008
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791152706.072279
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791152736.4406981
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152766.817534
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152797.310385
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152827.724766
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152858.2190871
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152888.663172
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152919.061213
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152949.543061
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791152980.023584
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153010.53046
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153040.9089391
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153071.368041
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153101.712976
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153132.1295629
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153162.484393
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153192.977121
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791153223.4037042
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791153253.894399
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791153284.354589
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791153314.833791
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791153345.301101
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153619.398579
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153649.765409
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153680.261743
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153710.747933
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153741.1782458
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153771.6026042
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153802.106179
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153832.605911
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153862.9440188
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153893.434536
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153923.914113
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153954.2538428
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791153984.942095
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791154015.320874
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791154045.778952
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791154076.267476
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791154106.8110762
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791154137.288662
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791154167.7630699
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791154198.250457
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791154228.654439
+          }
+        ],
+        "swap_start_gb": 0.15,
+        "swap_max_gb": 0.15,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 22.0,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": 92.0,
+        "server_footprint_peak_gb": 94.0,
+        "gpu": null
+      },
+      "containment": {
+        "enabled": false
+      },
+      "agent_commits": 4,
+      "provenance": {
+        "harness_commit": "b0fd99246",
+        "harness_dirty": null,
+        "harness_release": "harness-v2026.10.03.1",
+        "pack_version": "vidi-v2.0-pre2+88a5c4002",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 2.6,
+            "tail": "\nadded 143 packages, and audited 144 packages in 3s\n\n31 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm warn allow-scripts 3 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20261001.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.9,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.2 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 68 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-BOd6iwkS.css    5.80 kB \u2502 gzip:  1.72 kB\ndist/client/assets/index-Dpgb0xHb.js   301.87 kB \u2502 gzip: 93.87 kB \u2502 map: 1,706.72 kB\n\n\u001b[32m\u2713 built in 253ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 0.9,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 0.5,
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/b30e82cd94/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 15\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m26 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m26 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m71 passed\u001b[39m\u001b[22m\u001b[90m (71)\u001b[39m\n\u001b[2m   Start at \u001b[22m 23:50:48\n\u001b[2m   Duration \u001b[22m 101ms\u001b[2m (transform 55%, import 24%, tests 19%, worker 3%)\u001b[22m\n\n",
+            "passed": 71,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/b30e82cd94/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 84\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 112\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m20 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 225\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 239\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 270\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 369\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m84 passed\u001b[39m\u001b[22m\u001b[90m (84)\u001b[39m\n\u001b[2m   Start at \u001b[22m 23:50:48\n\u001b[2m   Duration \u001b[22m 802ms\u001b[2m (environment 39%, tests 36%, transform 12%, setup 10%, import 2%)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/StickyNote.test.tsx\u001b[2m > \u001b[22m\u001b[2msticky note interaction\u001b[2m > \u001b[22m\u001b[2mTC-37: a note deleted while it is being dragged ends the drag quietly\n\u001b[22m\u001b[39mAn update to App inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/StickyNote.test.tsx\u001b[2m > \u001b[22m\u001b[2msticky note interaction\u001b[2m > \u001b[22m\u001b[2mTC-37b: a note deleted while it is being typed in ends editing quietly\n\u001b[22m\u001b[39mAn update to App inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/StickyNote.test.tsx\u001b[2m > \u001b[22m\u001b[2msticky note interaction\u001b[2m > \u001b[22m\u001b[2mTC-37c: a drag of a note that is deleted mid-drag does not recreate it\n\u001b[22m\u001b[39mAn update to App inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n",
+            "passed": 84,
+            "failed": 0
+          },
+          "test:integration": {
+            "exit": "missing"
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 7.5,
+            "tail": "  \u2713  20 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:237:1 \u203a TC-34: created from the toolbar while panned far away, the note is still on screen (359ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-fBwCpb7j.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BOd6iwkS.css 200 OK (11ms)\n  \u2713   6 [chromium] \u203a tests/e2e/navigation.spec.ts:172:1 \u203a TC-25: clicking + until it is disabled ends at 400% (2.3s)\n  \u2713  15 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:114:1 \u203a TC-31: at 50% zoom a dragged note moves by the pointer travel divided by the zoom (1.2s)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index-fBwCpb7j.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BOd6iwkS.css 200 OK (10ms)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index-fBwCpb7j.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BOd6iwkS.css 200 OK (11ms)\n  \u2713  24 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:372:1 \u203a nothing selected: Enter makes no note and Delete removes nothing (220ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-fBwCpb7j.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BOd6iwkS.css 200 OK (11ms)\n  \u2713  23 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:334:1 \u203a a note is reached with Tab, edited with Enter, and Backspace belongs to the text (343ms)\n  \u2713   8 [chromium] \u203a tests/e2e/navigation.spec.ts:255:1 \u203a TC-27b: drag and zoom still work a million units out, at both zoom limits (2.6s)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-fBwCpb7j.js 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index-BOd6iwkS.css 200 OK (11ms)\n  \u2713  19 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:216:1 \u203a TC-33b: a note typed past the limit keeps the first thousand characters and counts them (1.3s)\n[WebServer] [wrangler:info] GET / 200 OK (4ms)\n[WebServer] [wrangler:info] GET /assets/index-fBwCpb7j.js 200 OK (4ms)\n[WebServer] [wrangler:info] GET /assets/index-BOd6iwkS.css 200 OK (17ms)\n  \u2713  17 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:141:1 \u203a TC-32: at 200% zoom a dragged note moves by half the pointer travel, over the note it crosses (1.5s)\n[WebServer] [wrangler:info] GET / 200 OK (4ms)\n[WebServer] [wrangler:info] GET /assets/index-fBwCpb7j.js 200 OK (5ms)\n[WebServer] [wrangler:info] GET /assets/index-BOd6iwkS.css 200 OK (16ms)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index-fBwCpb7j.js 200 OK (4ms)\n[WebServer] [wrangler:info] GET /assets/index-BOd6iwkS.css 200 OK (4ms)\n  \u2713  26 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:411:1 \u203a the note toolbar keeps its size on screen at every zoom and says which colour the note has (465ms)\n  \u2713  28 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:467:1 \u203a two notes made one after the other are two notes, apart, the second one being typed into (487ms)\n  \u2713   1 [chromium] \u203a tests/e2e/navigation.spec.ts:191:1 \u203a TC-25b: clicking - down to the minimum disables it, and + steps back by 1.25 (3.2s)\n  \u2713  11 [chromium] \u203a tests/e2e/navigation.spec.ts:340:1 \u203a TC-13 (browser): only a left-drag on empty board space pans, and drags keep working (2.7s)\n  \u2713  22 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:300:1 \u203a notes are stacked in the order they were raised, and a drag raises the one under (1.4s)\n  \u2713  25 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:386:1 \u203a a press on a tool is not a board gesture: no pan, no note, no drag (1.1s)\n  \u2713  21 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:262:1 \u203a the brainstorm golden path: create, type, move at 50%, recolour, delete (2.1s)\n  \u2713  29 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:487:1 \u203a everything written survives a zoom out to a quarter and back to full size (1.1s)\n  \u2713  27 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:438:1 \u203a the board pans under a note, and a note does not pan the board (1.6s)\n\n  29 passed (6.6s)\n",
+            "passed": 29,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 18,
+        "total": 20,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "44c7555431975dbafead33e8bd2745f39f74ffd2",
+      "requests": {},
+      "time_split": {
+        "wall_s": 4792.6,
+        "model": {
+          "source": "client-stream",
+          "requests": 320,
+          "prefill_s": 475.3,
+          "prefill_tokens": 540840,
+          "prefill_tok_s": 1137.9,
+          "decode_s": 3523.4,
+          "decode_tokens": 225692,
+          "decode_tok_s": 64.1,
+          "cached_tokens": 21852899,
+          "draft_acceptance": 0.637,
+          "mean_accepted_len": 3.22
+        },
+        "tools_s": 529.1,
+        "tools_by_kind": {
+          "e2e": 222.0,
+          "bash": 200.3,
+          "unit": 92.5,
+          "build": 14.1,
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
+        },
+        "compaction_s": 245.6,
+        "compactions": 3,
+        "between_sessions_s": 3.5,
+        "other_s": 15.8,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        }
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 320,
+        "tool_calls": 332,
+        "thinking_visible": true,
+        "thinking_chars": 414164,
+        "thinking_median": 461,
+        "thinking_median_before": 381,
+        "thinking_median_after": 466,
+        "largest_thinking": {
+          "chars": 28283,
+          "call": 50,
+          "at_s": 887.2
+        },
+        "text_chars": 3983,
+        "tool_arg_chars": 382425,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 2225,
+        "context_end": 78772,
+        "largest_context_jump": {
+          "tokens": 11439,
+          "call": 3
+        },
+        "tools_by_name": {
+          "bash": 197,
+          "read": 37,
+          "edit": 66,
+          "write": 32
+        },
+        "tool_errors": 16,
+        "longest_tool": {
+          "seconds": 60.0,
+          "name": "bash",
+          "gist": "cd ~/.w/b30e82cd94/workspace && kill -9 12556 2>&1; sleep 1; netstat -anv -p tcp 2>/dev/null | grep -c \"2288"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 35,
+        "lines": 7420
+      },
+      "finished": 1791154289.202445,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board model unit tests first against a real Y.Doc (TC-01 to TC-12, TC-39)",
+          "type": "test:unit",
+          "implements": [
+            "board.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-39"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 2,
+          "title": "Implement Yjs board model and useBoardDoc snapshot hook",
+          "type": "implementation",
+          "implements": [
+            "board.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Write sticky text logic unit tests first (TC-13 to TC-17)",
+          "type": "test:unit",
+          "implements": [
+            "sticky.text"
+          ],
+          "tcs": [
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 4,
+          "title": "Implement sticky text editing: start/end editing, minimal Y.Text diff, length limit, auto-fit font",
+          "type": "implementation",
+          "implements": [
+            "sticky.text"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement sticky note interaction: select, drag to move, double-click create, keyboard delete",
+          "type": "implementation",
+          "implements": [
+            "sticky.interaction"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Implement toolbars: Sticky note button, colour swatches and delete button",
+          "type": "implementation",
+          "implements": [
+            "sticky.toolbar"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Component tests for sticky interaction, text editor and toolbars",
+          "type": "test:ui-component",
+          "implements": [
+            "sticky.interaction",
+            "sticky.text",
+            "sticky.toolbar"
+          ],
+          "tcs": [
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-35",
+            "TC-36",
+            "TC-37",
+            "TC-38"
+          ],
+          "status": "verified",
+          "found": 16,
+          "total": 16
+        },
+        {
+          "n": 8,
+          "title": "E2E sticky note workflows (create, move at zoom, recolour, delete, long text)",
+          "type": "test:e2e",
+          "implements": [
+            "sticky.interaction",
+            "sticky.text",
+            "sticky.toolbar"
+          ],
+          "tcs": [
+            "TC-30",
+            "TC-31",
+            "TC-32",
+            "TC-33",
+            "TC-34"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        }
+      ],
+      "end_reason": "stop-message-then-finished",
+      "tasks_claimed": {
+        "file": "read",
+        "tasks": {
+          "1": "done",
+          "2": "done",
+          "3": "done",
+          "4": "done",
+          "5": "done",
+          "6": "done",
+          "7": "done",
+          "8": "done"
+        }
       }
     }
   },
@@ -1658,6 +3012,471 @@
           "accept": {
             "passed": 6,
             "total": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1791149448.5760121,
+      "ended_at": 1791154241.173383,
+      "agent_minutes": 79.9,
+      "calls": 320,
+      "output_tokens": 225692,
+      "compactions": 3,
+      "last_commit_at": 1791154173.0,
+      "accept": {
+        "passed": 8,
+        "total": 10
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board model unit tests first against a real Y.Doc (TC-01 to TC-12, TC-39)",
+          "type": "test:unit",
+          "implements": [
+            "board.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-39"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 2,
+          "title": "Implement Yjs board model and useBoardDoc snapshot hook",
+          "type": "implementation",
+          "implements": [
+            "board.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Write sticky text logic unit tests first (TC-13 to TC-17)",
+          "type": "test:unit",
+          "implements": [
+            "sticky.text"
+          ],
+          "tcs": [
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 4,
+          "title": "Implement sticky text editing: start/end editing, minimal Y.Text diff, length limit, auto-fit font",
+          "type": "implementation",
+          "implements": [
+            "sticky.text"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement sticky note interaction: select, drag to move, double-click create, keyboard delete",
+          "type": "implementation",
+          "implements": [
+            "sticky.interaction"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Implement toolbars: Sticky note button, colour swatches and delete button",
+          "type": "implementation",
+          "implements": [
+            "sticky.toolbar"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Component tests for sticky interaction, text editor and toolbars",
+          "type": "test:ui-component",
+          "implements": [
+            "sticky.interaction",
+            "sticky.text",
+            "sticky.toolbar"
+          ],
+          "tcs": [
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-35",
+            "TC-36",
+            "TC-37",
+            "TC-38"
+          ],
+          "status": "verified",
+          "found": 16,
+          "total": 16
+        },
+        {
+          "n": 8,
+          "title": "E2E sticky note workflows (create, move at zoom, recolour, delete, long text)",
+          "type": "test:e2e",
+          "implements": [
+            "sticky.interaction",
+            "sticky.text",
+            "sticky.toolbar"
+          ],
+          "tcs": [
+            "TC-30",
+            "TC-31",
+            "TC-32",
+            "TC-33",
+            "TC-34"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 13.9,
+          "calls": 42,
+          "output_tokens": 84946,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 37.4,
+          "calls": 143,
+          "output_tokens": 111027,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 62.0,
+          "calls": 167,
+          "output_tokens": 166072,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 82.0,
+          "calls": 243,
+          "output_tokens": 250431,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 49.4,
+          "calls": 114,
+          "output_tokens": 120732,
+          "accept": {
+            "passed": 7,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 73.7,
+          "calls": 180,
+          "output_tokens": 180222,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 62.8,
+          "calls": 136,
+          "output_tokens": 134365,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 72.8,
+          "calls": 172,
+          "output_tokens": 201092,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 82.1,
+          "calls": 239,
+          "output_tokens": 175220,
+          "accept": {
+            "passed": 7,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 54.6,
+          "calls": 156,
+          "output_tokens": 119088,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 80.2,
+          "calls": 207,
+          "output_tokens": 174827,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 17.8,
+          "calls": 101,
+          "output_tokens": 51019,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 95.8,
+          "calls": 179,
+          "output_tokens": 174348,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 51.7,
+          "calls": 150,
+          "output_tokens": 114912,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 41.7,
+          "calls": 119,
+          "output_tokens": 97312,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 14.5,
+          "calls": 103,
+          "output_tokens": 68248,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 24.0,
+          "calls": 92,
+          "output_tokens": 49352,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 27.0,
+          "calls": 123,
+          "output_tokens": 108891,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 24.9,
+          "calls": 98,
+          "output_tokens": 62733,
+          "accept": {
+            "passed": 5,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 25.5,
+          "calls": 157,
+          "output_tokens": 92339,
+          "accept": {
+            "passed": 7,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 12.7,
+          "calls": 104,
+          "output_tokens": 55968,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 35.7,
+          "calls": 143,
+          "output_tokens": 135388,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 47.6,
+          "calls": 151,
+          "output_tokens": 147278,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 20.0,
+          "calls": 102,
+          "output_tokens": 102552,
+          "accept": {
+            "passed": 0,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 36.0,
+          "calls": 119,
+          "output_tokens": 94482,
+          "accept": {
+            "passed": 7,
+            "total": 10
           }
         }
       ]

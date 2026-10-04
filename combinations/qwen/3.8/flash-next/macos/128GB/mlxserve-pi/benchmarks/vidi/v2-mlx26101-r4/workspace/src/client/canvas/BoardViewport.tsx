@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { JSX, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import type { JSX, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
-import { GRID_SPACING_WORLD } from '../../shared/config';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import { cameraStore } from './cameraStore';
 import type { Point } from './camera';
+import { screenToWorld } from './camera';
 import { useCamera, useViewportSize, wheelDeltaToPixels } from './useCamera';
 
 /** Only the primary pointer button pans; other buttons stay available to objects. */
@@ -28,6 +29,17 @@ function gestureScale(event: SafariGestureEvent): number {
 
 export interface BoardViewportProps {
   children?: ReactNode;
+  /**
+   * Double-click on empty board space, with the world point that was clicked:
+   * this is where a new sticky note is put down. Without it the board only pans
+   * and zooms, exactly as in story 1.
+   */
+  onCreateAt?(world: Point): void;
+  /**
+   * A click on empty board space that did not pan: the selection is let go.
+   * Without it a note would stay selected until another one was pressed.
+   */
+  onClearSelection?(): void;
 }
 
 /**
@@ -38,12 +50,14 @@ export interface BoardViewportProps {
  * Ctrl/Cmd + wheel around the pointer, or the zoom controls. Every gesture over the
  * board is cancelled so the browser page never scrolls or zooms instead.
  */
-export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
+export function BoardViewport({ children, onCreateAt, onClearSelection }: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportSize = useViewportSize(viewportRef);
   const { camera, beginPan, panMove, endPan, wheel } = useCamera(viewportSize);
   const [panning, setPanning] = useState(false);
   const panningRef = useRef(false);
+  // The press currently down on the board, to tell a click from a pan.
+  const press = useRef<{ pointerId: number; x: number; y: number; moved: boolean } | null>(null);
 
   // React's onWheel is passive, so the wheel listener is registered by hand with
   // `{ passive: false }` to be able to preventDefault (PRD: board gestures must not
@@ -118,13 +132,24 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
     if (!isBoardSurface(event.target)) return;
     panningRef.current = true;
     setPanning(true);
+    const point = toScreenPoint(event);
+    press.current = { pointerId: event.pointerId, x: point.x, y: point.y, moved: false };
     viewportRef.current?.setPointerCapture(event.pointerId);
-    beginPan(toScreenPoint(event));
+    beginPan(point);
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (!panningRef.current) return;
-    panMove(toScreenPoint(event));
+    const point = toScreenPoint(event);
+    const pressed = press.current;
+    if (pressed && pressed.pointerId === event.pointerId) {
+      // Once the board has travelled as far as a note needs to start dragging,
+      // this press is a pan: whatever was selected stays selected, because the
+      // board moved and the user's intent did not.
+      const travelled = Math.max(Math.abs(point.x - pressed.x), Math.abs(point.y - pressed.y));
+      if (travelled >= DRAG_THRESHOLD_PX) pressed.moved = true;
+    }
+    panMove(point);
   };
 
   /** Ends the drag; the board simply stays where the last move left it. */
@@ -132,7 +157,27 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
     if (!panningRef.current) return;
     panningRef.current = false;
     setPanning(false);
+    const pressed = press.current;
+    press.current = null;
     endPan();
+    // A click on empty board space that panned nothing lets go of the selection.
+    if (pressed && !pressed.moved) onClearSelection?.();
+  };
+
+  /**
+   * Double-click on empty board space puts a sticky note down under the cursor,
+   * so the toolbar button is a convenience and not the only way in. The click is
+   * swallowed here: it must not also select or clear anything.
+   */
+  const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if (!onCreateAt) return;
+    if (!isBoardSurface(event.target)) return;
+    event.stopPropagation();
+    // A screen pixel and a world point only agree once the viewport's own
+    // position and the zoom are taken out.
+    const rect = viewportRef.current?.getBoundingClientRect();
+    const screen = { x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) };
+    onCreateAt(screenToWorld(camera, screen));
   };
 
   const gridPeriod = GRID_SPACING_WORLD * camera.zoom;
@@ -156,6 +201,7 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
       onLostPointerCapture={handlePointerEnd}
+      onDoubleClick={handleDoubleClick}
     >
       <div
         data-testid="world-layer"

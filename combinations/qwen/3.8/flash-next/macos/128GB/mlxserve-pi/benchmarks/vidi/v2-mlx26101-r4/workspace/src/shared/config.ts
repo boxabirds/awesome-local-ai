@@ -31,3 +31,41 @@ export const WHEEL_PAGE_VIEWPORT_FRACTION = 1;
 export const WHEEL_DELTA_MODE_PIXELS = 0;
 export const WHEEL_DELTA_MODE_LINES = 1;
 export const WHEEL_DELTA_MODE_PAGES = 2;
+
+/* ------------------------------------------------------------- sticky notes -- */
+
+/** Width and height of a sticky note in world units (it is a square). */
+export const STICKY_SIZE_WORLD = 200;
+
+/** Longest note text the board accepts; characters beyond it are dropped. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+
+/** The character counter appears once this many characters (or fewer) remain. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+
+/** Largest note font size (board units, so it scales with zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+
+/** Smallest note font size; below this the text overflows and is faded out. */
+export const STICKY_FONT_MIN_PX = 10;
+
+/** Pointer travel (screen px) before a press on a note becomes a drag. */
+export const DRAG_THRESHOLD_PX = 3;
+
+/** Space between a note's edge and its text, in world units. */
+export const STICKY_PADDING_WORLD = 12;
+
+/** The six note colours, keyed by the name used in the document and in labels. */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+
+export type StickyColor = keyof typeof STICKY_COLORS;
+
+/** The colour of a newly created note. */
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';

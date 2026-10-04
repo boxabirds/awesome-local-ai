@@ -3,9 +3,85 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-// Port is pinned inside the range allocated to this machine (see NOTES.md).
-const PORT_E2E = 22880;
-const PORT_INSPECTOR = 22881;
+// Ports stay inside the range allocated to this machine (see NOTES.md). The first pair
+// in that range that is actually free is used, rather than the pinned one, because a
+// runtime left behind by an earlier run cannot always be stopped from here (a `wrangler
+// dev` started in another shell session owns a process this one may not signal), and
+// such a leftover answers on `/` while serving the bundle it read at startup — it 404s
+// the file this run just built, which Playwright would report as a broken app.
+const PORT_RANGE = { from: 22880, to: 22895 };
+
+interface PortPair {
+  e2e: number;
+  inspector: number;
+}
+
+/**
+ * The port pair this run should use, shared with every Playwright worker.
+ *
+ * Each worker reads the configuration again in its own process, and a port that is
+ * free in one of them may be taken by this run's own server in another. So the first
+ * process to decide publishes the choice in the environment, which the workers it
+ * spawns inherit: one answer for the whole run.
+ */
+function pickPorts(): PortPair {
+  const fromEnv = Number.parseInt(process.env.VIDI6_E2E_PORT ?? '', 10);
+  const inspectorFromEnv = Number.parseInt(process.env.VIDI6_E2E_INSPECTOR ?? '', 10);
+  if (
+    Number.isInteger(fromEnv) &&
+    fromEnv >= PORT_RANGE.from &&
+    fromEnv + 1 <= PORT_RANGE.to &&
+    Number.isInteger(inspectorFromEnv)
+  ) {
+    return { e2e: fromEnv, inspector: inspectorFromEnv };
+  }
+
+  const fallback: PortPair = { e2e: PORT_RANGE.from, inspector: PORT_RANGE.from + 1 };
+  const script = `
+    import { createServer } from 'node:net';
+    const bind = (port) =>
+      new Promise((done) => {
+        const server = createServer();
+        server.once('error', () => done(null));
+        server.listen({ host: '127.0.0.1', port }, () => server.close(() => done(port)));
+      });
+    for (let port = ${PORT_RANGE.from}; port + 1 <= ${PORT_RANGE.to}; port += 1) {
+      if ((await bind(port)) !== null && (await bind(port + 1)) !== null) {
+        process.stdout.write(String(port));
+        process.exit(0);
+      }
+    }
+    process.exit(1);
+  `;
+  const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    encoding: 'utf8',
+    timeout: 30_000,
+    // The probe must not see the choice of a previous run in this process's own
+    // environment, because that would be inherited by the probe.
+    env: { ...process.env, VIDI6_E2E_PORT: '', VIDI6_E2E_INSPECTOR: '' },
+  });
+  const port = Number.parseInt(run.stdout?.trim() ?? '', 10);
+  if (!Number.isInteger(port) || port < PORT_RANGE.from || port + 1 > PORT_RANGE.to) {
+    console.log(`[playwright] every port in ${PORT_RANGE.from}-${PORT_RANGE.to} is taken; using ${fallback.e2e}`);
+    process.env.VIDI6_E2E_PORT = String(fallback.e2e);
+    process.env.VIDI6_E2E_INSPECTOR = String(fallback.inspector);
+    return fallback;
+  }
+  if (port !== PORT_RANGE.from) {
+    console.log(
+      `[playwright] ${PORT_RANGE.from} is held by a server from an earlier run (it serves the bundle it read at ` +
+        `startup, not this one): using ${port} and ${port + 1} instead, both inside the allocated range`,
+    );
+  }
+  const pair = { e2e: port, inspector: port + 1 };
+  process.env.VIDI6_E2E_PORT = String(pair.e2e);
+  process.env.VIDI6_E2E_INSPECTOR = String(pair.inspector);
+  return pair;
+}
+
+const PORTS = pickPorts();
+const PORT_E2E = PORTS.e2e;
+const PORT_INSPECTOR = PORTS.inspector;
 const BASE_URL = `http://127.0.0.1:${PORT_E2E}`;
 const VIEWPORT = { width: 1280, height: 800 };
 
@@ -141,7 +217,8 @@ export default defineConfig({
     timeout: 300_000,
     // Only reused when something already answers on the e2e port: the assets are read
     // off disk at startup, so a server started before this run's build would serve an
-    // older bundle. `openBoard` checks for the test build before anything else.
+    // older bundle. The port is picked because it is free, so normally nothing is there.
+    // `openBoard` checks for the test build before anything else.
     reuseExistingServer: !process.env.CI,
     stdout: 'pipe',
     stderr: 'pipe',

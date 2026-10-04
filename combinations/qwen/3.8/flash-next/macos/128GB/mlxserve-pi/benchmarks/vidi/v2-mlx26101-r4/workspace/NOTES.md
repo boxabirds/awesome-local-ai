@@ -15,7 +15,8 @@ Decisions and deviations for story 1 (Pan and zoom around an infinite board).
 All servers are pinned to ports inside `$AGENT_PORT_FIRST`-`$AGENT_PORT_LAST`
 (22880-22895), which the harness requires:
 - `22880` `wrangler dev` (e2e static assets), `22881` its inspector/devtools port
-  (`playwright.config.ts` and `npm run worker:dev`).
+  (`playwright.config.ts` and `npm run worker:dev`). Playwright takes the first free pair
+  in the range when 22880 is already held, and stays inside the range either way.
 - `22884` `vite preview`, `22885` `vite` dev server (`vite.config.ts`).
 
 ## Shared camera state
@@ -120,16 +121,17 @@ and WebKit on this machine, and in all three engines wherever Firefox can start.
 
 An assets-only Worker may not declare an assets `binding` - wrangler refuses to start
 ("Cannot use assets with a binding in an assets-only Worker") - so the config sets
-`assets.directory` (plus `not_found_handling: single-page-application`) and no
+`assets.directory` and no
 binding; the Worker script and its `ASSETS` binding arrive with story 3's routes.
 `inspectorPort` is not a `dev` config key either, so the inspector port is passed as
 the `--inspector-port` flag (in `playwright.config.ts`'s webServer command and in
-`npm run worker:dev`), pinned to 22881 to stay inside the allocated range.
+`npm run worker:dev`), inside the allocated port range.
 
 ## Running the e2e suite
 
 `npm run test:e2e` builds the client with `vite build --mode test` first, then starts
-Playwright, whose `webServer` is `wrangler dev` on port 22880 serving `dist/client`.
+Playwright, whose `webServer` is `wrangler dev` on the first free port in the allocated
+range serving `dist/client` (see the story 2 note below).
 Two details that cost real debugging time:
 
 - The webServer command is wrangler itself, not `npm run wrangler dev ...`: behind
@@ -142,3 +144,55 @@ Two details that cost real debugging time:
 - `wrangler.jsonc` deliberately has no `not_found_handling: single-page-application`:
   with it, a request for a bundle that is not on disk gets index.html back with a 200,
   and the app simply never boots. Story 1 has one route, so the rewrite buys nothing.
+
+## Story 2: two drag bugs that only a real browser could find
+
+Both survived 71 unit tests and 83 jsdom component tests, and both were caught by the
+e2e suite on the first run. They are worth writing down because the jsdom tests were
+not wrong, they were just not the place where either bug can show.
+
+1. **`moveObject` returning `false` ended the drag.** `false` from the model means
+   either "no such object" or "already at that position" (the second exists so a drag
+   does not write a no-op to the undo log every frame). The note took that as "the
+   note is gone", dropped its drag state, and stopped following the pointer after the
+   first frame that had nothing new to write. Now the drag only lets go when the
+   document itself is gone, which is what the unmount of the note actually means.
+2. **Raising a note took it out of the document.** `bringToFront` changes `z`, and
+   `snapshot()` lists notes in stacking order, so the raised note became the last of
+   the React children - React moved that DOM node, and Chromium releases pointer
+   capture when the captured element is pulled out of its place. The note jumped by
+   the pointer moves that had already arrived and then stayed put: a drag of 100 screen
+   pixels delivered 10. A jsdom test cannot see this, because it dispatches one
+   `pointermove` per drag and jsdom has no pointer capture to lose. Now the notes are
+   rendered in the order they were created and stacked with `zIndex: note.z`, so being
+   raised is a style change and the note is never moved in the document while held.
+   `bringToFront` still happens once, when the drag starts, as the design says.
+
+Consequence for the tests: "which note is on top" is a computed-style question, not a
+DOM-position one. `paintedIds` in `tests/e2e/helpers/sticky.ts` sorts by `z-index` with
+document order as the tie-break, which is how the browser itself decides.
+
+## Story 2: the e2e port is picked, not pinned
+
+The design's test matrix for this story has no reload or two-browser test - "No network
+or storage in this story", persistence is story 4 - so the e2e file covers TC-30 to
+TC-34 and the notes' keyboard reach, and TC-39 stays a unit test.
+
+`playwright.config.ts` now uses the first free pair of ports inside the allocated
+range instead of 22880 outright. The reason is a runtime that cannot be stopped: a
+workerd left behind by an earlier session owns 22880, answers `/` out of the snapshot
+it read at startup and 404s the bundle the current run built, so every test fails with
+"window.__vidi6 is missing". A new sandbox cannot kill it - `ps` and `pgrep` are refused
+(`EPERM`), `lsof -ti:22880` sees nothing, and while `netstat -anv -p tcp` does show the
+pid, `kill -9` on it leaves wrangler in another process simply starting another runtime
+on the same port. When the ports are free, as they are in a clean checkout, the chosen
+pair is 22880/22881 and nothing about a run changes.
+
+The choice is published in `VIDI6_E2E_PORT`/`VIDI6_E2E_INSPECTOR` and read back from the
+environment, because the config file is evaluated again in every Playwright worker and a
+port that is free in the parent is already taken by this run's own server in the worker -
+each worker then started its own server on another port and tested nothing.
+
+While here: the note above about `wrangler.jsonc` was wrong. The config sets
+`assets.directory` and deliberately no `not_found_handling`; the flag and the inspector
+port are passed on the command line.
