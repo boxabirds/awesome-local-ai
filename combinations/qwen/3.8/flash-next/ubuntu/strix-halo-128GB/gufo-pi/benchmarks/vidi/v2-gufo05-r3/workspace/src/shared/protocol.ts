@@ -30,6 +30,24 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
 /**
+ * Close code of a board that could not be loaded from storage.
+ *
+ * 4000-4999 are for application use (RFC 6455), and `y-websocket` treats
+ * 4500-4599 as "try again later": the provider keeps retrying with its backoff,
+ * which is exactly what the honest failure message promises. Never a silent
+ * empty board.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/**
+ * Close code sent to every socket of a board the service could not write to.
+ * The change that failed to save was never broadcast, so nobody has been shown
+ * something that is not kept; each open page keeps it locally and sends it again
+ * on reconnect.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
+/**
  * The sync message ranks this build understands, straight from `y-protocols`:
  * SyncStep1 ("send me what you are missing"), SyncStep2 ("here it is") and
  * Update ("apply this"). Every one of them is followed by a length-prefixed

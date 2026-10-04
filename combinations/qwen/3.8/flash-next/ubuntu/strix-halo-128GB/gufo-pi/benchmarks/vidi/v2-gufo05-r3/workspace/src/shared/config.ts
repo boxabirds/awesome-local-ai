@@ -100,3 +100,34 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
  * {@link LIVE_UPDATE_LATENCY_BUDGET_MS} instead of asserting on it.
  */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+// --- Story 4: persistence ---------------------------------------------------
+
+/** Compact the update log once this many rows have piled up in front of it. */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** …or once this many bytes of updates have piled up (whichever comes first). */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Size of one snapshot row. Keeps every row far below the per-row size limit of
+ * SQLite-backed Durable Objects (2 MB today; re-check the Cloudflare
+ * documentation when changing it), so a board of any tested size fits.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** A room whose board failed to load retries the load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** The board size the persistence story is tested at (PRD `persist.large_board`). */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/**
+ * Time budget for showing every note of a {@link PERSIST_TESTED_NOTES} board
+ * (PRD `persist.large_board`). e2e reports the measured value against it; it is
+ * not a pass/fail gate, because model, browsers and server share one machine.
+ */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/** Version of the *storage* tables (the Yjs document schema has its own). */
+export const STORAGE_SCHEMA_VERSION = 1;

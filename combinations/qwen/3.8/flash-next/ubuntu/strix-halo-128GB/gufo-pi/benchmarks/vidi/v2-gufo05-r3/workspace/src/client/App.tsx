@@ -6,6 +6,7 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { installBoardHook, reportConnectionState } from './canvas/testHooks';
@@ -97,6 +98,12 @@ export default function App({ doc, boardId }: AppProps = {}) {
   );
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   const viewportApi = useRef<BoardViewportApi | null>(null);
+  /**
+   * Read-only while the board's storage cannot be read: the things on screen are
+   * whatever this tab happens to hold, so writing them would be a change the
+   * service cannot keep. Looking, panning and zooming stay available.
+   */
+  const locked = !canEdit(connection);
 
   /** A newly created note (button or double-click) is selected and edited. */
   const openForEditing = useCallback((id: string) => startEdit(id), [startEdit]);
@@ -118,6 +125,8 @@ export default function App({ doc, boardId }: AppProps = {}) {
       if (isEditableTarget(e.target)) return;
       if (editingId !== null) return;
       if (selectedId === null) return;
+      // Enter opens the text editor: a change, so it belongs to the locked set.
+      if (locked) return;
       if (e.key === 'Enter') {
         if (isControlTarget(e.target)) return;
         e.preventDefault();
@@ -125,6 +134,7 @@ export default function App({ doc, boardId }: AppProps = {}) {
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (locked) return;
         e.preventDefault();
         deleteObject(boardDoc, selectedId);
         select(null);
@@ -132,7 +142,7 @@ export default function App({ doc, boardId }: AppProps = {}) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [boardDoc, selectedId, editingId, select, startEdit]);
+  }, [boardDoc, selectedId, editingId, select, startEdit, locked]);
 
   // Read-only board model and connection state for the e2e tests (test builds).
   useEffect(() => {
@@ -165,12 +175,13 @@ export default function App({ doc, boardId }: AppProps = {}) {
   return (
     <main className="app" data-testid="app-root">
       <ConnectionStatus state={connection} />
-      <Toolbar onCreateSticky={createStickyAtCentre} />
+      <Toolbar onCreateSticky={createStickyAtCentre} locked={locked} />
       <BoardViewport
         doc={boardDoc}
         viewportApi={viewportApi}
         onStickyCreated={openForEditing}
         onClearSelection={() => select(null)}
+        locked={locked}
       >
         {({ zoom }) =>
           // DOM order is stable (creation order) and stacking comes from
@@ -187,6 +198,7 @@ export default function App({ doc, boardId }: AppProps = {}) {
               onSelect={select}
               onStartEdit={startEdit}
               onEndEdit={endEdit}
+              locked={locked}
             />
           ))
         }

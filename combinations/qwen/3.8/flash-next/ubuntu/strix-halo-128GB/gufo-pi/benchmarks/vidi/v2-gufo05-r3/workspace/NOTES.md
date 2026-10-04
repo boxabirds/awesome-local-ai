@@ -250,3 +250,129 @@ test needs several notes it creates them by double-clicking distinct screen poin
 (notes are centred on the click point) at a chosen zoom, so drags never grab
 somebody else's note. Firefox and WebKit remain opt-in with
 `E2E_ALL_BROWSERS=1` — this host is missing the OS libraries to launch them.
+
+---
+
+# Story 4 — Return to a board and find everything as it was left
+
+## The order is the product
+One rule carries most of this story: **a change is in storage before anybody is
+allowed to see it.** `BoardRoom` appends the update to SQLite and only then relays
+it. If the append throws, the room closes every socket with 1011 instead of
+passing on a change it cannot promise to keep — the page keeps what it typed (that
+is what a page is), the room takes it again on reconnect, and nobody else ever saw
+the version that does not exist. TC-14 tests exactly that sequence, injected at the
+store method rather than through a production seam.
+
+## A snapshot gets a digest, and that decision came out of a spike
+"Storage is corrupt" is not the same as "reading storage threw an exception". A
+spike mutated single bytes of real Yjs updates and applied them to a fresh doc:
+**40 of 120 mutations decoded "successfully" and produced a different board.** A
+Yjs update is a stream of instructions, so knocking out one varuint silently changes
+what follows. So `snapshot_chunks` stores a digest (`checksum()`, two FNV-1a-style
+32-bit accumulators) and a load that reads a chunk whose digest does not match fails
+loudly — quarantine, then the load-failure path — instead of serving a board whose
+notes were rewritten in place. It is not cryptography and does not pretend to be; it
+catches the accidental case, which is the case the story is about.
+
+## Reading a Yjs update's header, because the official helper lies here
+Gap detection needs to know which clocks an update touches.
+`Y.encodeStateVectorFromUpdate()` returns an empty map for most single-transaction
+updates in yjs 13.6.33 (verified against the installed version), so `updateRanges()`
+parses the v1 header itself: `varuint(numClients)`, then per block
+`varuint(numStructs)`, `varuint(client)`, `varuint(clockStart)`. One caveat recorded
+in the code: `to = from + numStructs` is a **floor**, because a text item spans more
+than one clock position than it has structs. Only `from` is trusted.
+
+**The gap check has to run before the apply, not after.** Yjs does not complain
+about a hole — it `skip`s it and fills the space with a placeholder, and the board
+goes quietly wrong. `clockGap(doc, ranges)` reads the doc's state vector before each
+row and refuses a forward gap; a missing row therefore fails closed into
+`update-log-unreadable` rather than into a board with a hole in its history. Cost
+measured on a 4001-row doc: ~0.0013 ms per row, so it is always on.
+
+Damage for the tests is generated with `claimsMoreStructs()` (inflate the header's
+struct count so the decoder runs off the end) rather than truncation: truncating an
+update often leaves a perfectly decodable prefix, which makes a "corrupt data" test
+pass for the wrong reason.
+
+## Hibernation means the room does not own a socket list
+`ctx.acceptWebSocket()` and never a `Set<WebSocket>`: the moment the room holds a
+strong reference to a socket the object cannot hibernate. Per-socket bookkeeping
+(which origin opened which connection, for the relay) lives in a `WeakMap`. Every
+fan-out goes through `ctx.getWebSockets()`. TC-18 is the test that this is not
+theoretical: the room drops its document and reads the board back from storage
+while two clients stay connected, and the next edit still reaches the other one.
+
+## Two close codes, and the client has to know what each one means
+- **1011** — storage said no *while the board was running*. The client's own work is
+  safe in its page; y-websocket's ordinary reconnect carries it again.
+- **4500** (`CLOSE_BOARD_LOAD_FAILED`) — the room cannot read the board. It is in the
+  application range, so y-websocket keeps retrying, and the client treats it as
+  "this board couldn't be loaded", not as "you are disconnected".
+
+The load-failure UI is deliberately sticky: a retry that opens a socket but never
+syncs must not clear the red message, so the `disconnected` handler refuses to
+publish `reconnecting` while the state is `load_failed`. And "back" is only reported
+as a *recovery* if the board was ever seen — a tab whose very first load failed goes
+straight to `connected`, because there is no earlier state to have returned to
+(TC-28).
+
+## A test race that looked like a persistence bug
+`waitForStored(board, 1)` waited for the storage to hold one note. Writing a note and
+typing into it are **two** changes, and the note on its own already makes the count —
+so the wait could finish while the stored board had a note with no words in it, and
+the assertion after it failed with `['']`. This is the same trap as the WebSocket one
+from story 3 (a local doc answers before the frame has left), one layer down. The
+fix is `waitForStoredLike(board, doc)`: wait until storage holds *exactly what the
+writer holds*, compared by board key. Counting is fine for "did anything land", never
+for "is the content there".
+
+The related rule, from earlier in the story: `RoomClient.destroy()` closes the socket
+immediately, so any frame still in flight is gone. Tests must wait for storage *while
+the writer is still connected*, then destroy.
+
+## E2E persistence: the spec owns its server
+`playwright.config.ts` has a second project, `persistence`, and its dev server is
+started by the spec (`tests/e2e/helpers/wrangler-process.ts`), not by Playwright:
+these tests have to stop the server mid-test, which only works if they own it. Own
+ports (23624/23625), own `--persist-to` directory in a temp dir, `--var TEST_HOOKS:1`,
+`workers: 1`, `fullyParallel: false`. `restart()` keeps the directory and loses the
+process — which is precisely the difference the story is about. Kill and restart use
+the process *group* (`detached: true`, signal to `-pid`), or workerd survives its
+parent and keeps the ports.
+
+Two traps worth writing down:
+- The helper now refuses to start if the port already answers. A dev server left
+  behind by an interrupted run answers on that port with a storage directory nobody
+  knows about, and every assertion after it is about the wrong board — which is
+  exactly how one confusing false failure appeared while writing these tests.
+- `request.post(..., { data: someUint8Array })` does **not** send bytes; the request
+  fixture treats it as an object and JSON-stringifies it, and the room then fails
+  with `contentRefs[(info & BITS5)] is not a function`. Hooks take a `Buffer`.
+
+The shipped configuration is checked too
+(`tests/e2e/storage-hooks-not-in-production.spec.ts`): with no `TEST_HOOKS`, the hook
+paths are answered by the asset handler — a POST to a static asset is **405** — and
+`GET` on the same path only ever returns the app shell. `wrangler.jsonc` is
+unchanged; the flag exists only in the persistence dev server's command line.
+
+## TC-21: what the 2000-note board actually costs
+Measured with the tab as the stopwatch, the answer is meaningless: the tab cannot be
+asked "have you got it yet?" while it is busy building two thousand elements, so any
+figure taken from inside it is a rendering figure. `tests/e2e/helpers/room-probe.ts`
+therefore joins the board from Node over the same sync protocol and measures only the
+service. On this machine:
+
+```
+TC-21 2000 notes — room to a joining client: 43 ms; in the tab: 9324 ms;
+                   all on screen: 9327 ms   (BOARD_LOAD_BUDGET_MS = 3000)
+```
+
+The storage and sync side is comfortably inside the budget. The browser is not, by
+about 3×: applying a 2000-note update and rendering 2000 individually measured,
+positioned note elements is where the time goes, and it is a *client rendering*
+problem (no virtualisation, one font measurement per note), not a persistence one.
+As everywhere else in this suite the number is reported and the outcome decides
+pass/fail; the follow-up this suggests is deferred/virtual rendering of notes, which
+belongs to a rendering story, not to persistence.

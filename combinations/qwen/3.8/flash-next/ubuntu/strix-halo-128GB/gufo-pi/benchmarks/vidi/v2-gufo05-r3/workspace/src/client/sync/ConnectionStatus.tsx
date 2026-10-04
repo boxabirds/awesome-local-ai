@@ -11,6 +11,7 @@ const LABELS: Record<ConnectionState, string | null> = {
   connected: null,
   reconnecting: 'Reconnecting…',
   confirmed: 'Connected',
+  load_failed: 'This board couldn\u2019t be loaded. Retrying\u2026',
 };
 
 /**
@@ -18,8 +19,12 @@ const LABELS: Record<ConnectionState, string | null> = {
  *
  * Hidden while everything is normal, amber "Reconnecting…" while the connection
  * is lost, green "Connected" for a moment after it comes back and
- * "Connecting…" during the first load. It never blocks the board: editing works
- * in every state, and changes made while offline go out on reconnect.
+ * "Connecting…" during the first load. It never blocks the board: changes made
+ * while offline go out on reconnect.
+ *
+ * Red "Couldn't load this board — retrying" is the exception. There the board is
+ * read-only, and the retrying is real: the connection keeps trying on its own, so
+ * the message is not an instruction to reload the page.
  */
 export function ConnectionStatus({ state }: ConnectionStatusProps): JSX.Element | null {
   const label = LABELS[state];

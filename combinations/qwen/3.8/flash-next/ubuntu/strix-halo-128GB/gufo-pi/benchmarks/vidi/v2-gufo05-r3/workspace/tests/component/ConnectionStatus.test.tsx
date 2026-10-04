@@ -89,7 +89,12 @@ const { ConnectionStatus } = await import('../../src/client/sync/ConnectionStatu
 const { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } = await import(
   '../../src/shared/config'
 );
-type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
 type FakeProviderInstance = InstanceType<typeof FakeProvider>;
 
 const BOARD_ID = 'abcdefghijklmnopqrstuvwx';

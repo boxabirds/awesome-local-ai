@@ -3,6 +3,12 @@ export const STICKY_NOTE_TOOLTIP = 'Sticky note \u2013 or double-click the board
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /**
+   * True while the board cannot be edited (its storage could not be read). Every
+   * control is disabled: a button that looks usable and does nothing is worse than
+   * one that is visibly off.
+   */
+  locked?: boolean;
 }
 
 /**
@@ -13,11 +19,12 @@ export interface ToolbarProps {
  * viewport (which would pan the board or clear the selection).
  */
 export function Toolbar(props: ToolbarProps) {
-  const { onCreateSticky } = props;
+  const { onCreateSticky, locked = false } = props;
   return (
     <div
       className="board-toolbar"
       data-toolbar=""
+      data-locked={locked ? 'true' : 'false'}
       role="toolbar"
       aria-label="Board tools"
       onPointerDown={(e) => e.stopPropagation()}
@@ -29,7 +36,8 @@ export function Toolbar(props: ToolbarProps) {
         aria-label="Sticky note"
         title={STICKY_NOTE_TOOLTIP}
         data-create-sticky=""
-        onClick={onCreateSticky}
+        disabled={locked}
+        onClick={locked ? undefined : onCreateSticky}
       >
         <span className="board-toolbar-icon" aria-hidden="true">
           {'\u25A6'}

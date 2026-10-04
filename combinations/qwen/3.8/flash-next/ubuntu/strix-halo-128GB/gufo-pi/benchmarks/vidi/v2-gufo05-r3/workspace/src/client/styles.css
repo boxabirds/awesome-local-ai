@@ -394,3 +394,35 @@ body,
   border-color: #d7dbe4;
   color: #4a5568;
 }
+
+/* --- Story 4: a board whose storage could not be read ---------------------- */
+
+/* Red / stop: the one state in which the board is not editable. */
+:root {
+  --stop-bg: #fde3e1;
+  --stop-border: #e2988f;
+  --stop-text: #8b1f13;
+}
+
+.connection-status--load_failed {
+  background: var(--stop-bg);
+  border-color: var(--stop-border);
+  color: var(--stop-text);
+}
+
+/* A cursor that promises a grab, a move or a new note would be a lie while the
+   board is read-only. */
+.board-viewport[data-locked='true'] {
+  cursor: default;
+}
+
+.board-viewport[data-locked='true'] [data-sticky-note] {
+  cursor: default;
+}
+
+/* Disabled controls are visibly off: a button that looks usable and does nothing
+   invites repeated clicking. */
+.board-toolbar[data-locked='true'] .board-toolbar-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

@@ -7,6 +7,16 @@ const INSPECTOR_PORT = Number(process.env.E2E_INSPECTOR_PORT ?? 23621);
 const HOST = '127.0.0.1';
 const BASE_URL = `http://${HOST}:${PORT}`;
 
+/**
+ * The persistence project's own dev server. It is *not* started here: the tests
+ * need to kill it and start it again mid-test, which is only possible if they own
+ * the process (see `tests/e2e/helpers/wrangler-process.ts`). It runs on its own
+ * ports with its own storage directory so that restarting cannot disturb anything
+ * else, and with the worker's test-only routes switched on.
+ */
+const PERSIST_PORT = Number(process.env.E2E_PERSIST_PORT ?? 23624);
+const PERSIST_INSPECTOR_PORT = Number(process.env.E2E_PERSIST_INSPECTOR_PORT ?? 23625);
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -27,7 +37,25 @@ export default defineConfig({
   // root (see NOTES.md). On a fully provisioned host, run:
   //   E2E_ALL_BROWSERS=1 npm run test:e2e
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+      testIgnore: /persistence[\\/]/,
+    },
+    // Story 4: boards that survive the process that held them. One worker, no
+    // parallelism: these specs restart a server they share, so they take turns.
+    {
+      name: 'persistence',
+      testMatch: /persistence[\\/].*\.spec\.ts/,
+      fullyParallel: false,
+      workers: 1,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
+        baseURL: `http://${HOST}:${PERSIST_PORT}`,
+      },
+      metadata: { persistPort: PERSIST_PORT, inspectorPort: PERSIST_INSPECTOR_PORT },
+    },
     ...(process.env.E2E_ALL_BROWSERS === '1'
       ? [
           { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: { width: 1280, height: 800 } } },

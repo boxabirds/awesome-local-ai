@@ -51,6 +51,12 @@ export interface BoardViewportProps {
   onStickyCreated?(id: string): void;
   /** Called when the user clicks empty board space without panning. */
   onClearSelection?(): void;
+  /**
+   * Read-only board: navigation (drag, wheel, pinch, keys, zoom controls) keeps
+   * working, board content cannot be changed. So no note is created on
+   * double-click, and the cursor stops promising a grab.
+   */
+  locked?: boolean;
 }
 
 /**
@@ -239,7 +245,7 @@ export function BoardViewport(props: BoardViewportProps) {
     !(target instanceof Element && target.closest('[data-sticky-note], [data-zoom-controls], [data-toolbar], [data-note-toolbar]') != null);
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!props.doc || !isBoardSpace(e.target)) return;
+    if (!props.doc || props.locked || !isBoardSpace(e.target)) return;
     e.preventDefault();
     const world = screenToWorld(apiRef.current.camera, pointFromEvent(e.clientX, e.clientY));
     const id = createSticky(props.doc, world);
@@ -270,7 +276,8 @@ export function BoardViewport(props: BoardViewportProps) {
       ref={containerRef}
       className="board-viewport"
       data-panning={panning ? 'true' : 'false'}
-      style={{ cursor: panning ? 'grabbing' : 'grab' }}
+      data-locked={props.locked ? 'true' : 'false'}
+      style={{ cursor: panning ? 'grabbing' : props.locked ? 'default' : 'grab' }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

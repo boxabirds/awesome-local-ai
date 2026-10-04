@@ -37,6 +37,8 @@ export interface StickyNoteProps {
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: EndEditTarget): void;
+  /** Read-only board: the note can be selected, and nothing else. */
+  locked?: boolean;
 }
 
 interface Press {
@@ -63,7 +65,8 @@ interface Press {
  * only board content.
  */
 export function StickyNote(props: StickyNoteProps) {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit, locked = false } =
+    props;
   const noteRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [font, setFont] = useState({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
@@ -157,6 +160,12 @@ export function StickyNote(props: StickyNoteProps) {
     // The board must never pan, or clear the selection, because of a note.
     e.stopPropagation();
     if (isInside(e.target, '[data-note-toolbar]')) return;
+    if (locked) {
+      // Selecting is local and harmless; dragging would be a change nobody can
+      // save, so the press stops here.
+      onSelect(note.id);
+      return;
+    }
     if (editing) {
       // A press on the note itself (outside the textarea) stops editing but
       // keeps the note selected; a press in the textarea moves the caret.
@@ -220,6 +229,7 @@ export function StickyNote(props: StickyNoteProps) {
     // Editing this note instead of letting the viewport create a new one.
     e.stopPropagation();
     e.preventDefault();
+    if (locked) return;
     onStartEdit(note.id);
   };
 
@@ -244,6 +254,7 @@ export function StickyNote(props: StickyNoteProps) {
       data-selected={selected ? 'true' : 'false'}
       data-overflow={font.overflow ? 'true' : 'false'}
       data-dragging={dragging ? 'true' : 'false'}
+      data-locked={locked ? 'true' : 'false'}
       role="group"
       aria-label="Sticky note"
       tabIndex={0}
@@ -303,7 +314,7 @@ export function StickyNote(props: StickyNoteProps) {
         />
       ) : null}
 
-      {selected && !editing && !dragging ? (
+      {selected && !editing && !dragging && !locked ? (
         <div
           className="note-toolbar-anchor"
           style={{
