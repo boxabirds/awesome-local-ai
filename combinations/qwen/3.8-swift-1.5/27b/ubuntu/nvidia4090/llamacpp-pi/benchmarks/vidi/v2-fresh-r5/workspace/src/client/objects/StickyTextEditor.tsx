@@ -28,6 +28,39 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     ta.setSelectionRange(len, len);
   }, [ytext]);
 
+  // Remote Y.Text changes → textarea, preserving the caret. Without this,
+  // a peer's insert lands in Y.Text but not in the textarea; the next local
+  // input would diff textarea-vs-Y.Text and delete the peer's characters.
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const handler = (_ev: Y.YEvent<Y.Text>, tr: Y.Transaction) => {
+      if (tr.origin === 'editor') return; // we already wrote this to the textarea
+      const oldValue = ta.value;
+      const newValue = ytext.toString();
+      if (oldValue === newValue) return;
+      const selStart = ta.selectionStart ?? oldValue.length;
+      const selEnd = ta.selectionEnd ?? oldValue.length;
+      // Map the caret across the change: keep a trailing caret at the end;
+      // otherwise anchor on the common prefix and shift by the length delta.
+      let prefix = 0;
+      while (
+        prefix < oldValue.length &&
+        prefix < newValue.length &&
+        oldValue[prefix] === newValue[prefix]
+      ) {
+        prefix++;
+      }
+      const delta = newValue.length - oldValue.length;
+      const adj = (pos: number) =>
+        pos <= prefix ? pos : Math.max(prefix, Math.min(newValue.length, pos + delta));
+      ta.value = newValue;
+      ta.setSelectionRange(adj(selStart), adj(selEnd));
+    };
+    ytext.observe(handler);
+    return () => ytext.unobserve(handler);
+  }, [ytext]);
+
   // Handle pointerdown outside → end editing as unselected
   useEffect(() => {
     const handler = (e: PointerEvent) => {

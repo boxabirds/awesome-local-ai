@@ -17,5 +17,8 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests"],
+  // Worker-side code is typechecked against @cloudflare/workers-types in
+  // tsconfig.worker.json (the two type worlds conflict under one DOM lib).
+  "exclude": ["src/worker", "tests/integration"]
 }

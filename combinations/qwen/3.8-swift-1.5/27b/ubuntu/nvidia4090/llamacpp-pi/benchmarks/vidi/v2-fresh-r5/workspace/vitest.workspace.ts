@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 // Two test projects: pure-logic unit tests (node) and DOM component tests
 // (jsdom). Each project uses the React plugin for JSX transformation.
 export default defineWorkspace([
+  // workerd-backed integration project (real Worker + Durable Objects).
+  'vitest.integration.config.ts',
   {
     plugins: react(),
     test: {

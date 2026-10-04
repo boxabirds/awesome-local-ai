@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { originCenter, readZoomLabel, setCamera } from './helpers/board';
+import { gotoBoard, originCenter, readZoomLabel, setCamera } from './helpers/board';
 import { GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT } from '../../src/shared/config';
 
 const CENTER = { x: 640, y: 400 };
@@ -30,7 +30,7 @@ async function worldEF(page: any) {
 
 test.describe('Workflow 1: first visit navigation', () => {
   test('TC-28 hint is visible on load and removed after the first drag', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     const hint = page.getByText(HINT);
     await expect(hint).toBeVisible();
     await dragBy(page, 120, 60);
@@ -38,7 +38,7 @@ test.describe('Workflow 1: first visit navigation', () => {
   });
 
   test('TC-23 a real drag moves the origin by exactly (200,100)', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     const before = await originCenter(page);
     await dragBy(page, 200, 100);
     const after = await originCenter(page);
@@ -47,7 +47,7 @@ test.describe('Workflow 1: first visit navigation', () => {
   });
 
   test('TC-24 Ctrl+wheel zooms around the pointer and does not zoom the page', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     const o = await originCenter(page);
     await page.mouse.move(o.x, o.y); // pointer over the origin
     const before = await originCenter(page);
@@ -70,7 +70,7 @@ test.describe('Workflow 1: first visit navigation', () => {
 
 test.describe('Workflow 2: limits and recovery', () => {
   test('TC-25 clicking + reaches 400% and disables the button', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     const plus = page.getByRole('button', { name: 'Zoom in' });
     for (let i = 0; i < 30 && !(await plus.isDisabled()); i++) {
       await plus.click();
@@ -80,7 +80,7 @@ test.describe('Workflow 2: limits and recovery', () => {
   });
 
   test('TC-26 Reset view from far away returns to 100% centred on the origin', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     await setCamera(page, { x: UNBOUNDED_PAN_TESTED_EXTENT, y: UNBOUNDED_PAN_TESTED_EXTENT, zoom: 4 });
     await page.getByRole('button', { name: 'Reset view' }).click();
     expect(await readZoomLabel(page)).toBe('100%');
@@ -92,7 +92,7 @@ test.describe('Workflow 2: limits and recovery', () => {
 
 test.describe('Workflow 3: far travel', () => {
   test('TC-27 at 1,000,000 units panning is exact and the grid spacing is correct', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     await setCamera(page, { x: UNBOUNDED_PAN_TESTED_EXTENT, y: 0, zoom: 1 });
     const bg = await page
       .locator('[role="application"]')
@@ -108,7 +108,7 @@ test.describe('Workflow 3: far travel', () => {
 });
 
 test('TC-31 board gestures never change the page zoom', async ({ page }) => {
-  await page.goto('/');
+  await gotoBoard(page);
   const before = await pageZoom(page);
   // Ctrl/Cmd + wheel.
   await page.mouse.move(CENTER.x, CENTER.y);

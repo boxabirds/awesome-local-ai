@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
 import { screenToWorld } from './canvas/camera';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -6,17 +6,58 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { reportConnectionState } from './canvas/testHooks';
 import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
 import { STICKY_SIZE_WORLD } from '../shared/config';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { worldToScreen } from './canvas/camera';
 
 /**
- * Top-level app: wires the board document, selection state, toolbar,
- * sticky notes, and keyboard shortcuts.
+ * Read the board id from `/b/:boardId`. Returns null for any other path.
+ */
+function boardIdFromPath(): string | null {
+  const match = window.location.pathname.match(/^\/b\/([^/]+)\/?$/);
+  if (!match) return null;
+  return isValidBoardId(match[1]) ? match[1] : null;
+}
+
+/**
+ * Top-level app: resolves the board from the URL, then renders the live board.
+ * `/` redirects to a fresh board id (temporary; story 5 replaces this with
+ * server-side board creation).
  */
 export default function App() {
-  const { doc, notes } = useBoardDoc();
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const boardId = useMemo(boardIdFromPath, []);
+
+  useEffect(() => {
+    if (boardId === null) {
+      window.location.replace(`/b/${newBoardId()}`);
+    }
+  }, [boardId]);
+
+  if (boardId === null) return null;
+  return <Board boardId={boardId} />;
+}
+
+/**
+ * The live board for one board id: document, selection state, toolbar,
+ * sticky notes, connection badge, and keyboard shortcuts.
+ */
+function Board({ boardId }: { boardId: string }) {
+  const { doc, notes, connectionState } = useBoardDoc(boardId);
+  const { selectedId, editingId, select, startEdit, endEdit, prune } = useSelection();
+
+  // Publish the mapped state for long-running e2e tests (test builds only).
+  useEffect(() => {
+    reportConnectionState(connectionState);
+  }, [connectionState]);
+
+  // When a note disappears (e.g. deleted by someone else while we were
+  // typing in or dragging it), clear our selection/editing for it.
+  useEffect(() => {
+    prune(new Set(notes.map((n) => n.id)));
+  }, [notes, prune]);
 
   // Camera ref updated by BoardViewport via onCameraChange callback
   const cameraRef = useRef({ x: -640, y: -400, zoom: 1 });
@@ -67,6 +108,7 @@ export default function App() {
 
   return (
     <>
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         onDblClickEmpty={onDblClickEmpty}
         onClickEmpty={onClickEmpty}

@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { gotoBoard } from './helpers/board';
 import { SHORT_PHRASE, LONG_PARAGRAPH_1000 } from '../fixtures/texts';
 
 test.describe('Sticky notes', () => {
   test('TC-30: double-click creates a note centred on the click point', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
 
     // Double-click at (400, 300) on the board
     await page.mouse.dblclick(400, 300);
@@ -46,7 +47,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('TC-31: drag at 50% zoom moves note correctly', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
 
     // Set camera to 50% zoom using the test hook
     await page.evaluate(() => {
@@ -82,7 +83,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('TC-32: drag at 200% zoom moves note correctly and shows on top', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
 
     // Set camera to 200% zoom
     await page.evaluate(() => {
@@ -126,7 +127,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('TC-33: long text shrinks font and shows overflow fade', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
 
     // Create a note and type a short word
     await page.mouse.dblclick(400, 300);
@@ -160,7 +161,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('TC-34: toolbar button creates note at viewport centre when panned far away', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
 
     // Pan far away using the test hook
     await page.evaluate(() => {
@@ -188,7 +189,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('Brainstorm golden path: create, type, move, recolour, delete', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
 
     // 1. Create by double-click
     await page.mouse.dblclick(400, 300);
@@ -225,7 +226,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('dragging a note does not pan the board', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
 
     // Create a note
     await page.mouse.dblclick(400, 300);

@@ -1,4 +1,14 @@
 import type { Page } from '@playwright/test';
+import { newBoardId } from '../../../src/shared/board-id';
+
+/**
+ * Navigate to a fresh board. Since story 3 boards live at `/b/:boardId`
+ * (with `/` redirecting client-side), e2e tests go straight to a real
+ * board URL instead of racing the redirect.
+ */
+export async function gotoBoard(page: Page): Promise<void> {
+  await page.goto(`/b/${newBoardId()}`);
+}
 
 /** Locate the origin crosshair marker (world 0,0). */
 export function originMarker(page: Page) {

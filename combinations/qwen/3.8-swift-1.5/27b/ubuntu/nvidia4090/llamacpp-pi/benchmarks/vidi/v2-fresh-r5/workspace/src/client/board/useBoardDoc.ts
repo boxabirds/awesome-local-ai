@@ -1,12 +1,19 @@
-import { useRef, useSyncExternalStore, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 /**
- * Owns the Y.Doc and exposes an immutable snapshot via useSyncExternalStore.
- * Uses a version counter to provide a stable getSnapshot reference.
+ * Owns the Y.Doc for a board, exposes an immutable snapshot via
+ * useSyncExternalStore, and keeps the y-websocket provider attached for the
+ * lifetime of the board (destroyed on unmount or board change). Remote
+ * updates re-render through the same `observeDeep` path as local changes.
  */
-export function useBoardDoc(): { doc: Y.Doc; notes: readonly StickySnapshot[] } {
+export function useBoardDoc(boardId: string): {
+  doc: Y.Doc;
+  notes: readonly StickySnapshot[];
+  connectionState: ConnectionState;
+} {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     docRef.current = new Y.Doc();
@@ -39,5 +46,14 @@ export function useBoardDoc(): { doc: Y.Doc; notes: readonly StickySnapshot[] } 
 
   const notes = useSyncExternalStore(subscribe, getSnapshot);
 
-  return { doc, notes };
+  // Live connection: attach the provider for this board; destroy on unmount
+  // or board change.
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  useEffect(() => {
+    setConnectionState('connecting');
+    const { destroy } = connectBoard(doc, boardId, setConnectionState);
+    return destroy;
+  }, [doc, boardId]);
+
+  return { doc, notes, connectionState };
 }
