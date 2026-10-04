@@ -6,7 +6,7 @@
 // app's own words.
 import { useEffect, useRef, useState } from "react";
 import type { Row, State, Story } from "../../shared/types.ts";
-import { clock, cutText, kindsFromParam, kindsToParam, nearestTurn, spanFromParam, spanToParam, interventionEvents, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
+import { clock, cutText, kindsFromParam, kindsToParam, nearestTurn, openToolAt, spanFromParam, spanToParam, interventionEvents, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
 import { callHref, type Route } from "../../shared/routes.ts";
 import { storyRunState, storyTitle } from "../../shared/runView.ts";
 import { GLOSSARY } from "../../shared/glossary.ts";
@@ -126,7 +126,7 @@ export function ConversationPage({ route, run, story, storyId, state, params }: 
               <table className="rp-table conv-table turns" aria-label={GLOSSARY.inOrder.name}>
                 <thead><tr><th className="n">At</th><th className="what">Turn</th><th className="said">Text</th></tr></thead>
                 <tbody>
-                  {shown.flatMap(([t, i]) => rowsOf(t, i, { from, link, query, kinds, withheld, jumped: jumped === i }))}
+                  {shown.flatMap(([t, i]) => rowsOf(t, i, { from, link, query, kinds, withheld, jumped: jumped === i, all }))}
                 </tbody>
               </table>
             </div>
@@ -137,7 +137,7 @@ export function ConversationPage({ route, run, story, storyId, state, params }: 
   );
 }
 
-interface RowCtx { from: number; link: (call: number) => string; query: string; kinds: Set<TurnKind>; withheld: boolean; jumped: boolean }
+interface RowCtx { from: number; link: (call: number) => string; query: string; kinds: Set<TurnKind>; withheld: boolean; jumped: boolean; all: Turn[] }
 
 /** The rows of one turn: a call's row then one line per tool it called; a tool no call owns as its own line. */
 function rowsOf(t: Turn, i: number, c: RowCtx) {
@@ -149,6 +149,7 @@ function rowsOf(t: Turn, i: number, c: RowCtx) {
     return [...callRow, ...(c.kinds.has("tool") ? toolLines(t.tools, t.callIdx) : [])];
   }
   if (t.kind === "tool") return toolLines(t.tools, null);
+  if (t.kind === "intervention") return [<InterventionRow key={`o${i}`} t={t} i={i} ctx={c} />];
   return [<OtherRow key={`o${i}`} t={t} i={i} ctx={c} />];
 }
 
@@ -197,6 +198,38 @@ function ToolLine({ tool, parent, ctx }: { tool: ToolTurn; parent: number | null
       <td className="said">
         <Clamped text={String(s.arg ?? "")} query={ctx.query} mono />
         {end ? <Clamped text={cutText(end.result as CutText)} query={ctx.query} mono /> : null}
+      </td>
+    </tr>
+  );
+}
+
+/** An intervention, in full: when it was made (into the story and by the clock), how many times the guard fired on
+ * the one call, and the tool call it found still running, with how long it had been. */
+function InterventionRow({ t, i, ctx }: { t: Turn; i: number; ctx: RowCtx }) {
+  const e = t.event;
+  const count = isNum(e.count) ? e.count : 1;
+  const lastAt = isNum(e.lastAt) ? e.lastAt : null;
+  // The call this one found: never one an earlier intervention already interrupted (its ghost stays open in the log).
+  const before = ctx.all.filter((x) => x.kind === "intervention" && x.tMs < t.tMs).at(-1);
+  const after = before && isNum(before.event.lastAt) ? before.event.lastAt * MS_PER_S : -Infinity;
+  const open = openToolAt(ctx.all, t.tMs, isNum(e.silentS) ? e.silentS * MS_PER_S : 0, after);
+  const figures = [
+    utc(t.tMs / MS_PER_S),
+    count > 1 && lastAt !== null ? `${count} times, the last at ${utc(lastAt)}` : "",
+  ].filter(Boolean).join(" · ");
+  return (
+    <tr id={`turn-${i}`} data-turn={i} data-kind="intervention" data-jumped={ctx.jumped ? "true" : undefined}>
+      <td className="n">{clock(t.tMs, ctx.from)}</td>
+      <td className="what"><span className="kind kind-intervention">intervention</span><div className="figures small">{figures}</div></td>
+      <td className="said">
+        <div>{String(e.text ?? "")}</div>
+        {open ? (
+          <div className="figures small" data-open-tool>
+            the call it found running: <span className="mono">{String(open.start.name ?? "")}</span>, started {clock(open.start.tMs, ctx.from)} into the story
+            ({duration((t.tMs - open.start.tMs) / MS_PER_S)} earlier){open.end === null ? ", and it never ended" : ""}
+          </div>
+        ) : null}
+        {open ? <Clamped text={String(open.start.arg ?? "")} query={ctx.query} mono /> : null}
       </td>
     </tr>
   );

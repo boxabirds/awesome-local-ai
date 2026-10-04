@@ -199,12 +199,26 @@ test.describe("intervened: the mark leads to the story's conversation, filtered 
     await expect(page).toHaveURL(/\/s\/2\/conversation\?kind=intervention$/);
   });
 
-  test("the run's mark goes to its first story with an intervention (its conversation when it has one); the machine's history and the matrix's row mark the same", async ({ page }) => {
+  test("the run's mark goes to the run page's interventions, which it scrolls to; the machine's history marks the same", async ({ page }) => {
     await intervened(page);
     await page.goto(`/#/vidi/r/${encodeURIComponent(SWIFT)}/v2-r5`);
-    await expect(page.locator('[data-page="run"] [data-fact="status"] a.intervened')).toHaveAttribute("href", /\/s\/1$/);
+    await expect(page.locator('[data-page="run"] [data-fact="status"] a.intervened')).toHaveAttribute("href", /\/v2-r5\?at=interventions$/);
     await page.goto("/#/m/node-a");
-    await expect(page.locator('[data-page="machine"] tr[data-run="v2-r5"] a.intervened')).toHaveAttribute("href", /\/s\/1$/);
+    const fromMachine = page.locator('[data-page="machine"] tr[data-run="v2-r5"] a.intervened');
+    await expect(fromMachine).toHaveAttribute("href", /\/v2-r5\?at=interventions$/);
+    await fromMachine.click();
+    const section = page.locator('[data-page="run"] [data-section="interventions"]');
+    await expect(section).toBeInViewport();
+  });
+
+  test("an intervention on the run page leads to that story's conversation, filtered to its interventions", async ({ page }) => {
+    await intervened(page);
+    await page.goto(`${runUrl("v2-r5")}?at=interventions`);
+    const rows = page.locator('[data-page="run"] .intervention-list li');
+    await expect(rows).toHaveCount(3);
+    await expect(rows.nth(0).locator("a")).toHaveAttribute("href", /\/s\/1$/);                                  // no conversation
+    await expect(rows.nth(1).locator("a")).toHaveCount(0);                                                       // run-wide: nowhere to go
+    await expect(rows.nth(2).locator("a")).toHaveAttribute("href", /\/s\/2\/conversation\?kind=intervention$/);
   });
 
   test("a matrix cell's mark is inside the cell's own link: not a second link", async ({ page }) => {
@@ -220,9 +234,9 @@ test.describe("intervened: marked, and still counted", () => {
     await page.goto(runUrl("v2-r5"));
     const m = page.locator('[data-page="run"] [data-fact="status"] .intervened');
     await expect(m).toHaveText("✱ intervened");
-    await expect(m).toHaveAttribute("data-intervened", "4");
+    await expect(m).toHaveAttribute("data-intervened", "3");
     await m.hover();
-    await expect(tip(page)).toContainText("Interventions (4):");
+    await expect(tip(page)).toContainText("Interventions (3):");
     await expect(tip(page)).toContainText(`2026-09-30 08:10 UTC · story 1: ${SILENT} (2 times)`);
     await expect(tip(page)).toContainText(`2026-09-30 09:00 UTC · the run: ${OTHER}`);
     await expect(tip(page)).toContainText(`2026-09-30 10:30 UTC · story 2: ${OTHER}`);
@@ -267,9 +281,9 @@ test.describe("intervened: marked, and still counted", () => {
     await intervened(page);
     await page.goto(storyRunUrl("v2-r5", "1"));
     const m = page.locator('[data-page="storyRun"] .of-run .intervened');
-    await expect(m).toHaveAttribute("data-intervened", "2");
+    await expect(m).toHaveAttribute("data-intervened", "1");          // two guard firings on one silent call
     await m.hover();
-    await expect(tip(page)).toContainText("Interventions (2):");
+    await expect(tip(page)).toContainText("Interventions (1):");
     await expect(tip(page)).not.toContainText("the run:");
     await page.goto(storyRunUrl("v2-r5", "2"));
     await expect(page.locator('[data-page="storyRun"] .of-run .intervened')).toHaveAttribute("data-intervened", "1");
@@ -281,9 +295,9 @@ test.describe("intervened: marked, and still counted", () => {
   test("combination matrix: a mark in each affected cell and on the run; none elsewhere", async ({ page }) => {
     await intervened(page);
     await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
-    await expect(mCell(page, "v2-r5", "1").locator(".intervened")).toHaveAttribute("data-intervened", "2");
+    await expect(mCell(page, "v2-r5", "1").locator(".intervened")).toHaveAttribute("data-intervened", "1");
     await expect(mCell(page, "v2-r5", "2").locator(".intervened")).toHaveAttribute("data-intervened", "1");
-    await expect(mRow(page, "v2-r5").locator("th .intervened")).toHaveAttribute("data-intervened", "4");
+    await expect(mRow(page, "v2-r5").locator("th .intervened")).toHaveAttribute("data-intervened", "3");
     await expect(matrix(page).locator(".intervened")).toHaveCount(3);
     await mCell(page, "v2-r5", "1").locator(".intervened").hover();
     await expect(tip(page)).toContainText(`story 1: ${SILENT}`);
@@ -293,7 +307,7 @@ test.describe("intervened: marked, and still counted", () => {
     await intervened(page);
     await page.goto("/#/m/node-a");
     const h = page.locator('[data-page="machine"] [data-section="history"]');
-    await expect(h.locator('tr[data-run="v2-r5"] .intervened')).toHaveAttribute("data-intervened", "4");
+    await expect(h.locator('tr[data-run="v2-r5"] .intervened')).toHaveAttribute("data-intervened", "3");
     await expect(h.locator(".intervened")).toHaveCount(1);
   });
 
@@ -334,7 +348,7 @@ test.describe("intervened: marked, and still counted", () => {
     await intervened(page);
     await page.goto(runUrl("v2-r5"));
     await page.locator('[data-page="run"] [data-fact="status"] .intervened').focus();
-    await expect(tip(page)).toContainText("Interventions (4):");
+    await expect(tip(page)).toContainText("Interventions (3):");
   });
 });
 

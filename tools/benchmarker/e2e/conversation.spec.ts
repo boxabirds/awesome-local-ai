@@ -48,10 +48,20 @@ test.describe("A2. interventions in the conversation", () => {
     const row = page$(page).locator('table.turns tr[data-kind="intervention"]');
     await expect(row).toHaveCount(1);
     await expect(row.locator(".kind")).toHaveText("intervention");
-    await expect(row.locator("td.said")).toHaveText("a tool call silent for 600 s was interrupted");
+    await expect(row.locator("td.said")).toContainText("a tool call silent for 600 s was interrupted");
     await expect(row.locator("td").first()).toHaveText("6.0 s");
+    await expect(row.locator("td.what .figures")).toContainText("UTC");
+    // No call in this short story had been silent 600 s, so none is named as the one it found.
+    await expect(row.locator("[data-open-tool]")).toHaveCount(0);
     expect(await kinds(page)).toEqual(["msg", "wait", "call", "tool", "intervention", "call", "tool", "compaction", "call", "tool", "call", "condition", "condition"]);
     await expect(page$(page).locator("svg.conv-strip .strip-intervention")).toHaveCount(1);
+  });
+
+  test("it names the call it found running: open at that moment and silent at least as long as the line says", async ({ page }) => {
+    await withInterventions(page, [{ at: T0_S + 6, story: "2", text: "interrupted a tool call silent for 1s (killed processes under the workspace)" }]);
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    const row = page$(page).locator('table.turns tr[data-kind="intervention"]');
+    await expect(row.locator("[data-open-tool]")).toContainText("the call it found running: read, started 5.0 s into the story (1 s earlier)");
   });
 
   test("the address's kinds decide whether they show: call,compaction hides them; intervention alone shows only them", async ({ page }) => {

@@ -738,17 +738,42 @@ export function interventionText(raw: string): string {
   return INTERVENTION_OTHER;
 }
 
-export interface InterventionGroup { story: string | null; text: string; count: number; first: number; last: number }
+export interface InterventionGroup {
+  story: string | null;
+  /** The page's words for it (interventionText). */
+  text: string;
+  /** The record's own first line of the group, which the page never shows: read for the figures it names. */
+  raw: string;
+  count: number;
+  first: number;
+  last: number;
+}
 
-/** Consecutive identical lines about one story as one (a watchdog killing the same silent call every 30 s), each
- * in the page's words (interventionText). */
+/** The guard interrupts a tool call that has been silent this long, and fires again while the call is still open.
+ * A fresh call cannot be interrupted until it has itself been silent that long, so two interrupts closer together
+ * than the limit are the same call, and one intervention. The limit is the one the line itself names. */
+const SILENT_CALL_RE = /^interrupted a tool call silent for (\d+)s/i;
+/** The silence a guard line names, in seconds; null when the line is not the guard's. */
+export const silentCallLimit = (raw: string): number | null => {
+  const m = SILENT_CALL_RE.exec(raw.trim());
+  return m ? Number(m[1]) : null;
+};
+const sameCallWithin = silentCallLimit;
+
+/** One intervention per group: consecutive identical lines about one story, and for the guard only while they are
+ * about the same silent call (sameCallWithin). `count` is how many times it fired; the text is the page's words. */
 export function groupInterventions(list: Intervention[]): InterventionGroup[] {
   const out: InterventionGroup[] = [];
   for (const i of list) {
     const text = interventionText(i.text);
     const prev = out.at(-1);
-    if (prev && prev.story === i.story && prev.text === text) { prev.count += 1; prev.last = i.at; continue; }
-    out.push({ story: i.story, text, count: 1, first: i.at, last: i.at });
+    const within = sameCallWithin(i.text);
+    if (prev && prev.story === i.story && prev.text === text && (within === null || i.at - prev.last < within)) {
+      prev.count += 1;
+      prev.last = i.at;
+      continue;
+    }
+    out.push({ story: i.story, text, raw: i.text, count: 1, first: i.at, last: i.at });
   }
   return out;
 }
@@ -767,6 +792,9 @@ export function interventionWhen(g: InterventionGroup): string {
   return `${a.slice(0, ISO_MINUTE).replace("T", " ")}–${end} UTC`;
 }
 
+/** How many interventions these lines are: the guard firing twice on one silent call is one (groupInterventions). */
+export const interventionCount = (list: Intervention[]): number => groupInterventions(list).length;
+
 /** The intervened marker's hover: how many, then one line each (repeats collapsed), at most MAX_TIP_INTERVENTIONS. */
 export function interventionTip(list: Intervention[]): string {
   if (!list.length) return "";
@@ -774,6 +802,6 @@ export function interventionTip(list: Intervention[]): string {
   const lines = groups.slice(0, MAX_TIP_INTERVENTIONS).map((g) =>
     `${interventionWhen(g)} · ${g.story === null ? "the run" : `story ${g.story}`}: ${g.text}${g.count > 1 ? ` (${g.count} times)` : ""}`);
   const more = groups.length - MAX_TIP_INTERVENTIONS;
-  return [`Interventions (${list.length}):`, ...lines, ...(more > 0 ? [`… and ${more} more on the run page`] : [])].join("\n");
+  return [`Interventions (${groups.length}):`, ...lines, ...(more > 0 ? [`… and ${more} more on the run page`] : [])].join("\n");
 }
 

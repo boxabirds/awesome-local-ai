@@ -3,7 +3,7 @@
 // The API has two forms over one stream: a time range paged by cursor (contiguous by construction, for backfill),
 // and "everything after this cursor" whatever its time (for following along). The story's status plays no part.
 
-import { interventionsOf, interventionText, type Seg } from "./runView.ts";
+import { groupInterventions, interventionsOf, interventionText, silentCallLimit, type Seg } from "./runView.ts";
 import type { Intervention } from "./types.ts";
 
 const MS_PER_SECOND = 1000;
@@ -246,9 +246,23 @@ export function turns(events: ConversationEvent[]): Turn[] {
  * of the same millisecond. Only this story's: a run-wide one belongs to no story's conversation. */
 const INTERVENTION_ORD = Number.MAX_SAFE_INTEGER;
 export function interventionEvents(list: Intervention[], story: string): ConversationEvent[] {
-  return interventionsOf({ interventions: list }, story).map((i, n) => ({
-    ord: INTERVENTION_ORD - list.length + n, tMs: i.at * MS_PER_SECOND, kind: "intervention", refIdx: null, cursor: `intervention:${i.at}:${n}`, text: interventionText(i.text),
+  const groups = groupInterventions(interventionsOf({ interventions: list }, story));
+  return groups.map((g, n) => ({
+    ord: INTERVENTION_ORD - groups.length + n, tMs: g.first * MS_PER_SECOND, kind: "intervention", refIdx: null,
+    cursor: `intervention:${g.first}:${n}`, text: g.text, count: g.count, firstAt: g.first, lastAt: g.last,
+    silentS: silentCallLimit(g.raw),
   }));
+}
+
+/** The tool call an intervention at `tMs` was about: of the calls still open then, started at least `minSilentMs`
+ * before (so one could be the call found silent) and begun after `afterMs` (the interrupt before it), the one that
+ * started last. The guard's interrupt does not always end the call in the log, so an interrupted call stays open for
+ * ever; `afterMs` keeps that ghost from being named again. Null when none fits, which is also what a conversation
+ * loaded only up to an earlier point gives: the page then names no call rather than the wrong one. */
+export function openToolAt(all: Turn[], tMs: number, minSilentMs = 0, afterMs = -Infinity): ToolTurn | null {
+  const open = all.flatMap((t) => t.tools)
+    .filter((x) => x.start.tMs <= tMs - minSilentMs && x.start.tMs > afterMs && (x.end === null || x.end.tMs > tMs));
+  return open.length ? open.reduce((a, b) => (b.start.tMs > a.start.tMs ? b : a)) : null;
 }
 
 /** The text a turn holds: the call's words and thinking, its tools' arguments and results, a message. */

@@ -799,9 +799,31 @@ describe("interventions", () => {
     it("consecutive identical lines for one story collapse, with the count and the first and last time, in the page's words", () => {
       const reps = Array.from({ length: 95 }, (_, i) => iv("7", "interrupted a tool call silent for 600s (killed processes under the workspace)", T + i * 30));
       expect(groupInterventions([iv("5", "other"), ...reps])).toEqual([
-        { story: "5", text: INTERVENTION_OTHER, count: 1, first: T, last: T },
-        { story: "7", text: "a tool call silent for 600 s was interrupted", count: 95, first: T, last: T + 94 * 30 },
+        { story: "5", text: INTERVENTION_OTHER, raw: "other", count: 1, first: T, last: T },
+        { story: "7", text: "a tool call silent for 600 s was interrupted", raw: reps[0].text, count: 95, first: T, last: T + 94 * 30 },
       ]);
+    });
+    it("the guard firing again on a call it did not end is one intervention, not two (gufo v2-gufo05-r1)", () => {
+      // The guard interrupts a call silent for 600 s, and again 30 s later when the call is still open. A new call
+      // cannot be interrupted until it has itself been silent 600 s, so interrupts closer than that are one call.
+      const at = (t: string) => Date.parse(`2026-10-03T${t}Z`) / 1000;
+      const silent = "interrupted a tool call silent for 600s (killed processes under the workspace)";
+      const run = [
+        iv("3", silent, at("00:47:24")), iv("3", silent, at("00:47:54")),
+        iv("3", silent, at("00:58:56")), iv("3", silent, at("00:59:26")),
+        iv("4", silent, at("05:18:08")), iv("4", silent, at("05:18:38")),
+        iv("4", "ended by the operator (harness (cap)) after 239.3 agent-min, 323 calls: story cap: 4.0 h of agent time (cap 4.0 h). Recorded PARTIAL.", at("06:02:59")),
+        iv("5", silent, at("07:50:43")), iv("5", silent, at("07:51:13")),
+        iv("5", silent, at("08:02:15")), iv("5", silent, at("08:02:45")),
+      ];
+      // 11 lines, 6 interventions: two silent calls in each of stories 3 and 5, one and the cap stop in story 4.
+      expect(groupInterventions(run).map((g) => [g.story, g.count])).toEqual([["3", 2], ["3", 2], ["4", 2], ["4", 1], ["5", 2], ["5", 2]]);
+      expect(groupInterventions(interventionsOf({ interventions: run }, "3"))).toHaveLength(2);
+    });
+    it("a second silent call, the limit or more after the last interrupt, is its own intervention", () => {
+      const silent = "interrupted a tool call silent for 600s";
+      const gaps = (s: number) => groupInterventions([iv("3", silent, T), iv("3", silent, T + s)]).length;
+      expect([gaps(599), gaps(600), gaps(601)]).toEqual([1, 2, 2]);
     });
     it("the same text in different stories stays apart", () => {
       expect(groupInterventions([iv("2", "x"), iv("4", "x")])).toHaveLength(2);
@@ -844,7 +866,7 @@ describe("interventions", () => {
     });
     it("a repeated line once, with how many times and over when", () => {
       const reps = Array.from({ length: 3 }, (_, i) => iv("7", "interrupted a tool call silent for 600s", T + i * 60));
-      expect(interventionTip(reps)).toBe("Interventions (3):\n2026-09-26 14:17–14:19 UTC · story 7: a tool call silent for 600 s was interrupted (3 times)");
+      expect(interventionTip(reps)).toBe("Interventions (1):\n2026-09-26 14:17–14:19 UTC · story 7: a tool call silent for 600 s was interrupted (3 times)");
     });
     it(`at most ${MAX_TIP_INTERVENTIONS} lines, then how many more`, () => {
       const many = Array.from({ length: MAX_TIP_INTERVENTIONS + 3 }, (_, i) => iv(String(i + 1), `line ${i + 1}`, T + i * 60));

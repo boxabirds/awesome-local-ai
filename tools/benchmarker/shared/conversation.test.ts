@@ -138,6 +138,34 @@ describe("interventions in the conversation", () => {
     ];
     const events = interventionEvents(list, "2");
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ kind: "intervention", tMs: 100_000, text: "a tool call silent for 600 s was interrupted" });
+    expect(events[0]).toMatchObject({ kind: "intervention", tMs: 100_000, text: "a tool call silent for 600 s was interrupted", count: 1 });
+  });
+  it("the guard firing twice on one silent call is one event, at the first firing, saying how many times", async () => {
+    const { interventionEvents } = await import("./conversation.ts");
+    const silent = "interrupted a tool call silent for 600s (killed processes under the workspace)";
+    const list = [
+      { at: 1000, story: "3", text: silent }, { at: 1030, story: "3", text: silent },   // one call, interrupted twice
+      { at: 2000, story: "3", text: silent },                                           // 970 s later: another call
+    ];
+    const events = interventionEvents(list, "3");
+    expect(events.map((e) => [e.tMs, e.count, e.lastAt])).toEqual([[1_000_000, 2, 1030], [2_000_000, 1, 2000]]);
+  });
+  it("the tool call an intervention interrupted: open, silent long enough, and the latest such (not a killed call's ghost)", async () => {
+    // The guard's kill does not always end the call in the log, so an interrupted call stays open for ever. A later
+    // interrupt is about the call that started after it, not that ghost.
+    const { turns, openToolAt } = await import("./conversation.ts");
+    const S = 600_000;
+    const all = turns([
+      { ...ev(1, 1000, "tool_start", 0), name: "bash", arg: "the first, killed and never ended" },
+      { ...ev(2, 601_500, "tool_start", 1), name: "bash", arg: "the second" },
+      { ...ev(3, 1_300_000, "intervention", null), text: "x" },
+    ]);
+    expect(openToolAt(all, 601_400, S)?.start.arg).toBe("the first, killed and never ended");
+    expect(openToolAt(all, 1_300_000, S)?.start.arg).toBe("the second");   // silent 698 s by then; the ghost is older
+    expect(openToolAt(all, 900_000, S)?.start.arg).toBe("the first, killed and never ended"); // the second is too young
+    expect(openToolAt(all, 500, S)).toBeNull();                            // nothing open yet
+    // After an interrupt at 601.5 s, the call it killed is never named again, even while the log leaves it open and
+    // the call that replaced it is not among the events loaded so far: no call is named rather than the wrong one.
+    expect(openToolAt(all, 1_300_000, S, 601_500)).toBeNull();
   });
 });
