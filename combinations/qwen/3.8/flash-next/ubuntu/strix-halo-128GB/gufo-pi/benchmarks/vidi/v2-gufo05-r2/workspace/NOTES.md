@@ -483,3 +483,87 @@ be a different story's UI.
 | TC-28: unreachable → route restored → board on screen | ~1 s, which is the first retry interval |
 | `npm run test:integration` (36 pool + 27 live) | ~78 s |
 | `npm run test:e2e` (38 cases, chromium only on this host) | ~38 s |
+
+---
+
+# Notes: Story 8 — undo and redo my own changes
+
+## Deviations from the design
+
+### The undo controller is created in `BoardSurface`, not `App.tsx`
+
+`design.md` says "`App.tsx` creates one controller per board doc." Since story 5,
+`App.tsx` no longer owns a `Y.Doc` — it resolves the board address and hands the
+board id down; the doc is created by `useBoardDoc` inside `BoardSurface`, and
+`BoardPage` keys `BoardSurface` by board id. The controller has to be created with,
+and destroyed alongside, the doc it watches, so `BoardSurface` is where the design's
+intent actually lands: `useMemo(() => createUndo(doc), [doc])` with a cleanup effect
+that calls `destroy()`. Keying by board id means opening another board tears this
+controller down and a fresh one starts empty — the `undo.session_only` behaviour the
+design asked for, unchanged.
+
+### The nightly soak's slot grid moved right (coordinates only)
+
+Story 8 adds two `toolbar__button`s to the left tool rail (`Toolbar.tsx renders
+UndoButtons`, per the design). The rail is `position: fixed; left: 16px; top: 50%;
+transform: translateY(-50%)`, so it is vertically centred and its x-span is ~16–66 px.
+TC-30's soak put its click grid at `x = 60`, one row per person at `y = 60, 210, 360,
+510, 660`. With the rail at its old height (one button) its vertical span was ~375–425
+and hit none of those rows; with three buttons it spans ~331–469, which covers the
+third writer's row at `y = 360`. That writer's double-click then landed on the toolbar
+(the rail stops pointer/double-click events) instead of the board, so it never created
+a note and TC-30 failed deterministically — not because undo did anything, but because
+a legitimate toolbar got taller. The fix is in the soak's `soakSlot`: start the grid at
+`x = 120` (clear of the rail, the same origin the non-nightly capacity test already
+uses). No assertion changed; the case still exercises five people's create / type /
+recolour / delete / drag and their propagation.
+
+## Decisions
+
+### Origin filtering, verified against the real provider origin
+
+`trackedOrigins = new Set([LOCAL_ORIGIN])`. A `Y.UndoManager` on the `objects` map, so
+its deep observation already covers each note's nested `Y.Text` — text edits are undo
+steps without any per-type code. Remote updates arrive with the `y-websocket` provider
+origin and story-4 load updates with their own, so neither ever enters a stack. The
+unit suite simulates a peer by applying a diff with a different origin
+(`tests/unit/helpers/peer.ts`); the e2e suite proves it through the real provider
+(TC-22: undo restores my delete while Raj's new note stays on both screens).
+
+### `Y.UndoManager` API details that bit
+
+- `undo()` / `redo()` return a `StackItem | undefined`, not a boolean. The controller
+  returns `applied != null`. An inverse that targets an object a colleague deleted is
+  still popped (it just has `performedChange === false` and changes nothing), so
+  `undo()` reports the step was consumed and the board is unchanged — the
+  `undo.safe` behaviour, and TC-23 asserts it leaves no error and the history usable.
+- This yjs version has no `stack-item-limit` option, so the `UNDO_MAX_STEPS` bound is
+  a manual `while (undoStack.length > max) undoStack.shift()` on `stack-item-added`.
+- The redo stack can never exceed what the undo stack held, so trimming only the undo
+  stack bounds the total.
+
+### Boundaries are called where an action starts and stops
+
+`boundary()` is `stopCapturing()`. Placed at: gesture start and pointer-up (`useTransform
+Gesture`; the raise and the drag frames become one step, rAF frames inside still merge),
+edit start and stop (`StickyTextEditor` mount/unmount), the note-toolbar colour click and
+the batch delete (`SelectionBar` / `BoardSurface.deleteSelection`, closed on both sides),
+and each arrow-key nudge (`useBoardKeys`). Typing bursts still group by
+`UNDO_CAPTURE_TIMEOUT_MS` because there is no boundary between keystrokes.
+
+### Undo/redo shortcuts are handled before the empty-selection guard
+
+In `useBoardKeys`, Ctrl/Cmd+Z and Ctrl+Y are matched after the "is typing / Escape"
+checks but before `selectedIds.size === 0`, because undo acts on the history, not the
+selection — an empty board still undoes. They check `editable` before acting (a locked
+board ignores them, TC-20). While editing, `StickyTextEditor` intercepts Ctrl/Cmd+Z /
+Shift+Z / Ctrl+Y itself and routes them through the controller (flushing the textarea
+first, then re-syncing it from the `Y.Text`), so it is the shared board's undo, not the
+browser's native textarea history (TC-21).
+
+## What the suites look like here
+
+`npm run test:e2e:nightly` runs for the design-specified time; `VIDI6_SOAK_MS` shortens
+the soak for local work. TC-30 passes repeatedly after the slot-origin change
+(p50 ~115 ms, p95 ~300 ms on this host). Ordinary `npm run test:e2e` (47 cases) and the
+full unit (167) / component (114) / integration+live (63) suites all pass.

@@ -25,6 +25,12 @@ export interface BoardKeyOptions {
   startEdit(id: string): void;
   /** Remove every selected object, then forget the selection. */
   deleteSelection(): void;
+  /** Story 8: reverse this person's last change (Ctrl/Cmd+Z). */
+  undo(): void;
+  /** Story 8: re-apply the last undone change (Ctrl/Cmd+Shift+Z, Ctrl+Y). */
+  redo(): void;
+  /** Story 8: close the undo capture window so a nudge is its own step. */
+  boundary?(): void;
 }
 
 /**
@@ -57,13 +63,30 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         blurFocus();
         return;
       }
+      // Undo and redo act on the history, not the selection, so they are handled
+      // before the empty-selection guard — an empty board still undoes. They are
+      // only ever this person's own steps (the controller tracks LOCAL_ORIGIN).
+      if (mod && (event.key === 'z' || event.key === 'Z')) {
+        event.preventDefault();
+        if (!opts.editable) return;
+        if (event.shiftKey) opts.redo();
+        else opts.undo();
+        return;
+      }
+      if (mod && (event.key === 'y' || event.key === 'Y')) {
+        event.preventDefault();
+        if (opts.editable) opts.redo();
+        return;
+      }
       if (opts.selectedIds.size === 0) return;
 
       const step = arrowStep(event);
       if (step) {
         event.preventDefault();
         if (!opts.editable) return;
+        opts.boundary?.();
         nudge(opts.doc, [...opts.selectedIds], step);
+        opts.boundary?.();
         return;
       }
       if (event.key === 'Delete' || event.key === 'Backspace') {

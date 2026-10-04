@@ -34,6 +34,8 @@ import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
 import { useBoardKeys } from './useBoardKeys';
 import { useTransformGesture } from './useTransformGesture';
+import { createUndo } from './undo';
+import { UndoControllerContext, useUndo } from './useUndo';
 import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -84,6 +86,15 @@ export function BoardSurface({ boardId }: { boardId: string }) {
   const presentIds = useMemo(() => new Set(objects.map((object) => object.id)), [objects]);
   const selection = useSelection(presentIds);
 
+  // Story 8: one undo controller per board document, living only in this tab.
+  // It captures only this person's own changes (see `createUndo`), and it is
+  // destroyed when the board is left or swapped, so a reload starts empty
+  // (PRD undo.session_only). `BoardPage` keys `BoardSurface` by board id, so
+  // opening another board tears this one down and this cleanup effect runs.
+  const undoController = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => () => undoController.destroy(), [undoController]);
+  const undoState = useUndo(undoController, editable);
+
   const gestures = useTransformGesture({
     doc,
     editable,
@@ -92,6 +103,10 @@ export function BoardSurface({ boardId }: { boardId: string }) {
     selectedIds: selection.ids,
     click: selection.click,
     toggle: selection.toggle,
+    // A whole drag or resize is one undo step: close the capture window at its
+    // start and again when the pointer stops (including a cancel).
+    onGestureStart: undoController.boundary,
+    onGestureEnd: undoController.boundary,
   });
 
   // Expose the live document to tests (no-op in production builds).
@@ -104,17 +119,24 @@ export function BoardSurface({ boardId }: { boardId: string }) {
       seedSticky: (x: number, y: number) => createSticky(doc, { x, y }),
       selectedIds: () => [...selectionRef.current.ids],
       objectCount: () => objectSnapshots(doc).length,
+      canUndo: () => undoController.canUndo(),
+      canRedo: () => undoController.canRedo(),
+      undoStep: () => undoController.undo(),
+      redoStep: () => undoController.redo(),
     });
-  }, [doc]);
+  }, [doc, undoController]);
 
-  // Create a note centred on a world point, then select + edit it.
+  // Create a note centred on a world point, then select + edit it. The creation
+  // is one undo step, closed off from the edit that follows it.
   const createAtWorld = useCallback(
     (world: Point) => {
       if (!canEdit(connection)) return; // a note added to a board that never arrived
+      undoController.boundary();
       const id = createSticky(doc, world);
+      undoController.boundary();
       if (id) selection.startEdit(id);
     },
-    [doc, selection, connection],
+    [doc, selection, connection, undoController],
   );
 
   // The Sticky note button creates a note at the centre of the visible area.
@@ -122,11 +144,14 @@ export function BoardSurface({ boardId }: { boardId: string }) {
     createAtWorld(screenCentre(camera, viewport));
   }, [camera, viewport, createAtWorld]);
 
+  // One delete (of any number of objects) is one undo step, bounded on each side.
   const deleteSelection = useCallback(() => {
     if (!editable) return;
+    undoController.boundary();
     deleteObjects(doc, [...selection.ids]);
+    undoController.boundary();
     selection.clear();
-  }, [doc, editable, selection]);
+  }, [doc, editable, selection, undoController]);
 
   useBoardKeys({
     doc,
@@ -139,6 +164,9 @@ export function BoardSurface({ boardId }: { boardId: string }) {
     clear: selection.clear,
     startEdit: selection.startEdit,
     deleteSelection,
+    undo: undoState.undo,
+    redo: undoState.redo,
+    boundary: undoController.boundary,
   });
 
   // Shift + drag over empty space: the viewport owns the rectangle, the model owns
@@ -185,6 +213,7 @@ export function BoardSurface({ boardId }: { boardId: string }) {
     selection.count > 0 && !transforming && selection.editingId === null && selectionBox !== null;
 
   return (
+    <UndoControllerContext.Provider value={undoController}>
     <CameraContext.Provider value={board}>
       <div className="vidi6-app">
         <BoardViewport
@@ -234,7 +263,7 @@ export function BoardSurface({ boardId }: { boardId: string }) {
           {selection.count > 1 ? `${selection.count} selected` : ''}
         </div>
 
-        <Toolbar onCreateSticky={createAtCentre} createDisabled={!editable} />
+        <Toolbar onCreateSticky={createAtCentre} createDisabled={!editable} undo={undoState} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}
@@ -247,6 +276,7 @@ export function BoardSurface({ boardId }: { boardId: string }) {
         <ConnectionStatus state={connection} />
       </div>
     </CameraContext.Provider>
+    </UndoControllerContext.Provider>
   );
 }
 

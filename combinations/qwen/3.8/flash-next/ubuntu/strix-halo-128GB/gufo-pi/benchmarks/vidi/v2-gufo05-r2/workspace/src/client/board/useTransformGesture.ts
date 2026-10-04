@@ -144,9 +144,11 @@ export function useTransformGesture(options: TransformOptions): TransformGesture
         if (current.toggleSelection) opts.current.toggle(current.id);
         else opts.current.click(current.id);
       }
+      // Close the undo capture window first, so the raise below and the moves
+      // that follow are one step that is not merged with the previous action.
+      opts.current.onGestureStart?.();
       // Raise the whole group above everything else, once, at the start (TC-30).
       bringObjectsToFront(opts.current.doc, current.ids);
-      opts.current.onGestureStart?.();
     }
 
     if (current.mode === 'moving') {

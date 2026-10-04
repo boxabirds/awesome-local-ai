@@ -160,3 +160,20 @@ export const NUDGE_STEP_WORLD = 1;
 
 /** How far Shift + arrow key moves the selection, in board units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+/* ------------------------------------------------------------------ * *
+ * Story 8: undo and redo of my own changes                             *
+ * ------------------------------------------------------------------ */
+
+/**
+ * A pause in typing of this long ends a typing burst, so the next keystroke
+ * starts a new undo step (PRD undo.typing). Consecutive typing with a shorter
+ * pause is merged into one step.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/**
+ * How many of this person's own steps one undo history keeps. Adding a new step
+ * beyond this discards the oldest one (PRD undo.limit).
+ */
+export const UNDO_MAX_STEPS = 200;

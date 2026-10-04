@@ -8,6 +8,7 @@ import {
 import type { StickyColor } from '../../shared/config';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { getObjectType } from '../objects/registry';
+import { useUndoController } from './useUndo';
 
 export interface SelectionBarProps {
   ids: ReadonlySet<string>;
@@ -29,6 +30,7 @@ export interface SelectionBarProps {
  * needs more than these two things.
  */
 export function SelectionBar({ ids, objects, doc, editable, onDelete }: SelectionBarProps) {
+  const undoController = useUndoController();
   const selected = objects.filter((object) => ids.has(object.id));
   if (selected.length === 0) return null;
 
@@ -41,7 +43,10 @@ export function SelectionBar({ ids, objects, doc, editable, onDelete }: Selectio
           color={only.color}
           onColor={(color: StickyColor) => {
             if (!editable) return;
+            // One colour change is one undo step, closed on both sides.
+            undoController?.boundary();
             setStickyColor(doc, only.id, color);
+            undoController?.boundary();
           }}
           onDelete={() => {
             if (editable) onDelete();

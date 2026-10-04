@@ -24,6 +24,10 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['tests/unit/**/*.test.ts'],
+          // Story 8's capture-timeout tests mock `lib0/time` (the clock Yjs reads
+          // for its capture window). yjs imports it as an external module, so it
+          // must be processed by Vite — not pre-bundled — for the mock to reach it.
+          server: { deps: { inline: [/lib0/, /yjs/] } },
         },
       },
       {

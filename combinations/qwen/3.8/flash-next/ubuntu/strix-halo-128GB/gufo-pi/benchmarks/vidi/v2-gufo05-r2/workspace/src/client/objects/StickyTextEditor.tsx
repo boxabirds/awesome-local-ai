@@ -15,6 +15,7 @@ import {
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { applyTextDiff, clampToLimit, counterVisible, fitFontSize } from './StickyText';
 import { mapCaretPosition } from './caret';
+import { useUndoController } from '../board/useUndo';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -48,6 +49,7 @@ export function stickyContentBox(el: HTMLElement): number {
 export function StickyTextEditor({ ytext, fontPx, readOnly = false, onEnd }: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
+  const undoController = useUndoController();
   const [overflow, setOverflow] = useState(false);
   const [length, setLength] = useState(() => ytext.toString().length);
 
@@ -124,6 +126,8 @@ export function StickyTextEditor({ ytext, fontPx, readOnly = false, onEnd }: Sti
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // Editing this note is its own undo step: close the window on the way in…
+    undoController?.boundary();
     // Start editing with the cursor at the end of the text.
     el.value = ytext.toString();
     el.style.fontSize = `${fontPx}px`;
@@ -146,7 +150,12 @@ export function StickyTextEditor({ ytext, fontPx, readOnly = false, onEnd }: Sti
       onEndRef.current('unselected');
     };
     document.addEventListener('pointerdown', onDocPointerDown, true);
-    return () => document.removeEventListener('pointerdown', onDocPointerDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDocPointerDown, true);
+      // …and on the way out, so the next action is never merged into this note's
+      // typing burst (PRD undo.typing).
+      undoController?.boundary();
+    };
     // Mount-only: the textarea owns its value after this; further syncs happen
     // through flush() on input.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,6 +164,25 @@ export function StickyTextEditor({ ytext, fontPx, readOnly = false, onEnd }: Sti
   const onKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     // Keep note-level keyboard handlers (App) from acting while typing.
     event.stopPropagation();
+    // Ctrl/Cmd+Z here undoes the shared text through the board's history, not the
+    // browser's native textarea undo — so it reverses exactly this person's typing
+    // and syncs to everyone (PRD undo.typing, undo.keyboard).
+    const mod = event.ctrlKey || event.metaKey;
+    if (undoController && mod && (event.key === 'z' || event.key === 'Z')) {
+      event.preventDefault();
+      flush();
+      if (event.shiftKey) undoController.redo();
+      else undoController.undo();
+      applyRemoteTextRef.current();
+      return;
+    }
+    if (undoController && mod && (event.key === 'y' || event.key === 'Y')) {
+      event.preventDefault();
+      flush();
+      undoController.redo();
+      applyRemoteTextRef.current();
+      return;
+    }
     if (event.key === 'Escape') {
       event.preventDefault();
       flush();

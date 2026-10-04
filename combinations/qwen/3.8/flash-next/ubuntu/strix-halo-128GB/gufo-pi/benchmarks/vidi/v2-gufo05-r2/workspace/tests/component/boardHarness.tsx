@@ -177,3 +177,38 @@ export function dragBoard(from: { x: number; y: number }, to: { x: number; y: nu
   firePointer(el, 'pointerup', to.x, to.y);
   flushFrames();
 }
+
+// --- Story 8: undo/redo -----------------------------------------------------
+
+/** Undo state as this page sees it, straight from the live controller. */
+export function canUndo(): boolean {
+  return window.__vidi6?.canUndo?.() ?? false;
+}
+export function canRedo(): boolean {
+  return window.__vidi6?.canRedo?.() ?? false;
+}
+
+/** Drive undo/redo through the controller (the same call the button and keys make). */
+export function undoStep(): boolean {
+  let result = false;
+  act(() => {
+    result = window.__vidi6?.undoStep?.() ?? false;
+  });
+  flushFrames();
+  return result;
+}
+export function redoStep(): boolean {
+  let result = false;
+  act(() => {
+    result = window.__vidi6?.redoStep?.() ?? false;
+  });
+  flushFrames();
+  return result;
+}
+
+export function undoButton(): HTMLButtonElement {
+  return screen.getByLabelText('Undo') as HTMLButtonElement;
+}
+export function redoButton(): HTMLButtonElement {
+  return screen.getByLabelText('Redo') as HTMLButtonElement;
+}

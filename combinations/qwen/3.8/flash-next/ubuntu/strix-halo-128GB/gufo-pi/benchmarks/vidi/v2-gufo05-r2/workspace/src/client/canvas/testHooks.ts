@@ -37,6 +37,15 @@ export interface Vidi6TestHooks {
    * nothing reconnects afterwards.
    */
   disconnectBoard?(): void;
+  /**
+   * Story 8: this person's undo history, for tests that drive or inspect it
+   * directly (a button click is still the ordinary path in most cases).
+   */
+  canUndo?(): boolean;
+  canRedo?(): boolean;
+  /** Reverse / re-apply this person's own last change; false when nothing to do. */
+  undoStep?(): boolean;
+  redoStep?(): boolean;
 }
 
 declare global {

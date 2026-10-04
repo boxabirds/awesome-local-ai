@@ -1,5 +1,10 @@
+import { UndoButtons } from './UndoButtons';
+import type { UndoState } from './useUndo';
+
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /** Story 8: the undo/redo controls shown under the tools. */
+  undo: UndoState;
   /**
    * True while this page must not be adding to the board — story 4 sets it when the
    * room could not load the board, because a note created on top of a board that
@@ -15,7 +20,7 @@ export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board'
  * The fixed left-side tool rail. This story adds the "Sticky note" creation
  * button; later stories add more tools here.
  */
-export function Toolbar({ onCreateSticky, createDisabled = false }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, createDisabled = false, undo }: ToolbarProps) {
   const stop = (event: { stopPropagation(): void }) => event.stopPropagation();
   return (
     <div
@@ -47,6 +52,7 @@ export function Toolbar({ onCreateSticky, createDisabled = false }: ToolbarProps
           />
         </svg>
       </button>
+      <UndoButtons {...undo} />
     </div>
   );
 }

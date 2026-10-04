@@ -448,6 +448,8 @@ const SOAK_TEST_MS = Number(process.env.VIDI6_SOAK_MS ?? 60_000);
 const SOAK_ZOOM = 0.25;
 const SOAK_SLOT_STEP = 65;
 const SOAK_BAND_STEP = 150;
+/** Left edge of the slot grid, clear of the fixed left tool rail (see soakSlot). */
+const SOAK_BAND_X = 120;
 const SOAK_COLUMNS = 18;
 /** One row per writer: the gaps are then wide enough for the selection toolbar. */
 const SOAK_SLOTS_PER_PERSON = SOAK_COLUMNS;
@@ -714,7 +716,11 @@ function nextFreeSlot(participant: number, home: Map<string, Pixel>): Pixel | un
  * The next slot in this writer's own band of the board. Each writer has one row, so
  * a double-click always lands on empty board, and the gap between rows is wide enough
  * that the floating toolbar of a selected note never covers another note.
+ *
+ * The band starts clear of the fixed left tool rail (which story 8 made taller by
+ * adding Undo and Redo): at x = 60 the vertically-centred rail overlapped the middle
+ * writer's row and a double-click there hit a toolbar button instead of the board.
  */
 function soakSlot(participant: number, index: number): Pixel {
-  return { x: 60 + (index % SOAK_COLUMNS) * SOAK_SLOT_STEP, y: 60 + participant * SOAK_BAND_STEP };
+  return { x: SOAK_BAND_X + (index % SOAK_COLUMNS) * SOAK_SLOT_STEP, y: 60 + participant * SOAK_BAND_STEP };
 }
