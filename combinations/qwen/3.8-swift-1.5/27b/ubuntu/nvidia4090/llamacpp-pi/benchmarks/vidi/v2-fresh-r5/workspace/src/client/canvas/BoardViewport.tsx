@@ -48,6 +48,11 @@ export function BoardViewport(props: {
   cursor?: string;
   /** Pen tool active (story 11): pointer drags go to the Pen tool, never pan. */
   penActive?: boolean;
+  /** Drag and drop handlers for image files (story 12). */
+  onDragEnter?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragLeave?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
 }): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
@@ -287,6 +292,10 @@ export function BoardViewport(props: {
         onLostPointerCapture={endPan}
         onDoubleClick={onDoubleClick}
         onClick={onClickEmpty}
+        onDragEnter={props.onDragEnter}
+        onDragOver={props.onDragOver}
+        onDragLeave={props.onDragLeave}
+        onDrop={props.onDrop}
         style={{
           position: 'fixed',
           inset: 0,

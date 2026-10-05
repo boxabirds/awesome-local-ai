@@ -16,3 +16,12 @@
 - **E2E connector tests (TC-25 to TC-27):** These multi-participant tests require the local wrangler server to handle simultaneous WebSocket connections. In this environment, the server intermittently fails to handle 2+ concurrent connections (pre-existing story 3 collaboration tests also fail). The tests are correctly written and will pass in CI. Shape e2e tests (TC-23, TC-24) pass reliably.
 - **SVG visibility in Playwright:** SVG `<g>` elements are not considered "visible" by Playwright's actionability checks. E2E tests use coordinate-based clicks (via `boundingBox()` on child elements) instead of `locator.dblclick()` on the group element.
 - **Shape kind menu timing:** The shape kind menu update (e.g., selecting diamond) requires a React re-render before the next click uses the new kind. In e2e, the default rect kind is used for reliability; diamond-specific rendering is covered by component tests.
+
+## Story 12 decisions
+
+- **identityId = 'local':** No sign-in story exists yet, so the uploader identity is hardcoded to `'local'` in Board.tsx. The `isUploader` check in ImageObject compares `imgSnap.uploaderId === 'local'`.
+- **Image tool is momentary:** Clicking the Image toolbar button (or pressing I) opens the file picker immediately and stays in select mode. It is not a persistent tool state like Pen or Shape.
+- **UPLOAD_ORIGIN not tracked by UndoManager:** Status updates (uploading → ready/failed) use a separate Yjs origin that is not tracked by the undo manager, so they don't create undo steps. Only the initial placeholder creation (LOCAL_ORIGIN) creates an undo step.
+- **fileMapRef for retry:** File objects are stored in-memory in a ref for retry support. They are cleared on unmount. This means retry only works while the board is open (by design per the spec: "in-memory; cleared on unmount").
+- **ImageObject wrapper in registry:** The image object type uses a wrapper div in the registry that positions the object at its world coordinates and captures pointer events. The wrapper skips pointer capture when clicking on interactive elements (buttons) so the Retry/Remove buttons work.
+- **E2E image sizes:** The minimal 1x1 PNG fixtures are too small to interact with in e2e (selection, resize). The `generatePngBase64` helper creates properly-sized images (200x100) using a canvas in the browser.

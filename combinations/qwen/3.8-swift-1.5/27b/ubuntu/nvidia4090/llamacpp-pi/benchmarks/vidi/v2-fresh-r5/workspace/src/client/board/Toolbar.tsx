@@ -19,13 +19,15 @@ interface ToolbarProps {
   shapeKind?: ShapeKind;
   /** Change the shape kind (story 10). */
   onShapeKindChange?: (k: ShapeKind) => void;
+  /** Open the image file picker (story 12). */
+  onOpenImagePicker?: () => void;
 }
 
 /**
  * Fixed left-side toolbar with tool buttons, a Sticky note button and undo/redo buttons.
  */
 export function Toolbar(props: ToolbarProps): JSX.Element {
-  const { onCreateSticky, disabled = false, undo, tool = 'select', onToolChange, shapeKind = 'rect', onShapeKindChange } = props;
+  const { onCreateSticky, disabled = false, undo, tool = 'select', onToolChange, shapeKind = 'rect', onShapeKindChange, onOpenImagePicker } = props;
   const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
   const shapeBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -199,6 +201,19 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         style={btnStyle(tool === 'pen', disabled)}
       >
         ✎
+      </button>
+
+      {/* Image tool (story 12) */}
+      <button
+        type="button"
+        aria-label="Image (I)"
+        title="Image – I"
+        data-testid="tool-image-btn"
+        onClick={onOpenImagePicker}
+        disabled={disabled}
+        style={btnStyle(false, disabled)}
+      >
+        🖼
       </button>
 
       {/* Sticky note button */}

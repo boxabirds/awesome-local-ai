@@ -194,7 +194,7 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
 
   objects.forEach((obj, id) => {
     const type = obj.get('type');
-    if (type !== 'sticky' && type !== 'text' && type !== 'shape' && type !== 'connector' && type !== 'stroke') return; // skip unknown types
+    if (type !== 'sticky' && type !== 'text' && type !== 'shape' && type !== 'connector' && type !== 'stroke' && type !== 'image') return; // skip unknown types
 
     const text = obj.get('text') as Y.Text | undefined;
     const width = obj.get('width') as number | undefined;
@@ -223,6 +223,16 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       strokeEntry.baseHeight = (obj.get('baseHeight') as number) ?? 0;
       strokeEntry.color = (obj.get('color') as StrokeSnap['color']) ?? 'black';
       strokeEntry.thickness = (obj.get('thickness') as StrokeSnap['thickness']) ?? 'medium';
+    }
+    if (type === 'image') {
+      const imgEntry = entry as unknown as Record<string, unknown>;
+      imgEntry.assetKey = obj.get('assetKey') as string | null;
+      imgEntry.contentType = obj.get('contentType') as string;
+      imgEntry.naturalWidth = obj.get('naturalWidth') as number;
+      imgEntry.naturalHeight = obj.get('naturalHeight') as number;
+      imgEntry.status = obj.get('status') as string;
+      imgEntry.uploadStartedAt = obj.get('uploadStartedAt') as number;
+      imgEntry.uploaderId = obj.get('uploaderId') as string;
     }
     if (type === 'connector') {
       entry.from = obj.get('from') as Endpoint;
@@ -299,7 +309,7 @@ export function allObjectIds(doc: Y.Doc): string[] {
   objects.forEach((_obj, id) => {
     // Only include objects with a known type
     const type = (_obj as Y.Map<unknown>).get('type');
-    if (type === 'sticky' || type === 'text' || type === 'shape' || type === 'connector' || type === 'stroke') ids.push(id);
+    if (type === 'sticky' || type === 'text' || type === 'shape' || type === 'connector' || type === 'stroke' || type === 'image') ids.push(id);
   });
   return ids;
 }

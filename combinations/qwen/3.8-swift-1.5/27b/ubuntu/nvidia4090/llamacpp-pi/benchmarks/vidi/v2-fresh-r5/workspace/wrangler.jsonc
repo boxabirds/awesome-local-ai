@@ -18,6 +18,12 @@
       }
     ]
   },
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   "migrations": [
     {
       "tag": "v1",

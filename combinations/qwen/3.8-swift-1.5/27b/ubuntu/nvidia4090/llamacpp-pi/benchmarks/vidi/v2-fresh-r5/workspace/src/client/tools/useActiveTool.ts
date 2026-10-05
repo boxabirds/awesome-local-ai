@@ -2,7 +2,7 @@
  * Active tool hook (story 10). Manages the active tool state with shortcuts
  * and return-to-select behaviour. Extends story 9's tool system.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ShapeKind } from '../../shared/config';
 
 export type ToolId = 'select' | 'sticky' | 'text' | 'shape' | 'connector' | 'pen' | 'image' | 'comment';
@@ -22,6 +22,8 @@ interface UseActiveToolOpts {
   canEdit: boolean;
   /** Select the given id (used by toolCreated). */
   onSelect: (id: string) => void;
+  /** Called when the Image tool shortcut (I) is pressed. Opens the picker. */
+  onImageTool?: () => void;
 }
 
 export interface ActiveToolState {
@@ -41,6 +43,8 @@ export interface ActiveToolState {
  */
 export function useActiveTool(opts: UseActiveToolOpts): ActiveToolState {
   const { canEdit, onSelect } = opts;
+  const onImageToolRef = useRef(opts.onImageTool);
+  onImageToolRef.current = opts.onImageTool;
   const [tool, setToolState] = useState<ToolId>('select');
   const [shapeKind, setShapeKindState] = useState<ShapeKind>('rect');
 
@@ -95,6 +99,11 @@ export function useActiveTool(opts: UseActiveToolOpts): ActiveToolState {
         } else if (canEdit) {
           setToolState(targetTool);
         }
+      }
+
+      // Image tool: open picker immediately (handled by parent via callback)
+      if (targetTool === 'image' && canEdit) {
+        onImageToolRef.current?.();
       }
     };
 

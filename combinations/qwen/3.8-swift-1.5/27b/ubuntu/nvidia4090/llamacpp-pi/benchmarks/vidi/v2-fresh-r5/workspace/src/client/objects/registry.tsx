@@ -221,3 +221,61 @@ registerObjectType('stroke', {
   handles: 'all',
   hitTest: strokeHitTest,
 });
+
+// ─── Register image objects (story 12) ──────────────────────────────────────
+
+import { ImageObject } from './ImageObject';
+import { IMAGE_MIN_SIZE_WORLD } from '../../shared/config';
+import type { ImageSnap } from '../../shared/objects/image';
+
+function imageHitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
+  const w = obj.width ?? 0;
+  const h = obj.height ?? 0;
+  return (
+    worldPoint.x >= obj.x &&
+    worldPoint.x < obj.x + w &&
+    worldPoint.y >= obj.y &&
+    worldPoint.y < obj.y + h
+  );
+}
+
+registerObjectType('image', {
+  Component: ((props: ObjectProps) => {
+    const img = props.obj as unknown as ImageSnap;
+    const extra = props as ObjectProps & {
+      isUploader?: boolean;
+      progress?: number;
+      canRetry?: boolean;
+      now?: number;
+      onRetry?: () => void;
+      onRemove?: () => void;
+    };
+    return (
+      <div
+        style={{ position: 'absolute', left: `${img.x}px`, top: `${img.y}px`, width: img.width, height: img.height, pointerEvents: props.pointerDisabled ? 'none' : 'auto' }}
+        onPointerDown={props.pointerDisabled ? undefined : (e) => {
+          // Don't capture pointer when clicking interactive elements (buttons)
+          const target = e.target as HTMLElement;
+          if (target.closest('button, a, input, textarea')) return;
+          e.stopPropagation();
+          props.onPointerDown(e, props.obj.id);
+        }}
+      >
+        <ImageObject
+          image={img}
+          isUploader={extra.isUploader ?? false}
+          progress={extra.progress}
+          canRetry={extra.canRetry ?? false}
+          now={extra.now ?? Date.now()}
+          onRetry={extra.onRetry ?? (() => {})}
+          onRemove={extra.onRemove ?? (() => {})}
+        />
+      </div>
+    );
+  }) as unknown as ComponentType<ObjectProps>,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: imageHitTest,
+});

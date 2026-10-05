@@ -1,6 +1,7 @@
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { handleTestHooks } from './test-hooks';
+import { handleUpload, handleServe } from './assets';
 import { isValidBoardId } from '../shared/board-id';
 
 // Exported (not just imported) so the vitest workers pool can resolve the
@@ -10,6 +11,7 @@ export { BoardRoom };
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   /** Set to "1" in test environments only; enables the /__test/ routes. */
   TEST_HOOKS?: string;
 }
@@ -40,6 +42,18 @@ export default {
       const result = await createBoard(env);
       if (result.ok) return json(201, { id: result.id });
       return json(500, { error: 'create_failed' });
+    }
+
+    // POST /api/boards/:id/assets — upload an image (story 12).
+    if (url.pathname.startsWith('/api/boards/') && url.pathname.endsWith('/assets') && request.method === 'POST') {
+      const boardId = url.pathname.slice('/api/boards/'.length, -'/assets'.length);
+      return handleUpload(request, env, boardId);
+    }
+
+    // GET /api/assets/:boardId/:assetId — serve a stored image (story 12).
+    if (url.pathname.startsWith('/api/assets/') && request.method === 'GET') {
+      const key = url.pathname.slice('/api/assets/'.length);
+      return handleServe(env, key);
     }
 
     // GET /api/boards/:id — existence check (story 5). Unknown AND malformed

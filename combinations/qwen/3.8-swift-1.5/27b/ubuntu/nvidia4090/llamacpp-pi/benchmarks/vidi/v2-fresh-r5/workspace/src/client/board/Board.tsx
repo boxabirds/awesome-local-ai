@@ -31,10 +31,14 @@ import { PenTool } from '../tools/PenTool';
 import { PenToolbar } from '../tools/PenToolbar';
 import { usePenOptions } from '../tools/usePenOptions';
 import { ShapeToolbar } from '../objects/ShapeToolbar';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { Toast } from '../ui/Toast';
 import { createUndo, type UndoController } from './undo';
 import { useUndo } from './useUndo';
 import type { Handle } from '../../shared/geometry';
 import type { Rect } from '../../shared/geometry';
+import type { ImageSnap } from '../../shared/objects/image';
 
 /**
  * The live board for one board id: document, selection state, toolbar,
@@ -111,11 +115,23 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   // Pen options (story 11): session-only colour/thickness
   const penOptions = usePenOptions();
 
+  // Image insert hook (story 12)
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera: cameraRef.current,
+    connection: connectionState,
+    identityId: 'local',
+  });
+
   // Active tool hook (story 10) - extends tool with shape/connector
   const { tool: activeTool, shapeKind, setShapeKind, toolCreated, setTool: setActiveTool } = useActiveTool({
     canEdit: editable,
     onSelect: (id: string) => {
       selection.setMany([id], false);
+    },
+    onImageTool: () => {
+      imageInsert.openPicker();
     },
   });
 
@@ -279,11 +295,14 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   }
 
   // Render objects through the registry
+  const now = Date.now();
   const renderObjects = () => {
     return notes.map((obj) => {
       const spec = getObjectType(obj.type);
       if (!spec) return null;
       const Comp = spec.Component;
+      const isImage = obj.type === 'image';
+      const imgSnap = isImage ? (obj as unknown as ImageSnap) : null;
       return (
         <Comp
           key={obj.id}
@@ -303,7 +322,18 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
             ? { rects: rectsMap, camera }
             : obj.type === 'stroke'
               ? { camera }
-              : {})}
+              : isImage && imgSnap
+                ? {
+                    isUploader: imgSnap.uploaderId === 'local',
+                    progress: imageInsert.progress.get(imgSnap.id),
+                    canRetry: imageInsert.canRetry(imgSnap.id),
+                    now,
+                    onRetry: () => imageInsert.retry(imgSnap.id),
+                    onRemove: () => {
+                      deleteObjects(doc, [imgSnap.id]);
+                    },
+                  }
+                : {})}
         />
       );
     });
@@ -351,6 +381,10 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         onMarqueeCancel={() => marquee.cancel()}
         cursor={tool === 'text' ? 'text' : undefined}
         penActive={currentTool === 'pen'}
+        onDragEnter={imageInsert.onDragEnter}
+        onDragOver={imageInsert.onDragOver}
+        onDragLeave={imageInsert.onDragLeave}
+        onDrop={imageInsert.onDrop}
       >
         {renderObjects()}
         <MarqueeRect rect={marquee.rect} />
@@ -474,7 +508,14 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         }}
         shapeKind={shapeKind}
         onShapeKindChange={setShapeKind}
+        onOpenImagePicker={imageInsert.openPicker}
       />
+
+      {/* Drop highlight (story 12) */}
+      <DropHighlight visible={imageInsert.isDragging} />
+
+      {/* Toast messages (story 12) */}
+      <Toast messages={imageInsert.messages} />
     </>
   );
 }
