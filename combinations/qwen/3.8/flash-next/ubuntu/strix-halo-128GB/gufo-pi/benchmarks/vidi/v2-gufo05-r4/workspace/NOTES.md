@@ -1238,3 +1238,145 @@ the rail looks at this too.
 - E2E: `tests/e2e/undo.spec.ts` (TC-22..24) in isolated browser profiles, so "my undo did not
   touch theirs" is proven across real sockets and both boards are compared after every step.
   The deleted-target cases assert the note stays gone and that neither page logs a crash.
+
+# Story 9 notes — decisions and deviations
+
+## The auto box *is* the measurement: no padding
+
+`design.md`'s TC-07 says an automatic width is "measured line + padding", and its TC-09 says a
+line measuring exactly `TEXT_MAX_AUTO_WIDTH_WORLD` gets a box of exactly 600. Both cannot hold:
+with padding, a 600-wide line either overflows the ceiling or wraps a word early. The boundary
+won, because the ceiling is the promise a person can see ("nothing you write runs wider than the
+board's own column") and because a padded text box has no honest answer to "where does the first
+letter go" — the words are painted from the box's left edge, which is the point that was
+clicked. So `layoutText` stores the measured width of the longest line, floored at
+`TEXT_MIN_WIDTH_WORLD` and capped at `TEXT_MAX_AUTO_WIDTH_WORLD`.
+
+One consequence worth stating: once a line has had to wrap, the box stays at the ceiling rather
+than shrinking back to the widest wrapped line. A box whose width changed every time a character
+was added would slide its own wrapping — and the text inside it — under the cursor.
+
+## A second object type arrives through a reader, not an `if`
+
+`boardObjects` used to know one type and cast the rest away. It now asks a registry:
+`declareObjectType(type, reader)` in `board-model.ts`, consulted by `readObject` before the
+common fields are assumed to be a note's, with `src/shared/objects/text.ts` declaring its own
+reader on import (the same "the type owns its fields" shape the client-side object registry
+already used). `createId`, `objectMap`, `maxZ` and `deleteObjects` became exported for the
+occasion: a text ids and layers itself exactly like a note, and re-deriving either in a second
+file would be a rule with two keepers. Selection, moving, marqueeing, z-order and undo needed no
+text-specific code at all, which is the point of doing it this way (`text.consistent`).
+
+A text whose stored box is missing or not a number is read as one empty line at the default size
+rather than dropped: the words in it are real, and the next local change measures them properly.
+
+## Only the client that changed the words measures them
+
+As designed: the box is stored, and `useTextBoxSync` re-measures on local `Y.Text` changes
+(`transaction.origin === LOCAL_ORIGIN`), on a size change, and at the end of a width drag — never
+on somebody else's update. Five people typing into one text therefore produce one set of
+dimensions rather than five arguing ones.
+
+`setTextMeasurer(measurer | null)` is a test seam, not a feature: jsdom has no canvas, so
+component tests inject a measurer with known arithmetic (half the font size per character) and
+reset it afterwards, while the browser uses `createCanvasMeasurer` and falls back to a named
+glyph-width ratio when there is no canvas to ask (`text.layout`'s error path, TC-32).
+
+## One editor for notes and text — and its textarea needed `rows={1}`
+
+`TextEditor` is story 2's editor generalised: `maxChars`, counter threshold, font size, wrap
+width, the selector that says what counts as "outside", and an `onLocalChange` hook text uses to
+re-measure inside the same undo step as the keystroke. `StickyTextEditor` is now a thin wrapper,
+so story 2's component tests keep their import and their claims unchanged.
+
+A real browser, not jsdom, found a bug that had been in the note editor since story 2: the shared
+`<textarea>` carried no `rows`, so its intrinsic height was the two rows a textarea asks for by
+default, and `autoGrow`'s `height = scrollHeight` could never measure fewer than two lines. A
+sticky note hides that behind its fixed square. Free text paints its box from the same number, so
+every one-line text looked twice as tall as the board said it was — stored 26, painted 52 — and
+the e2e assertion that compares the two caught it. `rows={1}` makes the measurement honest for
+both types.
+
+## The toolbar belongs to the object, not to the selection bar
+
+The design put `TextToolbar` in `SelectionBar`. `NoteToolbar` lives in `StickyNote`, and a text's
+size buttons are positioned in world units against its own box and counter-scaled by `1/zoom`, so
+they live with the text for the same reason the colour swatches do: the alternative means the
+selection bar has to know every object type's controls. The behaviour is as specified — four
+sizes with `aria-pressed`, a bin, disabled when the board cannot be written, shown for exactly one
+selected object.
+
+## `handles: 'horizontal'`, and when a group outvotes it
+
+The registry gained `handles: 'all' | 'horizontal'` and `selectionHandles(types)`, which returns
+`'horizontal'` only when *every* selected type agrees on it. A text on its own offers `e` and `w`
+because its height is a measurement and a handle that set it would be undone by the next
+keystroke; a mixed group offers all eight because the box being dragged belongs to the group and
+a sticky note inside it really can change height. A single text's side drag takes a dedicated
+path in `useTransformGesture` (`setTextWidthFixed` plus a re-measure per frame, the left edge
+held still); a group resize writes positions generically and re-measures every member at the end
+of the gesture, which is a no-op for anything that is not text. Font size is never a consequence
+of a handle.
+
+## The Text tool makes the board's contents inert with CSS
+
+While the Text tool is held, `.vidi6-world` and its children get `pointer-events: none`, so the
+next click reaches the viewport and places text even on top of an object (`text.tool`). The
+alternative — threading "the text tool is held" into every object's pointer handler — would have
+put tool knowledge in nine components and missed the next one. The rule is on the viewport's
+`data-tool` attribute, which is also what a test reads back.
+
+## The click that placed text is held for a moment
+
+A browser delivers a double-click as two presses and a `dblclick`, so the press that placed text
+would otherwise also create a sticky note a few milliseconds later. `textPlacedRef` swallows a
+double-click that follows a placing press within `TEXT_PLACE_SUPPRESS_MS`. That is far shorter
+than the interval between a person's single click — after which they are typing — and their next
+double-click; `TC-31` waits past the window explicitly and says why.
+
+## `createdAt` is stored; `createdBy` is accepted and unused
+
+A text records `createdAt` like every other object, and reads it as 0 when a board says nothing.
+`createText` takes an optional `createdBy` and stores it when given, but no caller passes it in
+this build: identity is story 6, which is not part of what is being built here. The parameter is
+the seam stories 13+ will fill.
+
+## Two small rules, written down because they are easy to guess wrong
+
+- **Empty means zero characters.** `'   '` is kept (`deleteIfEmpty` trims only to decide), because
+  somebody who typed a space meant to write something and can still click back into it.
+- **The counter appears near the limit, not after the threshold.**
+  `maxChars - length <= TEXT_COUNTER_THRESHOLD_CHARS`: the count of characters you have *left* is
+  the useful number, and a counter that appears at 500 characters of 5000 is decoration.
+
+## `window.__vidi6.getObjects()`
+
+The existing `getBoard` test hook answers "what notes are here" — `snapshot()` filters to
+`sticky`, and a dozen e2e specs read it as notes. Story 9's tests need what a board *holds*,
+including text, so a second hook was added rather than silently redefining the first and
+re-typing every spec that trusts it.
+
+## Test notes (story 9)
+
+- Unit: `tests/unit/text-model.test.ts` (TC-01..TC-06, plus `createdAt`) against a real `Y.Doc`,
+  asserting that every rejection costs no update at all; `tests/unit/text-layout.test.ts`
+  (TC-07..TC-11, TC-32) with a fake measurer of known arithmetic, and the estimate fallback in an
+  environment genuinely without canvas.
+- Component: `tests/component/text-box-sync.test.tsx` (TC-12, TC-13 — a real second peer document,
+  writes counted at the document rather than guessed from props), `text-tool.test.tsx`
+  (TC-14..TC-18), `text-object.test.tsx` (TC-19..TC-25). All three install `setTextMeasurer` and
+  reset it, so the stored box is arithmetic rather than luck.
+- E2E: `tests/e2e/free-text.spec.ts` (TC-26..TC-31) — the design's numbered flows, plus two extras
+  (a text moving inside a marquee block; a board that failed to load offering no Text tool). Named
+  `free-text` rather than the design's `text.spec.ts` because a file called `text` sitting next to
+  `sticky-notes.spec.ts` reads as the whole product.
+- jsdom constrains two things and both are asserted honestly rather than fussed around: a
+  synthetic key press inserts no character, so typing is asserted as the `input` event a
+  keystroke ends in (the same convention story 2's tests use), and Enter is asserted as
+  "the editor did not prevent the browser's newline". The e2e suite is where the real font engine
+  gets checked — the box's width and height are compared against what the browser painted, in one
+  task, so a stored box cannot be quietly at odds with the pixels.
+- Accessibility: the palette's three buttons carry `aria-label` and `aria-pressed` (`Select (V)`,
+  `Sticky note (N)`, `Text (T)`, with Text disabled when the board cannot be written); the size
+  buttons carry `aria-pressed`; the editor has an `aria-label`; a text element is `role="group"`
+  labelled "Text", so a screen reader hears an object rather than floating words.

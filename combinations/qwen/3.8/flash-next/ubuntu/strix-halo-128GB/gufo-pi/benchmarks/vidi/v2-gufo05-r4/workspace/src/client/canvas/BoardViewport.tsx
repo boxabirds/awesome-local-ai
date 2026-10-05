@@ -50,6 +50,19 @@ export interface BoardViewportProps {
   /** A press on empty board space that never turned into a pan. */
   onEmptyClick?(): void;
   /**
+   * The Text tool is being held (`text.tool`). The pointer belongs to the tool then: it
+   * shows as a text cursor, and a click places text instead of selecting — over an object
+   * just as over bare board. While this is true the world layer is switched off to the
+   * pointer by `styles.css`, so nothing under the click can answer for itself.
+   */
+  textTool?: boolean;
+  /**
+   * The click the Text tool was waiting for, at the board point its top-left goes to.
+   * Called only while `textTool` is true; the tool is spent after it, and the caller puts
+   * the pointer back to Select.
+   */
+  onTextPlace?(world: Point): void;
+  /**
    * Shift held on a press on empty board space: draw a selection box instead of panning
    * (story 7, `sel.marquee`). The point is in viewport coordinates.
    */
@@ -110,6 +123,9 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
   const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   // This press is drawing a selection box rather than panning (`sel.marquee`).
   const marqueeRef = useRef(false);
+  // The last click placed text (`text.tool`), so the double-click that follows it is the
+  // tail of a gesture already answered.
+  const textPlacedRef = useRef(false);
 
   // Keep the latest controller reachable from listeners that are attached once.
   const controllerRef = useRef<CameraController>(controller);
@@ -121,17 +137,30 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
     return { x: clientX - rect.left, y: clientY - rect.top };
   }, []);
 
-  /** Drag starts only on empty board space, so later stories can own objects. */
-  const isEmptyBoardSpace = useCallback((target: EventTarget | null): boolean => {
-    const viewport = viewportRef.current;
-    if (!viewport || !(target instanceof HTMLElement)) return false;
-    return target === viewport || target.dataset.vidi6 === 'grid';
-  }, []);
+  /**
+   * Is this press on the board itself rather than on an object? Drag and pan start only
+   * here, so the objects above can own their own pointer.
+   *
+   * Holding the Text tool is the deliberate exception, and the other way round: every
+   * point on the board is then a place to put text, a point on top of an object included
+   * (`text.tool`). In a browser the world layer does not receive pointer events while the
+   * tool is held, so the press never reaches the object; this is the same rule stated
+   * where the code can see it, and the half that holds in a test with no CSS cascade.
+   */
+  const isBoardSurface = useCallback(
+    (target: EventTarget | null): boolean => {
+      const viewport = viewportRef.current;
+      if (!viewport || !(target instanceof HTMLElement)) return false;
+      if (target === viewport || target.dataset.vidi6 === 'grid') return true;
+      return props.textTool === true && viewport.contains(target);
+    },
+    [props.textTool]
+  );
 
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       if (event.button !== 0) return;
-      if (!isEmptyBoardSpace(event.target)) return;
+      if (!isBoardSurface(event.target)) return;
       const viewport = viewportRef.current;
       if (viewport && typeof viewport.setPointerCapture === 'function') {
         viewport.setPointerCapture(event.pointerId);
@@ -144,11 +173,12 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
         props.onMarqueeStart(point);
         return;
       }
+      textPlacedRef.current = false;
       pressRef.current = { x: point.x, y: point.y, moved: false };
       beginPan(point);
       setPanning(true);
     },
-    [beginPan, isEmptyBoardSpace, localPoint, props]
+    [beginPan, isBoardSurface, localPoint, props]
   );
 
   const handlePointerMove = useCallback(
@@ -185,9 +215,17 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
       pressRef.current = null;
       endPan();
       setPanning(false);
-      if (wasClick) props.onEmptyClick?.();
+      if (!wasClick || !event) return;
+      if (props.textTool && props.doc && props.canCreateSticky !== false && props.onTextPlace) {
+        // The click the Text tool was waiting for. The point that was pressed, not the one
+        // that was released: that is the spot the user aimed at.
+        textPlacedRef.current = true;
+        props.onTextPlace(screenToWorld(getCamera(), { x: press!.x, y: press!.y }));
+        return;
+      }
+      props.onEmptyClick?.();
     },
-    [endPan, localPoint, props]
+    [endPan, getCamera, localPoint, props]
   );
 
   /**
@@ -198,13 +236,19 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
   const handleDoubleClick = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
       if (!props.doc || props.canCreateSticky === false) return;
-      if (!isEmptyBoardSpace(event.target)) return;
+      if (textPlacedRef.current) {
+        // The second click of this double-click already placed text, and the tool went
+        // back to Select in between. Making a note here would answer one gesture twice.
+        textPlacedRef.current = false;
+        return;
+      }
+      if (!isBoardSurface(event.target)) return;
       const world = screenToWorld(camera, localPoint(event.clientX, event.clientY));
       const id = createSticky(props.doc, world);
       // A note rejected for a reason the user cannot see is simply not created.
       if (id) props.onStickyCreated?.(id);
     },
-    [camera, isEmptyBoardSpace, localPoint, props]
+    [camera, isBoardSurface, localPoint, props]
   );
 
   // Wheel: attached manually because React's onWheel is passive, and
@@ -316,6 +360,7 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
       ref={viewportRef}
       data-vidi6="viewport"
       data-interaction={panning ? 'panning' : 'idle'}
+      data-tool={props.textTool ? 'text' : 'select'}
       style={viewportStyle}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

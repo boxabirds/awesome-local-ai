@@ -44,7 +44,18 @@ import {
   type Rect
 } from '../../shared/geometry';
 import type { SelectionControls } from './useSelection';
-import { minSizeOf, selectionIsAspectLocked, selectionIsResizable, type ObjectGestureHandlers, type PointerLike } from '../objects/registry';
+import { TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { setTextWidthFixed } from '../../shared/objects/text';
+import { getTextMeasurer } from '../objects/textLayout';
+import { remeasureText } from '../objects/useTextBoxSync';
+import {
+  handlesOf,
+  minSizeOf,
+  selectionIsAspectLocked,
+  selectionIsResizable,
+  type ObjectGestureHandlers,
+  type PointerLike
+} from '../objects/registry';
 
 export interface TransformGesture {
   /** Press on an object: select it if it is not selected, then maybe move the selection. */
@@ -102,6 +113,11 @@ interface Running {
   writable: boolean;
   pending: PointerInfo;
   frame: number | null;
+  /**
+   * Set when the drag is a side handle on a type that only has side handles: the id whose
+   * width is being set (`text.fixed_width`). It replaces the box scale for that gesture.
+   */
+  widthOf: string | null;
 }
 
 const NO_OBJECTS: ReadonlySet<string> = new Set<string>();
@@ -144,6 +160,17 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
   /** Write this frame's resize: the box scaled by the handle, and every object with it. */
   const applyResize = (run: Running): void => {
     const dx = (run.pending.clientX - run.originX) / run.zoom;
+    if (run.widthOf) {
+      // A side handle on free text: the drag sets how wide the text may be, the text
+      // re-wraps into it, and the height follows. The left edge stays where it is, because
+      // that is where the text starts. Clamped here as everywhere else (TC-03).
+      const from = run.start.get(run.widthOf);
+      if (!from) return;
+      const asked = run.handle === 'w' ? from.width - dx : from.width + dx;
+      setTextWidthFixed(latest.current.doc, run.widthOf, Math.max(TEXT_MIN_WIDTH_WORLD, asked));
+      remeasureText(latest.current.doc, run.widthOf, getTextMeasurer());
+      return;
+    }
     const dy = (run.pending.clientY - run.originY) / run.zoom;
     // `sel.aspect`: a type that must keep its proportions, or a hand on Shift.
     const aspectLocked = run.lockedToTypes || run.pending.shiftKey;
@@ -201,6 +228,13 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
       // The last position is written here rather than in a frame, so the object ends
       // exactly under the pointer. An interrupted gesture keeps its last applied frame.
       if (run.moved && applyLast) apply(run);
+      if (run.moved && run.writable && run.kind === 'resize' && !run.widthOf) {
+        // A group resize scaled every box, including the ones whose height is derived. One
+        // measurement pass per drag, at its end, puts them back in step with their content:
+        // fixed widths keep the scaled width and re-wrap into it, auto widths go back to
+        // the width of their text. Nothing about a handle drag changes a font size.
+        for (const id of run.ids) remeasureText(latest.current.doc, id, getTextMeasurer());
+      }
       runningRef.current = null;
       setTransformingTo(null);
       if (run.started) latest.current.onGestureEnd?.();
@@ -272,6 +306,12 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
       const box = unionRects([...start.values()]);
       if (!box) return;
       const types = snapshot.filter((object) => start.has(object.id)).map((object) => object.type);
+      // One object of a side-handles-only type, dragged by a side: that is a width, not a
+      // box scale — the type's height belongs to its content.
+      const widthOnly =
+        start.size === 1 && (handle === 'e' || handle === 'w') && handlesOf(types[0] ?? '') === 'horizontal'
+          ? [...start.keys()][0]!
+          : null;
       runningRef.current = {
         kind,
         pointerId: event.pointerId,
@@ -287,7 +327,8 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         started: false,
         writable: latest.current.canEdit,
         pending: { clientX: event.clientX, clientY: event.clientY, shiftKey: event.shiftKey },
-        frame: null
+        frame: null,
+        widthOf: widthOnly
       };
       startListening();
       // The object is not yet rendered as "moving": that happens past the threshold.

@@ -80,7 +80,18 @@ export interface ObjectTypeSpec {
   readonly editableText: boolean;
   /** Is `world` on this object? The default is its bounding rectangle. */
   hitTest(obj: ObjectSnapshot, world: Point): boolean;
+  /**
+   * Which handles the selection offers for this type. The default, `all`, is the eight of
+   * story 7. `horizontal` is for a type whose height is not its own to give — free text
+   * derives its height from the lines its text wraps into, so a handle that dragged the
+   * height would be undone by the next measurement and a lie is worse than absent
+   * (story 9, `text.fixed_width`).
+   */
+  handles?: HandleSet;
 }
+
+/** The handles a type lets the user drag: every side and corner, or only the two sides. */
+export type HandleSet = 'all' | 'horizontal';
 
 const specs = new Map<string, ObjectTypeSpec>();
 
@@ -146,6 +157,28 @@ export function hitTestBounds(obj: ObjectSnapshot, world: Point): boolean {
 export function selectionIsResizable(types: Iterable<string>): boolean {
   for (const type of types) if (isResizable(type)) return true;
   return false;
+}
+
+/** Which handles this type offers, defaulting to all of them. */
+export function handlesOf(type: string): HandleSet {
+  return getObjectType(type)?.handles === 'horizontal' ? 'horizontal' : 'all';
+}
+
+/**
+ * Which handles a selection offers.
+ *
+ * A selection of one kind of text-only-height object gets that kind's handles; a mixed
+ * selection gets all of them, because the box being dragged is the group's and something
+ * in it can be resized in every direction (story 9, TC-23).
+ */
+export function selectionHandles(types: Iterable<string>): HandleSet {
+  let first: HandleSet | null = null;
+  for (const type of types) {
+    const handles = handlesOf(type);
+    if (first === null) first = handles;
+    else if (first !== handles) return 'all';
+  }
+  return first ?? 'all';
 }
 
 /** Would resizing a selection of these types keep its proportions (`sel.aspect`)? */

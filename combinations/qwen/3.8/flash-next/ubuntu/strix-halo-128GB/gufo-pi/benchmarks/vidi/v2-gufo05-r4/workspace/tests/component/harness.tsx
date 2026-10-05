@@ -380,6 +380,43 @@ export function viewportElement(container: HTMLElement): HTMLElement {
   return viewport;
 }
 
+/** A tool button in the palette, by tool name: 'select', 'text' or 'sticky'. */
+export function toolButton(container: HTMLElement, tool: string): HTMLElement {
+  const button = container.querySelector<HTMLElement>(`[data-vidi6="tool-${tool}"]`);
+  if (!button) throw new Error(`the ${tool} tool button is not in the palette`);
+  return button;
+}
+
+/** Is this palette button the tool the pointer is holding? */
+export function toolPressed(button: HTMLElement): boolean {
+  return button.getAttribute('aria-pressed') === 'true';
+}
+
+/** Every free text on screen, bottom to top. */
+export function textElements(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>('[data-vidi6="text"]'));
+}
+
+/** The textarea of the free text currently being edited. */
+export function textEditor(root: HTMLElement): HTMLTextAreaElement | null {
+  return root.querySelector<HTMLTextAreaElement>('[data-testid="text-input"]');
+}
+
+/** The words a free text displays (it must not be being edited). */
+export function textContent(element: HTMLElement): string {
+  return element.querySelector('[data-testid="text-content"]')?.textContent ?? '';
+}
+
+/** The size toolbar of a free text, or null when it is not shown. */
+export function textToolbar(element: HTMLElement): HTMLElement | null {
+  return element.querySelector<HTMLElement>('[data-vidi6="text-toolbar"]');
+}
+
+/** One of the four size buttons in a text's toolbar. */
+export function textSizeButton(element: HTMLElement, size: string): HTMLElement | null {
+  return element.querySelector<HTMLElement>(`[data-vidi6="text-size"][data-size="${size}"]`);
+}
+
 export function byTestId(container: HTMLElement, testId: string): HTMLElement | null {
   return container.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
 }

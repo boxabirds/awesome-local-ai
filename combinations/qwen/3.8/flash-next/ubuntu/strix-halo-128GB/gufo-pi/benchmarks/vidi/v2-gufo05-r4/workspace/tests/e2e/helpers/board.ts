@@ -14,7 +14,7 @@ import {
   type Point,
   type Size
 } from '../../../src/client/canvas/camera';
-import type { StickySnapshot } from '../../../src/shared/board-model';
+import type { ObjectSnapshot, StickySnapshot } from '../../../src/shared/board-model';
 import { UNBOUNDED_PAN_TESTED_EXTENT, ZOOM_MAX } from '../../../src/shared/config';
 
 export const BOARD_SIZE: Size = { width: 1280, height: 800 };
@@ -425,4 +425,100 @@ export async function boardShape(page: Page): Promise<string> {
 
 function round6(value: number): number {
   return Math.round(value * 1e6) / 1e6;
+}
+
+/**
+ * Story 9: the tool palette, and free text.
+ *
+ * The palette is no longer one button that makes a note: it says which tool the board is
+ * in, and a test needs to be able to read that back rather than infer it from whether a
+ * text appeared. The text locators mirror the note ones, and the same rule applies — an
+ * assertion about *stored* state goes through `boardObjects`, one about the screen through
+ * these.
+ */
+
+/** One of the palette's tools, by name. */
+export function toolButton(page: Page, name: 'select' | 'sticky' | 'text'): Locator {
+  return page.locator(`[data-vidi6="tool-${name}"]`);
+}
+
+/** Which tool the palette says is lit, or null when none is. */
+export async function pressedTool(page: Page): Promise<string | null> {
+  for (const name of ['select', 'sticky', 'text'] as const) {
+    const pressed = await toolButton(page, name).getAttribute('aria-pressed');
+    if (pressed === 'true') return name;
+  }
+  return null;
+}
+
+/** What tool the board itself says it is in. */
+export function toolMode(page: Page): Promise<string | null> {
+  return page.locator('[data-vidi6="viewport"]').getAttribute('data-tool');
+}
+
+/** Every object the document holds, of whatever type, bottom to top. */
+export async function boardObjects(page: Page): Promise<ObjectSnapshot[]> {
+  const held = await page.evaluate(() => window.__vidi6?.getObjects());
+  if (!held) throw new Error('window.__vidi6 test hook is not available in this build');
+  return [...held];
+}
+
+/** Every free text on screen, bottom to top. */
+export function textElements(page: Page): Locator {
+  return page.locator('[data-object-type="text"]');
+}
+
+/** One free text on screen. */
+export function textElement(page: Page, index = 0): Locator {
+  return textElements(page).nth(index);
+}
+
+/** The words a free text shows, as the browser renders them. */
+export function textWords(page: Page, index = 0): Locator {
+  return textElement(page, index).locator('[data-testid="text-content"]');
+}
+
+/** The textarea of the text being typed right now. */
+export function textEditor(page: Page): Locator {
+  return page.locator('[data-testid="text-input"]');
+}
+
+/** The character counter a long text shows (`text.limit`). */
+export function textCounter(page: Page): Locator {
+  return page.locator('[data-testid="text-input-counter"]');
+}
+
+/** The size toolbar of one free text. */
+export function textToolbar(page: Page, index = 0): Locator {
+  return textElement(page, index).locator('[data-vidi6="text-toolbar"]');
+}
+
+/** One size button of one free text. */
+export function textSizeButton(page: Page, size: string, index = 0): Locator {
+  return textToolbar(page, index).locator(`[data-vidi6="text-size"][data-size="${size}"]`);
+}
+
+/** The bin of one free text's toolbar. */
+export function textDeleteButton(page: Page, index = 0): Locator {
+  return textToolbar(page, index).locator('[data-vidi6="text-delete"]');
+}
+
+/**
+ * Press T and click where the top-left of the new text should go, and hand back the id of
+ * the text this page is now writing.
+ *
+ * The id comes from the editor itself rather than from "how many texts are on the board
+ * now", because on a board other people are using, the number goes up for reasons that have
+ * nothing to do with this click.
+ */
+export async function placeTextAt(page: Page, screen: Point): Promise<string> {
+  await page.keyboard.press('t');
+  expect(await toolMode(page)).toBe('text');
+  await page.mouse.click(screen.x, screen.y);
+  await expect(textEditor(page)).toBeVisible();
+  const id = await textEditor(page).evaluate((element) =>
+    element.closest('[data-object-id]')?.getAttribute('data-object-id')
+  );
+  if (typeof id !== 'string' || id === '') throw new Error('the editor is not inside a text object');
+  return id;
 }

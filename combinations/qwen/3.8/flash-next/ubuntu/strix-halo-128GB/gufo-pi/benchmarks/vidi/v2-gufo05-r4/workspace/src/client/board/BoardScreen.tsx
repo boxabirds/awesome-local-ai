@@ -11,6 +11,8 @@
  *  - `useTransformGesture` moves and resizes them, in absolute writes from where the
  *    gesture began;
  *  - `useBoardKeys` is Select all, Escape, the arrow nudge, group delete and Enter-to-edit;
+ *  - `useTool` holds which tool the pointer is using — Select, or the Text tool that turns
+ *    the next click into a piece of text (`text.tool`);
  *  - `SelectionOverlay` and `SelectionBar` say where the selection is and what can be done
  *    to it.
  *
@@ -24,7 +26,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, type JSX } from 'react';
 import type * as Y from 'yjs';
-import { createSticky, deleteObjects, objectBounds, snapshot } from '../../shared/board-model';
+import {
+  boardObjects,
+  createSticky,
+  deleteObjects,
+  objectBounds,
+  snapshot
+} from '../../shared/board-model';
+import { createText } from '../../shared/objects/text';
 import { Toolbar } from '../board/Toolbar';
 import { createUndo } from '../board/undo';
 import { UndoProvider, useUndo } from '../board/useUndo';
@@ -32,6 +41,7 @@ import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection, type SelectionControls } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { useTool } from '../board/useTool';
 import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
@@ -102,6 +112,13 @@ function Board(props: BoardScreenProps): JSX.Element {
   const selectionRef = useRef<SelectionControls>(selection);
   selectionRef.current = selection;
 
+  // Which tool the pointer is holding (story 9, `text.tool`). Local state, on purpose:
+  // nobody else needs to know that you are holding the Text tool, and a refresh puts the
+  // pointer back to Select.
+  const { tool, setTool } = useTool(editable);
+  const selectTool = useCallback(() => setTool('select'), [setTool]);
+  const chooseTextTool = useCallback(() => setTool('text'), [setTool]);
+
   const gesture = useTransformGesture({
     doc,
     camera,
@@ -131,8 +148,6 @@ function Board(props: BoardScreenProps): JSX.Element {
     selectionRef.current.clear();
   }, [doc, undoController]);
 
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoController });
-
   const undoActions = useUndo(undoController, editable);
 
   /** Put a new note in the middle of a screen point and start typing it. */
@@ -154,9 +169,44 @@ function Board(props: BoardScreenProps): JSX.Element {
     createAt({ x: viewport.width / 2, y: viewport.height / 2 }, doc, selectionRef.current.startEdit);
   }, [createAt, doc, viewport.height, viewport.width]);
 
+  /**
+   * The click the Text tool was waiting for: text appears with its top-left where the
+   * pointer landed, ready to type, and the tool is spent — back to Select, so the next
+   * click selects instead of laying down another empty text (`text.tool`, `text.create`).
+   */
+  const placeText = useCallback(
+    (world: Point) => {
+      if (!editableRef.current) return;
+      // One undo step for the creation, closed before editing opens, so the typing that
+      // follows is its own step and one Ctrl+Z puts the words back without erasing the
+      // object they were typed into (`undo.steps`).
+      undoController.boundary();
+      const id = createText(doc, world);
+      undoController.boundary();
+      if (!id) return;
+      selectionRef.current.startEdit(id);
+      setTool('select');
+    },
+    [doc, setTool, undoController]
+  );
+
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undo: undoController,
+    onSelectTool: selectTool,
+    onTextTool: chooseTextTool,
+    onCreateSticky: createAtScreenCentre
+  });
+
   // Test builds expose what the document holds and how the connection looks, so
   // e2e asserts on real state rather than guessing it from the screen.
-  useEffect(() => registerTestHooks({ getBoard: () => snapshot(doc) }), [doc]);
+  useEffect(
+    () => registerTestHooks({ getBoard: () => snapshot(doc), getObjects: () => boardObjects(doc) }),
+    [doc]
+  );
   useEffect(() => reportConnectionState(connection), [connection]);
 
   // An editor that was open when the board became unwritable is closed, rather than
@@ -174,6 +224,8 @@ function Board(props: BoardScreenProps): JSX.Element {
         canCreateSticky={editable}
         onStickyCreated={startEdit}
         onEmptyClick={clear}
+        textTool={tool === 'text'}
+        onTextPlace={placeText}
         onMarqueeStart={marquee.begin}
         onMarqueeMove={marquee.move}
         onMarqueeEnd={onMarqueeEnd}
@@ -220,7 +272,14 @@ function Board(props: BoardScreenProps): JSX.Element {
       />
       <MarqueeRect rect={marquee.rect} camera={camera} />
 
-      <Toolbar onCreateSticky={createAtScreenCentre} disabled={!editable} undo={undoActions} />
+      <Toolbar
+        onCreateSticky={createAtScreenCentre}
+        tool={tool}
+        onSelectTool={selectTool}
+        onTextTool={chooseTextTool}
+        disabled={!editable}
+        undo={undoActions}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

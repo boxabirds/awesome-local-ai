@@ -10,12 +10,14 @@
  * Schema:
  *   meta:    Y.Map { schemaVersion: number }
  *   objects: Y.Map<id, Y.Map> where each object Y.Map holds
- *            type: string          ('sticky' today; unknown types are ignored)
+ *            type: string          ('sticky', 'text'; unknown types are ignored)
  *            x, y: number          (top-left, world units)
- *            color: StickyColor    (sticky only)
- *            text: Y.Text          (sticky only)
+ *            width, height: number (world units; a note's default size is implied)
  *            z: number             (stacking; higher is drawn on top)
  *            createdAt: number     (epoch ms)
+ *          plus whatever the type itself keeps, read by that type's own reader:
+ *            color: StickyColor, text: Y.Text                                        (sticky)
+ *            size: 'S'|'M'|'L'|'XL', widthMode: 'auto'|'fixed', text: Y.Text         (text)
  *
  * Rules that every mutation follows:
  *  - invalid input (stale id, unknown colour, non-finite coordinate) returns
@@ -94,14 +96,15 @@ function metaOf(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap('meta');
 }
 
-function objectMap(doc: Y.Doc, id: string): ObjMap | undefined {
+/** The object's own `Y.Map`, or undefined for an id that is not on the board. */
+export function objectMap(doc: Y.Doc, id: string): ObjMap | undefined {
   if (typeof id !== 'string' || id === '') return undefined;
   const value = objectsOf(doc).get(id);
   return value instanceof Y.Map ? (value as ObjMap) : undefined;
 }
 
 /** The highest `z` in the document, or 0 when there are no objects. */
-function maxZ(doc: Y.Doc): number {
+export function maxZ(doc: Y.Doc): number {
   let top = 0;
   for (const object of objectsOf(doc).values()) {
     const z = object.get('z');
@@ -184,6 +187,19 @@ export function deleteObject(doc: Y.Doc, id: string): boolean {
 const declaredTypes = new Set<string>([STICKY_OBJECT_TYPE]);
 
 /**
+ * How one object type reads its own fields out of the `Y.Map`.
+ *
+ * The shared model knows the parts every object has — position, size, layer — and
+ * nothing about the rest, because the code that owns a type is the code that knows
+ * what it stores. A type that declares no reader is read as its common fields only.
+ * Returning `null` means "this is not a readable object of that type", which leaves
+ * it out of every snapshot rather than half-drawn.
+ */
+export type ObjectSnapshotReader = (object: ObjMap, common: ObjectSnapshot) => ObjectSnapshot | null;
+
+const objectReaders = new Map<string, ObjectSnapshotReader>();
+
+/**
  * Say that this build can render an object type.
  *
  * `snapshot` only ever returns declared types, so an object written by a newer
@@ -191,9 +207,15 @@ const declaredTypes = new Set<string>([STICKY_OBJECT_TYPE]);
  * cannot pick something the screen cannot show. The client object registry
  * (`src/client/objects/registry.tsx`) calls this as it registers a type, so there
  * is one list and it stays framework-free — the Worker imports this module.
+ *
+ * A type with fields of its own passes the reader for them (story 9's free text
+ * does), which is how a later story extends the schema without this file knowing
+ * the type exists.
  */
-export function declareObjectType(type: string): void {
-  if (typeof type === 'string' && type !== '') declaredTypes.add(type);
+export function declareObjectType(type: string, read?: ObjectSnapshotReader): void {
+  if (typeof type !== 'string' || type === '') return;
+  declaredTypes.add(type);
+  if (read) objectReaders.set(type, read);
 }
 
 /** Can this build render objects of `type`? */
@@ -417,6 +439,10 @@ function readObject(id: string, object: ObjMap): ObjectSnapshot | StickySnapshot
     ...(width !== undefined ? { width } : {}),
     ...(height !== undefined ? { height } : {})
   };
+  // A type that owns its own reader uses it; a declared type without one is drawn
+  // from the common fields alone.
+  const reader = objectReaders.get(type);
+  if (reader) return reader(object, common);
   if (type !== STICKY_OBJECT_TYPE) return common;
 
   const color = object.get('color');
@@ -454,8 +480,12 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
   return boardObjects(doc).filter((object): object is StickySnapshot => object.type === STICKY_OBJECT_TYPE);
 }
 
-/** `crypto.randomUUID` with a fallback for environments without WebCrypto. */
-function createId(): string {
+/**
+ * `crypto.randomUUID` with a fallback for environments without WebCrypto. Exported
+ * because the code that owns another object type needs the same ids: a text object is
+ * found in the same `objects` map by the same kind of key.
+ */
+export function createId(): string {
   const cryptoRef = typeof crypto === 'undefined' ? undefined : crypto;
   if (cryptoRef && typeof cryptoRef.randomUUID === 'function') return cryptoRef.randomUUID();
   const random = Math.random().toString(36).slice(2, 10);

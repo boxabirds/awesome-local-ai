@@ -16,7 +16,7 @@ import { objectBounds } from '../../shared/board-model';
 import { HANDLE_SIZE_PX } from '../../shared/config';
 import { unionRects, type Handle, type Rect } from '../../shared/geometry';
 import { worldToScreen, type Camera } from '../canvas/camera';
-import { selectionIsResizable, type PointerLike } from '../objects/registry';
+import { selectionHandles, selectionIsResizable, type PointerLike } from '../objects/registry';
 
 export interface SelectionOverlayProps {
   ids: ReadonlySet<string>;
@@ -33,6 +33,9 @@ interface HandlePlacement {
   /** Spoken name: "Resize top-left". */
   label: string;
 }
+
+/** The two handles of a type whose height is derived: its sides. */
+const HORIZONTAL_HANDLES = ['e', 'w'] as const;
 
 const HANDLES: HandlePlacement[] = [
   { handle: 'nw', fx: 0, fy: 0, label: 'top-left' },
@@ -73,7 +76,14 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
   const screen = boxToScreen(box, camera);
   // Handles only appear for a type that can be resized; an object that cannot is still
   // outlined and still moves.
-  const resizable = selectionIsResizable(selected.map((object) => object.type));
+  const types = selected.map((object) => object.type);
+  const resizable = selectionIsResizable(types);
+  // A type whose height follows its content shows only the handles that change its width
+  // (story 9): dragging a top or bottom handle of free text would set a height the next
+  // measurement throws away.
+  const handles = selectionHandles(types);
+  const placements =
+    handles === 'horizontal' ? HANDLES.filter((p) => (HORIZONTAL_HANDLES as readonly string[]).includes(p.handle)) : HANDLES;
   const half = HANDLE_SIZE_PX / 2;
 
   return (
@@ -84,7 +94,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
       style={{ left: screen.left, top: screen.top, width: screen.width, height: screen.height }}
     >
       {resizable
-        ? HANDLES.map((placement) => (
+        ? placements.map((placement) => (
             <button
               key={placement.handle}
               type="button"

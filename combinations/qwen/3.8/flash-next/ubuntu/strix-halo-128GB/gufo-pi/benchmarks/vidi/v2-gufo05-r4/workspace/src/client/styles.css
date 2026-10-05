@@ -66,6 +66,19 @@ body {
   cursor: grabbing;
 }
 
+/* Holding the Text tool: the pointer says what a click will do (`text.tool`). */
+.vidi6-viewport[data-tool='text'] {
+  cursor: text;
+}
+
+/* ...and the objects under it stop answering for themselves, so a click on top of a note
+   places new text there rather than selecting the note. The children are named because
+   `.vidi6-world > *` switches the pointer back on for them. */
+.vidi6-viewport[data-tool='text'] .vidi6-world,
+.vidi6-viewport[data-tool='text'] .vidi6-world > * {
+  pointer-events: none;
+}
+
 /* Board content lives in world coordinates; the CSS transform places it. */
 .vidi6-world {
   position: absolute;
@@ -197,6 +210,14 @@ body {
 
 .vidi6-tool:hover {
   background: #f1f3f7;
+}
+
+/* A tool is a mode, so it says so while it is held (`text.tool`). An action button such
+   as the sticky note is never pressed, and so never lights up. */
+.vidi6-tool[aria-pressed='true'] {
+  background: #e8eefc;
+  border-color: var(--note-selection);
+  color: #1b4bb8;
 }
 
 .vidi6-tool:focus-visible {
@@ -744,4 +765,151 @@ body {
   border-radius: 2px;
   pointer-events: none;
   z-index: 11;
+}
+
+/* ------------------------------------------------------- free text (story 9) */
+
+/* Plain words on the board: no background, no border, no colour of their own. The box is
+   the measured one from the document, so the selection outline and the hit area are
+   exactly the words. The font and size come from the component (TEXT_SIZES,
+   TEXT_FONT_FAMILY). */
+.vidi6-text {
+  position: absolute;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  cursor: default;
+}
+
+/* The same outline as a note, offset outside the words rather than eaten into them. */
+.vidi6-text[data-selected='true'] {
+  outline: var(--note-selection-width) solid var(--note-selection);
+  outline-offset: 2px;
+}
+
+.vidi6-text-content {
+  display: block;
+  width: 100%;
+}
+
+.vidi6-text-edit {
+  display: block;
+  width: 100%;
+}
+
+/* Editing looks like the text it replaces: same font, same wrapping, no chrome. Its width
+   is the width the text is allowed (the automatic maximum, or the dragged one), so what
+   the browser wraps and what the measurer counted are the same lines. */
+.vidi6-text-input {
+  display: block;
+  height: auto;
+  min-height: 1em;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+  resize: none;
+  outline: none;
+  caret-color: var(--note-selection);
+  user-select: text;
+}
+
+.vidi6-text-counter {
+  position: absolute;
+  left: 0;
+  bottom: -18px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* Its toolbar: the four sizes and the bin. Anchored to the text's top-left in world units
+   and counter-scaled by 1/zoom, like the note's. */
+.vidi6-text-toolbar-anchor {
+  position: absolute;
+  left: 0;
+  transform-origin: 0 100%;
+  z-index: 1;
+}
+
+.vidi6-text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+  padding: 0 4px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+}
+
+.vidi6-text-size {
+  min-width: 26px;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vidi6-text-size:hover {
+  background: #f1f3f7;
+}
+
+.vidi6-text-size[aria-pressed='true'] {
+  background: #e8eefc;
+  border-color: var(--note-selection);
+  color: #1b4bb8;
+}
+
+.vidi6-text-toolbar-separator {
+  width: 1px;
+  height: 18px;
+  background: var(--panel-border);
+}
+
+.vidi6-text-delete {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.vidi6-text-delete:hover {
+  background: #fdeceb;
+  color: #b42318;
+}
+
+.vidi6-text-size:focus-visible,
+.vidi6-text-delete:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.vidi6-text-size:disabled,
+.vidi6-text-delete:disabled {
+  color: #a7aebc;
+  cursor: default;
+  background: transparent;
 }

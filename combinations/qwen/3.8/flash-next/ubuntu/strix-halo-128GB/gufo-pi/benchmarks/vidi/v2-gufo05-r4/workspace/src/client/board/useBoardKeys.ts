@@ -35,6 +35,18 @@ export interface BoardKeyOptions {
    * over its own shortcut (`undo.typing`).
    */
   undo: UndoController;
+  /**
+   * Put the pointer back to Select (`text.tool`). Escape and V both do this, and both
+   * still work on a board that cannot be written to: leaving a tool is never a change.
+   */
+  onSelectTool?(): void;
+  /**
+   * Hold the Text tool. Refused here, as it is in the toolbar, when the board cannot be
+   * written to (`text.limit_access`).
+   */
+  onTextTool?(): void;
+  /** Story 2's action, now with a key: one note in the middle of the view (`sticky.create`). */
+  onCreateSticky?(): void;
 }
 
 /** Is the caret somewhere the user is typing? Then the keys are theirs. */
@@ -57,6 +69,15 @@ function isControl(target: EventTarget | null): boolean {
 
 const ARROWS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'] as const;
 
+/**
+ * Was `letter` pressed on its own? Tool keys are unmodified: `Cmd+T` is a new browser tab
+ * and `Ctrl+N` a new window, and neither should light up a board tool.
+ */
+function plainKey(event: KeyboardEvent, letter: string): boolean {
+  if (event.ctrlKey || event.metaKey || event.altKey) return false;
+  return event.key.toLowerCase() === letter;
+}
+
 /** How far one arrow press moves the selection, in board units. */
 function nudgeStep(event: KeyboardEvent): Point {
   const step = event.shiftKey ? NUDGE_LARGE_STEP_WORLD : NUDGE_STEP_WORLD;
@@ -78,7 +99,8 @@ export function useBoardKeys(options: BoardKeyOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, undo } = latest.current;
+      const { doc, selection, snapshot, canEdit, undo, onSelectTool, onTextTool, onCreateSticky } =
+        latest.current;
       if (selection.editingId) return; // the text editor owns every key while it is open
       if (isTextEntry(event.target) || isControl(event.target)) return;
 
@@ -91,7 +113,30 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       }
       if (event.key === 'Escape') {
         event.preventDefault();
+        // Escape ends the tool as well as the selection: it is the key for "never mind",
+        // and a lit Text tool after it would place text on the next click (`text.tool`).
+        onSelectTool?.();
         selection.clear();
+        return;
+      }
+
+      // The tool keys, with no modifiers: Cmd/Ctrl+T and Ctrl+N belong to the browser.
+      if (plainKey(event, 'v')) {
+        event.preventDefault();
+        onSelectTool?.();
+        return;
+      }
+      if (plainKey(event, 't')) {
+        // A board that failed to load has no Text tool to offer (TC-15).
+        if (!canEdit) return;
+        event.preventDefault();
+        onTextTool?.();
+        return;
+      }
+      if (plainKey(event, 'n')) {
+        if (!canEdit) return;
+        event.preventDefault();
+        onCreateSticky?.();
         return;
       }
 

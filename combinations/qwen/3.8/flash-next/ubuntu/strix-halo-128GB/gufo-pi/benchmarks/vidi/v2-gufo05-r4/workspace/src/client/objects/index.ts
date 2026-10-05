@@ -11,8 +11,10 @@
  */
 
 import { STICKY_OBJECT_TYPE } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { TEXT_OBJECT_TYPE } from '../../shared/objects/text';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 import { hitTestBounds, registerObjectType, registeredTypes } from './registry';
 
 let registered = false;
@@ -29,6 +31,18 @@ export function registerObjectTypes(): void {
     aspectLocked: true,
     minSize: STICKY_MIN_SIZE_WORLD,
     editableText: true,
+    hitTest: hitTestBounds
+  });
+  // Free text (story 9): resizable in width only. Its height is the lines its words wrap
+  // into, so the selection offers its two side handles and not the other six, and its
+  // smallest width is the smallest width a line of words can be given.
+  registerObjectType(TEXT_OBJECT_TYPE, {
+    Component: TextObject,
+    resizable: true,
+    aspectLocked: false,
+    minSize: TEXT_MIN_WIDTH_WORLD,
+    editableText: true,
+    handles: 'horizontal',
     hitTest: hitTestBounds
   });
 }

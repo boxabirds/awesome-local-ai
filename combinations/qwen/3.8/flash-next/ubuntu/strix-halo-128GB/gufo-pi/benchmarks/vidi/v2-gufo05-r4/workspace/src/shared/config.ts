@@ -103,6 +103,51 @@ export const NOTE_TOOLBAR_SIDE_PADDING_PX = 6;
 /** Colour swatch size inside the note toolbar, in screen pixels. */
 export const NOTE_SWATCH_SIZE_PX = 18;
 
+/* ------------------------------------------------------------------ free text (story 9) */
+
+/**
+ * How wide a text box may grow on its own (`text.auto_width`): the longest line is
+ * measured and the box follows it until this, then lines wrap inside it.
+ */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** The narrowest a text box may be given by dragging a side handle (`text.fixed_width`). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** A text object never holds more characters than this (`text.limit`). */
+export const TEXT_MAX_CHARS = 5000;
+
+/**
+ * The counter appears once free text is within this many characters of the limit, so it is
+ * there when the user has to start counting and not before — the rule story 2 set for
+ * notes, scaled to this limit.
+ */
+export const TEXT_COUNTER_THRESHOLD_CHARS = 500;
+
+/** The four text sizes, in world units of font size, so they scale with the board zoom. */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** The four presets in the order the toolbar shows them: quietest to loudest. */
+export const TEXT_SIZE_ORDER: readonly TextSize[] = ['S', 'M', 'L', 'XL'];
+
+/** The size of newly created text. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Line height of free text, as a multiple of the font size. Height always follows content. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** The board's standard sans-serif, so text stays crisp at every zoom level. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/**
+ * How wide one character is guessed to be when there is no way to measure text at all
+ * (no canvas), as a fraction of the font size. Only the fallback path uses it: an
+ * estimate keeps a usable box where a measurement would have put one.
+ */
+export const TEXT_GLYPH_WIDTH_RATIO = 0.5;
+
 /* ------------------------------------------------------- selecting and resizing (story 7) */
 
 /**

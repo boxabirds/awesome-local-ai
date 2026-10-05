@@ -10,7 +10,7 @@
  * contributes the camera and the board contributes its content and its connection.
  */
 
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
 import type { Camera } from './camera';
 import type { CameraTestControls } from './useCamera';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -18,8 +18,16 @@ import type { ConnectionState } from '../sync/connectBoard';
 export interface Vidi6TestHooks {
   setCamera(camera: Camera): void;
   getCamera(): Camera;
-  /** The board document's content, bottom to top. */
+  /** The board document's notes, bottom to top. */
   getBoard(): readonly StickySnapshot[];
+  /**
+   * Every object the board document holds, of whatever type, bottom to top.
+   *
+   * `getBoard` answers "what notes are here" and is what story 2's tests read. Story 9 put
+   * a second type on the board, and an e2e test that wants to know what a board *holds* —
+   * a text included — reads this instead of being told about half of it.
+   */
+  getObjects(): readonly ObjectSnapshot[];
   /** The live connection state, or undefined before the board reports one. */
   readonly connectionState: ConnectionState | undefined;
   /**
