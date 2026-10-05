@@ -139,3 +139,17 @@ The three old target directories (dbench 7.9 GB, vidi-gallery 1.1 GB) are delete
 has one "rust tests (tools workspace)" entry in place of two, and dbench's own tests assert that name and the
 pin's new location. The nodes rebuild the sandbox once (its `Cargo.toml` is in the source hash) at the next
 harness release that carries it.
+
+## Item 4, as built (5 October 2026)
+
+Approved and done: dbench uses `regex-lite` in place of `regex` (the patterns use ASCII words, `\b`, `\d` and
+`(?i)` only; the ingest goldens hold the output equal to the Python parsers', and every dbench test passes) and
+`toml` with its `parse` feature only. Out of the lock: `regex`, `regex-automata`, `regex-syntax`, `aho-corasick`,
+`toml_write`; in: `regex-lite`. `toml_edit` stays, as the parser `toml` reads with. From the 3 October timings those
+removed crates were 7.3 s of the clean build's unit time (regex-automata 4.1 s, regex-syntax 3.2 s; aho-corasick
+and toml_write were small).
+
+**Not re-measured cleanly.** The one clean build timed after the trim took 68.8 s, with the load at 4 to 15 on 8
+cores: the other session was building and running tests, and the system was indexing. That figure is not
+comparable with the 25.5 s of 3 October and is not evidence either way; the saving is the removed crates' unit
+time above, to be confirmed on a quiet machine with `cargo build --timings` in a fresh target directory.
