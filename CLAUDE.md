@@ -18,6 +18,26 @@ Where the failure happens late in a long run (the end of a story, after hours), 
 
 Why: on 30 September 2026 a change to time accounting rebound the variable that held the story's held-out result. Every story then crashed after scoring and before its record was saved, and the mlx-serve v2-r2 run used up all three restarts on story 4. No test exercised that path before the run started.
 
+## A fault found by looking is still a bug, and still starts with a test
+
+The rule above covers a bug someone reports. This one covers the bug you find yourself, by opening the page in a
+browser, running the tool, or reading the output of what you have just built. The temptation is to fix it on the
+spot, because you are already looking at it and the fix is obvious. Don't.
+
+**Write the test that fails because of it first**, at the level that would have caught it, and see it fail for that
+reason. Then fix. A fault that the suite could not see is two defects: the fault, and the gap in the suite that let
+it through. Fixing only the first leaves the second, and the next change walks into it.
+
+The test has to assert the thing that was actually wrong — what the page renders, what the command prints — not that
+the component exists or the function was called. A test that would have passed while the bug was present is not the
+test.
+
+Why: on 5 October 2026 three faults in one afternoon's work on the combination page were found only by opening it,
+while 818 unit tests and 566 end-to-end tests were green for all three: an edit whose string did not match, so an
+import was never added and the page rendered nothing; a block of CSS inserted inside the wrong rule, so the new panel
+had no styling; and a helper function shadowed by a prop of the same name. Each was fixed in a minute. None of the
+three left a test behind until this rule was written.
+
 ## Presenting to the owner
 
 When reporting, keep information separate from requests for action. Put what happened and what was found under one heading. Put what needs the owner (decisions, approvals, things only they can do) under another, so neither has to be dug out of the other.
