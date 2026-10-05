@@ -22,6 +22,9 @@ import { createText, setTextSize, getTextContent, setTextBox } from '../../share
 import { setShapeStyle, type ShapeKind } from '../../shared/objects/shape';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { layoutText, createCanvasMeasurer } from '../objects/textLayout';
 import { DEFAULT_TEXT_SIZE } from '../../shared/config';
@@ -79,6 +82,8 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
   // Story 9: active tool (select/text) and the local identity that creates
   // objects (story 6 sign-in is excluded; a per-session random id suffices).
   const tool = useTool(canEdit);
+  // Story 11: session-only pen options (colour and thickness).
+  const pen = usePenOptions();
   const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
   const identityRef = useRef('');
   if (identityRef.current === '') identityRef.current = crypto.randomUUID();
@@ -212,6 +217,18 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
         marquee={{ begin: marquee.begin, move: marquee.move, end: marquee.end, cancel: marquee.cancel }}
         activeTool={tool.tool}
         onTextCreate={createTextAtScreen}
+        penOverlay={
+          tool.tool === 'pen' ? (
+            <PenTool
+              camera={camera}
+              color={pen.color}
+              thickness={pen.thickness}
+              doc={doc}
+              identityId={identityRef.current}
+              undo={undoController}
+            />
+          ) : undefined
+        }
       >
         <MarqueeRect rect={marquee.rect} camera={camera} />
         <ToolContext.Provider value={tool.tool}>
@@ -275,6 +292,18 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
           onCreated={toolCreated}
           undo={undoController}
         />
+      )}
+
+      {/* Story 11: Pen toolbar (visible while the Pen tool is active) */}
+      {tool.tool === 'pen' && (
+        <div style={{ position: 'fixed', top: 8, left: 330, zIndex: 10 }}>
+          <PenToolbar
+            color={pen.color}
+            thickness={pen.thickness}
+            onColor={pen.setColor}
+            onThickness={pen.setThickness}
+          />
+        </div>
       )}
 
       {/* Story 10: Shape toolbar (shown when exactly one shape is selected) */}

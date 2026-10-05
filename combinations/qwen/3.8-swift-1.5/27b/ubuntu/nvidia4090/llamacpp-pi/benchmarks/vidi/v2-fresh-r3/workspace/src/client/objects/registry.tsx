@@ -3,12 +3,22 @@ import type * as Y from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import type { Point, Rect } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+import {
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+  SHAPE_MIN_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  PEN_THICKNESS_WORLD,
+} from '../../shared/config';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
+import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
 
 /**
  * Props every board object component receives (sel.all_types). Selection,
@@ -55,7 +65,12 @@ export interface ObjectTypeSpec {
    * so n/s handles are meaningless).
    */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Whether `worldPoint` hits this object. `zoom` (screen px per world unit)
+   * lets screen-pixel tolerances scale with the camera (story 11 strokes,
+   * story 10 connectors).
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -142,5 +157,30 @@ registerObjectType('connector', {
     // is a simplified version. The real hit test is done in the selection
     // logic with zoom awareness.
     return false;
+  },
+});
+
+/**
+ * The pen stroke type (story 11): resizable, aspect-locked (the drawn line
+ * scales in proportion; the thickness never scales), minimum
+ * STROKE_MIN_SIZE_WORLD, no editable text. Hit test is by line distance:
+ * a click selects the stroke only within max(thickness / 2,
+ * STROKE_HIT_TOLERANCE_PX / zoom) of the line, so clicks in empty space
+ * inside the bbox fall through to objects below (pen.select).
+ */
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, worldPoint, zoom = 1) => {
+    const s = obj as StrokeSnap;
+    if (!s.points || s.points.length === 0) return false;
+    const tolerance = Math.max(
+      PEN_THICKNESS_WORLD[s.thickness ?? 'medium'] / 2,
+      STROKE_HIT_TOLERANCE_PX / (zoom || 1),
+    );
+    return distanceToPolyline(scaledPoints(s), worldPoint) <= tolerance;
   },
 });

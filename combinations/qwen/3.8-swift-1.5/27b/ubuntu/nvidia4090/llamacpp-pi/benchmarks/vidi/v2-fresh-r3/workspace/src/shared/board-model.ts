@@ -4,12 +4,15 @@ import {
   STICKY_COLORS,
   DEFAULT_STICKY_COLOR,
   TEXT_SIZES,
+  PEN_COLORS,
+  PEN_THICKNESS_WORLD,
   type StickyColor,
   type TextSize,
 } from './config';
 import { rectContains, type Rect, type Point } from './geometry';
 import { getObjectType } from '../client/objects/registry';
 import { detachConnectorsTo } from './objects/connector';
+import type { PenColor, PenThickness } from './objects/stroke';
 
 // Origin for local (this-client) transactions. Story 8 uses it for undo and
 // story 3 uses it to avoid echoing remote updates.
@@ -27,8 +30,8 @@ export interface ObjectSnapshot {
   y: number;
   z: number;
   createdAt: number;
-  /** Sticky notes (story 2). */
-  color?: StickyColor;
+  /** Sticky notes (story 2); pen strokes (story 11) store their pen colour here. */
+  color?: StickyColor | PenColor;
   text?: string;
   /** Story 7: explicit size; absent on pre-story-7 stickies (fallback STICKY_SIZE_WORLD). */
   width?: number;
@@ -43,6 +46,11 @@ export interface ObjectSnapshot {
   /** Connectors (story 10). */
   from?: unknown;
   to?: unknown;
+  /** Pen strokes (story 11): flattened [x0, y0, ...] relative to the bbox origin at creation size. */
+  points?: readonly number[];
+  baseWidth?: number;
+  baseHeight?: number;
+  thickness?: PenThickness;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -67,6 +75,14 @@ const META_SCHEMA_VERSION = 1;
 
 export function isStickyColor(value: unknown): value is StickyColor {
   return typeof value === 'string' && value in STICKY_COLORS;
+}
+
+export function isPenColorValue(value: unknown): value is PenColor {
+  return typeof value === 'string' && value in PEN_COLORS;
+}
+
+export function isPenThicknessValue(value: unknown): value is PenThickness {
+  return typeof value === 'string' && value in PEN_THICKNESS_WORLD;
 }
 
 /** Sets `meta.schemaVersion` if absent. Idempotent. */
@@ -363,7 +379,11 @@ export function snapshotObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
       y: obj.get('y') as number,
       z: obj.get('z') as number,
       createdAt: obj.get('createdAt') as number,
-      color: isStickyColor(obj.get('color')) ? (obj.get('color') as StickyColor) : undefined,
+      color: isStickyColor(obj.get('color'))
+        ? (obj.get('color') as StickyColor)
+        : isPenColorValue(obj.get('color'))
+          ? (obj.get('color') as PenColor)
+          : undefined,
       text: (() => {
         const t = obj.get('text') ?? obj.get('label');
         return t instanceof Y.Text ? t.toString() : typeof t === 'string' ? t : undefined;
@@ -383,6 +403,15 @@ export function snapshotObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
       stroke: typeof obj.get('stroke') === 'string' ? (obj.get('stroke') as string) : undefined,
       from: obj.get('from') ?? undefined,
       to: obj.get('to') ?? undefined,
+      points: (() => {
+        const p = obj.get('points');
+        return Array.isArray(p) && p.length > 0 && p.every((v) => typeof v === 'number' && Number.isFinite(v))
+          ? (p as number[])
+          : undefined;
+      })(),
+      baseWidth: num(obj.get('baseWidth')),
+      baseHeight: num(obj.get('baseHeight')),
+      thickness: isPenThicknessValue(obj.get('thickness')) ? (obj.get('thickness') as PenThickness) : undefined,
     });
   });
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

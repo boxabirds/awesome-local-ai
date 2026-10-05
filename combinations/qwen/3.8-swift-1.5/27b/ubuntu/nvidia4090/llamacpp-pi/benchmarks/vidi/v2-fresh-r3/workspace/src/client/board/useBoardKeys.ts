@@ -111,6 +111,10 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           if (o.canEdit) o.tool.setTool('connector');
           return;
         }
+        if (k === 'p' || k === 'P') {
+          if (o.canEdit) o.tool.setTool('pen');
+          return;
+        }
       }
 
       if (e.key === 'Escape') {

@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
 import { STICKY_SIZE_WORLD, STICKY_COLORS } from '../../shared/config';
-import { getStickyText } from '../../shared/board-model';
+import { getStickyText, isStickyColor } from '../../shared/board-model';
 import { ToolContext } from '../board/useTool';
 import { fitFontSize, STICKY_TEXT_PADDING } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
@@ -29,6 +29,9 @@ export function StickyNote(props: ObjectProps): JSX.Element {
 
   const width = obj.width ?? STICKY_SIZE_WORLD;
   const height = obj.height ?? STICKY_SIZE_WORLD;
+  // Story 11 widened ObjectSnapshot.color to include pen colours; a sticky's
+  // colour is a sticky colour (fall back to yellow for defensive rendering).
+  const stickyColor = isStickyColor(obj.color) ? obj.color : 'yellow';
   const textBox = width - STICKY_TEXT_PADDING * 2;
 
   // Auto-fit the display text on mount and on text change only (zoom scales
@@ -69,7 +72,7 @@ export function StickyNote(props: ObjectProps): JSX.Element {
         top: obj.y,
         width,
         height,
-        background: STICKY_COLORS[obj.color ?? 'yellow'],
+        background: STICKY_COLORS[stickyColor],
         boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
         outline: selected ? SELECTION_OUTLINE : 'none',
         outlineOffset: 2,
@@ -121,7 +124,7 @@ export function StickyNote(props: ObjectProps): JSX.Element {
             right: 0,
             bottom: 0,
             height: 48,
-            background: `linear-gradient(to bottom, transparent, ${STICKY_COLORS[obj.color ?? 'yellow']})`,
+            background: `linear-gradient(to bottom, transparent, ${STICKY_COLORS[stickyColor]})`,
             pointerEvents: 'none',
           }}
         />

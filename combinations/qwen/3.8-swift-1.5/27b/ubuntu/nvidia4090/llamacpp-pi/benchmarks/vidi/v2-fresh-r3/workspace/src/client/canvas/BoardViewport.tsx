@@ -38,6 +38,13 @@ export interface BoardViewportProps {
   activeTool?: Tool;
   /** Story 9: create a text object at the given viewport point. */
   onTextCreate?(p: Point): void;
+  /**
+   * Story 11: the pen tool overlay, rendered inside the viewport container
+   * (above the world layer) while the Pen tool is active. Pointer drags on
+   * it draw strokes (never pan or move objects); wheel events bubble to the
+   * container so scrolling still pans and Ctrl/Cmd+scroll zooms.
+   */
+  penOverlay?: ReactNode;
 }
 
 export function BoardViewport(props: BoardViewportProps) {
@@ -354,6 +361,7 @@ export function BoardViewport(props: BoardViewportProps) {
           </div>
           {props.children}
         </div>
+        {props.penOverlay}
       </div>
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

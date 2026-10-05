@@ -184,6 +184,26 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
       </button>
 
       <span style={{ width: 1, height: 20, background: '#ddd', margin: '0 4px' }} />
+
+      {/* Story 11: Pen button */}
+      <button
+        type="button"
+        data-testid="pen-tool-button"
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        title="Pen (P)"
+        disabled={!canEdit}
+        style={{
+          ...buttonStyle,
+          opacity: canEdit ? 0.9 : 0.4,
+          border: tool === 'pen' ? '2px solid #1A73E8' : '2px solid transparent',
+        }}
+        onClick={() => onToolChange('pen')}
+      >
+        ✎
+      </button>
+
+      <span style={{ width: 1, height: 20, background: '#ddd', margin: '0 4px' }} />
       {undoButtons}
     </div>
   );

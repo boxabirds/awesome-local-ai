@@ -1,7 +1,7 @@
 import { createContext, useCallback, useEffect, useRef, useState } from 'react';
 
-/** Board tools (story 9–10): `select` is the default; `text` arms board clicks to create text; `shape` and `connector` for story 10. */
-export type Tool = 'select' | 'text' | 'shape' | 'connector';
+/** Board tools (story 9–11): `select` is the default; `text` arms board clicks to create text; `shape` and `connector` for story 10; `pen` for story 11. */
+export type Tool = 'select' | 'text' | 'shape' | 'connector' | 'pen';
 
 /**
  * The active tool, readable by object components. In `text` mode objects render

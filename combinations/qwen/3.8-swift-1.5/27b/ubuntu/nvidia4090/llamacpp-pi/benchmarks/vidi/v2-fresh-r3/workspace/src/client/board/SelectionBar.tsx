@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import type * as Y from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
-import { setStickyColor } from '../../shared/board-model';
+import { setStickyColor, isStickyColor } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import { setTextSize, toTextSnapshot } from '../../shared/objects/text';
 import { worldToScreen, type Camera } from '../canvas/camera';
@@ -89,7 +89,7 @@ export function SelectionBar(props: {
         }}
       >
         <NoteToolbar
-          color={note.color ?? 'yellow'}
+          color={isStickyColor(note.color) ? note.color : 'yellow'}
           onColor={(c) => {
             onBoundary?.();
             setStickyColor(doc, note.id, c);
