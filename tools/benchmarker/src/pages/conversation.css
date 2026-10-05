@@ -6,10 +6,12 @@
 .conv-table td:not(.said), .conv-table th:not(.said) { white-space: nowrap; width: 1%; }
 .conv-table .said { width: auto; min-width: 24ch; white-space: normal; }
 /* A cell of conversation text: five lines, then the + button. */
-.clamp-cell { display: flex; align-items: flex-start; gap: 6px; }
-.clamp { flex: 1 1 auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-.clamp[data-folded="true"] { display: -webkit-box; -webkit-line-clamp: 5; line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
-.clamp-more { flex: 0 0 auto; width: 20px; height: 20px; line-height: 18px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); color: var(--muted); cursor: pointer; font-size: 14px; }
+/* A folded cell: five lines, and the fold button at the end of the fifth, where the text stops (like "… more"). */
+.clamp-cell { position: relative; }
+.clamp { white-space: pre-wrap; overflow-wrap: anywhere; }
+.clamp[data-folded="true"] { display: -webkit-box; -webkit-line-clamp: 5; line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; padding-right: 26px; }
+.clamp[data-expanded="true"] { padding-bottom: 22px; }
+.clamp-more { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; line-height: 18px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); color: var(--muted); cursor: pointer; font-size: 14px; }
 .clamp-more:hover { color: var(--ink); }
 /* A section's twisty, and its own search behind a magnifier where its count was. */
 .conv-section .rp-head h2 { display: flex; align-items: center; gap: 6px; }

@@ -99,4 +99,24 @@
 /* An intervened story run: an asterisk in the cell's corner, taking no width from the cell's value. */
 .combination-page td.m-cell { position: relative; }
 .combination-page td.m-cell .intervened.compact { position: absolute; top: 2px; right: 3px; border: none; padding: 0; font-size: 10px; line-height: 1; }
-.combination-page .matrix-key .intervened.compact { border: none; padding: 0; }
+.combination-page .matrix-key .intervened.compact { border: none; padding: 0; 
+}
+
+/* Series: one row per run set, the current one first. The segment and score styles mirror the overview's, which are
+   scoped to that page; the shared component (SeriesBar) is the same. Written at the top level, each rule scoped by
+   hand: nesting these inside another rule is how they were lost once. */
+.combination-page .series-list { list-style: none; margin: 0; padding: 6px 12px 10px; display: grid; gap: 8px; }
+.combination-page .series-row { display: grid; grid-template-columns: minmax(0, 13em) auto minmax(0, 1fr) auto; align-items: center; gap: 4px 14px; }
+.combination-page .series-name { display: flex; align-items: baseline; gap: 6px; font-size: 13px; min-width: 0; }
+.combination-page .series-current { font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; color: var(--run); border: 1px solid var(--run); border-radius: 3px; padding: 0 4px; }
+.combination-page .series-bar { display: inline-flex; gap: 3px; }
+.combination-page .seg-run { min-width: 26px; height: 22px; padding: 0 5px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 12px; font-weight: 650; color: var(--ink); text-decoration: none; border: 1.5px solid var(--line); }
+.combination-page .seg-finished { background: var(--chip); border-color: var(--muted); color: color-mix(in hsl, var(--ok) var(--score, 100%), var(--bad)); }
+.combination-page .seg-running { border-color: var(--run); background: linear-gradient(to right, color-mix(in srgb, var(--run) 35%, transparent) var(--filled, 0%), transparent var(--filled, 0%)); }
+.combination-page .seg-queued { border-style: dashed; color: var(--faint); }
+.combination-page .series-score { font-weight: 700; font-size: 13px; white-space: nowrap; color: color-mix(in hsl, var(--ok) var(--score, 100%), var(--bad)); }
+.combination-page .series-standing { white-space: nowrap; text-align: right; color: var(--faint); }
+@media (max-width: 720px) {
+  .combination-page .series-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .combination-page .series-standing { grid-column: 1 / -1; text-align: left; }
+}

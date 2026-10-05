@@ -138,7 +138,7 @@ export function trailFor(route: Route, names: TrailNames): Crumb[] {
     case "activity": return [overview, { label: SECTION_NAMES.activity }];
     case "stories": return [overview, { label: SECTION_NAMES.stories }];
     case "machine": return [overview, { label: SECTION_NAMES.machines, href: machinesHref() }, { label: route.machine, cls: "machine-link" }];
-    case "story": return [overview, { label: SECTION_NAMES.stories, href: storiesHref(route.pack) }, { label: storyLabel(route.story), cls: "story-link" }];
+    case "story": return [overview, { label: SECTION_NAMES.stories, href: storiesHref(route.pack) }, { label: storyLabel(route.story, names.story), cls: "story-link" }];
     default: break;
   }
   const combination: Crumb = { label: names.combination ?? route.stack, href: combinationHref(route.pack, route.stack), cls: "combination-link", tip: route.stack };

@@ -50,7 +50,7 @@ test("addresses by hand: a page opens directly; one that names nothing says so a
   await expect(page$(page, "notFound")).toContainText("no-such-run");
   await page.goto("/#/vidi/nonsense");
   await expect(page$(page, "notFound")).toBeVisible();
-  await page.getByRole("link", { name: "Back to the overview" }).click();
+  await page.getByRole("link", { name: "Back to runs" }).click();
   await expect(page.locator("table.combos")).toBeVisible();
 });
 

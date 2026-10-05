@@ -161,6 +161,23 @@ export function machineHistory(runs: Row[]): Row[] {
   return runs.toSorted(byLastActivity);
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** "27 Sep": a day in UTC, the way the app writes its times. */
+export function dayOf(seconds: number): string {
+  const d = new Date(seconds * 1000);
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+/** The period a machine's history covers, from the earliest run end known to the latest, or to today while a run
+ * is going; "" when no run has a time. */
+export function historySpan(runs: Row[]): string {
+  const ends = runs.map(endedAt).filter((t): t is number => t !== null);
+  if (!ends.length) return "";
+  const running = runs.some((r) => r.status === "running");
+  const to = running ? "today" : dayOf(Math.max(...ends));
+  return `${dayOf(Math.min(...ends))} to ${to}`;
+}
+
 /** The version family a suite version string names ("vidi-v2.0-pre1" → "vidi-v2"); "" when it names none. */
 export const familyOf = (suiteVersion: string | undefined): string => /^(.*?-v\d+)/.exec(suiteVersion ?? "")?.[1] ?? "";
 

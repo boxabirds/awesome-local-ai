@@ -16,7 +16,7 @@ import { restoreScroll } from "../router.ts";
 import { StoryRunLine } from "../components/run/StoryRunParts.tsx";
 import { Missing, Section, Term, full, utc } from "../components/run/bits.tsx";
 import { Clamped } from "../components/conversation/text.tsx";
-import { duration } from "../format.ts";
+import { ago, duration } from "../format.ts";
 import { useConversation } from "../useConversation.ts";
 import { useHeightVar } from "../useHeightVar.ts";
 import "./run.css";
@@ -33,6 +33,8 @@ const DRAG_PX = 4;
 const MIN_MARK_W = 2;
 export const NOT_AVAILABLE = "Not available.";
 const callRowId = (idx: number) => `call-${idx}`;
+/** How often the live mark's age is refreshed. */
+const LIVE_TICK_MS = 5000;
 
 const isNum = (v: unknown): v is number => typeof v === "number";
 const n = (v: unknown) => (isNum(v) ? full(v) : "");
@@ -52,6 +54,8 @@ export function ConversationPage({ route, run, story, storyId, state, params }: 
   const query = queryParam ?? "";
   const setQuery = (q: string) => setQueryParam(q || undefined);
   const [jumped, setJumped] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), LIVE_TICK_MS); return () => clearInterval(t); }, []);
   /** The call the address asks for (?call=N, the call page's way back), jumped to once its row is there. */
   const askedCall = params?.call !== undefined && /^\d+$/.test(params.call) ? Number(params.call) : null;
   const [jumpedToAsked, setJumpedToAsked] = useState<number | null>(null);
@@ -109,6 +113,7 @@ export function ConversationPage({ route, run, story, storyId, state, params }: 
             <div className="rp-aside">
               <span className="num" data-fact="count">{shown.length === all.length ? full(all.length) : `${full(shown.length)} of ${full(all.length)} shown`}</span>
               {s ? <span className="small" data-fact="range">{utc(from / MS_PER_S)} · {duration((toMs - from) / MS_PER_S)} · <span data-fact="events">{full(conv.events.length)}</span> events{s.complete ? "" : " so far"}</span> : null}
+              {s && !s.complete && conv.events.length ? <span className="small live-mark" data-fact="live">live · last event {ago((now - Math.max(...conv.events.map((e) => e.tMs))) / MS_PER_S)}</span> : null}
             </div>
           </div>
           <div className="conv-controls">

@@ -55,8 +55,9 @@ test("arrow keys move the selection, Enter opens it", async ({ page }) => {
   await page.keyboard.press("ArrowDown");
   await expect(first).toHaveAttribute("aria-selected", "false");
   await expect(options.nth(1)).toHaveAttribute("aria-selected", "true");
+  const href = await options.nth(1).getAttribute("href");
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/#\//);
+  await expect(page).toHaveURL(new RegExp(`${href!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));   // the row's own link, followed
   await expect(page.locator("#search-results")).toBeHidden();
 });
 

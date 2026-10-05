@@ -3,7 +3,7 @@
 // score of record. Nothing is grouped or folded: a history shows every run.
 import type { ReactNode } from "react";
 import type { Row, State } from "../../../shared/types.ts";
-import { earlierVersion, machineHistory } from "../../../shared/overviewView.ts";
+import { earlierVersion, historySpan, machineHistory } from "../../../shared/overviewView.ts";
 import { scoreOfRecord } from "../../../shared/stats.ts";
 import { interventionsOf, PENDING, scoreOfRecord as recordView, squareTip } from "../../../shared/runView.ts";
 import { InterventionMark, interventionHref } from "../RunMarks.tsx";
@@ -56,7 +56,7 @@ export function MachineHistory({ runs, filteredOut, suites }: { runs: Row[]; fil
     <section className="mp-section" data-section="history" aria-labelledby="h-mp-history">
       <div className="mp-head">
         <h2 id="h-mp-history"><Term id="history" /></h2>
-        <span className="small">{runs.length} run{runs.length === 1 ? "" : "s"}</span>
+        <span className="small">{runs.length} run{runs.length === 1 ? "" : "s"}{historySpan(runs) ? ` · ${historySpan(runs)}` : ""}</span>
       </div>
       {runs.length === 0 ? (filteredOut ?? <p className="mp-empty">No runs on this machine yet.</p>) : (
         <table className="history" aria-label="Runs on this machine">

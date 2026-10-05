@@ -189,11 +189,17 @@ test.describe("A. the conversation page", () => {
     await expect(p.locator('table.turns tr[data-call="1"] .figures')).not.toContainText("null");
   });
 
-  test("a story still being built: 'so far', and what arrives after the latest cursor appears without a reload", async ({ page, request }) => {
+  test("a story still being built: 'so far', a live mark with the last event's age, and what arrives after the latest cursor appears without a reload", async ({ page, request }) => {
     await page.goto(conv(SWIFT, "v2-r1", "1"));
     const p = page$(page);
     await expect(p).toHaveAttribute("data-backfilled", "true");
     await expect(p.locator('[data-fact="range"]')).toContainText("so far");
+    await expect(p.locator('[data-fact="live"]')).toHaveText(/^live · last event .+ ago$/);
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    await expect(page$(page)).toHaveAttribute("data-backfilled", "true");
+    await expect(page$(page).locator('[data-fact="live"]')).toHaveCount(0);        // a complete story is not live
+    await page.goto(conv(SWIFT, "v2-r1", "1"));
+    await expect(p).toHaveAttribute("data-backfilled", "true");
     await expect(p.locator('[data-fact="events"]')).toHaveText("2");
     await request.post("/api/test/reset", { data: { appendEvents: { [SWIFT_R1_S1]: [
       { tMs: 1790000110000, kind: "call", refIdx: 1, idx: 1, think: 3, text: 9, nTools: 0, outTok: 30, inTok: 200, cacheTok: 0, stop: "endTurn", sub: 0, thinkFlags: [], textFlags: [], sentMs: 1790000106000, firstMs: 1790000108000, thinking: { text: "Go" }, textBody: { text: "Carrying on" } },
@@ -382,6 +388,14 @@ test.describe("B. the call page", () => {
     await expect(item(page, "input").locator(".cc-body")).not.toContainText(/what the call before returned|new to this call/i);
   });
 
+  test("the calls either side say what they are: their first line of text", async ({ page }) => {
+    await page.goto(call(SWIFT, "v2-r5", "2", 1));
+    const nav = page.locator('[data-page="call"] .call-nav');
+    await expect(nav.locator('a[rel="prev"]')).toHaveText("← call 1 · Reading the spec.");
+    await expect(nav.locator('a[rel="next"]')).toHaveText(/^call 3 · Fixing the failing test; the h/);
+    await expect(nav.locator('a[rel="next"] .neighbour-text')).toHaveAttribute("data-tip", /^Fixing the failing test/);
+  });
+
   test("the way back and the calls either side stay on the call's row", async ({ page }) => {
     await page.goto(call(SWIFT, "v2-r5", "2", 1));
     const p = page.locator('[data-page="call"]');
@@ -497,6 +511,17 @@ test.describe("D. layout: pinned heads, compact numbers, folded cells", () => {
     expect(said.w, JSON.stringify(widths)).toBeGreaterThan(Math.max(...widths.filter((x) => !x.cls.includes("said")).map((x) => x.w)) * 1.5);
     await p.locator("table.turns tbody tr").last().scrollIntoViewIfNeeded();
     await expect(p.locator('[data-section="all"] .rp-head')).toBeInViewport();
+  });
+
+  test("the fold button sits at the end of the folded text's last line, not at the cell's top right", async ({ page }) => {
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    await expect(page$(page)).toHaveAttribute("data-backfilled", "true");
+    const cell = page$(page).locator('.clamp-cell:has(.clamp[data-folded="true"])').first();
+    const text = await cell.locator(".clamp").boundingBox();
+    const more = await cell.locator("button.clamp-more").boundingBox();
+    expect(more!.y + more!.height).toBeLessThanOrEqual(text!.y + text!.height + 2);      // within the folded block
+    expect(more!.y).toBeGreaterThan(text!.y + text!.height - 2 * more!.height);          // on its last line, not its first
+    expect(more!.x + more!.width).toBeLessThanOrEqual(text!.x + text!.width + 1);        // inside the text's width
   });
 
   test("a cell shows five lines, and + shows the whole of it; the call page opens folded too", async ({ page }) => {

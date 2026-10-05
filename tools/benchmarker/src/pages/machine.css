@@ -78,7 +78,7 @@
   table.history td.h-combination { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   table.history td.h-version { color: var(--muted); white-space: nowrap; }
   table.history th, table.history td { padding: 6px 8px; vertical-align: middle; overflow-wrap: normal; }
-  table.history thead th { white-space: nowrap; }
+  table.history thead th { white-space: nowrap; position: sticky; top: var(--pinned-h); z-index: 2; background: var(--panel); box-shadow: 0 1px 0 var(--line); }
   table.history thead th .term { display: inline; }
   .version-label { font-weight: 700; }
   table.history th.h-run { text-transform: none; letter-spacing: 0; font-size: 14px; background: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -22,7 +22,7 @@ export function StoryPage({ route, pack, story, runs, params }: { route: Route; 
   const state = { compare };
   return (
     <div className="page story-page" data-page="story" data-story={story}>
-      <Breadcrumb route={route} />
+      <Breadcrumb route={route} names={{ story: item?.title }} />
       <div className="sp-layout">
         <StoryList pack={pack} stories={list} current={story} params={state} />
         <div className="sp-main">

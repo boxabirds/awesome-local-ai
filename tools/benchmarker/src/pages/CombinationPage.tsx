@@ -9,6 +9,7 @@ import { Breadcrumb, MachineLink } from "../components/EntityLinks.tsx";
 import { Term, termTip } from "../components/combination/Term.tsx";
 import { fmtCount, fmtHours, fmtTokens, SpreadText } from "../components/combination/Spread.tsx";
 import { metricLabel, MetricSwitch, RunMatrix } from "../components/combination/RunMatrix.tsx";
+import { SeriesPanel } from "../components/combination/SeriesPanel.tsx";
 import { RunTimeBars } from "../components/combination/RunTimeBars.tsx";
 import { MechanismTally } from "../components/combination/MechanismTally.tsx";
 import { machinesOf, Related } from "../components/combination/Related.tsx";
@@ -58,7 +59,8 @@ export function CombinationPage({ route, stack, runs, state, params }: { route: 
             <dt><Term id="scoreSummary">Score</Term></dt>
             <dd>{c.score ? <>
               <SpreadText s={c.score} fmt={fmtCount} big={`num-xl ${qualityClass(c.score.total ? c.score.median / c.score.total : null)}`} showN />
-              <span className="small">{c.score.total ? ` / ${c.score.total}` : ""} · <Term id="meanScore">mean</Term> {c.score.total ? fmtCount(Math.round(c.score.mean * c.score.total)) : `${Math.round(c.score.mean * PERCENT)}%`}</span>
+              <span className="small">{c.score.total ? ` / ${c.score.total}` : ""} · <Term id="meanScore">mean</Term> {c.score.total ? fmtCount(Math.round(c.score.mean * c.score.total)) : `${Math.round(c.score.mean * PERCENT)}%`}
+                {c.series.length > 1 ? <> · <span className="mono" data-tip={termTip("currentSeries")}>{c.currentSeries}</span></> : null}</span>
             </> : <span className="unranked" data-tip={termTip("unranked")}>not ranked: {c.unranked}</span>}</dd>
           </div>
           <Kpi term="hoursPerStory" s={c.hoursPerStory} fmt={fmtHours} />
@@ -68,6 +70,8 @@ export function CombinationPage({ route, stack, runs, state, params }: { route: 
         <Predictability runs={runs} />
         <p className="run-counts" data-counts><Term id="runsByStatus" />: {counts.join(" · ")}</p>
       </header>
+
+      <SeriesPanel runs={runs} pack={route.pack} current={c.currentSeries} />
 
       <section className="combo-section" data-section="matrix">
         <h2><Term id="matrix" /><MetricSwitch metric={metric} onChange={setMetric} /></h2>
