@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
@@ -15,29 +11,13 @@
     "noFallthroughCasesInSwitch": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "allowImportingTsExtensions": false,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "useDefineForClassFields": true,
-    "types": [
-      "vite/client",
-      "node"
-    ]
+    "types": []
   },
-  "include": [
-    "src",
-    "tests",
-    "vite.config.ts",
-    "vitest.config.ts",
-    "playwright.config.ts",
-    "playwright.nightly.config.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "src/worker",
-    "tests/integration"
-  ]
+  "include": ["worker-configuration.d.ts", "src/shared", "src/worker"],
+  "exclude": ["node_modules", "dist"]
 }

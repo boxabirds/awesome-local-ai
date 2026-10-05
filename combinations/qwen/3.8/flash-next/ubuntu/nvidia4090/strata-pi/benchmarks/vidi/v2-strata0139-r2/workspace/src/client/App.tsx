@@ -10,27 +10,32 @@ import { useBoardDoc } from "./board/useBoardDoc";
 import { useSelection, type SelectionApi } from "./board/useSelection";
 import { Toolbar } from "./board/Toolbar";
 import { StickyNote } from "./objects/StickyNote";
+import { ConnectionStatus } from "./sync/ConnectionStatus";
+import { useConnectionTestHook } from "./sync/testHook";
 import { createSticky, deleteObject, type StickySnapshot } from "../shared/board-model";
 
 /**
- * The board: camera (story 1) plus the notes this client is working with
- * (story 2). The Y.Doc, the local selection and the keyboard behaviour are
- * wired here so the viewport, the toolbars and the notes share one state.
+ * The board: camera (story 1), the notes (story 2) and the live connection to
+ * the room that holds them (story 3). The Y.Doc, the local selection and the
+ * keyboard behaviour are wired here so the viewport, the toolbars and the notes
+ * share one state.
  *
- * `doc` can be injected (component tests); otherwise the client owns its own
- * document, which story 3 will attach a network provider to.
+ * `doc` can be injected (component tests); `boardId` is the board this screen
+ * connects to — without it the document stays local to this tab.
  */
 export interface AppProps {
   doc?: Y.Doc;
+  boardId?: string;
 }
 
-export function App({ doc: providedDoc }: AppProps = {}) {
+export function App({ doc: providedDoc, boardId }: AppProps = {}) {
   const viewportSize = useWindowSize();
   const board = useCamera(viewportSize);
-  const { doc, notes } = useBoardDoc(providedDoc);
+  const { doc, notes, connectionState } = useBoardDoc({ doc: providedDoc, boardId });
   const selection = useSelection();
 
   useBoardKeys(doc, selection, notes);
+  useConnectionTestHook(connectionState);
 
   const cameraRef = useRef<Camera>(board.camera);
   cameraRef.current = board.camera;
@@ -91,6 +96,7 @@ export function App({ doc: providedDoc }: AppProps = {}) {
         onReset={board.reset}
       />
       <NavigationHint visible={!board.hasNavigated} />
+      <ConnectionStatus state={connectionState} />
     </CameraApiContext.Provider>
   );
 }

@@ -140,6 +140,49 @@ describe("sticky.text: start and end editing", () => {
   });
 });
 
+describe("story 3: typing while someone else types in the same note", () => {
+  it("text that arrives mid-edit is pulled into the field and survives the next keystroke", () => {
+    const doc = new Y.Doc();
+    const id = newNote(doc, { x: 0, y: 0 }, "yellow", "green");
+    const screen = render(<App doc={doc} />);
+
+    const textarea = editNote(screen, id);
+    typeInto(textarea, "green red");
+
+    // Someone else types into the same note. The field must follow the shared
+    // text, because the next keystroke is diffed against it.
+    changeModel(() => {
+      (getStickyText(doc, id) as Y.Text).insert(9, " blue");
+    });
+
+    expect(textarea.value).toBe("green red blue");
+    // The caret stays where the local typist left it, before the arriving text.
+    expect(textarea.selectionStart).toBe(9);
+
+    // Typing on now has to keep what the other person wrote.
+    typeInto(textarea, `${textarea.value}!`);
+
+    expect(notedText(doc, id)).toBe("green red blue!");
+    expect(screen.getByTestId("sticky-note-input")).toBeTruthy();
+  });
+
+  it("a note being edited elsewhere still shows the shared text once editing ends", () => {
+    const doc = new Y.Doc();
+    const id = newNote(doc, { x: 0, y: 0 }, "yellow", "hello");
+    const screen = render(<App doc={doc} />);
+
+    const textarea = editNote(screen, id);
+    typeInto(textarea, "hello there");
+    changeModel(() => {
+      (getStickyText(doc, id) as Y.Text).insert(5, " world");
+    });
+    pressKey("Escape", textarea);
+
+    expect(screen.getByTestId("sticky-note-text").textContent).toBe("hello world there");
+    expect(notedText(doc, id)).toBe("hello world there");
+  });
+});
+
 describe("sticky.text: length limit and counter", () => {
   it("typing past the limit keeps exactly STICKY_TEXT_MAX_CHARS characters", () => {
     const doc = new Y.Doc();

@@ -10,7 +10,7 @@ import {
 import type * as Y from "yjs";
 import { LOCAL_ORIGIN } from "../../shared/board-model";
 import { STICKY_FONT_MAX_PX, STICKY_TEXT_BOX_WORLD, STICKY_TEXT_MAX_CHARS } from "../../shared/config";
-import { applyTextDiff, clampToLimit, counterVisible, fitFontSize, textBoxStyle } from "./StickyText";
+import { applyTextDiff, clampToLimit, commonPrefixLength, counterVisible, fitFontSize, textBoxStyle } from "./StickyText";
 
 /**
  * The textarea that edits a note's `Y.Text`.
@@ -18,10 +18,16 @@ import { applyTextDiff, clampToLimit, counterVisible, fitFontSize, textBoxStyle 
  * - Uncontrolled: the DOM holds the caret, every `input` is written straight
  *   into Y.Text with a minimal diff, so ending editing needs no extra write
  *   and everything typed so far is already kept.
+ * - Remote typing lands in the field too (story 3): every keystroke is already
+ *   in Y.Text, so when someone else's text arrives the field is re-synced from
+ *   the shared text and the caret follows the change. Without this, the next
+ *   keystroke would diff a stale value against the shared text and delete what
+ *   the other person typed.
  * - Escape ends editing (the text stays); a pointerdown outside the note is
  *   handled by `StickyNote`, which unmounts this editor.
  * - Enter inserts a newline (it never leaves the note).
- * - IME composition is committed on `compositionend`, never mid-composition.
+ * - IME composition is committed on `compositionend`, never mid-composition;
+ *   a remote change never overwrites text that is still being composed.
  */
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -84,6 +90,23 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     commit(event.currentTarget.value);
   };
 
+  // Someone else typed into this note: pull the shared text into the field.
+  // Every local keystroke is already in Y.Text, so nothing typed here is lost;
+  // the caret is shifted across the change instead of jumping to the end.
+  useEffect(() => {
+    const handler = (_event: Y.YTextEvent, transaction: Y.Transaction) => {
+      if (transaction.origin === LOCAL_ORIGIN) return;
+      if (composingRef.current) return;
+      const el = ref.current;
+      if (!el) return;
+      adoptRemoteText(el, ytext.toString());
+      setLength(el.value.length);
+      measure();
+    };
+    ytext.observe(handler);
+    return () => ytext.unobserve(handler);
+  }, [ytext, measure]);
+
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -138,5 +161,30 @@ function setSelectionEnd(el: HTMLTextAreaElement, end: number): void {
     el.setSelectionRange(end, end);
   } catch {
     // Some browsers refuse setSelectionRange before the field is rendered.
+  }
+}
+
+/**
+ * Replaces the field's value with the shared text and moves the caret across
+ * the change: a caret after the inserted text stays after it, a caret before it
+ * stays before it.
+ */
+function adoptRemoteText(el: HTMLTextAreaElement, next: string): void {
+  const previous = el.value;
+  if (previous === next) return;
+
+  const selectionStart = el.selectionStart ?? previous.length;
+  const selectionEnd = el.selectionEnd ?? previous.length;
+  const prefix = commonPrefixLength(previous, next);
+  const shift = next.length - previous.length;
+
+  el.value = next;
+
+  const movedStart = selectionStart <= prefix ? selectionStart : Math.max(prefix, selectionStart + shift);
+  const movedEnd = selectionEnd <= prefix ? selectionEnd : Math.max(prefix, selectionEnd + shift);
+  try {
+    el.setSelectionRange(Math.min(movedStart, next.length), Math.min(movedEnd, next.length));
+  } catch {
+    // Some browsers refuse setSelectionRange while the field is being rewritten.
   }
 }

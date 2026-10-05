@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { ZOOM_MAX, ZOOM_MIN } from "../../shared/config";
+import type { ConnectionState } from "../sync/connection-state";
 import type { Camera } from "./camera";
 
 /**
@@ -13,6 +14,8 @@ import type { Camera } from "./camera";
 export interface Vidi6TestApi {
   getCamera(): Camera;
   setCamera(camera: { x: number; y: number; zoom: number }): void;
+  /** Live connection state, added by the sync layer (story 3). */
+  connectionState?: ConnectionState;
 }
 
 declare global {

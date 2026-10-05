@@ -271,7 +271,10 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 function newId(): string {
-  const cryptoApi = globalThis.crypto;
+  // `crypto` exists in every environment this module runs in (browser, workerd,
+  // Node), but how it is *typed* depends on which lib set a project compiles
+  // against, so it is reached through the narrow shape this needs.
+  const cryptoApi = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (cryptoApi && typeof cryptoApi.randomUUID === "function") {
     return cryptoApi.randomUUID();
   }

@@ -124,7 +124,7 @@ export function textBoxStyle(extra?: CSSProperties): CSSProperties {
 }
 
 /** Common prefix in UTF-16 units, moved back off a partial surrogate pair. */
-function commonPrefixLength(a: string, b: string): number {
+export function commonPrefixLength(a: string, b: string): number {
   const max = Math.min(a.length, b.length);
   let i = 0;
   while (i < max && a.charCodeAt(i) === b.charCodeAt(i)) i += 1;

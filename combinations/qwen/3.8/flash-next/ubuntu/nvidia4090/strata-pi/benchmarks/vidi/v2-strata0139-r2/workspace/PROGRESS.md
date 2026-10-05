@@ -1,30 +1,17 @@
-# Story 2: Capture ideas on sticky notes and rearrange them
+# Story 3: See other people's edits appear live on the same board
 
 Your progress on this story's tasks. Keep the Status column up to date as you work.
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Write board model unit tests first against a real Y.Doc (TC-01 to TC-12, TC-39) | done |
-| 2 | Implement Yjs board model and useBoardDoc snapshot hook | done |
-| 3 | Write sticky text logic unit tests first (TC-13 to TC-17) | done |
-| 4 | Implement sticky text editing: start/end editing, minimal Y.Text diff, length limit, auto-fit font | done |
-| 5 | Implement sticky note interaction: select, drag to move, double-click create, keyboard delete | done |
-| 6 | Implement toolbars: Sticky note button, colour swatches and delete button | done |
-| 7 | Component tests for sticky interaction, text editor and toolbars | done |
-| 8 | E2E sticky note workflows (create, move at zoom, recolour, delete, long text) | done |
+| 1 | Write board id and protocol decode unit tests first (TC-01 to TC-03) | done |
+| 2 | Implement Worker entry: /api/rooms/:boardId routing to BoardRoom, static assets fallback | doing |
+| 3 | Implement BoardRoom Durable Object: Yjs sync relay, awareness relay, malformed-message handling | todo |
+| 4 | Implement client connection: y-websocket provider, /b/:boardId route, connection status badge | todo |
+| 5 | Integration tests for Worker routing in workerd (TC-04 to TC-06, TC-13, TC-17) | todo |
+| 6 | Integration tests for BoardRoom merging, broadcast and error handling (TC-07 to TC-12, TC-14 to TC-16, TC-18, TC-31) | todo |
+| 7 | Component tests for connection status badge (TC-19 to TC-21) | todo |
+| 8 | E2E live collaboration with multiple browser contexts (TC-22 to TC-28) | todo |
+| 9 | Nightly e2e: idle connection stability and capacity soak with latency report (TC-29, TC-30) | todo |
 
 Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
-
-## Verification (story 2 complete)
-
-Commands run from a clean tree (no wrangler left listening on 27840, so Playwright rebuilds `dist-test` through `serve:e2e`):
-
-| Command | Result |
-|---|---|
-| `npm run typecheck` | clean |
-| `npm run build` | client + worker bundles built |
-| `npm run test:unit` | 57 passed (board model TC-01 to TC-12, TC-39; sticky text TC-13 to TC-17) |
-| `npm run test:component` | 67 passed (story 1 viewport tests plus story 2 TC-18 to TC-29, TC-35 to TC-38) |
-| `npm run test:e2e` | 36 passed on Chromium and Firefox (story 1's 20 plus story 2's TC-30 to TC-34 and the three e2e workflows) |
-
-Task commits: `story 2 task 1` … `story 2 task 8` (see `git log`), one per finished task, each with the suites green.

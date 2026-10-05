@@ -51,7 +51,10 @@ export async function noteCount(page: Page): Promise<number> {
   return page.getByTestId("sticky-note").count();
 }
 
-export function centreOf(note: NoteDom): XY {
+/** Anything with a screen box: a rendered NoteDom, or a story 3 board snapshot. */
+export type HasBox = { box: { x: number; y: number; width: number; height: number } };
+
+export function centreOf(note: HasBox): XY {
   return { x: note.box.x + note.box.width / 2, y: note.box.y + note.box.height / 2 };
 }
 

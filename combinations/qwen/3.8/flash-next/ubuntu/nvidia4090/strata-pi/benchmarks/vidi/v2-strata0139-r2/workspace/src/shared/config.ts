@@ -74,3 +74,26 @@ export const SELECTION_OUTLINE_COLOR = "#2563eb";
 export const STICKY_TEXT_PADDING_WORLD = 12;
 /** Height/width of the text box inside a note (derived from the two above). */
 export const STICKY_TEXT_BOX_WORLD = STICKY_SIZE_WORLD - 2 * STICKY_TEXT_PADDING_WORLD;
+
+// ---- Live collaboration (story 3) ---------------------------------------
+
+/**
+ * Soft capacity: the number of simultaneous editors the board is designed and
+ * tested for. Never enforced — a 6th person joins and edits like anyone else.
+ * Tests read this setting instead of a hard-coded number.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** PRD live.propagate: how fast a change must reach every other screen. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Passed to `WebsocketProvider.maxBackoffTime`: the reconnect backoff ceiling. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** How long the green "Connected" badge stays up after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** The interruption length used by the catch-up tests (PRD live.catch_up). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/**
+ * Functional wait used by every e2e test in every story. Wall-clock latency is
+ * measured and logged against LIVE_UPDATE_LATENCY_BUDGET_MS, never asserted:
+ * the model, the browsers and the server share one machine here.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;

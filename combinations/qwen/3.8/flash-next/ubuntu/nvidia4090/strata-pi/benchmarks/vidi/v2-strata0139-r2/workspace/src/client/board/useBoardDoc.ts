@@ -1,36 +1,50 @@
-import { useCallback, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import * as Y from "yjs";
 import { initDoc, snapshot, type StickySnapshot } from "../../shared/board-model";
+import { connectBoard, type ConnectionState } from "../sync/connectBoard";
 
 /**
- * Owns the board's `Y.Doc` and exposes an immutable snapshot of its notes to
- * React through `useSyncExternalStore`.
+ * Owns the board's `Y.Doc`, connects it to the board's room, and exposes an
+ * immutable snapshot of its notes to React through `useSyncExternalStore`.
  *
  * Yjs is the source of truth; React re-renders when `objects.observeDeep`
- * fires. The snapshot is memoised so `getSnapshot` returns the identical array
+ * fires — whether the change came from this client's keyboard or from the
+ * room. The snapshot is memoised so `getSnapshot` returns the identical array
  * between renders (a new array every call would loop React forever) and is
  * recomputed only when the document actually changed.
  *
- * Story 3 attaches a network provider to `doc` and story 4 persists the very
- * same document; nothing here changes.
+ * Story 4 persists this same document; nothing here changes.
  */
 export interface BoardDoc {
   readonly doc: Y.Doc;
   /** Notes sorted by (z, id) — the render order. */
   readonly notes: readonly StickySnapshot[];
+  /** Live connection state, for the badge. `connecting` when not connected. */
+  readonly connectionState: ConnectionState;
   /** Latest notes for event handlers that must not read a stale closure. */
   getNotes(): readonly StickySnapshot[];
   getNote(id: string): StickySnapshot | undefined;
 }
 
-/**
- * @param provided an existing document to observe (component tests inject one);
- * by default a fresh local document is created for this client.
- */
-export function useBoardDoc(provided?: Y.Doc): BoardDoc {
+export interface UseBoardDocOptions {
+  /** Observe an existing document; component tests inject one. */
+  readonly doc?: Y.Doc;
+  /** The board to connect to. Without it the document stays local to this tab. */
+  readonly boardId?: string;
+}
+
+export function useBoardDoc({ doc: provided, boardId }: UseBoardDocOptions = {}): BoardDoc {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) docRef.current = provided ?? createDoc();
   const doc = docRef.current;
+
+  const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
+
+  useEffect(() => {
+    if (boardId === undefined) return;
+    const connection = connectBoard(doc, boardId, setConnectionState);
+    return () => connection.destroy();
+  }, [doc, boardId]);
 
   /** Bumped on every document change; keys the snapshot cache. */
   const revisionRef = useRef(0);
@@ -70,7 +84,7 @@ export function useBoardDoc(provided?: Y.Doc): BoardDoc {
     [currentNotes],
   );
 
-  return { doc, notes, getNotes: currentNotes, getNote };
+  return { doc, notes, connectionState, getNotes: currentNotes, getNote };
 }
 
 function createDoc(): Y.Doc {

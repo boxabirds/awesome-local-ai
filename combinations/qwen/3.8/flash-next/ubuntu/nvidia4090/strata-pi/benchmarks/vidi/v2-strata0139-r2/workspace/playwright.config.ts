@@ -56,6 +56,9 @@ function installedBrowsers(): (keyof typeof ALL_PROJECTS)[] {
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
+  // The nightly soak (TC-29, TC-30) runs for minutes and is not part of every
+  // commit: it lives in `playwright.nightly.config.ts` / `npm run test:e2e:nightly`.
+  grepInvert: /@nightly/,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
   reporter: [["list"], ["html", { open: "never" }]],

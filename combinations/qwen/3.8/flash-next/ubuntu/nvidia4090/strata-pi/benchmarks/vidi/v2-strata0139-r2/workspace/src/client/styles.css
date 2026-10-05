@@ -344,3 +344,34 @@ body {
   outline: 2px solid var(--vidi6-focus);
   outline-offset: 2px;
 }
+
+/* ---- Connection status badge (story 3) ---- */
+
+.connection-status {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  background: var(--vidi6-hint-bg);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 999px;
+  color: var(--vidi6-muted);
+  font-size: 15px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Amber: the connection is down and the board is running on the local copy. */
+.connection-status--reconnecting {
+  background: #fff1c9;
+  border-color: #c98b1c;
+  color: #6b4405;
+}
+
+/* Green: the connection has just come back, and for a moment it is worth saying. */
+.connection-status--confirmed {
+  background: #e3f4e5;
+  border-color: #4b8f57;
+  color: #14532d;
+}
