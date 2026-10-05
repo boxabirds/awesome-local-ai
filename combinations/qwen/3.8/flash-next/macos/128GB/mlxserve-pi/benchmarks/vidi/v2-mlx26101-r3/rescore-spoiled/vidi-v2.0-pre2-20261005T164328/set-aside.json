@@ -1,0 +1,4 @@
+{
+  "reason": "all 60 failures share one error signature across stories, and the live scoring of the same code cannot vouch for it (not comparable)",
+  "at": "2026-10-05T16:43:28Z"
+}

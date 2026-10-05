@@ -1,7 +1,7 @@
 {
   "version": "vidi-v2.0-pre2",
   "pack_ref": "vidi-v2.0-pre2",
-  "at": "2026-10-05T16:32:11Z",
+  "at": "2026-10-05T16:38:53Z",
   "bundle": "workspace.bundle",
   "outside_workspace": {
     "ok": true,
@@ -12,7 +12,7 @@
     "repaired": [],
     "left": {},
     "accounting_version": 4,
-    "harness_commit": "b0fd99246"
+    "harness_commit": "0b4a70acb"
   },
   "guard": {
     "story": 12,
@@ -32,9 +32,9 @@
   "reason_kind": "flagged",
   "needs_person": false,
   "retries_exhausted": false,
-  "attempts": 3,
+  "attempts": 4,
   "max_attempts": 5,
-  "last_attempt_at": "2026-10-05T16:32:11Z",
+  "last_attempt_at": "2026-10-05T16:38:53Z",
   "history": [
     {
       "at": "2026-10-04T20:07:17Z",
@@ -50,6 +50,12 @@
     },
     {
       "at": "2026-10-05T16:32:11Z",
+      "rescore": "flagged",
+      "reason_kind": "flagged",
+      "reason": "all 60 failures share one error signature across stories, and the live scoring of the same code cannot vouch for it (not comparable)"
+    },
+    {
+      "at": "2026-10-05T16:38:53Z",
       "rescore": "flagged",
       "reason_kind": "flagged",
       "reason": "all 60 failures share one error signature across stories, and the live scoring of the same code cannot vouch for it (not comparable)"
