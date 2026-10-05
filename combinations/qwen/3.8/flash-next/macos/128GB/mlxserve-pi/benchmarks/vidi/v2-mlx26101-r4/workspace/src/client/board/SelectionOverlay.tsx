@@ -30,6 +30,16 @@ export interface SelectionOverlayProps {
   snapshot: readonly ObjectSnapshot[];
   camera: Camera;
   onHandlePointerDown(event: PointerEvent | ReactPointerEvent, handle: Handle): void;
+  /**
+   * Whether the handles answer the pointer. Default: they do.
+   *
+   * A drawing tool holds the pointer for itself — every press on the board is a stroke and not a drag — and the
+   * handles are drawn *over* the board, so a press meant for the pen would land on a resize handle instead and
+   * resize the last thing the pen made. That is the same reason an 8-pixel handle already stands down when
+   * somebody else's note is under it: a control that cannot be used is not offered, and the outline stays
+   * because the selection is a fact whether or not the tool is listening.
+   */
+  interactive?: boolean;
 }
 
 /** Which corner or edge a handle sits on, in board units. */
@@ -94,6 +104,7 @@ export function SelectionOverlay({
   snapshot,
   camera,
   onHandlePointerDown,
+  interactive = true,
 }: SelectionOverlayProps): JSX.Element | null {
   if (ids.size === 0) return null;
   const selected = snapshot.filter((object) => ids.has(object.id));
@@ -127,7 +138,7 @@ export function SelectionOverlay({
         );
       })}
       <div className="selection-bounds" data-testid="selection-bounds" style={styleOf(screenBox(bounds, camera))} />
-      {resizable
+      {resizable && interactive
         ? handles.map((handle) => {
             const point = worldToScreen(camera, handlePoint(bounds, handle));
             const half = HANDLE_SIZE_PX / 2;

@@ -1401,3 +1401,140 @@ body {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
+
+/* ------------------------------------------------------------------ stroke ---- */
+
+/*
+ * One drawing, positioned by its own box.
+ *
+ * `pointer-events: none` on the wrapper is the whole of how a drawing lets clicks through to whatever is
+ * underneath it: what it occupies on the board is a line, and the rectangle around that line is a bookkeeping
+ * fact that nobody can see. Only the invisible press-target inside the picture answers to the pointer, and only
+ * along the line — which is the same arrangement an arrow has, for the same reason and at the same distance.
+ */
+.stroke-object {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: visible;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.stroke-object__svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------- pen options ---- */
+
+/*
+ * The pen's ink and nib, in a panel beside the tools rather than inside the strip.
+ *
+ * Six colours and three widths are nine controls, and the strip is wide enough for one column of them: a swatch
+ * has to be big enough to judge a colour from, and the three nibs have to be seen next to each other to be told
+ * apart. So this is its own panel, shown with the pen and gone without it, appearing where the tools are so the
+ * eye does not have to leave the hand.
+ */
+.pen-toolbar {
+  position: fixed;
+  top: 50%;
+  left: 92px;
+  z-index: 10;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgb(18 22 30 / 12%);
+}
+
+.pen-toolbar__group {
+  display: flex;
+  gap: 4px;
+}
+
+.pen-toolbar__group:last-of-type {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 6px;
+}
+
+/* The ink itself, drawn as the colour it is: no word reliably tells a purple from a blue, and the swatch is the
+   label. The pressed one keeps a ring of the board's own focus blue, so the choice is visible without colour. */
+.pen-toolbar__swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.pen-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.pen-toolbar__swatch:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.pen-toolbar__width {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 44px;
+  padding: 3px 2px;
+  font: inherit;
+  font-size: 9px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.pen-toolbar__width:hover {
+  background: var(--panel-hover);
+}
+
+.pen-toolbar__width[aria-pressed='true'] {
+  background: var(--panel-hover);
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
+}
+
+.pen-toolbar__width:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* The dot is the nib: its diameter is the width the pen will lay on the board, in the same units the drawing is
+   drawn in, so the three buttons can be told apart by looking rather than by reading. */
+.pen-toolbar__nib {
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pen-toolbar__width-label {
+  line-height: 1;
+}
+
+.pen-toolbar__status {
+  /* The choice is said, not shown: `aria-live` needs the text to be in the document to be announced, so it is
+     here and visually small rather than absent. */
+  font-size: 9px;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+.pen-toolbar__swatch:disabled,
+.pen-toolbar__width:disabled {
+  cursor: default;
+  opacity: 0.45;
+}

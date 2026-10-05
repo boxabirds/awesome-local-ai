@@ -7,6 +7,7 @@ import { cameraStore } from './cameraStore';
 import type { Point } from './camera';
 import { screenToWorld } from './camera';
 import { useCamera, useViewportSize, wheelDeltaToPixels } from './useCamera';
+import { isDrawingTool } from '../tools/useActiveTool';
 
 /** Only the primary pointer button pans; other buttons stay available to objects. */
 const PRIMARY_MOUSE_BUTTON = 0;
@@ -14,11 +15,15 @@ const PRIMARY_MOUSE_BUTTON = 0;
 /**
  * The tools whose whole job is to draw something new, so that a double-click is never also a note.
  *
+ * `isDrawingTool` is the tool hook's own answer to that question, shared with the viewport's pointer routing and
+ * with the selection overlay's handles: a tool that takes every press on the board must not then be doubled by
+ * the double-click that press was part of.
+ *
  * `text` is not one of them: with the text tool armed a double-click is two placements, and the second one
  * lands on the text the first made. That is story 9's behaviour, decided where the text tool's presses are
  * decided, and this file has no business quietly changing it.
  */
-const DRAWING_TOOLS: ReadonlySet<string> = new Set(['shape', 'connector']);
+
 
 /** Safari's non-standard pinch events (`gesturestart`/`change`/`end`). */
 interface SafariGestureEvent extends Event {
@@ -335,7 +340,7 @@ export function BoardViewport({
     if (!isBoardSurface(event.target)) return;
     // A drawing tool holds the pointer: the gesture that got here belongs to that tool, and a sticky note put
     // down in the middle of drawing a diamond would be an object nobody asked for.
-    if (DRAWING_TOOLS.has(activeTool)) return;
+    if (isDrawingTool(activeTool)) return;
     event.stopPropagation();
     // A screen pixel and a world point only agree once the viewport's own
     // position and the zoom are taken out.

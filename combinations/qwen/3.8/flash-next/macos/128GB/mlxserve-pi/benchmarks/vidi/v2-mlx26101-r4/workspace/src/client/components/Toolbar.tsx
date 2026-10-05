@@ -28,6 +28,7 @@ export const SELECT_TOOLTIP = 'Select — move and resize what is there (V)';
 export const TEXT_TOOLTIP = 'Text — click the board to write (T)';
 export const SHAPE_TOOLTIP = 'Shape — drag a rectangle, ellipse or diamond (S)';
 export const CONNECTOR_TOOLTIP = 'Connector — drag an arrow between two objects (L)';
+export const PEN_TOOLTIP = 'Pen — draw freehand on the board (P)';
 
 /** What the three kinds are called in the Shape menu, in the order they are offered. */
 export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
@@ -52,6 +53,13 @@ export interface ToolbarProps {
   onShapeTool?(): void;
   /** Choose the Connector tool, so the next drag on the board draws an arrow. */
   onConnectorTool?(): void;
+  /**
+   * Choose the Pen tool, so the next drag on the board draws a line.
+   *
+   * The pen is the one tool that stays armed when it has drawn something, so its button is the only way back
+   * to it once Escape has been pressed — which is why it is a button and not only a key.
+   */
+  onPenTool?(): void;
   /**
    * Which shape the Shape tool will draw.
    *
@@ -86,6 +94,7 @@ export function Toolbar({
   onTextTool,
   onShapeTool,
   onConnectorTool,
+  onPenTool,
   shapeKind = 'rect',
   onShapeKind,
   disabled = false,
@@ -204,6 +213,28 @@ export function Toolbar({
             ↝
           </span>
           <span className="toolbar__label">Connector</span>
+        </button>
+      ) : null}
+      {onPenTool ? (
+        <button
+          type="button"
+          className="toolbar__button"
+          data-testid="tool-pen"
+          aria-label="Pen (P)"
+          title={disabled ? 'Pen — unavailable until this board is loaded' : PEN_TOOLTIP}
+          aria-pressed={tool === 'pen'}
+          disabled={disabled}
+          aria-disabled={disabled}
+          onClick={() => {
+            if (disabled) return;
+            onPenTool();
+          }}
+        >
+          {/* A nib and a line: the only drawing that says "freehand" without words. */}
+          <span className="toolbar__glyph toolbar__glyph--pen" aria-hidden="true">
+            ✎
+          </span>
+          <span className="toolbar__label">Pen</span>
         </button>
       ) : null}
       <button

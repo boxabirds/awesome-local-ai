@@ -9,6 +9,8 @@ import { isShapeSnapshot } from '../../shared/objects/shape';
 import type { ShapeSnap } from '../../shared/objects/shape';
 import { connectorSnapshots } from '../../shared/objects/connector';
 import type { ConnectorSnap } from '../../shared/objects/connector';
+import { strokeSnapshots } from '../../shared/objects/stroke';
+import type { StrokeSnap } from '../../shared/objects/stroke';
 import type { Camera } from './camera';
 
 /**
@@ -65,6 +67,14 @@ export interface Vidi6TestHooks {
    */
   getConnectors(): readonly ConnectorSnap[];
   /**
+   * The drawings of the mounted board, in stacking order, with the points as the document holds them.
+   *
+   * The same reason as the four above, and a sharper one: a drawing is up to five thousand numbers in a Y.Map,
+   * and no amount of looking at pixels will tell a test whether the points were stored relative to the box, at
+   * what base size, or how many survived the smoothing. An e2e test about "the pen drew a line" reads this.
+   */
+  getStrokes(): readonly StrokeSnap[];
+  /**
    * What the board's own connection reports right now, kept up to date as it
    * changes. A test that needs to know whether the board thinks it is live reads
    * this instead of guessing from the badge.
@@ -106,6 +116,7 @@ export function installTestHooks(
     | 'getTexts'
     | 'getShapes'
     | 'getConnectors'
+    | 'getStrokes'
     | 'connectionState'
     | 'dropConnection'
   >,
@@ -117,6 +128,7 @@ export function installTestHooks(
     getTexts: (): readonly TextSnapshot[] => (boardDoc ? textSnapshots(boardDoc) : []),
     getShapes: (): readonly ShapeSnap[] => (boardDoc ? snapshot(boardDoc).filter(isShapeSnapshot) : []),
     getConnectors: (): readonly ConnectorSnap[] => (boardDoc ? connectorSnapshots(boardDoc) : []),
+    getStrokes: (): readonly StrokeSnap[] => (boardDoc ? strokeSnapshots(boardDoc) : []),
     dropConnection: (): boolean => {
       if (dropBoardConnection === undefined) return false;
       dropBoardConnection();

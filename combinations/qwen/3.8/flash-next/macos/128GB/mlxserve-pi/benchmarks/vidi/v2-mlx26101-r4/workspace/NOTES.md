@@ -1062,3 +1062,66 @@ screens without having been written" is a claim about two pages' documents being
   the aim rather than the middle of the triangle sitting on it; `shapeWords` measures words rather than labels;
   and `arrowHeadSide` answers which side of a shape a head is painted on using the shape's own proportions, so
   the assertion is about the side and not about a pixel threshold somebody chose to make the test pass.
+
+## Story 11: the preview is the story, and the document never hears about it
+
+A pen is the first tool in this app whose whole subject is *in flight*: everything a person sees while the pen
+travels belongs to that page and to nobody else, and the shared document is told about the line only when the
+pointer lets go. That single boundary decides most of the shape of the code. The preview is computed at render
+time from the points collected so far, coalesced to one re-render per animation frame; nothing in `PenTool` ever
+calls the model until the stroke is finished, so there is exactly one `doc.transact` per stroke and five people
+watching a circle get one object rather than four hundred. `splitPoints` exists for the same reason in the other
+direction: a tablet can deliver more than `STROKE_MAX_POINTS` points between two frames, so the check is a while
+loop and each part is committed as its own stroke, sharing the join point with the part before it.
+
+The undo boundary goes *after* each commit, which is the design's `stopCapturing()` and not a guess about
+ordering: a capture window that is still open when the next stroke arrives would fold two strokes into one undo
+step, and the thing a person wants back after pressing the wrong key is the last line, not the last two.
+
+## Story 11: a line is not a rectangle, and the pointer has to be told that twice
+
+The hit tolerance is `STROKE_HIT_TOLERANCE_PX` screen pixels divided by zoom, in board units, because a person
+aims with a mouse and not at a scale factor — the same shape of answer story 10's arrows gave. What is new is
+that the DOM has to agree with the model about it, and the honest way to make it agree is to derive both from
+the same number: `StrokeObject` paints a second, transparent, fat copy of the path with `pointer-events: stroke`
+under the visible one, and the wrapper carries `pointer-events: none`. A click inside a drawing's box but away
+from its line therefore falls through to the note underneath (TC-16), and a click on the line selects the
+drawing, because the registry's `strokeHit` and the strip that answers the pointer are both computed from
+`max(nib / 2, tolerance / scale)`.
+
+Resize scales the points and not the nib: `scaledPoints` multiplies by the box, `strokePenWidth` always answers
+the pen's own thickness, and `stroke-width` is painted in user units. The design says this three times, in three
+different voices, which is what a signature that got thicker every time somebody nudged a handle would feel
+like.
+
+## Story 11: the handle that ate the second stroke of a signature
+
+The one thing the browser taught and jsdom did not. Story 7's `SelectionOverlay` paints its resize handles *over*
+the board, after the viewport in the DOM — so with the pen armed, a press where a handle sits went to the handle
+and not to the pen. It showed up as a drawing whose box had been clamped to `STROKE_MIN_SIZE_WORLD` and whose
+points were left behind: the second stroke of a signature begins where the first one ended, which is precisely
+where the first one's box has a corner handle. The fix is not a z-index in the pen; it is the tool hook saying,
+once, which tools hold the pointer for themselves (`isDrawingTool`), with the viewport routing presses by it and
+the overlay standing its handles down while one of them is up — the same reasoning the overlay already uses when
+somebody else's note is under a handle. The Shape tool and the Connector tool had the same hole, and have the
+same fix. `TC-19: a press where a resize handle is drawn is still a stroke` is the test for it, and the second
+TC-17 case in `tests/e2e/pen.spec.ts` draws a three-stroke letter precisely to walk into it.
+
+## Story 11: numbers
+
+- **328 unit** (20 new: stroke model and geometry), **282 component** (24 new: 14 pen tool, 10 stroke object and
+  registry), **66 integration** (untouched), **172 e2e passing in Chromium and WebKit** (14 of them this story's:
+  two TC-17s, TC-18, TC-19 and three TC-20s, in each of the two browsers that start).
+- Latency, reported against `LIVE_UPDATE_LATENCY_BUDGET_MS` (1000 ms) and not asserted on: a finished line
+  agreed between two screens in **11 ms**; the same drawing resized, moved and deleted, **1–2 ms** per change.
+  Nothing this story measured went over budget — an in-flight stroke is not shared at all, which is the cheapest
+  possible latency, and the negative half of TC-18 is the assertion that keeps it that way.
+- `npm run typecheck` and `npm run build:test` are clean, and `npm test` is green. Firefox still does not start on
+  this machine (it aborts on launch, and story 8, 9 and 10 specs fail the same way with this story stashed away),
+  so WebKit carries the second browser, as in the stories before this one.
+- `retrace()` in `tests/e2e/helpers/pen.ts` thins a recorded path to about ninety points before it is replayed
+  through the mouse, because every `mouse.move` is a round trip to the browser and four hundred of them makes a
+  slow test rather than a thorough one. It keeps the shape — every point it drops is within a few pixels of the
+  line that survives, which is the promise the smoothing makes to the document anyway — and the recorded wobble
+  in `tests/fixtures/pen-paths.ts` stays what it is, because a drag along a perfect straight line would pass with
+  a pen that threw away every point but the ends.

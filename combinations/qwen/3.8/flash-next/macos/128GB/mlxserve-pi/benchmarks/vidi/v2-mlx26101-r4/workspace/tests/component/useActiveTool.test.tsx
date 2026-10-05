@@ -178,9 +178,11 @@ describe('arming a tool (TC-22)', () => {
     expect(fireEvent.keyDown(window, { key: 't', ctrlKey: true })).toBe(true);
     // Tab is how a person without a mouse gets around the board and the toolbar.
     expect(fireEvent.keyDown(window, { key: 'Tab' })).toBe(true);
-    // A letter in the design's map that this build does not have: the pen is a tool in a story not told yet,
-    // and its letter does nothing at all rather than arming a cursor that draws nothing.
-    expect(fireEvent.keyDown(window, { key: 'p' })).toBe(true);
+    // Two letters in the design's map that this build does not have: the image and comment tools are stories
+    // not told yet, and their letters do nothing at all rather than arming a cursor that draws nothing. (`p`
+    // used to be one of them, and is the pen's now — which is what the pen's own tests are about.)
+    expect(fireEvent.keyDown(window, { key: 'i' })).toBe(true);
+    expect(fireEvent.keyDown(window, { key: 'c' })).toBe(true);
     // The keystroke a screen reader uses to interrupt.
     expect(fireEvent.keyDown(window, { key: 'Delete' })).toBe(true);
 

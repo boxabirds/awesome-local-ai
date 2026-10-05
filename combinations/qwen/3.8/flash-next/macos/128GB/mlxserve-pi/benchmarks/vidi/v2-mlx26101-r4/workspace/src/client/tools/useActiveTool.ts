@@ -62,11 +62,13 @@ export const TOOL_SHORTCUTS: Readonly<Record<string, ToolId>> = Object.freeze({
  * The tools this build can actually put the pointer in.
  *
  * `sticky` is in the shortcut map but not here, because making a note is an action the board already answers
- * on `N` and a mode that waits for a click would make two gestures for one object. `pen`, `image` and
+ * on `N` and a mode that waits for a click would make two gestures for one object. `image` and
  * `comment` are stories not told yet: their letters are left alone, so they do nothing rather than arming a
- * cursor that draws nothing.
+ * cursor that draws nothing. `pen` is here from story 11, and it is the one tool on the board that stays armed
+ * after it has made something — a person who draws one line is drawing more than one, and a tool that stepped
+ * aside after the first would have to be found again for every line of an annotation.
  */
-export const ARMABLE_TOOLS: readonly ToolId[] = Object.freeze(['select', 'text', 'shape', 'connector']);
+export const ARMABLE_TOOLS: readonly ToolId[] = Object.freeze(['select', 'text', 'shape', 'connector', 'pen']);
 
 /** What a tool needs from the board around it. Both are optional, so a toolbar can be drawn on its own. */
 export interface ActiveToolOptions {
@@ -96,6 +98,23 @@ export interface ActiveToolState {
    * Select, the other is a tool having finished its job — and because it carries the selection with it.
    */
   toolCreated(id: string): void;
+}
+
+/**
+ * The tools that draw something on the board, and so hold the pointer for themselves while one is up: a press
+ * anywhere on the board — its background, another person's note, the handles drawn over everything — belongs to
+ * the tool and to nothing else.
+ *
+ * This is a fact about tools rather than about any one of them, which is why it is here next to the tool and not
+ * inside the viewport that happens to route the press: the Shape tool, the Connector tool and the Pen all stand
+ * in the same relationship to the board underneath them, and the board has to give the same answer to all three.
+ */
+const DRAWING_TOOLS = ['shape', 'connector', 'pen'] as const;
+
+export type DrawingTool = (typeof DRAWING_TOOLS)[number];
+
+export function isDrawingTool(tool: string): boolean {
+  return (DRAWING_TOOLS as readonly string[]).includes(tool);
 }
 
 /**

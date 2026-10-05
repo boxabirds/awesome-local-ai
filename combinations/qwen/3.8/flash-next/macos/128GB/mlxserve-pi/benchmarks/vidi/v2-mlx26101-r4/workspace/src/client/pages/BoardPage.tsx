@@ -47,9 +47,12 @@ import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { useSelection } from '../board/useSelection';
-import { useActiveTool } from '../tools/useActiveTool';
+import { useActiveTool, isDrawingTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -412,6 +415,14 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
   const rects = useMemo(() => attachableRects(notes), [notes]);
 
   /**
+   * The pen's ink and nib, for as long as this page is open.
+   *
+   * Session state and nothing more: it is not written to the document (a stroke keeps the names it was drawn
+   * with forever) and not shared (what somebody else's pen is filled with is nobody's business here).
+   */
+  const pen = usePenOptions();
+
+  /**
    * The sheet the armed tool draws on, or nothing.
    *
    * Only one tool at a time has a sheet, and the two that have one are not rendered at all otherwise: a tool
@@ -423,6 +434,19 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
       <ShapeTool doc={doc} kind={shapeKind} camera={camera} onCreated={toolCreated} />
     ) : tool === 'connector' ? (
       <ConnectorTool doc={doc} objects={notes} camera={camera} onCreated={toolCreated} />
+    ) : tool === 'pen' ? (
+      // The pen is the one tool that does not use `toolCreated`. A stroke is selected, as every new object is
+      // — the thing just drawn is the thing being worked on — but the tool itself stays where it was, because
+      // an annotation is never one line and a pen that stepped aside after the first would have to be picked
+      // up again for every one after it. `selection.click` on its own is the whole of the difference.
+      <PenTool
+        doc={doc}
+        camera={camera}
+        color={pen.color}
+        thickness={pen.thickness}
+        undo={undo}
+        onCreated={selection.click}
+      />
     ) : null;
 
   /** The drag: what a press on an object, or on a handle, does to the board. */
@@ -467,11 +491,26 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
         onConnectorTool={() => {
           setTool('connector');
         }}
+        onPenTool={() => {
+          setTool('pen');
+        }}
         shapeKind={shapeKind}
         onShapeKind={setShapeKind}
         disabled={!editable}
         undo={undoButtons}
       />
+      {/* The pen's own options, beside the pen. Shown with the tool and hidden without it, which is the rule
+          every per-tool control on this board follows: a choice about what to draw next is not a choice about
+          anything at all while another tool is holding the pointer. */}
+      {tool === 'pen' ? (
+        <PenToolbar
+          color={pen.color}
+          thickness={pen.thickness}
+          onColor={pen.setColor}
+          onThickness={pen.setThickness}
+          disabled={!editable}
+        />
+      ) : null}
       <BoardViewport
         onCreateAt={createStickyAt}
         onClearSelection={selection.clear}
@@ -518,6 +557,10 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
         snapshot={notes}
         camera={camera}
         onHandlePointerDown={gesture.onHandlePointerDown}
+        // A drawing tool takes every press the board gets, and the handles are painted over the board: while a
+        // pen is in the hand, the handle that sits where the next stroke starts would resize the last stroke
+        // instead of drawing a new one.
+        interactive={!isDrawingTool(tool)}
       />
       <MarqueeRect rect={marquee.rect} camera={camera} />
       <SelectionBar ids={selection.ids} snapshot={notes} camera={camera} onDelete={deleteSelection} />

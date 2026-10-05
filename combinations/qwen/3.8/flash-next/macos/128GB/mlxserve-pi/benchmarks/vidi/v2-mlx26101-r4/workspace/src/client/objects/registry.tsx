@@ -24,6 +24,7 @@ import {
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   STICKY_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import type { Handle, Rect } from '../../shared/geometry';
@@ -31,10 +32,12 @@ import { rectContains, type Point } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { endPosition, resolveEndpoints } from '../../shared/geometry/connector-geometry';
 import { isConnectorSnapshot } from '../../shared/objects/connector';
+import { isStrokeSnapshot, strokeHit } from '../../shared/objects/stroke';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { StickyNote } from './StickyNote';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
 import { TextObject } from './TextObject';
 import { resizeTextBox } from './textLayout';
 import type { ObjectProps } from './objectProps';
@@ -318,3 +321,45 @@ function endsOf(obj: ObjectSnapshot, rects?: ReadonlyMap<string, Rect>): { from:
   // used to be. That is a worse answer than the one above, and a better one than "there is no arrow".
   return { from: endPosition(obj.from), to: endPosition(obj.to) };
 }
+
+/* ------------------------------------------------------------------- stroke -- */
+
+/**
+ * Whether a point is on a drawing — the same question an arrow's raises, and the same answer.
+ *
+ * A drawing's box is the rectangle around its line with half a nib of paint added around it, and for a
+ * signature drawn flat that box is a wide strip of nothing. Asking whether a point is inside it would be asking
+ * whether the point is anywhere near the drawing, which every click near it would answer yes to and half the
+ * board would therefore be unreachable: a drawing is drawn *over* things, so a box hit test would put an
+ * invisible wall over every note it crossed. So the point is measured against the line, by `strokeHit`, which
+ * is the same distance story 10 gave an arrow — `max(half the nib, six screen pixels)`, the six divided by the
+ * zoom because they are a fact about a pointer on a screen and the board is measured in board units. Half the
+ * nib is the floor rather than the line's own width, because a stroke paints half its width on either side of
+ * its points and a click that lands on the paint would otherwise select nothing.
+ *
+ * An object that is not a readable drawing is not hit, which is what an unreadable record means everywhere else
+ * in the board: it is left in the document for a build that can read it, and it is not clickable in this one.
+ */
+function strokeHitTest(obj: ObjectSnapshot, worldPoint: Point, context?: HitTestContext): boolean {
+  if (!isStrokeSnapshot(obj)) return false;
+  return strokeHit(obj, worldPoint, context?.scale ?? 1);
+}
+
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  // A drawing is a box somebody drew in, and story 7's handles can pull it: what changes is the box, and
+  // `scaledPoints` scales the drawing inside it. Nothing has to be rewritten point by point, which is the only
+  // reason a resize of a five thousand point signature is one write rather than five thousand.
+  resizable: true,
+  // Proportional, the way a note is. A drawing is a picture *of* something — a face, a map, a diagram — and
+  // pulling the width without the height turns it into a picture of a longer, thinner thing, which is not what
+  // anybody means when they drag a corner. (`scaledPoints` scales each axis by its own box, so a drag of a side
+  // handle would still stretch; what this decides is the handles offered, and the corners are the ones that
+  // mean "bigger", which is what `pen.resize` is about.)
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  // A drawing has no words in it. Double-clicking one to type into it would be a shape's label wearing a
+  // polyline's clothes, and there is nothing here to type into.
+  editableText: false,
+  hitTest: strokeHitTest,
+});

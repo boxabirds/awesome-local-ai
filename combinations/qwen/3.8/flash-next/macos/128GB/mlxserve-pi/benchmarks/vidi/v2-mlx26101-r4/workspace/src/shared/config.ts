@@ -456,3 +456,102 @@ export const CONNECTOR_HANDLE_RADIUS_PX = 5;
 /** The colour an arrow is drawn in: the same ink as a shape's default outline. Arrows have no colour of
  * their own in this story. */
 export const CONNECTOR_COLOR: string = SHAPE_STROKE_COLORS.dark;
+
+/* ------------------------------------------------- freehand sketching (story 11) -- */
+
+/**
+ * The six inks a pen can be filled with, keyed by the name stored in the document.
+ *
+ * Keyed by name and not used as values, because what a stroke stores is the *name* (`"purple"`) and the hex
+ * is looked up here on every draw: a board written by a story that lightened the purple still shows the
+ * purples of the day, and rewriting nothing is what keeps five people's documents from disagreeing. Note that
+ * these are not the six colours of a sticky note — different names, different hexes, different purpose: a
+ * note's colour is the colour of a square of paper, and a pen's is the colour of a line on it.
+ */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+/** One of the six pen colours, as stored. */
+export type PenColor = keyof typeof PEN_COLORS;
+
+/** The colour a stroke is drawn in when the name it stores is not one of the six. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+
+/**
+ * How thick a pen is, in world units, by the name the toolbar offers.
+ *
+ * World units, so a stroke keeps its thickness relative to the board when the board is zoomed — a thin line
+ * drawn at 100% is a thin line at 400%, which is what a *drawing* is. Note that a resize does not scale the
+ * thickness of a stroke's line either: the drawing grows and the nib does not, and `pen.resize` says so.
+ */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+/** One of the three pen widths, as stored. */
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** The three widths, in the order the toolbar shows them: thinnest first. */
+export const PEN_THICKNESS_ORDER: readonly PenThickness[] = Object.freeze(['thin', 'medium', 'thick']);
+
+/** The width of a stroke drawn by a pen nobody chose: the middle one, which is what the toolbar shows pressed. */
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/**
+ * How far a point that was drawn may sit from the points that get stored, in **screen** pixels at the zoom
+ * level the stroke was drawn at (`pen.smooth`).
+ *
+ * One, because that is the smallest thing a screen can fail to show: a stroke thinned at this tolerance is
+ * the same picture as the one that was drawn, and holds a fraction of the points. Pixels rather than board
+ * units because the accuracy of a pointer does not improve when the board is zoomed in — the tolerance is
+ * divided by the zoom before it is handed to the simplifier, which is what makes a stroke drawn at 400%
+ * four times as faithful to the hand as one drawn at 100%.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * How many points the board will store for one stroke.
+ *
+ * Five thousand, which is a minute or two of continuous drawing at a tablet's sampling rate: past that a
+ * gesture is not a stroke but a scribble, and a document full of scribbles is a document everybody else has
+ * to download. When a stroke being drawn reaches the limit it is committed as it stands and the pen carries
+ * on with a new stroke starting at the same point, so the limit is a limit on a record and never on a drawing
+ * (pen.long_stroke).
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/**
+ * How far from a stroke's line a click still counts as being on it, in **screen** pixels (`pen.select`).
+ *
+ * Six, and screen pixels, for the reason story 10 gives for the same choice: the thing being compensated for
+ * is how accurate a pointer is on a screen, which does not change with the zoom. Divided by the zoom when
+ * compared with a board point, so a stroke is as easy to click at ten per cent as at four hundred. It is
+ * used as a *minimum* too — a click within half a thick stroke's own width is on the stroke — because a
+ * stroke paints half its width on either side of its points, and a click that lands on paint and misses the
+ * line would select nothing.
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/**
+ * The smallest box a stroke may be resized to, in world units.
+ *
+ * Four, which is about the size of the dot a tap leaves: a stroke has been drawn by a hand and is the size it
+ * is, so the floor is only there to stop a drag that started on a handle and ended on the other side of the
+ * board turning a signature into something with no area at all — which could not be selected, resized or
+ * seen.
+ */
+export const STROKE_MIN_SIZE_WORLD = 4;
+
+/** Whether a name is one of the six pen colours. Nothing else is ever stored as a stroke's colour. */
+export function isPenColor(value: unknown): value is PenColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_COLORS, value);
+}
+
+/** Whether a name is one of the three pen widths. */
+export function isPenThickness(value: unknown): value is PenThickness {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_THICKNESS_WORLD, value);
+}
