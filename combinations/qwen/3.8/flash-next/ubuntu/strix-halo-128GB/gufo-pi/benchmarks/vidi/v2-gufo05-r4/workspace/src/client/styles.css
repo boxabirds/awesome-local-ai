@@ -617,3 +617,114 @@ body {
   line-height: 1.4;
   color: var(--status-amber-ink);
 }
+
+/* ---------------------------------------------------------------------------
+   Story 7: selecting, moving, resizing and deleting several objects at once.
+   The selection lives in screen space above the board, so none of it scales
+   with the camera: a handle that did would be two pixels across when zoomed
+   out. The sizes that have to match the gesture code come from
+   `src/shared/config.ts` as inline styles; what is here is appearance.
+   --------------------------------------------------------------------------- */
+
+/* Text for a screen reader only: "6 selected" has no visual equivalent. */
+.vidi6-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The box around the whole selection. It must not eat the pointer: only the
+   handles on it are grabbable. */
+.vidi6-selection-overlay {
+  position: absolute;
+  border: var(--note-selection-width) solid var(--note-selection);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 12;
+}
+
+.vidi6-resize-handle {
+  position: absolute;
+  padding: 0;
+  background: #ffffff;
+  border: var(--note-selection-width) solid var(--note-selection);
+  border-radius: 1px;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.vidi6-resize-handle:hover {
+  background: var(--note-selection);
+}
+
+.vidi6-resize-handle:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* "N selected" and the bin, centred above the box and lifted clear of it. */
+.vidi6-selection-bar {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  box-shadow: var(--panel-shadow);
+  transform: translate(-50%, calc(-100% - 12px));
+  z-index: 12;
+}
+
+.vidi6-selection-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.vidi6-selection-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--status-red-ink);
+  cursor: pointer;
+}
+
+.vidi6-selection-delete:hover:not(:disabled) {
+  background: var(--status-red-background);
+  border-color: var(--status-red-border);
+}
+
+.vidi6-selection-delete:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.vidi6-selection-delete:disabled {
+  color: var(--ink-muted);
+  cursor: default;
+}
+
+/* The Shift+drag box: light blue, translucent, and never in the way. */
+.vidi6-marquee {
+  position: absolute;
+  background: rgba(47, 111, 235, 0.12);
+  border: 1px solid var(--note-selection);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 11;
+}

@@ -7,7 +7,13 @@
 
 import { expect, request as playwrightRequest, type Locator, type Page } from '@playwright/test';
 import { BASE_URL } from '../../../playwright.config';
-import type { Camera, Point, Size } from '../../../src/client/canvas/camera';
+import {
+  screenToWorld,
+  worldToScreen,
+  type Camera,
+  type Point,
+  type Size
+} from '../../../src/client/canvas/camera';
 import type { StickySnapshot } from '../../../src/shared/board-model';
 import { UNBOUNDED_PAN_TESTED_EXTENT, ZOOM_MAX } from '../../../src/shared/config';
 
@@ -281,4 +287,142 @@ export async function cssPixels(
 /** The character counter of the note being edited, or null. */
 export function counter(page: Page): Locator {
   return page.locator('[data-testid="sticky-counter"]');
+}
+
+/* ------------------------------------------------------------------ story 7 */
+
+/**
+ * Story 7 helpers: the selection, its box, its handles and its bar.
+ *
+ * These speak `[data-object-id]` rather than `[data-note-id]` on purpose. A selection is
+ * not a sticky-note thing — story 9 will put its own type in one — so the e2e layer is kept
+ * as type-blind as the code it drives.
+ */
+
+/** Every object on screen, whatever type it is, bottom to top. */
+export function objects(page: Page): Locator {
+  return page.locator('[data-object-id]');
+}
+
+/** The objects the board says are selected. */
+export function selectedObjects(page: Page): Locator {
+  return page.locator('[data-object-id][data-selected="true"]');
+}
+
+/** How many objects are selected, as the screen shows it. */
+export async function selectedCount(page: Page): Promise<number> {
+  return selectedObjects(page).count();
+}
+
+/** The bar that appears above a selection of two or more. */
+export function selectionBar(page: Page): Locator {
+  return page.locator('[data-vidi6="selection-bar"]');
+}
+
+/** What the bar says how many are selected. */
+export function selectionCountLabel(page: Page): Locator {
+  return page.locator('[data-testid="selection-count"]');
+}
+
+/** The polite live region that announces the count. */
+export function selectionLive(page: Page): Locator {
+  return page.locator('[data-testid="selection-live"]');
+}
+
+/** The bar's bin. */
+export function selectionDeleteButton(page: Page): Locator {
+  return page.locator('[data-vidi6="selection-delete"]');
+}
+
+/** One resize handle of the selection's box, by placement (`se`, `e`, …). */
+export function resizeHandle(page: Page, placement: string): Locator {
+  return page.locator(`[data-vidi6="resize-handle"][data-handle="${placement}"]`);
+}
+
+/** The box being dragged out with Shift, or nothing when there is none. */
+export function marqueeBox(page: Page): Locator {
+  return page.locator('[data-vidi6="marquee"]');
+}
+
+/** The world point a screen point stands for, on the page as it is now. */
+export async function worldOf(page: Page, screen: Point): Promise<Point> {
+  return screenToWorld(await getCamera(page), screen);
+}
+
+/** The screen point a world point is drawn at, on the page as it is now. */
+export async function screenOf(page: Page, world: Point): Promise<Point> {
+  return worldToScreen(await getCamera(page), world);
+}
+
+/** The middle of one object, in screen pixels, as drawn. */
+export async function objectCentreOnScreen(page: Page, objectId: string): Promise<Point> {
+  const box = await page.locator(`[data-object-id="${objectId}"]`).boundingBox();
+  if (!box) throw new Error(`object ${objectId} is not on screen`);
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/** Press, move in steps and release with a key held down the whole time. */
+export async function dragWithKey(
+  page: Page,
+  from: Point,
+  to: Point,
+  key: 'Shift' | 'Control' | 'Meta' = 'Shift',
+  steps = 10
+): Promise<void> {
+  await page.keyboard.down(key);
+  try {
+    await dragByMouse(page, from, to, steps);
+  } finally {
+    await page.keyboard.up(key);
+  }
+}
+
+/** Drag a resize handle of the current selection by a screen delta. */
+export async function dragResizeHandleBy(
+  page: Page,
+  placement: string,
+  deltaX: number,
+  deltaY: number
+): Promise<void> {
+  const handle = resizeHandle(page, placement);
+  await expect(handle).toBeVisible();
+  const box = await handle.boundingBox();
+  if (!box) throw new Error(`the ${placement} resize handle has no box to grab`);
+  const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await dragByMouse(page, from, { x: from.x + deltaX, y: from.y + deltaY });
+}
+
+/** Select everything on the board the way the keyboard does. */
+export async function selectAllWithKeyboard(page: Page): Promise<void> {
+  await page.keyboard.press('Control+a');
+}
+
+/** Click one object, optionally adding it to the selection instead of replacing. */
+export async function clickObject(page: Page, objectId: string, additive = false): Promise<void> {
+  const centre = await objectCentreOnScreen(page, objectId);
+  if (additive) await page.keyboard.down('Shift');
+  try {
+    await page.mouse.click(centre.x, centre.y);
+  } finally {
+    if (additive) await page.keyboard.up('Shift');
+  }
+}
+
+/** The whole board as one comparable string: id, place, size and layer, bottom to top. */
+export async function boardShape(page: Page): Promise<string> {
+  const stored = await getBoard(page);
+  return JSON.stringify(
+    stored.map((note) => [
+      note.id,
+      round6(note.x),
+      round6(note.y),
+      round6(note.width ?? 0),
+      round6(note.height ?? 0),
+      note.z
+    ])
+  );
+}
+
+function round6(value: number): number {
+  return Math.round(value * 1e6) / 1e6;
 }

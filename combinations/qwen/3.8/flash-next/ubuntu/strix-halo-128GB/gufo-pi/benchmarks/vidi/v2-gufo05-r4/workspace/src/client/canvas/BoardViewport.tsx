@@ -50,6 +50,18 @@ export interface BoardViewportProps {
   /** A press on empty board space that never turned into a pan. */
   onEmptyClick?(): void;
   /**
+   * Shift held on a press on empty board space: draw a selection box instead of panning
+   * (story 7, `sel.marquee`). The point is in viewport coordinates.
+   */
+  onMarqueeStart?(screen: Point): void;
+  /** The pointer travelling with the box open. */
+  onMarqueeMove?(screen: Point): void;
+  /**
+   * The box is over. `screen` is where the pointer was released, or null when the pointer
+   * was taken away (cancel) — in which case whatever the box covered stays as it was.
+   */
+  onMarqueeEnd?(screen: Point | null): void;
+  /**
    * False while the board cannot be written to (story 4): a double-click on empty
    * space does nothing at all, rather than making a note that cannot be saved.
    */
@@ -96,6 +108,8 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
   const [panning, setPanning] = useState(false);
   // Where a press on empty space began, so a click can be told from a pan.
   const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  // This press is drawing a selection box rather than panning (`sel.marquee`).
+  const marqueeRef = useRef(false);
 
   // Keep the latest controller reachable from listeners that are attached once.
   const controllerRef = useRef<CameraController>(controller);
@@ -123,17 +137,28 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
         viewport.setPointerCapture(event.pointerId);
       }
       const point = localPoint(event.clientX, event.clientY);
+      if (event.shiftKey && props.onMarqueeStart) {
+        // Shift is the box key: the camera does not move, the rectangle does.
+        pressRef.current = null;
+        marqueeRef.current = true;
+        props.onMarqueeStart(point);
+        return;
+      }
       pressRef.current = { x: point.x, y: point.y, moved: false };
       beginPan(point);
       setPanning(true);
     },
-    [beginPan, isEmptyBoardSpace, localPoint]
+    [beginPan, isEmptyBoardSpace, localPoint, props]
   );
 
   const handlePointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!panning) return;
       const point = localPoint(event.clientX, event.clientY);
+      if (marqueeRef.current) {
+        props.onMarqueeMove?.(point);
+        return;
+      }
+      if (!panning) return;
       const press = pressRef.current;
       // Past the drag threshold this press is a pan, not a click.
       if (press && !press.moved && Math.hypot(point.x - press.x, point.y - press.y) >= DRAG_THRESHOLD_PX) {
@@ -141,11 +166,18 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
       }
       panMove(point);
     },
-    [localPoint, panMove, panning]
+    [localPoint, panMove, panning, props]
   );
 
   const stopPan = useCallback(
     (event?: ReactPointerEvent<HTMLDivElement>) => {
+      if (marqueeRef.current) {
+        // The box is handed back where it was released; a cancelled pointer is null, and a
+        // cancelled marquee selects nothing and changes nothing.
+        marqueeRef.current = false;
+        props.onMarqueeEnd?.(event && event.type === 'pointerup' ? localPoint(event.clientX, event.clientY) : null);
+        return;
+      }
       // A press on empty board space that never moved is a click: it clears the
       // selection. A pan, and a cancelled drag, leave it alone.
       const press = pressRef.current;
@@ -155,7 +187,7 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
       setPanning(false);
       if (wasClick) props.onEmptyClick?.();
     },
-    [endPan, props]
+    [endPan, localPoint, props]
   );
 
   /**

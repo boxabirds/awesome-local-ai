@@ -192,14 +192,15 @@ export function fireGesture(
 
 export function fireKey(
   key: string,
-  options: { ctrlKey?: boolean; metaKey?: boolean; target?: EventTarget } = {}
+  options: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean; target?: EventTarget } = {}
 ): Event {
   const event = new KeyboardEvent('keydown', {
     key,
     bubbles: true,
     cancelable: true,
     ctrlKey: options.ctrlKey ?? false,
-    metaKey: options.metaKey ?? false
+    metaKey: options.metaKey ?? false,
+    shiftKey: options.shiftKey ?? false
   });
   interact(() => {
     (options.target ?? window).dispatchEvent(event);

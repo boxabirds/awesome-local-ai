@@ -982,3 +982,176 @@ while the badge says "Reconnecting…").
     which is what a denial looks like from inside a page. TC-27 and TC-29 are also meant to run in
     firefox and webkit; this host still cannot start them (no GTK), as recorded under "Blocked"
     above, and the run prints that it skips them.
+
+---
+
+# Story 7 notes — decisions and deviations
+
+Everything the story asks for is implemented and covered: the geometry and the group rules as unit
+tests, the registry and the selection rules as unit tests, the selection, marquee, keyboard and
+gesture behaviour as component tests, and TC-31 to TC-36 in a real browser. The differences from
+`design.md` are below, with the reason for each.
+
+## Decisions
+
+1. **One code path for one object and for a group.** A resize of a single note goes through the
+   same box maths as a resize of nine, because a selection of one has a bounding box too. That is
+   why the gesture never asks "is this a sticky note?", and why a note's own minimum size arrives as
+   data (`minSize` in its registry entry) rather than as a branch. The design's
+   `resizeRect(rect, handle, to, minSize, maxSize)` is therefore not what the app calls: the app
+   calls `resizeScale`, then `clampScale`, then `anchorScaleRect`, then `scaleWithin`, once per
+   frame. `resizeRect` exists and is unit-tested as the single-object convenience the design named,
+   but keeping it out of the render path is what makes `sel.resize_group` true by construction
+   rather than by two implementations agreeing.
+
+2. **`resizeScale(box, handle, to)` is added** to `geometry.ts`, beside the four functions the
+   design lists. It is the corner-and-edge arithmetic — pointer delta in, scale factors out, aspect
+   lock applied — that both `resizeRect` and the group path need. Without it the two would
+   re-implement "which corner is fixed, and how far did the moving one go" separately, which is
+   exactly where a rounding difference between a note and a group would appear.
+
+3. **The group mutators write absolute targets, not deltas.** The design sketches
+   `moveObjects(objects, dx, dy)` and `resizeObjects(objects, box, scale, anchor, minSizeOf)`; what
+   is implemented is `moveObjects(doc, positions: Map<id, Point>)` and
+   `resizeObjects(doc, rects: Map<id, Rect>)`, each returning how many objects it wrote. The gesture
+   holds the positions from the moment the press began and writes "where each object started, plus
+   this frame's offset", so any number of frames of the same drag are idempotent, a frame that
+   arrives after somebody else moved one of the selected objects writes the same place as the frame
+   before it, and no half-applied delta can leak into another person's note. Clamping — per-type
+   minimum, the shared `MAX_OBJECT_SIZE_WORLD`, the group's own ratio — is a question about the
+   *box*, so it is answered once per frame in `useTransformGesture`, where the registry lives, and
+   the model keeps the part that is a document's business: one transaction, ids that are gone
+   skipped, non-finite numbers refused outright. `minSizeOf` could not have been a parameter of a
+   shared mutator anyway without `src/shared` learning about client object specs.
+
+4. **Snapshots are the currency, `Y.Doc` is not.** `objectBounds`, `objectsInRect` and
+   `allObjectIds` take the snapshot list React is already rendering rather than a `Y.Doc`, because
+   the only places they are used are a render and a gesture, and both already hold that list.
+   Reading the document again per hit test would mean a second, possibly newer read of the same
+   frame — the thing story 4's `dc.consistent_snapshot` rule exists to prevent. The mutators keep
+   the `Y.Doc` parameter the design gives them, since writing needs one.
+
+5. **`boardObjects(doc)` is the generic read; `snapshot(doc)` stays the sticky-note read.** Stories
+   2 to 6's tests, and `window.__vidi6.getBoard()`, mean "notes" by `snapshot`; story 7's components
+   mean "everything" by `boardObjects`. `snapshot` is now `boardObjects` filtered to the sticky
+   type, so the two cannot disagree about a note's position, size or layer.
+
+6. **A sticky note's fields are read defensively.** `width` and `height` are optional on
+   `ObjectSnapshot`: a document written before this story holds notes of no stated size, and
+   `objectBounds` falls back to `STICKY_SIZE_WORLD` for those. Such a note is moved, selected,
+   grouped and deleted like any other, and the first time it is resized it gains real `width` and
+   `height`. Colour keeps its existing fallback.
+
+7. **`useTransformGesture` rather than `useGroupTransform`.** The same hook as designed
+   (`{onObjectPointerDown, onHandlePointerDown, transforming}`), named for what it does to one
+   object as well as to many, and handed the `SelectionControls` rather than a bare id set so that
+   "press an unselected thing and drag it alone" (`sel.drag_unselected`) is done in one place
+   instead of being mirrored by every caller.
+
+8. **`onGestureStart` / `onGestureEnd` are strictly paired.** The design does not mention them;
+   story 8 needs them to wrap one gesture in one undo item, and the interesting part is what the
+   pairing turned out to require. A press on a board nobody can edit moves nothing, and an early
+   version of the hook announced an *end* for it without ever announcing a *start*, because the
+   threshold check and the writable check lived in different places. Each run now carries a
+   `started` flag, so: a press that never passes the threshold announces nothing, a read-only press
+   announces nothing, and anything that announces a start announces exactly one end — on
+   `pointerup`, on `pointercancel`, and on the board going away mid-drag, because an undo item left
+   open forever is worse than one closed at the last place it got to.
+
+9. **The box and its handles are drawn in screen space.** `HANDLE_SIZE_PX` is screen pixels, not
+   world units, so a handle stays grabbable at 10 % zoom and does not become a billboard at 400 %.
+   The overlay takes the selection's union box, projects it with the camera and places eight
+   buttons; only the buttons take pointers.
+
+10. **Aspect lock is an OR.** Locked when the selection contains a type that declares
+    `aspectLocked`, or when the hand holds Shift — the design's rule with its first half turned into
+    a property of the type. A future type with no proportions to keep can be selected alongside a
+    note and still be stretched; with Shift it is the person asking. Told apart in the component
+    suite through `tests/fixtures/testbox`.
+
+11. **The marquee is additive and needs Shift.** Both rules are forced by other stories: a plain
+    press-and-drag on empty board space is story 1's pan (`pan.drag`), so the box takes Shift, which
+    is also what `sel.marquee_drag` describes; and a box *adds* to what is already selected rather
+    than replacing it, so "box these three, then box those two" is five objects, which is what a
+    person working their way around a cluster expects.
+
+12. **An object type this build does not know is not drawn — so it is not selectable either.**
+    `allObjectIds` lists declared types only, which means Select all, the arrow nudge, the bar's bin
+    and the marquee leave an unknown object alone, and it is not part of a group's box (it cannot be
+    part of a box drawn around something invisible). The raw mutators deliberately still accept its
+    id: `deleteObjects` removes a mixed selection including the unknown ones, because "delete these"
+    must not quietly keep something a person can see on somebody else's screen. The consequence,
+    stated plainly: an object written by a later story is *safe* on an earlier build — it syncs, it
+    survives, it goes when the rest of the selection is deleted — but it is invisible and
+    untouchable until a build that knows its type opens the board.
+
+13. **A selection of one has no bar.** `SelectionBar` shows its count and bin from two objects up;
+    with one object selected the board shows that object's own toolbar (story 2's), and the count is
+    still announced through an `aria-live` region that is always in the tree. Otherwise clicking one
+    note produced two overlapping controls for the same note. The live region is what e2e TC-32
+    asserts against for its single object.
+
+14. **Keyboard rules, and where they may not fire.** Ctrl/Cmd+A selects all; Escape closes the text
+    box first and clears the selection only if there was no text box; the arrows nudge the whole
+    selection by `NUDGE_STEP_WORLD`, or `NUDGE_LARGE_STEP_WORLD` with Shift, in *world* units so the
+    step is the same distance on the board at every zoom; Delete and Backspace delete everything
+    selected; Enter opens the text box when exactly one object is selected *and* its type declares
+    editable text. None of them fire while the key's target is a text field — story 2's "typing
+    Backspace into a note must not delete the note", kept as a test of its own — nor while the board
+    cannot be written to. The keys live in `useBoardKeys` rather than in `BoardScreen`, so the whole
+    rule set reads as one file.
+
+15. **New configuration values.** The design says "new constants" without numbers, so:
+    `HANDLE_SIZE_PX = 8`, `STICKY_MIN_SIZE_WORLD = 50` (half a note's default size: small, but never
+    a dot), `MAX_OBJECT_SIZE_WORLD = 20000`, `NUDGE_STEP_WORLD = 1` and `NUDGE_LARGE_STEP_WORLD = 10`
+    (the design's "1 world unit", plus the Shift step). Everything, including the tests' expected
+    distances, reads them from `src/shared/config.ts`.
+
+## Bug worth recording: React "maximum update depth exceeded" under five editors
+
+The first full e2e run after the selection work failed TC-26 (five editors at capacity) with a
+console error the test collects: React error #185, thrown while handling a Yjs update. It reproduced
+occasionally, and only with five contexts on a loaded machine — the worst kind: not a bug in any of
+the story's rules, and not something the story's own tests would have caught. Two things were wrong,
+both about how often a document change woke React:
+
+- `useBoardDoc` subscribed to the store **twice**, once for the notes and once for the objects, so
+  every notification cost two render passes. It now subscribes once to a single cached
+  `BoardContent` value, built once per document transaction (`getContent()`), whose two halves are
+  `notes` and `objects`.
+- `useSelection` dispatched a `prune` on every document change. The reducer correctly returned the
+  identical state when nothing needed pruning, so it did not loop on its own — but it still cost a
+  pass, and the common case on a busy board is a selection of nothing. Nothing is dispatched at all
+  now until something is selected or being edited.
+
+Both changes are in the story's own grain — the selection is a projection of the board, and one
+change should mean one render. The full suite has run twice since with no recurrence.
+
+## Two other small hardenings found on the way
+
+- **A gesture no longer outlives its board.** The listeners are on `window`, so a drag that runs off
+  the canvas keeps working, but an unmount in the middle of one left them attached and writing into a
+  document nobody was rendering. The hook's cleanup stops the run and closes it (`onGestureEnd`
+  still fires, see 8). Covered by a component test that unmounts mid-drag and then moves the pointer
+  some more.
+- **`registerObjectTypes()` runs at module scope** in `src/client/objects/index.ts`: importing the
+  module is what makes a sticky note exist as a type. A test that renders the registry cannot forget
+  to register, and the product cannot render a board before its types are there.
+
+## Test notes
+
+- Unit: geometry (TC-01 to TC-04), group operations on the document (TC-05 to TC-10), registry
+  (TC-11, TC-12, duplicate registration, spec validation, the fallback minimum, unknown types kept
+  out of Select all), selection reducer (TC-13 to TC-15 plus the editing interactions).
+- Component: selection and its surfaces (TC-16 to TC-22, TC-27 to TC-31), resize and the gesture
+  (TC-23 to TC-26 plus the read-only board, the announcement pairing and the unmount).
+- E2E: `tests/e2e/object-selection.spec.ts`, TC-31 to TC-36. Notes are put on the board through the
+  sync wire (`seedBoard`) at world points taken from the open board's own camera, so a test says
+  "six notes in a block" instead of performing two hundred double-clicks, and where they land does
+  not depend on what the camera does on the way up. TC-36 compares the five boards as one string
+  each — id, x, y, width, height and z for every object — so "identical" means identical rather than
+  "the same number of notes".
+- `tests/fixtures/testbox.tsx` exists only for tests: a rectangle that can be resized, has no
+  proportions to keep and a minimum size of its own. It is how "generic" is told apart from "sticky
+  note" wherever a second type is needed.
+- Touch input is not covered, per the story's own out-of-scope note.

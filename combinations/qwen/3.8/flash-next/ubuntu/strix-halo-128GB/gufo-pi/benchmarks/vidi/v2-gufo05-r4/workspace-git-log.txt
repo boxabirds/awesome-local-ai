@@ -1,3 +1,47 @@
+commit 25da1a36d65b1d9d81ce8e2df1590b83652e0819
+agent  Mon Oct 5 20:30:40 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                | 173 ++++++++
+ PROGRESS.md                             |  51 ++-
+ src/client/board/BoardScreen.tsx        | 196 ++++++----
+ src/client/board/Marquee.tsx            | 125 ++++++
+ src/client/board/SelectionBar.tsx       | 113 ++++++
+ src/client/board/SelectionOverlay.tsx   | 109 ++++++
+ src/client/board/useBoardDoc.ts         |  48 ++-
+ src/client/board/useBoardKeys.ts        | 131 +++++++
+ src/client/board/useSelection.ts        | 172 ++++++--
+ src/client/board/useTransformGesture.ts | 349 +++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  40 +-
+ src/client/objects/StickyNote.tsx       | 288 +++++---------
+ src/client/objects/index.ts             |  43 ++
+ src/client/objects/registry.tsx         | 163 ++++++++
+ src/client/styles.css                   | 111 ++++++
+ src/shared/board-model.ts               | 310 +++++++++++++--
+ src/shared/config.ts                    |  24 ++
+ src/shared/geometry.ts                  | 250 ++++++++++++
+ tests/component/harness.tsx             |   5 +-
+ tests/component/selection.test.tsx      | 675 ++++++++++++++++++++++++++++++++
+ tests/component/transform.test.tsx      | 426 ++++++++++++++++++++
+ tests/e2e/helpers/board.ts              | 146 ++++++-
+ tests/e2e/object-selection.spec.ts      | 396 +++++++++++++++++++
+ tests/fixtures/testbox.tsx              |  90 +++++
+ tests/helpers/rect.ts                   |   6 +
+ tests/unit/board-model-group.test.ts    | 329 ++++++++++++++++
+ tests/unit/geometry.test.ts             | 245 ++++++++++++
+ tests/unit/registry.test.ts             | 120 ++++++
+ tests/unit/use-selection.test.ts        | 134 +++++++
+ 29 files changed, 4892 insertions(+), 376 deletions(-)
+commit ec56970c46c7e76e5e8d727d196232676b76ad14
+vidi-agent  Mon Oct 5 18:40:30 2026 +0000
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit 72df75b631e37bf5ad05188a24bb93753fbb56e0
 agent  Mon Oct 5 18:37:26 2026 +0000
 

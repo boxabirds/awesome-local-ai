@@ -29,6 +29,7 @@
  */
 
 import * as Y from 'yjs';
+import { rectContains, type Point, type Rect } from './geometry';
 import {
   BOARD_SCHEMA_VERSION,
   DEFAULT_STICKY_COLOR,
@@ -43,14 +44,26 @@ export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6-local');
 /** The object type this story renders; unknown types are skipped (stories 9-12). */
 export const STICKY_OBJECT_TYPE = 'sticky';
 
-export interface StickySnapshot {
+/**
+ * The parts every board object has, whatever it turns out to be: where it is, how
+ * it stacks, and how big it is. `width` and `height` are optional because notes
+ * made before story 7 carry neither and render at their type's default size; the
+ * first resize writes both (sel.size_limits).
+ */
+export interface ObjectSnapshot {
   readonly id: string;
-  readonly type: 'sticky';
+  readonly type: string;
   readonly x: number;
   readonly y: number;
+  readonly z: number;
+  readonly width?: number;
+  readonly height?: number;
+}
+
+export interface StickySnapshot extends ObjectSnapshot {
+  readonly type: 'sticky';
   readonly color: StickyColor;
   readonly text: string;
-  readonly z: number;
   readonly createdAt: number;
 }
 
@@ -128,6 +141,9 @@ export function createSticky(doc: Y.Doc, at: PointLike, color: StickyColor = DEF
     object.set('y', at.y - STICKY_SIZE_WORLD / 2);
     object.set('color', color);
     object.set('text', new Y.Text());
+    // Story 7: a note made from now on carries its own size, so it can be resized.
+    object.set('width', STICKY_SIZE_WORLD);
+    object.set('height', STICKY_SIZE_WORLD);
     object.set('z', top);
     object.set('createdAt', Date.now());
     objectsOf(doc).set(id, object);
@@ -137,28 +153,12 @@ export function createSticky(doc: Y.Doc, at: PointLike, color: StickyColor = DEF
 
 /** Move a note to a new top-left. False for a stale id or non-finite numbers. */
 export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolean {
-  const object = objectMap(doc, id);
-  if (!object) return false;
-  if (!isFiniteNumber(x) || !isFiniteNumber(y)) return false;
-  doc.transact(() => {
-    object.set('x', x);
-    object.set('y', y);
-  }, LOCAL_ORIGIN);
-  return true;
+  return moveObjects(doc, new Map([[id, { x, y }]])) > 0;
 }
 
 /** Give a note the highest `z`. False when it is already topmost or missing. */
 export function bringToFront(doc: Y.Doc, id: string): boolean {
-  const object = objectMap(doc, id);
-  if (!object) return false;
-  const top = maxZ(doc);
-  const current = object.get('z');
-  // Already on top: a write here would be a pointless update on the wire.
-  if (isFiniteNumber(current) && current >= top) return false;
-  doc.transact(() => {
-    object.set('z', top + 1);
-  }, LOCAL_ORIGIN);
-  return true;
+  return bringObjectsToFront(doc, [id]) > 0;
 }
 
 /** Change a note's colour. False for a stale id or an unknown colour name. */
@@ -175,12 +175,214 @@ export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
 
 /** Remove an object. False for a stale id. */
 export function deleteObject(doc: Y.Doc, id: string): boolean {
-  const object = objectMap(doc, id);
-  if (!object) return false;
+  return deleteObjects(doc, [id]) > 0;
+}
+
+/* ------------------------------------------------- generic object operations (story 7) */
+
+/** The object types this build knows about. See `declareObjectType`. */
+const declaredTypes = new Set<string>([STICKY_OBJECT_TYPE]);
+
+/**
+ * Say that this build can render an object type.
+ *
+ * `snapshot` only ever returns declared types, so an object written by a newer
+ * client is skipped here rather than rendered half-understood, and select-all
+ * cannot pick something the screen cannot show. The client object registry
+ * (`src/client/objects/registry.tsx`) calls this as it registers a type, so there
+ * is one list and it stays framework-free — the Worker imports this module.
+ */
+export function declareObjectType(type: string): void {
+  if (typeof type === 'string' && type !== '') declaredTypes.add(type);
+}
+
+/** Can this build render objects of `type`? */
+export function isDeclaredObjectType(type: string): boolean {
+  return declaredTypes.has(type);
+}
+
+/**
+ * Where an object is and how big it is. A note made before story 7 carries neither
+ * `width` nor `height` and renders at `STICKY_SIZE_WORLD`, which is what keeps an
+ * old board the size it was on the day this story shipped (`sel.size_limits`).
+ */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  const width = isFiniteNumber(obj.width) ? (obj.width as number) : STICKY_SIZE_WORLD;
+  const height = isFiniteNumber(obj.height) ? (obj.height as number) : STICKY_SIZE_WORLD;
+  return { x: obj.x, y: obj.y, width, height };
+}
+
+/**
+ * The ids of every object lying *entirely* inside `rect`, in document order
+ * (`sel.marquee`). An object that only overhangs, or that the rectangle touches from
+ * outside, is not selected: half an object is not an object you asked for.
+ */
+export function objectsInRect(snapshot: readonly ObjectSnapshot[], rect: Rect): string[] {
+  const inside: string[] = [];
+  for (const object of snapshot) {
+    if (rectContains(rect, objectBounds(object))) inside.push(object.id);
+  }
+  return inside;
+}
+
+/**
+ * The ids select-all takes (`sel.all`): every object this build knows how to render.
+ * An object of a type from a later story, or one this client has never heard of, is
+ * left out — selecting something the screen cannot show would put a bounding box
+ * around nothing.
+ */
+export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
+  return snapshot.filter((object) => isDeclaredObjectType(object.type)).map((object) => object.id);
+}
+
+/** Every id in `wanted` that is actually on the board, in the order given. */
+function presentIds(doc: Y.Doc, wanted: Iterable<string>): string[] {
+  const present: string[] = [];
+  const seen = new Set<string>();
+  for (const id of wanted) {
+    if (typeof id !== 'string' || id === '' || seen.has(id)) continue;
+    seen.add(id);
+    if (objectMap(doc, id)) present.push(id);
+  }
+  return present;
+}
+
+/** Is this a usable, non-empty id-to-something map? (Cheap, and never throws.) */
+function isNonEmptyMap(value: unknown): value is Map<string, unknown> {
+  return (
+    !!value &&
+    typeof (value as Map<string, unknown>).size === 'number' &&
+    typeof (value as Map<string, unknown>).get === 'function' &&
+    typeof (value as Map<string, unknown>).entries === 'function' &&
+    (value as Map<string, unknown>).size > 0
+  );
+}
+
+/**
+ * Write absolute top-left positions (`sel.group_move`, `sel.nudge`).
+ *
+ * Absolute rather than "add this delta to what is there now": a gesture that
+ * accumulated a delta per frame would drift whenever somebody else moved the same
+ * object mid-drag, and two screens would disagree. The last writer wins, and every
+ * screen ends up where the last writer said.
+ *
+ * Any non-finite coordinate refuses the whole call — half a selection moving is
+ * worse than none — and an id that is no longer on the board is skipped (a colleague
+ * may delete one of them at any moment). One transaction, or none.
+ */
+export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): number {
+  if (!isNonEmptyMap(positions)) return 0;
+  for (const point of positions.values()) {
+    if (!point || !isFiniteNumber(point.x) || !isFiniteNumber(point.y)) return 0;
+  }
+  const ids = presentIds(doc, positions.keys());
+  if (ids.length === 0) return 0;
+  let applied = 0;
   doc.transact(() => {
-    objectsOf(doc).delete(id);
+    for (const id of ids) {
+      const object = objectMap(doc, id);
+      const point = positions.get(id);
+      if (!object || !point) continue;
+      object.set('x', point.x);
+      object.set('y', point.y);
+      applied += 1;
+    }
   }, LOCAL_ORIGIN);
-  return true;
+  return applied;
+}
+
+/**
+ * Write absolute rects (`sel.resize`). Resizing an implicit-size note writes both
+ * fields, which is the one way a note made before this story gains a size — no
+ * migration, no board-wide rewrite.
+ */
+export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): number {
+  if (!isNonEmptyMap(rects)) return 0;
+  for (const rect of rects.values()) {
+    if (
+      !rect ||
+      !isFiniteNumber(rect.x) ||
+      !isFiniteNumber(rect.y) ||
+      !isFiniteNumber(rect.width) ||
+      !isFiniteNumber(rect.height) ||
+      rect.width <= 0 ||
+      rect.height <= 0
+    ) {
+      return 0;
+    }
+  }
+  const ids = presentIds(doc, rects.keys());
+  if (ids.length === 0) return 0;
+  let applied = 0;
+  doc.transact(() => {
+    for (const id of ids) {
+      const object = objectMap(doc, id);
+      const rect = rects.get(id);
+      if (!object || !rect) continue;
+      object.set('x', rect.x);
+      object.set('y', rect.y);
+      object.set('width', rect.width);
+      object.set('height', rect.height);
+      applied += 1;
+    }
+  }, LOCAL_ORIGIN);
+  return applied;
+}
+
+/**
+ * Put the selection above every object it does not contain, keeping the order the
+ * selected objects had among themselves (`sel.group_move`).
+ *
+ * The reassignment is `highest unselected z + rank`, which needs one pass and gives
+ * the same answer on every screen. Returns the number of objects whose `z` actually
+ * changed, so a gesture that grabs what is already on top writes nothing.
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  const present = presentIds(doc, ids ?? []);
+  if (present.length === 0) return 0;
+  const selected = new Set(present);
+  const entries: { id: string; object: ObjMap; z: number }[] = [];
+  for (const id of present) {
+    const object = objectMap(doc, id);
+    if (!object) continue;
+    const z = object.get('z');
+    entries.push({ id, object, z: isFiniteNumber(z) ? (z as number) : 0 });
+  }
+  if (entries.length === 0) return 0;
+
+  let top = 0;
+  for (const [id, value] of objectsOf(doc)) {
+    if (selected.has(id) || !(value instanceof Y.Map)) continue;
+    const z = (value as ObjMap).get('z');
+    if (isFiniteNumber(z) && (z as number) > top) top = z as number;
+  }
+
+  // The order they are drawn in today, which is the order they keep.
+  entries.sort((a, b) => (a.z === b.z ? (a.id < b.id ? -1 : 1) : a.z - b.z));
+  const changes = entries
+    .map((entry, rank) => ({ entry, next: top + 1 + rank }))
+    .filter(({ entry, next }) => entry.z !== next);
+  if (changes.length === 0) return 0;
+
+  doc.transact(() => {
+    for (const { entry, next } of changes) entry.object.set('z', next);
+  }, LOCAL_ORIGIN);
+  return changes.length;
+}
+
+/**
+ * Remove every object named (`sel.group_delete`). Ids that are already gone are
+ * skipped, so a delete raced by a colleague who got there first is simply a smaller
+ * change rather than an error.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  const present = presentIds(doc, ids ?? []);
+  if (present.length === 0) return 0;
+  doc.transact(() => {
+    const objects = objectsOf(doc);
+    for (const id of present) objects.delete(id);
+  }, LOCAL_ORIGIN);
+  return present.length;
 }
 
 /** The note's shared text, or undefined when the id is not a sticky note. */
@@ -191,39 +393,65 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   return text instanceof Y.Text ? text : undefined;
 }
 
-/** Read one object into an immutable snapshot, or null when it is not renderable. */
-function readObject(id: string, object: ObjMap): StickySnapshot | null {
-  if (object.get('type') !== STICKY_OBJECT_TYPE) return null;
+/**
+ * Read one object into an immutable snapshot, or null when this build cannot draw it.
+ *
+ * A type that has not been declared — because the story that owns it has not shipped,
+ * or because a newer client wrote something this one has never heard of — returns null
+ * rather than a half-read object, which is what keeps an unknown object out of every
+ * list, selection and bounding box.
+ */
+function readObject(id: string, object: ObjMap): ObjectSnapshot | StickySnapshot | null {
+  const type = object.get('type');
+  if (typeof type !== 'string' || !isDeclaredObjectType(type)) return null;
+  // Story 7: a note made before this story carries no size at all and is left without
+  // the fields, so `objectBounds` can tell "never sized" from "sized to exactly 200".
+  const width = isFiniteNumber(object.get('width')) ? (object.get('width') as number) : undefined;
+  const height = isFiniteNumber(object.get('height')) ? (object.get('height') as number) : undefined;
+  const common: ObjectSnapshot = {
+    id,
+    type,
+    x: isFiniteNumber(object.get('x')) ? (object.get('x') as number) : 0,
+    y: isFiniteNumber(object.get('y')) ? (object.get('y') as number) : 0,
+    z: isFiniteNumber(object.get('z')) ? (object.get('z') as number) : 0,
+    ...(width !== undefined ? { width } : {}),
+    ...(height !== undefined ? { height } : {})
+  };
+  if (type !== STICKY_OBJECT_TYPE) return common;
+
   const color = object.get('color');
   const text = object.get('text');
   const createdAt = object.get('createdAt');
   return {
-    id,
+    ...common,
     type: STICKY_OBJECT_TYPE as 'sticky',
-    x: isFiniteNumber(object.get('x')) ? (object.get('x') as number) : 0,
-    y: isFiniteNumber(object.get('y')) ? (object.get('y') as number) : 0,
     color: isStickyColor(color) ? color : DEFAULT_STICKY_COLOR,
     text: text instanceof Y.Text ? text.toString() : '',
-    z: isFiniteNumber(object.get('z')) ? (object.get('z') as number) : 0,
     createdAt: isFiniteNumber(createdAt) ? createdAt : 0
   };
 }
 
 /**
- * Immutable view of every known object, sorted by (z, id). `id` breaks ties so
- * two clients that sync equal `z` values still render the same order. Unknown
- * `type` values are skipped, which is what lets stories 9-12 ship later without
- * breaking this renderer.
+ * Immutable view of every object this build can draw, sorted by (z, id). `id` breaks
+ * ties so two clients that sync equal `z` values still render the same order.
  */
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
-  const notes: StickySnapshot[] = [];
+export function boardObjects(doc: Y.Doc): ObjectSnapshot[] {
+  const objects: ObjectSnapshot[] = [];
   for (const [id, object] of objectsOf(doc)) {
     if (!(object instanceof Y.Map)) continue;
     const read = readObject(id, object as ObjMap);
-    if (read) notes.push(read);
+    if (read) objects.push(read);
   }
-  notes.sort((a, b) => (a.z === b.z ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.z - b.z));
-  return notes;
+  objects.sort((a, b) => (a.z === b.z ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.z - b.z));
+  return objects;
+}
+
+/**
+ * Immutable view of every sticky note on the board: `boardObjects` narrowed to the one
+ * type whose fields this note renderer needs.
+ */
+export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+  return boardObjects(doc).filter((object): object is StickySnapshot => object.type === STICKY_OBJECT_TYPE);
 }
 
 /** `crypto.randomUUID` with a fallback for environments without WebCrypto. */

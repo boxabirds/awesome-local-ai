@@ -103,6 +103,30 @@ export const NOTE_TOOLBAR_SIDE_PADDING_PX = 6;
 /** Colour swatch size inside the note toolbar, in screen pixels. */
 export const NOTE_SWATCH_SIZE_PX = 18;
 
+/* ------------------------------------------------------- selecting and resizing (story 7) */
+
+/**
+ * Side length of one resize handle, in *screen* pixels: a handle is the same size
+ * on screen at every zoom, so it stays grabbable when the board is far out.
+ */
+export const HANDLE_SIZE_PX = 8;
+
+/** The smallest a sticky note may be resized to, in world units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/**
+ * The largest any board object may become, in world units — one setting for every
+ * object type, so a giant shape cannot be made by resizing a sticky note through
+ * a loophole.
+ */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** One arrow-key press moves the selection this many world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Shift plus an arrow key moves the selection this many world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 /** Schema version written to `meta.schemaVersion` (story 4 migrates from it). */
 export const BOARD_SCHEMA_VERSION = 1;
 
