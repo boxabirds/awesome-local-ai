@@ -1,0 +1,12 @@
+{
+  // Cloudflare Worker config. Story 1 serves the client as static assets only;
+  // the Worker `main` entry point (and with it the ASSETS binding) arrives in
+  // story 3, so no binding is declared here: wrangler rejects an asset binding
+  // in an assets-only Worker.
+  "name": "vidi6",
+  "compatibility_date": "2026-09-17",
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application"
+  }
+}
