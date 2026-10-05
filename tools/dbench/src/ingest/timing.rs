@@ -3,7 +3,7 @@
 //! (benchmarks/spec-bench/harness/accounting.py), whose rules say when a call with no end event was
 //! over. Line by line, like events.rs, so a growing log can be read as far as it goes.
 
-use regex::Regex;
+use regex_lite::Regex;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use std::collections::HashMap;

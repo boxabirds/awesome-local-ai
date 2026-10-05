@@ -2,7 +2,7 @@
 //! for in a tool's result, in a tool call's arguments, and in the model's thinking or text; the test
 //! summary read from a result's tail; the size of an edit; home paths replaced by `~`.
 
-use regex::Regex;
+use regex_lite::Regex;
 use serde_json::{Map, Value};
 use std::sync::OnceLock;
 

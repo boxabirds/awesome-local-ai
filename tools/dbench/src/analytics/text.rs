@@ -2,7 +2,7 @@
 //! judges the thinking (docs/designs/thinking-analytics.md has each definition).
 
 use flate2::{write::GzEncoder, Compression};
-use regex::Regex;
+use regex_lite::Regex;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::sync::OnceLock;
