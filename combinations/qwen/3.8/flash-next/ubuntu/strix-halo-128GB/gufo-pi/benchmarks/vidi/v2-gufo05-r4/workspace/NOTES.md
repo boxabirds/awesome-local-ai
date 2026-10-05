@@ -144,3 +144,141 @@ component test TC-17.
 | `npm run build` | succeeds; `grep -c __vidi6 dist/client/assets/*.js` → 0 |
 | `npm run build:test` | succeeds; test hook present in the bundle |
 | `npm run dev` (21328) / `npm run preview` (21329) | both serve the board |
+
+---
+
+# Story 2 notes — decisions and deviations
+
+## Decisions
+
+1. **One `Y.Map` of objects, one `Y.Text` each** (`src/shared/board-model.ts`).
+   A note record holds `id`, `shape`, `x`, `y`, `z`, `color` as plain values and
+   `text` as a `Y.Text`, so two people typing into the same note merge without a
+   last-write-wins fight, while moving and recolouring stay single-value sets.
+   `snapshot()` sorts by `z` then `id`, which is the order the notes are rendered
+   in, so DOM order, document order and stacking order are the same order.
+
+2. **Local edits are tagged with an origin** (`LOCAL_ORIGIN`). Nothing reads it
+   yet; story 8's undo needs to tell our own changes from somebody else's, and
+   tagging at the source is the only place that knowledge exists. Every mutator
+   runs inside one transaction, so one user gesture is one update.
+
+3. **Mutators answer `true`/`false` and emit nothing when the answer is false** —
+   a stale id, a non-finite position, an unknown colour, a no-op. Tests assert the
+   `update` event count (1 for a real change, 0 for a rejection), which is what
+   story 3's traffic depends on.
+
+4. **`useBoardDoc(provided?)` and `App`'s optional `doc` prop.** Story 3 hands
+   them the document it syncs with the room. Component tests hand them a private
+   `Y.Doc` and then read `snapshot(doc)` — so they assert on what the board stored,
+   not on a rendering of it. Without an argument both make a fresh in-memory doc,
+   as before.
+
+5. **Auto-fit is measured by the note, not by the editor.** `StickyNote` keeps a
+   hidden layer with the visible text's width, wrapping and line height;
+   `fitFontSize(element, box)` binary-searches integer sizes and asks that layer
+   whether the text is taller than the note gives it. The result drives the display
+   layer, the textarea and the fade together, so typing feels like the text that is
+   already there, and `StickyTextEditor` never changes its own box (design 4.4).
+   `fitFontSize` takes the element as a *probe*, so the same search answers both
+   questions: the largest size that fits, and whether even the smallest does not.
+
+6. **Text edits are written as one delete plus one insert of the difference**
+   (`applyTextDiff`), with the common prefix and suffix left alone. A concurrent
+   change elsewhere in the same note then still merges (TC-38's basis; story 3 is
+   where two people actually type at once).
+
+7. **The note root is the drag target**; the text layer and the editor layer
+   `pointer-events: none` except while typing. A click on the words therefore
+   selects and drags the note, the note's `getBoundingClientRect()` stays the hit
+   area, and the caret works the moment the note is being edited.
+
+8. **Drag deltas are measured against the pointer's start and divided by `zoom`**,
+   not accumulated from `movementX`: `movementX` is in device pixels, so it is
+   fractional under browser zoom and integer-truncated in Chromium, which would
+   make a note drift on a long drag. The commit is rAF-coalesced and written to the
+   document on pointerup only, so a two hundred move drag is one update.
+
+9. **A dragged note is raised only if it ends up overlapping another one**, at the
+   end of the drag rather than the start: a move that does not need a new stacking
+   order does not cause a document change or a DOM reorder mid-gesture.
+
+10. **The note toolbar is a child of the note**, counter-scaled by `1 / zoom` with
+    `transform-origin: 50% 100%` — the gap above the note is in world units and
+    scales, the toolbar itself does not (verified in e2e at 50 %, 100 % and 200 %).
+    The note root therefore does not clip with `overflow: hidden`: the text and
+    edit layers inside it clip instead (see deviation 3).
+
+11. **`window.__vidi6.getBoard()`** returns `snapshot(doc)`, so e2e asserts on
+    stored positions and text rather than guessing them from the screen. Test hooks
+    are now registered piecewise (`registerTestHooks`) because the viewport owns the
+    camera half and the board owns the content half; still `MODE === 'test'` only,
+    still tree-shaken out of `npm run build`.
+
+## Deviations
+
+1. **`STICKY_FADE_HEIGHT_PX` is named `STICKY_FADE_HEIGHT_WORLD`.** The design's
+   setting text calls it a pixel height, but the design's own behaviour is that the
+   fade scales with the note — it is a world-unit length. The name says which.
+
+2. **`CameraControls` exposes `viewport`.** The sticky tool creates a note in the
+   middle of whatever is on screen, and `App` works that out; only the camera hook
+   knows the measured size of the board area. Nothing else about story 1's contract
+   changed.
+
+3. **`overflow: hidden` moved from the note to its text layers.** With it on the
+   note, the note's own toolbar — which sits above the note's top edge — is clipped
+   away and unclickable. AC-15 is about text not leaving the note, and clipping the
+   two layers that hold text does exactly that while keeping the toolbar visible.
+
+4. **A note is a `div` with `role="group"`, `tabIndex={0}` and an `aria-label`**, not
+   a real `<button>`: it has to contain a textarea and a toolbar, which do not
+   belong inside a button. Selection is drawn with an outline (`--note-selection`)
+   rather than the focus ring, because a note is selected by pointing at it and
+   focused in order to be moved or deleted — the two are not the same thing.
+
+5. **`BoardViewport` gained `doc`, `onStickyCreated` and `onEmptyClick`.** The
+   design puts double-click-to-create in the viewport and selection in `App`, so the
+   viewport reports the fact and `App` decides what it means (create a note there
+   and edit it; clear the selection). The viewport still knows nothing about notes.
+
+6. **The overflow fade can only be verified in a browser.** jsdom performs no text
+   layout — `scrollHeight` is always 0 — so the fade, the shrinking font and
+   "nothing is drawn outside the note" are e2e (TC-33, TC-34). The part of the rule
+   that is pure logic, the search between the two configured sizes, is unit-tested
+   with a fake measurer (TC-33's range, `fitFontSize` never leaves `[min, max]`).
+
+7. **File names.** The design mentions `tests/component/StickyTextEditor.test.tsx`;
+   the typing tests live in `tests/component/StickyTextEditing.test.tsx` because
+   they drive the whole app (double-click to open, click away to close) rather than
+   the editor in isolation, which is how the behaviour is actually observed.
+   `tests/component/harness.tsx` grew the note helpers (`fireInput`, `firePaste`,
+   `fireComposition`, `flushFrames`, note and toolbar locators) and
+   `tests/e2e/helpers/board.ts` grew `getBoard`, the note locators and `dragNote`.
+
+8. **The IME case is driven by dispatching the composition events in the page**,
+   in the order and with the values an input method really sends
+   (`compositionstart`, provisional inputs, `compositionend`, final input):
+   headless Chromium has no keyboard layout or input method to drive. The paste
+   limit uses `keyboard.insertText`, which arrives as a single `input` event,
+   exactly as a paste does. Both are e2e; the same paths are covered in jsdom by
+   `fireComposition` and `firePaste`.
+
+## Blocked
+
+Nothing new. E2E still runs in Chromium only on this machine (story 1's note about
+missing GTK applies unchanged); nothing in this story is Chromium-specific — the
+interaction uses standard Pointer Events, and the one browser-only behaviour it
+depends on, text measurement, is asserted in Chromium and unit-tested everywhere.
+
+## Verification
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` | clean |
+| `npm run test:unit` | 81 passed — 33 board model (TC-01…TC-12, TC-39), 24 sticky text (TC-13…TC-17), 24 story 1 camera |
+| `npm run test:component` | 67 passed — 37 new (TC-18…TC-32, TC-34…TC-37) plus story 1's 30 |
+| `npm run test:e2e` | 32 passed in chromium — 24 new (TC-16, TC-20, TC-21, TC-23, TC-25, TC-27…TC-29, TC-31…TC-38) plus story 1's 8 |
+| `npx playwright test --repeat-each=2` | 64 passed, no flakes |
+| `npm run build` | succeeds; `grep -rc "__vidi6" dist/client/assets` → 0 |
+| `npm run build:test` | succeeds; test hook present in the bundle |

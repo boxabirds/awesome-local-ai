@@ -5,8 +5,9 @@
  * a million pixels.
  */
 
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import type { Camera, Point, Size } from '../../../src/client/canvas/camera';
+import type { StickySnapshot } from '../../../src/shared/board-model';
 import { UNBOUNDED_PAN_TESTED_EXTENT, ZOOM_MAX } from '../../../src/shared/config';
 
 export const BOARD_SIZE: Size = { width: 1280, height: 800 };
@@ -38,6 +39,17 @@ export async function getCamera(page: Page): Promise<Camera> {
   const camera = await page.evaluate(() => window.__vidi6?.getCamera());
   if (!camera) throw new Error('window.__vidi6 test hook is not available in this build');
   return camera;
+}
+
+/**
+ * What the board document holds: every note, bottom to top. Reading the document
+ * rather than the screen is what makes assertions about stored positions and text
+ * exact. (Test builds only, through `window.__vidi6`.)
+ */
+export async function getBoard(page: Page): Promise<StickySnapshot[]> {
+  const notes = await page.evaluate(() => window.__vidi6?.getBoard());
+  if (!notes) throw new Error('window.__vidi6 test hook is not available in this build');
+  return [...notes];
 }
 
 /** Move the camera somewhere directly, then wait for the board to show it. */
@@ -100,4 +112,108 @@ export async function pageZoomSignals(page: Page): Promise<{ scale: number; dpr:
     scale: window.visualViewport?.scale ?? 1,
     dpr: window.devicePixelRatio
   }));
+}
+
+/* ------------------------------------------------------------------ story 2 */
+
+/** The sticky notes on screen, in the order the document draws them. */
+export function notes(page: Page): Locator {
+  return page.locator('[data-vidi6="sticky"]');
+}
+
+/** The nth sticky note. */
+export function note(page: Page, index: number): Locator {
+  return notes(page).nth(index);
+}
+
+/** The text a note shows (not the editor). */
+export function noteText(page: Page, index: number): Locator {
+  return note(page, index).locator('[data-testid="sticky-text"]');
+}
+
+/** The textarea of the note being edited. */
+export function stickyInput(page: Page): Locator {
+  return page.locator('[data-testid="sticky-input"]');
+}
+
+/** The floating toolbar of a note. */
+export function noteToolbar(page: Page, index = 0): Locator {
+  return note(page, index).locator('[data-vidi6="note-toolbar"]');
+}
+
+/** A colour swatch in a note's toolbar. */
+export function swatch(page: Page, colour: string, index = 0): Locator {
+  return noteToolbar(page, index).locator(`[data-vidi6="note-swatch"][data-color="${colour}"]`);
+}
+
+/** The bin button of a note's toolbar. */
+export function deleteButton(page: Page, index = 0): Locator {
+  return noteToolbar(page, index).locator('[data-vidi6="note-delete"]');
+}
+
+/** The left-side tool palette. */
+export function stickyToolButton(page: Page): Locator {
+  return page.locator('[data-vidi6="tool-sticky"]');
+}
+
+/** Double-click empty board space, which creates a note centred there. */
+export async function doubleClickBoard(page: Page, x: number, y: number): Promise<void> {
+  await page.mouse.dblclick(x, y);
+}
+
+/** Press, move in steps and release, as a drag of the mouse does. */
+export async function dragByMouse(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  steps = 10
+): Promise<void> {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  for (let step = 1; step <= steps; step += 1) {
+    await page.mouse.move(
+      from.x + ((to.x - from.x) * step) / steps,
+      from.y + ((to.y - from.y) * step) / steps
+    );
+  }
+  await page.mouse.up();
+}
+
+/** Drag a note by its centre by a screen delta. */
+export async function dragNote(
+  page: Page,
+  index: number,
+  deltaX: number,
+  deltaY: number
+): Promise<void> {
+  const box = await note(page, index).boundingBox();
+  if (!box) throw new Error('note has no box to grab');
+  await dragByMouse(
+    page,
+    { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+    { x: box.x + box.width / 2 + deltaX, y: box.y + box.height / 2 + deltaY }
+  );
+}
+
+/** A rendered length in CSS pixels, e.g. the font size of a note's text. */
+export async function cssPixels(
+  page: Page,
+  selector: string,
+  property: string
+): Promise<number> {
+  const value = await page.locator(selector).first().evaluate((element, name) => {
+    const declared = getComputedStyle(element)[name as keyof CSSStyleDeclaration];
+    // jsdom-free browsers always resolve lengths to px.
+    return String(declared);
+  }, property);
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`${property} of ${selector} is not a length: ${value}`);
+  }
+  return parsed;
+}
+
+/** The character counter of the note being edited, or null. */
+export function counter(page: Page): Locator {
+  return page.locator('[data-testid="sticky-counter"]');
 }

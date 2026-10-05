@@ -190,7 +190,10 @@ export function fireGesture(
   return event;
 }
 
-export function fireKey(key: string, options: { ctrlKey?: boolean; metaKey?: boolean } = {}): Event {
+export function fireKey(
+  key: string,
+  options: { ctrlKey?: boolean; metaKey?: boolean; target?: EventTarget } = {}
+): Event {
   const event = new KeyboardEvent('keydown', {
     key,
     bubbles: true,
@@ -199,9 +202,156 @@ export function fireKey(key: string, options: { ctrlKey?: boolean; metaKey?: boo
     metaKey: options.metaKey ?? false
   });
   interact(() => {
-    window.dispatchEvent(event);
+    (options.target ?? window).dispatchEvent(event);
   });
   return event;
+}
+
+/**
+ * Run the pending animation frames, which is how a dragged note gets its
+ * throttled position writes (one per frame), and let React settle afterwards.
+ */
+export async function flushFrames(count = 2): Promise<void> {
+  for (let index = 0; index < count; index += 1) {
+    await act(async () => {
+      if (vi.isFakeTimers()) vi.advanceTimersByTime(16);
+      else await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+}
+
+/** Type into an element the way a browser does: set the value, then `input`. */
+export function fireInput(element: Element, value: string): void {
+  const input = element as HTMLTextAreaElement;
+  input.value = value;
+  interact(() => {
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
+/** Paste `text` at the end of the caret, the way a browser inserts it. */
+export function firePaste(element: Element, text: string): void {
+  const input = element as HTMLTextAreaElement;
+  const paste = new Event('paste', { bubbles: true, cancelable: true });
+  Object.defineProperty(paste, 'clipboardData', {
+    value: { getData: (kind: string) => (kind === 'text/plain' ? text : '') }
+  });
+  interact(() => {
+    input.dispatchEvent(paste);
+  });
+  // The component prevented the default: it inserted the text itself.
+  if (!paste.defaultPrevented) fireInput(element, `${input.value}${text}`);
+}
+
+/**
+ * An input-method commit: `provisional` appears under the caret, then the method
+ * replaces it with `committed` (what a Japanese or Chinese keyboard does). The
+ * component must end up with `before + committed` and nothing of the provisional
+ * text left over.
+ */
+export function fireComposition(
+  element: Element,
+  before: string,
+  provisional: string,
+  committed: string
+): void {
+  const input = element as HTMLTextAreaElement;
+  interact(() => {
+    input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+    input.value = `${before}${provisional}`;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(
+      new CompositionEvent('compositionupdate', { bubbles: true, data: provisional })
+    );
+  });
+  interact(() => {
+    input.value = `${before}${committed}`;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: committed }));
+  });
+}
+
+/** Every sticky note on screen, in the order the document draws them. */
+export function stickyNotes(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>('[data-vidi6="sticky"]'));
+}
+
+/** Every note's stored position, as rendered into the world layer. */
+export function stickyPositions(root: HTMLElement): { x: number; y: number }[] {
+  return stickyNotes(root).map((note) => ({
+    x: Number(note.dataset.x),
+    y: Number(note.dataset.y)
+  }));
+}
+
+/** The nth sticky note, failing loudly when there is no such note. */
+export function stickyNote(root: HTMLElement, index: number): HTMLElement {
+  const notes = stickyNotes(root);
+  const note = notes[index];
+  if (!note) throw new Error(`no sticky note at index ${index} (there are ${notes.length})`);
+  return note;
+}
+
+/** The text a note displays (the note must not be being edited). */
+export function stickyNoteText(root: HTMLElement, index: number): string {
+  return stickyNote(root, index).querySelector('[data-testid="sticky-text"]')?.textContent ?? '';
+}
+
+/** The textarea of the note currently being edited. */
+export function stickyEditor(root: HTMLElement): HTMLTextAreaElement | null {
+  return root.querySelector<HTMLTextAreaElement>('[data-testid="sticky-input"]');
+}
+
+/** The floating toolbar of a note, or null when it is not shown. */
+export function noteToolbar(note: HTMLElement): HTMLElement | null {
+  return note.querySelector<HTMLElement>('[data-vidi6="note-toolbar"]');
+}
+
+/** A colour swatch in a note's toolbar, by colour name. */
+export function noteSwatch(note: HTMLElement, colour: string): HTMLElement | null {
+  return note.querySelector<HTMLElement>(`[data-vidi6="note-swatch"][data-color="${colour}"]`);
+}
+
+/** The delete button of a note's toolbar. */
+export function noteDeleteButton(note: HTMLElement): HTMLElement | null {
+  return note.querySelector<HTMLElement>('[data-vidi6="note-delete"]');
+}
+
+/** The note's overflow fade, or null when its text fits. */
+export function stickyFade(root: HTMLElement, index: number): HTMLElement | null {
+  return stickyNote(root, index).querySelector<HTMLElement>('[data-testid="sticky-fade"]');
+}
+
+/** The character counter of the note being edited. */
+export function stickyCounter(root: HTMLElement): HTMLElement | null {
+  return root.querySelector<HTMLElement>('[data-testid="sticky-counter"]');
+}
+
+/** The sticky note tool in the toolbar on the left of the screen. */
+export function stickyToolButton(container: HTMLElement): HTMLElement {
+  const button = container.querySelector<HTMLElement>('[data-vidi6="tool-sticky"]');
+  if (!button) throw new Error('the toolbar has no sticky note tool');
+  return button;
+}
+
+/** Click a plain element (mouse pointer, primary button, down then up). */
+export function clickElement(element: Element): void {
+  firePointer(element, 'pointerdown', 0, 0);
+  firePointer(element, 'pointerup', 0, 0);
+  interact(() => {
+    element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  });
+}
+
+/** Double-click an element the way a browser does. */
+export function doubleClick(element: Element, clientX = 0, clientY = 0): void {
+  firePointer(element, 'pointerdown', clientX, clientY);
+  firePointer(element, 'pointerup', clientX, clientY);
+  interact(() => {
+    element.dispatchEvent(
+      new MouseEvent('dblclick', { bubbles: true, cancelable: true, clientX, clientY, button: 0 })
+    );
+  });
 }
 
 /** Read the world layer's CSS transform, which is how the board is positioned. */

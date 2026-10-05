@@ -8,6 +8,9 @@
   --panel-border: #d8dce4;
   --panel-shadow: 0 1px 2px rgba(22, 24, 29, 0.12), 0 4px 12px rgba(22, 24, 29, 0.08);
   --focus-ring: 2px solid #2f6feb;
+  /* Selection colour of a sticky note: the same blue as the focus ring. */
+  --note-selection: #2f6feb;
+  --note-selection-width: 2px;
   color: var(--ink);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
@@ -147,4 +150,223 @@ body {
   font-size: 13px;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ tool palette */
+
+.vidi6-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+  z-index: 10;
+}
+
+.vidi6-tool {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.vidi6-tool:hover {
+  background: #f1f3f7;
+}
+
+.vidi6-tool:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* ------------------------------------------------------------------ sticky notes */
+
+.vidi6-sticky {
+  position: absolute;
+  box-sizing: border-box;
+  /* The paper: a soft shadow. Text is clipped by the layers inside it, not by the
+   note itself, because the toolbar sits above the note and must not be clipped. */
+  box-shadow: 0 1px 2px rgba(22, 24, 29, 0.16), 0 6px 16px rgba(22, 24, 29, 0.1);
+  border-radius: 2px;
+  color: var(--ink);
+  cursor: default;
+  /* Text is content, not something to select while dragging notes around. */
+  user-select: none;
+}
+
+.vidi6-sticky:focus {
+  outline: none;
+}
+
+/* Selection: a blue outline, drawn inside the note so zoom cannot clip it. */
+.vidi6-sticky[data-selected='true'] {
+  outline: var(--note-selection-width) solid var(--note-selection);
+  outline-offset: calc(-1 * var(--note-selection-width));
+}
+
+/* The text area, centred like handwriting on a paper note. */
+.vidi6-sticky-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+  padding: inherit;
+}
+
+/* Editing looks exactly like the text it replaces, and is clipped the same way. */
+.vidi6-sticky-edit {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: inherit;
+  overflow: hidden;
+}
+
+.vidi6-sticky-input {
+  display: block;
+  width: 100%;
+  /* Height follows the text (see autoGrow), so the flex centring above centres
+     the text rather than an empty 200 unit box. */
+  height: auto;
+  min-height: 1em;
+  max-height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+  resize: none;
+  outline: none;
+  caret-color: var(--note-selection);
+  user-select: text;
+}
+
+/* Hidden layer with the same width and wrapping as the visible text: measuring
+   it is what finds the largest font size that fits (StickyText.fitFontSize). */
+.vidi6-sticky-measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  z-index: -1;
+}
+
+/* Text that does not fit at the smallest size fades out at the bottom edge.
+   --sticky-fade is the note's colour, set inline by StickyNote. */
+.vidi6-sticky-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--sticky-fade-height, 24px);
+  pointer-events: none;
+  /* Fades into the note's own colour, so hidden text is never just cut off. */
+  background: linear-gradient(to bottom, transparent, var(--sticky-fade, rgba(255, 255, 255, 0.85)));
+}
+
+.vidi6-sticky-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------- floating toolbar of a note */
+
+/* Anchored to the note's top-left in world units, then counter-scaled by 1/zoom
+   (see StickyNote), so it keeps a constant size on screen at any zoom. */
+.vidi6-note-toolbar-anchor {
+  position: absolute;
+  left: 0;
+  transform-origin: 0 100%;
+  /* Above the notes and their selection outlines. */
+  z-index: 1;
+}
+
+.vidi6-note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+}
+
+.vidi6-note-swatch {
+  padding: 0;
+  border: 1px solid rgba(22, 24, 29, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.vidi6-note-swatch[aria-pressed='true'] {
+  border: 2px solid var(--note-selection);
+  /* A ring as well as a colour, so the pressed swatch is not only coloured. */
+  box-shadow: 0 0 0 1px var(--panel);
+}
+
+.vidi6-note-swatch:focus-visible,
+.vidi6-note-delete:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.vidi6-note-toolbar-separator {
+  width: 1px;
+  height: 18px;
+  background: var(--panel-border);
+}
+
+.vidi6-note-delete {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.vidi6-note-delete:hover {
+  background: #fdeceb;
+  color: #b42318;
 }

@@ -20,22 +20,35 @@ import {
   useState,
   type CSSProperties,
   type JSX,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode
 } from 'react';
+import type * as Y from 'yjs';
+import { createSticky } from '../../shared/board-model';
 import {
+  DRAG_THRESHOLD_PX,
   GRID_DOT_RADIUS_PX,
   GRID_SPACING_WORLD,
   ORIGIN_MARKER_SIZE_PX,
   WHEEL_DELTA_LINE_PX,
   WHEEL_DELTA_PAGE_PX
 } from '../../shared/config';
-import { worldToScreen, type Point } from './camera';
+import { screenToWorld, worldToScreen, type Point } from './camera';
 import { installTestHooks, IS_TEST_MODE } from './testHooks';
 import { useCameraContext, type CameraController } from './useCamera';
 
 export interface BoardViewportProps {
   children?: ReactNode;
+  /**
+   * The board document, needed for the one thing the empty board does with the
+   * pointer: create a sticky note where the user double-clicked (story 2).
+   */
+  doc?: Y.Doc;
+  /** Called with the id of a note created by a double-click, so it can be edited. */
+  onStickyCreated?(id: string): void;
+  /** A press on empty board space that never turned into a pan. */
+  onEmptyClick?(): void;
 }
 
 /** WheelEvent.deltaMode values. */
@@ -76,6 +89,8 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
   const controller = useCameraContext();
   const { camera, beginPan, panMove, endPan, setCamera, getCamera } = controller;
   const [panning, setPanning] = useState(false);
+  // Where a press on empty space began, so a click can be told from a pan.
+  const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   // Keep the latest controller reachable from listeners that are attached once.
   const controllerRef = useRef<CameraController>(controller);
@@ -102,7 +117,9 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
       if (viewport && typeof viewport.setPointerCapture === 'function') {
         viewport.setPointerCapture(event.pointerId);
       }
-      beginPan(localPoint(event.clientX, event.clientY));
+      const point = localPoint(event.clientX, event.clientY);
+      pressRef.current = { x: point.x, y: point.y, moved: false };
+      beginPan(point);
       setPanning(true);
     },
     [beginPan, isEmptyBoardSpace, localPoint]
@@ -111,15 +128,46 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
   const handlePointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       if (!panning) return;
-      panMove(localPoint(event.clientX, event.clientY));
+      const point = localPoint(event.clientX, event.clientY);
+      const press = pressRef.current;
+      // Past the drag threshold this press is a pan, not a click.
+      if (press && !press.moved && Math.hypot(point.x - press.x, point.y - press.y) >= DRAG_THRESHOLD_PX) {
+        press.moved = true;
+      }
+      panMove(point);
     },
     [localPoint, panMove, panning]
   );
 
-  const stopPan = useCallback(() => {
-    endPan();
-    setPanning(false);
-  }, [endPan]);
+  const stopPan = useCallback(
+    (event?: ReactPointerEvent<HTMLDivElement>) => {
+      // A press on empty board space that never moved is a click: it clears the
+      // selection. A pan, and a cancelled drag, leave it alone.
+      const press = pressRef.current;
+      const wasClick = !!press && !press.moved && (!event || event.type === 'pointerup');
+      pressRef.current = null;
+      endPan();
+      setPanning(false);
+      if (wasClick) props.onEmptyClick?.();
+    },
+    [endPan, props]
+  );
+
+  /**
+   * A double-click on empty board space creates a sticky note centred on that
+   * spot. A double-click on a note is handled by the note (which edits it) and
+   * never reaches here.
+   */
+  const handleDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (!props.doc || !isEmptyBoardSpace(event.target)) return;
+      const world = screenToWorld(camera, localPoint(event.clientX, event.clientY));
+      const id = createSticky(props.doc, world);
+      // A note rejected for a reason the user cannot see is simply not created.
+      if (id) props.onStickyCreated?.(id);
+    },
+    [camera, isEmptyBoardSpace, localPoint, props]
+  );
 
   // Wheel: attached manually because React's onWheel is passive, and
   // preventDefault is required so the page never scrolls or zooms.
@@ -236,6 +284,7 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
       onPointerUp={stopPan}
       onPointerCancel={stopPan}
       onLostPointerCapture={stopPan}
+      onDoubleClick={handleDoubleClick}
     >
       <div className="vidi6-world" data-vidi6="world" style={worldStyle}>
         {props.children}

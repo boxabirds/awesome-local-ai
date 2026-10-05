@@ -42,3 +42,66 @@ export const WHEEL_DELTA_PAGE_PX = 800;
 
 /** Width/height, in screen pixels, of the crosshair marking the board start point. */
 export const ORIGIN_MARKER_SIZE_PX = 16;
+
+/* ---------------------------------------------------------------- sticky notes (story 2) */
+
+/** Width and height of a sticky note, in world units. */
+export const STICKY_SIZE_WORLD = 200;
+
+/** A note never holds more characters than this. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+
+/** The character counter appears once this many characters (or fewer) remain. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+
+/** Largest note font size, in world units (so it scales with zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+
+/** Smallest note font size; below this the text overflows into a fade. */
+export const STICKY_FONT_MIN_PX = 10;
+
+/** Pointer travel, in screen pixels, before a press on a note becomes a drag. */
+export const DRAG_THRESHOLD_PX = 3;
+
+/** The six preset note colours, by name. */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8'
+} as const;
+
+export type StickyColor = keyof typeof STICKY_COLORS;
+
+/** The colour of a newly created note. */
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/** Padding inside a note, in world units — text never touches the edge. */
+export const STICKY_PADDING_WORLD = 12;
+
+/** Height of the fade shown at the bottom edge when the text overflows. */
+export const STICKY_FADE_HEIGHT_PX = 24;
+
+/** Line height of note text, as a multiple of the (auto-fitted) font size. */
+export const STICKY_LINE_HEIGHT = 1.35;
+
+/**
+ * Gap between a note's top edge and its floating toolbar, in world units.
+ * `1 / zoom` is applied to the toolbar, so this gap is a world-unit gap that
+ * scales with the note; the toolbar itself keeps a constant screen size.
+ */
+export const NOTE_TOOLBAR_GAP_WORLD = 8;
+
+/** Toolbar button height, in screen pixels (it does not scale with zoom). */
+export const NOTE_TOOLBAR_HEIGHT_PX = 28;
+
+/** Horizontal padding inside the note toolbar, in screen pixels. */
+export const NOTE_TOOLBAR_SIDE_PADDING_PX = 6;
+
+/** Colour swatch size inside the note toolbar, in screen pixels. */
+export const NOTE_SWATCH_SIZE_PX = 18;
+
+/** Schema version written to `meta.schemaVersion` (story 4 migrates from it). */
+export const BOARD_SCHEMA_VERSION = 1;

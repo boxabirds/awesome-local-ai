@@ -37,6 +37,8 @@ export interface WheelInput {
 /** The camera contract: state plus one handler per input the board owns. */
 export interface CameraControls {
   camera: Camera;
+  /** Size of the board area the camera is measured against, in CSS pixels. */
+  viewport: Size;
   /** Latches to true on the first camera change that produces a new camera. */
   hasNavigated: boolean;
   beginPan(p: Point): void;
@@ -189,6 +191,7 @@ export function useCamera(viewport: Size): CameraController {
   return useMemo(
     () => ({
       camera,
+      viewport,
       hasNavigated,
       beginPan,
       panMove,
@@ -202,6 +205,7 @@ export function useCamera(viewport: Size): CameraController {
     }),
     [
       camera,
+      viewport,
       hasNavigated,
       beginPan,
       panMove,
