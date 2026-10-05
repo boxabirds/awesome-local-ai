@@ -775,3 +775,82 @@ body,
 .board-viewport[style*='cursor: text'] [data-text-object] {
   cursor: text;
 }
+
+/* --- Story 10: the shape kind menu and the drawing tools ------------------- */
+
+.board-toolbar-shape-group {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.board-toolbar-mini {
+  border: 1px solid #d7dbe4;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #4a5568;
+  padding: 0 6px;
+  cursor: pointer;
+  align-self: center;
+}
+
+.board-toolbar-mini[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.board-toolbar-menu {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid #d7dbe4;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(20, 30, 60, 0.16);
+  z-index: 11;
+}
+
+.board-toolbar-menu-item {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #1a1b1d;
+}
+
+.board-toolbar-menu-item:hover {
+  background: #eef1f6;
+}
+
+.board-toolbar-menu-item[aria-checked='true'] {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+/* The shape's label editor fills the label area, matching the static label. */
+.shape-label-editor textarea {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  resize: none;
+  outline: none;
+  text-align: center;
+  color: inherit;
+  font-family: inherit;
+  line-height: 1.3;
+  overflow: hidden;
+}
+
+/* A selected arrow reads as selected even though its line is thin. */
+.connector-object[data-selected='true'] .connector-svg > path:nth-of-type(2) {
+  stroke: #1e88e5;
+}

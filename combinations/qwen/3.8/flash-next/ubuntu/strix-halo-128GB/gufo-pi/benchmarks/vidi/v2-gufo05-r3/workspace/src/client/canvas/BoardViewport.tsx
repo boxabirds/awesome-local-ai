@@ -14,7 +14,7 @@ import { NavigationHint } from './NavigationHint';
 import { installTestHook } from './testHooks';
 import { createSticky } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
-import type { Tool } from '../board/useTool';
+import type { ToolId } from '../tools/useActiveTool';
 
 /** Pixels per LINE deltaMode unit (mouse wheel notch). */
 const LINE_HEIGHT_PX = 16;
@@ -84,7 +84,11 @@ export interface BoardViewportProps {
    */
   marquee?: MarqueeApi;
   /** Active tool (story 9). When 'text', cursor is 'text' and click creates text. */
-  tool?: Tool;
+  /**
+   * The active tool (story 9, story 10). Anything but Select means the board is
+   * being drawn on, so the viewport stops treating a press as a pan.
+   */
+  tool?: ToolId;
   /** Called when a text object is created by clicking the board with Text tool. */
   onTextCreated?(id: string): void;
   /**
@@ -285,12 +289,15 @@ export function BoardViewport(props: BoardViewportProps) {
     if (e.button !== 0) return;
     if (isControlTarget(e.target)) return;
 
-    // When Text tool is active, any click on the board (including on objects)
-    // creates text at that point. We don't pan or marquee.
-    if (props.tool === 'text' && !props.locked) {
-      const point = pointFromEvent(e.clientX, e.clientY);
-      const world = screenToWorld(apiRef.current.camera, point);
-      props.onTextClick?.(world);
+    // A tool owns the press: no pan, no marquee, no clearing of the selection.
+    // The Text tool creates at the point; the Shape and Connector tools have a layer
+    // of their own above the board which normally catches the press first, and a press
+    // that reaches here anyway must still not move the camera out from under them.
+    if (props.tool && props.tool !== 'select') {
+      if (props.tool === 'text' && !props.locked) {
+        const point = pointFromEvent(e.clientX, e.clientY);
+        props.onTextClick?.(screenToWorld(apiRef.current.camera, point));
+      }
       return;
     }
 
@@ -385,7 +392,18 @@ export function BoardViewport(props: BoardViewportProps) {
       className="board-viewport"
       data-panning={panning ? 'true' : 'false'}
       data-locked={props.locked ? 'true' : 'false'}
-      style={{ cursor: props.tool === 'text' && !props.locked ? 'text' : panning ? 'grabbing' : props.locked ? 'default' : 'grab' }}
+      style={{
+        cursor:
+          props.tool === 'text' && !props.locked
+            ? 'text'
+            : props.tool === 'shape' || props.tool === 'connector'
+              ? 'crosshair'
+              : panning
+                ? 'grabbing'
+                : props.locked
+                  ? 'default'
+                  : 'grab',
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

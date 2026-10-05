@@ -47,6 +47,14 @@ export interface ObjectComponentProps {
     event: ReactPointerEvent | PointerEvent,
     snapshot: ObjectSnapshot,
   ) => void;
+  /**
+   * Close the current undo capture window and open a new one (story 8's `steps`).
+   *
+   * A gesture that writes from inside the object itself — dragging one end of an
+   * arrow — has to say when it began and ended, or the whole drag would merge into
+   * whatever happened next.
+   */
+  onUndoBoundary?: () => void;
 }
 
 export interface ObjectTypeSpec {

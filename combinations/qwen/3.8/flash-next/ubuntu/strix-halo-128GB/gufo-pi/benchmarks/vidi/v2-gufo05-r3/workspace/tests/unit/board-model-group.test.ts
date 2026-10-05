@@ -308,7 +308,9 @@ describe('board.model: objectsInRect (TC-07) and allObjectIds (TC-08)', () => {
   it('TC-08 select all skips an object of a type this build does not know', () => {
     const doc = new Y.Doc();
     const sticky = createSticky(doc, { x: 0, y: 0 });
-    seedUnknown(doc, 'shape-1', 'shape', 0, 0, 5);
+    // 'triangle' stands for a type this build does not know. (It used to be
+    // 'shape'; story 10 made shapes real.)
+    seedUnknown(doc, 'triangle-1', 'triangle', 0, 0, 5);
 
     // Neither the snapshot nor the id list offers the unknown object.
     expect(snapshot(doc).map((n) => n.id)).toEqual([sticky]);
@@ -316,7 +318,7 @@ describe('board.model: objectsInRect (TC-07) and allObjectIds (TC-08)', () => {
     // ... and the filter is the model's own, not just the snapshot's.
     const hand: ObjectSnapshot[] = [
       { id: sticky, type: 'sticky', x: 0, y: 0, z: 1, createdAt: 0 },
-      { id: 'shape-1', type: 'shape', x: 0, y: 0, z: 5, createdAt: 0 },
+      { id: 'triangle-1', type: 'triangle', x: 0, y: 0, z: 5, createdAt: 0 },
     ];
     expect(allObjectIds(hand)).toEqual([sticky]);
     // The marquee refuses it too.
@@ -329,7 +331,7 @@ describe('board.model: objectsInRect (TC-07) and allObjectIds (TC-08)', () => {
     // A name no other suite uses, so registering it cannot leak into them.
     registerKnownObjectType('unit-test-shape');
     const hand: ObjectSnapshot[] = [
-      { id: 'shape-1', type: 'shape', x: 0, y: 0, z: 1, createdAt: 0 },
+      { id: 'triangle-1', type: 'triangle', x: 0, y: 0, z: 1, createdAt: 0 },
       { id: 'unit-1', type: 'unit-test-shape', x: 0, y: 0, z: 2, createdAt: 0 },
     ];
     expect(allObjectIds(hand)).toEqual(['unit-1']);

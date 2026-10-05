@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type * as Y from 'yjs';
+import * as Y from 'yjs';
 import { BoardViewport, type BoardViewportApi } from './canvas/BoardViewport';
 import type { Camera, Point } from './canvas/camera';
 import { Toolbar } from './board/Toolbar';
@@ -7,7 +7,9 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection, type EndEditTarget } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
-import { useTool } from './board/useTool';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
 import { MarqueeRect, useMarquee } from './board/Marquee';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionAnnouncement, SelectionBar } from './board/SelectionBar';
@@ -18,7 +20,7 @@ import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
 import { createSticky, deleteObjects, snapshot } from '../shared/board-model';
 import { createText } from '../shared/objects/text';
-import { installBoardHook, reportConnectionState } from './canvas/testHooks';
+import { installApplyUpdate, installBoardHook, reportConnectionState } from './canvas/testHooks';
 
 export interface AppProps {
   doc?: Y.Doc;
@@ -31,9 +33,10 @@ const INITIAL_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
 /**
  * The board: document, connection, selection, toolbars, shortcuts, viewport.
  *
- * Story 9 adds the Text tool: useTool manages select/text, T/V/N/Escape
- * shortcuts work through useBoardKeys, and the viewport handles text creation
- * when the Text tool is active.
+ * Story 10 adds the Shape and Connector tools. Both are state in `useActiveTool`,
+ * which also owns the single-key shortcuts, and both render a screen-space layer of
+ * their own over the viewport: while a drawing tool is up it owns the pointer, so the
+ * board does not pan and objects under the cursor are not dragged.
  */
 export default function App({ doc, boardId }: AppProps = {}) {
   const { doc: boardDoc, notes, connection } = useBoardDoc(doc, boardId);
@@ -44,8 +47,12 @@ export default function App({ doc, boardId }: AppProps = {}) {
   const [camera, setCamera] = useState<Camera>(INITIAL_CAMERA);
   const viewportApi = useRef<BoardViewportApi | null>(null);
 
-  // --- Tool mode (story 9) ---------------------------------------------------
-  const { tool, setTool } = useTool(!locked);
+  // --- Tool mode (story 9, story 10) -----------------------------------------
+  const active = useActiveTool({
+    canEdit: !locked,
+    selection,
+    onCreateSticky: () => createStickyAtCentre(),
+  });
 
   // --- Undo ---------------------------------------------------------------
   const undoHistory = useUndoController(boardDoc);
@@ -80,13 +87,13 @@ export default function App({ doc, boardId }: AppProps = {}) {
       undoHistory.boundary();
       const id = createText(boardDoc, worldPoint, 'local');
       undoHistory.boundary();
-      setTool('select');
+      active.setTool('select');
       if (id) {
         selection.click(id);
         selection.startEdit(id);
       }
     },
-    [boardDoc, locked, selection, undoHistory, setTool],
+    [boardDoc, locked, selection, undoHistory, active],
   );
 
   useBoardKeys({
@@ -100,10 +107,6 @@ export default function App({ doc, boardId }: AppProps = {}) {
       return true;
     },
     undo: undoHistory,
-    // Story 9: tool shortcuts
-    tool,
-    setTool,
-    onCreateSticky: () => createStickyAtCentre(),
   });
 
   const createStickyAtCentre = useCallback(() => {
@@ -139,6 +142,7 @@ export default function App({ doc, boardId }: AppProps = {}) {
 
   useEffect(() => {
     installBoardHook(() => snapshot(boardDoc));
+    installApplyUpdate((bytes) => Y.applyUpdate(boardDoc, bytes));
   }, [boardDoc]);
   useEffect(() => {
     reportConnectionState(connection);
@@ -164,8 +168,10 @@ export default function App({ doc, boardId }: AppProps = {}) {
         onCreateSticky={createStickyAtCentre}
         undo={undoApi}
         locked={locked}
-        tool={tool}
-        onTool={setTool}
+        tool={active.tool}
+        onTool={active.setTool}
+        shapeKind={active.shapeKind}
+        onShapeKind={active.setShapeKind}
       />
       <BoardViewport
         doc={boardDoc}
@@ -175,10 +181,33 @@ export default function App({ doc, boardId }: AppProps = {}) {
         onCameraChange={setCamera}
         marquee={marquee}
         locked={locked}
-        tool={tool}
+        tool={active.tool}
         onTextClick={handleTextClick}
         overlay={
           <>
+            {/*
+              A drawing tool's own layer, above the objects and below the selection
+              bar: while it is up it owns the pointer, so a drag that starts on a shape
+              draws instead of moving it.
+            */}
+            {active.tool === 'shape' && !locked ? (
+              <ShapeTool
+                doc={boardDoc}
+                kind={active.shapeKind}
+                camera={camera}
+                onCreated={active.toolCreated}
+                onUndoBoundary={() => undoHistory.boundary()}
+              />
+            ) : null}
+            {active.tool === 'connector' && !locked ? (
+              <ConnectorTool
+                doc={boardDoc}
+                camera={camera}
+                snapshot={notes}
+                onCreated={active.toolCreated}
+                onUndoBoundary={() => undoHistory.boundary()}
+              />
+            ) : null}
             <SelectionOverlay
               ids={selection.ids}
               snapshot={notes}
@@ -215,6 +244,7 @@ export default function App({ doc, boardId }: AppProps = {}) {
               }}
               onEditChange={onEditChange}
               onObjectPointerDown={gesture.onObjectPointerDown}
+              onUndoBoundary={() => undoHistory.boundary()}
             />
           );
         })}

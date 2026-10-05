@@ -122,10 +122,16 @@ describe('undo and redo buttons (undo.buttons)', () => {
     const toolbar = container.querySelector<HTMLElement>('[data-toolbar]');
     if (!toolbar) throw new Error('the board toolbar is missing');
     const buttons = [...toolbar.querySelectorAll<HTMLButtonElement>('button')];
+    // Story 10 adds the Shape button (with its kind menu) and the Connector button
+    // between the sticky note and the history: the point of this assertion is that
+    // undo and redo sit below every tool, so the list grows with the toolbar.
     expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([
       'Select (V)',
       'Text (T)',
       'Sticky note (N)',
+      'Shape (S) \u2013 Rectangle',
+      'Shape kind menu',
+      'Connector (L)',
       'Undo',
       'Redo',
     ]);

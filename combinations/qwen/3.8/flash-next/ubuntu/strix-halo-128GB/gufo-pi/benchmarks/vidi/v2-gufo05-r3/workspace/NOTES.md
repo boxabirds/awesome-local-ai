@@ -342,3 +342,147 @@ browser:
   events, `getBoundingClientRect`, `Y.Doc`.
 - **The `nightly` project** (the 2000-note and long-session runs) is excluded from
   `npm run test:e2e` and was not run.
+
+## Task 7-8: shape model
+
+- Task 7 wrote `tests/unit/shape-model.test.ts` against a stub whose functions
+  threw `not implemented`; all 7 cases failed for that reason alone. Task 8 then
+  implemented the model, so the two tasks land in one commit (a commit of task 7
+  alone would not pass `npm run test:unit`, and every commit here has to).
+- `ObjectSnapshot` gained an optional `text` field, and every type the model
+  writes fills it (sticky note body, text object body, shape label). Existing
+  snapshot helpers in the older suites read `.text` off the un-narrowed
+  `AnySnapshot` union; a shape without that field broke them at compile time.
+  A shape's snapshot therefore carries the label twice: as `label` (the name
+  this story's contract uses) and as `text` (the name every board object uses).
+- Two older unit tests used the literal type name `'shape'` as their stand-in
+  for "a type this build does not know" (`TC-12 snapshot skips objects of
+  unknown type`, `TC-08 select all skips ...`). Story 10 makes `'shape'` known,
+  so the placeholder is now `'triangle'`. The assertions are unchanged.
+
+## Task 9-10: connector model, geometry and detach-on-delete
+
+- Task 9 wrote `tests/unit/connector-model.test.ts` against stubs that threw
+  `not implemented` (14 failures, all for that reason); task 10 implemented them,
+  so both land in one commit for the same reason as tasks 7-8.
+- One expectation was corrected after the geometry was implemented: with a loose
+  end at (-50, 500) and an arrow head attached to `B` at (300, 0, 100, 100), the
+  stored side is *bottom* (450 units of drop beats 400 of sideways reach once
+  each is divided by its own side length), so the box is
+  `{x:-50, y:100, width:400, height:400}`, not the one guessed while writing the
+  test. The rule under test - "the box is the box of the two resolved ends" - is
+  unchanged.
+- `board-model.ts` and `objects/connector.ts` import each other (the model calls
+  `detachConnectorsTo`, `readConnector`, `connectorBoxOf` and `translateConnector`;
+  the connector module needs `LOCAL_ORIGIN` and `objectBounds`). Neither module
+  touches the other at module scope, so the cycle resolves in either order; the
+  snapshot types the model unions in are `import type` and erased. `npm run build`
+  reports no circular-dependency warning, and the unit, worker and component
+  suites all pass with it.
+- `moveObjects` now treats an arrow specially: it never writes `x`/`y` (an
+  arrow's position is always derived), it translates the ends that are free and
+  leaves attached ones to their objects. `resizeObjects` skips arrows for the
+  same reason.
+
+## Task 11-14: tools, shape and connector UI, component tests
+
+- `useActiveTool` is now the only owner of tool state and tool keys. `useTool.ts`
+  is deleted and `useBoardKeys` lost its `v`/`t`/`n` block (a comment there points
+  at the hook): one key press had to be able to reach exactly one tool, and with
+  two handlers it could reach none or both. The three unshipped tools (`pen`,
+  `image`, `comment`) are *refused* by `setTool` rather than activated, so a
+  shortcut cannot put the board into a mode that paints nothing.
+- Tool layers are rendered in `BoardViewport`'s `overlay` prop: screen space,
+  `z-index: 4`, above the world layer and below the selection bar, toolbar and
+  zoom controls. A tool layer takes the pointer for its own (`tools.own_gesture`),
+  so a press that starts on a shape draws a shape instead of moving it, and
+  `BoardViewport` returns early from `pointerdown` for any non-select tool so the
+  same press cannot also pan.
+- Both tools keep their window listeners in a `gestureStop` ref and release them
+  on unmount. Escape unmounts a tool in the middle of a drag; without this the
+  orphaned `pointerup` listener would create a shape from a release nobody made.
+- `ConnectorObject` maps screen pixels to world units through the *viewport* and
+  the camera, not through its own `getBoundingClientRect`. An arrow's box can be
+  zero-height or zero-wide, so a point measured from its top-left corner is
+  meaningless; the viewport's frame always is.
+- Test file names follow the design's test table: `ShapeTool.test.tsx` (TC-15 to
+  TC-17, TC-28 - the label editor and the colour toolbar are the shape's own
+  surface, so they live with the shape tool), `Connector.test.tsx` (TC-18 to
+  TC-21, tool and object as two describes) and `useActiveTool.test.tsx` (TC-22).
+- `tests/component/flowHarness.ts` reads the camera out of the world layer's own
+  `transform` (`cameraOf`), so `screenOf(container, world)` does not assume the
+  default camera, and `countUpdates(doc, fn)` counts Y.Doc `update` events for the
+  "one action is one transaction" cases.
+- Two existing expectations were extended, not weakened:
+  `UndoControls.test.tsx` now expects eight buttons (Shape, Shape kind menu and
+  Connector joined the row) and still asserts undo/redo sit below every tool.
+- TC-21's expectations name the side the *far* end turns to. `resolveEndpoints`
+  re-solves both ends whenever either one changes, so after a re-attach the other
+  anchor is the side that faces the new position (`B`'s bottom at (700, 120)), not
+  the side it was born with. The first draft of the test asserted the old side.
+- `TextEditor` has no `doc`/`zoom` props and `onEditChange(id, null)` *begins*
+  editing (a target of `'selected'`/`'unselected'` ends it); the shape label editor
+  follows the note's convention rather than inventing a second one.
+
+## Task 15: e2e - draw a flow, collaborative rearrange, delete race
+
+- One new test-only door: `window.__vidi6.applyUpdate(bytes)` (`canvas/testHooks.ts`,
+  installed in `App.tsx`). The fixture `tests/fixtures/checkout-flow.ts` is a real
+  document built in Node with the real model calls, and the chromium project runs
+  against the shipped worker configuration, where `/__test/boards/...` is
+  deliberately absent (that absence is itself under test in
+  `storage-hooks-not-in-production.spec.ts`). Without a client-side door the only
+  way to reach the fixture's state would be to draw four shapes and four arrows with
+  the mouse, which would test the drawing rather than the flow. Applying an update is
+  what any collaborating tab does, so a seeded board travels to the server and to the
+  other participant the ordinary way. It is guarded by the same
+  `import.meta.env.MODE === 'test'` check as every other hook here:
+  `grep -c applyUpdate dist/client/assets/*.js` is `0` after `npm run build`.
+- `openParticipant(..., { delayOutgoingMs })` holds every page-to-server frame back
+  in the harness. TC-27 needs Sam's delete to be genuinely in the air while Dana lets
+  go of an arrow, and two clients on one loopback interface never overlap by
+  themselves. The delay is applied where the socket is already intercepted, so the
+  app sees an ordinary slow network and its own conflict handling is what runs.
+- `tests/e2e/helpers/flow.ts` gets its camera from what the board itself shows - the
+  origin marker's painted position and the zoom label - so no spec assumes where the
+  world origin is. `dragShapeToWorld` is spelled that way on purpose: the first
+  version took the destination in world units and handed it to a screen-space drag.
+  The shape still moved, to the wrong place, and only the assertion noticed.
+- TC-27 accepts either legal ending of the race and says so in the test: if Dana's
+  board had already heard about the delete, her end is loose where it was dropped;
+  otherwise it names the deleted shape and is drawn at its stored `fallback`. What is
+  asserted in both branches is the promise the design actually makes - a finite,
+  painted arrow and an empty console.
+- Note the asymmetry the race leaves behind, which is inherent and not fixed here: a
+  *local* delete detaches the arrows that pointed at it (`detachConnectorsTo` runs in
+  the delete's transaction), while a delete that arrives from another client simply
+  removes the shape and leaves the arrow's end naming it, so that end renders at its
+  fallback. Both states draw the same arrow; only the record differs.
+- TC-23 is the design's cross-browser case. It runs in the chromium project, and the
+  `E2E_ALL_BROWSERS=1` projects run the same spec; on this host those two engines
+  still fail to launch for the missing OS libraries recorded above.
+
+## Story 10 verification run
+
+- Everything in the acceptance list passes on this machine in chromium: 274 unit,
+  212 component, 66 integration and 71 e2e tests, plus `typecheck` and `build`.
+- A full e2e run fails roughly one time in three on this host, and it is not this
+  story. The failures are in the older load-heavy specs -
+  `persistence/board-survival.spec.ts` TC-19 and `live-collaboration.spec.ts` TC-27 -
+  and their symptom is one extra line in a page's console log: "Minified React error
+  #185" (maximum update depth), raised while 25 notes are being created through the
+  UI in a burst. Those boards hold nothing but sticky notes, so no story 10 component
+  is rendered on them at all.
+  It was checked rather than assumed: a worktree at `f6426b5`, the commit before any
+  story 10 code existed, was built and its suite run seven times under the same
+  conditions. Two of those seven runs failed with the same #185 line - the same rate
+  as this branch (three of eight). Running the affected specs on their own, or
+  together with the story 10 specs, passed every time.
+  What this says about the app, for whoever picks it up: a burst of note creations on
+  a starved machine can make React give up on an update chain, and both specs assert
+  an empty console, so they are the smoke detectors. The fix belongs in the render
+  path stories 1 to 9 share (`snapshot(doc)` -> `useState` on every Y.Doc update), not
+  in this story; it is recorded here because the numbers, not the story, are the
+  evidence.
+- The story 10 e2e specs themselves (`shapes.spec.ts`, `connectors.spec.ts`) passed
+  every run, including the delete-race case.

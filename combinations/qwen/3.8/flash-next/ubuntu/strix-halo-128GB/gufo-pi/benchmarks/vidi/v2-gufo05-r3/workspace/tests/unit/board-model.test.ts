@@ -307,12 +307,14 @@ describe('board.model: stacking and snapshot', () => {
   it('TC-12 snapshot skips objects of unknown type without throwing', () => {
     const doc = new Y.Doc();
     const sticky = createSticky(doc, { x: 0, y: 0 }, 'blue');
+    // 'triangle' stands for a type this build does not know. (It used to be
+    // 'shape'; story 10 made shapes real.)
     const shapes = new Y.Map<unknown>();
-    shapes.set('type', 'shape');
+    shapes.set('type', 'triangle');
     shapes.set('x', 0);
     shapes.set('y', 0);
     shapes.set('z', 5);
-    objectsMap(doc).set('shape-1', shapes);
+    objectsMap(doc).set('triangle-1', shapes);
 
     const list = snapshot(doc);
     expect(list).toHaveLength(1);

@@ -1,3 +1,90 @@
+commit 5f3549ec12e2bf20ba6e19620ad51b1040d2fc81
+agent  Mon Oct 5 06:45:05 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                          | 103 +++++++++++++
+ PROGRESS.md                       |   2 +-
+ src/client/App.tsx                |   5 +-
+ src/client/canvas/testHooks.ts    |  27 ++++
+ tests/e2e/connectors.spec.ts      | 310 ++++++++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/flow.ts         | 102 +++++++++++++
+ tests/e2e/helpers/participants.ts |  43 ++++--
+ tests/e2e/shapes.spec.ts          | 161 ++++++++++++++++++++
+ tests/fixtures/checkout-flow.ts   | 162 ++++++++++++++++++++
+ 9 files changed, 903 insertions(+), 12 deletions(-)
+commit 36289951748e2d6b17288109d19a82cb46abbba4
+agent  Mon Oct 5 06:11:03 2026 +0000
+
+    story 10 tasks 11-14: shape and connector tools, active tool and component tests
+
+
+ PROGRESS.md                               |   8 +-
+ src/client/App.tsx                        |  59 +++-
+ src/client/board/SelectionBar.tsx         |  38 +++
+ src/client/board/Toolbar.tsx              | 125 ++++++-
+ src/client/board/useBoardKeys.ts          |  46 +--
+ src/client/board/useTool.ts               |  39 ---
+ src/client/canvas/BoardViewport.tsx       |  36 +-
+ src/client/objects/ConnectorObject.tsx    | 290 ++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 213 ++++++++++++
+ src/client/objects/ShapeToolbar.tsx       | 108 ++++++
+ src/client/objects/index.ts               |   8 +-
+ src/client/objects/registry.tsx           |   8 +
+ src/client/styles.css                     |  79 +++++
+ src/client/tools/ConnectorTool.tsx        | 234 +++++++++++++
+ src/client/tools/ShapeTool.tsx            | 176 ++++++++++
+ src/client/tools/useActiveTool.ts         | 156 +++++++++
+ src/shared/board-model.ts                 |  23 +-
+ src/shared/geometry.ts                    |   9 +
+ src/shared/geometry/connector-geometry.ts | 175 +++++-----
+ src/shared/geometry/polyline.ts           |  57 ++++
+ src/shared/objects/connector.ts           | 261 ++++++++++-----
+ tests/component/Connector.test.tsx        | 406 +++++++++++++++++++++++
+ tests/component/ShapeObject.test.tsx      | 115 +++++++
+ tests/component/ShapeTool.test.tsx        | 308 +++++++++++++++++
+ tests/component/UndoControls.test.tsx     |   6 +
+ tests/component/flowHarness.ts            | 128 ++++++++
+ tests/component/useActiveTool.test.tsx    | 170 ++++++++++
+ tests/unit/connector-model.test.ts        | 526 +++++++++++++++++-------------
+ 28 files changed, 3280 insertions(+), 527 deletions(-)
+commit 710a95b6e3467c8f768e4f7bd80141700a194812
+agent  Mon Oct 5 04:46:15 2026 +0000
+
+    story 10 tasks 9-10: connector model, side geometry and detach-on-delete
+
+
+ NOTES.md                                  |  24 ++
+ PROGRESS.md                               |   8 +-
+ src/shared/board-model.ts                 |  94 ++++++-
+ src/shared/geometry/connector-geometry.ts | 165 ++++++++++++
+ src/shared/objects/connector.ts           | 340 ++++++++++++++++++++++++
+ tests/unit/connector-model.test.ts        | 422 ++++++++++++++++++++++++++++++
+ 6 files changed, 1043 insertions(+), 10 deletions(-)
+commit eea69a4620ffccd491bc7124a1d65678eb077a0c
+agent  Mon Oct 5 04:31:06 2026 +0000
+
+    story 10 tasks 7-8: shape model with click, drag and Shift-square creation
+
+
+ NOTES.md                             |  17 ++
+ PROGRESS.md                          |   2 +-
+ src/shared/board-model.ts            |  62 +++++++-
+ src/shared/config.ts                 |  84 ++++++++++
+ src/shared/objects/shape.ts          | 208 ++++++++++++++++++++++++
+ tests/unit/board-model-group.test.ts |   8 +-
+ tests/unit/board-model.test.ts       |   6 +-
+ tests/unit/shape-model.test.ts       | 301 +++++++++++++++++++++++++++++++++++
+ 8 files changed, 681 insertions(+), 7 deletions(-)
+commit f6426b5fbb8df3fd3de34bb9bb1d36456a67a145
+vidi-agent  Mon Oct 5 04:07:59 2026 +0000
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)
 commit 046134d06f56d272257bb2dacee192614624290b
 agent  Mon Oct 5 03:53:13 2026 +0000
 

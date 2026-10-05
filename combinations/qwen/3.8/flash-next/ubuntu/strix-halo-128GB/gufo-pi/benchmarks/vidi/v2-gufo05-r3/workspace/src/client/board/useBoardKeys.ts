@@ -30,12 +30,6 @@ export interface BoardKeysOptions {
    * window on both sides so one action stays one undo step.
    */
   undo?: UndoController;
-  /** Current tool (story 9). */
-  tool?: string;
-  /** Set tool (story 9). */
-  setTool?(tool: 'select' | 'text'): void;
-  /** Create a sticky note at the view centre (N shortcut, story 9). */
-  onCreateSticky?(): void;
 }
 
 /** True when the keyboard belongs to a text field (so the keys edit text). */
@@ -72,12 +66,12 @@ const ARROWS: Record<string, [number, number]> = {
  * the page's text as well as the board's objects.
  */
 export function useBoardKeys(options: BoardKeysOptions): void {
-  const { doc, selection, snapshot, canEdit, onEscape, undo, tool, setTool, onCreateSticky } = options;
+  const { doc, selection, snapshot, canEdit, onEscape, undo } = options;
 
   // One listener for the life of the board; it reads the current values from a
   // ref so a new selection does not mean detaching and re-attaching listeners.
-  const live = useRef({ doc, selection, snapshot, canEdit, onEscape, undo, tool, setTool, onCreateSticky });
-  live.current = { doc, selection, snapshot, canEdit, onEscape, undo, tool, setTool, onCreateSticky };
+  const live = useRef({ doc, selection, snapshot, canEdit, onEscape, undo });
+  live.current = { doc, selection, snapshot, canEdit, onEscape, undo };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -94,30 +88,9 @@ export function useBoardKeys(options: BoardKeysOptions): void {
       const key = event.key;
       const modifier = event.ctrlKey || event.metaKey;
 
-      // Story 9: tool shortcuts (V, T, N) — only when no modifier is held
-      // and the board is editable.
-      if (!modifier && !event.altKey) {
-        const lower = key.toLowerCase();
-        if (lower === 'v') {
-          event.preventDefault();
-          live.current.setTool?.('select');
-          return;
-        }
-        if (lower === 't') {
-          if (live.current.canEdit) {
-            event.preventDefault();
-            live.current.setTool?.('text');
-          }
-          return;
-        }
-        if (lower === 'n') {
-          if (live.current.canEdit && live.current.onCreateSticky) {
-            event.preventDefault();
-            live.current.onCreateSticky();
-          }
-          return;
-        }
-      }
+      // Tool shortcuts (V, T, N, S, L) live with the tool itself in
+      // `useActiveTool`, so that adding a tool in story 11 is one entry in one table
+      // and not a new branch in this one.
 
       // Undo and redo belong to the person using this tab, never to the board
       // as a whole (`undo.own`), and only while the board can be changed.
@@ -147,11 +120,8 @@ export function useBoardKeys(options: BoardKeysOptions): void {
 
       if (key === 'Escape') {
         if (live.current.onEscape?.()) return;
-        // Text tool active: Escape returns to Select.
-        if (live.current.tool === 'text' && live.current.setTool) {
-          live.current.setTool('select');
-          return;
-        }
+        // Putting a tool back to Select is `useActiveTool`'s business; this is the
+        // part that is about the selection, and both happen on the same keypress.
         if (sel.count === 0) return;
         event.preventDefault();
         sel.clear();

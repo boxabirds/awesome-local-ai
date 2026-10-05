@@ -204,3 +204,87 @@ export const TEXT_LINE_HEIGHT = 1.3;
 
 /** Font family for text objects. */
 export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+// --- Story 10: shapes and connectors ---------------------------------------
+
+/** The shape kinds the Shape tool offers, in menu order. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** The accessible name of each shape kind (menu labels, screen readers). */
+export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+
+/** Size of a shape dropped by a click (or a drag below the minimum size). */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/**
+ * The smallest drag that still makes a shape of the dragged size, in world
+ * units — and the smallest side a shape may be resized to.
+ */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** Maximum number of characters kept in a shape's label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** Outline width of a shape, in world units (it scales with the zoom). */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** The seven fill choices: six colours plus no fill. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** The six outline colours. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** The colour a newly created shape gets. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+
+/** The outline colour a newly created shape gets. */
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+/** Font size of a shape label, in world units. */
+export const SHAPE_LABEL_FONT_PX = 16;
+
+/** Inside padding of a shape label, in world units. */
+export const SHAPE_LABEL_PADDING_WORLD = 8;
+
+/** A connector drag shorter than this (board units) creates nothing. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/** How close to an arrow's line a click must be to select it, in screen px. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** Arrow line width, in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** Arrowhead length, in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** Radius of a connection dot, in screen px (it does not scale with zoom). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+/** Radius of a selected arrow's end handle, in screen px. */
+export const CONNECTOR_HANDLE_RADIUS_PX = 5;

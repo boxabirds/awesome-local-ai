@@ -1,11 +1,32 @@
 import * as Y from 'yjs';
 import {
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
+  SHAPE_FILL_COLORS,
+  SHAPE_KINDS,
+  SHAPE_STROKE_COLORS,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  type FillColor,
+  type ShapeKind,
   type StickyColor,
+  type StrokeColor,
   type TextSize,
 } from './config';
+import {
+  connectorBoxOf,
+  detachConnectorsTo,
+  readConnector,
+  translateConnector,
+  type ConnectorSnap,
+  type Endpoint,
+} from './objects/connector';
+import {
+  connectorBBox,
+  isResolvable,
+  resolveEndpoints,
+} from './geometry/connector-geometry';
 import { rectContains, type Point, type Rect } from './geometry';
 
 /**
@@ -67,6 +88,13 @@ export interface ObjectSnapshot {
   createdAt: number;
   width?: number;
   height?: number;
+  /**
+   * The object's text content, spelled the same on every type: a sticky note's
+   * or text object's body, a shape's label (story 10). Every type the model
+   * writes fills it, so generic readers do not have to narrow by type to get
+   * an object's text.
+   */
+  text?: string;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -83,8 +111,48 @@ export interface BoardTextSnapshot extends ObjectSnapshot {
   createdBy?: string;
 }
 
+/**
+ * A shape (story 10). `shared/objects/shape.ts` calls this snapshot `ShapeSnap`.
+ */
+export interface ShapeObjectSnapshot extends ObjectSnapshot {
+  type: 'shape';
+  /** The label, spelled like every other object's text. */
+  text: string;
+  kind: ShapeKind;
+  fill: FillColor;
+  stroke: StrokeColor;
+  label: string;
+  createdBy?: string;
+}
+
+/**
+ * A connector (arrow, story 10). Its `x`/`y`/`width`/`height` are *derived* from
+ * the objects its ends point at, so the box a selection frame or a marquee works
+ * with is always the box the arrow is drawn in. The record keeps the common
+ * position fields so that generic readers find them, but they are always zero. `shared/objects/connector.ts` calls this snapshot `ConnectorSnap`.
+ */
+export interface ConnectorObjectSnapshot extends ObjectSnapshot {
+  type: 'connector';
+  /** An arrow has no text of its own. */
+  text: '';
+  from: Endpoint;
+  to: Endpoint;
+  /**
+   * Where the two ends actually are, resolved against the objects they point at.
+   *
+   * The snapshot carries them so the renderer draws exactly the line the hit test
+   * measures: one resolution per board read, not one per object.
+   */
+  ends: { from: Point; to: Point };
+  createdBy?: string;
+}
+
 /** Union of all board object snapshots. */
-export type AnySnapshot = StickySnapshot | BoardTextSnapshot;
+export type AnySnapshot =
+  | StickySnapshot
+  | BoardTextSnapshot
+  | ShapeObjectSnapshot
+  | ConnectorSnap;
 
 function metaMap(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap(META_KEY);
@@ -229,20 +297,33 @@ export function moveObjects(
   }
   const objects = objectsMap(doc);
   const moves: [Y.Map<unknown>, Point][] = [];
+  // An arrow has no position of its own: dragging one moves the ends that are
+  // not attached to something, which is a no-op for a fully attached arrow.
+  const arrows: [string, Point][] = [];
   for (const [id, at] of targets) {
     const note = objects.get(id);
     if (!note) continue;
+    if (note.get('type') === 'connector') {
+      arrows.push([id, at]);
+      continue;
+    }
     if (note.get('x') === at.x && note.get('y') === at.y) continue;
     moves.push([note, at]);
   }
-  if (moves.length === 0) return 0;
+  if (moves.length === 0 && arrows.length === 0) return 0;
+  let shifted = 0;
   doc.transact(() => {
     for (const [note, at] of moves) {
       note.set('x', at.x);
       note.set('y', at.y);
     }
+    for (const [id, at] of arrows) {
+      const box = connectorBoxOf(doc, id);
+      if (!box) continue;
+      if (translateConnector(doc, id, at.x - box.x, at.y - box.y)) shifted++;
+    }
   }, LOCAL_ORIGIN);
-  return moves.length;
+  return moves.length + shifted;
 }
 
 /**
@@ -279,6 +360,9 @@ export function resizeObjects(
   for (const [id, rect] of entries) {
     const note = objects.get(id);
     if (!note) continue;
+    // An arrow is as big as the distance between its ends; there is no box to
+    // write. The client never offers one a resize handle either.
+    if (note.get('type') === 'connector') continue;
     if (
       note.get('x') === rect.x &&
       note.get('y') === rect.y &&
@@ -382,6 +466,10 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = [...new Set(ids)].filter((id) => objects.has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Free the arrow ends that point at these objects first, in the same
+    // transaction: no screen can observe a connector pointing at a missing
+    // object, and undo brings the object and its re-attached end back together.
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
@@ -440,6 +528,9 @@ export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
  */
 export function snapshot(doc: Y.Doc): readonly AnySnapshot[] {
   const out: AnySnapshot[] = [];
+  // Connectors are decoded in a second pass, once everything else has a
+  // rectangle; see below.
+  const connectors: [string, Y.Map<unknown>][] = [];
   for (const [id, note] of objectsMap(doc)) {
     const type = note.get('type');
     if (type === 'sticky') {
@@ -456,6 +547,35 @@ export function snapshot(doc: Y.Doc): readonly AnySnapshot[] {
         createdAt: numberOr(note.get('createdAt'), 0),
         ...(finite(note.get('width')) ? { width: note.get('width') as number } : {}),
         ...(finite(note.get('height')) ? { height: note.get('height') as number } : {}),
+      });
+    } else if (type === 'shape') {
+      const kind = note.get('kind');
+      const fill = note.get('fill');
+      const stroke = note.get('stroke');
+      const label = note.get('label');
+      const createdBy = note.get('createdBy');
+      const labelText = label instanceof Y.Text ? label.toString() : '';
+      out.push({
+        id,
+        type: 'shape' as const,
+        text: labelText,
+        x: numberOr(note.get('x'), 0),
+        y: numberOr(note.get('y'), 0),
+        kind: (typeof kind === 'string' && (SHAPE_KINDS as readonly string[]).includes(kind))
+          ? kind as ShapeKind
+          : 'rect',
+        fill: (typeof fill === 'string' && Object.hasOwn(SHAPE_FILL_COLORS, fill))
+          ? fill as FillColor
+          : DEFAULT_SHAPE_FILL,
+        stroke: (typeof stroke === 'string' && Object.hasOwn(SHAPE_STROKE_COLORS, stroke))
+          ? stroke as StrokeColor
+          : DEFAULT_SHAPE_STROKE,
+        label: labelText,
+        z: numberOr(note.get('z'), 0),
+        createdAt: numberOr(note.get('createdAt'), 0),
+        ...(finite(note.get('width')) ? { width: note.get('width') as number } : {}),
+        ...(finite(note.get('height')) ? { height: note.get('height') as number } : {}),
+        ...(typeof createdBy === 'string' ? { createdBy } : {}),
       });
     } else if (type === 'text') {
       const text = note.get('text');
@@ -478,8 +598,43 @@ export function snapshot(doc: Y.Doc): readonly AnySnapshot[] {
         ...(finite(note.get('height')) ? { height: note.get('height') as number } : {}),
         ...(typeof createdBy === 'string' ? { createdBy } : {}),
       });
+    } else if (type === 'connector') {
+      // An arrow's box comes from the objects it joins, so it waits for the
+      // first pass to finish.
+      connectors.push([id, note]);
     }
     // Unknown types are skipped.
+  }
+  if (connectors.length > 0) {
+    const rects = new Map<string, Rect>();
+    for (const obj of out) {
+      if (obj.type === 'connector') continue;
+      rects.set(obj.id, objectBounds(obj));
+    }
+    for (const [id, note] of connectors) {
+      const stored = readConnector(id, note);
+      if (!stored) continue;
+      const ends = resolveEndpoints(stored, rects);
+      // No usable geometry (an end with unreadable coordinates): there is no
+      // line to draw and nothing to select, so it stays out of the snapshot.
+      if (!isResolvable(ends)) continue;
+      const box = connectorBBox(ends.from, ends.to);
+      out.push({
+        id,
+        type: 'connector' as const,
+        text: '' as const,
+        x: box.x,
+        y: box.y,
+        width: box.width,
+        height: box.height,
+        from: stored.from,
+        to: stored.to,
+        ends,
+        z: stored.z,
+        createdAt: stored.createdAt,
+        ...(stored.createdBy !== undefined ? { createdBy: stored.createdBy } : {}),
+      });
+    }
   }
   out.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;

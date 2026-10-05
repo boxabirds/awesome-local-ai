@@ -58,6 +58,15 @@ export interface OpenOptions {
    * is passed straight through, so nothing else changes.
    */
   controllableLink?: boolean;
+  /**
+   * Hold every page-to-server frame back by this many milliseconds.
+   *
+   * Story 10's delete race needs one participant's write still to be in the air
+   * while the other's lands — which two clients on one machine, on one loopback
+   * interface, never are. The delay is applied in the harness, so the app itself
+   * sees an ordinary slow network and its own conflict handling is what is tested.
+   */
+  delayOutgoingMs?: number;
 }
 
 /** A board nobody has opened yet. */
@@ -98,16 +107,31 @@ export async function openParticipant(
   const routes: WebSocketRoute[] = [];
   const frames: number[] = [];
   const closes: number[] = [];
-  if (options.controllableLink) {
+  const delayOutgoingMs = options.delayOutgoingMs ?? 0;
+  if (options.controllableLink || delayOutgoingMs > 0) {
     await page.routeWebSocket('**/api/rooms/**', (route) => {
       routes.push(route);
       // Attaching a message handler takes over the bridge, so both directions
       // are forwarded by hand - the only thing added is a record of when the
       // page sent something (proof of keepalives) and when a socket closed
-      // (proof that a closed tab stays closed).
+      // (proof that a closed tab stays closed), and, for a slow-network
+      // participant, the delay itself.
       const server = route.connectToServer();
       route.onMessage((message) => {
         frames.push(Date.now());
+        if (delayOutgoingMs > 0) {
+          setTimeout(() => {
+            // The socket may have closed during the delay; a frame that never
+            // arrives is what a real slow client loses, and the test is about
+            // what the *other* client does next.
+            try {
+              server.send(message);
+            } catch {
+              /* dropped */
+            }
+          }, delayOutgoingMs);
+          return;
+        }
         server.send(message);
       });
       server.onMessage((message) => route.send(message));
@@ -121,13 +145,14 @@ export async function openParticipant(
     context,
     page,
     consoleErrors,
-    link: options.controllableLink
-      ? {
-          routes,
-          takeFrameTimes: () => frames.splice(0, frames.length),
-          closedAt: () => [...closes],
-        }
-      : undefined,
+    link:
+      options.controllableLink || delayOutgoingMs > 0
+        ? {
+            routes,
+            takeFrameTimes: () => frames.splice(0, frames.length),
+            closedAt: () => [...closes],
+          }
+        : undefined,
   };
   await page.goto(`/b/${boardId}`);
   await page.waitForSelector('[data-board-surface]');

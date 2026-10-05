@@ -55,6 +55,15 @@ export function isRect(rect: Rect | null | undefined): rect is Rect {
 }
 
 /** `outer` holds `inner` completely: all four edges of `inner` lie inside. */
+/**
+ * Does this point fall inside this rectangle? The edges count as inside: a shape
+ * that is exactly as wide as it is tall has no interior a click could miss.
+ */
+export function pointInRect(at: Point, rect: Rect): boolean {
+  if (!isRect(rect) || !Number.isFinite(at?.x) || !Number.isFinite(at?.y)) return false;
+  return at.x >= rect.x && at.x <= rect.x + rect.width && at.y >= rect.y && at.y <= rect.y + rect.height;
+}
+
 export function rectContains(outer: Rect, inner: Rect): boolean {
   if (!isRect(outer) || !isRect(inner)) return false;
   return (

@@ -2,6 +2,7 @@ import * as Y from 'yjs';
 import { getObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
 import {
   setStickyColor,
@@ -9,6 +10,8 @@ import {
   type StickySnapshot,
 } from '../../shared/board-model';
 import { setTextSize, setTextBox } from '../../shared/objects/text';
+import { setShapeStyle, type ShapeSnap } from '../../shared/objects/shape';
+import type { FillColor, StrokeColor } from '../../shared/config';
 import { layoutText, createCanvasMeasurer } from '../objects/textLayout';
 import type { StickyColor, TextSize } from '../../shared/config';
 import type { TextSnapshot } from '../../shared/objects/text';
@@ -74,6 +77,41 @@ export function SelectionBar(props: SelectionBarProps) {
           }}
           onDelete={onDelete}
         />
+      </div>
+    );
+  }
+
+  if (single && single.type === 'shape') {
+    const shape = single as ShapeSnap;
+    // The shape's own toolbar, plus the bin: picking a colour is one command, so it
+    // is one undo step, and it must not disturb the selection that put this bar here.
+    return (
+      <div className="selection-bar-slot">
+        <ShapeToolbar
+          fill={shape.fill}
+          stroke={shape.stroke}
+          onFill={(color: FillColor) => {
+            undo?.boundary();
+            setShapeStyle(doc, shape.id, { fill: color });
+            undo?.boundary();
+          }}
+          onStroke={(color: StrokeColor) => {
+            undo?.boundary();
+            setShapeStyle(doc, shape.id, { stroke: color });
+            undo?.boundary();
+          }}
+        />
+        <div className="selection-bar" data-selection-bar="" role="toolbar" aria-label="Selection">
+          <button
+            type="button"
+            className="selection-delete"
+            aria-label="Delete selection"
+            title="Delete selection"
+            onClick={onDelete}
+          >
+            Delete
+          </button>
+        </div>
       </div>
     );
   }
