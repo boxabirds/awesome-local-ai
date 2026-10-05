@@ -1,13 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { BoardViewport, type BoardViewportApi } from './canvas/BoardViewport';
+import type { Camera } from './canvas/camera';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
-import { useSelection } from './board/useSelection';
-import { StickyNote } from './objects/StickyNote';
+import { useSelection, type EndEditTarget } from './board/useSelection';
+import { useTransformGesture } from './board/useTransformGesture';
+import { useBoardKeys } from './board/useBoardKeys';
+import { MarqueeRect, useMarquee } from './board/Marquee';
+import { SelectionOverlay } from './board/SelectionOverlay';
+import { SelectionAnnouncement, SelectionBar } from './board/SelectionBar';
+import { getObjectType } from './objects/registry';
+import './objects/index';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
-import { createSticky, deleteObject, snapshot } from '../shared/board-model';
+import { createSticky, deleteObjects, snapshot } from '../shared/board-model';
 import { installBoardHook, reportConnectionState } from './canvas/testHooks';
 
 export interface AppProps {
@@ -26,23 +33,8 @@ export interface AppProps {
   boardId?: string;
 }
 
-/** True when the keyboard belongs to a text field (so keys edit text). */
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  const tag = target.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-}
-
-/**
- * True when the key belongs to a focused control (a toolbar button, a link ...):
- * Enter and Space must activate that control instead of being turned into board
- * shortcuts.
- */
-function isControlTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.closest('button, a[href], [role="button"]') !== null;
-}
+/** The camera before the viewport has reported one, which is the default view. */
+const INITIAL_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
 
 /**
  * The board: the document, the live connection, the local selection, the
@@ -50,57 +42,94 @@ function isControlTarget(target: EventTarget | null): boolean {
  * routing (which board, or the home page, or Board not found) out of here and
  * into `router.ts`; `App` is now just the board, given an id to open. It stays
  * mounted only in the board page's `ready` state, where the board exists.
+ *
+ * Story 7 made the selection a set and moved the pointer logic out of the sticky
+ * note into one gesture that works on any registered object type. `App` is where
+ * those pieces meet: it owns the selection, the gesture and the marquee, and
+ * hands the viewport a screen-space overlay drawn from them.
  */
 export default function App({ doc, boardId }: AppProps = {}) {
   const { doc: boardDoc, notes, connection } = useBoardDoc(doc, boardId);
-
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
-  const viewportApi = useRef<BoardViewportApi | null>(null);
   /**
    * Read-only while the board's storage cannot be read: the things on screen are
    * whatever this tab happens to hold, so writing them would be a change the
-   * service cannot keep. Looking, panning and zooming stay available.
+   * service cannot keep. Looking, panning, zooming and selecting stay available.
    */
   const locked = !canEdit(connection);
 
-  /** A newly created note (button or double-click) is selected and edited. */
-  const openForEditing = useCallback((id: string) => startEdit(id), [startEdit]);
+  // --- Local UI state -------------------------------------------------------
+  // A set, not one id: click replaces it, Shift+click and the marquee add to it,
+  // and an object that disappears leaves it (the hook prunes stale ids).
+  const selection = useSelection(notes);
+  /** The viewport's camera, mirrored so screen-space controls can follow it. */
+  const [camera, setCamera] = useState<Camera>(INITIAL_CAMERA);
+  const viewportApi = useRef<BoardViewportApi | null>(null);
+
+  const deleteSelection = useCallback(() => {
+    if (locked) return;
+    deleteObjects(boardDoc, [...selection.ids]);
+    selection.clear();
+  }, [boardDoc, locked, selection]);
+
+  // --- Gestures -------------------------------------------------------------
+  const gesture = useTransformGesture({
+    doc: boardDoc,
+    camera,
+    selection,
+    snapshot: notes,
+    canEdit: !locked,
+  });
+
+  // Shift+drag adds whatever is inside the rectangle to the selection; an empty
+  // rectangle changes nothing at all.
+  const addToSelection = useCallback((ids: string[]) => selection.setMany(ids, true), [selection]);
+  const marquee = useMarquee(camera, notes, addToSelection);
+
+  useBoardKeys({
+    doc: boardDoc,
+    selection,
+    snapshot: notes,
+    canEdit: !locked,
+    // Escape cancels a marquee in flight before it cancels the selection.
+    onEscape: () => {
+      if (!marquee.rect) return false;
+      marquee.cancel();
+      return true;
+    },
+  });
 
   const createStickyAtCentre = useCallback(() => {
     const centre = viewportApi.current?.viewportCentreWorld() ?? { x: 0, y: 0 };
     const id = createSticky(boardDoc, centre);
-    if (id) startEdit(id);
-  }, [boardDoc, startEdit]);
+    if (id) {
+      selection.click(id);
+      selection.startEdit(id);
+    }
+  }, [boardDoc, selection]);
 
-  // Board shortcuts: Enter starts editing the selected note, Delete/Backspace
-  // removes it. While a note's text is being edited these keys belong to the
-  // textarea, so the note is never deleted by accident; with a toolbar button
-  // focused Enter belongs to that button (Delete still works, it is not a key a
-  // button answers to).
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (isEditableTarget(e.target)) return;
-      if (editingId !== null) return;
-      if (selectedId === null) return;
-      // Enter opens the text editor: a change, so it belongs to the locked set.
-      if (locked) return;
-      if (e.key === 'Enter') {
-        if (isControlTarget(e.target)) return;
-        e.preventDefault();
-        startEdit(selectedId);
+  /** A note created by double-click is selected and ready to type in. */
+  const openForEditing = useCallback(
+    (id: string) => {
+      selection.click(id);
+      selection.startEdit(id);
+    },
+    [selection],
+  );
+
+  /** Begin editing (`null`) or end it, keeping or dropping the selection. */
+  const onEditChange = useCallback(
+    (id: string, next: EndEditTarget | null) => {
+      if (next === null) {
+        // Opening the text editor changes the board, so a read-only board never
+        // gets one (Escape and a click outside still close what is already open).
+        if (!locked) selection.startEdit(id);
         return;
       }
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (locked) return;
-        e.preventDefault();
-        deleteObject(boardDoc, selectedId);
-        select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [boardDoc, selectedId, editingId, select, startEdit, locked]);
+      if (next === 'unselected') selection.clear();
+      else selection.endEdit();
+    },
+    [locked, selection],
+  );
 
   // Read-only board model and connection state for the e2e tests (test builds).
   useEffect(() => {
@@ -109,15 +138,6 @@ export default function App({ doc, boardId }: AppProps = {}) {
   useEffect(() => {
     reportConnectionState(connection);
   }, [connection]);
-
-  // A note that disappears (deleted here, or by somebody else while I am typing
-  // in it or dragging it) must not stay selected and must not keep an editor
-  // open. Ending both is silent: no error, no message (PRD live.delete_during_edit).
-  useEffect(() => {
-    const gone = (id: string) => !notes.some((note) => note.id === id);
-    if (editingId !== null && gone(editingId)) endEdit('unselected');
-    if (selectedId !== null && gone(selectedId)) select(null);
-  }, [notes, selectedId, editingId, select, endEdit]);
 
   // Painting order for the DOM: creation order, so a note never jumps around in
   // the tree while it is dragged (its `zIndex` does the stacking, see StickyNote).
@@ -130,36 +150,68 @@ export default function App({ doc, boardId }: AppProps = {}) {
     [notes],
   );
 
+  // A control would only be in the way while the selection is being moved or its
+  // text is being typed; the live region behind it stays mounted so counts keep
+  // being announced.
+  const transforming = gesture.draggingIds.size > 0 || selection.editingId !== null;
+
   return (
     <main className="app" data-testid="app-root">
       <ConnectionStatus state={connection} />
+      {/* Spoken selection count: mounted for as long as the board is, because a
+          live region that appears with the change is not announced. */}
+      <SelectionAnnouncement count={selection.count} />
       <Toolbar onCreateSticky={createStickyAtCentre} locked={locked} />
       <BoardViewport
         doc={boardDoc}
         viewportApi={viewportApi}
         onStickyCreated={openForEditing}
-        onClearSelection={() => select(null)}
+        onClearSelection={() => selection.clear()}
+        onCameraChange={setCamera}
+        marquee={marquee}
         locked={locked}
-      >
-        {({ zoom }) =>
-          // DOM order is stable (creation order) and stacking comes from
-          // `zIndex: note.z`: re-ordering the DOM mid-drag would move the element
-          // that holds the pointer capture and cancel the drag.
-          paintOrder.map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={boardDoc}
-              zoom={zoom}
-              selected={note.id === selectedId}
-              editing={note.id === editingId}
-              onSelect={select}
-              onStartEdit={startEdit}
-              onEndEdit={endEdit}
-              locked={locked}
-            />
-          ))
+        overlay={
+          <>
+            <SelectionOverlay
+              ids={selection.ids}
+              snapshot={notes}
+              camera={camera}
+              onHandlePointerDown={gesture.onHandlePointerDown}
+            >
+              <SelectionBar
+                ids={selection.ids}
+                snapshot={notes}
+                doc={boardDoc}
+                onDelete={deleteSelection}
+                locked={locked}
+                hideControls={transforming}
+              />
+            </SelectionOverlay>
+            <MarqueeRect rect={marquee.rect} camera={camera} />
+          </>
         }
+      >
+        {paintOrder.map((note) => {
+          // Every object is drawn by its registered type: the selection, marquee
+          // and gesture code above know nothing about sticky notes.
+          const objectType = getObjectType(note.type);
+          if (!objectType) return null;
+          return (
+            <objectType.Component
+              key={note.id}
+              doc={boardDoc}
+              snapshot={note}
+              camera={camera}
+              selection={{
+                selected: selection.has(note.id),
+                editing: selection.editingId === note.id,
+                dragging: gesture.draggingIds.has(note.id),
+              }}
+              onEditChange={onEditChange}
+              onObjectPointerDown={gesture.onObjectPointerDown}
+            />
+          );
+        })}
       </BoardViewport>
     </main>
   );

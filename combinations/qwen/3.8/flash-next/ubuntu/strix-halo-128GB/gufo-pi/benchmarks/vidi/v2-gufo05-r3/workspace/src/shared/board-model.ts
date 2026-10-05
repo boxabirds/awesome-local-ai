@@ -5,6 +5,7 @@ import {
   STICKY_SIZE_WORLD,
   type StickyColor,
 } from './config';
+import { rectContains, type Point, type Rect } from './geometry';
 
 /**
  * vidi6 board document model (Yjs).
@@ -22,6 +23,8 @@ import {
  *       <id>: Y.Map {
  *         type: 'sticky'
  *         x: number, y: number   // top-left, world units
+ *         width?: number         // world units; absent = the type's default size
+ *         height?: number        // (both written by the first resize)
  *         color: StickyColor
  *         text: Y.Text
  *         z: number              // stacking; higher is on top
@@ -47,15 +50,28 @@ export const SCHEMA_VERSION = 1;
 const META_KEY = 'meta';
 const OBJECTS_KEY = 'objects';
 
-export interface StickySnapshot {
+/**
+ * Everything a board object has in common, in the shape the renderer reads.
+ *
+ * `width` and `height` are optional: an object created before story 7 carries
+ * neither and renders at its type's default size (for sticky notes,
+ * `STICKY_SIZE_WORLD`). The first resize writes both fields.
+ */
+export interface ObjectSnapshot {
   id: string;
-  type: 'sticky';
+  type: string;
   x: number;
   y: number;
-  color: StickyColor;
-  text: string;
   z: number;
   createdAt: number;
+  width?: number;
+  height?: number;
+}
+
+export interface StickySnapshot extends ObjectSnapshot {
+  type: 'sticky';
+  color: StickyColor;
+  text: string;
 }
 
 function metaMap(doc: Y.Doc): Y.Map<unknown> {
@@ -107,6 +123,27 @@ function isTopmost(objects: Y.Map<Y.Map<unknown>>, id: string): boolean {
 }
 
 /**
+ * The object types this build knows about.
+ *
+ * `allObjectIds` and `objectsInRect` only ever offer these, so an object written
+ * by a future version cannot be selected, moved or deleted by this one. The
+ * client registry (`client/objects/registry.tsx`) adds a type here when it
+ * registers the matching component, which keeps "select all" in step with what
+ * can actually be drawn without the model importing any UI code.
+ */
+const KNOWN_OBJECT_TYPES = new Set<string>(['sticky']);
+
+/** Declare an object type known to selection and group operations. */
+export function registerKnownObjectType(type: string): void {
+  KNOWN_OBJECT_TYPES.add(type);
+}
+
+/** Is this object type one this build can select and transform? */
+export function isKnownObjectType(type: string): boolean {
+  return KNOWN_OBJECT_TYPES.has(type);
+}
+
+/**
  * Ensure the document carries the current schema. Sets `meta.schemaVersion`
  * only when absent, so re-running it (and future migrations) is idempotent.
  */
@@ -150,29 +187,157 @@ export function createSticky(
   return id;
 }
 
-/** Move a note to world coordinates (top-left). */
+/** Move one object to world coordinates (top-left). */
 export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolean {
-  if (!finite(x) || !finite(y)) return false;
-  const note = objectsMap(doc).get(id);
-  if (!note) return false;
-  if (note.get('x') === x && note.get('y') === y) return false;
+  return moveObjects(doc, new Map([[id, { x, y }]])) === 1;
+}
+
+/**
+ * Move several objects to absolute world coordinates (top-left) in one
+ * transaction — the write behind a group drag and behind arrow-key nudging.
+ *
+ * Absolute positions (rather than deltas) are what makes a group move converge:
+ * two people dragging the same objects both end with the last writer's numbers,
+ * identically on every screen.
+ *
+ * Returns the number of objects that moved. Nothing is written when the list is
+ * empty, when any position is not a finite number, or when every object is
+ * already exactly where it is asked to be; objects that are no longer in the
+ * document (deleted by somebody else mid-gesture) are simply skipped.
+ */
+export function moveObjects(
+  doc: Y.Doc,
+  positions: ReadonlyMap<string, Point>,
+): number {
+  if (positions.size === 0) return 0;
+  const targets: [string, Point][] = [];
+  for (const [id, at] of positions) {
+    if (!at || !finite(at.x) || !finite(at.y)) return 0;
+    targets.push([id, at]);
+  }
+  const objects = objectsMap(doc);
+  const moves: [Y.Map<unknown>, Point][] = [];
+  for (const [id, at] of targets) {
+    const note = objects.get(id);
+    if (!note) continue;
+    if (note.get('x') === at.x && note.get('y') === at.y) continue;
+    moves.push([note, at]);
+  }
+  if (moves.length === 0) return 0;
   doc.transact(() => {
-    note.set('x', x);
-    note.set('y', y);
+    for (const [note, at] of moves) {
+      note.set('x', at.x);
+      note.set('y', at.y);
+    }
   }, LOCAL_ORIGIN);
-  return true;
+  return moves.length;
+}
+
+/**
+ * Resize and reposition several objects in one transaction.
+ *
+ * Writing `width` and `height` turns an implicit-size object (a sticky note from
+ * before story 7) into an explicit-size one; there is no migration step. Values
+ * that are not finite, a size at or below zero, an empty list or an object that
+ * has disappeared all mean "nothing is written", and the return value is the
+ * number of objects that actually changed.
+ */
+export function resizeObjects(
+  doc: Y.Doc,
+  rects: ReadonlyMap<string, Rect>,
+): number {
+  if (rects.size === 0) return 0;
+  const entries: [string, Rect][] = [];
+  for (const [id, rect] of rects) {
+    if (
+      !rect ||
+      !finite(rect.x) ||
+      !finite(rect.y) ||
+      !finite(rect.width) ||
+      !finite(rect.height) ||
+      rect.width <= 0 ||
+      rect.height <= 0
+    ) {
+      return 0;
+    }
+    entries.push([id, rect]);
+  }
+  const objects = objectsMap(doc);
+  const writes: [Y.Map<unknown>, Rect][] = [];
+  for (const [id, rect] of entries) {
+    const note = objects.get(id);
+    if (!note) continue;
+    if (
+      note.get('x') === rect.x &&
+      note.get('y') === rect.y &&
+      note.get('width') === rect.width &&
+      note.get('height') === rect.height
+    ) {
+      continue;
+    }
+    writes.push([note, rect]);
+  }
+  if (writes.length === 0) return 0;
+  doc.transact(() => {
+    for (const [note, rect] of writes) {
+      note.set('x', rect.x);
+      note.set('y', rect.y);
+      note.set('width', rect.width);
+      note.set('height', rect.height);
+    }
+  }, LOCAL_ORIGIN);
+  return writes.length;
+}
+
+/**
+ * Raise a set of objects above every object that is not in the set, keeping the
+ * objects' relative stacking order among themselves.
+ *
+ * Selected objects are ranked by their current `(z, id)` and then given the
+ * `z` values straight above the highest unselected object, so a group drag
+ * lifts a cluster without shuffling it.
+ *
+ * Returns the number of objects whose `z` changed; `0` when the set is empty or
+ * already in front (no transaction, so no sync traffic).
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  const objects = objectsMap(doc);
+  const selected = new Set(ids.filter((id) => objects.has(id)));
+  if (selected.size === 0) return 0;
+
+  let highestUnselected = 0;
+  for (const [id, note] of objects) {
+    if (selected.has(id)) continue;
+    const z = numberOr(note.get('z'), 0);
+    if (z > highestUnselected) highestUnselected = z;
+  }
+
+  const ranked = [...selected].sort((a, b) => {
+    const za = numberOr(objects.get(a)!.get('z'), 0);
+    const zb = numberOr(objects.get(b)!.get('z'), 0);
+    if (za !== zb) return za - zb;
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
+
+  const writes: [Y.Map<unknown>, number][] = [];
+  ranked.forEach((id, rank) => {
+    const note = objects.get(id)!;
+    const z = highestUnselected + rank + 1;
+    if (note.get('z') !== z) writes.push([note, z]);
+  });
+  if (writes.length === 0) return 0;
+  doc.transact(() => {
+    for (const [note, z] of writes) note.set('z', z);
+  }, LOCAL_ORIGIN);
+  return writes.length;
 }
 
 /** Raise a note above every other object. No-op when it is already on top. */
 export function bringToFront(doc: Y.Doc, id: string): boolean {
   const objects = objectsMap(doc);
-  const note = objects.get(id);
-  if (!note) return false;
+  if (!objects.has(id)) return false;
   if (isTopmost(objects, id)) return false;
-  doc.transact(() => {
-    note.set('z', maxZ(objects) + 1);
-  }, LOCAL_ORIGIN);
-  return true;
+  return bringObjectsToFront(doc, [id]) > 0;
 }
 
 /** Change a note's colour. Unknown colour names and stale ids are rejected. */
@@ -187,15 +352,27 @@ export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
   return true;
 }
 
-/** Remove an object from the board. */
+/** Remove one object from the board. */
 export function deleteObject(doc: Y.Doc, id: string): boolean {
+  return deleteObjects(doc, [id]) === 1;
+}
+
+/**
+ * Remove several objects in one transaction — the write behind Delete, the
+ * selection bar's bin button and the note toolbar.
+ *
+ * Ids that are already gone are skipped; an empty list, or a list holding only
+ * stale ids, writes nothing and returns 0.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
   const objects = objectsMap(doc);
-  const note = objects.get(id);
-  if (!note) return false;
+  const present = [...new Set(ids)].filter((id) => objects.has(id));
+  if (present.length === 0) return 0;
   doc.transact(() => {
-    objects.delete(id);
+    for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
-  return true;
+  return present.length;
 }
 
 /** The note's shared text, or `undefined` for a stale id or other object type. */
@@ -204,6 +381,45 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   if (!note) return undefined;
   const text = note.get('text');
   return text instanceof Y.Text ? text : undefined;
+}
+
+/** The rectangle an object covers, in world units. */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  return {
+    x: obj.x,
+    y: obj.y,
+    width: finite(obj.width) ? obj.width : STICKY_SIZE_WORLD,
+    height: finite(obj.height) ? obj.height : STICKY_SIZE_WORLD,
+  };
+}
+
+/**
+ * The ids lying **entirely** inside `rect`, in render order (the marquee rule).
+ *
+ * An object that is partly inside, or that only touches the edge from outside,
+ * is not selected. Objects of unknown types are never offered.
+ */
+export function objectsInRect(
+  snapshot: readonly ObjectSnapshot[],
+  rect: Rect,
+): string[] {
+  const out: string[] = [];
+  for (const obj of snapshot) {
+    if (!isKnownObjectType(obj.type)) continue;
+    if (rectContains(rect, objectBounds(obj))) out.push(obj.id);
+  }
+  return out;
+}
+
+/** Every selectable id on the board, in render order ("select all"). */
+export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
+  const out: string[] = [];
+  for (const obj of snapshot) {
+    if (!isKnownObjectType(obj.type)) continue;
+    if (!finite(obj.x) || !finite(obj.y)) continue;
+    out.push(obj.id);
+  }
+  return out;
 }
 
 /**
@@ -225,6 +441,10 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
       text: text instanceof Y.Text ? text.toString() : '',
       z: numberOr(note.get('z'), 0),
       createdAt: numberOr(note.get('createdAt'), 0),
+      // Absent until the note is resized for the first time (story 7): an old
+      // note keeps its default size and no extra fields.
+      ...(finite(note.get('width')) ? { width: note.get('width') as number } : {}),
+      ...(finite(note.get('height')) ? { height: note.get('height') as number } : {}),
     });
   }
   out.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach } from 'vitest';
 import { fireEvent, render } from '@testing-library/react';
 import * as Y from 'yjs';
+import type { Point } from '../../src/client/canvas/camera';
 import App from '../../src/client/App';
 import { createSticky, getStickyText } from '../../src/shared/board-model';
 import type { StickyColor } from '../../src/shared/config';
@@ -85,4 +86,88 @@ export function clickNote(el: HTMLElement, x = 20, y = 20): void {
 export function clickSurface(el: HTMLElement, x = 600, y = 400): void {
   fireEvent.pointerDown(el, { clientX: x, clientY: y, button: 0, pointerId: 2 });
   fireEvent.pointerUp(el, { clientX: x, clientY: y, button: 0, pointerId: 2 });
+}
+
+// --- Story 7 helpers -------------------------------------------------------
+
+/** Shift+press and release on an object: add it to, or remove it from, the set. */
+export function shiftClickAt(el: HTMLElement, x = 20, y = 20): void {
+  fireEvent.pointerDown(el, { clientX: x, clientY: y, button: 0, pointerId: 1, shiftKey: true });
+  fireEvent.pointerUp(el, { clientX: x, clientY: y, button: 0, pointerId: 1, shiftKey: true });
+}
+
+export interface DragSteps {
+  shiftKey?: boolean;
+  /** Pointer events to send between the ends (default: one step past the middle). */
+  steps?: Point[];
+  /** Stop before the release: the caller ends the gesture itself. */
+  hold?: boolean;
+}
+
+/**
+ * Press at `from`, move through `steps`, release at `to` — all in screen pixels
+ * on the given element. The transform gesture listens on `window`, and these
+ * events bubble there, which is exactly how a real drag reaches it.
+ */
+export function dragOn(
+  el: HTMLElement,
+  from: Point,
+  to: Point,
+  options: DragSteps = {},
+): void {
+  const steps = options.steps ?? [
+    { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
+    to,
+  ];
+  const init = { button: 0, pointerId: 3, ...(options.shiftKey ? { shiftKey: true } : {}) };
+  fireEvent.pointerDown(el, { ...init, clientX: from.x, clientY: from.y });
+  for (const step of steps) {
+    fireEvent.pointerMove(el, { ...init, clientX: step.x, clientY: step.y });
+  }
+  if (!options.hold) {
+    fireEvent.pointerUp(el, { ...init, clientX: to.x, clientY: to.y });
+  }
+}
+
+/** Shift+drag on the board surface: the marquee. */
+export function marqueeOn(
+  el: HTMLElement,
+  from: Point,
+  to: Point,
+  options: { hold?: boolean } = {},
+): void {
+  dragOn(el, from, to, { shiftKey: true, hold: options.hold });
+}
+
+/**
+ * The ids currently showing a selection outline, sorted.
+ *
+ * Sorted because DOM order is *creation* order, and notes created inside one
+ * millisecond fall back to their id — a test comparing to the order it happened
+ * to create them in would be comparing the wrong thing. Selection is a set.
+ */
+export function selectedIds(container: HTMLElement): string[] {
+  return [...container.querySelectorAll<HTMLElement>('[data-selected="true"]')]
+    .map((el) => el.dataset.noteId ?? el.dataset.testboxId ?? '')
+    .filter(Boolean)
+    .sort();
+}
+
+/**
+ * A second document standing in for another person: the same handshake a
+ * provider performs, so the change arrives as an incoming transaction whose
+ * origin is not `LOCAL_ORIGIN`.
+ */
+export function withPeer(): { doc: Y.Doc; peer: Y.Doc } {
+  const doc = new Y.Doc();
+  const peer = new Y.Doc();
+  Y.applyUpdate(peer, Y.encodeStateAsUpdate(doc));
+  Y.applyUpdate(doc, Y.encodeStateAsUpdate(peer));
+  doc.on('update', (update: Uint8Array, origin: unknown) => {
+    if (origin !== peer) Y.applyUpdate(peer, update, doc);
+  });
+  peer.on('update', (update: Uint8Array, origin: unknown) => {
+    if (origin !== doc) Y.applyUpdate(doc, update, peer);
+  });
+  return { doc, peer };
 }

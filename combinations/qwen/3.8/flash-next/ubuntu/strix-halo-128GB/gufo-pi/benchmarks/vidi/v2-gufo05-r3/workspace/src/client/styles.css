@@ -272,19 +272,9 @@ body,
   pointer-events: none;
 }
 
-/* --- Story 2: floating note toolbar -------------------------------------- */
-.note-toolbar-anchor {
-  position: absolute;
-  left: 50%;
-  bottom: 100%;
-  margin-bottom: 8px;
-  /* The inline transform counter-scales and centres the toolbar so it keeps a
-     constant screen size at any zoom, centred on the note, above its top edge.
-     The bottom-centre point is the transform origin, so it stays anchored. */
-  transform-origin: bottom center;
-  white-space: nowrap;
-  pointer-events: auto;
-}
+/* --- Story 2: floating note toolbar --------------------------------------- */
+/* Story 7 moved the toolbar out of the note (it belongs to the selection now),
+   so it is placed by `.selection-bar-anchor` in screen space. */
 
 .note-toolbar {
   display: flex;
@@ -570,4 +560,111 @@ body,
   font-size: 12px;
   color: #8a5a00;
   margin: 0;
+}
+
+/* --- Story 7: the selection's screen-space furniture ---------------------- */
+/*
+ * Drawn over the world layer, in viewport pixels: handles and text keep their
+ * size at 25% and at 400% zoom. The layer itself is transparent to the pointer
+ * so panning and the marquee still work everywhere but on a handle; only the
+ * handles and the bar take input. Below the zoom controls (z-index 10).
+ */
+.selection-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+/* The box around two or more selected objects. */
+.selection-bounds {
+  position: absolute;
+  border: 1px solid #2f6fed;
+  border-radius: 2px;
+}
+
+.resize-handle {
+  position: absolute;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1px solid #2f6fed;
+  border-radius: 2px;
+  pointer-events: auto;
+}
+
+.resize-handle-nw,
+.resize-handle-se {
+  cursor: nwse-resize;
+}
+
+.resize-handle-ne,
+.resize-handle-sw {
+  cursor: nesw-resize;
+}
+
+.resize-handle-n,
+.resize-handle-s {
+  cursor: ns-resize;
+}
+
+.resize-handle-e,
+.resize-handle-w {
+  cursor: ew-resize;
+}
+
+/* Anchored at the middle of the selection's top edge, lifted above it. */
+.selection-bar-anchor {
+  position: absolute;
+  /* The gap to the selection is set inline, in board units scaled by the zoom. */
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  background: #ffffff;
+  border: 1px solid #d7dbe4;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(20, 30, 60, 0.16);
+  font-size: 13px;
+  color: #23283a;
+}
+
+.selection-count {
+  padding: 0 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.selection-delete {
+  padding: 4px 10px;
+  font: inherit;
+  color: #b3261e;
+  background: #ffffff;
+  border: 1px solid #d7dbe4;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.selection-delete:hover {
+  background: #f6eeed;
+  border-color: #e3b7b3;
+}
+
+.selection-delete:focus-visible {
+  outline: 2px solid #2f6fed;
+  outline-offset: 2px;
+}
+
+/* The rectangle of a marquee in progress: never under the pointer. */
+.marquee-rect {
+  position: absolute;
+  z-index: 5;
+  border: 1px solid #2f6fed;
+  border-radius: 2px;
+  background: rgba(47, 111, 237, 0.12);
+  pointer-events: none;
 }

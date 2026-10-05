@@ -1,3 +1,58 @@
+commit 37f0b102d64e51c229e3407b7cf0e975136fa581
+agent  Mon Oct 5 01:15:16 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                  |  66 ++++-
+ PROGRESS.md                               |  24 +-
+ src/client/App.tsx                        | 216 +++++++++------
+ src/client/board/Marquee.tsx              | 103 ++++++++
+ src/client/board/SelectionBar.tsx         | 108 ++++++++
+ src/client/board/SelectionOverlay.tsx     | 146 +++++++++++
+ src/client/board/useBoardKeys.ts          | 140 ++++++++++
+ src/client/board/useSelection.ts          | 213 +++++++++++++--
+ src/client/board/useTransformGesture.ts   | 346 ++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx       | 133 ++++++++--
+ src/client/objects/StickyNote.tsx         | 263 ++++---------------
+ src/client/objects/index.ts               |  15 ++
+ src/client/objects/registry.tsx           | 101 +++++++
+ src/client/objects/sticky.tsx             |  37 +++
+ src/client/styles.css                     | 123 ++++++++-
+ tests/component/BoardKeys.test.tsx        | 227 ++++++++++++++++
+ tests/component/MarqueeSelect.test.tsx    | 167 ++++++++++++
+ tests/component/SelectionGroup.test.tsx   | 202 ++++++++++++++
+ tests/component/TransformGesture.test.tsx | 387 +++++++++++++++++++++++++++
+ tests/component/boardHarness.tsx          |  85 ++++++
+ tests/component/useSelection.test.tsx     |  87 ++++++
+ tests/e2e/helpers/selection.ts            | 136 ++++++++++
+ tests/e2e/selection.spec.ts               | 421 ++++++++++++++++++++++++++++++
+ tests/fixtures/testbox.tsx                | 122 +++++++++
+ tests/unit/board-model-group.test.ts      |  22 +-
+ tests/unit/registry.test.ts               |  78 ++++++
+ tests/unit/selection.test.ts              |  94 +++++++
+ 27 files changed, 3692 insertions(+), 370 deletions(-)
+commit 3cd6733df9570551c80425ddf033d585be11ec50
+agent  Sun Oct 4 23:58:12 2026 +0000
+
+    story 7: geometry maths and board-model group operations
+
+
+ NOTES.md                             | 185 ++++++++----------
+ src/shared/board-model.ts            | 266 ++++++++++++++++++++++---
+ src/shared/config.ts                 |  17 ++
+ src/shared/geometry.ts               | 264 +++++++++++++++++++++++++
+ tests/unit/board-model-group.test.ts | 369 +++++++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts          | 269 +++++++++++++++++++++++++
+ 6 files changed, 1241 insertions(+), 129 deletions(-)
+commit 0a17ceff468e4f22f61b32c3da59867e399b3d82
+vidi-agent  Sun Oct 4 23:34:27 2026 +0000
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit 5af7d90753909023680c00dbb1ae742e2e2e05ef
 agent  Sun Oct 4 23:31:33 2026 +0000
 

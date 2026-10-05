@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
-import { screenToWorld, worldToScreen, type Point, type Size } from './camera';
+import {
+  screenToWorld,
+  worldToScreen,
+  type Camera,
+  type Point,
+  type Size,
+} from './camera';
+import type { MarqueeApi } from '../board/Marquee';
 import { useCamera } from './useCamera';
 import { ZoomControls } from './ZoomControls';
 import { NavigationHint } from './NavigationHint';
@@ -49,7 +56,12 @@ export interface BoardViewportProps {
   viewportApi?: { current: BoardViewportApi | null };
   /** Called after a note was created by double-click, so it can be edited. */
   onStickyCreated?(id: string): void;
-  /** Called when the user clicks empty board space without panning. */
+  /**
+   * Called when the user releases a press that began on empty board space and
+   * never moved. Where the pointer was let go does not matter: a drag that ends
+   * over the board is still a drag, and a resize that ends over the board must
+   * not clear the selection it is resizing.
+   */
   onClearSelection?(): void;
   /**
    * Read-only board: navigation (drag, wheel, pinch, keys, zoom controls) keeps
@@ -57,6 +69,19 @@ export interface BoardViewportProps {
    * double-click, and the cursor stops promising a grab.
    */
   locked?: boolean;
+  /**
+   * Screen-space controls drawn over the board (story 7: the selection overlay
+   * and the marquee rectangle). They live here because they are measured in
+   * viewport pixels, not board units.
+   */
+  overlay?: React.ReactNode;
+  /** Called whenever the camera changes, so screen-space UI can follow it. */
+  onCameraChange?(camera: Camera): void;
+  /**
+   * Shift+drag on empty board space draws a selection rectangle instead of
+   * panning. Omit it and the board pans on Shift like any other modifier.
+   */
+  marquee?: MarqueeApi;
 }
 
 /**
@@ -89,7 +114,28 @@ export function BoardViewport(props: BoardViewportProps) {
   } = camera;
 
   const panStartRef = useRef<Point | null>(null);
-  const panMovedRef = useRef(false);
+  /**
+   * Where the press that is happening right now began.
+   *
+   * "Did the user click empty board space?" is a question about the *press*, not
+   * about where the pointer was let go: a resize begins on a handle and ends over
+   * the board, and must not clear the very selection it is resizing.
+   */
+  const pressRef = useRef<{
+    board: boolean;
+    x: number;
+    y: number;
+    moved: boolean;
+  } | null>(null);
+  const marqueeingRef = useRef(false);
+
+  // --- Screen-space UI follows the camera ----------------------------------
+  // A layout effect, so the overlay is repositioned before the browser paints:
+  // a selection box that lagged one frame behind a pan would look broken.
+  const onCameraChange = props.onCameraChange;
+  useLayoutEffect(() => {
+    onCameraChange?.(cam);
+  }, [cam, onCameraChange]);
 
   // --- Geometry handle for the owner (toolbar creation, tests) --------------
   const viewportApi = props.viewportApi;
@@ -217,32 +263,60 @@ export function BoardViewport(props: BoardViewportProps) {
   }, []);
 
   // --- Pointer drag ---------------------------------------------------------
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
-    if (isControlTarget(e.target)) return;
-    const el = e.currentTarget;
+  const capture = (el: HTMLElement, pointerId: number) => {
     try {
-      el.setPointerCapture?.(e.pointerId);
+      el.setPointerCapture?.(pointerId);
     } catch {
       /* not supported (e.g. jsdom) */
     }
-    panStartRef.current = pointFromEvent(e.clientX, e.clientY);
-    panMovedRef.current = false;
-    beginPan(panStartRef.current);
+  };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    if (isControlTarget(e.target)) return;
+    // Board objects and the selection's own controls answer their pointer
+    // themselves (a press on a note selects or moves it; it must never pan).
+    if (!isBoardSpace(e.target)) return;
+    const el = e.currentTarget;
+
+    const point = pointFromEvent(e.clientX, e.clientY);
+    pressRef.current = { board: true, x: point.x, y: point.y, moved: false };
+
+    // Shift turns an empty-space drag into a marquee; without it, story 1's pan.
+    if (props.marquee && e.shiftKey) {
+      marqueeingRef.current = true;
+      capture(el, e.pointerId);
+      props.marquee.begin(point);
+      return;
+    }
+
+    capture(el, e.pointerId);
+    panStartRef.current = point;
+    beginPan(point);
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!panning) return;
     const point = pointFromEvent(e.clientX, e.clientY);
-    const start = panStartRef.current;
-    if (start && Math.hypot(point.x - start.x, point.y - start.y) >= DRAG_THRESHOLD_PX) {
-      panMovedRef.current = true;
+    const press = pressRef.current;
+    if (press && !press.moved) {
+      press.moved = Math.hypot(point.x - press.x, point.y - press.y) >= DRAG_THRESHOLD_PX;
     }
+    if (marqueeingRef.current) {
+      props.marquee?.move(point);
+      return;
+    }
+    if (!panning) return;
     panMove(point);
   };
 
   // --- Double-click on empty board space creates a sticky note -------------
   const isBoardSpace = (target: EventTarget | null): boolean =>
-    !(target instanceof Element && target.closest('[data-sticky-note], [data-zoom-controls], [data-toolbar], [data-note-toolbar]') != null);
+    !(
+      target instanceof Element &&
+      target.closest(
+        '[data-sticky-note], [data-object-body], [data-zoom-controls], [data-toolbar], ' +
+          '[data-note-toolbar], [data-selection-overlay], [data-selection-bar], [data-marquee]',
+      ) != null
+    );
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!props.doc || props.locked || !isBoardSpace(e.target)) return;
@@ -252,16 +326,30 @@ export function BoardViewport(props: BoardViewportProps) {
     if (id) props.onStickyCreated?.(id);
   };
 
-  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onPointerUp = () => {
+    if (marqueeingRef.current) {
+      marqueeingRef.current = false;
+      pressRef.current = null;
+      props.marquee?.end();
+      return;
+    }
     endPan();
-    // A click on empty board space (no pan) clears the local selection. Notes
-    // stop propagation, so selecting a note never gets here.
-    if (!panMovedRef.current && isBoardSpace(e.target)) props.onClearSelection?.();
-    panMovedRef.current = false;
+    // A click on empty board space — a press that began there and never moved —
+    // clears the selection. Objects and the selection's own handles are not board
+    // space, and a pan or a drag is not a click, so neither clears it.
+    const press = pressRef.current;
+    pressRef.current = null;
+    if (press?.board && !press.moved) props.onClearSelection?.();
   };
   const onPointerCancel = () => {
+    if (marqueeingRef.current) {
+      // A cancelled marquee is thrown away: the selection stays what it was.
+      marqueeingRef.current = false;
+      props.marquee?.cancel();
+      return;
+    }
     endPan();
-    panMovedRef.current = false;
+    pressRef.current = null;
   };
   const onLostPointerCapture = () => endPan();
 
@@ -310,6 +398,9 @@ export function BoardViewport(props: BoardViewportProps) {
           ? props.children({ zoom: cam.zoom })
           : props.children}
       </div>
+
+      {/* Screen-space controls: the selection overlay and the marquee. */}
+      {props.overlay}
 
       {/* Origin marker: stable pixel target for tests, world (0,0). */}
       <div
