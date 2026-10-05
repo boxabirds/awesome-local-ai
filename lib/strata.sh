@@ -79,11 +79,20 @@ _strata_checkout_pinned() {
     mkdir -p "$(dirname "$STRATA_DIR")"
     git clone "$STRATA_REPO_URL" "$STRATA_DIR" || err "Cloning ${STRATA_REPO_URL} failed. Re-run to retry."
   fi
+  local before; before="$(git -C "$STRATA_DIR" rev-parse HEAD 2>/dev/null || true)"
   git -C "$STRATA_DIR" checkout --detach "$STRATA_COMMIT" || err "Strata commit ${STRATA_COMMIT} is not in ${STRATA_REPO_URL}."
   local have; have="$(git -C "$STRATA_DIR" rev-parse HEAD 2>/dev/null || true)"
   [[ "$have" == "$STRATA_COMMIT" ]] || err \
     "Strata commit mismatch: checked out '${have:-unknown}', pinned ${STRATA_COMMIT}.
        Delete ${STRATA_DIR} and re-run."
+  # cmake caches the source configuration in its build trees, and one configured for another commit can generate a
+  # tree without the engine's own target: on 5 Oct 2026 moving 0.1.36 to 0.1.39 gave "ninja: error: unknown target
+  # 'strata'" from a build/ left by the earlier commit. Discard them so Strata's setup configures afresh. Named in
+  # full, never a glob.
+  if [[ -n "$before" && "$before" != "$STRATA_COMMIT" ]]; then
+    info "Strata moved from ${before:0:12} to ${STRATA_COMMIT:0:12}: discarding its build trees."
+    rm -rf "${STRATA_DIR:?}/build" "${STRATA_DIR:?}/build-hip" "${STRATA_DIR:?}/build-vision"
+  fi
 }
 
 # Strata's setup needs a Python 3.10+ that can make a venv with pip; Ubuntu's own lacks ensurepip until python3-venv is

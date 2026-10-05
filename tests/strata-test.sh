@@ -60,7 +60,14 @@ cat > "$BH/stubs/git" <<'STUB'
 echo "git $*" >> "$GIT_LOG"
 case "$1" in
   clone) mkdir -p "${@: -1}/.git" ;;
-  -C) shift 2; case "$1" in rev-parse) echo "${FAKE_COMMIT}" ;; *) : ;; esac ;;
+  -C) shift 2; case "$1" in
+        rev-parse)
+          # The commit before the checkout, then the pinned one, so a move between commits can be exercised.
+          if [[ -n "${FAKE_COMMIT_BEFORE:-}" && ! -e "${GIT_LOG}.seen" ]]; then
+            : > "${GIT_LOG}.seen"; echo "${FAKE_COMMIT_BEFORE}"
+          else echo "${FAKE_COMMIT}"; fi ;;
+        *) : ;;
+      esac ;;
 esac
 exit 0
 STUB
@@ -79,6 +86,16 @@ assert_ok "it was cloned from the upstream repository" grep -qF "git clone https
 assert_ok "...and checked out at exactly the pinned commit" grep -qF "checkout --detach $PIN" "$WORK/git.log"
 assert_fails "a checkout that reports another commit is refused" env FAKE_COMMIT=0123456789012345678901234567890123456789 bash -c "$(declare -f checkout); BH='$BH' WORK='$WORK' CFG='$CFG' LIB='$LIB' REPO_ROOT='$REPO_ROOT'; checkout"
 assert_ok "...as a commit mismatch" grep -q 'commit mismatch' "$WORK/checkout.out"
+
+# A build tree left by another commit is discarded: cmake caches the source configuration, and one configured for an
+# earlier commit generated a tree with no "strata" target when 0.1.36 moved to 0.1.39 (5 Oct 2026).
+SD="$BH/.local/share/awesome-local-ai/strata/Strata"
+rm -f "$WORK/git.log.seen"; mkdir -p "$SD/build" "$SD/build-vision"; : > "$SD/build/CMakeCache.txt"
+( FAKE_COMMIT_BEFORE=0123456789012345678901234567890123456789; export FAKE_COMMIT_BEFORE; checkout >/dev/null )
+assert_ok "a build tree from another commit is discarded" bash -c "[[ ! -e '$SD/build' && ! -e '$SD/build-vision' ]]"
+rm -f "$WORK/git.log.seen"; mkdir -p "$SD/build"; : > "$SD/build/CMakeCache.txt"
+( checkout >/dev/null )
+assert_ok "...and kept when the commit has not moved" bash -c "[[ -e '$SD/build/CMakeCache.txt' ]]"
 
 echo
 echo "the ranged download"
