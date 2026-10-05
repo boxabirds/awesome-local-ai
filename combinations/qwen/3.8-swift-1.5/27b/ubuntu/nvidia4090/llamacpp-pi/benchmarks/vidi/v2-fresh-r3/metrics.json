@@ -479,6 +479,17 @@
           "pushed": true
         },
         "commit": "484c7e929"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 90
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -984,6 +995,17 @@
           "pushed": true
         },
         "commit": "952a96884"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 148
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "3": {
@@ -1503,6 +1525,17 @@
           "pushed": true
         },
         "commit": "6a45936a1"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 286
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "4": {
@@ -1814,7 +1847,8 @@
             }
           ],
           "interrupted_compactions": 0
-        }
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 4,
@@ -2036,6 +2070,17 @@
           "pushed": true
         },
         "commit": "012b8deff"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 397
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "5": {
@@ -2351,7 +2396,8 @@
             }
           ],
           "interrupted_compactions": 0
-        }
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 4,
@@ -2546,6 +2592,17 @@
         "commit": "b63c2a876",
         "unpushed": true,
         "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r3/stories/04/agent-events.compact.jsonl.gz' not uptodate. Cannot merge.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 265
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "7": {
@@ -3128,6 +3185,17 @@
         "commit": "c024c6f6f",
         "unpushed": true,
         "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r3/stories/04/agent-events.compact.jsonl.gz' not uptodate. Cannot merge.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 164
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "8": {
@@ -3775,6 +3843,17 @@
           "pushed": true
         },
         "commit": "8622fdcb1"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 162
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "9": {
@@ -4329,6 +4408,17 @@
           "pushed": true
         },
         "commit": "e694f8228"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 320
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "10": {
@@ -4861,6 +4951,17 @@
           "pushed": true
         },
         "commit": "964ef3a6d"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 124
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "11": {
@@ -5359,6 +5460,17 @@
           "pushed": true
         },
         "commit": "f0579bbbe"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 128
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "12": {
@@ -5896,6 +6008,30 @@
           "8": "done",
           "9": "done"
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r3/server.log"
+        ],
+        "private": {
+          "copied": 28,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "efff1cb77"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 241
+        },
+        "truncated": false,
+        "reaches": []
       }
     }
   },
