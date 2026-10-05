@@ -1,5 +1,6 @@
 import type { Camera } from './camera';
 import type { CameraPatch } from './useCamera';
+import type { BoardStatus } from '../board/connection';
 
 /** Test-only API mounted on `window.__vidi6` in the test build. */
 export interface Vidi6TestApi {
@@ -7,6 +8,19 @@ export interface Vidi6TestApi {
   setCamera(patch: CameraPatch): void;
   /** Reads the current camera. */
   getCamera(): Camera;
+  /**
+   * The connection state the badge is built from (story 3). A getter, so a test reads
+   * what the connection is now rather than what it was when the board last rendered.
+   */
+  readonly connectionState: BoardStatus;
+  /**
+   * Every connection state this board has been in since it was mounted, oldest first,
+   * repeats left out (story 3). "Never reconnected" is a claim about the times nobody was
+   * looking, so it cannot be checked by looking; this is recorded as it happens.
+   */
+  readonly connectionStates: readonly BoardStatus[];
+  /** The board this page is on, or null when it is not on one. */
+  readonly boardId: string | null;
 }
 
 declare global {

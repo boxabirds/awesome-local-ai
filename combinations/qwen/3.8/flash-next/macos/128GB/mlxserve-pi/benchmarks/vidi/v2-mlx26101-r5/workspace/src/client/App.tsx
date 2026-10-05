@@ -15,6 +15,11 @@ import {
 import { useCamera } from './canvas/useCamera';
 import { registerTestHooks } from './canvas/testHooks';
 import { useBoardDoc } from './board/useBoardDoc';
+import { useBoardConnection } from './board/useBoardConnection';
+import { useBoardRoute } from './board/useBoardRoute';
+import { ConnectionStatus } from './board/ConnectionStatus';
+import { InvalidBoard } from './board/InvalidBoard';
+import type { BoardStatus } from './board/connection';
 import { useSelection, type Selection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
@@ -39,6 +44,12 @@ export interface BoardProps {
   viewport?: Size;
   /** Filled in on every render; only used by tests. */
   handle?: { current: BoardHandle | null };
+  /**
+   * The board to sync with, from `/b/<board id>` in the address (story 3). Left out, the
+   * board is a board of one: no room, no badge, nothing to reconnect from — which is what
+   * the component tests drive straight into the document.
+   */
+  boardId?: string;
 }
 
 /**
@@ -50,7 +61,11 @@ export interface BoardProps {
  * note, Delete/Backspace deletes it — and both are ignored while a note is being
  * edited or focus is in a field, so those keys edit text instead.
  */
-export function Board({ viewport: viewportProp, handle }: BoardProps = {}): React.JSX.Element {
+export function Board({
+  viewport: viewportProp,
+  handle,
+  boardId,
+}: BoardProps = {}): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [measured, setMeasured] = useState<Size>(measureWindow);
   const viewport = viewportProp ?? measured;
@@ -63,6 +78,27 @@ export function Board({ viewport: viewportProp, handle }: BoardProps = {}): Reac
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
   if (handle) handle.current = { doc, notes, selection };
+
+  // The live connection to the room this board lives in (story 3). Created once per
+  // board id, and only when there is a board id to connect to.
+  const { status, connection } = useBoardConnection(doc, boardId);
+  const statusRef = useRef<BoardStatus>(status);
+  statusRef.current = status;
+  const connectionRef = useRef(connection);
+  connectionRef.current = connection;
+  const boardIdRef = useRef<string | null>(boardId ?? null);
+  boardIdRef.current = boardId ?? null;
+
+  // A note that somebody else deleted cannot stay selected, cannot stay open for
+  // editing and cannot still be being dragged: it is gone from the board, so the
+  // selection that pointed at it is dropped. Drag state lives in the note itself, which
+  // unmounts with the note, and that ends the drag.
+  useEffect(() => {
+    const current = selectionRef.current;
+    const gone = (id: string | null): boolean =>
+      id !== null && !notes.some((note) => note.id === id);
+    if (gone(current.selectedId) || gone(current.editingId)) current.select(null);
+  }, [notes]);
 
   // Viewport size from a ResizeObserver. A resize changes only the size: the
   // camera's x/y (world point at the top-left) stays put.
@@ -119,6 +155,15 @@ export function Board({ viewport: viewportProp, handle }: BoardProps = {}): Reac
     return registerTestHooks({
       setCamera: (patch) => controllerRef.current.setCamera(patch),
       getCamera: () => controllerRef.current.camera,
+      get connectionState() {
+        return statusRef.current;
+      },
+      get connectionStates() {
+        return connectionRef.current?.statesSeen() ?? [statusRef.current];
+      },
+      get boardId() {
+        return boardIdRef.current;
+      },
     });
   }, []);
 
@@ -178,6 +223,7 @@ export function Board({ viewport: viewportProp, handle }: BoardProps = {}): Reac
         zoomPercent={zoomPercent(camera)}
       />
       <NavigationHint visible={!controller.hasNavigated} />
+      <ConnectionStatus state={status} />
     </div>
   );
 }
@@ -193,7 +239,23 @@ function focusedNoteId(target: EventTarget | null): string | null {
 /**
  * Top-level layout: the infinite board, the bottom-right zoom control and the
  * first-use navigation hint. One camera (`useCamera`) is shared by all three.
+ *
+ * The address says which board this is (`/b/<board id>`); an address that names no
+ * board is answered on the spot rather than silently sent somewhere else.
  */
 export default function App(): React.JSX.Element {
-  return <Board />;
+  const { route, startNewBoard } = useBoardRoute();
+
+  if (route.kind === 'invalid') {
+    // No board, no toolbar, nothing joined: the link is explained, not guessed at.
+    return (
+      <div className="vidi6-invalid" data-testid="app-invalid">
+        <InvalidBoard boardId={route.boardId} onNewBoard={startNewBoard} />
+      </div>
+    );
+  }
+
+  // Keyed by board id: moving to another board is a new board, with a new document and
+  // a new connection — never the old board's notes wearing the new board's address.
+  return <Board key={route.boardId} boardId={route.boardId} />;
 }

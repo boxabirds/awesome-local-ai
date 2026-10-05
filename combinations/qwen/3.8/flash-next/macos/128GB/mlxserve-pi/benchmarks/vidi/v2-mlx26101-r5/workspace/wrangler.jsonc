@@ -1,12 +1,33 @@
 {
-  // Cloudflare Worker config. Story 1 serves the client as static assets only;
-  // the Worker `main` entry point (and with it the ASSETS binding) arrives in
-  // story 3, so no binding is declared here: wrangler rejects an asset binding
-  // in an assets-only Worker.
+  // Cloudflare Worker config: the Worker entry routes `/api/rooms/:boardId` to a
+  // BoardRoom Durable Object per board and serves the built client from everything
+  // else. The room's SQLite class is declared now (story 3) so that story 4 can
+  // persist documents without another class migration.
   "name": "vidi6",
-  "compatibility_date": "2026-09-17",
+  "main": "src/worker/index.ts",
+  // 2026-08-01 and not newer: `@cloudflare/vitest-pool-workers` runs its own
+  // workerd build (1.20260815.x here), which refuses a compatibility date it does
+  // not know, so the integration project could not start with story 1's date.
+  // Nothing in this project needs a compat flag, so the date is simply the newest
+  // one both runtimes understand.
+  "compatibility_date": "2026-08-01",
   "assets": {
     "directory": "./dist/client",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
-  }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ]
 }

@@ -1,3 +1,89 @@
+commit 499c5e30e93ea42b0f7492fc7a29e1738d73a7c5
+vidi-agent  Mon Oct 5 23:31:47 2026 +0100
+
+    harness: snapshot after story 3 (uncommitted agent work)
+
+
+ .gitignore                                       |   1 +
+ NOTES.md                                         |  17 +
+ playwright.config.ts                             |  23 +-
+ src/client/App.tsx                               |  66 +++-
+ src/client/board/ConnectionStatus.tsx            |  31 ++
+ src/client/board/InvalidBoard.tsx                |  39 +++
+ src/client/board/connection.ts                   | 393 ++++++++++++++++++++++
+ src/client/board/identity.ts                     | 111 ++++++
+ src/client/board/useBoardConnection.ts           |  69 ++++
+ src/client/board/useBoardRoute.ts                |  88 +++++
+ src/client/canvas/testHooks.ts                   |  14 +
+ src/client/objects/StickyText.ts                 | 116 +++++++
+ src/client/objects/StickyTextEditor.tsx          |  76 ++++-
+ src/client/styles.css                            | 128 +++++++
+ src/shared/config.ts                             |  28 ++
+ src/worker/index.ts                              |   3 +-
+ tests/component/ConnectionStatus.test.tsx        | 402 ++++++++++++++++++++++
+ tests/component/LiveTextEditing.test.tsx         | 171 ++++++++++
+ tests/component/routing.test.tsx                 | 298 ++++++++++++++++
+ tests/e2e/helpers/latency-report.ts              |  52 +++
+ tests/e2e/helpers/participants.ts                | 410 +++++++++++++++++++++++
+ tests/e2e/helpers/soak.ts                        | 149 ++++++++
+ tests/e2e/live-capacity.spec.ts                  | 171 ++++++++++
+ tests/e2e/live-collaboration.spec.ts             | 376 +++++++++++++++++++++
+ tests/e2e/live-network.spec.ts                   | 236 +++++++++++++
+ tests/e2e/nightly/capacity-soak.nightly.spec.ts  | 153 +++++++++
+ tests/e2e/nightly/idle-stability.nightly.spec.ts | 104 ++++++
+ tests/unit/connection.test.ts                    | 149 ++++++++
+ tests/unit/merge-remote-text.test.ts             | 124 +++++++
+ 29 files changed, 3988 insertions(+), 10 deletions(-)
+commit e188cf52f5841ada899879396952a00e6299641e
+agent  Mon Oct 5 19:26:34 2026 +0000
+
+    story 3: Durable Object room tests — convergence, isolation, latency, capacity, reconnect
+
+
+ PROGRESS.md                                     |   4 +-
+ package-lock.json                               |   8 +
+ package.json                                    |   9 +-
+ src/shared/board-id.ts                          |  14 +-
+ src/shared/protocol.ts                          |  61 ++-
+ src/worker/board-room.ts                        | 192 ++++++++++
+ src/worker/index.ts                             |  76 ++++
+ tests/integration/board-isolation.test.ts       | 120 ++++++
+ tests/integration/board-room.test.ts            | 487 ++++++++++++++++++++++++
+ tests/integration/cloudflare-websocket.d.ts     |  15 +
+ tests/integration/connection-resilience.test.ts | 162 ++++++++
+ tests/integration/helpers/random-ops.ts         | 168 ++++++++
+ tests/integration/helpers/ws-client.ts          | 486 +++++++++++++++++++++++
+ tests/integration/latency-budget.test.ts        | 232 +++++++++++
+ tests/integration/participant-capacity.test.ts  | 133 +++++++
+ tests/integration/worker-routing.test.ts        | 226 +++++++++++
+ tsconfig.json                                   |   6 +-
+ tsconfig.worker.json                            |  18 +
+ vitest.config.ts                                |  14 +
+ wrangler.jsonc                                  |  33 +-
+ 20 files changed, 2447 insertions(+), 17 deletions(-)
+commit 9b060f5ec98b64437ca317d7d8e8aed42c5285e5
+agent  Mon Oct 5 18:37:29 2026 +0000
+
+    story 3 task 1: board id and protocol decode unit tests (TC-01 to TC-03)
+
+
+ PROGRESS.md                 |    4 +-
+ package-lock.json           | 1109 ++++++++++++++++++++++++++++++++++++++++---
+ package.json                |    6 +-
+ src/shared/board-id.ts      |   24 +
+ src/shared/config.ts        |   23 +
+ src/shared/protocol.ts      |  104 ++++
+ tests/unit/board-id.test.ts |   73 +++
+ tests/unit/protocol.test.ts |  152 ++++++
+ 8 files changed, 1431 insertions(+), 64 deletions(-)
+commit 6eeebe6c4838d7295dc7755df5c6982383c64729
+vidi-agent  Mon Oct 5 19:29:50 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 30 ++++++++++--------------------
+ 1 file changed, 10 insertions(+), 20 deletions(-)
 commit 8536af8cf2aa0dae320fd050a70dc5f9a5504860
 agent  Mon Oct 5 18:28:31 2026 +0000
 

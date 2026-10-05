@@ -5,7 +5,7 @@ import type * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import type { EndEditNext } from '../board/useSelection';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import { applyTextDiff, clampToLimit, counterVisible, mergeRemoteText } from './StickyText';
 
 export interface StickyTextEditorProps {
   /** The note's shared text; every input event is written straight into it. */
@@ -36,12 +36,63 @@ export function isTypingTarget(target: EventTarget | null): boolean {
  * diff, so ending editing performs no further write and all text typed so far is
  * kept. IME composition is skipped and handled on `compositionend`, so input
  * methods never duplicate characters.
+ *
+ * Two people can edit one note at once, so the box is kept up to date with the
+ * shared text as changes arrive (see `mergeFromRemote`): what the box holds is
+ * always the shared text plus what has been typed here, which is what makes the
+ * minimal diff above describe one person's keystroke and nothing else.
  */
 export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): React.JSX.Element {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
   const endedRef = useRef(false);
   const [length, setLength] = useState(() => ytext.toString().length);
+  /** The shared text as this box knows it: the base every local diff is taken against. */
+  const remoteRef = useRef(ytext.toString());
+
+  /**
+   * Brings the box up to date with the shared text, keeping what was typed into it.
+   *
+   * The base is what the box was last in step with, so the change in between is the other
+   * person's and can be spliced in around the local caret (`mergeRemoteText`). Doing this
+   * before every write is also what keeps the write honest: the diff handed to the shared
+   * text is then one person's keystroke, and never somebody else's characters.
+   */
+  const mergeFromRemote = useCallback(
+    (el: HTMLTextAreaElement): string => {
+      const theirs = ytext.toString();
+      const caret = Number.isFinite(el.selectionStart) ? (el.selectionStart as number) : el.value.length;
+      const merged = mergeRemoteText(remoteRef.current, theirs, el.value, caret);
+      remoteRef.current = theirs;
+      if (!merged.changed) return el.value;
+      el.value = merged.text;
+      try {
+        el.setSelectionRange(merged.caret, merged.caret);
+      } catch {
+        // jsdom with no selection support: the text alone is what matters.
+      }
+      setLength(clampToLimit(merged.text).length);
+      return merged.text;
+    },
+    [ytext],
+  );
+
+  /**
+   * Somebody else's typing shows up in this box while it is open, as it arrives.
+   *
+   * During an input method composition the box is left alone — replacing text mid-composition
+   * would break what is being typed — and the change is merged in when the composition ends.
+   */
+  useEffect(() => {
+    const onTextChange = (_event: unknown, transaction: Y.Transaction): void => {
+      if (transaction.origin === LOCAL_ORIGIN) return;
+      const el = ref.current;
+      if (!el || endedRef.current || composingRef.current) return;
+      mergeFromRemote(el);
+    };
+    ytext.observe(onTextChange);
+    return () => ytext.unobserve(onTextChange);
+  }, [ytext, mergeFromRemote]);
 
   /** Focus with the caret at the end of the text, once, on mount. */
   useLayoutEffect(() => {
@@ -73,6 +124,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
         }
       }
       applyTextDiff(ytext, clamped, LOCAL_ORIGIN);
+      remoteRef.current = ytext.toString();
       setLength(clamped.length);
       return clamped;
     },
@@ -85,10 +137,14 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       if (endedRef.current) return;
       endedRef.current = true;
       const el = ref.current;
-      if (el) applyTextDiff(ytext, clampToLimit(el.value), LOCAL_ORIGIN);
+      if (el) {
+        mergeFromRemote(el);
+        applyTextDiff(ytext, clampToLimit(el.value), LOCAL_ORIGIN);
+        remoteRef.current = ytext.toString();
+      }
       onEnd(next);
     },
-    [onEnd, ytext],
+    [mergeFromRemote, onEnd, ytext],
   );
 
   // A pointerdown anywhere outside this note's box ends editing and clears the
@@ -115,10 +171,16 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     commit(event.target.value);
   };
 
+  /** Whatever the box holds, with anybody else's changes folded in. */
+  const currentValue = (): string => {
+    const el = ref.current;
+    return el ? mergeFromRemote(el) : '';
+  };
+
   const onCompositionEnd = (event: CompositionEvent<HTMLTextAreaElement>) => {
     composingRef.current = false;
-    const el = ref.current;
-    if (el) commit(el.value);
+    // The composition has landed in the box; now the change held back during it can go in.
+    if (ref.current) commit(currentValue());
     else if (event.target instanceof HTMLTextAreaElement) commit(event.target.value);
   };
 
@@ -136,7 +198,9 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
 
   const onBlur = () => {
     const el = ref.current;
-    if (el && !composingRef.current) applyTextDiff(ytext, clampToLimit(el.value), LOCAL_ORIGIN);
+    if (el && !composingRef.current) {
+      commit(el.value);
+    }
   };
 
   return (

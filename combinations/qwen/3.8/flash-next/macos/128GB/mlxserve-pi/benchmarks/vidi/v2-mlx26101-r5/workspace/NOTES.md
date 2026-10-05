@@ -297,3 +297,20 @@ not see (jsdom has no `setPointerCapture` and no layout):
 | `npm run test:e2e` | 5 | 38 (31 sticky note, 7 from story 1), chromium, `--repeat-each=3` stable |
 
 `npm run build` and `npm run typecheck` are clean.
+
+## The test helper was the bug, not the board (TC-27)
+
+`TC-27` failed with "the badge never goes away" while the board's own log said it had reconnected
+and the page snapshot showed the badge gone. Reading the page at one second per line was the way
+out: the board publishes `connected`, React renders it, the badge is gone, all within three seconds
+of the network coming back. What did not work was the *test* finding that out: `badgeText()` read
+the badge through a locator, which waits for the element to be there, and the helper called it in a
+loop that expects the badge to be *gone*, racing each call against a 200 ms timeout. Every round
+left a call waiting for an element that never comes back, and after a while those pending calls
+hold up everything else asked of that page — including the reads that would have shown success. So
+the test reported a stale state for 45 s while the page was fine.
+
+`badgeText()` now reads the DOM with `page.evaluate`, which answers immediately whether the badge
+is there or not. Rule taken away: **inside a poll that waits for something to disappear, do not use
+an API that waits for it to appear.** When a page seems to stop reporting the truth, check whether
+the observation itself is queued.

@@ -16,6 +16,19 @@ const allProjects = {
   webkit: { name: 'webkit', use: { ...devices['Desktop Safari'], viewport } },
 };
 
+// The nightly suite: the two checks that take minutes rather than seconds (an idle
+// connection, and a soak at full capacity). It is a project of its own, run by
+// `npm run test:e2e:nightly`, and it is kept out of the suite that runs on every commit by
+// the `testIgnore` below — a commit should not have to wait 45 seconds for a connection to
+// sit still. It runs on Chromium whatever the browser matrix is, because that is the
+// browser that always starts in here.
+const nightly = {
+  name: 'nightly',
+  testDir: './tests/e2e/nightly',
+  testIgnore: [] as string[],
+  use: { ...devices['Desktop Chrome'], viewport },
+};
+
 const selected = (process.env.VIDI6_E2E_PROJECTS ?? 'chromium')
   .split(',')
   .map((name) => name.trim())
@@ -23,8 +36,16 @@ const selected = (process.env.VIDI6_E2E_PROJECTS ?? 'chromium')
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Everything under tests/e2e/nightly belongs to the nightly project and to nothing else.
+  testIgnore: [/[/\\]nightly[/\\]/],
   fullyParallel: true,
+  // Each test opens a browser context per person, so the worker count is roughly the
+  // number of browsers open at once. Four is plenty for the suite and keeps one machine
+  // from being the thing that makes a change slow.
+  workers: Number(process.env.VIDI6_E2E_WORKERS ?? 4),
   reporter: [['list']],
+  // Prints what the run measured, once the browsers are gone (see the file).
+  globalTeardown: './tests/e2e/helpers/latency-report.ts',
   outputDir: './test-results',
   use: {
     baseURL,
@@ -32,7 +53,7 @@ export default defineConfig({
     trace: 'off',
     video: 'off',
   },
-  projects: selected.map((name) => allProjects[name as keyof typeof allProjects]),
+  projects: [...selected.map((name) => allProjects[name as keyof typeof allProjects]), nightly],
   webServer: {
     command: process.env.VIDI6_E2E_SERVE ?? 'npm run e2e:serve',
     url: baseURL,

@@ -41,3 +41,54 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS;
 /** Colour of a newly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/* ------------------------------------------------------------------ live collaboration (story 3) */
+
+/**
+ * Soft simultaneous-editor capacity: the number of people one board is designed
+ * and tested for. It is never enforced — a 6th person joins and edits normally —
+ * and every capacity test reads this constant instead of a literal.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** Time a change takes to appear on another screen (PRD `live.propagate`). */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Where the board rooms live; one board's room is `${ROOM_PATH_PREFIX}/<board id>`. */
+export const ROOM_PATH_PREFIX = '/api/rooms';
+/** Upper bound of the reconnect backoff (y-websocket `maxBackoffTime`). */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/**
+ * How often a board asks its room for the room's state, even when nobody is typing.
+ *
+ * Two reasons, both to do with a board that nobody is touching. The connection gives up on a
+ * line it has heard nothing on for `ROOM_SILENCE_LIMIT_MS`, so a board that is merely idle
+ * would otherwise show "Reconnecting…" and do it again a few seconds later; and a change that
+ * got lost on the way (a reconnect that raced, a room that restarted) is put right by the next
+ * exchange instead of waiting for somebody to type. Short enough that a network which has come
+ * back is noticed quickly — the board cannot know it is back until it gets an answer.
+ */
+export const ROOM_RESYNC_INTERVAL_MS = 5_000;
+/**
+ * How long a connection may go without hearing anything before it is given up on. Has to
+ * comfortably exceed `ROOM_RESYNC_INTERVAL_MS`, because an idle board's only traffic is that
+ * resync; three beats' worth is the margin.
+ */
+export const ROOM_SILENCE_LIMIT_MS = 15_000;
+/**
+ * How long a connection attempt is allowed to sit unfinished before we give up on it and
+ * dial again. A dial that neither completes nor fails is not something a provider recovers
+ * from on its own: its retry machinery runs when a connection closes, and a socket that is
+ * still 'connecting' has not closed and will not close by itself. Half-dead networks —
+ * captive portals, a Wi-Fi that has stopped routing, a server that stopped answering the
+ * handshake — produce exactly that.
+ */
+export const RECONNECT_DIAL_TIMEOUT_MS = 10_000;
+/** How long the green "Connected" badge stays after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** Outage length used by the catch-up test (PRD `live.catch_up`). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/**
+ * Generous functional timeout for every e2e wait (all stories). Latency is
+ * measured and logged against LIVE_UPDATE_LATENCY_BUDGET_MS, never asserted:
+ * the model, the browsers and the server share one machine.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;

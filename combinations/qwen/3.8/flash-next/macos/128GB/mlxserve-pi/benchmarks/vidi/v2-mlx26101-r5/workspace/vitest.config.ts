@@ -1,3 +1,4 @@
+import { cloudflareTest } from '@cloudflare/vitest-pool-workers';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -20,6 +21,19 @@ export default defineConfig({
           environment: 'jsdom',
           include: ['tests/component/**/*.test.{ts,tsx}'],
           setupFiles: ['tests/component/setup.ts'],
+        },
+      },
+      {
+        // The real Worker: the tests run inside workerd against `wrangler.jsonc`,
+        // so routing, Durable Objects, WebSockets and Yjs merging are all the
+        // genuine article. The plugin switches this project onto the Workers pool.
+        extends: true,
+        plugins: [cloudflareTest({ wrangler: { configPath: './wrangler.jsonc' } })],
+        test: {
+          name: 'integration',
+          include: ['tests/integration/**/*.test.ts'],
+          testTimeout: 60_000,
+          hookTimeout: 60_000,
         },
       },
     ],
