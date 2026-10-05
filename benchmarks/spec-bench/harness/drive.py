@@ -596,14 +596,20 @@ def push_with_rebase(repo_root: Path, git: list[str]) -> dict:
     The replay is git plumbing (replay_onto_remote), never pull --rebase --autostash: other processes edit files
     in this checkout (an agent building the benchmarker, 1 Oct 2026), and an autostash takes their uncommitted
     work away and writes it back. Only the files the remote changed are checked out, and only if none of them
-    has uncommitted edits; otherwise nothing moves and the commits stay local, pushed by a later record."""
+    has uncommitted edits; otherwise the checkout stays where it is and the replayed commits are pushed from
+    their own ref (the M5 Max, 4 Oct 2026: one stray edit of an old record held fourteen stories back for twenty
+    hours). "checkout_behind" then names the files; the checkout catches up once they are committed or discarded."""
     out: dict = {"pushed": False}
     push = subprocess.run([*git, "push", "-q", "origin", "HEAD"], cwd=repo_root, capture_output=True, text=True)
     if push.returncode != 0:
         replay = replay_onto_remote(repo_root, git)
         if "error" in replay:
             return {**out, "unpushed": True, "error": replay["error"]}
-        push = subprocess.run([*git, "push", "-q", "origin", "HEAD"], cwd=repo_root, capture_output=True, text=True)
+        behind = replay.get("checkout_behind")
+        if behind:
+            out["checkout_behind"] = behind
+        target = f"{replay['new']}:refs/heads/{replay['branch']}" if behind else "HEAD"
+        push = subprocess.run([*git, "push", "-q", "origin", target], cwd=repo_root, capture_output=True, text=True)
     out["pushed"] = push.returncode == 0
     if not out["pushed"]:
         out["unpushed"] = True
@@ -614,8 +620,12 @@ def push_with_rebase(repo_root: Path, git: list[str]) -> dict:
 def replay_onto_remote(repo_root: Path, git: list[str]) -> dict:
     """Our commits since the remote's branch, made again on top of it, without a rebase or a stash: each commit's
     tree is merged in an index of its own (_merged_tree), then the checkout moves with a two-tree read-tree, which
-    updates only the files that differ and refuses, moving nothing, if one of them has uncommitted edits.
-    {} or {"error"}. Plain plumbing that git 2.34 has (the RTX 4090 machine's): no merge-tree --write-tree."""
+    updates only the files that differ and refuses, moving nothing, if one of them has uncommitted edits. A commit
+    that changes nothing on top of the remote (the remote already has a copy of it, pushed by an earlier record
+    whose checkout could not move) is left out, so the remote gets each story once.
+    {"new", "branch"} when the checkout moved, plus "checkout_behind" (the files with uncommitted edits that the
+    remote changed) when it could not; or {"error"}. Plain plumbing that git 2.34 has (the RTX 4090 machine's):
+    no merge-tree --write-tree."""
     def run(*args: str, env: dict | None = None, input: str | None = None) -> subprocess.CompletedProcess:
         return subprocess.run([*git, *args], cwd=repo_root, capture_output=True, text=True, env=env, input=input)
     branch = run("symbolic-ref", "-q", "--short", "HEAD").stdout.strip()
@@ -634,6 +644,8 @@ def replay_onto_remote(repo_root: Path, git: list[str]) -> dict:
         if tree is None:
             return {"error": "the remote changed the same files as our commits: the story is committed locally and "
                              "unpushed, and a later record pushes it once the remote no longer conflicts"}
+        if tree == run("rev-parse", f"{new}^{{tree}}").stdout.strip():
+            continue                                        # already on the remote: nothing to make again
         who = run("log", "-1", "--format=%an%x00%ae%x00%ad%x00%B", "--date=raw", c).stdout.split("\0", 3)
         env = {**os.environ, "GIT_AUTHOR_NAME": who[0], "GIT_AUTHOR_EMAIL": who[1], "GIT_AUTHOR_DATE": who[2]}
         made = run("commit-tree", tree, "-p", new, "-F", "-", env=env, input=who[3])
@@ -642,10 +654,11 @@ def replay_onto_remote(repo_root: Path, git: list[str]) -> dict:
         new = made.stdout.strip()
     moved = run("read-tree", "-m", "-u", old, new)
     if moved.returncode != 0:
-        return {"error": "the remote changed files with uncommitted edits here; nothing was moved, the story is "
-                         "committed locally and unpushed. " + moved.stderr[-300:]}
+        changed = set(run("diff", "--name-only", old, new).stdout.split())
+        dirty = set(run("diff", "--name-only", "HEAD").stdout.split())
+        return {"new": new, "branch": branch, "checkout_behind": sorted(changed & dirty) or sorted(changed)}
     run("update-ref", "-m", "record: replayed onto the remote", f"refs/heads/{branch}", new, old)
-    return {}
+    return {"new": new, "branch": branch}
 
 
 def _merged_tree(repo_root: Path, git: list[str], base: str, ours: str, theirs: str) -> str | None:
@@ -2336,6 +2349,7 @@ def main() -> None:
             r = rec["record"]
             print(f"[story {sid}] recorded: commit {r.get('commit', '-')} pushed={r['pushed']}"
                   f"{'  NOT PUSHED, kept locally; the next story retries' if r.get('unpushed') else ''}"
+                  f"{'  pushed; the checkout stays behind until these are committed or discarded: ' + ', '.join(r['checkout_behind']) if r.get('checkout_behind') else ''}"
                   f"{'  ' + r['error'][:200] if r.get('error') else ''}", flush=True)
         print(f"[story {sid}] {status}{' verdict ' + rec['verdict']['verdict'] if skip else ''} "
               f"gate green={rec['gate'].get('all_green')} "

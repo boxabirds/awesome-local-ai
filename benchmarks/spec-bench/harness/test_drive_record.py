@@ -442,6 +442,36 @@ def test_a_push_after_the_remote_moved_replays_and_pushes(tmp_path):
     assert remote_head(remote) == head(repo) and head(repo, "HEAD~1") == theirs
 
 
+def test_a_push_blocked_by_an_uncommitted_edit_still_publishes_and_leaves_the_checkout_as_it_is(tmp_path):
+    """The M5 Max, 4 Oct 2026: an old record had an uncommitted edit, main changed that file, and the replay's
+    checkout move refused, so fourteen story commits stayed local for twenty hours. The replayed commits are pushed
+    whether or not the checkout can move; the checkout and its uncommitted edit are left exactly as they were."""
+    repo, remote = pg.cloned(tmp_path, "public")
+    theirs = move_remote(tmp_path, remote)                                            # the remote changed elsewhere.md
+    pg.write(repo / "elsewhere.md", "someone's uncommitted edit")                       # which has an uncommitted edit here
+    mine = commit(repo, "run/metrics.json", "{}", "story 1 done")
+    res = drive.push_with_rebase(repo, G)
+    assert res["pushed"] is True and "unpushed" not in res
+    assert res["checkout_behind"] == ["elsewhere.md"]
+    assert git(remote, "log", "--format=%s", "main").split("\n")[:2] == ["story 1 done", "other: elsewhere.md"]   # published, on the remote's tip
+    assert head(repo) == mine and (repo / "elsewhere.md").read_text() == "someone's uncommitted edit"            # nothing here moved
+    assert git(repo, "status", "--porcelain").strip() == "?? elsewhere.md"                                        # the remote's file would overwrite it
+
+
+def test_the_next_record_after_a_blocked_checkout_pushes_only_what_is_new(tmp_path):
+    """The checkout still holds the commits the remote already has copies of: replaying those again changes
+    nothing and makes no commit, so the remote gets each story once."""
+    repo, remote = pg.cloned(tmp_path, "public")
+    move_remote(tmp_path, remote)
+    pg.write(repo / "elsewhere.md", "someone's uncommitted edit")
+    commit(repo, "run/metrics.json", "{}", "story 1 done")
+    assert drive.push_with_rebase(repo, G)["pushed"] is True
+    commit(repo, "run/stories/02/x.json", "{}", "story 2 done")
+    res = drive.push_with_rebase(repo, G)
+    assert res["pushed"] is True and res["checkout_behind"] == ["elsewhere.md"]
+    assert git(remote, "log", "--format=%s", "main").split("\n")[:3] == ["story 2 done", "story 1 done", "other: elsewhere.md"]
+
+
 # ======================= replay_onto_remote =======================
 
 def test_a_detached_checkout_has_no_branch_to_replay(tmp_path):
@@ -469,7 +499,7 @@ def test_our_commits_are_made_again_on_the_remote_s_with_their_authors_dates_and
     subprocess.run([*G, "commit", "-qm", "story 1 done\n\nwith a body"], cwd=repo, check=True, env={**os.environ, **env})
     commit(repo, "run/b.json", "b", "story 2 done")
     pg.write(repo / "uncommitted.md", "another process's edit")
-    assert drive.replay_onto_remote(repo, G) == {}
+    assert drive.replay_onto_remote(repo, G) == {"new": head(repo), "branch": "main"}
     assert git(repo, "log", "--format=%s").split("\n")[:3] == ["story 2 done", "story 1 done", "other: elsewhere.md"]
     assert head(repo, "HEAD~2") == theirs
     assert git(repo, "log", "-1", "--format=%an <%ae> %ad%n%B", "--date=raw", "HEAD~1").strip() == (
@@ -488,7 +518,7 @@ def test_a_first_commit_with_no_parent_is_replayed_onto_the_remote_too(tmp_path)
     subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
     git(repo, "remote", "add", "origin", str(remote))
     commit(repo, "run/metrics.json", "{}", "story 1 done")
-    assert drive.replay_onto_remote(repo, G) == {}
+    assert drive.replay_onto_remote(repo, G) == {"new": head(repo), "branch": "main"}
     assert head(repo, "HEAD~1") == theirs and git(repo, "log", "-1", "--format=%s").strip() == "story 1 done"
     assert sorted(git(repo, "ls-files").split()) == ["README.md", "run/metrics.json"] and (repo / "README.md").exists()
 
@@ -496,7 +526,7 @@ def test_a_first_commit_with_no_parent_is_replayed_onto_the_remote_too(tmp_path)
 def test_a_replay_with_nothing_of_ours_just_moves_to_the_remote_s(tmp_path):
     repo, remote = pg.cloned(tmp_path, "public")
     theirs = move_remote(tmp_path, remote)
-    assert drive.replay_onto_remote(repo, G) == {} and head(repo) == theirs and (repo / "elsewhere.md").exists()
+    assert drive.replay_onto_remote(repo, G) == {"new": theirs, "branch": "main"} and head(repo) == theirs and (repo / "elsewhere.md").exists()
 
 
 def test_a_commit_that_cannot_be_made_again_stops_the_replay_and_moves_nothing(tmp_path, fake):
@@ -527,14 +557,14 @@ def test_the_remote_changing_our_own_file_is_a_conflict_and_moves_nothing(tmp_pa
     assert head(repo) == sha and (repo / "README.md").read_text() == "ours"
 
 
-def test_the_remote_changing_a_file_with_uncommitted_edits_here_moves_nothing(tmp_path):
+def test_the_remote_changing_a_file_with_uncommitted_edits_here_moves_nothing_and_names_the_file(tmp_path):
     repo, remote = pg.cloned(tmp_path, "public")
     move_remote(tmp_path, remote, rel="README.md", text="theirs")
     sha = commit(repo, "run/metrics.json", "{}", "story 1 done")
     pg.write(repo / "README.md", "being edited here")
     res = drive.replay_onto_remote(repo, G)
-    assert res["error"].startswith("the remote changed files with uncommitted edits here; nothing was moved, the story is "
-                                   "committed locally and unpushed. ")
+    assert res["checkout_behind"] == ["README.md"] and res["branch"] == "main"
+    assert git(repo, "log", "-1", "--format=%s", res["new"]).strip() == "story 1 done"       # made, on the remote's tip, not pushed here
     assert head(repo) == sha and (repo / "README.md").read_text() == "being edited here"
 
 
