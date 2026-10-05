@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { applyTextDiff, clampToLimit, counterVisible, mapCaret } from './StickyText';
+import { useBoardUndo } from '../board/useUndo';
 import type { EndEditTarget } from '../board/useSelection';
 
 export interface StickyTextEditorProps {
@@ -28,7 +30,18 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const mountedRef = useRef(true);
+  const undo = useBoardUndo();
   const [length, setLength] = useState(() => ytext.toString().length);
+
+  // Edit start and edit end close the capture window, so typing in a note is a
+  // step of its own: what came before (a drag, a delete) is not undone by a
+  // Ctrl+Z pressed here, and typing does not merge into it either.
+  useEffect(() => {
+    undo?.boundary();
+    return () => {
+      undo?.boundary();
+    };
+  }, [undo, ytext]);
 
   // Edit start: seed the value from the shared text, focus it, caret at the end.
   useLayoutEffect(() => {
@@ -93,6 +106,28 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
     setLength(next.length);
   };
 
+  /**
+   * Ctrl/Cmd+Z inside a note belongs to the note's text (`undo.typing`). The
+   * browser's own undo would rewind the textarea while the shared text — and
+   * everybody else's screen — stayed where it was, so the keystroke is taken
+   * from the element and the board's history is stepped instead.
+   */
+  const onUndoKey = (e: ReactKeyboardEvent<HTMLTextAreaElement>): void => {
+    const key = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && key === 'z') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.shiftKey) undo?.redo();
+      else undo?.undo();
+      return;
+    }
+    if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && key === 'y') {
+      e.preventDefault();
+      e.stopPropagation();
+      undo?.redo();
+    }
+  };
+
   return (
     <div
       className="sticky-editor"
@@ -110,6 +145,17 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
         onChange={() => {
           if (!composingRef.current) commit();
         }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            commit();
+            onEnd('selected');
+            return;
+          }
+          // Enter is left to the textarea so it inserts a new line.
+          onUndoKey(e);
+        }}
         onCompositionStart={() => {
           composingRef.current = true;
         }}
@@ -117,19 +163,13 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
           composingRef.current = false;
           commit();
         }}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            e.stopPropagation();
-            commit();
-            onEnd('selected');
-          }
-          // Enter is left to the textarea so it inserts a new line.
-        }}
         onBlur={() => {
           // Defensive flush: every input event has already been written, but a
           // blur racing with a composition must not lose the value.
           if (mountedRef.current && !composingRef.current) commit();
+          // The edit ends here for a click outside the note; close the capture
+          // window so the typing stays one step.
+          undo?.boundary();
         }}
       />
       {counterVisible(length) ? (

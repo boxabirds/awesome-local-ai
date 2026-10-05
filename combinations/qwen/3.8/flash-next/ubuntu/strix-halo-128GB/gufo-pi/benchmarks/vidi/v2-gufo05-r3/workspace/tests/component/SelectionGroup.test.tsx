@@ -146,7 +146,7 @@ describe('selection set and selection bar (sel.interaction)', () => {
 
     clickNote(noteEl(container, a));
     shiftClickAt(noteEl(container, b));
-    expect(selectedIds(container)).toEqual([a, b]);
+    expect(selectedIds(container)).toEqual([a, b].sort());
 
     clickSurface(boardSurface(container), 700, 700);
     expect(selectedIds(container)).toEqual([]);

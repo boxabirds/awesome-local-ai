@@ -168,3 +168,14 @@ export const NUDGE_STEP_WORLD = 1;
 
 /** Distance one Shift+arrow press moves the selection, in world units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// --- Story 8: undo and redo -------------------------------------------------
+
+/**
+ * Typing pause (ms) that ends an undo step: keystrokes closer together than
+ * this belong to one burst and are undone together (PRD `undo.typing`).
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/** How many undo steps one person's history keeps before the oldest is dropped. */
+export const UNDO_MAX_STEPS = 200;

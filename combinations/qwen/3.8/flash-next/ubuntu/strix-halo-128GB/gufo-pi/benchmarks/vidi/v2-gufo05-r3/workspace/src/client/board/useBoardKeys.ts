@@ -9,6 +9,7 @@ import {
 } from '../../shared/board-model';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
+import type { UndoController } from './undo';
 import type { SelectionApi } from './useSelection';
 
 export interface BoardKeysOptions {
@@ -23,6 +24,12 @@ export interface BoardKeysOptions {
    * to say it was consumed, in which case the selection is left alone.
    */
   onEscape?(): boolean;
+  /**
+   * This person's undo history (story 8). Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z
+   * and Ctrl+Y redo, and every command that changes the board closes a capture
+   * window on both sides so one action stays one undo step.
+   */
+  undo?: UndoController;
 }
 
 /** True when the keyboard belongs to a text field (so the keys edit text). */
@@ -59,21 +66,46 @@ const ARROWS: Record<string, [number, number]> = {
  * the page's text as well as the board's objects.
  */
 export function useBoardKeys(options: BoardKeysOptions): void {
-  const { doc, selection, snapshot, canEdit, onEscape } = options;
+  const { doc, selection, snapshot, canEdit, onEscape, undo } = options;
 
   // One listener for the life of the board; it reads the current values from a
   // ref so a new selection does not mean detaching and re-attaching listeners.
-  const live = useRef({ doc, selection, snapshot, canEdit, onEscape });
-  live.current = { doc, selection, snapshot, canEdit, onEscape };
+  const live = useRef({ doc, selection, snapshot, canEdit, onEscape, undo });
+  live.current = { doc, selection, snapshot, canEdit, onEscape, undo };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { doc: board, selection: sel, snapshot: objects, canEdit: editable } = live.current;
+      const {
+        doc: board,
+        selection: sel,
+        snapshot: objects,
+        canEdit: editable,
+        undo: history,
+      } = live.current;
       if (sel.editingId !== null) return;
       if (isEditableTarget(event.target)) return;
 
       const key = event.key;
       const modifier = event.ctrlKey || event.metaKey;
+
+      // Undo and redo belong to the person using this tab, never to the board
+      // as a whole (`undo.own`), and only while the board can be changed.
+      if (modifier && !event.altKey && key.toLowerCase() === 'z') {
+        if (!editable || !history) return;
+        // The browser's own undo would work on the page, not on the board.
+        event.preventDefault();
+        if (event.shiftKey) history.redo();
+        else history.undo();
+        return;
+      }
+
+      // Ctrl+Y is the other spelling of redo; the meta key is not taken for it.
+      if (key.toLowerCase() === 'y' && event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (!editable || !history) return;
+        event.preventDefault();
+        history.redo();
+        return;
+      }
 
       if (modifier && !event.altKey && key.toLowerCase() === 'a') {
         // "Select all" on the board, not on the page behind it.
@@ -94,7 +126,10 @@ export function useBoardKeys(options: BoardKeysOptions): void {
         if (sel.count === 0) return;
         if (!editable) return;
         event.preventDefault();
+        // One Delete is one step, whatever it deleted (`undo.steps`).
+        history?.boundary();
         deleteObjects(board, [...sel.ids]);
+        history?.boundary();
         sel.clear();
         return;
       }
@@ -117,7 +152,9 @@ export function useBoardKeys(options: BoardKeysOptions): void {
             y: bounds.y + direction[1] * step,
           });
         }
+        history?.boundary();
         moveObjects(board, positions);
+        history?.boundary();
         return;
       }
 

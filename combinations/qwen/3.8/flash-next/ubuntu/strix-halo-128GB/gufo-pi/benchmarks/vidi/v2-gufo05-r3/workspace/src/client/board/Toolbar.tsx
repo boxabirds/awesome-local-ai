@@ -1,8 +1,13 @@
+import { UndoButtons } from './UndoButtons';
+import type { UndoApi } from './useUndo';
+
 /** Exact tooltip copy from the PRD (sticky.create_button). */
 export const STICKY_NOTE_TOOLTIP = 'Sticky note \u2013 or double-click the board';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /** Undo / redo, state and commands (story 8): rendered below the tools. */
+  undo: UndoApi;
   /**
    * True while the board cannot be edited (its storage could not be read). Every
    * control is disabled: a button that looks usable and does nothing is worse than
@@ -12,14 +17,14 @@ export interface ToolbarProps {
 }
 
 /**
- * Left-side vertical board toolbar. In this story it holds the Sticky note
- * button; later stories add their tools here.
+ * Left-side vertical board toolbar: the Sticky note button, then the Undo and
+ * Redo buttons under a divider; later stories add their tools here.
  *
  * Pointer events are stopped so a click on the toolbar never reaches the
  * viewport (which would pan the board or clear the selection).
  */
 export function Toolbar(props: ToolbarProps) {
-  const { onCreateSticky, locked = false } = props;
+  const { onCreateSticky, undo, locked = false } = props;
   return (
     <div
       className="board-toolbar"
@@ -44,6 +49,7 @@ export function Toolbar(props: ToolbarProps) {
         </span>
         <span className="board-toolbar-text">Sticky note</span>
       </button>
+      <UndoButtons {...undo} />
     </div>
   );
 }

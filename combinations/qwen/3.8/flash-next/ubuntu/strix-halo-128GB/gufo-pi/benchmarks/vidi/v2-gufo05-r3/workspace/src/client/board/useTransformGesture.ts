@@ -174,9 +174,12 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
       gesture.start = start;
       gesture.moved = true;
       gesture.announced = true;
+      // The boundary comes first so the raise below belongs to this gesture:
+      // one drag is one undo step, and undoing it also puts the note back in the
+      // pile it came from.
+      live.current.onGestureStart?.();
       // Raised once at the start of the drag, not per frame.
       bringObjectsToFront(live.current.doc, ids);
-      live.current.onGestureStart?.();
       setDraggingIds(new Set(ids));
     },
     [],

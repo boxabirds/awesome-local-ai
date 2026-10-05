@@ -10,6 +10,7 @@ import { useBoardKeys } from './board/useBoardKeys';
 import { MarqueeRect, useMarquee } from './board/Marquee';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionAnnouncement, SelectionBar } from './board/SelectionBar';
+import { UndoContext, useUndo, useUndoController } from './board/useUndo';
 import { getObjectType } from './objects/registry';
 import './objects/index';
 import { ConnectionStatus } from './sync/ConnectionStatus';
@@ -43,10 +44,10 @@ const INITIAL_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
  * into `router.ts`; `App` is now just the board, given an id to open. It stays
  * mounted only in the board page's `ready` state, where the board exists.
  *
- * Story 7 made the selection a set and moved the pointer logic out of the sticky
- * note into one gesture that works on any registered object type. `App` is where
- * those pieces meet: it owns the selection, the gesture and the marquee, and
- * hands the viewport a screen-space overlay drawn from them.
+ * Story 8 gave the board an undo history. It belongs to the person using this
+ * tab, so `App` keeps exactly one controller for the board document, tells the
+ * gestures, the text editor and the one-off commands where their steps begin and
+ * end, and hands the toolbar whether there is anything left to step back to.
  */
 export default function App({ doc, boardId }: AppProps = {}) {
   const { doc: boardDoc, notes, connection } = useBoardDoc(doc, boardId);
@@ -65,11 +66,23 @@ export default function App({ doc, boardId }: AppProps = {}) {
   const [camera, setCamera] = useState<Camera>(INITIAL_CAMERA);
   const viewportApi = useRef<BoardViewportApi | null>(null);
 
+  // --- Undo ---------------------------------------------------------------
+  /**
+   * One history per board document, alive while the board is on screen: the
+   * steps in it are this tab's own changes and nothing else (`undo.own`).
+   */
+  const undoHistory = useUndoController(boardDoc);
+  /** What the buttons show: whether there is anything of ours left to step. */
+  const undoApi = useUndo(undoHistory, !locked);
+
   const deleteSelection = useCallback(() => {
     if (locked) return;
+    // One Delete, however many objects it removed, is one undo step.
+    undoHistory.boundary();
     deleteObjects(boardDoc, [...selection.ids]);
+    undoHistory.boundary();
     selection.clear();
-  }, [boardDoc, locked, selection]);
+  }, [boardDoc, locked, selection, undoHistory]);
 
   // --- Gestures -------------------------------------------------------------
   const gesture = useTransformGesture({
@@ -78,6 +91,10 @@ export default function App({ doc, boardId }: AppProps = {}) {
     selection,
     snapshot: notes,
     canEdit: !locked,
+    // A press-to-release gesture is one step whatever happens in between, and
+    // the next action starts a step of its own (`undo.boundaries`).
+    onGestureStart: () => undoHistory.boundary(),
+    onGestureEnd: () => undoHistory.boundary(),
   });
 
   // Shift+drag adds whatever is inside the rectangle to the selection; an empty
@@ -96,16 +113,19 @@ export default function App({ doc, boardId }: AppProps = {}) {
       marquee.cancel();
       return true;
     },
+    undo: undoHistory,
   });
 
   const createStickyAtCentre = useCallback(() => {
     const centre = viewportApi.current?.viewportCentreWorld() ?? { x: 0, y: 0 };
+    undoHistory.boundary();
     const id = createSticky(boardDoc, centre);
+    undoHistory.boundary();
     if (id) {
       selection.click(id);
       selection.startEdit(id);
     }
-  }, [boardDoc, selection]);
+  }, [boardDoc, selection, undoHistory]);
 
   /** A note created by double-click is selected and ready to type in. */
   const openForEditing = useCallback(
@@ -156,12 +176,13 @@ export default function App({ doc, boardId }: AppProps = {}) {
   const transforming = gesture.draggingIds.size > 0 || selection.editingId !== null;
 
   return (
+    <UndoContext.Provider value={undoHistory}>
     <main className="app" data-testid="app-root">
       <ConnectionStatus state={connection} />
       {/* Spoken selection count: mounted for as long as the board is, because a
           live region that appears with the change is not announced. */}
       <SelectionAnnouncement count={selection.count} />
-      <Toolbar onCreateSticky={createStickyAtCentre} locked={locked} />
+      <Toolbar onCreateSticky={createStickyAtCentre} undo={undoApi} locked={locked} />
       <BoardViewport
         doc={boardDoc}
         viewportApi={viewportApi}
@@ -183,6 +204,7 @@ export default function App({ doc, boardId }: AppProps = {}) {
                 snapshot={notes}
                 doc={boardDoc}
                 onDelete={deleteSelection}
+                undo={undoHistory}
                 locked={locked}
                 hideControls={transforming}
               />
@@ -214,5 +236,6 @@ export default function App({ doc, boardId }: AppProps = {}) {
         })}
       </BoardViewport>
     </main>
+    </UndoContext.Provider>
   );
 }

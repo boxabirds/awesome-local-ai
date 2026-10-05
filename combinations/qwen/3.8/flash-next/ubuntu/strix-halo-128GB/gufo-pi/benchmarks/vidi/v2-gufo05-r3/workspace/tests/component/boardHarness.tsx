@@ -5,6 +5,7 @@ import type { Point } from '../../src/client/canvas/camera';
 import App from '../../src/client/App';
 import { createSticky, getStickyText } from '../../src/shared/board-model';
 import type { StickyColor } from '../../src/shared/config';
+import type { UndoController } from '../../src/client/board/undo';
 
 export const VIEWPORT = { width: 1280, height: 800 };
 
@@ -156,18 +157,24 @@ export function selectedIds(container: HTMLElement): string[] {
 /**
  * A second document standing in for another person: the same handshake a
  * provider performs, so the change arrives as an incoming transaction whose
- * origin is not `LOCAL_ORIGIN`.
+ * origin is not `LOCAL_ORIGIN`. Shared with the unit tests (`tests/peerDoc.ts`).
  */
-export function withPeer(): { doc: Y.Doc; peer: Y.Doc } {
-  const doc = new Y.Doc();
-  const peer = new Y.Doc();
-  Y.applyUpdate(peer, Y.encodeStateAsUpdate(doc));
-  Y.applyUpdate(doc, Y.encodeStateAsUpdate(peer));
-  doc.on('update', (update: Uint8Array, origin: unknown) => {
-    if (origin !== peer) Y.applyUpdate(peer, update, doc);
-  });
-  peer.on('update', (update: Uint8Array, origin: unknown) => {
-    if (origin !== doc) Y.applyUpdate(doc, update, peer);
-  });
-  return { doc, peer };
+export { withPeer } from '../peerDoc';
+
+/**
+ * Run `fn`, then make sure the change it made cannot merge with the step before
+ * or after it (`undo.boundaries`).
+ *
+ * The capture window can only be closed by the history itself: yjs ignores a
+ * transaction whose origin is not tracked, so an empty "boundary" transaction
+ * from a test origin does nothing. The helper therefore takes the controller the
+ * test created and calls `boundary()` on both sides of the action.
+ */
+export function undoBoundary(history: UndoController, fn?: () => void): void {
+  history.boundary();
+  try {
+    fn?.();
+  } finally {
+    history.boundary();
+  }
 }

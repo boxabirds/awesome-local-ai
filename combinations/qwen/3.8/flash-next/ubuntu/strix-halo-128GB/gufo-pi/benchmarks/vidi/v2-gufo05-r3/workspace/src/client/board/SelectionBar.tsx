@@ -1,5 +1,6 @@
 import type * as Y from 'yjs';
 import { getObjectType } from '../objects/registry';
+import type { UndoController } from './undo';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import {
   setStickyColor,
@@ -17,6 +18,11 @@ export interface SelectionBarProps {
   doc: Y.Doc;
   /** Delete the whole selection. */
   onDelete(): void;
+  /**
+   * This person's undo history (story 8): one colour click is one step, so a
+   * colour never merges into the drag that happened just before it.
+   */
+  undo?: UndoController;
   /** Board cannot be changed: no controls at all (story 2 rule). */
   locked?: boolean;
   /**
@@ -38,7 +44,7 @@ export interface SelectionBarProps {
  * change is not announced.
  */
 export function SelectionBar(props: SelectionBarProps) {
-  const { ids, snapshot, doc, onDelete, locked = false, hideControls = false } = props;
+  const { ids, snapshot, doc, onDelete, undo, locked = false, hideControls = false } = props;
   const count = ids.size;
   const selected = snapshot.filter((object) => ids.has(object.id));
   const single = count === 1 ? selected[0] : undefined;
@@ -56,7 +62,9 @@ export function SelectionBar(props: SelectionBarProps) {
           color={note.color}
           onColor={(color: StickyColor) => {
             // Only the colour changes: position, size, text and stacking stay.
+            undo?.boundary();
             setStickyColor(doc, note.id, color);
+            undo?.boundary();
           }}
           onDelete={onDelete}
         />
