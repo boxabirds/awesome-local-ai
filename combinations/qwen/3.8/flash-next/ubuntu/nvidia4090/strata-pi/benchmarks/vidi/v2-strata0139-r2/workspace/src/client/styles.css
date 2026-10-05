@@ -1,0 +1,153 @@
+:root {
+  --vidi6-bg: #fafafa;
+  --vidi6-fg: #1f2933;
+  --vidi6-muted: #666666;
+  --vidi6-surface: #ffffff;
+  --vidi6-border: #d0d0d0;
+  --vidi6-focus: #2563eb;
+  --vidi6-hint-bg: rgba(255, 255, 255, 0.9);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--vidi6-bg);
+  color: var(--vidi6-fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* ---- Board viewport ---- */
+
+.board-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--vidi6-bg);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-viewport[data-panning="true"] {
+  cursor: grabbing;
+}
+
+.board-grid {
+  position: absolute;
+  inset: 0;
+  /* background-image / -size / -position are set inline from the camera */
+}
+
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.origin-marker {
+  position: absolute;
+  pointer-events: none;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: "";
+  position: absolute;
+  background: var(--vidi6-muted);
+}
+
+.origin-marker::before {
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  transform: translateX(-50%);
+}
+
+.origin-marker::after {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+/* ---- Zoom controls ---- */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 10px;
+  font-size: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.zoom-controls button {
+  font: inherit;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 8px;
+  background: var(--vidi6-surface);
+  color: var(--vidi6-fg);
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #f1f4f8;
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible,
+.board-viewport:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
+}
+
+.zoom-controls .zoom-label {
+  min-width: 56px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- First-use navigation hint ---- */
+
+.nav-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  background: var(--vidi6-hint-bg);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 999px;
+  color: var(--vidi6-muted);
+  font-size: 16px;
+  pointer-events: none;
+  white-space: nowrap;
+}
