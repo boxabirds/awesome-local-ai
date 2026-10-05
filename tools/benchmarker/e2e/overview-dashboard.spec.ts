@@ -207,3 +207,35 @@ test.describe("the score, drawn", () => {
     await expect(page.getByRole("table", { name: "Combinations" })).toBeVisible();
   });
 });
+
+test.describe("utilisation: what each machine ran over the last day", () => {
+  test("a lane per machine that ran something, its runs as segments, the share of the day, and the same in words", async ({ page }) => {
+    await page.goto("/");
+    const panel = page.locator('[data-section="utilisation"]');
+    await expect(panel).toBeVisible();
+    const lanes = panel.locator(".util-lane");
+    expect(await lanes.count()).toBeGreaterThan(0);
+    const first = lanes.first();
+    // every segment is its own link to that run, so two runs back to back are two things, not one bar
+    const segs = first.locator(".util-seg");
+    expect(await segs.count()).toBeGreaterThan(0);
+    await expect(segs.first()).toHaveAttribute("href", /#\/[^/]+\/r\//);
+    await expect(first.locator(".util-busy")).toHaveText(/^\d+%$/);
+    // the picture's facts are also in words, for a reader who cannot use it
+    const machine = await first.getAttribute("data-machine");
+    await expect(panel.locator(".util-words li").first()).toContainText(`${machine}: ran `);
+    await expect(panel.locator(".util-axis")).toContainText("now");
+  });
+
+  test("a machine that ran nothing in the window has no lane", async ({ page }) => {
+    await page.route("**/api/state", async (route) => {
+      const res = await route.fetch();
+      const s = await res.json();
+      for (const r of s.rows) r.jobs = [];                       // nothing ran anywhere
+      await route.fulfill({ response: res, json: s });
+    });
+    await page.goto("/");
+    await expect(page.locator('[data-page="overview"]')).toBeVisible();
+    await expect(page.locator('[data-section="utilisation"]')).toHaveCount(0);
+  });
+});

@@ -1,15 +1,13 @@
 import { describe, expect, it } from "vitest";
-import {
-  medianRunSeconds, observations, QUEUE_SHORT_HOURS, queueDrain, seriesOf, scorePlot, slowStories, SLOW_MIN_MINUTES, SLOW_MIN_RUNS, SLOW_RATIO,
-} from "./dashboardView.ts";
+import { QUEUE_SHORT_HOURS, SLOW_MIN_MINUTES, SLOW_MIN_RUNS, SLOW_RATIO, medianRunSeconds, observations, queueDrain, scorePlot, seriesOf, slowStories, utilisation } from "./dashboardView.ts";
 import { SILENT_MINUTES, type NowLine } from "./overviewView.ts";
-import type { Row, RunStatus } from "./types.ts";
+import type { JobRef, Row, RunStatus } from "./types.ts";
 
 const HOUR = 3600;
 const SUITE = "p-v2.0";
 const STACK_A = "q/a/pi", STACK_B = "q/b/pi";
 
-interface Opts { stack?: string; id: string; status?: RunStatus; machine?: string; storySecs?: number[]; score?: number | null; position?: number; minutes?: number; scope?: number; knownGood?: boolean; started?: number }
+interface Opts { jobs?: JobRef[]; stack?: string; id: string; status?: RunStatus; machine?: string; storySecs?: number[]; score?: number | null; position?: number; minutes?: number; scope?: number; knownGood?: boolean; started?: number }
 
 /** A run: finished and scored unless told otherwise, each story taking the seconds given. */
 const run = (o: Opts): Row => {
@@ -22,7 +20,7 @@ const run = (o: Opts): Row => {
     scores: o.score === null ? {} : { [SUITE]: { passed: o.score ?? 60, total: 75, flaky: 0, at: "" } },
     stories: secs.map((s, i) => ({ id: String(i + 1), title: `Story ${i + 1}`, usage: { agentSeconds: s } })),
     storiesWorking: { working: 0, scope, squares: Array.from({ length: scope }, (_, i) => ({ id: String(i + 1), state: i < secs.length ? "ok" : "unbuilt", passed: null, total: null })) },
-    jobs: [], usage: {}, interventions: [],
+    jobs: o.jobs ?? [], usage: {}, interventions: [],
     live: status === "running" || status === "queued"
       ? { jobId: o.id, status, currentStory: String(secs.length + 1), runningStory: String(secs.length + 1), agentMinutes: o.minutes ?? 0, storyStartedAt: o.started ?? null, storyTitle: null, storiesInScope: scope, runStartedAt: null, totalAgentMinutes: null, queue: status === "queued" ? { position: o.position ?? 2, ahead: [] } : null }
       : null,
@@ -225,4 +223,67 @@ describe("the score plot: a dot for every run of record, the median and the rang
     expect(n).toContain("One run of q/a/pi scored 1, off the left edge of the scale.");
     expect(n.at(-1)).toBe("The scale starts at 60, not 0, so the differences show.");
   });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+describe("the utilisation timeline: one lane per machine, what it ran and the gaps between", () => {
+  const H = 3600;
+  const NOW = Date.parse("2026-10-05T12:00:00Z") / 1000;
+  /** A job as a run carries it: queued at `sub`, ended at `end` (null while it is still going). */
+  const withJob = (id: string, machine: string, sub: number, end: number | null, over: Partial<Opts> = {}) =>
+    run({ id, machine, status: end === null ? "running" : "finished", ...over,
+          jobs: [{ id, node: machine, status: end === null ? "running" : "done", submittedAt: sub, updatedAt: end ?? NOW, endedAt: end }] } as Opts);
+
+  it("a machine's lane: a segment per job, in time order, with the gaps left out", () => {
+    const rs = [
+      withJob("v2-r1", "m1", NOW - 10 * H, NOW - 8 * H),
+      withJob("v2-r2", "m1", NOW - 3 * H, NOW - 1 * H),      // queued 5 h after the first ended: an idle gap
+    ];
+    const u = utilisation(rs, NOW, 24 * H);
+    expect(u.lanes.map((l) => l.machine)).toEqual(["m1"]);
+    expect(u.lanes[0].segments.map((s) => [s.runId, s.from - NOW, s.to - NOW])).toEqual([
+      ["v2-r1", -10 * H, -8 * H],
+      ["v2-r2", -3 * H, -1 * H],
+    ]);
+    expect(u.lanes[0].busySeconds).toBe(4 * H);              // 2 h + 2 h of the 24 h window
+  });
+
+  it("a job that waited in the queue is busy only from when the machine was free", () => {
+    // It was submitted while the one before it was still running, so it cannot have started before that one ended.
+    const rs = [
+      withJob("v2-r1", "m1", NOW - 10 * H, NOW - 6 * H),
+      withJob("v2-r2", "m1", NOW - 9 * H, NOW - 4 * H),      // queued an hour in, ran from 6 h ago
+    ];
+    const u = utilisation(rs, NOW, 24 * H);
+    expect(u.lanes[0].segments.map((s) => [s.runId, s.from - NOW])).toEqual([["v2-r1", -10 * H], ["v2-r2", -6 * H]]);
+    expect(u.lanes[0].busySeconds).toBe(6 * H);
+  });
+
+  it("a running job runs to now, and says so", () => {
+    const u = utilisation([withJob("v2-r3", "m1", NOW - 2 * H, null)], NOW, 24 * H);
+    expect(u.lanes[0].segments[0]).toMatchObject({ runId: "v2-r3", to: NOW, running: true });
+  });
+
+  it("only the window: an older job is cut at its start, one wholly before it is left out", () => {
+    const rs = [
+      withJob("old", "m1", NOW - 40 * H, NOW - 30 * H),      // wholly before the window
+      withJob("edge", "m1", NOW - 26 * H, NOW - 20 * H),     // starts before it, ends inside
+    ];
+    const u = utilisation(rs, NOW, 24 * H);
+    expect(u.lanes[0].segments.map((s) => s.runId)).toEqual(["edge"]);
+    expect(u.lanes[0].segments[0].from).toBe(NOW - 24 * H);  // cut at the window's start
+  });
+
+  it("every machine that ran anything gets a lane, busiest first; one that ran nothing is left out", () => {
+    const rs = [
+      withJob("a1", "quiet", NOW - 5 * H, NOW - 4.5 * H),
+      withJob("b1", "busy", NOW - 5 * H, NOW - 1 * H),
+    ];
+    const u = utilisation(rs, NOW, 24 * H);
+    expect(u.lanes.map((l) => l.machine)).toEqual(["busy", "quiet"]);
+    expect(u.from).toBe(NOW - 24 * H);
+    expect(u.to).toBe(NOW);
+  });
+
+  it("nothing ran: no lanes", () => expect(utilisation([], NOW, 24 * H).lanes).toEqual([]));
 });

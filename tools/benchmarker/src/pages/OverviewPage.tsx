@@ -7,6 +7,7 @@ import { nowLines } from "../../shared/overviewView.ts";
 import { observations, scorePlot, seriesOf } from "../../shared/dashboardView.ts";
 import { CombinationsTable } from "../components/CombinationsTable.tsx";
 import { MachineCards } from "../components/overview/MachineCards.tsx";
+import { Utilisation } from "../components/overview/Utilisation.tsx";
 import { Observations } from "../components/overview/Observations.tsx";
 import { ScorePlot } from "../components/overview/ScorePlot.tsx";
 import { SeriesRows } from "../components/overview/SeriesRows.tsx";
@@ -42,6 +43,7 @@ export function OverviewPage({ state, serverNow, rows, inScope, filteredOut }: O
     <div className="page overview-page" data-page="overview">
       <Observations items={notable} machines={lines.length} />
       <MachineCards lines={lines} rows={state.rows} now={now} />
+      <Utilisation rows={state.rows} now={now} />
       <div className="ov-pair">
         <SeriesRows series={seriesOf(inScope ?? rows)} pack={pack} />
         <ScorePlot plot={scorePlot(rows)} />

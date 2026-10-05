@@ -58,6 +58,24 @@
   .seg-queued { border-style: dashed; color: var(--faint); }
   .series-count { white-space: nowrap; text-align: right; }
 
+  /* The utilisation timeline: a lane per machine, segments placed by percentage across the window. */
+  .util-lanes { padding: 6px 12px 2px; display: grid; gap: 6px; }
+  .util-lane { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) 3em; align-items: center; gap: 10px; }
+  .util-name { font-size: 13px; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .util-track { position: relative; height: 18px; background: var(--chip); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .util-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
+  /* A right-hand edge on every segment, so two runs back to back read as two, not one long bar. */
+  .util-seg { position: absolute; top: 2px; bottom: 2px; min-width: 2px; background: var(--run); border-radius: 2px; text-decoration: none; box-shadow: 1px 0 0 0 var(--panel); }
+  .util-seg:hover, .util-seg:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .util-running { background: repeating-linear-gradient(135deg, var(--run) 0 6px, color-mix(in srgb, var(--run) 55%, transparent) 6px 12px); }
+  .util-busy { text-align: right; white-space: nowrap; color: var(--faint); }
+  .util-axis { display: flex; justify-content: space-between; margin: 0; padding: 0 12px 8px calc(7.5em + 22px); color: var(--faint); }
+  .util-words { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  @media (max-width: 720px) {
+    .util-lane { grid-template-columns: 5.5em minmax(0, 1fr) 2.6em; gap: 6px; }
+    .util-axis { padding-left: calc(5.5em + 14px); }
+  }
+
   .plot-narrative { padding: 10px 14px 4px; font-size: 13px; color: var(--ink); }
   .plot-narrative p { margin: 0 0 4px; }
   .plot-narrative .plot-lead { color: var(--muted); }
