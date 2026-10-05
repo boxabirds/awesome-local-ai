@@ -13,50 +13,67 @@ LOG_FILE="$(mktemp)"; export LOG_FILE
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK" "$LOG_FILE"' EXIT
-COMBO="qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi"
+# Every Strata combination is checked the same way; they differ only in which fine-tune they serve. The launcher
+# section below runs against the first, whose figures are measured.
+COMBOS=("qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi" "qwen/3.8-swift-1.5/flash-next/ubuntu/nvidia4090/strata-pi")
+COMBO="${COMBOS[0]}"
 CFG="$REPO_ROOT/combinations/$COMBO/config.sh"
 LAUNCHER="$REPO_ROOT/lib/runtime/server-strata.sh"
 LIB="$REPO_ROOT/lib/strata.sh"
 
-echo "combination config"
-assert_ok "the combination exists with its four files" bash -c "cd '$REPO_ROOT/combinations/$COMBO' && test -f config.sh -a -f profiles.tsv -a -f help.txt -a -f README.md"
-assert_ok "opts out of automatic selection"          grep -qE '^AUTO_SELECT=0$' "$CFG"
-assert_ok "backend is strata"                        grep -qE '^BACKEND="strata"' "$CFG"
-assert_ok "the client is pi"                         grep -qE '^CLIENT="\$\{CLIENT:-pi\}"' "$CFG"
-assert_ok "Strata pinned to a full commit"           grep -qE '^STRATA_COMMIT="[0-9a-f]{40}"' "$CFG"
-# A release version beside the commit, in shape only: a hard-coded number goes stale the first time the pin moves,
-# as it did on 5 Oct 2026 (0.1.36 to 0.1.39). What matters is that both pins are there and well formed.
-assert_ok "...and a release version beside it"       grep -qE '^STRATA_VERSION="[0-9]+\.[0-9]+\.[0-9]+"' "$CFG"
-assert_ok "weights pinned to a full commit"          grep -qE '^MODEL_REVISION="[0-9a-f]{40}"' "$CFG"
-assert_ok "the quantization is IQ3_XXS, the owner's choice" grep -qE '^STRATA_QUANT="IQ3_XXS"' "$CFG"
-assert_eq "a hash for both GGUF files" 2 "$(bash -c ". '$CFG'; printf '%s\n' \"\$MODEL_SHA256\" | grep -cE '^[0-9a-f]{64}  '")"
-assert_eq "...and a size for each, in the same order" 2 "$(bash -c ". '$CFG'; printf '%s\n' \"\$MODEL_SIZES\" | grep -cE '^[0-9]+  '")"
-assert_ok "the context is 131072: the benchmark's minimum" grep -qE '^STRATA_CONTEXT=131072$' "$CFG"
-assert_ok "the VRAM reserve its own startup warning asked for" grep -qE '^STRATA_VRAM_RESERVE_MIB=969$' "$CFG"
-assert_ok "effort low, as the owner set for Flash-Next" grep -qE '^REASONING_EFFORT_DEFAULT="low"$' "$CFG"
-assert_ok "the installer's required variables are all set" bash -c "
-  . '$REPO_ROOT/lib/common.sh'; . '$CFG'; . '$LIB'
-  require_vars INSTALL_ID DISPLAY_NAME MODEL_DISPLAY_NAME TARGET_OS ACCEL BACKEND CLIENT MODEL_ALIAS_DEFAULT \
-               DEFAULT_PROFILE SAMPLING_THINKING DEFAULT_PROVIDER CONTEXT_LIMIT OUTPUT_LIMIT
-  require_vars \$BACKEND_REQUIRED_VARS"
-assert_ok "the accelerator and client adapters exist" bash -c ". '$CFG'; test -f '$REPO_ROOT/lib/accel/'\$ACCEL.sh && test -f '$REPO_ROOT/lib/clients/'\$CLIENT.sh"
-. "$REPO_ROOT/benchmarks/spec-bench/harness/config-value.sh"
-assert_eq "the harness reads CONTEXT_LIMIT as the server's context" 131072 "$(cfg CONTEXT_LIMIT "$CFG")"
-assert_eq "...and OUTPUT_LIMIT 32768" 32768 "$(cfg OUTPUT_LIMIT "$CFG")"
-PT="$REPO_ROOT/combinations/$COMBO/profiles.tsv"
-SCHEMA="$(bash -c ". '$REPO_ROOT/lib/common.sh'; . '$LIB'; echo \$PROFILE_SCHEMA")"
-assert_ok "profiles.tsv declares the strata schema on line 1" bash -c "head -1 '$PT' | grep -qx '# $SCHEMA'"
-NCOL="$(awk -F'|' '{print NF}' <<< "$SCHEMA")"
-assert_ok "every profile row has as many columns as the schema declares" bash -c "awk -F'|' -v n='$NCOL' '!/^[[:space:]]*(#|\$)/ && NF!=n {bad=1} END{exit bad}' '$PT'"
-assert_eq "the default profile serves the full 131072" 131072 "$(awk -F'|' -v p="$(bash -c ". '$CFG'; echo \$DEFAULT_PROFILE")" '$1==p{print $2}' "$PT")"
-BASIS_COL="$(awk -F'|' '{for (i = 1; i <= NF; i++) if ($i == "basis") print i}' <<< "$SCHEMA")"
-assert_ok "the profile's memory figures are labelled MEASURED, with the date" bash -c "awk -F'|' -v c='$BASIS_COL' '!/^[[:space:]]*(#|\$)/ && \$c !~ /^MEASURED-20[0-9][0-9]-[01][0-9]-[0-3][0-9]\$/ {bad=1} END{exit bad}' '$PT'"
-MIN_COL="$(awk -F'|' '{for (i = 1; i <= NF; i++) if ($i == "min_vram_mib") print i}' <<< "$SCHEMA")"
-PEAK_COL="$(awk -F'|' '{for (i = 1; i <= NF; i++) if ($i == "need_vram_mib") print i}' <<< "$SCHEMA")"
-# The floor is what the launcher gates on, so it can never be the peak dressed up as one (A-045).
-assert_ok "every profile's VRAM floor is below its measured peak" bash -c "awk -F'|' -v m='$MIN_COL' -v k='$PEAK_COL' '!/^[[:space:]]*(#|\$)/ && \$m+0 >= \$k+0 {bad=1} END{exit bad}' '$PT'"
-assert_fails "no home paths in the combination or the module (machine names: tests/privacy-test.sh)" \
-  grep -rIEn '/Users/|/home/[a-z]' "$REPO_ROOT/combinations/$COMBO" "$LIB" "$LAUNCHER"
+for COMBO in "${COMBOS[@]}"; do
+  echo "combination config: $COMBO"
+  CFG="$REPO_ROOT/combinations/$COMBO/config.sh"
+  assert_ok "the combination exists with its four files" bash -c "cd '$REPO_ROOT/combinations/$COMBO' && test -f config.sh -a -f profiles.tsv -a -f help.txt -a -f README.md"
+  assert_ok "opts out of automatic selection"          grep -qE '^AUTO_SELECT=0$' "$CFG"
+  assert_ok "backend is strata"                        grep -qE '^BACKEND="strata"' "$CFG"
+  assert_ok "the client is pi"                         grep -qE '^CLIENT="\$\{CLIENT:-pi\}"' "$CFG"
+  assert_ok "Strata pinned to a full commit"           grep -qE '^STRATA_COMMIT="[0-9a-f]{40}"' "$CFG"
+  # A release version beside the commit, in shape only: a hard-coded number goes stale the first time the pin moves,
+  # as it did on 5 Oct 2026 (0.1.36 to 0.1.39). What matters is that both pins are there and well formed.
+  assert_ok "...and a release version beside it"       grep -qE '^STRATA_VERSION="[0-9]+\.[0-9]+\.[0-9]+"' "$CFG"
+  assert_ok "weights pinned to a full commit"          grep -qE '^MODEL_REVISION="[0-9a-f]{40}"' "$CFG"
+  assert_ok "the quantization is IQ3_XXS, the owner's choice" grep -qE '^STRATA_QUANT="IQ3_XXS"' "$CFG"
+  assert_eq "a hash for both GGUF files" 2 "$(bash -c ". '$CFG'; printf '%s\n' \"\$MODEL_SHA256\" | grep -cE '^[0-9a-f]{64}  '")"
+  assert_eq "...and a size for each, in the same order" 2 "$(bash -c ". '$CFG'; printf '%s\n' \"\$MODEL_SIZES\" | grep -cE '^[0-9]+  '")"
+  assert_ok "the context is 131072: the benchmark's minimum" grep -qE '^STRATA_CONTEXT=131072$' "$CFG"
+  assert_ok "the VRAM reserve its own startup warning asked for" grep -qE '^STRATA_VRAM_RESERVE_MIB=969$' "$CFG"
+  assert_ok "effort low, as the owner set for Flash-Next" grep -qE '^REASONING_EFFORT_DEFAULT="low"$' "$CFG"
+  assert_ok "the installer's required variables are all set" bash -c "
+    . '$REPO_ROOT/lib/common.sh'; . '$CFG'; . '$LIB'
+    require_vars INSTALL_ID DISPLAY_NAME MODEL_DISPLAY_NAME TARGET_OS ACCEL BACKEND CLIENT MODEL_ALIAS_DEFAULT \
+                 DEFAULT_PROFILE SAMPLING_THINKING DEFAULT_PROVIDER CONTEXT_LIMIT OUTPUT_LIMIT
+    require_vars \$BACKEND_REQUIRED_VARS"
+  assert_ok "the accelerator and client adapters exist" bash -c ". '$CFG'; test -f '$REPO_ROOT/lib/accel/'\$ACCEL.sh && test -f '$REPO_ROOT/lib/clients/'\$CLIENT.sh"
+  . "$REPO_ROOT/benchmarks/spec-bench/harness/config-value.sh"
+  assert_eq "the harness reads CONTEXT_LIMIT as the server's context" 131072 "$(cfg CONTEXT_LIMIT "$CFG")"
+  assert_eq "...and OUTPUT_LIMIT 32768" 32768 "$(cfg OUTPUT_LIMIT "$CFG")"
+  PT="$REPO_ROOT/combinations/$COMBO/profiles.tsv"
+  SCHEMA="$(bash -c ". '$REPO_ROOT/lib/common.sh'; . '$LIB'; echo \$PROFILE_SCHEMA")"
+  assert_ok "profiles.tsv declares the strata schema on line 1" bash -c "head -1 '$PT' | grep -qx '# $SCHEMA'"
+  NCOL="$(awk -F'|' '{print NF}' <<< "$SCHEMA")"
+  assert_ok "every profile row has as many columns as the schema declares" bash -c "awk -F'|' -v n='$NCOL' '!/^[[:space:]]*(#|\$)/ && NF!=n {bad=1} END{exit bad}' '$PT'"
+  assert_eq "the default profile serves the full 131072" 131072 "$(awk -F'|' -v p="$(bash -c ". '$CFG'; echo \$DEFAULT_PROFILE")" '$1==p{print $2}' "$PT")"
+  BASIS_COL="$(awk -F'|' '{for (i = 1; i <= NF; i++) if ($i == "basis") print i}' <<< "$SCHEMA")"
+  assert_ok "the profile's memory figures say where they came from: MEASURED with a date, or ESTIMATED" bash -c "awk -F'|' -v c='$BASIS_COL' '!/^[[:space:]]*(#|\$)/ && \$c !~ /^(MEASURED-20[0-9][0-9]-[01][0-9]-[0-3][0-9]|ESTIMATED)\$/ {bad=1} END{exit bad}' '$PT'"
+  MIN_COL="$(awk -F'|' '{for (i = 1; i <= NF; i++) if ($i == "min_vram_mib") print i}' <<< "$SCHEMA")"
+  PEAK_COL="$(awk -F'|' '{for (i = 1; i <= NF; i++) if ($i == "need_vram_mib") print i}' <<< "$SCHEMA")"
+  # The floor is what the launcher gates on, so it can never be the peak dressed up as one (A-045).
+  assert_ok "every profile's VRAM floor is below its measured peak" bash -c "awk -F'|' -v m='$MIN_COL' -v k='$PEAK_COL' '!/^[[:space:]]*(#|\$)/ && \$m+0 >= \$k+0 {bad=1} END{exit bad}' '$PT'"
+  assert_fails "no home paths in the combination or the module (machine names: tests/privacy-test.sh)" \
+    grep -rIEn '/Users/|/home/[a-z]' "$REPO_ROOT/combinations/$COMBO" "$LIB" "$LAUNCHER"
+  # The README states the pinned engine and weights; config.sh is what actually runs. They drifted apart when the
+  # pin moved from 0.1.36 to 0.1.39 on 5 Oct 2026 and only the config was changed, so the reader was told the wrong
+  # version. Whatever the README says the pins are, they are the config's.
+  RM="$REPO_ROOT/combinations/$COMBO/README.md"
+  assert_ok "the README names the Strata version the config pins" bash -c "
+    . '$CFG'; grep -qF \"v\$STRATA_VERSION\" '$RM'"
+  assert_ok "...and the commit it pins, by its short form" bash -c "
+    . '$CFG'; grep -qF \"\${STRATA_COMMIT:0:8}\" '$RM'"
+  assert_ok "...and the weights revision" bash -c "
+    . '$CFG'; grep -qF \"\${MODEL_REVISION:0:8}\" '$RM'"
+done
+COMBO="${COMBOS[0]}"; CFG="$REPO_ROOT/combinations/$COMBO/config.sh"
 
 echo
 echo "the pinned checkout"
