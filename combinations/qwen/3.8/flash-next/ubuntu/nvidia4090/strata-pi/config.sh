@@ -63,6 +63,8 @@ MODEL_REPO="ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF"
 MODEL_REVISION="ed59f92082b1e93c0e96d60a8b11aab089b52f09"
 MODEL_APPROX_SIZE="75.8 GB (two GGUF files) + about 5 GB of MTP draft layer fetched by Strata's setup"
 MODEL_DISK_KB=92000000
+# Where the files sit inside the repository: ISTA-DASLab gives each size its own folder. Empty would mean the root.
+MODEL_REPO_SUBDIR="${STRATA_QUANT}"
 # The two files at MODEL_REVISION, under IQ3_XXS/. The size and the Hugging Face LFS sha256 of each.
 MODEL_FILES="
 Qwen3.8-Flash-Next-GSQ-RCO-IQ3_XXS-00001-of-00002.gguf
