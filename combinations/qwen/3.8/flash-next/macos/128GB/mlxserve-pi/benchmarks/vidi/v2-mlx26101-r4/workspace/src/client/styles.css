@@ -226,6 +226,36 @@ body {
   clip-path: polygon(0 0, 100% 0, 100% 65%, 65% 100%, 0 100%);
 }
 
+/* Undo and Redo sit below the tools, in their own group: they are not tools, they
+   are the way back, and a thin rule between the two says so without words. */
+.toolbar__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--panel-border);
+}
+
+/* The arrows are characters, so they need no asset and no font beyond what the
+   page already has; the words underneath are the accessible name. */
+.toolbar__arrow {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* A button that has nothing to do says so: the story is about knowing whether there
+   is anything to undo, so the disabled state has to be seen, not guessed. */
+.toolbar__button:disabled {
+  color: var(--ink-muted);
+  cursor: default;
+  opacity: 0.45;
+}
+
+.toolbar__button:disabled:hover {
+  background: transparent;
+}
+
 /* ------------------------------------------------------------------ notes ---- */
 
 /* Keep STICKY_PADDING_WORLD in src/shared/config.ts equal to this. */

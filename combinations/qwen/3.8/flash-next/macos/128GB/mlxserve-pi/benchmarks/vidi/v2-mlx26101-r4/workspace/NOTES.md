@@ -682,3 +682,135 @@ Reported against their budgets and not asserted on, as in the earlier stories.
   Chromium and WebKit. TC-19 and TC-20 (`@persist`) still do not run here for the story 4
   reason written up above — a spawned runtime that this sandbox will not let anyone signal
   — and story 7 changed nothing about the harness.
+
+## Story 8: where the files are, against what the design named
+
+The design names `src/client/board/Toolbar.tsx` and `src/client/App.tsx`. This app has
+neither: the toolbar is `src/client/components/Toolbar.tsx` (it holds the share UI as well as
+the board's zoom controls, and lives with the other components rather than with the board),
+and `src/client/App.tsx` is only the router — it renders one page or the other and has never
+held board state. The controller is created in the `Board` component of
+`src/client/pages/BoardPage.tsx`, which is the component that owns one board document: it is
+keyed by the route id, so navigating to another board unmounts it and a new controller comes
+up over the new document, which is the behaviour task 2 asks for, found in the file that can
+actually provide it. The design's other names — `src/client/board/undo.ts`,
+`useUndo.ts`, `UndoButtons.tsx`, and every setting name in `src/shared/config.ts` — are as
+written, as are the test ids, the tooltips and the `aria-label`s.
+
+`useUndo` subscribes with `onStackItemsChanged`, which fires when either stack changes, and
+returns a new object each time. That is right rather than lazy: the stacks are the state, and
+a hook that returned a stable object over changing state would leave a button greyed out
+until something else happened to re-render the page.
+
+## Story 8: the mark on a transaction, and the clock that decides when a burst is over
+
+The controller filters by origin, not by person: `trackedOrigins: new Set([LOCAL_ORIGIN])`,
+where `LOCAL_ORIGIN` is the symbol `src/shared/board-model.ts` already puts on every
+transaction this tab makes. Everything else arrives with a different mark — the provider
+applies what comes over the wire, the initial state comes from the load — and a step whose
+transaction is not marked is never put on the stack at all, so the history holds only this
+tab's work and needs no identity to know it. `Y.UndoManager` adds its own origin to the set
+it was handed, which is what makes redo work: the transaction that applies an inverse is the
+manager's own, so it lands on the redo stack and nowhere else. The two symbols in
+`undo.ts`'s options are also the whole answer to a change that arrives *while* a person is
+undoing: it is not marked, so it is not collected, and the manager continues with the step
+below it.
+
+The pause that ends a typing burst is `UNDO_CAPTURE_TIMEOUT_MS`, passed as `captureTimeout`
+and left to Yjs, because merging by time of arrival is exactly what Yjs's stack top already
+does and reimplementing it would be a second clock to keep. It is *not* injectable, and that
+nearly cost the tests their time control: `lib0/time` does `const getUnixTime = Date.now`,
+capturing the function when its module is first evaluated, so a `vi.useFakeTimers()`
+installed after that — which is any install from a test body or a `beforeEach` — is a clock
+Yjs is already not looking at. `tests/unit/helpers/clock.ts` is the fix, and the rule is one
+line of comment: import it first, before anything that pulls in yjs, and it fakes only `Date`
+and nothing else, so no timer in the file is affected. No sleeping to let a window close; the
+clock is moved.
+
+## Story 8: a step whose object is gone is dropped, and that press does not stop there
+
+Found in `UndoManager.popStackItem()` and then confirmed in a test before it was written
+down: when the inverse of a step names a struct that no longer exists — the note a person
+moved, deleted by somebody else in the meantime — `performChange` returns false, the item is
+dropped, and the `while` loop carries straight on to the *next* item in the stack and applies
+that, in the same call. So a press that the design's TC-07 describes as "no effect, no error"
+can be a press that silently skips a step and takes the one underneath back as well. What
+TC-07 and TC-23 actually require still holds, and is what both tests assert: nothing of
+anybody else's is reversed, nothing that a colleague deleted comes back, no error is thrown.
+The alternative would be to walk the stack first and drop dead items eagerly, which needs a
+way to know a struct is gone that Yjs only learns at the moment it tries to write to it; the
+behaviour is left as it is and recorded here so that nobody has to rediscover it.
+
+Related, and checked for the same reason: `destroy()` removes the observer but does not clear
+the stacks. A destroyed controller reports the counts it had at the moment it stopped
+listening, so TC-11 asserts a *frozen* length — the new note is in the document and not in the
+history — and a controller that cleared its stacks on destroy would fail that test in the
+opposite direction.
+
+## Story 8: where a step begins, and where it ends
+
+`boundary()` is called at both ends of every thing a person does, not only at the ends of the
+drag: `onGestureStart` and `onGestureEnd` in `useTransformGesture` (story 7 left those two
+callbacks in the hook for exactly this), before and after `deleteSelection`, before and after
+each nudge, before and after a colour change and a toolbar delete, before and after a created
+note, and on the mount and unmount of a note's text editor. The ones either side of a single
+click are not decoration: without a boundary at the start, a click that lands a second after
+a previous action joins it, and a note delete can arrive attached to the note creation before
+it, which is the story's TC-31-shaped failure in miniature. Inside a gesture, per-frame writes
+are merged by Yjs because the boundary is at the ends only; inside a burst of typing they are
+merged by the capture window. Both are what a person would call one thing they did.
+
+One consequence of those boundaries is stated plainly because an e2e test now asserts it digit by digit:
+eight notes made one after another and one delete made afterwards are nine steps and take nine presses,
+however close together in time the eight were — the boundary at the *start* of each action is what stops the
+capture window from reaching across from one action into the next. The window only ever merges what happens
+*inside* a single action, which is the frames of one drag and the keys of one word. Without that, TC-22's
+single press would have restored some of the eight and not the rest, and the number of presses it took to
+empty the board would have been a number that changed between runs.
+
+The keyboard goes through `window`'s keydown handler — on the board, not on a note element, so
+it is answered with nothing focused and with a note focused alike — after Ctrl+A and before
+the "somebody is typing in a note" check, and it refuses three things: a keystroke whose
+target is a text field (`isTypingTarget`, which catches a note's own textarea and the share
+panel's link field), a board that cannot be written to, and a board with no controller. The
+two chords for redo are `Ctrl+Y` and `Ctrl+Shift+Z`; `Meta+Y` on macOS is deliberately left to
+the browser, where it is the tab I closed, not the change I undid.
+
+The buttons stop `pointerdown` as well as being buttons: the toolbar lives on top of the
+board's surface, and a press that reaches the surface is a press that starts a pan and clears
+the selection, which would make the toolbar's own controls the two things on the board that
+deselect what you are looking at.
+
+One thing that is not in the design and bit the first version: `BoardPage` runs its effects
+twice in development. A controller created in render and destroyed in the effect's cleanup is
+a controller that is dead before anybody has clicked anything. It is created in the effect,
+held in a ref, and a `respawn` bumps the page once so that the components which were handed
+the first one are handed the live one.
+
+## Story 8: numbers
+
+Measured on this machine, in Chromium and WebKit, with the browser, the model and the server
+all on it. Reported against their budgets and not asserted on, as in the earlier stories.
+
+- TC-24, five people moving their own note and writing in another, then undoing twice each and redoing
+  twice each: measured with this spec file alone on the machine, the five agree on what their two undo
+  presses did in **986 ms** (Chromium) and **954 ms** (WebKit) from the start of the work phase, and on what
+  their redo presses did in **1122 ms** and **1060 ms**, against the 1000 ms
+  `LIVE_UPDATE_LATENCY_BUDGET_MS`. Those three numbers are taken with `since:` set at the beginning of the
+  work, so they include the driver pushing five browsers through a drag and a paste one after another — the
+  clock runs while the test is still typing the fourth person's word. Run together with the other eleven
+  spec files the same measurements come out nearer 1.5 to 2 s, which is what twelve spec files sharing one
+  machine looks like. What the test asserts is not a time: it is that after five people undid twice the five
+  screens agree on the *exact key* they agreed on before the work started, field by field and note by note,
+  and that after five people redid twice they agree on the key the work had left behind (Key decision 1).
+- TC-22, eight notes restored: the last of them arrives on the other person's screen **17 ms** after the
+  undo and the two screens are agreed on the one surviving note **15 ms** after the last press, with Raj's
+  note untouched throughout. The presses are counted digit by digit: nine things she did, nine presses, and
+  the tenth refused.
+- Suites as this story left them: **207 unit** (19 new here), **176 component** (15 new), **66 integration**,
+  **114 e2e passing in Chromium and WebKit** (10 of them this story's) plus the one `@persist` failure below.
+  The three suites that are not e2e run in 17 seconds together. The one failure is TC-19 (`@persist`), which
+  fails here at the same place it failed before this story was started — the runtime it stops is still
+  answering, because this sandbox will not let anyone signal a spawned process — and TC-20 and TC-21 skip
+  behind it, as the story 4 write-up above describes. Story 8 changed nothing about that harness. Firefox is
+  still skipped by the probe: it does not start on this machine.

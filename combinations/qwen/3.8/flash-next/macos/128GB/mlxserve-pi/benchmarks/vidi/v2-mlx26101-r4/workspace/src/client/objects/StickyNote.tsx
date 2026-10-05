@@ -184,7 +184,9 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
       onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
     >
-      {editing && ytext ? <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} onFit={setFit} /> : null}
+      {editing && ytext ? (
+        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} onFit={setFit} undo={props.undo} />
+      ) : null}
       {editing ? null : (
         <div className="sticky-note__text" data-testid="sticky-text" ref={textRef}>
           {text}
@@ -207,11 +209,20 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
             disabled={readOnly}
             onColor={(next) => {
               // Colour only: text, position, stacking and the selection stay put.
+              //
+              // A boundary on each side, because a colour is a thing somebody did and not a continuation
+              // of the thing before it. The one that matters is the one before: a swatch clicked a breath
+              // after a drag let go would otherwise be folded into the drag's step, and would only come
+              // back by undoing the drag with it.
+              props.undo?.boundary();
               setStickyColor(doc, object.id, next);
+              props.undo?.boundary();
             }}
             onDelete={() => {
               // One note, the one this toolbar belongs to. The board drops the selection with it.
+              props.undo?.boundary();
               deleteObject(doc, object.id);
+              props.undo?.boundary();
             }}
           />
         </div>

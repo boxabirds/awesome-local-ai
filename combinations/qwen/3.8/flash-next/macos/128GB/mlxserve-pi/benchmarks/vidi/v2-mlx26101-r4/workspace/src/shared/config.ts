@@ -192,3 +192,27 @@ export const LINK_COPIED_MS = 2000;
  * already uses for the same kind of patience.
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// ——————————————— undoing my own changes (story 8)
+
+/**
+ * The pause in typing that ends an undo step (undo.typing).
+ *
+ * Typing that goes on without a pause of at least this long is one thing to undo — a word, a phrase,
+ * however much was typed in that breath. It is also the window that merges the frames of one drag into
+ * one step: a drag writes once per animation frame, which is far inside this pause, while two separate
+ * actions are a second or more apart. Where an action must not be merged with its neighbour even though
+ * it was quick — the click of a colour swatch 200 ms after a drag let go — the code calls the undo
+ * controller's `boundary()` instead of trusting the clock.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/**
+ * How many of this person's own steps one board remembers (undo.limit).
+ *
+ * Generous on purpose: the point of the history is that experimenting is safe, and a history that runs
+ * out after twenty presses is not safe, it is a countdown. It is also the only bound there is — nothing
+ * is stored, so the history is as long as this number and as short as the tab being open (see
+ * undo.session_only).
+ */
+export const UNDO_MAX_STEPS = 200;

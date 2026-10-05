@@ -14,6 +14,7 @@
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 
+import type { UndoActions } from '../board/undo';
 import type { ObjectSnapshot } from '../../shared/board-model';
 
 /**
@@ -56,4 +57,13 @@ export interface ObjectProps {
   onStartEdit(id: string): void;
   /** Take it out of front of the keyboard again. The selection is left as it is. */
   onEndEdit(): void;
+  /**
+   * This person's undo history, in the one form an object is given: the three calls that mark the edges
+   * of an action, and the two that undo and redo the text inside this object while it is being typed in.
+   *
+   * Optional because an object can be drawn somewhere that has no history behind it — a preview, a
+   * thumbnail, a board that never opened — and an object that cannot reach the history simply does not
+   * close a capture window, which costs a merged step and nothing else.
+   */
+  undo?: UndoActions;
 }

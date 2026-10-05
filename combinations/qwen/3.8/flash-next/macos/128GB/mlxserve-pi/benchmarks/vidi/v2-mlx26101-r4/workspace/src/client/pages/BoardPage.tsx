@@ -20,8 +20,9 @@
  * a sharing control that shows a different address than the one being looked at is a bug waiting to
  * send somebody to the wrong board.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import type { JSX } from 'react';
+import type * as Y from 'yjs';
 
 import type { CheckResponse } from '../api';
 import { checkBoard } from '../api';
@@ -37,6 +38,9 @@ import { isValidBoardId } from '../../shared/board-id';
 import { useBoardDoc } from '../board/useBoardDoc';
 import type { BoardConnector } from '../board/useBoardDoc';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { createUndo } from '../board/undo';
+import type { UndoController } from '../board/undo';
+import { useUndo } from '../board/useUndo';
 import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
@@ -192,6 +196,52 @@ export function BoardPage({
 }
 
 /**
+ * This person's undo history for this board, and nothing else's.
+ *
+ * One per board document, which is the whole of what "my history" means in a tab: the five people on a
+ * board have five of these, in five tabs, and they do not speak to one another. It is held in a ref and
+ * created while the board is being drawn — the same shape as the board's document store in `useBoardDoc`,
+ * for the same reason: React is allowed to render twice, and a second history of the same board would be
+ * a second opinion about what this person did, with a second stack to undo into.
+ *
+ * It is destroyed when the board goes away, and never revived from anything: there is no history on the
+ * server, no history in local storage, and nothing in the document that says what this person did. Closing
+ * the tab is the end of the history, which is what the PRD's "undo does not survive a reload" asks for and
+ * what makes an undo on a board opened next week a thing that has not happened yet.
+ */
+function useBoardUndo(doc: Y.Doc): UndoController {
+  const ref = useRef<{ doc: Y.Doc; controller: UndoController; live: boolean } | null>(null);
+  const [, respawn] = useReducer((count: number) => count + 1, 0);
+
+  const held = (): UndoController => {
+    const current = ref.current;
+    if (current !== null && current.doc === doc && current.live) return current.controller;
+    ref.current = { doc, controller: createUndo(doc), live: true };
+    return ref.current.controller;
+  };
+
+  const controller = held();
+
+  useEffect(() => {
+    // Asked again, because in development React mounts, unmounts and mounts, and the controller that is
+    // live by then is not the one this render was handed. Saying so is what stops the board keeping a
+    // dead history — one that has stopped listening and would answer every Ctrl+Z with nothing.
+    const live = held();
+    if (live !== controller) respawn();
+    return () => {
+      const current = ref.current;
+      if (current !== null && current.controller === live) current.live = false;
+      live.destroy();
+    };
+    // The document is the only thing a history belongs to. `controller` and `held` are read rather than
+    // depended on, so that handing a board a live history cannot tear down the very history it handed it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc]);
+
+  return controller;
+}
+
+/**
  * The board itself: stories 1 to 5, and the Share button.
  *
  * `boardId` is the board as the service said it is called, which for a board that opened is the same
@@ -220,6 +270,9 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
   const { doc, notes, connection } = useBoardDoc(boardId, connect);
   const selection = useSelection(notes);
 
+  /** My history, for this board, in this tab. */
+  const undo = useBoardUndo(doc);
+
   /**
    * The objects in the order they should end up on screen. The document lists them by stacking number;
    * they are put in the page in the order they were made and stacked with `zIndex` (see StickyNote),
@@ -232,6 +285,12 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
 
   const editable = canEdit(connection);
 
+  /** The same history, as the toolbar's two buttons need it: what is there to undo, right now. */
+  const undoButtons = useUndo(undo, editable);
+
+  /** The end of a step, which is what a gesture and a group operation both have to say. */
+  const boundary = undo.boundary;
+
   /** The drag: what a press on an object, or on a handle, does to the board. */
   const gesture = useTransformGesture({
     doc,
@@ -239,6 +298,14 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
     selection,
     snapshot: notes,
     canEdit: editable,
+    // One drag, one step. The frames in between are written to the document one after another and have to
+    // be had back together, and the only thing that says "these frames are one action" is a boundary at
+    // each end: the one at the start keeps a colour clicked just now out of the drag, the one at the end
+    // keeps the drag out of whatever is done next. A drag that ends in a cancel still says it, because a
+    // drag that moved six notes two thirds of the way is six notes in a new place, and that is a thing a
+    // person wants back.
+    onGestureStart: boundary,
+    onGestureEnd: boundary,
   });
 
   /** The rectangle: a drag across empty board space, which adds to the selection when it lets go. */
@@ -246,17 +313,19 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
     selection.setMany(ids, true);
   });
 
-  /** The keyboard: select all, deselect, nudge, delete, edit. */
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable });
+  /** The keyboard: select all, deselect, nudge, delete, edit, undo, redo. */
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo });
 
   /** The bin on the selection bar: everything selected at once, and the selection let go afterwards. */
   const deleteSelection = useCallback((): void => {
     if (!editable) return;
     const ids = notes.filter((object) => selection.ids.has(object.id)).map((object) => object.id);
     if (ids.length === 0) return;
+    boundary();
     deleteObjects(doc, ids);
+    boundary();
     selection.clear();
-  }, [doc, editable, notes, selection]);
+  }, [boundary, doc, editable, notes, selection]);
 
   /** Put a note down centred on a world point and start typing straight away. */
   const createStickyAt = useCallback(
@@ -265,6 +334,11 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
       // rather than answered with an error, because the badge above already says what is wrong and what
       // is being done about it.
       if (!editable) return;
+      // A note is its own step even when it is made in the middle of a burst of typing — which is exactly
+      // when one is made, since a note is usually created and then written in. Without the boundary here,
+      // the double-click that made the note and the first word typed into it would be one undo step, and
+      // undo would take the note away along with the word.
+      boundary();
       // `createSticky` centres the note on the point it is given, so the click point becomes the middle
       // of the note, not its top-left corner.
       const noteId = createSticky(doc, world);
@@ -277,8 +351,9 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
         selection.click(noteId);
         selection.startEdit(noteId);
       }
+      boundary();
     },
-    [doc, editable, selection],
+    [boundary, doc, editable, selection],
   );
 
   /** The toolbar button adds a note in the middle of what is on screen. */
@@ -288,7 +363,7 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
 
   return (
     <div className="board-app" data-testid="board-root" ref={rootRef}>
-      <Toolbar onCreateSticky={createStickyInCentre} disabled={!editable} />
+      <Toolbar onCreateSticky={createStickyInCentre} disabled={!editable} undo={undoButtons} />
       <BoardViewport
         onCreateAt={createStickyAt}
         onClearSelection={selection.clear}
@@ -318,6 +393,7 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
               onPointerDown={gesture.onObjectPointerDown}
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
+              undo={undo}
             />
           );
         })}

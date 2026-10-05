@@ -28,6 +28,7 @@ import type * as Y from 'yjs';
 
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_PADDING_WORLD, STICKY_SIZE_WORLD, STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import type { UndoActions } from '../board/undo';
 import {
   applyTextDiff,
   clampToLimit,
@@ -53,6 +54,17 @@ export interface StickyTextEditorProps {
   onEnd(): void;
   /** Reported after each measurement so the note can show its overflow fade. */
   onFit?(fit: Fit): void;
+  /**
+   * This person's undo history, in the form a note may reach for.
+   *
+   * Two things are done with it, and both are about the fact that a note being typed in is a different
+   * thing to undo from a note being moved: the edges of the edit are named, so that a burst of typing is
+   * one step and never swallows the move that happened just before it; and Ctrl/Cmd+Z pressed inside this
+   * text is answered here rather than left to the browser, whose own textarea history would undo the
+   * characters on the screen while the document still held them — after which the note and the undo
+   * button are disagreeing about what the board looks like.
+   */
+  undo?: UndoActions;
 }
 
 export function StickyTextEditor({
@@ -60,6 +72,7 @@ export function StickyTextEditor({
   fontPx,
   onEnd,
   onFit,
+  undo,
 }: StickyTextEditorProps): JSX.Element {
   const ref = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
@@ -74,6 +87,14 @@ export function StickyTextEditor({
   // works, so these two are what says where the finished word belongs.
   const composeAt = useRef(0);
   const composeBase = useRef(0);
+
+  // The undo history, read through a ref rather than taken as an effect dependency. The prop is a new
+  // object on every render of the board — a colleague typing in another note is a render — and an effect
+  // that depended on it would close a capture window on every one of those renders, which is precisely
+  // the bug that turns each keystroke into its own undo step. What the editor owns is the *edit*, which
+  // begins and ends with this `ytext`, so that is what its effects are keyed to.
+  const undoRef = useRef<UndoActions | undefined>(undo);
+  undoRef.current = undo;
 
   /** Refits the box to whatever it now holds, and tells the note about the overflow. */
   const remeasure = useCallback((): void => {
@@ -210,6 +231,21 @@ export function StickyTextEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ytext]);
 
+  // The two edges of an edit, named out loud.
+  //
+  // Without them, a note moved and then typed into within half a second would be one undo step, and one
+  // press of Ctrl+Z would take the typing *and* the move — which is the failure this story is about, seen
+  // from the inside of a note. The end is the cleanup of this effect rather than a call in the Escape
+  // handler, because an edit ends in more ways than one: Escape, a press outside the note, the note
+  // being deleted from under the caret. They are all the same thing to the history — the typing is over,
+  // and it is one step.
+  useEffect(() => {
+    undoRef.current?.boundary();
+    return () => {
+      undoRef.current?.boundary();
+    };
+  }, [ytext]);
+
   // What somebody else does to this note's text, as it happens.
   useEffect(() => {
     const onRemote = (_event: unknown, transaction: Y.Transaction): void => {
@@ -227,10 +263,33 @@ export function StickyTextEditor({
   useTyping(ref, commit, flushComposition, composing);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (event.key !== 'Escape') return; // Enter adds a line: that is the default
+    // While an input method is at work the keys are its, not ours: a composition is one write when it is
+    // finished, and an undo in the middle of one would be an undo of a word that does not exist yet.
+    if (composing.current) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      onEnd();
+      return; // Enter adds a line: that is the default
+    }
+
+    // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y inside this text are answered here, and the keystroke stops
+    // with the answer. Left to travel, the window's own handler would undo the last step of *anything* —
+    // usually the same one — and the browser's textarea history would undo the characters on the screen as
+    // well, so that after one press the note reads one thing and the history holds another. Typing is
+    // undone one burst at a time here, exactly as it is anywhere else on the board.
+    const key = event.key.toLowerCase();
+    const command = event.metaKey || event.ctrlKey;
+    if (!command || event.altKey) return;
+    if (key === 'y' && event.metaKey) return; // on macOS, Cmd+Y is a browser command, not redo
+    if (key !== 'z' && key !== 'y') return;
+
+    const redo = key === 'y' || event.shiftKey;
     event.preventDefault();
     event.stopPropagation();
-    onEnd();
+    if (redo) undoRef.current?.redo();
+    else undoRef.current?.undo();
   };
 
   return (

@@ -22,6 +22,7 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { allObjectIds, deleteObjects, moveObjects } from '../../shared/board-model';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
+import type { UndoActions } from './undo';
 import { getObjectType } from '../objects/registry';
 
 import type { Selection } from './useSelection';
@@ -32,6 +33,16 @@ export interface BoardKeysOptions {
   snapshot: readonly ObjectSnapshot[];
   /** Select-all and Escape work either way; nudging and deleting do not. */
   canEdit: boolean;
+  /**
+   * This person's undo history, for the two keys that go backwards and forwards through it.
+   *
+   * Optional for the same reason it is optional on an object: a board can be drawn with no history
+   * behind it, and then the keys are simply the browser's. Note that it is *this* history and not the
+   * board's — the keystroke that reverses something a colleague did would be the keystroke this whole
+   * story exists to make impossible, and it is made impossible here, at the only place the shortcut is
+   * answered, by there being nothing else to call.
+   */
+  undo?: UndoActions;
 }
 
 /** Keys that delete the selection, and nothing else. */
@@ -64,6 +75,28 @@ function isHeldBySomeoneElse(event: KeyboardEvent): boolean {
   return event.metaKey || event.ctrlKey || event.altKey;
 }
 
+/** Whether the keystroke is the board's undo chord: Ctrl/Cmd+Z, and nothing else. */
+function isUndoKey(event: KeyboardEvent): boolean {
+  if (!event.metaKey && !event.ctrlKey) return false;
+  if (event.altKey || event.shiftKey) return false;
+  return event.key.toLowerCase() === 'z';
+}
+
+/**
+ * Whether the keystroke is the board's redo chord: Ctrl/Cmd+Shift+Z, or Ctrl+Y.
+ *
+ * Cmd+Y is left to the browser on purpose — on macOS that chord is the browser's own redo of a closed
+ * tab or a typed word, and a board that took it would be taking something a person uses outside the
+ * board every day. Ctrl+Y is the redo chord on Windows and Linux, where the browser has no use for it.
+ */
+function isRedoKey(event: KeyboardEvent): boolean {
+  if (!event.metaKey && !event.ctrlKey) return false;
+  if (event.altKey) return false;
+  const key = event.key.toLowerCase();
+  if (key === 'y') return !event.metaKey;
+  return key === 'z' && event.shiftKey;
+}
+
 /** Where the selection moves under this keystroke, or null when it is not a nudge. */
 function nudgeStep(event: KeyboardEvent): Point | null {
   const direction = NUDGE_KEYS[event.key];
@@ -78,13 +111,13 @@ function present(selected: ReadonlySet<string>, snapshot: readonly ObjectSnapsho
   return snapshot.filter((object) => selected.has(object.id));
 }
 
-export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOptions): void {
+export function useBoardKeys({ doc, selection, snapshot, canEdit, undo }: BoardKeysOptions): void {
   // The listener is installed once and reads the board through a ref, so a keystroke always sees the
   // board as it is at the moment of the keypress. Re-subscribing on every document update — which means
   // every keystroke a colleague is typing in a shared note — would buy nothing and cost a listener swap
   // per key.
-  const latest = useRef({ doc, selection, snapshot, canEdit });
-  latest.current = { doc, selection, snapshot, canEdit };
+  const latest = useRef({ doc, selection, snapshot, canEdit, undo });
+  latest.current = { doc, selection, snapshot, canEdit, undo };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -98,6 +131,25 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOpt
         // just as readily as on one that can.
         event.preventDefault();
         selected.setMany(allObjectIds(snapshotNow), false);
+        return;
+      }
+
+      // Undo and redo carry modifiers too, so they are matched here rather than below, where a modifier
+      // is a reason to mind somebody else's business. Both are refused inside anything typed into, and
+      // this is not only about the note's own text: Ctrl+Z pressed in the share panel's link field is the
+      // browser's undo of what was typed there, and a board that answered it would have eaten a keystroke
+      // from a field it has no claim on.
+      if (isUndoKey(event) || isRedoKey(event)) {
+        if (isTypingTarget(event.target)) return;
+        // A board that could not be loaded keeps its undo along with its writing: an inverse applied now
+        // would be written into a document that is about to be thrown away, and the history would say it
+        // had been undone.
+        if (!board.canEdit || board.undo === undefined) return;
+        // Before the browser's own undo, which would take the characters out of a field or the page out
+        // from under the keystroke, and before Ctrl+Y's other life as a browser command.
+        event.preventDefault();
+        if (isRedoKey(event)) board.undo.redo();
+        else board.undo.undo();
         return;
       }
 
@@ -137,7 +189,12 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOpt
         // Both of these are habits of the browser itself, and either would swallow the keystroke: the
         // page would scroll instead of the note moving.
         event.preventDefault();
+        // A nudge is its own step. Someone holding an arrow key down is nudging a note repeatedly, and
+        // each of those nudges is a thing they did, to be had back one at a time — a history that merged
+        // them would undo a whole key-hold at once and leave the person counting pixels again.
+        board.undo?.boundary();
         moveObjects(doc, positions);
+        board.undo?.boundary();
         return;
       }
 
@@ -147,7 +204,11 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOpt
         if (ids.length === 0) return;
         // Stop the browser going back a page on Backspace, which it is only too willing to do.
         event.preventDefault();
+        // One delete of a selection of eight notes is one step, and the boundary after it is what keeps
+        // it that way when the next thing is a keystroke a moment later.
+        board.undo?.boundary();
         deleteObjects(doc, ids);
+        board.undo?.boundary();
         // The objects are gone, so the selection that named them goes with them. The board would prune it
         // a moment later anyway; doing it here is what stops the outlines flickering back.
         selected.clear();
