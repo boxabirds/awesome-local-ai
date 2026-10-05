@@ -1,0 +1,6 @@
+{
+  "state": "failed",
+  "reason": "exit 1: server exited; see ~/.dbench/repo/combinations/qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi/benchmarks/vidi/v2-strata0139-r1/server.log",
+  "at": "2026-10-05T16:19:52Z",
+  "host": "13th Gen Intel(R) Core(TM) i9-13900F 62GB, NVIDIA GeForce RTX 4090 24564 MiB"
+}
