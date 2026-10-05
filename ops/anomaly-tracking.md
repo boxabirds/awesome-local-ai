@@ -6,7 +6,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 18:20 BST
+**Last updated:** 2026-10-05 09:10 BST
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -659,6 +659,15 @@ test that would reproduce it. Details under the entries.
   stories with no time split (all packs), including every run listed above (it counts 11 for Opus run-2
   and also covers mtplx canvas-pi-01 and pi-smoke, which the monitor's own count missed). A-029 is now
   tracked from the feed.
+
+---
+
+### A-044 — One stray uncommitted edit on the M5 Max held fourteen story records off main for twenty hours
+- **First seen:** 2026-10-05 08:22 (the owner: a run page saying "no usage recorded" for every story) · **Last seen:** 2026-10-05 09:05
+- **Where:** the M5 Max's bench checkout; mlxserve v2-mlx26101-r3 (stories 9–12, its finish, two final re-score attempts) and v2-mlx26101-r4 (stories 1–7).
+- **Observed:** an old record (mlxserve v2-r4's `metrics.json`) had an uncommitted edit on the machine since 2 Oct 22:20 (an `outside_workspace` block; by what is not known). On 4 Oct a commit on main changed that file (the A-039 recount), so the record step's replay refused to move the checkout ("the remote changed files with uncommitted edits here") and nothing was pushed from the machine from 4 Oct 13:52 until the edit was moved aside on 5 Oct. Every story was committed locally and said "NOT PUSHED, kept locally; the next story retries"; no monitor signal fired. The data was never at risk: the commits were on the machine, and the lake and warehouse had every story's full log and readings.
+- **Bucket:** internal bug (the harness's record step: publishing depended on the checkout being able to move) — **confidence high**.
+- **Status:** records pushed by hand on 5 Oct 09:05 after `git stash` of the stray edit (kept in the stash). Fix on main the same morning: the replayed commits are pushed from their own ref whether or not the checkout can move, and a commit the remote already has is not made again (`drive.push_with_rebase`, `replay_onto_remote`; two tests reproduce this). Proposal for the monitor: raise a signal when a node's record says `unpushed` twice in a row.
 
 ---
 

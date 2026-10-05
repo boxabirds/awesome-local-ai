@@ -518,8 +518,9 @@ def test_record_story_after_the_remote_moved_never_stashes_or_rewrites_uncommitt
 
 
 def test_record_story_leaves_the_checkout_alone_when_the_remote_changed_a_file_being_edited(tmp_path):
-    """The remote changed a file this checkout has uncommitted edits to: nothing is overwritten and nothing moves;
-    the story stays committed locally, reported unpushed, as with a conflicting remote."""
+    """The remote changed a file this checkout has uncommitted edits to: nothing is overwritten and nothing moves,
+    but the story is published all the same, from the replayed commit's own ref (the M5 Max, 4 Oct 2026, where this
+    held fourteen stories back); the record names the file the checkout waits on."""
     import subprocess
     from drive import record_story
     g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
@@ -541,12 +542,15 @@ def test_record_story_leaves_the_checkout_alone_when_the_remote_changed_a_file_b
     (run / "metrics.json").write_text("{}")
     head_before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True).stdout
     res = record_story(repo, run, "story 1 done", git=g)
-    assert res["committed"] and not res["pushed"] and res.get("unpushed"), res
+    assert res["committed"] and res["pushed"] and not res.get("unpushed"), res
+    assert res["checkout_behind"] == ["app.ts"]
     assert (repo / "app.ts").read_text() == "v2, being edited"
     head = subprocess.run(["git", "log", "-1", "--format=%s"], cwd=repo, capture_output=True, text=True).stdout.strip()
     assert head == "story 1 done"
     parent = subprocess.run(["git", "rev-parse", "HEAD~1"], cwd=repo, capture_output=True, text=True).stdout
     assert parent == head_before                                   # not moved onto the remote
+    published = subprocess.run(["git", "log", "--format=%s", "main"], cwd=remote, capture_output=True, text=True).stdout.strip().split("\n")
+    assert published[:2] == ["story 1 done", "other"]                # on the remote's tip, over the other clone's commit
 
 
 def test_record_story_survives_a_conflicting_remote_and_pushes_the_backlog_later(tmp_path):
