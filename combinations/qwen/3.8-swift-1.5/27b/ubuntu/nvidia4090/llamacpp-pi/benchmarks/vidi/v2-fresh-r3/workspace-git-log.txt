@@ -1,3 +1,66 @@
+commit 6e472e9cc7e6ba374334aade18f1347111de4767
+agent  Mon Oct 5 08:45:01 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ PROGRESS.md                                    |  18 +-
+ src/client/board/Toolbar.tsx                   |  20 +-
+ src/client/board/useBoardKeys.ts               |   6 +
+ src/client/canvas/BoardViewport.tsx            |  18 ++
+ src/client/images/DropHighlight.tsx            |  24 ++
+ src/client/images/uploadImage.ts               |  47 ++++
+ src/client/images/useImageInsert.ts            | 327 +++++++++++++++++++++++++
+ src/client/images/validateFiles.ts             |  49 ++++
+ src/client/objects/ImageObject.tsx             | 281 +++++++++++++++++++++
+ src/client/objects/registry.tsx                |  16 ++
+ src/client/pages/BoardPage.tsx                 |  46 +++-
+ src/client/ui/Toast.tsx                        |  45 ++++
+ src/shared/board-model.ts                      |  21 ++
+ src/shared/config.ts                           |  11 +
+ src/shared/geometry.ts                         |   7 +
+ src/shared/image-format.ts                     |  65 +++++
+ src/shared/objects/image.ts                    | 200 +++++++++++++++
+ src/worker/assets.ts                           | 109 +++++++++
+ src/worker/cloudflare-workers.d.ts             |  24 ++
+ src/worker/index.ts                            |  21 ++
+ tests/component/appHarness.tsx                 | 147 ++++++++++-
+ tests/component/image-a11y.test.tsx            |  46 ++++
+ tests/component/image-dragdrop.test.tsx        |  91 +++++++
+ tests/component/image-object.test.tsx          | 107 ++++++++
+ tests/component/image-paste.test.tsx           |  52 ++++
+ tests/component/image-picker.test.tsx          |  66 +++++
+ tests/component/image-resize.test.tsx          |  62 +++++
+ tests/component/image-unavailable.test.tsx     |  43 ++++
+ tests/component/image-unfinished.test.tsx      |  59 +++++
+ tests/component/image-upload-progress.test.tsx |  87 +++++++
+ tests/e2e/fixtures/images/a.png                | Bin 0 -> 100 bytes
+ tests/e2e/fixtures/images/b.png                | Bin 0 -> 100 bytes
+ tests/e2e/fixtures/images/big.png              | Bin 0 -> 11534336 bytes
+ tests/e2e/fixtures/images/c.png                | Bin 0 -> 100 bytes
+ tests/e2e/fixtures/images/fake.png             |   7 +
+ tests/e2e/fixtures/images/generate.mjs         |  90 +++++++
+ tests/e2e/fixtures/images/medium.png           | Bin 0 -> 740 bytes
+ tests/e2e/fixtures/images/small.png            | Bin 0 -> 100 bytes
+ tests/e2e/helpers/images.ts                    | 115 +++++++++
+ tests/e2e/images.spec.ts                       | 202 +++++++++++++++
+ tests/e2e/node-types.d.ts                      |  11 +
+ tests/integration/assets.test.ts               | 181 ++++++++++++++
+ tests/integration/cloudflare-test.d.ts         |  20 +-
+ tests/unit/image-format.test.ts                |  83 +++++++
+ tests/unit/image-model.test.ts                 | 252 +++++++++++++++++++
+ tests/unit/validate-files.test.ts              |  58 +++++
+ vitest.integration.config.ts                   |   2 +-
+ wrangler.jsonc                                 |   4 +
+ 48 files changed, 3124 insertions(+), 16 deletions(-)
+commit 5410a8ded68461aa51d29a0b58d4eeb1a23eb0e2
+vidi-agent  Mon Oct 5 07:49:44 2026 +0100
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)
 commit fe74a302a01b47b09bb3c2c787cf5fd5fe2cfd0b
 agent  Mon Oct 5 07:45:08 2026 +0100
 

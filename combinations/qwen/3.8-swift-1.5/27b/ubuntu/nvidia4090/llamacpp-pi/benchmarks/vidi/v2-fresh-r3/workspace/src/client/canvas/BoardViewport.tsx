@@ -5,7 +5,18 @@ import { NavigationHint } from './NavigationHint';
 import { zoomPercent, canZoomIn, canZoomOut, Camera, Point } from './camera';
 import { GRID_SPACING_WORLD } from '../../shared/config';
 import { registerSetCamera, registerVidi6Hook } from './testHooks';
+import { DropHighlight } from '../images/DropHighlight';
 import type { Tool } from '../board/useTool';
+
+/** Story 12: file drag-and-drop onto the board (image.drop). */
+export interface FileDropControls {
+  onDragOver(e: React.DragEvent): void;
+  onDragEnter(e: React.DragEvent): void;
+  onDragLeave(e: React.DragEvent): void;
+  onDrop(e: React.DragEvent): void;
+  /** Show the dashed drop highlight. */
+  highlight: boolean;
+}
 
 /** A press in the text tool must not move more than this (viewport px) to count as a click. */
 const TEXT_CLICK_SLOP_PX = 5;
@@ -45,6 +56,8 @@ export interface BoardViewportProps {
    * container so scrolling still pans and Ctrl/Cmd+scroll zooms.
    */
   penOverlay?: ReactNode;
+  /** Story 12: file drag-and-drop (drop highlight + drop point). */
+  fileDrop?: FileDropControls;
 }
 
 export function BoardViewport(props: BoardViewportProps) {
@@ -333,6 +346,10 @@ export function BoardViewport(props: BoardViewportProps) {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
         onDoubleClick={handleDoubleClick}
+        onDragOver={props.fileDrop?.onDragOver}
+        onDragEnter={props.fileDrop?.onDragEnter}
+        onDragLeave={props.fileDrop?.onDragLeave}
+        onDrop={props.fileDrop?.onDrop}
       >
         <div
           data-testid="world-layer"
@@ -362,6 +379,7 @@ export function BoardViewport(props: BoardViewportProps) {
           {props.children}
         </div>
         {props.penOverlay}
+        <DropHighlight visible={props.fileDrop?.highlight ?? false} />
       </div>
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { checkBoard } from '../api';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { screenToWorld, type Camera, type Point } from '../canvas/camera';
@@ -15,6 +15,13 @@ import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
 import { UndoButtons } from '../board/UndoButtons';
+import { Toast } from '../ui/Toast';
+import {
+  useImageInsert,
+  makeRemoveImage,
+  ImageInsertContext,
+  type ImageInsertContextValue,
+} from '../images/useImageInsert';
 import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { createSticky, deleteObjects, getStickyText, LOCAL_ORIGIN } from '../../shared/board-model';
@@ -87,6 +94,30 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
   const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
   const identityRef = useRef('');
   if (identityRef.current === '') identityRef.current = crypto.randomUUID();
+
+  // Story 12: images (drop, paste, picker, XHR upload, retry, toasts).
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    connection: connectionState,
+    identityId: identityRef.current,
+  });
+  const removeImage = useMemo(
+    () => makeRemoveImage(doc, () => undoController.boundary()),
+    [doc, undoController],
+  );
+  const imageInsertCtx = useMemo<ImageInsertContextValue>(
+    () => ({
+      doc,
+      identityId: identityRef.current,
+      progress: imageInsert.progress,
+      canRetry: imageInsert.canRetry,
+      retry: imageInsert.retry,
+      onRemoveImage: removeImage,
+    }),
+    [doc, imageInsert.progress, imageInsert.canRetry, imageInsert.retry, removeImage],
+  );
 
   /** Story 10: select the created object and switch to select tool. */
   const toolCreated = useCallback((id: string) => {
@@ -187,7 +218,7 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
 
   useBoardKeys({
     doc, selection, snapshot: objects, canEdit, undo: undoController,
-    tool, onCreateSticky: createStickyAtCentre,
+    tool, onCreateSticky: createStickyAtCentre, onPickImage: imageInsert.openPicker,
   });
 
   /** Delete button on the selection bar (sel.group_delete). */
@@ -229,8 +260,16 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
             />
           ) : undefined
         }
+        fileDrop={{
+          onDragOver: imageInsert.onDragOver,
+          onDragEnter: imageInsert.onDragEnter,
+          onDragLeave: imageInsert.onDragLeave,
+          onDrop: imageInsert.onDrop,
+          highlight: imageInsert.dropHighlight,
+        }}
       >
         <MarqueeRect rect={marquee.rect} camera={camera} />
+        <ImageInsertContext.Provider value={imageInsertCtx}>
         <ToolContext.Provider value={tool.tool}>
           {objects.map((obj) => {
             const spec = getObjectType(obj.type);
@@ -255,7 +294,9 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
             );
           })}
         </ToolContext.Provider>
+        </ImageInsertContext.Provider>
       </BoardViewport>
+      <Toast messages={imageInsert.toasts} />
       <SelectionOverlay
         ids={selection.ids}
         snapshot={objects}
@@ -339,6 +380,7 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
         undoButtons={<UndoButtons {...undo} />}
         shapeKind={shapeKind}
         onShapeKindChange={setShapeKind}
+        onPickImage={imageInsert.openPicker}
       />
       <SharePanel boardId={boardId} />
     </>

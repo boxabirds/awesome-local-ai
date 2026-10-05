@@ -4,7 +4,8 @@ import type { RenderResult } from '@testing-library/react';
 import * as Y from 'yjs';
 import { App } from '../../src/client/App';
 import { Board } from '../../src/client/pages/BoardPage';
-import { createSticky, snapshot, type StickySnapshot } from '../../src/shared/board-model';
+import { createSticky, snapshot, snapshotObjects, type StickySnapshot } from '../../src/shared/board-model';
+import type { ImageSnap } from '../../src/shared/objects/image';
 import type { Vidi6TestHooks } from '../../src/client/canvas/testHooks';
 
 /**
@@ -20,9 +21,32 @@ vi.mock('../../src/client/api', () => ({
   createBoardRequest: vi.fn(async () => ({ kind: 'created', id: 'a'.repeat(22) })),
 }));
 
-vi.mock('../../src/client/sync/connectBoard', () => ({
-  connectBoard: vi.fn(() => ({ destroy: () => {} })),
+// Story 12: the mocked provider reports a controllable connection state
+// (default 'connected') so the offline gate (image.offline) can be tested.
+const connectionMock = vi.hoisted(() => ({
+  state: 'connected' as 'connecting' | 'connected' | 'reconnecting' | 'confirmed',
+  onState: null as ((s: 'connecting' | 'connected' | 'reconnecting' | 'confirmed') => void) | null,
 }));
+
+vi.mock('../../src/client/sync/connectBoard', () => ({
+  connectBoard: vi.fn((_doc: unknown, _boardId: string, onState: (s: string) => void) => {
+    connectionMock.onState = onState;
+    onState(connectionMock.state);
+    return {
+      destroy: () => {
+        connectionMock.onState = null;
+      },
+    };
+  }),
+}));
+
+/** Sets the mocked connection state (inside act, re-renders the board). */
+export function setMockConnection(s: 'connecting' | 'connected' | 'reconnecting' | 'confirmed') {
+  connectionMock.state = s;
+  act(() => {
+    connectionMock.onState?.(s);
+  });
+}
 
 class MockResizeObserver {
   callback: ResizeObserverCallback;
@@ -49,6 +73,30 @@ beforeEach(() => {
   }
   vi.spyOn(HTMLElement.prototype, 'setPointerCapture').mockImplementation(() => {});
   vi.spyOn(HTMLElement.prototype, 'releasePointerCapture').mockImplementation(() => {});
+  // jsdom has no createImageBitmap: derive dimensions from the file's
+  // naturalWidth/naturalHeight properties (see imageFile), default 100×80.
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async (file: File) => {
+      const f = file as File & { naturalWidth?: number; naturalHeight?: number };
+      return { width: f.naturalWidth ?? 100, height: f.naturalHeight ?? 80, close() {} };
+    }),
+  );
+  // Default XHR: stays pending forever (no network in component tests), so
+  // image uploads sit in the 'uploading' state. TC-20 replaces this with the
+  // controllable MockXHR (a test-file beforeEach runs after this one).
+  vi.stubGlobal(
+    'XMLHttpRequest',
+    class {
+      upload: Record<string, unknown> = {};
+      open() {}
+      send() {}
+      abort() {}
+    },
+  );
+  // Reset the mock connection to the default (connected).
+  connectionMock.state = 'connected';
+  connectionMock.onState = null;
   cleanup();
   // Clear the previous test's hook so `renderApp` waits for the fresh board.
   delete (window as unknown as { __vidi6?: unknown }).__vidi6;
@@ -242,4 +290,99 @@ export function windowKeyDown(
   });
   window.dispatchEvent(event);
   return event;
+}
+
+// ---------------------------------------------------------------------------
+// Story 12: image helpers (jsdom has no DragEvent/DataTransfer, so the
+// helpers dispatch plain Events with a duck-typed dataTransfer/clipboardData).
+// ---------------------------------------------------------------------------
+
+/**
+ * A controllable XHR fake (TC-20): install with
+ * `vi.stubGlobal('XMLHttpRequest', MockXHR)` in a test-file beforeEach, then
+ * drive `MockXHR.last.progress/load/fail`.
+ */
+export class MockXHR {
+  static last: MockXHR | null = null;
+  upload: {
+    onprogress?: (e: { lengthComputable: boolean; loaded: number; total: number }) => void;
+  } = {};
+  status = 0;
+  responseType = '';
+  responseText = '';
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onabort: (() => void) | null = null;
+
+  open() {}
+  send() {
+    MockXHR.last = this;
+  }
+  abort() {
+    this.onabort?.();
+  }
+  progress(loaded: number, total: number) {
+    this.upload.onprogress?.({ lengthComputable: true, loaded, total });
+  }
+  load(status: number, text: string) {
+    this.status = status;
+    this.responseText = text;
+    this.onload?.();
+  }
+  fail() {
+    this.onerror?.();
+  }
+}
+
+/** A File with fake natural dimensions (consumed by the createImageBitmap mock). */
+export function imageFile(
+  name: string,
+  type: string,
+  opts: { size?: number; width?: number; height?: number } = {},
+): File {
+  const f = new File([new Uint8Array(opts.size ?? 1024)], name, { type });
+  Object.defineProperty(f, 'naturalWidth', { value: opts.width ?? 100 });
+  Object.defineProperty(f, 'naturalHeight', { value: opts.height ?? 80 });
+  return f;
+}
+
+/** Dispatches a file drag event on the board viewport. */
+export function viewportDrag(
+  type: 'dragover' | 'dragenter' | 'dragleave' | 'drop',
+  files: File[] = [],
+  at = { x: 200, y: 150 },
+) {
+  const vp = getViewport();
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'dataTransfer', {
+    value: { files, types: files.length > 0 ? ['Files'] : [], dropEffect: '' },
+  });
+  Object.defineProperty(event, 'clientX', { value: at.x });
+  Object.defineProperty(event, 'clientY', { value: at.y });
+  act(() => {
+    vp.dispatchEvent(event);
+  });
+  return event;
+}
+
+/** Dispatches a window paste event carrying files. */
+export function windowPaste(files: File[] = []) {
+  const event = new Event('paste', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'clipboardData', { value: { files } });
+  act(() => {
+    window.dispatchEvent(event);
+  });
+  return event;
+}
+
+/** Image object snapshots in the doc, in snapshot order. */
+export function imageSlices(doc: Y.Doc): ImageSnap[] {
+  return snapshotObjects(doc).filter((o) => o.type === 'image') as ImageSnap[];
+}
+
+/** The element rendering the given image object. */
+export function imageEl(id: string): HTMLElement {
+  const el = document.querySelector(`[data-image-id="${id}"]`);
+  if (!el) throw new Error(`image ${id} not found`);
+  return el as HTMLElement;
 }

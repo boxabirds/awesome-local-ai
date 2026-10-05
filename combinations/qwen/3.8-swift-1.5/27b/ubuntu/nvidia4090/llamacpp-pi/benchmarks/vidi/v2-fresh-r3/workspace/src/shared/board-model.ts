@@ -51,6 +51,14 @@ export interface ObjectSnapshot {
   baseWidth?: number;
   baseHeight?: number;
   thickness?: PenThickness;
+  /** Images (story 12). */
+  assetKey?: string | null;
+  contentType?: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  status?: 'uploading' | 'ready' | 'failed';
+  uploadStartedAt?: number;
+  uploaderId?: string;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -412,6 +420,19 @@ export function snapshotObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
       baseWidth: num(obj.get('baseWidth')),
       baseHeight: num(obj.get('baseHeight')),
       thickness: isPenThicknessValue(obj.get('thickness')) ? (obj.get('thickness') as PenThickness) : undefined,
+      assetKey: (() => {
+        const a = obj.get('assetKey');
+        return typeof a === 'string' ? a : a === null ? null : undefined;
+      })(),
+      contentType: typeof obj.get('contentType') === 'string' ? (obj.get('contentType') as string) : undefined,
+      naturalWidth: num(obj.get('naturalWidth')),
+      naturalHeight: num(obj.get('naturalHeight')),
+      status: (() => {
+        const s = obj.get('status');
+        return s === 'uploading' || s === 'ready' || s === 'failed' ? s : undefined;
+      })(),
+      uploadStartedAt: num(obj.get('uploadStartedAt')),
+      uploaderId: typeof obj.get('uploaderId') === 'string' ? (obj.get('uploaderId') as string) : undefined,
     });
   });
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

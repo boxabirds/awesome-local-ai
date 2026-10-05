@@ -18,6 +18,8 @@ export interface ToolbarProps {
   shapeKind?: ShapeKind;
   /** Story 10: change the shape kind. */
   onShapeKindChange?(k: ShapeKind): void;
+  /** Story 12: open the image file picker (Image button / I key). */
+  onPickImage?(): void;
 }
 
 const buttonStyle: React.CSSProperties = {
@@ -36,7 +38,7 @@ const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
 };
 
 export function Toolbar(props: ToolbarProps): React.JSX.Element {
-  const { tool, onToolChange, canEdit, onCreateSticky, undoButtons, shapeKind = 'rect', onShapeKindChange } = props;
+  const { tool, onToolChange, canEdit, onCreateSticky, undoButtons, shapeKind = 'rect', onShapeKindChange, onPickImage } = props;
   const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
 
   return (
@@ -201,6 +203,22 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
         onClick={() => onToolChange('pen')}
       >
         ✎
+      </button>
+
+      {/* Story 12: Image button (opens the system file picker) */}
+      <button
+        type="button"
+        data-testid="image-tool-button"
+        aria-label="Image (I)"
+        title="Image (I) – drop, paste or pick image files"
+        disabled={!canEdit}
+        style={{
+          ...buttonStyle,
+          opacity: canEdit ? 0.9 : 0.4,
+        }}
+        onClick={() => onPickImage?.()}
+      >
+        🖼️
       </button>
 
       <span style={{ width: 1, height: 20, background: '#ddd', margin: '0 4px' }} />

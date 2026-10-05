@@ -10,6 +10,7 @@ import {
   STROKE_MIN_SIZE_WORLD,
   STROKE_HIT_TOLERANCE_PX,
   PEN_THICKNESS_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
 } from '../../shared/config';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
@@ -17,6 +18,7 @@ import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
+import { ImageObjectAdapter } from './ImageObject';
 import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 
@@ -183,4 +185,18 @@ registerObjectType('stroke', {
     );
     return distanceToPolyline(scaledPoints(s), worldPoint) <= tolerance;
   },
+});
+
+/**
+ * The image type (story 12): resizable, aspect-locked (images always keep
+ * their proportions), minimum IMAGE_MIN_SIZE_WORLD, no editable text.
+ * Hit test is the bounding box (bbox).
+ */
+registerObjectType('image', {
+  Component: ImageObjectAdapter,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, worldPoint) => pointInRect(objectBounds(obj), worldPoint),
 });

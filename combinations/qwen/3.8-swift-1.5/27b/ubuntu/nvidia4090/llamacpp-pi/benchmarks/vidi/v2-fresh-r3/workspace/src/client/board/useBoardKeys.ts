@@ -20,6 +20,8 @@ export interface BoardKeysOptions {
   tool: { tool: Tool; setTool(t: Tool): void };
   /** Story 9: N shortcut — one-click sticky note at the view centre. */
   onCreateSticky?(): void;
+  /** Story 12: I shortcut — open the image file picker. */
+  onPickImage?(): void;
 }
 
 function isEditingTarget(target: EventTarget | null): boolean {
@@ -113,6 +115,10 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         }
         if (k === 'p' || k === 'P') {
           if (o.canEdit) o.tool.setTool('pen');
+          return;
+        }
+        if (k === 'i' || k === 'I') {
+          if (o.canEdit) o.onPickImage?.();
           return;
         }
       }

@@ -152,6 +152,13 @@ export function clampScale(scale: Point, rects: Rect[], minSizes: number[], maxS
       }
     }
   }
+  // A uniform (aspect-locked) scale must stay uniform after clamping, or the
+  // object's proportions break at the min/max size (story 12: images keep
+  // their proportions at the minimum size).
+  if (scale.x === scale.y) {
+    const s = scale.x < 1 ? Math.max(sx, sy) : Math.min(sx, sy);
+    return { x: s, y: s };
+  }
   return { x: sx, y: sy };
 }
 

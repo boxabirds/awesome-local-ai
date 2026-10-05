@@ -13,9 +13,27 @@ declare module 'cloudflare:test' {
     newUniqueId(): string;
   }
 
-  /** The test-worker env bindings (a real DurableObjectNamespace for BOARD_ROOM). */
+  interface TestR2Object {
+    key: string;
+    size: number;
+    body: ReadableStream;
+    httpMetadata?: { contentType?: string; cacheControl?: string };
+  }
+  interface TestR2Bucket {
+    get(key: string): Promise<TestR2Object | null>;
+    put(
+      key: string,
+      value: ReadableStream | ArrayBuffer | ArrayBufferView | string,
+      options?: { httpMetadata?: { contentType?: string; cacheControl?: string } },
+    ): Promise<TestR2Object>;
+    list(options?: { prefix?: string }): Promise<{ objects: TestR2Object[]; truncated: boolean }>;
+    delete(keys: string | string[]): Promise<void>;
+  }
+
+  /** The test-worker env bindings (real DO namespace + real Miniflare R2). */
   export const env: {
     BOARD_ROOM: TestDurableObjectNamespace;
+    ASSETS_BUCKET: TestR2Bucket;
   };
 
   /**

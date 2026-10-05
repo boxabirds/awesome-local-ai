@@ -9,7 +9,7 @@ export default defineConfig({
     }),
   ],
   test: {
-    include: ['tests/integration/worker.test.ts', 'tests/integration/board-store.test.ts', 'tests/integration/persistent-room.test.ts', 'tests/integration/board-api.test.ts'],
+    include: ['tests/integration/worker.test.ts', 'tests/integration/board-store.test.ts', 'tests/integration/persistent-room.test.ts', 'tests/integration/board-api.test.ts', 'tests/integration/assets.test.ts'],
     testTimeout: 60000,
   },
 });

@@ -1,14 +1,20 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom, type BoardRoomStub } from './board-room';
 import { createBoard } from './create-board';
+import { handleUpload, handleServe } from './assets';
 import { handleTestHook, recordNamespaceGet } from './test-hooks';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** Story 12: board image assets. */
+  ASSETS_BUCKET: R2Bucket;
   /** TEST-ONLY: set to "1" (wrangler vars) to enable the /__test/* routes. */
   TEST_HOOKS?: string;
 }
+
+const ASSETS_UPLOAD_PREFIX = '/api/boards/';
+const ASSETS_SERVE_PREFIX = '/api/assets/';
 
 const ROOMS_PREFIX = '/api/rooms/';
 const BOARDS_PREFIX = '/api/boards';
@@ -42,6 +48,21 @@ export default {
       return result.ok
         ? json({ id: result.id }, 201)
         : json({ error: 'create_failed' }, 500);
+    }
+
+    // Story 12: POST /api/boards/:boardId/assets → upload an image asset.
+    // (Checked before the generic /api/boards/:id route.)
+    if (url.pathname.startsWith(ASSETS_UPLOAD_PREFIX) && url.pathname.endsWith('/assets')) {
+      if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+      const id = url.pathname.slice(ASSETS_UPLOAD_PREFIX.length, -'/assets'.length);
+      return handleUpload(req, env, id);
+    }
+
+    // Story 12: GET /api/assets/:boardId/:assetId → serve a stored image.
+    if (url.pathname.startsWith(ASSETS_SERVE_PREFIX)) {
+      if (req.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
+      const key = url.pathname.slice(ASSETS_SERVE_PREFIX.length);
+      return handleServe(env, key);
     }
 
     // GET /api/boards/:id → existence check. Unknown AND malformed ids both

@@ -66,6 +66,30 @@ declare module 'cloudflare:workers' {
 }
 
 // Cloudflare Worker global types
+// R2 (story 12: board image assets)
+interface R2HTTPMetadata {
+  contentType?: string;
+  cacheControl?: string;
+}
+
+interface R2Object {
+  readonly key: string;
+  readonly size: number;
+  readonly body: ReadableStream;
+  readonly httpMetadata?: R2HTTPMetadata;
+}
+
+interface R2Bucket {
+  get(key: string): Promise<R2Object | null>;
+  put(
+    key: string,
+    value: ReadableStream | ArrayBuffer | ArrayBufferView | string,
+    options?: { httpMetadata?: R2HTTPMetadata },
+  ): Promise<R2Object>;
+  list(options?: { prefix?: string }): Promise<{ objects: R2Object[]; truncated: boolean }>;
+  delete(keys: string | string[]): Promise<void>;
+}
+
 interface DurableObjectNamespace<T = unknown> {
   idFromName(name: string): string;
   get(id: string): DurableObjectStub;
