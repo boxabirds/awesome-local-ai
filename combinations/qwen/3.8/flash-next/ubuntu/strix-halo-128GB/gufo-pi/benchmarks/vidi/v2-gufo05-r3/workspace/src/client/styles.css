@@ -854,3 +854,86 @@ body,
 .connector-object[data-selected='true'] .connector-svg > path:nth-of-type(2) {
   stroke: #1e88e5;
 }
+
+/* --- Story 11: the Pen options toolbar ------------------------------------ */
+/*
+ * Beside the tools toolbar, vertically centred, above the tool layer (which
+ * owns the pointer over the board, but not over the chrome beside it).
+ */
+.pen-toolbar {
+  position: fixed;
+  left: 148px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid #d7dbe4;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(20, 30, 60, 0.12);
+  z-index: 11;
+}
+
+.pen-swatch {
+  width: 22px;
+  height: 22px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+}
+
+.pen-swatch:hover {
+  outline: 2px solid #9aa4b8;
+  outline-offset: 1px;
+}
+
+.pen-swatch[aria-pressed='true'] {
+  border-color: #2b3245;
+  outline: 2px solid #2f6fed;
+  outline-offset: 1px;
+}
+
+.pen-swatch:focus-visible {
+  outline: 2px solid #2f6fed;
+  outline-offset: 2px;
+}
+
+.pen-toolbar-sep {
+  width: 24px;
+  height: 1px;
+  background: #d7dbe4;
+}
+
+.pen-thickness {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.pen-thickness:hover {
+  background: #f2f4f8;
+}
+
+.pen-thickness[aria-pressed='true'] {
+  border-color: #2f6fed;
+}
+
+.pen-thickness:focus-visible {
+  outline: 2px solid #2f6fed;
+  outline-offset: 2px;
+}
+
+.pen-thickness-dot {
+  border-radius: 50%;
+  background: #2b3245;
+}

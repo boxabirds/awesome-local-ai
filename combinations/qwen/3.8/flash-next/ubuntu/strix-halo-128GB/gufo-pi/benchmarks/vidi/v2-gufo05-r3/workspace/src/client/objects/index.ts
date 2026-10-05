@@ -12,10 +12,12 @@ import { stickyObjectType } from './sticky';
 import { textObjectType } from './text';
 import { shapeObjectType } from './ShapeObject';
 import { connectorObjectType } from './ConnectorObject';
+import { strokeObjectType } from './StrokeObject';
 
 registerObjectType('sticky', stickyObjectType);
 registerObjectType('text', textObjectType);
 registerObjectType('shape', shapeObjectType);
 registerObjectType('connector', connectorObjectType);
+registerObjectType('stroke', strokeObjectType);
 
 export * from './registry';

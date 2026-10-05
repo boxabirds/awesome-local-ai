@@ -486,3 +486,52 @@ browser:
   evidence.
 - The story 10 e2e specs themselves (`shapes.spec.ts`, `connectors.spec.ts`) passed
   every run, including the delete-race case.
+
+## Story 11 decisions (sketch with a pen)
+
+- The stroke is one Y.Map inside `objects`, with the recorded points as a plain
+  flattened `number[]` written once by `createStroke`. A stroke is immutable
+  after creation — only story 7's generic x/y/width/height ever change again —
+  so a per-point CRDT structure would be overhead the drawing never uses. The
+  bbox is padded by half the thickness so round caps stay inside the box.
+- RDP measures against the *segment* between two kept points (not the infinite
+  line): measuring against the line lets a point that bows past an endpoint
+  look close while it is far from the kept polyline, which would break the
+  one-screen-pixel guarantee on looped strokes. The implementation is
+  iterative with an explicit stack because a full recording is 5,000 points.
+- `STROKE_SIMPLIFY_TOLERANCE_PX / zoom` is passed at *commit* time, where
+  `zoom` is the zoom the stroke was drawn at: faithfulness is promised in
+  screen pixels, and world units shrink as the board grows.
+- The hit rule lives once, in `hitTestStroke`: `distanceToPolyline <=
+  max(storedThickness/2, STROKE_HIT_TOLERANCE_PX / zoom)`. `StrokeObject`
+  renders an invisible `pointerEvents: stroke` path with exactly that width,
+  so the clickable line and the rule cannot drift apart. The visible ink
+  ignores the pointer; the object's box never does.
+- Zoom is not part of the registry's `hitTest` signature (story 10 left it
+  two-argument; nobody calls it with a zoom yet). `hitTestStroke` takes an
+  optional third `zoom = 1`, structurally assignable, exactly like
+  `hitTestConnector` before it.
+- PenTool keeps its recording in a ref and publishes the preview through
+  rAF-batched state, so 300 Hz pointer events produce at most one render per
+  frame and zero document writes until release. The window handlers and
+  `detach` are wired through a ref because each is defined in terms of the
+  other. Escape unmounts mid-stroke: the cleanup drops listeners and the
+  pending frame and commits nothing (`pen.cancel`).
+- The 5,000-point limit is handled inside the move handler: on reaching the
+  cap the recording simplifies and commits immediately and continues from the
+  last point, which becomes the first point of the next stroke — a split that
+  is invisible on screen and exact in the model (TC-12 pins the shared point).
+- The Pen does not call `toolCreated`: a drawing session should not end after
+  one stroke, so the tool stays up and the new stroke is not auto-selected.
+  Escape (or V) returns to Select, and then the stroke selects, moves, scales
+  (aspect-locked, thickness unchanged) and deletes like any other object.
+- BoardViewport needed no behavioural change: its story-10 guard already hands
+  every non-Select press to the tool layer, wheel navigation already ignores
+  the layer, and the Pen layer (`inset: 0`, `zIndex: 4`) sits above objects so
+  a drag starting on a note draws instead of moving it (TC-19).
+- The Pen options toolbar needed `z-index: 11` CSS: without it the tool layer
+  covers the swatches and they cannot be clicked — caught by the e2e run, not
+  by jsdom.
+- Undo groups: `onUndoBoundary()` fires before and after each `createStroke`
+  (and each mid-drag cap commit), so one stroke is exactly one undo step and
+  a cap-split long stroke is two steps for two objects (TC-21).

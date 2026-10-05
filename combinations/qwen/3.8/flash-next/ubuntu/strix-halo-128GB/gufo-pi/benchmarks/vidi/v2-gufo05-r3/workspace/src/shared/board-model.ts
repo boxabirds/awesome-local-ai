@@ -1,14 +1,20 @@
 import * as Y from 'yjs';
 import {
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
   DEFAULT_SHAPE_FILL,
   DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
+  PEN_COLORS,
+  PEN_THICKNESS_WORLD,
   SHAPE_FILL_COLORS,
   SHAPE_KINDS,
   SHAPE_STROKE_COLORS,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   type FillColor,
+  type PenColor,
+  type PenThickness,
   type ShapeKind,
   type StickyColor,
   type StrokeColor,
@@ -147,12 +153,32 @@ export interface ConnectorObjectSnapshot extends ObjectSnapshot {
   createdBy?: string;
 }
 
+/**
+ * A stroke (story 11, the Pen tool). `points` is the flattened
+ * `[x0, y0, x1, y1, ...]` array stored relative to the bbox origin at creation
+ * size; `shared/objects/stroke.ts` scales it with `scaledPoints` for both the
+ * renderer and the line-distance hit test. `shared/objects/stroke.ts` calls
+ * this snapshot `StrokeSnap`.
+ */
+export interface StrokeObjectSnapshot extends ObjectSnapshot {
+  type: 'stroke';
+  /** A drawing has no text of its own. */
+  text: '';
+  points: readonly number[];
+  baseWidth: number;
+  baseHeight: number;
+  color: PenColor;
+  thickness: PenThickness;
+  createdBy?: string;
+}
+
 /** Union of all board object snapshots. */
 export type AnySnapshot =
   | StickySnapshot
   | BoardTextSnapshot
   | ShapeObjectSnapshot
-  | ConnectorSnap;
+  | ConnectorSnap
+  | StrokeObjectSnapshot;
 
 function metaMap(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap(META_KEY);
@@ -596,6 +622,35 @@ export function snapshot(doc: Y.Doc): readonly AnySnapshot[] {
         createdAt: numberOr(note.get('createdAt'), 0),
         ...(finite(note.get('width')) ? { width: note.get('width') as number } : {}),
         ...(finite(note.get('height')) ? { height: note.get('height') as number } : {}),
+        ...(typeof createdBy === 'string' ? { createdBy } : {}),
+      });
+    } else if (type === 'stroke') {
+      const color = note.get('color');
+      const thickness = note.get('thickness');
+      const points = note.get('points');
+      const createdBy = note.get('createdBy');
+      const baseWidth = numberOr(note.get('baseWidth'), 0);
+      const baseHeight = numberOr(note.get('baseHeight'), 0);
+      out.push({
+        id,
+        type: 'stroke' as const,
+        text: '' as const,
+        x: numberOr(note.get('x'), 0),
+        y: numberOr(note.get('y'), 0),
+        // A stroke always carries its box (the pen writes it at creation).
+        width: numberOr(note.get('width'), 0),
+        height: numberOr(note.get('height'), 0),
+        points: Array.isArray(points) ? (points.filter(finite) as number[]) : [],
+        baseWidth,
+        baseHeight,
+        color: (typeof color === 'string' && Object.hasOwn(PEN_COLORS, color))
+          ? color as PenColor
+          : DEFAULT_PEN_COLOR,
+        thickness: (typeof thickness === 'string' && Object.hasOwn(PEN_THICKNESS_WORLD, thickness))
+          ? thickness as PenThickness
+          : DEFAULT_PEN_THICKNESS,
+        z: numberOr(note.get('z'), 0),
+        createdAt: numberOr(note.get('createdAt'), 0),
         ...(typeof createdBy === 'string' ? { createdBy } : {}),
       });
     } else if (type === 'connector') {

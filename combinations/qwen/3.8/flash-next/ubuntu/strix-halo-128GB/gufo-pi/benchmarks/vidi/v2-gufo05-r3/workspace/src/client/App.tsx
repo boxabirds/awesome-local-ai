@@ -10,6 +10,9 @@ import { useBoardKeys } from './board/useBoardKeys';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { MarqueeRect, useMarquee } from './board/Marquee';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionAnnouncement, SelectionBar } from './board/SelectionBar';
@@ -48,11 +51,15 @@ export default function App({ doc, boardId }: AppProps = {}) {
   const viewportApi = useRef<BoardViewportApi | null>(null);
 
   // --- Tool mode (story 9, story 10) -----------------------------------------
+
   const active = useActiveTool({
     canEdit: !locked,
     selection,
     onCreateSticky: () => createStickyAtCentre(),
   });
+
+  // Pen colour and thickness: session state, the document never restyles itself.
+  const pen = usePenOptions();
 
   // --- Undo ---------------------------------------------------------------
   const undoHistory = useUndoController(boardDoc);
@@ -173,6 +180,14 @@ export default function App({ doc, boardId }: AppProps = {}) {
         shapeKind={active.shapeKind}
         onShapeKind={active.setShapeKind}
       />
+      {active.tool === 'pen' ? (
+        <PenToolbar
+          color={pen.color}
+          thickness={pen.thickness}
+          onColor={pen.setColor}
+          onThickness={pen.setThickness}
+        />
+      ) : null}
       <BoardViewport
         doc={boardDoc}
         viewportApi={viewportApi}
@@ -196,6 +211,16 @@ export default function App({ doc, boardId }: AppProps = {}) {
                 kind={active.shapeKind}
                 camera={camera}
                 onCreated={active.toolCreated}
+                onUndoBoundary={() => undoHistory.boundary()}
+              />
+            ) : null}
+            {active.tool === 'pen' && !locked ? (
+              <PenTool
+                doc={boardDoc}
+                camera={camera}
+                color={pen.color}
+                thickness={pen.thickness}
+                identityId="local"
                 onUndoBoundary={() => undoHistory.boundary()}
               />
             ) : null}

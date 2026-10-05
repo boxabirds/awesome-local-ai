@@ -11,6 +11,7 @@ export const STICKY_NOTE_TOOLTIP = 'Sticky note \u2013 or double-click the board
 const TOOL_LABELS: Record<string, { label: string; key: string; icon: string }> = {
   shape: { label: 'Shape', key: 'S', icon: '\u25A1' },
   connector: { label: 'Connector', key: 'L', icon: '\u2192' },
+  pen: { label: 'Pen', key: 'P', icon: '\u270E' },
 };
 
 /** The three kinds, in the order the menu shows them. */
@@ -188,6 +189,21 @@ export function Toolbar(props: ToolbarProps) {
           {TOOL_LABELS.connector.icon}
         </span>
         <span className="board-toolbar-text">Connector</span>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar-btn"
+        aria-label={`Pen (${TOOL_LABELS.pen.key})`}
+        aria-pressed={tool === 'pen'}
+        title={`Pen (${TOOL_LABELS.pen.key})`}
+        data-tool-pen=""
+        disabled={locked}
+        onClick={locked || !onTool ? undefined : () => onTool('pen')}
+      >
+        <span className="board-toolbar-icon" aria-hidden="true">
+          {TOOL_LABELS.pen.icon}
+        </span>
+        <span className="board-toolbar-text">Pen</span>
       </button>
       <UndoButtons {...undo} />
     </div>

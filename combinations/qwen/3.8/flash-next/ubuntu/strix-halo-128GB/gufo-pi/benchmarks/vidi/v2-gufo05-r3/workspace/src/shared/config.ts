@@ -288,3 +288,47 @@ export const CONNECTOR_DOT_RADIUS_PX = 4;
 
 /** Radius of a selected arrow's end handle, in screen px. */
 export const CONNECTOR_HANDLE_RADIUS_PX = 5;
+
+// --- Story 11: sketching with a pen ----------------------------------------
+
+/** The six pen ink colours, in toolbar order. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+export type PenColor = keyof typeof PEN_COLORS;
+
+/** Pen thicknesses in world units (so a stroke scales with the zoom). */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** The colour a new stroke is drawn in (until the pen toolbar says otherwise). */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+
+/** The thickness a new stroke is drawn with. */
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/**
+ * Smoothing tolerance when a stroke finishes, in *screen* pixels at the zoom
+ * used while drawing: RDP guarantees every drawn point stays within one pixel
+ * of the finished line (`pen.smooth`).
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * One stroke records at most this many pointer points; a longer drag is split
+ * into consecutive strokes joined at the shared point (`pen.long_stroke`).
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/** How close to a stroke's line a click must be to select it, in screen px. */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/** The smallest side a stroke may be resized to, in world units. */
+export const STROKE_MIN_SIZE_WORLD = 4;

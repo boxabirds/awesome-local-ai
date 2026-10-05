@@ -53,7 +53,7 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 };
 
 /** Tools this build has a key for but no drawing yet, so they are inert. */
-export const UNBOUND_TOOLS: readonly ToolId[] = ['pen', 'image', 'comment'];
+export const UNBOUND_TOOLS: readonly ToolId[] = ['image', 'comment'];
 
 /** The tools that make something, and so need the board to be editable. */
 export function isCreateTool(tool: ToolId): boolean {
@@ -62,7 +62,7 @@ export function isCreateTool(tool: ToolId): boolean {
 
 /** Tools that draw a new object by dragging or clicking the board. */
 export function isDrawingTool(tool: ToolId): boolean {
-  return tool === 'shape' || tool === 'connector';
+  return tool === 'shape' || tool === 'connector' || tool === 'pen';
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
