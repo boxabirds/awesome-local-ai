@@ -1,0 +1,1324 @@
+{
+  "stories": {
+    "1": {
+      "title": "Pan and zoom around an infinite board",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1791218646.031081,
+      "engine_settings": {
+        "server_started_at": "2026-10-05T16:43:57Z",
+        "engine": "mlx-serve",
+        "engine_version": "mlx-serve 26.10.1",
+        "thinking_mode": {
+          "value": "on",
+          "source": "model config",
+          "evidence": "generation_config.json default_chat_template_kwargs.enable_thinking=true"
+        },
+        "thinking_budget": {
+          "value": 32768,
+          "source": "command line",
+          "evidence": "--reasoning-budget 32768"
+        },
+        "context_size": {
+          "value": 131072,
+          "source": "command line",
+          "evidence": "--ctx-size 131072"
+        },
+        "kv_cache_type": {
+          "value": "off",
+          "source": "command line",
+          "evidence": "--kv-quant off"
+        },
+        "speculative": {
+          "value": {
+            "method": "mtp"
+          },
+          "source": "command line",
+          "evidence": "--mtp (draft depth is mlx-serve's own)"
+        },
+        "temperature": {
+          "value": 1.0,
+          "source": "command line",
+          "evidence": "--temp 1.0"
+        },
+        "top_p": {
+          "value": 0.95,
+          "source": "command line",
+          "evidence": "--top-p 0.95"
+        },
+        "top_k": {
+          "value": 20,
+          "source": "command line",
+          "evidence": "--top-k 20"
+        },
+        "min_p": {
+          "value": "not set",
+          "source": "not set",
+          "evidence": "no --min-p on the command line: mlx-serve's own default applies"
+        },
+        "quantisation": {
+          "value": "mixed-4-8bit",
+          "source": "model file name",
+          "evidence": "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+        },
+        "reasoning_effort": {
+          "requested": "low",
+          "engine": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "mlx-serve has no server-side reasoning-effort setting (lib/runtime/server-mlxserve.sh)"
+          },
+          "client": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "effective": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "neither the engine's command line nor the client sets an effort: mlx-serve renders a request that names no effort by its template's rule; lib/runtime/server-mlxserve.sh reads that as 'low' on Qwen3.8 (chat.zig), unverified here. Engine: mlx-serve has no server-side reasoning-effort setting (lib/runtime/server-mlxserve.sh). Client: pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "matches_request": null
+        },
+        "gaps": [
+          "reasoning effort: 'low' requested, neither the engine nor the client applies one"
+        ]
+      },
+      "agent": {
+        "seconds": 2076.3,
+        "steps": 145,
+        "tool_calls": 155,
+        "compactions": 1,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 196840,
+          "output": 119024,
+          "reasoning": 0,
+          "cache_read": 9145608,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a10cf3-8771-735a-b6e4-d717dbd7e762"
+        ],
+        "finished": true,
+        "interventions": {
+          "total": 0,
+          "stop_message": 0,
+          "toolcall_text_resumes": 0,
+          "error_resumes": 0
+        }
+      },
+      "agent_finished": 1791220722.4280791,
+      "conditions": {
+        "samples": 68,
+        "degraded": false,
+        "throttled_share": 0.93,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791218767.390584
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791218797.787353
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791218828.097902
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791218858.437099
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791218888.8013492
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791218919.128459
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791218949.567782
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791218980.029033
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219010.484402
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219040.9357362
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219071.3185542
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219101.7487621
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219132.169651
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219162.610023
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219193.050088
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219223.3734882
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219253.6976562
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219284.0080729
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219314.4660292
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219344.925505
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219375.388183
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219405.706018
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219436.152128
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219466.617182
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219496.93556
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219527.2460082
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219557.708622
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219588.047224
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219618.505683
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219648.909009
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219679.37924
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219709.77403
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219740.193901
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219770.644615
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219801.075635
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219831.514567
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219861.820813
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219892.2671201
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219922.712592
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219953.148575
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791219983.577555
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791220014.002144
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1791220105.2244322
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220135.705981
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220166.161453
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220196.525826
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220226.9780438
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220257.46808
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220287.935849
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220318.398957
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220348.8531048
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220379.319365
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220409.764522
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220440.23174
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220470.647052
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220501.108503
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220531.538409
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220561.951255
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220592.410778
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220622.842286
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220653.336971
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220683.782346
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1791220714.236861
+          }
+        ],
+        "swap_start_gb": 0.15,
+        "swap_max_gb": 0.15,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 24.0,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": 89.0,
+        "server_footprint_peak_gb": 91.0,
+        "gpu": null
+      },
+      "containment": {
+        "enabled": false
+      },
+      "agent_commits": 1,
+      "provenance": {
+        "harness_commit": "0b4a70acb",
+        "harness_dirty": null,
+        "harness_release": "harness-v2026.10.05.2",
+        "pack_version": "vidi-v2.0-pre2+88a5c4002",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 2.5,
+            "tail": "\nadded 132 packages, and audited 133 packages in 2s\n\n28 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm warn allow-scripts 3 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20261001.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.9,
+            "tail": "\n> vidi6@0.0.1 build\n> vite build\n\n\u001b[36mvite v8.3.2 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.38 kB \u2502 gzip:  0.25 kB\ndist/client/assets/index-B6e4sksQ.css    2.14 kB \u2502 gzip:  0.92 kB\ndist/client/assets/index-B9N6Qdq-.js   227.48 kB \u2502 gzip: 71.32 kB\n\n\u001b[32m\u2713 built in 227ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 0.4,
+            "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/520fc59188/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m24 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m24 passed\u001b[39m\u001b[22m\u001b[90m (24)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:18:49\n\u001b[2m   Duration \u001b[22m 82ms\u001b[2m (transform 48%, tests 37%, import 12%, worker 3%)\u001b[22m\n\n",
+            "passed": 24,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 1.8,
+            "tail": "49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 70\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 283\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1280\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m25 passed\u001b[39m\u001b[22m\u001b[90m (25)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:18:49\n\u001b[2m   Duration \u001b[22m 1.60s\u001b[2m (tests 67%, environment 25%, setup 4%, transform 3%, import 1%)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/NavigationHint.test.tsx\u001b[2m > \u001b[22m\u001b[2mfirst-use navigation hint\u001b[2m > \u001b[22m\u001b[2mTC-22 is shown at first, hidden by the first camera change and stays hidden\n\u001b[22m\u001b[39mAn update to BoardHarness inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mboard viewport input\u001b[2m > \u001b[22m\u001b[2mTC-14 ends the drag when pointer capture is lost\n\u001b[22m\u001b[39mAn update to BoardHarness inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mboard viewport input\u001b[2m > \u001b[22m\u001b[2mTC-15 pans on a plain wheel event and cancels the page scroll\n\u001b[22m\u001b[39mAn update to BoardHarness inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mboard viewport input\u001b[2m > \u001b[22m\u001b[2mTC-16 zooms on Ctrl + wheel around the pointer and cancels page zoom\n\u001b[22m\u001b[39mAn update to BoardHarness inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mboard viewport input\u001b[2m > \u001b[22m\u001b[2mTC-16 clamps Ctrl + wheel at the zoom limits\n\u001b[22m\u001b[39mAn update to BoardHarness inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mboard viewport input\u001b[2m > \u001b[22m\u001b[2mTC-17 zooms on the Safari gesture event and cancels page zoom\n\u001b[22m\u001b[39mAn update to BoardHarness inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n",
+            "passed": 25,
+            "failed": 0
+          },
+          "test:integration": {
+            "exit": "missing"
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 10.2,
+            "tail": "\n> vidi6@0.0.1 test:e2e\n> npm run build:test && playwright test --project=chromium\n\n\n> vidi6@0.0.1 build:test\n> vite build --mode test\n\n\u001b[36mvite v8.3.2 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.38 kB \u2502 gzip:  0.25 kB\ndist/client/assets/index-B6e4sksQ.css    2.14 kB \u2502 gzip:  0.92 kB\ndist/client/assets/index-m_EWh-sn.js   227.63 kB \u2502 gzip: 71.37 kB\n\n\u001b[32m\u2713 built in 49ms\u001b[39m\n\nRunning 7 tests using 7 workers\n\n  \u2713  4 [chromium] \u203a tests/e2e/navigation.spec.ts:222:1 \u203a the board is one surface with a starting point marked (146ms)\n  \u2713  3 [chromium] \u203a tests/e2e/navigation.spec.ts:90:3 \u203a first visit navigation \u203a stays put for a click without movement (328ms)\n  \u2713  7 [chromium] \u203a tests/e2e/navigation.spec.ts:147:3 \u203a zoom limits and recovery \u203a returns to the starting point with Reset view (550ms)\n  \u2713  5 [chromium] \u203a tests/e2e/navigation.spec.ts:169:3 \u203a zoom limits and recovery \u203a never zooms the page itself (838ms)\n  \u2713  1 [chromium] \u203a tests/e2e/navigation.spec.ts:189:3 \u203a far travel \u203a keeps precision and even grid one million units out (1.5s)\n  \u2713  2 [chromium] \u203a tests/e2e/navigation.spec.ts:39:3 \u203a first visit navigation \u203a reads the hint, pans with the mouse and zooms with the pointer (2.2s)\n  \u2713  6 [chromium] \u203a tests/e2e/navigation.spec.ts:111:3 \u203a zoom limits and recovery \u203a reaches the maximum zoom, stops and shows the percentage (7.2s)\n\n  7 passed (9.5s)\n",
+            "passed": 7,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 0,
+        "passed": 6,
+        "total": 6,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "eaf820922802081aff56fbf5369487ce47fb1c93",
+      "requests": {},
+      "time_split": {
+        "wall_s": 2076.4,
+        "model": {
+          "source": "client-stream",
+          "requests": 145,
+          "prefill_s": 182.0,
+          "prefill_tokens": 196840,
+          "prefill_tok_s": 1081.3,
+          "decode_s": 1652.1,
+          "decode_tokens": 119024,
+          "decode_tok_s": 72.0,
+          "cached_tokens": 9145608,
+          "draft_acceptance": 0.671,
+          "mean_accepted_len": 3.26
+        },
+        "tools_s": 176.6,
+        "tools_by_kind": {
+          "bash": 81.5,
+          "e2e": 58.6,
+          "unit": 20.7,
+          "build": 15.7,
+          "edit": 0.0,
+          "write": 0.0,
+          "read": 0.0
+        },
+        "compaction_s": 57.6,
+        "compactions": 1,
+        "between_sessions_s": 0.0,
+        "other_s": 8.1,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        }
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 145,
+        "tool_calls": 155,
+        "thinking_visible": true,
+        "thinking_chars": 228116,
+        "thinking_median": 475,
+        "thinking_median_before": 208,
+        "thinking_median_after": 477,
+        "largest_thinking": {
+          "chars": 62605,
+          "call": 12,
+          "at_s": 316.0
+        },
+        "text_chars": 2421,
+        "tool_arg_chars": 178911,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 2212,
+        "context_end": 81428,
+        "largest_context_jump": {
+          "tokens": 17385,
+          "call": 13
+        },
+        "tools_by_name": {
+          "bash": 74,
+          "read": 12,
+          "write": 32,
+          "edit": 37
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 25.3,
+          "name": "bash",
+          "gist": "cd ~/.w/520fc59188/workspace && (WRANGLER_SEND_METRICS=false CI=1 nohup npm run e2e:serve > ~/.scratch/wrang"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 18,
+        "lines": 2409
+      },
+      "finished": 1791220758.2699142,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Scaffold project and write camera maths unit tests first (TC-01 to TC-12)",
+          "type": "test:unit",
+          "implements": [
+            "camera.math"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12"
+          ],
+          "status": "verified",
+          "found": 12,
+          "total": 12
+        },
+        {
+          "n": 2,
+          "title": "Implement camera maths to pass unit tests",
+          "type": "implementation",
+          "implements": [
+            "camera.math"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement board viewport: drag, wheel, pinch and keyboard navigation with dot grid",
+          "type": "implementation",
+          "implements": [
+            "viewport.input"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement zoom controls (\u2212, percentage, +, Reset view)",
+          "type": "implementation",
+          "implements": [
+            "zoom.controls"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement first-use navigation hint",
+          "type": "implementation",
+          "implements": [
+            "nav.hint_display"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Component tests for viewport input, zoom controls and hint",
+          "type": "test:ui-component",
+          "implements": [
+            "viewport.input",
+            "zoom.controls",
+            "nav.hint_display"
+          ],
+          "tcs": [
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-29",
+            "TC-30",
+            "TC-32"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 7,
+          "title": "E2E navigation tests in Chromium, Firefox and WebKit",
+          "type": "test:e2e",
+          "implements": [
+            "viewport.input",
+            "zoom.controls",
+            "nav.hint_display"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        }
+      ],
+      "end_reason": "agent-finished",
+      "tasks_claimed": {
+        "file": "read",
+        "tasks": {
+          "1": "done",
+          "2": "done",
+          "3": "done",
+          "4": "done",
+          "5": "done",
+          "6": "done",
+          "7": "done (Chromium; Firefox/WebKit blocked, see NOTES.md)"
+        }
+      }
+    }
+  },
+  "pack": "vidi",
+  "scope": "canvas",
+  "model_id": "mlxserve-flash-next-mixed-4-8bit",
+  "client": "pi",
+  "compact_at": null,
+  "client_thinking": null,
+  "processed": [
+    {
+      "id": 1,
+      "title": "Pan and zoom around an infinite board",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1791218646.031081,
+      "ended_at": 1791220722.4280791,
+      "agent_minutes": 34.6,
+      "calls": 145,
+      "output_tokens": 119024,
+      "compactions": 1,
+      "last_commit_at": 1791220696.0,
+      "accept": {
+        "passed": 6,
+        "total": 6
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Scaffold project and write camera maths unit tests first (TC-01 to TC-12)",
+          "type": "test:unit",
+          "implements": [
+            "camera.math"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12"
+          ],
+          "status": "verified",
+          "found": 12,
+          "total": 12
+        },
+        {
+          "n": 2,
+          "title": "Implement camera maths to pass unit tests",
+          "type": "implementation",
+          "implements": [
+            "camera.math"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement board viewport: drag, wheel, pinch and keyboard navigation with dot grid",
+          "type": "implementation",
+          "implements": [
+            "viewport.input"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement zoom controls (\u2212, percentage, +, Reset view)",
+          "type": "implementation",
+          "implements": [
+            "zoom.controls"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement first-use navigation hint",
+          "type": "implementation",
+          "implements": [
+            "nav.hint_display"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Component tests for viewport input, zoom controls and hint",
+          "type": "test:ui-component",
+          "implements": [
+            "viewport.input",
+            "zoom.controls",
+            "nav.hint_display"
+          ],
+          "tcs": [
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-29",
+            "TC-30",
+            "TC-32"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 7,
+          "title": "E2E navigation tests in Chromium, Firefox and WebKit",
+          "type": "test:e2e",
+          "implements": [
+            "viewport.input",
+            "zoom.controls",
+            "nav.hint_display"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 7.9,
+          "calls": 24,
+          "output_tokens": 50987,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 28.2,
+          "calls": 111,
+          "output_tokens": 86716,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 62.5,
+          "calls": 224,
+          "output_tokens": 190468,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 43.9,
+          "calls": 192,
+          "output_tokens": 141739,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 70.0,
+          "calls": 204,
+          "output_tokens": 196374,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 44.6,
+          "calls": 116,
+          "output_tokens": 103365,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 63.6,
+          "calls": 135,
+          "output_tokens": 144361,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 63.7,
+          "calls": 103,
+          "output_tokens": 118657,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 46.7,
+          "calls": 153,
+          "output_tokens": 129874,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 52.2,
+          "calls": 154,
+          "output_tokens": 109513,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 40.8,
+          "calls": 102,
+          "output_tokens": 86268,
+          "accept": {
+            "passed": 5,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 32.2,
+          "calls": 97,
+          "output_tokens": 72746,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 59.3,
+          "calls": 131,
+          "output_tokens": 110710,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 51.0,
+          "calls": 124,
+          "output_tokens": 111141,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 35.2,
+          "calls": 97,
+          "output_tokens": 81882,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 28.1,
+          "calls": 112,
+          "output_tokens": 46899,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 34.5,
+          "calls": 98,
+          "output_tokens": 79258,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 37.1,
+          "calls": 93,
+          "output_tokens": 83216,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 34.0,
+          "calls": 118,
+          "output_tokens": 119397,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 27.3,
+          "calls": 73,
+          "output_tokens": 103170,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 8.5,
+          "calls": 63,
+          "output_tokens": 40141,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 18.5,
+          "calls": 75,
+          "output_tokens": 79896,
+          "accept": {
+            "passed": 5,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 32.9,
+          "calls": 128,
+          "output_tokens": 135161,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 12.4,
+          "calls": 66,
+          "output_tokens": 58057,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 11.1,
+          "calls": 63,
+          "output_tokens": 54170,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 24.0,
+          "calls": 111,
+          "output_tokens": 105800,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 8.1,
+          "calls": 68,
+          "output_tokens": 42278,
+          "accept": {
+            "passed": 5,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 10.5,
+          "calls": 79,
+          "output_tokens": 51556,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        }
+      ]
+    }
+  ]
+}
