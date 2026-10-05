@@ -8,7 +8,7 @@
 #
 # Measured on the RTX 4090 machine on 2 Oct 2026 (horizon/strata.md, "What we measured"): ready in about 25 s,
 # 42.7 GiB RAM and 23.8 GiB VRAM resident, structured tool calls, prompt reuse to 128k tokens. Not yet benchmarked.
-# Sources (read 2026-10-02): https://github.com/Niko1221/Strata at v0.1.36 (README, setup.py, serve/server.py);
+# Sources (read 2026-10-05): https://github.com/Niko1221/Strata at v0.1.39 (README, setup.py, serve/server.py);
 #   https://huggingface.co/ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF at ed59f920 (file list, hashes).
 
 # ---- identity -------------------------------------------------------------
@@ -35,9 +35,16 @@ MIN_DEVICE_MEM_MIB=23000
 STRATA_MIN_RAM_MIB=50000
 
 # ---- backend --------------------------------------------------------------
-# v0.1.36, pinned by the commit its tag points at (a tag can be moved; a commit can't).
-STRATA_VERSION="0.1.36"
-STRATA_COMMIT="36fa455e579b23a9c909c2c6fe1bddd9e51cb8ca"
+# v0.1.39, pinned by the commit its tag points at (a tag can be moved; a commit can't). Moved up from 0.1.36 on
+# 5 Oct 2026, before the first run, so nothing recorded straddles the change. What the three releases since 0.1.36
+# bring here: --vram-reserve-mib documented (0.1.37, the flag below), a silent-engine watchdog that ends a request
+# after engine_silence_s (300 by default, longer while a long prompt is read; our own guard interrupts a silent tool
+# call at 600), faster prompts and a tensor-core path for --kv q4_0 (0.1.38), and decode about 6% faster with a fix
+# for prompts under a RAM budget that 0.1.38 had made 15-40% slower (0.1.39).
+# 0.1.38 also hardened the server: without an api_key it answers only requests addressed to a name it knows and
+# refuses cross-site ones. The launcher binds 127.0.0.1 and pi sends no Origin, so this is checked, not assumed.
+STRATA_VERSION="0.1.39"
+STRATA_COMMIT="6f32ec070f23ced9f50e704d854d775da52591ab"
 STRATA_REPO_URL="https://github.com/Niko1221/Strata.git"
 # The size and the context the benchmark runs: the owner chose IQ3_XXS (IQ3_S needs 62 GB of RAM with little else
 # running, and a story also runs the agent, browsers and test servers on the same machine); 131072 is the benchmark's

@@ -24,7 +24,9 @@ assert_ok "opts out of automatic selection"          grep -qE '^AUTO_SELECT=0$' 
 assert_ok "backend is strata"                        grep -qE '^BACKEND="strata"' "$CFG"
 assert_ok "the client is pi"                         grep -qE '^CLIENT="\$\{CLIENT:-pi\}"' "$CFG"
 assert_ok "Strata pinned to a full commit"           grep -qE '^STRATA_COMMIT="[0-9a-f]{40}"' "$CFG"
-assert_ok "...which is the v0.1.36 release"          grep -qE '^STRATA_VERSION="0\.1\.36"' "$CFG"
+# A release version beside the commit, in shape only: a hard-coded number goes stale the first time the pin moves,
+# as it did on 5 Oct 2026 (0.1.36 to 0.1.39). What matters is that both pins are there and well formed.
+assert_ok "...and a release version beside it"       grep -qE '^STRATA_VERSION="[0-9]+\.[0-9]+\.[0-9]+"' "$CFG"
 assert_ok "weights pinned to a full commit"          grep -qE '^MODEL_REVISION="[0-9a-f]{40}"' "$CFG"
 assert_ok "the quantization is IQ3_XXS, the owner's choice" grep -qE '^STRATA_QUANT="IQ3_XXS"' "$CFG"
 assert_eq "a hash for both GGUF files" 2 "$(bash -c ". '$CFG'; printf '%s\n' \"\$MODEL_SHA256\" | grep -cE '^[0-9a-f]{64}  '")"
