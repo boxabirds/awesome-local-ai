@@ -2,10 +2,37 @@
 // what the operator or the harness's watchdog did to it by hand (interventions.md); and when each dbench job ended.
 // Each parser by the shapes its input takes in the records: present, absent, every real line format, and malformed.
 import { describe, expect, it } from "vitest";
-import { buildFullRows, buildRows, jobEndedAt, jobsByRun, parseInterventions, parseInvalid, type DbenchJob, type RunRecord } from "./domain.ts";
+import { buildFullRows, buildRows, jobEndedAt, jobsByRun, parseExpertCache, parseInterventions, parseInvalid, type DbenchJob, type RunRecord } from "./domain.ts";
 
 const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
 const at = (iso: string) => Date.parse(iso) / 1000;
+
+// ---------------------------------------------------------------------------------------------------------------
+// Strata sizes its hot-expert cache to the VRAM that is free, so the size is a fact of the run, not a setting: two
+// runs of one combination can differ, and the slower one is slower for a reason the reader can see (A-045).
+describe("run.json's engine_settings.expert_cache", () => {
+  const entry = (value: unknown, source = "engine startup") => ({ value, source, evidence: "server log: …" });
+  it("the size the engine settled on, with what was asked for", () => {
+    expect(parseExpertCache({ expert_cache: entry({ requested: "auto", experts: 9094, vram_gib: 14.73 }) }))
+      .toEqual({ requested: "auto", experts: 9094, vramGib: 14.73 });
+  });
+  it("an engine with no such setting, or a record from before it was kept: nothing to show", () => {
+    expect(parseExpertCache({})).toBeNull();
+    expect(parseExpertCache(undefined)).toBeNull();
+    expect(parseExpertCache(null)).toBeNull();
+  });
+  it("unknown (no server log for that start): nothing to show, never a guess", () => {
+    expect(parseExpertCache({ expert_cache: { value: "unknown", source: "unknown", evidence: "why" } })).toBeNull();
+  });
+  it("a size that isn't a number is not shown", () => {
+    expect(parseExpertCache({ expert_cache: entry({ requested: "auto", experts: "many", vram_gib: 14.73 }) })).toBeNull();
+    expect(parseExpertCache({ expert_cache: entry({ requested: "auto", experts: 9094, vram_gib: null }) })).toBeNull();
+  });
+  it("what was asked for is kept as written, and is empty rather than guessed when absent", () => {
+    expect(parseExpertCache({ expert_cache: entry({ requested: "8000", experts: 4849, vram_gib: 7.87 }) })!.requested).toBe("8000");
+    expect(parseExpertCache({ expert_cache: entry({ experts: 4849, vram_gib: 7.87 }) })!.requested).toBe("");
+  });
+});
 
 // ---------------------------------------------------------------------------------------------------------------
 describe("run.json's invalid", () => {

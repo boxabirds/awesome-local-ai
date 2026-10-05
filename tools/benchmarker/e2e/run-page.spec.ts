@@ -53,6 +53,22 @@ test.describe("header: identity", () => {
     await expect(h.locator('[data-fact="suite"]')).toHaveText("vidi-v2.0-pre1");
   });
 
+  // Strata sizes its hot-expert cache to the VRAM that is free, so the size is a fact of the run: two runs of one
+  // combination can differ, and one with a smaller cache decodes more slowly (A-045).
+  test("the expert cache the engine settled on, where the record has one", async ({ page }) => {
+    await patchState(page, (s) => Object.assign(rowOf(s, SWIFT, "v2-r5"),
+      { expertCache: { requested: "auto", experts: 9094, vramGib: 14.73 } }));
+    await open(page, SWIFT, "v2-r5");
+    const fact = section(page, "header").locator('[data-fact="expertCache"]');
+    await expect(fact).toHaveText("14.73 GiB · 9094 experts");
+    await expect(fact.locator("[data-tip]")).toHaveAttribute("data-tip", /asked for auto/);
+  });
+
+  test("no expert cache recorded: the fact is not shown at all, and nothing is guessed", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5");
+    await expect(section(page, "header").locator('[data-fact="expertCache"]')).toHaveCount(0);
+  });
+
   test("an older pack version is shown as it is", async ({ page }) => {
     await open(page, GUFO, "canvas-gufo-r3");
     await expect(section(page, "header").locator('[data-fact="packVersion"]')).toHaveText("vidi-v1.1");

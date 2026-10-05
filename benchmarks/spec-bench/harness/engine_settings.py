@@ -12,6 +12,8 @@ Every setting is {"value", "source", "evidence"}. source is one of SOURCES:
   model file name  read from the model file's name (quantisation)
   model config     read from a file the engine loads (mlx-serve's generation_config.json; Strata's run configuration)
   client           the client sends it with every request
+  engine startup   the engine printed it as it loaded (evidence: the line); for what a setting resolved to at run
+                   time, such as the size an "auto" cache actually took
   not set          nothing on the command line sets it; value is "not set", evidence says what applies then
   unknown          it can't be determined; value is "unknown", evidence says why
 A value is never inferred from an engine's undocumented defaults: "not set" says only that nothing set it.
@@ -31,12 +33,21 @@ SRC_COMMAND = "command line"
 SRC_MODEL_NAME = "model file name"
 SRC_MODEL_CONFIG = "model config"
 SRC_CLIENT = "client"
+SRC_ENGINE_START = "engine startup"
 SRC_NOT_SET = "not set"
 SRC_UNKNOWN = "unknown"
-SOURCES = (SRC_COMMAND, SRC_MODEL_NAME, SRC_MODEL_CONFIG, SRC_CLIENT, SRC_NOT_SET, SRC_UNKNOWN)
+SOURCES = (SRC_COMMAND, SRC_MODEL_NAME, SRC_MODEL_CONFIG, SRC_CLIENT, SRC_ENGINE_START, SRC_NOT_SET, SRC_UNKNOWN)
+
+# Strata prints the hot-expert cache it settled on as it loads:
+#   [strata] filling the GPU's expert cache (9094 experts, 14.73 GiB of VRAM) ...
+# With "--expert-cache auto" that size is chosen from the VRAM that is free, so it is a fact of the run, not a
+# setting, and two runs of one combination can differ (A-045).
+STRATA_CACHE_RE = re.compile(r"filling the GPU's expert cache \((\d+) experts, ([\d.]+) GiB of VRAM\)")
 
 SETTING_KEYS = ("thinking_mode", "thinking_budget", "context_size", "kv_cache_type", "speculative",
                 "temperature", "top_p", "top_k", "min_p", "quantisation")
+# Recorded only for the engines that have them; see engine_settings().
+ENGINE_ONLY_KEYS = ("expert_cache",)
 THINKING_OFF = "thinking off"
 REQUESTED_DEFAULT = "default"   # the launchers' word for "leave the template's own effort"
 
@@ -273,7 +284,22 @@ def _strata_arg(args: list[str], flag: str) -> str | None:
     return flag_value(args, (flag,))
 
 
-def parse_strata(config: dict | None, shared: dict | None) -> dict:
+def _strata_expert_cache(args: list[str], startup: str | None) -> dict:
+    """The expert cache the engine settled on, from what it printed as it loaded, with what was asked for beside it.
+    Never guessed: without the line the value is unknown and says why."""
+    asked = _strata_arg(args, "--expert-cache")
+    if not startup:
+        return _unknown("Strata's server log for this start wasn't available, and the size it settled on is only in "
+                        "what it printed as it loaded")
+    m = STRATA_CACHE_RE.search(startup)
+    if not m:
+        return _unknown("Strata's server log has no expert cache line for this start, so the size it settled on "
+                        "can't be told")
+    value = {"requested": asked or NOT_SET, "experts": int(m.group(1)), "vram_gib": float(m.group(2))}
+    return _set(value, SRC_ENGINE_START, f"server log: {m.group(0)}")
+
+
+def parse_strata(config: dict | None, shared: dict | None, startup: str | None = None) -> dict:
     """Strata's server (`python serve/server.py --engine strata --config strata-run.json`) takes its settings from that
     JSON, not from flags: the engine's own flags are its "args", sampling is its "sampling" block, and the server-side
     reasoning effort is in the shared-settings file beside it. A configuration that could not be read leaves every
@@ -314,6 +340,7 @@ def parse_strata(config: dict | None, shared: dict | None) -> dict:
         s["speculative"] = _not_set("no --mtp or --spec in Strata's engine arguments: no speculative decoding")
     native = _strata_arg(args, "--native")
     s["quantisation"] = _quant(native, "--native")
+    s["expert_cache"] = _strata_expert_cache(args, startup)
     effort = (shared or {}).get("reasoning_effort") if isinstance(shared, dict) else None
     s["engine_effort"] = (_set(effort, SRC_MODEL_CONFIG, f"shared settings reasoning_effort={effort}") if effort
                           else _not_set("no reasoning_effort in Strata's shared settings: it passes none to the chat template"))
@@ -452,7 +479,7 @@ def _all_unknown(why: str) -> dict:
 def engine_settings(backend: str | None, argv: list[str] | None, version: str | None, *, requested_effort: str,
                     client: str, client_thinking: str | None, context_limit: int | None,
                     generation_config: dict | None = None, model_dir: str | None = None,
-                    extra_config: dict | None = None) -> dict:
+                    extra_config: dict | None = None, startup: str | None = None) -> dict:
     name = ENGINES.get(backend or "", (backend or "unknown", None))[0]
     if backend in CLOUD_BACKENDS:
         parsed = _all_unknown(f"cloud backend {backend}: no local engine, and the provider's settings aren't observable")
@@ -466,11 +493,16 @@ def engine_settings(backend: str | None, argv: list[str] | None, version: str | 
     elif backend == "mlxserve":
         parsed = parse_mlxserve(argv, generation_config, model_dir)
     elif backend == "strata":
-        parsed = parse_strata(generation_config, extra_config)
+        parsed = parse_strata(generation_config, extra_config, startup)
     else:
         parsed = ENGINES[backend][1](argv)
     s = {"engine": backend if backend in CLOUD_BACKENDS else name, "engine_version": version,
          **{k: parsed[k] for k in SETTING_KEYS}}
+    # Settings only one engine has. They are left out where they would mean nothing rather than recorded as "not set"
+    # everywhere: expert_cache belongs to an engine that keeps experts outside VRAM.
+    for k in ENGINE_ONLY_KEYS:
+        if k in parsed:
+            s[k] = parsed[k]
     s["reasoning_effort"] = resolve_effort(requested_effort, parsed["engine_effort"],
                                            client_effort(client, client_thinking), parsed["thinking_mode"],
                                            parsed["effort_note"])
@@ -534,9 +566,15 @@ def main() -> int:
     ap.add_argument("--client", default="pi")
     ap.add_argument("--client-thinking", default="")
     ap.add_argument("--context-limit", type=int, default=0)
+    ap.add_argument("--startup-log", default="",
+                    help="the server's own log for this start; the engine's load-time facts are read from it")
     a = ap.parse_args()
     try:
         ident = json.loads(sys.stdin.read() or "null") or {}
+        try:
+            startup = Path(_expand(a.startup_log)).read_text(errors="replace") if a.startup_log else None
+        except OSError:
+            startup = None   # the record says the size is unknown, and why
         argv = ident.get("server_command")
         gen, real = _mlx_files(argv) if ident.get("backend") == "mlxserve" and argv else (None, None)
         extra = None
@@ -545,7 +583,7 @@ def main() -> int:
         rec = engine_settings(ident.get("backend"), argv, ident.get("engine_version"),
                               requested_effort=a.requested_effort, client=a.client, client_thinking=a.client_thinking,
                               context_limit=a.context_limit or None, generation_config=gen, model_dir=real,
-                              extra_config=extra)
+                              extra_config=extra, startup=startup)
     except Exception as e:  # never stop a run over its record
         rec = {"error": f"{type(e).__name__}: {e}"}
     print(json.dumps(rec))

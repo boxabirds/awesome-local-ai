@@ -52,8 +52,12 @@ describe("a run's notes: its client and invalid mark (run.json), and interventio
     expect(n.interventions).toEqual([{ at: Date.parse("2026-09-26T08:57:29Z") / 1000, story: "3", text: "node-c froze" }]);
   });
   it("neither: a valid run with no interventions", () => {
-    expect(runNotes(new Map([[RUN, meta({})]]), DIR)).toEqual({ client: "", invalid: null, sandbox: null, interventions: [] });
-    expect(runNotes(new Map(), DIR)).toEqual({ client: "", invalid: null, sandbox: null, interventions: [] });
+    expect(runNotes(new Map([[RUN, meta({})]]), DIR)).toEqual({ client: "", invalid: null, sandbox: null, expertCache: null, interventions: [] });
+    expect(runNotes(new Map(), DIR)).toEqual({ client: "", invalid: null, sandbox: null, expertCache: null, interventions: [] });
+  });
+  it("the hot-expert cache the engine settled on, where its settings record one", () => {
+    const settings = { engine_settings: { expert_cache: { value: { requested: "auto", experts: 9094, vram_gib: 14.73 }, source: "engine startup", evidence: "server log: …" } } };
+    expect(runNotes(new Map([[RUN, meta(settings)]]), DIR).expertCache).toEqual({ requested: "auto", experts: 9094, vramGib: 14.73 });
   });
   it("the client that ran it, as run.json names it (Claude Code runs have no time accounting yet)", () => {
     expect(runNotes(new Map([[RUN, meta({ client: "claude" })]]), DIR).client).toBe("claude");

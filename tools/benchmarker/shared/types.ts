@@ -216,11 +216,23 @@ export interface Row {
    * part of the scope. Diagnostic — never counted in a ranking or a spread with full runs (EVALUATION-POLICY
    * rule 7), whatever its own score says. */
   knownGood: boolean;
+  /** The hot-expert cache the engine settled on (run.json's engine_settings.expert_cache), where it records one.
+   * Strata sizes it to the VRAM that is free, so it is a fact of the run, not a setting: two runs of one combination
+   * can differ, and one with a smaller cache decodes more slowly. Null or absent: nothing to show. */
+  expertCache?: ExpertCache | null;
   live: Live | null;
   /** Every execution of this run, oldest first. */
   jobs: JobRef[];
   /** interventions.md, oldest first; [] when it has none. */
   interventions: Intervention[];
+}
+
+/** What `expertCache` holds; server/domain.ts parses it from the record. */
+export interface ExpertCache {
+  /** What --expert-cache asked for ("auto", or a size); "" where the record doesn't say. */
+  requested: string;
+  experts: number;
+  vramGib: number;
 }
 
 /** One machine: the job it runs now (null: none shown), whether it is busy with a job the page doesn't show, and

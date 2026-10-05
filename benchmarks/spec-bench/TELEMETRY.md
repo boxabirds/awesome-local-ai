@@ -108,9 +108,17 @@ backend, a cloud one, or a command line that isn't the engine's own process gets
 `draft_max`, `p_min`, `draft_quantisation`, `depth`), `temperature`, `top_p`, `top_k`, `min_p`,
 `quantisation` (from the model file's name). Each entry is `{value, source, evidence}`; `source` is one
 of `command line`, `model file name`, `model config` (a file the engine loads: mlx-serve's served `generation_config.json`, Strata's run configuration and its shared-settings file, where its settings are and not on a command line),
-`client`, `not set` (nothing sets it; the value is `not set` and the evidence says what applies then),
-or `unknown` (the value is `unknown` and the evidence says why). No value is inferred from an engine's
-defaults.
+`client`, `engine startup` (the engine printed it as it loaded; for what a setting resolved to at run time,
+such as the size an `auto` cache actually took), `not set` (nothing sets it; the value is `not set` and the
+evidence says what applies then), or `unknown` (the value is `unknown` and the evidence says why). No value
+is inferred from an engine's defaults.
+
+A field only one engine has is recorded only for that engine, rather than as `not set` everywhere.
+`expert_cache` (Strata only) is the hot-expert cache the engine settled on, read from its server log:
+`requested` (what `--expert-cache` asked for, usually `auto`), `experts` (how many it held) and `vram_gib`
+(how much VRAM they took). With `auto` the size is chosen from the VRAM that is free, so it is a fact of
+the run and not a setting: two runs of one combination can differ, and a run with a smaller cache decodes
+more slowly. Without the server log for that start it is `unknown`, never a guess.
 
 `reasoning_effort` separates what was asked from what was applied: `requested` (what the harness passed
 to the launcher, the old top-level `reasoning_effort`), `engine` (the effort on the engine's command line),

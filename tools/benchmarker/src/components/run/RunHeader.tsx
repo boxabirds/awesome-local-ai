@@ -1,6 +1,6 @@
 // Who the run is and how it came out: identity, status, the score of record (or why there is none), agent time,
 // and the ways out to judging and the record.
-import type { Row, State } from "../../../shared/types.ts";
+import type { ExpertCache, Row, State } from "../../../shared/types.ts";
 import { agentTime, interventionsOf, leadScore, PENDING, scoreOfRecord, statusView } from "../../../shared/runView.ts";
 import { InterventionMark, interventionHref } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
@@ -76,6 +76,11 @@ function AgentTimeStat({ run }: { run: Row }) {
   );
 }
 
+/** What the figure is and what was asked for, so a reader can tell a cache that sized itself from one that was set. */
+const expertCacheTip = (c: ExpertCache) =>
+  `The hot-expert cache this run's engine settled on: ${c.vramGib} GiB of VRAM holding ${c.experts} experts.` +
+  (c.requested ? ` It asked for ${c.requested}${c.requested === "auto" ? ", so the size came from the VRAM that was free" : ""}.` : "");
+
 export function RunHeader({ run, state }: { run: Row; state: State }) {
   return (
     <div className="rp-header" data-section="header">
@@ -87,6 +92,15 @@ export function RunHeader({ run, state }: { run: Row; state: State }) {
         <div><dt><Term id="packVersion" /></dt><dd data-fact="packVersion" className="mono">{run.packVersion || <Missing why="The record doesn't name its pack version (a run with no record yet)." />}</dd></div>
         <div><dt><Term id="suite" /></dt><dd data-fact="suite" className="mono">{run.suite}</dd></div>
         <div><dt><Term id="runStatus" /></dt><dd data-fact="status"><StatusBadge run={run} /> <InterventionMark list={interventionsOf(run)} to={interventionHref(run)} /></dd></div>
+        {/* Only where the record has one: an engine that keeps its experts outside VRAM. Not a setting but a fact of
+            the run, so it is shown beside the others and left out entirely where there is nothing to show. */}
+        {run.expertCache ? (
+          <div><dt><Term id="expertCache" /></dt>
+            <dd data-fact="expertCache">
+              <span data-tip={expertCacheTip(run.expertCache)}>{run.expertCache.vramGib} GiB · {run.expertCache.experts} experts</span>
+            </dd>
+          </div>
+        ) : null}
       </dl>
       <div className="outcome">
         <AgentTimeStat run={run} />

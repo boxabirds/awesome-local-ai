@@ -267,9 +267,11 @@ IDENTITY_JSON="$(python3 "$HARNESS/identity.py" --env-file "$ENV_FILE" --port "$
 [[ -n "$IDENTITY_JSON" ]] || IDENTITY_JSON=null
 # The settings the engine actually applies (effort, thinking, budget, context, KV, draft, sampling, quantisation),
 # read from that command line against what this run asked for: engine_settings.py. Unknowns say why.
+# --startup-log: the server's own output for this start, where an engine prints what it settled on as it loaded
+# (Strata's expert cache sizes itself to the free VRAM, so only the log says what this run had).
 ENGINE_SETTINGS_JSON="$(printf '%s' "$IDENTITY_JSON" | python3 "$HARNESS/engine_settings.py" \
   --requested-effort "$EFFORT_RECORDED" --client "$CLIENT_NAME" --client-thinking "${CLIENT_THINKING:-}" \
-  --context-limit "$CONTEXT_LIMIT" 2>/dev/null)" || ENGINE_SETTINGS_JSON=""
+  --context-limit "$CONTEXT_LIMIT" --startup-log "$RUN_DIR/server.log" 2>/dev/null)" || ENGINE_SETTINGS_JSON=""
 [[ -n "$ENGINE_SETTINGS_JSON" ]] || ENGINE_SETTINGS_JSON=null
 [[ -f "$RUN_DIR/run.json" ]] && { tr -d '\n' < "$RUN_DIR/run.json"; echo; } >> "$RUN_DIR/run-history.jsonl"
 cat > "$RUN_DIR/run.json" <<JSON

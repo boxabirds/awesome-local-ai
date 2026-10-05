@@ -152,6 +152,7 @@ export const GLOSSARY = {
   // The overview and the machine pages.
   machineSilent: { name: "no activity", what: `Nothing has been reported on this running story for ${SILENT_MINUTES} minutes or more. Progress is reported once a minute while the agent works, however slowly.` },
   machineUnreachable: { name: "unreachable", what: "The machine didn't answer the last request." },
+  expertCache: { name: "Expert cache", what: "The hot experts this run's engine held in VRAM, and how much VRAM they took. An engine that keeps its experts in RAM copies the busiest ones to the card; where it sizes that cache to the VRAM that happens to be free, two runs of one combination can differ, and the one with less decodes more slowly." },
   machineIdle: { name: "idle", what: "The machine answers, but nothing runs on it and nothing is queued." },
   referenceMachine: { name: "runs the reference only", what: "Every run on this machine is a reference run: a cloud model answering the same stories, as the yardstick the stacks are read against. It has a card of its own only while it is working." },
   now: { name: "Now", what: "What each machine is doing: the run and story it is on, with the agent minutes on that story as last reported, or idle; and how many jobs wait in its queue." },
