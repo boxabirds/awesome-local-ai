@@ -1,3 +1,57 @@
+commit fab464373d4371c52e788c20bf66ebc1b1f81d19
+agent  Mon Oct 5 11:12:14 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                   | 138 +++++++
+ PROGRESS.md                                |  14 +-
+ README.md                                  |   4 +-
+ src/client/App.tsx                         | 137 ++++++-
+ src/client/board/Toolbar.tsx               |  52 +++
+ src/client/board/useBoardDoc.ts            |  15 +-
+ src/client/canvas/BoardViewport.tsx        |  63 +++-
+ src/client/canvas/testHooks.ts             |  32 +-
+ src/client/canvas/useCamera.ts             |   4 +
+ src/client/objects/NoteToolbar.tsx         |  88 +++++
+ src/client/objects/StickyNote.tsx          | 337 +++++++++++++++++
+ src/client/objects/StickyText.ts           | 120 ++++--
+ src/client/objects/StickyTextEditor.tsx    | 166 +++++++++
+ src/client/styles.css                      | 222 ++++++++++++
+ src/shared/config.ts                       |  19 +
+ tests/component/StickyNote.test.tsx        | 488 +++++++++++++++++++++++++
+ tests/component/StickyTextEditing.test.tsx | 222 ++++++++++++
+ tests/component/harness.tsx                | 154 +++++++-
+ tests/e2e/helpers/board.ts                 | 118 +++++-
+ tests/e2e/sticky-notes.spec.ts             | 565 +++++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts             |  34 +-
+ 21 files changed, 2918 insertions(+), 74 deletions(-)
+commit 70393ff9a625e121e9551bf2b7ca2f4f19de3c6a
+agent  Mon Oct 5 10:05:19 2026 +0000
+
+    story 2 tasks 1-3: Yjs board model, snapshot hook, sticky text tests (failing)
+
+
+ PROGRESS.md                      |   4 +-
+ package-lock.json                |  48 +++-
+ package.json                     |   3 +-
+ src/client/board/useBoardDoc.ts  |  76 +++++++
+ src/client/board/useSelection.ts |  50 +++++
+ src/client/objects/StickyText.ts |  56 +++++
+ src/shared/board-model.ts        | 235 +++++++++++++++++++
+ src/shared/config.ts             |  44 ++++
+ tests/fixtures/texts.ts          |  37 +++
+ tests/unit/board-model.test.ts   | 471 +++++++++++++++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts   | 245 ++++++++++++++++++++
+ 11 files changed, 1265 insertions(+), 4 deletions(-)
+commit 5bc79bb9f6c259321bf415cdae015d3b2396bd01
+vidi-agent  Mon Oct 5 09:48:40 2026 +0000
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
 commit 2e875cc98c10f297f523d8a687308558bc7490d8
 agent  Mon Oct 5 09:47:41 2026 +0000
 
