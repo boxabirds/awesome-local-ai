@@ -95,6 +95,91 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 /** The colour of a newly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+/* ------------------------------------------------------- free text (story 9) -- */
+
+/**
+ * The four text sizes, in *world* units, keyed by the name a person picks.
+ *
+ * They are board units rather than screen pixels for the same reason a sticky note's font is: text is
+ * part of the board, so it scales with zoom instead of being re-laid-out at every zoom level. The size
+ * is stored as the *key* (`'M'`), never as the number, so a board still reads the same if these numbers
+ * are ever retuned.
+ */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** The size a piece of text is born with, and the one a stored but unknown size key falls back to. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Whether a name is one of the four sizes the board offers. */
+export function isTextSize(value: unknown): value is TextSize {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, value);
+}
+
+/** Longest text the board accepts; characters beyond it are dropped as they are typed or pasted. */
+export const TEXT_MAX_CHARS = 5000;
+
+/** How close to `TEXT_MAX_CHARS` the counter starts saying the number out loud. */
+export const TEXT_COUNTER_THRESHOLD_CHARS = 50;
+
+/**
+ * How wide a line of text may get before it wraps, in world units.
+ *
+ * This is a limit on the *words*, not on the box: the box a person sees is this plus the padding on both
+ * sides (`MAX_TEXT_BOX_WIDTH_WORLD`), and a line that measures exactly this is a line that fits — one line,
+ * not an overflow. Keeping the two numbers apart is what lets the DOM wrap where the model says it should:
+ * the element is the width of the box, its padding takes off the same amount the model took off, and the
+ * words are left with exactly this much room.
+ */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/**
+ * Narrowest text object the board accepts, in world units. It is the width of the widest word that will
+ * ever be typed with the sizes above ("uncharacteristically" at S is about 30 units), so a drag that
+ * hits this limit is stopping the box, not the word — a word that does not fit is still drawn, on a line
+ * of its own.
+ */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/**
+ * Extra room a text box gives its text on each side, in world units: text pressed against the edge of its
+ * own box reads as though it were cut off, and a caret with the selection frame on top of it is hard to
+ * look at.
+ *
+ * It is per side, and it is inside the box rather than outside it — the box is `border-box`, so a stored
+ * width of W lays its words out in `W - 2 x TEXT_PADDING_WORLD`. That is the same arithmetic the element
+ * does, which is the only reason the two agree about where a line ends.
+ */
+export const TEXT_PADDING_WORLD = 8;
+
+/** The widest a text box in auto mode is drawn: the widest a line may be, plus the padding either side. */
+export const MAX_TEXT_BOX_WIDTH_WORLD = TEXT_MAX_AUTO_WIDTH_WORLD + TEXT_PADDING_WORLD * 2;
+
+/**
+ * The narrowest room words may be laid out in, in world units: the narrowest box the board accepts with its
+ * padding taken off. A word longer than this is still drawn, on a line of its own.
+ */
+export const MIN_TEXT_CONTENT_WIDTH_WORLD = TEXT_MIN_WIDTH_WORLD - TEXT_PADDING_WORLD * 2;
+
+/** Line height as a multiple of the font size, so a box tall enough for n lines is n times this. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/**
+ * The font text is measured in and drawn in. The same string is handed to the canvas measurer and to the
+ * element, which is what makes a measured box and a drawn box agree; there is no webfont, so in practice
+ * this resolves to the system UI font on every client.
+ */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/**
+ * Average glyph width as a fraction of the font size, used only where there is no canvas to measure
+ * with (a server, a test environment without one). It is a guess about Latin text and nothing else, and
+ * it is a guess that is only ever used to keep a box from being zero-sized — never to decide where a
+ * word wraps on somebody's screen.
+ */
+export const TEXT_ESTIMATED_GLYPH_RATIO = 0.5;
+
 /* ------------------------------------------------------------------- live -- */
 
 /**

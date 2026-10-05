@@ -34,6 +34,7 @@ import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from '../canvas/cam
 import type { Point } from '../canvas/camera';
 import { useCamera, useViewportSize } from '../canvas/useCamera';
 import { createSticky, deleteObjects, NO_ID } from '../../shared/board-model';
+import { createText } from '../../shared/objects/text';
 import { isValidBoardId } from '../../shared/board-id';
 import { useBoardDoc } from '../board/useBoardDoc';
 import type { BoardConnector } from '../board/useBoardDoc';
@@ -45,6 +46,7 @@ import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { useSelection } from '../board/useSelection';
+import { useTool } from '../board/useTool';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -291,30 +293,18 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
   /** The end of a step, which is what a gesture and a group operation both have to say. */
   const boundary = undo.boundary;
 
-  /** The drag: what a press on an object, or on a handle, does to the board. */
-  const gesture = useTransformGesture({
-    doc,
-    camera,
-    selection,
-    snapshot: notes,
-    canEdit: editable,
-    // One drag, one step. The frames in between are written to the document one after another and have to
-    // be had back together, and the only thing that says "these frames are one action" is a boundary at
-    // each end: the one at the start keeps a colour clicked just now out of the drag, the one at the end
-    // keeps the drag out of whatever is done next. A drag that ends in a cancel still says it, because a
-    // drag that moved six notes two thirds of the way is six notes in a new place, and that is a thing a
-    // person wants back.
-    onGestureStart: boundary,
-    onGestureEnd: boundary,
-  });
-
-  /** The rectangle: a drag across empty board space, which adds to the selection when it lets go. */
-  const marquee = useMarquee(camera, notes, (ids) => {
-    selection.setMany(ids, true);
-  });
-
-  /** The keyboard: select all, deselect, nudge, delete, edit, undo, redo. */
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo });
+  /**
+   * The pointer's tool: Select, or Text.
+   *
+   * Taken apart here rather than carried as one object, because the three functions in it are stable and
+   * the object around them is not — a callback that depends on `tool` would be remade every render, and
+   * every board gesture handler that depends on it would be remade with it, for no reason at all.
+   *
+   * This hook is called *before* `useBoardKeys` below, and that order is the whole of how Escape means one
+   * thing rather than two while the text tool is armed: two listeners on the same window, and the one
+   * registered first is the one that gets to answer first.
+   */
+  const { tool, selectTool, textTool, usedTextTool } = useTool(editable);
 
   /** The bin on the selection bar: everything selected at once, and the selection let go afterwards. */
   const deleteSelection = useCallback((): void => {
@@ -356,18 +346,90 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
     [boundary, doc, editable, selection],
   );
 
-  /** The toolbar button adds a note in the middle of what is on screen. */
+  /**
+   * The toolbar button adds a note in the middle of what is on screen, and `N` does the same thing.
+   *
+   * Both go through here rather than the key having its own route to `createSticky`, because the middle of
+   * the screen is decided by the camera and the viewport, and a key that put a note somewhere else than the
+   * button does would be two commands wearing one name.
+   */
   const createStickyInCentre = useCallback((): void => {
     createStickyAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }));
   }, [camera, createStickyAt, viewport.height, viewport.width]);
 
+  /**
+   * Put a piece of text down with its top-left corner on a world point, and start typing into it.
+   *
+   * The tool steps aside *before* the text is made, not after. It is a small thing in a straight line of
+   * code and a large one on a slow connection: the arm is disarmed the moment the placement is decided, so
+   * there is no stretch of time in which a second click — a double click, a impatient third click — finds
+   * the tool still armed and puts another empty object down. The one thing the tool promises is that it
+   * places one thing and stops, and the order in this function is what makes that true.
+   *
+   * The new text is then selected as well as opened for typing, exactly as a note is: the object a person
+   * has just made is the object they are working on, and an outline is how a board says which one that is.
+   */
+  const createTextAt = useCallback(
+    (world: Point): void => {
+      if (!editable) return;
+      usedTextTool();
+      // One creation, one step: the same reason as for a note, and the same shape — a boundary at each end,
+      // so the text and the first words typed into it are not one undo.
+      boundary();
+      const textId = createText(doc, world, String(doc.clientID));
+      // A point that is not a point — a camera that has gone wrong somewhere — creates nothing, and leaves
+      // no selection behind it either.
+      if (textId !== null) {
+        selection.click(textId);
+        selection.startEdit(textId);
+      }
+      boundary();
+    },
+    [boundary, doc, editable, selection, usedTextTool],
+  );
+
+
+  /** The drag: what a press on an object, or on a handle, does to the board. */
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+    // One drag, one step. The frames in between are written to the document one after another and have to
+    // be had back together, and the only thing that says "these frames are one action" is a boundary at
+    // each end: the one at the start keeps a colour clicked just now out of the drag, the one at the end
+    // keeps the drag out of whatever is done next. A drag that ends in a cancel still says it, because a
+    // drag that moved six notes two thirds of the way is six notes in a new place, and that is a thing a
+    // person wants back.
+    onGestureStart: boundary,
+    onGestureEnd: boundary,
+  });
+
+  /** The rectangle: a drag across empty board space, which adds to the selection when it lets go. */
+  const marquee = useMarquee(camera, notes, (ids) => {
+    selection.setMany(ids, true);
+  });
+
+  /** The keyboard: select all, deselect, nudge, delete, edit, undo, redo, and a new note. */
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo, onCreateSticky: createStickyInCentre });
+
   return (
     <div className="board-app" data-testid="board-root" ref={rootRef}>
-      <Toolbar onCreateSticky={createStickyInCentre} disabled={!editable} undo={undoButtons} />
+      <Toolbar
+        onCreateSticky={createStickyInCentre}
+        tool={tool}
+        onSelectTool={selectTool}
+        onTextTool={textTool}
+        disabled={!editable}
+        undo={undoButtons}
+      />
       <BoardViewport
         onCreateAt={createStickyAt}
         onClearSelection={selection.clear}
         marqueeActive={marquee.active}
+        textTool={tool === 'text'}
+        onCreateTextAt={createTextAt}
         onMarqueeBegin={(event) => {
           marquee.begin({ x: event.clientX, y: event.clientY }, event.pointerId);
         }}

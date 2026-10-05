@@ -146,8 +146,10 @@ describe('toolbars', () => {
     renderBoard();
     const button = screen.getByTestId('create-sticky');
 
-    expect(button.getAttribute('aria-label')).toBe('Sticky note');
-    expect(button.getAttribute('title')).toBe('Sticky note — or double-click the board');
+    // Story 9 puts the key in the name: a control whose accessible name is the thing to type for it is a
+    // control a person can find from the keyboard without reading the tooltip first.
+    expect(button.getAttribute('aria-label')).toBe('Sticky note (N)');
+    expect(button.getAttribute('title')).toBe('Sticky note (N) — or double-click the board');
     // The button lives in a toolbar, so a screen reader says which group it is in.
     expect(button.closest('[role="toolbar"]')?.getAttribute('aria-label')).toBe('Board tools');
   });

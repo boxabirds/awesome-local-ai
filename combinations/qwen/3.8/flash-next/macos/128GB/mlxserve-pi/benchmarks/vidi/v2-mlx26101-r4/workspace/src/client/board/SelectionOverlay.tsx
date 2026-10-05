@@ -20,7 +20,7 @@ import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { HANDLE_SIZE_PX } from '../../shared/config';
 import type { Handle, Point, Rect } from '../../shared/geometry';
-import { HANDLES, HANDLE_LABELS, unionRects } from '../../shared/geometry';
+import { HANDLE_LABELS, unionRects } from '../../shared/geometry';
 import { worldToScreen, screenToWorld } from '../canvas/camera';
 import type { Camera } from '../canvas/camera';
 import { describeSelection, hitTestObject } from '../objects/registry';
@@ -105,7 +105,12 @@ export function SelectionOverlay({
   // A selection that includes one object of a type that cannot be resized shows no handles at all:
   // half a resize control, which is what hiding them on one object of a group would amount to, offers
   // an action that cannot be carried out.
-  const { resizable } = describeSelection(selected);
+  //
+  // When there are handles to show, *which* ones are shown is asked of the types, not assumed. A single
+  // piece of text has two, because the only thing about its box that a pointer can decide is how wide it
+  // is; a group that contains that text has two as well, because a handle that did something to one object
+  // in the group and nothing to another would be a control that lies about what it will do.
+  const { resizable, handles } = describeSelection(selected);
 
   return (
     <div className="selection-overlay" data-testid="selection-overlay" aria-hidden="false">
@@ -123,7 +128,7 @@ export function SelectionOverlay({
       })}
       <div className="selection-bounds" data-testid="selection-bounds" style={styleOf(screenBox(bounds, camera))} />
       {resizable
-        ? HANDLES.map((handle) => {
+        ? handles.map((handle) => {
             const point = worldToScreen(camera, handlePoint(bounds, handle));
             const half = HANDLE_SIZE_PX / 2;
             // A handle is 8 pixels of the board, and whatever is drawn under it is a thing a person can

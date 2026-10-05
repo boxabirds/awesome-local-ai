@@ -8,70 +8,50 @@
  * unit-testable without a board, and that the same rules can later be reused
  * server-side by story 4 when it validates a document.
  */
-import type * as Y from 'yjs';
-
-import { STICKY_COUNTER_THRESHOLD_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX, STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import {
+  STICKY_COUNTER_THRESHOLD_CHARS,
+  STICKY_FONT_MAX_PX,
+  STICKY_FONT_MIN_PX,
+  STICKY_TEXT_MAX_CHARS,
+} from '../../shared/config';
+import {
+  applyTextDiff as applyTextDiffOf,
+  clampToLimit as clampToLength,
+  counterVisible as counterVisibleOf,
+} from '../../shared/text-edit';
 
 /**
- * Drop everything past the note's character limit. Typing or pasting that would
- * exceed the limit adds nothing beyond the 1,000th character; below the limit
- * the text is returned untouched (identity included, so callers can compare).
+ * The note's share of the two shared text rules.
+ *
+ * Both come from `shared/text-edit.ts` now that a sticky note is not the only thing on the board with
+ * text. `applyTextDiff` is the same function for every type, so it is handed on as it is. `clampToLimit`
+ * is handed on with the note's limit filled in, which is what lets every story 2 call site keep saying
+ * `clampToLimit(next)` and still mean a thousand characters: the limit is a property of the note, and the
+ * rule is a property of the board.
  */
+export const applyTextDiff: (ytext: Parameters<typeof applyTextDiffOf>[0], next: string, origin: unknown) => void =
+  applyTextDiffOf;
+
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (!Number.isFinite(max) || max < 0) return '';
-  return next.length > max ? next.slice(0, max) : next;
+  return clampToLength(next, max);
 }
 
 /**
  * The character counter appears only when the note is close to the limit —
  * `STICKY_COUNTER_THRESHOLD_CHARS` characters or fewer remaining — so a note
  * being written normally never shows it.
- */
-export function counterVisible(length: number): boolean {
-  if (!Number.isFinite(length)) return false;
-  return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;
-}
-
-/**
- * Write `next` into a `Y.Text` with the smallest change that gets there: a
- * common prefix and a common suffix are found and only the difference between
- * them is written, as one delete and/or one insert in one transaction.
  *
- * The minimal diff is not an optimisation: replacing the whole text would
- * discard what other people typed between the last keystroke and this one as
- * soon as the board is shared (story 3). Text with no document attached cannot
- * be written, so it is left alone.
+ * The rule itself is the board's (`shared/text-edit.ts`), since a piece of free text counts down to a
+ * different number the same way; what is the note's is the limit it counts towards and the distance at
+ * which it starts saying so, and those two are filled in here so that every story 2 call site still calls
+ * this with a length and nothing else.
  */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const doc = ytext.doc;
-  if (!doc) return;
-
-  const current = ytext.toString();
-  if (current === next) return;
-
-  const shorter = Math.min(current.length, next.length);
-  let start = 0;
-  while (start < shorter && current.charCodeAt(start) === next.charCodeAt(start)) start += 1;
-
-  let currentEnd = current.length;
-  let nextEnd = next.length;
-  while (
-    currentEnd > start &&
-    nextEnd > start &&
-    current.charCodeAt(currentEnd - 1) === next.charCodeAt(nextEnd - 1)
-  ) {
-    currentEnd -= 1;
-    nextEnd -= 1;
-  }
-
-  const deleteLength = currentEnd - start;
-  const insertText = next.slice(start, Math.max(start, nextEnd));
-  if (deleteLength === 0 && insertText === '') return;
-
-  doc.transact(() => {
-    if (deleteLength > 0) ytext.delete(start, deleteLength);
-    if (insertText !== '') ytext.insert(start, insertText);
-  }, origin);
+export function counterVisible(
+  length: number,
+  max: number = STICKY_TEXT_MAX_CHARS,
+  threshold: number = STICKY_COUNTER_THRESHOLD_CHARS,
+): boolean {
+  return counterVisibleOf(length, max, threshold);
 }
 
 /** A text area's cursor: where it is, and what it holds selected. */
@@ -145,33 +125,46 @@ export interface Fit {
 }
 
 /**
- * The largest integer font size in `[STICKY_FONT_MIN_PX, STICKY_FONT_MAX_PX]`
- * at which the element's content fits in `box` pixels of height, found by binary
- * search. Font sizes are board units, so this is measured and applied at 100%
- * zoom and scales with the board uniformly — a zoom never needs a refit.
+ * The font sizes a fitted box may choose between.
+ */
+export interface FontBounds {
+  minPx: number;
+  maxPx: number;
+}
+
+/** The bounds a sticky note's text is fitted inside. */
+export const STICKY_FONT_BOUNDS: FontBounds = { minPx: STICKY_FONT_MIN_PX, maxPx: STICKY_FONT_MAX_PX };
+
+/**
+ * The largest integer font size in `[bounds.minPx, bounds.maxPx]` at which the element's content fits in
+ * `box` pixels of height, found by binary search. Font sizes are board units, so this is measured and
+ * applied at 100% zoom and scales with the board uniformly — a zoom never needs a refit.
+ *
+ * The bounds are a parameter because a sticky note's text and a later object's text are not fitted
+ * between the same two sizes; the note's bounds are the default, so nothing that was already calling this
+ * changed when the parameter appeared.
  *
  * If the text does not fit even at the minimum size, that size is returned with
- * `overflow: true`: the caller clips the note and fades its bottom edge, so
- * nothing is drawn outside it.
+ * `overflow: true`: the caller clips the note and fades its bottom edge, so nothing is drawn outside it.
  *
- * The size is left applied to the element, since that is the size it displays
- * at. `box` is the height available to the text (note size minus padding).
+ * The size is left applied to the element, since that is the size it displays at. `box` is the height
+ * available to the text (note size minus padding).
  */
-export function fitFontSize(el: HTMLElement, box: number): Fit {
+export function fitFontSize(el: HTMLElement, box: number, bounds: FontBounds = STICKY_FONT_BOUNDS): Fit {
   const fits = (fontPx: number): boolean => {
     el.style.fontSize = `${fontPx}px`;
     return el.scrollHeight <= box;
   };
 
-  if (!Number.isFinite(box) || box <= 0) return { fontPx: STICKY_FONT_MIN_PX, overflow: true };
-  if (fits(STICKY_FONT_MAX_PX)) return { fontPx: STICKY_FONT_MAX_PX, overflow: false };
+  if (!Number.isFinite(box) || box <= 0) return { fontPx: bounds.minPx, overflow: true };
+  if (fits(bounds.maxPx)) return { fontPx: bounds.maxPx, overflow: false };
   // Nothing above the floor fits either; the note keeps the smallest size and
   // reports the overflow so the fade is shown.
-  if (!fits(STICKY_FONT_MIN_PX)) return { fontPx: STICKY_FONT_MIN_PX, overflow: true };
+  if (!fits(bounds.minPx)) return { fontPx: bounds.minPx, overflow: true };
 
   // `lowest` fits, `highest` does not; converge on the largest that fits.
-  let lowest = STICKY_FONT_MIN_PX;
-  let highest = STICKY_FONT_MAX_PX;
+  let lowest = bounds.minPx;
+  let highest = bounds.maxPx;
   while (highest - lowest > 1) {
     const middle = Math.floor((lowest + highest) / 2);
     if (fits(middle)) lowest = middle;

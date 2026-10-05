@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { JSX, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import { isTypingTarget } from '../board/useBoardKeys';
 import { cameraStore } from './cameraStore';
 import type { Point } from './camera';
 import { screenToWorld } from './camera';
@@ -52,6 +53,21 @@ export interface BoardViewportProps {
   onMarqueeBegin?(event: ReactPointerEvent<HTMLDivElement>): void;
   /** Whether a selection rectangle is being drawn right now, in which case the board does not pan. */
   marqueeActive?: boolean;
+  /**
+   * The text tool is armed, so the next press on the board is a place to write rather than a way to move.
+   *
+   * It changes two things and both are about the pointer: the cursor says so, and a press is taken away
+   * from everything below — no pan, no rectangle, and no press on whatever object happens to be underneath,
+   * because a person aiming at empty board near a note means to write there and not to pick that note up.
+   */
+  textTool?: boolean;
+  /**
+   * Put a piece of text down with its top-left corner at this world point.
+   *
+   * Handed the world point rather than the screen one because what is being asked for is a place on the
+   * board, not a place on the screen: the two only agree while the camera is at its origin and one to one.
+   */
+  onCreateTextAt?(world: Point): void;
 }
 
 /**
@@ -68,6 +84,8 @@ export function BoardViewport({
   onClearSelection,
   onMarqueeBegin,
   marqueeActive = false,
+  textTool = false,
+  onCreateTextAt,
 }: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportSize = useViewportSize(viewportRef);
@@ -132,6 +150,90 @@ export function BoardViewport({
       element.removeEventListener('gestureend', onGestureEnd as EventListener);
     };
   }, [wheel]);
+
+  /**
+   * The text tool, answered at the surface level.
+   *
+   * Three things are settled here, and the reasons they are settled *here* are the whole of it:
+   *
+   *   - **The press is swallowed, in the capture phase, on this element.** A listener that runs on the way
+   *     down to the target, before React's own handlers on the root ever hear about the press, is what keeps
+   *     a press aimed at the board from pressing a note that happens to be under it. Stopping it at the
+   *     target, or in the bubbling phase, would let the object be selected and dragged by a press that was
+   *     meant to write next to it.
+   *   - **The placement waits for the release.** A press that becomes a drag is somebody changing their mind
+   *     about where the text goes — or a stray swipe across the board — and a text object dropped at the end
+   *     of every swipe is worse than no text object. So: travel past the board's own drag threshold and
+   *     nothing is placed.
+   *   - **It works on top of objects, not only on bare board.** The design says so, and it is also what the
+   *     person means: aiming at a gap between two notes is aiming at a place for a heading, whether or not
+   *     the cursor happens to be over the edge of one of them.
+   *
+   * The camera is read from the store rather than from this render's, because the press and the release are
+   * two different frames and a zoom that happened between them belongs to neither.
+   */
+  const createTextRef = useRef(onCreateTextAt);
+  createTextRef.current = onCreateTextAt;
+  useEffect(() => {
+    const surface = viewportRef.current;
+    if (!surface || !textTool) return;
+
+    let down: { pointerId: number; x: number; y: number; moved: boolean } | null = null;
+
+    const relative = (event: { clientX: number; clientY: number }): Point => {
+      const rect = surface.getBoundingClientRect();
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    };
+
+    const onPointerDown = (event: PointerEvent): void => {
+      // Keys and presses inside a field are that field's: an empty text object already open for typing
+      // keeps every keystroke it is given, including the press that lands inside it.
+      if (isTypingTarget(event.target)) return;
+      if (event.pointerType === 'mouse' && event.button !== PRIMARY_MOUSE_BUTTON) return;
+      // The press is the placement's, and nobody else's. The board does not pan, no rectangle starts, and
+      // whatever object is underneath is not pressed.
+      event.stopPropagation();
+      const point = relative(event);
+      down = { pointerId: event.pointerId, x: point.x, y: point.y, moved: false };
+    };
+
+    const onPointerMove = (event: PointerEvent): void => {
+      if (down === null || event.pointerId !== down.pointerId) return;
+      const point = relative(event);
+      if (Math.max(Math.abs(point.x - down.x), Math.abs(point.y - down.y)) >= DRAG_THRESHOLD_PX) down.moved = true;
+    };
+
+    const onPointerUp = (event: PointerEvent): void => {
+      const pressed = down;
+      down = null;
+      if (pressed === null || event.pointerId !== pressed.pointerId) return;
+      // A press that travelled is not a placement. Nothing is said about it: the cursor went back to where
+      // it started and there is nothing on the board to point at.
+      if (pressed.moved) return;
+      const create = createTextRef.current;
+      if (create === undefined) return;
+      // Where the press *landed*, not where it lifted: a person aims by pressing, and the four pixels a
+      // finger drifts between down and up are not a new place to write.
+      create(screenToWorld(cameraStore.getState().camera, { x: pressed.x, y: pressed.y }));
+    };
+
+    const onCancel = (): void => {
+      down = null;
+    };
+
+    // Capture on the surface, and the release on the window: the pointer may leave the board between the
+    // two, and a placement that depends on where the finger happened to lift is a placement that fails.
+    surface.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('pointermove', onPointerMove, true);
+    window.addEventListener('pointerup', onPointerUp, true);
+    window.addEventListener('pointercancel', onCancel, true);
+    return () => {
+      surface.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('pointermove', onPointerMove, true);
+      window.removeEventListener('pointerup', onPointerUp, true);
+      window.removeEventListener('pointercancel', onCancel, true);
+    };
+  }, [textTool]);
 
   /** The drag may only start on empty board space, never on a board object. */
   const isBoardSurface = (target: EventTarget | null): boolean => {
@@ -218,6 +320,7 @@ export function BoardViewport({
       className="board-viewport"
       data-testid="board-viewport"
       data-interaction-state={panning ? 'panning' : 'idle'}
+      data-text-tool={textTool ? 'armed' : 'off'}
       style={{
         backgroundSize: `${gridPeriod}px ${gridPeriod}px`,
         backgroundPosition,

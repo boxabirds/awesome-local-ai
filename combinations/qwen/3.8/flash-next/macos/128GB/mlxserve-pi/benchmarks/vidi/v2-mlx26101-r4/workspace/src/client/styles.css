@@ -888,3 +888,234 @@ body {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* ------------------------------------------------------------------ text ---- */
+
+/*
+ * A piece of text is the board's other object: words with no card round them. Everything about how it is
+ * drawn follows from one fact — the box is not the words, it is the space the words were measured to need —
+ * and the measurement is done by the layout engine in `objects/textLayout.ts`, in world units, and stored in
+ * the document. So these rules draw the box the document holds and must not change what is inside it:
+ * `width` and `height` arrive as inline styles, and the only thing decided here is how the words sit inside
+ * the box they were given.
+ *
+ * The arithmetic has to be shared, not duplicated: a line wrapped at W wide in the layout engine is a line
+ * the browser must also lay out at W, or the box says two lines and the screen shows three. That is what the
+ * horizontal padding below is for — see `TEXT_PADDING_WORLD` — and the same number appears twice on purpose.
+ */
+
+/* Keep TEXT_PADDING_WORLD and TEXT_LINE_HEIGHT in src/shared/config.ts equal to these, and
+   TEXT_FONT_FAMILY equal to the family below: the measurer asks "how wide is this line in this font", and
+   measuring in a font other than the one the words are drawn in is how a box ends up with words sticking out
+   of it. */
+:root {
+  --text-padding: 8px;
+  --text-line-height: 1.3;
+  --text-font-family: Inter, system-ui, sans-serif;
+}
+
+.text-object {
+  position: absolute;
+  box-sizing: border-box;
+  color: var(--ink);
+  font-family: var(--text-font-family);
+  line-height: var(--text-line-height);
+  /* The box is not clipped: the toolbar above it and the counter under it belong to the text and are meant
+     to be seen outside it. What is clipped is the words (below), which have a box to live in. */
+  overflow: visible;
+  cursor: grab;
+  /* A press on a piece of text moves it; it must never highlight it instead. Selecting the words is
+     something only the textarea does, and it says so itself. */
+  user-select: none;
+  touch-action: none;
+}
+
+.text-object[data-interaction='dragging'] {
+  cursor: grabbing;
+}
+
+.text-object[data-selected='true'] {
+  /* Keep selected text above text drawn after it, as a note's does. */
+  z-index: 1;
+}
+
+.text-object:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/*
+ * The words, in the box the document holds for them.
+ *
+ * `inset: 0` plus a horizontal padding is what makes the space the browser lays out in exactly
+ * `width - 2 x padding` — the same width the layout engine wrapped at, which is the entire agreement between
+ * the two. `pre-wrap` keeps the newlines a person typed where they typed them and wraps the rest;
+ * `overflow-wrap: anywhere` is what stops one word longer than the box from pushing past its edge, which is
+ * the case the layout engine also has to handle, by breaking the word at the same place.
+ */
+.text-object__text {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 0 var(--text-padding);
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  /* The words are not selectable or clickable: a press on them presses the text object. */
+  pointer-events: none;
+}
+
+/* The box the field is typed into. Deliberately not clipped: the counter and the toolbar hang off it and
+   are meant to be seen outside. The field clips its own text, and only its own. */
+.text-object__editor {
+  position: absolute;
+  inset: 0;
+}
+
+.text-object__textarea {
+  position: absolute;
+  /* Not `inset: 0`: an absolutely positioned child is placed against its parent's *padding* box, which would
+     hand the field the full width of the box and wrap its words somewhere the layout engine never put them.
+     Insetting by the padding by hand is the same width, arrived at the long way round and on purpose. */
+  top: 0;
+  right: var(--text-padding);
+  bottom: 0;
+  left: var(--text-padding);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  /* Typing is text work: the caret and selection belong to this text. */
+  user-select: text;
+  cursor: text;
+}
+
+/* Counts towards the limit, and only appears when it has something to warn about. */
+.text-object__counter {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+
+/* Anchored to the text's top-left corner, counter-scaled inline so it keeps a constant size on screen
+   instead of scaling with the board. */
+.text-object__toolbar-slot {
+  position: absolute;
+  left: 0;
+  transform-origin: 0 100%;
+  z-index: 2;
+}
+
+/* ------------------------------------------------------------ text toolbar ---- */
+
+/* The same shape as a note's toolbar, one row of small buttons in a panel: it appears over one piece of
+   text, for the same reason a note's colours appear over one note. */
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgb(18 22 30 / 12%);
+}
+
+/* The four sizes are the letters themselves, at the sizes they set: a control whose four buttons are drawn
+   at the four sizes they stand for needs no legend, and reads its own state by getting bigger. */
+.text-toolbar__size {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ink-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.text-toolbar__size:hover {
+  background: var(--panel-hover);
+}
+
+.text-toolbar__size[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--panel-hover);
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+.text-toolbar__delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 2px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.text-toolbar__delete:hover {
+  background: var(--panel-hover);
+  color: var(--ink);
+}
+
+.text-toolbar__size:focus-visible,
+.text-toolbar__delete:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* ---------------------------------------------------------------- tools ----- */
+
+/*
+ * The two tool buttons in the board's toolbar say which one the pointer is in.
+ *
+ * `aria-pressed` is what a screen reader reads out; this is what makes it visible, and it has to be, because
+ * a tool that is armed and looks idle is the worst kind of state: the next click does something unexpected
+ * and there is nothing on screen that said why. Sunken and darker rather than coloured, because the button
+ * is not announcing an action, it is reporting which of two things is true.
+ */
+.toolbar__button[aria-pressed='true'] {
+  background: var(--panel-hover);
+  box-shadow: inset 0 1px 2px rgb(18 22 30 / 20%);
+}
+
+/* The glyphs are characters, so they need no asset: a cursor for Select, a letter for Text. */
+.toolbar__glyph {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.toolbar__glyph--text {
+  font-family: var(--text-font-family);
+  font-weight: 600;
+}
+
+/*
+ * The text tool's cursor. The board is where the text goes, so the cursor that says "click to write" belongs
+ * to the whole surface rather than to whatever object happens to be under it — the press writes wherever it
+ * lands, and the cursor says the same.
+ */
+.board-viewport[data-text-tool='armed'] {
+  cursor: text;
+}

@@ -3,6 +3,8 @@ import type * as Y from 'yjs';
 import type { ConnectionState } from '../sync/connectBoard';
 import { isStickySnapshot, snapshot } from '../../shared/board-model';
 import type { StickySnapshot } from '../../shared/board-model';
+import { textSnapshots } from '../../shared/objects/text';
+import type { TextSnapshot } from '../../shared/objects/text';
 import type { Camera } from './camera';
 
 /**
@@ -34,6 +36,15 @@ export interface Vidi6TestHooks {
   getBoardDoc(): Y.Doc | undefined;
   /** The notes of the mounted board, in stacking order, read from the document. */
   getStickies(): readonly StickySnapshot[];
+  /**
+   * The pieces of text of the mounted board, in stacking order, read from the document.
+   *
+   * Its own hook rather than a wider `getObjects()`, for the same reason `getStickies` is one: a test reads
+   * the board's real state from it, and a hook that returned every type would make a test that means "the
+   * text objects" say "everything, then filter". Story 9's e2e tests need this because a text object's box
+   * is a thing the document decides, and pixels are a poor witness of a number in a Y.Map.
+   */
+  getTexts(): readonly TextSnapshot[];
   /**
    * What the board's own connection reports right now, kept up to date as it
    * changes. A test that needs to know whether the board thinks it is live reads
@@ -69,12 +80,13 @@ export function registerConnectionForTests(drop: (() => void) | undefined): void
 }
 
 export function installTestHooks(
-  hooks: Omit<Vidi6TestHooks, 'getBoardDoc' | 'getStickies' | 'connectionState' | 'dropConnection'>,
+  hooks: Omit<Vidi6TestHooks, 'getBoardDoc' | 'getStickies' | 'getTexts' | 'connectionState' | 'dropConnection'>,
 ): void {
   window.__vidi6 = {
     connectionState: undefined,
     getBoardDoc: (): Y.Doc | undefined => boardDoc,
     getStickies: (): readonly StickySnapshot[] => (boardDoc ? snapshot(boardDoc).filter(isStickySnapshot) : []),
+    getTexts: (): readonly TextSnapshot[] => (boardDoc ? textSnapshots(boardDoc) : []),
     dropConnection: (): boolean => {
       if (dropBoardConnection === undefined) return false;
       dropBoardConnection();

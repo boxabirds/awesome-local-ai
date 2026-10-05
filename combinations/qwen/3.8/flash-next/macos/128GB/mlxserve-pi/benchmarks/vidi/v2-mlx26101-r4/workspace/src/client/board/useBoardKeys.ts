@@ -43,6 +43,16 @@ export interface BoardKeysOptions {
    * answered, by there being nothing else to call.
    */
   undo?: UndoActions;
+  /**
+   * Put a sticky note in the middle of what is on screen, and start typing into it.
+   *
+   * `N` is the sticky note's key, and it is story 9 that gets round to adding it: the toolbar button has
+   * done this since story 2, and a key that does what a button does is the same command reached from the
+   * keyboard instead of the mouse. It is handed in rather than written here because making a note is not a
+   * selection job — where it goes, and whether the note is opened for typing afterwards, belongs to the
+   * page that owns the camera. Omitted, the key does nothing at all.
+   */
+  onCreateSticky?(): void;
 }
 
 /** Keys that delete the selection, and nothing else. */
@@ -111,13 +121,13 @@ function present(selected: ReadonlySet<string>, snapshot: readonly ObjectSnapsho
   return snapshot.filter((object) => selected.has(object.id));
 }
 
-export function useBoardKeys({ doc, selection, snapshot, canEdit, undo }: BoardKeysOptions): void {
+export function useBoardKeys({ doc, selection, snapshot, canEdit, undo, onCreateSticky }: BoardKeysOptions): void {
   // The listener is installed once and reads the board through a ref, so a keystroke always sees the
   // board as it is at the moment of the keypress. Re-subscribing on every document update — which means
   // every keystroke a colleague is typing in a shared note — would buy nothing and cost a listener swap
   // per key.
-  const latest = useRef({ doc, selection, snapshot, canEdit, undo });
-  latest.current = { doc, selection, snapshot, canEdit, undo };
+  const latest = useRef({ doc, selection, snapshot, canEdit, undo, onCreateSticky });
+  latest.current = { doc, selection, snapshot, canEdit, undo, onCreateSticky };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -175,6 +185,17 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit, undo }: BoardK
         if (getObjectType(chosen[0]!.type)?.editableText !== true) return;
         event.preventDefault();
         selected.startEdit(chosen[0]!.id);
+        return;
+      }
+
+      // `N` makes a sticky note, which is the one thing on this board that a keystroke can create. It sits
+      // below the Enter branch rather than above it because both are "do something to one thing" keys and
+      // Enter already had the claim; it sits above the nudges because it is not one, and nothing below it
+      // should get a chance to treat `n` as anything else.
+      if (event.key.toLowerCase() === 'n') {
+        if (!board.canEdit || board.onCreateSticky === undefined) return;
+        event.preventDefault();
+        board.onCreateSticky();
         return;
       }
 

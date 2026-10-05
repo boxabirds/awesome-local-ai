@@ -340,7 +340,10 @@ test('a note is reached with Tab, edited with Enter, and Backspace belongs to th
   expect((await noteAppearance(page)).selected).toBe('true');
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   let reached = false;
-  for (let presses = 0; presses < 15 && !reached; presses += 1) {
+  // Twenty-five presses rather than fifteen: story 9 put two more buttons on the toolbar — Select and Text —
+  // and the walk round the page got two stops longer with them. The bound is how far the test is willing to
+  // walk, not anything the app promises; what it asserts is on the next line, that the note is reached.
+  for (let presses = 0; presses < 25 && !reached; presses += 1) {
     await page.keyboard.press('Tab');
     reached = await noteAt(page).evaluate((element) => element === document.activeElement);
   }

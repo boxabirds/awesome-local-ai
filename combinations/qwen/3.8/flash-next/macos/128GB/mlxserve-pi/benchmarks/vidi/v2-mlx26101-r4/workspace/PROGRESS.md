@@ -1,16 +1,15 @@
-# Story 8: Undo and redo my own changes without undoing anyone else's
+# Implementation progress
 
-Your progress on this story's tasks. Keep the Status column up to date as you work.
+Tasks in `spec/stories/009-write-free-text-anywhere-on-the-board/tasks.md`.
+Write all tests listed in `spec/stories/009-write-free-text-anywhere-on-the-board/design.md` before finishing; run `npm run build`, `npm run typecheck` and every `npm run test:*` script.
 
-| # | Task | Status |
-|---|---|---|
-| 2 | Implement per-user undo history controller | done |
-| 5 | E2E: recover my mistakes while colleagues work (TC-22 to TC-24) | done |
-| 6 | Write undo history unit tests first with a simulated remote peer (TC-01 to TC-11) | done |
-| 7 | Write capture-timeout unit tests first (TC-12, TC-13) | done |
-| 8 | Wire undo step boundaries into transform gestures, toolbars and the text editor | done |
-| 9 | Component tests: gesture and typing boundaries (TC-14 to TC-17) | done |
-| 10 | Implement undo/redo shortcuts and toolbar buttons | done |
-| 11 | Component tests: undo shortcuts, buttons and edit lock (TC-18 to TC-21) | done |
-
-Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
+- [x] task 1 — unit tests for the text model
+- [x] task 2 — shared text object model and shared text-editing helpers
+- [x] task 3 — unit tests for the layout engine
+- [x] task 4 — client layout engine, measurer and box sync
+- [x] task 5 — component tests for box sync
+- [x] task 6 — tool mode, toolbar additions and shortcuts
+- [x] task 7 — component tests for tool mode
+- [x] task 8 — text object component, editor, toolbar and styles
+- [x] task 9 — component tests for text objects
+- [x] task 10 — end-to-end text workflows

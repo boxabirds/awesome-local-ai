@@ -814,3 +814,93 @@ all on it. Reported against their budgets and not asserted on, as in the earlier
   answering, because this sandbox will not let anyone signal a spawned process — and TC-20 and TC-21 skip
   behind it, as the story 4 write-up above describes. Story 8 changed nothing about that harness. Firefox is
   still skipped by the probe: it does not start on this machine.
+
+## Story 9: where the files are, against what the design named
+
+The design names `src/client/objects/TextObject.tsx`, `TextEditor.tsx`, `textLayout.ts`,
+`useTextBoxSync.ts`, `src/shared/objects/text.ts`, `src/shared/text-edit.ts` and
+`src/client/board/useTool.ts`; all of those are where it says. Two things are elsewhere.
+The size toolbar is `src/client/objects/TextToolbar.tsx` and is rendered by the text object
+itself, exactly as `NoteToolbar.tsx` is rendered by a sticky note, rather than by
+`SelectionBar.tsx` — the bar is what to do to *several* things, and there is no answer to
+"which of these four objects' size?" once two are selected, while there is a plain answer
+while one is being typed into. And the sticky note's editor is not a second component:
+`StickyTextEditor.tsx` is now a thin set of arguments to `TextEditor.tsx`, because a sticky
+note's text and a piece of free text differ in what their box means, not in how a textarea
+is kept in step with a `Y.Text` and a 5,000-character limit, and a second implementation of
+that would be a second place to be wrong about the limit.
+
+`registry.tsx` grew two fields on purpose: `handles`, which says which resize handles an
+object type can use, and `resize`, which lets a type answer a resize in its own terms. Those
+two are what keeps `SelectionOverlay` and `useTransformGesture` from knowing anything about
+text: the overlay asks what handles to draw, and the gesture asks whether the object would
+like to be resized. Sticky notes are unaffected — they have neither field and go down the
+`resizeObjects` path they have always gone down.
+
+## Story 9: who measures, and the padding that a browser counts twice
+
+The rule is that the client doing the typing writes the box, in the same transaction as the
+characters, so that nobody has to agree about a font after the fact and an undo takes the
+words and their box back as one thing. Every other client draws the box it is told about.
+`TC-12` asserts the write happens; `TC-12c` asserts it happens once per keystroke and not
+once per animation frame; the last test in `TextObject.test.tsx`'s sibling asserts the
+negative from the receiving side, that a change which arrives already measured is not
+measured again here.
+
+The e2e side of that rule found a trap worth writing down. The design's assertion is that a
+text element's `scrollWidth` equals its `clientWidth` — the words against the room they were
+given, and the only assertion that can be made about a font the test cannot predict. Both of
+those numbers include the element's own padding. So comparing either of them against the
+stored box width, minus a padding taken off by hand, is off by exactly the padding: the box
+came back 100.58 wide and the "words" came back 101, which is the box, not the words. The
+width of the words themselves is a `Range` over the text node's client rectangles (`textContentWidthPx`),
+and that is what the box is compared to — canvas measurement 84.5907, drawn line 84.59375, on
+the machine, in the browser, which is the number the box was built from.
+
+## Story 9: three existing tests had to be told about new buttons
+
+Nothing about these is a test made weaker; each is a fact about the interface changing, which
+the design asked for.
+
+- The sticky note's button is called `Sticky note (N)` now, and its tooltip says `Sticky note
+  (N) — or double-click the board`, because story 9 puts two more single letters on the
+  keyboard and a person is entitled to know which key does what before pressing it. The
+  visible label is still `Sticky note`, so WCAG 2.5.3 still holds (the accessible name
+  contains the visible one). `Toolbars.test.tsx` and `tests/e2e/helpers/sticky.ts` ask for
+  the new name; the helper asks for it `exact`, so it cannot accidentally start matching the
+  new Text button as well.
+- `sticky-notes.spec.ts` walks the page with Tab to check a note is reachable from the
+  keyboard, and had been willing to press the key fifteen times. Two more toolbar buttons
+  means seventeen stops before the note, so the walk is twenty-five presses long now. The
+  assertion is the next line, and is unchanged: the note is reached and focused.
+- The four new tests in `Tool.test.tsx` that type the letters `t` and `n` are the reason the
+  tool's keystroke handler calls `stopImmediatePropagation` rather than `stopPropagation`:
+  with two window-level listeners, one for the tools and one for the board's shortcuts, a
+  letter that is a letter must reach neither, and a `t` that reaches the board's handler as
+  well would be a `t` that does something to the board while it is being typed.
+
+## Story 9: numbers
+
+- **241 unit** (34 new here: the text model and the layout engine), **209 component** (33
+  new: box sync, tool mode, text objects), **66 integration** (untouched), **144 e2e passing
+  in Chromium and WebKit** (30 of them this story's).
+- The design's e2e list runs TC-26 to TC-32 and tasks.md's list for the same task names six
+  workflows of its own under the same numbers, so the spec file carries both: the design's
+  cases under the design's numbers, and tasks.md's extra three — a heading titled over a
+  cluster, sized, moved, deleted and undone; two people typing into one heading at the same
+  moment; and five people each making a heading at once — under their own names, with the
+  `TC-33` numbers the design does not contain left out so nobody goes looking for a case
+  that was never written down.
+- `npm run typecheck` and `npm run build` are clean.
+- The one e2e failure is TC-19 (`@persist`), which fails at the same place it failed before
+  this story was started — checked by stroring the whole story and running it against the
+  clean tree — because this sandbox will not let a spawned runtime be stopped, and TC-20 and
+  TC-21 skip behind it. Firefox is still skipped by the probe: it does not start here, which
+  is also true of the design's `Done when` for the e2e task; WebKit carries that half.
+- Two things the tests learned on the way, both written into the tests rather than the app.
+  A page's five people cannot share a helper that asks whether the board gained *one* object:
+  with four other authors typing at the same moment the list taken before the click is four
+  objects out of date, so that test types its own headings and waits for the editor instead.
+  And the words of a heading are read out of its text layer, not out of the object element,
+  because a selected heading carries its toolbar as a child and `S M L XL` are not words
+  anybody typed.

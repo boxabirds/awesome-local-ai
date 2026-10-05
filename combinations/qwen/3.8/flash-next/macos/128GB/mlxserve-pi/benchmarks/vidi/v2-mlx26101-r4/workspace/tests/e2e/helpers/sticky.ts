@@ -66,7 +66,8 @@ export function fade(page: Page, index = 0): Locator {
 }
 
 export function stickyButton(page: Page): Locator {
-  return page.getByRole('button', { name: 'Sticky note', exact: true });
+  // Story 9 added the key to the button's name, so this is the name the button answers to now.
+  return page.getByRole('button', { name: 'Sticky note (N)', exact: true });
 }
 
 export function swatch(page: Page, color: string): Locator {

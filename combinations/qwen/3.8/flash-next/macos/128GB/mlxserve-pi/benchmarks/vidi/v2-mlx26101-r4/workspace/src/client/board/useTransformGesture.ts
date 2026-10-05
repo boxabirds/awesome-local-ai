@@ -235,16 +235,28 @@ export function useTransformGesture({
     );
 
     const rects = new Map<string, Rect>();
+    let changed = false;
     for (const object of current.objects) {
       const start = current.startRects.get(object.id);
       if (start === undefined || !stillThere(object.id)) continue;
       const next = scaleWithin(start, current.startBox, box);
       if (sameRect(current.last.get(object.id), next)) continue;
       current.last.set(object.id, next);
+      // A type whose box is not simply the box it is drawn at gets the rect and decides its own.
+      //
+      // A piece of text is the case: the drag decides where it is and how wide it is, and its height is
+      // then whatever its words come to inside that width. Writing the scaled height here would be writing
+      // a box the words do not fill — and the write has to go through the type rather than be undone
+      // afterwards, because a frame that writes a height and then corrects it is two writes and one flicker.
+      const resize = getObjectType(object.type)?.resize;
+      if (resize !== undefined) {
+        if (resize(doc, object.id, next)) changed = true;
+        continue;
+      }
       rects.set(object.id, next);
     }
-    if (rects.size === 0) return false;
-    return resizeObjects(doc, rects) > 0;
+    if (rects.size > 0 && resizeObjects(doc, rects) > 0) changed = true;
+    return changed;
   }, [doc]);
 
   const stopFrame = useCallback((): void => {
