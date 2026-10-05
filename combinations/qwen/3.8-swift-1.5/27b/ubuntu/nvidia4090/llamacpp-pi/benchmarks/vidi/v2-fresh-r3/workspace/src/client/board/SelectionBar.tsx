@@ -3,8 +3,10 @@ import type * as Y from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { setStickyColor } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
+import { setTextSize, toTextSnapshot } from '../../shared/objects/text';
 import { worldToScreen, type Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 
 /**
  * The bar above the selection's bounding box (sel.bar):
@@ -12,6 +14,7 @@ import { NoteToolbar } from '../objects/NoteToolbar';
  *   (`aria-label="Delete selection"`), announced via `aria-live="polite"`;
  * - exactly one sticky note → story 2's NoteToolbar (colours + delete)
  *   instead, floating above the note in screen space;
+ * - exactly one text object → story 9's TextToolbar (size presets + delete);
  * - otherwise → nothing.
  *
  * `doc` and `camera` extend the sel.interaction contract so the single-note
@@ -31,6 +34,40 @@ export function SelectionBar(props: {
 
   const selected = snapshot.filter((o) => ids.has(o.id));
   if (selected.length === 0) return null;
+
+  // Exactly one text object: story 9's text toolbar (sizes + delete).
+  if (selected.length === 1 && selected[0].type === 'text') {
+    const t = toTextSnapshot(selected[0]);
+    if (t) {
+      const bounds = objectBounds(t);
+      const topCentre = worldToScreen(camera, {
+        x: bounds.x + bounds.width / 2,
+        y: bounds.y,
+      });
+      return (
+        <div
+          data-testid="selection-bar-anchor"
+          style={{
+            position: 'fixed',
+            left: topCentre.x,
+            top: topCentre.y,
+            transform: 'translate(-50%, calc(-100% - 6px))',
+            zIndex: 6,
+          }}
+        >
+          <TextToolbar
+            size={t.size}
+            onSize={(s) => {
+              onBoundary?.();
+              setTextSize(doc, t.id, s);
+              onBoundary?.();
+            }}
+            onDelete={onDelete}
+          />
+        </div>
+      );
+    }
+  }
 
   // Exactly one sticky note: story 2's note toolbar instead of the bar.
   if (selected.length === 1 && selected[0].type === 'sticky') {

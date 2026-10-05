@@ -47,8 +47,8 @@ describe('sticky.toolbar (ui-component)', async () => {
 
     expect(app.notes()).toHaveLength(0);
 
-    const button = screen.getByLabelText('Sticky note');
-    expect(button.getAttribute('title')).toBe('Sticky note – or double-click the board');
+    const button = screen.getByLabelText('Sticky note (N)');
+    expect(button.getAttribute('title')).toBe('Sticky note (N) – or double-click the board');
     await user.click(button);
 
     const notes = app.notes();

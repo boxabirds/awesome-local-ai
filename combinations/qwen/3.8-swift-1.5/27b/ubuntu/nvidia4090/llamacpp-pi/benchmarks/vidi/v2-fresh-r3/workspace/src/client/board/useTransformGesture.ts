@@ -16,7 +16,8 @@ import {
   type Point,
   type Handle,
 } from '../../shared/geometry';
-import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
+import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import { getObjectType } from '../objects/registry';
 import type { Camera } from '../canvas/camera';
 import type { UseSelectionResult } from './useSelection';
@@ -50,6 +51,41 @@ interface GestureState {
   /** Pending absolute targets: positions for moves, rects for resizes. */
   pendingMove: Map<string, Point> | null;
   pendingRects: Map<string, Rect> | null;
+  /** Story 9: pending text-aware resize operations (see `TextOps`). */
+  pendingTextOps: TextOps | null;
+}
+
+/**
+ * Story 9: the target state of a text-aware bounding-box resize.
+ * - `singleText`: a single text object — its fixed width tracks the box
+ *   (setTextWidthFixed) and its top-left follows the box's left edge;
+ * - `otherResizes`: non-text objects scale fully (x, y, width, height);
+ * - `fixedResizes`: fixed-width texts in a multi-selection — repositioned
+ *   proportionally, width scaled (min TEXT_MIN_WIDTH_WORLD), height kept;
+ * - `moves`: all text objects — proportional x/y (auto-width texts move only;
+ *   their height is re-measured by the box-sync hook).
+ */
+interface TextOps {
+  singleText: { id: string; x: number; y: number; width: number } | null;
+  otherResizes: Map<string, Rect>;
+  fixedResizes: Map<string, Rect>;
+  moves: Map<string, Point>;
+}
+
+/** Applies text-aware resize ops to the doc (order is immaterial — disjoint fields). */
+function applyTextOps(doc: Y.Doc, ops: TextOps): void {
+  if (ops.singleText) {
+    setTextWidthFixed(doc, ops.singleText.id, ops.singleText.width);
+    moveObjects(
+      doc,
+      new Map([
+        [ops.singleText.id, { x: ops.singleText.x, y: ops.singleText.y }],
+      ]),
+    );
+  }
+  if (ops.otherResizes.size > 0) resizeObjects(doc, ops.otherResizes);
+  if (ops.fixedResizes.size > 0) resizeObjects(doc, ops.fixedResizes);
+  if (ops.moves.size > 0) moveObjects(doc, ops.moves);
 }
 
 /**
@@ -144,12 +180,56 @@ export function useTransformGesture(opts: TransformGestureOptions): {
         width: g.startBox.width * clamped.x,
         height: g.startBox.height * clamped.y,
       };
-      const rects = new Map<string, Rect>();
-      for (const [id, r] of g.startRects) rects.set(id, scaleWithin(r, g.startBox, to));
-      g.pendingRects = rects;
+
+      // Story 9: text objects never scale their font or height. An all-text
+      // selection resizes widths only (single text → setTextWidthFixed); in a
+      // mixed selection texts reposition proportionally and only fixed widths
+      // scale — auto widths and all heights stay content-driven.
+      const ops: TextOps = {
+        singleText: null,
+        otherResizes: new Map(),
+        fixedResizes: new Map(),
+        moves: new Map(),
+      };
+      let allHorizontal = true;
+      for (const id of g.startRects.keys()) {
+        const specObj = o.snapshot.find((s) => s.id === id);
+        const spec = specObj ? getObjectType(specObj.type) : undefined;
+        if (spec?.handles !== 'horizontal') allHorizontal = false;
+      }
+      if (allHorizontal && g.startRects.size === 1) {
+        const [id] = [...g.startRects.keys()];
+        ops.singleText = {
+          id,
+          x: to.x,
+          y: to.y,
+          width: Math.max(to.width, TEXT_MIN_WIDTH_WORLD),
+        };
+      } else {
+        for (const [id, r] of g.startRects) {
+          const specObj = o.snapshot.find((s) => s.id === id);
+          const spec = specObj ? getObjectType(specObj.type) : undefined;
+          const target = scaleWithin(r, g.startBox, to);
+          if (spec?.handles === 'horizontal') {
+            ops.moves.set(id, { x: target.x, y: target.y });
+            const cur = (o.doc.getMap('objects') as Y.Map<Y.Map<unknown>>).get(id);
+            if (cur?.get('widthMode') === 'fixed') {
+              ops.fixedResizes.set(id, {
+                x: target.x,
+                y: target.y,
+                width: Math.max(target.width, TEXT_MIN_WIDTH_WORLD),
+                height: r.height,
+              });
+            }
+          } else {
+            ops.otherResizes.set(id, target);
+          }
+        }
+      }
+      g.pendingTextOps = ops;
       g.apply = () => {
         const st = gestureRef.current;
-        if (st && st.pendingRects) resizeObjects(optsRef.current.doc, st.pendingRects);
+        if (st && st.pendingTextOps) applyTextOps(optsRef.current.doc, st.pendingTextOps);
       };
     }
 
@@ -179,6 +259,7 @@ export function useTransformGesture(opts: TransformGestureOptions): {
         // Flush the final target so the release lands exactly (key decision 1).
         if (g.pendingMove) moveObjects(optsRef.current.doc, g.pendingMove);
         if (g.pendingRects) resizeObjects(optsRef.current.doc, g.pendingRects);
+        if (g.pendingTextOps) applyTextOps(optsRef.current.doc, g.pendingTextOps);
       }
       optsRef.current.onGestureEnd?.();
     }
@@ -231,6 +312,7 @@ export function useTransformGesture(opts: TransformGestureOptions): {
         apply: null,
         pendingMove: null,
         pendingRects: null,
+        pendingTextOps: null,
       };
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
@@ -275,6 +357,7 @@ export function useTransformGesture(opts: TransformGestureOptions): {
         apply: null,
         pendingMove: null,
         pendingRects: null,
+        pendingTextOps: null,
       };
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);

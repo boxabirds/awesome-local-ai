@@ -5,6 +5,7 @@ import { allObjectIds, moveObjects, deleteObjects } from '../../shared/board-mod
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
 import type { UseSelectionResult } from './useSelection';
+import type { Tool } from './useTool';
 import type { UndoController } from './undo';
 
 export interface BoardKeysOptions {
@@ -15,6 +16,10 @@ export interface BoardKeysOptions {
   canEdit: boolean;
   /** Story 8: the undo controller for this board. */
   undo?: UndoController;
+  /** Story 9: active tool + switcher (V/T shortcuts, Escape leaves it). */
+  tool: { tool: Tool; setTool(t: Tool): void };
+  /** Story 9: N shortcut — one-click sticky note at the view centre. */
+  onCreateSticky?(): void;
 }
 
 function isEditingTarget(target: EventTarget | null): boolean {
@@ -42,12 +47,15 @@ const NUDGES: Record<string, { x: number; y: number }> = {
  * - arrows → nudge the selection by NUDGE_STEP_WORLD (Shift:
  *   NUDGE_LARGE_STEP_WORLD), preventDefault (no page scroll, no board pan);
  * - Delete/Backspace → delete the whole selection, then clear it;
- * - Enter → start editing a single selected editable object (story 2).
+ * - Enter → start editing a single selected editable object (story 2);
+ * - Story 9: V → select tool, T → text tool (editors only), N → sticky note
+ *   at the view centre, Escape → leave any armed tool and clear the selection.
  *
  * All of these are ignored while text is being edited or focus is in an
  * input/textarea (typing must keep its default behaviour, sel.group_delete
  * negative). Mutating keys (nudge, delete) are also ignored when
- * `canEdit` is false.
+ * `canEdit` is false. Tool/letter shortcuts (V/T/N) fire only on plain keys
+ * (no modifier keys) so they never collide with browser shortcuts.
  */
 export function useBoardKeys(opts: BoardKeysOptions): void {
   const optsRef = useRef(opts);
@@ -80,7 +88,25 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         o.selection.setMany(allObjectIds(o.snapshot), false);
         return;
       }
+      // Story 9: tool + sticky shortcuts (plain keys only, no modifiers).
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        const k = e.key;
+        if (k === 'v' || k === 'V') {
+          o.tool.setTool('select');
+          return;
+        }
+        if (k === 't' || k === 'T') {
+          if (o.canEdit) o.tool.setTool('text');
+          return;
+        }
+        if (k === 'n' || k === 'N') {
+          if (o.canEdit) o.onCreateSticky?.();
+          return;
+        }
+      }
+
       if (e.key === 'Escape') {
+        o.tool.setTool('select');
         o.selection.clear();
         return;
       }

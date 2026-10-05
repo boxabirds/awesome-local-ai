@@ -40,6 +40,13 @@ export function SelectionOverlay(props: {
   if (!box) return null;
 
   const resizable = selected.some((o) => getObjectType(o.type)?.resizable);
+  // Story 9: an all-text selection gets only east/west handles (text.height
+  // is content-driven; n/s handles are meaningless). Any 'all' type in the
+  // selection restores the full 8-handle box.
+  const allHorizontal = selected.every(
+    (o) => (getObjectType(o.type)?.handles ?? 'all') === 'horizontal',
+  );
+  const handles = allHorizontal ? (['w', 'e'] as const) : HANDLES;
   const topLeft = worldToScreen(camera, { x: box.x, y: box.y });
   const w = box.width * camera.zoom;
   const h = box.height * camera.zoom;
@@ -62,7 +69,7 @@ export function SelectionOverlay(props: {
         }}
       />
       {resizable &&
-        HANDLES.map((handle) => {
+        handles.map((handle) => {
           const cx =
             handle.includes('w') ? topLeft.x : handle.includes('e') ? topLeft.x + w : topLeft.x + w / 2;
           const cy =

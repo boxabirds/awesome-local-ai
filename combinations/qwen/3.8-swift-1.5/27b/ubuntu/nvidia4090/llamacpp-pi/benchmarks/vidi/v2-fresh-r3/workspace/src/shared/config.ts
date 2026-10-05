@@ -50,3 +50,15 @@ export const BOARD_CHECK_RETRY_BASE_MS = 1000;     // backoff doubles up to RECO
 // Story 8: Undo settings
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;        // typing pause that ends a burst
 export const UNDO_MAX_STEPS = 200;
+
+// Story 9: Free text settings
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;      // auto width caps here, then lines wrap
+export const TEXT_MIN_WIDTH_WORLD = 40;            // minimum fixed width (side handle drag)
+export const TEXT_MAX_CHARS = 5000;                // hard character limit per text object
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const; // font size presets (board units)
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+export const TEXT_LINE_HEIGHT = 1.3;               // line height factor (height = lines × size × this)
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+export const TEXT_PADDING_WORLD = 8;               // auto-width box = longest line + this padding
+export const TEXT_AVG_GLYPH_RATIO = 0.6;           // fallback estimate: avg glyph width = size × this

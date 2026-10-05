@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import { checkBoard } from '../api';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { screenToWorld, type Camera, type Point } from '../canvas/camera';
-import { registerVidi6Hook, type NoteSpec } from '../canvas/testHooks';
+import { registerVidi6Hook, type NoteSpec, type TextSpec } from '../canvas/testHooks';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { useTool, ToolContext } from '../board/useTool';
 import { useUndo } from '../board/useUndo';
 import { createUndo, type UndoController } from '../board/undo';
 import { SelectionOverlay } from '../board/SelectionOverlay';
@@ -16,13 +17,20 @@ import { Toolbar } from '../board/Toolbar';
 import { UndoButtons } from '../board/UndoButtons';
 import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
-import { createSticky, deleteObjects, getStickyText } from '../../shared/board-model';
+import { createSticky, deleteObjects, getStickyText, LOCAL_ORIGIN } from '../../shared/board-model';
+import { createText, setTextSize, getTextContent, setTextBox } from '../../shared/objects/text';
+import { layoutText, createCanvasMeasurer } from '../objects/textLayout';
+import { DEFAULT_TEXT_SIZE } from '../../shared/config';
 import { isValidBoardId } from '../../shared/board-id';
 import { SharePanel } from '../share/SharePanel';
 import { nextBoardPageState, type BoardPageState } from './state';
 import { NotFoundPage } from './NotFoundPage';
 
 const INITIAL_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
+
+// Measurer for the e2e `createTextAt` hook (the hook plays the role of the
+// originating client, which is responsible for writing the content-driven box).
+const e2eMeasurer = createCanvasMeasurer();
 
 /**
  * The board UI (stories 1–5), mounted only when the board page has confirmed
@@ -64,12 +72,17 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
   }, []);
   const undo = useUndo(undoController, canEdit);
 
+  // Story 9: active tool (select/text) and the local identity that creates
+  // objects (story 6 sign-in is excluded; a per-session random id suffices).
+  const tool = useTool(canEdit);
+  const identityRef = useRef('');
+  if (identityRef.current === '') identityRef.current = crypto.randomUUID();
+
   const gesture = useTransformGesture({
     doc, camera, selection, snapshot: objects, canEdit,
     onGestureStart: () => undoController.boundary(),
     onGestureEnd: () => undoController.boundary(),
   });
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit, undo: undoController });
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
 
   // Test hook for e2e (drives the production build via `wrangler dev`)
@@ -92,6 +105,26 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
           const id = createSticky(doc, { x: s.x, y: s.y }, (s.color as 'yellow') ?? 'yellow');
           if (s.text) getStickyText(doc, id)?.insert(0, s.text);
           if (id) ids.push(id);
+        }
+        return ids;
+      },
+      createTextAt: (specs: TextSpec[]) => {
+        const ids: string[] = [];
+        for (const s of specs) {
+          const id = createText(doc, { x: s.x, y: s.y }, 'e2e');
+          if (!id) continue;
+          const size = s.size ?? DEFAULT_TEXT_SIZE;
+          if (s.size) setTextSize(doc, id, size);
+          if (s.text) {
+            const text = s.text;
+            doc.transact(() => {
+              getTextContent(doc, id)?.insert(0, text);
+            }, LOCAL_ORIGIN);
+          }
+          // Write the content-driven box (the originating client's job).
+          const box = layoutText(s.text ?? '', size, 'auto', null, e2eMeasurer);
+          setTextBox(doc, id, box);
+          ids.push(id);
         }
         return ids;
       },
@@ -121,6 +154,26 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
     createStickyAtScreen({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   }, [createStickyAtScreen]);
 
+  // Story 9: a click in the text tool creates a text object at the point
+  // (top-left at the click), arms the select tool and starts editing.
+  const createTextAtScreen = useCallback(
+    (p: Point) => {
+      const world = screenToWorld(cameraRef.current, p);
+      undoController.boundary();
+      const id = createText(doc, world, identityRef.current);
+      if (id) {
+        tool.setTool('select');
+        selection.startEdit(id);
+      }
+    },
+    [doc, selection, undoController, tool],
+  );
+
+  useBoardKeys({
+    doc, selection, snapshot: objects, canEdit, undo: undoController,
+    tool, onCreateSticky: createStickyAtCentre,
+  });
+
   /** Delete button on the selection bar (sel.group_delete). */
   const handleDeleteSelection = useCallback(() => {
     if (selection.ids.size === 0) return;
@@ -146,28 +199,32 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
         onEmptyDoubleClick={createStickyAtScreen}
         onEmptyClick={() => selection.clear()}
         marquee={{ begin: marquee.begin, move: marquee.move, end: marquee.end, cancel: marquee.cancel }}
+        activeTool={tool.tool}
+        onTextCreate={createTextAtScreen}
       >
         <MarqueeRect rect={marquee.rect} camera={camera} />
-        {objects.map((obj) => {
-          const spec = getObjectType(obj.type);
-          if (!spec) return null; // unknown types are not rendered (stories 9–12)
-          const Component = spec.Component;
-          return (
-            <Component
-              key={obj.id}
-              obj={obj}
-              doc={doc}
-              zoom={camera.zoom}
-              selected={selection.ids.has(obj.id)}
-              editing={selection.editingId === obj.id}
-              dragging={gesture.draggingId === obj.id}
-              onObjectPointerDown={gesture.onObjectPointerDown}
-              onStartEdit={selection.startEdit}
-              onEndEdit={handleEndEdit}
-              undo={undoController}
-            />
-          );
-        })}
+        <ToolContext.Provider value={tool.tool}>
+          {objects.map((obj) => {
+            const spec = getObjectType(obj.type);
+            if (!spec) return null; // unknown types are not rendered (stories 10–12)
+            const Component = spec.Component;
+            return (
+              <Component
+                key={obj.id}
+                obj={obj}
+                doc={doc}
+                zoom={camera.zoom}
+                selected={selection.ids.has(obj.id)}
+                editing={selection.editingId === obj.id}
+                dragging={gesture.draggingId === obj.id}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+                onStartEdit={selection.startEdit}
+                onEndEdit={handleEndEdit}
+                undo={undoController}
+              />
+            );
+          })}
+        </ToolContext.Provider>
       </BoardViewport>
       <SelectionOverlay
         ids={selection.ids}
@@ -183,7 +240,13 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
         onDelete={handleDeleteSelection}
         onBoundary={() => undoController.boundary()}
       />
-      <Toolbar onCreateSticky={createStickyAtCentre} undoButtons={<UndoButtons {...undo} />} />
+      <Toolbar
+        tool={tool.tool}
+        onToolChange={tool.setTool}
+        canEdit={canEdit}
+        onCreateSticky={createStickyAtCentre}
+        undoButtons={<UndoButtons {...undo} />}
+      />
       <SharePanel boardId={boardId} />
     </>
   );

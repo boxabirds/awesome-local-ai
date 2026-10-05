@@ -9,6 +9,14 @@ export interface NoteSpec {
   text?: string;
 }
 
+export interface TextSpec {
+  /** World top-left of the text object. */
+  x: number;
+  y: number;
+  text?: string;
+  size?: 'S' | 'M' | 'L' | 'XL';
+}
+
 export interface Vidi6TestHooks {
   setCamera(cam: Camera): void;
   getDoc(): Y.Doc;
@@ -16,6 +24,8 @@ export interface Vidi6TestHooks {
   createNotes(n: number): string[];
   /** TEST-ONLY: create sticky notes at the given world centres; returns their ids. */
   createNotesAt(specs: NoteSpec[]): string[];
+  /** TEST-ONLY: create text objects at the given world top-lefts; returns their ids. */
+  createTextAt(specs: TextSpec[]): string[];
 }
 
 declare global {
@@ -47,6 +57,9 @@ export function registerVidi6Hook(partial: Partial<Vidi6TestHooks>): void {
     },
     createNotesAt: () => {
       throw new Error('createNotesAt test hook not registered');
+    },
+    createTextAt: (_specs: TextSpec[]) => {
+      throw new Error('createTextAt test hook not registered');
     },
     ...window.__vidi6,
     ...partial,

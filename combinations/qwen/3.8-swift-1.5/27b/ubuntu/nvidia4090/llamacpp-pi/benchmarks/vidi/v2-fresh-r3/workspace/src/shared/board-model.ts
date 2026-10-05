@@ -3,7 +3,9 @@ import {
   STICKY_SIZE_WORLD,
   STICKY_COLORS,
   DEFAULT_STICKY_COLOR,
+  TEXT_SIZES,
   type StickyColor,
+  type TextSize,
 } from './config';
 import { rectContains, type Rect, type Point } from './geometry';
 import { getObjectType } from '../client/objects/registry';
@@ -30,6 +32,9 @@ export interface ObjectSnapshot {
   /** Story 7: explicit size; absent on pre-story-7 stickies (fallback STICKY_SIZE_WORLD). */
   width?: number;
   height?: number;
+  /** Free text (story 9). */
+  size?: TextSize;
+  widthMode?: 'auto' | 'fixed';
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -353,6 +358,14 @@ export function snapshotObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
       text: text instanceof Y.Text ? text.toString() : typeof text === 'string' ? text : undefined,
       width: num(obj.get('width')),
       height: num(obj.get('height')),
+      size: (() => {
+        const s = obj.get('size');
+        return typeof s === 'string' && s in TEXT_SIZES ? (s as TextSize) : undefined;
+      })(),
+      widthMode: (() => {
+        const wm = obj.get('widthMode');
+        return wm === 'auto' || wm === 'fixed' ? wm : undefined;
+      })(),
     });
   });
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

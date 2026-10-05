@@ -103,7 +103,7 @@ export async function noteDomOrder(page: Page): Promise<string[]> {
 
 /** Creates a sticky note via the toolbar button (enters editing immediately). */
 export async function createNoteViaToolbar(page: Page, text?: string): Promise<void> {
-  await page.getByLabel('Sticky note').click();
+  await page.getByLabel('Sticky note (N)').click();
   if (text) {
     await page.getByTestId('sticky-textarea').waitFor();
     await page.keyboard.type(text);

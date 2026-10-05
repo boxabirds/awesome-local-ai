@@ -5,6 +5,10 @@ import { NavigationHint } from './NavigationHint';
 import { zoomPercent, canZoomIn, canZoomOut, Camera, Point } from './camera';
 import { GRID_SPACING_WORLD } from '../../shared/config';
 import { registerSetCamera, registerVidi6Hook } from './testHooks';
+import type { Tool } from '../board/useTool';
+
+/** A press in the text tool must not move more than this (viewport px) to count as a click. */
+const TEXT_CLICK_SLOP_PX = 5;
 
 export interface MarqueeControls {
   begin(p: Point): void;
@@ -26,6 +30,14 @@ export interface BoardViewportProps {
    * space starts the marquee; a plain pointerdown still pans (story 1).
    */
   marquee?: MarqueeControls;
+  /**
+   * Story 9: the active tool. In `text` mode a click on empty space (press
+   * without movement) creates a text object at that viewport point; panning
+   * and marquee are disabled.
+   */
+  activeTool?: Tool;
+  /** Story 9: create a text object at the given viewport point. */
+  onTextCreate?(p: Point): void;
 }
 
 export function BoardViewport(props: BoardViewportProps) {
@@ -63,6 +75,8 @@ export function BoardViewport(props: BoardViewportProps) {
   const isPanning = useRef(false);
   const panMoved = useRef(false);
   const marqueeActive = useRef(false);
+  // Story 9: a pending text-tool click (viewport point at pointerdown).
+  const textClick = useRef<Point | null>(null);
 
   const viewportPoint = (e: React.PointerEvent): Point => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -73,6 +87,11 @@ export function BoardViewport(props: BoardViewportProps) {
     (e: React.PointerEvent) => {
       if (e.target !== e.currentTarget) return;
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      // Story 9: text tool — a click on empty space creates text (no pan/marquee).
+      if (props.activeTool === 'text') {
+        textClick.current = viewportPoint(e);
+        return;
+      }
       // Shift+drag on empty space selects (story 7); plain drag pans (story 1).
       if (e.shiftKey && props.marquee) {
         marqueeActive.current = true;
@@ -83,11 +102,20 @@ export function BoardViewport(props: BoardViewportProps) {
       panMoved.current = false;
       beginPan({ x: e.clientX, y: e.clientY });
     },
-    [beginPan, props.marquee],
+    [beginPan, props.marquee, props.activeTool],
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
+      if (textClick.current) {
+        // A drag in the text tool cancels the pending click.
+        const p = viewportPoint(e);
+        const s = textClick.current;
+        if (Math.abs(p.x - s.x) > TEXT_CLICK_SLOP_PX || Math.abs(p.y - s.y) > TEXT_CLICK_SLOP_PX) {
+          textClick.current = null;
+        }
+        return;
+      }
       if (marqueeActive.current) {
         props.marquee?.move(viewportPoint(e));
         return;
@@ -107,6 +135,13 @@ export function BoardViewport(props: BoardViewportProps) {
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
+      if (textClick.current) {
+        const p = textClick.current;
+        textClick.current = null;
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        if (p) props.onTextCreate?.(p);
+        return;
+      }
       if (marqueeActive.current) {
         marqueeActive.current = false;
         props.marquee?.move(viewportPoint(e)); // extend to the release point
@@ -139,6 +174,15 @@ export function BoardViewport(props: BoardViewportProps) {
 
   const handlePointerCancel = useCallback(
     (e: React.PointerEvent) => {
+      if (textClick.current) {
+        textClick.current = null;
+        try {
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        } catch {
+          // ignore
+        }
+        return;
+      }
       if (marqueeActive.current) {
         marqueeActive.current = false;
         props.marquee?.cancel(); // discard: selection unchanged
@@ -272,7 +316,8 @@ export function BoardViewport(props: BoardViewportProps) {
           position: 'fixed',
           inset: 0,
           overflow: 'hidden',
-          cursor: isPanning.current ? 'grabbing' : 'grab',
+          cursor:
+            props.activeTool === 'text' ? 'text' : isPanning.current ? 'grabbing' : 'grab',
           touchAction: 'none',
           ...gridStyle,
         }}

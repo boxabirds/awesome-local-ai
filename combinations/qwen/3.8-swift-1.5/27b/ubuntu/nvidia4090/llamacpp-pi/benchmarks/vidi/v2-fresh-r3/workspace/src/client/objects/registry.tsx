@@ -3,9 +3,10 @@ import type * as Y from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import type { Point, Rect } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /**
  * Props every board object component receives (sel.all_types). Selection,
@@ -41,6 +42,13 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  /**
+   * Which resize handles the selection overlay shows (story 9): 'all' (the
+   * default) for the full 8-handle box (sticky notes) or 'horizontal' for
+   * only the east and west handles (free text — height stays content-driven,
+   * so n/s handles are meaningless).
+   */
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -80,5 +88,21 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  handles: 'all',
+  hitTest: (obj, worldPoint) => pointInRect(objectBounds(obj), worldPoint),
+});
+
+/**
+ * The free text type (story 9): resizable (east/west handles set a fixed
+ * width; the height is always re-measured from the content), never
+ * aspect-locked, minimum TEXT_MIN_WIDTH_WORLD, editable text.
+ */
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: (obj, worldPoint) => pointInRect(objectBounds(obj), worldPoint),
 });

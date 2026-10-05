@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
 import { STICKY_SIZE_WORLD, STICKY_COLORS } from '../../shared/config';
 import { getStickyText } from '../../shared/board-model';
+import { ToolContext } from '../board/useTool';
 import { fitFontSize, STICKY_TEXT_PADDING } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 import type { ObjectProps } from './registry';
@@ -19,6 +20,9 @@ const SELECTION_OUTLINE = '2px solid #1A73E8';
 export function StickyNote(props: ObjectProps): JSX.Element {
   const { obj, doc, selected, editing, dragging, onObjectPointerDown, onStartEdit, onEndEdit, undo } =
     props;
+  // Story 9: in the text tool every object is pointer-transparent so a click
+  // anywhere (even over a note) creates text at the click point.
+  const tool = useContext(ToolContext);
   const textRef = useRef<HTMLDivElement>(null);
   const [fontPx, setFontPx] = useState(24);
   const [overflow, setOverflow] = useState(false);
@@ -73,6 +77,7 @@ export function StickyNote(props: ObjectProps): JSX.Element {
         userSelect: 'none',
         touchAction: 'none',
         boxSizing: 'border-box',
+        pointerEvents: tool === 'text' ? 'none' : 'auto',
       }}
       onPointerDown={handlePointerDown}
       onDoubleClick={handleDoubleClick}
