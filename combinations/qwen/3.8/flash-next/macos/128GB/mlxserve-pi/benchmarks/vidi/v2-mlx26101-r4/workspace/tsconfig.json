@@ -19,5 +19,8 @@
     "resolveJsonModule": true,
     "noEmit": true
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
+  // The Worker and the tests that run inside workerd are checked by
+  // tsconfig.worker.json: their globals come from the runtime, not from the DOM.
+  "exclude": ["src/worker", "tests/integration"]
 }

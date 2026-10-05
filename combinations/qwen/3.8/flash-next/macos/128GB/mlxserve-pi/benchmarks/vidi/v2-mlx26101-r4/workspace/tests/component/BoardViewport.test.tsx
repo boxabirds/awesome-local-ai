@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { App } from '../../src/client/App';
 import { resetCamera, screenToWorld, type Camera } from '../../src/client/canvas/camera';
 import { cameraStore } from '../../src/client/canvas/cameraStore';
+import { noConnection } from './helpers/stickyBoard';
 import {
   GRID_SPACING_WORLD,
   WHEEL_DELTA_MODE_LINES,
@@ -23,7 +24,7 @@ const POINTER_ID = 1;
 const EPS_NEAR = 9;
 
 function renderBoard(): void {
-  render(<App />);
+  render(<App connect={noConnection} />);
 }
 
 function surface(): HTMLElement {

@@ -198,6 +198,10 @@ export default defineConfig({
     viewport: VIEWPORT,
     trace: 'off',
     video: 'off',
+    // A click that cannot happen is a failure, not something to wait for: Playwright's
+    // default is to wait forever, which turns a disabled button into a run that stops
+    // answering. Twenty seconds is longer than any action here takes to become possible.
+    actionTimeout: 20_000,
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: VIEWPORT } },
@@ -205,6 +209,15 @@ export default defineConfig({
       ? [{ name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: VIEWPORT } }]
       : []),
     { name: 'webkit', use: { ...devices['Desktop WebKit'], viewport: VIEWPORT } },
+    // The two long checks (TC-29 idle, TC-30 soak) live in the nightly project. It runs
+    // Chromium only — that is the browser the story has to work in, and three copies of a
+    // ten-minute run buys time, not coverage — and `npm run test:e2e` filters these tests
+    // out by tag while `npm run test:e2e:nightly` selects nothing else.
+    {
+      name: 'nightly',
+      grep: /@nightly/,
+      use: { ...devices['Desktop Chrome'], viewport: VIEWPORT },
+    },
   ],
   webServer: {
     // Static assets are served by `wrangler dev` from dist/client, the same path

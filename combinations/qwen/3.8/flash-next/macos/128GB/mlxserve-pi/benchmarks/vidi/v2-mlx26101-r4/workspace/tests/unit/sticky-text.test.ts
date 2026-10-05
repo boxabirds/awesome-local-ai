@@ -15,8 +15,10 @@ import * as Y from 'yjs';
 import {
   applyTextDiff,
   clampToLimit,
+  compositionInsertion,
   counterVisible,
   fitFontSize,
+  moveCaretThrough,
 } from '../../src/client/objects/StickyText';
 import {
   STICKY_COUNTER_THRESHOLD_CHARS,
@@ -378,5 +380,164 @@ describe('sticky.text fitFontSize', () => {
     const fit = fitFontSize(measurable(rows(1)), 4);
     expect(fit.fontPx).toBe(STICKY_FONT_MIN_PX);
     expect(fit.overflow).toBe(true);
+  });
+});
+
+/**
+ * Where the cursor of the person typing stands when the note's text changes under it
+ * (story 3, TC-23: both people see both people's words, and neither loses their place).
+ */
+describe('moveCaretThrough', () => {
+  const at = (start: number, end = start) => ({ start, end });
+
+  it('carries the cursor along with text put in front of it', () => {
+    expect(moveCaretThrough('leaf', 'green leaf', at(4))).toEqual(at(10));
+    expect(moveCaretThrough('leaf', 'green leaf', at(2))).toEqual(at(8));
+  });
+
+  it('stands a cursor in front of words that begin exactly where it stands', () => {
+    // The two readings of a cursor that is standing at the place somebody else starts
+    // writing: carried after their words, or left before them. It is left before them,
+    // because a cursor does not move because of somebody else.
+    expect(moveCaretThrough('leaf', 'green leaf', at(0))).toEqual(at(0));
+    expect(moveCaretThrough('hi', 'hi there', at(2))).toEqual(at(2));
+  });
+
+  it('leaves the cursor where it is when text is put behind it', () => {
+    expect(moveCaretThrough('leaf', 'leaf today', at(2))).toEqual(at(2));
+    expect(moveCaretThrough('leaf', 'leaf today', at(0))).toEqual(at(0));
+  });
+
+  it('stands the cursor at the beginning of text that was replaced under it', () => {
+    // 'wrong note' -> 'right note': one change, from 0 to 5.
+    expect(moveCaretThrough('wrong note', 'right note', at(3))).toEqual(at(0));
+    // Text removed from in front of it: the cursor comes back with the text.
+    expect(moveCaretThrough('the note', 'note', at(7))).toEqual(at(3));
+  });
+
+  it('keeps a selection that the change did not touch', () => {
+    expect(moveCaretThrough('one two', 'one two three', at(0, 3))).toEqual(at(0, 3));
+    expect(moveCaretThrough('one two', 'a one two', at(4, 7))).toEqual(at(6, 9));
+  });
+
+  it('says nothing moved when the text did not move', () => {
+    expect(moveCaretThrough('same', 'same', at(2, 3))).toEqual(at(2, 3));
+  });
+
+  it('keeps the cursor inside the text it is given', () => {
+    // Every position it reports has to be a position the new text actually has,
+    // because the box is asked to put a cursor there next.
+    const before = RETRO_NOTE;
+    const after = LONG_NOTE;
+    for (let index = 0; index <= before.length; index += 1) {
+      const moved = moveCaretThrough(before, after, at(index));
+      expect(moved.start).toBeGreaterThanOrEqual(0);
+      expect(moved.end).toBeGreaterThanOrEqual(moved.start);
+      expect(moved.end).toBeLessThanOrEqual(after.length);
+    }
+  });
+
+  it('moves a cursor by the one change the note itself saw', () => {
+    // `applyTextDiff` writes the one difference between two states of the text; a cursor
+    // moving between those same two states has to be moved by that one difference, or the
+    // box and the note disagree about what happened.
+    const cases: [string, string][] = [
+      ['leaf', 'green leaf'],
+      ['green leaf', 'leaf'],
+      ['wrong note', 'right note'],
+      ['hi', 'hi there'],
+      ['one two', 'one three two'],
+      ['', 'first'],
+      ['first', ''],
+      [RETRO_NOTE, LONG_NOTE],
+    ];
+    for (const [before, after] of cases) {
+      const doc = new Y.Doc();
+      const text = doc.getText('t');
+      text.insert(0, before);
+
+      const changed = opsOf(text, () => applyTextDiff(text, after, undefined));
+      const shift = changed.reduce((total, op) => total + (op.insert?.length ?? 0) - (op.delete ?? 0), 0);
+      expect(shift).toBe(after.length - before.length);
+
+      // Where the one change is, worked out of the operations the note was written with:
+      // the span of the old text it took, and the length of the new text it put there.
+      let start = Number.POSITIVE_INFINITY;
+      let end = -1;
+      let walked = 0;
+      for (const op of changed) {
+        if (op.retain !== undefined) walked += op.retain;
+        else if (op.insert !== undefined) {
+          start = Math.min(start, walked);
+          end = Math.max(end, walked);
+        } else if (op.delete !== undefined) {
+          start = Math.min(start, walked);
+          end = Math.max(end, walked + op.delete);
+          walked += op.delete;
+        }
+      }
+      if (changed.length === 0) continue; // nothing changed, so nothing moves
+
+      if (start > 0) {
+        expect(moveCaretThrough(before, after, at(start - 1)).start).toBe(start - 1);
+      }
+      if (end > start + 1) {
+        expect(moveCaretThrough(before, after, at(start + 1)).start).toBe(start);
+      }
+      if (end < before.length) {
+        // Behind the change: the cursor travels by exactly what the note grew or shrank.
+        expect(moveCaretThrough(before, after, at(end + 1)).start).toBe(end + 1 + shift);
+        expect(moveCaretThrough(before, after, at(before.length)).start).toBe(after.length);
+      } else if (start === before.length) {
+        // The change begins at the very end of the text, so a cursor at the end is
+        // standing where the words begin, and stands in front of them.
+        expect(moveCaretThrough(before, after, at(before.length)).start).toBe(before.length);
+      } else {
+        // The change reaches the end of the text without beginning there, so a cursor at
+        // the end goes with what is left of it.
+        expect(moveCaretThrough(before, after, at(before.length)).start).toBe(after.length);
+      }
+    }
+  });
+});
+
+/** The operations one write to a `Y.Text` produced. */
+function opsOf(text: Y.Text, write: () => void): Op[] {
+  const seen: Op[] = [];
+  const observer = (event: Y.YTextEvent): void => {
+    seen.push(...(event.delta as Op[]));
+  };
+  text.observe(observer);
+  write();
+  text.unobserve(observer);
+  return seen;
+}
+
+/**
+ * The word an input method was asked to write, picked back out of the box after it was
+ * composed while somebody else was writing in the same note (story 3, TC-23).
+ */
+describe('compositionInsertion', () => {
+  it('picks the composed word out of the box', () => {
+    // The note held 'hi ' when the word was started, at its end.
+    expect(compositionInsertion('hi かな', 3, 3)).toBe('かな');
+    // Started at the beginning of an empty note.
+    expect(compositionInsertion('かな', 0, 0)).toBe('かな');
+  });
+
+  it('says there is nothing to write in when the composition replaced text', () => {
+    // The box is shorter than the note was: words were taken away, not added, and only a
+    // write of the whole text can say which. That case is the caller's.
+    expect(compositionInsertion('hi', 5, 2)).toBeNull();
+  });
+
+  it('finds the word when the cursor stood in front of text already there', () => {
+    // The note read 'note' and the cursor was put at its start; the box now holds the
+    // word in front of the text it was written into.
+    expect(compositionInsertion('かなnote', 4, 0)).toBe('かな');
+  });
+
+  it('says there is nothing to write in when the composition produced no word', () => {
+    expect(compositionInsertion('hi ', 3, 3)).toBe('');
   });
 });

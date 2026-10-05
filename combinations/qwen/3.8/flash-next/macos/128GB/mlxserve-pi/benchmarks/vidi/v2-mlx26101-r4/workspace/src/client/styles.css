@@ -414,3 +414,43 @@ body {
   background: var(--ink);
   content: '';
 }
+
+/* ------------------------------------------------------ connection status ---- */
+
+/*
+ * The board's one status message, at the top centre where it can be seen without
+ * moving the board out of the way. It is painted over the board and never takes a
+ * pointer: a person who is reconnecting keeps editing, so the badge must not be
+ * able to intercept anything they do.
+ */
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Still loading: quiet, because nothing has gone wrong yet. */
+.connection-status--connecting {
+  background: var(--hint-bg);
+  color: var(--hint-fg);
+}
+
+/* Amber: nobody else can see this board right now. */
+.connection-status--reconnecting {
+  background: #b45309;
+  color: #fff7ed;
+}
+
+/* Green: the board is live again, for a couple of seconds only. */
+.connection-status--confirmed {
+  background: #15803d;
+  color: #f0fdf4;
+}

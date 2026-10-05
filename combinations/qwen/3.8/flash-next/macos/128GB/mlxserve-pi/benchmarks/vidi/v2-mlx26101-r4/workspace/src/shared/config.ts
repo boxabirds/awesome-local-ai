@@ -69,3 +69,55 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** The colour of a newly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/* ------------------------------------------------------------------- live -- */
+
+/**
+ * How many people the board is designed and tested for while they edit at the
+ * same time. It is a soft number: nothing in the product refuses a 6th person,
+ * and no code may treat it as a limit — only tests and design use it, so the
+ * capacity can change here without a redesign.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/** How long a change may take to appear on someone else's screen (live.propagate). */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Longest wait the connection makes before retrying a lost board server. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays up after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** How long the catch-up test keeps one participant's network down (live.catch_up). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/**
+ * How long an end-to-end test waits for a change to show up on another screen.
+ * Everything in an e2e run shares one machine, so the tests assert that a change
+ * *does* arrive within this generous window and report the measured latency
+ * against LIVE_UPDATE_LATENCY_BUDGET_MS instead of failing on it.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+/**
+ * How long a test waits for a board to come back after a connection was cut. The client
+ * does not dial again at once: it waits, doubling up to RECONNECT_MAX_BACKOFF_MS, and that
+ * wait belongs to the product rather than to the change under test, so a patient reconnect
+ * policy does not read as a broken board.
+ */
+export const RECONNECT_WAIT_MS = 45_000;
+
+/**
+ * How long a peer's presence is remembered after the last word about it. This story relays
+ * awareness and shows none of it — who is here is story 6 — so the room forwards awareness
+ * exactly as it arrives and nothing counts these milliseconds; the setting is here because
+ * the room is where a timeout would live when there is something to time out.
+ */
+export const AWARENESS_TIMEOUT_MS = 30_000;
+
+/**
+ * Random bytes in a new board id: 128 bits, which is what makes an address unguessable
+ * while the address is the whole of a board's access control.
+ */
+export const BOARD_ID_BYTES = 16;

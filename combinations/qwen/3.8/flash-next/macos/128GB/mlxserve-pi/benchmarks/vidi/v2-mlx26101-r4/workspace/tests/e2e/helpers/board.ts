@@ -94,9 +94,14 @@ export function resetButton(page: Page): Locator {
   return page.getByRole('button', { name: 'Reset view' });
 }
 
-/** Opens the app and waits until the board and its test hooks are ready. */
-export async function openBoard(page: Page): Promise<void> {
-  await page.goto('/');
+/**
+ * Opens the app and waits until the board and its test hooks are ready.
+ *
+ * With no board given, the app opens its own (a new id, made by the app itself).
+ * Story 3 passes an id, so that several browsers can be pointed at the same board.
+ */
+export async function openBoard(page: Page, boardId = ''): Promise<void> {
+  await page.goto(boardId === '' ? '/' : `/b/${boardId}`);
   // Checked before anything else, because every other assertion would fail with a
   // confusing message if the page being served was the production build.
   await expect

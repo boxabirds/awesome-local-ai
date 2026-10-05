@@ -12,18 +12,25 @@
     "build:test": "vite build --mode test",
     "preview": "vite preview",
     "worker:dev": "npm run build:test && wrangler dev --ip 127.0.0.1 --port 22880 --inspector-port 22882",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:e2e": "npm run build:test && playwright test"
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "npm run build:test && playwright test --grep-invert @nightly",
+    "test:e2e:nightly": "npm run build:test && playwright test --project=nightly --grep @nightly"
   },
   "dependencies": {
+    "lib0": "^0.2.119",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@cloudflare/workers-types": "^5.20261004.1",
     "@playwright/test": "^1.63.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^7.0.1",
@@ -36,7 +43,7 @@
     "jsdom": "^30.1.2",
     "typescript": "~5.9.3",
     "vite": "^8.3.2",
-    "vitest": "^5.0.3",
+    "vitest": "^4.1.11",
     "wrangler": "^4.147.0"
   }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
 
 import { BoardViewport } from './canvas/BoardViewport';
@@ -9,12 +9,19 @@ import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/came
 import type { Point } from './canvas/camera';
 import { useCamera, useViewportSize } from './canvas/useCamera';
 import { createSticky, deleteObject, NO_ID } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { useBoardDoc } from './board/useBoardDoc';
+import type { BoardConnector } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { connectBoard } from './sync/connectBoard';
 
 /** Keys that delete a selected note, and nothing else. */
 const DELETE_KEYS = ['Delete', 'Backspace'];
+
+/** The address of a board: this prefix and the board's id, and nothing else. */
+const BOARD_PATH_PREFIX = '/b/';
 
 /**
  * Top-level layout: the infinite board fills the window, the board toolbar is a
@@ -22,15 +29,24 @@ const DELETE_KEYS = ['Delete', 'Backspace'];
  * near the bottom centre.
  *
  * The board document, the selection and the keyboard shortcuts meet here, and
- * nowhere else: `useBoardDoc` owns the document and republishes it as notes,
- * `useSelection` holds what this window has selected (local, never shared), and
- * this component decides which key does what to which note.
+ * nowhere else: `useBoardDoc` owns the document, keeps it connected to the board at
+ * this address and republishes it as notes, `useSelection` holds what this window
+ * has selected (local, never shared), and this component decides which key does what
+ * to which note.
+ *
+ * `connect` is not a product knob: it lets the component tests render a board
+ * without opening a socket. The board itself always uses the real connection.
  */
-export function App(): JSX.Element {
+export interface AppProps {
+  connect?: BoardConnector;
+}
+
+export function App({ connect = connectBoard }: AppProps = {}): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize(rootRef);
   const { camera, hasNavigated, zoomStep, reset } = useCamera(viewport);
-  const { doc, notes } = useBoardDoc();
+  const boardId = useBoardAddress();
+  const { doc, notes, connection } = useBoardDoc(boardId, connect);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   /**
@@ -137,8 +153,38 @@ export function App(): JSX.Element {
         onReset={reset}
       />
       <NavigationHint visible={!hasNavigated} />
+      <ConnectionStatus state={connection} />
     </div>
   );
+}
+
+/**
+ * Which board this window is on, read from its address.
+ *
+ * A board is reached by its address, so an address that is not one — the site root,
+ * or an address that is not a board address at all — is given a new board rather
+ * than an error page: there is nothing to show a person who has arrived somewhere
+ * that is not a board but clearly meant to be one. (Story 5 replaces this with board
+ * creation on the server; until then this is what makes the app usable from `/`.)
+ */
+function useBoardAddress(): string {
+  const [boardId] = useState(currentBoardAddress);
+  return boardId;
+}
+
+/** The board id in this window's address, rewriting the address if it has none. */
+function currentBoardAddress(): string {
+  const pathname = window.location.pathname;
+  if (pathname.startsWith(BOARD_PATH_PREFIX)) {
+    const id = decodeURIComponent(pathname.slice(BOARD_PATH_PREFIX.length));
+    if (isValidBoardId(id)) return id;
+  }
+  const id = newBoardId();
+  // `replaceState`, not a navigation: there is no page to go back to. The app is
+  // rendered from this address either way, and the address in the bar is the one a
+  // person can copy to somebody else.
+  window.history.replaceState(null, '', `${BOARD_PATH_PREFIX}${id}`);
+  return id;
 }
 
 /** Keys typed here are text, not board commands. */

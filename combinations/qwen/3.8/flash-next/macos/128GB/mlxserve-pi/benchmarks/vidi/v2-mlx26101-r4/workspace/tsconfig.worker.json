@@ -1,0 +1,15 @@
+{
+  // The Worker side of the project, typechecked separately from the browser.
+  //
+  // `@cloudflare/workers-types` replaces the browser's globals (Request, Response,
+  // TextEncoder, ...) with the ones the Workers runtime really provides, and it
+  // cannot be loaded alongside the DOM library the client is written against. So the
+  // Worker, the board room and the tests that run inside workerd are checked here,
+  // and `npm run typecheck` runs both projects.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types"]
+  },
+  "include": ["src/worker", "src/shared", "tests/integration"]
+}

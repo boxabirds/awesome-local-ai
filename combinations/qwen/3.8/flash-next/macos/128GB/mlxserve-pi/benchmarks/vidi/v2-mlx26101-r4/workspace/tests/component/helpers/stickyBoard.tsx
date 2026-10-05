@@ -7,12 +7,14 @@
  * notes are found in the DOM by the attributes the note itself publishes.
  */
 import { expect } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type * as Y from 'yjs';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import * as Y from 'yjs';
 
 import { App } from '../../../src/client/App';
+import type { BoardConnector } from '../../../src/client/board/useBoardDoc';
 import type { Camera } from '../../../src/client/canvas/camera';
 import { cameraStore } from '../../../src/client/canvas/cameraStore';
+import { initDoc } from '../../../src/shared/board-model';
 import type { StickySnapshot } from '../../../src/shared/board-model';
 import { STICKY_SIZE_WORLD } from '../../../src/shared/config';
 
@@ -23,8 +25,16 @@ export const CENTRE = { x: AREA.width / 2, y: AREA.height / 2 };
 
 const POINTER_ID = 1;
 
-export function renderBoard(): void {
-  render(<App />);
+/**
+ * A connection that connects to nothing. Component tests are about components: a
+ * socket opened from jsdom would put a second source of change into a test that is
+ * trying to make one, and would leave a test failing because a port was busy.
+ * The badge tests hand `App` a connector of their own, which is the same seam.
+ */
+export const noConnection: BoardConnector = () => ({ destroy(): void {} });
+
+export function renderBoard(connect: BoardConnector = noConnection): void {
+  render(<App connect={connect} />);
 }
 
 export function surface(): HTMLElement {
@@ -198,4 +208,25 @@ export function stickyById(id: string): StickySnapshot {
   const note = stickies().find((entry) => entry.id === id);
   if (!note) throw new Error(`no note with id ${id} in the document`);
   return note;
+}
+
+/**
+ * What the board receives when somebody else edits the same notes: the edit is made to
+ * a copy of the document — which is what the room holds — and only the difference comes
+ * back, arriving with no local mark on it. That is the same shape of change a socket
+ * delivers, so a component cannot tell the difference, and the two documents are left
+ * holding the same words, which is what convergence means.
+ */
+export function somebodyElse(edit: (doc: Y.Doc) => void): void {
+  const here = doc();
+  const there = new Y.Doc();
+  initDoc(there);
+  Y.applyUpdate(there, Y.encodeStateAsUpdate(here));
+  edit(there);
+  const update = Y.encodeStateAsUpdate(there, Y.encodeStateVector(here));
+  there.destroy();
+
+  act(() => {
+    Y.applyUpdate(here, update);
+  });
 }

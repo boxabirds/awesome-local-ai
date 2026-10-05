@@ -1,17 +1,42 @@
 {
-  // Static assets only for now; the Worker `main` entrypoint arrives in story 3.
-  // An assets-only Worker has no `binding`: wrangler rejects an assets binding in a
-  // Worker without a script.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-01",
+  // Both runtimes that load this config have to accept the date: the Worker that
+  // `wrangler dev` runs for the e2e tests, and the workerd that
+  // @cloudflare/vitest-pool-workers runs for the integration tests. It is set to the
+  // older of the two, which the newer one accepts too (see NOTES.md).
+  "compatibility_date": "2026-08-22",
   "send_metrics": false,
+  // The Worker: board connections are routed by `src/worker/index.ts`, and every
+  // other address is served from the built client below.
+  "main": "src/worker/index.ts",
   "assets": {
     // The built client, so `wrangler dev` serves the same path the e2e tests use.
-    // No `not_found_handling` rewrite: story 1 has one route, and serving index.html
-    // for a missing path would turn a stale or missing bundle into a confusing 200.
-    "directory": "./dist/client"
+    "directory": "./dist/client",
+    // Bound so the Worker can serve the client itself, and so a board address like
+    // /b/<id> — which is not a file — gets the app that knows what to do with it.
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
   },
+  "durable_objects": {
+    "bindings": [
+      {
+        // One object per board id, holding that board's document while somebody
+        // has it open. The name is the only thing a connection is routed by.
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      // SQLite-backed from the start: story 4 gives this class a stored document,
+      // and moving an existing class to SQLite would need a second migration that
+      // loses the boards in between. Nothing is written to storage yet.
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ],
   "dev": {
     "ip": "127.0.0.1",
     "port": 22880

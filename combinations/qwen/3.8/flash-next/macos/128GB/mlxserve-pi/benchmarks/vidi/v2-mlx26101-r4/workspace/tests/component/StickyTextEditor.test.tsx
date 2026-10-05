@@ -21,7 +21,9 @@ import {
   noteId,
   pasteText,
   renderBoard,
+  somebodyElse,
   stickies,
+  stickyById,
   surface,
   textarea,
   toolbarPresent,
@@ -296,5 +298,158 @@ describe('sticky note text editor', () => {
     fireEvent.keyDown(window, { key: 'Enter' });
     await waitFor(() => expect(hasTextarea()).toBe(true));
     expect(textarea().value).toBe('');
+  });
+});
+
+/**
+ * Story 3, TC-23: what the other person types appears in the note while this person is
+ * typing in it. Both people's words end up in the note; neither of them loses their place
+ * or their text.
+ */
+describe("somebody else's typing, appearing in the note being typed in", () => {
+  it('shows their words in the box, with the cursor in front of them where it was', async () => {
+    renderBoard();
+    await doubleClickBoard(400, 300);
+    typeText('leaf');
+    const id = noteId();
+
+    // The other person puts a word at the beginning of the same note.
+    somebodyElse((there) => {
+      getStickyText(there, id)?.insert(0, 'green ');
+    });
+
+    const editor = textarea();
+    // Both people's words, in the order the notes holds them.
+    expect(editor.value).toBe('green leaf');
+    expect(stickyById(id).text).toBe('green leaf');
+    // The cursor was at the end of 'leaf'; it went with 'leaf', it did not jump.
+    expect(editor.selectionStart).toBe('green leaf'.length);
+    expect(editor.selectionEnd).toBe('green leaf'.length);
+
+    // And this person keeps typing from there, into the same note.
+    typeText('!');
+    expect(stickyById(id).text).toBe('green leaf!');
+  });
+
+  it('leaves a cursor alone when their words land behind it', async () => {
+    renderBoard();
+    await doubleClickBoard(400, 300);
+    typeText('buy milk');
+    const id = noteId();
+
+    const editor = textarea();
+    editor.setSelectionRange(3, 3); // in the middle of 'buy'
+
+    somebodyElse((there) => {
+      getStickyText(there, id)?.insert('buy milk'.length, ' today');
+    });
+
+    expect(editor.value).toBe('buy milk today');
+    expect(editor.selectionStart).toBe(3);
+    expect(editor.selectionEnd).toBe(3);
+  });
+
+  it('keeps a selection that their editing did not touch', async () => {
+    renderBoard();
+    await doubleClickBoard(400, 300);
+    typeText('one two');
+    const id = noteId();
+
+    const editor = textarea();
+    editor.setSelectionRange(0, 3); // 'one' is held
+
+    somebodyElse((there) => {
+      getStickyText(there, id)?.insert('one two'.length, ' three');
+    });
+
+    expect(editor.value).toBe('one two three');
+    expect(editor.selectionStart).toBe(0);
+    expect(editor.selectionEnd).toBe(3);
+  });
+
+  it('stands a cursor at the place of words that were replaced under it', async () => {
+    renderBoard();
+    await doubleClickBoard(400, 300);
+    typeText('wrong note');
+    const id = noteId();
+
+    const editor = textarea();
+    editor.setSelectionRange(3, 3); // inside 'wrong'
+
+    somebodyElse((there) => {
+      const text = getStickyText(there, id);
+      text?.delete(0, 'wrong note'.length);
+      text?.insert(0, 'right note');
+    });
+
+    expect(editor.value).toBe('right note');
+    // Nowhere inside the replaced text to stand, so it stands at its beginning — and the
+    // next character this person types goes there, not at the end.
+    expect(editor.selectionStart).toBe(0);
+  });
+
+  it('shows their emptying of the note in the box', async () => {
+    renderBoard();
+    await doubleClickBoard(400, 300);
+    typeText(SHORT_NOTE);
+    const id = noteId();
+
+    somebodyElse((there) => {
+      const text = getStickyText(there, id);
+      text?.delete(0, text.toString().length);
+    });
+
+    expect(textarea().value).toBe('');
+    expect(stickyById(id).text).toBe('');
+    expect(hasTextarea()).toBe(true);
+  });
+
+  it('does not disturb a word being composed, and lands it without erasing their words', async () => {
+    renderBoard();
+    await doubleClickBoard(400, 300);
+    typeText('hi ');
+    const id = noteId();
+
+    const editor = textarea();
+    fireEvent.compositionStart(editor);
+    editor.value = 'hi かな';
+    fireEvent.input(editor);
+
+    // Their words arrive in the middle of the composition. The box is the input method's
+    // while it is at work, so they wait a moment rather than throwing the word away.
+    somebodyElse((there) => {
+      getStickyText(there, id)?.insert(0, 'go ');
+    });
+    expect(stickyById(id).text).toBe('go hi ');
+    expect(editor.value).toBe('hi かな');
+
+    // The word is finished: both people's words are in the note, and the box shows both.
+    // The word goes in where it was started, so nothing anybody else wrote is erased.
+    fireEvent.compositionEnd(editor);
+    await waitFor(() => expect(stickyById(id).text).toBe('go hi かな'));
+    expect(textarea().value).toBe('go hi かな');
+    expect(textarea().selectionStart).toBe('go hi かな'.length);
+  });
+
+  it('still writes a composition whose note was edited elsewhere while it was being written', async () => {
+    renderBoard();
+    await doubleClickBoard(400, 300);
+    typeText('note');
+    const id = noteId();
+
+    const editor = textarea();
+    editor.setSelectionRange(0, 0); // the word is being started at the beginning
+    fireEvent.compositionStart(editor);
+    editor.value = 'かなnote';
+    fireEvent.input(editor);
+    somebodyElse((there) => {
+      getStickyText(there, id)?.insert('note'.length, '!');
+    });
+    fireEvent.compositionEnd(editor);
+
+    // The word is written in where it was started, in front of what arrived behind it.
+    await waitFor(() => expect(stickyById(id).text).toBe('かなnote!'));
+    expect(textarea().value).toBe('かなnote!');
+    expect(textarea().selectionStart).toBe('かな'.length);
   });
 });
