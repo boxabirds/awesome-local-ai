@@ -21,6 +21,7 @@ import type * as Y from 'yjs';
 import { registerKnownObjectType } from '../../shared/board-model';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   STICKY_SIZE_WORLD,
@@ -39,6 +40,7 @@ import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
 import { TextObject } from './TextObject';
+import { ImageBoardObject } from './ImageObject';
 import { resizeTextBox } from './textLayout';
 import type { ObjectProps } from './objectProps';
 
@@ -362,4 +364,47 @@ registerObjectType('stroke', {
   // polyline's clothes, and there is nothing here to type into.
   editableText: false,
   hitTest: strokeHitTest,
+});
+
+/* ------------------------------------------------------------------ image -- */
+
+/**
+ * A picture on the board: a box, and something to draw in it once the bytes arrive.
+ *
+ * Of the five object types this one is the most ordinary to the board and the least ordinary to the document, and
+ * the registry entry is where that shows. Everything about it that the board does — select it, move it, marquee
+ * over it, raise it, delete it, resize it — is the same as a sticky note's, because a picture is a rectangle with
+ * a position and a size and story 7 already knows what to do with that. What is different is that the board cannot
+ * see inside it: a note's words are in the document, so the board could tell you the note was empty; a picture's
+ * bytes are in a bucket, so the board's whole knowledge of the content is a key and a status. The component is
+ * where that lives, and nothing below this line has to know.
+ *
+ * **Proportions are locked, and they are locked here rather than in the component** because the resize gesture is
+ * generic: it asks this file what a selection permits and applies one scale to the box. A picture drawn out of its
+ * proportions is the same picture stretched, and there is no reading of a dragged corner in which a person meant
+ * that — a photo squeezed sideways is a photo of a narrower thing, which nobody asked to look at. The same flag
+ * makes a group of a picture and a note resize proportionally for both, which is the rule story 7 already states
+ * and the one a person would guess: pulling the corner of a group makes the whole group bigger.
+ *
+ * **The floor is 16 board units**, which is smaller than a note's and deliberately so: a picture placed at the
+ * size of a 64 pixel icon is a thing people do on purpose, and an image that could not be shrunk to about the size
+ * of a thumbnail could not be used as one. Below that it stops being a picture and becomes a dot, which is where
+ * the limit goes.
+ *
+ * **The whole box is the target.** A picture has no empty part to press: the image fills it, and where the image
+ * is not there yet, the placeholder does. So the hit test is the plain rectangle every boxed object uses — and
+ * unlike a drawing or an arrow, there is nothing here for a tolerance to explain. A marquee that crosses the
+ * corner of a picture has caught the picture, which is what crossing the corner of a note has always meant.
+ *
+ * **It has no words in it,** which is what `editableText: false` says: pressing Enter on a picture or
+ * double-clicking inside it selects and does not open an editor. What a person would type into it has nowhere to
+ * be stored, and an editor that appears and then loses what was typed is the worst kind of promise.
+ */
+registerObjectType('image', {
+  Component: ImageBoardObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: rectHitTest,
 });

@@ -18,6 +18,16 @@
     "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   },
+  // The board's pictures (story 12). Their bytes are too large to travel through the document, so the
+  // document holds a key and this bucket holds the bytes. Local development and the integration tests get a
+  // bucket of their own on disk, which is what lets those tests assert that a refused upload left nothing
+  // behind rather than take the worker's word for it.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {

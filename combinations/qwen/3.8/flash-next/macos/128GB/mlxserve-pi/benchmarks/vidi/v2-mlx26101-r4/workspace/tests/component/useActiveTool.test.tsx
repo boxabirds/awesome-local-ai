@@ -23,7 +23,7 @@ import * as Y from 'yjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 
-import { SHAPE_DEFAULT_SIZE_WORLD, SHAPE_KINDS } from '../../src/shared/config';
+import { SHAPE_DEFAULT_SIZE_WORLD, SHAPE_KINDS, IMAGE_ACCEPTED_TYPES } from '../../src/shared/config';
 import { SHAPE_OBJECT_TYPE } from '../../src/shared/objects/shape';
 import {
   activeTool,
@@ -48,6 +48,28 @@ import {
   WORLD_CENTRE,
 } from './helpers/tools';
 import { outlinedIds } from './helpers/selection';
+import { BOARD_ID, boardExists } from './helpers/stickyBoard';
+import { BoardPage } from '../../src/client/pages/BoardPage';
+import type { BoardConnector } from '../../src/client/board/useBoardDoc';
+import { render } from '@testing-library/react';
+
+/** A board whose document could not be loaded: it shows what is there, and writes nothing. */
+const loadFailed: BoardConnector = (_doc, _boardId, onState) => {
+  onState('load_failed');
+  return { destroy(): void {} };
+};
+
+/**
+ * A board the tab can reach.
+ *
+ * The board under test in every other file in this directory is connected to nothing, which is right for a note
+ * (a note is written down whether or not anybody is listening) and wrong for a picture: adding one is refused
+ * while the board cannot be reached, so a test about asking for a picture has to be on a board that can take one.
+ */
+const reachable: BoardConnector = (_doc, _boardId, onState) => {
+  onState('connected');
+  return { destroy(): void {} };
+};
 
 /** A point as the two numbers a pointer event wants. */
 function xy(point: { x: number; y: number }): [number, number] {
@@ -178,10 +200,11 @@ describe('arming a tool (TC-22)', () => {
     expect(fireEvent.keyDown(window, { key: 't', ctrlKey: true })).toBe(true);
     // Tab is how a person without a mouse gets around the board and the toolbar.
     expect(fireEvent.keyDown(window, { key: 'Tab' })).toBe(true);
-    // Two letters in the design's map that this build does not have: the image and comment tools are stories
-    // not told yet, and their letters do nothing at all rather than arming a cursor that draws nothing. (`p`
-    // used to be one of them, and is the pen's now — which is what the pen's own tests are about.)
-    expect(fireEvent.keyDown(window, { key: 'i' })).toBe(true);
+    // Two letters in the design's map. `c` is a story not told yet, and its key does nothing at all rather than
+    // arming a cursor that draws nothing. `i` is claimed — this board can take a picture, and the key asks for one
+    // — which is what the tests below are about; on a board that cannot be written to it is left alone, as the
+    // last test in this file says.
+    expect(fireEvent.keyDown(window, { key: 'i' })).toBe(false);
     expect(fireEvent.keyDown(window, { key: 'c' })).toBe(true);
     // The keystroke a screen reader uses to interrupt.
     expect(fireEvent.keyDown(window, { key: 'Delete' })).toBe(true);
@@ -321,5 +344,101 @@ describe('arming a tool (TC-22)', () => {
 
     expect(selectedShapes()).toEqual(['foreign']);
     expect(outlinedIds()).toEqual(['foreign']);
+  });
+});
+
+/**
+ * The board asks for a picture (TC-20).
+ *
+ * `image` is in the shortcut map and is not a tool, which is the whole of what these tests are about: the key has
+ * to do something, and the something is not a mode. Nothing is armed, nothing is drawn on the board, the pointer
+ * does not change and there is nothing for Escape to give back — the gesture is over as soon as the file window is
+ * open, and the board is left exactly as it was apart from a window in front of it.
+ *
+ * What happens to the files after that is `images-insert.test.tsx`'s business. These are about the two ways the
+ * window is opened, the one thing the key must not disturb (a tool in hand), and the state in which the board
+ * declines to open it at all.
+ */
+describe('asking for a picture (TC-20)', () => {
+  beforeEach(() => {
+    renderBoard(reachable);
+    frameAtOrigin();
+  });
+
+  /** Count the clicks the board gives the file window, which is the only visible thing `I` does in jsdom. */
+  function fileWindow(): { element: HTMLInputElement; clicks(): number } {
+    const element = screen.getByTestId('image-file-input') as HTMLInputElement;
+    let clicks = 0;
+    element.addEventListener('click', () => {
+      clicks += 1;
+    });
+    return { element, clicks: () => clicks };
+  }
+
+  it('TC-20: the Image button opens the file window, filtered to the four types and open to several files', () => {
+    const window_ = fileWindow();
+
+    fireEvent.click(screen.getByRole('button', { name: /Image/ }));
+
+    expect(window_.clicks()).toBe(1);
+    // Filtered to the four the board accepts (image.formats), and taking more than one at a time (image.count_limit).
+    expect(window_.element.accept).toBe(IMAGE_ACCEPTED_TYPES.join(','));
+    expect(window_.element.accept).toBe('image/png,image/jpeg,image/gif,image/webp');
+    expect(window_.element.multiple).toBe(true);
+    // It is a real input in the page, because a browser opens a file window in answer to a gesture on an input and
+    // to nothing else. `display: none` would take it out of the page, and out of the question.
+    expect(window_.element.type).toBe('file');
+  });
+
+  it('TC-20: `I` opens the same window, and leaves the tool in hand exactly where it was', async () => {
+    await armShapeTool();
+    const window_ = fileWindow();
+
+    // The key is the board's — it is stopped, so nothing else on the page gets to have two answers to one press.
+    expect(fireEvent.keyDown(window, { key: 'i' })).toBe(false);
+
+    expect(window_.clicks()).toBe(1);
+    // And it armed nothing. A picture is not a way the pointer can be: there is no cursor for it, nothing to press
+    // the board with, and nothing for Escape to give back. The shape tool is still in hand, its sheet still open.
+    expect(activeTool()).toBe('shape');
+    expect(shapeSheet()).toBeDefined();
+  });
+
+  it('TC-20: an `i` typed into a label is a letter, and does not open a file window', async () => {
+    addShape(A);
+    // The label is open for typing, so the shape's textarea has the keystrokes and whoever has them has them.
+    fireEvent.doubleClick(screen.getByTestId('shape-object'));
+    const label = await waitFor(() => screen.getByTestId('shape-textarea'));
+    const window_ = fileWindow();
+
+    fireEvent.keyDown(label, { key: 'i' });
+    expect(window_.clicks()).toBe(0);
+
+    fireEvent.change(label, { target: { value: 'ice' } });
+    expect((label as HTMLTextAreaElement).value).toBe('ice');
+    // Nothing about the tool changed, because the key was never the tool's to answer.
+    expect(activeTool()).toBe('select');
+    expect(screen.queryByTestId('shape-kind')).toBeNull();
+  });
+});
+
+/**
+ * The one board that will not take a picture (TC-20).
+ *
+ * `load_failed` is the state in which the room has said it cannot read this board and is holding back rather than
+ * handing over an empty one, and it is the only state in which editing stops — every other disconnection leaves the
+ * board writable, because a board that cannot be reached still holds what is typed into it and writes it down when
+ * it can. Opening a file window on a board that is about to throw the picture away is the same mistake the
+ * toolbar's disabled buttons already refuse to make, and the key is answered the same way: by having no answer.
+ */
+describe('a board that will not take a picture (TC-20)', () => {
+  it('TC-20: neither the key nor the button opens a file window on a board that cannot be written to', () => {
+    render(<BoardPage id={BOARD_ID} connect={loadFailed} check={boardExists} />);
+
+    // A key the board has no answer for is left for whatever else wants it.
+    expect(fireEvent.keyDown(window, { key: 'i' })).toBe(true);
+    // The button is present and says it is unavailable, rather than being missing: a disabled control answers
+    // *where did the button go?* without a person having to conclude that the board is broken.
+    expect(screen.getByRole('button', { name: /Image/ }).getAttribute('disabled')).not.toBeNull();
   });
 });

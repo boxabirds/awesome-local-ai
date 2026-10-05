@@ -555,3 +555,94 @@ export function isPenColor(value: unknown): value is PenColor {
 export function isPenThickness(value: unknown): value is PenThickness {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_THICKNESS_WORLD, value);
 }
+
+// ——————————————— dropping images onto the board (story 12)
+
+/**
+ * The four image types the board accepts, as MIME types.
+ *
+ * These are the types the *browser* compares a dropped file against and the types the server is willing to
+ * store; which one a stored file actually is comes from its own bytes (`sniffImageType`), never from this
+ * list being trusted. SVG is missing on purpose: an SVG is a document that can carry a script, and a board
+ * whose pictures can run code is not a board anybody would put a screenshot on.
+ */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** One of the four accepted image types, as stored in `Content-Type` and in the object's `contentType`. */
+export type AcceptedImageType = (typeof IMAGE_ACCEPTED_TYPES)[number];
+
+/** Whether a MIME type is one of the four the board accepts. Nothing else is uploaded or stored. */
+export function isAcceptedImageType(value: unknown): value is AcceptedImageType {
+  return typeof value === 'string' && (IMAGE_ACCEPTED_TYPES as readonly string[]).includes(value);
+}
+
+/**
+ * The heaviest image the board accepts, in bytes: 10 MB (image.size_limit).
+ *
+ * The browser refuses a file heavier than this before it sends anything, and the server measures the bytes
+ * it actually received and refuses them again — the limit is a limit on what can be stored, not on what a
+ * particular dialog will let somebody choose.
+ */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * How many images one drop, paste or pick may add (image.count_limit).
+ *
+ * Twenty, because a moodboard is made of handfuls rather than of folders: past the handful the board would
+ * spend the next minute uploading and nobody would be able to say which of the thirty images they meant.
+ * The files past the limit are skipped and said out loud, not silently dropped.
+ */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/**
+ * The longest side an added image is placed at, in world units (image.placement_size).
+ *
+ * A 4032 pixel photo is not four thousand board units wide — that is sixteen screens of a photo nobody
+ * asked to scroll through. An image larger than this is scaled down, both sides by the same factor, so the
+ * picture keeps its proportions and a board keeps a shape; a smaller image is placed at its own size and is
+ * never enlarged to fill.
+ */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/**
+ * The shortest side an image may be resized to, in world units (image.aspect_resize).
+ *
+ * Sixteen, which is the point past which a picture is a smudge: an image dragged smaller than this cannot
+ * be recognised, cannot be clicked reliably and cannot be deleted except by undo.
+ */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/**
+ * The space between two images placed by one action, in world units (image.drop).
+ *
+ * The same distance as a grid cell, which is why a row of three dropped screenshots reads as three pictures
+ * rather than as one wide one.
+ */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/**
+ * How long an upload may stay `uploading` before everybody is told it did not finish (image.unfinished).
+ *
+ * Five minutes: long enough that a slow upload is never called off while it is still going, short enough
+ * that a tab closed mid-upload does not leave a placeholder pretending to be working for the rest of the
+ * afternoon. It is derived from `uploadStartedAt` when the board is drawn, so a placeholder whose uploader
+ * is gone needs no message from anybody to say so.
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/**
+ * How long a stored image may be cached for, in seconds: one year, immutable.
+ *
+ * Immutable because a key is never reused — the key is 128 random bits issued once per upload (story 5's
+ * `newBoardId`) — so a cached copy can never be out of date, and a board that is opened twice in a session
+ * downloads its pictures once.
+ */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/**
+ * How many bytes of an upload are looked at to decide what it is (image.types).
+ *
+ * Twelve, which is the longest magic number the board recognises (a WebP is `RIFF`, four skipped bytes and
+ * `WEBP`). Nothing past this is read before the file is accepted, and the file name is read at all by nobody.
+ */
+export const IMAGE_SNIFF_BYTES = 12;

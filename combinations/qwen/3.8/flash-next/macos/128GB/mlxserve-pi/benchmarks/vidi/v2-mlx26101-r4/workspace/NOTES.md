@@ -1125,3 +1125,201 @@ TC-17 case in `tests/e2e/pen.spec.ts` draws a three-stroke letter precisely to w
   line that survives, which is the promise the smoothing makes to the document anyway — and the recorded wobble
   in `tests/fixtures/pen-paths.ts` stays what it is, because a drag along a perfect straight line would pass with
   a pen that threw away every point but the ends.
+
+## Story 12: where the files are, against what the design named
+
+The design names `src/client/board/Toolbar.tsx` again, and the answer is the story 8 answer: the toolbar is
+`src/client/components/Toolbar.tsx`. Three other things the design names do not exist and were written where
+this app actually puts them. `src/client/state/files.ts` is `src/client/images/validateFiles.ts`, next to the
+two other files that only the adding of a picture uses (`uploadImage.ts`, `useImageInsert.ts`) — there is no
+`state/` directory in this client, and validation of a dropped file is not global state: it is a pure function
+that says which of these files the board takes and which sentence each refused one gets. `identityId` is not a
+new module either: it is `String(doc.clientID)`, the same value `PenTool` has always used to sign a stroke, so
+the person who uploaded a picture is the same person who drew a line as far as the document is concerned — a
+tab, not a human, which is right, because the tab is the only thing that has the file.
+
+`Toast` did not exist. There is a `ConnectionStatus` and a `SharePanel`, and no component anywhere that says a
+thing for a few seconds and goes away. The one that is new is `src/client/ui/Toast.tsx`, and it is a
+module-level store rather than React state on purpose: the thing that has to be able to say something is
+`useImageInsert`'s `addFiles`, which is a callback, and a callback cannot call `setState` on a page component
+it does not own. `pushToast(text)` from anywhere, `<Toasts />` rendered once by the board, `role="status"` so a
+screen reader reads it, and one toast per text — `REJECTION_MESSAGES.type` pushed twice for a drop of two bad
+files is one sentence, which is what "saying each thing once" in the task title means.
+
+`image` was already in `ToolId` and in `TOOL_SHORTCUTS` (story 10 left the letter there, unclaimed) and is
+deliberately **not** added to `ARMABLE_TOOLS`. A picture is not a way the pointer can be: there is no cursor
+for it, nothing to press the board with, nothing to Escape out of. So `useActiveTool` answers `i` in the place
+where tool keys are answered — after the typing guard, so a letter typed into a note stays a letter — and what
+it does is call `onImageRequest()` and stop the key, not `setTool`. The file window opens and the board is left
+in whatever mode it was in.
+
+## Story 12: two origins, because an upload result is not something a person did
+
+Story 8's undo filters transactions by origin: only `LOCAL_ORIGIN` is tracked. A picture's status is written by
+this tab too, and must not be on the undo stack — `Z` after a drop takes the picture away, and `Z` again should
+not be expected to un-fail an upload that finished three minutes ago. So `src/shared/objects/image.ts` exports a
+second symbol, `UPLOAD_ORIGIN`, and every status write (`markImageReady`, `markImageFailed`,
+`markImageRetrying`) happens in a transaction marked with it, which no `UndoManager` in the app listens to.
+`markImageRetrying` also keeps the old `assetKey`: if the retry fails, the box still knows where it used to be
+stored, and the component never asks for a key unless `status === 'ready'`, so a stale key cannot be drawn.
+
+The Yjs behaviour worth writing down, because it decides what TC-24 can assert: **redo re-inserts a deleted
+object with the field values it has now**, not the values it had when it was deleted. A picture created, uploaded
+to, deleted and redone comes back `ready` with its key — the upload's transaction was never in the tracked
+history, so nothing undid it, and the struct carries the bytes it was last given. That is the right outcome for
+a person (a redo does not resurrect a spinner that has nothing behind it) and it is not what the phrase "undo the
+drop" would have predicted, so it is in the model's comments where somebody will look for it.
+
+`placementSize` returns `Size | null`. The design's contract says it returns `{width, height}` and its own
+prose says it returns `null` for a non-finite or non-positive size; those two cannot both be true, and the
+second is the one that matters, because the caller is holding numbers that came out of `createImageBitmap` and
+the board must be able to say "this is not a size" rather than invent one. `usableSize` is what callers check,
+and a file whose placement cannot be computed is refused with the type sentence — from where the person is
+standing, a file the decoder will not open and a file that is not a picture are the same fact.
+
+## Story 12: why a refusal is said in the order it is said, and why it is not the order I wrote
+
+`REJECTION_ORDER` is `['type', 'size', 'count']` — what it is, how big it is, how many there are — which reads
+like the order the toasts should appear in. TC-26 says they come out `size` then `type`, and the reason is that
+**the two refusals are reached at different times.** Size is a fact about the file the moment it is handed over,
+so `validateFiles` refuses it in one pass. "It isn't a picture" is not a fact about a name or about a MIME type:
+the fixture named `invoice.png` arrives claiming `image/png`, is accepted by both of those, and is refused only
+when the decoder is handed its bytes — which is a step *after* validation, because you cannot measure a picture
+without opening the file, and opening an 11 MB file to find out it is refused by size is the one thing the size
+check exists to prevent. So the type sentence can be pushed after the size sentence even though the type check
+is listed first, and the assertion in TC-26 is written against that and not against the constant's spelling.
+
+That ordering is also why there is no magic-byte check in the picker path. `sniffImageType` (first bytes against
+PNG/JPEG/GIF/WebP magic) is the *server's* only defence — an upload arrives over HTTP with a
+`content-type` anybody could have typed — and in the browser the same question is answered better by the actual
+decoder. Two implementations of "is this a picture" in one feature is two answers; the worker keeps the one it
+must have and the client uses the one it is given.
+
+## Story 12: three things a real browser would not tell jsdom
+
+Each of these cost a failing e2e test, and none of them is a bug in the app.
+
+- **A Node `Buffer` handed to `page.evaluate` is not bytes.** The first drop helper passed the fixture buffers
+  straight into the page to build a `DataTransfer`; the files arrived named and typed and **zero bytes long**,
+  and the board correctly refused them as "not a picture" — a failure that reads exactly like a board that
+  cannot read a PNG. The helper now crosses as base64 and is turned back into a `Uint8Array` inside the page.
+  `tests/e2e/helpers/images.ts` says so in its comment, because the symptom points at the wrong file.
+- **`naturalWidth` is zero for a moment after the document says `ready`.** The status is written by the upload;
+  the picture is fetched afterwards by the box drawn underneath it. A test that measures the painted box in
+  between is looking at a picture still on its way and reports no picture. `waitForPictureDrawn` waits for the
+  one number that can only mean the bytes came, and its failure message names a fetch that never returned
+  rather than a layout that never happened.
+- **`filechooser` is an event, not a state.** Playwright intercepts the native window the board's hidden input
+  opens, but only if the listener was registered before the keypress that opened it. `expectFileWindow(page,
+  'the i key')` is called *before* the press and answered after; and the press goes to `board(page)` rather
+  than to the page, because a key sent at a page that holds nothing focused goes nowhere. `i`, the toolbar
+  button and the drop are the three ways in, and the fixture proves all three open the same window.
+
+## Story 12: the drop, and the drag that is not about files
+
+`dropPictures` builds a real `DataTransfer` inside the page and dispatches real
+`dragenter`/`dragover`/`drop` events at a screen point converted through that page's own settled camera —
+Playwright's `dispatchEvent` constructs `new DragEvent(type, eventInit)`, so `dataTransfer`, `clientX` and
+`clientY` all arrive, which is the whole reason a drag can be tested at all in a headless browser. TC-25 walks
+the sequence a person makes: carried over the board (the highlight appears, nothing is created), carried away
+(the highlight goes), then dropped.
+
+`onDragOver` answering `preventDefault()` is what makes a drop possible at all, and `onDragEnter`/`onDragLeave`
+are counted rather than trusted, because a drag crossing into a child object fires `dragleave` on the surface
+and a naive listener takes the outline back while the files are still over the board. The highlight is rendered
+by `BoardPage` and not by `BoardViewport`: it is an offer about the whole board area, and the world layer under
+it is scrolling, zooming and full of other people's objects.
+
+The handlers were added to `BoardViewport` as four named props rather than a passthrough bag because the surface
+has to answer all four and nothing else: it does not know what a picture is, and a drop that lands on a note is
+still a drop on the board at that point, which is what listening on the surface (and letting events bubble)
+buys.
+
+## Story 12: the floor of a resize, which is not proportional
+
+TC-27 asserts the ratio to two decimals on the way up and on the way down, and then drags the corner four
+thousand pixels past the floor and asserts only that both sides reached `IMAGE_MIN_SIZE_WORLD` and that
+`naturalWidth`/`naturalHeight` still read 1600×900. That is not a test made vaguer than the design asked:
+`clampScale` in `src/shared/geometry.ts` clamps the two axes **independently** (`minX` from `min / width`, `minY`
+from `min / height`, computed over the whole selection), which is right for a group of objects with different
+minimums and means that a single 1600×900 picture squeezed to the floor lands on 16×16 — ratio 1.0, not ratio
+16/9. Below a certain size a picture becomes a square dot whatever its proportions were, and the next resize
+from there is measured against the file again, not against the dot. What the story's claim is about is that the
+*stored box* never goes below what the board can draw and the bytes are never touched by having been squeezed,
+and both of those are asserted exactly.
+
+## Story 12: what is offered to whom
+
+The uploader's box says "Upload failed" and has **Retry** and **Remove**. Every other tab's box says "Image
+unavailable" and has no retry — there is no copy of the file in their tab to upload again, and a button that
+cannot work is worse than no button — and no Remove either, which is the PRD's line read strictly: a picture
+that has not arrived is the uploader's mess, and it would be a strange power to let a colleague delete the
+object that is being retried under somebody's hands. `readOnly` boards offer neither.
+
+Between `uploading` and `failed` there is a third state with its own words, "Image upload didn't finish", which
+is decided by `IMAGE_UPLOAD_STALE_MS` (five minutes) against `uploadStartedAt` and not by anything on the wire:
+a tab that was closed mid-upload leaves a box that says "Uploading…" at 0% forever, on every screen, for the
+rest of the board's life. One `setInterval` per board, ticking only while something is actually uploading
+(`useImageClock`), keeps that from being a per-object timer. `useImageClock` is passed down through
+`ImageContext` along with the progress map and the two actions, because the registry hands an object component
+`ObjectProps` and knows nothing about uploads — adding four upload fields to every object's props to serve one
+type is the same mistake as a `switch` on type in the viewport.
+
+One accessibility trap, found by reading rather than by a test: `role="img"` on the placeholder container makes
+**every descendant invisible to assistive technology**, including the Retry button inside it, so the container
+is `role="group"` and the message is a text node inside it. `aria-label` was taken back off the two buttons for
+the same reason in reverse — the visible label is the accessible name, and an override that disagrees with it
+breaks WCAG 2.5.3.
+
+## Story 12: the worker, and one route that had to be seen before the board lookup
+
+`POST /api/boards/<id>/assets` is a board path with something on the end, and the existing board lookup takes
+the whole rest of the path as a board id — so the upload had to be recognised *before* it, or every upload
+would be a 405 about a method nobody asked about. Two helpers decide routing there (`assetUploadBoardId`,
+`namesAssets`) and both split on whole segments only: `%2F`-escaped slashes survive as text inside a segment
+while the WHATWG URL parser has already normalised away `%2e%2e`, so an escape cannot turn a board address into
+an assets address. `/api/boards//assets` names no board and is a 404 from the upload handler, not a 405.
+
+`handleServe` reads the key out of the path **as it was sent**, without decoding: a valid key
+(`^[A-Za-z0-9_-]{22}/[A-Za-z0-9_-]{22}$`) needs no escaping, so anything escaped in it is not a key, and
+decoding first would be a route that reads a different object than the address named. Responses carry
+`Cache-Control: public, max-age=31536000, immutable` — a key is minted per upload, nothing is ever written
+twice under one, so a browser may keep the bytes and never ask again — and a stored object whose recorded type
+is not one of the four is refused rather than served wearing a type it did not arrive with. TC-15's storage
+failure is forced with a `Proxy` over `env` that swaps `ASSETS_BUCKET` for an object that throws, so the 500
+and its log line are asserted against the real handler; and TC-12's "a refused upload left nothing behind" is
+answered by listing the bucket, which is the reason the integration tests get a bucket of their own on disk
+rather than a mock. `R2ListResult` is `{objects, truncated, cursor}` — not `keys`, which is the name in the
+S3 API and the name I reached for first.
+
+## Story 12: the fixtures, and the formats this machine can make
+
+PNGs are made in code (a twelve-line encoder over `zlib.deflateSync`) in `tests/fixtures/images/index.ts`, so
+every screenshot, portrait and corrupt-but-PNG-headed fixture is reproducible without a binary in git. The
+three formats a PNG cannot be turned into by hand are committed as small real files, generated by
+`tests/fixtures/images/make.mjs`: JPEG and GIF with macOS's `sips`, and WebP by pointing Chromium at a canvas
+and taking `toDataURL('image/webp')` — there is no cwebp, no ImageMagick, no ffmpeg and no PIL on this machine,
+and Chromium is the one encoder that is definitely here because Playwright installed it. The module checks the
+magic bytes of each committed file at import time, so a fixture that got mangled by a checkout fails at load
+with its name rather than in the middle of an assertion about something else.
+
+The `webp` half of TC-26 is worth naming: the *browser* is asked to draw the bytes it fetched, so that test is a
+statement about a WebP surviving upload, storage, an address and a decode. It runs in both browsers that start
+here.
+
+## Story 12: numbers
+
+- **391 unit** (63 new: format sniffing, file validation, the image model), **318 component** (36 new: 16
+  `ImageObject` states, 16 insert flows, 4 tool-key), **79 integration** (13 new, this story's asset API),
+  **180 e2e passing in Chromium and WebKit** (8 new: TC-25 to TC-28 in each of the two browsers that start).
+  The three non-e2e suites run in about 22 seconds together.
+- Latency, logged against `LIVE_UPDATE_LATENCY_BUDGET_MS` and not asserted on, as in every story before this
+  one: the three dropped pictures were agreed between two screens **1–2 ms** after the uploads were let through.
+  The 3 s in the log line is the deliberate `page.route` hold on the upload address, which is what makes the
+  `uploading` state observable at all — a 2.8 KB GIF over loopback finishes before a test can look at it.
+- `npm run typecheck` (both tsconfigs), `npm run build` and `npm run build:test` are clean.
+- **TC-19/TC-20/TC-21 (`@persist`) still do not run here**, at the same place they failed before this story was
+  started — checked again by stashing `wrangler.jsonc` and re-running the project: a spawned runtime this sandbox
+  cannot signal. Firefox still aborts on launch, so the design's "TC-26 also in firefox and webkit" is carried
+  by WebKit, as in stories 8 to 11. The two facts together are the whole difference between this story's e2e
+  count and the design's.

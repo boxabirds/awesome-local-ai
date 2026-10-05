@@ -29,6 +29,15 @@ export const TEXT_TOOLTIP = 'Text — click the board to write (T)';
 export const SHAPE_TOOLTIP = 'Shape — drag a rectangle, ellipse or diamond (S)';
 export const CONNECTOR_TOOLTIP = 'Connector — drag an arrow between two objects (L)';
 export const PEN_TOOLTIP = 'Pen — draw freehand on the board (P)';
+/**
+ * The image button's tooltip.
+ *
+ * It says *add*, because that is what it does and the word is the difference between this and every other button
+ * in the strip: the others change what a click on the board means, and this one opens the file window. Saying so
+ * is what stops a person clicking it and then clicking the board, expecting a picture to land where the cursor
+ * is.
+ */
+export const IMAGE_TOOLTIP = 'Image — add a picture from your files (I), or drop one on the board';
 
 /** What the three kinds are called in the Shape menu, in the order they are offered. */
 export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
@@ -60,6 +69,14 @@ export interface ToolbarProps {
    * to it once Escape has been pressed — which is why it is a button and not only a key.
    */
   onPenTool?(): void;
+  /**
+   * Add a picture: open the file picker, and let the person choose.
+   *
+   * Left out, the button is not drawn. It is not a tool — nothing is armed, the pointer does not change, and the
+   * board is left exactly as it was apart from a window in front of it — which is why it is a button and not one
+   * of the pressed-or-not buttons above.
+   */
+  onAddImage?(): void;
   /**
    * Which shape the Shape tool will draw.
    *
@@ -95,6 +112,7 @@ export function Toolbar({
   onShapeTool,
   onConnectorTool,
   onPenTool,
+  onAddImage,
   shapeKind = 'rect',
   onShapeKind,
   disabled = false,
@@ -259,6 +277,30 @@ export function Toolbar({
         />
         <span className="toolbar__label">Sticky note</span>
       </button>
+      {/* Adding a picture is not a tool, and sits with the other thing that adds an object rather than with the
+          tools. The order is the one a person reads the strip in: what the pointer is, then what to put on the
+          board, then the way back. */}
+      {onAddImage ? (
+        <button
+          type="button"
+          className="toolbar__button"
+          data-testid="add-image"
+          aria-label="Image (I)"
+          title={disabled ? 'Image — unavailable until this board is loaded' : IMAGE_TOOLTIP}
+          disabled={disabled}
+          aria-disabled={disabled}
+          onClick={() => {
+            if (disabled) return;
+            onAddImage();
+          }}
+        >
+          {/* A framed picture: the only drawing that says "a file, not a shape" without words. */}
+          <span className="toolbar__glyph toolbar__glyph--image" aria-hidden="true">
+            🖼
+          </span>
+          <span className="toolbar__label">Image</span>
+        </button>
+      ) : null}
       {/* Below the tools, as the PRD puts them: they are not tools, they are the way back. */}
       {undo ? <UndoButtons {...undo} /> : null}
     </div>

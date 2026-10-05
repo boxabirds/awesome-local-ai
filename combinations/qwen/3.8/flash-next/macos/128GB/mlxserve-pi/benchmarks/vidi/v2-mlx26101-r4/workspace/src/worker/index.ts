@@ -14,6 +14,7 @@
  * here" and "let me in" can be given from that board's storage without writing a row anywhere.
  */
 import { isValidBoardId } from '../shared/board-id';
+import { handleServe, handleUpload } from './assets';
 import type { Env } from './board-room';
 import { createBoard } from './create-board';
 import { forwardTestHook, TEST_HOOK_PREFIX } from './test-hooks';
@@ -30,6 +31,17 @@ const BOARDS_PATH = '/api/boards';
 /** One board, by its address. */
 const BOARD_PREFIX = '/api/boards/';
 
+/**
+ * The pictures. `POST /api/boards/<board id>/assets` stores one, `GET /api/assets/<key>` hands one back.
+ *
+ * The upload address is a board address with `/assets` on the end, so it has to be recognised before the
+ * board lookup runs — that lookup takes the rest of the path as the board id, and `<id>/assets` is not one.
+ */
+const ASSET_UPLOAD_SUFFIX = '/assets';
+
+/** The whole of a picture's address is its key, so the prefix is the only routing left to do. */
+const ASSET_PREFIX = '/api/assets/';
+
 /** What a refused address says. The same words for unknown and malformed: nothing is leaked. */
 const NOT_FOUND = { error: 'not_found' };
 
@@ -43,7 +55,16 @@ export default {
       return this.routeBoardCollection(request, env);
     }
     if (path.startsWith(BOARD_PREFIX)) {
+      const uploading = assetUploadBoardId(path);
+      if (uploading !== null) return this.routeAssetUpload(request, env, uploading);
+      // An address under a board that reaches for `assets` and does not stop there is a picture address that
+      // was written wrong. It gets the answer `assets.ts` gives for an address that leads nowhere — not a 405
+      // from the board lookup, which would be an opinion about methods nobody asked for.
+      if (namesAssets(path)) return Response.json(NOT_FOUND, { status: 404 });
       return this.routeBoardLookup(request, env, path);
+    }
+    if (path.startsWith(ASSET_PREFIX)) {
+      return this.routeAssetServe(request, env, path);
     }
     if (path.startsWith(TEST_HOOK_PREFIX)) {
       // Damage and repair, for the tests that need to break a board on purpose. Without the
@@ -103,6 +124,34 @@ export default {
   },
 
   /**
+   * Store a picture for this board.
+   *
+   * Whether the address is a board at all, and whether the bytes are a picture this board can draw, are
+   * answered in `assets.ts` — in that order, because the cheap question is asked first. What is decided here
+   * is only which part of the address is the board.
+   */
+  routeAssetUpload(request: Request, env: Env, boardId: string): Promise<Response> {
+    return handleUpload(request, env, boardId);
+  },
+
+  /**
+   * Hand back a stored picture.
+   *
+   * The key is taken from the path as it was sent, without decoding: a key is made of characters that need no
+   * escaping, so anything percent-escaped in it is not a key, and decoding it first would be a route that
+   * reads a different object than the address named.
+   */
+  async routeAssetServe(request: Request, env: Env, path: string): Promise<Response> {
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      return Response.json({ error: 'method_not_allowed' }, { status: 405 });
+    }
+    const response = await handleServe(env, path.slice(ASSET_PREFIX.length));
+    // A HEAD asks for the headers of a picture and not for the picture.
+    if (request.method === 'HEAD') return new Response(null, { status: response.status, headers: response.headers });
+    return response;
+  },
+
+  /**
    * Hand a board connection to its room, or refuse it.
    *
    * A board address is the only thing that grants access to a board in this release, so an
@@ -133,6 +182,32 @@ export default {
     return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).fetch(request);
   },
 };
+
+/**
+ * Whether this board path reaches for the pictures at all.
+ *
+ * Only whole segments count, so an escaped slash cannot turn a board address into an assets address: that one
+ * is a malformed board address, which is what the board lookup is for.
+ */
+function namesAssets(path: string): boolean {
+  return path.slice(BOARD_PREFIX.length).split('/').includes(ASSET_UPLOAD_SUFFIX.slice(1));
+}
+
+/**
+ * The board a picture is being uploaded to, or null when this path is not an upload.
+ *
+ * The id is returned as it was written, because a malformed one is a 404 that the upload handler gives for
+ * its own reason — the same words as an unknown board, which is the rule the board lookup follows too.
+ */
+function assetUploadBoardId(path: string): string | null {
+  const rest = path.slice(BOARD_PREFIX.length);
+  if (!rest.endsWith(ASSET_UPLOAD_SUFFIX)) return null;
+  const boardId = rest.slice(0, -ASSET_UPLOAD_SUFFIX.length);
+  // Nothing after the suffix, and the id may be empty: `/api/boards//assets` names no board, and that is a
+  // 404 the upload route gives for its own reason — not a 405 from the board lookup, which would be an
+  // answer about a method nobody asked about.
+  return boardId.includes('/') ? null : boardId;
+}
 
 /**
  * The board id in a connection path, or null when the path does not hold exactly

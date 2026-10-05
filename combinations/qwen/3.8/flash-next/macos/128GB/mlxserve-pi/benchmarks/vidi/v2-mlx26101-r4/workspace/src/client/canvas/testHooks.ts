@@ -11,6 +11,8 @@ import { connectorSnapshots } from '../../shared/objects/connector';
 import type { ConnectorSnap } from '../../shared/objects/connector';
 import { strokeSnapshots } from '../../shared/objects/stroke';
 import type { StrokeSnap } from '../../shared/objects/stroke';
+import { imageSnapshots } from '../../shared/objects/image';
+import type { ImageSnap } from '../../shared/objects/image';
 import type { Camera } from './camera';
 
 /**
@@ -75,6 +77,15 @@ export interface Vidi6TestHooks {
    */
   getStrokes(): readonly StrokeSnap[];
   /**
+   * The pictures of the mounted board, in stacking order, with the upload state as the document holds it.
+   *
+   * The same reason as the five above, and one of its own: whether a picture has arrived is a fact about a
+   * `status` field and an `assetKey`, and the page looks the same whether the bytes are in storage or are still
+   * on their way until the box is measured against the address in it. An e2e test about "the upload finished" asks
+   * this, and asks the painted box separately.
+   */
+  getImages(): readonly ImageSnap[];
+  /**
    * What the board's own connection reports right now, kept up to date as it
    * changes. A test that needs to know whether the board thinks it is live reads
    * this instead of guessing from the badge.
@@ -117,6 +128,7 @@ export function installTestHooks(
     | 'getShapes'
     | 'getConnectors'
     | 'getStrokes'
+    | 'getImages'
     | 'connectionState'
     | 'dropConnection'
   >,
@@ -129,6 +141,7 @@ export function installTestHooks(
     getShapes: (): readonly ShapeSnap[] => (boardDoc ? snapshot(boardDoc).filter(isShapeSnapshot) : []),
     getConnectors: (): readonly ConnectorSnap[] => (boardDoc ? connectorSnapshots(boardDoc) : []),
     getStrokes: (): readonly StrokeSnap[] => (boardDoc ? strokeSnapshots(boardDoc) : []),
+    getImages: (): readonly ImageSnap[] => (boardDoc ? imageSnapshots(boardDoc) : []),
     dropConnection: (): boolean => {
       if (dropBoardConnection === undefined) return false;
       dropBoardConnection();

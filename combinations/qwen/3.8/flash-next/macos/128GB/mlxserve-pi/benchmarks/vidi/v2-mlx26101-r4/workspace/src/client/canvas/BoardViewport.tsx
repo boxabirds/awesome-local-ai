@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import type { JSX, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import type {
+  JSX,
+  DragEvent as ReactDragEvent,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+} from 'react';
 
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import { isTypingTarget } from '../board/useBoardKeys';
@@ -104,6 +110,23 @@ export interface BoardViewportProps {
    * board, not a place on the screen: the two only agree while the camera is at its origin and one to one.
    */
   onCreateTextAt?(world: Point): void;
+  /**
+   * Files were dragged onto the board, dragged over it, dragged off it, and let go on it.
+   *
+   * Four handlers, because that is the whole of what the browser says about a drag, and the board answers all
+   * four: the `dragover` answer is what makes a drop possible at all, and the `dragleave` is what takes the
+   * outline back. They are handed to the surface rather than to the board's content because a file is dropped on
+   * the *board* — on the space, at a point, next to the things that are already there — and a drop that landed
+   * on a note is still a drop on the board at that point. So these listen on the surface, and the events that
+   * start inside an object reach them by bubbling.
+   *
+   * What they do with the files is nobody's business here: this surface does not know what a picture is, and
+   * decides nothing about the four events beyond passing them on.
+   */
+  onFilesDragEnter?(event: ReactDragEvent<HTMLDivElement>): void;
+  onFilesDragOver?(event: ReactDragEvent<HTMLDivElement>): void;
+  onFilesDragLeave?(event: ReactDragEvent<HTMLDivElement>): void;
+  onFilesDrop?(event: ReactDragEvent<HTMLDivElement>): void;
 }
 
 /**
@@ -124,6 +147,10 @@ export function BoardViewport({
   activeTool = 'select',
   toolOverlay = null,
   onCreateTextAt,
+  onFilesDragEnter,
+  onFilesDragOver,
+  onFilesDragLeave,
+  onFilesDrop,
 }: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportSize = useViewportSize(viewportRef);
@@ -373,6 +400,10 @@ export function BoardViewport({
       onPointerCancel={handlePointerEnd}
       onLostPointerCapture={handlePointerEnd}
       onDoubleClick={handleDoubleClick}
+      onDragEnter={onFilesDragEnter}
+      onDragOver={onFilesDragOver}
+      onDragLeave={onFilesDragLeave}
+      onDrop={onFilesDrop}
     >
       <div
         data-testid="world-layer"

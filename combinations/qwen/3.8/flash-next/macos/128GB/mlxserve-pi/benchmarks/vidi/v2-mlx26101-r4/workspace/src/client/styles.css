@@ -1538,3 +1538,226 @@ body {
   cursor: default;
   opacity: 0.45;
 }
+
+/* ---------------------------------------------------------------- images ---- */
+
+/*
+ * A picture on the board.
+ *
+ * The box is the object's box, in every state and at every status: the placeholder is drawn at the width and
+ * height the finished picture will have, which is what makes a placeholder worth showing at all — a board that
+ * shows a small grey box where a large picture is going to land is a board that jumps as the picture arrives, and
+ * a person who was moving things out of the way has just been moving them for nothing.
+ *
+ * The grey is the same grey as the board's own furniture, and deliberately dull: a picture that has not arrived
+ * is not the most interesting thing on the board, and something bright would advertise an incompleteness that the
+ * person already knows about.
+ */
+.image-object {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  background: #e7eaef;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  touch-action: none;
+  cursor: move;
+  user-select: none;
+}
+
+/* The finished picture needs none of the furniture above it: no padding, no border, no background, because the
+   picture is the object and anything between them is a frame nobody asked for. */
+.image-object--ready {
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+.image-object__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The box keeps the picture's own proportions, so filling it is not a stretch: the registry locks the ratio for
+     every resize and the placeholder was made from these dimensions. `fill` rather than `contain` because a
+     letterbox inside an image's own box would be a grey band across somebody's picture. */
+  object-fit: fill;
+  border-radius: 0;
+}
+
+.image-object__glyph {
+  font-size: 24px;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+/* The words are only read when they are needed, so a placeholder that is the size of a thumbnail is allowed to
+   clip them rather than push the layout apart. */
+.image-object__message {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The percentage, and the bar that draws it. Only ever shown to the tab that is doing the uploading: the number
+   is a fact about one machine's network, and everybody else is told the less specific and more true thing. */
+.image-object__percent {
+  font-variant-numeric: tabular-nums;
+}
+
+.image-object__progress {
+  display: block;
+  width: min(160px, 80%);
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(28 32 39 / 12%);
+  overflow: hidden;
+}
+
+.image-object__progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 120ms linear;
+}
+
+/* The two things a person can still do about a picture that went wrong. They are drawn inside the object because
+   the alternative — a bar elsewhere on the screen — would have to name which image it was talking about, and a
+   board with six pictures is a board where that is a riddle. */
+.image-object__actions {
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.image-object__button {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.image-object__button:hover {
+  background: var(--panel-hover);
+}
+
+.image-object__button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* An upload that failed is the one state worth colour: something stopped, and it stopped for the person who is
+   looking, and can be started again from where they are standing. The red is the board's own, and only for the tab
+   that uploaded — everybody else sees a grey box, because a red border around somebody else's bad luck is a
+   warning about a thing they cannot fix. */
+.image-object--mine {
+  border: 2px solid var(--accent);
+  background: #fdecec;
+  color: #7a1f22;
+}
+
+/* The file window's input. In the page, and out of the way: it has to exist to be opened, and it has nothing to
+   show. `display: none` would take it out of the page entirely, and an input that is not in the page cannot be
+   asked for a file by anything — including a test that needs to hand it one. */
+.image-input {
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------- drop highlight ---- */
+
+/*
+ * The dashed outline that says *here, these files will land on the board*.
+ *
+ * It is over the whole board and under nothing: not over the toolbar, and not over its own text, which would be a
+ * highlight with a hole in it. The dash is long and the border thick because it is seen out of the corner of the
+ * eye while a person is watching their cursor, and something fine and quiet would have to be looked at directly
+ * to be noticed at all.
+ *
+ * `pointer-events: none` is the whole of the component. Without it the outline would catch the drag it is drawn
+ * for: the board would report the files leaving at the moment the outline appeared, take the outline away, report
+ * them entering again, and flicker — on the one gesture where the board has to look certain.
+ */
+.drop-highlight {
+  position: absolute;
+  inset: 10px;
+  z-index: 15;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  border: 3px dashed var(--focus-ring);
+  border-radius: 12px;
+  background: rgb(47 111 237 / 6%);
+  pointer-events: none;
+}
+
+.drop-highlight__text {
+  margin-top: 18px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--hint-bg);
+  color: var(--hint-fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ toast ---- */
+
+/*
+ * One short sentence at the bottom of the screen, and then nothing.
+ *
+ * Bottom-centre, because it is news and not a control: it must not be where the hands are working (the board is
+ * under the cursor and the tools are under the left hand), and it must not be where the board's own status badge
+ * is (top-centre, which is taken). Several messages stack upwards from the bottom, so the newest refusal — the one
+ * that explains what just happened — is the last thing at the bottom of the stack and the last thing to be read.
+ *
+ * `pointer-events: none` on the stack: a toast is not something to click, and a message that stood between a
+ * person and the note they are reaching for would be an obstacle that disappears on its own before they could
+ * work out what it was for.
+ */
+.toasts {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  max-width: min(560px, calc(100vw - 32px));
+}
+
+.toast {
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--hint-bg);
+  color: var(--hint-fg);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 1px 4px rgb(18 22 30 / 18%);
+}

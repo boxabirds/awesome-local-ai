@@ -62,9 +62,11 @@ export const TOOL_SHORTCUTS: Readonly<Record<string, ToolId>> = Object.freeze({
  * The tools this build can actually put the pointer in.
  *
  * `sticky` is in the shortcut map but not here, because making a note is an action the board already answers
- * on `N` and a mode that waits for a click would make two gestures for one object. `image` and
- * `comment` are stories not told yet: their letters are left alone, so they do nothing rather than arming a
- * cursor that draws nothing. `pen` is here from story 11, and it is the one tool on the board that stays armed
+ * on `N` and a mode that waits for a click would make two gestures for one object. `image` is in the map and is
+ * not here either: story 12 gives its key something to do that is not arming a mode — it asks for a picture, and
+ * the answer is a file window (see `onImageRequest`). `comment` is a story not told yet, so its letter is left
+ * alone: doing nothing is better than arming a cursor that draws nothing. `pen` is here from story 11, and it is
+ * the one tool on the board that stays armed
  * after it has made something — a person who draws one line is drawing more than one, and a tool that stepped
  * aside after the first would have to be found again for every line of an annotation.
  */
@@ -83,6 +85,16 @@ export interface ActiveToolOptions {
    * thing they are working on the moment it exists — the same way a double-clicked note arrives selected.
    */
   select?(id: string): void;
+  /**
+   * The person pressed `I`.
+   *
+   * `image` is the one entry in the shortcut map that is not a tool, and this is what its key does instead: the
+   * board asks for a picture, which means opening the file window. Nothing is armed, because there is nothing to
+   * wait for — a picture does not arrive at the end of a click on the board, it arrives from a window the person
+   * is about to be looking at. Left out, `I` is left alone, exactly as it was while story 10's `image` was still a
+   * letter waiting for a story.
+   */
+  onImageRequest?(): void;
 }
 
 export interface ActiveToolState {
@@ -137,6 +149,8 @@ export function useActiveTool(options: ActiveToolOptions = {}): ActiveToolState 
   editable.current = options.canEdit;
   const chosen = useRef(options.select);
   chosen.current = options.select;
+  const asked = useRef(options.onImageRequest);
+  asked.current = options.onImageRequest;
 
   const setTool = useCallback((wanted: ToolId): void => {
     // A board that cannot be written to has nothing to place, draw or connect.
@@ -179,6 +193,22 @@ export function useActiveTool(options: ActiveToolOptions = {}): ActiveToolState 
 
       const wanted = TOOL_SHORTCUTS[event.key.toLowerCase()];
       if (wanted === undefined) return;
+
+      // `I` is the shortcut that is not a tool. A picture is not a way the pointer can be: there is no cursor for
+      // it, nothing to press the board with, and nothing to Escape out of — the gesture ends the moment the file
+      // window opens, and the board is left exactly as it was. So this key is answered here, in the same place the
+      // tool keys are answered and in the same way (the key is stopped, so nothing else gets to have two answers
+      // to one press), and then it asks for a file instead of changing anybody's mode.
+      if (wanted === 'image') {
+        // A board that cannot be written to has nowhere to put a picture, and a file window opened at somebody's
+        // request that can only end in a refusal is a worse answer than a key that does nothing.
+        if (editable.current === false) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        asked.current?.();
+        return;
+      }
+
       if (!ARMABLE_TOOLS.includes(wanted)) return;
 
       event.preventDefault();

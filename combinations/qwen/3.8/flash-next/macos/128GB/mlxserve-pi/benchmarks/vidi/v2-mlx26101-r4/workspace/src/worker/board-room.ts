@@ -49,6 +49,14 @@ export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client, for everything that is not a board connection. */
   ASSETS: Fetcher;
+  /**
+   * The board's pictures (story 12).
+   *
+   * Their bytes are too big to be a document field, so they live here and the document holds the key. One
+   * bucket for every board: a picture's key starts with its board's address, which is the only thing keeping
+   * one board's uploads out of another's reach.
+   */
+  ASSETS_BUCKET: R2Bucket;
   /** Test-only routes, present only when the test build asks for them. */
   TEST_HOOKS?: string;
 }

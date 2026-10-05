@@ -55,6 +55,13 @@ import { PenToolbar } from '../tools/PenToolbar';
 import { usePenOptions } from '../tools/usePenOptions';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { getObjectType } from '../objects/registry';
+import { ImageContext, useImageClock } from '../objects/ImageObject';
+import type { ImageContextValue } from '../objects/ImageObject';
+import { isImageSnapshot } from '../../shared/objects/image';
+import { IMAGE_ACCEPTED_TYPES } from '../../shared/config';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { Toasts } from '../ui/Toast';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { connectBoard } from '../sync/connectBoard';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -319,7 +326,87 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
     canEdit: editable,
     select: selection.click,
+    // `I` does not arm a tool: it asks the board for a picture, which opens the file window. The key lives with
+    // the other tool keys because that is where single letters are answered, and the gesture it starts is not a
+    // mode — see `onImageRequest`.
+    onImageRequest: () => {
+      images.openPicker();
+    },
   });
+
+  /**
+   * Pictures, and the three ways a person can hand one over.
+   *
+   * The hook holds the flow — validation, decoding, placeholders, uploads, retry — and this is where it is
+   * plugged into the board: the camera, so a drop knows where it landed; the viewport, so a paste knows where the
+   * middle of the screen is; the connection, because an unreachable board is the one thing that must stop an image
+   * being added; and the undo boundary, so that dropping four files is one thing that happened rather than four
+   * things the `Z` key has to walk back through.
+   *
+   * `identityId` is the document's own name for this tab. It is not a person and not a device: two tabs on one
+   * laptop are two uploaders, which is exactly right, because the tab that is uploading a picture is the only tab
+   * that has the file, and the progress bar belongs to it alone.
+   */
+  const imageInput = useRef<HTMLInputElement | null>(null);
+  /** Whether anything is still on its way up, which is the only reason a board needs to look at the clock. */
+  const uploading = notes.some((object) => isImageSnapshot(object) && object.status === 'uploading');
+  const clock = useImageClock(uploading);
+  const images = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    viewport,
+    connection,
+    identityId: String(doc.clientID),
+    inputRef: imageInput,
+    boundary,
+    objects: notes,
+    // Whatever the file window ended with — a choice, or a cancel — the pointer is back to Select. A board left
+    // in some other mode after a window nobody answered has a cursor whose meaning nobody can see.
+    onSettled: () => {
+      setTool('select');
+    },
+  });
+
+  /**
+   * What an image on the board is allowed to know about this tab.
+   *
+   * The objects are drawn through the registry, which hands a component the props every object gets and knows
+   * nothing about uploads — so the progress of one picture, the two buttons that belong to a failed one, and the
+   * one clock that decides when an upload counts as abandoned are handed down here instead, to the two components
+   * that ask for them. See `ImageContext` for why it is a context and not four more props on every object.
+   */
+  const imageActions = useMemo<ImageContextValue>(
+    () => ({
+      now: clock,
+      progress: images.progress,
+      retry: images.retry,
+      remove: images.remove,
+      canRetry: images.canRetry,
+    }),
+    [clock, images.canRetry, images.progress, images.remove, images.retry],
+  );
+
+  /**
+   * A paste that is not typing adds the pictures in it to the board.
+   *
+   * The listener is on the window, because a paste belongs to whatever has the focus and the board does not have
+   * it: after a person clicks the background the focus is the page, after a note they stopped typing in it may
+   * still be the note, and a board that only listened for pastes on itself would answer one of those two. What
+   * decides is not where the event was listened for but where it started — `onPaste` looks at its own target and
+   * keeps out of the way of anything that is being typed into, so this listener is hearing about every paste on
+   * the page and answering none of the ones that belong to a field.
+   */
+  const onPaste = images.onPaste;
+  useEffect(() => {
+    const paste = (event: ClipboardEvent): void => {
+      onPaste(event);
+    };
+    window.addEventListener('paste', paste);
+    return () => {
+      window.removeEventListener('paste', paste);
+    };
+  }, [onPaste]);
 
   /** The bin on the selection bar: everything selected at once, and the selection let go afterwards. */
   const deleteSelection = useCallback((): void => {
@@ -494,6 +581,7 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
         onPenTool={() => {
           setTool('pen');
         }}
+        onAddImage={images.openPicker}
         shapeKind={shapeKind}
         onShapeKind={setShapeKind}
         disabled={!editable}
@@ -511,6 +599,29 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
           disabled={!editable}
         />
       ) : null}
+      {/*
+       * The file window the Image button and `I` open.
+       *
+       * A real input, in the page, and not one created in a callback when it is needed. It is the only way a
+       * picture can be asked for out of a click — a browser opens a file window in answer to a user gesture on an
+       * input, and to nothing else — and putting it in the page means the board owns one node that React takes
+       * away when the board goes. It is hidden rather than absent because an input that is not in the page cannot
+       * be opened at all, and it is out of the tab order because the button that opens it is the thing a keyboard
+       * should reach.
+       */}
+      <input
+        ref={imageInput}
+        data-testid="image-file-input"
+        className="image-input"
+        type="file"
+        multiple
+        accept={IMAGE_ACCEPTED_TYPES.join(',')}
+        tabIndex={-1}
+        aria-label="Add images"
+        onChange={(event) => {
+          images.onPicked(event);
+        }}
+      />
       <BoardViewport
         onCreateAt={createStickyAt}
         onClearSelection={selection.clear}
@@ -519,37 +630,48 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
         activeTool={tool}
         toolOverlay={toolOverlay}
         onCreateTextAt={createTextAt}
+        onFilesDragEnter={images.onDragEnter}
+        onFilesDragOver={images.onDragOver}
+        onFilesDragLeave={images.onDragLeave}
+        onFilesDrop={images.onDrop}
         onMarqueeBegin={(event) => {
           marquee.begin({ x: event.clientX, y: event.clientY }, event.pointerId);
         }}
       >
-        {painted.map((object) => {
-          const type = getObjectType(object.type);
-          if (type === undefined) return null;
-          const Component = type.Component;
-          return (
-            <Component
-              key={object.id}
-              object={object}
-              doc={doc}
-              zoom={camera.zoom}
-              rects={rects}
-              selected={selection.ids.has(object.id)}
-              selectedCount={selection.count}
-              editing={selection.editingId === object.id}
-              readOnly={!editable}
-              // Only the object the pointer is holding reports the gesture; the rest of a group that
-              // moves with it stays visually at rest, which is the difference between dragging one thing
-              // and having several things happen to you.
-              interaction={gesture.interactingId === object.id ? gesture.interaction : 'idle'}
-              onPointerDown={gesture.onObjectPointerDown}
-              onStartEdit={selection.startEdit}
-              onEndEdit={selection.endEdit}
-              undo={undo}
-            />
-          );
-        })}
+        <ImageContext.Provider value={imageActions}>
+          {painted.map((object) => {
+            const type = getObjectType(object.type);
+            if (type === undefined) return null;
+            const Component = type.Component;
+            return (
+              <Component
+                key={object.id}
+                object={object}
+                doc={doc}
+                zoom={camera.zoom}
+                rects={rects}
+                selected={selection.ids.has(object.id)}
+                selectedCount={selection.count}
+                editing={selection.editingId === object.id}
+                readOnly={!editable}
+                // Only the object the pointer is holding reports the gesture; the rest of a group that
+                // moves with it stays visually at rest, which is the difference between dragging one thing
+                // and having several things happen to you.
+                interaction={gesture.interactingId === object.id ? gesture.interaction : 'idle'}
+                onPointerDown={gesture.onObjectPointerDown}
+                onStartEdit={selection.startEdit}
+                onEndEdit={selection.endEdit}
+                undo={undo}
+              />
+            );
+          })}
+        </ImageContext.Provider>
       </BoardViewport>
+      {/* The dashed outline, while files are being held over the board. It is drawn here rather than inside the
+          viewport because it is an answer about the whole board area and not a layer of it: the outline is a
+          promise about where the files will land, and the world layer underneath it is scrolling, zooming and
+          full of other people's objects. */}
+      {images.dropping ? <DropHighlight /> : null}
       {/* Over the board, in screen units: the outline of everything selected, the box around them, and
           the handles that resize the box. */}
       <SelectionOverlay
@@ -580,6 +702,10 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
       <ConnectionStatus state={connection} />
       {/* The link this page was opened with, offered back to the person who opened it. */}
       <SharePanel boardId={boardId} />
+      {/* The refusals, at the bottom of the screen. One place says them, and the board is not it: a file that was
+          turned away leaves nothing on the board to point at, so the news has to be somewhere that does not
+          depend on the object that was not created. */}
+      <Toasts />
     </div>
   );
 }
