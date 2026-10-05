@@ -52,12 +52,17 @@ describe('one change, one copy', () => {
   // TC-07
   it('carries a new note to the other person exactly once', async () => {
     const [a, b] = await pair();
+    // The greeting of a joining client is still on the wire when `join` resolves, and a
+    // change that crosses a handshake may legitimately arrive twice (Yjs merges it). So
+    // the wire is quieted first: what is counted below is the change, nothing else.
+    await b.waitUntilQuiet();
+    const before = b.updateCount;
     const id = createSticky(a.doc, { x: 10, y: 20 });
     await TestClient.waitUntil(() => b.snapshot().some((note) => note.id === id));
 
     expect(b.snapshot()).toEqual(a.snapshot());
     // One change is one update — the room does not re-send the world each time.
-    expect(b.updateCount).toBe(1);
+    expect(b.updateCount - before).toBe(1);
   });
 
   // TC-08

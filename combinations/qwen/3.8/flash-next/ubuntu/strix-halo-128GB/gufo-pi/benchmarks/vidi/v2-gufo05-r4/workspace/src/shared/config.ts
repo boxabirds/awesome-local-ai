@@ -147,3 +147,38 @@ export const NIGHTLY_IDLE_STABILITY_MS = 45_000;
 
 /** How long the nightly capacity soak keeps everyone editing. */
 export const NIGHTLY_CAPACITY_SOAK_MS = 60_000;
+
+/* --------------------------------------------------------------- persistence (story 4) */
+
+/** Compact the update log into a snapshot once this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** …or once the log holds this many bytes. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Size of one snapshot row. Keeps every row far below the per-row size limit of
+ * SQLite-backed Durable Objects (2 MB today, per the Cloudflare docs — re-check
+ * when it changes): a long-lived board's snapshot is one row per chunk, not one
+ * row per board.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** A board that failed to load retries its load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** The board size the product is tested at (`persist.large_board`). */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/** How long opening such a board may take (`persist.large_board`). Reported, not asserted. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/** Version of the storage tables, written to `storage_meta.storage_schema_version`. */
+export const STORAGE_SCHEMA_VERSION = 1;
+
+/**
+ * How long a board may be empty — every socket gone — before the room folds its log
+ * and releases the document. Idle boards are then held in storage and nowhere else,
+ * which is what "idle costs nothing" means in compute terms (design.md 3.5).
+ */
+export const BOARD_IDLE_RELEASE_MS = 60_000;

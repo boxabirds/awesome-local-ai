@@ -35,18 +35,34 @@ function hasGtk(): boolean {
  */
 const NIGHTLY_FILE = /.*\.nightly\.spec\.ts$/;
 
+/**
+ * The persistence cases bring their own `wrangler dev` up and kill it, because that is
+ * the story: a process that forgets its memory. They cannot share the web server below
+ * (killing it would stop every other spec), so they are a project of their own, on their
+ * own port, running one at a time. Playwright has no per-project opt-out of a global
+ * `webServer`, so the shared one still comes up for a run that only selects these — it is
+ * idle, and it costs a few seconds.
+ */
+const PERSISTENCE_FILE = /.*\.persist\.spec\.ts$/;
+
 const gtkAvailable = hasGtk();
 const chromeUse = { ...devices['Desktop Chrome'], viewport: VIEWPORT };
 const allProjects: Project[] = [
-  { name: 'chromium', use: chromeUse, testIgnore: NIGHTLY_FILE },
-  { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: VIEWPORT }, testIgnore: NIGHTLY_FILE },
-  { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: VIEWPORT }, testIgnore: NIGHTLY_FILE },
+  { name: 'chromium', use: chromeUse, testIgnore: [NIGHTLY_FILE, PERSISTENCE_FILE] },
+  { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: VIEWPORT }, testIgnore: [NIGHTLY_FILE, PERSISTENCE_FILE] },
+  { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: VIEWPORT }, testIgnore: [NIGHTLY_FILE, PERSISTENCE_FILE] },
+  // Story 4: one at a time, because each case restarts the server the others would use.
+  { name: 'persistence', use: chromeUse, testMatch: PERSISTENCE_FILE, fullyParallel: false },
   // Always chromium: these check the sync client and the room, not a browser engine,
   // and running a two-minute soak three times over buys nothing.
   { name: 'nightly', use: chromeUse, testMatch: NIGHTLY_FILE, fullyParallel: false }
 ];
 const projects = allProjects.filter((project) => {
-  if (project.name === 'chromium' || project.name === 'nightly' || gtkAvailable) return true;
+  // Chromium and the two single-browser projects run whatever the host has; firefox and
+  // webkit are the ones that need GTK.
+  if (project.name === 'chromium' || project.name === 'nightly' || project.name === 'persistence' || gtkAvailable) {
+    return true;
+  }
   if (!process.env.VDI6_E2E_GTK_WARNED) {
     process.env.VDI6_E2E_GTK_WARNED = '1';
     console.warn('[e2e] skipping firefox and webkit: this host has no GTK libraries');
@@ -68,7 +84,11 @@ export default defineConfig({
   },
   projects,
   webServer: {
-    command: `npm run build:test && npx wrangler dev --port ${PORT} --ip 127.0.0.1 --inspector-port ${INSPECTOR_PORT} --show-interactive-dev-session=false`,
+    // `TEST_HOOKS=1` turns on the `/__test/` board-surgery routes story 4's TC-24 needs
+    // to damage a board from a browser. It is a command-line var of *this* server and is
+    // not in `wrangler.jsonc`, so a deployed Worker has no such routes — and the
+    // persistence project's own server does not pass it either.
+    command: `npm run build:test && npx wrangler dev --port ${PORT} --ip 127.0.0.1 --inspector-port ${INSPECTOR_PORT} --var TEST_HOOKS:1 --show-interactive-dev-session=false`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     stdout: 'ignore',

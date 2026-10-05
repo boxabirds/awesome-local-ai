@@ -75,3 +75,12 @@ export function decodeMessage(data: Uint8Array | string): Decoded {
     };
   }
 }
+
+/**
+ * The room's storage cannot read this board (story 4). The client must not
+ * present it as an empty editable board: it shows a message and keeps retrying.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/** The room could not write to storage, so nothing was saved (story 4). */
+export const CLOSE_STORAGE_FAILURE = 1011;

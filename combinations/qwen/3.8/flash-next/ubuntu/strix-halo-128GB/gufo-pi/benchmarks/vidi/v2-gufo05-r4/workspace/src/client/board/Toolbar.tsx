@@ -11,6 +11,11 @@ import type { JSX } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /**
+   * False when the board cannot be written to (story 4: it could not be loaded). The
+   * button says so by being disabled rather than by doing nothing when clicked.
+   */
+  disabled?: boolean;
 }
 
 /** Pointer and double-click gestures belong to the palette, not to the board. */
@@ -20,6 +25,7 @@ const stopPointer = (event: { stopPropagation(): void }) => {
 
 export function Toolbar(props: ToolbarProps): JSX.Element {
   const { onCreateSticky } = props;
+  const disabled = props.disabled === true;
 
   return (
     <div
@@ -35,7 +41,9 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         className="vidi6-tool"
         data-vidi6="tool-sticky"
         aria-label="Sticky note"
-        title="Sticky note – or double-click the board"
+        aria-disabled={disabled}
+        disabled={disabled}
+        title={disabled ? 'This board could not be loaded' : 'Sticky note – or double-click the board'}
         onClick={onCreateSticky}
       >
         {/* A folded-corner note, drawn inline so there is no icon dependency. */}

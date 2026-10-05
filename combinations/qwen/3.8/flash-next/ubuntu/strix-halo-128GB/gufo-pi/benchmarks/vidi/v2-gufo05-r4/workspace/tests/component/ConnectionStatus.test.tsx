@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/client/App';
 import {
   attachConnectionMachine,
+  canEdit,
   createConnectionMachine,
   type ConnectionState
 } from '../../src/client/sync/connectBoard';
@@ -23,10 +24,18 @@ import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 import {
   clickElement,
+  doubleClick,
   fireInput,
+  fireKey,
+  firePointer,
+  flushFrames,
+  noteDeleteButton,
+  noteSwatch,
   stickyEditor,
+  stickyNote,
   stickyNotes,
-  stickyToolButton
+  stickyToolButton,
+  viewportElement
 } from './harness';
 
 /** Hoisted so the module mock below can use it. */
@@ -56,6 +65,16 @@ const harness = vi.hoisted(() => {
     sync(synced: boolean): void {
       for (const handler of [...(this.handlers.get('sync') ?? [])]) {
         handler(synced as never);
+      }
+    }
+
+    /**
+     * The room closed this connection, with the code it chose. `null` is the provider's
+     * way of saying we closed it ourselves, which says nothing about the board.
+     */
+    close(code: number | null): void {
+      for (const handler of [...(this.handlers.get('connection-close') ?? [])]) {
+        handler((code === null ? null : { code }) as never);
       }
     }
   }
@@ -129,6 +148,17 @@ function saySync(provider: Fake, synced: boolean): void {
   act(() => {
     provider.sync(synced);
   });
+}
+
+function sayClose(provider: Fake, code: number | null): void {
+  act(() => {
+    provider.close(code);
+  });
+}
+
+/** What the board document holds, read the way e2e reads it. */
+function storedBoard() {
+  return window.__vidi6?.getBoard() ?? [];
 }
 
 /** Move time forward with React told about it. */
@@ -277,9 +307,17 @@ describe('the badge on its own', () => {
       connecting: 'Connecting…',
       reconnecting: 'Reconnecting…',
       confirmed: 'Connected',
+      // Story 4: the one message that is not about the network but about the board.
+      load_failed: "This board couldn't be loaded. Retrying…",
       connected: ''
     };
-    for (const state of ['connecting', 'reconnecting', 'confirmed', 'connected'] as const) {
+    for (const state of [
+      'connecting',
+      'reconnecting',
+      'confirmed',
+      'load_failed',
+      'connected'
+    ] as const) {
       const { container, unmount } = render(<ConnectionStatus state={state} />);
       expect(badgeText(container)).toBe(words[state]);
       if (state !== 'connected') {
@@ -287,5 +325,186 @@ describe('the badge on its own', () => {
       }
       unmount();
     }
+  });
+});
+
+/**
+ * Story 4: the room can also say it could not open the board at all. That is the one
+ * message that is not about the network, and the one state that takes editing away —
+ * because there is nothing underneath to write into, and anything typed would be
+ * thrown away when the board finally did load.
+ */
+
+/** Press, move and release a note, letting the per-frame writes land. */
+async function dragNoteInPlace(
+  note: HTMLElement,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number
+): Promise<void> {
+  firePointer(note, 'pointerdown', fromX, fromY);
+  const steps = 4;
+  for (let step = 1; step <= steps; step += 1) {
+    firePointer(
+      note,
+      'pointermove',
+      fromX + ((toX - fromX) * step) / steps,
+      fromY + ((toY - fromY) * step) / steps
+    );
+  }
+  firePointer(note, 'pointerup', toX, toY);
+  await flushFrames();
+}
+
+describe('a board the room could not load', () => {
+  // TC-22
+  it('says it in red, and says it as a status', () => {
+    const { container } = render(<ConnectionStatus state="load_failed" />);
+    const element = badge(container);
+    expect(element?.textContent).toBe("This board couldn't be loaded. Retrying…");
+    expect(element?.getAttribute('role')).toBe('status');
+    expect(element?.getAttribute('data-state')).toBe('load_failed');
+    // The red itself is CSS keyed on this class (jsdom applies no stylesheet, so the
+    // colour is checked where styles are real: TC-24 in a browser).
+    expect(element?.className).toContain('vidi6-connection--load_failed');
+  });
+
+  // TC-28
+  it('takes a 4500 as the board being unopenable, on the first load and later', () => {
+    const { container } = joinBoard();
+    const provider = harness.opened[0];
+
+    // The room refuses the connection before it has synced anything: that is not
+    // "still connecting", it is a board that could not be opened.
+    sayClose(provider, 4500);
+    expect(badgeText(container)).toBe("This board couldn't be loaded. Retrying…");
+
+    // A board that had been working, then came back from a restart unreadable, ends up
+    // in the same state as one that never loaded.
+    saySync(provider, true);
+    expect(badge(container)).toBeNull();
+    sayClose(provider, 4500);
+    expect(badgeText(container)).toBe("This board couldn't be loaded. Retrying…");
+  });
+
+  // TC-28
+  it('takes every other close code as an outage: the board stays open and editable', () => {
+    const { container } = joinBoard();
+    const provider = harness.opened[0];
+    saySync(provider, true);
+
+    // 1011: the room could not save. The content is still there and still worth typing.
+    sayClose(provider, 1011);
+    expect(badgeText(container)).toBe('Reconnecting…');
+    expect(stickyToolButton(container).hasAttribute('disabled')).toBe(false);
+
+    // 1003: a frame the room could not read. Same story.
+    sayClose(provider, 1003);
+    expect(badgeText(container)).toBe('Reconnecting…');
+
+    clickElement(stickyToolButton(container));
+    expect(stickyNotes(container)).toHaveLength(1);
+  });
+
+  // TC-28
+  it('keeps saying it while the provider retries, and stops the moment the board loads', () => {
+    const { container } = joinBoard();
+    const provider = harness.opened[0];
+
+    sayClose(provider, 4500);
+    // The provider is already trying again. A retry is not news, and it certainly is not
+    // the board being readable.
+    sayStatus(provider, 'connecting');
+    expect(badgeText(container)).toBe("This board couldn't be loaded. Retrying…");
+    sayStatus(provider, 'disconnected');
+    expect(badgeText(container)).toBe("This board couldn't be loaded. Retrying…");
+    sayStatus(provider, 'connected');
+    expect(badgeText(container)).toBe("This board couldn't be loaded. Retrying…");
+
+    // The room read the board. The message is simply no longer true, and the board is
+    // editable again in the same page, without a reload.
+    saySync(provider, true);
+    expect(badge(container)).toBeNull();
+    clickElement(stickyToolButton(container));
+    expect(stickyNotes(container)).toHaveLength(1);
+  });
+
+  // TC-23
+  it('lets you look but not change: nothing on a locked board alters the document', async () => {
+    const { container } = joinBoard();
+    const provider = harness.opened[0];
+    saySync(provider, true);
+
+    // One note, made while the board was fine, with a word in it.
+    clickElement(stickyToolButton(container));
+    const editor = stickyEditor(container);
+    if (!editor) throw new Error('a new note should be open for typing');
+    fireInput(editor, 'written before the failure');
+    clickElement(viewportElement(container));
+
+    sayClose(provider, 4500);
+    expect(badgeText(container)).toBe("This board couldn't be loaded. Retrying…");
+    const before = storedBoard();
+    expect(before).toHaveLength(1);
+
+    // A double-click on empty board creates nothing.
+    doubleClick(viewportElement(container), 600, 400);
+    expect(storedBoard()).toEqual(before);
+
+    // The tool button says no by being disabled.
+    const tool = stickyToolButton(container);
+    expect(tool.hasAttribute('disabled')).toBe(true);
+    clickElement(tool);
+    expect(storedBoard()).toEqual(before);
+
+    // Selecting still works — that is not a change to the board — and Delete does nothing.
+    const note = stickyNote(container, 0);
+    clickElement(note);
+    expect(note.dataset.selected).toBe('true');
+    fireKey('Delete');
+    expect(storedBoard()).toEqual(before);
+
+    // A drag leaves the note exactly where it was, and does not even raise it.
+    await dragNoteInPlace(note, 400, 300, 620, 420);
+    expect(storedBoard()).toEqual(before);
+
+    // A double-click on the note does not open it for typing, so there is no way to
+    // type into a board that cannot be saved.
+    doubleClick(note, 40, 40);
+    expect(stickyEditor(container)).toBeNull();
+    expect(storedBoard()).toEqual(before);
+
+    // Its colour swatches and its bin are disabled, and clicking them changes nothing.
+    clickElement(note);
+    const swatch = noteSwatch(note, 'blue');
+    const bin = noteDeleteButton(note);
+    expect(swatch?.hasAttribute('disabled')).toBe(true);
+    expect(bin?.hasAttribute('disabled')).toBe(true);
+    if (swatch) clickElement(swatch);
+    if (bin) clickElement(bin);
+    expect(storedBoard()).toEqual(before);
+  });
+
+  // TC-23
+  it('closes a text box that was open when the board became unwritable', () => {
+    const { container } = joinBoard();
+    const provider = harness.opened[0];
+    saySync(provider, true);
+    clickElement(stickyToolButton(container));
+    const editor = stickyEditor(container);
+    if (!editor) throw new Error('a new note should be open for typing');
+    fireInput(editor, 'half-written');
+
+    sayClose(provider, 4500);
+    // The editor is gone rather than typing into a document that is about to be
+    // replaced by whatever the room can actually read.
+    expect(stickyEditor(container)).toBeNull();
+    expect(stickyNotes(container)).toHaveLength(1);
+  });
+
+  it('locks exactly one state', () => {
+    const states: ConnectionState[] = ['connecting', 'connected', 'reconnecting', 'confirmed', 'load_failed'];
+    expect(states.map((state) => canEdit(state))).toEqual([true, true, true, true, false]);
   });
 });

@@ -18,6 +18,9 @@
   --status-green-background: #e8f7ec;
   --status-green-border: #9fd9b0;
   --status-green-ink: #14682f;
+  --status-red-background: #fdeaea;
+  --status-red-border: #e9a0a0;
+  --status-red-ink: #8f1d1d;
   --status-neutral-background: #eef1f6;
   --status-neutral-border: #d8dce4;
   --status-neutral-ink: #333a45;
@@ -415,4 +418,12 @@ body {
   background: var(--status-green-background);
   border-color: var(--status-green-border);
   color: var(--status-green-ink);
+}
+
+/* The board could not be read, so it cannot be written to: the one badge that is not
+   a status report but an apology, and the only state that locks editing. */
+.vidi6-connection--load_failed {
+  background: var(--status-red-background);
+  border-color: var(--status-red-border);
+  color: var(--status-red-ink);
 }

@@ -49,6 +49,11 @@ export interface BoardViewportProps {
   onStickyCreated?(id: string): void;
   /** A press on empty board space that never turned into a pan. */
   onEmptyClick?(): void;
+  /**
+   * False while the board cannot be written to (story 4): a double-click on empty
+   * space does nothing at all, rather than making a note that cannot be saved.
+   */
+  canCreateSticky?: boolean;
 }
 
 /** WheelEvent.deltaMode values. */
@@ -160,7 +165,8 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
    */
   const handleDoubleClick = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
-      if (!props.doc || !isEmptyBoardSpace(event.target)) return;
+      if (!props.doc || props.canCreateSticky === false) return;
+      if (!isEmptyBoardSpace(event.target)) return;
       const world = screenToWorld(camera, localPoint(event.clientX, event.clientY));
       const id = createSticky(props.doc, world);
       // A note rejected for a reason the user cannot see is simply not created.

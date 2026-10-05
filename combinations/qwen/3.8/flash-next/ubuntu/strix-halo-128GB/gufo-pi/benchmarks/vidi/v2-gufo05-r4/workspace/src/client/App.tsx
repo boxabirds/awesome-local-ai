@@ -25,6 +25,7 @@ import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
 import { reportConnectionState } from './canvas/testHooks';
+import { canEdit } from './sync/connectBoard';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { CameraProvider, useCameraContext } from './canvas/useCamera';
 import { StickyNote } from './objects/StickyNote';
@@ -98,6 +99,13 @@ function Board(props: { doc?: Y.Doc }): JSX.Element {
   const selectionRef = useRef<SelectionControls>(selection);
   selectionRef.current = selection;
 
+  // Story 4: a board the room could not load is not a board to write on. Everything
+  // that would change the document is checked against this, and the handlers that are
+  // registered once read it through a ref.
+  const editable = canEdit(connection);
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
+
   /** Put a new note in the middle of a screen point and start typing it. */
   const createAt = useCallback(
     (screenPoint: Point, document: Y.Doc, startEdit: (id: string) => void) => {
@@ -109,6 +117,7 @@ function Board(props: { doc?: Y.Doc }): JSX.Element {
   );
 
   const createAtScreenCentre = useCallback(() => {
+    if (!editableRef.current) return;
     createAt({ x: viewport.width / 2, y: viewport.height / 2 }, doc, selectionRef.current.startEdit);
   }, [createAt, doc, viewport.height, viewport.width]);
 
@@ -127,10 +136,17 @@ function Board(props: { doc?: Y.Doc }): JSX.Element {
     else if (gone(selectedId)) selectionRef.current.select(null);
   }, [notes]);
 
+  // An editor that was open when the board became unwritable is closed, rather than
+  // left typing into a document that is about to be replaced by what the room reads.
+  useEffect(() => {
+    if (!editable && selectionRef.current.editingId) selectionRef.current.endEdit('selected');
+  }, [editable]);
+
   // Board-wide keys: Enter edits the selected note, Delete and Backspace remove
   // it. While a note is being typed into they are not ours at all.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!editableRef.current) return;
       if (selectionRef.current.editingId) return;
       if (isTextEntry(event.target) || isControl(event.target)) return;
 
@@ -156,6 +172,7 @@ function Board(props: { doc?: Y.Doc }): JSX.Element {
     <>
       <BoardViewport
         doc={doc}
+        canCreateSticky={editable}
         onStickyCreated={startEdit}
         onEmptyClick={() => select(null)}
       >
@@ -167,13 +184,14 @@ function Board(props: { doc?: Y.Doc }): JSX.Element {
             zoom={camera.zoom}
             selected={selection.selectedId === note.id}
             editing={selection.editingId === note.id}
+            canEdit={editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtScreenCentre} />
+      <Toolbar onCreateSticky={createAtScreenCentre} disabled={!editable} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

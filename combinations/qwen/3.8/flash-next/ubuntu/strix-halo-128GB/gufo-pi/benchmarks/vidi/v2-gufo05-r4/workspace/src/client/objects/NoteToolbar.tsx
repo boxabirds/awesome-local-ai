@@ -22,6 +22,8 @@ export interface NoteToolbarProps {
   color: StickyColor;
   onColor(color: StickyColor): void;
   onDelete(): void;
+  /** False while the board cannot be written to (story 4): nothing here does anything. */
+  disabled?: boolean;
 }
 
 const COLOR_NAMES = Object.keys(STICKY_COLORS) as StickyColor[];
@@ -41,6 +43,7 @@ const stopPointer = (event: { stopPropagation(): void }) => {
 
 export function NoteToolbar(props: NoteToolbarProps): JSX.Element {
   const { color, onColor, onDelete } = props;
+  const disabled = props.disabled === true;
 
   return (
     <div
@@ -62,6 +65,8 @@ export function NoteToolbar(props: NoteToolbarProps): JSX.Element {
           aria-label={colourLabel(name)}
           title={colourLabel(name)}
           aria-pressed={name === color}
+          aria-disabled={disabled}
+          disabled={disabled}
           style={{ width: NOTE_SWATCH_SIZE_PX, height: NOTE_SWATCH_SIZE_PX, background: STICKY_COLORS[name] }}
           onClick={() => onColor(name)}
         />
@@ -72,7 +77,9 @@ export function NoteToolbar(props: NoteToolbarProps): JSX.Element {
         className="vidi6-note-delete"
         data-vidi6="note-delete"
         aria-label="Delete note"
-        title="Delete note"
+        aria-disabled={disabled}
+        disabled={disabled}
+        title={disabled ? 'This board could not be loaded' : 'Delete note'}
         onClick={onDelete}
       >
         {/* A bin, drawn inline so there is no icon dependency. */}

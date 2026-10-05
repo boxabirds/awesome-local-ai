@@ -546,3 +546,324 @@ while the badge says "Reconnecting…").
    anything on the way out. It cannot read a log from a page that no longer exists;
    what it can show is that closing one board neither disturbs the others nor leaves
    something retrying.
+
+---
+
+# Story 4 notes — decisions and deviations
+
+## Task 2 — the board store
+
+1. **A damaged row is survived by rebuilding the log, not by carrying on.** The
+   design's `load` applies row after row and moves a row that throws to quarantine.
+   Doing that in a single pass leaves the live document missing the hole *and*
+   everything that was built on top of it, silently, and the caller cannot tell how
+   much went. So `load` replays into its own `Y.Doc`: the first row that throws ends
+   that attempt, the row is quarantined, and the whole log (minus the quarantined
+   rows) is replayed again from scratch, until a pass finishes clean. Only then is
+   the caller's document touched, and only with a complete state. A half-read board
+   is never handed to anyone, and `quarantined` counts rows, which is what the design
+   promises — not a claim that nothing else is missing (see 5).
+   `transactionSync` cannot help across rows: an outer transaction's writes are
+   discarded when the callback throws, so a `transactionSync` per row does not make
+   the *document* rollback-able. That is exactly what the injection seam shows: with a
+   forced mid-compaction failure the old chunks, the log and the pointer are all
+   unchanged.
+
+2. **`load` builds its own doc; the room passes an empty one.** The contract stays
+   `load(doc)`, but because the replay is into a temporary doc the room's document is
+   only ever advanced by one `applyUpdate` of the finished state. It also means the
+   `LOAD_ORIGIN` transaction is one transaction rather than hundreds, which is what
+   the client's first render wants.
+
+3. **Everything SQLite hands back is copied out** (`toBytes`), because the
+   `ArrayBuffer` from `sql.exec(...).one()` belongs to the statement; the buffer is
+   still needed after the row cursor moves on, and quarantine writes it back verbatim.
+
+4. **Two bounds, deliberately.** Compaction records `snapshot_through_seq = max(seq)`
+   and deletes exactly `seq <= snapshot_through_seq`; a damaged row's id is excluded
+   from that max, because its bytes no longer stand for a change and the replay skips
+   it. Load reads `seq > snapshot_through_seq` (strictly) for the tail and
+   `seq < snapshot_through_seq` for the replay, so a row whose bytes went bad *after*
+   being folded into a snapshot is quarantined without removing it from the log — the
+   quarantine table is the copy that leaves the log, and the log stays the source of
+   truth for `MAX(seq)` (TC-11). Quarantine never deletes content, which is why
+   TC-10's byte check counts quarantine rows rather than trusting a row count.
+
+5. **The boundary of "the rest of the board loads" is Yjs', not ours.** With one
+   unreadable row, the notes that go missing are that change plus the changes whose
+   CRDT items were built on top of it: on the retro fixture (6 authors, real
+   mutators) that measured 4 of 23, and applying the log a second and third time
+   recovers nothing, so it is genuine dependency and not an artefact of the order we
+   apply in. Nothing in a log-with-a-hole can do better — TC-09 therefore asserts
+   equality with a *reference replay* (the same log with that row absent, applied once
+   by the test), which is the best any loader can reach, plus "more than half the
+   board is there", "nothing appeared that was never there" and "exactly one row was
+   reported unreadable".
+
+6. **`shouldCompact` is count *or* bytes, and a full board is neither.** 2,000 notes
+   arriving in 25-note batches is 82 rows and a 779 KB log: no compaction. That is the
+   point — the thresholds are about write amplification, not board size. The chunking
+   test therefore pads the log with `COMPACTION_UPDATE_COUNT` moves and asserts on how
+   the 600 KB snapshot is stored, which is the thing under test (TC-08).
+
+## Task 3 — store tests against real Durable Object SQLite
+
+1. **The fixture plays a session, it does not just build a document.** `retroBoard()`
+   returns the room's state *and* the ordered log of updates as separate authors sent
+   them, because a document and a log are different things and every damage test needs
+   the latter. Authors are separate `Y.Doc`s with their own client ids, each synced
+   from the room before it edits; one client driving 2000 notes would make a single
+   lost row swallow half the board (see 5 above) and turn a story about one bad row
+   into a story about a missing half.
+
+2. **`tests/fixtures/boards.ts` uses only real mutators** (`createSticky`, `moveSticky`,
+   `setStickyColor`, `deleteSticky`, `applyTextDiff`) through one `doc.transact`, which
+   is what `board-room`'s clients cause; nothing hand-writes Yjs structures, so the
+   bytes being damaged are the bytes the app really stores.
+
+3. **`sqlite_sequence` exists.** `id INTEGER PRIMARY KEY AUTOINCREMENT` makes SQLite
+   create it, so a test that asserts "the schema is these four tables" has to ignore
+   `sqlite_%` — the alternative is a schema without AUTOINCREMENT, which is a worse
+   schema.
+
+4. **A test that wants a row to fail must make it fail for the right reason.**
+   `truncatedBytes(update)` cuts the last 10 bytes (a short message is a *valid*
+   message, so very short updates are left alone), `randomBytesLike(update)` overwrites
+   the middle with same-length pseudo-random bytes, and both are checked against
+   "Yjs throws on this" in a unit test. TC-25 asserts a 16-byte header-shaped
+   nonsense row is quarantined too.
+
+5. **Everything that touches storage goes through `runInDurableObject`**, one board id
+   per test (`inBoard`), and only plain data is returned across the boundary — the
+   Y.Docs stay on the outside, and the bytes of a document come back as
+   `Array.from(...)` where a test needs them.
+
+## Task 4 — the room keeps the board
+
+1. **The sockets hibernate, and hibernation changes who closes what.** Story 3 used
+   `addEventListener` on the server socket, where the platform echoes a close back
+   automatically. With `ctx.acceptWebSocket` it does not: `webSocketClose` has to
+   answer with a close of its own, or a client that was closed by the room sits in
+   "connecting" until it times out. Story 3's TC-07 was the proof — it failed with the
+   *second* client never seeing a close, and passed the moment the echo was written by
+   hand.
+
+2. **`echoCode` maps 1005 and 1006 to 1000.** Those two codes describe a connection
+   that ended without a status; RFC 6455 forbids sending them, and `socket.close(1005)`
+   throws — inside `webSocketClose`, which would then leave the socket half-closed. The
+   room's own codes (4500, 1011, 1003) are echoed unchanged.
+
+3. **`recordThenBroadcast` is the only place a change leaves the room.** A doc update
+   whose origin is `LOAD_ORIGIN` is the room reading its own board, and is skipped; a
+   change that could not be appended is not broadcast, and the room then closes every
+   socket with 1011 and drops the document — it cannot promise to save the next change
+   either, and a board that is silently unwritten is worse than a board that says so.
+   An update Yjs refuses is never stored, because it never becomes a doc update: the
+   `errorHandler` handed to `readSyncMessage` re-throws so the frame is the sender's
+   protocol error (1003) rather than a swallowed log line.
+
+4. **Two storage failures, two words.** `storageFailure` records whether the last one
+   was a *read* or a *write*. It exists because a connection that cannot be served needs
+   a close code, and the two cases deserve different ones: a board that cannot be read
+   is 4500 ("this board could not be opened", the client's red message and edit lock —
+   TC-26), and a board that was open and then could not be written is 1011 ("come back",
+   because the person still holds unsaved work). The design's table said storage trouble
+   at connect time should be 1011 as well; the story's TC-26 is the contract, and the
+   distinction is real, so the room keeps the cause rather than the fact.
+
+5. **The idle alarm makes "idle costs nothing" true in memory as well as compute.** The
+   last socket to close sets an alarm `BOARD_IDLE_RELEASE_MS` ahead; when it fires with
+   nobody watching, the log is folded and `this.board = null`. The next join wakes the
+   room and reads the board from storage. No further alarm is set, so the instance itself
+   becomes evictable.
+
+6. **Compaction runs after the broadcast, and loops.** `waitUntil(compact())` per change,
+   and `compact()` folds while `compactIfNeeded` says the log is still over the
+   threshold — one fold per burst would let a busy board defer folding indefinitely,
+   because each change that arrives during a fold is a new row. A single `compacting`
+   promise keeps two folds from racing, and the `compacting` state is visible in the
+   status endpoint.
+
+7. **The attachment on a socket is written but not read.** `{ kind: 'board' }` is stored
+   before `acceptWebSocket` so that the story which puts names and cursors on the board
+   has somewhere to put them; awareness stays a verbatim relay, as in story 3.
+
+## Task 5 — the tests that a restart really happened
+
+1. **`evictDurableObject` from `cloudflare:test` is the story's test tool.** It tears the
+   instance down, keeps the storage, and by default leaves hibernating sockets alive —
+   which is TC-13 (reopen after a restart nobody watched) and TC-18 (the rebuilt room
+   delivering to sockets it never accepted, asserted by `clients: 2` in the status of an
+   instance that was not there when either socket was opened). It works with no sockets
+   open, and it rejects if the object is not running, so a test that wants the
+   "nobody watching" case has to leave the board first.
+
+2. **Breaking storage means breaking something the migration cannot repair.** Dropping
+   the `updates` table appeared to work and did not: the next load calls `migrate()`,
+   which creates the table again, and the room came back "ready" with an empty board —
+   exactly the lie the story is about, reported as a passing test. Damage has to be at
+   column level: `DROP COLUMN data` breaks the read (4500, TC-26), `DROP COLUMN bytes`
+   breaks the write and nothing else (1011, TC-14). Both restore with `ADD COLUMN`.
+
+3. **Yjs accepts a truncated update.** Damage that halves a snapshot's bytes with zeros
+   loads *successfully*, applying what it could decode. The store tests and TC-15
+   therefore damage rows with pseudo-random bytes of the same length — the shape storage
+   damage actually has — and the byte count kept next to each row is what catches a
+   silent truncation later. Recorded here because the first version of TC-15 was a
+   passing test of nothing.
+
+4. **Two deliberate seams, both about time.** `retryWindowHasPassed` sets the room's
+   `lastFailureAt` to 0 instead of spending `LOAD_RETRY_MIN_INTERVAL_MS` (five seconds)
+   waiting to prove that the room refuses a reload *before* the interval and attempts one
+   after it; `loads` in the status endpoint is what makes "no reload attempt happened"
+   assertable at all. `loads` is worth having with or without the test — it is the number
+   that says whether a board is being read once or hammered.
+
+5. **A change is waited for on the other person's screen.** TC-13 compares the board a
+   newcomer finds against what the people who left were looking at, so every mutation in
+   it is waited for on the *other* client, and the two snapshots are checked against each
+   other before anybody disconnects. Checking the author's own copy made the test fail on
+   a change that had not crossed the wire yet — a real race, and the kind of false
+   failure that gets a test weakened rather than fixed.
+
+## Task 6 — the browser, and a process that is really killed
+
+1. **These specs own their dev server, and `SIGKILL` is the point.** A test of "the process
+   forgot everything" cannot share the run's web server (killing it stops every other spec),
+   so `helpers/wrangler-process.ts` starts `wrangler dev` on port 21332 with its own
+   `--persist-to` directory, and stops it with `SIGKILL` to the *process group* — wrangler
+   supervises a worker runtime of its own, and killing only the parent leaves something
+   answering on the port, which would turn "the process died" into a test of nothing (the
+   same trap as an eviction that keeps sockets alive). Playwright has no per-project way out
+   of a global `webServer`, so the shared one still comes up for a run that selects only
+   these; it sits there idle.
+
+2. **The helper does not build the client, and says why.** `pretest`/the web server build it
+   in `--mode test`, which is the mode carrying `window.__vidi6`. Building it again as a side
+   effect of starting a second server would replace those hooks while other specs are loading
+   pages from the same `dist/client`. What the helper does instead is fail with a clear
+   sentence if the build is missing — otherwise the board serves an empty page and the report
+   says the notes disappeared.
+
+3. **Big boards are seeded over the wire, by a second connection, before any browser opens.**
+   `helpers/board-writer.ts` is a raw y-websocket client on Node's global `WebSocket`: it
+   answers the room's SyncStep1 with its own SyncStep2, and `seedBoard` then polls with a
+   *different* connection until the note count matches. Without that confirmation, "the board
+   holds 2000 notes" would be an assumption, and every assertion after it would be about the
+   seeding rather than about the restart. One detail cost a debugging round: `readSyncMessage`
+   expects its decoder positioned *before* the sync-type byte, so the type has to be peeked
+   with a second decoder — consuming it first throws inside y-protocols.
+
+4. **What "opens completely" is measured against.** 2000 notes were chosen in the test and
+   their intended centres and colours kept, so the assertion is that the opened board *is*
+   that list, position and colour and stacking included, and not merely that 2000 elements
+   appeared. The DOM is not virtualised (measured: all 2000 note elements are present with
+   most of them far off screen), so a DOM count is a fair functional check here.
+
+5. **Reported, not asserted: 2000 notes render in about 1.8 s** from navigation, against
+   `BOARD_LOAD_BUDGET_MS` (3000 ms), printed on every run as the story asks. TC-20's second
+   budget is the opposite case and is asserted, with a message that blames the test: killing
+   the process within a second of a change being visible is this file pulling the plug
+   promptly — measured at ~30 ms — and not a claim about the product's speed.
+
+6. **Making 25 notes through the interface needs clear board to double-click on**, because a
+   double-click on an existing note edits it instead of making one. The notes are 200 world
+   units square, so the test zooms the camera out to 0.45 and uses a 140-pixel lattice:
+   25 notes, none touching, all on one screen. An earlier version panned between three
+   screens instead and stopped creating notes partway through; a direct probe says the camera
+   is honoured (with camera `(-1000, 250, 1)` a double-click at screen (300, 400) stored a
+   note at world `(-800, 550)`), so the cause was in that loop rather than in the product, and
+   the single-screen version is both simpler and deterministic. Worth knowing before anyone
+   spends an afternoon on panning.
+
+7. **`origin` as a parameter rather than a second base URL.** `openBoardAt` and `openSession`
+   take an optional origin so a spec can point at these tests' own server. A separate
+   Playwright project with its own `baseURL` would have needed its own web server entry, and
+   the whole point is that this server is not the run's.
+
+## Task 7 & 8 — the message, and taking the keyboard away
+
+1. **One close code, one new state.** 4500 is the only code that carries a verdict about
+   the *board* rather than about the connection, so it gets its own client state instead of
+   being folded into `reconnecting`. Retrying is genuinely what happens: y-websocket's
+   `defaultShouldReconnect` refuses only 4400-4499, and 4500 is chosen just outside that
+   band (see story 4 task 4), which is what lets the badge honestly say "Retrying…".
+
+2. **`connection-close`, and what a `null` means.** The machine needs the code, so it
+   listens to y-websocket's `connection-close` event (`CloseEvent | null`). A null close is
+   us hanging up — `provider.disconnect()` in a component test's cleanup, for instance — and
+   says nothing about the board, so it must not put an apology on screen. That distinction is
+   asserted rather than assumed: `providerClose(null)` after a session leaves the person on
+   `reconnecting`, and before one leaves them exactly where they were.
+
+3. **A red message does not flinch.** While `load_failed`, `providerStatus` events are
+   ignored: a retry's `'connecting'` would otherwise downgrade the honest sentence to a
+   spinner every five seconds. Only a sync proves the board loaded, and the first sync goes
+   back to no badge at all rather than to the green "synced" flash — no celebration over a
+   scare. The mapping (4500 → red, everything else → the usual `reconnecting`) is tested as
+   a table, including that a mid-session 4500 is treated the same way: the board we cannot
+   read now is the same failure as the board we could not read on arrival.
+
+4. **Editing is off in six places with one boolean.** Create by double-click, the toolbar's
+   add-note button, dragging, typing, changing colour, deleting — all consult
+   `canEdit(state)`. Selecting still works, and a drag deliberately stays a click so a person
+   can look around a board they cannot change. An open text editor is closed when the board
+   locks, because a box typing into a document about to be replaced is worse than no box.
+
+5. **`disabled` plus the guard underneath.** The disabled attribute and title are what a
+   person reads ("Someone is still working on this board. Editing is off."), and the guards
+   are what make it true — a keyboard shortcut and a synthetic click both arrive where a
+   mouse cannot. TC-23 is written accordingly: for each of the six, the assertion is that the
+   stored document is *byte for byte unchanged*, read back through `window.__vidi6.getBoard()`.
+   Spying on `board-model` functions was tried first and is not dependable here: a module that
+   imports a named function calls the binding it captured, not the mock.
+
+6. **The red itself is checked in a browser.** jsdom applies no styles, so the component
+   tests pin the class and the exact string, and TC-24 compares the badge's computed
+   background against the value of `--status-red-background` *resolved in the page* — so the
+   test follows a design-token change, and fails only if the badge stops using it.
+
+## Task 9 — a hook to break a board, and a wire that repeats itself
+
+1. **Why a hook at all:** nothing in a browser can reach a DO's SQLite, and the tool that
+   could (`evictDurableObject` from `cloudflare:test`, used in task 5) does not exist under
+   `wrangler dev`. So the Worker serves `POST /__test/boards/<id>/corrupt-snapshot` and
+   `.../repair`, gated on `TEST_HOOKS=1`, which only `playwright.config.ts`'s web server sets.
+
+2. **The gate is on the door, not inside the room.** `index.ts` does not look up a room
+   unless the flag is on, so a deployed Worker has no branch to reach; the room has no flag
+   check of its own (its `env` is the Worker's, so checking both would mean a test that
+   passes the Worker's check and then fails the room's — and a DO's fetch is only reachable
+   through the Worker anyway). The integration test is the proof of the claim: in production
+   config `GET /__test/...` returns the SPA fallback (HTML, room never looked up) and `POST`
+   is refused by the asset handler, while `idFromName` is never called.
+
+3. **The room cannot evict itself, and does not need to.** `ctx.storage.deleteAll()` would
+   destroy a board. The hook damages the snapshot in place, closes everyone with 4500, drops
+   the document, and then goes through the room's own hibernate → wake → `loadBoard()` path —
+   so the refusal comes from the real read code rather than from an `if (test)` answer. Only
+   pseudo-random bytes of the same length work here; zero-filled content loads "successfully"
+   with half a board (task 2, above), which is exactly why the `bytes` column exists.
+
+4. **A hook taught me the state machine was right.** The first version called
+   `failed('load')` while the room was `ready`. That is not an edge in `room-state.ts` — a
+   load failure is only reachable from `loading` — and so the room stayed `ready` with no
+   document, refusing readers forever with no retry path anywhere. The transition table
+   caught a real bug in my test scaffolding by refusing to lie; the hook now uses the same
+   lifecycle a waking room uses, which is also why the `loads` counter reaches 2.
+
+5. **One change can cross the wire twice, and story 3's exact-count test was flaky because
+   of it.** While checking for regressions, `TC-07`'s `expect(b.updateCount).toBe(1)` failed
+   about one run in eight — and reproduced identically with tasks 7-9 stashed, so it was
+   already there. The frame trace explains it: a joining client's handshake is
+   `SyncStep1 → SyncStep2 → update` and a change made while that exchange is in flight can
+   reach the newcomer both as the answer to its own SyncStep1 and as the broadcast
+   (`0,2,1,2`). Yjs merges it, so nothing is wrong on the board; what was wrong was the test's
+   claim, which was about a wire that had not gone quiet. Fixed with
+   `TestClient.waitUntilQuiet()` and a delta, then verified over 120 rounds × 3 changes that
+   on a quiet wire the count is exact and nothing echoes back.
+
+6. **`openBoardAt` cannot be used for a board that will not load** — it waits for
+   `connected` by design, which is right everywhere else. TC-24 navigates with a plain
+   `page.goto` and waits for the badge instead, and marks `window` before the repair so the
+   recovery assertion can prove no reload happened.

@@ -54,6 +54,13 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * False while the board cannot be written to (story 4: the room could not load it).
+   * The note still shows what it holds, and still selects, but nothing about it is
+   * changed — a drag, an edit, a colour or a delete would be written into a document
+   * that is about to be thrown away.
+   */
+  canEdit?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -81,7 +88,10 @@ interface Press {
 }
 
 export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const { note, doc, zoom, selected, onSelect, onStartEdit, onEndEdit } = props;
+  const canEdit = props.canEdit !== false;
+  // A board that has just become unwritable must not keep an open text box either.
+  const editing = props.editing && canEdit;
 
   const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
@@ -90,8 +100,8 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const [fit, setFit] = useState<Fit>({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
 
   // Handlers registered once (or on window) read the latest values through refs.
-  const latest = useRef({ note, doc, zoom, editing, onSelect, onStartEdit, onEndEdit });
-  latest.current = { note, doc, zoom, editing, onSelect, onStartEdit, onEndEdit };
+  const latest = useRef({ note, doc, zoom, editing, canEdit, onSelect, onStartEdit, onEndEdit });
+  latest.current = { note, doc, zoom, editing, canEdit, onSelect, onStartEdit, onEndEdit };
 
   const contentBox = STICKY_SIZE_WORLD - STICKY_PADDING_WORLD * 2;
 
@@ -186,6 +196,9 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
       if (!press.moved) {
         // A short press without movement stays a selection, not a drag.
         if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+        // On a board that cannot be written to, a drag stays a click: the note is
+        // selected and stays exactly where it is.
+        if (!latest.current.canEdit) return;
         press.moved = true;
         // The note being moved comes to the front of everything it overlaps.
         bringToFront(latest.current.doc, note.id);
@@ -229,7 +242,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const handleDoubleClick = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
     // A double-click on a note edits that note instead of creating a new one.
     event.stopPropagation();
-    if (latest.current.editing) return;
+    if (latest.current.editing || !latest.current.canEdit) return;
     onStartEdit(note.id);
   }, [note.id]);
 
@@ -239,6 +252,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
 
   const handleColor = useCallback(
     (color: StickyColor) => {
+      if (!latest.current.canEdit) return;
       // Only the colour changes: text, position and the selection are untouched.
       setStickyColor(doc, note.id, color);
     },
@@ -246,6 +260,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   );
 
   const handleDelete = useCallback(() => {
+    if (!latest.current.canEdit) return;
     deleteObject(doc, note.id);
     // The note is gone, so the selection goes with it.
     onEndEdit('unselected');
@@ -329,7 +344,12 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
 
       {selected && !editing && !dragging ? (
         <div className="vidi6-note-toolbar-anchor" style={toolbarStyle}>
-          <NoteToolbar color={note.color} onColor={handleColor} onDelete={handleDelete} />
+          <NoteToolbar
+            color={note.color}
+            onColor={handleColor}
+            onDelete={handleDelete}
+            disabled={!canEdit}
+          />
         </div>
       ) : null}
     </div>

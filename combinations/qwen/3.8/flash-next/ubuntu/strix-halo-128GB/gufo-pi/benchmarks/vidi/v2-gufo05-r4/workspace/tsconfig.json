@@ -21,6 +21,7 @@
   // The Worker and its tests are checked by `tsconfig.worker.json` (workerd globals,
   // no DOM), so the two environments never fight over `Response`, `WebSocket`, ...
   "include": [
+    "worker-configuration.d.ts",
     "src/client",
     "src/shared",
     "tests/unit",

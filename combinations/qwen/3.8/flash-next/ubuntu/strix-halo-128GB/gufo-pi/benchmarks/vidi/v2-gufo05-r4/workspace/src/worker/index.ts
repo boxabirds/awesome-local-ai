@@ -19,11 +19,19 @@
 
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { handleTestHookRequest, testHooksEnabled, TEST_HOOK_PREFIX } from './test-hooks';
 
 /** Bindings declared in `wrangler.jsonc`. */
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /**
+   * Set to `1` only by the end-to-end web server (`playwright.config.ts` passes
+   * `--var TEST_HOOKS:1`). It turns on the `/__test/` board-surgery routes, and nothing
+   * else changes; it is absent from `wrangler.jsonc`, so a deployed Worker cannot serve
+   * them and a request to one gets the SPA like any other unknown path.
+   */
+  TEST_HOOKS?: string;
 }
 
 /** Everything under this prefix is one board's WebSocket endpoint. */
@@ -50,6 +58,12 @@ function boardIdOf(pathname: string): string | null {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    // The gate is here rather than inside the handler: with the variable absent this
+    // Worker has no `/__test/` route at all, and the path falls through to the assets
+    // like any other one it does not know.
+    if (testHooksEnabled(env) && url.pathname.startsWith(TEST_HOOK_PREFIX)) {
+      return handleTestHookRequest(request, env);
+    }
     if (!url.pathname.startsWith(ROOM_PREFIX)) return env.ASSETS.fetch(request);
 
     const boardId = boardIdOf(url.pathname);

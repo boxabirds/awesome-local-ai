@@ -2,7 +2,7 @@
  * The browser's connection to a board.
  *
  * `connectBoard` attaches a `y-websocket` provider to the board's `Y.Doc` and
- * turns the provider's own events into the four states the interface understands.
+ * turns the provider's own events into the states the interface understands.
  * Nothing else in the app reads the provider: the document is the seam, so the
  * board stays fully editable while the network is down and the edits made then go
  * out by themselves when the connection returns (`live.catch_up`).
@@ -18,22 +18,43 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 import { registerTestHooks } from '../canvas/testHooks';
 
 /**
- * `connecting`  first load, nothing synced yet ("Connecting…")
- * `connected`   open and in sync (no badge)
+ * `connecting`   first load, nothing synced yet ("Connecting…")
+ * `connected`    open and in sync (no badge)
  * `reconnecting` an established connection was lost ("Reconnecting…")
- * `confirmed`   just came back; the confirmation badge shows for CONNECTED_CONFIRMATION_MS
+ * `confirmed`    just came back; the confirmation badge shows for CONNECTED_CONFIRMATION_MS
+ * `load_failed`  the room said it could not open this board (4500) — red, and the
+ *                board is not editable until it loads (story 4: a board that could not
+ *                be read must not be written to, because what is written would be lost)
  */
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
+
+/**
+ * Is the user allowed to change the board right now?
+ *
+ * Everything except a board that could not be loaded: an outage still leaves a board
+ * you can write on, because the document is the thing and it will catch up by itself.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 /** The provider events this module cares about (`WebsocketProvider` satisfies it). */
 export interface ProviderEvents {
   on(event: 'status', handler: (event: { status: string }) => void): void;
   on(event: 'sync', handler: (synced: boolean) => void): void;
+  on(event: 'connection-close', handler: (event: { code: number } | null) => void): void;
   off(event: 'status', handler: (event: { status: string }) => void): void;
   off(event: 'sync', handler: (synced: boolean) => void): void;
+  off(event: 'connection-close', handler: (event: { code: number } | null) => void): void;
 }
 
 /** The provider-independent half of the mapping, so it can be tested directly. */
@@ -44,6 +65,11 @@ export interface ConnectionMachine {
   providerStatus(status: string): void;
   /** A `sync` event from the provider. */
   providerSync(synced: boolean): void;
+  /**
+   * A `connection-close` event: the room's own verdict on this connection. `null`
+   * means we closed it here, which is not a message about the board.
+   */
+  providerClose(event: { code: number } | null): void;
   /** Stop any pending confirmation. */
   destroy(): void;
 }
@@ -92,14 +118,38 @@ export function createConnectionMachine(onState: (state: ConnectionState) => voi
         }
         return;
       }
+      // A board the room refused to load is the one thing a retry attempt does not
+      // make vaguer: the red message stays until a sync says otherwise.
+      if (state === 'load_failed') return;
       if (status === 'connecting' && everSynced && state !== 'reconnecting') {
         // Retrying after an outage: the amber badge stays up while we are trying.
         cancelConfirmation();
         publish('reconnecting');
       }
     },
+    providerClose(event: { code: number } | null): void {
+      if (event !== null && event.code === CLOSE_BOARD_LOAD_FAILED) {
+        cancelConfirmation();
+        publish('load_failed');
+        return;
+      }
+      // Any other code — 1011 for a storage failure, 1003 for a frame the room could
+      // not read, or a close we caused ourselves — says nothing about the board's
+      // content, which is still there and still worth editing. The provider is already
+      // trying again, so this is the same state an outage is.
+      if (event === null && !everSynced) return;
+      cancelConfirmation();
+      publish('reconnecting');
+    },
     providerSync(synced: boolean): void {
       if (!synced) return;
+      if (state === 'load_failed') {
+        // The board loaded. No green celebration over a scare like that: the message
+        // simply stops being true, and editing comes back with it, without a reload.
+        everSynced = true;
+        publish('connected');
+        return;
+      }
       const returning = everSynced;
       everSynced = true;
       if (returning && state !== 'connected') {
@@ -128,11 +178,14 @@ export function createConnectionMachine(onState: (state: ConnectionState) => voi
 export function attachConnectionMachine(machine: ConnectionMachine, provider: ProviderEvents): () => void {
   const onStatus = (event: { status: string }) => machine.providerStatus(event.status);
   const onSync = (synced: boolean) => machine.providerSync(synced);
+  const onClose = (event: { code: number } | null) => machine.providerClose(event);
   provider.on('status', onStatus);
   provider.on('sync', onSync);
+  provider.on('connection-close', onClose);
   return () => {
     provider.off('status', onStatus);
     provider.off('sync', onSync);
+    provider.off('connection-close', onClose);
   };
 }
 

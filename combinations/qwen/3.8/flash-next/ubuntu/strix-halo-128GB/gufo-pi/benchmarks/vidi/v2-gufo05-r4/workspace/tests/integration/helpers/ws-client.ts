@@ -199,6 +199,39 @@ export class TestClient {
     return this.#waitFor((resolve) => this.#syncWaiters.push(resolve), timeoutMs, 'sync');
   }
 
+  /**
+   * Wait until nothing arrives on this socket for `stillMs`.
+   *
+   * Joining is not one exchange: the room greets the newcomer with SyncStep1, the
+   * newcomer answers, and a reply from each side can still be on the wire. A test that
+   * counts traffic has to let the greeting land first or it is measuring the greeting as
+   * well as the change — and the wire can carry one change twice when it crosses a
+   * handshake, because that is what Yjs merging is for. So "exactly one update" is only a
+   * claim about a quiet wire (`NOTES.md`).
+   */
+  waitUntilQuiet(stillMs = 40, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<void> {
+    const started = Date.now();
+    let seen = this.received.length;
+    let quietFor = 0;
+    return new Promise((resolve, reject) => {
+      const tick = () => {
+        if (this.received.length !== seen) {
+          seen = this.received.length;
+          quietFor = 0;
+        } else {
+          quietFor += 10;
+        }
+        if (quietFor >= stillMs) resolve();
+        else if (Date.now() - started > timeoutMs) {
+          reject(new Error(`timed out after ${timeoutMs}ms waiting for the wire to go quiet`));
+        } else {
+          setTimeout(tick, 10);
+        }
+      };
+      tick();
+    });
+  }
+
   /** Wait until at least `count` update frames have arrived. */
   waitForUpdates(count: number, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<void> {
     return TestClient.waitUntil(() => this.updateCount >= count, timeoutMs, `${count} update frame(s)`);

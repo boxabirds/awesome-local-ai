@@ -119,9 +119,15 @@ export async function domOf(page: Page): Promise<string> {
   return JSON.stringify(rows);
 }
 
-/** Open a board at `boardId` and wait until it has synced with the room. */
-export async function openBoardAt(page: Page, boardId: string): Promise<void> {
-  await page.goto(`/b/${boardId}`);
+/**
+ * Open a board at `boardId` and wait until it has synced with the room.
+ *
+ * `origin` points the page somewhere other than the run's base URL — the persistence
+ * tests run their own dev server on a port of their own, because they switch it off
+ * and back on again.
+ */
+export async function openBoardAt(page: Page, boardId: string, origin = ''): Promise<void> {
+  await page.goto(`${origin}/b/${boardId}`);
   await expect(page.locator('[data-vidi6="viewport"]')).toBeVisible();
   await expect
     .poll(() => connectionOf(page), { message: 'the board should be in sync with its room' })
@@ -134,7 +140,11 @@ export async function openBoardAt(page: Page, boardId: string): Promise<void> {
  * Names are for the failure messages: when a wait fails, "sam" means more than an
  * index.
  */
-export async function openSession(browser: Browser, names: string[]): Promise<Session> {
+export async function openSession(
+  browser: Browser,
+  names: string[],
+  options: { origin?: string } = {}
+): Promise<Session> {
   const boardId = newBoardId();
   const people: Participant[] = [];
 
@@ -154,7 +164,7 @@ export async function openSession(browser: Browser, names: string[]): Promise<Se
     people.push({ name, context, page, errors });
     // The first person to arrive creates the room; the rest join it. Opening them
     // one after another keeps "who saw what first" answerable.
-    await openBoardAt(page, boardId);
+    await openBoardAt(page, boardId, options.origin ?? '');
   }
 
   const latencies: Latency[] = [];

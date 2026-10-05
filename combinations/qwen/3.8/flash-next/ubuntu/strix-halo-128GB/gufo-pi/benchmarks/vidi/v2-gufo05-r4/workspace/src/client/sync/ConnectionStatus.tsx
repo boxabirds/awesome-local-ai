@@ -5,6 +5,11 @@
  * during the first load, amber "Reconnecting…" while a connection is lost (the
  * board stays fully editable the whole time) and green "Connected" for
  * CONNECTED_CONFIRMATION_MS after it comes back.
+ *
+ * Red is the exception to the quietness, and to the editability: "This board couldn't be
+ * loaded" is a board the user must not write on, because there is nothing underneath to
+ * write to — the room could not read it, and anything typed would be thrown away when it
+ * finally did load (story 4, `persist.client_status`).
  */
 
 import type { JSX } from 'react';
@@ -14,7 +19,8 @@ import type { ConnectionState } from './connectBoard';
 const LABELS: Record<Exclude<ConnectionState, 'connected'>, string> = {
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
-  confirmed: 'Connected'
+  confirmed: 'Connected',
+  load_failed: "This board couldn't be loaded. Retrying…"
 };
 
 export interface ConnectionStatusProps {
