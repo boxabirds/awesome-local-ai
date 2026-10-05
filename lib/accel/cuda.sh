@@ -10,6 +10,9 @@
 ACCEL_DESC=""; ACCEL_ARCH=""; ACCEL_MEM_MIB=0
 
 qualify_accel() {
+  # A config that does not set this must not stop the install with "unbound variable" (5 Oct 2026, the Strata
+  # combination's first install on the 4090): warn against a sane floor instead.
+  : "${MIN_DRIVER_VERSION:=550}"
   info "Checking NVIDIA GPU & driver..."
   if ! need_cmd nvidia-smi; then
     warn "nvidia-smi not found. Install an NVIDIA driver >=${MIN_DRIVER_VERSION}, then re-run."

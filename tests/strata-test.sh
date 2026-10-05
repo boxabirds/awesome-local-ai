@@ -196,3 +196,11 @@ assert_ok "the module parses" bash -n "$LIB"
 assert_ok "the launcher parses" bash -n "$LAUNCHER"
 
 finish
+
+# Every variable the CUDA install path reads must be declared by the config: an undeclared one is an "unbound
+# variable" crash in the installer, not a message. Found on 5 Oct 2026, when the first real install of this
+# combination stopped at lib/accel/cuda.sh line 22 with MIN_DRIVER_VERSION unbound.
+for v in $(grep -ohE '\$\{?MIN_DRIVER_VERSION\b|\$\{?CUDA_ARCH\b' "$REPO_ROOT/lib/accel/cuda.sh" | tr -d '${' | sort -u); do
+  assert_ok "the config declares $v, which the CUDA install path reads" \
+    bash -c ". '$CFG' >/dev/null 2>&1; [[ -n \"\${$v:-}\" ]]"
+done
