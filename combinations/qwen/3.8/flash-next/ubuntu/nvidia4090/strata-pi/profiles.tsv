@@ -1,7 +1,17 @@
-# name|ctx|need_vram_mib|need_ram_mib|basis|summary
+# name|ctx|min_vram_mib|need_vram_mib|need_ram_mib|basis|summary
 #
-# MEASURED on the RTX 4090 machine (i9-13900F, 62 GB RAM, RTX 4090 24564 MiB), Strata v0.1.36, IQ3_XXS, 2026-10-02:
-# VRAM 23,805 MiB used by the engine at start and 23,955 MiB after a 128k-token conversation; the engine process
-# 42.7 GiB resident at start and 43.5 GiB after it (horizon/strata.md). need_ram_mib is that resident set, rounded up.
-agent|131072|23955|44800|MEASURED-2026-10-02|default; the benchmark's full context; MTP drafts on; KV cache int8
-short|65536|23955|44800|MEASURED-2026-10-02|half the context: same weights, so the same memory; for a quick interactive session
+# min_vram_mib is the FLOOR the launcher gates on: the least free VRAM this profile has been seen to start and serve
+# the full context at. Strata sizes its hot-expert cache to what is free (--expert-cache auto), so it runs with a
+# smaller cache rather than failing, and the peak below is never a precondition (A-045).
+#
+# MEASURED on the RTX 4090 machine (i9-13900F, 62 GB RAM, RTX 4090 24564 MiB), Strata 0.1.39, IQ3_XXS, 2026-10-05,
+# with a graphical session holding 523 MiB:
+#   23,525 MiB free: started, 14.73 GiB expert cache, 23,535 MiB used in all; decode 111.9-143.6 tok/s.
+#   the same build with --vram-reserve-mib 8000 (a 15,525 MiB budget): started, 7.87 GiB expert cache, 16,505 MiB
+#   used in all; decode 68.5 tok/s. Both answered a 108,490-token prompt and reused 98,304 of it (90.6%) on re-ask.
+# The floor is rounded up from the smaller of those two, and nothing below it has been tried.
+#
+# need_vram_mib is the peak, MEASURED 2026-10-02 on Strata 0.1.36: 23,805 MiB at start and 23,955 MiB after a
+# 128k-token conversation (horizon/strata.md). It does not gate. need_ram_mib is the engine's resident set, and does.
+agent|131072|16000|23955|44800|MEASURED-2026-10-05|default; the benchmark's full context; MTP drafts on; KV cache int8
+short|65536|16000|23955|44800|MEASURED-2026-10-05|half the context: same weights, so the same memory; for a quick interactive session

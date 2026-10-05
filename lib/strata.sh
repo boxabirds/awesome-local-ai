@@ -28,9 +28,12 @@ BACKEND_REQUIRED_VARS="MODEL_REPO MODEL_REVISION MODEL_FILES MODEL_SIZES MODEL_S
 
 # profiles.tsv columns for this backend:
 #   ctx           the context the server is started with
-#   need_vram_mib / need_ram_mib   MEASURED peak, for the launcher's pre-flight
+#   min_vram_mib  MEASURED floor: the least free VRAM the profile has been seen to start and serve at. This is what
+#                 the launcher gates on. Strata sizes its hot-expert cache to what is free (--expert-cache auto), so
+#                 the peak below is what it chose when that much was free, never a precondition.
+#   need_vram_mib / need_ram_mib   MEASURED peak, recorded for the reader; only the RAM figure gates
 #   basis         MEASURED-<date> or ESTIMATED
-PROFILE_SCHEMA="name|ctx|need_vram_mib|need_ram_mib|basis|summary"
+PROFILE_SCHEMA="name|ctx|min_vram_mib|need_vram_mib|need_ram_mib|basis|summary"
 
 STRATA_INSTALL_REL="${STRATA_INSTALL_REL:-.local/share/awesome-local-ai/strata}"
 STRATA_SEG_BYTES="${STRATA_SEG_BYTES:-1073741824}"
@@ -242,7 +245,7 @@ PY
 
 backend_profile_table() {
   awk -F'|' '!/^[[:space:]]*(#|$)/ {
-    printf "  %-8s %7s ctx  vram %-6s ram %-6s %-19s %s\n", $1, $2, $3, $4, $5, $6
+    printf "  %-8s %7s ctx  vram %s-%-6s ram %-6s %-19s %s\n", $1, $2, $3, $4, $5, $6, $7
   }' "$1"
 }
 
