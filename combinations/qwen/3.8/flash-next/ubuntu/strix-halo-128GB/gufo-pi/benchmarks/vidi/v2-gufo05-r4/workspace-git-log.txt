@@ -1,3 +1,155 @@
+commit 0ad16efab47ce296a7ab432097761d41398d598c
+agent  Mon Oct 5 13:53:57 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md    | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ PROGRESS.md |  2 +-
+ README.md   | 15 +++++++++------
+ 3 files changed, 68 insertions(+), 7 deletions(-)
+commit 4029cdb2e0d731b785a82b20b551e9e82cce3a41
+agent  Mon Oct 5 13:53:28 2026 +0000
+
+    story 3 task 9: nightly idle connection stability and capacity soak (TC-29, TC-30)
+
+
+ package.json                             |   3 +-
+ playwright.config.ts                     |  25 ++-
+ src/shared/config.ts                     |  10 ++
+ tests/e2e/helpers/soak.ts                | 284 +++++++++++++++++++++++++++++++
+ tests/e2e/live-stability.nightly.spec.ts | 163 ++++++++++++++++++
+ tests/helpers/random.ts                  |  30 ++++
+ tests/integration/board-room.test.ts     |   3 +-
+ tests/integration/helpers/random-ops.ts  |  18 +-
+ 8 files changed, 514 insertions(+), 22 deletions(-)
+commit 605ee0cff0ccd5e6a7b21f9699015f22dfb52ef2
+agent  Mon Oct 5 13:38:51 2026 +0000
+
+    story 3 task 8: e2e live collaboration across browser contexts (TC-22 to TC-28)
+
+
+ NOTES.md                                |  53 +++++
+ PROGRESS.md                             |   2 +-
+ src/client/canvas/testHooks.ts          |   9 +
+ src/client/objects/StickyText.ts        |  49 ++++
+ src/client/objects/StickyTextEditor.tsx |  36 ++-
+ src/client/sync/connectBoard.ts         |   7 +
+ tests/component/live-text.test.tsx      | 146 ++++++++++++
+ tests/e2e/helpers/participants.ts       | 235 +++++++++++++++++++
+ tests/e2e/live-collaboration.spec.ts    | 403 ++++++++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts          |  47 +++-
+ 10 files changed, 984 insertions(+), 3 deletions(-)
+commit 9a5acbb5e87389effc6b614eeeeadf74e2223a29
+agent  Mon Oct 5 12:41:20 2026 +0000
+
+    story 3 task 7: component tests for the connection badge and its state machine (TC-19 to TC-21)
+
+
+ NOTES.md                                  |  32 ++++
+ PROGRESS.md                               |   2 +-
+ tests/component/ConnectionStatus.test.tsx | 291 ++++++++++++++++++++++++++++++
+ 3 files changed, 324 insertions(+), 1 deletion(-)
+commit 47779b2945c5b048f62c3ea53ced40d4a62ca03f
+agent  Mon Oct 5 12:33:52 2026 +0000
+
+    harness: PROGRESS.md task 6 done, NOTES.md on merging tests and workerd frame handling
+
+
+ NOTES.md    | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ PROGRESS.md |  2 +-
+ 2 files changed, 56 insertions(+), 1 deletion(-)
+commit bf666eff0f91487ffcda914a58e1efe548facbb6
+agent  Mon Oct 5 12:33:04 2026 +0000
+
+    story 3 task 6: workerd integration tests for merging, broadcast and bad traffic (TC-07 to TC-12, TC-14 to TC-16, TC-18, TC-31)
+
+
+ src/worker/board-room.ts                |  33 +++-
+ tests/integration/board-room.test.ts    | 290 ++++++++++++++++++++++++++++++++
+ tests/integration/helpers/random-ops.ts | 130 ++++++++++++++
+ tests/integration/helpers/ws-client.ts  |  49 +++++-
+ 4 files changed, 492 insertions(+), 10 deletions(-)
+commit 4aa6bcf1b6ac35d61b3fe7476d42af5847486e2c
+agent  Mon Oct 5 11:59:08 2026 +0000
+
+    harness: PROGRESS.md task 5 done
+
+
+ PROGRESS.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+commit 2f3e54339c14bc595ce8c68e213b197087a1cb53
+agent  Mon Oct 5 11:59:08 2026 +0000
+
+    story 3 task 5: workerd integration tests for routing, capacity and board isolation (TC-04, TC-05, TC-06, TC-13, TC-17)
+
+
+ package.json                             |   2 +-
+ tests/integration/helpers/ws-client.ts   | 331 +++++++++++++++++++++++++++++++
+ tests/integration/worker-routing.test.ts | 110 ++++++++++
+ tsconfig.worker.json                     |   4 +-
+ wrangler.jsonc                           |   5 +-
+ 5 files changed, 449 insertions(+), 3 deletions(-)
+commit 1e7447b0ffd9e7ac92585cd9eba7b7f027148db8
+agent  Mon Oct 5 11:48:57 2026 +0000
+
+    story 3 task 4: client connection - y-websocket provider, /b/:boardId route, status badge
+
+
+ NOTES.md                             |  66 ++++++++++++++
+ PROGRESS.md                          |   2 +-
+ src/client/App.tsx                   |  51 +++++++++--
+ src/client/board/useBoardDoc.ts      |  54 ++++++++---
+ src/client/canvas/testHooks.ts       |  28 +++++-
+ src/client/styles.css                |  46 ++++++++++
+ src/client/sync/ConnectionStatus.tsx |  36 ++++++++
+ src/client/sync/connectBoard.ts      | 167 +++++++++++++++++++++++++++++++++++
+ src/shared/protocol.ts               |  25 ++++--
+ src/worker/board-room.ts             |  23 +++--
+ tests/unit/protocol.test.ts          |  49 +++++++---
+ 11 files changed, 497 insertions(+), 50 deletions(-)
+commit 0bd9004bb92be606312151ad364227fb98335fb9
+agent  Mon Oct 5 11:31:30 2026 +0000
+
+    story 3 tasks 2-3: Worker entry (/api/rooms/:boardId, SPA fallback) and BoardRoom sync relay
+
+
+ PROGRESS.md               |     4 +-
+ package.json              |     3 +-
+ src/shared/board-id.ts    |    15 +-
+ src/shared/board-model.ts |     2 +-
+ src/shared/protocol.ts    |    34 +-
+ src/worker/board-room.ts  |   185 +
+ src/worker/index.ts       |    67 +
+ tsconfig.json             |    14 +-
+ tsconfig.worker.json      |    28 +
+ vitest.config.ts          |    15 +-
+ worker-configuration.d.ts | 16189 ++++++++++++++++++++++++++++++++++++++++++++
+ wrangler.jsonc            |    26 +-
+ 12 files changed, 16567 insertions(+), 15 deletions(-)
+commit 4b0e646675e6768737b37c1f3d6caab12d190135
+agent  Mon Oct 5 11:20:51 2026 +0000
+
+    story 3 task 1: board id and protocol decode unit tests (TC-01 to TC-03) with stubs
+
+
+ PROGRESS.md                 |    4 +-
+ package-lock.json           | 1008 ++++++++++++++++++++++++++++++++++++++++---
+ package.json                |    6 +-
+ src/shared/board-id.ts      |   25 ++
+ src/shared/config.ts        |   32 ++
+ src/shared/protocol.ts      |   36 ++
+ tests/unit/board-id.test.ts |   58 +++
+ tests/unit/protocol.test.ts |  126 ++++++
+ 8 files changed, 1232 insertions(+), 63 deletions(-)
+commit 8c0980f172835c67c655878680955bf94d048369
+vidi-agent  Mon Oct 5 11:13:53 2026 +0000
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit fab464373d4371c52e788c20bf66ebc1b1f81d19
 agent  Mon Oct 5 11:12:14 2026 +0000
 

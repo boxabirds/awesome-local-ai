@@ -10,15 +10,17 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 |---|---|---|---|---|
 | 1 | 6/6 | 0 | 0 | 6/6 |
 | 2 | 7/10 | 0 | 0 | 17/20 |
+| 3 | 5/7 | 0 | 0 | 22/27 |
 
-**New work** 13/16, **regressions** 0, **repairs** 0, **cumulative** 17/20.
+**New work** 18/23, **regressions** 0, **repairs** 0, **cumulative** 22/27.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 59.3 | None | None | None | — | — | green | 6/6 |  | 1 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 84.2 | None | None | None | — | — | green | 17/20 |  | 0 / 0 | 2 | — | throttled 0%, server peak 0 GB |
+| 3 | See other people's edits appear live on the same board | DONE | 160.6 | None | None | None | — | — | green | 22/27 |  | 0 / 1 | 4 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 2 stories, 143 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 17/20, stalled 0, partial 0, 6462 lines in src+tests.
+**Totals:** 3 stories, 304 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/3, final acceptance 22/27, stalled 0, partial 0, 10029 lines in src+tests.
 
 ## How it happened
 
@@ -28,6 +30,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 3 by the agent | 6260 / 39 | `useCamera.ts` (265), `BoardViewport.tsx` (248), `camera.ts` (186), `styles.css` (150), `NOTES.md` (146), `ZoomControls.tsx` (65), +15 more |
 | 2 | 2 by the agent | 4183 / 78 | `StickyNote.tsx` (337), `board-model.ts` (235), `styles.css` (222), `StickyText.ts` (176), `StickyTextEditor.tsx` (166), `NOTES.md` (138), +12 more |
+| 3 | 9 by the agent, + harness snapshot | 21184 / 176 | `worker-configuration.d.ts` (16189), `NOTES.md` (264), `board-room.ts` (241), `connectBoard.ts` (174), `protocol.ts` (95), `index.ts` (67), +18 more |
 
 ### Earlier stories broken or fixed
 
