@@ -1,6 +1,6 @@
 {
-  "state": "failed",
-  "reason": "exit 1: preflight failed; not starting the run",
-  "at": "2026-10-05T16:37:19Z",
+  "state": "started",
+  "reason": "harness 0b4a70acb (harness-v2026.10.05.2), client pi, model mlxserve-flash-next-mixed-4-8bit",
+  "at": "2026-10-05T16:43:57Z",
   "host": "Apple M5 Max 128GB"
 }
