@@ -1,3 +1,82 @@
+commit aed2dd7dcd6adf6732c357f064ab81391df43074
+vidi-agent  Mon Oct 5 23:55:41 2026 +0100
+
+    harness: snapshot after story 3 (uncommitted agent work)
+
+
+ package.json                                 |   1 +
+ playwright.config.ts                         |   3 +
+ playwright.nightly.config.ts                 |  17 ++
+ src/client/App.tsx                           |  20 +-
+ src/client/board/useBoardDoc.ts              |  38 ++-
+ src/client/canvas/testHooks.ts               |   3 +
+ src/client/main.tsx                          |  20 +-
+ src/client/objects/StickyText.ts             |   2 +-
+ src/client/objects/StickyTextEditor.tsx      |  52 +++-
+ src/client/routing.ts                        |  22 ++
+ src/client/styles.css                        |  31 +++
+ src/client/sync/ConnectionStatus.tsx         |  35 +++
+ src/client/sync/connectBoard.ts              |  65 +++++
+ src/client/sync/connection-state.ts          | 104 ++++++++
+ src/client/sync/testHook.ts                  |  24 ++
+ tests/component/ConnectionStatus.test.tsx    | 177 +++++++++++++
+ tests/component/StickyTextEditor.test.tsx    |  43 +++
+ tests/e2e/helpers/notes.ts                   |   5 +-
+ tests/e2e/helpers/participants.ts            | 254 ++++++++++++++++++
+ tests/e2e/live-collaboration-nightly.spec.ts | 323 +++++++++++++++++++++++
+ tests/e2e/live-collaboration.spec.ts         | 381 +++++++++++++++++++++++++++
+ tsconfig.json                                |  16 +-
+ 22 files changed, 1608 insertions(+), 28 deletions(-)
+commit 06ad1b1e462b76b02da1dee2cebb5e6b5353ed7c
+agent  Mon Oct 5 22:41:32 2026 +0100
+
+    story 3: integration layer green (worker routing, BoardRoom relay, restart, malformed frames)
+
+
+ package-lock.json                       |   376 +-
+ package.json                            |     8 +-
+ src/shared/board-id.ts                  |    13 +-
+ src/shared/board-model.ts               |     5 +-
+ src/shared/protocol.ts                  |    67 +-
+ src/worker/board-room.ts                |   197 +
+ src/worker/index.ts                     |    52 +
+ tests/integration/board-room.test.ts    |   425 +
+ tests/integration/empty.test.ts         |     2 +
+ tests/integration/helpers/random-ops.ts |   120 +
+ tests/integration/helpers/ws-client.ts  |   530 +
+ tests/integration/setup.ts              |    14 +
+ tests/integration/types.d.ts            |     9 +
+ tests/integration/worker.test.ts        |   141 +
+ tsconfig.integration.json               |    27 +
+ tsconfig.json                           |     6 +
+ tsconfig.worker.json                    |    23 +
+ vitest.config.ts                        |    20 +
+ worker-configuration.d.ts               | 16187 ++++++++++++++++++++++++++++++
+ wrangler.jsonc                          |    23 +-
+ 20 files changed, 18176 insertions(+), 69 deletions(-)
+commit 5a365d474e2522da20821c447cb1b94672cd9294
+agent  Mon Oct 5 20:07:33 2026 +0100
+
+    story 3 task 1: board id + protocol decode unit tests (TC-01 to TC-03, red), live settings and deps
+
+
+ PROGRESS.md                 |    4 +-
+ package-lock.json           | 1061 ++++++++++++++++++++++++++++++++++++-------
+ package.json                |    4 +
+ src/shared/board-id.ts      |   26 ++
+ src/shared/config.ts        |   23 +
+ src/shared/protocol.ts      |   37 ++
+ tests/unit/board-id.test.ts |   69 +++
+ tests/unit/protocol.test.ts |  135 ++++++
+ 8 files changed, 1188 insertions(+), 171 deletions(-)
+commit 75c9bee59d1923923579a36e7896f4f92003c16b
+vidi-agent  Mon Oct 5 19:52:25 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 33 ++++++++++-----------------------
+ 1 file changed, 10 insertions(+), 23 deletions(-)
 commit b100e591136df53168cf6e6f77b02ceb6c8f3a13
 agent  Mon Oct 5 19:49:06 2026 +0100
 
