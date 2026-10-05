@@ -671,19 +671,32 @@ test that would reproduce it. Details under the entries.
 
 ---
 
+### A-045 — The Strata server's VRAM gate demands a peak figure, so it refuses a configuration that works
+- **First seen:** 2026-10-05 13:04 (the 0.1.39 install's own smoke test on the RTX 4090 machine) · **Last seen:** 2026-10-05 13:04
+- **Where:** `lib/runtime/server-strata.sh`, the pre-flight against `profiles.tsv`; combination `qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi`, profile `agent`.
+- **Observed:** the server refused to start: "23525 MiB of VRAM is free; profile 'agent' needs 23955 MiB." The gate compares free VRAM against the profile's `need_vram_mib`, which was measured on 2 Oct (Strata 0.1.36) as the engine's **peak after a 128k-token conversation**, before `STRATA_VRAM_RESERVE_MIB=969` was added. Strata runs with `--expert-cache auto`, so the hot-expert cache sizes itself to what is free: the peak can never be a precondition. Measured by hand on the same machine the same day, with the graphical session up (Xorg and gnome-shell hold 523 MiB):
+  - 23,525 MiB free at start: engine started, 14.73 GiB expert cache, 23,535 MiB used in all; 108,490-token prompt answered, 98,304 reused on the second ask (90.6%); prefill 4,457 tok/s cold and 2,814 tok/s warm; decode 111.9–143.6 tok/s; structured tool call returned.
+  - the same build with `--vram-reserve-mib 8000`, emulating a much smaller budget: started, 7.87 GiB expert cache, **16,505 MiB used in all**; same prompt, same 90.6% reuse; prefill 3,755 tok/s; decode 68.5 tok/s.
+  So the engine runs in about 16 GiB and the gate's 23,955 is roughly 8 GiB above anything it needs.
+- **Bucket:** internal bug (the combination's pre-flight) — **confidence high**.
+- **Status:** open, needs the owner. The figure the gate should hold is a decision, not only a correction: a gate on a true floor means a run's expert cache depends on what else is on the GPU that day, so two runs of the same combination need not have had the same cache. No Strata run has been queued on that machine while this stands.
+
+
+---
+
 ## Summary
 
 By bucket (A-018 is a scheduling flag and has no bucket):
 
 | Bucket | Open: needs someone | Open: watched | Explained / resolved | Total |
 |---|---|---|---|---|
-| internal bug | 1 (A-035) | 7 (A-016, A-020, A-028, A-029, A-031, A-034, A-037) | 11 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-015, A-023, A-025, A-032) | 19 |
+| internal bug | 2 (A-035, A-045) | 7 (A-016, A-020, A-028, A-029, A-031, A-034, A-037) | 11 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-015, A-023, A-025, A-032) | 20 |
 | genuine LLM behaviour | 0 | 4 (A-010, A-012, A-013, A-026) | 3 (A-006, A-007, A-017) | 7 |
 | stuck job | 0 | 0 | 0 | 0 |
 | broken pipeline | 1 (A-011) | 1 (A-030) | 1 (A-024) | 3 |
 | environment | 1 (A-022) | 1 (A-005) | 0 | 2 |
 | unexplained | 0 | 3 (A-019, A-021, A-036) | 0 | 3 |
-| **Total** | **3** (+A-018) | **15** | **15** | **33** (+A-018, A-027, A-033) |
+| **Total** | **4** (+A-018) | **15** | **15** | **34** (+A-018, A-027, A-033) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
@@ -694,6 +707,7 @@ By combination (an anomaly is listed under the one it mainly concerns):
 | qwen 3.8 flash-next, mlxserve-pi | the M5 Max | A-001, A-005, A-016, A-017 (and A-011, A-018) |
 | qwen 3.8 flash-next, gufo-pi | the Strix Halo box | A-006, A-007, A-011, A-013, A-014, A-019 (and A-018) |
 | qwen 3.8 Swift 1.5 27B, llamacpp-pi | the RTX 4090 machine | A-012, A-026 |
+| qwen 3.8 flash-next, strata-pi | the RTX 4090 machine | A-045 |
 | qwen 3.8 27B and Swift 27B (v1), llamacpp-pi | the RTX 4090 machine | A-009 |
 | several | — | A-008 |
 | none (harness tests, CI, dbench, the fault feed) | — | A-023, A-024, A-025, A-031, A-032, A-034, A-036 |
