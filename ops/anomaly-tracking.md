@@ -679,7 +679,25 @@ test that would reproduce it. Details under the entries.
   - the same build with `--vram-reserve-mib 8000`, emulating a much smaller budget: started, 7.87 GiB expert cache, **16,505 MiB used in all**; same prompt, same 90.6% reuse; prefill 3,755 tok/s; decode 68.5 tok/s.
   So the engine runs in about 16 GiB and the gate's 23,955 is roughly 8 GiB above anything it needs.
 - **Bucket:** internal bug (the combination's pre-flight) — **confidence high**.
-- **Status:** open, needs the owner. The figure the gate should hold is a decision, not only a correction: a gate on a true floor means a run's expert cache depends on what else is on the GPU that day, so two runs of the same combination need not have had the same cache. No Strata run has been queued on that machine while this stands.
+- **Status:** resolved 5 Oct. `profiles.tsv` gained `min_vram_mib` and the launcher gates on it (the peak stays, recorded); a test asserts a profile above the floor but below the peak starts, and fails with the peak as the gate. The owner's decision on the second half: each run now records the expert cache its engine settled on (`engine_settings.expert_cache`), shown on the run page, so two runs that had different caches can be told apart. Reaching the machine needed a re-install: A-046.
+
+
+---
+
+### A-046 — A combination's launcher and profile are only what was installed: a repo fix does not reach the node
+- **First seen:** 2026-10-05 16:19 (the first Strata run refused with the gate A-045 had already fixed) · **Last seen:** 2026-10-05 16:19
+- **Where:** every combination's installed launcher (`~/.local/bin/<install>-server`) and `profiles.tsv`
+  (`~/.local/share/<install>/profiles.tsv`); seen on the RTX 4090 machine with `strata-qwen38-flash-next`.
+- **Observed:** the A-045 fix (gate on `min_vram_mib`, not the peak) was committed, released as
+  `harness-v2026.10.05.2` and pulled by the node, and the run still failed with the old message, naming the old
+  figure: "23525 MiB of VRAM is free; profile 'agent' needs 23955 MiB." The node's repo had the new three-figure
+  profile; its *installed* copy still had the old two-figure one, because `lib/runtime/server-*.sh` and
+  `combinations/**/profiles.tsv` are copied to the machine by the combination's installer and are not part of a
+  harness release. Attempt 1 failed, attempt 2 restarted into the same failure, and the run was cancelled with one
+  restart left. Nothing compared the two copies or said they differed.
+- **Bucket:** internal bug (the release path: a harness release carries the harness, not the combination) — **confidence high**.
+- **Status:** worked around by re-running the combination's installer on the machine. Open: the general case is
+  unguarded, and the same staleness applies to every combination's launcher and profile on every node.
 
 
 ---
@@ -690,13 +708,13 @@ By bucket (A-018 is a scheduling flag and has no bucket):
 
 | Bucket | Open: needs someone | Open: watched | Explained / resolved | Total |
 |---|---|---|---|---|
-| internal bug | 2 (A-035, A-045) | 7 (A-016, A-020, A-028, A-029, A-031, A-034, A-037) | 11 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-015, A-023, A-025, A-032) | 20 |
+| internal bug | 2 (A-035, A-046) | 7 (A-016, A-020, A-028, A-029, A-031, A-034, A-037) | 12 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-015, A-023, A-025, A-032, A-045) | 21 |
 | genuine LLM behaviour | 0 | 4 (A-010, A-012, A-013, A-026) | 3 (A-006, A-007, A-017) | 7 |
 | stuck job | 0 | 0 | 0 | 0 |
 | broken pipeline | 1 (A-011) | 1 (A-030) | 1 (A-024) | 3 |
 | environment | 1 (A-022) | 1 (A-005) | 0 | 2 |
 | unexplained | 0 | 3 (A-019, A-021, A-036) | 0 | 3 |
-| **Total** | **4** (+A-018) | **15** | **15** | **34** (+A-018, A-027, A-033) |
+| **Total** | **4** (+A-018) | **15** | **16** | **35** (+A-018, A-027, A-033) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
@@ -710,5 +728,5 @@ By combination (an anomaly is listed under the one it mainly concerns):
 | qwen 3.8 flash-next, strata-pi | the RTX 4090 machine | A-045 |
 | qwen 3.8 27B and Swift 27B (v1), llamacpp-pi | the RTX 4090 machine | A-009 |
 | several | — | A-008 |
-| none (harness tests, CI, dbench, the fault feed) | — | A-023, A-024, A-025, A-031, A-032, A-034, A-036 |
+| none (harness tests, CI, dbench, the fault feed) | — | A-023, A-024, A-025, A-031, A-032, A-034, A-036, A-046 |
 | older runs, several stacks | all four | A-028, A-029, A-030 |
