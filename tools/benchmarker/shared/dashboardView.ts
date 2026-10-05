@@ -4,7 +4,7 @@
 //
 // Observations are facts about the work, found in the data of normal operation. A bug in the app, the harness or the
 // pipeline is not one and never appears here (CLAUDE.md, "The app shows results, never its own faults").
-import type { Row } from "./types.ts";
+import type { JobRef, Row } from "./types.ts";
 import { closeCalls, INDISTINGUISHABLE_TESTS, isComplete, median, rankCombinations, scoreOfRecord, seriesPrefix, SMALL_N } from "./stats.ts";
 import { SILENT_MINUTES, type NowLine } from "./overviewView.ts";
 import { runOrder } from "./runGroups.ts";
@@ -109,6 +109,68 @@ export function seriesOf(rows: Row[]): Series[] {
     return { stack: rs[0].stack, label: rs[0].label, machine: rs[0].machine, prefix: seriesPrefix(rs[0].runId), runs, size: runs.length, done: runs.filter((r) => r.state === "finished").length, active: runs.some((r) => r.state !== "finished"), score };
   });
   return all.toSorted((a, b) => Number(b.active) - Number(a.active) || b.prefix.localeCompare(a.prefix, undefined, { numeric: true }));
+}
+
+// ---------- the utilisation timeline: what each machine ran, and the gaps ----------
+
+/** One run on a machine's lane. `from` is when the machine can first have been running it: a job queued while the
+ * one before it was still going cannot have started until that one ended. */
+export interface UtilisationSegment {
+  runId: string;
+  stack: string;
+  label: string;
+  pack: string;
+  /** Unix seconds, clipped to the window. */
+  from: number;
+  to: number;
+  /** Still going: it runs to the right-hand edge. */
+  running: boolean;
+}
+
+export interface UtilisationLane {
+  machine: string;
+  segments: UtilisationSegment[];
+  /** How much of the window the machine was running something, in seconds. */
+  busySeconds: number;
+}
+
+export interface Utilisation { from: number; to: number; lanes: UtilisationLane[] }
+
+/** What each machine ran over the last `windowSeconds`, busiest machine first. A machine runs one job at a time, so
+ * a job's own stretch begins when the one before it ended, never when it was merely queued: the space left over is
+ * the machine standing idle, which is the point of the picture. A machine that ran nothing has no lane. */
+export function utilisation(rows: Row[], now: number, windowSeconds: number): Utilisation {
+  const from = now - windowSeconds;
+  const byMachine = new Map<string, { row: Row; job: JobRef }[]>();
+  for (const r of rows) {
+    for (const j of r.jobs ?? []) {
+      if (j.submittedAt === null) continue;
+      const node = j.node || r.machine;
+      if (!node) continue;
+      byMachine.set(node, [...(byMachine.get(node) ?? []), { row: r, job: j }]);
+    }
+  }
+  const lanes: UtilisationLane[] = [];
+  for (const [machine, jobs] of byMachine) {
+    const ordered = jobs.toSorted((a, b) => (a.job.submittedAt ?? 0) - (b.job.submittedAt ?? 0));
+    const segments: UtilisationSegment[] = [];
+    let free = 0;                    // when the machine was last free: a queued job cannot have started before this
+    for (const { row, job } of ordered) {
+      const running = job.endedAt === null;
+      const start = Math.max(job.submittedAt!, free);
+      const end = running ? now : job.endedAt!;
+      if (end > start) free = end;
+      if (end <= from || end <= start) continue;             // wholly before the window, or no time on the machine
+      segments.push({
+        runId: row.runId, stack: row.stack, label: row.label, pack: row.pack,
+        from: Math.max(start, from), to: Math.min(end, now), running,
+      });
+    }
+    if (segments.length) {
+      lanes.push({ machine, segments, busySeconds: segments.reduce((t, s) => t + (s.to - s.from), 0) });
+    }
+  }
+  return { from, to: now, lanes: lanes.toSorted((a, b) => b.busySeconds - a.busySeconds || a.machine.localeCompare(b.machine)) };
 }
 
 // ---------- a story far slower than the stack's others ----------
