@@ -30,10 +30,13 @@ export interface OverviewPageProps {
   serverNow: number | null;
   rows: Row[];
   inScope?: Row[];
+  /** The pack and version choices, shown in the ranking band's heading: that band (the score plot and the
+   * Combinations table) is all they scope, while the machines and the timeline are every pack. */
+  scope?: ReactNode;
   filteredOut?: ReactNode;
 }
 
-export function OverviewPage({ state, serverNow, rows, inScope, filteredOut }: OverviewPageProps) {
+export function OverviewPage({ state, serverNow, rows, inScope, scope, filteredOut }: OverviewPageProps) {
   const { reach } = useMachineList();
   const now = serverNow ?? state.now;
   const lines = nowLines(state.machines ?? [], state.rows, reach, now);
@@ -46,7 +49,7 @@ export function OverviewPage({ state, serverNow, rows, inScope, filteredOut }: O
       <Utilisation rows={state.rows} now={now} />
       <div className="ov-pair">
         <SeriesRows series={seriesOf(inScope ?? rows)} pack={pack} />
-        <ScorePlot plot={scorePlot(rows)} />
+        <ScorePlot plot={scorePlot(rows)} heading={scope ? <span className="h-scope">{scope}</span> : undefined} />
       </div>
       {rows.length ? <CombinationsTable rows={rows} /> : (
         <section className="ov-section" data-section="combinations">{filteredOut ?? <p className="empty-note">No runs for this pack and version.</p>}</section>

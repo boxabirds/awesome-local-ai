@@ -126,6 +126,20 @@ describe("now: one line per machine", () => {
     const m = machine("node-a", { running: { stack: "qwen/x/pi", short: "x pi", runId: "run", story: null, finishing: false, agentMinutes: null } });
     expect(nowLines([m], [], reach, NOW)[0]).toMatchObject({ state: "running", story: null, minutes: null });
   });
+  // The yardstick's machine is not a machine under test; the dashboard draws on this to leave it out of the cards
+  // unless it is working (specs/general/UI-IMPROVEMENTS-overview-dashboard.md).
+  it("a machine whose every run is a reference run is marked as the reference's own", () => {
+    const refRun = row({ node: "node-d", machine: "node-d", stack: "reference/opus-5.5", runId: "ref-r1" });
+    expect(nowLines([machine("node-d")], [refRun], { "node-d": { ok: true } }, NOW)[0].referenceOnly).toBe(true);
+  });
+  it("one local run among them, and it is a machine under test", () => {
+    const refRun = row({ node: "node-d", machine: "node-d", stack: "reference/opus-5.5", runId: "ref-r1" });
+    const local = row({ node: "node-d", machine: "node-d", runId: "r2" });
+    expect(nowLines([machine("node-d")], [refRun, local], { "node-d": { ok: true } }, NOW)[0].referenceOnly).toBe(false);
+  });
+  it("no run recorded on it at all is not the reference's: there is nothing to say it is", () => {
+    expect(nowLines([machine("node-d")], [], { "node-d": { ok: true } }, NOW)[0].referenceOnly).toBe(false);
+  });
   it("idle: reachable, nothing running, nothing queued", () => {
     expect(nowLines([machine("node-d")], [], { "node-d": { ok: true } }, NOW)).toMatchObject([{ machine: "node-d", state: "idle", run: null, queued: 0 }]);
   });

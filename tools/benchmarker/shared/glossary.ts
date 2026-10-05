@@ -153,6 +153,7 @@ export const GLOSSARY = {
   machineSilent: { name: "no activity", what: `Nothing has been reported on this running story for ${SILENT_MINUTES} minutes or more. Progress is reported once a minute while the agent works, however slowly.` },
   machineUnreachable: { name: "unreachable", what: "The machine didn't answer the last request." },
   machineIdle: { name: "idle", what: "The machine answers, but nothing runs on it and nothing is queued." },
+  referenceMachine: { name: "runs the reference only", what: "Every run on this machine is a reference run: a cloud model answering the same stories, as the yardstick the stacks are read against. It has a card of its own only while it is working." },
   now: { name: "Now", what: "What each machine is doing: the run and story it is on, with the agent minutes on that story as last reported, or idle; and how many jobs wait in its queue." },
   storyMinutes: { name: "min on story", what: "Agent minutes on the running story, as last reported (progress is reported once a minute)." },
   queue: { name: "Queue", what: "Jobs waiting on the machine, in the order they will run. The running job is not counted." },

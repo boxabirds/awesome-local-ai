@@ -80,7 +80,12 @@ export interface NowLine {
   /** See silentMinutes; null when it can't be told. */
   silent: number | null;
   queued: number;
+  /** Every run recorded on this machine is a reference run, so it is the yardstick's machine rather than one under
+   * test. The dashboard leaves it out of the cards unless it is working. */
+  referenceOnly: boolean;
 }
+
+const REFERENCE_PREFIX = "reference/";
 
 /** The machines that are doing something, first: running, then a queue waiting to start, then idle, then
  * unreachable; by name within each. The reader looks at what is in flight, not at what is quiet. */
@@ -96,7 +101,9 @@ export function nowLines(machines: Machine[], all: Row[], reach: Reachability, n
     const m = machines.find((x) => x.node === machine) ?? null;
     const re = reach?.[machine];
     const row = m?.running ? all.find((r) => r.node === machine && r.stack === m.running!.stack && r.runId === m.running!.runId && r.live?.status === "running") ?? null : null;
-    const base = { machine, run: null, story: null, storyTitle: null, finishing: false, minutes: null, silent: null, queued: m?.queued ?? 0 };
+    const mine = all.filter((r) => r.node === machine);
+    const referenceOnly = mine.length > 0 && mine.every((r) => r.stack.startsWith(REFERENCE_PREFIX));
+    const base = { machine, run: null, story: null, storyTitle: null, finishing: false, minutes: null, silent: null, queued: m?.queued ?? 0, referenceOnly };
     if (re && !re.ok) return { ...base, state: "unreachable" as const };
     if (!m) return { ...base, state: "unreachable" as const };
     if (m.busy) return { ...base, state: "running" as const };

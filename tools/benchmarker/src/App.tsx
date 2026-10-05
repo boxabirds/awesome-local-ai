@@ -3,6 +3,7 @@ import type { Row } from "../shared/types.ts";
 import { RUN_FILTERS, visibleRuns, type RunFilter } from "../shared/stats.ts";
 import { Header } from "./components/Header.tsx";
 import { FilteredOut, RunFilterSwitch } from "./components/RunFilter.tsx";
+import { ScopeChoice } from "./components/ScopeChoice.tsx";
 import { SetupTab } from "./components/SetupTab.tsx";
 import { Tooltip } from "./components/Tooltip.tsx";
 import { StaleBanner } from "./components/StaleBanner.tsx";
@@ -115,21 +116,24 @@ export function App() {
     setChoice(next);
     save(next);
   };
+  // One chooser, in one of two places: the header on an entity's page, where it scopes everything on it; the ranking
+  // band's heading on the dashboard, where the rest of the page (the machines, the timeline) is every pack.
+  const scope = (
+    <ScopeChoice
+      packs={[...new Set(data.rows.map((r) => r.pack))].toSorted()}
+      pack={pack}
+      families={[...families, ALL]}
+      family={family}
+      currentFamily={current}
+      onPack={(p) => choose({ pack: p, family: "" })}
+      onFamily={(f) => choose({ pack, family: f })}
+    />
+  );
 
   return (
     <div className={stale ? "stale" : undefined}>
       <Tooltip />
-      <Header
-        state={data}
-        serverNow={serverNow}
-        packs={[...new Set(data.rows.map((r) => r.pack))].toSorted()}
-        pack={pack}
-        families={[...families, ALL]}
-        family={family}
-        currentFamily={current}
-        onPack={(p) => choose({ pack: p, family: "" })}
-        onFamily={(f) => choose({ pack, family: f })}
-      >
+      <Header state={data} serverNow={serverNow} pack={pack} scope={route.page === "overview" ? undefined : scope}>
         <div className="tabs" role="tablist" aria-label="Sections">
           {TABS.map(([t, name]) => <a key={t} role="tab" aria-selected={section === t} href={sectionHref(t, pack)}>{name}</a>)}
         </div>
@@ -137,7 +141,7 @@ export function App() {
       </Header>
       <StaleBanner stale={stale} age={age} />
       <main>
-        {route.page === "overview" ? <OverviewPage state={data} serverNow={serverNow} rows={visibleRuns(inFamily, filter)} inScope={inFamily} filteredOut={inFamily.length ? filteredOut : undefined} />
+        {route.page === "overview" ? <OverviewPage state={data} serverNow={serverNow} rows={visibleRuns(inFamily, filter)} inScope={inFamily} scope={scope} filteredOut={inFamily.length ? filteredOut : undefined} />
           : route.page === "machines" ? <MachinesIndex route={route} state={data} serverNow={serverNow} />
           : route.page === "setup" ? <SetupTab route={route} />
           : route.page === "activity" ? <ActivityPage route={route} params={route.params} />
