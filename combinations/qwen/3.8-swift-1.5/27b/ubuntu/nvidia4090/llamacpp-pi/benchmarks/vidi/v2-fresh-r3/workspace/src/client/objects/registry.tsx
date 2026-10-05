@@ -4,6 +4,7 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import type { Point, Rect } from '../../shared/geometry';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 
 /**
@@ -24,6 +25,8 @@ export interface ObjectProps {
   onStartEdit(id: string): void;
   /** Editor ended: 'selected' keeps the selection (Escape), 'unselected' clears it (outside click). */
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /** Story 8: the undo controller for this board. */
+  undo?: UndoController;
 }
 
 /**

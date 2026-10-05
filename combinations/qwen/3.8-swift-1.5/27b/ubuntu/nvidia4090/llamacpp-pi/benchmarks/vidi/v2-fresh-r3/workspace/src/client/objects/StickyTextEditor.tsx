@@ -10,6 +10,7 @@ import {
   fitFontSize,
   STICKY_TEXT_PADDING,
 } from './StickyText';
+import type { UndoController } from '../board/undo';
 
 const TEXT_BOX = STICKY_SIZE_WORLD - STICKY_TEXT_PADDING * 2;
 
@@ -18,6 +19,8 @@ export interface StickyTextEditorProps {
   /** Font size (board units) the display mode currently uses; re-fitted while typing. */
   fontPx: number;
   onEnd(next: 'selected' | 'unselected'): void;
+  /** Story 8: the undo controller for this board. */
+  undo?: UndoController;
 }
 
 /**
@@ -29,7 +32,7 @@ export interface StickyTextEditorProps {
  * performs no additional write.
  */
 export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
-  const { ytext, onEnd } = props;
+  const { ytext, onEnd, undo } = props;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState(() => ytext.toString());
   const [fontPx, setFontPx] = useState(props.fontPx);
@@ -43,7 +46,16 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     if (!el) return;
     el.focus();
     el.setSelectionRange(el.value.length, el.value.length);
+    // Story 8: boundary at edit start so typing doesn't merge with prior actions.
+    undo?.boundary();
   }, []);
+
+  // Story 8: boundary at edit end (unmount).
+  useEffect(() => {
+    return () => {
+      undo?.boundary();
+    };
+  }, [undo]);
 
   // Pointerdown anywhere outside the note ends editing (unselected).
   useEffect(() => {
@@ -99,6 +111,21 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
       endedRef.current = true;
       onEnd('selected');
       return;
+    }
+    // Story 8: intercept Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z / Ctrl+Y inside the
+    // editor so native textarea undo never diverges from the Y.Text.
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey && undo) {
+        e.preventDefault();
+        undo.undo();
+        return;
+      }
+      if (((key === 'z' && e.shiftKey) || key === 'y') && undo) {
+        e.preventDefault();
+        undo.redo();
+        return;
+      }
     }
     // Enter inserts a newline (the textarea default).
   };

@@ -5,6 +5,7 @@ import { allObjectIds, moveObjects, deleteObjects } from '../../shared/board-mod
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
 import type { UseSelectionResult } from './useSelection';
+import type { UndoController } from './undo';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -12,6 +13,8 @@ export interface BoardKeysOptions {
   snapshot: readonly ObjectSnapshot[];
   /** False (board failed to load) → mutating keys (nudge, delete) are ignored. */
   canEdit: boolean;
+  /** Story 8: the undo controller for this board. */
+  undo?: UndoController;
 }
 
 function isEditingTarget(target: EventTarget | null): boolean {
@@ -55,6 +58,23 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       const o = optsRef.current;
       if (o.selection.editingId !== null || isEditingTarget(e.target)) return;
 
+      // Story 8: undo/redo shortcuts.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'z' && !e.shiftKey) {
+          if (!o.canEdit || !o.undo) return;
+          e.preventDefault();
+          o.undo.undo();
+          return;
+        }
+        if ((key === 'z' && e.shiftKey) || key === 'y') {
+          if (!o.canEdit || !o.undo) return;
+          e.preventDefault();
+          o.undo.redo();
+          return;
+        }
+      }
+
       if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
         o.selection.setMany(allObjectIds(o.snapshot), false);
@@ -68,6 +88,7 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       if (nudge) {
         if (o.selection.ids.size === 0 || !o.canEdit) return;
         e.preventDefault();
+        o.undo?.boundary();
         const step = e.shiftKey ? NUDGE_LARGE_STEP_WORLD : NUDGE_STEP_WORLD;
         const positions = new Map<string, { x: number; y: number }>();
         for (const obj of o.snapshot) {
@@ -76,12 +97,15 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           }
         }
         moveObjects(o.doc, positions);
+        o.undo?.boundary();
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (o.selection.ids.size === 0 || !o.canEdit) return;
         e.preventDefault();
+        o.undo?.boundary();
         deleteObjects(o.doc, [...o.selection.ids]);
+        o.undo?.boundary();
         o.selection.clear();
         return;
       }

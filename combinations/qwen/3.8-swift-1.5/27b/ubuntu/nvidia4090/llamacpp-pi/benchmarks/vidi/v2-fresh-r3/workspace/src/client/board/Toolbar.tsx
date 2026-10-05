@@ -1,15 +1,16 @@
-import type { JSX } from 'react';
+import type { JSX, ReactNode } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  undoButtons: ReactNode;
 }
 
 const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
 /**
- * Fixed left-side toolbar with the Sticky note button. The button creates a
- * note at the centre of the visible board area (see App), on top of all other
- * notes, with text editing started immediately.
+ * Fixed left-side toolbar with the Sticky note button and undo/redo buttons.
+ * The button creates a note at the centre of the visible board area (see App),
+ * on top of all other notes, with text editing started immediately.
  */
 export function Toolbar(props: ToolbarProps): JSX.Element {
   return (
@@ -55,6 +56,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
       >
         <span aria-hidden>▪</span>
       </button>
+      {props.undoButtons}
     </div>
   );
 }

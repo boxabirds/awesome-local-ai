@@ -23,8 +23,10 @@ export function SelectionBar(props: {
   doc: Y.Doc;
   camera: Camera;
   onDelete(): void;
+  /** Story 8: boundary callback for undo step isolation. */
+  onBoundary?(): void;
 }): JSX.Element | null {
-  const { ids, snapshot, doc, camera, onDelete } = props;
+  const { ids, snapshot, doc, camera, onDelete, onBoundary } = props;
   if (ids.size === 0) return null;
 
   const selected = snapshot.filter((o) => ids.has(o.id));
@@ -52,7 +54,9 @@ export function SelectionBar(props: {
         <NoteToolbar
           color={note.color ?? 'yellow'}
           onColor={(c) => {
+            onBoundary?.();
             setStickyColor(doc, note.id, c);
+            onBoundary?.();
           }}
           onDelete={onDelete}
         />

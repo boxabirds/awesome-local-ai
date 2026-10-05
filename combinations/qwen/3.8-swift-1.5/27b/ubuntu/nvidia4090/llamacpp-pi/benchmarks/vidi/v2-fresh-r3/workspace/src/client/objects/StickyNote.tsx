@@ -17,7 +17,7 @@ const SELECTION_OUTLINE = '2px solid #1A73E8';
  * Enter) is unchanged.
  */
 export function StickyNote(props: ObjectProps): JSX.Element {
-  const { obj, doc, selected, editing, dragging, onObjectPointerDown, onStartEdit, onEndEdit } =
+  const { obj, doc, selected, editing, dragging, onObjectPointerDown, onStartEdit, onEndEdit, undo } =
     props;
   const textRef = useRef<HTMLDivElement>(null);
   const [fontPx, setFontPx] = useState(24);
@@ -78,7 +78,7 @@ export function StickyNote(props: ObjectProps): JSX.Element {
       onDoubleClick={handleDoubleClick}
     >
       {editing ? (
-        <StickyTextEditor ytext={getStickyText(doc, obj.id)!} fontPx={fontPx} onEnd={onEndEdit} />
+        <StickyTextEditor ytext={getStickyText(doc, obj.id)!} fontPx={fontPx} onEnd={onEndEdit} undo={undo} />
       ) : (
         <div
           ref={textRef}

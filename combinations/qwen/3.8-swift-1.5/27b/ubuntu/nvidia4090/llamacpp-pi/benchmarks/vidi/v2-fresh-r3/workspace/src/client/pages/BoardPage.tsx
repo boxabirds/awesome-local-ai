@@ -8,9 +8,12 @@ import { useSelection } from '../board/useSelection';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { useUndo } from '../board/useUndo';
+import { createUndo, type UndoController } from '../board/undo';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
+import { UndoButtons } from '../board/UndoButtons';
 import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { createSticky, deleteObjects, getStickyText } from '../../shared/board-model';
@@ -47,8 +50,26 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
     setCamera(cam);
   }, []);
 
-  const gesture = useTransformGesture({ doc, camera, selection, snapshot: objects, canEdit });
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit });
+  // Story 8: one undo controller per board doc, destroyed on unmount.
+  const undoRef = useRef<UndoController | null>(null);
+  if (undoRef.current === null) {
+    undoRef.current = createUndo(doc);
+  }
+  const undoController = undoRef.current;
+  useEffect(() => {
+    return () => {
+      undoRef.current?.destroy();
+      undoRef.current = null;
+    };
+  }, []);
+  const undo = useUndo(undoController, canEdit);
+
+  const gesture = useTransformGesture({
+    doc, camera, selection, snapshot: objects, canEdit,
+    onGestureStart: () => undoController.boundary(),
+    onGestureEnd: () => undoController.boundary(),
+  });
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit, undo: undoController });
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
 
   // Test hook for e2e (drives the production build via `wrangler dev`)
@@ -86,12 +107,13 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
   const createStickyAtScreen = useCallback(
     (p: Point) => {
       const world = screenToWorld(cameraRef.current, p);
+      undoController.boundary();
       const id = createSticky(doc, world);
       if (id) {
         selection.startEdit(id);
       }
     },
-    [doc, selection],
+    [doc, selection, undoController],
   );
 
   /** Creates a sticky note at the centre of the visible board area. */
@@ -102,9 +124,10 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
   /** Delete button on the selection bar (sel.group_delete). */
   const handleDeleteSelection = useCallback(() => {
     if (selection.ids.size === 0) return;
+    undoController.boundary();
     deleteObjects(doc, [...selection.ids]);
     selection.clear();
-  }, [doc, selection]);
+  }, [doc, selection, undoController]);
 
   /** Editor finished: 'selected' keeps the selection (Escape), 'unselected' clears it. */
   const handleEndEdit = useCallback(
@@ -141,6 +164,7 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
               onObjectPointerDown={gesture.onObjectPointerDown}
               onStartEdit={selection.startEdit}
               onEndEdit={handleEndEdit}
+              undo={undoController}
             />
           );
         })}
@@ -157,8 +181,9 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
         doc={doc}
         camera={camera}
         onDelete={handleDeleteSelection}
+        onBoundary={() => undoController.boundary()}
       />
-      <Toolbar onCreateSticky={createStickyAtCentre} />
+      <Toolbar onCreateSticky={createStickyAtCentre} undoButtons={<UndoButtons {...undo} />} />
       <SharePanel boardId={boardId} />
     </>
   );
