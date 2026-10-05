@@ -1219,6 +1219,17 @@
         "commit": "2e9b78b54",
         "unpushed": true,
         "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4/metrics.json' not uptodate. Cannot merge.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 203
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -2575,6 +2586,17 @@
         "commit": "23897aff3",
         "unpushed": true,
         "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4/metrics.json' not uptodate. Cannot merge.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 332
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "3": {
@@ -4399,6 +4421,17 @@
         "commit": "ea8251fc5",
         "unpushed": true,
         "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4/metrics.json' not uptodate. Cannot merge.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 464
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "4": {
@@ -6279,6 +6312,17 @@
         "commit": "bdfb1a073",
         "unpushed": true,
         "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4/metrics.json' not uptodate. Cannot merge.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 387
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "5": {
@@ -7714,6 +7758,17 @@
         "commit": "dabefdead",
         "unpushed": true,
         "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4/metrics.json' not uptodate. Cannot merge.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 304
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "7": {
@@ -9748,6 +9803,17 @@
         "commit": "aee8b8de8",
         "unpushed": true,
         "error": "the remote changed files with uncommitted edits here; nothing was moved, the story is committed locally and unpushed. error: Entry 'combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4/metrics.json' not uptodate. Cannot merge.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 464
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "8": {
@@ -11029,6 +11095,17 @@
           "pushed": true
         },
         "commit": "fb2c3ba8b"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 294
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "9": {
@@ -12749,6 +12826,17 @@
           "pushed": true
         },
         "commit": "b7a0cecdd"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 462
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "10": {
@@ -14901,6 +14989,17 @@
           "pushed": true
         },
         "commit": "bf6dd9f38"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 563
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "11": {
@@ -16287,6 +16386,17 @@
           "pushed": true
         },
         "commit": "3691e4c27"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 284
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "12": {
@@ -18280,6 +18390,30 @@
           "fixed": 0,
           "regressed": 0
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-mlx26101-r4/server.log"
+        ],
+        "private": {
+          "copied": 28,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "b794ad9e9"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 520
+        },
+        "truncated": false,
+        "reaches": []
       }
     }
   },
