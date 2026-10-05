@@ -103,6 +103,55 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Number of undo steps kept per user (undo.limit). */
 export const UNDO_MAX_STEPS = 200;
 
+/* --- Story 10: Shapes and connectors --- */
+
+/** The three shape kinds. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = typeof SHAPE_KINDS[number];
+/** Default size (width = height) in world units for click-created shapes. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** Minimum drag size in world units; smaller drags create a default-size shape. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Maximum characters in a shape label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Stroke width in world units for shapes. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** Fill colour palette for shapes. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+/** Stroke colour palette for shapes. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+/** Default fill for new shapes. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+/** Default stroke for new shapes. */
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+/** Minimum connector length in world units. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** Hit tolerance in screen pixels for selecting a connector. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Stroke width in world units for connectors. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Arrowhead size in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius in screen pixels for connection dots. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
 /* --- Story 9: Free text --- */
 
 /** Maximum automatic width in board units (text wraps beyond this). */

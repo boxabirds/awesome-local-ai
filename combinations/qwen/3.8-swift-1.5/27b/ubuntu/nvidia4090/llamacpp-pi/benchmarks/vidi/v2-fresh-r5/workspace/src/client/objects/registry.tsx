@@ -110,3 +110,68 @@ registerObjectType('text', {
   handles: 'horizontal',
   hitTest: textHitTest,
 });
+
+// ─── Register shape objects (story 10) ──────────────────────────────────────
+
+import { ShapeObject } from './ShapeObject';
+import { SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+
+function shapeHitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
+  const w = obj.width ?? 160;
+  const h = obj.height ?? 160;
+  return (
+    worldPoint.x >= obj.x &&
+    worldPoint.x < obj.x + w &&
+    worldPoint.y >= obj.y &&
+    worldPoint.y < obj.y + h
+  );
+}
+
+registerObjectType('shape', {
+  Component: ShapeObject as unknown as ComponentType<ObjectProps>,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  handles: 'all',
+  hitTest: shapeHitTest,
+});
+
+// ─── Register connector objects (story 10) ──────────────────────────────────
+
+import { ConnectorObject } from './ConnectorObject';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
+import type { Endpoint } from '../../shared/geometry/connector-geometry';
+
+function connectorHitTest(obj: ObjectSnapshot, worldPoint: Point, zoom: number = 1): boolean {
+  const from = obj.from as Endpoint | undefined;
+  const to = obj.to as Endpoint | undefined;
+  if (!from || !to) return false;
+
+  // For hit testing, we just use the stored from/to positions as a line
+  // (the actual resolved endpoints would need the rects map, but for
+  //  simple hit testing we use the bbox as a fallback)
+  const w = obj.width ?? 0;
+  const h = obj.height ?? 0;
+  if (w === 0 && h === 0) return false;
+
+  // Use the bbox for a quick reject, then check distance to the line
+  const x1 = obj.x;
+  const y1 = obj.y;
+  const x2 = obj.x + w;
+  const y2 = obj.y + h;
+
+  const pts = [{ x: x1, y: y1 }, { x: x2, y: y2 }];
+  const dist = distanceToPolyline(pts, worldPoint);
+  return dist <= CONNECTOR_HIT_TOLERANCE_PX / zoom;
+}
+
+registerObjectType('connector', {
+  Component: ConnectorObject as unknown as ComponentType<ObjectProps>,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 1,
+  editableText: false,
+  hitTest: (obj, p) => connectorHitTest(obj, p),
+});

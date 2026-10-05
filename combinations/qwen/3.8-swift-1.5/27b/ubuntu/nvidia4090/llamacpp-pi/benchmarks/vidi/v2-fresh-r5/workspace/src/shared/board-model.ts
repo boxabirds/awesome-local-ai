@@ -7,6 +7,9 @@ import {
 } from './config';
 import type { Rect, Point } from './geometry';
 import { rectContains } from './geometry';
+import { detachConnectorsTo } from './objects/connector';
+import { resolveEndpoints, connectorBBox } from './geometry/connector-geometry';
+import type { Endpoint } from './geometry/connector-geometry';
 
 /** Origin symbol for local (this client) transactions. */
 export const LOCAL_ORIGIN: unique symbol = Symbol('LOCAL_ORIGIN');
@@ -23,6 +26,13 @@ export interface ObjectSnapshot {
   text?: string;
   z: number;
   createdAt: number;
+  // Shape-specific
+  kind?: string;
+  fill?: string;
+  stroke?: string;
+  // Connector-specific
+  from?: Endpoint;
+  to?: Endpoint;
 }
 
 /** @deprecated Use ObjectSnapshot instead. */
@@ -183,7 +193,7 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
 
   objects.forEach((obj, id) => {
     const type = obj.get('type');
-    if (type !== 'sticky' && type !== 'text') return; // skip unknown types
+    if (type !== 'sticky' && type !== 'text' && type !== 'shape' && type !== 'connector') return; // skip unknown types
 
     const text = obj.get('text') as Y.Text | undefined;
     const width = obj.get('width') as number | undefined;
@@ -200,8 +210,43 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (type === 'sticky') {
       entry.color = obj.get('color') as StickyColor;
     }
-    if (width !== undefined) entry.width = width;
-    if (height !== undefined) entry.height = height;
+    if (type === 'shape') {
+      entry.kind = obj.get('kind') as string;
+      entry.fill = obj.get('fill') as string;
+      entry.stroke = obj.get('stroke') as string;
+    }
+    if (type === 'connector') {
+      entry.from = obj.get('from') as Endpoint;
+      entry.to = obj.get('to') as Endpoint;
+      // Derive bbox from resolved endpoints
+      const rects = new Map<string, Rect>();
+      objects.forEach((o, oid) => {
+        if (oid === id) return;
+        const ot = o.get('type');
+        if (ot === 'sticky' || ot === 'text' || ot === 'shape') {
+          rects.set(oid, {
+            x: o.get('x') as number,
+            y: o.get('y') as number,
+            width: (o.get('width') as number) ?? STICKY_SIZE_WORLD,
+            height: (o.get('height') as number) ?? STICKY_SIZE_WORLD,
+          });
+        }
+      });
+      const connSnap = {
+        id, type: 'connector' as const, x: 0, y: 0, width: 0, height: 0,
+        z: entry.z, createdAt: entry.createdAt,
+        from: entry.from!, to: entry.to!,
+      };
+      const { from: fp, to: tp } = resolveEndpoints(connSnap, rects);
+      const bbox = connectorBBox(fp, tp);
+      entry.x = bbox.x;
+      entry.y = bbox.y;
+      entry.width = bbox.width;
+      entry.height = bbox.height;
+    } else {
+      if (width !== undefined) entry.width = width;
+      if (height !== undefined) entry.height = height;
+    }
     result.push(entry);
   });
 
@@ -245,7 +290,7 @@ export function allObjectIds(doc: Y.Doc): string[] {
   objects.forEach((_obj, id) => {
     // Only include objects with a known type
     const type = (_obj as Y.Map<unknown>).get('type');
-    if (type === 'sticky' || type === 'text') ids.push(id);
+    if (type === 'sticky' || type === 'text' || type === 'shape' || type === 'connector') ids.push(id);
   });
   return ids;
 }
@@ -362,6 +407,8 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   let changed = 0;
 
   doc.transact(() => {
+    // Detach connectors before removing objects
+    detachConnectorsTo(doc, ids as string[]);
     for (const id of ids) {
       if (objects.has(id)) {
         objects.delete(id);

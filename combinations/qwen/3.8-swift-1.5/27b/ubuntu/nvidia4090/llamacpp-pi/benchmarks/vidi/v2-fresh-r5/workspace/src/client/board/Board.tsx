@@ -15,7 +15,8 @@ import { canEdit } from '../sync/connectBoard';
 import { reportConnectionState } from '../canvas/testHooks';
 import { createSticky, setStickyColor, deleteObjects } from '../../shared/board-model';
 import { createText, setTextSize } from '../../shared/objects/text';
-import { STICKY_SIZE_WORLD, type StickyColor, type TextSize } from '../../shared/config';
+import { setShapeStyle } from '../../shared/objects/shape';
+import { STICKY_SIZE_WORLD, type StickyColor, type TextSize, type FillColor, type StrokeColor } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
 import { useMarquee, MarqueeRect } from './Marquee';
 import { useTransformGesture } from './useTransformGesture';
@@ -23,9 +24,14 @@ import { SelectionOverlay } from './SelectionOverlay';
 import { SelectionBar } from './SelectionBar';
 import { useBoardKeys } from './useBoardKeys';
 import { useTool } from './useTool';
+import { useActiveTool, type ToolId } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { createUndo, type UndoController } from './undo';
 import { useUndo } from './useUndo';
 import type { Handle } from '../../shared/geometry';
+import type { Rect } from '../../shared/geometry';
 
 /**
  * The live board for one board id: document, selection state, toolbar,
@@ -79,6 +85,17 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   // Tool state (story 9)
   const { tool, setTool } = useTool(editable);
 
+  // Active tool hook (story 10) - extends tool with shape/connector
+  const { tool: activeTool, shapeKind, setShapeKind, toolCreated, setTool: setActiveTool } = useActiveTool({
+    canEdit: editable,
+    onSelect: (id: string) => {
+      selection.setMany([id], false);
+    },
+  });
+
+  // Unified tool state: use activeTool from useActiveTool
+  const currentTool: ToolId = activeTool;
+
   const onDblClickEmpty = useCallback(
     (screenPoint: { x: number; y: number }) => {
       if (!editable) return;
@@ -112,11 +129,11 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     (screenPoint?: { x: number; y: number }) => {
       if (tool === 'text' && screenPoint) {
         onTextToolClick(screenPoint);
-      } else {
+      } else if (currentTool === 'select') {
         selection.clear();
       }
     },
-    [tool, onTextToolClick, selection],
+    [tool, currentTool, onTextToolClick, selection],
   );
 
   const onCreateSticky = useCallback(() => {
@@ -163,7 +180,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     (id: string) => {
       if (!editable) return;
       const obj = notes.find((o) => o.id === id);
-      if (obj && (obj.type === 'sticky' || obj.type === 'text')) {
+      if (obj && (obj.type === 'sticky' || obj.type === 'text' || obj.type === 'shape')) {
         selection.startEdit(id);
       }
     },
@@ -190,6 +207,30 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     [doc, selection, editable, undoBoundary],
   );
 
+  const onShapeFillChange = useCallback(
+    (fill: FillColor) => {
+      if (!editable) return;
+      if (selection.ids.size !== 1) return;
+      const [id] = selection.ids;
+      undoBoundary();
+      setShapeStyle(doc, id, { fill });
+      undoBoundary();
+    },
+    [doc, selection, editable, undoBoundary],
+  );
+
+  const onShapeStrokeChange = useCallback(
+    (stroke: StrokeColor) => {
+      if (!editable) return;
+      if (selection.ids.size !== 1) return;
+      const [id] = selection.ids;
+      undoBoundary();
+      setShapeStyle(doc, id, { stroke });
+      undoBoundary();
+    },
+    [doc, selection, editable, undoBoundary],
+  );
+
   const onTextSizeChange = useCallback(
     (size: TextSize) => {
       if (!editable) return;
@@ -201,6 +242,15 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     },
     [doc, selection, editable, undoBoundary],
   );
+
+  // Build a rects map for connector rendering
+  const rectsMap = new Map<string, Rect>();
+  for (const obj of notes) {
+    if (obj.type === 'connector') continue;
+    const w = obj.width ?? STICKY_SIZE_WORLD;
+    const h = obj.height ?? STICKY_SIZE_WORLD;
+    rectsMap.set(obj.id, { x: obj.x, y: obj.y, width: w, height: h });
+  }
 
   // Render objects through the registry
   const renderObjects = () => {
@@ -215,7 +265,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           selected={selection.ids.has(obj.id)}
           editing={selection.editingId === obj.id}
           canEdit={editable}
-          pointerDisabled={tool === 'text'}
+          pointerDisabled={tool === 'text' || currentTool === 'shape' || currentTool === 'connector'}
           onPointerDown={onObjectPointerDown}
           onDoubleClick={onObjectDoubleClick}
           doc={doc}
@@ -223,10 +273,20 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
             selection.endEdit(next);
           }}
           undo={undo}
+          {...(obj.type === 'connector' ? { rects: rectsMap, camera } : {})}
         />
       );
     });
   };
+
+  // Check if a single shape is selected (for shape toolbar)
+  const selectedShape = (() => {
+    if (selection.ids.size !== 1) return null;
+    const [id] = selection.ids;
+    const obj = notes.find((o) => o.id === id);
+    if (obj && obj.type === 'shape') return obj;
+    return null;
+  })();
 
   // Position the selection bar above the bounding box
   const barPosition = (() => {
@@ -265,6 +325,34 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         <MarqueeRect rect={marquee.rect} />
       </BoardViewport>
 
+      {/* Shape tool overlay */}
+      {currentTool === 'shape' && editable && (
+        <ShapeTool
+          kind={shapeKind}
+          camera={camera}
+          doc={doc}
+          onCreated={(id) => {
+            undoBoundary();
+            toolCreated(id);
+            undoBoundary();
+          }}
+        />
+      )}
+
+      {/* Connector tool overlay */}
+      {currentTool === 'connector' && editable && (
+        <ConnectorTool
+          camera={camera}
+          snapshot={notes}
+          doc={doc}
+          onCreated={(id) => {
+            undoBoundary();
+            toolCreated(id);
+            undoBoundary();
+          }}
+        />
+      )}
+
       <SelectionOverlay
         ids={selection.ids}
         snapshot={notes}
@@ -292,7 +380,38 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         </div>
       )}
 
-      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoBinding} tool={tool} onToolChange={setTool} />
+      {/* Shape toolbar (shown when a single shape is selected) */}
+      {selectedShape && currentTool === 'select' && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${barPosition?.left ?? 0}px`,
+            top: `${(barPosition?.top ?? 0) - 40}px`,
+            transform: 'translate(-50%, -100%)',
+            zIndex: 1000,
+          }}
+        >
+          <ShapeToolbar
+            fill={(selectedShape.fill ?? 'white') as FillColor}
+            stroke={(selectedShape.stroke ?? 'dark') as StrokeColor}
+            onFill={onShapeFillChange}
+            onStroke={onShapeStrokeChange}
+          />
+        </div>
+      )}
+
+      <Toolbar
+        onCreateSticky={onCreateSticky}
+        disabled={!editable}
+        undo={undoBinding}
+        tool={currentTool}
+        onToolChange={(t) => {
+          setActiveTool(t);
+          setTool(t as any);
+        }}
+        shapeKind={shapeKind}
+        onShapeKindChange={setShapeKind}
+      />
     </>
   );
 }

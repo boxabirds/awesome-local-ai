@@ -198,7 +198,7 @@ describe('board-model', () => {
     const objects = doc.getMap('objects');
     doc.transact(() => {
       const fake = new Y.Map<unknown>();
-      fake.set('type', 'shape');
+      fake.set('type', 'unknown_type');
       fake.set('x', 0);
       fake.set('y', 0);
       objects.set('fake-id', fake);
