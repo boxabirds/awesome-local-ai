@@ -46,6 +46,8 @@ export function BoardViewport(props: {
   onMarqueeCancel?: () => void;
   /** Override cursor style (story 9: text tool). */
   cursor?: string;
+  /** Pen tool active (story 11): pointer drags go to the Pen tool, never pan. */
+  penActive?: boolean;
 }): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
@@ -168,6 +170,9 @@ export function BoardViewport(props: {
     // Text tool active: don't pan (story 9)
     if (props.cursor === 'text') return;
 
+    // Pen tool active: drags route to the Pen tool, never pan (story 11)
+    if (props.penActive) return;
+
     // Shift+drag on empty space → marquee selection (no pointer capture needed;
     // we use window-level listeners in capture phase)
     if (e.shiftKey) {
@@ -235,13 +240,16 @@ export function BoardViewport(props: {
 
   // Double-click on empty board space
   const onDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (props.penActive) return;
     if (e.target !== e.currentTarget) return;
     const rect = e.currentTarget.getBoundingClientRect();
     props.onDblClickEmpty?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  }, [props.onDblClickEmpty]);
+  }, [props.onDblClickEmpty, props.penActive]);
 
   // Click on empty board space (without panning) → clear selection or create text
   const onClickEmpty = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // Pen tool active: clicks draw, they never clear selection (story 11)
+    if (props.penActive) return;
     // When text tool is active, clicks on objects also create text (story 9)
     const isTextTool = props.cursor === 'text';
     if (!isTextTool && e.target !== e.currentTarget) return;
@@ -251,7 +259,7 @@ export function BoardViewport(props: {
     const rect = e.currentTarget.getBoundingClientRect();
     const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     props.onClickEmpty?.(screenPoint);
-  }, [props.onClickEmpty, props.cursor]);
+  }, [props.onClickEmpty, props.cursor, props.penActive]);
 
   const { camera } = cam;
 

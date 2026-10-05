@@ -30,6 +30,41 @@ interface TransformGestureOpts {
   boundary?: () => void;
   onGestureStart?: () => void;
   onGestureEnd?: () => void;
+  /**
+   * Stable, non-React-managed element used as the pointer-capture target.
+   * Browsers mis-route pointer events when the capture target is a
+   * React-re-rendered element (the drag target's attributes change every
+   * frame) or a different element per gesture; a single persistent element
+   * avoids both. Created and owned by Board, appended to <body>.
+   */
+  captureElRef?: { current: HTMLDivElement | null };
+}
+
+/**
+ * Acquire pointer capture on the stable gesture element. The element is
+ * full-screen and pointer-events:none when idle; enabling pointer-events
+ * for the duration of the gesture is harmless (the pointer is already
+ * down) and lets the capture target participate in event routing.
+ */
+function acquireCapture(capEl: HTMLDivElement | null | undefined, pointerId: number) {
+  if (!capEl) return;
+  capEl.style.pointerEvents = 'auto';
+  try {
+    capEl.setPointerCapture(pointerId);
+  } catch {
+    // Capture can fail if the pointer is no longer active; the document
+    // listeners still track the gesture.
+  }
+}
+
+function releaseCapture(capEl: HTMLDivElement | null | undefined, pointerId: number) {
+  if (!capEl) return;
+  try {
+    capEl.releasePointerCapture(pointerId);
+  } catch {
+    // Already released (browsers auto-release on pointerup).
+  }
+  capEl.style.pointerEvents = 'none';
 }
 
 type GestureState =
@@ -69,14 +104,18 @@ export function useTransformGesture(opts: TransformGestureOpts) {
   const rafRef = useRef<number | null>(null);
   const pendingRef = useRef<{ type: 'move'; delta: Point } | { type: 'resize'; delta: Point } | null>(null);
 
-  const flush = useCallback(() => {
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    const pending = pendingRef.current;
-    if (!pending) return;
-    pendingRef.current = null;
+  // Apply one pending frame. `forced` lets endGesture flush a frame it has
+  // already taken out of pendingRef (without it, flush re-reads the now-null
+  // ref and silently no-ops, dropping the gesture's final frame).
+  const flush = useCallback(
+    (forced?: { type: 'move'; delta: Point } | { type: 'resize'; delta: Point }) => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      const pending = forced ?? pendingRef.current;
+      if (!pending) return;
+      pendingRef.current = null;
 
     const state = stateRef.current;
     if (state.kind === 'moving') {
@@ -124,7 +163,9 @@ export function useTransformGesture(opts: TransformGestureOpts) {
       }
       resizeObjects(doc, newRects);
     }
-  }, [doc, snapshot]);
+    },
+    [doc, snapshot],
+  );
 
   const scheduleFrame = useCallback(
     (pending: { type: 'move'; delta: Point } | { type: 'resize'; delta: Point }) => {
@@ -148,7 +189,7 @@ export function useTransformGesture(opts: TransformGestureOpts) {
     const pending = pendingRef.current;
     if (pending) {
       pendingRef.current = null;
-      flush();
+      flush(pending);
     }
     stateRef.current = { kind: 'idle' };
     // Close the capture window so the next gesture starts a new undo step
@@ -180,13 +221,17 @@ export function useTransformGesture(opts: TransformGestureOpts) {
         isHandle: false,
       };
 
-      const el = e.currentTarget as Element;
-      el.setPointerCapture(e.pointerId);
+      // Capture on the stable element (see captureElRef) and track on
+      // document in the capture phase: the capture retargets every event to
+      // the persistent element (immune to React re-renders of the drag
+      // target), while the document listeners guarantee delivery even if a
+      // browser drops element-level routing.
+      acquireCapture(opts.captureElRef?.current, e.pointerId);
 
       const onMove = (ev: Event) => {
         const pEv = ev as PointerEvent;
-        const state = stateRef.current;
         if (pEv.pointerId !== e.pointerId) return;
+        const state = stateRef.current;
 
         if (state.kind === 'pressed') {
           const dx = pEv.clientX - state.startScreen.x;
@@ -226,12 +271,17 @@ export function useTransformGesture(opts: TransformGestureOpts) {
         }
       };
 
+      const detach = () => {
+        document.removeEventListener('pointermove', onMove, true);
+        document.removeEventListener('pointerup', onUp, true);
+        document.removeEventListener('pointercancel', onCancel, true);
+      };
+
       const onUp = (ev: Event) => {
         const pEv = ev as PointerEvent;
         if (pEv.pointerId !== e.pointerId) return;
-        el.removeEventListener('pointermove', onMove);
-        el.removeEventListener('pointerup', onUp);
-        el.removeEventListener('pointercancel', onCancel);
+        detach();
+        releaseCapture(opts.captureElRef?.current, e.pointerId);
         const state = stateRef.current;
         if (state.kind === 'moving') {
           endGesture();
@@ -243,9 +293,8 @@ export function useTransformGesture(opts: TransformGestureOpts) {
       const onCancel = (ev: Event) => {
         const pEv = ev as PointerEvent;
         if (pEv.pointerId !== e.pointerId) return;
-        el.removeEventListener('pointermove', onMove);
-        el.removeEventListener('pointerup', onUp);
-        el.removeEventListener('pointercancel', onCancel);
+        detach();
+        releaseCapture(opts.captureElRef?.current, e.pointerId);
         const state = stateRef.current;
         if (state.kind === 'moving') {
           endGesture();
@@ -254,9 +303,9 @@ export function useTransformGesture(opts: TransformGestureOpts) {
         }
       };
 
-      el.addEventListener('pointermove', onMove);
-      el.addEventListener('pointerup', onUp);
-      el.addEventListener('pointercancel', onCancel);
+      document.addEventListener('pointermove', onMove, true);
+      document.addEventListener('pointerup', onUp, true);
+      document.addEventListener('pointercancel', onCancel, true);
     },
     [canEdit, selection, snapshot, doc, camera, opts, scheduleFrame, endGesture],
   );
@@ -301,12 +350,12 @@ export function useTransformGesture(opts: TransformGestureOpts) {
         aspectLocked,
       };
 
-      const el = e.currentTarget as Element;
-      el.setPointerCapture(e.pointerId);
-
       // New undo step for this gesture (story 8).
       opts.boundary?.();
       opts.onGestureStart?.();
+
+      // Capture on the stable element – see onObjectPointerDown.
+      acquireCapture(opts.captureElRef?.current, e.pointerId);
 
       const onMove = (ev: Event) => {
         const pEv = ev as PointerEvent;
@@ -319,27 +368,31 @@ export function useTransformGesture(opts: TransformGestureOpts) {
         scheduleFrame({ type: 'resize', delta: worldDelta });
       };
 
+      const detach = () => {
+        document.removeEventListener('pointermove', onMove, true);
+        document.removeEventListener('pointerup', onUp, true);
+        document.removeEventListener('pointercancel', onCancel, true);
+      };
+
       const onUp = (ev: Event) => {
         const pEv = ev as PointerEvent;
         if (pEv.pointerId !== e.pointerId) return;
-        el.removeEventListener('pointermove', onMove);
-        el.removeEventListener('pointerup', onUp);
-        el.removeEventListener('pointercancel', onCancel);
+        detach();
+        releaseCapture(opts.captureElRef?.current, e.pointerId);
         endGesture();
       };
 
       const onCancel = (ev: Event) => {
         const pEv = ev as PointerEvent;
         if (pEv.pointerId !== e.pointerId) return;
-        el.removeEventListener('pointermove', onMove);
-        el.removeEventListener('pointerup', onUp);
-        el.removeEventListener('pointercancel', onCancel);
+        detach();
+        releaseCapture(opts.captureElRef?.current, e.pointerId);
         endGesture();
       };
 
-      el.addEventListener('pointermove', onMove);
-      el.addEventListener('pointerup', onUp);
-      el.addEventListener('pointercancel', onCancel);
+      document.addEventListener('pointermove', onMove, true);
+      document.addEventListener('pointerup', onUp, true);
+      document.addEventListener('pointercancel', onCancel, true);
     },
     [canEdit, selection, snapshot, camera, opts, scheduleFrame, endGesture],
   );

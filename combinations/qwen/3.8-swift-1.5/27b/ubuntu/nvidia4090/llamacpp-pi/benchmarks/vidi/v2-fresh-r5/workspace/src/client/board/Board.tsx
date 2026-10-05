@@ -27,6 +27,9 @@ import { useTool } from './useTool';
 import { useActiveTool, type ToolId } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { createUndo, type UndoController } from './undo';
 import { useUndo } from './useUndo';
@@ -72,6 +75,25 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     selection.setMany(ids, true);
   });
 
+  // Stable, non-React-managed pointer-capture target for object gestures.
+  // Created once and appended to <body> (outside the React tree) so it is
+  // never re-rendered. Browsers mis-route pointer events when the capture
+  // target is a React element whose attributes change during the drag, or a
+  // different element per gesture; a single persistent element is immune.
+  const gestureCaptureEl = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = document.createElement('div');
+    el.setAttribute('data-gesture-capture', '');
+    el.style.cssText =
+      'position:fixed;inset:0;pointer-events:none;z-index:2147483647;';
+    document.body.appendChild(el);
+    gestureCaptureEl.current = el;
+    return () => {
+      el.remove();
+      gestureCaptureEl.current = null;
+    };
+  }, []);
+
   // Transform gesture
   const gesture = useTransformGesture({
     doc,
@@ -80,10 +102,14 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     snapshot: notes,
     canEdit: editable,
     boundary: undoBoundary,
+    captureElRef: gestureCaptureEl,
   });
 
   // Tool state (story 9)
   const { tool, setTool } = useTool(editable);
+
+  // Pen options (story 11): session-only colour/thickness
+  const penOptions = usePenOptions();
 
   // Active tool hook (story 10) - extends tool with shape/connector
   const { tool: activeTool, shapeKind, setShapeKind, toolCreated, setTool: setActiveTool } = useActiveTool({
@@ -265,7 +291,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           selected={selection.ids.has(obj.id)}
           editing={selection.editingId === obj.id}
           canEdit={editable}
-          pointerDisabled={tool === 'text' || currentTool === 'shape' || currentTool === 'connector'}
+          pointerDisabled={tool === 'text' || currentTool === 'shape' || currentTool === 'connector' || currentTool === 'pen'}
           onPointerDown={onObjectPointerDown}
           onDoubleClick={onObjectDoubleClick}
           doc={doc}
@@ -273,7 +299,11 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
             selection.endEdit(next);
           }}
           undo={undo}
-          {...(obj.type === 'connector' ? { rects: rectsMap, camera } : {})}
+          {...(obj.type === 'connector'
+            ? { rects: rectsMap, camera }
+            : obj.type === 'stroke'
+              ? { camera }
+              : {})}
         />
       );
     });
@@ -320,6 +350,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         onMarqueeEnd={() => marquee.end()}
         onMarqueeCancel={() => marquee.cancel()}
         cursor={tool === 'text' ? 'text' : undefined}
+        penActive={currentTool === 'pen'}
       >
         {renderObjects()}
         <MarqueeRect rect={marquee.rect} />
@@ -351,6 +382,38 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
             undoBoundary();
           }}
         />
+      )}
+
+      {/* Pen tool overlay (story 11) */}
+      {currentTool === 'pen' && editable && (
+        <PenTool
+          camera={camera}
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          doc={doc}
+          identityId="local"
+          onCommit={undoBoundary}
+        />
+      )}
+
+      {/* Pen toolbar (story 11): next to the left toolbar while Pen is active */}
+      {currentTool === 'pen' && editable && (
+        <div
+          style={{
+            position: 'fixed',
+            left: '80px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 100,
+          }}
+        >
+          <PenToolbar
+            color={penOptions.color}
+            thickness={penOptions.thickness}
+            onColor={penOptions.setColor}
+            onThickness={penOptions.setThickness}
+          />
+        </div>
       )}
 
       <SelectionOverlay

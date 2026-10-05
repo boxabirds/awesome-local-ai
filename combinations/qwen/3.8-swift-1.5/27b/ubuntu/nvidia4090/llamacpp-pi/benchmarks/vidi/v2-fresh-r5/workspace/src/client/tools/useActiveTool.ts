@@ -73,9 +73,9 @@ export function useActiveTool(opts: UseActiveToolOpts): ActiveToolState {
         return;
       }
 
-      // Escape: return to select from shape/connector tools
+      // Escape: return to select from shape/connector/pen tools
       if (e.key === 'Escape') {
-        if (tool === 'shape' || tool === 'connector') {
+        if (tool === 'shape' || tool === 'connector' || tool === 'pen') {
           setToolState('select');
           return;
         }
@@ -89,7 +89,7 @@ export function useActiveTool(opts: UseActiveToolOpts): ActiveToolState {
       if (!targetTool) return;
 
       // Only allow tool shortcuts that are implemented
-      if (targetTool === 'select' || targetTool === 'text' || targetTool === 'shape' || targetTool === 'connector') {
+      if (targetTool === 'select' || targetTool === 'text' || targetTool === 'shape' || targetTool === 'connector' || targetTool === 'pen') {
         if (targetTool === 'select') {
           setToolState('select');
         } else if (canEdit) {

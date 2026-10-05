@@ -8,6 +8,7 @@ import {
 import type { Rect, Point } from './geometry';
 import { rectContains } from './geometry';
 import { detachConnectorsTo } from './objects/connector';
+import type { StrokeSnap } from './objects/stroke';
 import { resolveEndpoints, connectorBBox } from './geometry/connector-geometry';
 import type { Endpoint } from './geometry/connector-geometry';
 
@@ -193,7 +194,7 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
 
   objects.forEach((obj, id) => {
     const type = obj.get('type');
-    if (type !== 'sticky' && type !== 'text' && type !== 'shape' && type !== 'connector') return; // skip unknown types
+    if (type !== 'sticky' && type !== 'text' && type !== 'shape' && type !== 'connector' && type !== 'stroke') return; // skip unknown types
 
     const text = obj.get('text') as Y.Text | undefined;
     const width = obj.get('width') as number | undefined;
@@ -214,6 +215,14 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       entry.kind = obj.get('kind') as string;
       entry.fill = obj.get('fill') as string;
       entry.stroke = obj.get('stroke') as string;
+    }
+    if (type === 'stroke') {
+      const strokeEntry = entry as StrokeSnap;
+      strokeEntry.points = (obj.get('points') as number[]) ?? [];
+      strokeEntry.baseWidth = (obj.get('baseWidth') as number) ?? 0;
+      strokeEntry.baseHeight = (obj.get('baseHeight') as number) ?? 0;
+      strokeEntry.color = (obj.get('color') as StrokeSnap['color']) ?? 'black';
+      strokeEntry.thickness = (obj.get('thickness') as StrokeSnap['thickness']) ?? 'medium';
     }
     if (type === 'connector') {
       entry.from = obj.get('from') as Endpoint;
@@ -290,7 +299,7 @@ export function allObjectIds(doc: Y.Doc): string[] {
   objects.forEach((_obj, id) => {
     // Only include objects with a known type
     const type = (_obj as Y.Map<unknown>).get('type');
-    if (type === 'sticky' || type === 'text' || type === 'shape' || type === 'connector') ids.push(id);
+    if (type === 'sticky' || type === 'text' || type === 'shape' || type === 'connector' || type === 'stroke') ids.push(id);
   });
   return ids;
 }

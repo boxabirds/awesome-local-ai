@@ -39,7 +39,7 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** Handle mode: 'all' shows 8 handles, 'horizontal' shows only e/w. Default 'all'. */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -174,4 +174,50 @@ registerObjectType('connector', {
   minSize: 1,
   editableText: false,
   hitTest: (obj, p) => connectorHitTest(obj, p),
+});
+
+// ─── Register stroke objects (story 11) ─────────────────────────────────────
+
+import { StrokeObject } from './StrokeObject';
+import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
+import {
+  PEN_THICKNESS_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
+} from '../../shared/config';
+import type { Camera } from '../canvas/camera';
+
+/**
+ * Select strokes by their line (pen.select): a hit only when the click is
+ * within max(thickness/2, STROKE_HIT_TOLERANCE_PX / zoom) of the drawn line.
+ * Clicks inside the bbox but farther from the line miss, so selection falls
+ * through to the object underneath.
+ */
+function strokeHitTest(obj: ObjectSnapshot, worldPoint: Point, zoom: number = 1): boolean {
+  const s = obj as StrokeSnap;
+  if (!s.points || s.points.length === 0) return false;
+  const thickness = PEN_THICKNESS_WORLD[s.thickness] ?? PEN_THICKNESS_WORLD.medium;
+  const dist = distanceToPolyline(scaledPoints(s), worldPoint);
+  return dist <= Math.max(thickness / 2, STROKE_HIT_TOLERANCE_PX / zoom);
+}
+
+registerObjectType('stroke', {
+  Component: ((props: ObjectProps) => {
+    const stroke = props.obj as StrokeSnap;
+    const camera = (props as ObjectProps & { camera?: Camera }).camera;
+    return (
+      <StrokeObject
+        stroke={stroke}
+        selected={props.selected}
+        camera={camera}
+        onPointerDown={props.onPointerDown}
+      />
+    );
+  }) as unknown as ComponentType<ObjectProps>,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  handles: 'all',
+  hitTest: strokeHitTest,
 });

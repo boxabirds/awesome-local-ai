@@ -187,6 +187,20 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         →
       </button>
 
+      {/* Pen tool */}
+      <button
+        type="button"
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        title="Pen – P"
+        data-testid="tool-pen-btn"
+        onClick={() => onToolChange?.('pen')}
+        disabled={disabled}
+        style={btnStyle(tool === 'pen', disabled)}
+      >
+        ✎
+      </button>
+
       {/* Sticky note button */}
       <button
         type="button"

@@ -169,3 +169,31 @@ export const DEFAULT_TEXT_SIZE: TextSize = 'M';
 export const TEXT_LINE_HEIGHT = 1.3;
 /** Font family for text objects. */
 export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/* --- Story 11: Freehand pen --- */
+
+/** The six pen colours. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+export type PenColor = keyof typeof PEN_COLORS;
+/** Default pen colour. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+/** Pen thicknesses in world units (board units). */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+/** Default pen thickness. */
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+/** Smoothing tolerance in screen pixels at the drawing zoom (pen.smooth). */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/** Maximum recorded points per stroke before it is split (pen.long_stroke). */
+export const STROKE_MAX_POINTS = 5000;
+/** Selection tolerance in screen pixels from the drawn line (pen.select). */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** Minimum stroke size in world units (pen.resize). */
+export const STROKE_MIN_SIZE_WORLD = 4;
