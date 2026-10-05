@@ -109,7 +109,7 @@ test.describe("B. the trail has one shape per page kind, and every level in it i
 
   test("stories: Overview › Stories › Story N; machines: Overview › Machines › name; setup and the indexes end at their section", async ({ page }) => {
     await page.goto("/#/vidi/s/2");
-    expect(await trail(page)).toEqual(["Overview(#/)", "Stories(#/vidi/stories)", "Story 2"]);
+    expect(await trail(page)).toEqual(["Overview(#/)", "Stories(#/vidi/stories)", "Story 2: Sticky notes"]);
     await crumbs(page).getByRole("link", { name: "Stories" }).click();
     await expect(page$(page, "stories")).toBeVisible();
     await page.goto("/#/machines/node-a");
