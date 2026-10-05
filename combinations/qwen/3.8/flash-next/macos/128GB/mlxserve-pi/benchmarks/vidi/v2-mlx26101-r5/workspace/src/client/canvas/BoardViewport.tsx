@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
-import { GRID_SPACING_WORLD } from '../../shared/config';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import { screenToWorld } from './camera';
 import type { Point } from './camera';
 import type { CameraController } from './useCamera';
 
@@ -34,6 +35,14 @@ export interface BoardViewportProps {
   children?: ReactNode;
   /** Camera state and handlers, from `useCamera` in App. */
   controller: CameraController;
+  /**
+   * A double-click on empty board space, with the point converted to world
+   * coordinates. Objects stop propagation, so a double-click on one never
+   * reaches this handler.
+   */
+  onCreateSticky?(world: Point): void;
+  /** A press on empty board space that did not move: clear the selection. */
+  onClearSelection?(): void;
 }
 
 /**
@@ -46,10 +55,17 @@ export interface BoardViewportProps {
  * `window`. Drag only starts on the board surface itself (the viewport or the
  * grid), so objects added by later stories can stop propagation.
  */
-export function BoardViewport({ children, controller }: BoardViewportProps): React.JSX.Element {
+export function BoardViewport({
+  children,
+  controller,
+  onCreateSticky,
+  onClearSelection,
+}: BoardViewportProps): React.JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef(controller);
   const gestureScaleRef = useRef(1);
+  /** A press on the board surface that has not moved further than the threshold. */
+  const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   controllerRef.current = controller;
 
   const { camera, isPanning } = controller;
@@ -157,18 +173,26 @@ export function BoardViewport({ children, controller }: BoardViewportProps): Rea
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || event.ctrlKey || event.metaKey) return;
     if (!isBoardSurface(event.target)) return;
+    const point = localPoint(event.clientX, event.clientY);
+    pressRef.current = { x: point.x, y: point.y, moved: false };
     const el = viewportRef.current;
     try {
       el?.setPointerCapture?.(event.pointerId);
     } catch {
       // jsdom and some embedded browsers do not implement pointer capture.
     }
-    controllerRef.current.beginPan(localPoint(event.clientX, event.clientY));
+    controllerRef.current.beginPan(point);
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     // The hook ignores moves while it is Idle, so nothing to gate here.
-    controllerRef.current.panMove(localPoint(event.clientX, event.clientY));
+    const point = localPoint(event.clientX, event.clientY);
+    const press = pressRef.current;
+    if (press && !press.moved) {
+      const distance = Math.hypot(point.x - press.x, point.y - press.y);
+      if (distance >= DRAG_THRESHOLD_PX) press.moved = true;
+    }
+    controllerRef.current.panMove(point);
   };
 
   const onPointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -178,7 +202,18 @@ export function BoardViewport({ children, controller }: BoardViewportProps): Rea
     } catch {
       // ignore: capture may already be gone
     }
+    const press = pressRef.current;
+    pressRef.current = null;
     controllerRef.current.endPan();
+    // A press on empty board space without a drag is a click on the board.
+    if (press && !press.moved && event.type === 'pointerup') onClearSelection?.();
+  };
+
+  const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    // Only empty board space: a note stops propagation and edits itself.
+    if (!isBoardSurface(event.target)) return;
+    const camera = controllerRef.current.camera;
+    onCreateSticky?.(screenToWorld(camera, localPoint(event.clientX, event.clientY)));
   };
 
   const spacing = GRID_SPACING_WORLD * camera.zoom;
@@ -208,6 +243,7 @@ export function BoardViewport({ children, controller }: BoardViewportProps): Rea
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerEnd}
+      onDoubleClick={onDoubleClick}
     >
       <div aria-hidden="true" className="board-grid" data-board-surface="grid" data-testid="board-grid" />
       <div

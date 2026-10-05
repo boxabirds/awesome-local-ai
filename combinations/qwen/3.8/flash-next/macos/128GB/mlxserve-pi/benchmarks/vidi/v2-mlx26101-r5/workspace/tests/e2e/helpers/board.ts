@@ -125,11 +125,13 @@ export async function wheelAt(
   if (options.ctrlKey) await page.keyboard.up('Control');
 }
 
-/** Jumps the camera somewhere else with the test-only window hook. */
+/** Jumps the camera somewhere else with the test-only window hook, and waits for the DOM to catch up. */
 export async function setCamera(page: Page, patch: Partial<Camera>): Promise<void> {
   const available = await page.evaluate(() => typeof window.__vidi6?.setCamera === 'function');
   if (!available) throw new Error('window.__vidi6 test hook is missing from this build');
   await page.evaluate((value) => window.__vidi6?.setCamera(value), patch);
+  // The patch is applied through React state, so the rendered camera lands one frame later.
+  await expectCamera(page, patch);
 }
 
 /** Clicks a zoom button until it is disabled, collecting the labels seen. */
@@ -159,3 +161,177 @@ export function pageZoomSignals(page: Page): Promise<{ scale: number; dpr: numbe
 /** Grid offset the board should show for a camera position. */
 export const gridOffsetFor = (value: number, spacing: number): number =>
   Number((((value % spacing) + spacing) % spacing).toFixed(6));
+
+
+/* ------------------------------------------------------------------ story 2: sticky notes */
+
+/** The note's locator. */
+export const note = (page: Page, id: string): Locator => page.locator(`[data-note-id="${id}"]`);
+
+/** The read-only text layer inside a note. */
+export const noteTextLocator = (page: Page, id: string): Locator =>
+  note(page, id).locator('.sticky-text');
+
+/** The textarea of the note being edited (there is at most one). */
+export const editorLocator = (page: Page): Locator => page.locator('.sticky-editor');
+
+/** Ids of every rendered note, in document (stacking) order. */
+export function noteIds(page: Page): Promise<string[]> {
+  return page.locator('.sticky-note').evaluateAll((els) => els.map((el) => el.dataset['noteId'] ?? ''));
+}
+
+/** Waits for exactly `count` notes and returns their ids in stacking order. */
+export async function expectNoteCount(page: Page, count: number): Promise<string[]> {
+  await expect(page.locator('.sticky-note')).toHaveCount(count);
+  return noteIds(page);
+}
+
+/** The note's numbers as the document holds them, in world units. */
+export function noteWorld(page: Page, id: string): Promise<{ x: number; y: number; z: number }> {
+  return note(page, id).evaluate((el) => ({
+    x: Number(el.dataset['x']),
+    y: Number(el.dataset['y']),
+    z: Number(el.dataset['z']),
+  }));
+}
+
+/** The note's colour, as rendered. */
+export function noteColor(page: Page, id: string): Promise<string> {
+  return note(page, id).evaluate((el) => el.dataset['color'] ?? '');
+}
+
+/** The note's interaction state: unselected, pressed, dragging, selected, editing. */
+export function noteInteraction(page: Page, id: string): Promise<string> {
+  return note(page, id).evaluate((el) => el.dataset['interaction'] ?? 'unselected');
+}
+
+/** The note's box on screen, in screen pixels. */
+export async function noteScreenBox(
+  page: Page,
+  id: string,
+): Promise<{ x: number; y: number; width: number; height: number; cx: number; cy: number }> {
+  const box = await note(page, id).boundingBox();
+  if (!box) throw new Error(`note ${id} is not on screen`);
+  return { ...box, cx: box.x + box.width / 2, cy: box.y + box.height / 2 };
+}
+
+/** Text of the note's read-only text layer (empty while it is being edited). */
+export async function noteText(page: Page, id: string): Promise<string> {
+  const el = noteTextLocator(page, id);
+  if ((await el.count()) === 0) return '';
+  return (await el.textContent()) ?? '';
+}
+
+/** What the editor holds. */
+export function editorValue(page: Page): Promise<string> {
+  return editorLocator(page).inputValue();
+}
+
+/** Computed font size in px of the note's text layer, or of the editor while editing. */
+export async function noteFontPx(page: Page, id: string): Promise<number> {
+  const editing = (await note(page, id).locator('.sticky-editor').count()) > 0;
+  const selector = editing ? '.sticky-editor' : '.sticky-text';
+  const size = await note(page, id).locator(selector).evaluate((el) => getComputedStyle(el).fontSize);
+  return Number.parseFloat(size);
+}
+
+/** Screen position of the point grabbed on a note, i.e. where the pointer is on it. */
+export async function grabPointOf(
+  page: Page,
+  id: string,
+  world: { x: number; y: number },
+): Promise<{ x: number; y: number }> {
+  const camera = await readCamera(page);
+  const box = await noteScreenBox(page, id);
+  return {
+    x: box.x + (world.x - camera.x) * camera.zoom,
+    y: box.y + (world.y - camera.y) * camera.zoom,
+  };
+}
+
+/** Double-clicks empty board space and returns the id of the note that appeared. */
+export async function doubleClickCreate(page: Page, x: number, y: number): Promise<string> {
+  const before = await noteIds(page);
+  await page.mouse.dblclick(x, y);
+  await editorLocator(page).waitFor({ state: 'visible' });
+  const added = (await noteIds(page)).filter((id) => !before.includes(id));
+  expect(added).toHaveLength(1);
+  const id = added[0];
+  if (!id) throw new Error('no note was created');
+  return id;
+}
+
+/** Clicks the toolbar's Sticky note button and returns the new note's id. */
+export async function toolbarCreate(page: Page): Promise<string> {
+  const before = await noteIds(page);
+  await page.getByTestId('create-sticky').click();
+  await editorLocator(page).waitFor({ state: 'visible' });
+  const added = (await noteIds(page)).filter((id) => !before.includes(id));
+  expect(added).toHaveLength(1);
+  const id = added[0];
+  if (!id) throw new Error('no note was created');
+  return id;
+}
+
+/** Presses and releases on a note's centre without moving: a click. */
+export async function clickNote(page: Page, id: string): Promise<void> {
+  const box = await noteScreenBox(page, id);
+  await page.mouse.move(box.cx, box.cy);
+  await page.mouse.down();
+  await page.mouse.up();
+}
+
+/** Presses on a note's centre, moves by (dx, dy) and leaves the button down. */
+export async function pressNoteAndMove(page: Page, id: string, dx: number, dy: number): Promise<void> {
+  const box = await noteScreenBox(page, id);
+  await page.mouse.move(box.cx, box.cy);
+  await page.mouse.down();
+  await page.mouse.move(box.cx + dx, box.cy + dy, { steps: 5 });
+}
+
+/** Drags a note from its centre by (dx, dy) screen pixels and releases. */
+export async function dragNote(page: Page, id: string, dx: number, dy: number): Promise<void> {
+  await pressNoteAndMove(page, id, dx, dy);
+  await page.mouse.up();
+}
+
+/** Waits until a note's world position stops changing, then returns it. */
+export async function waitForNoteAtRest(
+  page: Page,
+  id: string,
+): Promise<{ x: number; y: number; z: number }> {
+  let last = await noteWorld(page, id);
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    await page.waitForTimeout(20);
+    const next = await noteWorld(page, id);
+    if (next.x === last.x && next.y === last.y && next.z === last.z) return next;
+    last = next;
+  }
+  return last;
+}
+
+/** Waits for the note's world position to reach the expected numbers. */
+export async function expectNoteWorld(
+  page: Page,
+  id: string,
+  expected: { x: number; y: number },
+  precision = 5,
+): Promise<void> {
+  await expect
+    .poll(() => noteWorld(page, id), { message: `waiting for note ${id} to land` })
+    .toMatchObject({
+      x: expect.closeTo(expected.x, precision),
+      y: expect.closeTo(expected.y, precision),
+    });
+}
+
+/** Whether a test id is in the page. */
+export async function hasTestId(page: Page, testId: string): Promise<boolean> {
+  return (await page.getByTestId(testId).count()) > 0;
+}
+
+/** Lets the browser finish layout and font loading. */
+export async function settled(page: Page): Promise<void> {
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+  await page.waitForTimeout(80);
+}

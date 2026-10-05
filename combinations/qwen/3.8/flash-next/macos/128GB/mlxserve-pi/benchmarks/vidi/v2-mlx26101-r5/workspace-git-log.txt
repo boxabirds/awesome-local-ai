@@ -1,3 +1,46 @@
+commit 8536af8cf2aa0dae320fd050a70dc5f9a5504860
+agent  Mon Oct 5 18:28:31 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  | 161 ++++++++++++-
+ PROGRESS.md                               |  27 ++-
+ package-lock.json                         |  51 +++-
+ package.json                              |   3 +-
+ src/client/App.tsx                        | 147 +++++++++++-
+ src/client/board/Toolbar.tsx              |  52 +++++
+ src/client/board/useBoardDoc.ts           |  55 +++++
+ src/client/board/useSelection.ts          |  47 ++++
+ src/client/canvas/BoardViewport.tsx       |  46 +++-
+ src/client/objects/NoteToolbar.tsx        |  77 +++++++
+ src/client/objects/StickyNote.tsx         | 365 +++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          | 134 +++++++++++
+ src/client/objects/StickyTextEditor.tsx   | 167 ++++++++++++++
+ src/client/styles.css                     | 207 +++++++++++++++++
+ src/shared/board-model.ts                 | 196 ++++++++++++++++
+ src/shared/config.ts                      |  29 +++
+ tests/component/StickyNote.test.tsx       | 325 ++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 233 +++++++++++++++++++
+ tests/component/Toolbars.test.tsx         | 293 +++++++++++++++++++++++
+ tests/component/harness.tsx               | 164 +++++++++++++
+ tests/e2e/helpers/board.ts                | 178 +++++++++++++-
+ tests/e2e/sticky-create.spec.ts           | 224 ++++++++++++++++++
+ tests/e2e/sticky-delete.spec.ts           | 262 +++++++++++++++++++++
+ tests/e2e/sticky-move.spec.ts             | 216 +++++++++++++++++
+ tests/e2e/sticky-text.spec.ts             | 170 ++++++++++++++
+ tests/fixtures/texts.ts                   |  29 +++
+ tests/unit/board-model.test.ts            | 371 ++++++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts            | 206 +++++++++++++++++
+ 28 files changed, 4409 insertions(+), 26 deletions(-)
+commit 70438a32895f8c7934b8d0f8b4d79fa6f6fd8ff2
+vidi-agent  Mon Oct 5 18:19:35 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
 commit eaf820922802081aff56fbf5369487ce47fb1c93
 agent  Mon Oct 5 17:18:16 2026 +0000
 

@@ -1,15 +1,27 @@
-# Story 1: Pan and zoom around an infinite board
+# Story 2: Capture ideas on sticky notes and rearrange them
 
 Your progress on this story's tasks. Keep the Status column up to date as you work.
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Scaffold project and write camera maths unit tests first (TC-01 to TC-12) | done |
-| 2 | Implement camera maths to pass unit tests | done |
-| 3 | Implement board viewport: drag, wheel, pinch and keyboard navigation with dot grid | done |
-| 4 | Implement zoom controls (−, percentage, +, Reset view) | done |
-| 5 | Implement first-use navigation hint | done |
-| 6 | Component tests for viewport input, zoom controls and hint | done |
-| 7 | E2E navigation tests in Chromium, Firefox and WebKit | done (Chromium; Firefox/WebKit blocked, see NOTES.md) |
+| 1 | Write board model unit tests first against a real Y.Doc (TC-01 to TC-12, TC-39) | done |
+| 2 | Implement Yjs board model and useBoardDoc snapshot hook | done |
+| 3 | Write sticky text logic unit tests first (TC-13 to TC-17) | done |
+| 4 | Implement sticky text editing: start/end editing, minimal Y.Text diff, length limit, auto-fit font | done |
+| 5 | Implement sticky note interaction: select, drag to move, double-click create, keyboard delete | done |
+| 6 | Implement toolbars: Sticky note button, colour swatches and delete button | done |
+| 7 | Component tests for sticky interaction, text editor and toolbars | done |
+| 8 | E2E sticky note workflows (create, move at zoom, recolour, delete, long text) | done |
 
 Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
+
+```
+npm run build          ok
+npm run typecheck      ok
+npm run test:unit      ok  65 tests  (board-model 25, sticky-text 16, camera 24 from story 1)
+npm run test:component ok  65 tests  (StickyNote 16, StickyTextEditor 10, Toolbars 14, story 1's 25)
+npm run test:e2e       ok  38 tests  (chromium: 31 sticky note tests + story 1's 7)
+                       firefox/webkit cannot start in this sandbox (see NOTES.md, "E2E")
+```
+
+All eight tasks are done. Deviations, environment findings and decisions are in `NOTES.md`.
