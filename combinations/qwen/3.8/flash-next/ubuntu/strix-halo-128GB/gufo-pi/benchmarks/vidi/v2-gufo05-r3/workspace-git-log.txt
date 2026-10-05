@@ -1,3 +1,66 @@
+commit 90d960f9fecbc5551878ea09a52d1bf3cac7acf7
+agent  Mon Oct 5 03:10:43 2026 +0000
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ NOTES.md                                | 203 +++++++++++++
+ PROGRESS.md                             |  16 +-
+ src/client/board/UndoButtons.tsx        |   2 +
+ src/client/board/undo.ts                |   7 +-
+ tests/component/SelectionGroup.test.tsx |   2 +-
+ tests/component/UndoControls.test.tsx   | 249 ++++++++++------
+ tests/e2e/undo.spec.ts                  | 495 ++++++++++++++++++++++++++++++++
+ tests/unit/undo-history.test.ts         |  19 ++
+ 8 files changed, 901 insertions(+), 92 deletions(-)
+commit 9b3d71d6821b7e3036486c92a2e1a9b4dc011d6b
+agent  Mon Oct 5 02:13:56 2026 +0000
+
+    story 8: undo buttons and shortcut component tests (TC-18..TC-21)
+
+
+ tests/component/UndoControls.test.tsx | 246 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 246 insertions(+)
+commit f361197331b60df857ca076fe7889372f98ede90
+agent  Mon Oct 5 02:08:46 2026 +0000
+
+    story 8: boundary component tests (TC-14..TC-17) and shared peer helper
+
+
+ src/client/board/useTransformGesture.ts |   5 +-
+ tests/component/UndoBoundaries.test.tsx | 230 ++++++++++++++++++++++++++++++++
+ tests/component/boardHarness.tsx        |  33 +++--
+ tests/{unit/peer.ts => peerDoc.ts}      |   2 +-
+ tests/unit/undo-boundaries.test.ts      |   4 +-
+ tests/unit/undo-history.test.ts         |   7 +-
+ 6 files changed, 263 insertions(+), 18 deletions(-)
+commit fd8f365cd23deef460fa2471298e1dfdf6341df0
+agent  Mon Oct 5 01:55:19 2026 +0000
+
+    story 8: undo history, boundaries, toolbar buttons and shortcuts
+
+
+ src/client/App.tsx                      |  37 ++-
+ src/client/board/SelectionBar.tsx       |  10 +-
+ src/client/board/Toolbar.tsx            |  12 +-
+ src/client/board/UndoButtons.tsx        |  51 +++++
+ src/client/board/undo.ts                | 141 ++++++++++++
+ src/client/board/useBoardKeys.ts        |  45 +++-
+ src/client/board/useUndo.ts             | 169 ++++++++++++++
+ src/client/objects/StickyTextEditor.tsx |  54 ++++-
+ src/shared/config.ts                    |  11 +
+ tests/unit/peer.ts                      |  71 ++++++
+ tests/unit/undo-boundaries.test.ts      | 176 +++++++++++++++
+ tests/unit/undo-history.test.ts         | 387 ++++++++++++++++++++++++++++++++
+ 12 files changed, 1142 insertions(+), 22 deletions(-)
+commit 1ee74acfb56727eb6076dc30ec4470868d16a67b
+vidi-agent  Mon Oct 5 01:25:55 2026 +0000
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 commit 37f0b102d64e51c229e3407b7cf0e975136fa581
 agent  Mon Oct 5 01:15:16 2026 +0000
 
