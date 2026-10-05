@@ -71,6 +71,8 @@ MODEL_REPO="ukisai/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-GGUF"
 MODEL_REVISION="b22d729eae29b5796f76fb70f91aef549b9fc52c"
 MODEL_APPROX_SIZE="76.0 GB (two GGUF files) + about 5 GB of MTP draft layer fetched by Strata's setup"
 MODEL_DISK_KB=92000000
+# Where the files sit inside the repository: UkisAI keeps Swift's at the root, with no per-size folder.
+MODEL_REPO_SUBDIR=""
 # The two files at MODEL_REVISION, at the repository root (the swift family has no per-size folder, unlike the
 # original's IQ3_XXS/). The size and the Hugging Face LFS sha256 of each. The shards are split more evenly than the
 # original's, which is a property of this repository, not a mistake.

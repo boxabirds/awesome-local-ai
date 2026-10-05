@@ -66,6 +66,11 @@ for COMBO in "${COMBOS[@]}"; do
   # pin moved from 0.1.36 to 0.1.39 on 5 Oct 2026 and only the config was changed, so the reader was told the wrong
   # version. Whatever the README says the pins are, they are the config's.
   RM="$REPO_ROOT/combinations/$COMBO/README.md"
+  # Where the weights sit inside the repository is the repository's business, not the quant's: ISTA-DASLab puts
+  # each size in its own folder, UkisAI puts Swift's at the root. The config says which, and backend_fetch_model
+  # must use it. On 5 Oct 2026 the base URL hard-coded the quant folder and the Swift download fetched nothing.
+  assert_ok "the config says where the weights sit in the repository (MODEL_REPO_SUBDIR, possibly empty)" bash -c "
+    grep -qE '^MODEL_REPO_SUBDIR=' '$CFG'"
   assert_ok "the README names the Strata version the config pins" bash -c "
     . '$CFG'; grep -qF \"v\$STRATA_VERSION\" '$RM'"
   assert_ok "...and the commit it pins, by its short form" bash -c "
@@ -166,6 +171,39 @@ assert_eq "...top_k" 20 "$(J "d['sampling']['top_k']")"
 assert_ok "setup's own file is not changed" grep -q '"--max-context", "4096"' "$SC"
 derive 131072 969 "$WORK/server.log" bench-id
 assert_eq "deriving twice does not add the reserve twice" 1 "$(J "d['args'].count('--vram-reserve-mib')")"
+
+echo
+echo "where the weights are fetched from"
+. "$REPO_ROOT/lib/strata.sh" 2>/dev/null || true
+assert_eq "a repository that gives each size its own folder" \
+  "https://huggingface.co/ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF/resolve/ed59f920/IQ3_XXS" \
+  "$(strata_weights_base_url ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF ed59f920 IQ3_XXS)"
+assert_eq "a repository that keeps them at the root: no trailing slash, no quant folder" \
+  "https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-GGUF/resolve/b22d729e" \
+  "$(strata_weights_base_url ukisai/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-GGUF b22d729e "")"
+assert_eq "...and the same when the folder is unset" \
+  "https://huggingface.co/r/resolve/abc" "$(strata_weights_base_url r abc)"
+
+# ...and that the fetch actually uses it. Asserting the helper alone passes while backend_fetch_model goes on
+# building its own URL, which is how the Swift download came to fetch nothing: strata_download is stubbed here to
+# record the base it is handed.
+fetch_base() {
+  ( set +u
+    . "$REPO_ROOT/lib/common.sh"; . "$REPO_ROOT/lib/strata.sh"
+    . "$REPO_ROOT/combinations/$1/config.sh"
+    STRATA_DIR="$WORK/fake-strata"; STRATA_DATA_DIR="$WORK/fake-data"
+    _strata_require_disk() { :; }
+    _strata_run_setup() { :; }
+    strata_download() { printf '%s\n' "$1" > "$WORK/fetch-base"; }
+    backend_fetch_model >/dev/null 2>&1
+    cat "$WORK/fetch-base" )
+}
+assert_eq "the fetch uses it: the folder repository" \
+  "https://huggingface.co/ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF/resolve/ed59f92082b1e93c0e96d60a8b11aab089b52f09/IQ3_XXS" \
+  "$(fetch_base "qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi")"
+assert_eq "the fetch uses it: the root repository" \
+  "https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-GGUF/resolve/b22d729eae29b5796f76fb70f91aef549b9fc52c" \
+  "$(fetch_base "qwen/3.8-swift-1.5/flash-next/ubuntu/nvidia4090/strata-pi")"
 
 echo
 echo "the launcher (lib/runtime/server-strata.sh)"

@@ -25,6 +25,8 @@ declare -F hf_pinned_state >/dev/null || . "$(dirname "${BASH_SOURCE[0]}")/hf.sh
 
 BACKEND_NEEDS_HF=0
 BACKEND_REQUIRED_VARS="MODEL_REPO MODEL_REVISION MODEL_FILES MODEL_SIZES MODEL_SHA256 STRATA_VERSION STRATA_COMMIT STRATA_REPO_URL STRATA_FAMILY STRATA_QUANT STRATA_CONTEXT MIN_DEVICE_MEM_MIB"
+# MODEL_REPO_SUBDIR is required too, but may be empty (the weights sit at the repository root), so it is checked
+# by name rather than by require_vars, which refuses an empty value.
 
 # profiles.tsv columns for this backend:
 #   ctx           the context the server is started with
@@ -168,11 +170,20 @@ strata_download() {
   ok "${file}: downloaded and verified."
 }
 
+# strata_weights_base_url REPO REVISION SUBDIR
+# Where the weights are fetched from. Each repository lays its files out its own way -- ISTA-DASLab gives each size
+# its own folder, UkisAI keeps Swift's at the root -- so the folder is the combination's to declare and is left off
+# entirely when empty. It is never derived from the quantization: that assumption fetched nothing on 5 Oct 2026.
+strata_weights_base_url() {
+  local repo="$1" rev="$2" subdir="${3-}"
+  printf 'https://huggingface.co/%s/resolve/%s%s' "$repo" "$rev" "${subdir:+/$subdir}"
+}
+
 backend_fetch_model() {
   info "Ensuring ${MODEL_DISPLAY_NAME:-$MODEL_REPO} (${MODEL_REPO} @ ${MODEL_REVISION:0:8})..."
   [[ -n "$STRATA_DIR" ]] || _strata_checkout_pinned
   local models="${STRATA_DATA_DIR}/models/${STRATA_QUANT}"
-  local base="https://huggingface.co/${MODEL_REPO}/resolve/${MODEL_REVISION}/${STRATA_QUANT}"
+  local base; base="$(strata_weights_base_url "$MODEL_REPO" "$MODEL_REVISION" "${MODEL_REPO_SUBDIR-}")"
   _strata_require_disk "$models"
   local f want size
   while read -r want f; do
