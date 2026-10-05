@@ -1,3 +1,112 @@
+commit ca8eb832567add29a65c0a4d4b09177accbdaf12
+agent  Mon Oct 5 17:09:07 2026 +0000
+
+    story 4: notes and progress for tasks 7 to 9
+
+
+ NOTES.md    | 87 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ PROGRESS.md |  6 ++---
+ 2 files changed, 90 insertions(+), 3 deletions(-)
+commit c2dd637b79756346ed77cfd0842aff57ff3eb771
+agent  Mon Oct 5 17:09:07 2026 +0000
+
+    story 4 task 9: a hook to break a board in half, from the outside (TC-24)
+
+
+ playwright.config.ts                 |   6 +-
+ src/worker/board-room.ts             |  79 ++++++++++++++++-
+ src/worker/board-store.ts            |  48 +++++++++++
+ src/worker/index.ts                  |  14 +++
+ src/worker/test-hooks.ts             |  72 ++++++++++++++++
+ tests/e2e/broken-board.spec.ts       | 160 +++++++++++++++++++++++++++++++++++
+ tests/integration/test-hooks.test.ts | 155 +++++++++++++++++++++++++++++++++
+ 7 files changed, 530 insertions(+), 4 deletions(-)
+commit 6f0e9f0916ad0d78f97e31e7cb9d8c15f65113c0
+agent  Mon Oct 5 17:09:07 2026 +0000
+
+    story 4 task 7 and 8: the board could not be loaded, so the keyboard goes quiet (TC-22, TC-23, TC-28)
+
+
+ src/client/App.tsx                        |  20 ++-
+ src/client/board/Toolbar.tsx              |  10 +-
+ src/client/canvas/BoardViewport.tsx       |   8 +-
+ src/client/objects/NoteToolbar.tsx        |   9 +-
+ src/client/objects/StickyNote.tsx         |  30 +++-
+ src/client/styles.css                     |  11 ++
+ src/client/sync/ConnectionStatus.tsx      |   8 +-
+ src/client/sync/connectBoard.ts           |  63 ++++++++-
+ tests/component/ConnectionStatus.test.tsx | 223 +++++++++++++++++++++++++++++-
+ 9 files changed, 365 insertions(+), 17 deletions(-)
+commit 5227f56e3cf090e75905245ce111b883da77a7d5
+agent  Mon Oct 5 17:09:07 2026 +0000
+
+    story 4: a change crossing a join handshake can arrive twice, so quiet the wire before counting
+
+
+ tests/integration/board-room.test.ts   |  7 ++++++-
+ tests/integration/helpers/ws-client.ts | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)
+commit 1dd24ae8eebb75468c0e9cc0ffc0731c171f9fd5
+agent  Mon Oct 5 16:17:27 2026 +0000
+
+    story 4 task 6: the browser, and a process that is really killed (TC-19 to TC-21)
+
+
+ NOTES.md                              |  55 +++++++
+ PROGRESS.md                           |   2 +-
+ playwright.config.ts                  |  24 ++-
+ tests/e2e/helpers/board-writer.ts     | 178 ++++++++++++++++++++++
+ tests/e2e/helpers/participants.ts     |  20 ++-
+ tests/e2e/helpers/wrangler-process.ts | 179 ++++++++++++++++++++++
+ tests/e2e/persistence.persist.spec.ts | 273 ++++++++++++++++++++++++++++++++++
+ 7 files changed, 721 insertions(+), 10 deletions(-)
+commit 8262b4098560f1f7e9021700256c3982e5be152e
+agent  Mon Oct 5 15:42:51 2026 +0000
+
+    story 4 task 4+5: the room keeps its board, and the tests that a restart really happened (TC-12 to TC-18, TC-26)
+
+
+ NOTES.md                                    |  88 +++++
+ PROGRESS.md                                 |   4 +-
+ src/shared/config.ts                        |   7 +
+ src/worker/board-room.ts                    | 540 +++++++++++++++++++++++-----
+ src/worker/board-store.ts                   |  10 +
+ tests/integration/board-persistence.test.ts | 384 ++++++++++++++++++++
+ 6 files changed, 933 insertions(+), 100 deletions(-)
+commit 3328bdea080556658910ffbf0001e6f3e305555f
+agent  Mon Oct 5 14:53:01 2026 +0000
+
+    story 4 task 2+3: BoardStore on Durable Object SQLite, and its integration tests (TC-03 to TC-11, TC-25)
+
+
+ NOTES.md                              |  91 +++++
+ PROGRESS.md                           |   6 +-
+ src/worker/board-store.ts             | 432 +++++++++++++++++++++-
+ tests/fixtures/boards.ts              | 286 +++++++++++++++
+ tests/integration/board-store.test.ts | 654 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 1456 insertions(+), 13 deletions(-)
+commit 24026499c2bda694aa179e710da81901cb9dc69b
+agent  Mon Oct 5 14:11:03 2026 +0000
+
+    story 4 task 1: storage and room-state unit tests first (TC-01, TC-02, TC-27)
+
+
+ src/shared/config.ts                  |  28 +++++++
+ src/shared/protocol.ts                |   9 ++
+ src/worker/board-store.ts             |  25 ++++++
+ src/worker/room-state.ts              | 151 ++++++++++++++++++++++++++++++++++
+ tests/unit/board-store-chunks.test.ts |  88 ++++++++++++++++++++
+ tests/unit/room-state.test.ts         | 104 +++++++++++++++++++++++
+ tsconfig.json                         |   1 +
+ 7 files changed, 406 insertions(+)
+commit a51e2181d9caf013ed1469fbf1160fc2fec3e26c
+vidi-agent  Mon Oct 5 13:56:54 2026 +0000
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit 0ad16efab47ce296a7ab432097761d41398d598c
 agent  Mon Oct 5 13:53:57 2026 +0000
 
