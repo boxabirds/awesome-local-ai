@@ -1,3 +1,59 @@
+commit 60fd014eacc69030cbae8f9f6eca1c35e0786735
+agent  Mon Oct 5 08:36:57 2026 +0000
+
+    story 12: Drop images onto the board
+
+
+ PROGRESS.md                             |  18 +-
+ src/client/App.tsx                      |  39 ++++-
+ src/client/board/Toolbar.tsx            |  17 ++
+ src/client/identity.ts                  |  13 ++
+ src/client/images/DropHighlight.tsx     |  13 ++
+ src/client/images/retryRegistry.ts      |  27 +++
+ src/client/images/uploadImage.ts        |  62 +++++++
+ src/client/images/useImageInsert.ts     | 291 ++++++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts      |  55 ++++++
+ src/client/objects/ImageObject.tsx      | 241 ++++++++++++++++++++++++++
+ src/client/objects/index.ts             |   2 +
+ src/client/styles.css                   |  34 ++++
+ src/client/tools/useActiveTool.ts       |  15 +-
+ src/client/ui/Toast.tsx                 |  42 +++++
+ src/shared/board-model.ts               |  25 ++-
+ src/shared/config.ts                    |  29 ++++
+ src/shared/geometry.ts                  |   6 +
+ src/shared/image-format.ts              |  62 +++++++
+ src/shared/objects/image.ts             | 282 +++++++++++++++++++++++++++++++
+ src/worker/assets.ts                    | 115 +++++++++++++
+ src/worker/index.ts                     |  21 ++-
+ tests/component/ImageObject.test.tsx    | 146 ++++++++++++++++
+ tests/component/UndoControls.test.tsx   |   1 +
+ tests/component/useImageInsert.test.tsx | 208 +++++++++++++++++++++++
+ tests/e2e/helpers/drop-files.ts         |  73 ++++++++
+ tests/e2e/images.spec.ts                | 215 +++++++++++++++++++++++
+ tests/fixtures/images/corrupt.png       | Bin 0 -> 108 bytes
+ tests/fixtures/images/renamed-pdf.png   |   1 +
+ tests/fixtures/images/test.svg          |   1 +
+ tests/fixtures/images/tiny-blue.png     | Bin 0 -> 94 bytes
+ tests/fixtures/images/tiny-green.png    | Bin 0 -> 93 bytes
+ tests/fixtures/images/tiny-large.png    | Bin 0 -> 93 bytes
+ tests/fixtures/images/tiny.gif          | Bin 0 -> 64 bytes
+ tests/fixtures/images/tiny.jpg          | Bin 0 -> 270 bytes
+ tests/fixtures/images/tiny.png          | Bin 0 -> 95 bytes
+ tests/fixtures/images/tiny.webp         | Bin 0 -> 66 bytes
+ tests/integration/assets.test.ts        | 209 +++++++++++++++++++++++
+ tests/unit/image-format.test.ts         |  95 +++++++++++
+ tests/unit/image-model.test.ts          | 202 ++++++++++++++++++++++
+ tests/unit/validate-files.test.ts       |  70 ++++++++
+ wrangler.jsonc                          |   3 +-
+ 41 files changed, 2616 insertions(+), 17 deletions(-)
+commit 7806d7d465accb46745d2db04859205a6a97da03
+vidi-agent  Mon Oct 5 07:56:29 2026 +0000
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
 commit 989a56e678e210819feba551ce256d88fb9bde52
 agent  Mon Oct 5 07:53:00 2026 +0000
 

@@ -332,3 +332,32 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
 
 /** The smallest side a stroke may be resized to, in world units. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// --- Story 12: images -------------------------------------------------------
+
+/** MIME types the system accepts for image upload. */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** Maximum upload file size in bytes (10 MB). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Maximum images that can be added in one action. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/** Maximum longest side of a placed image, in world units. */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** Minimum side an image may be resized to, in world units. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** Gap between images placed in a row, in world units. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/** Time after which an uploading image is considered unfinished (5 minutes). */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** Cache-Control max-age for served image assets (1 year). */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/** Number of leading bytes to read for magic-byte type sniffing. */
+export const IMAGE_SNIFF_BYTES = 12;

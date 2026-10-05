@@ -178,7 +178,8 @@ export type AnySnapshot =
   | BoardTextSnapshot
   | ShapeObjectSnapshot
   | ConnectorSnap
-  | StrokeObjectSnapshot;
+  | StrokeObjectSnapshot
+  | import('./objects/image').ImageSnap;
 
 function metaMap(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap(META_KEY);
@@ -653,6 +654,28 @@ export function snapshot(doc: Y.Doc): readonly AnySnapshot[] {
         createdAt: numberOr(note.get('createdAt'), 0),
         ...(typeof createdBy === 'string' ? { createdBy } : {}),
       });
+    } else if (type === 'image') {
+      const status = note.get('status');
+      if (status === 'uploading' || status === 'ready' || status === 'failed') {
+        out.push({
+          id,
+          type: 'image' as const,
+          x: numberOr(note.get('x'), 0),
+          y: numberOr(note.get('y'), 0),
+          width: numberOr(note.get('width'), 0),
+          height: numberOr(note.get('height'), 0),
+          z: numberOr(note.get('z'), 0),
+          createdAt: numberOr(note.get('createdAt'), 0),
+          assetKey: (note.get('assetKey') as string | null) ?? null,
+          contentType: (note.get('contentType') as string) ?? '',
+          naturalWidth: numberOr(note.get('naturalWidth'), 0),
+          naturalHeight: numberOr(note.get('naturalHeight'), 0),
+          status: status as 'uploading' | 'ready' | 'failed',
+          uploadStartedAt: numberOr(note.get('uploadStartedAt'), 0),
+          uploaderId: (note.get('uploaderId') as string) ?? '',
+          text: '',
+        });
+      }
     } else if (type === 'connector') {
       // An arrow's box comes from the objects it joins, so it waits for the
       // first pass to finish.

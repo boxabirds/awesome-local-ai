@@ -24,6 +24,10 @@ import { canEdit } from './sync/connectBoard';
 import { createSticky, deleteObjects, snapshot } from '../shared/board-model';
 import { createText } from '../shared/objects/text';
 import { installApplyUpdate, installBoardHook, reportConnectionState } from './canvas/testHooks';
+import { useImageInsert } from './images/useImageInsert';
+import { DropHighlight } from './images/DropHighlight';
+import { useToast } from './ui/Toast';
+import { setIdentityId } from './identity';
 
 export interface AppProps {
   doc?: Y.Doc;
@@ -50,12 +54,27 @@ export default function App({ doc, boardId }: AppProps = {}) {
   const [camera, setCamera] = useState<Camera>(INITIAL_CAMERA);
   const viewportApi = useRef<BoardViewportApi | null>(null);
 
+  // --- Image insert (story 12) ------------------------------------------------
+
+  setIdentityId('local');
+  const toast = useToast();
+  const imageInsert = useImageInsert({
+    doc: boardDoc,
+    boardId: boardId ?? 'unknown',
+    camera,
+    connection,
+    identityId: 'local',
+    viewportCentreWorld: () => viewportApi.current?.viewportCentreWorld() ?? { x: 0, y: 0 },
+    onToast: toast.api.show,
+  });
+
   // --- Tool mode (story 9, story 10) -----------------------------------------
 
   const active = useActiveTool({
     canEdit: !locked,
     selection,
     onCreateSticky: () => createStickyAtCentre(),
+    onOpenImagePicker: () => imageInsert.openPicker(),
   });
 
   // Pen colour and thickness: session state, the document never restyles itself.
@@ -148,6 +167,14 @@ export default function App({ doc, boardId }: AppProps = {}) {
   );
 
   useEffect(() => {
+    function handlePaste(e: ClipboardEvent) {
+      imageInsert.onPaste(e);
+    }
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [imageInsert.onPaste]);
+
+  useEffect(() => {
     installBoardHook(() => snapshot(boardDoc));
     installApplyUpdate((bytes) => Y.applyUpdate(boardDoc, bytes));
   }, [boardDoc]);
@@ -168,7 +195,14 @@ export default function App({ doc, boardId }: AppProps = {}) {
 
   return (
     <UndoContext.Provider value={undoHistory}>
-    <main className="app" data-testid="app-root">
+    <main
+      className="app"
+      data-testid="app-root"
+      onDragOver={(e) => { imageInsert.onDragOver(e.nativeEvent); if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } }}
+      onDragEnter={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); } }}
+      onDragLeave={(e) => { imageInsert.onDragLeave(e.nativeEvent); }}
+      onDrop={(e) => { imageInsert.onDrop(e.nativeEvent); }}
+    >
       <ConnectionStatus state={connection} />
       <SelectionAnnouncement count={selection.count} />
       <Toolbar
@@ -179,6 +213,7 @@ export default function App({ doc, boardId }: AppProps = {}) {
         onTool={active.setTool}
         shapeKind={active.shapeKind}
         onShapeKind={active.setShapeKind}
+        onOpenImagePicker={imageInsert.openPicker}
       />
       {active.tool === 'pen' ? (
         <PenToolbar
@@ -274,6 +309,8 @@ export default function App({ doc, boardId }: AppProps = {}) {
           );
         })}
       </BoardViewport>
+      <DropHighlight visible={imageInsert.dropHighlightVisible} />
+      <toast.ToastComponent />
     </main>
     </UndoContext.Provider>
   );

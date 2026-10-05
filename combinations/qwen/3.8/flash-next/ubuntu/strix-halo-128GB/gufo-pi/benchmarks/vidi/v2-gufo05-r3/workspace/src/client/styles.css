@@ -937,3 +937,37 @@ body,
   border-radius: 50%;
   background: #2b3245;
 }
+
+/* --- Story 12: images ------------------------------------------------------- */
+
+.drop-highlight {
+  position: absolute;
+  inset: 0;
+  border: 3px dashed #1976d2;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1000;
+  background: rgba(25, 118, 210, 0.05);
+}
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #323232;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 2000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  max-width: 480px;
+  text-align: center;
+}
+
+.image-progress-text {
+  font-size: 11px;
+  color: #555;
+  margin-top: 2px;
+}

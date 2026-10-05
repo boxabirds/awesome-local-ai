@@ -53,7 +53,7 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 };
 
 /** Tools this build has a key for but no drawing yet, so they are inert. */
-export const UNBOUND_TOOLS: readonly ToolId[] = ['image', 'comment'];
+export const UNBOUND_TOOLS: readonly ToolId[] = ['comment'];
 
 /** The tools that make something, and so need the board to be editable. */
 export function isCreateTool(tool: ToolId): boolean {
@@ -88,17 +88,19 @@ export interface ActiveToolOptions {
   selection?: SelectionApi;
   /** Put a sticky note on the board (N): sticky is an action, not a mode. */
   onCreateSticky?(): void;
+  /** Open the image file picker (I): image is an action, not a mode. */
+  onOpenImagePicker?(): void;
 }
 
 export function useActiveTool(options: ActiveToolOptions = {}): ActiveToolApi {
-  const { canEdit = true, selection, onCreateSticky } = options;
+  const { canEdit = true, selection, onCreateSticky, onOpenImagePicker } = options;
   const [tool, setActiveTool] = useState<ToolId>('select');
   const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
 
   // The listener is installed once, so it reads the current values through a ref
   // instead of being torn down and re-installed on every render.
-  const live = useRef({ tool, canEdit, selection, onCreateSticky });
-  live.current = { tool, canEdit, selection, onCreateSticky };
+  const live = useRef({ tool, canEdit, selection, onCreateSticky, onOpenImagePicker });
+  live.current = { tool, canEdit, selection, onCreateSticky, onOpenImagePicker };
 
   const setTool = useCallback((next: ToolId): void => {
     // A key this build has no drawing for yet does nothing at all: a tool that is
@@ -108,6 +110,11 @@ export function useActiveTool(options: ActiveToolOptions = {}): ActiveToolApi {
     if (isCreateTool(next) && !live.current.canEdit) return;
     if (next === 'sticky') {
       live.current.onCreateSticky?.();
+      setActiveTool('select');
+      return;
+    }
+    if (next === 'image') {
+      live.current.onOpenImagePicker?.();
       setActiveTool('select');
       return;
     }

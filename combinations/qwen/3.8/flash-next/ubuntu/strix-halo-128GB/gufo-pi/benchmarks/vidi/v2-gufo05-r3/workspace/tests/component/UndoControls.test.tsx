@@ -133,6 +133,7 @@ describe('undo and redo buttons (undo.buttons)', () => {
       'Shape kind menu',
       'Connector (L)',
       'Pen (P)',
+      'Image (I)',
       'Undo',
       'Redo',
     ]);

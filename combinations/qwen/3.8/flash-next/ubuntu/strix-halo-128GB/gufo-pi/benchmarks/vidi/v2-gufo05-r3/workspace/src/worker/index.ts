@@ -17,12 +17,15 @@ import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { TEST_HOOK_PREFIX, parseTestHook, testHooksEnabled } from './test-hooks';
+import { handleServe, handleUpload } from './assets';
 
 export interface Env {
   /** The room per board (one object instance per board id). */
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** Static client build. */
   ASSETS: Fetcher;
+  /** R2 bucket for uploaded image assets. */
+  ASSETS_BUCKET: R2Bucket;
   /**
    * `1` turns on the storage test hooks under `/__test/boards/`. Set only by the
    * e2e dev server; absent from the production configuration, which is what makes
@@ -36,6 +39,10 @@ const ROOM_PREFIX = '/api/rooms/';
 /** The board collection (POST to create) and a single board (GET to check). */
 const BOARDS_PATH = '/api/boards';
 const BOARD_PREFIX = '/api/boards/';
+/** Asset serving prefix. */
+const ASSET_PREFIX = '/api/assets/';
+/** Suffix for board asset upload. */
+const ASSET_SUFFIX = '/assets';
 
 /** True for `Upgrade: websocket` (case-insensitive, as HTTP requires). */
 function isUpgradeToWebsocket(request: Request): boolean {
@@ -74,16 +81,28 @@ export default {
     }
 
     if (pathname.startsWith(BOARD_PREFIX)) {
+      const rest = pathname.slice(BOARD_PREFIX.length);
+      // POST /api/boards/:boardId/assets — upload an image
+      if (rest.endsWith(ASSET_SUFFIX) && request.method === 'POST') {
+        const boardId = rest.slice(0, -ASSET_SUFFIX.length);
+        return handleUpload(request, env, boardId);
+      }
       if (request.method !== 'GET') {
         return new Response('Method Not Allowed', { status: 405 });
       }
-      const boardId = pathname.slice(BOARD_PREFIX.length);
+      const boardId = rest;
       // A malformed id is not a board, and must never reach (or create) a Durable
       // Object. Unknown and malformed ids get the same 404: nothing is leaked.
       if (!isValidBoardId(boardId)) return json({ error: 'not_found' }, 404);
       const room = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
       const exists = await room.exists();
       return exists ? json({ id: boardId }, 200) : json({ error: 'not_found' }, 404);
+    }
+
+    // GET /api/assets/:boardId/:assetId — serve a stored image
+    if (pathname.startsWith(ASSET_PREFIX) && request.method === 'GET') {
+      const key = pathname.slice(ASSET_PREFIX.length);
+      return handleServe(env, key);
     }
 
     if (!pathname.startsWith(ROOM_PREFIX)) return env.ASSETS.fetch(request);

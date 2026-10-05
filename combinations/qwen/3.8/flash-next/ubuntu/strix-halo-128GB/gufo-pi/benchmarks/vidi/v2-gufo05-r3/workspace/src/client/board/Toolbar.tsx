@@ -39,6 +39,8 @@ export interface ToolbarProps {
   shapeKind?: ShapeKind;
   /** Pick the kind from the Shape menu. */
   onShapeKind?(kind: ShapeKind): void;
+  /** Open the image file picker (I key / Image button). */
+  onOpenImagePicker?(): void;
 }
 
 /**
@@ -63,6 +65,7 @@ export function Toolbar(props: ToolbarProps) {
     onTool,
     shapeKind = 'rect',
     onShapeKind,
+    onOpenImagePicker,
   } = props;
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -204,6 +207,20 @@ export function Toolbar(props: ToolbarProps) {
           {TOOL_LABELS.pen.icon}
         </span>
         <span className="board-toolbar-text">Pen</span>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar-btn"
+        aria-label="Image (I)"
+        title="Image (I)"
+        data-tool-image=""
+        disabled={locked}
+        onClick={locked || !onOpenImagePicker ? undefined : onOpenImagePicker}
+      >
+        <span className="board-toolbar-icon" aria-hidden="true">
+          {'\uD83D\uDBBC'}
+        </span>
+        <span className="board-toolbar-text">Image</span>
       </button>
       <UndoButtons {...undo} />
     </div>

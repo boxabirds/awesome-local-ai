@@ -21,6 +21,12 @@ export interface Rect {
   height: number;
 }
 
+/** A width and height in world units. */
+export interface Size {
+  readonly width: number;
+  readonly height: number;
+}
+
 /** The eight resize handles of a bounding box. */
 export type Handle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 
