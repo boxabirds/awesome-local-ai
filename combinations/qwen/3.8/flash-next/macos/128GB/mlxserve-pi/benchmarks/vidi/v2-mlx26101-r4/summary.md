@@ -14,8 +14,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 4 | 4/4 | 0 | 0 | 28/31 |
 | 5 | 5/5 | 0 | 1 | 34/36 |
 | 7 | 8/8 | 1 | 0 | 41/44 |
+| 8 | 7/7 | 0 | 0 | 48/51 |
 
-**New work** 37/40, **regressions** 1, **repairs** 1, **cumulative** 41/44.
+**New work** 44/47, **regressions** 1, **repairs** 1, **cumulative** 48/51.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -25,8 +26,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 4 | Return to a board and find everything as it was left | PARTIAL (amber) | 119.6 | None | None | None | — | — | green | 28/31 |  | 0 / 1 | 6 | — | throttled 95%, server peak 94 GB |
 | 5 | Share a board with others using a link | DONE, on partial 4 | 98.1 | None | None | None | — | — | green | 34/36 |  | 0 / 0 | 4 | — | throttled 81%, server peak 94 GB |
 | 7 | Select, move, resize and delete several objects at once | PARTIAL (green), on partial 4 | 138.6 | None | None | None | — | — | green | 41/44 |  | 0 / 1 | 7 | — | throttled 88%, server peak 95 GB |
+| 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 4, 7 | 70.6 | None | None | None | — | — | green | 48/51 |  | 0 / 1 | 3 | — | throttled 92%, server peak 95 GB |
 
-**Totals:** 6 stories, 646 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 6/6, final acceptance 41/44, stalled 0, partial 2, 24734 lines in src+tests.
+**Totals:** 7 stories, 717 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/7, final acceptance 48/51, stalled 0, partial 2, 27028 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -34,6 +36,7 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - Story 5, built on partial 4: held-out tests on the partial base 9/9; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - **Story 7 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **green**: gate green, tasks not verified none (implementation: none), held-out 8/8 (floor 0.0).
 - Story 7, built on partial 4: held-out tests on the partial base 17/17; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- Story 8, built on partial 4, 7: held-out tests on the partial base 24/24; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -47,6 +50,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 4 | 6 by the agent, + harness snapshot | 4408 / 228 | `board-store.ts` (918), `board-room.ts` (492), `room-state.ts` (152), `test-seed.ts` (90), `test-hooks.ts` (67), `connectBoard.ts` (59), +13 more |
 | 5 | 1 by the agent | 3600 / 318 | `BoardPage.tsx` (326), `styles.css` (249), `App.tsx` (243), `SharePanel.tsx` (232), `board-store.ts` (209), `NOTES.md` (188), +13 more |
 | 7 | 1 by the agent | 6135 / 452 | `useTransformGesture.ts` (466), `board-model.ts` (378), `StickyNote.tsx` (366), `geometry.ts` (282), `useSelection.ts` (241), `Marquee.tsx` (218), +14 more |
+| 8 | 1 by the agent | 2447 / 21 | `undo.ts` (171), `NOTES.md` (132), `UndoButtons.tsx` (91), `BoardPage.tsx` (88), `useBoardKeys.ts` (67), `StickyTextEditor.tsx` (63), +7 more |
 
 ### Earlier stories broken or fixed
 
