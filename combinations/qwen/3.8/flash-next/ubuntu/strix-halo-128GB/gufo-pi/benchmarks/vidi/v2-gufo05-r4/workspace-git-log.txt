@@ -1,3 +1,40 @@
+commit a887e39d0ad6455376b9d0477a49591f4435ea52
+agent  Mon Oct 5 21:32:35 2026 +0000
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ NOTES.md                                  |  83 ++++++++++
+ PROGRESS.md                               |  62 +++++--
+ src/client/board/BoardScreen.tsx          |  42 ++++-
+ src/client/board/Toolbar.tsx              |  13 +-
+ src/client/board/UndoButtons.tsx          |  73 +++++++++
+ src/client/board/undo.ts                  | 126 +++++++++++++++
+ src/client/board/useBoardKeys.ts          |  35 +++-
+ src/client/board/useTransformGesture.ts   |   5 +-
+ src/client/board/useUndo.ts               |  84 ++++++++++
+ src/client/objects/StickyNote.tsx         |  13 +-
+ src/client/objects/StickyTextEditor.tsx   |  30 ++++
+ src/client/styles.css                     |  17 ++
+ src/shared/config.ts                      |  16 ++
+ tests/component/ConnectionStatus.test.tsx |   9 +-
+ tests/component/undo-boundaries.test.tsx  | 227 ++++++++++++++++++++++++++
+ tests/component/undo-controls.test.tsx    | 179 +++++++++++++++++++++
+ tests/e2e/persistence.persist.spec.ts     |  11 +-
+ tests/e2e/undo.spec.ts                    | 200 +++++++++++++++++++++++
+ tests/unit/helpers/peer.ts                |  80 +++++++++
+ tests/unit/undo-boundaries.test.ts        | 117 ++++++++++++++
+ tests/unit/undo-history.test.ts           | 258 ++++++++++++++++++++++++++++++
+ vitest.config.ts                          |   7 +-
+ 22 files changed, 1656 insertions(+), 31 deletions(-)
+commit 921c4193f50abd1e2177895e67a83f84b2c4e841
+vidi-agent  Mon Oct 5 20:33:53 2026 +0000
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 49 +++++++++----------------------------------------
+ 1 file changed, 9 insertions(+), 40 deletions(-)
 commit 25da1a36d65b1d9d81ce8e2df1590b83652e0819
 agent  Mon Oct 5 20:30:40 2026 +0000
 
