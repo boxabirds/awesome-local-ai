@@ -46,9 +46,15 @@ assert_eq "...and OUTPUT_LIMIT 32768" 32768 "$(cfg OUTPUT_LIMIT "$CFG")"
 PT="$REPO_ROOT/combinations/$COMBO/profiles.tsv"
 SCHEMA="$(bash -c ". '$REPO_ROOT/lib/common.sh'; . '$LIB'; echo \$PROFILE_SCHEMA")"
 assert_ok "profiles.tsv declares the strata schema on line 1" bash -c "head -1 '$PT' | grep -qx '# $SCHEMA'"
-assert_ok "every profile row has 6 columns" bash -c "awk -F'|' '!/^[[:space:]]*(#|\$)/ && NF!=6 {bad=1} END{exit bad}' '$PT'"
+NCOL="$(awk -F'|' '{print NF}' <<< "$SCHEMA")"
+assert_ok "every profile row has as many columns as the schema declares" bash -c "awk -F'|' -v n='$NCOL' '!/^[[:space:]]*(#|\$)/ && NF!=n {bad=1} END{exit bad}' '$PT'"
 assert_eq "the default profile serves the full 131072" 131072 "$(awk -F'|' -v p="$(bash -c ". '$CFG'; echo \$DEFAULT_PROFILE")" '$1==p{print $2}' "$PT")"
-assert_ok "the profile's memory figures are labelled MEASURED, with the date" bash -c "awk -F'|' '!/^[[:space:]]*(#|\$)/ && \$5 !~ /^MEASURED-2026-10-02\$/ {bad=1} END{exit bad}' '$PT'"
+BASIS_COL="$(awk -F'|' '{for (i = 1; i <= NF; i++) if ($i == "basis") print i}' <<< "$SCHEMA")"
+assert_ok "the profile's memory figures are labelled MEASURED, with the date" bash -c "awk -F'|' -v c='$BASIS_COL' '!/^[[:space:]]*(#|\$)/ && \$c !~ /^MEASURED-20[0-9][0-9]-[01][0-9]-[0-3][0-9]\$/ {bad=1} END{exit bad}' '$PT'"
+MIN_COL="$(awk -F'|' '{for (i = 1; i <= NF; i++) if ($i == "min_vram_mib") print i}' <<< "$SCHEMA")"
+PEAK_COL="$(awk -F'|' '{for (i = 1; i <= NF; i++) if ($i == "need_vram_mib") print i}' <<< "$SCHEMA")"
+# The floor is what the launcher gates on, so it can never be the peak dressed up as one (A-045).
+assert_ok "every profile's VRAM floor is below its measured peak" bash -c "awk -F'|' -v m='$MIN_COL' -v k='$PEAK_COL' '!/^[[:space:]]*(#|\$)/ && \$m+0 >= \$k+0 {bad=1} END{exit bad}' '$PT'"
 assert_fails "no home paths in the combination or the module (machine names: tests/privacy-test.sh)" \
   grep -rIEn '/Users/|/home/[a-z]' "$REPO_ROOT/combinations/$COMBO" "$LIB" "$LAUNCHER"
 
@@ -192,8 +198,13 @@ assert_fails "an unknown profile is refused" launch PROFILE=nope
 assert_fails "another model server running -> refused" launch PS_OUT="  4242 /x/llama-server -m m.gguf --port 8010"
 assert_ok "...the refusal names it" grep -q 'llama-server' "$WORK/launch.out"
 assert_fails "...and Strata never started" test -f "$ARGV"
-assert_fails "less than the VRAM the model needs is refused" launch FREE_VRAM_MIB=20000
-assert_ok "...saying how much is free and how much it needs" grep -qE '20000 MiB.*2[0-9]{4}|2[0-9]{4} MiB.*20000' "$WORK/launch.out"
+# The gate is a floor, not the peak. Strata sizes its expert cache to what is free (--expert-cache auto), so the most
+# it will use is not a precondition: on 5 Oct 2026 it refused 23,525 MiB free against a 23,955 MiB peak, while the same
+# build ran in 16.5 GiB and answered a 108k-token prompt with the same prompt reuse (A-045).
+rm -f "$ARGV"; launch FREE_VRAM_MIB=20000
+assert_ok "VRAM above the floor but below the measured peak still starts: the expert cache sizes itself" test -f "$ARGV"
+assert_fails "less VRAM than the floor is refused" launch FREE_VRAM_MIB=12000
+assert_ok "...saying how much is free and how little it needs" grep -qE '12000 MiB.*1[0-9]{4}|1[0-9]{4} MiB.*12000' "$WORK/launch.out"
 assert_fails "less RAM available than the model's resident set is refused" launch AVAIL_MIB=30000
 assert_ok "...naming the RAM" grep -q 'RAM' "$WORK/launch.out"
 rm -f "$ARGV"; launch ALLOW_COEXIST=1 PS_OUT="  4242 /x/llama-server -m m.gguf"

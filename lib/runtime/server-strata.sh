@@ -45,7 +45,7 @@ USAGE
 PROFILES                                          (default: ${DEFAULT_PROFILE})
 HDR
   awk -F'|' '!/^[[:space:]]*(#|$)/ {
-    printf "  %-8s %7s ctx  vram %-6s ram %-6s %-19s %s\n", $1, $2, $3, $4, $5, $6
+    printf "  %-8s %7s ctx  vram %s-%-6s ram %-6s %-19s %s\n", $1, $2, $3, $4, $5, $6, $7
   }' "$ROOT/profiles.tsv"
   echo
   [[ -f "$ROOT/help.txt" ]] && cat "$ROOT/help.txt"
@@ -66,7 +66,7 @@ PROFILE="${PROFILE:-$DEFAULT_PROFILE}"
 row="$(profile_row "$PROFILE")" || {
   echo "${SERVER_CMD}: unknown PROFILE '$PROFILE'; '${SERVER_CMD} --help' lists them." >&2
   exit 1; }
-IFS='|' read -r _ D_CTX NEED_VRAM NEED_RAM _ _ <<< "$row"
+IFS='|' read -r _ D_CTX MIN_VRAM NEED_VRAM NEED_RAM _ _ <<< "$row"
 
 PORT="${PORT:-${DEFAULT_PORT:-8080}}"
 HOST="${HOST:-127.0.0.1}"
@@ -94,11 +94,13 @@ if [[ "${ALLOW_COEXIST:-0}" != "1" ]]; then
   fi
 fi
 
-# Pre-flight against what the profile was measured to need.
+# Pre-flight against the floor the profile was measured at, never its peak: Strata sizes its hot-expert cache to the
+# VRAM that is free, so with less it runs with a smaller cache rather than failing. Gating on the peak refused a
+# configuration that works (A-045, 5 Oct 2026).
 if command -v nvidia-smi >/dev/null 2>&1; then
   free_vram="$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ' || true)"
-  if [[ "${free_vram:-}" =~ ^[0-9]+$ ]] && (( free_vram < NEED_VRAM )); then
-    echo "${SERVER_CMD}: ${free_vram} MiB of VRAM is free; profile '${PROFILE}' needs ${NEED_VRAM} MiB. Stop what is using the GPU." >&2
+  if [[ "${free_vram:-}" =~ ^[0-9]+$ ]] && (( free_vram < MIN_VRAM )); then
+    echo "${SERVER_CMD}: ${free_vram} MiB of VRAM is free; profile '${PROFILE}' needs at least ${MIN_VRAM} MiB. Stop what is using the GPU." >&2
     exit 1
   fi
 fi
