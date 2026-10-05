@@ -182,3 +182,22 @@ export const STORAGE_SCHEMA_VERSION = 1;
  * which is what "idle costs nothing" means in compute terms (design.md 3.5).
  */
 export const BOARD_IDLE_RELEASE_MS = 60_000;
+
+/* ------------------------------------------------------------ sharing (story 5) */
+
+/**
+ * How long creating a board may take, from the click on "New board" to an empty board
+ * on screen (`share.create`). Reported in e2e, never asserted: the model, the browsers
+ * and the server share one machine here, exactly as with the story 3 budgets.
+ */
+export const CREATE_BUDGET_MS = 2000;
+
+/** How long the Share panel's "Link copied" confirmation stays up (`share.copy`). */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * First wait before re-checking whether a board link exists. Each failure doubles the
+ * wait, up to `RECONNECT_MAX_BACKOFF_MS` — the same ceiling the live connection uses,
+ * so one unreachable service costs one backoff rhythm however the app is knocking.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

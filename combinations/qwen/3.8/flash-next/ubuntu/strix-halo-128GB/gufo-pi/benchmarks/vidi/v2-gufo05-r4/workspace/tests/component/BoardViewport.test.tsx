@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { BoardScreen } from '../../src/client/board/BoardScreen';
 import { BoardViewport } from '../../src/client/canvas/BoardViewport';
 import { panBy, resetCamera, worldToScreen, zoomAt, zoomStep } from '../../src/client/canvas/camera';
 import { CameraProvider } from '../../src/client/canvas/useCamera';
@@ -111,7 +111,7 @@ describe('pan by dragging (pan.drag)', () => {
   });
 
   it('TC-29: a click without movement leaves the camera alone', async () => {
-    const { container } = render(<App />);
+    const { container } = render(<BoardScreen />);
     await flushCameraFrame();
     const viewport = viewportElement(container);
     const before = worldTransform(container);
@@ -237,7 +237,7 @@ describe('zoom around the pointer (zoom.pointer)', () => {
 
 describe('zoom with buttons and keys (zoom.step)', () => {
   it('TC-18: Ctrl/Cmd + = / - / 0 zoom one step and reset, each prevented', async () => {
-    const { container } = render(<App />);
+    const { container } = render(<BoardScreen />);
     await flushCameraFrame();
     const start = resetCamera(VIEWPORT_SIZE);
 
@@ -279,7 +279,7 @@ describe('zoom with buttons and keys (zoom.step)', () => {
 
 describe('negative scenarios (zoom.no_page_zoom and board-owned gestures)', () => {
   it('TC-30: Ctrl/Cmd + wheel over the zoom control does not zoom the board', async () => {
-    const { container } = render(<App />);
+    const { container } = render(<BoardScreen />);
     await flushCameraFrame();
     const before = { ...testCamera() };
     const controls = container.querySelector<HTMLElement>('[data-vidi6="zoom-controls"]');
@@ -299,7 +299,7 @@ describe('negative scenarios (zoom.no_page_zoom and board-owned gestures)', () =
   });
 
   it('TC-30: a plain scroll over the zoom control does not pan the board either', async () => {
-    const { container } = render(<App />);
+    const { container } = render(<BoardScreen />);
     await flushCameraFrame();
     const before = { ...testCamera() };
     const controls = container.querySelector<HTMLElement>('[data-vidi6="zoom-controls"]');

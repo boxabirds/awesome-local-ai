@@ -132,9 +132,17 @@ export class BoardRoom extends DurableObject<Env> {
    */
   async fetch(request: Request): Promise<Response> {
     const pathname = new URL(request.url).pathname;
-    if (pathname.startsWith(TEST_HOOK_PREFIX)) return this.testHook(pathname);
+    if (pathname.startsWith(TEST_HOOK_PREFIX)) return this.testHook(request);
     if ((request.headers.get('Upgrade') ?? '').toLowerCase() !== 'websocket') {
       return Response.json(this.status(BoardRoom.boardIdOf(request)));
+    }
+
+    // Story 5: an address that belongs to no board is not a room, and is refused before
+    // a socket is accepted. The check reads, so a mistyped link leaves no board behind
+    // (`share.not_found`), and a storage that cannot answer is not reported as "no board"
+    // — that board exists and its people get story 4's close code instead.
+    if (this.boardExists() === false) {
+      return new Response('Board not found', { status: 404 });
     }
 
     await this.readyToServe();
@@ -190,7 +198,51 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   /**
-   * Test-only board surgery (story 4's TC-24).
+   * Make this board exist (`share.create`).
+   *
+   * Called over RPC by `createBoard`, never by a browser. It waits for the load that is
+   * already under way rather than racing it, because two writers of the same tables is how
+   * a board loses its first change.
+   *
+   * The document this instance holds does not change: a board that has just been created
+   * has no updates, which is the empty document it already had.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    if (this.loading !== null) await this.loading;
+    const store = this.store ?? this.openStore();
+    return store.initialize();
+  }
+
+  /**
+   * Does this board exist? (`share.open_link`)
+   *
+   * Reads, so asking is free and leaves nothing behind. A storage that cannot answer is
+   * answered as "no" here, which is the safe direction for a stranger holding a link; the
+   * WebSocket path tells the two apart (`boardExists`).
+   */
+  async exists(): Promise<boolean> {
+    if (this.loading !== null) await this.loading;
+    return this.boardExists() === true;
+  }
+
+  /**
+   * Is there a board in this object's storage?
+   *
+   * `null` means storage could not answer, which is a different story from "there is no
+   * board here" and must not be told as one: story 4 spent itself on the difference
+   * between an empty board and an unreadable one.
+   */
+  private boardExists(): boolean | null {
+    try {
+      return (this.store ?? this.openStore()).existsReadOnly();
+    } catch (error) {
+      log({ event: 'existence_check_failed', error: textOf(error) });
+      return null;
+    }
+  }
+
+  /**
+   * Test-only board surgery (story 4's TC-24, story 5's legacy board).
    *
    * The gate is at the door rather than here: a Durable Object has no address of its
    * own, so the only way this path is reached is through the Worker's `/__test/` route,
@@ -210,15 +262,28 @@ export class BoardRoom extends DurableObject<Env> {
    * `load-failed`, and the next person to ask — once the retry window has passed —
    * reads the board for real and gets it.
    */
-  private async testHook(pathname: string): Promise<Response> {
+  private async testHook(request: Request): Promise<Response> {
+    const pathname = new URL(request.url).pathname;
     const action = pathname.slice(TEST_HOOK_PREFIX.length);
-    if (action !== 'repair' && action !== 'corrupt-snapshot') {
+    if (action !== 'repair' && action !== 'corrupt-snapshot' && action !== 'seed-legacy') {
       return new Response('No such test hook', { status: 404 });
     }
     // Storage is not touched while the board is on its way into memory: two readers of
     // the same rows, one of them rewriting them, is a story nobody wants to debug.
     if (this.loading !== null) await this.loading;
     const store = this.store ?? this.openStore();
+
+    if (action === 'seed-legacy') {
+      const updates = await seedUpdates(request);
+      const rows = store.seedLegacy(updates);
+      // The board is in storage now, but this instance is holding the empty document it
+      // made before the seed arrived. Letting go of it is the whole point: the next reader
+      // then reads the seeded rows through the same path any waking room uses.
+      this.board = null;
+      this.state = nextRoomState(this.state, { type: 'hibernate' });
+      log({ event: 'test_hook_seed_legacy', rows });
+      return Response.json({ ok: true, rows });
+    }
 
     if (action === 'repair') {
       const restored = await store.restoreSnapshotChunkZero();
@@ -289,15 +354,14 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   /**
-   * The board's storage, migrated on first use.
+   * The board's storage.
    *
-   * Opening is not a write: a board nobody has edited stays exactly as empty as it
-   * was, because `migrate` creates tables and no update rows.
+   * Opening is not a write, and since story 5 neither is *finding*: the tables are made
+   * by `initialize` (a board somebody asked for) or by the first update that needs them,
+   * so a board nobody has created and nobody has edited stays as absent as it was.
    */
   private openStore(): BoardStore {
-    const store = new BoardStore(this.ctx.storage);
-    store.migrate();
-    return store;
+    return new BoardStore(this.ctx.storage);
   }
 
   /** The code for a connection that cannot be served: see `storageFailure`. */
@@ -620,6 +684,23 @@ export class BoardRoom extends DurableObject<Env> {
       return '';
     }
   }
+}
+
+/**
+ * The updates a legacy-board seed carries: arrays of bytes, as JSON can hold them.
+ * Nothing else about a legacy board is invented — above all no `created_at`, which is
+ * precisely the shape a pre-story-5 board is (`share.legacy_boards`).
+ */
+async function seedUpdates(request: Request): Promise<Uint8Array[]> {
+  const body = (await request.json().catch(() => null)) as { updates?: unknown } | null;
+  const listed = Array.isArray(body?.updates) ? body.updates : [];
+  return listed.map((item, index) => {
+    const bytes = item as unknown[];
+    if (!Array.isArray(bytes) || bytes.some((byte) => !Number.isInteger(byte) || (byte as number) < 0 || (byte as number) > 255)) {
+      throw new Error(`seed update ${index} is not a list of bytes`);
+    }
+    return Uint8Array.from(bytes as number[]);
+  });
 }
 
 /**

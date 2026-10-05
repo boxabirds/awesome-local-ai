@@ -11,7 +11,8 @@ import { defineConfig, devices, type Project } from '@playwright/test';
  */
 const PORT = 21330;
 const INSPECTOR_PORT = 21331;
-const BASE_URL = `http://127.0.0.1:${PORT}`;
+/** Exported so helpers can build absolute URLs for a board of their own. */
+export const BASE_URL = `http://127.0.0.1:${PORT}`;
 const VIEWPORT = { width: 1280, height: 800 };
 
 /**

@@ -427,3 +427,193 @@ body {
   border-color: var(--status-red-border);
   color: var(--status-red-ink);
 }
+
+/* --------------------------------------------------------------- pages (story 5) */
+
+/*
+ * Home, Board not found and the two waiting states share one shell: a centred column with
+ * the product's name at the top left. They are the only screens that are not a board, and
+ * the only ones the board's `overflow: hidden` would otherwise clip in a strange way, so
+ * they get their own padding and centre themselves in the viewport.
+ */
+.vidi6-page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  background: var(--board-background);
+}
+
+.vidi6-page__header {
+  position: absolute;
+  left: 16px;
+  top: 12px;
+}
+
+.vidi6-logo {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+/* The one sentence the product says about itself, and the one button. */
+.vidi6-home {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.vidi6-home__pitch {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/*
+ * The space under the button belongs to the failure message whether or not there is one:
+ * a message that moved the button would make the thing a person just clicked jump.
+ */
+.vidi6-home__message {
+  min-height: 20px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--status-red-ink);
+}
+
+.vidi6-not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.vidi6-not-found h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.vidi6-not-found__detail {
+  margin: 0;
+  max-width: 36ch;
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+
+.vidi6-not-found__home {
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+/* "Opening board…" and "Couldn't reach vidi6. Retrying…": the page waiting on the server. */
+.vidi6-page--status {
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+
+/* ------------------------------------------------------------------- buttons */
+
+.vidi6-button {
+  min-height: 32px;
+  padding: 6px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.vidi6-button:hover:not(:disabled) {
+  background: #f1f3f7;
+}
+
+.vidi6-button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.vidi6-button--primary {
+  border-color: var(--note-selection);
+  background: var(--note-selection);
+  color: #ffffff;
+}
+
+.vidi6-button--primary:hover:not(:disabled) {
+  background: #2862d5;
+}
+
+/* The button a person has just clicked, waiting on a board: still there, not clickable. */
+.vidi6-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------ share (story 5) */
+
+/*
+ * The Share button sits top-right, out of the way of the connection badge (top centre) and
+ * the tool palette (left edge), and above the notes: it is the one control on a board that
+ * is about the board rather than about what is on it.
+ */
+.vidi6-share {
+  position: fixed;
+  right: 16px;
+  top: 12px;
+  z-index: 41;
+}
+
+.vidi6-share__panel {
+  position: absolute;
+  right: 0;
+  top: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(320px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+}
+
+.vidi6-share__link {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  background: #f7f8fa;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.vidi6-share__link:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.vidi6-share__note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-muted);
+}
+
+/* The clipboard refused; the link is selected instead. Amber, because the next keystroke is
+   the person's, not the page's. */
+.vidi6-share__manual {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--status-amber-ink);
+}

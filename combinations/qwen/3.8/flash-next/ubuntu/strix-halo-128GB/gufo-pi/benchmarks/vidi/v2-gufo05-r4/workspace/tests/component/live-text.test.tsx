@@ -12,7 +12,7 @@
 import { cleanup, render, type RenderResult } from '@testing-library/react';
 import * as Y from 'yjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { BoardScreen } from '../../src/client/board/BoardScreen';
 import { getStickyText, snapshot } from '../../src/shared/board-model';
 import {
   doubleClick,
@@ -46,7 +46,7 @@ afterEach(() => {
 
 async function boardWithOneNote(): Promise<BoardFixture> {
   const doc = new Y.Doc();
-  const result = render(<App doc={doc} />);
+  const result = render(<BoardScreen doc={doc} />);
   await flushCameraFrame();
   doubleClick(viewportElement(result.container), 500, 350);
   return {

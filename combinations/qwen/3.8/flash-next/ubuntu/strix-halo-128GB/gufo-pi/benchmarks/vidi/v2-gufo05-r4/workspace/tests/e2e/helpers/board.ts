@@ -5,7 +5,8 @@
  * a million pixels.
  */
 
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, request as playwrightRequest, type Locator, type Page } from '@playwright/test';
+import { BASE_URL } from '../../../playwright.config';
 import type { Camera, Point, Size } from '../../../src/client/canvas/camera';
 import type { StickySnapshot } from '../../../src/shared/board-model';
 import { UNBOUNDED_PAN_TESTED_EXTENT, ZOOM_MAX } from '../../../src/shared/config';
@@ -13,9 +14,73 @@ import { UNBOUNDED_PAN_TESTED_EXTENT, ZOOM_MAX } from '../../../src/shared/confi
 export const BOARD_SIZE: Size = { width: 1280, height: 800 };
 export const BOARD_CENTRE: Point = { x: BOARD_SIZE.width / 2, y: BOARD_SIZE.height / 2 };
 
-export async function openBoard(page: Page): Promise<void> {
-  await page.goto('/');
-  await expect(page.locator('[data-vidi6="viewport"]')).toBeVisible();
+/**
+ * Make a board the way the app does — `POST /api/boards` — and hand back its id.
+ *
+ * Story 5 made an address mean "somebody made this", so a test can no longer invent an id and
+ * expect a board to be there: it has to ask for one first. `openBoard` and `openSession` both do.
+ */
+export async function createBoardOn(origin: string = BASE_URL): Promise<string> {
+  // Its own request context, pointed at whichever server the caller means; the persistence
+  // specs run a server of their own.
+  const context = await playwrightRequest.newContext({ baseURL: origin });
+  try {
+    const response = await context.post('/api/boards');
+    if (!response.ok()) {
+      throw new Error(`could not create a board (${response.status()})`);
+    }
+    const body = (await response.json()) as { id?: unknown };
+    if (typeof body.id !== 'string') {
+      throw new Error('the create response held no board id');
+    }
+    return body.id;
+  } finally {
+    await context.dispose();
+  }
+}
+
+/**
+ * The board is on screen, and the world and the screen agree about where it is.
+ *
+ * The camera starts at the world origin and the viewport's own size arrives a frame later,
+ * with the first `ResizeObserver` report. A test that double-clicks inside that gap is clicking
+ * at a world point worked out from a viewport of no size at all, and the note lands half a
+ * viewport away. Nobody's hand is fast enough to do that; Playwright's mouse is, and story 5
+ * widened the gap by mounting the board after a fetch rather than on document load. So "the
+ * board is open" now includes the frame in which it found out how big it is.
+ */
+export async function waitForBoard(page: Page): Promise<void> {
+  const viewport = page.locator('[data-vidi6="viewport"]');
+  await expect(viewport).toBeVisible();
+  await expect
+    .poll(
+      async () => {
+        const camera = await getCamera(page);
+        const size = await viewport.evaluate((element) => ({
+          width: element.clientWidth,
+          height: element.clientHeight
+        }));
+        return camera.x === -size.width / 2 && camera.y === -size.height / 2
+          ? true
+          : `camera ${JSON.stringify(camera)} against a ${size.width}x${size.height} viewport`;
+      },
+      { message: 'the board should be drawn with its camera centred on the viewport' }
+    )
+    .toBe(true);
+}
+
+/**
+ * A board of this test's own, open on screen, and its id.
+ *
+ * Story 5 made the address mean something, so "open a board" is now two steps: ask for one,
+ * then go where it is. Every older spec gets its board this way, which is also how the oldest
+ * of them (story 1's camera) was always meant to have one.
+ */
+export async function openBoard(page: Page): Promise<string> {
+  const boardId = await createBoardOn();
+  await page.goto(`/b/${boardId}`);
+  await waitForBoard(page);
+  return boardId;
 }
 
 export function marker(page: Page) {

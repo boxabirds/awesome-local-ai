@@ -13,7 +13,7 @@
 
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { BoardScreen } from '../../src/client/board/BoardScreen';
 import {
   attachConnectionMachine,
   canEdit,
@@ -111,7 +111,7 @@ vi.mock('../../src/client/sync/connectBoard', async (importOriginal) => {
   };
 });
 
-/** A board id of the shape `board-id.ts` produces, so `App` keeps the one we set. */
+/** A board id of the shape the route produces, so the board screen keeps this one. */
 const BOARD_ID = 'board-test-0123456789a';
 
 function badge(container: HTMLElement): HTMLElement | null {
@@ -123,10 +123,13 @@ function badgeText(container: HTMLElement): string {
   return badge(container)?.textContent ?? '';
 }
 
-/** Join a board the way the browser does: `/`, then the id lands in the address. */
+/**
+ * Join a board the way the route does once story 5 has checked the address: the id the
+ * server confirmed is handed to the board screen, which is what opens the provider.
+ */
 function joinBoard(): ReturnType<typeof render> {
   window.history.replaceState(null, '', `/b/${BOARD_ID}`);
-  const rendered = render(<App />);
+  const rendered = render(<BoardScreen boardId={BOARD_ID} />);
   expect(harness.opened).toHaveLength(1);
   expect(harness.opened[0].boardId).toBe(BOARD_ID);
   return rendered;

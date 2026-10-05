@@ -19,9 +19,8 @@
  */
 
 import { expect, test, type Page } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
 import { doubleClickBoard, getBoard, notes, stickyInput, stickyToolButton } from './helpers/board';
-import { openBoardAt } from './helpers/participants';
+import { createBoardOn, openBoardAt } from './helpers/participants';
 
 /** The exact words. They are a promise about the board, so they are checked as a string. */
 const UNOPENABLE = "This board couldn't be loaded. Retrying…";
@@ -69,7 +68,8 @@ test('a board that cannot be opened says so, keeps hands off, and comes back', a
   // time waiting on two clocks rather than on a slow machine.
   test.setTimeout(150_000);
 
-  const boardId = newBoardId();
+  // Made through the API, because an address nobody created is a page that says so.
+  const boardId = await createBoardOn();
 
   // 1. A board with something on it, made the way anybody would make it.
   const maker = await browser.newContext();

@@ -9,7 +9,7 @@
 import { cleanup, render, type RenderResult } from '@testing-library/react';
 import * as Y from 'yjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { BoardScreen } from '../../src/client/board/BoardScreen';
 import { screenToWorld } from '../../src/client/canvas/camera';
 import { deleteObject, snapshot, type StickySnapshot } from '../../src/shared/board-model';
 import { DRAG_THRESHOLD_PX, STICKY_COLORS, STICKY_SIZE_WORLD } from '../../src/shared/config';
@@ -57,7 +57,7 @@ afterEach(() => {
 
 async function renderBoard(): Promise<BoardFixture> {
   const doc = new Y.Doc();
-  const result = render(<App doc={doc} />);
+  const result = render(<BoardScreen doc={doc} />);
   await flushCameraFrame();
   return {
     doc,

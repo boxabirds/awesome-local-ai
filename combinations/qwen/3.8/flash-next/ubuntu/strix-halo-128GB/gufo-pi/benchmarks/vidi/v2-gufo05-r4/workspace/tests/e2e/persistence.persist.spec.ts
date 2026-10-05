@@ -23,7 +23,6 @@ import { tmpdir } from 'node:os';
 import { join as joinPath } from 'node:path';
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { createSticky, type StickySnapshot } from '../../src/shared/board-model';
-import { newBoardId } from '../../src/shared/board-id';
 import {
   BOARD_LOAD_BUDGET_MS,
   E2E_EVENTUAL_TIMEOUT_MS,
@@ -33,7 +32,7 @@ import {
   type StickyColor
 } from '../../src/shared/config';
 import { doubleClickBoard, dragNote, note, notes, setCamera, swatch } from './helpers/board';
-import { boardOf, openBoardAt, openSession } from './helpers/participants';
+import { boardOf, createBoardOn, openBoardAt, openSession } from './helpers/participants';
 import { seedBoard } from './helpers/board-writer';
 import { startBoardServer, type BoardServer } from './helpers/wrangler-process';
 
@@ -138,7 +137,9 @@ test.describe('coming back to a board', () => {
   // TC-19
   test('a board left overnight is the board you come back to', async ({ browser }) => {
     test.setTimeout(300_000);
-    const boardId = newBoardId();
+    // Made through the API first: this is the board somebody came back to, so somebody
+    // has to have made it.
+    const boardId = await createBoardOn(server.origin);
 
     const { context, page } = await openOne(browser, boardId);
     await makeTwentyFiveNotes(page);
@@ -218,7 +219,10 @@ test.describe('coming back to a board', () => {
   // TC-21
   test('a big board opens completely', async ({ browser }) => {
     test.setTimeout(600_000);
-    const boardId = newBoardId();
+    // Made through the API first. A room will not invent a board any more — that is story 5's
+    // whole point — so a socket to an address nobody created is closed, and the seeding below
+    // would be writing into a refusal.
+    const boardId = await createBoardOn(server.origin);
     const colours = Object.keys(STICKY_COLORS) as StickyColor[];
 
     // Where the notes are going, decided before any of them exists, so "opened

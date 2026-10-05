@@ -17,9 +17,14 @@
  */
 
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
+import { BASE_URL } from '../../../playwright.config';
+import { createBoardOn, waitForBoard } from './board';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
 import type { ConnectionState } from '../../../src/client/sync/connectBoard';
+
+/* Re-exported because story 5's specs ask for a board by name, and `board.ts` is where making
+   one now lives. */
+export { createBoardOn };
 
 /** One person at the board: a context of their own and a page inside it. */
 export interface Participant {
@@ -128,7 +133,7 @@ export async function domOf(page: Page): Promise<string> {
  */
 export async function openBoardAt(page: Page, boardId: string, origin = ''): Promise<void> {
   await page.goto(`${origin}/b/${boardId}`);
-  await expect(page.locator('[data-vidi6="viewport"]')).toBeVisible();
+  await waitForBoard(page);
   await expect
     .poll(() => connectionOf(page), { message: 'the board should be in sync with its room' })
     .toBe('connected');
@@ -145,7 +150,10 @@ export async function openSession(
   names: string[],
   options: { origin?: string } = {}
 ): Promise<Session> {
-  const boardId = newBoardId();
+  // Created first, through the API: a page that arrived at an address nobody had made would
+  // correctly be told Board not found, and would spend the rest of the test waiting for a
+  // board that is never coming.
+  const boardId = await createBoardOn(options.origin ?? BASE_URL);
   const people: Participant[] = [];
 
   for (const name of names) {
@@ -162,9 +170,8 @@ export async function openSession(
       }
     });
     people.push({ name, context, page, errors });
-    // The first person to arrive creates the room; the rest join it. Opening them
-    // one after another keeps "who saw what first" answerable.
-    await openBoardAt(page, boardId, options.origin ?? '');
+    // One after another, so "who saw what first" stays answerable.
+    await openBoardAt(page, boardId, options.origin ?? BASE_URL);
   }
 
   const latencies: Latency[] = [];

@@ -16,9 +16,12 @@
  * The Durable Object checks the variable again on its side, so a request that reaches
  * it directly is refused just the same.
  *
- * What the hooks do is deliberately narrow: damage the snapshot and put it back. They
- * cannot create a board, read one, or reach another board — the id in the path is
- * validated before it selects an object, exactly as the WebSocket route validates it.
+ * Story 5 adds a third one for the same reason: `seed-legacy` writes a log of updates
+ * with no `created_at`, which is the only way a browser test can hold a board that
+ * predates board creation existing (`share.legacy_boards`). What the hooks do stays
+ * deliberately narrow: damage a snapshot, put it back, write updates. They cannot make a
+ * board exist, read one, or reach another board — the id in the path is validated before
+ * it selects an object, exactly as the WebSocket route validates it.
  */
 
 import { isValidBoardId } from '../shared/board-id';
@@ -35,8 +38,8 @@ export function testHooksEnabled(env: { [TEST_HOOKS_ENV_VAR]?: string }): boolea
   return env[TEST_HOOKS_ENV_VAR] === '1';
 }
 
-/** The two operations, and they are the only two. */
-export type TestHookAction = 'corrupt-snapshot' | 'repair';
+/** The operations, and they are the only ones. */
+export type TestHookAction = 'corrupt-snapshot' | 'repair' | 'seed-legacy';
 
 export interface TestHookTarget {
   boardId: string;
@@ -49,14 +52,20 @@ export function parseTestHook(pathname: string): TestHookTarget | null {
   const parts = pathname.slice(TEST_HOOK_PREFIX.length).split('/');
   if (parts.length !== 3 || parts[0] !== 'boards') return null;
   const requested: unknown = parts[2];
-  if (requested !== 'corrupt-snapshot' && requested !== 'repair') return null;
+  if (requested !== 'corrupt-snapshot' && requested !== 'repair' && requested !== 'seed-legacy') return null;
   if (!isValidBoardId(parts[1])) return null;
   return { boardId: parts[1], action: requested };
 }
 
-/** The path a room is asked to act on, with nothing else attached to it. */
-export function testHookRequest(action: TestHookAction): Request {
-  return new Request(`https://test-hooks.local${TEST_HOOK_PREFIX}${action}`, { method: 'POST' });
+/**
+ * The path a room is asked to act on, with nothing else attached to it but the body the
+ * hook was given (`seed-legacy` is the only one that has one).
+ */
+export function testHookRequest(action: TestHookAction, body = ''): Request {
+  return new Request(`https://test-hooks.local${TEST_HOOK_PREFIX}${action}`, {
+    method: 'POST',
+    ...(body === '' ? {} : { body, headers: { 'Content-Type': 'application/json' } })
+  });
 }
 
 /** Hand the request to that board's own room, which is the only thing that can reach
@@ -67,6 +76,10 @@ export async function handleTestHookRequest(request: Request, env: Env): Promise
   if (target === null) return new Response('No such test hook', { status: 404 });
   if (request.method !== 'POST') return new Response('Test hooks are POST only', { status: 405 });
 
+  // Read here rather than forward the original request: what reaches a room is the action
+  // and its bytes, and nothing else — not the caller's headers, not the `/__test/` path
+  // with somebody's board id in it.
+  const body = await request.text();
   const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(target.boardId));
-  return stub.fetch(testHookRequest(target.action));
+  return stub.fetch(testHookRequest(target.action, body));
 }

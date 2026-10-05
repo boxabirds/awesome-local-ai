@@ -57,6 +57,16 @@ const META_SCHEMA_VERSION = 'storage_schema_version';
 const META_SNAPSHOT_THROUGH_SEQ = 'snapshot_through_seq';
 
 /**
+ * The row that says this board was created.
+ *
+ * A board *exists* when this key is set, or — for boards that were already holding
+ * content before links were issued (`share.legacy_boards`) — when it has any update or
+ * snapshot bytes at all. Nothing else counts: an empty set of tables is not a board,
+ * which is what lets a mistyped link be answered without writing anything.
+ */
+const META_CREATED_AT = 'created_at';
+
+/**
  * Where the test hook hides the snapshot chunk it damaged, so it can put it back.
  * Not a board, not part of the schema: a scratch key in the same storage.
  */
@@ -195,6 +205,15 @@ function replayRows(
 export class BoardStore {
   private readonly storage: DurableObjectStorage;
 
+  /**
+   * Whether this database is known to have the tables.
+   *
+   * Opening a board is not a write (story 5): the tables are created by `initialize`,
+   * or lazily by the first `append`, and never by a read. Once they are known to be
+   * there the question is not asked again.
+   */
+  private tablesKnown = false;
+
   /** Rows currently in the log (those after `snapshotThroughSeq`). */
   private logRows = 0;
 
@@ -246,6 +265,86 @@ export class BoardStore {
         String(STORAGE_SCHEMA_VERSION)
       );
     });
+    this.tablesKnown = true;
+  }
+
+  /**
+   * Make this board exist: the tables, and the `created_at` row that is what
+   * "exist" means (`share.unguessable`, `share.not_found`).
+   *
+   * Idempotent, and the second call says so rather than rewriting the first: a board
+   * must never be re-initialised, and its creation time is a fact about the day it was
+   * made, not about whoever knocked last (TC-15).
+   */
+  initialize(): 'created' | 'exists' {
+    this.migrate();
+    let created = false;
+    this.storage.transactionSync(() => {
+      if (this.metaRow(META_CREATED_AT) === undefined) {
+        this.sql.exec('INSERT INTO storage_meta (key, value) VALUES (?, ?)', META_CREATED_AT, String(Date.now()));
+        created = true;
+      }
+    });
+    return created ? 'created' : 'exists';
+  }
+
+  /**
+   * Is there a board in here?
+   *
+   * Reads, and only reads: no tables means no board and no tables, so a stranger
+   * walking up to a mistyped link leaves nothing behind (TC-06, TC-09). A board counts
+   * when it was created, or when it holds content from before links were issued.
+   */
+  existsReadOnly(): boolean {
+    const tables = this.tableNames();
+    if (tables.size === 0) return false;
+    if (tables.has('storage_meta') && this.metaRow(META_CREATED_AT) !== undefined) return true;
+    if (tables.has('updates') && this.hasRows('updates')) return true;
+    return tables.has('snapshot_chunks') && this.hasRows('snapshot_chunks');
+  }
+
+  /**
+   * Write a log of updates without claiming the board was created.
+   *
+   * This is how a board from before this feature is reproduced in a test: rows and no
+   * `created_at`, which is exactly the shape `existsReadOnly` has to be generous about
+   * (`share.legacy_boards`). Production code never calls it.
+   */
+  seedLegacy(updates: readonly Uint8Array[]): number {
+    this.migrate();
+    return this.storage.transactionSync(() => {
+      for (const update of updates) {
+        this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', toArrayBuffer(update), update.byteLength);
+      }
+      return this.sql.exec('SELECT COUNT(*) AS count FROM updates').one().count as number;
+    });
+  }
+
+  /** The names of the tables this database holds right now. */
+  private tableNames(): Set<string> {
+    return new Set(
+      this.sql
+        .exec("SELECT name FROM sqlite_master WHERE type = 'table'")
+        .toArray()
+        .map((row) => String(row.name))
+    );
+  }
+
+  /** Does this table hold anything? (`updates` and `snapshot_chunks` only.) */
+  private hasRows(table: 'updates' | 'snapshot_chunks'): boolean {
+    return this.sql.exec(`SELECT 1 FROM ${table} LIMIT 1`).toArray().length > 0;
+  }
+
+  /**
+   * Create the tables if a write needs them and they are not there.
+   *
+   * A board that only ever gets read stays exactly as empty as it was; the first
+   * change to it is the moment its storage is made. Legacy boards already have their
+   * tables, so this costs them one cached answer.
+   */
+  private ensureMigrated(): void {
+    if (this.tablesKnown) return;
+    this.migrate();
   }
 
   /**
@@ -256,6 +355,7 @@ export class BoardStore {
    * pretend.
    */
   append(update: Uint8Array): void {
+    this.ensureMigrated();
     const bytes = update.byteLength;
     const seq = this.storage.transactionSync(() => {
       this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', toArrayBuffer(update), bytes);
@@ -278,6 +378,17 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      if (!this.tableNames().has('updates')) {
+        // Nothing has ever been written here. That is an empty board rather than a
+        // broken one — and reading it must not be the thing that creates it, because
+        // nobody has decided this address is a board yet (`share.not_found`).
+        this.snapshotThroughSeq = 0;
+        this.logRows = 0;
+        this.logBytes = 0;
+        this.lastSeq = 0;
+        return { ok: true, quarantined: 0 };
+      }
+      this.tablesKnown = true;
       this.snapshotThroughSeq = this.metaNumber(META_SNAPSHOT_THROUGH_SEQ);
       const chunkRows = this.sql.exec('SELECT data FROM snapshot_chunks ORDER BY idx ASC').toArray();
       const snapshotBytes =
@@ -450,9 +561,14 @@ export class BoardStore {
   }
 
   private metaNumber(key: string): number {
-    const row = this.sql.exec('SELECT value FROM storage_meta WHERE key = ?', key).toArray()[0];
-    const value = Number(row?.value ?? '0');
+    const value = Number(this.metaRow(key) ?? '0');
     return Number.isFinite(value) && value > 0 ? value : 0;
+  }
+
+  /** One `storage_meta` value, or undefined when the key is not there. */
+  private metaRow(key: string): string | undefined {
+    const row = this.sql.exec('SELECT value FROM storage_meta WHERE key = ?', key).toArray()[0];
+    return row === undefined ? undefined : String(row.value);
   }
 
   /**

@@ -6,7 +6,7 @@
 import { cleanup, render } from '@testing-library/react';
 import * as Y from 'yjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { BoardScreen } from '../../src/client/board/BoardScreen';
 import { snapshot } from '../../src/shared/board-model';
 import {
   STICKY_COUNTER_THRESHOLD_CHARS,
@@ -48,7 +48,7 @@ afterEach(() => {
 
 async function renderBoard(): Promise<BoardFixture> {
   const doc = new Y.Doc();
-  const result = render(<App doc={doc} />);
+  const result = render(<BoardScreen doc={doc} />);
   await flushCameraFrame();
   return { doc, root: result.container, notes: () => snapshot(doc) };
 }

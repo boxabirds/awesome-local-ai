@@ -1,6 +1,6 @@
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { BoardScreen } from '../../src/client/board/BoardScreen';
 import { NAVIGATION_HINT_TEXT, NavigationHint } from '../../src/client/canvas/NavigationHint';
 import {
   byTestId,
@@ -34,7 +34,7 @@ describe('NavigationHint (nav.hint)', () => {
   });
 
   it('TC-22: visible at first, hidden after the first camera change, still hidden after another', async () => {
-    const { container } = render(<App />);
+    const { container } = render(<BoardScreen />);
     await flushCameraFrame();
     const viewport = viewportElement(container);
 
@@ -55,7 +55,7 @@ describe('NavigationHint (nav.hint)', () => {
   });
 
   it('stays hidden for the whole visit, whatever the user does next', async () => {
-    const { container } = render(<App />);
+    const { container } = render(<BoardScreen />);
     await flushCameraFrame();
 
     fireKey('0', { ctrlKey: true }); // reset counts as navigating
@@ -68,7 +68,7 @@ describe('NavigationHint (nav.hint)', () => {
   });
 
   it('TC-29: a click without movement does not dismiss the hint', async () => {
-    const { container } = render(<App />);
+    const { container } = render(<BoardScreen />);
     await flushCameraFrame();
     const viewport = viewportElement(container);
 
@@ -80,14 +80,14 @@ describe('NavigationHint (nav.hint)', () => {
   });
 
   it('is shown again on a fresh visit (reload), because it is not persisted', async () => {
-    const first = render(<App />);
+    const first = render(<BoardScreen />);
     await flushCameraFrame();
     fireKey('=', { ctrlKey: true });
     await flushCameraFrame();
     expect(byTestId(first.container, 'navigation-hint')).toBeNull();
     cleanup();
 
-    const second = render(<App />);
+    const second = render(<BoardScreen />);
     await flushCameraFrame();
     expect(byTestId(second.container, 'navigation-hint')).not.toBeNull();
   });

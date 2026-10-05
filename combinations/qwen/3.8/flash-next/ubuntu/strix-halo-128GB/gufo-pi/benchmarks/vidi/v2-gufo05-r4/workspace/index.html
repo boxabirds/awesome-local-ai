@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- A board's address is its only access control, so it never leaves the page: no
+         Referer to anybody, and nothing that looks like analytics. (`share.*` privacy
+         constraint; see `spec` story 5.) -->
+    <meta name="referrer" content="no-referrer" />
     <title>vidi6</title>
   </head>
   <body>

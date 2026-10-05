@@ -867,3 +867,118 @@ while the badge says "Reconnecting…").
    `connected` by design, which is right everywhere else. TC-24 navigates with a plain
    `page.goto` and waits for the badge instead, and marks `window` before the repair so the
    recovery assertion can prove no reload happened.
+
+---
+
+# Story 5 notes — decisions and deviations
+
+## Task 2 — a board has to be made before it can be joined
+
+1. **Existence is read, never assumed.** `BoardStore.existsReadOnly()` looks at `sqlite_master`
+   first and then for `storage_meta.created_at` or any row in `updates`/`snapshot_chunks`. The
+   table check comes first because a probe of an address nobody used must not be the thing that
+   creates it: `load()` now treats missing tables as an empty board instead of running the
+   migration, and `migrate()` runs from `initialize()` or lazily before the first `append()`. A
+   stranger typing a plausible-looking link costs one `SELECT` and writes nothing (TC-06, TC-09).
+
+2. **Legacy boards have no beginning, and that is a fact about storage, not a bug.** A board
+   written by story 2 has updates and no `created_at`, so the row check is what makes its link
+   work. Nothing ever calls `initialize()` for such a board: the first person who writes to it
+   takes the lazy migration path and the row appears then, which is why TC-31 checks that the
+   seeded board is not merely openable but editable, by two people.
+
+3. **A WebSocket to an address nobody made is now refused** (404 on the upgrade, 4004 as the
+   close code). This is story 5's whole point applied to the transport, and it reached back into
+   stories 3 and 4's scaffolding: those specs used to invent an id and join it, which had always
+   been a little untrue. `openSession`, `openBoard` and the seeding socket in
+   `persistence.persist.spec.ts` (TC-21) now make a board through `POST /api/boards` first. The
+   seeding socket failed first and loudest, and its error — "the socket could not be opened" —
+   was the correct behaviour, not a regression.
+
+4. **Malformed ids are 404, not 400** (was 400 in story 3). To somebody holding a bad link there
+   is no difference to report, and telling them apart would let a stranger sort addresses into
+   "well formed but unclaimed" and "nonsense", which is a little information about who has been
+   handed what.
+
+5. **`initialize()` is idempotent in the way that matters**: a second call answers `exists` and
+   leaves `created_at` alone (TC-15). Two tabs opening the same link, or a person refreshing
+   while a request is in flight, must not restart a board's clock.
+
+## Task 4 — the address, and what happens when nothing answers
+
+6. **`nextBoardPageState` takes a fourth, optional `id`.** The contract's three-argument form
+   cannot produce `ready`, because `ready` carries a board id and the check that produced the
+   answer is a check *of* an id the caller already has. Passing it in keeps the reducer pure
+   rather than making it remember what it was asked about. `initialBoardPageState(id)` uses the
+   same argument, and is what `BoardPage` renders before the first check returns — so a board
+   whose check is instant never flashes "Opening board…" at all.
+
+7. **`BoardPageResult` is the check's three answers plus `{ kind: 'retry' }`**, the edge the
+   design's state diagram has for "the timer fired and nothing changed" (`checking` and
+   `unreachable` both loop through it). Without it the diagram's self-edge has no reducer.
+
+8. **The attempt number lives in a ref, not in state.** `unreachable` carries `attempt`, so
+   putting it in the state object means a new object on every retry, which re-runs the timer
+   effect, which re-arms a timer that had already fired — a retry loop that never waits. The ref
+   is read when a result arrives and is the only place the count is kept (TC-21 counts the calls
+   and the gaps between them: 1000ms then 2000ms).
+
+9. **The backoff doubles from `BOARD_CHECK_RETRY_BASE_MS` and is capped at
+   `RECONNECT_MAX_BACKOFF_MS`** — the same shape story 4's reconnect uses, which is what the PRD's
+   "retries with the same backoff" asks for. It is not literally the same function: reconnecting
+   is about a socket that was working, and this is about a question that was never answered, and
+   pretending otherwise would couple two timings that will want to move apart.
+
+10. **`api.ts` collapses 5xx and network failure into one answer, and keeps 404 apart.** A person
+    cannot do anything different about a server that said 500 and a cable that is out, and the
+    page that pretends otherwise has two messages to write and two bugs to keep. 404 stays
+    separate because it *is* a different answer: the service works, and there is nothing here.
+    TC-17 therefore runs the page twice with the same collapsed result (as the design asks) and
+    the collapse itself is tested against a stubbed `fetch` at the bottom of `pages.test.tsx`,
+    where the two are still two different answers.
+
+11. **Story 3's `/` → random-id redirect is gone**, and with it the last place where an address
+    was a detail rather than the thing.
+
+## Task 5 — the Share panel, and what focus means
+
+12. **The panel takes focus when it opens.** The design does not ask for it; a dialog that leaves
+    the caret behind does not behave like a dialog, and the first thing anybody wants to do here is
+    select the link. The effect is keyed on the boolean `open` rather than on the state name, so
+    the `copied` → `open` return does not yank focus back out of the button the person just
+    pressed.
+13. **Escape returns focus to the Share button; a press elsewhere does not.** The design says
+    focus returns in both cases. Where the press went is where the person was aiming, and stealing
+    it back to a button they did not press is worse than leaving it — and in a real browser the
+    press has already moved focus, so "returning" it would be a second focus change in the same
+    interaction. TC-25 asserts the return on Escape and asserts the close for both.
+14. **`user-event` cannot be used in the Share panel tests.** `userEvent.setup()` installs its own
+    `navigator.clipboard`, which quietly replaces the stub a test is trying to observe — TC-22 then
+    passes for the wrong reason. These tests press with `fireEvent` and `element.click()` inside
+    `act` instead, and that is written down at the top of `SharePanel.test.tsx` because it looks
+    like an omission.
+
+## Task 7 — end to end, and one race that was always there
+
+15. **Test numbering follows the design's coverage table, not the task prose.** Where the two
+    disagree by one — the table's TC-26 is create-then-share-then-join, its TC-28 the flaky
+    service, its TC-29 the refused clipboard — the table wins, because it is the document that
+    says which case exists. All five are covered, in one file.
+16. **`waitForBoard`, and why "the board is open" got longer.** Story 5 mounts the board after a
+    fetch rather than on document load, and that exposed a race that had been there since story 1:
+    the camera starts at the world origin, and the viewport learns its own size a frame later with
+    the first `ResizeObserver` report. A Playwright double-click inside that window is converted
+    with a viewport of no size at all, and the note lands half a screen from the pointer — TC-35
+    (`sticky-notes`) failed exactly that way, and only that way, from the first run of the new
+    flow. No person can be in that window; a test can be anywhere in it. The fix is in the helper
+    rather than in the product or in the test: `waitForBoard` waits for the camera to be centred on
+    the viewport it is drawn into, which is what "open" always meant. (`persistence` TC-21's
+    2000-note board also passes it, at 1860ms of rendering.)
+17. **Wall-clock budgets are logged, never asserted**, per the story's own instruction: TC-26 logs
+    click-to-board against `CREATE_BUDGET_MS` (155-185ms here), TC-21's load budget likewise.
+18. **Clipboard permissions are granted in Chromium only.** The design's TC-26 names Chromium,
+    and the engines that gate it differently are the reason `share.copy_fallback` exists at all —
+    TC-29 refuses the clipboard through an init script installed before the app's script runs,
+    which is what a denial looks like from inside a page. TC-27 and TC-29 are also meant to run in
+    firefox and webkit; this host still cannot start them (no GTK), as recorded under "Blocked"
+    above, and the run prints that it skips them.

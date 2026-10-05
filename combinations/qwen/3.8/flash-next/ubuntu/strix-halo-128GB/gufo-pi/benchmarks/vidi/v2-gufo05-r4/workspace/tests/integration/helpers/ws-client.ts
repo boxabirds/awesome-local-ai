@@ -22,7 +22,7 @@
  * the document.
  */
 
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import * as awarenessProtocol from 'y-protocols/awareness';
@@ -55,6 +55,25 @@ export interface JoinOptions {
   doc?: Y.Doc;
   /** Do not send SyncStep1 on open — for testing a client that never asks. */
   silent?: boolean;
+  /**
+   * Create the board before joining it. Default true.
+   *
+   * Since story 5 a room refuses a board nobody created, so a test that wants to be *at*
+   * a board has to have asked for one, exactly as the product does. Pass `false` only to
+   * join a board that must not exist (`share.not_found`).
+   */
+  create?: boolean;
+}
+
+/**
+ * Make a board exist, the way `POST /api/boards` does: the same RPC to the same object.
+ *
+ * Tests use it instead of the HTTP route so that a story 3 or story 4 case is not coupled
+ * to story 5's endpoint — what it needs is a board, and this is the operation that makes
+ * one.
+ */
+export async function ensureBoard(boardId: string): Promise<'created' | 'exists'> {
+  return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).initialize();
 }
 
 /** One frame of the wire protocol: a message type, then whatever writes. */
@@ -351,6 +370,7 @@ export class TestClient {
  * client that has finished its first sync unless `silent` is set.
  */
 export async function join(boardId: string, options: JoinOptions = {}): Promise<TestClient> {
+  if (options.create !== false) await ensureBoard(boardId);
   const response = await SELF.fetch(`https://vidi6.example/api/rooms/${encodeURIComponent(boardId)}`, {
     headers: { Upgrade: 'websocket' }
   });

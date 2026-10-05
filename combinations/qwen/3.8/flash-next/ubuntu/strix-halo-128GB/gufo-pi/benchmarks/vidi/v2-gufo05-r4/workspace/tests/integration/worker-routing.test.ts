@@ -42,7 +42,10 @@ describe('the board endpoint', () => {
       const response = await SELF.fetch(`https://vidi6.example/api/rooms/${candidate}`, {
         headers: { Upgrade: 'websocket' }
       });
-      expect(response.status, `${candidate} should be refused`).toBe(400);
+      // Story 5 made this a 404 rather than story 3's 400: from behind a link, "that is
+      // not an address" and "nobody made a board there" are one thing, and the client has
+      // one page for it (`share.not_found`).
+      expect(response.status, `${candidate} should be refused`).toBe(404);
       response.webSocket?.close();
     }
     // A refusal is a refusal: no board was looked up, so no room was woken.
