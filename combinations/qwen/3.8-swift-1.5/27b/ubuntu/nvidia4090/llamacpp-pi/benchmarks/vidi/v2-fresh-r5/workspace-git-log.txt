@@ -1,3 +1,44 @@
+commit d4f031d22b412b7f411a61b35b71096a0b520fc2
+agent  Mon Oct 5 01:24:19 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  |   8 +
+ PROGRESS.md                               |  18 +--
+ src/client/board/Board.tsx                | 131 ++++++++++++++-
+ src/client/board/Toolbar.tsx              | 151 ++++++++++++++----
+ src/client/objects/ConnectorObject.tsx    | 182 +++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 189 ++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  78 +++++++++
+ src/client/objects/registry.tsx           |  65 ++++++++
+ src/client/tools/ConnectorTool.tsx        | 254 ++++++++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 145 +++++++++++++++++
+ src/client/tools/useActiveTool.ts         | 106 +++++++++++++
+ src/shared/board-model.ts                 |  55 ++++++-
+ src/shared/config.ts                      |  49 ++++++
+ src/shared/geometry/connector-geometry.ts | 117 ++++++++++++++
+ src/shared/geometry/polyline.ts           |  42 +++++
+ src/shared/objects/connector.ts           | 253 +++++++++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 142 +++++++++++++++++
+ tests/component/Connector.test.tsx        | 249 +++++++++++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 179 +++++++++++++++++++++
+ tests/component/useActiveTool.test.tsx    | 117 ++++++++++++++
+ tests/e2e/connectors.spec.ts              | 202 ++++++++++++++++++++++++
+ tests/e2e/shapes.spec.ts                  |  77 +++++++++
+ tests/fixtures/checkout-flow.ts           |  96 +++++++++++
+ tests/unit/board-model.test.ts            |   2 +-
+ tests/unit/connector-model.test.ts        | 239 ++++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 189 ++++++++++++++++++++++
+ 26 files changed, 3285 insertions(+), 50 deletions(-)
+commit 9e63ef79f393b6862685f7383a02db6115727a7f
+vidi-agent  Mon Oct 5 00:31:38 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 2d4ba349531f87ca9a21a42bd1f08a6dbd9d9469
 agent  Mon Oct 5 00:09:02 2026 +0100
 
