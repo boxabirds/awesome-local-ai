@@ -1,6 +1,7 @@
 // "Now" as one card per machine, read top to bottom as machine > run > story: the machine (its state and queue), the run
 // it is on (its combination, its place in its series), and that run's stories (the one being worked on, and every
-// story's held-out result). Each name is a link to its own page, once.
+// story's held-out result). Each name is a link to its own page, once. A machine that only runs the reference (the
+// yardstick, not a stack under test) has a card only while it is working, and is named in a line underneath when not.
 import type { Row } from "../../../shared/types.ts";
 import type { NowLine } from "../../../shared/overviewView.ts";
 import { queueDrain, seriesOf, span } from "../../../shared/dashboardView.ts";
@@ -39,12 +40,16 @@ function Strip({ run, current }: { run: Row & { pack: string }; current: string 
 
 export function MachineCards({ lines, rows, now }: { lines: NowLine[]; rows: Row[]; now: number }) {
   const series = seriesOf(rows);
+  // A reference machine earns a card by working; otherwise it is a name in a line, so the cards are the machines
+  // under test.
+  const shown = lines.filter((l) => !l.referenceOnly || l.state === "running");
+  const resting = lines.filter((l) => l.referenceOnly && l.state !== "running");
   return (
     <section className="ov-section now" data-section="now" aria-labelledby="h-now">
       <h2 id="h-now"><span className="term" data-tip={GLOSSARY.now.what}>{GLOSSARY.now.name}</span></h2>
       {lines.length === 0 ? <p className="empty-note">No machines: none answered, and none is in the list.</p> : (
         <div className="cards">
-          {lines.map((l) => {
+          {shown.map((l) => {
             const run = l.run?.pack ? rows.find((r) => r.pack === l.run!.pack && r.stack === l.run!.stack && r.runId === l.run!.runId) ?? null : null;
             const s = run ? series.find((x) => x.stack === run.stack && x.runs.some((r) => r.runId === run.runId)) : null;
             const place = s && run ? s.runs.findIndex((r) => r.runId === run.runId) + 1 : 0;
@@ -94,6 +99,12 @@ export function MachineCards({ lines, rows, now }: { lines: NowLine[]; rows: Row
           })}
         </div>
       )}
+      {resting.length ? (
+        <p className="small now-reference">
+          {resting.map((l, i) => <span key={l.machine}>{i ? ", " : ""}<MachineLink machine={l.machine} /> {STATE_WORD[l.state]}</span>)}
+          <span data-tip={GLOSSARY.referenceMachine.what}> · runs the reference only</span>
+        </p>
+      ) : null}
     </section>
   );
 }

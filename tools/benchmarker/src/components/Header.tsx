@@ -8,13 +8,11 @@ import { utc } from "./run/bits.tsx";
 interface Props {
   state: State;
   serverNow: number | null;
-  packs: string[];
+  /** The pack the freshness line reports the suite of; the choices themselves are `scope`, where there are any. */
   pack: string;
-  families: string[];
-  family: string;
-  currentFamily: string;
-  onPack(pack: string): void;
-  onFamily(family: string): void;
+  /** The pack and version choices, when this page's figures are all of one pack and version. The dashboard keeps
+   * them in the ranking band's own heading instead, because that band is all they scope, and passes nothing here. */
+  scope?: ReactNode;
   /** The tabs and the runs switch. */
   children?: ReactNode;
 }
@@ -26,26 +24,15 @@ export function freshness(state: Pick<State, "updatedAt" | "updating">, serverNo
   return `updated ${ago(serverNow === null ? null : serverNow - state.updatedAt)}`;
 }
 
-export function Header({ state, serverNow, packs, pack, families, family, currentFamily, onPack, onFamily, children }: Props) {
+export function Header({ state, serverNow, pack, scope, children }: Props) {
   const bar = useHeightVar<HTMLElement>("--header-h");
   return (
     <header ref={bar}>
       <h1>Benchmarker</h1>
-      <label>
-        Pack{" "}
-        <select value={pack} onChange={(e) => onPack(e.target.value)} aria-label="Pack">
-          {packs.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-      </label>
-      <label>
-        Version{" "}
-        <select value={family} onChange={(e) => onFamily(e.target.value)} aria-label="Version">
-          {families.map((f) => (
-            <option key={f} value={f}>{f === "all" ? "all versions" : f}{f === currentFamily ? " (current)" : ""}</option>
-          ))}
-        </select>
-      </label>
-      <span className="meta" data-testid="meta" data-updating={state.updating ? "true" : "false"}>
+      {scope}
+      {/* The figures are only as current as the feed: when it has stopped refreshing, the line says so and is marked,
+          which is a fact about the data and not a fault to explain. */}
+      <span className="meta" data-testid="meta" data-updating={state.updating ? "true" : "false"} data-stopped={state.updating ? undefined : "true"}>
         {freshness(state, serverNow)} · suite {state.suites[pack] || "?"}
       </span>
       <SearchBox state={state} />

@@ -190,7 +190,7 @@ describe("the score plot: a dot for every run of record, the median and the rang
   });
   it("a combination with no score is left out; no runs of record: no rows and no axis", () => {
     expect(scorePlot([finished("a1", HOUR, { score: 60 }), finished("c1", HOUR, { stack: "q/c/pi", score: null })]).rows.map((r) => r.stack)).toEqual([STACK_A]);
-    expect(scorePlot([run({ id: "r", status: "running" })])).toMatchObject({ total: null, rows: [], groups: [], narrative: [] });
+    expect(scorePlot([run({ id: "r", status: "running" })])).toMatchObject({ total: null, rows: [], references: [], groups: [], narrative: [] });
   });
   it("the scale starts at the tens below the lowest ordinary dot, so the differences are visible", () => {
     const rs = [finished("a1", HOUR, { score: 56 }), finished("a2", HOUR, { score: 70 }), finished("b1", HOUR, { stack: STACK_B, score: 74 })];
@@ -209,7 +209,7 @@ describe("the score plot: a dot for every run of record, the median and the rang
   it("no group when nothing is close", () => {
     expect(scorePlot([finished("a1", HOUR, { score: 70 }), finished("b1", HOUR, { stack: STACK_B, score: 30 })]).groups).toEqual([]);
   });
-  it("says it in words: how to read it, the top, the best that is not a reference, the groups, the off-scale run", () => {
+  it("says it in words: how to read it, the top, the reference's line, the groups, the off-scale run", () => {
     const rs = [
       ...[75, 75, 74].map((s, i) => finished(`v2-r${i + 1}`, HOUR, { stack: ref("opus-5.5"), score: s })),
       ...[70, 66, 72].map((s, i) => finished(`v2-r${i + 1}`, HOUR, { stack: STACK_B, score: s })),
@@ -217,11 +217,37 @@ describe("the score plot: a dot for every run of record, the median and the rang
     ];
     const n = scorePlot(rs).narrative;
     expect(n[0]).toBe("Each dot is one finished run: how many of the 75 hidden tests it passed. The black bar is the middle run; the grey line runs from the lowest to the highest. Further right is better.");
-    expect(n).toContain("Highest: reference/opus-5.5, 75 of 75 in the middle, over 3 runs.");
-    expect(n).toContain("Best of the local stacks: q/b/pi, 70 of 75 in the middle, over 3 runs.");
-    expect(n.some((x) => x.startsWith("reference/opus-5.5, q/b/pi and q/a/pi are within 12 tests of each other"))).toBe(true);
+    expect(n).toContain("Highest: q/b/pi, 70 of 75 in the middle, over 3 runs.");
+    expect(n).toContain("The dashed line is reference/opus-5.5, the reference: 75 of 75 in the middle, over 3 runs.");
     expect(n).toContain("One run of q/a/pi scored 1, off the left edge of the scale.");
     expect(n.at(-1)).toBe("The scale starts at 60, not 0, so the differences show.");
+  });
+
+  // The reference is the yardstick the stacks are read against, not one of them (UI-IMPROVEMENTS-overview-dashboard).
+  it("a reference is not a row and not ranked: it comes back on its own, to be drawn across the plot", () => {
+    const rs = [
+      ...[75, 74].map((s, i) => finished(`v2-r${i + 1}`, HOUR, { stack: ref("opus-5.5"), score: s })),
+      ...[70, 66].map((s, i) => finished(`v2-r${i + 1}`, HOUR, { stack: STACK_B, score: s })),
+    ];
+    const p = scorePlot(rs);
+    expect(p.rows.map((r) => r.stack)).toEqual([STACK_B]);
+    expect(p.references.map((r) => r.stack)).toEqual([ref("opus-5.5")]);
+    expect(p.references[0]).toMatchObject({ median: 74.5, min: 74, max: 75, n: 2 });
+    // ... and never in a close-call group, which only orders the stacks under test.
+    expect(p.groups).toEqual([]);
+  });
+  it("the reference never sets the scale: it is the stacks under test that have to be told apart", () => {
+    const rs = [
+      finished("v2-r1", HOUR, { stack: ref("opus-5.5"), score: 75 }),
+      ...[56, 70].map((s, i) => finished(`v2-r${i + 1}`, HOUR, { score: s })),
+    ];
+    expect(scorePlot(rs).axisMin).toBe(50);
+  });
+  it("only references scored: the scale is theirs, so their lines still have an axis", () => {
+    const p = scorePlot([finished("v2-r1", HOUR, { stack: ref("opus-5.5"), score: 72 })]);
+    expect(p.rows).toEqual([]);
+    expect(p.references.map((r) => r.median)).toEqual([72]);
+    expect(p.axisMin).toBe(70);
   });
 });
 

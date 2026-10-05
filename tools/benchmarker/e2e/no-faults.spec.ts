@@ -110,10 +110,13 @@ test.describe("no page narrates a fault", () => {
     await page.goto("/");
     const meta = page.getByTestId("meta");
     await expect(meta).toHaveText(/^updated \d+s ago · suite vidi-v2\.0-pre1$/);
+    await expect(meta).not.toHaveAttribute("data-stopped", /.*/);
     await expect(page.locator("header .err")).toHaveCount(0);
     await patchState(page, (s) => { s.updating = false; s.updatedAt = Date.parse("2026-09-30T15:28:00Z") / 1000; });
     await page.reload();
     await expect(meta).toHaveText("not updated since 2026-09-30 15:28 UTC · suite vidi-v2.0-pre1");
+    // A fact about the data, marked so it is noticed: the figures are only as current as the feed. Still no cause.
+    await expect(meta).toHaveAttribute("data-stopped", "true");
     await expect(page.locator("header")).not.toContainText(/git|dbench|error/i);
     await patchState(page, (s) => { s.updatedAt = 0; });
     await page.reload();

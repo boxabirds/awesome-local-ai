@@ -248,6 +248,9 @@ export interface ScorePlotRow { stack: string; label: string; pack: string; mach
 export interface ScorePlot {
   total: number | null;
   rows: ScorePlotRow[];
+  /** The reference combinations (a cloud model's runs), best first. They are the yardstick, not a stack under test,
+   * so they are not rows and not ranked against the rest: each is one dashed line across the plot at its median. */
+  references: ScorePlotRow[];
   /** Where the scale starts: the tens below the lowest ordinary dot (0 when the scores are low). */
   axisMin: number;
   /** Runs far below the rest: drawn pinned at the left edge, so one bad run doesn't squash everyone else. */
@@ -267,38 +270,47 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const score = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
 const joined = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
-/** One row per combination with a score of record, best median first: a dot per run, the median and the range. */
+/** One row per combination under test with a score of record, best median first: a dot per run, the median and the
+ * range. The references come back separately, to be drawn across the plot rather than ranked within it. */
 export function scorePlot(rows: Row[]): ScorePlot {
   const ranked = rankCombinations(rows).filter((c) => c.score);
-  if (!ranked.length) return { total: null, rows: [], axisMin: 0, offScale: [], groups: [], narrative: [] };
+  if (!ranked.length) return { total: null, rows: [], references: [], axisMin: 0, offScale: [], groups: [], narrative: [] };
   const total = ranked.map((c) => c.score!.total).find((t): t is number => t !== null) ?? null;
-  const plot: ScorePlotRow[] = ranked.map((c) => ({
+  const asRow = (c: typeof ranked[number]): ScorePlotRow => ({
     stack: c.stack, label: c.label, pack: c.pack, machines: c.machines,
     dots: c.ofRecord.map((r) => scoreOfRecord(r)!.passed!).toSorted((a, b) => a - b),
     median: c.score!.median, min: c.score!.min, max: c.score!.max, n: c.score!.n,
-  }));
-  const all = plot.flatMap((r) => r.dots);
+  });
+  // The reference runs are the yardstick the stacks are read against, so they leave the ranking: out of the rows,
+  // out of the close-call groups, and out of the scale, which belongs to the stacks under test.
+  const underTest = ranked.filter((c) => !c.stack.startsWith(REFERENCE_PREFIX));
+  const references = ranked.filter((c) => c.stack.startsWith(REFERENCE_PREFIX)).map(asRow);
+  const plot: ScorePlotRow[] = underTest.map(asRow);
+  // The scale is the stacks under test, except when only references are scored: then it is theirs, so their lines
+  // still have an axis to sit on.
+  const scaled = plot.length ? plot : references;
+  const all = scaled.flatMap((r) => r.dots);
   const cut = OFF_SCALE_SHARE * (median(all) ?? 0);
   const ordinary = all.filter((v) => v >= cut);
   const axisMin = Math.floor(Math.min(...(ordinary.length ? ordinary : all)) / SCALE_STEP) * SCALE_STEP;
-  const offScale = plot.flatMap((r) => r.dots.filter((v) => v < cut).map((value) => ({ stack: r.stack, label: r.label, value })));
+  const offScale = scaled.flatMap((r) => r.dots.filter((v) => v < cut).map((value) => ({ stack: r.stack, label: r.label, value })));
   const groups: string[][] = [];
-  for (const [a, b] of closeCalls(ranked)) {
+  for (const [a, b] of closeCalls(underTest)) {
     const last = groups.at(-1);
     if (last && last.at(-1) === a.stack) last.push(b.stack); else groups.push([a.stack, b.stack]);
   }
   const label = (stack: string) => plot.find((r) => r.stack === stack)!.label;
-  const top = plot[0], local = plot.find((r) => !r.stack.startsWith(REFERENCE_PREFIX));
+  const top = plot[0];
   const said = (r: ScorePlotRow) => `${r.label}, ${score(r.median)} of ${total} in the middle, over ${plural(r.n, "run")}.`;
   const narrative = [
     `Each dot is one finished run: how many of the ${total} hidden tests it passed. The black bar is the middle run; the grey line runs from the lowest to the highest. Further right is better.`,
-    `Highest: ${said(top)}`,
-    ...(local && local !== top ? [`Best of the local stacks: ${said(local)}`] : []),
+    ...(top ? [`Highest: ${said(top)}`] : []),
+    ...references.map((r) => `The dashed line is ${r.label}, the reference: ${score(r.median)} of ${total} in the middle, over ${plural(r.n, "run")}.`),
     ...groups.map((g) => `${joined(g.map(label))} are within ${INDISTINGUISHABLE_TESTS} tests of each other, and each has ${SMALL_N} runs or fewer, so with the runs so far their order could change.`),
     ...offScale.map((o) => `One run of ${o.label} scored ${score(o.value)}, off the left edge of the scale.`),
     ...(axisMin > 0 ? [`The scale starts at ${axisMin}, not 0, so the differences show.`] : []),
   ];
-  return { total, rows: plot, axisMin, offScale, groups, narrative };
+  return { total, rows: plot, references, axisMin, offScale, groups, narrative };
 }
 
 // The run order in the lists the dashboard draws is the app's one order.

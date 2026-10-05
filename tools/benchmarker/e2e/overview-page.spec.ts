@@ -106,7 +106,7 @@ test.describe("no Needs you: not a panel, a heading, a quiet line, a count or a 
     await patchState(page);
     await open(page);
     await expectNoPanel(page);
-    expect(await overview(page).evaluate((el) => [...el.children].map((c) => (c as HTMLElement).dataset.section ?? c.className))).toEqual(["observations", "now", "ov-pair", "combinations"]);   // the last two are class names: div.ov-pair, section.combinations
+    expect(await overview(page).evaluate((el) => [...el.children].map((c) => (c as HTMLElement).dataset.section ?? c.className))).toEqual(["observations", "now", "utilisation", "ov-pair", "combinations"]);   // the last two are class names: div.ov-pair, section.combinations
     const [pageBox, obsBox] = [await overview(page).boundingBox(), await overview(page).locator('[data-section="observations"]').boundingBox()];
     expect(Math.abs(obsBox!.y - pageBox!.y)).toBeLessThanOrEqual(1);   // no gap left above it
     await expect(page.getByRole("banner")).not.toContainText(OWNER_WORDS);
@@ -130,9 +130,13 @@ test.describe("no Needs you: not a panel, a heading, a quiet line, a count or a 
     await expect(overview(page)).not.toContainText("✓");
   });
 
-  test("the header's version and runs choices filter the Combinations table only", async ({ page }) => {
+  // The version and pack choices live in the ranking band's own heading on this page, because that band is all they
+  // scope: the machines and the timeline are every pack and every version.
+  test("the version and runs choices filter the Combinations table only, and sit in the ranking band", async ({ page }) => {
     await patchState(page);
     await open(page);
+    await expect(page.getByRole("banner").locator(".scope-choice")).toHaveCount(0);
+    await expect(overview(page).locator('[data-section="scores"] .plot-head .scope-choice')).toHaveCount(1);
     await page.getByRole("group", { name: "Which runs" }).getByRole("button", { name: /^Complete runs/ }).click();
     await expect(page.getByRole("table", { name: "Combinations" })).toHaveCount(0);  // the fixture has no complete run
     await expect(now(page).locator("[data-machine]")).toHaveCount(4);
@@ -332,6 +336,9 @@ test.describe("the glossary: every heading and column explains itself", () => {
   });
 });
 
+/** The page's panels, top to bottom; the gap between any two is the same. */
+const PANELS = ['[data-section="observations"]', '[data-section="now"]', '[data-section="utilisation"]', ".ov-pair", "section.combinations"];
+
 for (const width of [WIDE, NARROW]) {
   test.describe(`at ${width} px`, () => {
     test.use({ viewport: { width, height: 900 } });
@@ -339,13 +346,13 @@ for (const width of [WIDE, NARROW]) {
       await patchState(page, (s) => { const l = rowOf(s, SWIFT, "v2-r1").live!; l.agentMinutes = 4; l.storyStartedAt = s.now - 2 * HOUR; });
       await open(page);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-      for (const sel of ['[data-section="observations"]', '[data-section="now"]', ".ov-pair", "section.combinations"]) {
+      for (const sel of PANELS) {
         const box = await overview(page).locator(sel).boundingBox();
         expect(box!.x + box!.width).toBeLessThanOrEqual(width);
         expect(await overview(page).locator(sel).evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
       }
       const sections = [];
-      for (const sel of ['[data-section="observations"]', '[data-section="now"]', ".ov-pair", "section.combinations"]) sections.push((await overview(page).locator(sel).boundingBox())!);
+      for (const sel of PANELS) sections.push((await overview(page).locator(sel).boundingBox())!);
       const pageBox = (await overview(page).boundingBox())!;
       expect(Math.abs(sections[0].y - pageBox.y)).toBeLessThanOrEqual(1);
       for (let i = 1; i < sections.length; i++) {

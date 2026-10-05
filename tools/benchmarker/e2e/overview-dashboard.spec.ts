@@ -162,21 +162,44 @@ test.describe("the score, drawn", () => {
     await expect(plot).toHaveAttribute("role", "img");
     await expect(plot).toHaveAttribute("aria-label", /Score by combination\. .*middle \d+ of 75/);
     const rows = plot.locator("g[data-stack]");
-    expect(await rows.count()).toBeGreaterThanOrEqual(2);
+    expect(await rows.count()).toBeGreaterThanOrEqual(1);
     const first = rows.first();
     await expect(first.locator(".plot-median")).toHaveCount(1);
     expect(await first.locator(".plot-dot").count()).toBeGreaterThanOrEqual(1);
     await expect(first.locator(".plot-runs")).toHaveText(/^\d+ runs?$/);
     await expect(first.locator(".plot-score")).toHaveText(/^\d+(\.\d)?\/75$/);
+    // Every row and every reference again in words, for a reader who cannot use the picture.
+    const words = overview(page).locator('[data-section="scores"] .plot-words li');
+    expect(await words.count()).toBe(await rows.count() + await plot.locator(".plot-ref").count());
+    await expect(words.first()).toHaveText(/: middle \d+(\.\d)? of 75, lowest \d+, highest \d+, \d+ runs?$/);
   });
 
-  test("it is explained in plain words above the picture: how to read it, the top, the best local, what can't be separated", async ({ page }) => {
+  // A reference is the yardstick, not a stack under test: it is a line across the plot, never a ranked row.
+  test("a reference is a dashed line with its name under the axis, not a row, and the key says so", async ({ page }) => {
+    const scores = overview(page).locator('[data-section="scores"]');
+    const refs = scores.locator(".plot-ref");
+    expect(await refs.count()).toBeGreaterThanOrEqual(1);
+    for (const stack of await scores.locator("svg g[data-stack]").evaluateAll((els) => els.map((e) => (e as SVGElement).dataset.stack!))) {
+      expect(stack).not.toMatch(/^reference\//);
+    }
+    await expect(refs.first()).toHaveAttribute("data-reference", /^reference\//);
+    await expect(refs.first().locator(".plot-ref-line")).toHaveCount(1);
+    await expect(refs.first().locator(".plot-ref-label")).toHaveText(/^reference\/\S+ \d+(\.\d)?\/75$/);
+    await expect(scores.locator(".plot-key")).toContainText("the reference");
+    // Its name links to its own page, as every name on the dashboard does.
+    await expect(refs.first().locator("a")).toHaveAttribute("href", /^#\/[^/]+\/c\//);
+  });
+
+  test("it is explained in plain words above the picture: how to read it, the top, the reference, what can't be separated", async ({ page }) => {
     const words = overview(page).locator('[data-section="scores"] [data-narrative]');
     await expect(words).toContainText("Each dot is one finished run");
     await expect(words).toContainText("Further right is better.");
     await expect(words).toContainText("Highest:");
-    await expect(words).toContainText(/Best of the local stacks:|are within 12 tests of each other/);
+    await expect(words).toContainText(/The dashed line is reference\/\S+, the reference: \d+(\.\d)? of 75 in the middle/);
+    // The heading names the section and nothing else: the pack and version choices sit beside it, not inside it,
+    // so they are not read out as part of its name.
     await expect(overview(page).locator('[data-section="scores"] h2')).toHaveText(/^Score\s*out of 75 hidden tests$/);
+    await expect(overview(page).locator('[data-section="scores"] .plot-head .scope-choice')).toHaveCount(1);
   });
 
   test("each row says in a sentence what its marks are, on hover; a bracket says what can't be told apart", async ({ page }) => {

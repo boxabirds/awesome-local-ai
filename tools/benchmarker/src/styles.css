@@ -24,6 +24,8 @@ header { position: sticky; top: 0; z-index: 3; background: var(--bg); border-bot
 h1 { font-size: 17px; margin: 0; }
 select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font: inherit; }
 .meta { color: var(--faint); font-size: 12px; }
+/* Not a fault to explain: the figures are only as current as the feed, so a feed that has stopped is marked. */
+.meta[data-stopped] { color: var(--part); font-weight: 650; }
 .err { color: var(--bad); font-size: 12px; }
 main { padding: 12px 16px var(--main-end); }
 section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin: 0 0 16px; overflow-x: auto; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
