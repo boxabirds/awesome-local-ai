@@ -713,7 +713,7 @@
 </article>
 <article class="entity" id="e-reference" data-entity="reference" data-group="stack" data-search data-title="Reference model" tabindex="-1">
 <header class="ent-head"><span class="gbadge g-stack" aria-hidden="true">S</span><div><h4>Reference model</h4><p class="ent-group">Stack under test</p></div></header>
-<p class="what">The yardstick: Claude Opus 5.5 and Sonnet 5.5 run through the same harness, prompts, <a class="term" href="#g-sandbox" data-term="sandbox">sandbox</a> and scorer, with Claude Code as the client. A reference stack is registered once per machine (<code>install-stack.sh</code>) and its runs live under <code>benchmarks/reference/&lt;pack&gt;/&lt;stack&gt;/</code>. The provider withholds Claude's thinking, so thinking is compared in tokens or not at all.</p>
+<p class="what">The yardstick: Claude Opus 5.5 and Sonnet 5.5 run through the same harness, prompts, <a class="term" href="#g-sandbox" data-term="sandbox">sandbox</a> and scorer, with Claude Code as the client. A reference stack is registered once per machine (<code>install-stack.sh</code>) and its runs live under <code>benchmarks/reference/&lt;pack&gt;/&lt;stack&gt;/</code>. The provider withholds Claude's thinking, so thinking is compared in tokens or not at all. Being the yardstick and not a stack under test, it is never ranked against them: the <a class="term" href="#g-benchmarker" data-term="benchmarker">benchmarker</a>'s score plot draws each reference as one dashed line across the stacks at its middle run, and the machine that runs only the reference has a card of its own only while it is working.</p>
 <dl class="ent-dl">
 
 <dt>Relates to</dt><dd><ul class="rels"><li><span class="rel">is run like a</span> <a class="ent" href="#e-combination" data-entity="combination">Combination</a></li></ul></dd>
@@ -2893,7 +2893,7 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 <p class="s-parts"><span class="lbl">In the picture:</span> Story N normal loop &middot; Later stories (only with --from-story) &middot; Record: known_good in <a class="term" href="#g-metrics-json" data-term="metrics-json">metrics.json</a> &middot; Labelled diagnostic: never mixed with full runs</p>
 <p>The record says which kind it was (<code>known_good</code> in <code>metrics.json</code>, with <code>continues</code> true for the <code>--from-story</code> form), and the summary is labelled diagnostic. Partial reruns' results are never combined with full runs (EVALUATION-POLICY rule 7). The <a class="term" href="#g-benchmarker" data-term="benchmarker">benchmarker</a> marks a <a class="term" href="#g-story-run" data-term="story-run">story run</a> that is not the same work as other runs' as <a class="term" href="#g-not-comparable" data-term="not-comparable">not comparable</a>.</p>
 
-<p class="where"><span class="lbl">In the repo:</span></p><ul class="where-list"><li><a class="repo" href="../../../benchmarks/spec-bench/EVALUATION-POLICY.md">EVALUATION-POLICY.md</a></li><li><a class="repo" href="../../../combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/kg-07-01/summary.md">an example: kg-07-01</a></li></ul>
+<p class="where"><span class="lbl">In the repo:</span></p><ul class="where-list"><li><a class="repo" href="../../../benchmarks/spec-bench/EVALUATION-POLICY.md">EVALUATION-POLICY.md</a></li></ul>
 <p class="s-state"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span> </p>
 
 </li>

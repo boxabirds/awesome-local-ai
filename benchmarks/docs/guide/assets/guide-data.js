@@ -178,7 +178,7 @@ GUIDE_DATA.entities = [
   {
     id: "reference", name: "Reference model", group: "stack", row: 7,
     short: "A frontier model run through the same harness, as the yardstick.",
-    what: "The yardstick: Claude Opus 5.5 and Sonnet 5.5 run through the same harness, prompts, sandbox and scorer, with Claude Code as the client. A reference stack is registered once per machine (`install-stack.sh`) and its runs live under `benchmarks/reference/<pack>/<stack>/`. The provider withholds Claude's thinking, so thinking is compared in tokens or not at all.",
+    what: "The yardstick: Claude Opus 5.5 and Sonnet 5.5 run through the same harness, prompts, sandbox and scorer, with Claude Code as the client. A reference stack is registered once per machine (`install-stack.sh`) and its runs live under `benchmarks/reference/<pack>/<stack>/`. The provider withholds Claude's thinking, so thinking is compared in tokens or not at all. Being the yardstick and not a stack under test, it is never ranked against them: the benchmarker's score plot draws each reference as one dashed line across the stacks at its middle run, and the machine that runs only the reference has a card of its own only while it is working.",
     rel: [["is run like a", "combination"]],
     repo: [["benchmarks/reference/install-stack.sh", "reference/install-stack.sh"], ["benchmarks/vidi/README.md", "Vidi README: the reference stack"], ["horizon/fable-5.1-reference.md", "horizon: a Fable 5.1 variation"]],
     example: "Median story, from the analysis: Opus 5.5 took 17 minutes and 62 model calls; the seven Qwen combinations took 36 to 135 minutes and 176 to 302 calls.",
@@ -2051,7 +2051,9 @@ GUIDE_DATA.flows = [
       {
         title: "Record it, labelled", nodes: ["sn", "later", "rec", "lab"], edges: ["sn>rec", "later>rec", "rec>lab"],
         text: ["The record says which kind it was (`known_good` in `metrics.json`, with `continues` true for the `--from-story` form), and the summary is labelled diagnostic. Partial reruns' results are never combined with full runs (EVALUATION-POLICY rule 7). The benchmarker marks a story run that is not the same work as other runs' as not comparable."],
-        where: [["benchmarks/spec-bench/EVALUATION-POLICY.md", "EVALUATION-POLICY.md"], ["combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/kg-07-01/summary.md", "an example: kg-07-01"]],
+        // kg-07-01 was the worked example; it was archived with the vidi-v1 records (5 Oct 2026) and no partial
+        // rerun is in the tree now, so the policy is the only link that can be followed.
+        where: [["benchmarks/spec-bench/EVALUATION-POLICY.md", "EVALUATION-POLICY.md"]],
         state: "built",
       },
     ],
