@@ -82,7 +82,7 @@ stubViewportSize();
 
 const undoButton = () => screen.getByRole('button', { name: 'Undo' });
 const redoButton = () => screen.getByRole('button', { name: 'Redo' });
-const createButton = () => screen.getByRole('button', { name: 'Sticky note' });
+const createButton = () => screen.getByRole('button', { name: 'Sticky note (N)' });
 
 /** A keystroke on the board: the return value is false when the app consumed it. */
 const press = (key: string, modifiers: Record<string, boolean> = {}) =>
@@ -123,7 +123,9 @@ describe('undo and redo buttons (undo.buttons)', () => {
     if (!toolbar) throw new Error('the board toolbar is missing');
     const buttons = [...toolbar.querySelectorAll<HTMLButtonElement>('button')];
     expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([
-      'Sticky note',
+      'Select (V)',
+      'Text (T)',
+      'Sticky note (N)',
       'Undo',
       'Redo',
     ]);

@@ -97,7 +97,7 @@ describe('sticky.sync: another person editing the same note', () => {
       setStickyColor(peer, id, 'green');
     });
 
-    expect(snapshot(doc)[0].color).toBe('green');
+    expect((snapshot(doc)[0] as any).color).toBe('green');
     expect(note.style.backgroundColor).toBe(rgb(STICKY_COLORS.green));
     expect(note.getAttribute('data-selected')).toBe('true');
     // The swatch row follows the shared colour.

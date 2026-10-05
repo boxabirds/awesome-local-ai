@@ -411,7 +411,7 @@ describe('board.model: a second replica merges (story 3 readiness)', () => {
     const { a, b } = replicas();
     const id = createSticky(a, { x: 0, y: 0 });
     expect(setStickyColor(b, id, 'green')).toBe(true);
-    expect(snapshot(a)[0].color).toBe('green');
+    expect((snapshot(a)[0] as any).color).toBe('green');
   });
 
   it('a move made on one replica is visible on the other', () => {

@@ -239,11 +239,11 @@ export async function boardOf(participant: Participant): Promise<StickySnapshot[
 }
 
 /** Board state as one stable string, so snapshots can be compared directly. */
-export function boardKey(notes: readonly StickySnapshot[]): string {
+export function boardKey(notes: readonly { id: string; x: number; y: number; z: number; color?: string; text: string }[]): string {
   return JSON.stringify(
     [...notes]
       .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-      .map((n) => [n.id, n.x, n.y, n.z, n.color, n.text]),
+      .map((n) => [n.id, n.x, n.y, n.z, n.color ?? null, n.text]),
   );
 }
 

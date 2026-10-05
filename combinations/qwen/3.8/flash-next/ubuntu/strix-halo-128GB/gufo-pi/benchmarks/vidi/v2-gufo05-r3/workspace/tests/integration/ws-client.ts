@@ -13,7 +13,7 @@ import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import * as Y from 'yjs';
 
-import { snapshot, type StickySnapshot } from '../../src/shared/board-model';
+import { stickies, type StickySnapshot } from '../../src/shared/board-model';
 import { isValidBoardId } from '../../src/shared/board-id';
 import {
   MESSAGE_AWARENESS,
@@ -130,7 +130,7 @@ export class RoomClient {
 
   /** The board state this client currently holds. */
   get notes(): readonly StickySnapshot[] {
-    return snapshot(this.doc);
+    return stickies(this.doc);
   }
 
   sendSyncStep1(): void {

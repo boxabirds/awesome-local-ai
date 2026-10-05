@@ -1,5 +1,6 @@
 import { UndoButtons } from './UndoButtons';
 import type { UndoApi } from './useUndo';
+import type { Tool } from './useTool';
 
 /** Exact tooltip copy from the PRD (sticky.create_button). */
 export const STICKY_NOTE_TOOLTIP = 'Sticky note \u2013 or double-click the board';
@@ -14,17 +15,20 @@ export interface ToolbarProps {
    * one that is visibly off.
    */
   locked?: boolean;
+  /** Current active tool (story 9). */
+  tool?: Tool;
+  /** Set the active tool (story 9). */
+  onTool?(tool: Tool): void;
 }
 
 /**
- * Left-side vertical board toolbar: the Sticky note button, then the Undo and
- * Redo buttons under a divider; later stories add their tools here.
+ * Left-side vertical board toolbar: Select, Text, Sticky note, then Undo/Redo.
  *
  * Pointer events are stopped so a click on the toolbar never reaches the
  * viewport (which would pan the board or clear the selection).
  */
 export function Toolbar(props: ToolbarProps) {
-  const { onCreateSticky, undo, locked = false } = props;
+  const { onCreateSticky, undo, locked = false, tool = 'select', onTool } = props;
   return (
     <div
       className="board-toolbar"
@@ -38,7 +42,36 @@ export function Toolbar(props: ToolbarProps) {
       <button
         type="button"
         className="board-toolbar-btn"
-        aria-label="Sticky note"
+        aria-label="Select (V)"
+        aria-pressed={tool === 'select'}
+        title="Select (V)"
+        data-tool-select=""
+        onClick={onTool ? () => onTool('select') : undefined}
+      >
+        <span className="board-toolbar-icon" aria-hidden="true">
+          {'\u2191'}
+        </span>
+        <span className="board-toolbar-text">Select</span>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar-btn"
+        aria-label="Text (T)"
+        aria-pressed={tool === 'text'}
+        title="Text (T)"
+        data-tool-text=""
+        disabled={locked}
+        onClick={locked || !onTool ? undefined : () => onTool('text')}
+      >
+        <span className="board-toolbar-icon" aria-hidden="true">
+          {'T'}
+        </span>
+        <span className="board-toolbar-text">Text</span>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar-btn"
+        aria-label="Sticky note (N)"
         title={STICKY_NOTE_TOOLTIP}
         data-create-sticky=""
         disabled={locked}

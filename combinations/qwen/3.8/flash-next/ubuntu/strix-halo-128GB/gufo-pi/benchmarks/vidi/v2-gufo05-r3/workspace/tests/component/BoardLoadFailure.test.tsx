@@ -269,7 +269,7 @@ describe('a board that could not be loaded is read-only (TC-23)', () => {
 
   it('takes changes normally while the board is readable', () => {
     const { container, doc, provider } = liveBoard();
-    const button = screen.getByRole('button', { name: 'Sticky note' });
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
     expect((button as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(button);
     expect(snapshot(doc)).toHaveLength(1);
@@ -293,7 +293,7 @@ describe('a board that could not be loaded is read-only (TC-23)', () => {
     expect(viewport.getAttribute('data-locked')).toBe('true');
 
     // 1. The toolbar button is disabled and does nothing.
-    const create = screen.getByRole('button', { name: 'Sticky note' });
+    const create = screen.getByRole('button', { name: 'Sticky note (N)' });
     expect((create as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(create);
     expect(snapshot(doc)).toHaveLength(1);

@@ -3,7 +3,7 @@ import { act, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as Y from 'yjs';
 import type { Doc, Transaction } from 'yjs';
-import { objectBounds, getStickyText, snapshot } from '../../src/shared/board-model';
+import { objectBounds, getStickyText, snapshot, type StickySnapshot } from '../../src/shared/board-model';
 import type { Point } from '../../src/client/canvas/camera';
 import {
   noteEl,
@@ -67,10 +67,10 @@ async function dragFrames(
   last(el, { ...init, clientX: to.x, clientY: to.y });
 }
 
-function note(doc: Doc, id: string) {
+function note(doc: Doc, id: string): StickySnapshot {
   const found = snapshot(doc).find((object) => object.id === id);
   if (!found) throw new Error(`note ${id} is gone`);
-  return found;
+  return found as StickySnapshot;
 }
 
 const undoButton = () => screen.getByRole('button', { name: 'Undo' });

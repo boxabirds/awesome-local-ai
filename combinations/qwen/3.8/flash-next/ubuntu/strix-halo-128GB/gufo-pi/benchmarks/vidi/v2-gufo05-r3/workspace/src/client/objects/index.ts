@@ -9,7 +9,9 @@
  */
 import { registerObjectType } from './registry';
 import { stickyObjectType } from './sticky';
+import { textObjectType } from './text';
 
 registerObjectType('sticky', stickyObjectType);
+registerObjectType('text', textObjectType);
 
 export * from './registry';

@@ -1,12 +1,12 @@
 import type { Camera } from './camera';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { AnySnapshot } from '../../shared/board-model';
 import type { ConnectionState } from '../sync/connectBoard';
 
 declare global {
   interface Window {
     __vidi6?: {
       setCamera?(next: Camera): void;
-      getBoard?(): readonly StickySnapshot[];
+      getBoard?(): readonly AnySnapshot[];
       /** Current mapped connection state (test builds only). */
       connectionState?: ConnectionState;
       /** Every connection state this tab has been in, oldest first. */
@@ -34,7 +34,7 @@ export function installTestHook(setCamera: (next: Camera) => void): void {
  * board model (id, x, y, z, colour, text) so end-to-end tests can assert the
  * model as well as the screen.
  */
-export function installBoardHook(getBoard: () => readonly StickySnapshot[]): void {
+export function installBoardHook(getBoard: () => readonly AnySnapshot[]): void {
   if (!enabled()) return;
   window.__vidi6 = { ...window.__vidi6, getBoard };
 }

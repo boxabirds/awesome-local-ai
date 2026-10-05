@@ -1,13 +1,17 @@
-import type * as Y from 'yjs';
+import * as Y from 'yjs';
 import { getObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 import {
   setStickyColor,
   type ObjectSnapshot,
   type StickySnapshot,
 } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import { setTextSize, setTextBox } from '../../shared/objects/text';
+import { layoutText, createCanvasMeasurer } from '../objects/textLayout';
+import type { StickyColor, TextSize } from '../../shared/config';
+import type { TextSnapshot } from '../../shared/objects/text';
 
 export interface SelectionBarProps {
   /** The selected ids. */
@@ -32,16 +36,19 @@ export interface SelectionBarProps {
   hideControls?: boolean;
 }
 
+/** Shared measurer instance. */
+let measurer: ReturnType<typeof createCanvasMeasurer> | null = null;
+function getMeasurer() {
+  if (!measurer) measurer = createCanvasMeasurer();
+  return measurer;
+}
+
 /**
  * The single control for the current selection, floating above it.
  *
  * One object: its own type's toolbar (a sticky note gets the colour swatches and
- * the bin, exactly as in story 2). Several objects: a count and one delete
- * button — one control for the group rather than a toolbar on every note.
- *
- * The spoken version of the count lives in `SelectionAnnouncement` below, which
- * the board owner keeps mounted: a live region that appears together with the
- * change is not announced.
+ * the bin, exactly as in story 2). Text gets S/M/L/XL + Delete. Several objects:
+ * a count and one delete button.
  */
 export function SelectionBar(props: SelectionBarProps) {
   const { ids, snapshot, doc, onDelete, undo, locked = false, hideControls = false } = props;
@@ -61,9 +68,42 @@ export function SelectionBar(props: SelectionBarProps) {
         <NoteToolbar
           color={note.color}
           onColor={(color: StickyColor) => {
-            // Only the colour changes: position, size, text and stacking stay.
             undo?.boundary();
             setStickyColor(doc, note.id, color);
+            undo?.boundary();
+          }}
+          onDelete={onDelete}
+        />
+      </div>
+    );
+  }
+
+  if (single && single.type === 'text') {
+    const textSnap = single as TextSnapshot;
+    return (
+      <div className="selection-bar-slot">
+        <TextToolbar
+          size={textSnap.size}
+          onSize={(s: TextSize) => {
+            undo?.boundary();
+            setTextSize(doc, textSnap.id, s);
+            // Remeasure after size change (synchronous).
+            const obj = doc.getMap<Y.Map<unknown>>('objects').get(textSnap.id);
+            if (obj) {
+              const ytext = obj.get('text');
+              if (ytext && ytext instanceof Y.Text) {
+                const mode = obj.get('widthMode') as 'auto' | 'fixed';
+                const storedW = obj.get('width') as number;
+                const result = layoutText(
+                  ytext.toString(),
+                  s,
+                  mode,
+                  mode === 'fixed' ? storedW : null,
+                  getMeasurer(),
+                );
+                setTextBox(doc, textSnap.id, { width: result.width, height: result.height });
+              }
+            }
             undo?.boundary();
           }}
           onDelete={onDelete}

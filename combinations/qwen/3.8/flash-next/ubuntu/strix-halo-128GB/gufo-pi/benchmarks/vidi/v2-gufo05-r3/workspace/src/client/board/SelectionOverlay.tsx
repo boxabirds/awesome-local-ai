@@ -11,6 +11,9 @@ import { HANDLE_SIZE_PX } from '../../shared/config';
 import { worldToScreen, type Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
 
+/** Horizontal-only handles (text objects). */
+const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
+
 export interface SelectionOverlayProps {
   /** The selected ids. */
   ids: ReadonlySet<string>;
@@ -76,6 +79,12 @@ export function SelectionOverlay(props: SelectionOverlayProps) {
   // the selection does not hide them for the others (they simply do not move).
   const resizable = selected.some((object) => getObjectType(object.type)?.resizable ?? false);
 
+  // When ALL selected types specify 'horizontal' handles, show only e/w.
+  const allHorizontal = selected.every(
+    (object) => getObjectType(object.type)?.handles === 'horizontal',
+  );
+  const visibleHandles = allHorizontal ? HORIZONTAL_HANDLES : HANDLES;
+
   const half = HANDLE_SIZE_PX / 2;
   // Story 2's rule, kept: the gap between the bar and the things it belongs to is
   // measured in board units, so on screen it grows and shrinks with the zoom, while
@@ -99,7 +108,7 @@ export function SelectionOverlay(props: SelectionOverlayProps) {
       ) : null}
 
       {resizable
-        ? HANDLES.map((handle) => {
+        ? visibleHandles.map((handle) => {
             const { fx, fy } = HANDLE_POSITION[handle];
             return (
               <div

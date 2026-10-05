@@ -4,6 +4,7 @@ import {
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   type StickyColor,
+  type TextSize,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
 
@@ -73,6 +74,17 @@ export interface StickySnapshot extends ObjectSnapshot {
   color: StickyColor;
   text: string;
 }
+
+export interface BoardTextSnapshot extends ObjectSnapshot {
+  type: 'text';
+  text: string;
+  size: TextSize;
+  widthMode: 'auto' | 'fixed';
+  createdBy?: string;
+}
+
+/** Union of all board object snapshots. */
+export type AnySnapshot = StickySnapshot | BoardTextSnapshot;
 
 function metaMap(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap(META_KEY);
@@ -426,27 +438,56 @@ export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
  * Immutable view of the board for rendering, sorted by `(z, id)` — bottom first.
  * Objects whose `type` this build does not know are skipped.
  */
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
-  const out: StickySnapshot[] = [];
+export function snapshot(doc: Y.Doc): readonly AnySnapshot[] {
+  const out: AnySnapshot[] = [];
   for (const [id, note] of objectsMap(doc)) {
-    if (note.get('type') !== 'sticky') continue;
-    const color = note.get('color');
-    const text = note.get('text');
-    out.push({
-      id,
-      type: 'sticky',
-      x: numberOr(note.get('x'), 0),
-      y: numberOr(note.get('y'), 0),
-      color: isStickyColor(color) ? color : DEFAULT_STICKY_COLOR,
-      text: text instanceof Y.Text ? text.toString() : '',
-      z: numberOr(note.get('z'), 0),
-      createdAt: numberOr(note.get('createdAt'), 0),
-      // Absent until the note is resized for the first time (story 7): an old
-      // note keeps its default size and no extra fields.
-      ...(finite(note.get('width')) ? { width: note.get('width') as number } : {}),
-      ...(finite(note.get('height')) ? { height: note.get('height') as number } : {}),
-    });
+    const type = note.get('type');
+    if (type === 'sticky') {
+      const color = note.get('color');
+      const text = note.get('text');
+      out.push({
+        id,
+        type: 'sticky' as const,
+        x: numberOr(note.get('x'), 0),
+        y: numberOr(note.get('y'), 0),
+        color: isStickyColor(color) ? color : DEFAULT_STICKY_COLOR,
+        text: text instanceof Y.Text ? text.toString() : '',
+        z: numberOr(note.get('z'), 0),
+        createdAt: numberOr(note.get('createdAt'), 0),
+        ...(finite(note.get('width')) ? { width: note.get('width') as number } : {}),
+        ...(finite(note.get('height')) ? { height: note.get('height') as number } : {}),
+      });
+    } else if (type === 'text') {
+      const text = note.get('text');
+      const size = note.get('size');
+      const widthMode = note.get('widthMode');
+      const createdBy = note.get('createdBy');
+      out.push({
+        id,
+        type: 'text' as const,
+        x: numberOr(note.get('x'), 0),
+        y: numberOr(note.get('y'), 0),
+        text: text instanceof Y.Text ? text.toString() : '',
+        size: (typeof size === 'string' && Object.hasOwn({ S: 1, M: 1, L: 1, XL: 1 }, size))
+          ? size as TextSize
+          : 'M',
+        widthMode: widthMode === 'fixed' ? 'fixed' : 'auto',
+        z: numberOr(note.get('z'), 0),
+        createdAt: numberOr(note.get('createdAt'), 0),
+        ...(finite(note.get('width')) ? { width: note.get('width') as number } : {}),
+        ...(finite(note.get('height')) ? { height: note.get('height') as number } : {}),
+        ...(typeof createdBy === 'string' ? { createdBy } : {}),
+      });
+    }
+    // Unknown types are skipped.
   }
   out.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;
+}
+
+/**
+ * Sticky notes only (backward-compatible helper for code that only handles stickies).
+ */
+export function stickies(doc: Y.Doc): readonly StickySnapshot[] {
+  return snapshot(doc).filter((s): s is StickySnapshot => s.type === 'sticky');
 }

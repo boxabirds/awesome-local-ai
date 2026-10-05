@@ -13,7 +13,7 @@ import {
   objectsInRect,
   registerKnownObjectType,
   resizeObjects,
-  snapshot,
+  snapshot, stickies,
   type ObjectSnapshot,
 } from '../../src/shared/board-model';
 import {
@@ -86,7 +86,7 @@ describe('board.model: moveObjects (TC-05, TC-09)', () => {
   it('TC-09 non-finite positions write nothing at all, in any transaction', () => {
     const doc = new Y.Doc();
     const a = createSticky(doc, { x: 0, y: 0 });
-    const before = snapshot(doc)[0];
+    const before = stickies(doc)[0];
 
     for (const bad of [
       new Map([[a, { x: Number.NaN, y: 0 }]]),
@@ -143,7 +143,7 @@ describe('board.model: resizeObjects (TC-10)', () => {
   it('TC-10 an old note reads the default size, and the first resize writes both fields', () => {
     const doc = new Y.Doc();
     const id = createSticky(doc, { x: 400, y: 300 });
-    const before = snapshot(doc)[0];
+    const before = stickies(doc)[0];
     expect(before.width).toBeUndefined();
     expect(before.height).toBeUndefined();
     expect(objectBounds(before)).toEqual({
@@ -163,7 +163,7 @@ describe('board.model: resizeObjects (TC-10)', () => {
 
     expect(applied).toBe(1);
     expect(updates).toBe(1);
-    const after = snapshot(doc)[0];
+    const after = stickies(doc)[0];
     expect(after).toMatchObject({ x, y, width: 320, height: 320 });
     expect(objectBounds(after)).toEqual({ x, y, width: 320, height: 320 });
     // Colour, text and stacking survive a resize.
@@ -195,7 +195,7 @@ describe('board.model: resizeObjects (TC-10)', () => {
   it('non-finite or non-positive sizes, and empty maps, write nothing', () => {
     const doc = new Y.Doc();
     const id = createSticky(doc, { x: 0, y: 0 });
-    const before = snapshot(doc)[0];
+    const before = stickies(doc)[0];
 
     for (const rects of [
       new Map<string, { x: number; y: number; width: number; height: number }>(),

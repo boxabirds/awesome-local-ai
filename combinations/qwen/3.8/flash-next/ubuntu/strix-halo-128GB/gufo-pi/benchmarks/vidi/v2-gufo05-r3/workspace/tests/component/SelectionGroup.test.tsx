@@ -113,7 +113,7 @@ describe('selection set and selection bar (sel.interaction)', () => {
     expect(container.querySelector('[data-selection-count]')).toBeNull();
     // Story 2's swatches work exactly as before, from the selection's control.
     fireEvent.click(within(toolbar).getByRole('button', { name: 'Green colour' }));
-    expect(snapshot(doc)[0].color).toBe('green');
+    expect((snapshot(doc)[0] as any).color).toBe('green');
     // Its bin deletes the one note.
     fireEvent.click(within(toolbar).getByRole('button', { name: 'Delete note' }));
     expect(snapshot(doc)).toEqual([]);

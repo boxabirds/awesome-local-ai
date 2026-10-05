@@ -179,3 +179,28 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 
 /** How many undo steps one person's history keeps before the oldest is dropped. */
 export const UNDO_MAX_STEPS = 200;
+
+// --- Story 9: free text -----------------------------------------------------
+
+/** Maximum automatic width of a text object, in world units. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** Minimum fixed width of a text object, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Maximum number of characters kept in a text object. */
+export const TEXT_MAX_CHARS = 5000;
+
+/** Size presets (font size in board units) keyed by name. */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** The size a newly created text object receives. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Line height multiplier applied to each text size. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** Font family for text objects. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';

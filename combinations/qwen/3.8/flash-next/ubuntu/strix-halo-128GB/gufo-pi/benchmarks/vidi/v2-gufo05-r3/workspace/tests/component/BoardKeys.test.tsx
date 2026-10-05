@@ -218,7 +218,7 @@ describe('selection keyboard commands (sel.keyboard)', () => {
     const { container } = renderBoard(doc);
     clickNote(noteEl(container, a));
 
-    const button = screen.getByRole('button', { name: 'Sticky note' });
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
     button.focus();
     fireEvent.keyDown(button, { key: 'Enter' });
     expect(textarea(container)).toBeNull();

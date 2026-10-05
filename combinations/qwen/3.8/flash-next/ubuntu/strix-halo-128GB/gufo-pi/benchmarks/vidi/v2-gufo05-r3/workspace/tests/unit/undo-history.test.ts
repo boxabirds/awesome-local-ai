@@ -7,7 +7,7 @@ import {
   LOCAL_ORIGIN,
   moveObject,
   setStickyColor,
-  snapshot,
+  snapshot, stickies,
   type StickySnapshot,
 } from '../../src/shared/board-model';
 import { UNDO_MAX_STEPS } from '../../src/shared/config';
@@ -67,9 +67,9 @@ function rig(): Rig {
     get undo() {
       return history();
     },
-    notes: () => snapshot(peer.doc),
+    notes: () => stickies(peer.doc),
     note: (id) => {
-      const found = snapshot(peer.doc).find((candidate) => candidate.id === id);
+      const found = stickies(peer.doc).find((candidate) => candidate.id === id);
       if (!found) throw new Error(`note ${id} is not on the board`);
       return found;
     },

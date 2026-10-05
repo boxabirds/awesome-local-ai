@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshot, type AnySnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 export interface BoardDocApi {
   /** The single Yjs document backing the board. */
   doc: Y.Doc;
   /** Board objects in render order `(z, id)`; unknown types are skipped. */
-  notes: readonly StickySnapshot[];
+  notes: readonly AnySnapshot[];
   /** Live connection state (`'connecting'` forever when no board id is given). */
   connection: ConnectionState;
 }
@@ -39,7 +39,7 @@ export function useBoardDoc(existing?: Y.Doc, boardId?: string): BoardDocApi {
 
   const [connection, setConnection] = useState<ConnectionState>('connecting');
 
-  const cache = useRef<{ dirty: boolean; value: readonly StickySnapshot[] }>({
+  const cache = useRef<{ dirty: boolean; value: readonly AnySnapshot[] }>({
     dirty: true,
     value: [],
   });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import * as Y from 'yjs';
-import { snapshot } from '../../src/shared/board-model';
+import { stickies } from '../../src/shared/board-model';
 import { STICKY_COLORS, STICKY_SIZE_WORLD } from '../../src/shared/config';
 import { STICKY_NOTE_TOOLTIP } from '../../src/client/board/Toolbar';
 import {
@@ -35,12 +35,12 @@ describe('sticky.toolbar: colour and delete on the selected note', () => {
 
   it('TC-27 clicking the Pink swatch recolours the note and keeps the selection', () => {
     const { container, doc, id } = selectedNote();
-    const before = snapshot(doc)[0];
+    const before = stickies(doc)[0];
     expect(before.color).toBe('yellow');
 
     fireEvent.click(screen.getByRole('button', { name: 'Pink colour' }));
 
-    const after = snapshot(doc)[0];
+    const after = stickies(doc)[0];
     expect(after.color).toBe('pink');
     // Text, position, stacking and the id are untouched.
     expect(after.text).toBe(before.text);
@@ -65,7 +65,7 @@ describe('sticky.toolbar: colour and delete on the selected note', () => {
     }
 
     fireEvent.click(screen.getByRole('button', { name: 'Violet colour' }));
-    expect(snapshot(doc)[0].color).toBe('violet');
+    expect(stickies(doc)[0].color).toBe('violet');
     expect(screen.getByRole('button', { name: 'Violet colour' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -74,11 +74,11 @@ describe('sticky.toolbar: colour and delete on the selected note', () => {
 
   it('TC-29 the bin button deletes the note and clears the selection', () => {
     const { container, doc } = selectedNote();
-    expect(snapshot(doc)).toHaveLength(1);
+    expect(stickies(doc)).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete note' }));
 
-    expect(snapshot(doc)).toHaveLength(0);
+    expect(stickies(doc)).toHaveLength(0);
     expect(container.querySelector('[data-sticky-note]')).toBeNull();
     expect(screen.queryByRole('toolbar', { name: 'Sticky note options' })).toBeNull();
   });
@@ -97,9 +97,9 @@ describe('sticky.toolbar: Sticky note button', () => {
     const doc = new Y.Doc();
     const { container } = renderBoard(doc);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
 
-    const notes = snapshot(doc);
+    const notes = stickies(doc);
     expect(notes).toHaveLength(1);
     // The camera centres the world origin, so the viewport centre is world (0,0).
     expect(notes[0].x).toBe(-STICKY_SIZE_WORLD / 2);
@@ -112,7 +112,7 @@ describe('sticky.toolbar: Sticky note button', () => {
     expect(editor).not.toBeNull();
     expect(document.activeElement).toBe(editor);
     fireEvent.change(editor!, { target: { value: 'Hello' } });
-    expect(snapshot(doc)[0].text).toBe('Hello');
+    expect(stickies(doc)[0].text).toBe('Hello');
   });
 
   it('TC-28b after panning, the new note is centred on the visible area, on top of the rest', () => {
@@ -127,9 +127,9 @@ describe('sticky.toolbar: Sticky note button', () => {
     fireEvent.pointerMove(surface, { clientX: 600, clientY: 400, button: 0, pointerId: 1 });
     fireEvent.pointerUp(surface, { clientX: 600, clientY: 400, button: 0, pointerId: 1 });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
 
-    const notes = snapshot(doc);
+    const notes = stickies(doc);
     expect(notes).toHaveLength(2);
     const created = notes.find((n) => n.id !== existing)!;
     expect(created).toBeDefined();
@@ -143,7 +143,7 @@ describe('sticky.toolbar: Sticky note button', () => {
   it('the toolbar button carries the exact tooltip from the PRD', () => {
     const doc = new Y.Doc();
     renderBoard(doc);
-    const button = screen.getByRole('button', { name: 'Sticky note' });
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
     expect(button).toHaveAttribute('title', 'Sticky note \u2013 or double-click the board');
     expect(STICKY_NOTE_TOOLTIP).toBe('Sticky note \u2013 or double-click the board');
   });
@@ -155,7 +155,7 @@ describe('sticky.toolbar: Sticky note button', () => {
 
     fireEvent.doubleClick(surface, { clientX: 400, clientY: 300 });
 
-    const notes = snapshot(doc);
+    const notes = stickies(doc);
     expect(notes).toHaveLength(1);
     // Viewport-relative point (400, 300), camera centred at (-640, -400), zoom 1.
     const worldX = 400 + -VIEWPORT.width / 2;
@@ -166,7 +166,7 @@ describe('sticky.toolbar: Sticky note button', () => {
     const editor = textarea(container);
     expect(editor).not.toBeNull();
     fireEvent.change(editor!, { target: { value: 'Hello' } });
-    expect(snapshot(doc)[0].text).toBe('Hello');
+    expect(stickies(doc)[0].text).toBe('Hello');
   });
 
   it('double-clicking empty space stacks the new note on top of an existing one', () => {
@@ -174,7 +174,7 @@ describe('sticky.toolbar: Sticky note button', () => {
     const first = seedSticky(doc, { x: 0, y: 0 });
     const { container } = renderBoard(doc);
     fireEvent.doubleClick(boardSurface(container), { clientX: 500, clientY: 500 });
-    const notes = snapshot(doc);
+    const notes = stickies(doc);
     expect(notes.map((n) => n.id)).toEqual([first, notes[1].id]);
     expect(notes[1].z).toBe(2);
   });
@@ -197,13 +197,13 @@ describe('sticky.toolbar: keyboard focus and board shortcuts', () => {
     // activation itself.
     fireEvent.keyDown(screen.getByRole('button', { name: 'Green colour' }), { key: 'Enter' });
     expect(textarea(container)).toBeNull();
-    expect(snapshot(doc)[0].color).toBe('yellow');
+    expect(stickies(doc)[0].color).toBe('yellow');
   });
 
   it('Delete still removes the note while a swatch has focus', () => {
     const { container, doc } = selectedNoteWithFocusedSwatch();
     fireEvent.keyDown(screen.getByRole('button', { name: 'Green colour' }), { key: 'Delete' });
-    expect(snapshot(doc)).toHaveLength(0);
+    expect(stickies(doc)).toHaveLength(0);
     expect(container.querySelector('[data-sticky-note]')).toBeNull();
   });
 

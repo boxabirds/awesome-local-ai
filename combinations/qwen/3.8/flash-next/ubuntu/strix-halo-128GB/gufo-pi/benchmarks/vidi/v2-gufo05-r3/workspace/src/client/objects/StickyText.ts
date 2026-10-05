@@ -5,6 +5,7 @@ import {
   STICKY_FONT_MIN_PX,
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
+import { clampToLimit as clampGeneric, applyTextDiff as diffGeneric } from '../../shared/text-edit';
 
 /**
  * Sticky note text logic.
@@ -23,78 +24,18 @@ function isLowSurrogate(code: number): boolean {
   return code >= 0xdc00 && code <= 0xdfff;
 }
 
-/**
- * True when index `i` is a safe cut position, i.e. it does not fall between a
- * high and a low surrogate, so an emoji (or any astral character) is never cut
- * in half by the limit or by a diff boundary.
- */
 function boundarySafe(value: string, i: number): boolean {
   if (i <= 0 || i >= value.length) return true;
   return !(isHighSurrogate(value.charCodeAt(i - 1)) && isLowSurrogate(value.charCodeAt(i)));
 }
 
-/** Keep at most `max` (default STICKY_TEXT_MAX_CHARS) characters. */
+// Re-export from the shared module with sticky-specific default limit.
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (next.length <= max) return next;
-  let cut = max;
-  while (cut > 0 && !boundarySafe(next, cut)) cut -= 1;
-  return next.slice(0, cut);
+  return clampGeneric(next, max);
 }
 
-/**
- * Write `next` into `ytext` using the minimal edits (common prefix and suffix
- * are kept): at most one delete and one insert, inside a single transaction.
- * No-op when the text already matches, so typing that changes nothing produces
- * no update and no sync traffic.
- */
 export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-
-  let prefix = 0;
-  const maxPrefix = Math.min(current.length, next.length);
-  while (
-    prefix < maxPrefix &&
-    current.charCodeAt(prefix) === next.charCodeAt(prefix)
-  ) {
-    prefix += 1;
-  }
-
-  let suffix = 0;
-  let maxSuffix = Math.min(current.length - prefix, next.length - prefix);
-  while (
-    suffix < maxSuffix &&
-    current.charCodeAt(current.length - suffix - 1) ===
-      next.charCodeAt(next.length - suffix - 1)
-  ) {
-    suffix += 1;
-  }
-
-  // Snap the boundaries so a surrogate pair is never split. Backing off the
-  // prefix can widen the replaced range, which is always correct.
-  while (prefix > 0 && (!boundarySafe(current, prefix) || !boundarySafe(next, prefix))) {
-    prefix -= 1;
-  }
-  maxSuffix = Math.min(current.length - prefix, next.length - prefix);
-  if (suffix > maxSuffix) suffix = maxSuffix;
-  while (
-    suffix > 0 &&
-    (!boundarySafe(current, current.length - suffix) ||
-      !boundarySafe(next, next.length - suffix))
-  ) {
-    suffix -= 1;
-  }
-
-  const deleteLength = current.length - suffix - prefix;
-  const inserted = next.slice(prefix, next.length - suffix);
-  if (deleteLength <= 0 && inserted.length === 0) return;
-
-  const apply = () => {
-    if (deleteLength > 0) ytext.delete(prefix, deleteLength);
-    if (inserted.length > 0) ytext.insert(prefix, inserted);
-  };
-  if (ytext.doc) ytext.doc.transact(apply, origin);
-  else apply();
+  diffGeneric(ytext, next, origin);
 }
 
 /**

@@ -60,6 +60,8 @@ export interface ObjectTypeSpec {
   /** The smallest side this type may be resized to, in world units. */
   readonly minSize: number;
   readonly hitTest: (obj: ObjectSnapshot, at: Point) => boolean;
+  /** Which handles to show. Default 'all'; 'horizontal' shows only e/w. */
+  readonly handles?: 'all' | 'horizontal';
 }
 
 /** The default hit test: the object's bounding rectangle, edges included. */

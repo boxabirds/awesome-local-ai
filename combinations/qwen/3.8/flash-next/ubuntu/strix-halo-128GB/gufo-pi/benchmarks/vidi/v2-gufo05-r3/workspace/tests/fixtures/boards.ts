@@ -207,7 +207,7 @@ export function boardKey(doc: Y.Doc): string {
   return JSON.stringify(
     [...snapshot(doc)]
       .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-      .map((n) => [n.id, n.x, n.y, n.z, n.color, n.text, n.createdAt]),
+      .map((n) => [n.id, n.x, n.y, n.z, (n as any).color ?? null, n.text, n.createdAt]),
   );
 }
 

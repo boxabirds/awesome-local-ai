@@ -14,6 +14,7 @@ import { NavigationHint } from './NavigationHint';
 import { installTestHook } from './testHooks';
 import { createSticky } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import type { Tool } from '../board/useTool';
 
 /** Pixels per LINE deltaMode unit (mouse wheel notch). */
 const LINE_HEIGHT_PX = 16;
@@ -82,6 +83,15 @@ export interface BoardViewportProps {
    * panning. Omit it and the board pans on Shift like any other modifier.
    */
   marquee?: MarqueeApi;
+  /** Active tool (story 9). When 'text', cursor is 'text' and click creates text. */
+  tool?: Tool;
+  /** Called when a text object is created by clicking the board with Text tool. */
+  onTextCreated?(id: string): void;
+  /**
+   * Called when a click on the board (including on an object) should create text.
+   * The viewport converts the screen point to world and calls createText via this callback.
+   */
+  onTextClick?(worldPoint: Point): void;
 }
 
 /**
@@ -274,6 +284,16 @@ export function BoardViewport(props: BoardViewportProps) {
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     if (isControlTarget(e.target)) return;
+
+    // When Text tool is active, any click on the board (including on objects)
+    // creates text at that point. We don't pan or marquee.
+    if (props.tool === 'text' && !props.locked) {
+      const point = pointFromEvent(e.clientX, e.clientY);
+      const world = screenToWorld(apiRef.current.camera, point);
+      props.onTextClick?.(world);
+      return;
+    }
+
     // Board objects and the selection's own controls answer their pointer
     // themselves (a press on a note selects or moves it; it must never pan).
     if (!isBoardSpace(e.target)) return;
@@ -365,7 +385,7 @@ export function BoardViewport(props: BoardViewportProps) {
       className="board-viewport"
       data-panning={panning ? 'true' : 'false'}
       data-locked={props.locked ? 'true' : 'false'}
-      style={{ cursor: panning ? 'grabbing' : props.locked ? 'default' : 'grab' }}
+      style={{ cursor: props.tool === 'text' && !props.locked ? 'text' : panning ? 'grabbing' : props.locked ? 'default' : 'grab' }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
