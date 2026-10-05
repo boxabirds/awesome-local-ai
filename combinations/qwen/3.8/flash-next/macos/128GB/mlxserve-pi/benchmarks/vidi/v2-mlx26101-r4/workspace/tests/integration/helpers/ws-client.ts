@@ -30,7 +30,8 @@ import {
   setStickyColor,
   snapshot,
 } from '../../../src/shared/board-model';
-import type { StickyColor, StickySnapshot } from '../../../src/shared/board-model';
+import type { StickyColor } from '../../../src/shared/config';
+import type { StickySnapshot } from '../../../src/shared/board-model';
 import {
   MESSAGE_AWARENESS,
   MESSAGE_QUERY_AWARENESS,
@@ -62,6 +63,17 @@ export interface ReceivedFrame {
   bytes: Uint8Array;
 }
 
+/**
+ * Which presence states just changed, as `y-protocols/awareness` reports them. The
+ * shape is exported by that package's implementation but not by its types, so it is
+ * written out here rather than reached into.
+ */
+interface AwarenessChange {
+  added: number[];
+  updated: number[];
+  removed: number[];
+}
+
 export interface BoardClient {
   readonly boardId: string;
   readonly doc: Y.Doc;
@@ -72,7 +84,7 @@ export interface BoardClient {
   /** Every frame this client sent, in order: what arrived can be told from what went out. */
   readonly sent: readonly ReceivedFrame[];
   /** Set once the socket has closed; null while it is open. */
-  readonly close: { code: number; reason: string } | null;
+  readonly closeInfo: { code: number; reason: string } | null;
   /** True while the socket is usable. */
   readonly open: boolean;
   /** How many frames of a kind have arrived. */
@@ -224,7 +236,7 @@ export function createClient(boardId: string, initialSocket: WebSocket): BoardCl
     },
     log,
     sent,
-    get close() {
+    get closeInfo() {
       return closeInfo;
     },
     get open() {
@@ -400,7 +412,7 @@ export function createClient(boardId: string, initialSocket: WebSocket): BoardCl
 
   // Presence goes out the same way, including the first state, which is what makes
   // an idle connection look alive to everybody else on the board.
-  awareness.on('update', (update: awarenessProtocol.AwarenessUpdate, origin: unknown) => {
+  awareness.on('update', (update: AwarenessChange, origin: unknown) => {
     if (origin === remote || !sending()) return;
     client.sendAwareness(update.added.concat(update.updated, update.removed));
   });

@@ -1,3 +1,107 @@
+commit 3064183b9fd49efb4c6caa270e30d653454ae339
+vidi-agent  Mon Oct 5 04:16:26 2026 +0100
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ PROGRESS.md                               |   4 +-
+ playwright.config.ts                      |  20 +-
+ src/worker/board-room.ts                  |  14 ++
+ src/worker/test-hooks.ts                  |   5 +-
+ src/worker/test-seed.ts                   |  90 ++++++++
+ tests/component/BoardLoadFailure.test.tsx |   1 -
+ tests/e2e/helpers/wrangler-process.ts     | 271 ++++++++++++++++++++++++
+ tests/e2e/persistence.spec.ts             | 339 ++++++++++++++++++++++++++++++
+ 8 files changed, 736 insertions(+), 8 deletions(-)
+commit b5d9b31ebf402ee0eb62194d73fa6c63bcf42563
+agent  Mon Oct 5 02:57:27 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ tests/component/BoardLoadFailure.test.tsx | 372 ++++++++++++++++++++++++++++++
+ 1 file changed, 372 insertions(+)
+commit a379199a5f9cc4ff2e920e4d69aa3318994c6587
+agent  Mon Oct 5 02:53:58 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ src/client/App.tsx                   | 33 +++++++++++++++++---
+ src/client/components/Toolbar.tsx    | 13 ++++++--
+ src/client/objects/NoteToolbar.tsx   | 12 +++++++-
+ src/client/objects/StickyNote.tsx    | 19 ++++++++++--
+ src/client/styles.css                |  7 +++++
+ src/client/sync/ConnectionStatus.tsx |  8 ++++-
+ src/client/sync/connectBoard.ts      | 59 +++++++++++++++++++++++++++++++++---
+ 7 files changed, 136 insertions(+), 15 deletions(-)
+commit 43f5960ff25f69e0e2a9bd64c85d12a1e6dc9b7b
+agent  Mon Oct 5 02:49:22 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ PROGRESS.md                                      |   4 +-
+ src/worker/board-room.ts                         |  71 +++-
+ src/worker/board-store.ts                        | 100 +++++-
+ src/worker/index.ts                              |   6 +
+ src/worker/room-state.ts                         |   7 +-
+ src/worker/test-hooks.ts                         |  62 ++++
+ tests/integration/board-room-persistence.test.ts | 428 +++++++++++++++++++++++
+ tests/integration/helpers/storage.ts             |  77 ++++
+ tests/unit/room-state.test.ts                    |   5 +-
+ 9 files changed, 749 insertions(+), 11 deletions(-)
+commit 3ccc9b1727775e9e301e2fb1fd267383fb2575c1
+agent  Mon Oct 5 02:29:26 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ PROGRESS.md                           |  10 +-
+ src/worker/board-store.ts             | 109 ++++++-
+ tests/fixtures/boards.ts              | 101 ++++--
+ tests/integration/board-store.test.ts | 581 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 749 insertions(+), 52 deletions(-)
+commit 8a987c3d43ed6cb6abaa8325a59831a3c48fe639
+agent  Mon Oct 5 02:05:58 2026 +0000
+
+    story 4: persistent hibernating room, board store and fixtures
+
+
+ src/shared/protocol.ts                |  21 ++
+ src/worker/board-room.ts              | 407 ++++++++++++++++-----
+ src/worker/board-store.ts             | 644 ++++++++++++++++++++++++++++++++--
+ src/worker/room-state.ts              |  51 ++-
+ tests/fixtures/boards.ts              | 185 ++++++++++
+ tests/integration/board-room.test.ts  |   5 +
+ tests/unit/board-store-chunks.test.ts |   6 +-
+ 7 files changed, 1189 insertions(+), 130 deletions(-)
+commit a0f0a10abc13f20fae8f0195655391507b6733d2
+agent  Mon Oct 5 01:40:56 2026 +0000
+
+    story 4: tests first for board storage and the room lifecycle
+
+
+ src/shared/config.ts                    |  27 +++++++
+ src/worker/board-store.ts               |  65 +++++++++++++++
+ src/worker/room-state.ts                |  94 ++++++++++++++++++++++
+ tests/integration/board-room.test.ts    |   3 +-
+ tests/integration/helpers/random-ops.ts |   3 +-
+ tests/integration/helpers/ws-client.ts  |  20 ++++-
+ tests/integration/worker-env.d.ts       |  18 +++++
+ tests/unit/board-store-chunks.test.ts   |  99 +++++++++++++++++++++++
+ tests/unit/room-state.test.ts           | 137 ++++++++++++++++++++++++++++++++
+ tsconfig.json                           |   6 +-
+ tsconfig.worker.json                    |  17 +++-
+ 11 files changed, 477 insertions(+), 12 deletions(-)
+commit 8eb681a8c9d3cb1daf91854206d7a7e243716bf7
+vidi-agent  Mon Oct 5 02:14:12 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 25 ++++++++++---------------
+ 1 file changed, 10 insertions(+), 15 deletions(-)
 commit be5265c5c95ed6eb5c4321017d5793f75912bfa7
 agent  Mon Oct 5 01:11:42 2026 +0000
 

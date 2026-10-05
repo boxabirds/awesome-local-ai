@@ -22,8 +22,7 @@ import {
   setStickyColor,
   snapshot,
 } from '../../../src/shared/board-model';
-import { STICKY_COLORS } from '../../../src/shared/config';
-import type { StickyColor } from '../../../src/shared/board-model';
+import { STICKY_COLORS, type StickyColor } from '../../../src/shared/config';
 
 /** Words people actually type, so the text merges look like the real thing. */
 export const WORDS: readonly string[] = [

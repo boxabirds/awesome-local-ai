@@ -16,9 +16,26 @@ import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { connectBoard } from './sync/connectBoard';
+import type { ConnectionState } from './sync/connectBoard';
 
 /** Keys that delete a selected note, and nothing else. */
 const DELETE_KEYS = ['Delete', 'Backspace'];
+
+/**
+ * Whether this board may be written to.
+ *
+ * Every state except `load_failed` leaves the board editable, including the states
+ * in which nothing is reaching anybody: a board that cannot be written down, or
+ * cannot be reached, still holds what is typed and sends it when it can, so taking
+ * the keyboard away would only lose work. `load_failed` is the opposite — the room
+ * has said it cannot read this board, and is holding back rather than handing over
+ * an empty one — so notes created now would be written into a document that is about
+ * to be thrown away. Editing stops until the board arrives; the first successful
+ * sync turns it back on, with no reload.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 /** The address of a board: this prefix and the board's id, and nothing else. */
 const BOARD_PATH_PREFIX = '/b/';
@@ -65,6 +82,7 @@ export function App({ connect = connectBoard }: AppProps = {}): JSX.Element {
    * keyboard, or from whoever joins the board later — lets the selection, and any
    * editing inside it, go with it instead of pointing at nothing.
    */
+  const editable = canEdit(connection);
   const selected = notes.some((note) => note.id === selectedId) ? selectedId : null;
   const editing = notes.some((note) => note.id === editingId) ? editingId : null;
 
@@ -77,13 +95,17 @@ export function App({ connect = connectBoard }: AppProps = {}): JSX.Element {
   /** Put a note down centred on a world point and start typing straight away. */
   const createStickyAt = useCallback(
     (world: Point): void => {
+      // A board that could not be loaded is not written to: see `canEdit`. The
+      // gesture is swallowed rather than answered with an error, because the badge
+      // above already says what is wrong and what is being done about it.
+      if (!editable) return;
       // `createSticky` centres the note on the point it is given, so the click
       // point becomes the middle of the note, not its top-left corner.
       const id = createSticky(doc, world);
       // A note that could not be created leaves no selection behind it.
       if (id !== NO_ID) startEdit(id);
     },
-    [doc, startEdit],
+    [doc, startEdit, editable],
   );
 
   /** The toolbar button adds a note in the middle of what is on screen. */
@@ -105,13 +127,13 @@ export function App({ connect = connectBoard }: AppProps = {}): JSX.Element {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
 
       if (event.key === 'Enter') {
-        if (selected === null) return; // nothing selected: this key does nothing
+        if (selected === null || !editable) return; // nothing selected, or nothing to type into
         event.preventDefault();
         startEdit(selected);
         return;
       }
       if (!DELETE_KEYS.includes(event.key)) return;
-      if (selected === null) return;
+      if (selected === null || !editable) return;
       // Stop the browser going back a page on Backspace.
       event.preventDefault();
       deleteObject(doc, selected);
@@ -120,11 +142,11 @@ export function App({ connect = connectBoard }: AppProps = {}): JSX.Element {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, editing, select, selected, startEdit]);
+  }, [doc, editing, select, selected, startEdit, editable]);
 
   return (
     <div className="board-app" data-testid="board-root" ref={rootRef}>
-      <Toolbar onCreateSticky={createStickyInCentre} />
+      <Toolbar onCreateSticky={createStickyInCentre} disabled={!editable} />
       <BoardViewport onCreateAt={createStickyAt} onClearSelection={() => select(null)}>
         {painted.map((note) => (
           <StickyNote
@@ -134,6 +156,7 @@ export function App({ connect = connectBoard }: AppProps = {}): JSX.Element {
             zoom={camera.zoom}
             selected={note.id === selected}
             editing={note.id === editing}
+            readOnly={!editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}

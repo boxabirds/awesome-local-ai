@@ -11,8 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import { newBoardId } from '../../src/shared/board-id';
 import { CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
-import { MAX_CONCURRENT_EDITORS, STICKY_COLORS } from '../../src/shared/config';
-import type { StickyColor } from '../../src/shared/board-model';
+import { MAX_CONCURRENT_EDITORS, STICKY_COLORS, type StickyColor } from '../../src/shared/config';
 import { describeSeed, randomOps } from './helpers/random-ops';
 import {
   awarenessFrames,
@@ -253,6 +252,11 @@ describe('presence and reconnection', () => {
       alex.awareness.setLocalStateField('user', 'Alex');
 
       await sam.waitFor('to be told who Alex is', () => sam.awareness.getStates().has(alex.clientId()));
+      // The sender is given the same chance to have heard its own presence back before the two
+      // logs are compared. The room writes both copies in one turn, but the two sockets are
+      // separate connections and nothing orders one against the other; comparing as soon as
+      // the second person has heard only ever proved the room is quick.
+      await alex.waitFor('to hear its own presence back', () => alex.countOf('awareness') >= sam.countOf('awareness'));
       // The same bytes on both screens: presence is relayed, not translated.
       expect(awarenessFrames(sam)).toEqual(awarenessFrames(alex));
       expect(awarenessFrames(alex).length).toBeGreaterThan(0);

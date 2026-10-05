@@ -121,3 +121,30 @@ export const AWARENESS_TIMEOUT_MS = 30_000;
  * while the address is the whole of a board's access control.
  */
 export const BOARD_ID_BYTES = 16;
+
+// ————— persistence (story 4)
+
+/** Log updates folded into a snapshot at this count (the design allows 300–1000). */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** Log updates folded into a snapshot once they weigh this much. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/** A snapshot is stored in pieces of this size, so no single row gets big. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/**
+ * Shortest wait between two tries at a board that failed to load. A board that cannot be
+ * read is not re-read once a second for ten minutes: the promise is "retrying", and this is
+ * how often the retry is real.
+ */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** The board size the board is proven to come back at, in notes. */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/** What coming back for a board of that size is aimed at, in ms; tests log the real figure. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/** The schema `BoardStore.migrate()` brings a board's storage to. */
+export const STORAGE_SCHEMA_VERSION = 1;

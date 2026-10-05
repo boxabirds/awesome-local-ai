@@ -16,9 +16,15 @@ export const STICKY_NOTE_TOOLTIP = 'Sticky note — or double-click the board';
 export interface ToolbarProps {
   /** Add a note at the centre of the visible board and start typing. */
   onCreateSticky(): void;
+  /**
+   * Take the button out of use: on a board that could not be loaded there is
+   * nothing to add a note to, and a button that does nothing when pressed would be
+   * a lie, so it says so instead (and `App` refuses the write anyway).
+   */
+  disabled?: boolean;
 }
 
-export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX.Element {
   /** A click on the toolbar is a command, not a board gesture. */
   const stop = (event: ReactPointerEvent<HTMLElement>): void => {
     event.stopPropagation();
@@ -31,8 +37,11 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
         className="toolbar__button"
         data-testid="create-sticky"
         aria-label="Sticky note"
-        title={STICKY_NOTE_TOOLTIP}
+        title={disabled ? 'Sticky note — unavailable until this board is loaded' : STICKY_NOTE_TOOLTIP}
+        disabled={disabled}
+        aria-disabled={disabled}
         onClick={() => {
+          if (disabled) return;
           onCreateSticky();
         }}
       >

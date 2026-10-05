@@ -10,6 +10,7 @@
  */
 import { isValidBoardId } from '../shared/board-id';
 import type { Env } from './board-room';
+import { forwardTestHook, TEST_HOOK_PREFIX } from './test-hooks';
 
 export type { Env };
 export { BoardRoom } from './board-room';
@@ -22,6 +23,11 @@ export default {
     const path = new URL(request.url).pathname;
     if (path === '/api/rooms' || path.startsWith(ROOM_PREFIX)) {
       return this.routeBoardConnection(request, env, path);
+    }
+    if (path.startsWith(TEST_HOOK_PREFIX)) {
+      // Damage and repair, for the tests that need to break a board on purpose. Without the
+      // variable that mounts them, this falls through to the client, like any other address.
+      return forwardTestHook(request, env, path);
     }
     return env.ASSETS.fetch(request);
   },

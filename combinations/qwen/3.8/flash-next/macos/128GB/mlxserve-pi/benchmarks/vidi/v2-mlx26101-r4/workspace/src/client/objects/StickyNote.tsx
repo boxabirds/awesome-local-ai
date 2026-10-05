@@ -69,6 +69,12 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * This board cannot be written to (see `canEdit` in App): the note is still shown
+   * — a board that could not be loaded shows whatever it has, and it may have
+   * nothing — but no gesture of any kind reaches the document.
+   */
+  readOnly?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   /** Editing stopped: the note stays selected (Escape) or does not (click away). */
@@ -81,6 +87,7 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  readOnly = false,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -138,6 +145,12 @@ export function StickyNote({
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (readOnly) {
+      // The press stops here: the board neither pans nor selects, because a note
+      // that cannot be moved should not look like it can be.
+      event.stopPropagation();
+      return;
+    }
     // Only the left button picks a note up; the others are left alone.
     if (event.pointerType === 'mouse' && event.button !== PRIMARY_MOUSE_BUTTON) return;
 
@@ -163,6 +176,7 @@ export function StickyNote({
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (readOnly) return;
     const current = drag.current;
     if (!current || current.pointerId !== event.pointerId) return;
     current.lastX = event.clientX;
@@ -220,7 +234,7 @@ export function StickyNote({
   const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
     // A note is edited, never duplicated: the board must not see this click.
     event.stopPropagation();
-    if (editing) return;
+    if (editing || readOnly) return;
     onStartEdit(note.id);
   };
 
@@ -230,7 +244,7 @@ export function StickyNote({
     if (event.key !== 'Enter') return;
     // While typing, Enter belongs to the text: a keydown that started in the
     // textarea arrives here by bubbling, and must not be swallowed.
-    if (editing) return;
+    if (editing || readOnly) return;
     event.preventDefault();
     onStartEdit(note.id);
   };
@@ -330,6 +344,7 @@ export function StickyNote({
         >
           <NoteToolbar
             color={note.color}
+            disabled={readOnly}
             onColor={(color) => {
               // Colour only: text, position, stacking and the selection stay put.
               setStickyColor(doc, note.id, color);

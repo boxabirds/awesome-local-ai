@@ -9,7 +9,20 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "lib": ["ES2022"],
-    "types": ["@cloudflare/workers-types"]
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"]
   },
-  "include": ["src/worker", "src/shared", "tests/integration"]
+  // The base config excludes the Worker and the workerd tests, because that is how it
+  // keeps them out of the *browser* project. An `exclude` is inherited, and it filters
+  // what `include` matches, so this project has to say so again: without it, this
+  // project silently checked nothing but `src/shared`.
+  "exclude": ["node_modules"],
+  "include": [
+    "src/worker",
+    "src/shared",
+    "tests/integration",
+    // The storage unit tests import the Worker's own modules, so they are checked with
+    // the runtime's globals; the `unit` vitest project still runs them in plain node.
+    "tests/unit/board-store-chunks.test.ts",
+    "tests/unit/room-state.test.ts"
+  ]
 }

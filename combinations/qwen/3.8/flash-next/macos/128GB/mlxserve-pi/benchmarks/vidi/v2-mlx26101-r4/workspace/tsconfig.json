@@ -21,6 +21,8 @@
   },
   "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
   // The Worker and the tests that run inside workerd are checked by
-  // tsconfig.worker.json: their globals come from the runtime, not from the DOM.
-  "exclude": ["src/worker", "tests/integration"]
+  // tsconfig.worker.json: their globals come from the runtime, not from the DOM. The
+  // two storage unit tests are in that project too, because they import the Worker's
+  // own modules, which name storage types the browser does not have.
+  "exclude": ["src/worker", "tests/integration", "tests/unit/board-store-chunks.test.ts", "tests/unit/room-state.test.ts"]
 }

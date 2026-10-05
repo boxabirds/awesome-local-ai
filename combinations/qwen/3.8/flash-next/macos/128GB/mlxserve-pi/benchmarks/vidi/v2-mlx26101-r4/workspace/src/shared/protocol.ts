@@ -21,6 +21,27 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code for data the protocol cannot use (RFC 6455 "unsupported data"). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/**
+ * Close code for a board this room could not read.
+ *
+ * It has to be a code of its own, and not a code the browser provider treats as an ordinary
+ * dropped connection, because the two situations need opposite answers from the person on the
+ * other end: after a drop, "Reconnecting…" is the truth and editing should stay open; after a
+ * board that could not be read, editing must stop, because whatever is typed into a board that
+ * is not there cannot be saved and may not even survive the next retry. The provider's own
+ * rule is that codes in 4400–4499 mean "do not dial again", so this is 4500: outside that
+ * range, retried like any other failure, and unmistakable.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/**
+ * Close code for a board this room could not write.
+ *
+ * 1011 is "the server had an unexpected error", which is exactly what happened and is what
+ * the client already knows how to say: the change is still in this person's document, the
+ * board is still readable, and the next handshake brings the change back. It is deliberately
+ * not the code above — a board that could not be saved is not a board that is gone.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 /** What one received frame turned out to be. */
 export type Decoded =

@@ -28,9 +28,15 @@ export interface NoteToolbarProps {
   color: StickyColor;
   onColor(color: StickyColor): void;
   onDelete(): void;
+  /**
+   * Grey the whole thing out: on a board that could not be loaded the note is not
+   * yours to change. `App` refuses the write whatever happens here; this is so the
+   * note does not offer commands that go nowhere.
+   */
+  disabled?: boolean;
 }
 
-export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX.Element {
+export function NoteToolbar({ color, onColor, onDelete, disabled = false }: NoteToolbarProps): JSX.Element {
   /** A click here is a command, never a board gesture: no pan, no deselect. */
   const stop = (event: ReactPointerEvent<HTMLElement>): void => {
     event.stopPropagation();
@@ -58,7 +64,9 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX
           aria-pressed={color === name}
           title={`${labelOf(name)} colour`}
           style={{ backgroundColor: STICKY_COLORS[name] }}
+          disabled={disabled}
           onClick={() => {
+            if (disabled) return;
             onColor(name);
           }}
         />
@@ -69,7 +77,9 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX
         data-testid="note-delete"
         aria-label={DELETE_LABEL}
         title={DELETE_LABEL}
+        disabled={disabled}
         onClick={() => {
+          if (disabled) return;
           onDelete();
         }}
       >

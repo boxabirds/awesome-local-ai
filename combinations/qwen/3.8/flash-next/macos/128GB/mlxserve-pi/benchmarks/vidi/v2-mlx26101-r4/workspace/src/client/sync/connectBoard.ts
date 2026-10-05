@@ -14,10 +14,19 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
 
-/** What the board's connection looks like to the person using it. */
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+/**
+ * What the board's connection looks like to the person using it.
+ *
+ * `load_failed` is the one state that is not about the socket: it means the board
+ * behind the socket could not be read. It is separated from `reconnecting` because
+ * the two ask for different things from the person in front of them — one is a
+ * reason to keep typing, the other is a reason to stop, because there is no board
+ * here to type into and an empty one is not going to be handed over as if it were.
+ */
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 /** What the provider says about its socket. */
 export type ProviderStatus = 'connecting' | 'connected' | 'disconnected';
@@ -28,6 +37,13 @@ export interface ConnectionTracker {
   status(status: ProviderStatus): void;
   /** The two documents came into agreement (or fell out of it). */
   synced(synced: boolean): void;
+  /**
+   * The socket closed with this code, or with `null` when we closed it ourselves.
+   *
+   * The code is the only thing that tells a refused board apart from a dropped
+   * connection, and the two say opposite things to the person editing.
+   */
+  close(code: number | null): void;
   /** Stop reporting; the connection is being torn down. */
   destroy(): void;
 }
@@ -66,6 +82,11 @@ export function createConnectionTracker(onState: (state: ConnectionState) => voi
   // "Reconnecting…" about, not a board that is still loading. The distinction matters on
   // a retry, where the provider reports "connecting" again between two attempts.
   let everSynced = false;
+  // Set by a refusal and cleared by the first sync: while it is set, every state
+  // that a retry would otherwise report — dialling, dropped again, still trying —
+  // is reported as the refusal instead, because that is the only thing the person
+  // needs to know and it must not flicker away between attempts.
+  let refusing = false;
   let confirmation: ReturnType<typeof setTimeout> | null = null;
 
   const show = (next: ConnectionState): void => {
@@ -88,10 +109,10 @@ export function createConnectionTracker(onState: (state: ConnectionState) => voi
         // doubles up to RECONNECT_MAX_BACKOFF_MS. The board is not locked while
         // that happens: this says "nobody else can see you right now", not "stop".
         hideConfirmation();
-        show('reconnecting');
+        show(refusing ? 'load_failed' : 'reconnecting');
         return;
       }
-      if (status === 'connecting' && !everSynced) show('connecting');
+      if (status === 'connecting' && !everSynced) show(refusing ? 'load_failed' : 'connecting');
       // `connected` on its own is a socket that has not carried anything yet.
     },
 
@@ -101,6 +122,16 @@ export function createConnectionTracker(onState: (state: ConnectionState) => voi
         // A board that has never agreed is still loading, not broken: only a board that
         // was saying it was live has anything to report.
         if (state === 'connected' || state === 'confirmed') show('reconnecting');
+        return;
+      }
+      if (refusing) {
+        // The board loaded. This is the recovery the message promised: editing is
+        // on again and the badge goes quiet, without a reload. It says "Connected"
+        // rather than reassuring anybody about a drop they were never told about.
+        refusing = false;
+        everSynced = true;
+        hideConfirmation();
+        show('connected');
         return;
       }
       const returned = everSynced;
@@ -119,9 +150,24 @@ export function createConnectionTracker(onState: (state: ConnectionState) => voi
       show('connected');
     },
 
+    close(code) {
+      hideConfirmation();
+      if (code === CLOSE_BOARD_LOAD_FAILED) {
+        refusing = true;
+        show('load_failed');
+        return;
+      }
+      // Everything else — 1011 (the room could not write the board down), 1003 (a
+      // message it could not read), a dropped network, our own `drop()` — is a
+      // connection that will be tried again with a readable board on the other
+      // side, so editing stays on and the changes go with the next socket.
+      if (!refusing) show('reconnecting');
+    },
+
     destroy() {
       hideConfirmation();
       everSynced = false;
+      refusing = false;
     },
   };
 }
@@ -153,8 +199,12 @@ export function connectBoard(
   const tracker = createConnectionTracker(onState);
   const onStatus = (event: { status: ProviderStatus }): void => tracker.status(event.status);
   const onSync = (synced: boolean): void => tracker.synced(synced);
+  // `null` when the provider closed the socket itself (a `drop()`, or its own
+  // watchdog): a close we asked for carries no verdict about the board.
+  const onClose = (event: { code: number } | null): void => tracker.close(event === null ? null : event.code);
   provider.on('status', onStatus);
   provider.on('sync', onSync);
+  provider.on('connection-close', onClose);
   // The badge is already saying "Connecting…" before the first byte is sent, so it
   // is told that now rather than waiting for the provider to notice it too.
   onState('connecting');
@@ -163,6 +213,7 @@ export function connectBoard(
     destroy() {
       provider.off('status', onStatus);
       provider.off('sync', onSync);
+      provider.off('connection-close', onClose);
       tracker.destroy();
       provider.destroy();
     },

@@ -8,7 +8,10 @@
  * drop so the return is as visible as the loss was.
  *
  * Nothing here blocks the board. A reconnecting board is still a board: everything
- * typed goes into the document and is sent as soon as the connection is back.
+ * typed goes into the document and is sent as soon as the connection is back. The
+ * one state that does block — a board the room could not load — is disabled in
+ * `App`, not here: the badge only says what is wrong, and `canEdit` is what acts on
+ * it.
  */
 import type { JSX } from 'react';
 
@@ -20,6 +23,9 @@ const LABELS: Record<ConnectionState, string> = {
   connected: '',
   reconnecting: 'Reconnecting…',
   confirmed: 'Connected',
+  // Red, and the only message that asks the person to stop: the board is not
+  // unreachable, it is unreadable, and the room will not hand over an empty one.
+  load_failed: "This board couldn't be loaded. Retrying…",
 };
 
 export interface ConnectionStatusProps {

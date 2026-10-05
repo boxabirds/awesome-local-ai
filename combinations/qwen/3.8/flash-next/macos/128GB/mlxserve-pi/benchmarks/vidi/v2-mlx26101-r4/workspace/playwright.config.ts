@@ -204,11 +204,25 @@ export default defineConfig({
     actionTimeout: 20_000,
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: VIEWPORT } },
+    // The story 1 to 3 tests, against the runtime this configuration starts below: one
+    // server for the whole run, because a board that several people edit together needs a
+    // server that stays up while they do it.
+    {
+      name: 'chromium',
+      grepInvert: /@persist/,
+      use: { ...devices['Desktop Chrome'], viewport: VIEWPORT },
+    },
     ...(FIREFOX_STARTS
-      ? [{ name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: VIEWPORT } }]
+      ? [{ name: 'firefox', grepInvert: /@persist/, use: { ...devices['Desktop Firefox'], viewport: VIEWPORT } }]
       : []),
-    { name: 'webkit', use: { ...devices['Desktop WebKit'], viewport: VIEWPORT } },
+    { name: 'webkit', grepInvert: /@persist/, use: { ...devices['Desktop WebKit'], viewport: VIEWPORT } },
+    // The persistence tests (story 4) start and stop their own runtime instead, because what
+    // they assert is a board surviving a process that does not: a server that is alive for
+    // the whole run cannot show that. They are Chromium only — the claim is about storage and
+    // about a page reopening, and three browsers of the same restart is three timings, not
+    // three answers. `@persist` is what keeps them out of the projects above, whose server
+    // would answer them from a directory they do not own.
+    { name: 'persistence', grep: /@persist/, use: { ...devices['Desktop Chrome'], viewport: VIEWPORT } },
     // The two long checks (TC-29 idle, TC-30 soak) live in the nightly project. It runs
     // Chromium only — that is the browser the story has to work in, and three copies of a
     // ten-minute run buys time, not coverage — and `npm run test:e2e` filters these tests

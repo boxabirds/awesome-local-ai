@@ -443,6 +443,13 @@ body {
   color: var(--hint-fg);
 }
 
+/* Red: there is no board here to edit. The room would rather refuse the
+   connection than serve an empty board, and says so; it keeps retrying. */
+.connection-status--load_failed {
+  background: #b91c1c;
+  color: #fef2f2;
+}
+
 /* Amber: nobody else can see this board right now. */
 .connection-status--reconnecting {
   background: #b45309;
