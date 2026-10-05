@@ -30,7 +30,7 @@ function Neighbour({ c }: { c: CallInFull | null | false }) {
   const line = c ? (c.text.split("\n").find((l) => l.trim()) ?? "").trim() : "";
   if (!line) return null;
   const short = line.length > NEIGHBOUR_CHARS ? `${line.slice(0, NEIGHBOUR_CHARS)}…` : line;
-  return <> · <span className="neighbour-text" data-quoted="agent" data-tip={line}>{short}</span></>;
+  return <> · <span data-quoted="agent"><span className="neighbour-text" data-tip={line}>{short}</span></span></>;
 }
 const argsText = (t: ToolInFull) => JSON.stringify(t.args, null, JSON_INDENT);
 /** A tool's heading: its name, and its kind only where that says more than the name does ("bash e2e", not "write write"). */

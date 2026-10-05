@@ -400,8 +400,8 @@ test.describe("B. the call page", () => {
     await page.goto(call(SWIFT, "v2-r5", "2", 1));
     const p = page.locator('[data-page="call"]');
     await expect(p.getByRole("link", { name: "← Back to the conversation" })).toHaveAttribute("href", new RegExp("/s/2/conversation\\?call=1$"));
-    await expect(p.getByRole("link", { name: "← call 1" })).toHaveAttribute("href", new RegExp("/conversation/c/0$"));
-    await expect(p.getByRole("link", { name: "call 3 →" })).toHaveAttribute("href", new RegExp("/conversation/c/2$"));
+    await expect(p.locator('.call-nav a[rel="prev"]')).toHaveAttribute("href", new RegExp("/conversation/c/0$"));
+    await expect(p.locator('.call-nav a[rel="next"]')).toHaveAttribute("href", new RegExp("/conversation/c/2$"));
     await page.goto(call(SWIFT, "v2-r5", "2", 0));
     await expect(page.locator('[data-page="call"] .call-nav')).toContainText("← first call");
     await page.goto(call(SWIFT, "v2-r5", "2", 3));
