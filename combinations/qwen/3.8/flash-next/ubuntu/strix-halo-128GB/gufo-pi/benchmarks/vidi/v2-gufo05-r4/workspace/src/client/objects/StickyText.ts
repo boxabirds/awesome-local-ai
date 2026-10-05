@@ -87,6 +87,55 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
   }, origin);
 }
 
+/** One step of a change to the shared text, as Yjs describes it. */
+export interface TextOp {
+  insert?: string | object;
+  retain?: number | object;
+  delete?: number;
+}
+
+/** How many characters an inserted or retained run stands for. */
+function runLength(run: string | number | object): number {
+  return typeof run === 'number' ? run : typeof run === 'string' ? run.length : 1;
+}
+
+/**
+ * Where `caret` — a position in the text as the editor was showing it — lands once
+ * somebody else's `delta` has been applied.
+ *
+ * Text arriving before the caret carries it along; text deleted around it leaves the
+ * caret at the point of the deletion, which is where the editor's own words now sit.
+ * Inserted or deleted *at* the caret leaves it where it was: whose word wins a tie is
+ * a matter of taste, and the taste here is that your own typing should not jump.
+ */
+export function mapCaret(caret: number, delta: readonly TextOp[]): number {
+  const wanted = Math.max(0, caret);
+  // `before` counts the text the editor was showing, `now` the text it holds.
+  let before = 0;
+  let now = 0;
+  for (const op of delta) {
+    if (op.insert !== undefined) {
+      if (before >= wanted) break; // this change is at or after the caret
+      now += runLength(op.insert);
+      continue;
+    }
+    if (op.delete !== undefined) {
+      if (before + op.delete >= wanted) return now;
+      before += op.delete;
+      continue;
+    }
+    if (op.retain === undefined) continue;
+    const retain = runLength(op.retain);
+    if (before + retain >= wanted) return now + (wanted - before);
+    before += retain;
+    now += retain;
+  }
+  // Nothing of the change reached the caret: it keeps its distance from the text
+  // before it. A delta says nothing about the text after the last op (Yjs leaves a
+  // trailing retain out), so a caller with the new text in hand clamps to it.
+  return now + Math.max(0, wanted - before);
+}
+
 /**
  * The counter stays out of the way of ordinary notes: it appears only when the
  * text is within STICKY_COUNTER_THRESHOLD_CHARS characters of the limit, which is

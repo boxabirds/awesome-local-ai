@@ -27,14 +27,26 @@ function hasGtk(): boolean {
   }
 }
 
+/**
+ * The nightly cases (TC-29, TC-30) sit in files of their own and in a project of
+ * their own, so `npm run test:e2e:nightly` runs nothing else. They are also tagged
+ * `@nightly`, because a plain `playwright test` runs every project in this file:
+ * `npm run test:e2e` filters on the tag, which keeps a commit run to about a minute.
+ */
+const NIGHTLY_FILE = /.*\.nightly\.spec\.ts$/;
+
 const gtkAvailable = hasGtk();
+const chromeUse = { ...devices['Desktop Chrome'], viewport: VIEWPORT };
 const allProjects: Project[] = [
-  { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: VIEWPORT } },
-  { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: VIEWPORT } },
-  { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: VIEWPORT } }
+  { name: 'chromium', use: chromeUse, testIgnore: NIGHTLY_FILE },
+  { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: VIEWPORT }, testIgnore: NIGHTLY_FILE },
+  { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: VIEWPORT }, testIgnore: NIGHTLY_FILE },
+  // Always chromium: these check the sync client and the room, not a browser engine,
+  // and running a two-minute soak three times over buys nothing.
+  { name: 'nightly', use: chromeUse, testMatch: NIGHTLY_FILE, fullyParallel: false }
 ];
 const projects = allProjects.filter((project) => {
-  if (project.name === 'chromium' || gtkAvailable) return true;
+  if (project.name === 'chromium' || project.name === 'nightly' || gtkAvailable) return true;
   if (!process.env.VDI6_E2E_GTK_WARNED) {
     process.env.VDI6_E2E_GTK_WARNED = '1';
     console.warn('[e2e] skipping firefox and webkit: this host has no GTK libraries');
@@ -49,7 +61,10 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     viewport: VIEWPORT,
-    trace: 'retain-on-failure'
+    trace: 'retain-on-failure',
+    // Without this an action waiting on something it can never reach quietly eats the
+    // whole test timeout instead of saying what it was waiting for.
+    actionTimeout: 20_000
   },
   projects,
   webServer: {

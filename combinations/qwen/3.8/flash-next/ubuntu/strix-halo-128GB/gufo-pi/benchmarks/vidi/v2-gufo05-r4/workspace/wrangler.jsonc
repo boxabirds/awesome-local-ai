@@ -1,10 +1,33 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-17",
-  // Assets-only for now: `wrangler dev` serves the built client. Story 3 adds a
-  // Worker (main) and with it an assets binding.
+  "main": "src/worker/index.ts",
+  // The newest date both the deployed runtime and the workerd build that
+  // @cloudflare/vitest-pool-workers ships understand; nothing here depends on a
+  // newer one.
+  "compatibility_date": "2026-08-22",
+  // One BoardRoom Durable Object per board. SQLite-backed from the start so that
+  // story 4 (keeping boards) needs no class migration.
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ],
+  // The Worker owns routing (`/api/rooms/:boardId`), so assets come through a
+  // binding. Unknown paths fall back to index.html: `/b/<boardId>` is a client
+  // route, not a file.
   "assets": {
-    "directory": "./dist/client"
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
   }
 }

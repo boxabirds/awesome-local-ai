@@ -105,3 +105,45 @@ export const NOTE_SWATCH_SIZE_PX = 18;
 
 /** Schema version written to `meta.schemaVersion` (story 4 migrates from it). */
 export const BOARD_SCHEMA_VERSION = 1;
+
+/* ------------------------------------------------------------------ live sync (story 3) */
+
+/**
+ * Simultaneous editors the board is designed and tested for. Soft capacity:
+ * neither the Worker nor the room counts participants, and a 6th person is
+ * never turned away — this number only drives the design and the tests.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/**
+ * How long a change may take to appear on every other connected screen
+ * (`live.propagate`). Measured in e2e and reported, never asserted, because the
+ * model, the browsers and the server share one machine.
+ */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Passed to `WebsocketProvider.maxBackoffTime`: the longest wait between retries. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays up after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** Outage length of the catch-up test (`live.catch_up`). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/**
+ * Generous functional wait in every e2e test: the test waits for the outcome and
+ * *logs* how long it took against LIVE_UPDATE_LATENCY_BUDGET_MS instead of
+ * failing on the budget.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+/**
+ * How long two boards sit idle in the nightly connection-stability test. Longer
+ * than RECONNECT_MAX_BACKOFF_MS and than any ping the provider sends, so a link
+ * that only holds up at first is still caught.
+ */
+export const NIGHTLY_IDLE_STABILITY_MS = 45_000;
+
+/** How long the nightly capacity soak keeps everyone editing. */
+export const NIGHTLY_CAPACITY_SOAK_MS = 60_000;

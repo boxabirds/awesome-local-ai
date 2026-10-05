@@ -11,6 +11,16 @@
   /* Selection colour of a sticky note: the same blue as the focus ring. */
   --note-selection: #2f6feb;
   --note-selection-width: 2px;
+  /* Connection badge (story 3): amber while the link is down, green on its return. */
+  --status-amber-background: #fff4e0;
+  --status-amber-border: #f0c36d;
+  --status-amber-ink: #8a5300;
+  --status-green-background: #e8f7ec;
+  --status-green-border: #9fd9b0;
+  --status-green-ink: #14682f;
+  --status-neutral-background: #eef1f6;
+  --status-neutral-border: #d8dce4;
+  --status-neutral-ink: #333a45;
   color: var(--ink);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
@@ -369,4 +379,40 @@ body {
 .vidi6-note-delete:hover {
   background: #fdeceb;
   color: #b42318;
+}
+
+/* ------------------------------------------------------- connection status (story 3) */
+
+/*
+ * The badge sits at the top centre, above every other overlay, and never takes
+ * pointer input: the board underneath stays editable in every connection state.
+ */
+.vidi6-connection {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  pointer-events: none;
+  padding: 4px 12px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 20px;
+  box-shadow: var(--panel-shadow);
+  background: var(--status-neutral-background);
+  border-color: var(--status-neutral-border);
+  color: var(--status-neutral-ink);
+}
+
+.vidi6-connection--reconnecting {
+  background: var(--status-amber-background);
+  border-color: var(--status-amber-border);
+  color: var(--status-amber-ink);
+}
+
+.vidi6-connection--confirmed {
+  background: var(--status-green-background);
+  border-color: var(--status-green-border);
+  color: var(--status-green-ink);
 }

@@ -10,7 +10,8 @@ import {
   applyTextDiff,
   clampToLimit,
   counterVisible,
-  fitFontSize
+  fitFontSize,
+  mapCaret
 } from '../../src/client/objects/StickyText';
 import { LOCAL_ORIGIN } from '../../src/shared/board-model';
 import {
@@ -237,6 +238,50 @@ describe('counterVisible (STICKY_COUNTER_THRESHOLD_CHARS)', () => {
         STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS
       );
     }
+  });
+});
+
+describe('mapCaret (carrying the caret across somebody else typing)', () => {
+  /** The delta a real `Y.Text` reports when `run` changes it. */
+  const opsOf = (text: Y.Text, run: () => void) => deltasOf(text, run);
+
+  it('leaves a caret alone when the text arrives after it', () => {
+    const text = textWith('goals');
+    const delta = opsOf(text, () => text.insert(5, ' learned'));
+    expect(mapCaret(5, delta)).toBe(5);
+  });
+
+  it('carries the caret along when the text arrives before it', () => {
+    const text = textWith('goals');
+    const delta = opsOf(text, () => text.insert(0, 'our '));
+    expect(mapCaret(5, delta)).toBe(9);
+  });
+
+  it('brings the caret to where the deletion happened when it lands inside it', () => {
+    const text = textWith('goals learned');
+    const delta = opsOf(text, () => text.delete(5, 7));
+    expect(mapCaret(8, delta)).toBe(5);
+  });
+
+  it('pulls the caret back when text goes away well before it', () => {
+    const text = textWith('goals learned');
+    const delta = opsOf(text, () => text.delete(0, 6));
+    expect(mapCaret(12, delta)).toBe(6);
+  });
+
+  it('counts every change when the caret sits past all of them', () => {
+    const text = textWith('abc');
+    const delta = opsOf(text, () => text.insert(1, 'X'));
+    expect(mapCaret(3, delta)).toBe(4);
+  });
+
+  it('never puts the caret before the start of what is left', () => {
+    const text = textWith('abc');
+    const delta = opsOf(text, () => text.delete(0, 3));
+    expect(mapCaret(0, delta)).toBe(0);
+    // A caret that was already past the end keeps its distance from the text before
+    // it, and the caller clamps that to the text it now holds.
+    expect(mapCaret(9, [{ delete: 3 }])).toBe(6);
   });
 });
 

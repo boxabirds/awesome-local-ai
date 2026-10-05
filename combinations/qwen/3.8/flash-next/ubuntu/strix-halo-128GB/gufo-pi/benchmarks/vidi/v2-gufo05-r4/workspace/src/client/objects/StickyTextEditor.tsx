@@ -6,6 +6,11 @@
  * immediately (clamped to the character limit). Ending editing therefore writes
  * nothing — the text is already in the document, which is what makes Escape and
  * clicking outside keep everything typed so far, even if the page dies next.
+ *
+ * Because an uncontrolled textarea holds its own copy of the text, somebody else
+ * editing the same note has to be poured into it (see the observer below): a write
+ * of the whole buffer is the smallest change the document can be given, so a buffer
+ * that had gone stale would delete their typing.
  */
 
 import {
@@ -23,7 +28,7 @@ import {
   STICKY_LINE_HEIGHT,
   STICKY_TEXT_MAX_CHARS
 } from '../../shared/config';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import { applyTextDiff, clampToLimit, counterVisible, mapCaret, type TextOp } from './StickyText';
 
 export interface StickyTextEditorProps {
   /** The shared text of the note being edited. */
@@ -102,6 +107,35 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     window.addEventListener('pointerdown', onPointerDown, true);
     return () => window.removeEventListener('pointerdown', onPointerDown, true);
   }, []);
+
+  // Somebody else's typing, poured in as it arrives.
+  //
+  // The document is the authority, so the buffer is set to what it now holds and the
+  // caret is carried across by the change itself rather than guessed at from the
+  // text. Without this, the next keystroke would write a buffer that never learned
+  // about the other edit, and their characters would leave the note.
+  useEffect(() => {
+    const observer = (event: { delta: TextOp[] }, transaction: { origin?: unknown }) => {
+      if (transaction.origin === LOCAL_ORIGIN) return; // our own writing, already there
+      const element = textareaRef.current;
+      if (!element) return;
+      const next = ytextRef.current.toString();
+      // Mid-composition the buffer belongs to the input method; disturbing it would
+      // break the word being built. The composition writes the whole buffer when it
+      // ends, which is the one case where a remote character can be overtaken.
+      if (!composingRef.current) {
+        const anchor = Math.min(next.length, mapCaret(element.selectionStart ?? next.length, event.delta));
+        const focus = Math.min(next.length, mapCaret(element.selectionEnd ?? next.length, event.delta));
+        element.value = next;
+        element.setSelectionRange(anchor, focus);
+        autoGrow(element);
+      }
+      setLength(next.length);
+    };
+    const text = ytext;
+    text.observe(observer);
+    return () => text.unobserve(observer);
+  }, [ytext]);
 
   // A blur that was not caused by an outside click (a window switch, a browser
   // shortcut) still gets to keep its text.

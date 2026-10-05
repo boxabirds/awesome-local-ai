@@ -1,11 +1,14 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    // workerd, not a browser: `worker-configuration.d.ts` (from `wrangler types`)
+    // provides the runtime globals, so this project deliberately has no DOM lib.
+    "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "types": ["vite/client", "node"],
+    // Only the workerd runtime types plus `cloudflare:test` for the integration
+    // project; no DOM, no node.
+    "types": ["@cloudflare/vitest-pool-workers/types"],
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -18,17 +21,10 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true
   },
-  // The Worker and its tests are checked by `tsconfig.worker.json` (workerd globals,
-  // no DOM), so the two environments never fight over `Response`, `WebSocket`, ...
   "include": [
-    "src/client",
+    "worker-configuration.d.ts",
+    "src/worker",
     "src/shared",
-    "tests/unit",
-    "tests/component",
-    "tests/e2e",
-    "tests/fixtures",
-    "vite.config.ts",
-    "vitest.config.ts",
-    "playwright.config.ts"
+    "tests/integration"
   ]
 }

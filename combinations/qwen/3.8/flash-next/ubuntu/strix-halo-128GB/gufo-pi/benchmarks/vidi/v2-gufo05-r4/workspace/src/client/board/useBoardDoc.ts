@@ -1,16 +1,21 @@
 /**
  * Owns the board's Yjs document for React.
  *
- * Story 2 keeps the document in memory only: story 3 attaches a network provider
- * to the same `Y.Doc`, story 4 persists it, and neither needs to change this
- * hook. React reads an immutable snapshot through `useSyncExternalStore`, so all
+ * The document is the single source of truth, and the network is just another
+ * writer to it: `connectBoard` attaches a provider to the same `Y.Doc`, remote
+ * updates arrive through the same `observeDeep` subscription as local ones, and
+ * the same snapshot code renders them. Story 4 persists the document and neither
+ * the hook's callers nor the render path change.
+ *
+ * React reads an immutable snapshot through `useSyncExternalStore`, so all
  * rendering comes from one consistent read of the document and every write goes
  * through `src/shared/board-model.ts`.
  */
 
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 /** A store around one Y.Doc: the piece of state React subscribes to. */
 export interface BoardStore {
@@ -59,21 +64,46 @@ export interface BoardDoc {
   readonly doc: Y.Doc;
   /** Every renderable object, bottom to top (sorted by z, then id). */
   readonly notes: readonly StickySnapshot[];
+  /** How the connection to this board's room looks right now. */
+  readonly connection: ConnectionState;
+}
+
+export interface BoardDocOptions {
+  /**
+   * The board to join. Without it the document stays purely local — which is what
+   * the component tests use — and the connection reads `connected`, so the status
+   * badge never appears for work that was never meant to be shared.
+   */
+  boardId?: string;
+  /** A document to use instead of making one (tests pass a private `Y.Doc`). */
+  doc?: Y.Doc;
 }
 
 /**
- * The board document and a snapshot of its content. Without `provided` the hook
- * makes a document of its own; nothing is thrown away on unmount, so a StrictMode
- * remount finds the same content (story 4 is where a document is loaded from
- * storage instead).
+ * The board document, a snapshot of its content and the state of its connection.
  *
- * @param provided a document to use — tests pass a private `Y.Doc` they can assert
- *   on, and story 3 passes the one that is synced with the room.
+ * The document is not thrown away on unmount, so a StrictMode remount finds the
+ * same content; the *connection* is destroyed and re-made, because a provider owns
+ * a socket and a socket must not outlive the component that asked for it.
  */
-export function useBoardDoc(provided?: Y.Doc): BoardDoc {
+export function useBoardDoc(options: BoardDocOptions = {}): BoardDoc {
+  const { boardId, doc: provided } = options;
   const store = useMemo<BoardStore>(() => createBoardStore(provided), [provided]);
   const subscribe = useCallback((onChange: () => void) => store.subscribe(onChange), [store]);
   const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return { doc: store.doc, notes };
+
+  const [connection, setConnection] = useState<ConnectionState>(boardId ? 'connecting' : 'connected');
+  useEffect(() => {
+    if (!boardId) {
+      // A local-only document has no connection to report.
+      setConnection('connected');
+      return;
+    }
+    setConnection('connecting');
+    const handle = connectBoard(store.doc, boardId, setConnection);
+    return () => handle.destroy();
+  }, [store, boardId]);
+
+  return { doc: store.doc, notes, connection };
 }

@@ -6,10 +6,15 @@
  * visit), the document (the board's content) and the selection (per client) —
  * and where the board-wide keyboard shortcuts live. Everything that changes a
  * note goes through `src/shared/board-model.ts`.
+ *
+ * The address *is* the board (`/b/<boardId>`, story 3). Opening `/` starts a board
+ * of your own; story 5 replaces that with a server-side "new board" endpoint and
+ * a share link.
  */
 
 import { useCallback, useEffect, useRef, type JSX } from 'react';
 import type * as Y from 'yjs';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -19,6 +24,8 @@ import { registerTestHooks } from './canvas/testHooks';
 import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
+import { reportConnectionState } from './canvas/testHooks';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { CameraProvider, useCameraContext } from './canvas/useCamera';
 import { StickyNote } from './objects/StickyNote';
 
@@ -37,6 +44,27 @@ export function App(props: AppProps = {}): JSX.Element {
       <Board doc={props.doc} />
     </CameraProvider>
   );
+}
+
+/**
+ * The board in the address bar. `/b/<boardId>` is that board; anything else (only
+ * `/` in practice) becomes a fresh, unguessable address in the history entry
+ * without adding a navigation step.
+ */
+function boardIdFromLocation(): string {
+  const match = /^\/b\/([^/?#]+)/.exec(window.location.pathname);
+  if (match) {
+    let candidate: string;
+    try {
+      candidate = decodeURIComponent(match[1]);
+    } catch {
+      candidate = '';
+    }
+    if (isValidBoardId(candidate)) return candidate;
+  }
+  const fresh = newBoardId();
+  window.history.replaceState(null, '', `/b/${fresh}`);
+  return fresh;
 }
 
 /** Is the caret somewhere the user is typing? Then the keys are theirs. */
@@ -60,7 +88,10 @@ function isControl(target: EventTarget | null): boolean {
  */
 function Board(props: { doc?: Y.Doc }): JSX.Element {
   const { camera, viewport, hasNavigated, zoomStep, reset } = useCameraContext();
-  const { doc, notes } = useBoardDoc(props.doc);
+  // A document handed in by a test is never put on the network: no board id, no
+  // provider, and the connection reads `connected`.
+  const boardId = props.doc ? undefined : boardIdFromLocation();
+  const { doc, notes, connection } = useBoardDoc({ boardId, doc: props.doc });
   const selection = useSelection();
 
   // Handlers registered once read the live selection through a ref.
@@ -81,16 +112,19 @@ function Board(props: { doc?: Y.Doc }): JSX.Element {
     createAt({ x: viewport.width / 2, y: viewport.height / 2 }, doc, selectionRef.current.startEdit);
   }, [createAt, doc, viewport.height, viewport.width]);
 
-  // Test builds expose what the document holds, so e2e asserts on stored content
-  // rather than guessing it from the screen.
+  // Test builds expose what the document holds and how the connection looks, so
+  // e2e asserts on real state rather than guessing it from the screen.
   useEffect(() => registerTestHooks({ getBoard: () => snapshot(doc) }), [doc]);
+  useEffect(() => reportConnectionState(connection), [connection]);
 
-  // A selection that refers to a note that is no longer on the board is dropped,
-  // so nothing can act on a stale id.
+  // A selection or an open editor that refers to a note that is no longer on the
+  // board is dropped, so nothing can act on a stale id. Somebody else deleting the
+  // note you are typing in ends the edit quietly: no dialog, no error (`live.delete_during_edit`).
   useEffect(() => {
-    const { selectedId } = selectionRef.current;
-    if (!selectedId) return;
-    if (!notes.some((note) => note.id === selectedId)) selectionRef.current.select(null);
+    const { selectedId, editingId } = selectionRef.current;
+    const gone = (id: string | null) => id !== null && !notes.some((note) => note.id === id);
+    if (gone(editingId)) selectionRef.current.endEdit('unselected');
+    else if (gone(selectedId)) selectionRef.current.select(null);
   }, [notes]);
 
   // Board-wide keys: Enter edits the selected note, Delete and Backspace remove
@@ -149,6 +183,7 @@ function Board(props: { doc?: Y.Doc }): JSX.Element {
         onReset={reset}
       />
       <NavigationHint visible={!hasNavigated} />
+      <ConnectionStatus state={connection} />
     </>
   );
 }

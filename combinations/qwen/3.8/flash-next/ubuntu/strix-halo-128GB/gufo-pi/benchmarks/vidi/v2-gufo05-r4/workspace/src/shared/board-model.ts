@@ -228,7 +228,7 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
 
 /** `crypto.randomUUID` with a fallback for environments without WebCrypto. */
 function createId(): string {
-  const cryptoRef = typeof globalThis.crypto === 'undefined' ? undefined : globalThis.crypto;
+  const cryptoRef = typeof crypto === 'undefined' ? undefined : crypto;
   if (cryptoRef && typeof cryptoRef.randomUUID === 'function') return cryptoRef.randomUUID();
   const random = Math.random().toString(36).slice(2, 10);
   return `id-${Date.now().toString(36)}-${random}`;
