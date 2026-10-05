@@ -204,6 +204,23 @@ body {
   outline-offset: 1px;
 }
 
+/* Undo and redo sit below a hairline that separates acting on the board (the tools) from
+   reversing what you did to it (story 8). */
+.vidi6-undo-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.vidi6-tool:disabled {
+  color: var(--ink-faint, #9aa1ad);
+  cursor: default;
+  background: transparent;
+}
+
 /* ------------------------------------------------------------------ sticky notes */
 
 .vidi6-sticky {

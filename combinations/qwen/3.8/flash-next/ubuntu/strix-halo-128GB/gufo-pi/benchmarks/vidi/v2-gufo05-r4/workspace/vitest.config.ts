@@ -14,7 +14,12 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
-          include: ['tests/unit/**/*.test.ts']
+          include: ['tests/unit/**/*.test.ts'],
+          // `undo.boundaries` needs to drive `Y.UndoManager`'s capture window from a
+          // controllable clock. The manager reads the time through `lib0/time`, so the
+          // library must run through Vite's module graph (not be externalised to a bare
+          // `require`) for a `vi.mock('lib0/time')` in a test to reach it.
+          server: { deps: { inline: ['yjs', 'lib0'] } }
         }
       },
       {

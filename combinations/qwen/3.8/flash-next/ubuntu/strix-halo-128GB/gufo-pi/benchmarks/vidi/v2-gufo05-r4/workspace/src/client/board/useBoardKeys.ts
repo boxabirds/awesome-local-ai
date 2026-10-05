@@ -22,12 +22,19 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
 import type { SelectionControls } from './useSelection';
+import type { UndoController } from './undo';
 
 export interface BoardKeyOptions {
   doc: Doc;
   selection: SelectionControls;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /**
+   * The board's undo history (story 8). Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z reach it here for
+   * every key press the board owns — but not while a text editor is open, which closes
+   * over its own shortcut (`undo.typing`).
+   */
+  undo: UndoController;
 }
 
 /** Is the caret somewhere the user is typing? Then the keys are theirs. */
@@ -71,7 +78,7 @@ export function useBoardKeys(options: BoardKeyOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit } = latest.current;
+      const { doc, selection, snapshot, canEdit, undo } = latest.current;
       if (selection.editingId) return; // the text editor owns every key while it is open
       if (isTextEntry(event.target) || isControl(event.target)) return;
 
@@ -89,6 +96,26 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       }
 
       if (!canEdit) return; // everything below changes the board
+
+      // Undo and redo work with nothing selected: they reverse the last thing this client
+      // did, wherever it landed. Cmd/Ctrl+Shift+Z is the redo everyone expects; Ctrl+Y is
+      // kept as its Windows synonym. This runs only when the board owns the key — never
+      // while a note is being typed into, which we returned on above.
+      if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+        const key = event.key.toLowerCase();
+        if (key === 'z') {
+          event.preventDefault();
+          if (event.shiftKey) undo.redo();
+          else undo.undo();
+          return;
+        }
+        if (key === 'y') {
+          event.preventDefault();
+          undo.redo();
+          return;
+        }
+      }
+
       const ids = [...selection.ids];
       if (ids.length === 0) return; // nothing selected: the keys do nothing
 
@@ -104,13 +131,19 @@ export function useBoardKeys(options: BoardKeyOptions): void {
           const bounds = objectBounds(object);
           positions.set(id, { x: bounds.x + step.x, y: bounds.y + step.y });
         }
+        // One arrow press is one undo step, bounded so a run of nudges does not blur
+        // into a single merged change (`undo.group`).
+        undo.boundary();
         moveObjects(doc, positions);
+        undo.boundary();
         return;
       }
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault();
+        undo.boundary();
         deleteObjects(doc, ids);
+        undo.boundary();
         // Whether they were already gone or not, the selection refers to nothing now.
         selection.clear();
         return;

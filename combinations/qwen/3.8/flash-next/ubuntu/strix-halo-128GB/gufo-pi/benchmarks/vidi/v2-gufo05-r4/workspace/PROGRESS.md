@@ -1,47 +1,52 @@
-# Story 7: Select, move, resize and delete several objects at once
+# Implementation progress
 
-Your progress on this story's tasks. Keep the Status column up to date as you work.
+Story 8 — Undo and redo my own changes without undoing anyone else's.
 
-| # | Task | Status |
-|---|---|---|
-| 2 | Implement geometry and generic group operations in board-model | done |
-| 5 | E2E: colleague deletes one of my selected notes (TC-35) | done |
-| 6 | Write geometry and group-operation unit tests first (TC-01 to TC-10) | done |
-| 7 | Write registry unit tests first (TC-11, TC-12, duplicate registration) | done |
-| 8 | Implement object type registry and register sticky notes | done |
-| 9 | Write selection reducer unit tests first (TC-13 to TC-15) | done |
-| 10 | Implement multi-selection state, outlines and selection bar | done |
-| 11 | Implement Shift+drag marquee selection | done |
-| 12 | Implement generic transform gesture: group move and bounding-box resize handles | done |
-| 13 | Implement selection keyboard commands: select all, clear, nudge, delete | done |
-| 14 | Component tests: selection bar, marquee, transform gesture and keyboard (TC-16 to TC-31) | done |
-| 15 | E2E: reorganise a cluster and full-capacity reorganisation (TC-32, TC-33, TC-34, TC-36) | done |
+## Current task
 
-Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
+Complete. Controller, React binding, toolbar/keyboard UI, gesture and text boundaries, and
+the full test set (unit TC-01..13, component TC-14..21, e2e TC-22..24) are written and
+green. `npm run build`, `npm run typecheck`, `npm run test:unit`, `npm run test:component`,
+`npm run test:e2e` (58) and `npm run test:e2e:nightly` (2) all pass.
 
-## What was built
+## Done
 
-- `src/shared/geometry.ts` — `Rect`, `Point`, `Handle`, `rectContains`, `unionRects`,
-  `normalizeRect`, `resizeRect`, `resizeScale`, `anchorScaleRect`, `clampScale`, `scaleWithin`.
-- `src/shared/board-model.ts` — `ObjectSnapshot`, `declareObjectType`, `isDeclaredObjectType`,
-  `objectBounds`, `objectsInRect`, `allObjectIds`, `moveObjects`, `resizeObjects`,
-  `bringObjectsToFront`, `deleteObjects`, `boardObjects`.
-- `src/client/objects/registry.tsx` + `src/client/objects/index.ts` — the object type registry,
-  with sticky notes registered by importing the module.
-- `src/client/board/useSelection.ts` — the selection reducer and hook: click, Shift-click, marquee,
-  select all, clear, edit, and pruning what somebody else deleted.
-- `src/client/board/useTransformGesture.ts` — one gesture for move and resize, absolute writes,
-  window-level listeners, start/end announcements for story 8.
-- `src/client/board/SelectionOverlay.tsx`, `SelectionBar.tsx`, `Marquee.tsx`, `useBoardKeys.ts` —
-  the box and its eight handles, the count and bin, the box you draw, and the keyboard.
-- `src/client/board/BoardScreen.tsx`, `canvas/BoardViewport.tsx`, `objects/StickyNote.tsx`,
-  `board/useBoardDoc.ts`, `styles.css` — wired together, with the store exposing every object.
-- Tests: `tests/unit/{geometry,board-model-group,registry,use-selection}.test.ts`,
-  `tests/component/{selection,transform}.test.tsx`, `tests/e2e/object-selection.spec.ts`, plus
-  `tests/fixtures/testbox.tsx` and `tests/helpers/rect.ts`.
+- [x] Story 7 left the working tree clean (HEAD `a845927`).
+- [x] Read story 8 spec (prd, design, tasks), AGENTS.md, CONTEXT.md.
+- [x] Studied `Y.UndoManager` internals (capture window, popStackItem safety, events).
+- [x] `src/shared/config.ts`: `UNDO_CAPTURE_TIMEOUT_MS` (500), `UNDO_MAX_STEPS` (200).
+- [x] `src/client/board/undo.ts`: `createUndo`/`UndoController` over `Y.UndoManager`,
+      origin-filtered to `LOCAL_ORIGIN`, max-steps trim, `boundary`, `onChange`,
+      `addScope`.
+- [x] Task 6/7 unit tests green: `tests/unit/undo-history.test.ts` (TC-01..TC-11),
+      `tests/unit/undo-boundaries.test.ts` (TC-12..TC-13), `tests/unit/helpers/peer.ts`.
+      Inlined `yjs`/`lib0` in the unit project so a `vi.mock('lib0/time')` drives the
+      capture window against an injected clock.
+- [x] Task 8 React binding: `src/client/board/useUndo.ts` — `useUndo(controller, canEdit)`
+      (re-renders on `onChange`, gates enabled on `canEdit`), an `UndoProvider`, and
+      `useUndoController()` for deep components (the editor) without widening
+      `ObjectComponentProps`.
+- [x] Client wiring: `BoardScreen` builds one controller per doc (`useMemo`), destroys it on
+      doc change/unmount, wraps the board in `UndoProvider`, and closes `boundary()` around
+      create, delete, the gesture (`onGestureStart`/`onGestureEnd`) and the toolbar/keys.
+- [x] Gesture boundary: `useTransformGesture.begin()` calls `onGestureStart` before the
+      bring-to-front write, so a closed step never absorbs the gesture's own re-stack.
+- [x] Text boundaries: `StickyTextEditor` brackets the editing session with `boundary()` and
+      routes its own Ctrl/Cmd+Z and Ctrl/Cmd+Y through the controller (the browser textarea
+      undo would desync the document). `StickyNote` brackets colour and delete.
+- [x] `useBoardKeys`: Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y drive undo/redo (only when the
+      board owns the key); nudge and delete close a step each.
+- [x] `Toolbar`/`UndoButtons`: Undo and Redo buttons with tooltips, `data-vidi6` attributes and
+      enabled/disabled state; edit-lock (`canEdit`) disables them and ignores the shortcuts.
+- [x] Tasks 9-11 component tests: `tests/component/undo-boundaries.test.tsx` (TC-14..17, real
+      screen + real controller) and `undo-controls.test.tsx` (TC-18..21, fake controller).
+- [x] Task 5 e2e: `tests/e2e/undo.spec.ts` (TC-22..24) across isolated browser profiles.
+- [x] `npm run build`, `npm run typecheck`, all `npm run test:*` (incl. nightly + persistence).
 
-## Result
+## Blockers / notes
 
-`npm run build`, `npm run typecheck`, `npm run test:unit` (182), `npm run test:component` (152),
-`npm run test:integration` (61) and `npm run test:e2e` (55) all pass. Decisions and deviations are
-in `NOTES.md`, under "Story 7 notes".
+- Controller is created where the `Y.Doc` is (the `Board` component in `BoardScreen`),
+  not in `App.tsx`: since story 5 `App.tsx` is only a router and the document lives in
+  `BoardScreen`'s `useBoardDoc`. One controller per doc, destroyed on doc change and
+  unmount, is still satisfied because `App` keys `BoardPage` by board id. Noted in
+  NOTES.md.

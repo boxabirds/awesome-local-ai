@@ -217,9 +217,12 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
     run.moved = true;
     setTransformingTo(run.ids);
     if (!run.writable) return; // story 4: the drag stays a look, nothing is written
-    if (run.kind === 'move') bringObjectsToFront(latest.current.doc, run.ids);
+    // Announce the gesture *before* its first write, so the undo history closes the
+    // previous step here and everything this drag does — the raise and every position —
+    // lands as one step (story 8, `undo.drag`).
     run.started = true;
     latest.current.onGestureStart?.();
+    if (run.kind === 'move') bringObjectsToFront(latest.current.doc, run.ids);
     run.pending = info;
     apply(run);
   };

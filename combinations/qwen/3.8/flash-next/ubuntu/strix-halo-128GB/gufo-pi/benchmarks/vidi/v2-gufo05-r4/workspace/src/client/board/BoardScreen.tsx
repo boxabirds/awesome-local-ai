@@ -22,10 +22,12 @@
  * has created (`pages/BoardPage`), and `App` is the router.
  */
 
-import { useCallback, useEffect, useRef, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type JSX } from 'react';
 import type * as Y from 'yjs';
 import { createSticky, deleteObjects, objectBounds, snapshot } from '../../shared/board-model';
 import { Toolbar } from '../board/Toolbar';
+import { createUndo } from '../board/undo';
+import { UndoProvider, useUndo } from '../board/useUndo';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection, type SelectionControls } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
@@ -75,6 +77,18 @@ function Board(props: BoardScreenProps): JSX.Element {
   const boardId = props.doc ? undefined : props.boardId;
   const { doc, objects, connection } = useBoardDoc({ boardId, doc: props.doc });
 
+  // One undo history per board document (story 8), scoped to this client's own writes.
+  // A fresh document — a board that changed identity — gets a fresh, empty history, and
+  // the outgoing controller is torn down with it: undo is session-only and never follows
+  // you to another board (`undo.session_only`).
+  const undoController = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => () => undoController.destroy(), [undoController]);
+
+  // The gesture opens an undo step the moment it starts moving and closes it when it
+  // stops, so one drag — every frame of it — reverses as one (`undo.drag`).
+  const beginGestureStep = useCallback(() => undoController.boundary(), [undoController]);
+  const endGestureStep = useCallback(() => undoController.boundary(), [undoController]);
+
   // Story 4: a board the room could not load is not a board to write on. Everything
   // that would change the document is checked against this, and the handlers that are
   // registered once read it through a ref.
@@ -93,7 +107,9 @@ function Board(props: BoardScreenProps): JSX.Element {
     camera,
     selection,
     snapshot: objects,
-    canEdit: editable
+    canEdit: editable,
+    onGestureStart: beginGestureStep,
+    onGestureEnd: endGestureStep
   });
 
   // A marquee *adds* to the selection: you draw a box around the things you are joining
@@ -107,20 +123,30 @@ function Board(props: BoardScreenProps): JSX.Element {
   /** Delete or Backspace, the bin in the bar, and nothing else: one rule, one place. */
   const deleteSelection = useCallback(() => {
     if (!editableRef.current) return;
+    // A boundary either side so the whole group delete is its own undo step, reversing in
+    // one go rather than merging with whatever came before it (`undo.group`).
+    undoController.boundary();
     deleteObjects(doc, [...selectionRef.current.ids]);
+    undoController.boundary();
     selectionRef.current.clear();
-  }, [doc]);
+  }, [doc, undoController]);
 
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoController });
+
+  const undoActions = useUndo(undoController, editable);
 
   /** Put a new note in the middle of a screen point and start typing it. */
   const createAt = useCallback(
     (screenPoint: Point, document: Y.Doc, startEdit: (id: string) => void) => {
+      // A created note is one undo step, closed before editing opens so the typing that
+      // follows is a separate step from the creation (`undo.steps`).
+      undoController.boundary();
       const id = createSticky(document, screenToWorld(camera, screenPoint));
+      undoController.boundary();
       if (!id) return;
       startEdit(id);
     },
-    [camera]
+    [camera, undoController]
   );
 
   const createAtScreenCentre = useCallback(() => {
@@ -142,7 +168,7 @@ function Board(props: BoardScreenProps): JSX.Element {
   const { startEdit, endEdit, clear } = selection;
 
   return (
-    <>
+    <UndoProvider controller={undoController}>
       <BoardViewport
         doc={doc}
         canCreateSticky={editable}
@@ -194,7 +220,7 @@ function Board(props: BoardScreenProps): JSX.Element {
       />
       <MarqueeRect rect={marquee.rect} camera={camera} />
 
-      <Toolbar onCreateSticky={createAtScreenCentre} disabled={!editable} />
+      <Toolbar onCreateSticky={createAtScreenCentre} disabled={!editable} undo={undoActions} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
@@ -208,7 +234,7 @@ function Board(props: BoardScreenProps): JSX.Element {
       {/* Share lives here rather than in the toolbar: the toolbar is for making things on
           the board, and this is about who else is looking at it. */}
       {boardId !== undefined && <SharePanel boardId={boardId} />}
-    </>
+    </UndoProvider>
   );
 }
 

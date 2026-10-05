@@ -28,6 +28,7 @@ import {
   STICKY_LINE_HEIGHT,
   STICKY_TEXT_MAX_CHARS
 } from '../../shared/config';
+import { useUndoController } from '../board/useUndo';
 import { applyTextDiff, clampToLimit, counterVisible, mapCaret, type TextOp } from './StickyText';
 
 export interface StickyTextEditorProps {
@@ -53,6 +54,11 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
   ytextRef.current = ytext;
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
+  // The board's undo history, reached through context rather than a prop: the text editor
+  // is mounted generically by the note, and every object type shares the same props.
+  const undoController = useUndoController();
+  const undoRef = useRef(undoController);
+  undoRef.current = undoController;
 
   /** Keep the textarea exactly as tall as its text, so it sits centred like the
    *  text this note shows when it is not being edited. */
@@ -78,8 +84,15 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
   }, []);
 
   // Mount: take the note's text, focus it, and put the cursor at the end.
+  //
+  // The whole edit session is one undo step (`undo.typing`): a boundary on the way in
+  // separates the typing from whatever happened before it (the note's creation, a drag),
+  // and a boundary when the editor goes away — however it goes away, Escape, an outside
+  // click or a blur — closes the step so the next action starts fresh. Within the session
+  // the undo manager's own capture window collapses the keystrokes into that one step.
   useLayoutEffect(() => {
     mountedRef.current = true;
+    undoRef.current?.boundary();
     const element = textareaRef.current;
     if (!element) return;
     const value = ytextRef.current.toString();
@@ -90,6 +103,7 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     element.setSelectionRange(value.length, value.length);
     return () => {
       mountedRef.current = false;
+      undoRef.current?.boundary();
     };
   }, []);
 
@@ -164,6 +178,22 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
   );
 
   const handleKeyDown = useCallback((event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    // Ctrl/Cmd+Z inside the editor still means the shared text, not the browser's private
+    // textarea history: a native undo here would rewrite the buffer out from under the
+    // document and the next keystroke would push that back as if the user had typed it.
+    // So the board's own history runs it, and the change flows back through the observer
+    // (whose origin is the undo manager, not our own write, so it is poured in).
+    if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+      const key = event.key.toLowerCase();
+      const undo = undoRef.current;
+      if (undo && (key === 'z' || key === 'y')) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (key === 'y' || event.shiftKey) undo.redo();
+        else undo.undo();
+        return;
+      }
+    }
     if (event.key !== 'Escape') return; // Enter inserts a newline, as a note should
     event.preventDefault();
     event.stopPropagation();

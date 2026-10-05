@@ -8,6 +8,8 @@
  */
 
 import type { JSX } from 'react';
+import type { UndoActions } from './useUndo';
+import { UndoButtons } from './UndoButtons';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
@@ -16,6 +18,11 @@ export interface ToolbarProps {
    * button says so by being disabled rather than by doing nothing when clicked.
    */
   disabled?: boolean;
+  /**
+   * The undo controls (story 8): the two buttons beside the tools, enabled only when this
+   * client has a step of their own to reverse.
+   */
+  undo?: UndoActions;
 }
 
 /** Pointer and double-click gestures belong to the palette, not to the board. */
@@ -24,7 +31,7 @@ const stopPointer = (event: { stopPropagation(): void }) => {
 };
 
 export function Toolbar(props: ToolbarProps): JSX.Element {
-  const { onCreateSticky } = props;
+  const { onCreateSticky, undo } = props;
   const disabled = props.disabled === true;
 
   return (
@@ -55,6 +62,10 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           <path fill="rgba(0,0,0,0.25)" d="M17 12h-3.5a1.5 1.5 0 0 0-1.5 1.5V17l5-5Z" />
         </svg>
       </button>
+
+      {/* Undo and redo sit with the tools: they act on the board the same way the tools
+          do, and their enabled state is the only signal of what this client can reverse. */}
+      {undo ? <UndoButtons undo={undo} /> : null}
     </div>
   );
 }

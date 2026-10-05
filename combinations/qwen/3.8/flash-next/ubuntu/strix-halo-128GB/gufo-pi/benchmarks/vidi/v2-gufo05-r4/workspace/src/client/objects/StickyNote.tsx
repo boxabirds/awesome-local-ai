@@ -49,6 +49,7 @@ import {
   type StickyColor
 } from '../../shared/config';
 import type { Rect } from '../../shared/geometry';
+import { useUndoController } from '../board/useUndo';
 import type { EndEditNext } from '../board/useSelection';
 import type { ObjectGestureHandlers } from './registry';
 import { NoteToolbar } from './NoteToolbar';
@@ -147,18 +148,26 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   // A note that disappears mid-interaction is not rendered any more (the parent builds
   // this component from the document snapshot), so the gesture simply stops being told.
 
+  // A single colour change or delete is its own undo step, closed on either side so it
+  // never merges with the action before it (`undo.steps`).
+  const undoController = useUndoController();
+
   const handleColor = useCallback((next: StickyColor) => {
     if (!latest.current.canEdit) return;
     // Only the colour changes: text, position and the selection are untouched.
+    undoController?.boundary();
     setStickyColor(latest.current.doc, object.id, next);
-  }, [object.id]);
+    undoController?.boundary();
+  }, [object.id, undoController]);
 
   const handleDelete = useCallback(() => {
     if (!latest.current.canEdit) return;
+    undoController?.boundary();
     deleteObject(latest.current.doc, object.id);
+    undoController?.boundary();
     // The note is gone, so the selection goes with it.
     latest.current.onEndEdit('unselected');
-  }, [object.id]);
+  }, [object.id, undoController]);
 
   const stopPointer = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     event.stopPropagation();

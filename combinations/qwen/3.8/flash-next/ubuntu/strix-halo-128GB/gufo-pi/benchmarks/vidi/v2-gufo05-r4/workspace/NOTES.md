@@ -1155,3 +1155,86 @@ change should mean one render. The full suite has run twice since with no recurr
   proportions to keep and a minimum size of its own. It is how "generic" is told apart from "sticky
   note" wherever a second type is needed.
 - Touch input is not covered, per the story's own out-of-scope note.
+
+---
+
+# Story 8 — Undo and redo my own changes
+
+## Where the controller lives
+
+The spec sketch put `createUndo(doc)` in `App.tsx`, but since story 5 `App.tsx` is only a
+router: the `Y.Doc` is created inside `BoardScreen`'s `useBoardDoc`. The controller is built
+in `BoardScreen`'s `Board` from that same doc (`useMemo` on `doc`), destroyed on doc change
+and on unmount, and provided through a small `UndoContext`. "One controller per board doc"
+still holds because `App` keys `BoardPage` by board id, so a board swap remounts the whole
+thing and builds a fresh controller over a fresh document.
+
+## The controller hands over two things: `boundary()` and `onChange()`
+
+`undo.ts` wraps `Y.UndoManager` in an `UndoController` whose whole job is to hide yjs's stack
+from the product. Two design points are worth recording:
+
+- **`boundary()` is `stopCapturing()`.** yjs sets `lastChange = 0` on `stopCapturing`, so the
+  next local transaction sees no open capture window and starts a new stack op. That is how a
+  gesture, a delete, a nudge or a colour change becomes exactly one step: the client calls
+  `boundary()` on the way in (close whatever the previous action left open) and on the way out
+  (do not let the next action merge into this one). Successive arrow nudges therefore stay
+  separate, which the PRD asks for.
+- **The max-steps trim runs on `stack-item-added` (type `undo`)** and shifts the bottom of
+  `undoStack`. yjs already caps the redo side through `stackItemLimit`; trimming `undoStack`
+  by hand keeps memory bounded without touching anything a user can still reach.
+
+`onChange` is driven by `stack-item-added`, `stack-item-popped` and `stack-cleared` — the
+three moments at which "is there something to undo / redo" can change.
+
+## Undo is origin-filtered, and the undo itself is remote to the editor
+
+The manager watches the `objects` map with `trackedOrigins: [LOCAL_ORIGIN]`, so `LOAD_ORIGIN`
+(initial state) and `PROVIDER_ORIGIN` (everybody else) are never collected. When the manager
+*does* undo, it applies the inverse in a transaction whose origin is the manager itself — not
+`LOCAL_ORIGIN`. That is exactly what `StickyTextEditor` wants: its observer ignores its own
+`LOCAL_ORIGIN` writes but treats anything else as "the board changed underneath me" and
+re-syncs the textarea. So undoing typed text lands in an open editor correctly, for free.
+
+## The `lib0/time` mock, and why the unit project inlines yjs
+
+`Y.UndoManager` decides whether a change joins the current step from `getUnixTime() -
+lastChange <= captureTimeout`. yjs imports `getUnixTime` from `lib0/time` **by reference at
+module load**, so `vi.useFakeTimers()` (which only replaces `Date.now` on the global) cannot
+move the clock the manager reads. The capture-window tests mock `lib0/time` to a lazily-seeded
+counter, and the unit Vitest project sets `server.deps.inline: ['yjs', 'lib0']` so Vite runs
+those two through its transform graph and the mock actually reaches yjs's internals. The
+component/e2e suites deliberately leave the manager on the wall clock; they never depend on
+merging-by-time, only on the `boundary()` calls that separate steps regardless of the clock.
+
+## Routing the editor's own Ctrl+Z
+
+A browser textarea will undo its own buffer on Ctrl+Z if asked, which desyncs it from the
+shared document (the document keeps full history; the textarea does not). `StickyTextEditor`
+intercepts Ctrl/Cmd+Z and Ctrl/Cmd+Y and sends them to the shared controller, whose undo
+arrives as a remote change and re-syncs the textarea. The native textarea undo is thereby
+turned off without disabling the browser's behaviour anywhere else.
+
+## A test coordinate that outlived the toolbar it was chosen for
+
+`persistence.persist.spec.ts`'s `clickAway` clicked `(40, 420)` — empty board when the left
+tool rail held only the sticky button. The rail is vertically centred (`top: 50%`), so adding
+the undo group grew it downward over that exact point, and every click-away became an Undo
+press. `clickAway` now clicks clear of the rail and the note grid. A magic coordinate that
+happened to sit under chrome is a brittle assumption; noted here so the next story that grows
+the rail looks at this too.
+
+## Test notes (story 8)
+
+- Unit: history scope and steps (`undo-history.test.ts`, TC-01..11) and the capture window /
+  boundaries (`undo-boundaries.test.ts`, TC-12..13). `tests/unit/helpers/peer.ts` is a tiny
+  second-person simulator (its own doc, a `peerDoc` for relaying "everybody else", and an
+  `applyAsLoad` for "initial state") that keeps the suite from tripping over yjs's
+  `item.origin === undefined` special case.
+- Component: boundaries with the real screen, controller and gesture
+  (`undo-boundaries.test.tsx`, TC-14..17), and the controls with a fake controller
+  (`undo-controls.test.tsx`, TC-18..21) — buttons reflecting the two stacks and the edit lock,
+  each shortcut reaching the right method, and a press addressed to a field left alone.
+- E2E: `tests/e2e/undo.spec.ts` (TC-22..24) in isolated browser profiles, so "my undo did not
+  touch theirs" is proven across real sockets and both boards are compared after every step.
+  The deleted-target cases assert the note stays gone and that neither page logs a crash.

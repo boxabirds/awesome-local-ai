@@ -130,6 +130,22 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 /** Schema version written to `meta.schemaVersion` (story 4 migrates from it). */
 export const BOARD_SCHEMA_VERSION = 1;
 
+/* ------------------------------------------------------------------ undo (story 8) */
+
+/**
+ * The pause in typing that ends an undo step (`undo.typing`): keystrokes closer
+ * together than this collapse into one step, a pause of at least this opens a new
+ * one. Passed to `Y.UndoManager.captureTimeout`, and the reason a whole burst of
+ * typing undoes as one.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/**
+ * How many of the person's own steps one undo history keeps (`undo.limit`). The
+ * oldest is dropped when a new one would push it past this.
+ */
+export const UNDO_MAX_STEPS = 200;
+
 /* ------------------------------------------------------------------ live sync (story 3) */
 
 /**

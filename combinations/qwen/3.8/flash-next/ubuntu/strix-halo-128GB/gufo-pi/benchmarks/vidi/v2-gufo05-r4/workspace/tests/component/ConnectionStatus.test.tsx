@@ -270,8 +270,13 @@ describe('the badge as the connection changes', () => {
     clickElement(stickyToolButton(container));
     expect(stickyNotes(container)).toHaveLength(1);
 
-    // The controls in the corner are not waiting for the network either.
-    for (const control of container.querySelectorAll<HTMLButtonElement>('button')) {
+    // The controls in the corner are not waiting for the network either. The undo/redo
+    // pair is excluded: their enabled state tracks this client's *history* (story 8), not
+    // the connection — with nothing to redo there is nothing to redo whether or not the
+    // link is up, so they are not a signal about the network.
+    for (const control of container.querySelectorAll<HTMLButtonElement>(
+      'button:not([data-vidi6="tool-undo"]):not([data-vidi6="tool-redo"])'
+    )) {
       expect(control.disabled, `${control.textContent?.trim()} must stay enabled`).toBe(false);
     }
 

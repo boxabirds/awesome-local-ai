@@ -70,9 +70,16 @@ async function openOne(browser: Browser, boardId: string): Promise<{ context: Br
   return { context, page };
 }
 
-/** Click board space where no note is, which ends editing without making anything. */
+/**
+ * Click board space where no note is, which ends editing without making anything.
+ *
+ * The point is chosen clear of both the left tool rail (which story 8 grew downward by an
+ * undo group, so it is taller than when this number was first picked) and the grid of notes
+ * the test lays down. The old (40, 420) sat under the rail once that rail carried undo/redo,
+ * which turned every click-away into an Undo press.
+ */
 async function clickAway(page: Page): Promise<void> {
-  await page.mouse.click(40, 420);
+  await page.mouse.click(120, 770);
 }
 
 /**
