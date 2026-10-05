@@ -1,0 +1,6 @@
+{
+  "state": "failed",
+  "reason": "exit 1: preflight failed; not starting the run",
+  "at": "2026-10-05T16:37:19Z",
+  "host": "Apple M5 Max 128GB"
+}
