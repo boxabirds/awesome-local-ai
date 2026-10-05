@@ -37,7 +37,6 @@ import {
   moveCaretThrough,
 } from './StickyText';
 import type { Fit } from './StickyText';
-import type { EndEditTarget } from '../board/useSelection';
 
 /** Height available to the text inside a note, in board units. */
 export const STICKY_TEXT_BOX = STICKY_SIZE_WORLD - STICKY_PADDING_WORLD * 2;
@@ -47,8 +46,11 @@ export interface StickyTextEditorProps {
   ytext: Y.Text;
   /** Font size to start at, measured while the note was not being edited. */
   fontPx: number;
-  /** Editing finished: Escape keeps the note selected, a click outside does not. */
-  onEnd(next: EndEditTarget): void;
+  /**
+   * Editing finished: Escape from the text, or a press outside the note. Either way the note is left
+   * selected — the press that means otherwise is a selection action of its own, and says so.
+   */
+  onEnd(): void;
   /** Reported after each measurement so the note can show its overflow fade. */
   onFit?(fit: Fit): void;
 }
@@ -228,7 +230,7 @@ export function StickyTextEditor({
     if (event.key !== 'Escape') return; // Enter adds a line: that is the default
     event.preventDefault();
     event.stopPropagation();
-    onEnd('selected');
+    onEnd();
   };
 
   return (

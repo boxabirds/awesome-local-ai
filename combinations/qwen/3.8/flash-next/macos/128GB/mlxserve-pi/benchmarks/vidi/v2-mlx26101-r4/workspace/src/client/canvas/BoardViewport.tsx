@@ -40,6 +40,18 @@ export interface BoardViewportProps {
    * Without it a note would stay selected until another one was pressed.
    */
   onClearSelection?(): void;
+  /**
+   * Shift + press on empty board space: draw a selection rectangle instead of panning.
+   *
+   * The two share a surface and must not share a meaning, so the modifier is what tells them apart —
+   * a story 1 drag still pans, exactly as it did, and a story 7 rectangle needs no new place on the
+   * screen to live. Whoever asks for this owns the pointer for as long as the rectangle is being drawn,
+   * which is why `marqueeActive` exists: the viewport must not start a pan underneath a rectangle that
+   * is being drawn through it.
+   */
+  onMarqueeBegin?(event: ReactPointerEvent<HTMLDivElement>): void;
+  /** Whether a selection rectangle is being drawn right now, in which case the board does not pan. */
+  marqueeActive?: boolean;
 }
 
 /**
@@ -50,7 +62,13 @@ export interface BoardViewportProps {
  * Ctrl/Cmd + wheel around the pointer, or the zoom controls. Every gesture over the
  * board is cancelled so the browser page never scrolls or zooms instead.
  */
-export function BoardViewport({ children, onCreateAt, onClearSelection }: BoardViewportProps): JSX.Element {
+export function BoardViewport({
+  children,
+  onCreateAt,
+  onClearSelection,
+  onMarqueeBegin,
+  marqueeActive = false,
+}: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportSize = useViewportSize(viewportRef);
   const { camera, beginPan, panMove, endPan, wheel } = useCamera(viewportSize);
@@ -130,6 +148,14 @@ export function BoardViewport({ children, onCreateAt, onClearSelection }: BoardV
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (event.pointerType === 'mouse' && event.button !== PRIMARY_MOUSE_BUTTON) return;
     if (!isBoardSurface(event.target)) return;
+    // Shift on empty board space is a rectangle, not a drag: nothing is panned and no press is recorded,
+    // so the release that ends the rectangle cannot be mistaken for a click that deselects.
+    if (event.shiftKey && onMarqueeBegin) {
+      onMarqueeBegin(event);
+      return;
+    }
+    // A rectangle is being drawn through this surface: the pointer belongs to it until it is finished.
+    if (marqueeActive) return;
     panningRef.current = true;
     setPanning(true);
     const point = toScreenPoint(event);

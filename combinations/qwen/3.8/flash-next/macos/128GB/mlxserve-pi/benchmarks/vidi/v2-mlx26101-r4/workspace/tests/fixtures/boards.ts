@@ -22,6 +22,7 @@ import {
   createSticky,
   getStickyText,
   initDoc,
+  isStickySnapshot,
   moveObject,
   setStickyColor,
   snapshot,
@@ -175,7 +176,7 @@ export function seededBoard(count: number, seed = 0x5eed): SeededBoard {
     }
   }
 
-  return { doc: board, updates, expected: snapshot(board), ids };
+  return { doc: board, updates, expected: snapshot(board).filter(isStickySnapshot), ids };
 }
 
 /** Everything the document holds, as one update. */

@@ -18,9 +18,11 @@ import {
   deleteObject,
   getStickyText,
   initDoc,
+  isStickySnapshot,
   moveObject,
   setStickyColor,
   snapshot,
+  type StickySnapshot,
 } from '../../src/shared/board-model';
 import {
   DEFAULT_STICKY_COLOR,
@@ -40,6 +42,18 @@ function newDoc(): Y.Doc {
 
 function objectsOf(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap<Y.Map<unknown>>('objects');
+}
+
+/**
+ * One note as the board reports it, narrowed to the type that carries a colour and a text.
+ *
+ * `snapshot` answers with any object, because the board is not supposed to know which types exist; a
+ * test that is about a sticky note says so here rather than assuming the board holds nothing else.
+ */
+function stickyNote(doc: Y.Doc, id: string): StickySnapshot {
+  const found = snapshot(doc).find((object) => object.id === id);
+  if (found === undefined || !isStickySnapshot(found)) throw new Error(`no sticky note "${id}" on the board`);
+  return found;
 }
 
 /** Starts counting `update` events; returns a reader of the count. */
@@ -252,13 +266,13 @@ describe('board.model setStickyColor', () => {
     const doc = newDoc();
     const id = createSticky(doc, { x: 100, y: 200 });
     doc.transact(() => getStickyText(doc, id)?.insert(0, 'Faster onboarding'));
-    const before = snapshot(doc).find((note) => note.id === id)!;
+    const before = stickyNote(doc, id);
     const updates = countUpdates(doc);
 
     expect(setStickyColor(doc, id, 'green')).toBe(true);
     expect(updates()).toBe(1);
 
-    const after = snapshot(doc).find((note) => note.id === id)!;
+    const after = stickyNote(doc, id);
     expect(after.color).toBe('green');
     expect(STICKY_COLORS[after.color]).toBe('#C5E1A5');
     expect(after.text).toBe('Faster onboarding');

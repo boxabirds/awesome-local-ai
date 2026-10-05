@@ -55,6 +55,31 @@ export const DRAG_THRESHOLD_PX = 3;
 /** Space between a note's edge and its text, in world units. */
 export const STICKY_PADDING_WORLD = 12;
 
+/* ------------------------------------------------------ selecting objects -- */
+
+/**
+ * Side of one resize handle of the selection's bounding box, in *screen* pixels:
+ * the handles are the same size on screen at every zoom, so this is not a world
+ * measurement.
+ */
+export const HANDLE_SIZE_PX = 8;
+
+/** Smallest sticky note the board accepts, in world units (it stays a square). */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/**
+ * Largest object the board accepts in either dimension, in world units. One
+ * setting for every object type: a type declares its own minimum in the registry,
+ * the maximum is the board's, so a resize cannot make something unrenderable.
+ */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** How far one arrow key moves the selection, in world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** How far Shift + an arrow key moves the selection, in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 /** The six note colours, keyed by the name used in the document and in labels. */
 export const STICKY_COLORS = {
   yellow: '#FFF59D',

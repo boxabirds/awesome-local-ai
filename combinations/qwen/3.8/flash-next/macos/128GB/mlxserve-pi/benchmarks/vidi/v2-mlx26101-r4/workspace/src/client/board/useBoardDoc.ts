@@ -16,7 +16,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 
 import { initDoc, snapshot } from '../../shared/board-model';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot } from '../../shared/board-model';
 import { registerBoardForTests, registerConnectionForTests, reportConnectionStateForTests } from '../canvas/testHooks';
 import { connectBoard } from '../sync/connectBoard';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -24,8 +24,8 @@ import type { ConnectionState } from '../sync/connectBoard';
 export interface BoardDoc {
   /** The document every board mutation is applied to. */
   doc: Y.Doc;
-  /** The notes to render, in stacking order; frozen, new only after a change. */
-  notes: readonly StickySnapshot[];
+  /** The objects to render, in stacking order; frozen, new only after a change. */
+  notes: readonly ObjectSnapshot[];
   /** Whether anybody else can see this board, as the badge reports it. */
   connection: ConnectionState;
 }

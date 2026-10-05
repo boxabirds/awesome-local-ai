@@ -26,6 +26,7 @@ import {
   deleteObject,
   getStickyText,
   initDoc,
+  isStickySnapshot,
   moveObject,
   setStickyColor,
   snapshot,
@@ -351,7 +352,7 @@ export function createClient(boardId: string, initialSocket: WebSocket): BoardCl
     },
 
     snapshot() {
-      return snapshot(doc);
+      return snapshot(doc).filter(isStickySnapshot);
     },
 
     matches(other) {

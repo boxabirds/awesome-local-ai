@@ -550,3 +550,135 @@ story 3 nightly note).
 - Suites as this story left them: 124 unit, 126 component, 66 integration, and 84 e2e in
   Chromium and WebKit (Firefox does not start here, see the Firefox note) — plus TC-21,
   and TC-19/TC-20 which this machine will not run, above.
+
+## Story 7: an object of a type nothing has registered is not on the board
+
+`snapshot()` reports objects whose type is registered, and no others. That is a story 4
+decision, tested there (`tests/unit/board-model.test.ts`: an unknown type is not in
+`snapshot()`), and it is the right one — a board that cannot say what an object *is*
+cannot draw it, and drawing a guess is how a shape becomes a sticky note in somebody's
+export.
+
+What story 7 had to decide is what that means for selection, and the answer falls out of
+the same rule: **you cannot select, move or delete what the board is not reporting.**
+`allObjectIds`, `objectsInRect`, the marquee and select-all all read the snapshot, so an
+object of an unregistered type is invisible to all of them. The design's phrase for it is
+"left undrawn", which is the renderer's half of the story (`getObjectType(type)` is
+undefined, so no `Component` is drawn); the model's half is that it is not even listed.
+
+TC-16b is written for that, and says "left alone, not guessed at": select-all picks up the
+registered notes, the bar counts only those, and the unregistered object is neither
+outlined nor deleted. The alternative — let the snapshot list unknown types so they can at
+least be deleted — would make this build able to destroy something it does not know the
+name of, which is worse than leaving it for a build that does.
+
+## Story 7: a handle sitting on somebody else's note loses the note
+
+The first full e2e run after the overlay went in broke story 2's golden path, and the
+reason was exactly the sort of thing that only a real browser tells you:
+
+```
+<div data-testid="resize-handle-e" class="selection-handle"> from <div class="selection-overlay">
+subtree intercepts pointer events
+```
+
+The story selects one note and drags it; it then clicks a *neighbouring* note, and the
+selected note's right-edge handle — 8 pixels, drawn over the board in screen units — was
+sitting on that neighbour. The click went to the handle. This is not a test artifact
+either: the handle is above the notes by necessity, so on any board with notes close
+together, a resize handle steals the click that was aimed at the note under it.
+
+The first fix was a pass-through in the handle's `onPointerDown`: ask
+`document.elementsFromPoint`, and if an unselected object is under the press, hand the
+press to it. That is the right instinct and the wrong mechanism, for two reasons. jsdom has
+no layout, so `elementsFromPoint` answers nothing and the component tests would need the
+answer faked. And in the browser Playwright's own hit-test refuses to *dispatch* the click
+before any handler of mine runs — a handler cannot give back a click it never receives.
+
+What works is to ask the **document** instead of the page, when drawing: the overlay knows
+each handle's point in board units, and `hitTestObject` (the same hit test the marquee
+uses) knows what is there. Where an object outside the selection is drawn under a handle,
+that handle is not rendered at all. `document.elementsFromPoint` never comes up, the answer
+is the same in jsdom and in a browser, and a handle and a marquee cannot disagree about what
+is where. The bounding box is still drawn in full — the box is a fact about the selection,
+while a handle is an offer, and an offer that cannot be taken is not worth making. There
+are seven other handles to resize with.
+
+## Story 7: a press on something already selected is not a selection change
+
+The PRD says a click on an object makes it the only selected object, and the design says
+`onObjectPointerDown` dispatches `click(id)` — replacing the selection — *before the
+gesture starts*. Taken literally those two sentences delete group dragging: press a note
+that is one of six selected and the selection becomes that one note, so the drag moves one
+note instead of six, which is the headline feature of the story.
+
+The two are reconciled by when the narrowing happens: a press that never crosses
+`DRAG_THRESHOLD_PX` was a click, and narrows the selection at pointer-up; a press that does
+cross it was a drag, and moves everything that was selected when the finger went down
+(TC-23b, which the design's wording would have failed). A person who wants to move one note
+out of six clicks it first and drags it again, and gets exactly what they asked for both
+times.
+
+Shift+click is decided in the same place — the gesture, not the object — so that a type
+added in story 9 cannot get it wrong, and so that the modifier means one thing everywhere on
+the board. It is guarded by `isTypingTarget`, because Shift+click inside a note that is
+being typed in is a shift+click in a text field and must type, not select.
+
+## Story 7: editing an object does not change what is selected
+
+`edit` in the reducer adds the id if it is not already selected rather than replacing the
+selection: Enter on one of six selected notes opens that note's text and leaves six things
+outlined, which is what every other board does and what TC-30's negative case needs (typing
+in one of the selected notes does not quietly drop the other five). The same reason made
+`startEdit` stop insisting that the id is in the snapshot: the snapshot lags the document by
+a frame, and a note created a moment ago is real in the document and not yet visible in the
+snapshot — a guard that reads the older of two things will refuse a thing that just happened.
+
+## Story 7: Escape in the middle of a rectangle belongs to the rectangle
+
+Escape has two jobs on this board — give up a rectangle in flight, and clear the selection
+— and they cannot both run for one keypress, because clearing the selection is the opposite
+of "the selection is unchanged". The marquee listens on `document` in the capture phase and
+calls `stopPropagation()`, so it gets first refusal and the board's own Escape never fires.
+TC-22e fires the event at `document` for that reason: an event dispatched at `window` goes
+to the window's listeners only, skips the marquee, and lands on the board's Escape, which
+clears the selection and makes the test pass for the wrong reason.
+
+`pointercancel` is a separate path from `end`, not `end` with a flag. A pointer taken away
+by the operating system — a system gesture, the browser deciding it knows better — is not a
+rectangle the person meant to finish, and selecting with it would be the board making a
+choice on somebody's behalf out of an event they did not send.
+
+## Story 7: `snapshot()` got wider, and the tests had to say which objects they meant
+
+`snapshot` now returns `readonly ObjectSnapshot[]` — any registered type — because a
+generic move, resize and delete cannot be written against `StickySnapshot`. Story 2, 4 and 5
+code that wants *notes* says so with `snapshot(doc).filter(isStickySnapshot)`, a type guard
+over the one field every sticky has (`type: 'sticky'`). Six places in the existing tests and
+test hooks changed to that, and nothing about their assertions moved: the filter is where the
+wideness is paid for, and it is better written down in six places than hidden in a cast.
+
+The selection bar got moved for a related reason. It was fixed to the bottom of the window;
+it is now placed above the selection's bounding box, from the box and the camera, because
+the box is the thing it acts on. A control that is always in the corner of the window is
+only "always findable" while the board does not scroll and zoom, and this board does both.
+
+## Story 7: numbers
+
+Measured on this machine, chromium, with the browser, the model and the room all on it.
+Reported against their budgets and not asserted on, as in the earlier stories.
+
+- TC-36, five people moving a different selection each at the same moment: the five agree on
+  the starting five notes in **21 ms**; after everybody has moved, all five screens agree in
+  **1503 ms** against the 1000 ms `LIVE_UPDATE_LATENCY_BUDGET_MS`. The measurement is taken
+  from the last move to the last screen, and the moves are driven one browser after another
+  by one test process — the clock runs while the driver is still pushing the fourth and
+  fifth person's pointers, which is most of the overage. What the test asserts is the thing
+  that is actually a requirement: after it settles, the five documents are *identical*,
+  which is what absolute writes buy (Key decision 1).
+- TC-35, a remote delete leaving my selection: the note is gone from my selection inside the
+  latency budget, measured with `expectEventually` and logged.
+- Suites as this story left them: **188 unit, 161 component (35 of them new here), 66 integration, 110 e2e** in
+  Chromium and WebKit. TC-19 and TC-20 (`@persist`) still do not run here for the story 4
+  reason written up above — a spawned runtime that this sandbox will not let anyone signal
+  — and story 7 changed nothing about the harness.

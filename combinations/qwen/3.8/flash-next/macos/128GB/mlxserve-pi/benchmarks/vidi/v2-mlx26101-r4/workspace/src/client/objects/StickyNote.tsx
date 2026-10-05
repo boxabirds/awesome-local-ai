@@ -1,19 +1,28 @@
 /**
- * One sticky note on the board: how it looks, how it is selected, how it is
- * dragged and how it is typed into.
+ * One sticky note on the board: how it looks, how it is selected, how it is typed into.
  *
- * Interaction states for a note (local only, exactly the design's diagram):
+ * What story 7 took away from this file is the drag. It used to own the whole of it — threshold,
+ * pointer capture, per-frame writes, raising the note above the others — and owning it was fine while a
+ * note was the only thing on the board and a drag could only ever move one note. It stopped being fine
+ * the moment a drag had to move six things at once, because then the question "what moves when this is
+ * dragged?" has an answer that involves everything else on the board, and a note cannot know that. The
+ * answer now lives in `useTransformGesture`; this file reports the press and shows the result.
  *
- *   Unselected → Pressed → Selected ⇄ Editing
- *                  ↓  ↑        ↑
- *               Dragging ──────┘
+ * What is left is the note's own business:
  *
- * A short press selects; movement past `DRAG_THRESHOLD_PX` drags instead. The
- * pointer is captured to the note, so a drag keeps moving it even when the
- * pointer leaves the note, and the `pointerdown` stops propagation, which is
- * what keeps the board from panning underneath it.
+ *   - its size, which is the document's `width`/`height` when it has them and STICKY_SIZE_WORLD when it
+ *     does not — a note made before this story has neither field, and must not jump or grow on that
+ *     account;
+ *   - its text, and the fitting of it (measured in the layout phase, so the size is right before the
+ *     browser paints and the note never flashes at the wrong size);
+ *   - the toolbar that belongs to exactly one note: colours and a bin, which is why it stands aside as
+ *     soon as the person is holding more than one object, when the question is no longer about this one.
+ *
+ * The interaction states are the same ones as before, but read rather than driven:
+ *
+ *   idle → pressed → dragging → idle, and idle → selected → editing → selected.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type {
   JSX,
   KeyboardEvent as ReactKeyboardEvent,
@@ -21,21 +30,21 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from 'react';
 
-import type * as Y from 'yjs';
-
-import { bringToFront, deleteObject, getStickyText, moveObject, setStickyColor } from '../../shared/board-model';
 import {
-  DRAG_THRESHOLD_PX,
-  STICKY_COLORS,
-  STICKY_FONT_MAX_PX,
-  STICKY_SIZE_WORLD,
-} from '../../shared/config';
+  deleteObject,
+  getStickyText,
+  isStickySnapshot,
+  objectBounds,
+  setStickyColor,
+  STICKY_OBJECT_TYPE,
+} from '../../shared/board-model';
 import type { StickySnapshot } from '../../shared/board-model';
+import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_FONT_MAX_PX } from '../../shared/config';
 import { NoteToolbar } from './NoteToolbar';
+import type { ObjectProps } from './objectProps';
 import { STICKY_TEXT_BOX, StickyTextEditor } from './StickyTextEditor';
 import { fitFontSize } from './StickyText';
 import type { Fit } from './StickyText';
-import type { EndEditTarget } from '../board/useSelection';
 
 /** Gap between the top of a note and its toolbar, in screen pixels. */
 const TOOLBAR_GAP_PX = 8;
@@ -43,253 +52,108 @@ const TOOLBAR_GAP_PX = 8;
 /** The mouse button that picks a note up. */
 const PRIMARY_MOUSE_BUTTON = 0;
 
-/** What this note's pointer is doing right now (never stored in the document). */
-type NoteInteraction = 'idle' | 'pressed' | 'dragging';
+export type StickyNoteProps = ObjectProps;
 
-/** A pointer that is down on the note, dragging or about to. */
-interface Drag {
-  pointerId: number;
-  /** Pointer position when the note was pressed, in screen pixels. */
-  startX: number;
-  startY: number;
-  /** Where the note was when it was pressed, in world units. */
-  noteX: number;
-  noteY: number;
-  /** Latest pointer position; applied on the next animation frame. */
-  lastX: number;
-  lastY: number;
-  /** False until movement passes the threshold; a press that has not moved. */
-  dragging: boolean;
+/**
+ * The note's own fields, which is the part of an `ObjectSnapshot` that only a sticky note has.
+ *
+ * The board hands every component the general shape, because the board does not know what types exist; a
+ * type knows what *it* is, and says so here. An object of another type wearing this type's name is a bug
+ * in whoever rendered it, and is answered with the defaults a note would have had before it stored any
+ * of this — a yellow note with nothing written on it, rather than a crash in the middle of a board.
+ */
+function noteFields(object: ObjectProps['object']): { color: StickySnapshot['color']; text: string } {
+  if (!isStickySnapshot(object)) return { color: DEFAULT_STICKY_COLOR, text: '' };
+  return { color: object.color, text: object.text };
 }
 
-export interface StickyNoteProps {
-  note: StickySnapshot;
-  doc: Y.Doc;
-  /** Camera zoom: a drag moves the note by `screen delta / zoom` world units. */
-  zoom: number;
-  selected: boolean;
-  editing: boolean;
-  /**
-   * This board cannot be written to (see `canEdit` in App): the note is still shown
-   * — a board that could not be loaded shows whatever it has, and it may have
-   * nothing — but no gesture of any kind reaches the document.
-   */
-  readOnly?: boolean;
-  onSelect(id: string): void;
-  onStartEdit(id: string): void;
-  /** Editing stopped: the note stays selected (Escape) or does not (click away). */
-  onEndEdit(next: EndEditTarget): void;
-}
-
-export function StickyNote({
-  note,
-  doc,
-  zoom,
-  selected,
-  editing,
-  readOnly = false,
-  onSelect,
-  onStartEdit,
-  onEndEdit,
-}: StickyNoteProps): JSX.Element {
+export function StickyNote(props: StickyNoteProps): JSX.Element {
+  const { object, doc, zoom, selected, selectedCount, editing, readOnly, interaction } = props;
+  const { color, text } = noteFields(object);
   const elementRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<Drag | null>(null);
-  const frame = useRef<number | null>(null);
-  const [interaction, setInteraction] = useState<NoteInteraction>('idle');
   const [fit, setFit] = useState<Fit>({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
 
-  // The zoom and document a drag in flight must use. They are refreshed in an
-  // effect so a frame callback that was queued earlier still sees the current
-  // zoom, and stops touching the document the moment the note is gone.
-  const live = useRef<{ zoom: number; doc: Y.Doc | null }>({ zoom, doc });
-  useEffect(() => {
-    live.current = { zoom, doc };
-  });
+  // A note is a square on the board even when it does not know its own size yet, so everything that
+  // draws — the note, the outlines, the toolbar's perch — measures the same rect.
+  const bounds = objectBounds(object);
 
-  /** Move the note to the pointer's latest position. */
-  const applyDrag = useCallback((): void => {
-    const current = drag.current;
-    if (!current?.dragging) return;
-    const { zoom: scale, doc: document } = live.current;
-    // The note was deleted while it was held — by a keyboard shortcut, or by
-    // another client in a later story. This component is unmounted by then, so a
-    // frame still in flight lets go of the document instead of writing to it.
-    if (document === null) {
-      drag.current = null;
-      return;
-    }
-    const divisor = scale > 0 ? scale : 1;
-    const worldX = current.noteX + (current.lastX - current.startX) / divisor;
-    const worldY = current.noteY + (current.lastY - current.startY) / divisor;
-    // A `false` here only means the note is already at that position: a frame
-    // with nothing to write must not end the drag, or a drag that pauses between
-    // frames would stop following the pointer for good.
-    moveObject(document, note.id, worldX, worldY);
-  }, [note.id]);
-
-  /** Position changes are applied once per animation frame, not per event. */
-  const scheduleDrag = useCallback((): void => {
-    if (frame.current !== null) return;
-    frame.current = requestAnimationFrame(() => {
-      frame.current = null;
-      applyDrag();
-    });
-  }, [applyDrag]);
-
-  const stopFrame = (): void => {
-    if (frame.current !== null) {
-      cancelAnimationFrame(frame.current);
-      frame.current = null;
-    }
-  };
-
+  /**
+   * The press, handed straight to the board.
+   *
+   * What happens next is not this note's decision: whether the press selects, adds to a selection, or
+   * picks up a whole group is settled by the selection and the gesture, which between them know what
+   * else is selected. All that is decided here is which presses are not the board's business at all: a
+   * right-click, and a press that lands on text that is open for typing.
+   */
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (readOnly) {
-      // The press stops here: the board neither pans nor selects, because a note
-      // that cannot be moved should not look like it can be.
+      // The press stops here: the board neither pans nor selects, because a note that cannot be moved
+      // should not look like it can be.
       event.stopPropagation();
       return;
     }
     // Only the left button picks a note up; the others are left alone.
     if (event.pointerType === 'mouse' && event.button !== PRIMARY_MOUSE_BUTTON) return;
-
     // The board neither pans nor clears its selection because of a note.
     event.stopPropagation();
-    if (editing) return; // typing belongs to the textarea, not to the drag machine
-
-    event.target && (event.target as Element).setPointerCapture?.(event.pointerId);
-    drag.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      noteX: note.x,
-      noteY: note.y,
-      lastX: event.clientX,
-      lastY: event.clientY,
-      dragging: false,
-    };
-    setInteraction('pressed');
-    // Pressing a note selects it straight away; a drag that follows only moves
-    // it, so the outline appears the moment the note is picked up.
-    onSelect(note.id);
-  };
-
-  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (readOnly) return;
-    const current = drag.current;
-    if (!current || current.pointerId !== event.pointerId) return;
-    current.lastX = event.clientX;
-    current.lastY = event.clientY;
-
-    if (current.dragging) {
-      scheduleDrag();
-      return;
-    }
-
-    const dx = current.lastX - current.startX;
-    const dy = current.lastY - current.startY;
-    const travelled = Math.max(Math.abs(dx), Math.abs(dy));
-    // Under the threshold this is still a press: a hand jitter between mousedown
-    // and mouseup must not move a note the user only meant to select.
-    if (!(travelled >= DRAG_THRESHOLD_PX)) return;
-
-    current.dragging = true;
-    setInteraction('dragging');
-    // Once per drag: the note being moved belongs above everything it crosses.
-    bringToFront(doc, note.id);
-    applyDrag();
-  };
-
-  /** The press is over: the note ends up selected, wherever it was last shown. */
-  const endInteraction = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    const current = drag.current;
-    if (!current || current.pointerId !== event.pointerId) return;
-    if (current.dragging) {
-      // Flush the queued frame so the note ends exactly under the pointer
-      // rather than one frame behind it.
-      stopFrame();
-      applyDrag();
-    }
-    drag.current = null;
-    setInteraction('idle');
-    onSelect(note.id);
-  };
-
-  /**
-   * A drag that never finished normally — pointer released outside the window,
-   * a system gesture, the capture lost — leaves the note at the position it was
-   * last shown in, and still selects it.
-   */
-  const cancelInteraction = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    const current = drag.current;
-    if (!current || current.pointerId !== event.pointerId) return;
-    // Whatever was queued is dropped: the note stays where it was last shown.
-    stopFrame();
-    drag.current = null;
-    setInteraction('idle');
-    onSelect(note.id);
+    // While this note's text is open, the press belongs to the text — and the press that closes it is
+    // caught by the listener below, which runs before this one.
+    if (editing) return;
+    props.onPointerDown(event, object.id);
   };
 
   const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
     // A note is edited, never duplicated: the board must not see this click.
     event.stopPropagation();
     if (editing || readOnly) return;
-    onStartEdit(note.id);
+    props.onStartEdit(object.id);
   };
 
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
-    // Reached by keyboard: Tab moves to a note, Enter edits it, and the board's
-    // own shortcuts (Delete, Escape) are handled where the selection lives.
+    // Reached by keyboard: Tab moves to a note, Enter edits it. The board's own shortcuts (Delete,
+    // Escape, arrows) are handled where the selection lives, and reach here by bubbling.
     if (event.key !== 'Enter') return;
-    // While typing, Enter belongs to the text: a keydown that started in the
-    // textarea arrives here by bubbling, and must not be swallowed.
+    // While typing, Enter adds a line: a keydown that started in the textarea arrives here by bubbling,
+    // and must not be swallowed.
     if (editing || readOnly) return;
     event.preventDefault();
-    onStartEdit(note.id);
+    props.onStartEdit(object.id);
   };
 
-  // A note that disappears mid-interaction leaves nothing behind: the queued
-  // frame is cancelled and the drag state dropped, so no frame writes to a
-  // document whose note is gone.
-  useEffect(
-    () => () => {
-      live.current = { zoom: live.current.zoom, doc: null };
-      stopFrame();
-      drag.current = null;
-    },
-    [],
-  );
+  // A pointerdown anywhere outside this note ends editing and lets go of it. Capture phase, so it runs
+  // before the board reacts to the same press — which is what lets a press on another note close this
+  // one's text and select the other note in the same gesture.
+  const { onEndEdit } = props;
+  useLayoutEffect(() => {
+    if (!editing) return;
+    const onDocumentPointerDown = (event: PointerEvent): void => {
+      const element = elementRef.current;
+      if (element && event.target instanceof Node && element.contains(event.target)) return;
+      onEndEdit();
+    };
+    document.addEventListener('pointerdown', onDocumentPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onDocumentPointerDown, true);
+  }, [editing, onEndEdit]);
 
-  // The displayed text is measured in the layout phase, so the font size lands
-  // before the browser paints and the note never flashes at the wrong size.
-  // While editing, the editor measures the textarea as the user types instead.
+  // The displayed text is measured in the layout phase, so the font size lands before the browser paints
+  // and the note never flashes at the wrong size. The box it is measured against is this note's own — a
+  // note resized small holds less text than one at full size, and says so. While editing, the editor
+  // measures the textarea as the user types instead.
   useLayoutEffect(() => {
     if (editing) return;
     const element = textRef.current;
     if (!element) return;
     const measured = fitFontSize(element, STICKY_TEXT_BOX);
     setFit((previous) =>
-      previous.fontPx === measured.fontPx && previous.overflow === measured.overflow
-        ? previous
-        : measured,
+      previous.fontPx === measured.fontPx && previous.overflow === measured.overflow ? previous : measured,
     );
-  }, [note.text, editing]);
+  }, [text, editing, bounds.width, bounds.height]);
 
-  // A pointerdown anywhere outside this note ends editing and lets go of it.
-  // Capture phase, so it runs before the board reacts to the same press.
-  useEffect(() => {
-    if (!editing) return;
-    const onDocumentPointerDown = (event: PointerEvent): void => {
-      const element = elementRef.current;
-      if (element && event.target instanceof Node && element.contains(event.target)) return;
-      onEndEdit('unselected');
-    };
-    document.addEventListener('pointerdown', onDocumentPointerDown, true);
-    return () => document.removeEventListener('pointerdown', onDocumentPointerDown, true);
-  }, [editing, onEndEdit]);
-
-  const ytext = editing ? getStickyText(doc, note.id) : undefined;
+  const ytext = editing ? getStickyText(doc, object.id) : undefined;
+  // The toolbar is the control for one note. With two or more objects selected the selection bar is the
+  // control that is honest about what it acts on, and the two must never be on screen together.
+  const showsToolbar = selected && selectedCount === 1 && !editing && interaction !== 'dragging';
 
   return (
     <div
@@ -298,60 +162,56 @@ export function StickyNote({
       role="group"
       aria-label="Sticky note"
       data-testid="sticky-note"
-      data-note-id={note.id}
-      data-note-color={note.color}
+      data-note-id={object.id}
+      data-note-type={STICKY_OBJECT_TYPE}
+      data-note-color={color}
       data-selected={selected ? 'true' : 'false'}
       data-interaction={interaction}
       data-overflow={fit.overflow ? 'true' : 'false'}
       tabIndex={0}
       style={{
-        left: note.x,
-        top: note.y,
-        width: STICKY_SIZE_WORLD,
-        height: STICKY_SIZE_WORLD,
-        backgroundColor: STICKY_COLORS[note.color],
+        left: bounds.x,
+        top: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+        backgroundColor: STICKY_COLORS[color],
         fontSize: `${fit.fontPx}px`,
-        // Stacking lives here, not in the order of the children: raising a note
-        // that is held has to be a style change, not a move in the document.
-        zIndex: note.z,
+        // Stacking lives here, not in the order of the children: raising a note that is held has to be a
+        // style change, not a move in the document.
+        zIndex: object.z,
       }}
       onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={endInteraction}
-      onPointerCancel={cancelInteraction}
-      onLostPointerCapture={cancelInteraction}
       onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
     >
-      {editing && ytext ? (
-        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} onFit={setFit} />
-      ) : (
+      {editing && ytext ? <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} onFit={setFit} /> : null}
+      {editing ? null : (
         <div className="sticky-note__text" data-testid="sticky-text" ref={textRef}>
-          {note.text}
+          {text}
         </div>
       )}
       {fit.overflow ? <div className="sticky-note__fade" data-testid="sticky-fade" aria-hidden="true" /> : null}
-      {selected && !editing && interaction !== 'dragging' ? (
+      {showsToolbar ? (
         <div
           className="sticky-note__toolbar-slot"
           data-testid="note-toolbar-slot"
           style={{
-            bottom: STICKY_SIZE_WORLD,
-            // The note itself is scaled by the zoom, so scaling the toolbar by
-            // the reciprocal keeps it the same size on screen at every zoom.
+            bottom: bounds.height,
+            // The note itself is scaled by the zoom, so scaling the toolbar by the reciprocal keeps it
+            // the same size on screen at every zoom.
             transform: `scale(${1 / (zoom > 0 ? zoom : 1)}) translateY(${-TOOLBAR_GAP_PX}px)`,
           }}
         >
           <NoteToolbar
-            color={note.color}
+            color={color}
             disabled={readOnly}
-            onColor={(color) => {
+            onColor={(next) => {
               // Colour only: text, position, stacking and the selection stay put.
-              setStickyColor(doc, note.id, color);
+              setStickyColor(doc, object.id, next);
             }}
             onDelete={() => {
-              // The board drops the selection with the note (see App).
-              deleteObject(doc, note.id);
+              // One note, the one this toolbar belongs to. The board drops the selection with it.
+              deleteObject(doc, object.id);
             }}
           />
         </div>

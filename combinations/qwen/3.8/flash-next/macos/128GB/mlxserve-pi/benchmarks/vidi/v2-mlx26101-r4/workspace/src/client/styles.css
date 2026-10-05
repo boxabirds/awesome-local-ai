@@ -710,3 +710,151 @@ body {
   font-size: 12px;
   font-weight: 600;
 }
+
+/* ------------------------------------------------------ selection overlay ---- */
+
+/*
+ * The layer the selection is drawn in. It sits over the board and takes no pointer of its own: the
+ * outlines are information, and a press that lands on an outline means the object underneath it. Only
+ * the handles — the one part of this layer that is a control — take the pointer back.
+ *
+ * Everything in here is positioned in screen pixels, computed from the camera, which is why a handle is
+ * still a thing worth hitting at ten per cent zoom: its size is a fact about the screen, not about the
+ * board.
+ */
+.selection-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+/* One outline per selected object, so a selection of six notes shows six objects rather than one shape
+   that happens to cover them. */
+.selection-outline {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--focus-ring);
+  border-radius: 3px;
+}
+
+/* The box around the whole selection, which is the thing the handles resize. Dashed, so it cannot be
+   mistaken for the outline of a single object. */
+.selection-bounds {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed var(--focus-ring);
+}
+
+.selection-handle {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: auto;
+  background: var(--panel-bg);
+  border: 1px solid var(--focus-ring);
+  border-radius: 2px;
+  /* The handle is a target on a board that may be mid-drag; touching it must not start a scroll or a
+     pinch the way it does not on the note itself. */
+  touch-action: none;
+}
+
+.selection-handle:hover {
+  background: var(--panel-hover);
+}
+
+.selection-handle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* --------------------------------------------------------------- marquee ---- */
+
+/* The rectangle being dragged, in the same screen coordinates as the overlay. Translucent and behind
+   the notes, because it is a question about the board — "these ones?" — and must not hide the objects it
+   is asking about. */
+.marquee {
+  position: absolute;
+  z-index: 7;
+  box-sizing: border-box;
+  border: 1px solid var(--focus-ring);
+  border-radius: 2px;
+  background: rgb(47 111 237 / 12%);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------ selection bar ---- */
+
+/*
+ * What several selected objects have instead of a note toolbar: a count, and one action for all of them.
+ * There is no colour that means "these six things", and the bin on a note's toolbar would be a lie about
+ * how many objects it is about, which is why this is a separate bar with its own delete.
+ *
+ * It is placed where the selection is — above its bounding box, the way a note's own toolbar sits above
+ * its note — because the box is the thing the bar acts on, and a person's eye is already there. The
+ * component works the position out from the box and the camera, so it follows the selection when the
+ * board is panned or zoomed; `translateX` only centres the bar on the point it was given. The defaults
+ * here are for the case where there is no box to place it against.
+ */
+.selection-bar {
+  position: fixed;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgb(18 22 30 / 12%);
+}
+
+.selection-bar__count {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  /* The count is read, not copied: a drag across it should not turn it blue. */
+  user-select: none;
+}
+
+.selection-bar__delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.selection-bar__delete:hover {
+  background: var(--panel-hover);
+}
+
+.selection-bar__delete:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/*
+ * The count, said out loud. Hidden the way text is hidden from eyes and not from a screen reader — a
+ * `display: none` would take it out of the accessibility tree, which is the only part of it anybody
+ * needs. It sits under the bar rather than beside it, because a spoken number does not need to be seen
+ * to be believed.
+ */
+.selection-live {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

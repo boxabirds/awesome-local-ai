@@ -308,7 +308,7 @@ describe('BoardViewport input', () => {
     expect(camera().y).toBe(-AREA.height / 2);
   });
 
-  it('TC-18b: Cmd + = steps in, and plain or Alt combinations are left to the browser', async () => {
+  it("TC-18b: Cmd + = steps in, plain or Alt combinations are left to the browser, and Ctrl+A is the board's", async () => {
     renderBoard();
     expect(fireEvent.keyDown(window, { key: '=', metaKey: true })).toBe(false);
     await rendered();
@@ -318,7 +318,10 @@ describe('BoardViewport input', () => {
     expect(fireEvent.keyDown(window, { key: '=' })).toBe(true);
     expect(fireEvent.keyDown(window, { key: '=', ctrlKey: true, altKey: true })).toBe(true);
     expect(fireEvent.keyDown(window, { key: '0', ctrlKey: true, altKey: true })).toBe(true);
-    expect(fireEvent.keyDown(window, { key: 'a', ctrlKey: true })).toBe(true);
+    // Story 7 gave Ctrl+A to select-all, so the board swallows this keystroke now — the browser would
+    // otherwise select the page's text instead. What this line still asserts is that it does nothing to
+    // the camera: a shortcut taking a key is not a shortcut moving the board.
+    expect(fireEvent.keyDown(window, { key: 'a', ctrlKey: true })).toBe(false);
     expect(camera()).toBe(stepped);
   });
 

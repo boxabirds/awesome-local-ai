@@ -32,12 +32,17 @@ import { Toolbar } from '../components/Toolbar';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from '../canvas/camera';
 import type { Point } from '../canvas/camera';
 import { useCamera, useViewportSize } from '../canvas/useCamera';
-import { createSticky, deleteObject, NO_ID } from '../../shared/board-model';
+import { createSticky, deleteObjects, NO_ID } from '../../shared/board-model';
 import { isValidBoardId } from '../../shared/board-id';
 import { useBoardDoc } from '../board/useBoardDoc';
 import type { BoardConnector } from '../board/useBoardDoc';
+import { useBoardKeys } from '../board/useBoardKeys';
+import { MarqueeRect, useMarquee } from '../board/Marquee';
+import { SelectionBar } from '../board/SelectionBar';
+import { SelectionOverlay } from '../board/SelectionOverlay';
 import { useSelection } from '../board/useSelection';
-import { StickyNote } from '../objects/StickyNote';
+import { useTransformGesture } from '../board/useTransformGesture';
+import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { connectBoard } from '../sync/connectBoard';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -45,9 +50,6 @@ import { SharePanel } from '../share/SharePanel';
 import { NotFoundPage } from './NotFoundPage';
 import { nextBoardPageState } from './state';
 import type { BoardPageState } from './state';
-
-/** Keys that delete a selected note, and nothing else. */
-const DELETE_KEYS = ['Delete', 'Backspace'];
 
 /**
  * How a page asks whether a board is there. The real one is in `api.ts`, and it is a promise.
@@ -190,58 +192,93 @@ export function BoardPage({
 }
 
 /**
- * The board itself: stories 1 to 4, and the Share button.
+ * The board itself: stories 1 to 5, and the Share button.
  *
  * `boardId` is the board as the service said it is called, which for a board that opened is the same
- * string that was in the address. It arrives as a prop rather than being read from the address again
- * so that the link the Share panel hands out is the one that was just checked, and nothing in this
- * tree can ask a question about an address nobody asked about.
+ * string that was in the address. It arrives as a prop rather than being read from the address again so
+ * that the link the Share panel hands out is the one that was just checked, and nothing in this tree can
+ * ask a question about an address nobody asked about.
+ *
+ * This is also where the parts of a selection are put together, and the arrangement is worth naming,
+ * because each part answers a different question about the same fact. The objects are drawn by the board
+ * and stacked by their own number; the outlines and handles are drawn over them, in screen units, so a
+ * handle is still a thing that can be hit at ten per cent zoom; the rectangle is drawn only while it is
+ * being drawn; and the bar says in words what the outlines say in ink. All four read the one selection,
+ * which is the only reason they can never disagree about what is selected — and a selection that
+ * disagreed with itself, one outline left behind on an object that has been deleted, is the bug this
+ * whole story is built to avoid.
+ *
+ * The objects are rendered through the registry rather than by naming a component here, which is what
+ * lets a later story add a type without touching this file: what is drawn is whatever the board is
+ * holding, provided somebody has said how to draw it. An object of a type nobody has registered is left
+ * undrawn — not drawn as a sticky note, which would be a lie about somebody's board.
  */
 function Board({ boardId, connect }: { boardId: string; connect: BoardConnector }): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize(rootRef);
   const { camera, hasNavigated, zoomStep, reset } = useCamera(viewport);
   const { doc, notes, connection } = useBoardDoc(boardId, connect);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const selection = useSelection(notes);
 
   /**
-   * The notes in the order they should end up on screen. The document lists them by stacking number;
+   * The objects in the order they should end up on screen. The document lists them by stacking number;
    * they are put in the page in the order they were made and stacked with `zIndex` (see StickyNote),
    * because moving the element a pointer is holding — which is what re-sorting the list would do every
-   * time a note is raised — makes the browser let go of the pointer and the drag stops halfway.
-   * Creation order is in the document too, so every client still agrees on which of two equally raised
-   * notes is on top.
+   * time a note is raised — makes the browser let go of the pointer and the drag stops halfway. Creation
+   * order is in the document too, so every client still agrees on which of two equally raised notes is on
+   * top.
    */
   const painted = [...notes].sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
-  /**
-   * A note is only selected while it exists. Deleting it — from the bin, with the keyboard, or from
-   * whoever joins the board later — lets the selection, and any editing inside it, go with it instead
-   * of pointing at nothing.
-   */
   const editable = canEdit(connection);
-  const selected = notes.some((note) => note.id === selectedId) ? selectedId : null;
-  const editing = notes.some((note) => note.id === editingId) ? editingId : null;
 
-  useEffect(() => {
-    if (selectedId !== null && selected === null) select(null);
-    if (editingId !== null && editing === null) select(null);
-  }, [selectedId, editingId, selected, editing, select]);
+  /** The drag: what a press on an object, or on a handle, does to the board. */
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+  });
+
+  /** The rectangle: a drag across empty board space, which adds to the selection when it lets go. */
+  const marquee = useMarquee(camera, notes, (ids) => {
+    selection.setMany(ids, true);
+  });
+
+  /** The keyboard: select all, deselect, nudge, delete, edit. */
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable });
+
+  /** The bin on the selection bar: everything selected at once, and the selection let go afterwards. */
+  const deleteSelection = useCallback((): void => {
+    if (!editable) return;
+    const ids = notes.filter((object) => selection.ids.has(object.id)).map((object) => object.id);
+    if (ids.length === 0) return;
+    deleteObjects(doc, ids);
+    selection.clear();
+  }, [doc, editable, notes, selection]);
 
   /** Put a note down centred on a world point and start typing straight away. */
   const createStickyAt = useCallback(
     (world: Point): void => {
       // A board that could not be loaded is not written to: see `canEdit`. The gesture is swallowed
-      // rather than answered with an error, because the badge above already says what is wrong and
-      // what is being done about it.
+      // rather than answered with an error, because the badge above already says what is wrong and what
+      // is being done about it.
       if (!editable) return;
-      // `createSticky` centres the note on the point it is given, so the click point becomes the
-      // middle of the note, not its top-left corner.
+      // `createSticky` centres the note on the point it is given, so the click point becomes the middle
+      // of the note, not its top-left corner.
       const noteId = createSticky(doc, world);
-      // A note that could not be created leaves no selection behind it.
-      if (noteId !== NO_ID) startEdit(noteId);
+      // A note that could not be created leaves no selection behind it. A note that was created is
+      // selected as well as opened for typing — the object a person has just made is the object they are
+      // working on, and creation is one of the ways an object becomes selected. The click comes first and
+      // the caret second, in the same handler, so React commits one render and the board never shows a
+      // note that is typed into but not chosen.
+      if (noteId !== NO_ID) {
+        selection.click(noteId);
+        selection.startEdit(noteId);
+      }
     },
-    [doc, startEdit, editable],
+    [doc, editable, selection],
   );
 
   /** The toolbar button adds a note in the middle of what is on screen. */
@@ -249,56 +286,52 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
     createStickyAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }));
   }, [camera, createStickyAt, viewport.height, viewport.width]);
 
-  // Keyboard shortcuts, on the window so they work wherever the focus is — with two exceptions: while
-  // typing in a note, and while a text field has the focus, the keys belong to the text and must reach
-  // it untouched.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      const target = event.target;
-      if (target instanceof HTMLElement && (target.isContentEditable || isTextField(target))) return;
-      // Escape is the note's own business: it keeps the text and stops editing.
-      if (editing !== null) return;
-      // A shortcut with a modifier held is the browser's or the operating system's, not ours
-      // (Cmd+Backspace, Ctrl+Backspace, Alt+Backspace).
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-
-      if (event.key === 'Enter') {
-        if (selected === null || !editable) return; // nothing selected, or nothing to type into
-        event.preventDefault();
-        startEdit(selected);
-        return;
-      }
-      if (!DELETE_KEYS.includes(event.key)) return;
-      if (selected === null || !editable) return;
-      // Stop the browser going back a page on Backspace.
-      event.preventDefault();
-      deleteObject(doc, selected);
-      select(null);
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, editing, select, selected, startEdit, editable]);
-
   return (
     <div className="board-app" data-testid="board-root" ref={rootRef}>
       <Toolbar onCreateSticky={createStickyInCentre} disabled={!editable} />
-      <BoardViewport onCreateAt={createStickyAt} onClearSelection={() => select(null)}>
-        {painted.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={camera.zoom}
-            selected={note.id === selected}
-            editing={note.id === editing}
-            readOnly={!editable}
-            onSelect={select}
-            onStartEdit={startEdit}
-            onEndEdit={endEdit}
-          />
-        ))}
+      <BoardViewport
+        onCreateAt={createStickyAt}
+        onClearSelection={selection.clear}
+        marqueeActive={marquee.active}
+        onMarqueeBegin={(event) => {
+          marquee.begin({ x: event.clientX, y: event.clientY }, event.pointerId);
+        }}
+      >
+        {painted.map((object) => {
+          const type = getObjectType(object.type);
+          if (type === undefined) return null;
+          const Component = type.Component;
+          return (
+            <Component
+              key={object.id}
+              object={object}
+              doc={doc}
+              zoom={camera.zoom}
+              selected={selection.ids.has(object.id)}
+              selectedCount={selection.count}
+              editing={selection.editingId === object.id}
+              readOnly={!editable}
+              // Only the object the pointer is holding reports the gesture; the rest of a group that
+              // moves with it stays visually at rest, which is the difference between dragging one thing
+              // and having several things happen to you.
+              interaction={gesture.interactingId === object.id ? gesture.interaction : 'idle'}
+              onPointerDown={gesture.onObjectPointerDown}
+              onStartEdit={selection.startEdit}
+              onEndEdit={selection.endEdit}
+            />
+          );
+        })}
       </BoardViewport>
+      {/* Over the board, in screen units: the outline of everything selected, the box around them, and
+          the handles that resize the box. */}
+      <SelectionOverlay
+        ids={selection.ids}
+        snapshot={notes}
+        camera={camera}
+        onHandlePointerDown={gesture.onHandlePointerDown}
+      />
+      <MarqueeRect rect={marquee.rect} camera={camera} />
+      <SelectionBar ids={selection.ids} snapshot={notes} camera={camera} onDelete={deleteSelection} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
@@ -317,10 +350,4 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
       <SharePanel boardId={boardId} />
     </div>
   );
-}
-
-/** Keys typed here are text, not board commands. */
-function isTextField(element: HTMLElement): boolean {
-  const name = element.nodeName;
-  return name === 'INPUT' || name === 'TEXTAREA' || name === 'SELECT';
 }

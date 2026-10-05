@@ -11,7 +11,7 @@
 import { env, runInDurableObject } from 'cloudflare:test';
 import * as Y from 'yjs';
 
-import { snapshot, type StickySnapshot } from '../../../src/shared/board-model';
+import { isStickySnapshot, snapshot, type StickySnapshot } from '../../../src/shared/board-model';
 import type { BoardRoom } from '../../../src/worker/board-room';
 import type { BoardStats } from '../../../src/worker/board-store';
 
@@ -70,7 +70,7 @@ export async function storedNotes(boardId: string): Promise<readonly StickySnaps
   return inRoom(boardId, (room) => {
     const doc = new Y.Doc();
     if (!room.store.load(doc).ok) throw new Error(`board ${boardId} would not load`);
-    const notes = snapshot(doc);
+    const notes = snapshot(doc).filter(isStickySnapshot);
     doc.destroy();
     return notes;
   });

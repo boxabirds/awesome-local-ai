@@ -1,7 +1,7 @@
 import type * as Y from 'yjs';
 
 import type { ConnectionState } from '../sync/connectBoard';
-import { snapshot } from '../../shared/board-model';
+import { isStickySnapshot, snapshot } from '../../shared/board-model';
 import type { StickySnapshot } from '../../shared/board-model';
 import type { Camera } from './camera';
 
@@ -74,7 +74,7 @@ export function installTestHooks(
   window.__vidi6 = {
     connectionState: undefined,
     getBoardDoc: (): Y.Doc | undefined => boardDoc,
-    getStickies: (): readonly StickySnapshot[] => (boardDoc ? snapshot(boardDoc) : []),
+    getStickies: (): readonly StickySnapshot[] => (boardDoc ? snapshot(boardDoc).filter(isStickySnapshot) : []),
     dropConnection: (): boolean => {
       if (dropBoardConnection === undefined) return false;
       dropBoardConnection();

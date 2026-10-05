@@ -1,3 +1,54 @@
+commit 28b21f0aa542110b962be8a8f57a431b5a782fe6
+agent  Mon Oct 5 07:16:09 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                | 132 +++++++
+ PROGRESS.md                             |  55 ++-
+ src/client/board/Marquee.tsx            | 218 +++++++++++
+ src/client/board/SelectionBar.tsx       | 115 ++++++
+ src/client/board/SelectionOverlay.tsx   | 161 ++++++++
+ src/client/board/useBoardDoc.ts         |   6 +-
+ src/client/board/useBoardKeys.ts        | 160 ++++++++
+ src/client/board/useSelection.ts        | 241 ++++++++++--
+ src/client/board/useTransformGesture.ts | 466 +++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  28 +-
+ src/client/canvas/testHooks.ts          |   4 +-
+ src/client/objects/StickyNote.tsx       | 366 ++++++------------
+ src/client/objects/StickyTextEditor.tsx |  10 +-
+ src/client/objects/objectProps.ts       |  59 +++
+ src/client/objects/registry.tsx         | 141 +++++++
+ src/client/pages/BoardPage.tsx          | 195 ++++++----
+ src/client/styles.css                   | 148 ++++++++
+ src/shared/board-model.ts               | 378 +++++++++++++++---
+ src/shared/config.ts                    |  25 ++
+ src/shared/geometry.ts                  | 282 ++++++++++++++
+ tests/component/BoardViewport.test.tsx  |   7 +-
+ tests/component/Selection.test.tsx      | 401 ++++++++++++++++++++
+ tests/component/SelectionKeys.test.tsx  | 302 +++++++++++++++
+ tests/component/Transform.test.tsx      | 286 ++++++++++++++
+ tests/component/helpers/selection.ts    | 399 +++++++++++++++++++
+ tests/e2e/selection.spec.ts             | 654 ++++++++++++++++++++++++++++++++
+ tests/fixtures/boards.ts                |   3 +-
+ tests/fixtures/lockbox.tsx              |  87 +++++
+ tests/fixtures/testbox.tsx              | 103 +++++
+ tests/integration/helpers/storage.ts    |   4 +-
+ tests/integration/helpers/ws-client.ts  |   3 +-
+ tests/unit/board-model-group.test.ts    | 474 +++++++++++++++++++++++
+ tests/unit/board-model.test.ts          |  18 +-
+ tests/unit/geometry.test.ts             | 278 ++++++++++++++
+ tests/unit/registry.test.ts             | 180 +++++++++
+ tests/unit/selection.test.ts            | 198 ++++++++++
+ 36 files changed, 6135 insertions(+), 452 deletions(-)
+commit 30cf4ea96cea9761cdc2c1fc2603c24d29264257
+vidi-agent  Mon Oct 5 05:57:44 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit ae197afed42f7cd94821e298a7634a390650ff0b
 agent  Mon Oct 5 04:54:28 2026 +0000
 
