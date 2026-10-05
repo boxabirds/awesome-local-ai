@@ -106,6 +106,29 @@ export function parseSandbox(raw: unknown): RunSandbox | null {
   return typeof o.mode === "string" && o.mode ? { mode: o.mode, version: text(o.version), platform: text(o.platform), policyHash: text(o.policy_hash) } : null;
 }
 
+/** run.json's engine_settings.expert_cache: the hot-expert cache the engine settled on, as it printed it while
+ * loading. Strata sizes it to the VRAM that is free, so it is a fact of the run and not a setting: two runs of one
+ * combination can differ, and one with a smaller cache decodes more slowly. */
+export interface ExpertCache {
+  /** What --expert-cache asked for ("auto", or a size); empty where the record doesn't say. */
+  requested: string;
+  experts: number;
+  vramGib: number;
+}
+
+/** engine_settings.expert_cache where it holds a size the engine actually took; null where the engine has no such
+ * setting, the record predates it, or the harness recorded it as unknown. A figure is never filled in. */
+export function parseExpertCache(raw: unknown): ExpertCache | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const entry = (raw as Record<string, unknown>).expert_cache;
+  if (typeof entry !== "object" || entry === null) return null;
+  const value = (entry as Record<string, unknown>).value;
+  if (typeof value !== "object" || value === null) return null;
+  const o = value as Record<string, unknown>;
+  if (typeof o.experts !== "number" || typeof o.vram_gib !== "number") return null;
+  return { requested: typeof o.requested === "string" ? o.requested : "", experts: o.experts, vramGib: o.vram_gib };
+}
+
 /** finalize.json as finalize.py writes it, verbatim: at least `rescore` ("done", "skipped", "failed" or "flagged"),
  * with whatever else it recorded (reason, reason_kind, needs_person, attempts, history, guard, …). */
 export type RawFinalize = { rescore: string } & Record<string, unknown>;
@@ -127,6 +150,8 @@ export interface RunRecord extends RunRef {
   invalid?: Invalid | null;
   /** run.json's "sandbox": what the agent ran in; null or absent: the record does not say (written before it did). */
   sandbox?: RunSandbox | null;
+  /** run.json's engine_settings.expert_cache; null where the engine has none or the record does not say. */
+  expertCache?: ExpertCache | null;
   /** interventions.md, parsed; absent: none. */
   interventions?: Intervention[];
   /** finalize.json, verbatim; absent or null: none. */

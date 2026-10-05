@@ -424,6 +424,25 @@ def _cli(identity: dict, *args) -> dict:
     return json.loads(out)
 
 
+def test_the_cli_reads_the_expert_cache_from_the_server_log_it_is_given(tmp_path):
+    """The size is only in what the server printed as it loaded, so the CLI has to be handed that log (run.sh passes
+    $RUN_DIR/server.log). Without it the field says unknown rather than repeating "auto"."""
+    cfg = tmp_path / "strata-run.json"
+    cfg.write_text(json.dumps(STRATA_CONFIG))
+    (tmp_path / "strata-run.shared-settings.json").write_text(json.dumps(STRATA_SHARED))
+    log = tmp_path / "server.log"
+    log.write_text(STRATA_STARTUP)
+    argv = [*STRATA[:4], "--config", str(cfg), "--host", "127.0.0.1", "--port", "18010"]
+    ident = {"backend": "strata", "engine_version": "v0.1.39", "server_command": argv}
+    s = _cli(ident, "--requested-effort", "low", "--context-limit", "131072", "--startup-log", str(log))
+    assert s["expert_cache"]["value"] == {"requested": "auto", "experts": 9094, "vram_gib": 14.73}
+    assert s["expert_cache"]["source"] == E.SRC_ENGINE_START
+    bare = _cli(ident, "--requested-effort", "low", "--context-limit", "131072")
+    assert bare["expert_cache"]["source"] == E.SRC_UNKNOWN
+    gone = _cli(ident, "--requested-effort", "low", "--startup-log", str(tmp_path / "nope.log"))
+    assert gone["expert_cache"]["source"] == E.SRC_UNKNOWN
+
+
 def test_the_cli_reads_identity_from_stdin_and_the_served_generation_config(tmp_path, monkeypatch):
     served = tmp_path / "served" / "mlxserve-flash-next-mixed-4-8bit"
     real = tmp_path / "models" / "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
@@ -485,6 +504,9 @@ def test_telemetry_md_names_every_engine_settings_field():
     s = settings("llamacpp", LLAMA_FLASH)
     names = set(s) | set(s["reasoning_effort"]) | {"server_started_at", "listener_command", "container"}
     names |= set(val(s, "speculative")) | {"depth"} | set(E.SOURCES) | {E.NOT_SET, E.UNKNOWN}
+    # The fields only one engine records are documented too, with what they hold.
+    st = strata_settings()
+    names |= set(E.ENGINE_ONLY_KEYS) | set(val(st, "expert_cache"))
     missing = sorted(n for n in names if f"`{n}`" not in doc)
     assert missing == []
 
@@ -511,9 +533,18 @@ STRATA_CONFIG = {
 STRATA_SHARED = {"reasoning_effort": "low"}
 
 
-def strata_settings(config=STRATA_CONFIG, shared=STRATA_SHARED, argv=STRATA, version="v0.1.36"):
+# What the server prints as it loads, with the size the "auto" expert cache actually took (RTX 4090, 5 Oct 2026).
+STRATA_STARTUP = """[strata] starting the engine: reading the model's weights ...
+[strata] experts loaded: 39.97 GiB at 4.41 GiB/s (61 s so far)
+[strata] filling the GPU's expert cache (9094 experts, 14.73 GiB of VRAM) ...
+[strata] almost ready ...
+ready: http://127.0.0.1:18010/v1  (OpenAI: /v1/chat/completions, Anthropic: /v1/messages, context 131072 tokens)
+"""
+
+
+def strata_settings(config=STRATA_CONFIG, shared=STRATA_SHARED, argv=STRATA, version="v0.1.36", startup=STRATA_STARTUP):
     return E.engine_settings("strata", argv, version, requested_effort="low", client="pi", client_thinking=None,
-                             context_limit=131072, generation_config=config, extra_config=shared)
+                             context_limit=131072, generation_config=config, extra_config=shared, startup=startup)
 
 
 class TestStrata:
@@ -552,6 +583,28 @@ class TestStrata:
     def test_the_quantisation_is_read_from_the_model_file_name(self):
         q = strata_settings()["quantisation"]
         assert q["value"] == "IQ3_XXS" and q["source"] == E.SRC_MODEL_NAME
+
+    # Strata sizes its hot-expert cache to the VRAM that is free, so "--expert-cache auto" says nothing about what a
+    # run actually had. Two runs of one combination can differ, and the record has to show it (A-045).
+    def test_the_expert_cache_records_the_size_it_actually_took_not_just_auto(self):
+        c = strata_settings()["expert_cache"]
+        assert c["value"] == {"requested": "auto", "experts": 9094, "vram_gib": 14.73}
+        assert c["source"] == E.SRC_ENGINE_START
+        assert "9094 experts, 14.73 GiB" in c["evidence"]
+
+    def test_a_fixed_expert_cache_still_records_what_it_took(self):
+        args = list(STRATA_CONFIG["args"])
+        args[args.index("--expert-cache") + 1] = "8000"
+        c = strata_settings(config={**STRATA_CONFIG, "args": args})["expert_cache"]
+        assert c["value"]["requested"] == "8000" and c["value"]["vram_gib"] == 14.73
+
+    def test_no_startup_line_is_unknown_and_says_why_never_a_guess(self):
+        c = strata_settings(startup="[strata] starting the engine: reading the model's weights ...\n")["expert_cache"]
+        assert c["value"] == E.UNKNOWN and c["source"] == E.SRC_UNKNOWN
+        assert "expert cache" in c["evidence"]
+
+    def test_no_server_log_at_all_is_unknown_too(self):
+        assert strata_settings(startup=None)["expert_cache"]["source"] == E.SRC_UNKNOWN
 
     def test_the_server_side_effort_is_from_the_shared_settings_and_is_the_effective_one(self):
         s = strata_settings()
