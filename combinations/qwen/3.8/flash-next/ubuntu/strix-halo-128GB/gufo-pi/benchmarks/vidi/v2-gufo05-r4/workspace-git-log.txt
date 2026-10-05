@@ -1,3 +1,79 @@
+commit 72df75b631e37bf5ad05188a24bb93753fbb56e0
+agent  Mon Oct 5 18:37:26 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                              | 115 +++++++++++++++
+ PROGRESS.md                           |  12 +-
+ playwright.config.ts                  |   3 +-
+ tests/component/pages.test.tsx        |  15 +-
+ tests/e2e/broken-board.spec.ts        |   6 +-
+ tests/e2e/helpers/board.ts            |  73 +++++++++-
+ tests/e2e/helpers/legacy-board.ts     |  36 +++++
+ tests/e2e/helpers/participants.ts     |  19 ++-
+ tests/e2e/persistence.persist.spec.ts |  12 +-
+ tests/e2e/share.spec.ts               | 267 ++++++++++++++++++++++++++++++++++
+ 10 files changed, 532 insertions(+), 26 deletions(-)
+commit 75ffb9f96773e9ab38d32b7624a56c902549066a
+agent  Mon Oct 5 18:08:40 2026 +0000
+
+    pages, router and share panel with component coverage (TC-16 to TC-25)
+
+
+ src/client/App.tsx                         | 227 +++--------------------
+ src/client/api.ts                          |  63 +++++++
+ src/client/board/BoardScreen.tsx           | 202 ++++++++++++++++++++
+ src/client/pages/BoardPage.tsx             |  89 +++++++++
+ src/client/pages/HomePage.tsx              |  74 ++++++++
+ src/client/pages/NotFoundPage.tsx          |  55 ++++++
+ src/client/pages/state.ts                  | 105 +++++++++++
+ src/client/router.ts                       | 102 +++++++++++
+ src/client/share/SharePanel.tsx            | 170 +++++++++++++++++
+ src/client/styles.css                      | 190 +++++++++++++++++++
+ tests/component/BoardViewport.test.tsx     |  10 +-
+ tests/component/ConnectionStatus.test.tsx  |  11 +-
+ tests/component/NavigationHint.test.tsx    |  12 +-
+ tests/component/SharePanel.test.tsx        | 194 ++++++++++++++++++++
+ tests/component/StickyNote.test.tsx        |   4 +-
+ tests/component/StickyTextEditing.test.tsx |   4 +-
+ tests/component/live-text.test.tsx         |   4 +-
+ tests/component/pages.test.tsx             | 283 +++++++++++++++++++++++++++++
+ 18 files changed, 1578 insertions(+), 221 deletions(-)
+commit e59681998171f69e44c0b4dead7143e0e5afa62b
+agent  Mon Oct 5 17:39:19 2026 +0000
+
+    Add the board API: create one, ask whether an address is one
+
+
+ index.html                               |   4 +
+ src/worker/board-room.ts                 | 101 +++++++++++--
+ src/worker/board-store.ts                | 120 +++++++++++++++-
+ src/worker/create-board.ts               |  48 +++++++
+ src/worker/index.ts                      | 118 +++++++++++++---
+ src/worker/test-hooks.ts                 |  33 +++--
+ tests/integration/board-api.test.ts      | 234 +++++++++++++++++++++++++++++++
+ tests/integration/helpers/ws-client.ts   |  22 ++-
+ tests/integration/worker-routing.test.ts |   5 +-
+ 9 files changed, 642 insertions(+), 43 deletions(-)
+commit 70c52258b2e4d76f753220c563c1c6defca844b4
+agent  Mon Oct 5 17:27:23 2026 +0000
+
+    story 5 task 1: the link code, tested before it is issued (TC-04)
+
+
+ PROGRESS.md                     |   4 +-
+ src/shared/config.ts            |  19 ++++++++
+ tests/unit/create-board.test.ts | 105 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 126 insertions(+), 2 deletions(-)
+commit 705cf3a480808d0f7fe00d79ab6ed513533945ba
+vidi-agent  Mon Oct 5 17:17:19 2026 +0000
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit ca8eb832567add29a65c0a4d4b09177accbdaf12
 agent  Mon Oct 5 17:09:07 2026 +0000
 
