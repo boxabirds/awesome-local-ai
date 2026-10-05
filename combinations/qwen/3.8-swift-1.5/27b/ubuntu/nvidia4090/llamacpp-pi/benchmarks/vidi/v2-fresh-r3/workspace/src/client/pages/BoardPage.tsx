@@ -19,6 +19,10 @@ import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { createSticky, deleteObjects, getStickyText, LOCAL_ORIGIN } from '../../shared/board-model';
 import { createText, setTextSize, getTextContent, setTextBox } from '../../shared/objects/text';
+import { setShapeStyle, type ShapeKind } from '../../shared/objects/shape';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { layoutText, createCanvasMeasurer } from '../objects/textLayout';
 import { DEFAULT_TEXT_SIZE } from '../../shared/config';
 import { isValidBoardId } from '../../shared/board-id';
@@ -75,8 +79,15 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
   // Story 9: active tool (select/text) and the local identity that creates
   // objects (story 6 sign-in is excluded; a per-session random id suffices).
   const tool = useTool(canEdit);
+  const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
   const identityRef = useRef('');
   if (identityRef.current === '') identityRef.current = crypto.randomUUID();
+
+  /** Story 10: select the created object and switch to select tool. */
+  const toolCreated = useCallback((id: string) => {
+    selection.click(id);
+    tool.setTool('select');
+  }, [selection, tool]);
 
   const gesture = useTransformGesture({
     doc, camera, selection, snapshot: objects, canEdit,
@@ -221,6 +232,8 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
                 onStartEdit={selection.startEdit}
                 onEndEdit={handleEndEdit}
                 undo={undoController}
+                snapshot={objects}
+                camera={camera}
               />
             );
           })}
@@ -240,12 +253,63 @@ export function Board({ boardId, canEdit = true }: { boardId: string; canEdit?: 
         onDelete={handleDeleteSelection}
         onBoundary={() => undoController.boundary()}
       />
+      {/* Story 10: Shape tool overlay */}
+      {tool.tool === 'shape' && (
+        <ShapeTool
+          kind={shapeKind}
+          camera={camera}
+          doc={doc}
+          createdBy={identityRef.current}
+          onCreated={toolCreated}
+          undo={undoController}
+        />
+      )}
+
+      {/* Story 10: Connector tool overlay */}
+      {tool.tool === 'connector' && (
+        <ConnectorTool
+          camera={camera}
+          snapshot={objects}
+          doc={doc}
+          createdBy={identityRef.current}
+          onCreated={toolCreated}
+          undo={undoController}
+        />
+      )}
+
+      {/* Story 10: Shape toolbar (shown when exactly one shape is selected) */}
+      {selection.ids.size === 1 && (() => {
+        const [id] = [...selection.ids];
+        const obj = objects.find((o) => o.id === id);
+        if (!obj || obj.type !== 'shape') return null;
+        return (
+          <div style={{ position: 'fixed', top: 60, left: 8, zIndex: 10 }}>
+            <ShapeToolbar
+              fill={obj.fill ?? 'white'}
+              stroke={obj.stroke ?? 'dark'}
+              onFill={(c) => {
+                undoController.boundary();
+                setShapeStyle(doc, id, { fill: c });
+                undoController.boundary();
+              }}
+              onStroke={(c) => {
+                undoController.boundary();
+                setShapeStyle(doc, id, { stroke: c });
+                undoController.boundary();
+              }}
+            />
+          </div>
+        );
+      })()}
+
       <Toolbar
         tool={tool.tool}
         onToolChange={tool.setTool}
         canEdit={canEdit}
         onCreateSticky={createStickyAtCentre}
         undoButtons={<UndoButtons {...undo} />}
+        shapeKind={shapeKind}
+        onShapeKindChange={setShapeKind}
       />
       <SharePanel boardId={boardId} />
     </>

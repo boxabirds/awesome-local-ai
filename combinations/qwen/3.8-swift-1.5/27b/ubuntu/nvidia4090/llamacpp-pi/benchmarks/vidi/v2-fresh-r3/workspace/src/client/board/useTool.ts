@@ -1,7 +1,7 @@
 import { createContext, useCallback, useEffect, useRef, useState } from 'react';
 
-/** Board tools (story 9): `select` is the default; `text` arms board clicks to create text. */
-export type Tool = 'select' | 'text';
+/** Board tools (story 9–10): `select` is the default; `text` arms board clicks to create text; `shape` and `connector` for story 10. */
+export type Tool = 'select' | 'text' | 'shape' | 'connector';
 
 /**
  * The active tool, readable by object components. In `text` mode objects render
@@ -26,7 +26,8 @@ export function useTool(canEdit: boolean): { tool: Tool; setTool(t: Tool): void 
   }, [canEdit, tool]);
 
   const setTool = useCallback((t: Tool) => {
-    setToolState(t === 'text' && !canEditRef.current ? 'select' : t);
+    if (t !== 'select' && !canEditRef.current) return;
+    setToolState(t);
   }, []);
 
   return { tool, setTool };

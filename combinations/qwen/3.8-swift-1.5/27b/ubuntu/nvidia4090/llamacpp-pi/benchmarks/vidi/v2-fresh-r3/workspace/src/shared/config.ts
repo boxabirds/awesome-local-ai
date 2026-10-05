@@ -62,3 +62,19 @@ export const TEXT_LINE_HEIGHT = 1.3;               // line height factor (height
 export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 export const TEXT_PADDING_WORLD = 8;               // auto-width box = longest line + this padding
 export const TEXT_AVG_GLYPH_RATIO = 0.6;           // fallback estimate: avg glyph width = size × this
+
+// Story 10: Shape and connector settings
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+export const SHAPE_MIN_SIZE_WORLD = 20;
+export const SHAPE_LABEL_MAX_CHARS = 500;
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+export const SHAPE_FILL_COLORS = { none: 'transparent', white: '#FFFFFF', blue: '#BBDEFB', green: '#C8E6C9', yellow: '#FFF9C4', pink: '#F8BBD0', grey: '#E0E0E0' } as const;
+export const SHAPE_STROKE_COLORS = { dark: '#263238', blue: '#1E88E5', green: '#43A047', orange: '#FB8C00', red: '#E53935', grey: '#9E9E9E' } as const;
+export const DEFAULT_SHAPE_FILL = 'white';
+export const DEFAULT_SHAPE_STROKE = 'dark';
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+export const CONNECTOR_DOT_RADIUS_PX = 4;

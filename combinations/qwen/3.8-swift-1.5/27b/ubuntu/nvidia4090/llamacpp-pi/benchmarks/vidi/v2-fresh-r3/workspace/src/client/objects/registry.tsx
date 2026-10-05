@@ -3,10 +3,12 @@ import type * as Y from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import type { Point, Rect } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
 
 /**
  * Props every board object component receives (sel.all_types). Selection,
@@ -28,6 +30,10 @@ export interface ObjectProps {
   onEndEdit(next: 'selected' | 'unselected'): void;
   /** Story 8: the undo controller for this board. */
   undo?: UndoController;
+  /** Story 10: the full snapshot (needed by ConnectorObject for endpoint resolution). */
+  snapshot?: readonly ObjectSnapshot[];
+  /** Story 10: the camera (needed by ConnectorObject for handle drags). */
+  camera?: import('../canvas/camera').Camera;
 }
 
 /**
@@ -105,4 +111,36 @@ registerObjectType('text', {
   editableText: true,
   handles: 'horizontal',
   hitTest: (obj, worldPoint) => pointInRect(objectBounds(obj), worldPoint),
+});
+
+/**
+ * The shape type (story 10): resizable, not aspect-locked, minimum
+ * SHAPE_MIN_SIZE_WORLD, editable text (label).
+ */
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  handles: 'all',
+  hitTest: (obj, worldPoint) => pointInRect(objectBounds(obj), worldPoint),
+});
+
+/**
+ * The connector type (story 10): not resizable, hit-test uses
+ * distanceToPolyline with CONNECTOR_HIT_TOLERANCE_PX.
+ */
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest: (_obj, _worldPoint) => {
+    // The hit test for connectors needs zoom context; the registry's hitTest
+    // is a simplified version. The real hit test is done in the selection
+    // logic with zoom awareness.
+    return false;
+  },
 });

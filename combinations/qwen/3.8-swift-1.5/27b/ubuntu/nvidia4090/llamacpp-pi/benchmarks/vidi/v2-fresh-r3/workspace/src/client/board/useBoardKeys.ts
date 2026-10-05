@@ -103,6 +103,14 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           if (o.canEdit) o.onCreateSticky?.();
           return;
         }
+        if (k === 's' || k === 'S') {
+          if (o.canEdit) o.tool.setTool('shape');
+          return;
+        }
+        if (k === 'l' || k === 'L') {
+          if (o.canEdit) o.tool.setTool('connector');
+          return;
+        }
       }
 
       if (e.key === 'Escape') {

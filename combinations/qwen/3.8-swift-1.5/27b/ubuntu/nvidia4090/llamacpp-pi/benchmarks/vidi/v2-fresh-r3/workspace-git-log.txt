@@ -1,3 +1,43 @@
+commit 2a30ddbe7b608a2b443cd43fa0ea0d165481dded
+agent  Mon Oct 5 07:16:12 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  |  75 ++-----
+ PROGRESS.md                               |  48 +++--
+ src/client/board/Toolbar.tsx              | 113 +++++++++-
+ src/client/board/useBoardKeys.ts          |   8 +
+ src/client/board/useTool.ts               |   7 +-
+ src/client/objects/ConnectorObject.tsx    | 225 ++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 217 +++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  81 +++++++
+ src/client/objects/registry.tsx           |  40 +++-
+ src/client/pages/BoardPage.tsx            |  64 ++++++
+ src/client/tools/ConnectorTool.tsx        | 269 ++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 157 ++++++++++++++
+ src/client/tools/useActiveTool.ts         |  89 ++++++++
+ src/shared/board-model.ts                 |  21 +-
+ src/shared/config.ts                      |  16 ++
+ src/shared/geometry/connector-geometry.ts | 102 +++++++++
+ src/shared/geometry/polyline.ts           |  38 ++++
+ src/shared/objects/connector.ts           | 176 ++++++++++++++++
+ src/shared/objects/shape.ts               | 151 +++++++++++++
+ tests/component/ShapeTool.test.tsx        | 332 +++++++++++++++++++++++++++++
+ tests/e2e/connectors.spec.ts              |  94 +++++++++
+ tests/e2e/shapes.spec.ts                  | 338 ++++++++++++++++++++++++++++++
+ tests/fixtures/checkout-flow.ts           |  70 +++++++
+ tests/unit/connector-model.test.ts        | 205 ++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 131 ++++++++++++
+ 25 files changed, 2988 insertions(+), 79 deletions(-)
+commit b65fc1bf803472e7a8b8ce300623c22605919a07
+vidi-agent  Mon Oct 5 06:59:02 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 3b7ce1ccf1ed8d665fa14a8f9260fea7c28dabf0
 agent  Mon Oct 5 06:53:34 2026 +0100
 

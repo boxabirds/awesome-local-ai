@@ -9,6 +9,7 @@ import {
 } from './config';
 import { rectContains, type Rect, type Point } from './geometry';
 import { getObjectType } from '../client/objects/registry';
+import { detachConnectorsTo } from './objects/connector';
 
 // Origin for local (this-client) transactions. Story 8 uses it for undo and
 // story 3 uses it to avoid echoing remote updates.
@@ -35,6 +36,13 @@ export interface ObjectSnapshot {
   /** Free text (story 9). */
   size?: TextSize;
   widthMode?: 'auto' | 'fixed';
+  /** Shapes (story 10). */
+  kind?: string;
+  fill?: string;
+  stroke?: string;
+  /** Connectors (story 10). */
+  from?: unknown;
+  to?: unknown;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -281,6 +289,8 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const objects = objectsMap(doc);
   let changed = 0;
   doc.transact(() => {
+    // Story 10: detach connector endpoints that reference deleted objects.
+    detachConnectorsTo(doc, [...ids]);
     for (const id of new Set(ids)) {
       if (!objects.has(id)) continue;
       objects.delete(id);
@@ -346,7 +356,6 @@ export function snapshotObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
   objectsMap(doc).forEach((obj, id) => {
     const type = obj.get('type');
     if (typeof type !== 'string') return;
-    const text = obj.get('text');
     out.push({
       id,
       type,
@@ -355,7 +364,10 @@ export function snapshotObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
       z: obj.get('z') as number,
       createdAt: obj.get('createdAt') as number,
       color: isStickyColor(obj.get('color')) ? (obj.get('color') as StickyColor) : undefined,
-      text: text instanceof Y.Text ? text.toString() : typeof text === 'string' ? text : undefined,
+      text: (() => {
+        const t = obj.get('text') ?? obj.get('label');
+        return t instanceof Y.Text ? t.toString() : typeof t === 'string' ? t : undefined;
+      })(),
       width: num(obj.get('width')),
       height: num(obj.get('height')),
       size: (() => {
@@ -366,6 +378,11 @@ export function snapshotObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
         const wm = obj.get('widthMode');
         return wm === 'auto' || wm === 'fixed' ? wm : undefined;
       })(),
+      kind: typeof obj.get('kind') === 'string' ? (obj.get('kind') as string) : undefined,
+      fill: typeof obj.get('fill') === 'string' ? (obj.get('fill') as string) : undefined,
+      stroke: typeof obj.get('stroke') === 'string' ? (obj.get('stroke') as string) : undefined,
+      from: obj.get('from') ?? undefined,
+      to: obj.get('to') ?? undefined,
     });
   });
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
