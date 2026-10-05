@@ -5,6 +5,7 @@
   --vidi6-surface: #ffffff;
   --vidi6-border: #d0d0d0;
   --vidi6-focus: #2563eb;
+  --vidi6-selection: #2563eb;
   --vidi6-hint-bg: rgba(255, 255, 255, 0.9);
 }
 
@@ -150,4 +151,196 @@ body {
   font-size: 16px;
   pointer-events: none;
   white-space: nowrap;
+}
+
+/* ---- Board toolbar (story 2) ---- */
+
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.tool-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 8px;
+  background: var(--vidi6-surface);
+  color: var(--vidi6-fg);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tool-button:hover {
+  background: #f1f4f8;
+}
+
+.tool-button:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
+}
+
+.tool-glyph {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: #fff59d;
+  border: 1px solid rgba(31, 41, 51, 0.3);
+}
+
+/* ---- Sticky notes (story 2) ---- */
+
+.sticky-note {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+  color: var(--vidi6-fg);
+  cursor: pointer;
+}
+
+.sticky-note.is-selected {
+  outline: 2px solid var(--vidi6-selection);
+}
+
+.sticky-note[data-dragging="true"] {
+  cursor: grabbing;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
+}
+
+.sticky-note:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+}
+
+.sticky-note.is-selected:focus-visible {
+  outline: 2px solid var(--vidi6-selection);
+}
+
+/*
+ * The text box is positioned from the board settings (inline styles), so CSS
+ * never repeats a board measurement. `scrollHeight` of this box is what
+ * `fitFontSize` compares against `STICKY_TEXT_BOX_WORLD`.
+ */
+.sticky-note-text {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  line-height: 1.35;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+}
+
+.sticky-note-editor {
+  resize: none;
+  outline: none;
+  caret-color: var(--vidi6-fg);
+  display: block;
+}
+
+.sticky-note-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26px;
+  border-radius: 0 0 4px 4px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(31, 41, 51, 0), rgba(31, 41, 51, 0.26));
+}
+
+.sticky-note-counter {
+  position: absolute;
+  right: 10px;
+  bottom: 6px;
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(31, 41, 51, 0.6);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* ---- Floating note toolbar (story 2) ---- */
+
+/*
+ * Anchored to the note's top edge and counter-scaled by 1/zoom, so the toolbar
+ * keeps a constant screen size at every zoom level.
+ */
+.sticky-note-toolbar-anchor {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  transform-origin: 0 100%;
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 4px;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  white-space: nowrap;
+}
+
+.note-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(31, 41, 51, 0.35);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.note-swatch[aria-pressed="true"] {
+  outline: 2px solid var(--vidi6-selection);
+  outline-offset: 1px;
+}
+
+.note-delete {
+  min-width: 28px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 6px;
+  background: var(--vidi6-surface);
+  color: var(--vidi6-fg);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.note-swatch:hover,
+.note-delete:hover {
+  filter: brightness(0.96);
+}
+
+.note-swatch:focus-visible,
+.note-delete:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
 }

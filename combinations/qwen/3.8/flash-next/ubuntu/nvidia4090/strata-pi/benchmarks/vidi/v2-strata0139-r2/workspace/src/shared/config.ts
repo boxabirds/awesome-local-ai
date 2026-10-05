@@ -38,3 +38,39 @@ export const GRID_DOT_RADIUS_SCREEN = 1.5;
 export const GRID_DOT_COLOR = "#c3c8cf";
 /** Size of the origin crosshair marker, in world units. */
 export const ORIGIN_MARKER_SIZE_WORLD = 16;
+
+// ---- Sticky notes (story 2) ----------------------------------------------
+
+/** Sticky note width and height, in board (world) units. */
+export const STICKY_SIZE_WORLD = 200;
+/** Longest text a note may hold. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+/** The character counter appears when this many characters (or fewer) remain. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+/** Largest note font size, in board units (so it scales with zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+/** Smallest note font size before text starts to overflow. */
+export const STICKY_FONT_MIN_PX = 10;
+/** Pointer movement that separates a click-select from a drag, in screen pixels. */
+export const DRAG_THRESHOLD_PX = 3;
+
+/** The six preset note colours. */
+export const STICKY_COLORS = {
+  yellow: "#FFF59D",
+  orange: "#FFCC80",
+  green: "#C5E1A5",
+  blue: "#90CAF9",
+  pink: "#F48FB1",
+  violet: "#CE93D8",
+} as const;
+
+export type StickyColor = keyof typeof STICKY_COLORS;
+
+export const DEFAULT_STICKY_COLOR: StickyColor = "yellow";
+
+/** Blue selection outline drawn around the selected note. */
+export const SELECTION_OUTLINE_COLOR = "#2563eb";
+/** Padding between the note edge and its text, in board units. */
+export const STICKY_TEXT_PADDING_WORLD = 12;
+/** Height/width of the text box inside a note (derived from the two above). */
+export const STICKY_TEXT_BOX_WORLD = STICKY_SIZE_WORLD - 2 * STICKY_TEXT_PADDING_WORLD;

@@ -4,10 +4,12 @@ import {
   useEffect,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import {
+  DRAG_THRESHOLD_PX,
   GRID_DOT_COLOR,
   GRID_DOT_RADIUS_SCREEN,
   GRID_SPACING_WORLD,
@@ -25,6 +27,14 @@ export const CameraApiContext = createContext<CameraApi | null>(null);
 
 export interface BoardViewportProps {
   children?: ReactNode;
+  /**
+   * A double-click on empty board space, reported as a screen point
+   * (story 2 creates a sticky note centred there). A double-click on a board
+   * object is handled by that object instead.
+   */
+  onCreateAtPoint?(point: Point): void;
+  /** A press and release on empty board space without dragging. */
+  onEmptyClick?(point: Point): void;
 }
 
 /** Safari trackpad pinch, which Firefox/Chromium deliver as a Ctrl+wheel. */
@@ -34,7 +44,7 @@ interface GestureEventLike extends Event {
   clientY?: number;
 }
 
-export function BoardViewport({ children }: BoardViewportProps) {
+export function BoardViewport({ children, onCreateAtPoint, onEmptyClick }: BoardViewportProps) {
   const provided = useContext(CameraApiContext);
   const windowSize = useWindowSize();
   const ownApi = useCamera(windowSize, { testHooks: provided === null });
@@ -43,11 +53,13 @@ export function BoardViewport({ children }: BoardViewportProps) {
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
+  const worldRef = useRef<HTMLDivElement | null>(null);
   const apiRef = useRef(api);
   apiRef.current = api;
 
   const [panning, setPanning] = useState(false);
   const panningRef = useRef(false);
+  const pressRef = useRef<{ startX: number; startY: number; moved: boolean } | null>(null);
   const gestureRef = useRef<{ prevScale: number } | null>(null);
 
   // ---- wheel (non-passive) and Safari pinch gestures -------------------
@@ -121,31 +133,65 @@ export function BoardViewport({ children }: BoardViewportProps) {
   }, []);
 
   // ---- drag to pan ------------------------------------------------------
+  /** Empty board space: the viewport itself, the grid or the world layer. */
+  const isBoardSpace = (target: HTMLElement | null): boolean => {
+    const viewport = viewportRef.current;
+    if (!viewport || !target) return false;
+    if (target === viewport || target === gridRef.current || target === worldRef.current) return true;
+    // Anything else inside the board is board space too (the origin marker, for
+    // example), as long as it is not a board object or a control: story 2's
+    // notes, note toolbars and text fields handle their own gestures.
+    return (
+      viewport.contains(target) &&
+      target.closest("[data-testid='sticky-note'], [data-testid='note-toolbar'], textarea, button") === null
+    );
+  };
+
   const startPan = (event: ReactPointerEvent<HTMLDivElement>) => {
     const el = viewportRef.current;
     if (!el) return;
     const target = event.target as HTMLElement;
     // Only empty board space starts a pan; board objects (story 2+) can stop
     // propagation and be dragged instead.
-    if (target !== el && target !== gridRef.current) return;
+    if (!isBoardSpace(target)) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
 
     event.preventDefault();
     el.setPointerCapture?.(event.pointerId);
     panningRef.current = true;
     setPanning(true);
+    pressRef.current = { startX: event.clientX, startY: event.clientY, moved: false };
     apiRef.current.beginPan({ x: event.clientX, y: event.clientY });
   };
 
   const movePan = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!panningRef.current) return;
+    const press = pressRef.current;
+    if (press) {
+      const dx = event.clientX - press.startX;
+      const dy = event.clientY - press.startY;
+      if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) press.moved = true;
+    }
     apiRef.current.panMove({ x: event.clientX, y: event.clientY });
   };
 
-  const finishPan = () => {
+  const finishPan = (event: ReactPointerEvent<HTMLDivElement>, allowClick: boolean) => {
     panningRef.current = false;
     setPanning(false);
     apiRef.current.endPan();
+
+    const press = pressRef.current;
+    pressRef.current = null;
+    // A press and release without movement is a click on empty board space:
+    // story 2 uses it to clear the selection.
+    if (allowClick && press && !press.moved) {
+      onEmptyClick?.({ x: event.clientX, y: event.clientY });
+    }
+  };
+
+  const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!isBoardSpace(event.target as HTMLElement)) return;
+    onCreateAtPoint?.({ x: event.clientX, y: event.clientY });
   };
 
   const grid = gridStyle(camera);
@@ -162,12 +208,14 @@ export function BoardViewport({ children }: BoardViewportProps) {
       tabIndex={0}
       onPointerDown={startPan}
       onPointerMove={movePan}
-      onPointerUp={finishPan}
-      onPointerCancel={finishPan}
-      onLostPointerCapture={finishPan}
+      onPointerUp={(event) => finishPan(event, true)}
+      onPointerCancel={(event) => finishPan(event, false)}
+      onLostPointerCapture={(event) => finishPan(event, false)}
+      onDoubleClick={onDoubleClick}
     >
       <div ref={gridRef} className="board-grid" data-testid="board-grid" style={grid} />
       <div
+        ref={worldRef}
         className="board-world"
         data-testid="board-world"
         style={{
