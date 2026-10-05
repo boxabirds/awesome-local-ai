@@ -3,7 +3,7 @@
 //! before each start, so a request's end is the marker's time plus the stamp. A segment with no marker
 //! has no wall clock and gives no requests.
 
-use regex::Regex;
+use regex_lite::Regex;
 use serde::Serialize;
 use std::sync::OnceLock;
 
@@ -37,7 +37,7 @@ pub struct Request {
 
 pub fn marker_rx() -> &'static Regex {
     static RX: OnceLock<Regex> = OnceLock::new();
-    RX.get_or_init(|| Regex::new(&format!(r"^{}([\d.]+)", regex::escape(MARKER))).unwrap())
+    RX.get_or_init(|| Regex::new(&format!(r"^{}([\d.]+)", regex_lite::escape(MARKER))).unwrap())
 }
 
 fn prompt_rx() -> &'static Regex {
@@ -73,7 +73,7 @@ pub fn server_starts(text: &str) -> Vec<f64> {
         .collect()
 }
 
-fn since_start(m: &regex::Captures) -> f64 {
+fn since_start(m: &regex_lite::Captures) -> f64 {
     let n = |i: usize| m[i].parse::<i64>().unwrap_or(0);
     (n(1) * SECONDS_PER_MINUTE + n(2)) as f64 + n(3) as f64 / MS_PER_S + n(4) as f64 / US_PER_S
 }

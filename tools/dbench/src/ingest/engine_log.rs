@@ -4,7 +4,7 @@
 //! the prompt (read or cached) and the tokens generated are what the client recorded for that call,
 //! in order, within the server run that was up when the call was sent.
 
-use regex::Regex;
+use regex_lite::Regex;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::OnceLock;

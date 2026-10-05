@@ -22,8 +22,12 @@ serde = { version = "1", features = ["derive"] }
 # float_roundtrip: a receive stamp read from a log must be the double that was written, to the last bit.
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 # The ingest (src/ingest): the parsers of the agent and engine logs, and the conversation database.
-regex = "1"
+# regex-lite, not regex: the patterns (flags.rs, timing.rs, the engine and llama logs, analytics/text.rs) use ASCII
+# words, \b, \d and (?i) only; the goldens (tests/ingest.rs) hold the output equal to the Python parsers'. The full
+# crate's regex-automata and regex-syntax were 7 s of a 25 s clean build (docs/20261003-rust-build-times.md).
+regex-lite = "0.1"
 flate2 = "1"
 rusqlite = { version = "0.31", features = ["bundled"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs", "io-util", "time", "sync", "net", "signal"] }
-toml = "0.8"
+# Parsing only (nodes.toml, checks.toml): no Display, no toml_edit's writer.
+toml = { version = "0.8", default-features = false, features = ["parse"] }
