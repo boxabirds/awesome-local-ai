@@ -49,6 +49,8 @@ STRATA_REPO_URL="https://github.com/Niko1221/Strata.git"
 # The size and the context the benchmark runs: the owner chose IQ3_XXS (IQ3_S needs 62 GB of RAM with little else
 # running, and a story also runs the agent, browsers and test servers on the same machine); 131072 is the benchmark's
 # minimum context.
+# The CUDA install path reads this (lib/accel/cuda.sh); the other 4090 combinations set the same.
+MIN_DRIVER_VERSION=550                    # 580 validated
 STRATA_FAMILY="qwen"
 STRATA_QUANT="IQ3_XXS"
 STRATA_CONTEXT=131072
