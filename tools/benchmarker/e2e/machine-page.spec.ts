@@ -377,6 +377,18 @@ test.describe("history", () => {
     await expect(history(page)).toContainText("No runs on this machine yet.");
   });
 
+  test("the head says the span of the runs, and the column heads stay pinned while the table scrolls", async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 420 });
+    await open(page, "node-a");
+    await expect(history(page).locator(".mp-head .small")).toHaveText(/^11 runs · \d{1,2} \w{3} to (today|\d{1,2} \w{3})$/);
+    const th = history(page).locator("thead th").first();
+    await expect(th).toHaveCSS("position", "sticky");
+    await th.scrollIntoViewIfNeeded();
+    await page.evaluate(() => window.scrollBy(0, 300));
+    await expect(th).toBeInViewport({ ratio: 1 });
+    await expect(history(page).locator("tbody tr[data-run]").last()).toBeInViewport();
+  });
+
   test("the history heading and columns explain themselves", async ({ page }) => {
     await open(page, "node-a");
     await expect(history(page).locator("h2 .term")).toHaveAttribute("data-tip", GLOSSARY.history.what);

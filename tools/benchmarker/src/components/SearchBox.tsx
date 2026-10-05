@@ -59,11 +59,9 @@ export function SearchBox({ state }: Props) {
     };
   }, []);
 
-  const go = (m: SearchMatch) => {
-    setOpen(false);
-    setQuery("");
-    location.hash = m.item.href;
-  };
+  /** A result is a link; a click on it, or Enter on the highlighted one, follows it like any link. */
+  const chosen = () => { setOpen(false); setQuery(""); };
+  const follow = (i: number) => document.getElementById(`sr-${i}`)?.click();
 
   return (
     <div className="search-box">
@@ -86,7 +84,7 @@ export function SearchBox({ state }: Props) {
           }
           if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => (s + 1) % flat.length); }
           else if (e.key === "ArrowUp") { e.preventDefault(); setSel((s) => (s - 1 + flat.length) % flat.length); }
-          else if (e.key === "Enter") { e.preventDefault(); go(flat[sel]); }
+          else if (e.key === "Enter") { e.preventDefault(); follow(sel); }
           else if (e.key === "Escape") { e.preventDefault(); setOpen(false); }
         }}
       />
@@ -110,7 +108,7 @@ export function SearchBox({ state }: Props) {
                               aria-selected={i === sel}
                               href={m.item.href}
                               onMouseEnter={() => setSel(i)}
-                              onClick={(e) => { e.preventDefault(); go(m); }}
+                              onClick={chosen}
                             >
                               <span className="r-title">{marked(m.item.title, m.titleMarks)}</span>
                               <span className="r-sub">{marked(m.item.subtitle, m.subtitleMarks)}</span>

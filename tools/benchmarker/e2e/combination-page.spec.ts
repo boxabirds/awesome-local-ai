@@ -104,6 +104,75 @@ test.describe("overview: combinations ranked on finished runs of record", () => 
   });
 });
 
+/** Serve the page a changed state for this test only (as e2e/run-marks.spec.ts does). */
+async function patchState(page: Page, change: (s: State) => void) {
+  await page.route("**/api/state", async (route) => {
+    const res = await route.fetch();
+    const s = (await res.json()) as State;
+    change(s);
+    await route.fulfill({ response: res, json: s });
+  });
+}
+
+test.describe("series: a combination's run sets, and the headline over the current one", () => {
+  /** Move two of Swift's finished runs into a second series, as a change of engine build would. */
+  const twoSeries = (page: Page) => patchState(page, (s) => {
+    for (const [from, to] of [["v2-r4", "v2-fresh-r1"], ["v2-r5", "v2-fresh-r2"]]) {
+      const r = s.rows.find((x) => x.stack === SWIFT && x.runId === from);
+      if (r) { r.runId = to; r.stateAt = "2026-10-04T00:00:00Z"; }
+    }
+  });
+
+  test("one row per series, the current one first: the series with a run in hand, not the one that finished last", async ({ page }) => {
+    await twoSeries(page);                                  // v2-fresh's runs are the most recent, but v2-r1 is still running
+    await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
+    const rows = page.locator('[data-page="combination"] [data-section="series"] .series-row');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toHaveAttribute("data-prefix", "v2");
+    await expect(rows.nth(0)).toHaveAttribute("data-current", "true");
+    await expect(rows.nth(1)).toHaveAttribute("data-prefix", "v2-fresh");
+    await expect(rows.nth(1)).toHaveAttribute("data-current", "false");
+    await expect(rows.nth(0).locator(".series-standing")).toContainText("running");
+    await expect(rows.nth(1).locator(".series-standing")).toContainText("finished");
+  });
+
+  test("with nothing in hand, the series worked on most recently is the current one", async ({ page }) => {
+    await patchState(page, (s) => {
+      for (const r of s.rows.filter((x) => x.stack === SWIFT)) {           // nothing in hand anywhere, so recency decides
+        r.status = "finished";
+        r.live = null;
+        r.stateAt = "2026-10-01T00:00:00Z";
+      }
+      for (const [from, to] of [["v2-r4", "v2-fresh-r1"], ["v2-r5", "v2-fresh-r2"]]) {
+        const r = s.rows.find((x) => x.stack === SWIFT && x.runId === from);
+        if (r) { r.runId = to; r.stateAt = "2026-10-04T00:00:00Z"; }
+      }
+    });
+    await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
+    const rows = page.locator('[data-page="combination"] [data-section="series"] .series-row');
+    await expect(rows.nth(0)).toHaveAttribute("data-prefix", "v2-fresh");
+    await expect(rows.nth(0)).toHaveAttribute("data-current", "true");
+  });
+
+  test("the headline score is the current series' own, and names it", async ({ page }) => {
+    await twoSeries(page);
+    await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
+    const current = page.locator('[data-page="combination"] [data-section="series"] .series-row[data-current="true"]');
+    const other = page.locator('[data-page="combination"] [data-section="series"] .series-row[data-current="false"]');
+    const currentScore = (await current.locator(".series-score").innerText()).split("/")[0];
+    await expect(page.locator('[data-kpi="score"] .median')).toHaveText(currentScore);
+    await expect(page.locator('[data-kpi="score"]')).toContainText(await current.locator(".mono").innerText());
+    // and the other series is a different figure, so the headline is plainly not a pool of both
+    expect((await other.locator(".series-score").innerText()).split("/")[0]).not.toBe(currentScore);
+  });
+
+  test("one series: no panel, and the page reads as before", async ({ page }) => {
+    await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
+    await expect(page.locator('[data-page="combination"] [data-section="series"]')).toHaveCount(0);
+    await expect(page.locator('[data-kpi="score"] dd')).toHaveText("63 (58–68) n=3 / 75 · mean 63");
+  });
+});
+
 test.describe("combination page", () => {
   test.beforeEach(async ({ page }) => {
     await open(page, SWIFT);

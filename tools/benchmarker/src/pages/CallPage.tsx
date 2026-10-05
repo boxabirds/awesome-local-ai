@@ -24,6 +24,14 @@ const APPROX = "≈";
 const SHARED_OUT = "Tokens are recorded for the whole output of a call, not for its parts. This is the call's output tokens shared out by the characters of its thinking, its text and its tool arguments, so the parts add up to the output.";
 const tokens = (n: number) => `${full(n)} tokens`;
 const Quoted = ({ text }: { text: string }) => <pre className="cc-text" data-quoted="agent">{text}</pre>;
+const NEIGHBOUR_CHARS = 40;
+/** A neighbouring call's first line of text, cut for a link's label, whole on hover. */
+function Neighbour({ c }: { c: CallInFull | null | false }) {
+  const line = c ? (c.text.split("\n").find((l) => l.trim()) ?? "").trim() : "";
+  if (!line) return null;
+  const short = line.length > NEIGHBOUR_CHARS ? `${line.slice(0, NEIGHBOUR_CHARS)}…` : line;
+  return <> · <span className="neighbour-text" data-quoted="agent" data-tip={line}>{short}</span></>;
+}
 const argsText = (t: ToolInFull) => JSON.stringify(t.args, null, JSON_INDENT);
 /** A tool's heading: its name, and its kind only where that says more than the name does ("bash e2e", not "write write"). */
 const ToolName = ({ t }: { t: ToolInFull }) => <><span className="mono">{t.name ?? ""}</span>{t.kind && t.kind !== t.name ? <> <span className="small">{t.kind}</span></> : null}</>;
@@ -73,16 +81,18 @@ export function CallPage({ route, run, story, storyId, call, state }: { route: R
   const [contextOpen, setContextOpen] = useState<number | null>(null);      // the call whose context is expanded
   const items = open.at === idx ? open.items : CLOSED;       // another call starts closed
   const toggle = (k: keyof Open) => setOpen({ at: idx, items: { ...items, [k]: !items[k] } });
-  // What the call before returned is this call's new input; it is fetched only when the input item is open.
-  const before = useInFull<CallInFull>(available && items.input && idx > 0 ? id : null, `/calls/${idx - 1}`);
+  // The calls either side: what the one before returned is this call's new input, and each names itself in the
+  // page's second row by its first line of text.
+  const before = useInFull<CallInFull>(available && idx > 0 ? id : null, `/calls/${idx - 1}`);
+  const after = useInFull<CallInFull>(available ? id : null, `/calls/${idx + 1}`);
   const calls = conv.summary ? conv.summary.counts.calls : null;
   const crumbs = <Breadcrumb route={route} names={{ combination: run.label, story: title }} />;
   const nav = (
     <nav className="call-nav" aria-label="Calls">
       <span className="call-of" data-fact="call-of">Call {idx + 1}{calls !== null ? ` of ${full(calls)}` : ""}</span>
       <a className="back" href={withParams(conversationHref(run.pack, run.stack, run.runId, storyId), { call: String(idx) })}>← Back to the conversation</a>
-      {idx > 0 ? <a href={callHref(run.pack, run.stack, run.runId, storyId, idx - 1)} rel="prev">← call {idx}</a> : <span className="faint">← first call</span>}
-      {calls !== null && idx + 1 < calls ? <a href={callHref(run.pack, run.stack, run.runId, storyId, idx + 1)} rel="next">call {idx + 2} →</a> : <span className="faint">last call →</span>}
+      {idx > 0 ? <a href={callHref(run.pack, run.stack, run.runId, storyId, idx - 1)} rel="prev">← call {idx}<Neighbour c={before} /></a> : <span className="faint">← first call</span>}
+      {calls !== null && idx + 1 < calls ? <a href={callHref(run.pack, run.stack, run.runId, storyId, idx + 1)} rel="next">call {idx + 2}<Neighbour c={after} /> →</a> : <span className="faint">last call →</span>}
     </nav>
   );
   if (c === false || !story) {

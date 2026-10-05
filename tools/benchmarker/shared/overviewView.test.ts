@@ -285,6 +285,17 @@ describe("a machine's history", () => {
   });
 });
 
+describe("a machine's history span", () => {
+  it("runs from the earliest end to the latest, or to today while a run is going; nothing without a time", async () => {
+    const { historySpan, dayOf } = await import("./overviewView.ts");
+    const r = (runId: string, over: Partial<Row> = {}) => row({ runId, ...over });
+    expect(dayOf(Date.parse("2026-09-27T20:59:00Z") / 1000)).toBe("27 Sep");
+    expect(historySpan([r("a", { stateAt: "2026-09-27T20:59:00Z" }), r("b", { stateAt: "2026-10-03T14:02:00Z" })])).toBe("27 Sep to 3 Oct");
+    expect(historySpan([r("a", { stateAt: "2026-09-27T20:59:00Z" }), r("b", { status: "running", stateAt: "" })])).toBe("27 Sep to today");
+    expect(historySpan([r("q", { status: "queued", stateAt: "" })])).toBe("");
+  });
+});
+
 describe("a run of an earlier suite version", () => {
   it("is one whose family is not the family of the pack's current suite; unknown when either is blank", async () => {
     const { earlierVersion, familyOf } = await import("./overviewView.ts");

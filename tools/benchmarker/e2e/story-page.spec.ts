@@ -59,7 +59,7 @@ test.describe("header", () => {
     await expect(h.locator("h1")).toHaveText("Story 2: Sticky notes");
     await expect(h.locator(".eyebrow")).toHaveText("Story · vidi · vidi-v2");
     const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
-    await expect(crumbs.locator('[aria-current="page"]')).toHaveText("Story 2");
+    await expect(crumbs.locator('[aria-current="page"]')).toHaveText("Story 2: Sticky notes");
     await expect(crumbs.getByRole("link", { name: "Stories" })).toHaveAttribute("href", "#/vidi/stories");
     await crumbs.getByRole("link", { name: "Overview" }).click();
     await expect(page.locator("table.combos")).toBeVisible();
