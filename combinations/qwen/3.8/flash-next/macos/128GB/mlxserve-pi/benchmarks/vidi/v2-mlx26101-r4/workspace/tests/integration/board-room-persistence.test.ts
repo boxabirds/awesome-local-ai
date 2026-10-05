@@ -17,12 +17,12 @@
 import { evictDurableObject } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 
-import { newBoardId } from '../../src/shared/board-id';
 import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE, CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
 import {
   connect,
   converge,
+  createBoard,
   createClient,
   createNote,
   fetchBoard,
@@ -57,7 +57,7 @@ async function turnedAway(boardId: string, timeoutMs = 5000): Promise<number> {
 
 describe('a change is stored before anybody is told about it (TC-12)', () => {
   it('has the note in storage by the time a second person can see it', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     try {
       const id = createNote(alex, { x: 40, y: 60 }, 'blue');
@@ -79,7 +79,7 @@ describe('a change is stored before anybody is told about it (TC-12)', () => {
   });
 
   it('stores every kind of change, not only the one that makes a note exist', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     try {
       const id = createNote(alex, { x: 10, y: 10 }, 'orange');
@@ -106,7 +106,7 @@ describe('a change is stored before anybody is told about it (TC-12)', () => {
 
 describe('coming back after everybody has gone (TC-13)', () => {
   it('gives the next person the board that was left', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const id = createNote(alex, { x: 70, y: 20 }, 'violet');
     typeInto(alex, id, 0, 'Left the office like this');
@@ -130,7 +130,7 @@ describe('coming back after everybody has gone (TC-13)', () => {
   });
 
   it('rebuilt the board out of storage, not out of a document that never went away', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     for (const [index, at] of [
       { x: 0, y: 0 },
@@ -159,7 +159,7 @@ describe('coming back after everybody has gone (TC-13)', () => {
 
 describe('a change that could not be saved (TC-14)', () => {
   it('is not shown to anybody, and comes back when the person reconnects', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const sam = await connect(board);
     await converge([alex, sam]);
@@ -205,7 +205,7 @@ describe('a change that could not be saved (TC-14)', () => {
 
 describe('a board that cannot be read (TC-15)', () => {
   it('turns a new connection away with the code that says so, and stores nothing for it', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     for (const at of [{ x: 0, y: 0 }, { x: 260, y: 0 }, { x: 520, y: 0 }]) createNote(alex, at, 'yellow');
     await settle();
@@ -252,7 +252,7 @@ describe('a board that cannot be read (TC-15)', () => {
 
 describe('trying again at a board that would not load (TC-16)', () => {
   it('refuses inside the retry interval without reading storage, and loads once it is repaired', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const id = createNote(alex, { x: 0, y: 0 }, 'blue');
     typeInto(alex, id, 0, 'One note, one snapshot');
@@ -292,7 +292,7 @@ describe('trying again at a board that would not load (TC-16)', () => {
 
 describe('data that is not a board message (TC-17)', () => {
   it('closes that one connection and leaves the storage alone', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     createNote(alex, { x: 0, y: 0 }, 'yellow');
     await settle();
@@ -316,7 +316,7 @@ describe('data that is not a board message (TC-17)', () => {
 
 describe('a room that was put away while its people stayed (TC-18)', () => {
   it('finds its connections again and carries a change across them', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const sam = await connect(board);
     await converge([alex, sam]);
@@ -340,7 +340,7 @@ describe('a room that was put away while its people stayed (TC-18)', () => {
   });
 
   it('reads the board back for a connection that arrives after it was put away', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const id = createNote(alex, { x: 0, y: 0 }, 'orange');
     await converge([alex]);
@@ -374,7 +374,7 @@ describe('a room that was put away while its people stayed (TC-18)', () => {
 
 describe('a storage read that fails during a load (TC-26)', () => {
   it('turns connections away rather than serving an empty board', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     createNote(alex, { x: 0, y: 0 }, 'blue');
     await settle();

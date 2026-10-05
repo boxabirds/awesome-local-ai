@@ -30,7 +30,7 @@ import {
 // so the number lives with the other settings and is said here once.
 export { RECONNECT_WAIT_MS };
 import type { StickySnapshot } from '../../../src/shared/board-model';
-import { openBoard } from './board';
+import { openBoard, createBoardAt, appOrigin } from './board';
 import type { Point } from './board';
 import { setCamera, settled } from './board';
 import { actualCentre, dragNote, editor, noteAt, noteBox, notes, stickies } from './sticky';
@@ -76,7 +76,10 @@ export interface PaintedNote {
  * one, which is what makes an "isolation" assertion mean something.
  */
 export async function openParticipants(browser: Browser, count: number): Promise<Participant[]> {
-  const boardId = newBoardId();
+  // One board, made through the app's own door rather than invented here. A board room will not
+  // answer for a board nobody created — it answers 404 — so the id these people share has to come
+  // from the same place a person's link comes from.
+  const boardId = await makeBoard(browser);
   const opened = await Promise.all(
     Array.from({ length: count }, async (_unused, index) =>
       openParticipant(browser, boardId, nameFor(index)),
@@ -86,6 +89,18 @@ export async function openParticipants(browser: Browser, count: number): Promise
   // otherwise the first measurement would include a board that was still loading.
   await Promise.all(opened.map((participant) => waitForLive(participant)));
   return opened;
+}
+
+/** One throwaway page, one board, one id. The page is not a participant and leaves. */
+async function makeBoard(browser: Browser): Promise<string> {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    await page.goto('/');
+    return await createBoardAt(await appOrigin(page));
+  } finally {
+    await context.close();
+  }
 }
 
 export function nameFor(index: number): string {
@@ -115,8 +130,8 @@ export async function closeParticipants(participants: readonly Participant[]): P
   await Promise.all(participants.map((participant) => participant.context.close()));
 }
 
-/** A board address nobody has opened: a room the server has never seen. */
-export function newBoardAddress(): string {
+/** A board address nobody has opened, which is a link to nowhere: what the not-found page is for. */
+export function aLinkNobodyMade(): string {
   return newBoardId();
 }
 

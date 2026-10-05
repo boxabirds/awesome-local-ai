@@ -1,217 +1,40 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+/**
+ * Which page this window shows.
+ *
+ * The whole app is three pages and an address, so this file is a switch on the address and nothing
+ * else. It is worth saying what is *not* here, because a top-level component in a product like this
+ * usually carries something: there is no session to restore (a board's link is the only thing that
+ * grants access to it, and the address in the bar is where that link arrives), no account to sign in
+ * to (story 14's problem, and deliberately not this story's), and no list of this person's boards to
+ * show them, because a board here has no owner who could be asked which ones they mean.
+ *
+ * Story 3 did have one piece of policy at this level: an address with no board id was given a
+ * randomly generated one, so that anybody arriving at the site root landed on a board. That is gone,
+ * and the reason is the thing this story is for. A board id made up in somebody's browser is not a
+ * link — it cannot be sent to anybody, nothing remembers it, and closing the tab ends the board with
+ * no notice given. Now the root is a home page that asks for a board from the service, which hands
+ * back an address that outlives the tab it was made in.
+ */
 import type { JSX } from 'react';
 
-import { BoardViewport } from './canvas/BoardViewport';
-import { NavigationHint } from './canvas/NavigationHint';
-import { ZoomControls } from './canvas/ZoomControls';
-import { Toolbar } from './components/Toolbar';
-import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
-import type { Point } from './canvas/camera';
-import { useCamera, useViewportSize } from './canvas/useCamera';
-import { createSticky, deleteObject, NO_ID } from '../shared/board-model';
-import { isValidBoardId, newBoardId } from '../shared/board-id';
-import { useBoardDoc } from './board/useBoardDoc';
-import type { BoardConnector } from './board/useBoardDoc';
-import { useSelection } from './board/useSelection';
-import { StickyNote } from './objects/StickyNote';
-import { ConnectionStatus } from './sync/ConnectionStatus';
-import { connectBoard } from './sync/connectBoard';
-import type { ConnectionState } from './sync/connectBoard';
+import { useRoute } from './router';
+import { BoardPage } from './pages/BoardPage';
+import { HomePage } from './pages/HomePage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
-/** Keys that delete a selected note, and nothing else. */
-const DELETE_KEYS = ['Delete', 'Backspace'];
+export function App(): JSX.Element {
+  const route = useRoute();
 
-/**
- * Whether this board may be written to.
- *
- * Every state except `load_failed` leaves the board editable, including the states
- * in which nothing is reaching anybody: a board that cannot be written down, or
- * cannot be reached, still holds what is typed and sends it when it can, so taking
- * the keyboard away would only lose work. `load_failed` is the opposite — the room
- * has said it cannot read this board, and is holding back rather than handing over
- * an empty one — so notes created now would be written into a document that is about
- * to be thrown away. Editing stops until the board arrives; the first successful
- * sync turns it back on, with no reload.
- */
-export function canEdit(state: ConnectionState): boolean {
-  return state !== 'load_failed';
-}
-
-/** The address of a board: this prefix and the board's id, and nothing else. */
-const BOARD_PATH_PREFIX = '/b/';
-
-/**
- * Top-level layout: the infinite board fills the window, the board toolbar is a
- * strip on the left, the zoom control floats bottom-right and the first-use hint
- * near the bottom centre.
- *
- * The board document, the selection and the keyboard shortcuts meet here, and
- * nowhere else: `useBoardDoc` owns the document, keeps it connected to the board at
- * this address and republishes it as notes, `useSelection` holds what this window
- * has selected (local, never shared), and this component decides which key does what
- * to which note.
- *
- * `connect` is not a product knob: it lets the component tests render a board
- * without opening a socket. The board itself always uses the real connection.
- */
-export interface AppProps {
-  connect?: BoardConnector;
-}
-
-export function App({ connect = connectBoard }: AppProps = {}): JSX.Element {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const viewport = useViewportSize(rootRef);
-  const { camera, hasNavigated, zoomStep, reset } = useCamera(viewport);
-  const boardId = useBoardAddress();
-  const { doc, notes, connection } = useBoardDoc(boardId, connect);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
-
-  /**
-   * The notes in the order they should end up on screen. The document lists them by
-   * stacking number; they are put in the page in the order they were made and stacked
-   * with `zIndex` (see StickyNote), because moving the element a pointer is holding -
-   * which is what re-sorting the list would do every time a note is raised - makes the
-   * browser let go of the pointer and the drag stops halfway. Creation order is in the
-   * document too, so every client still agrees on which of two equally raised notes
-   * is on top.
-   */
-  const painted = [...notes].sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-
-  /**
-   * A note is only selected while it exists. Deleting it — from the bin, with the
-   * keyboard, or from whoever joins the board later — lets the selection, and any
-   * editing inside it, go with it instead of pointing at nothing.
-   */
-  const editable = canEdit(connection);
-  const selected = notes.some((note) => note.id === selectedId) ? selectedId : null;
-  const editing = notes.some((note) => note.id === editingId) ? editingId : null;
-
-  useEffect(() => {
-    if (selectedId !== null && selected === null) select(null);
-    if (editingId !== null && editing === null) select(null);
-  }, [selectedId, editingId, selected, editing, select]);
-
-
-  /** Put a note down centred on a world point and start typing straight away. */
-  const createStickyAt = useCallback(
-    (world: Point): void => {
-      // A board that could not be loaded is not written to: see `canEdit`. The
-      // gesture is swallowed rather than answered with an error, because the badge
-      // above already says what is wrong and what is being done about it.
-      if (!editable) return;
-      // `createSticky` centres the note on the point it is given, so the click
-      // point becomes the middle of the note, not its top-left corner.
-      const id = createSticky(doc, world);
-      // A note that could not be created leaves no selection behind it.
-      if (id !== NO_ID) startEdit(id);
-    },
-    [doc, startEdit, editable],
-  );
-
-  /** The toolbar button adds a note in the middle of what is on screen. */
-  const createStickyInCentre = useCallback((): void => {
-    createStickyAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }));
-  }, [camera, createStickyAt, viewport.height, viewport.width]);
-
-  // Keyboard shortcuts, on the window so they work wherever the focus is — with
-  // two exceptions: while typing in a note, and while a text field has the focus,
-  // the keys belong to the text and must reach it untouched.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      const target = event.target;
-      if (target instanceof HTMLElement && (target.isContentEditable || isTextField(target))) return;
-      // Escape is the note's own business: it keeps the text and stops editing.
-      if (editing !== null) return;
-      // A shortcut with a modifier held is the browser's or the operating
-      // system's, not ours (Cmd+Backspace, Ctrl+Backspace, Alt+Backspace).
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-
-      if (event.key === 'Enter') {
-        if (selected === null || !editable) return; // nothing selected, or nothing to type into
-        event.preventDefault();
-        startEdit(selected);
-        return;
-      }
-      if (!DELETE_KEYS.includes(event.key)) return;
-      if (selected === null || !editable) return;
-      // Stop the browser going back a page on Backspace.
-      event.preventDefault();
-      deleteObject(doc, selected);
-      select(null);
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, editing, select, selected, startEdit, editable]);
-
-  return (
-    <div className="board-app" data-testid="board-root" ref={rootRef}>
-      <Toolbar onCreateSticky={createStickyInCentre} disabled={!editable} />
-      <BoardViewport onCreateAt={createStickyAt} onClearSelection={() => select(null)}>
-        {painted.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={camera.zoom}
-            selected={note.id === selected}
-            editing={note.id === editing}
-            readOnly={!editable}
-            onSelect={select}
-            onStartEdit={startEdit}
-            onEndEdit={endEdit}
-          />
-        ))}
-      </BoardViewport>
-      <ZoomControls
-        zoomPercent={zoomPercent(camera)}
-        canZoomIn={canZoomIn(camera)}
-        canZoomOut={canZoomOut(camera)}
-        onZoomIn={() => {
-          zoomStep('in');
-        }}
-        onZoomOut={() => {
-          zoomStep('out');
-        }}
-        onReset={reset}
-      />
-      <NavigationHint visible={!hasNavigated} />
-      <ConnectionStatus state={connection} />
-    </div>
-  );
-}
-
-/**
- * Which board this window is on, read from its address.
- *
- * A board is reached by its address, so an address that is not one — the site root,
- * or an address that is not a board address at all — is given a new board rather
- * than an error page: there is nothing to show a person who has arrived somewhere
- * that is not a board but clearly meant to be one. (Story 5 replaces this with board
- * creation on the server; until then this is what makes the app usable from `/`.)
- */
-function useBoardAddress(): string {
-  const [boardId] = useState(currentBoardAddress);
-  return boardId;
-}
-
-/** The board id in this window's address, rewriting the address if it has none. */
-function currentBoardAddress(): string {
-  const pathname = window.location.pathname;
-  if (pathname.startsWith(BOARD_PATH_PREFIX)) {
-    const id = decodeURIComponent(pathname.slice(BOARD_PATH_PREFIX.length));
-    if (isValidBoardId(id)) return id;
+  switch (route.name) {
+    case 'home':
+      return <HomePage />;
+    case 'board':
+      // Keyed by the id so that going from one board to another builds a new page rather than
+      // rearranging the old one: a board document, its socket and its camera belong to one board, and
+      // reusing them across a change of address would put one person's notes on another board's
+      // screen while the new document was being asked for.
+      return <BoardPage key={route.id} id={route.id} />;
+    case 'not_found':
+      return <NotFoundPage />;
   }
-  const id = newBoardId();
-  // `replaceState`, not a navigation: there is no page to go back to. The app is
-  // rendered from this address either way, and the address in the bar is the one a
-  // person can copy to somebody else.
-  window.history.replaceState(null, '', `${BOARD_PATH_PREFIX}${id}`);
-  return id;
-}
-
-/** Keys typed here are text, not board commands. */
-function isTextField(element: HTMLElement): boolean {
-  const name = element.nodeName;
-  return name === 'INPUT' || name === 'TEXTAREA' || name === 'SELECT';
 }

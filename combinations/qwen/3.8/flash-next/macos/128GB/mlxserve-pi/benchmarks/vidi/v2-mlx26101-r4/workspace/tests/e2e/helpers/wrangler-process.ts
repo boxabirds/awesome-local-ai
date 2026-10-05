@@ -84,8 +84,6 @@ export async function startRuntime(options: StartOptions = {}): Promise<RunningR
   const inspectorPort = port + 1;
 
   const args = [
-    '--no-install',
-    'wrangler',
     'dev',
     '--config',
     'wrangler.jsonc',
@@ -108,7 +106,13 @@ export async function startRuntime(options: StartOptions = {}): Promise<RunningR
   // `detached` so the whole process group can be signalled: `wrangler dev` is a wrapper
   // around a runtime process of its own, and killing the wrapper leaves the runtime
   // holding the port, which is the failure this file exists to avoid.
-  const child = spawn('npx', args, {
+  //
+  // wrangler's own entry point, and not `npx wrangler`: npx is a second wrapper between this process
+  // and the one that owns the runtime, it takes a moment to resolve a package this machine already
+  // has, and a signal to the group has to travel through one more process that is free to have
+  // already stepped aside. Spawning the entry directly means the process this file holds is the one
+  // that holds the runtime.
+  const child = spawn(process.execPath, [resolve('node_modules', 'wrangler', 'bin', 'wrangler.js'), ...args], {
     cwd: process.cwd(),
     env: process.env,
     detached: true,
@@ -204,13 +208,24 @@ async function waitForApp(url: string, output: () => string): Promise<void> {
  */
 async function kill(pid: number | undefined, port: number, output: () => string): Promise<void> {
   if (pid === undefined) return;
+  // Refused signals are collected rather than swallowed. A signal that could not be sent is not the
+  // same fact as a process that was already gone, and when a stop fails the difference is the whole
+  // explanation: "the runtime ignored it" and "this machine would not let me say anything to it" look
+  // identical from where the port check sits.
+  const refused: string[] = [];
   const signal = (signature: NodeJS.Signals): void => {
     try {
       process.kill(-pid, signature);
-    } catch {
-      // Already gone: the ordinary case, and not something to make a fuss about.
+    } catch (error) {
+      const code = (error as { code?: string }).code ?? String(error);
+      // Already gone: the ordinary case after the second signal, and not something to make a fuss
+      // about. Anything else is a machine that would not do as it was asked, and gets said out loud.
+      if (code !== 'ESRCH') refused.push(`${signature} ${code}`);
     }
   };
+  const describe = (): string =>
+    `${refused.length === 0 ? 'no signal was refused' : `refused: ${refused.join(', ')}`}
+${output()}`;
 
   signal('SIGTERM');
   await both(
@@ -220,11 +235,18 @@ async function kill(pid: number | undefined, port: number, output: () => string)
       signal('SIGKILL');
     },
   );
+  // And the same, unconditionally: `wrangler dev` is a wrapper, and a wrapper that has exited is not
+  // evidence about the runtime it was running. A runtime process that outlives its wrapper keeps the
+  // port and the board in its memory, which is exactly the thing a restart must not be able to mistake
+  // for a board read off disk. The port check below is what this file refuses to lie about; this is
+  // what makes it pass honestly rather than hopefully.
+  signal('SIGKILL');
   const gone = await both(async () => portFree(port), GONE_TIMEOUT_MS);
   if (!gone) {
     throw new Error(
       `the runtime on port ${port} is still answering after being stopped; a "restart" against it would find the ` +
-        `board in the memory of a process that never went away, so this test refuses to continue.\n${output()}`,
+        `board in the memory of a process that never went away, so this test refuses to continue.\n` +
+        describe(),
     );
   }
 }

@@ -3,6 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      A board's link is the only thing that grants access to it, so the app asks browsers not to
+      hand the address to anybody on the way out. Without this, following a link from a board — or
+      loading a board's own icons from somewhere else — puts the full address in a third party's
+      logs, which is the same as sending them the board.
+    -->
+    <meta name="referrer" content="no-referrer" />
     <title>vidi6</title>
   </head>
   <body>

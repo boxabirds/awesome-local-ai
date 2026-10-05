@@ -22,13 +22,15 @@ import type { JSX } from 'react';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
-import { App, canEdit } from '../../src/client/App';
+import { BoardPage, canEdit } from '../../src/client/pages/BoardPage';
 import type { BoardConnector } from '../../src/client/board/useBoardDoc';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { createConnectionTracker } from '../../src/client/sync/connectBoard';
 import type { ConnectionState, ConnectionTracker, ProviderStatus } from '../../src/client/sync/connectBoard';
 import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE, CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
 import {
+  BOARD_ID,
+  boardExists,
   clickStickyButton,
   createSelectedNote,
   doc,
@@ -220,7 +222,7 @@ describe('a board that could not be loaded', () => {
 
   it('takes every means of changing the board away, and leaves the board itself on screen (TC-23)', async () => {
     const provider = new FakeRoom();
-    render(<App connect={provider.asConnector()} />);
+    render(<BoardPage id={BOARD_ID} connect={provider.asConnector()} check={boardExists} />);
     await then(() => provider.agree());
 
     // A board to lose: two notes, the second of them selected, made while the board
@@ -315,7 +317,7 @@ describe('a board that could not be loaded', () => {
 
   it('holds the board while it is refused, and hands it back on the sync that loads it', async () => {
     const provider = new FakeRoom();
-    render(<App connect={provider.asConnector()} />);
+    render(<BoardPage id={BOARD_ID} connect={provider.asConnector()} check={boardExists} />);
     await then(() => provider.agree());
 
     await then(() => provider.refuse(CLOSE_BOARD_LOAD_FAILED));
@@ -360,7 +362,7 @@ describe('a board that could not be loaded', () => {
 
     // A board that has never been told anything keeps its first message and stays
     // editable: not knowing is not the same as failing.
-    render(<App connect={noConnection} />);
+    render(<BoardPage id={BOARD_ID} connect={noConnection} check={boardExists} />);
     expect(badge().textContent).toBe('Connecting…');
     expect((screen.getByTestId('create-sticky') as HTMLButtonElement).disabled).toBe(false);
   });

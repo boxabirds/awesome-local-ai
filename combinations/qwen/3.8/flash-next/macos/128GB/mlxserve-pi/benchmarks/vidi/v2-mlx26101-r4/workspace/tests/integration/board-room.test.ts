@@ -9,7 +9,6 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { newBoardId } from '../../src/shared/board-id';
 import { CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
 import { MAX_CONCURRENT_EDITORS, STICKY_COLORS, type StickyColor } from '../../src/shared/config';
 import { describeSeed, randomOps } from './helpers/random-ops';
@@ -17,6 +16,7 @@ import {
   awarenessFrames,
   connect,
   converge,
+  createBoard,
   createNote,
   malformed,
   leave,
@@ -35,7 +35,7 @@ const COLORS = Object.keys(STICKY_COLORS) as StickyColor[];
 
 describe('a change reaching the rest of the board', () => {
   it('gives a new note to everyone else on the board (TC-07)', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const sam = await connect(board);
     try {
@@ -62,7 +62,7 @@ describe('a change reaching the rest of the board', () => {
   ];
   for (const { name, change, notes } of changes) {
     it(`sends a ${name} to the rest of the board and not back to its author (TC-08)`, async () => {
-      const board = newBoardId();
+      const board = await createBoard();
       const alex = await connect(board);
       const sam = await connect(board);
       try {
@@ -86,7 +86,7 @@ describe('a change reaching the rest of the board', () => {
   }
 
   it('keeps both people typing in the same note (TC-09)', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const note = createNote(alex);
     typeInto(alex, note, 0, 'green');
@@ -106,7 +106,7 @@ describe('a change reaching the rest of the board', () => {
   });
 
   it('settles a disagreement about where a note is in one place for everyone (TC-10)', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const note = createNote(alex, { x: 0, y: 0 });
     const sam = await connect(board);
@@ -124,7 +124,7 @@ describe('a change reaching the rest of the board', () => {
   });
 
   it('lets a delete win over typing in the note being deleted (TC-11)', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const note = createNote(alex, { x: 5, y: 5 });
     typeInto(alex, note, 0, 'old text');
@@ -155,7 +155,7 @@ describe('a change reaching the rest of the board', () => {
     // make the same one again.
     console.log(`TC-12 ${describeSeed(seed, count)}, ${MAX_CONCURRENT_EDITORS} clients`);
 
-    const board = newBoardId();
+    const board = await createBoard();
     const clients: BoardClient[] = [];
     try {
       for (let index = 0; index < MAX_CONCURRENT_EDITORS; index += 1) {
@@ -179,7 +179,7 @@ describe('a change reaching the rest of the board', () => {
   }, 90_000);
 
   it('gives a late joiner the whole board (TC-14)', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const sam = await connect(board);
     try {
@@ -214,7 +214,7 @@ describe('bad data on one connection', () => {
 
   for (const { name, frame } of bad) {
     it(`closes the connection that sent ${name} and disturbs nobody else (TC-15)`, async () => {
-      const board = newBoardId();
+      const board = await createBoard();
       const guilty = await connect(board);
       const innocent = await connect(board);
       try {
@@ -245,7 +245,7 @@ describe('bad data on one connection', () => {
 
 describe('presence and reconnection', () => {
   it('relays presence bytes to everyone, the sender included (TC-16)', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const sam = await connect(board);
     try {
@@ -273,7 +273,7 @@ describe('presence and reconnection', () => {
     // The room holds the document in memory only, so what matters when it starts from
     // nothing is that the first client back gives it the whole board. A room for a board
     // id nobody has used yet starts exactly as a restarted one does: empty.
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const first = createNote(alex, { x: 7, y: 7 }, 'pink');
     typeInto(alex, first, 0, 'kept');
@@ -304,7 +304,7 @@ describe('presence and reconnection', () => {
   }, 30_000);
 
   it('survives a socket that died mid-broadcast and keeps serving later ones (TC-31)', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const alex = await connect(board);
     const sam = await connect(board);
     try {

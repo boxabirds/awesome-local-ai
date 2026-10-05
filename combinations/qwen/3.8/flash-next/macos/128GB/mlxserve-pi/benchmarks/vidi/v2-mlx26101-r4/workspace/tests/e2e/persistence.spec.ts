@@ -25,8 +25,9 @@
  */
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
-import { newBoardId } from '../../src/shared/board-id';
-import { BOARD_LOAD_BUDGET_MS, E2E_EVENTUAL_TIMEOUT_MS, PERSIST_TESTED_NOTES } from '../../src/shared/config';
+import { createBoardAt } from './helpers/board';
+import { BOARD_LOAD_BUDGET_MS, E2E_EVENTUAL_TIMEOUT_MS, PERSIST_TESTED_NOTES, STICKY_COLORS } from '../../src/shared/config';
+import type { StickyColor } from '../../src/shared/config';
 import { freshPersistDir, startRuntime, type RunningRuntime } from './helpers/wrangler-process';
 
 /** How long a page waits to be told it is live. */
@@ -130,7 +131,7 @@ interface StoredStats {
 test('a board used today is found as it was left the next day (TC-19) @persist', async ({ browser }) => {
   test.setTimeout(300_000);
   const runtime = await startRuntime({ persistTo: freshPersistDir('overnight') });
-  const boardId = newBoardId();
+  const boardId = await createBoardAt(runtime.url);
   try {
     // Two people on one board, because the notes have to have been *seen* by somebody
     // before the server is taken away: that is the promise under test.
@@ -176,7 +177,7 @@ test('a note somebody else managed to see is stored even when they leave at once
 }) => {
   test.setTimeout(300_000);
   const runtime = await startRuntime({ persistTo: freshPersistDir('leave-immediately') });
-  const boardId = newBoardId();
+  const boardId = await createBoardAt(runtime.url);
   try {
     const alex = await openRoom(runtime, browser, boardId);
     const sam = await openRoom(runtime, browser, boardId);
@@ -217,16 +218,20 @@ test('a note somebody else managed to see is stored even when they leave at once
 test('a board of two thousand notes opens completely in a browser (TC-21) @persist', async ({ browser }) => {
   test.setTimeout(600_000);
   const runtime = await startRuntime({ persistTo: freshPersistDir('big-board') });
-  const boardId = newBoardId();
+  const boardId = await createBoardAt(runtime.url);
   try {
     // The notes are put into storage by the room itself (see `src/worker/test-seed.ts`), one
     // row per note, because making them by hand in a browser would measure the clicking and
     // not the opening.
-    const seeded = await fetch(`${runtime.url}/__test/boards/${boardId}/seed?notes=${PERSIST_TESTED_NOTES}`, {
+    const seedResponse = await fetch(`${runtime.url}/__test/boards/${boardId}/seed?notes=${PERSIST_TESTED_NOTES}`, {
       method: 'POST',
     });
-    expect(seeded.ok, `the board could not be filled in: ${await seeded.text()}`).toBe(true);
-    const { seeded: count } = (await seeded.json()) as { seeded: number };
+    // The body is read once, into a string: a response can only be read once, and asking for
+    // `.json()` after the failure message asked for `.text()` fails with "Body is unusable" — which
+    // is a worse report than the one it was trying to print.
+    const seedBody = await seedResponse.text();
+    expect(seedResponse.ok, `the board could not be filled in: ${seedBody}`).toBe(true);
+    const { seeded: count } = JSON.parse(seedBody) as { seeded: number };
     expect(count).toBe(PERSIST_TESTED_NOTES);
 
     // A fresh page, and the clock starts before it navigates: everything after this point is
@@ -288,7 +293,11 @@ async function makeNotes(
   // size on screen at any zoom — has somewhere to sit that is not the next note's face.
   await page.evaluate(() => window.__vidi6?.setCamera({ zoom: 0.4 }));
 
-  const colors = ['yellow', 'blue', 'green', 'pink', 'orange', 'purple'];
+  // The colour names come from the app's own palette: a swatch's accessible name is that key with
+  // its first letter capitalised (see `labelOf` in NoteToolbar), so there is one source for both.
+  // They were spelled out here once and drifted: this list said "purple" where the app says
+  // "Violet", and the click then waited twenty seconds for a button that does not exist.
+  const colors = Object.keys(STICKY_COLORS) as StickyColor[];
   for (let index = 0; index < count; index += 1) {
     const column = index % 5;
     const row = Math.floor(index / 5);

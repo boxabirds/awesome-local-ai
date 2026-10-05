@@ -16,13 +16,13 @@ import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { App } from '../../src/client/App';
+import { BoardPage } from '../../src/client/pages/BoardPage';
 import type { BoardConnector } from '../../src/client/board/useBoardDoc';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { createConnectionTracker } from '../../src/client/sync/connectBoard';
 import type { ConnectionState, ConnectionTracker, ProviderStatus } from '../../src/client/sync/connectBoard';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
-import { noConnection, stickies } from './helpers/stickyBoard';
+import { BOARD_ID, boardExists, noConnection, stickies } from './helpers/stickyBoard';
 
 /** What the badge renders, or nothing when it has nothing to say. */
 function badgeOrNull(): HTMLElement | null {
@@ -227,7 +227,7 @@ describe('the connection badge', () => {
 
   it('is a live region and never locks the board, in any state', async () => {
     const provider = new FakeProvider();
-    render(<App connect={provider.asConnector()} />);
+    render(<BoardPage id={BOARD_ID} connect={provider.asConnector()} check={boardExists} />);
 
     const states: [ConnectionState, () => void][] = [
       ['connecting', () => undefined],
@@ -276,7 +276,7 @@ describe('the connection badge', () => {
   it('leaves the board entirely up to the document: no badge, no problem', async () => {
     // A connector that connects to nothing never reports anything, so the badge is
     // stuck at its first state and the board does not care.
-    render(<App connect={noConnection} />);
+    render(<BoardPage id={BOARD_ID} connect={noConnection} check={boardExists} />);
     expect(badgeText()).toBe('Connecting…');
     fireEvent.click(screen.getByTestId('create-sticky'));
     await tick(1);

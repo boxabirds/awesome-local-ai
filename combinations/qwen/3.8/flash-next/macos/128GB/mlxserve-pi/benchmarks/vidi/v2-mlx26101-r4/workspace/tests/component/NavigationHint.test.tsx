@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import { App } from '../../src/client/App';
+import { BoardPage } from '../../src/client/pages/BoardPage';
 import { NavigationHint } from '../../src/client/canvas/NavigationHint';
 import { cameraStore } from '../../src/client/canvas/cameraStore';
-import { noConnection } from './helpers/stickyBoard';
+import { BOARD_ID, boardExists, noConnection } from './helpers/stickyBoard';
 import { ZOOM_MAX, ZOOM_STEP_FACTOR } from '../../src/shared/config';
 
 const HINT_TEXT = 'Drag to move around · Ctrl/Cmd + scroll or pinch to zoom';
@@ -36,7 +36,7 @@ describe('NavigationHint', () => {
   });
 
   it('TC-22: visible on load, hidden by the first navigation and stays hidden for the visit', async () => {
-    render(<App connect={noConnection} />);
+    render(<BoardPage id={BOARD_ID} connect={noConnection} check={boardExists} />);
     expect(screen.getByTestId('navigation-hint').textContent).toBe(HINT_TEXT);
 
     dragBoardBy(20, 10);
@@ -50,7 +50,7 @@ describe('NavigationHint', () => {
   });
 
   it('TC-22b: buttons, keys, wheel and reset all dismiss it', async () => {
-    render(<App connect={noConnection} />);
+    render(<BoardPage id={BOARD_ID} connect={noConnection} check={boardExists} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
     await hintGone();
@@ -70,7 +70,7 @@ describe('NavigationHint', () => {
     // The board is opened already at the maximum zoom: zooming in further is a no-op,
     // so the hint must survive it (only a real camera change dismisses it).
     cameraStore.resetForTests({ zoom: ZOOM_MAX });
-    render(<App connect={noConnection} />);
+    render(<BoardPage id={BOARD_ID} connect={noConnection} check={boardExists} />);
 
     expect(screen.getByTestId('navigation-hint')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Zoom in' }).hasAttribute('disabled')).toBe(true);

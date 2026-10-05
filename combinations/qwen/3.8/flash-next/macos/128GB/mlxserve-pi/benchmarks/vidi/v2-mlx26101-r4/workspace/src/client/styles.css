@@ -461,3 +461,252 @@ body {
   background: #15803d;
   color: #f0fdf4;
 }
+
+/* ------------------------------------------------------------------ pages ---- */
+
+/*
+ * Home, board-not-found and the two waiting screens share one shape: one card in the middle of the
+ * window, one thing to read and one thing to press. These pages are visited at their worst moment —
+ * a link that went nowhere, a board that would not start — so the least they can ask of a person is
+ * to look at one place.
+ */
+.page {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.page__card {
+  display: flex;
+  box-sizing: border-box;
+  width: min(440px, 100%);
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--panel-bg);
+}
+
+.page__title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.page__tagline {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.page__action {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 10px 18px;
+  border: 1px solid var(--ink);
+  border-radius: 10px;
+  background: var(--ink);
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.page__action:hover:not(:disabled) {
+  background: #2a303a;
+}
+
+/* The button that could not make a board is available again, which is the part the message
+ * promises; a greyed-out button would say the opposite. */
+.page__action:disabled {
+  color: var(--ink-muted);
+  background: var(--panel-hover);
+  border-color: var(--panel-border);
+  cursor: progress;
+}
+
+.page__error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.page__busy {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 15px;
+}
+
+.page__footnote {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.page__link {
+  align-self: flex-start;
+  color: var(--focus-ring);
+  font-size: 14px;
+}
+
+.page__action:focus-visible,
+.page__link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ share ---- */
+
+/*
+ * The Share button is top-right, on the opposite side of the window from the board's toolbar and out
+ * of the way of the status badge at the top centre. It is painted over the board and is the only
+ * thing in this corner, because what it does — give this address to somebody — is the one thing a
+ * person on a board they like is likely to want to do.
+ */
+.share {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 30;
+}
+
+.share-button {
+  padding: 7px 16px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: var(--panel-bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgb(28 32 39 / 8%);
+}
+
+.share-button:hover {
+  background: var(--panel-hover);
+}
+
+.share-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.share-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  /*
+   * One column, and it cannot be pushed wider by what sits in it. A grid track's minimum is its
+   * item's min-content width, and the min-content width of a text field is the width its contents
+   * want — for a board link, wider than any panel. Without `minmax(0, 1fr)` the field decides how
+   * wide the panel is, and its right-hand end lands outside the panel and off the screen.
+   */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  /* The panel is the same size whatever the link holds. `box-sizing` because `width` here means the
+   * whole box: padding and border are added to a `width: 100%` item otherwise, which is the second
+   * way this field came to be wider than the panel holding it. */
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 24px));
+  padding: 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--panel-bg);
+  box-shadow: 0 12px 32px rgb(28 32 39 / 16%);
+}
+
+.share-panel__label {
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.share-panel__field {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  /* A shade darker than the panel's white. The link is the one thing in this panel that matters and
+   * it has to look like something you can take: a field the same colour as the panel behind it is a
+   * string of characters with no edge, and a hairline alone does not say where it stops. */
+  background: var(--panel-hover);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  /*
+   * A board's link is always longer than the field that holds it — origin, then `/b/`, then a
+   * 22-character id. So it stays on one line and the field scrolls inside its own border: the
+   * panel never grows, the ellipsis says there is more, selecting selects the whole address (which
+   * is what the manual-copy state needs), and the end of it is reachable by scrolling or by
+   * selecting all. Truncating the string itself was the other option; it would have hidden the part
+   * that identifies the board, which is the part a person checks with their eyes.
+   */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+
+.share-panel__field:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.share-panel__copy {
+  justify-self: start;
+  padding: 8px 14px;
+  border: 1px solid var(--ink);
+  border-radius: 8px;
+  background: var(--ink);
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.share-panel__copy:hover {
+  background: #2a303a;
+}
+
+.share-panel__copy:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Green, for a moment: the link is on the clipboard and nothing else needs saying. */
+.share-panel__tick {
+  color: #4ade80;
+}
+
+.share-panel__note {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/*
+ * Amber, not red: the clipboard refused and the panel has an answer. Red would be read as "your board
+ * is not sharing", which is the opposite of what happened — the link is on the screen, selected, and
+ * one keystroke away.
+ */
+.share-panel__manual {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 600;
+}

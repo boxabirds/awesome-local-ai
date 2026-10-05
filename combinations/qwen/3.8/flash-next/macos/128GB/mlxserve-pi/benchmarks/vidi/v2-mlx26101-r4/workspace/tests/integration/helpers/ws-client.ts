@@ -137,6 +137,30 @@ export function fetchBoard(boardId: string, init: RequestInit = {}): Promise<Res
   return SELF.fetch(request(`/api/rooms/${boardId}`, init));
 }
 
+/**
+ * Ask the Worker for a board, the way the home page does, and hand back its id.
+ *
+ * This is how a test gets a board, and it is deliberate: since a link only opens if a board was
+ * made for it, a test that invents an address and connects to it would be testing a board that
+ * does not exist. Asking the product for a board is one POST and costs nothing, so no test has an
+ * excuse to fabricate one — and the few that want an address with nothing behind it say so by
+ * calling `newBoardId()` themselves.
+ */
+export async function createBoard(): Promise<string> {
+  const response = await SELF.fetch(request('/api/boards', { method: 'POST' }));
+  const body = (await response.json().catch(() => ({}))) as { id?: unknown; error?: unknown };
+  if (response.status !== 201 || typeof body.id !== 'string') {
+    throw new Error(`creating a board gave ${response.status}: ${JSON.stringify(body)}`);
+  }
+  return body.id;
+}
+
+/** Ask the Worker whether a board exists, and hand back the status and what it said. */
+export async function checkBoard(boardId: string): Promise<{ status: number; body: Record<string, unknown> }> {
+  const response = await SELF.fetch(request(`/api/boards/${boardId}`));
+  return { status: response.status, body: (await response.json().catch(() => ({}))) as Record<string, unknown> };
+}
+
 /** Ask the Worker for a page. */
 export function fetchPath(path: string, init: RequestInit = {}): Promise<Response> {
   return SELF.fetch(request(path, init));

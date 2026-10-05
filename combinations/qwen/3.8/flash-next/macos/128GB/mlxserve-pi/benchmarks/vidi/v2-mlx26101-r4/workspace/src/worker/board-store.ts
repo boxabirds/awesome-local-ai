@@ -56,6 +56,21 @@ const SAVED_CHUNK = 'test_snapshot_chunk_saved';
 /** The row that says this board's reads are failing. Only a test writes it. */
 const POISONED = 'test_read_failure';
 
+/**
+ * The row that says a board exists.
+ *
+ * It is written once, by the one call that makes a board (`POST /api/boards`), and it is what
+ * a link is checked against. It is deliberately not the schema version: tables are the thing an
+ * object makes for itself when it needs them, and "is there a board here" cannot be answered by
+ * asking whether somebody's tables happen to exist — a board that was never created must not be
+ * able to become real by being looked at. Nor is it a timestamp anyone reads: it records when
+ * the board was made and nothing else.
+ */
+const CREATED_AT = 'created_at';
+
+/** The tables this store owns, as far as "are the tables there" is concerned. */
+const TABLES = ['storage_meta', 'updates', 'snapshot_chunks', 'quarantined_updates'] as const;
+
 /** What reading a board out of storage turned out to be. */
 export type LoadResult =
   /** The board was read; `quarantined` log rows could not be, and are logged. */
@@ -228,6 +243,17 @@ export class BoardStore {
    */
   private poisoned: StoreOperation | null = null;
 
+  /**
+   * Whether this object has made its tables yet.
+   *
+   * In memory, and in memory only: the tables outlive the object, and `CREATE TABLE IF NOT
+   * EXISTS` is cheap enough to run again after a rebuild. What it buys is that the tables are
+   * made by the first thing that *needs* them — a write, or the call that creates a board — and
+   * not by an object being constructed, which matters as soon as a board can be looked for
+   * without being created (see {@link existsReadOnly}).
+   */
+  private migrated = false;
+
   constructor(
     private readonly storage: DurableObjectStorage,
     private readonly log: Logger = () => {},
@@ -240,10 +266,10 @@ export class BoardStore {
   /**
    * The board's tables, if they are not there yet, and the schema they are at.
    *
-   * `CREATE TABLE IF NOT EXISTS` runs on every wake because it is idempotent, cheap, and
-   * the alternative is knowing which of the ways a room comes into existence has already
-   * done it. It writes no rows of its own: opening a board nobody has ever edited creates
-   * tables and nothing else.
+   * `CREATE TABLE IF NOT EXISTS` is idempotent and cheap, so `ensureMigrated` runs it once per
+   * object and lets everything after that go straight through. It writes no rows of its own:
+   * making a board's tables creates no board, and opening a board nobody has ever edited leaves
+   * the tables empty.
    *
    *   storage_meta             one or two rows: `storage_schema_version`, and
    *                            `snapshot_through_seq` — the last log row the snapshot
@@ -267,7 +293,125 @@ export class BoardStore {
       this.setMeta('storage_schema_version', String(STORAGE_SCHEMA_VERSION));
     }
     this.poisoned = (this.meta(POISONED) as StoreOperation | null) ?? null;
+    this.migrated = true;
     this.note(`migrate: schema=${this.meta('storage_schema_version')}`);
+  }
+
+  /**
+   * The tables, if this object has not made them yet.
+   *
+   * Called by everything that writes. Reading is not in that list: a read of a board whose
+   * tables are missing is a board that was never made, and `load` says so rather than making
+   * one.
+   */
+  ensureMigrated(): void {
+    if (this.migrated) return;
+    this.migrate();
+  }
+
+  /**
+   * Say that this board exists, and return whether this call is what made it exist.
+   *
+   * `false` is not an error: it means the board was already here, which is what a second click
+   * on New board, or a retried request, is expected to find. Nothing else is written, so a board
+   * cannot be reset, emptied or moved by being created twice.
+   */
+  markCreated(): boolean {
+    // The write happens outside any operation this store is "inside", so an injected failure
+    // aimed at a board's first change is aimed at that change and not at these two statements.
+    const outer = this.inside;
+    this.inside = null;
+    try {
+      this.ensureMigrated();
+      if (this.meta(CREATED_AT) !== null) return false;
+      this.setMeta(CREATED_AT, String(Date.now()));
+      this.note(`create: board made (${Date.now()})`);
+      return true;
+    } finally {
+      this.inside = outer;
+    }
+  }
+
+  /**
+   * Is there a board here?
+   *
+   * The whole of a board's access control is its link, so this question is asked on every page
+   * load and every connection, and it has to be answered without creating anything: a board that
+   * came into existence because somebody typed a wrong address would be the end of the promise
+   * that an unknown link says "Board not found".
+   *
+   * Two things count as a board. The `created_at` row is the normal one. The second is a log:
+   * boards written before there was a `created_at` row have changes in `updates` and nothing
+   * else, and a board with notes in it is a board whatever its metadata says. Nothing here
+   * writes: `sqlite_master` is read to keep the row queries below from failing on tables that
+   * were never made, and to keep a lookup at a board nobody created from making any.
+   */
+  existsReadOnly(): boolean {
+    const outer = this.inside;
+    this.inside = null;
+    try {
+      const names = this.tableNames();
+      if (names.size === 0) return false;
+      if (names.has('storage_meta') && this.meta(CREATED_AT) !== null) return true;
+      // A legacy board: changes, or a folded board, and no `created_at` row.
+      if (names.has('updates') && this.hasRows('updates')) return true;
+      if (names.has('snapshot_chunks') && this.hasRows('snapshot_chunks')) return true;
+      return false;
+    } finally {
+      this.inside = outer;
+    }
+  }
+
+  /**
+   * Which of this store's tables are actually there.
+   *
+   * Reads `sqlite_master`, which means it can be asked at any moment, including from inside an
+   * operation an injected failure is aimed at — so it steps out of that first. Housekeeping
+   * about the tables is not the thing a test is trying to break.
+   */
+  private tableNames(): Set<string> {
+    const outer = this.inside;
+    this.inside = null;
+    try {
+      const names = new Set<string>();
+      for (const row of this.exec('SELECT name FROM sqlite_master WHERE type = ?', 'table')) {
+        const name = String(row.name);
+        if ((TABLES as readonly string[]).includes(name)) names.add(name);
+      }
+      return names;
+    } finally {
+      this.inside = outer;
+    }
+  }
+
+  /** Are the tables there at all? (The first one migrate makes is the one everything needs.) */
+  private hasTables(): boolean {
+    return this.tableNames().has('storage_meta');
+  }
+
+  /** Does this table hold anything? */
+  private hasRows(table: 'updates' | 'snapshot_chunks'): boolean {
+    const row = firstRow<{ there: number }>(this.exec(`SELECT EXISTS (SELECT 1 FROM ${table}) AS there`));
+    return Number(row?.there ?? 0) === 1;
+  }
+
+  /**
+   * What this board's own storage says about its reads, read without tripping it.
+   *
+   * The marker is in the same table as everything else, and the failure it describes is raised
+   * by reads that happen *inside* the operation named in it. Looking at the marker is not such a
+   * read — hence stepping out of the operation — and it has to be looked at by anything that
+   * needs to know before it starts reading, because a poisoned board is poisoned in the storage
+   * and not in the object that happens to be holding it.
+   */
+  private readPoisonMarker(): void {
+    const outer = this.inside;
+    this.inside = null;
+    try {
+      this.poisoned = (this.meta(POISONED) as StoreOperation | null) ?? null;
+    } finally {
+      this.inside = outer;
+    }
   }
 
   // --- reading a board back -------------------------------------------------
@@ -302,6 +446,21 @@ export class BoardStore {
   }
 
   private loadInto(doc: Y.Doc): LoadResult {
+    if (!this.hasTables()) {
+      // No tables: nothing has ever been written to this board, so the board is empty — and
+      // reading it is not the thing that makes it exist. This is what a room wakes to when
+      // somebody has created a board's tables but not the board, and what a board lookup leaves
+      // behind when there was nothing to look at.
+      this.throughSeq = 0;
+      this.counters = { updates: 0, bytes: 0 };
+      this.note('load: empty board, no tables');
+      return { ok: true, quarantined: 0 };
+    }
+    // The tables are there, so the board may have a read failure written into them. It is read
+    // here rather than only in `migrate` because a load may be the first thing this object does,
+    // and a board that cannot be read has to say so on the first try and not the second.
+    this.readPoisonMarker();
+
     const snapshot = this.readSnapshot();
     if (snapshot === null) {
       this.note(`load: failed: snapshot-unreadable: ${this.damage}`);
@@ -428,6 +587,16 @@ export class BoardStore {
    */
   append(update: Uint8Array): void {
     const outer = this.inside;
+    // The tables are made by the first change that needs them. Before this row exists — and only
+    // for the first change on this object — nothing has been written, so a failure here is not
+    // the loss of a person's change and is deliberately outside the `append` an injected failure
+    // is aimed at.
+    try {
+      this.ensureMigrated();
+    } catch (error) {
+      this.appendFailed(error, update, outer);
+      throw error;
+    }
     this.inside = 'append';
     try {
       this.transaction(() => {
@@ -435,15 +604,25 @@ export class BoardStore {
       });
       this.counters = { updates: this.counters.updates + 1, bytes: this.counters.bytes + update.byteLength };
     } catch (error) {
-      const message = reasonOf(error);
-      this.failures.push({ operation: 'append', error: message });
-      // No row, so whatever that change contained exists only in the sender's document and
-      // in the memory of whoever is watching it. The room closes every socket on this.
-      this.note(`storage-failed: append: ${message} (update=${update.byteLength} bytes)`);
+      this.appendFailed(error, update, outer);
       throw error;
     } finally {
       this.inside = outer;
     }
+  }
+
+  /**
+   * A change that could not be written down. Said out loud, counted, and thrown: the room has to
+   * stop pretending the board is fine, and the only reason this is a separate method is that the
+   * tables themselves can be the thing that failed.
+   */
+  private appendFailed(error: unknown, update: Uint8Array, outer: StoreOperation | null): void {
+    this.inside = outer;
+    const message = reasonOf(error);
+    this.failures.push({ operation: 'append', error: message });
+    // No row, so whatever that change contained exists only in the sender's document and
+    // in the memory of whoever is watching it. The room closes every socket on this.
+    this.note(`storage-failed: append: ${message} (update=${update.byteLength} bytes)`);
   }
 
   /**
@@ -571,6 +750,18 @@ export class BoardStore {
   }
 
   // --- for the test hooks (TEST_HOOKS) --------------------------------------
+
+  /**
+   * Which of this store's tables are there, in the order the database lists them.
+   *
+   * This is the question "did looking for a board write one?" and there is no other way to ask
+   * it: the room's own `existsReadOnly` answers yes-or-no, and a test that wants to know that a
+   * lookup at an unknown address left the storage untouched has to see the tables. It reads
+   * `sqlite_master`, so it reports what is on disk rather than what this object believes.
+   */
+  tablesPresent(): string[] {
+    return [...this.tableNames()].sort();
+  }
 
   /**
    * Make a statement inside `operation` throw, once, after `through` of its statements have

@@ -1,7 +1,7 @@
 /**
  * Shared helpers for the story 2 component tests.
  *
- * Tests drive the real `App` with a real `Y.Doc`: the board document is read
+ * Tests drive the real board page with a real `Y.Doc`: the board document is read
  * through the test hook the app registers in test mode (so assertions are about
  * what the model holds, not about what a component happens to render), and the
  * notes are found in the DOM by the attributes the note itself publishes.
@@ -10,7 +10,8 @@ import { expect } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import * as Y from 'yjs';
 
-import { App } from '../../../src/client/App';
+import { BoardPage } from '../../../src/client/pages/BoardPage';
+import type { BoardChecker } from '../../../src/client/pages/BoardPage';
 import type { BoardConnector } from '../../../src/client/board/useBoardDoc';
 import type { Camera } from '../../../src/client/canvas/camera';
 import { cameraStore } from '../../../src/client/canvas/cameraStore';
@@ -33,8 +34,21 @@ const POINTER_ID = 1;
  */
 export const noConnection: BoardConnector = () => ({ destroy(): void {} });
 
+/**
+ * The board these tests are on. It is a well-formed id because the page it is mounted through asks
+ * whether the board exists before it shows anything; the answer is given below rather than fetched,
+ * and the id is only ever used to build the address these tests are not really visiting.
+ */
+export const BOARD_ID = 'board-under-test-00000';
+
+/**
+ * The page's question, answered, without a round trip: these tests are about a board that is already
+ * open, so the asking is not what they are testing and is not made to wait.
+ */
+export const boardExists: BoardChecker = () => ({ kind: 'exists' });
+
 export function renderBoard(connect: BoardConnector = noConnection): void {
-  render(<App connect={connect} />);
+  render(<BoardPage id={BOARD_ID} connect={connect} check={boardExists} />);
 }
 
 export function surface(): HTMLElement {

@@ -16,6 +16,7 @@ import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import {
   close,
   converge,
+  createBoard,
   createClient,
   createNote,
   fetchBoard,
@@ -36,11 +37,15 @@ describe('Worker routing', () => {
     // The namespace is the thing that would create a room for an address, so counting
     // its use is how the test knows the Worker stopped first: an address that is not a
     // board must not be able to make rooms, not even empty ones.
+    //
+    // It is a 404, and that is the whole of story 5's change to this route: an address
+    // that is nonsense and an address that leads nowhere get the same answer, because the
+    // difference between them tells a stranger whether a link was nearly right.
     const idFromName = vi.spyOn(env.BOARD_ROOM, 'idFromName');
     try {
       for (const id of BAD_IDS) {
         const response = await fetchBoard(encodeURIComponent(id), { headers: upgradeHeaders() });
-        expect(`${id}: ${response.status}`).toBe(`${id}: 400`);
+        expect(`${id}: ${response.status}`).toBe(`${id}: 404`);
         await response.text();
       }
       expect(idFromName).not.toHaveBeenCalled();
@@ -51,7 +56,7 @@ describe('Worker routing', () => {
 
   it('still connects a well-formed address (negative control for TC-04)', async () => {
     const idFromName = vi.spyOn(env.BOARD_ROOM, 'idFromName');
-    const id = newBoardId();
+    const id = await createBoard();
     try {
       const response = await fetchBoard(id, { headers: upgradeHeaders() });
       expect(response.status).toBe(101);
@@ -65,7 +70,7 @@ describe('Worker routing', () => {
   it('answers a board address that is not asking for a WebSocket with 426 (TC-05)', async () => {
     // 426 says "this only works over a WebSocket", which is true, rather than lying
     // about an address that is perfectly well formed.
-    const id = newBoardId();
+    const id = await createBoard();
     const plain = await fetchBoard(id);
     expect(plain.status).toBe(426);
     await plain.text();
@@ -73,7 +78,7 @@ describe('Worker routing', () => {
     // A request that is both a bad address and not a connection is a bad address
     // first: the Worker has to say so instead of inviting a retry.
     const bad = await fetchBoard('not-a-board-address!', { headers: upgradeHeaders() });
-    expect(bad.status).toBe(400);
+    expect(bad.status).toBe(404);
     await bad.text();
   });
 
@@ -95,7 +100,7 @@ describe('Worker routing', () => {
   it('lets more people in than the design expected, and syncs them (TC-13)', async () => {
     // MAX_CONCURRENT_EDITORS is what the board is designed and tested for, not a
     // limit; the person who turns up late is still let in and still gets the board.
-    const id = newBoardId();
+    const id = await createBoard();
     const clients: BoardClient[] = [];
     try {
       for (let index = 0; index < MAX_CONCURRENT_EDITORS + 1; index += 1) {
@@ -118,8 +123,8 @@ describe('Worker routing', () => {
   it('keeps two boards apart (TC-17)', async () => {
     // Isolation is the reason one board is one object: a person on another board must
     // not see a note, a presence state, or anything else at all.
-    const first = await connectBoard(newBoardId());
-    const second = await connectBoard(newBoardId());
+    const first = await connectBoard(await createBoard());
+    const second = await connectBoard(await createBoard());
     try {
       const notes = second.snapshot().length;
       const frames = second.log.length;

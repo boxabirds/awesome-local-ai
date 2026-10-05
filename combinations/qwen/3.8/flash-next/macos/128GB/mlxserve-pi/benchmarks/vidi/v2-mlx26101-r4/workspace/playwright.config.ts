@@ -239,7 +239,13 @@ export default defineConfig({
     // script before Playwright starts, so the camera fixture window.__vidi6 exists
     // (see design Fixtures) and so this command is wrangler itself: wrapped in
     // `npm run`, Playwright's shutdown leaves the runtime behind holding these ports.
-    command: `npx --no-install wrangler dev --ip 127.0.0.1 --port ${PORT_E2E} --inspector-port ${PORT_INSPECTOR}`,
+    //
+    // `--var TEST_HOOKS:1` mounts the room's outside-facing test routes on this runtime, for the
+    // tests that need a board with a history they cannot make by clicking (a legacy board, with
+    // notes in its log and no created row). It is given here and never written into wrangler.jsonc,
+    // for the same reason the client build is asked for in test mode: it belongs to the test run and
+    // not to the thing that gets deployed.
+    command: `npx --no-install wrangler dev --ip 127.0.0.1 --port ${PORT_E2E} --inspector-port ${PORT_INSPECTOR} --var TEST_HOOKS:1`,
     url: BASE_URL,
     timeout: 300_000,
     // Only reused when something already answers on the e2e port: the assets are read

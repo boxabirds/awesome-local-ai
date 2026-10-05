@@ -5,6 +5,7 @@ import {
   ZOOM_MAX,
   ZOOM_MIN,
 } from '../../../src/shared/config';
+import { isValidBoardId } from '../../../src/shared/board-id';
 
 /** The camera as the page reports it. */
 export interface CameraOnPage {
@@ -95,13 +96,48 @@ export function resetButton(page: Page): Locator {
 }
 
 /**
+ * Makes a board the only way a board can be made: `POST /api/boards`, the call the New board button
+ * makes, with the id chosen by the app and not by the test.
+ *
+ * This is not a convenience. Before story 5 a room would take a connection for any address and a
+ * board appeared out of the first socket, so a test could invent an id and be right; now an id that
+ * nobody created is a link to nowhere, and a helper that invented one would be testing a broken
+ * product. Taking the id from the answer is also the assertion that the app can hand out a link at
+ * all — which is the whole of story 5.
+ */
+export async function createBoardAt(baseUrl: string): Promise<string> {
+  const response = await fetch(`${baseUrl}/api/boards`, { method: 'POST' });
+  const body = await response.text();
+  if (!response.ok) {
+    throw new Error(`POST ${baseUrl}/api/boards answered ${response.status}: ${body}`);
+  }
+  const id = (JSON.parse(body) as { id?: unknown }).id;
+  if (typeof id !== 'string' || !isValidBoardId(id)) {
+    throw new Error(`the new board's id is not a board id: ${body}`);
+  }
+  return id;
+}
+
+/** Where this page is being served from, which is what a board link is built out of. */
+export async function appOrigin(page: Page): Promise<string> {
+  return page.evaluate(() => window.location.origin);
+}
+
+/**
  * Opens the app and waits until the board and its test hooks are ready.
  *
- * With no board given, the app opens its own (a new id, made by the app itself).
- * Story 3 passes an id, so that several browsers can be pointed at the same board.
+ * With no board given, the app opens its own: the home page, a board made through the app's own
+ * door, and the address that came back. Story 3 passes an id, so that several browsers can be
+ * pointed at the same board — an id that has to have been created first, which is what
+ * `createBoardAt` is for.
  */
-export async function openBoard(page: Page, boardId = ''): Promise<void> {
-  await page.goto(boardId === '' ? '/' : `/b/${boardId}`);
+export async function openBoard(page: Page, boardId?: string): Promise<void> {
+  let id = boardId;
+  if (id === undefined) {
+    await page.goto('/');
+    id = await createBoardAt(await appOrigin(page));
+  }
+  await page.goto(`/b/${id}`);
   // Checked before anything else, because every other assertion would fail with a
   // confusing message if the page being served was the production build.
   await expect

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import { App } from '../../src/client/App';
+import { BoardPage } from '../../src/client/pages/BoardPage';
 import { resetCamera, screenToWorld, type Camera } from '../../src/client/canvas/camera';
 import { cameraStore } from '../../src/client/canvas/cameraStore';
-import { noConnection } from './helpers/stickyBoard';
+import { BOARD_ID, boardExists, noConnection } from './helpers/stickyBoard';
 import {
   GRID_SPACING_WORLD,
   WHEEL_DELTA_MODE_LINES,
@@ -24,7 +24,7 @@ const POINTER_ID = 1;
 const EPS_NEAR = 9;
 
 function renderBoard(): void {
-  render(<App connect={noConnection} />);
+  render(<BoardPage id={BOARD_ID} connect={noConnection} check={boardExists} />);
 }
 
 function surface(): HTMLElement {

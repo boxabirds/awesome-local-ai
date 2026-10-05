@@ -148,3 +148,22 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 
 /** The schema `BoardStore.migrate()` brings a board's storage to. */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// ——————————————— sharing a board by link (story 5)
+
+/**
+ * How long creating a board may take, from the click on New board to the empty board
+ * on screen (share.create). It is a budget for the whole round trip, so the number
+ * that matters is the one a person waits for: one id, one write, one page.
+ */
+export const CREATE_BUDGET_MS = 2000;
+
+/** How long "Link copied" stays on the Copy link button. */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * How long the board page waits before its first retry at a board it could not check.
+ * Doubles from here up to RECONNECT_MAX_BACKOFF_MS, which is the wait the connection
+ * already uses for the same kind of patience.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

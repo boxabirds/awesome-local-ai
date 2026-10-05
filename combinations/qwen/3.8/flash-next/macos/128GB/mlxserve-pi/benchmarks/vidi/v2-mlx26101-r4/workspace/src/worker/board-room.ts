@@ -76,13 +76,13 @@ export class BoardRoom extends DurableObject<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    // SQLite-backed Durable Objects want their tables created here, synchronously, before
-    // anything else runs: a board that was never opened gets its tables the first time
-    // anybody opens it, and nothing else.
+    // The store is made here; its tables are not. They come with the first thing that needs them
+    // — the call that creates a board, or the first change written to one — because a room object
+    // is built for an address whether or not a board was ever made for it, and an address that is
+    // looked at must not become a board by being looked at.
     this.store = new BoardStore(ctx.storage, (line) => {
       console.error(`[board ${ctx.id.toString().slice(0, 8)}] ${line}`);
     });
-    this.store.migrate();
     // The board is read back before this object is allowed to do anything else, so that no
     // connection is ever answered from a document that has not been loaded yet — and so that
     // "this board could not be read" is known before the first person is told anything.
@@ -92,6 +92,34 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   // --- lifecycle -------------------------------------------------------------
+
+  /**
+   * Make this board exist, and say whether this call is what made it.
+   *
+   * This is what `POST /api/boards` calls, and the only way a board comes into the world. The id
+   * is not in here: it is in the name this object was made from, which is why two boards cannot
+   * be given the same one and why nothing about a new board has to be looked up in a table
+   * shared between them. `'exists'` is a success, not a failure — creating a board is the kind of
+   * request that gets sent twice.
+   *
+   * It is `async` because the only way into a Durable Object from outside is a call that crosses
+   * the boundary between them, and it does as little as it can: one row in this board's own
+   * storage, no list of boards anywhere.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    return this.store.markCreated() ? 'created' : 'exists';
+  }
+
+  /**
+   * Is there a board here?
+   *
+   * The question a link has to answer before it can be opened, and before a socket is accepted —
+   * see `fetch`. It reads, and writes nothing: an unknown link stays unknown however often it is
+   * asked.
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
 
   /** What a connection would be told if it asked who this room is. */
   get state(): RoomState {
@@ -254,6 +282,17 @@ export class BoardRoom extends DurableObject<Env> {
     // A test asking this board about itself, or asking it to do the thing a test cannot make
     // happen any other way. See `handleInternal`.
     if (url.pathname.startsWith('/x/')) return this.handleInternal(url, request);
+
+    // There is no board here. The room is the one place that can tell, because the room *is* the
+    // board's storage, and it says so before it accepts anything: a socket opened against a link
+    // that leads nowhere has to fail, because the alternative is a connection to an empty board —
+    // which is how a mistyped link becomes a real board that quietly keeps whatever its author
+    // types into it. This is the answer a browser cannot read a status from (a refused WebSocket
+    // handshake is just a failure), so the number is for the client's own check and for the tests
+    // that ask the question directly.
+    if (!this.store.existsReadOnly()) {
+      return Response.json({ error: 'not_found' }, { status: 404 });
+    }
 
     const upgrade = request.headers.get('Upgrade');
     if (upgrade === null || upgrade.toLowerCase() !== 'websocket') {

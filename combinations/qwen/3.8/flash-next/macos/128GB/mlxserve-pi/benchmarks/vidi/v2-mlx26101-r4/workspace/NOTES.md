@@ -362,3 +362,191 @@ changes, every one of them arriving on all four other screens, and the report re
 `p50 137 ms · p95 439 ms · max 547 ms` against the 1000 ms budget, 0 over. The report is
 printed and not asserted: the browser, the model and the room all share one machine here,
 and a nightly that fails because the machine got busy is a nightly nobody reads.
+
+## Story 5: a board is made by asking, not by connecting
+
+`POST /api/boards` picks an id and initialises the board's Durable Object with one RPC
+(`stub.initialize()`), and returns 201 with the id. There is no retry loop: the design's
+call is that a 128-bit collision is not a practical event, and an `initialize()` that
+answers `exists` for a freshly drawn id is a fault — it comes back 500 `create_failed`
+rather than quietly drawing another id, because a creation that had to try twice is not
+something a caller should be told succeeded.
+
+Existence is answered by the room, and asking must not create:
+
+- `migrate()` no longer runs when the object is constructed. workerd may construct a
+  Durable Object to answer any request, and an object that builds its tables on the way
+  in makes every lookup a write. The tables now arrive either from `markCreated()` (a
+  board being made) or from the first `append()` (a board being used).
+- `existsReadOnly()` reads `sqlite_master` first: no tables, nothing to look in, false.
+  Only then does it ask for `created_at`, and then for any row in `updates` or
+  `snapshot_chunks` — the legacy rule, so that a link to a board whose notes predate the
+  created row still opens. `src/worker/test-seed.ts` writes one update per note, so a
+  seeded board has rows and counts.
+- `BoardRoom.fetch` refuses a board nobody made with 404 before it will accept a socket,
+  which is a deliberate change to story 3: a room is no longer created by connecting to
+  it. Every e2e helper that opens a board now creates one first (`openBoard`,
+  `openParticipants`, and `createBoardAt` in `helpers/board.ts`, which is what
+  persistence.spec.ts uses for the same reason).
+- `/api/rooms/:id` still answers 426 to a request that does not upgrade, which is story
+  3's contract and stays. The consequence for TC-27 is worth writing down: no HTTP
+  client is permitted to send an `Upgrade` header, so a browser-driven test cannot see
+  the 404 at that address at all — it sees 426 for every well-formed id, known or not.
+  The claim "a socket to a link nobody made is turned away and leaves nothing behind" is
+  TC-09's, in the integration test, where `runInDurableObject` can look at
+  `sqlite_master` and see that no tables exist.
+
+`--var TEST_HOOKS:1` is now on the suite's own `webServer` command in
+`playwright.config.ts`, because TC-31 needs a board whose storage was written by
+something other than the app (a legacy board: rows in `updates`, no `created_at`). It is
+given on the command line and never written into `wrangler.jsonc`, on the same principle
+as building the client with `--mode test`: it belongs to the run, not to the deployment.
+
+## Story 5: what the board page has to be able to say
+
+`src/client/pages/state.ts` is a pure function from (state, answer) to state, and the
+retry schedule is tested against a fake clock — the 1 s/2 s/4 s… up to
+`BOARD_CHECK_RETRY_MAX_MS` sequence and the "Attempt 3 · next try in 4 s" footnote are
+component assertions, not waits.
+
+Two places where the code is not what design.md's types say, both deliberate:
+
+- **Every page state carries the board id.** design.md's `BoardPageState` variants omit
+  it. A state that cannot say which board it is about cannot reject a late answer about
+  a board the person has left, and `nextBoardPageState` cannot produce a `ready` state
+  without knowing the id.
+- **The checker may answer synchronously.** `BoardChecker` returns
+  `CheckResponse | Promise<CheckResponse>`; the page applies a synchronous answer inside
+  the same effect, so the board is on screen before the test's next statement. The
+  production checker (`api.checkBoard`) always returns a promise, so a real person still
+  sees "Opening board…" for one round trip. Without the synchronous path, the 103
+  component tests that story 3 and 4 wrote for a board that is already open would each
+  have had to await an answer they supplied themselves.
+- A checker that throws, or rejects, is `unreachable` — a service that did not answer is
+  the same fact from the page's side whichever way it failed. The api module is written
+  never to throw; the page refuses to rely on that, because the worst failure these two
+  screens can have is to sit there waiting forever for an answer that already arrived as
+  an exception.
+- Malformed ids are never asked about: the router hands the raw path segment to the page
+  and the page applies `isValidBoardId`, so `/b/abc` reaches "Board not found" without a
+  request (TC-19).
+
+## Story 5: the link field was wider than the panel holding it
+
+Reported by sight: the read-only field had no visible boundary and the address ran out
+past the panel's right edge, off the screen. Two separate things were doing it, both in
+`src/client/styles.css`:
+
+- `.share-panel__field` had `width: 100%` **and** `padding: 8px 10px` **and** a 1px
+  border, with no `box-sizing` — this stylesheet does box-sizing per selector (see
+  `.sticky-note`), it has no global rule. So the field was 22px wider than the space it
+  was given.
+- The panel was a grid with a default `auto` column, and a grid track's automatic
+  minimum is its item's min-content width, which for a text input is the width its
+  contents want. A board link is origin + `/b/` + 22 characters, so the column — and with
+  it the panel — grew past the `width: 320px` the panel had been given, and the end of the
+  field hung outside the panel and off the window.
+
+The panel is now `box-sizing: border-box`, `width: min(360px, calc(100vw - 24px))` with a
+single `minmax(0, 1fr)` column, and the field is `box-sizing: border-box; min-width: 0`
+on `var(--panel-hover)` so it reads as a field on a white panel. A link longer than the
+field is clipped inside the field with an ellipsis (`white-space: nowrap; overflow:
+hidden; text-overflow: ellipsis`); the value is complete, selecting selects the whole
+address, which is what the manual-copy state needs. The alternative — truncating the
+string — hides the board id, which is the part a person checks with their eyes.
+
+Why no test saw it: **jsdom performs no layout.** `toBeVisible()` there means "not
+`display: none`", and a box that overflows its parent is a layout fact. The assertion
+lives in TC-26 (`expectFieldInsidePanel` in `tests/e2e/share.spec.ts`), comparing
+`boundingBox()` of the panel, the field and the window — the only place in the repository
+where anything measures where a thing is drawn. `.page__card` got the same box-sizing for
+the same reason.
+
+## Story 5: two bugs in story 4's own tests
+
+Both surfaced only because story 5 made the e2e suite run end to end.
+
+- `persistence.spec.ts` spelled the colour list `['yellow','blue','green','pink',
+  'orange','purple']` and built swatch locators from it. The palette key is `violet`, and
+  `NoteToolbar`'s accessible name is `labelOf(name) + ' colour'` — so the sixth note's
+  colour click waited 20 seconds for a button that does not exist. The list now comes
+  from `STICKY_COLORS` itself: one source for the name in the app and the name in the
+  test. This is the failure mode of writing accessible names out twice.
+- The same file read a `Response` twice — `expect(res.ok, \`… ${await res.text()}\`)`
+  followed by `await res.json()` — which node answers with "Body is unusable: Body has
+  already been read". The failure message ate the body the assertion needed. Read once
+  into a string, then assert, then parse.
+
+## Story 5: what this machine would not let me check (story 4's restart tests)
+
+TC-19 and TC-20 (`@persist`) fail on this machine at the same place: `stop()` in
+`tests/e2e/helpers/wrangler-process.ts`, whose job is to prove the runtime really went
+away before a "restart" is allowed to be reported. The message now says what was
+observed:
+
+> the runtime on port 22890 is still answering after being stopped … **no signal was
+> refused**
+
+That last clause is the finding. SIGTERM to the process group, and SIGKILL to it as well,
+are both accepted by the kernel, the wrapper exits, and something goes on answering HTTP
+on that port for as long as I watched it. The runtime process belongs to `wrangler dev`,
+not to the group this file can reach; and this sandbox refuses the tools that would let
+anything be done about it — `ps` and `pkill` fail with "Operation not permitted"/"sysmond
+service not found", and `lsof` cannot list processes, so the surviving process cannot be
+found, let alone finished.
+
+What I established, and what I changed:
+
+- Outside Playwright's runner the same helper shuts its runtime down cleanly (started a
+  runtime, opened the board in two browsers, made notes, closed the contexts, signalled
+  the group: port released within a second). So it is not `wrangler dev` on this machine
+  in general — it is the runtime as started from inside the test runner, which had been
+  talking to browsers.
+- Plausible mechanism, untested here: workerd's shutdown waits for connections to drain,
+  and a browser-side socket that the browser process has not finished closing keeps it
+  waiting. The room already reports `connections` on `/__test/boards/<id>/stats`, so a
+  test could wait for that to reach 0 before stopping. Could not try it: see the port
+  note below.
+- Kept, because they are improvements whether or not the shutdown problem is solved: the
+  runtime is spawned as `node node_modules/wrangler/bin/wrangler.js` rather than through
+  `npx` (one wrapper fewer, and no npm resolution per start), refused signals are
+  reported instead of swallowed, and SIGKILL to the group is sent unconditionally rather
+  than only when the wrapper seems to be stuck — a wrapper that has exited is not
+  evidence about the process it was running.
+- Not kept: a SIGINT-first path (ask `wrangler` to quit the way a terminal does). I could
+  not verify it here, and an unverified change to a helper whose whole purpose is not to
+  lie is worse than no change.
+
+TC-21, the third `@persist` test, passes: 2000 notes, connected and loaded in 25 ms, all
+of them painted in 98 ms against a 3000 ms budget (reported, not asserted). It is the one
+that never needs a restart.
+
+**The range has since run out.** Each refused stop leaves a runtime holding its port, and
+after several runs 22880, 22884, 22886, 22888, 22890 and 22894 were answering with their
+inspectors on the odd ports — seven of the eight pairs in the allocation (see the Ports
+note). `startRuntime` then fails with "no free port pair in 22880-22895 for a second
+runtime", which is the proximate error today, and a machine restart (or a session where
+process tools work) is what reclaims them. The shape of the real fix belongs to story
+4's harness: own the runtime as a process the harness can shut down *by construction* — a
+small supervisor that spawns wrangler as its own child and is told over a pipe to kill its
+child and report the port free — or run the test's runtime in-process on miniflare, the
+way `tests/integration` already does, where "the next day" is `dispose()` followed by a
+new miniflare over the same `persistTo`. Either way the guarantee that has to survive is
+the one already in that file: a restart is reported only when the port says the old
+runtime is gone.
+
+## Story 5: numbers
+
+Measured on this machine, chromium, one machine running the browser, the model and the
+room at once. Logged against their budgets and not asserted on (the reason in the
+story 3 nightly note).
+
+- Home page click to a board you can work on: **189 / 241 / 242 ms** against
+  `CREATE_BUDGET_MS` 2000 — that is a `POST /api/boards`, an RPC into the object, its
+  tables being made, the response, the route change, the existence check and the socket.
+- Second person's join to first note: **3 ms**; their edit back to the first screen:
+  **167-201 ms**.
+- Legacy board (storage written by the seeder): notes on screen in **5-6 ms**.
+- Suites as this story left them: 124 unit, 126 component, 66 integration, and 84 e2e in
+  Chromium and WebKit (Firefox does not start here, see the Firefox note) — plus TC-21,
+  and TC-19/TC-20 which this machine will not run, above.
