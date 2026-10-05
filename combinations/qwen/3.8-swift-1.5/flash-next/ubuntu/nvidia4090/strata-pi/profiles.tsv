@@ -1,0 +1,14 @@
+# name|ctx|min_vram_mib|need_vram_mib|need_ram_mib|basis|summary
+#
+# ESTIMATED, not measured: nothing of this combination has been run yet. Swift 1.5 is the same architecture as
+# Qwen3.8-Flash-Next in the same GSQ-RCO size, and its two shards come to 76.0 GB against the original's 75.8 GB,
+# so its memory should be the original's within a little. These figures are therefore the original's, carried over
+# from combinations/qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi/profiles.tsv, and are to be replaced with this
+# combination's own measurements after its first run. Until then no figure here is ours.
+#
+# min_vram_mib is the FLOOR the launcher gates on: the least free VRAM the profile has been seen to start and serve
+# the full context at. Strata sizes its hot-expert cache to what is free (--expert-cache auto), so it runs with a
+# smaller cache rather than failing, and the peak is never a precondition (A-045). 16,000 was measured on this card
+# for the original at this quant on 5 Oct 2026; the architecture and size are the same here.
+agent|131072|16000|23955|44800|ESTIMATED|default; the benchmark's full context; MTP drafts on; KV cache int8
+short|65536|16000|23955|44800|ESTIMATED|half the context: same weights, so the same memory; for a quick interactive session
