@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2026-09-17",
+  // Assets-only for now: `wrangler dev` serves the built client. Story 3 adds a
+  // Worker (main) and with it an assets binding.
+  "assets": {
+    "directory": "./dist/client"
+  }
+}

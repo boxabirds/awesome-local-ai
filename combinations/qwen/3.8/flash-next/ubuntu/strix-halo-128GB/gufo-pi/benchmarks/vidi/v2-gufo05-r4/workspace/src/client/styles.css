@@ -1,0 +1,150 @@
+:root {
+  --board-background: #ffffff;
+  --grid-dot: #c7ccd6;
+  --origin-marker: #98a2b3;
+  --ink: #16181d;
+  --ink-muted: #5b6373;
+  --panel: #ffffff;
+  --panel-border: #d8dce4;
+  --panel-shadow: 0 1px 2px rgba(22, 24, 29, 0.12), 0 4px 12px rgba(22, 24, 29, 0.08);
+  --focus-ring: 2px solid #2f6feb;
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--board-background);
+}
+
+/* The board area fills the window; the camera is measured against it. */
+.board-area {
+  position: fixed;
+  inset: 0;
+  background: var(--board-background);
+}
+
+/* Input surface with the dot grid, which scrolls and scales with the camera. */
+.vidi6-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: default;
+  /* The board owns pinch and scroll; the browser must not zoom the page. */
+  touch-action: none;
+  background-repeat: repeat;
+}
+
+.vidi6-viewport[data-interaction='panning'] {
+  cursor: grabbing;
+}
+
+/* Board content lives in world coordinates; the CSS transform places it. */
+.vidi6-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+
+.vidi6-world > * {
+  pointer-events: auto;
+}
+
+/* The board's starting point: a faint crosshair, constant size on screen. */
+.vidi6-origin-marker {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  opacity: 0.45;
+  background-image: linear-gradient(var(--origin-marker), var(--origin-marker)),
+    linear-gradient(var(--origin-marker), var(--origin-marker));
+  background-size: 1px 100%, 100% 1px;
+  background-position: center, center;
+  background-repeat: no-repeat;
+}
+
+/* Bottom-right zoom control. */
+.vidi6-zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+}
+
+.vidi6-zoom-controls button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vidi6-zoom-controls button:hover:not(:disabled) {
+  background: #f1f3f7;
+}
+
+.vidi6-zoom-controls button:disabled {
+  color: #a7aebc;
+  cursor: default;
+}
+
+.vidi6-zoom-controls button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.vidi6-zoom-percent {
+  min-width: 48px;
+  text-align: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+.vidi6-zoom-reset {
+  font-size: 13px !important;
+}
+
+/* First-use hint, near the bottom centre. */
+.vidi6-navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+  color: var(--ink-muted);
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}
