@@ -904,3 +904,161 @@ the design asked for.
   And the words of a heading are read out of its text layer, not out of the object element,
   because a selected heading carries its toolbar as a child and `S M L XL` are not words
   anybody typed.
+
+## Story 10: where the files are, against what the design named
+
+The design's `src/client/board/useTool.ts` is gone, and deliberately so. Story 9 grew that file to hold one
+tool; story 10 needs three that have to agree with each other — the Connector tool has to hand the arrow it
+just made to the selection and step aside, the Shape tool has to remember which kind it last drew, and Escape
+has to mean "stop meaning that" and nothing else while any of them is armed. Two hooks each holding their own
+idea of the current tool is two answers to one question, and the moment they disagree the toolbar says Select
+while the board is still drawing diamonds. The one answer is `src/client/tools/useActiveTool.ts`. Its
+`ToolId` is the whole cross-story union (`select sticky text shape connector pen image comment`) so adding the
+pen later renames nothing; `ARMABLE_TOOLS` is the four this build can actually put the pointer in;
+`TOOL_SHORTCUTS` is the letter map, exported as a map rather than a switch because the tooltips read their own
+text out of it and a tooltip that disagrees with a shortcut is the bug this file exists to prevent. `sticky`
+has a letter and no mode on purpose: making a note is an action the board already answers on `N`, and a mode
+that then waited for a click would be two gestures for one object. `pen`, `image` and `comment` leave their
+letters alone — unclaimed rather than armed with a cursor that draws nothing.
+
+The objects and their toolbars are where the design says (`src/client/objects/`); the tools themselves, and
+`toolOverlay.ts` which holds the sheet they stand on and the one screen-to-board conversion they share, are in
+`src/client/tools/`. A second file subtracting the window's own position from a client coordinate is a second
+file that puts shapes a handful of pixels from where the pointer was, so there is one.
+
+Escape is answered by the tool first, and stops there, because the tool's listener is registered on `window`
+before the board's own shortcut handler: a person who backs out of a tool has said nothing about what is
+selected, and clearing the selection behind the tool would be one keypress meaning two things. `N` is
+explicitly *not* stopped for the same reason in reverse — a note is a command, not a mode, and it belongs to
+the board. While the focus is in any textarea (a note's, a piece of text's, a shape's label) no shortcut runs
+at all: every key there is a character.
+
+## Story 10: an object whose box is derived, and what that costs the document model
+
+An arrow does not store where it is. It stores which two objects it joins, and where each end should be drawn
+if the object on it stops existing; its box is wherever those two objects happen to be. That is not a detail
+of drawing, it is the whole mechanism of "the arrows follow when things move" — a box that is recalculated on
+every read cannot be out of date, while a box that five clients each write down can be, and story 3's contract
+is that clients write down their own answers.
+
+So `board-model.ts` grew one registration instead of a per-type comparison: `registerObjectReader(type, {
+box?, fields? })`. Three things follow from registering: every snapshot of that type carries the derived box
+rather than stored numbers, the snapshot carries whatever extra fields the type asked to be read with (an
+arrow's two ends, a shape's label), and the type cannot be moved or resized by writing numbers into it —
+`moveObjects` and `resizeObjects` skip it. An arrow you could drag by its body would have a stored position
+nobody draws and a drawn position nobody stores, and the two would drift apart inside somebody's undo history.
+`snapshot()` is now two passes for exactly this reason: first the boxes of everything that keeps its own, then
+each object read against those boxes — a type that had to look up the boxes around it itself would reread the
+whole document once per object, on every frame of a drag. A derived box that cannot be derived (an arrow whose
+ends cannot be read) drops the object from the report rather than reporting the zeroes it stores.
+
+Two things that were already there turned out to be in the way, and both were wrong in ways that only a
+second object type exposes:
+
+- `objectBounds` gives an object with no stored size the sticky note's default size. For a note written before
+  sizes were stored that is right; for an arrow drawn perfectly level it is not — a level arrow has *no*
+  height, and inventing two hundred units of it draws a selection box around space nobody painted in. Derived
+  box types are now left with what they actually have.
+- The extra fields a type registers were read *after* the "this type has no box resolver" early return, so a
+  type that describes itself without deriving its box — a shape, which keeps its own box and merely wants its
+  label reported — got nothing at all. The fields are read before that branch now, and applied either way.
+
+`registerDeleteListener` is the other half: it is called from *inside* `deleteObjects`' own transaction and
+*before* the objects are removed, which is what lets an arrow attached to a deleted shape be pinned to the
+place that shape's side was while the shape is still there to be asked, in the same transaction as the delete.
+One undo press therefore brings the shape back with its arrows still attached, with no half-state in between
+where the arrow is detached and the shape is not there. A listener with nothing to say opens no transaction of
+its own, which is the same rule the rest of the model follows: no write that changes nothing.
+
+## Story 10: the arrow follows a shape because it is drawn, not because it is written
+
+TC-25's central assertion is the opposite of the one you would reach for. After Sam drags the second shape
+clean past the first one, the test asserts that the arrow's own record is **unchanged** — same ends, same
+author, same place in the stack — while the box it is painted in has moved to the other side of the shape that
+moved. A test that asserted the stored ends had changed would be asserting a bug: it would mean some client
+had decided, and written down, where an arrow ought to point.
+
+Which side of a shape an end lands on is `nearestSide`: the direction from the box's centre to the other end
+is compared against the box's own diagonals (`|dy| * width` against `|dx| * height`), so a square switches at
+exactly 45° and a wide box switches earlier, because a wide box has more left and right side to attach to. A
+tie goes to the horizontal wedge, and the tie has to be broken somewhere. The two ends are resolved against
+each other — the side of A that faces B depends on where B is, and where B is drawn depends on which side of A
+was chosen — so each end is *seeded* with the other end's object **centre as it is now**, not with the point
+stored in the arrow, which is a record of where the arrow was attached and can be years out of date. One pass
+from those seeds settles it, identically on every screen, because centres are in the document.
+
+## Story 10: the hit test, and the tolerance that is not measured in board units
+
+An arrow is asked "is the pointer on me" with `distanceToPolyline(ends, point) <=
+CONNECTOR_HIT_TOLERANCE_PX / zoom`: points first, as the design has it, and *no* stroke-width term added. The
+line is two board units wide, which at zoom 0.2 is four tenths of a pixel, so the usual "exact plus half the
+stroke" formula would be a 6 px tolerance wearing a disguise — one that grows with the board and shrinks when
+somebody zooms in, which is backwards. The tolerance divides by the zoom because it is a distance a person's
+pointer is measured in, and it stays six pixels on screen at every zoom. `distanceToPolyline` answers `Infinity`
+for fewer than two points, never `0`: zero would mean an arrow that lost one of its ends is selectable from
+anywhere on the board.
+
+## Story 10: labels are a `div`, and `foreignObject` was not used
+
+A shape's words are an HTML `div` laid over the shape's SVG, centred with `display: grid; place-items: center`
+and `text-align: center`, wrapping with `white-space: pre-wrap; overflow-wrap: anywhere`, inside a drawing layer
+whose own `overflow` is `hidden`. `foreignObject` was not used because it is a place where three engines do
+three different things with text measuring and clipping, and the claim being made here — "the words wrap inside
+the shape and stay centred" — has to be a claim a jsdom component test, a Chromium e2e and a WebKit e2e can all
+answer the same way. A label that outgrows its shape is clipped at the bottom, which is what the design asks for
+and what the e2e therefore measures: only a word that sticks out *sideways* is a wrapping failure, because
+clipping at the bottom is the design, while a word past the left or right edge means the words did not wrap.
+The measurement is done one word at a time with a `Range` per word, because a `Range` over a whole label reports
+rectangles for trailing spaces — which is a rectangle that starts where the last word ended and goes past it,
+and a test that measured a label that way once reported a centring failure that was a space.
+
+## Story 10: an end drag that could not use its own rectangle
+
+`ConnectorObject`'s end drag works out where the pointer is by remembering the pointer's own client position
+when the button went down and adding the movement divided by the zoom. It does not ask the element where it
+is, because this element's rectangle is derived from the ends — including the end being dragged. Reading the
+origin from a box that is a function of the number you are computing is a feedback loop: the drag moves the
+end, the end moves the box, the box moves the origin, and the origin moves the end. The same reason explains
+why an arrow's own body is hit-tested with the shared distance function against the resolved ends rather than
+against a bounding box: the bounding box of a level arrow is a line, and the bounding box of a diagonal arrow
+is a rectangle mostly full of empty board.
+
+## Story 10: two races, forced rather than timed
+
+TC-26 waits for a delete to arrive while an arrow is attached to the shape being deleted; TC-27 needs the
+delete to land *while the pointer is held down over that shape*. There is no way for Playwright to get between
+the page and its WebSocket — the harness has no hook into the provider, and intercepting the socket would mean
+rewriting the app's transport inside a test. So TC-27 holds the mouse down on an arrow's end, over the shape,
+and deletes that shape on the other person's page, then lets go. The overlap is exactly the one the design
+describes and it does not depend on how busy the machine happens to be. The latency measurement is stamped at
+the moment the pointer comes up, which is the moment the board is told, so the number in the report is about
+the change and not about the round trip of the test.
+
+## Story 10: a convergence check that could not see arrows
+
+`BoardSnapshot` in `tests/e2e/helpers/participants.ts` held notes and their painted boxes, and nothing else.
+Once shapes and arrows are in the document, five pages could disagree about every arrow on the board and
+`expectConverged` would have reported them identical. It carries shapes and arrows now — document state only:
+where a thing is *painted* depends on where that person is looking, which stays each page's own business. That
+comparison is what makes TC-25, TC-26 and TC-27 say something: the claim "the arrow holds the same ends on both
+screens without having been written" is a claim about two pages' documents being equal.
+
+## Story 10: numbers
+
+- **308 unit** (67 new: 25 shape model, 42 connector model and geometry), **258 component** (49 new: 16 shape
+  tool, 21 connector object and tool, 12 active tool), **66 integration** (untouched), **158 e2e passing in
+  Chromium and WebKit** (7 of them this story's: TC-23, TC-23b, TC-24, TC-25, TC-26, TC-27, and one that draws
+  a whole flow and then checks that nothing else was disturbed).
+- Latency, on this machine with the browser, the model and the room all sharing it, reported against
+  `LIVE_UPDATE_LATENCY_BUDGET_MS` (1000 ms) and not asserted on: an arrow following a shape a colleague dragged
+  agreed on both screens in **15–25 ms**; an arrow outliving a shape a colleague deleted, **130 ms**; the
+  held-pointer delete race, **42 ms**.
+- `npm run typecheck` and `npm run build` are clean. The one e2e failure is TC-19 (`@persist`), which fails
+  identically with this story stashed away and the tree clean — this sandbox cannot stop a spawned runtime (the
+  story 4 and story 5 write-ups above), with TC-20 and TC-21 sitting behind it. Firefox still does not start
+  here, so WebKit carries that half; both browsers that do start run all 7 of this story's e2e cases.
+- Three helpers in `tests/e2e/helpers/shapes.ts` say what a browser makes hard: `arrowHeadMiss` pulls the aim
+  back by half an arrowhead, because an arrow is drawn with its line stopped short so that its *point* lands on
+  the aim rather than the middle of the triangle sitting on it; `shapeWords` measures words rather than labels;
+  and `arrowHeadSide` answers which side of a shape a head is painted on using the shape's own proportions, so
+  the assertion is about the side and not about a pixel threshold somebody chose to make the test pass.

@@ -20,7 +20,7 @@
  * a sharing control that shows a different address than the one being looked at is a bug waiting to
  * send somebody to the wrong board.
  */
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { JSX } from 'react';
 import type * as Y from 'yjs';
 
@@ -35,6 +35,7 @@ import type { Point } from '../canvas/camera';
 import { useCamera, useViewportSize } from '../canvas/useCamera';
 import { createSticky, deleteObjects, NO_ID } from '../../shared/board-model';
 import { createText } from '../../shared/objects/text';
+import { attachableRects } from '../../shared/objects/connector';
 import { isValidBoardId } from '../../shared/board-id';
 import { useBoardDoc } from '../board/useBoardDoc';
 import type { BoardConnector } from '../board/useBoardDoc';
@@ -46,7 +47,9 @@ import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { useSelection } from '../board/useSelection';
-import { useTool } from '../board/useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -294,17 +297,26 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
   const boundary = undo.boundary;
 
   /**
-   * The pointer's tool: Select, or Text.
+   * The pointer's tool: Select, Text, Shape or Connector — one hook holding one answer.
    *
-   * Taken apart here rather than carried as one object, because the three functions in it are stable and
-   * the object around them is not — a callback that depends on `tool` would be remade every render, and
-   * every board gesture handler that depends on it would be remade with it, for no reason at all.
+   * Taken apart here rather than carried as one object, because the functions in it are stable and the
+   * object around them is not — a callback that depended on `tool` would be remade every render, and every
+   * board gesture handler that depended on it would be remade with it, for no reason at all.
    *
-   * This hook is called *before* `useBoardKeys` below, and that order is the whole of how Escape means one
-   * thing rather than two while the text tool is armed: two listeners on the same window, and the one
-   * registered first is the one that gets to answer first.
+   * `toolCreated` is what a tool calls when it has made something: the new object becomes the selection and
+   * the tool goes back to Select, which is the same thing a double-clicked note does to itself and the reason
+   * the board does not go on drawing at every click after the one shape somebody asked for. Passing
+   * `selection.click` in rather than letting the tool reach for the selection is what keeps a tool testable
+   * on its own — and what keeps one object, the selection, being changed by one owner.
+   *
+   * This hook is called *before* `useBoardKeys` below, and that order is the whole of how Escape and `S` mean
+   * one thing rather than two while a tool is armed: two listeners on the same window, and the one registered
+   * first is the one that gets to answer first.
    */
-  const { tool, selectTool, textTool, usedTextTool } = useTool(editable);
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
+    canEdit: editable,
+    select: selection.click,
+  });
 
   /** The bin on the selection bar: everything selected at once, and the selection let go afterwards. */
   const deleteSelection = useCallback((): void => {
@@ -372,7 +384,8 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
   const createTextAt = useCallback(
     (world: Point): void => {
       if (!editable) return;
-      usedTextTool();
+      // The tool steps aside before the text is made, not after: see the note on `createTextAt`.
+      setTool('select');
       // One creation, one step: the same reason as for a note, and the same shape — a boundary at each end,
       // so the text and the first words typed into it are not one undo.
       boundary();
@@ -380,14 +393,37 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
       // A point that is not a point — a camera that has gone wrong somewhere — creates nothing, and leaves
       // no selection behind it either.
       if (textId !== null) {
-        selection.click(textId);
+        toolCreated(textId);
         selection.startEdit(textId);
       }
       boundary();
     },
-    [boundary, doc, editable, selection, usedTextTool],
+    [boundary, doc, editable, selection, setTool, toolCreated],
   );
 
+  /**
+   * The boxes of everything that has a surface, once per render of the board.
+   *
+   * An arrow's two ends live on other objects, so every arrow needs to know where the objects are — and an
+   * arrow that went and read the document to find out would read the whole board once per arrow, on every
+   * frame of every drag. The board has already read them, so the answer is handed down and one pass is made
+   * instead of one per object.
+   */
+  const rects = useMemo(() => attachableRects(notes), [notes]);
+
+  /**
+   * The sheet the armed tool draws on, or nothing.
+   *
+   * Only one tool at a time has a sheet, and the two that have one are not rendered at all otherwise: a tool
+   * that is not armed should not be in the tree, because a component that is mounted and idle is a component
+   * that can be wrong, and this one's job is to hold the pointer.
+   */
+  const toolOverlay =
+    tool === 'shape' ? (
+      <ShapeTool doc={doc} kind={shapeKind} camera={camera} onCreated={toolCreated} />
+    ) : tool === 'connector' ? (
+      <ConnectorTool doc={doc} objects={notes} camera={camera} onCreated={toolCreated} />
+    ) : null;
 
   /** The drag: what a press on an object, or on a handle, does to the board. */
   const gesture = useTransformGesture({
@@ -419,8 +455,20 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
       <Toolbar
         onCreateSticky={createStickyInCentre}
         tool={tool}
-        onSelectTool={selectTool}
-        onTextTool={textTool}
+        onSelectTool={() => {
+          setTool('select');
+        }}
+        onTextTool={() => {
+          setTool('text');
+        }}
+        onShapeTool={() => {
+          setTool('shape');
+        }}
+        onConnectorTool={() => {
+          setTool('connector');
+        }}
+        shapeKind={shapeKind}
+        onShapeKind={setShapeKind}
         disabled={!editable}
         undo={undoButtons}
       />
@@ -429,6 +477,8 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
         onClearSelection={selection.clear}
         marqueeActive={marquee.active}
         textTool={tool === 'text'}
+        activeTool={tool}
+        toolOverlay={toolOverlay}
         onCreateTextAt={createTextAt}
         onMarqueeBegin={(event) => {
           marquee.begin({ x: event.clientX, y: event.clientY }, event.pointerId);
@@ -444,6 +494,7 @@ function Board({ boardId, connect }: { boardId: string; connect: BoardConnector 
               object={object}
               doc={doc}
               zoom={camera.zoom}
+              rects={rects}
               selected={selection.ids.has(object.id)}
               selectedCount={selection.count}
               editing={selection.editingId === object.id}

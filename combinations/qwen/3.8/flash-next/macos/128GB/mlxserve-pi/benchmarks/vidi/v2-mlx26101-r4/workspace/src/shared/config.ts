@@ -301,3 +301,158 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * undo.session_only).
  */
 export const UNDO_MAX_STEPS = 200;
+
+// ——————————————— drawing shapes (story 10)
+
+/**
+ * The three kinds of shape the board draws, in the order the Shape menu offers them.
+ *
+ * The kind is stored as this key, never as a component: a board holds "diamond", and which component
+ * paints a diamond is the registry's business. There is no way to change a kind after creation, which is
+ * why there is no code anywhere that rewrites this field.
+ */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** Whether a name is one of the three kinds the board knows how to draw. */
+export function isShapeKind(value: unknown): value is ShapeKind {
+  return typeof value === 'string' && (SHAPE_KINDS as readonly string[]).includes(value);
+}
+
+/**
+ * The size of a shape that was clicked rather than dragged, in world units.
+ *
+ * A click says *a shape goes here* and says nothing about how big it is, so the board answers with the
+ * size a shape is born with — big enough to type a label into, small enough to fit four on a screen.
+ */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/**
+ * The shortest side a dragged shape may be, in world units.
+ *
+ * Below this a drag is a click that wobbled: rather than draw a shape the size of a period, the board
+ * drops a standard one where the pointer landed. Exactly this size is kept, because a person who dragged
+ * that far dragged on purpose.
+ */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** Longest label a shape accepts; characters beyond it are dropped as they are typed or pasted. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** How thick a shape's outline is, in world units, so it scales with the board like everything else. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/**
+ * The seven fills a shape may wear, keyed by the name the swatch carries.
+ *
+ * `none` is a colour like any other as far as the document is concerned — it stores the word `none` — and
+ * draws as nothing at all, which is what a shape with no fill is: an outline, with the board showing
+ * through it.
+ */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** The six colours a shape's outline may be drawn in. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** The fill a new shape is born with, and the one an unknown stored name falls back to. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+
+/** The outline a new shape is born with, and the one an unknown stored name falls back to. */
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+/** The label is drawn this many world units inside the shape's box, so letters never touch the outline. */
+export const SHAPE_LABEL_PADDING_WORLD = 8;
+
+/**
+ * Whether a name is one of the fills the board can paint.
+ *
+ * A name from somewhere else is refused rather than guessed at: an unknown colour is not a colour a
+ * person chose, and writing it into a shared document would put something on five screens that nobody on
+ * any of them asked for.
+ */
+export function isFillColor(value: unknown): value is FillColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_FILL_COLORS, value);
+}
+
+/** Whether a name is one of the outline colours the board offers. */
+export function isStrokeColor(value: unknown): value is StrokeColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_STROKE_COLORS, value);
+}
+
+// ——————————————— connecting objects with arrows (story 10)
+
+/**
+ * The shortest arrow the board will draw, in world units (connector.no_accidental).
+ *
+ * A drag shorter than this is a click that wobbled, and an arrow the length of a cursor is not a
+ * relationship between two things — it is a smudge. The board refuses it rather than leaving a person to
+ * undo forty of them. Measured in board units, not pixels, because two people looking at the same board at
+ * different zoom levels should have the same idea of what a deliberate drag is.
+ */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/**
+ * How far from an arrow's line a click still counts as being on it, in **screen** pixels
+ * (connector.select).
+ *
+ * Pixels rather than board units, because the thing being compensated for is the pointer's accuracy on a
+ * screen, which does not get more or less accurate as the board is zoomed. The tolerance is divided by the
+ * zoom level when it is compared with a world point, so the arrow is as easy to hit at ten per cent as at
+ * four hundred — which is the same rule the resize handles of story 7 follow.
+ */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** How thick an arrow is drawn, in world units, so it scales with the board. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/**
+ * How long an arrowhead is, in world units.
+ *
+ * Long enough to be recognisable as a direction at a glance, short enough that an arrow between two objects
+ * standing close together still reads as a line with a point on it rather than as a wedge.
+ */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/**
+ * The radius of a connection dot, in **screen** pixels.
+ *
+ * Screen pixels for the same reason as the hit tolerance: the dots are drawn so a person can see which of
+ * the four points an arrow would take, and four dots that shrink to nothing at 20% zoom say nothing.
+ */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+/**
+ * How far from the middle of a side a released end may be and still attach to it, in screen pixels.
+ *
+ * Generous on purpose — half a side of a standard shape is further than this — because a person who drags an
+ * arrow at an object means the object, not the exact pixel they let go on. Outside this radius the end is
+ * free, which is the answer for somebody aiming at empty board.
+ */
+export const CONNECTOR_REATTACH_RADIUS_PX = 24;
+
+/** The radius of a selected arrow's end handle, in screen pixels. */
+export const CONNECTOR_HANDLE_RADIUS_PX = 5;
+
+/** The colour an arrow is drawn in: the same ink as a shape's default outline. Arrows have no colour of
+ * their own in this story. */
+export const CONNECTOR_COLOR: string = SHAPE_STROKE_COLORS.dark;

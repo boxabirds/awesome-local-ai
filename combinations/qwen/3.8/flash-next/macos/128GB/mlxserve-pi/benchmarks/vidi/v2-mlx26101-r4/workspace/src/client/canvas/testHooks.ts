@@ -5,6 +5,10 @@ import { isStickySnapshot, snapshot } from '../../shared/board-model';
 import type { StickySnapshot } from '../../shared/board-model';
 import { textSnapshots } from '../../shared/objects/text';
 import type { TextSnapshot } from '../../shared/objects/text';
+import { isShapeSnapshot } from '../../shared/objects/shape';
+import type { ShapeSnap } from '../../shared/objects/shape';
+import { connectorSnapshots } from '../../shared/objects/connector';
+import type { ConnectorSnap } from '../../shared/objects/connector';
 import type { Camera } from './camera';
 
 /**
@@ -46,6 +50,21 @@ export interface Vidi6TestHooks {
    */
   getTexts(): readonly TextSnapshot[];
   /**
+   * The shapes of the mounted board, in stacking order, read from the document.
+   *
+   * The same reason as the two above: a shape's kind, colours and label live in the document, and a pixel is
+   * a poor witness of a field in a Y.Map. An e2e test that wants to know whether a drag drew a 200x120
+   * rectangle reads this rather than measuring a border that antialiasing has already disagreed with.
+   */
+  getShapes(): readonly ShapeSnap[];
+  /**
+   * The arrows of the mounted board, with the ends as the board draws them.
+   *
+   * An arrow's box is derived, so this is the only way to ask what its two ends are attached to — which is
+   * what an e2e test about "the arrow followed the shape" is really asking.
+   */
+  getConnectors(): readonly ConnectorSnap[];
+  /**
    * What the board's own connection reports right now, kept up to date as it
    * changes. A test that needs to know whether the board thinks it is live reads
    * this instead of guessing from the badge.
@@ -80,13 +99,24 @@ export function registerConnectionForTests(drop: (() => void) | undefined): void
 }
 
 export function installTestHooks(
-  hooks: Omit<Vidi6TestHooks, 'getBoardDoc' | 'getStickies' | 'getTexts' | 'connectionState' | 'dropConnection'>,
+  hooks: Omit<
+    Vidi6TestHooks,
+    | 'getBoardDoc'
+    | 'getStickies'
+    | 'getTexts'
+    | 'getShapes'
+    | 'getConnectors'
+    | 'connectionState'
+    | 'dropConnection'
+  >,
 ): void {
   window.__vidi6 = {
     connectionState: undefined,
     getBoardDoc: (): Y.Doc | undefined => boardDoc,
     getStickies: (): readonly StickySnapshot[] => (boardDoc ? snapshot(boardDoc).filter(isStickySnapshot) : []),
     getTexts: (): readonly TextSnapshot[] => (boardDoc ? textSnapshots(boardDoc) : []),
+    getShapes: (): readonly ShapeSnap[] => (boardDoc ? snapshot(boardDoc).filter(isShapeSnapshot) : []),
+    getConnectors: (): readonly ConnectorSnap[] => (boardDoc ? connectorSnapshots(boardDoc) : []),
     dropConnection: (): boolean => {
       if (dropBoardConnection === undefined) return false;
       dropBoardConnection();

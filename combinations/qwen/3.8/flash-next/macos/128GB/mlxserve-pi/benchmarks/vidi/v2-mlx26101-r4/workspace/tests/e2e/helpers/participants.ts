@@ -19,6 +19,8 @@
 import { expect, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 
 import { newBoardId } from '../../../src/shared/board-id';
+import type { ConnectorSnap } from '../../../src/shared/objects/connector';
+import type { ShapeSnap } from '../../../src/shared/objects/shape';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LIVE_UPDATE_LATENCY_BUDGET_MS,
@@ -56,6 +58,17 @@ export interface BoardSnapshot {
   readonly notes: readonly StickySnapshot[];
   /** The notes as this page paints them. */
   readonly painted: readonly PaintedNote[];
+  /**
+   * The shapes this page's document holds. Document state only, on purpose: where a shape is
+   * painted depends on where this person is looking, which is this page's own business, while what
+   * the board says about the shape is everybody's.
+   */
+  readonly shapes: readonly ShapeSnap[];
+  /**
+   * The arrows this page's document holds, ends and all. An arrow that followed a shape holds the
+   * same ends on every page without being written, so this is the assertion that says so.
+   */
+  readonly connectors: readonly ConnectorSnap[];
 }
 
 /** What a page paints for one note. Local-only state is deliberately absent. */
@@ -216,7 +229,12 @@ export async function boardSnapshot(participant: Participant): Promise<BoardSnap
       } satisfies PaintedNote;
     }),
   );
-  return { notes: await documentOf(participant), painted };
+  return {
+    notes: await documentOf(participant),
+    painted,
+    shapes: await participant.page.evaluate(() => window.__vidi6?.getShapes() ?? []),
+    connectors: await participant.page.evaluate(() => window.__vidi6?.getConnectors() ?? []),
+  };
 }
 
 /** The same snapshot as text, which is what "identical" is decided on. */

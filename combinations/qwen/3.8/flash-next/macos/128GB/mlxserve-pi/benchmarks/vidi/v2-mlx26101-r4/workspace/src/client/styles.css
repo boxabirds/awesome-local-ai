@@ -9,6 +9,9 @@
   --panel-hover: #eef0f4;
   --accent: #e5484d;
   --focus-ring: #2f6fed;
+  /* An arrow is drawn in the same ink as a shape's default outline. The name lives here so the connector's
+     own colour is one decision, in one place, rather than a hex code repeated in every rule that paints it. */
+  --connector-ink: #263238;
   --origin-marker-size: 24px;
   --origin-marker-bar: 16px;
   --origin-marker-thickness: 2px;
@@ -1118,4 +1121,283 @@ body {
  */
 .board-viewport[data-text-tool='armed'] {
   cursor: text;
+}
+
+/* ------------------------------------------------------ shapes (story 10) ---- */
+
+/*
+ * A shape is a box on the board with a picture in it and words in the middle of that.
+ *
+ * The box is the document's business (position, size, stacking); everything in this block is paint. The
+ * drawing is `pointer-events: none` and the box itself takes the press, which is the same arrangement a
+ * sticky note uses — a press anywhere on a shape presses the shape, including on its words, and the words
+ * are only ever editable through the field that replaces them.
+ */
+.shape-object {
+  position: absolute;
+  box-sizing: border-box;
+  color: var(--ink);
+  font-family: var(--text-font-family);
+  line-height: 1.25;
+  overflow: visible;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.shape-object[data-interaction='dragging'] {
+  cursor: grabbing;
+}
+
+.shape-object[data-selected='true'] {
+  /* Keep a selected shape above shapes drawn after it, as a note's does. */
+  z-index: 1;
+}
+
+.shape-object:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* The outline and the fill. It is the size of the box and sits behind the words; the stroke is allowed to
+   sit on the very edge of the box, which is why the drawing comes in by half of it. */
+.shape-object__svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/*
+ * The label, centred in the box and never larger than it.
+ *
+ * `inset: 0` with a padding is what makes the words wrap in exactly the space the shape has, and
+ * `place-items: center` is what puts them in the middle of it — a label is a name for the shape, and a name
+ * written into a corner would be a caption. Words that do not fit are clipped rather than allowed to push
+ * the box out: the box is the shape, and a label that resized the shape would be a label that moved an
+ * object its owner never touched.
+ */
+.shape-object__label {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 8px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+/* The field is typed into the same box the label was drawn in, at the same inset, so the words do not move
+   between looking at them and writing them. */
+.shape-object__editor {
+  position: absolute;
+  inset: 0;
+}
+
+.shape-object__textarea {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: center;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+}
+
+.shape-object__counter {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+
+/* Anchored to the shape's top-left corner, counter-scaled inline so the swatches keep their size on screen
+   instead of scaling with the board. */
+.shape-object__toolbar-slot {
+  position: absolute;
+  left: 0;
+  transform-origin: 0 100%;
+  z-index: 2;
+}
+
+/* ------------------------------------------------------------ shape toolbar -- */
+
+/* The same shape as a note's toolbar — a row of small buttons in a panel — because it does the same job for
+   one object. The divider between the two groups is the only difference, and it is a visual one only: every
+   swatch says in its own accessible name whether it is a fill or an outline. */
+.shape-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgb(18 22 30 / 12%);
+}
+
+.shape-toolbar__swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* An outline swatch shows the colour as a ring around an empty middle, because what it paints is a line and
+   not a surface. */
+.shape-toolbar__swatch--stroke {
+  background-clip: content-box;
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.shape-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.shape-toolbar__swatch:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.shape-toolbar__divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: var(--panel-border);
+}
+
+/* ---------------------------------------------------------- connectors (10) --- */
+
+/*
+ * An arrow, drawn between two objects.
+ *
+ * The wrapper is the arrow's bounding box, which is a fact about where its two ends are and nothing else —
+ * which is why it is `pointer-events: none`: an arrow's box covers a great deal of board that the arrow is
+ * not drawn on, and a click in that space is a click on the board. What is clickable is the strip along the
+ * line and, when the arrow is selected, its two ends.
+ */
+.connector-object {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: visible;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.connector-object__svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* The pointer's share of the arrow: a strip as long as the line and as wide as a finger, rotated onto it.
+   It is invisible, and it is what a click on an arrow actually presses. */
+.connector-object__hit {
+  position: absolute;
+  box-sizing: border-box;
+  background: transparent;
+  transform-origin: 0% 50%;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* The ends of a selected arrow, which are handles in every way that matters: they are pressed, dragged and
+   dropped somewhere else. Counter-scaled inline, so they stay the size of a target at every zoom. */
+.connector-object__handle {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--connector-ink);
+  border-radius: 50%;
+  background: var(--panel-bg);
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.connector-object__handle:active {
+  cursor: grabbing;
+}
+
+/* ------------------------------------------------------------- tool overlay -- */
+
+/*
+ * The sheet a tool lays over the board while it is armed.
+ *
+ * It covers the board and takes the pointer, which is the whole of how a tool that draws over other objects
+ * leaves those objects alone: the press never reaches them. It is transparent, so the board is still seen
+ * through it, and everything drawn on it is drawn in screen units — a preview is shown at the size the
+ * person is looking at the board at, not at some size the board's units happen to use.
+ */
+.tool-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+/* The preview of the shape being dragged: a box of dashes, so it reads as "this is going to be here" and not
+   as an object that is already there. */
+.tool-overlay__preview {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px dashed var(--focus-ring);
+  background: rgb(31 108 247 / 8%);
+  pointer-events: none;
+}
+
+/* Where an arrow would start and end while it is being drawn. Screen units throughout: an arrow in the
+   making is shown at the size the person is drawing it at. */
+.tool-overlay__svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* The Shape menu, which appears under the Shape button while that tool is armed. It is narrow because the
+   strip is narrow, and it is a real `select` because three buttons that can never be pressed together are
+   three buttons that have to be looked at one at a time to know what they offer. */
+.toolbar__kind {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 4px 4px;
+  font-size: 10px;
+  color: var(--ink-muted);
+}
+
+.toolbar__kind-select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.toolbar__kind-select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }

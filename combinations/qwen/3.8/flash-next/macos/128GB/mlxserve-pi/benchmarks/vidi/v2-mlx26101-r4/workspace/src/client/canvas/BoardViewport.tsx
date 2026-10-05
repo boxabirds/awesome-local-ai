@@ -11,6 +11,15 @@ import { useCamera, useViewportSize, wheelDeltaToPixels } from './useCamera';
 /** Only the primary pointer button pans; other buttons stay available to objects. */
 const PRIMARY_MOUSE_BUTTON = 0;
 
+/**
+ * The tools whose whole job is to draw something new, so that a double-click is never also a note.
+ *
+ * `text` is not one of them: with the text tool armed a double-click is two placements, and the second one
+ * lands on the text the first made. That is story 9's behaviour, decided where the text tool's presses are
+ * decided, and this file has no business quietly changing it.
+ */
+const DRAWING_TOOLS: ReadonlySet<string> = new Set(['shape', 'connector']);
+
 /** Safari's non-standard pinch events (`gesturestart`/`change`/`end`). */
 interface SafariGestureEvent extends Event {
   readonly scale?: number;
@@ -62,6 +71,28 @@ export interface BoardViewportProps {
    */
   textTool?: boolean;
   /**
+   * Which tool the pointer is in, for the board's own sake: `select`, `text`, `shape`, `connector`.
+   *
+   * Two things turn on this. The surface says what it is in (`data-active-tool`), so a person looking at the
+   * board and a test driving it can both tell which tool was holding the pointer. And a double-click that
+   * happens while a drawing tool is armed is not a request for a sticky note: with a tool up, a press is the
+   * tool's, and a board that also made a note out of the same gesture would be answering a question nobody
+   * asked. In practice the tool's own sheet is under the pointer and the press never reaches the board at
+   * all — but a rule that holds only because of what happens to be on top of it is a rule that breaks the
+   * first time something else is drawn there.
+   */
+  activeTool?: string;
+  /**
+   * The sheet a drawing tool draws on, laid over the board.
+   *
+   * The viewport has no idea what it is holding: it is board content's neighbour, not its parent — it does
+   * not pan or zoom while a tool is up, because a tool takes the pointer before the board ever sees it, and
+   * the wheel still reaches the board by bubbling. Rendering it here rather than inside the world layer is
+   * the whole of the difference between a preview drawn in screen units (a shape being dragged, which does not
+   * grow when the board is zoomed mid-drag) and one drawn in board units.
+   */
+  toolOverlay?: ReactNode;
+  /**
    * Put a piece of text down with its top-left corner at this world point.
    *
    * Handed the world point rather than the screen one because what is being asked for is a place on the
@@ -85,6 +116,8 @@ export function BoardViewport({
   onMarqueeBegin,
   marqueeActive = false,
   textTool = false,
+  activeTool = 'select',
+  toolOverlay = null,
   onCreateTextAt,
 }: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -300,6 +333,9 @@ export function BoardViewport({
   const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
     if (!onCreateAt) return;
     if (!isBoardSurface(event.target)) return;
+    // A drawing tool holds the pointer: the gesture that got here belongs to that tool, and a sticky note put
+    // down in the middle of drawing a diamond would be an object nobody asked for.
+    if (DRAWING_TOOLS.has(activeTool)) return;
     event.stopPropagation();
     // A screen pixel and a world point only agree once the viewport's own
     // position and the zoom are taken out.
@@ -321,6 +357,7 @@ export function BoardViewport({
       data-testid="board-viewport"
       data-interaction-state={panning ? 'panning' : 'idle'}
       data-text-tool={textTool ? 'armed' : 'off'}
+      data-active-tool={activeTool}
       style={{
         backgroundSize: `${gridPeriod}px ${gridPeriod}px`,
         backgroundPosition,
@@ -345,6 +382,7 @@ export function BoardViewport({
         />
         {children}
       </div>
+      {toolOverlay}
     </div>
   );
 }

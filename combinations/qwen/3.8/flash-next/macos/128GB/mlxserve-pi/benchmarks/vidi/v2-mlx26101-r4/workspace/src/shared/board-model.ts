@@ -232,6 +232,11 @@ export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): 
   for (const [id, point] of positions) {
     const object = objectOf(objects, id);
     if (!object) continue;
+    // An object whose box is derived has no position of its own to put somewhere else. It is skipped rather
+    // than refused, because it is usually one of a group that is being moved and the rest of the group is
+    // going where it was told; the arrow in it follows the objects it is attached to instead, which is the
+    // same answer arrived at from the other end.
+    if (isDerivedBoxObjectType(object.get('type'))) continue;
     if (object.get('x') === point.x && object.get('y') === point.y) continue;
     targets.push({ object, x: point.x, y: point.y });
   }
@@ -278,6 +283,9 @@ export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): num
   for (const [id, rect] of rects) {
     const object = objectOf(objects, id);
     if (!object) continue;
+    // As in `moveObjects`: an object whose box is derived has no size of its own to change. An arrow is
+    // made longer by dragging its end further, which is a write to its ends and not to a box.
+    if (isDerivedBoxObjectType(object.get('type'))) continue;
     if (
       object.get('x') === rect.x &&
       object.get('y') === rect.y &&
@@ -361,6 +369,10 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (present.length === 0) return 0;
 
   doc.transact(() => {
+    // First what the rest of the board has to say about these objects going away — an arrow attached to one
+    // of them is re-pinned to a point while the object still has a side to measure — and then the objects
+    // themselves, in the same transaction, so the two are one step to undo.
+    for (const listen of deleteListeners) listen(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
@@ -368,8 +380,13 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
 
 /** The rectangle an object occupies in world units. */
 export function objectBounds(obj: ObjectSnapshot): Rect {
-  const width = finite(obj?.width) && obj.width > 0 ? obj.width : STICKY_SIZE_WORLD;
-  const height = finite(obj?.height) && obj.height > 0 ? obj.height : STICKY_SIZE_WORLD;
+  // The sticky default exists for notes written before a size was ever stored, so an object that honestly
+  // has none must not be given one: an arrow drawn perfectly level has no height, and inventing two hundred
+  // units of it would put a selection box around space nobody drew in.
+  const derived = isDerivedBoxObjectType(obj?.type);
+  const none = derived ? 0 : STICKY_SIZE_WORLD;
+  const width = finite(obj?.width) && (derived || obj.width > 0) ? obj.width : none;
+  const height = finite(obj?.height) && (derived || obj.height > 0) ? obj.height : none;
   return { x: obj.x, y: obj.y, width, height };
 }
 
@@ -496,13 +513,42 @@ function readSticky(id: string, note: Y.Map<unknown>): StickySnapshot | null {
  * downstream may edit a snapshot in place.
  */
 export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
-  const objects: ObjectSnapshot[] = [];
+  const stored: { id: string; type: string; object: Y.Map<unknown>; read: ObjectSnapshot }[] = [];
   for (const [id, object] of objectsOf(doc)) {
     if (!(object instanceof Y.Map)) continue;
     const type = object.get('type');
     if (typeof type !== 'string' || !isKnownObjectType(type)) continue;
     const read = type === STICKY_TYPE ? readSticky(id, object) : readObject(id, object, type);
-    if (read) objects.push(read);
+    if (read) stored.push({ id, type, object, read });
+  }
+
+  // The boxes of the objects that keep their own, which is everything a derived box may be drawn against.
+  // Read once for all of them: deriving a box is cheap arithmetic, and a type that asked the board again for
+  // the boxes around it would be reading the whole document once per object.
+  const boxes = new Map<string, Rect>();
+  for (const entry of stored) {
+    if (readerOf(entry.type)?.box !== undefined) continue;
+    boxes.set(entry.id, objectBounds(entry.read));
+  }
+
+  const objects: ObjectSnapshot[] = [];
+  for (const entry of stored) {
+    const reader = readerOf(entry.type);
+    // Whatever the type says it stores, read against the boxes around it. A shape asks for this and nothing
+    // else — it keeps its own box — while an arrow asks for both, and a type that asked for neither is read
+    // exactly as the generic reader read it.
+    const extra = reader?.fields === undefined ? {} : reader.fields(entry.object, boxes, entry.id);
+    if (reader === undefined || reader.box === undefined) {
+      objects.push(Object.keys(extra).length === 0 ? entry.read : Object.freeze({ ...entry.read, ...extra }));
+      continue;
+    }
+    const box = reader.box(entry.object, boxes);
+    // No derivable box is no object: an arrow whose ends cannot be read is left off the board rather than
+    // drawn at the zeroes it stores.
+    if (box === null) continue;
+    // Its own fields first, then where it is. In that order: a type may describe itself, but it does not get
+    // to contradict the arithmetic about its own position.
+    objects.push(Object.freeze({ ...entry.read, ...extra, ...box }));
   }
   objects.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return Object.freeze(objects);
@@ -523,6 +569,89 @@ const knownObjectTypes = new Set<string>([STICKY_TYPE]);
 export function registerKnownObjectType(type: string): void {
   if (typeof type !== 'string' || type === '') throw new Error('an object type needs a name');
   knownObjectTypes.add(type);
+}
+
+/**
+ * A type that knows more about itself than the generic reader in this file does.
+ *
+ * An arrow stores which two objects it joins, not where it is: its box is wherever they are now, and the two
+ * things it joins are the only contents anybody drawing it can use. So the report of such an object is its
+ * stored fields, then whatever its own type says it stores, then the box its own type calculates — which is
+ * the only way "the arrow follows the shape" can be true for everybody at once, because a number that is
+ * recalculated on every read cannot be out of date, while a number that is written down by five clients can
+ * be.
+ */
+export interface ObjectReader {
+  /** Where the object is, worked out from the objects around it instead of read from what it stores. */
+  box?: DerivedBoxResolver;
+  /**
+   * What else the board should report about an object of this type, given the boxes around it.
+   *
+   * The id is handed in because a type that reads its own object needs to say which object it read, and the
+   * `Y.Map` alone does not know its own name — the same reason the client registry's components are told
+   * which object they are drawing.
+   */
+  fields?: (object: Y.Map<unknown>, rects: ReadonlyMap<string, Rect>, id: string) => Record<string, unknown>;
+}
+
+/** Where an object with no box of its own is. */
+export type DerivedBoxResolver = (
+  object: Y.Map<unknown>,
+  rects: ReadonlyMap<string, Rect>,
+) => Rect | null;
+
+const objectReaders = new Map<string, ObjectReader>();
+
+/**
+ * Tell the document model that this type can read itself.
+ *
+ * Three things follow from the registration, and they are the reason it is a registration rather than a
+ * comparison of a type name somewhere in a loop: the box in every snapshot of such an object is the derived
+ * one, the snapshot carries the fields the type asked for, and the object cannot be moved or resized by
+ * writing numbers into it. An arrow that could be dragged by its body would have a stored position nobody
+ * draws and a drawn position nobody stores, and the two would drift apart inside somebody's undo history. An
+ * arrow's position is its two ends, and only its own type knows how to move them.
+ */
+export function registerObjectReader(type: string, reader: ObjectReader): void {
+  if (typeof type !== 'string' || type === '') throw new Error('an object type needs a name');
+  if (typeof reader !== 'object' || reader === null) throw new Error('an object reader has to be an object');
+  if (reader.box !== undefined && typeof reader.box !== 'function') throw new Error('a derived box needs a resolver');
+  if (reader.fields !== undefined && typeof reader.fields !== 'function') throw new Error('extra fields need a reader');
+  objectReaders.set(type, reader);
+}
+
+/** Say where an object of this type is, given the boxes of the objects around it. */
+export function registerDerivedBoxType(type: string, resolve: DerivedBoxResolver): void {
+  registerObjectReader(type, { ...objectReaders.get(type), box: resolve });
+}
+
+/** The reader a type registered for itself, if it registered one. */
+function readerOf(type: unknown): ObjectReader | undefined {
+  return typeof type === 'string' ? objectReaders.get(type) : undefined;
+}
+
+/** Whether an object's box comes from the document or from the objects around it. */
+export function isDerivedBoxObjectType(type: unknown): boolean {
+  return readerOf(type)?.box !== undefined;
+}
+
+/** What a type wants to know when objects are taken off the board. */
+export type ObjectDeleteListener = (doc: Y.Doc, deletedIds: readonly string[]) => void;
+
+const deleteListeners: ObjectDeleteListener[] = [];
+
+/**
+ * Tell the document model that some type has to hear about objects being deleted.
+ *
+ * The listener is called from inside `deleteObjects`' own transaction, and before the objects are removed,
+ * which are the two things that make an arrow attached to a deleted shape end up pointing at the place the
+ * shape's side was rather than at nothing: it is computed while the shape is still there to be asked, and it
+ * is written in the same transaction as the delete, so one undo brings the shape back with its arrows
+ * attached again. A listener with nothing to say opens no transaction of its own.
+ */
+export function registerDeleteListener(listener: ObjectDeleteListener): void {
+  if (typeof listener !== 'function') throw new Error('a delete listener has to be a function');
+  if (!deleteListeners.includes(listener)) deleteListeners.push(listener);
 }
 
 /** Whether `snapshot` reports objects of this type. */

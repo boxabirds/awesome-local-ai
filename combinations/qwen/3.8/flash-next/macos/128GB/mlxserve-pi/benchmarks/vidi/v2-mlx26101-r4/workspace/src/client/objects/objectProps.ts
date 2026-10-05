@@ -16,6 +16,7 @@ import type * as Y from 'yjs';
 
 import type { UndoActions } from '../board/undo';
 import type { ObjectSnapshot } from '../../shared/board-model';
+import type { Rect } from '../../shared/geometry';
 
 /**
  * What the transform gesture is doing to the object under the pointer.
@@ -34,6 +35,16 @@ export interface ObjectProps {
   doc: Y.Doc;
   /** Current zoom, for the few things an object sizes in screen pixels (text fit). */
   zoom: number;
+  /**
+   * Every object that has a surface, by id, as it is right now.
+   *
+   * One object's neighbours should not be any other object's business, and for almost every type it is not:
+   * a note and a piece of text are drawn entirely out of their own fields. An arrow is the exception that
+   * made this prop — its two ends are wherever *other objects* happen to be, and an arrow that had to go and
+   * read the board to find out where it points would read the whole board once per arrow, on every frame of
+   * a drag. Handed in by the board, which reads the objects once for everybody.
+   */
+  rects?: ReadonlyMap<string, Rect>;
   selected: boolean;
   /**
    * How many objects are selected in all. An object owns the controls that belong to *one* object — a

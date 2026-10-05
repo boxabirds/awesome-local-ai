@@ -19,11 +19,22 @@ import type { ComponentType } from 'react';
 import type * as Y from 'yjs';
 
 import { registerKnownObjectType } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  STICKY_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import type { Handle, Rect } from '../../shared/geometry';
 import { rectContains, type Point } from '../../shared/geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { endPosition, resolveEndpoints } from '../../shared/geometry/connector-geometry';
+import { isConnectorSnapshot } from '../../shared/objects/connector';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { StickyNote } from './StickyNote';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
 import { TextObject } from './TextObject';
 import { resizeTextBox } from './textLayout';
 import type { ObjectProps } from './objectProps';
@@ -52,6 +63,25 @@ export const RESIZE_HANDLES: Record<ResizeHandles, readonly Handle[]> = {
   horizontal: HORIZONTAL_HANDLES as readonly Handle[],
 };
 
+/** What a type is told about the pointer's surroundings when it is asked whether it was hit. */
+export interface HitTestContext {
+  /**
+   * How big the board is drawn, in screen pixels per board unit.
+   *
+   * Most types have no use for it: a note is hit when the point is inside it, and it makes no difference to
+   * that how far away the board is zoomed. An arrow has, because the only thing about an arrow is a line —
+   * and a line 2 units thick is a fifth of a pixel at ten per cent zoom, which no pointer can find. The
+   * tolerance that makes up the difference is counted in *pixels* and turned into board units by this
+   * number, which is the same reason the resize handles are a fixed size on the screen.
+   */
+  scale?: number;
+  /**
+   * The boxes of everything on the board, for a type whose own position is a consequence of somebody
+   * else's. An arrow's ends are attached to objects, and where it is drawn is where they are.
+   */
+  rects?: ReadonlyMap<string, Rect>;
+}
+
 /** What the board can do to one type of object, and how it is drawn. */
 export interface ObjectTypeSpec {
   /** The component that paints one object of this type, and handles its own text. */
@@ -67,7 +97,7 @@ export interface ObjectTypeSpec {
   /** Which handles this type answers to; every handle, unless it says otherwise. */
   handles?: ResizeHandles;
   /** Whether a world point lands on this object. A rotated shape overrides this later. */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, context?: HitTestContext): boolean;
   /**
    * What a resize does to this type, when its box is not simply the box it is drawn at.
    *
@@ -112,10 +142,13 @@ export function registeredObjectTypes(): string[] {
 /**
  * Whether an object was clicked, asked of its type. An object of a type the board does
  * not know cannot be drawn, so it cannot be hit either.
+ *
+ * The context is passed straight through, and is left out by callers that have nothing to add: a marquee
+ * drawn across the board knows the board's units as well as the note inside it does.
  */
-export function hitTestObject(obj: ObjectSnapshot, worldPoint: Point): boolean {
+export function hitTestObject(obj: ObjectSnapshot, worldPoint: Point, context?: HitTestContext): boolean {
   const spec = registry.get(obj.type);
-  return spec ? spec.hitTest(obj, worldPoint) : false;
+  return spec ? spec.hitTest(obj, worldPoint, context) : false;
 }
 
 /**
@@ -213,3 +246,75 @@ registerObjectType('text', {
   // The width is the person's, the height is the words'. One write, so one undo puts the drag back whole.
   resize: resizeTextBox,
 });
+
+/* ----------------------------------------------------------------- shape -- */
+
+registerObjectType('shape', {
+  Component: ShapeObject,
+  // A shape is a box somebody dragged, and it keeps the proportions of nothing: an ellipse drawn 300 wide
+  // and 100 tall is a wide ellipse, which is a thing people draw on purpose.
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  // A shape has a label, and the way to write one is the way to write in anything else on the board.
+  editableText: true,
+  hitTest: rectHitTest,
+});
+
+/* ------------------------------------------------------------- connector -- */
+
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  // An arrow has no box to pull. Its ends are pulled instead, and that belongs to the arrow itself — which
+  // is why the selection overlay draws no handles for it and the arrow draws two of its own.
+  resizable: false,
+  aspectLocked: false,
+  minSize: 1,
+  editableText: false,
+  hitTest: connectorHitTest,
+});
+
+/**
+ * Whether a point is on an arrow — which is a question about distance, not about a box.
+ *
+ * An arrow's box is the smallest rectangle around its two ends, and for an arrow drawn between two objects
+ * on the same row that box has no height at all. Asking whether a point is inside it would ask whether the
+ * point is on the line's own centreline, which is a question no pointer can answer: it would come back
+ * "nothing was clicked" for every click a person made squarely on an arrow they could see.
+ *
+ * So the arrow is hit when the point is within a pointer's tolerance of the line: `CONNECTOR_HIT_TOLERANCE_PX`
+ * screen pixels, divided by the zoom to put it into board units — which is what makes an arrow as easy to
+ * click at ten per cent as at four hundred, and what makes a click seven pixels away from the line *not* an
+ * arrow at any zoom, which is the difference between a tool that selects arrows and a tool that selects
+ * whatever was near where the arrow might have been. Without a zoom to divide by there is nothing to convert
+ * with, and the tolerance is taken as board units: the same number, read conservatively.
+ */
+function connectorHitTest(obj: ObjectSnapshot, worldPoint: Point, context?: HitTestContext): boolean {
+  const ends = endsOf(obj, context?.rects);
+  if (ends === null) return false;
+  const scale = context?.scale;
+  const tolerance = CONNECTOR_HIT_TOLERANCE_PX / (scale !== undefined && scale > 0 ? scale : 1);
+  return distanceToPolyline([ends.from, ends.to], worldPoint) <= tolerance;
+}
+
+/**
+ * The two points an arrow is drawn between.
+ *
+ * The board's own snapshot carries them, already resolved against the boxes of the objects they are attached
+ * to, and that is the answer used whenever there is one: the same two points the arrow is painted between, so
+ * a click and a picture cannot disagree about where the arrow is. Only an object that does not carry them —
+ * a reader from an older build, handed the boxes by the caller — has to derive them here, and an object that
+ * carries neither ends nor boxes has no line to be on and is not hit, which is the same answer the board gives
+ * by drawing nothing.
+ */
+function endsOf(obj: ObjectSnapshot, rects?: ReadonlyMap<string, Rect>): { from: Point; to: Point } | null {
+  if (!isConnectorSnapshot(obj)) return null;
+  // The boxes are there: ask the same function the painter asks, and get the same two points down to the
+  // last rounding.
+  if (rects !== undefined) return resolveEndpoints(obj, rects);
+  // The boxes are not there — a caller that has the snapshot and nothing else. An attached end knows the
+  // point it was last drawn at, which is the best that can be said without looking at where its object has
+  // got to: a click a few units from an arrow whose object has moved is then judged against where the arrow
+  // used to be. That is a worse answer than the one above, and a better one than "there is no arrow".
+  return { from: endPosition(obj.from), to: endPosition(obj.to) };
+}
