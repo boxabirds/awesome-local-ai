@@ -21,6 +21,16 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code for a frame the room cannot understand. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/**
+ * WebSocket close code for a board whose saved state could not be loaded.
+ *
+ * It sits in y-websocket's "try again later" range (4500-4599): the provider
+ * keeps reconnecting, and the client shows "This board couldn't be loaded.
+ * Retrying…" instead of an empty board.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/** WebSocket close code for a room that could not write to its own storage. */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 /** `y-protocols/sync` message types, in the order they appear in a sync body. */
 const SYNC_STEP_1 = 0;

@@ -1,3 +1,65 @@
+commit 45461e670402082fad9ce7daf9642eb28137032b
+vidi-agent  Tue Oct 6 03:59:35 2026 +0100
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ package.json                          |   3 +-
+ playwright.config.ts                  |   4 +
+ playwright.persistence.config.ts      |  37 +++++
+ tests/e2e/helpers/build-client.ts     |  12 ++
+ tests/e2e/helpers/sync-client.ts      | 129 +++++++++++++++++
+ tests/e2e/helpers/wrangler-process.ts | 154 ++++++++++++++++++++
+ tests/e2e/persistence.spec.ts         | 256 ++++++++++++++++++++++++++++++++++
+ 7 files changed, 594 insertions(+), 1 deletion(-)
+commit 74093d7083704b6eed8560dc113bec9bbe00d01d
+agent  Tue Oct 6 02:44:42 2026 +0100
+
+    story 4 tasks 4-5: persistent hibernating BoardRoom (load on wake, store before broadcast, 4500/1011 signalling) and its integration tests
+
+
+ NOTES.md                                         |  51 +++
+ PROGRESS.md                                      |   4 +-
+ src/worker/board-room.ts                         | 421 ++++++++++++++-----
+ tests/integration/board-room-persistence.test.ts | 494 +++++++++++++++++++++++
+ tests/integration/board-room.test.ts             |   8 +-
+ tests/integration/board-store.test.ts            |   5 +-
+ tests/integration/helpers/ws-client.ts           |  26 +-
+ 7 files changed, 900 insertions(+), 109 deletions(-)
+commit d5b826e9979db785c94890d30f7651ef569ddc23
+agent  Tue Oct 6 01:46:57 2026 +0100
+
+    story 4 tasks 2-3: BoardStore over Durable Object SQLite (log, quarantine, chunked compaction) and its integration tests
+
+
+ PROGRESS.md                           |   6 +-
+ src/worker/board-store.ts             | 358 +++++++++++++++++--
+ tests/fixtures/boards.ts              | 216 ++++++++++++
+ tests/integration/board-store.test.ts | 622 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 1169 insertions(+), 33 deletions(-)
+commit b5f005089932b59c190fc36e56f237fdf73bc558
+agent  Tue Oct 6 00:18:18 2026 +0100
+
+    story 4 task 1: storage chunking and room-state unit tests (red), settings and close codes
+
+
+ NOTES.md                              |  40 ++++++++
+ PROGRESS.md                           |   4 +-
+ src/shared/config.ts                  |  21 +++++
+ src/shared/protocol.ts                |  10 ++
+ src/worker/board-store.ts             | 127 +++++++++++++++++++++++++
+ src/worker/room-state.ts              | 148 +++++++++++++++++++++++++++++
+ tests/unit/board-store-chunks.test.ts |  87 +++++++++++++++++
+ tests/unit/room-state.test.ts         | 173 ++++++++++++++++++++++++++++++++++
+ 8 files changed, 608 insertions(+), 2 deletions(-)
+commit b5a3c731792599e638f7163ce6acc10612931f88
+vidi-agent  Mon Oct 5 23:55:52 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit aed2dd7dcd6adf6732c357f064ab81391df43074
 vidi-agent  Mon Oct 5 23:55:41 2026 +0100
 

@@ -357,10 +357,14 @@ describe("room restart", () => {
     const id = await sharedNote({ boardId, a, b }, { x: 70, y: 70 }, "orange", "made before the restart");
     await expectConverged(boardId, [a, b]);
 
-    // The room instance goes away, taking its document and both sockets with it.
+    // The room instance goes away, taking both sockets with it. From story 4 the
+    // board is not in the instance: it is in storage, and the new instance has
+    // already read it back by the time anyone asks.
     await restartRoom(boardId);
     await Promise.all([a.waitForClose(), b.waitForClose()]);
-    expect(await roomSnapshot(boardId)).toBeNull();
+    expect((await roomSnapshot(boardId))?.map((note) => note.text)).toEqual([
+      "made before the restart",
+    ]);
 
     // A is back first, with the document its screen still holds.
     await a.reconnect();

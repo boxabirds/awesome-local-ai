@@ -126,3 +126,94 @@ e2e (TC-24, TC-31).
 - **Gotcha for later stories:** `playwright.config.ts` uses `reuseExistingServer`, and a wrangler left running on 27840 serves the *previous* `dist-test` build. Either stop it or let Playwright start `npm run serve:e2e` itself, otherwise e2e silently tests stale code. Run order used here: `build:test` is part of `serve:e2e`, so a clean `npm run test:e2e` is always fresh.
 - The character counter is an editing-time affordance (PRD: "While editing"), not a permanent note feature: it is rendered by the editor only, and e2e asserts it is gone after the note leaves Editing while the clipped text stays.
 - Real layout results: `STICKY_FONT_MAX_PX` for a short phrase, a shrink for a realistic multi-line retro item (13px with the fixtures on this machine), and 10px minimum with `is-overflow` plus `scrollHeight > clientHeight` for a 1,000-character paste.
+
+# Story 4 — implementation notes, deviations and blocked items
+
+## Gap filled from story 3
+
+Story 3's unverified tasks (4, 7, 8, 9) turned out to be implemented and green
+(`src/client/sync/*`, `tests/component/ConnectionStatus.test.tsx`,
+`tests/e2e/live-collaboration.spec.ts`, the nightly soak), so story 4 needed no
+repair work from story 3. One story 3 behaviour story 4 depends on and that is
+now re-verified by story 4's own tests:
+
+- **A room that lost its document is repopulated by the client that comes back
+  first** (story 3 TC-18, `SyncStep1` on accept → client's `SyncStep2`). Story 4
+  relies on it for `persist.save_failure` (TC-14: after a storage failure the
+  room reloads from storage, and the client that still holds the unsaved change
+  supplies it), and story 4's integration test re-proves it.
+
+## Notes that affect the tests
+
+- **A close a client started is never observed by that client.** In the Vitest
+  pool, `socket.close()` from `TestClient` moves the socket to `CLOSING` and the
+  `close` event never arrives, because the closing handshake is completed by the
+  runtime, not echoed back to the local socket. The room *does* see the socket
+  disappear (`ctx.getWebSockets().length` drops). So story 4's tests only ever
+  `await waitForClose()` for closes the **room** sends (4500, 1011, 1003) — which
+  is exactly the set of close codes the story is about.
+- **`evictAllDurableObjects()` is the hibernation tool; `abortAllDurableObjects()`
+  is the restart tool.** Aborting closes the sockets; evicting hands them to the
+  runtime and leaves them open (`readyState` 1, `isClosed` false), which is what
+  TC-18 needs: the instance is gone, a frame arrives on a socket accepted by an
+  instance that no longer exists, and the reconstructed room must load the board
+  before it can broadcast to the sockets `ctx.getWebSockets()` now lists. Verified
+  locally: eviction, then a client write, reaches the other client.
+- **Compaction is reached in tests by writing through the room**, not by opening
+  500 sockets: `fillLog()` runs `seededEdits` transactions on the room's own
+  document inside `runInDurableObject`, and each one goes through the room's real
+  append path, so the 500th append compacts exactly as a real board's would.
+- **Storage facts are read straight from SQLite** (`SELECT COUNT(*)`,
+  `length(data)`) rather than through `BoardStore`, so an assertion about "what is
+  stored" is never an assertion about what the store *thinks* it stored.
+  `snapshot_chunks` has no `bytes` column — chunk size is `length(data)`.
+
+## Deviations from the design document
+
+1. **`BoardStore`'s storage parameter is structural.** The design names
+   `constructor(storage: DurableObjectStorage)`. `DurableObjectStorage` only
+   exists in the worker type project, and `tests/unit/board-store-chunks.test.ts`
+   must import `src/worker/board-store.ts` from the *client* project (the design
+   puts `chunkBytes`/`joinChunks`/`shouldCompact` in that file). So the file
+   declares the two members it actually uses (`sql.exec`, `transactionSync`) as
+   `StorageLike`/`SqlLike`, and `BoardRoom` passes `ctx.storage` straight into
+   it. No behaviour differs; the integration tests run against the real object.
+2. **Injected failures use real SQL, not wrapped methods.** The design's
+   "wrapper sits outside SQLite so real transaction semantics still apply" is
+   achieved with SQLite triggers and a dropped table:
+   TC-11 installs `AFTER DELETE ON snapshot_chunks → RAISE(ABORT)`, TC-14 a
+   `BEFORE INSERT ON updates → RAISE(ABORT)` (dropped again afterwards), TC-26
+   renames the `updates` table away so the `SELECT` really throws. Product code
+   therefore carries no failure switches.
+3. **`nextRoomState(state, event)` takes a discriminated event.** The retry edge
+   (LoadFailed → Loading) needs to know how long the room has been failing, so
+   the `new-connection` event carries `sinceFailureMs`. `RoomState`
+   (`ready | load-failed | storage-failed`) is the serving subset named by the
+   contract; `RoomLifecycleState` is the full diagram including `loading`,
+   `compacting` and `hibernated`.
+4. **`BoardStore.append` takes the document as well as the update**
+   (`append(update, doc?)`, `LOG_LOOKBACK_ROWS = 2`). The design's signature is
+   `append(update)`, and storing exactly one row per change does round-trip — until
+   a row is damaged. Yjs cannot integrate a delta whose predecessor is missing: the
+   structs it needs are still "pending", so *every* later change in that chain is
+   silently absent from the reloaded board, and one damaged row loses a whole run
+   of notes. Each stored row is therefore written as
+   `Y.encodeStateAsUpdate(doc, stateVectorOfTheRowTwoRowsBack)`, which repeats the
+   previous row's structs: a damaged row is covered by the row after it, and the
+   quarantine path recovers one consecutive damaged row (the look-back depth sets
+   the tolerance; it is a constant, not a guess made per board). The cost is that
+   each row is roughly twice its raw size, which `COMPACTION_BYTES` absorbs. Proven
+   by TC-05 with one, two and three damaged rows.
+5. **`TC-26`'s read failure is a dropped column, not a dropped table.** `load()`
+   calls `migrate()` first, and `migrate()` uses `CREATE TABLE IF NOT EXISTS`, so a
+   renamed `updates` table is simply recreated empty and the `SELECT` succeeds.
+   `ALTER TABLE updates DROP COLUMN bytes` survives migration (the table is still
+   there) and makes the log query a real `SQLITE_ERROR` — which `load` reports as
+   `{ ok: false, reason: "sql-error" }` and the room answers with 4500.
+6. **A room is proven restarted by `instanceId`, not by an empty document.** Story
+   3's `restartRoom` helper asserted "a fresh instance has no doc", which is
+   precisely what story 4 must make false. `BoardRoom.instanceId` (a
+   `crypto.randomUUID()` per instance) is public so the helper can assert *the
+   instance changed* while the board stayed. `BoardRoom.loadFailedAtMs` is public
+   for the same reason: TC-16 moves it back by `LOAD_RETRY_MIN_INTERVAL_MS`, which
+   is a clock reading, not a product switch.

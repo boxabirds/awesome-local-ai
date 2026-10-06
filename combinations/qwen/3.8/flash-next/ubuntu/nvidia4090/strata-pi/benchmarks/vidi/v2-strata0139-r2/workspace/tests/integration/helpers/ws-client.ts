@@ -461,23 +461,23 @@ export function roomDocEquals(boardId: string, doc: Y.Doc): Promise<boolean> {
 
 /**
  * Simulates a room restart: the BoardRoom instance is torn down together with
- * every socket it accepted, so the board document it held in memory is gone.
- * Nothing is persisted in this story, so the next connection meets an empty
- * room — which is what the reconnecting clients then rebuild.
+ * every socket it accepted.
  *
- * `evictDurableObject` is deliberately not used: in the Vitest pool it never
- * returns for an object that accepted non-hibernating WebSockets, because
- * graceful eviction waits for the object to go idle and an open (or half-closed)
- * WebSocket keeps it busy forever. Aborting the instance is the supported way
- * to get the same starting point: instance gone, sockets closed, storage
- * untouched. See NOTES.md.
+ * From story 4 onward the *board* survives that — it is in storage and a new
+ * instance reads it back — so what this proves is that the instance is new:
+ * `BoardRoom.instanceId` differs before and after. Before story 4 the same proof
+ * was "the room has no document", which is now exactly what must not be true.
+ *
+ * Aborting is the supported way in the Vitest pool to get "instance gone, sockets
+ * closed, storage untouched" in one call. The hibernation path, where sockets stay
+ * open across the instance going away, is exercised with `evictAllDurableObjects`
+ * in `board-room-persistence.test.ts`. See NOTES.md.
  */
 export async function restartRoom(boardId: string): Promise<void> {
+  const before = await inRoom(boardId, (room) => room.instanceId);
   await abortAllDurableObjects();
-  // Proof that the room really lost its document: reading its state revives a
-  // brand-new instance, and a brand-new instance has no document yet.
-  const lost = await inRoom(boardId, (room) => room.doc === null);
-  if (!lost) throw new Error("room still holds a document after the restart");
+  const after = await inRoom(boardId, (room) => room.instanceId);
+  if (after === before) throw new Error("room instance survived the restart");
 }
 
 // ---- waiting -------------------------------------------------------------

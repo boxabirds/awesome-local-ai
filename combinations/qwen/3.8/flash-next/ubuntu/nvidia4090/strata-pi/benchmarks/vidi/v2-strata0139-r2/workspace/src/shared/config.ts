@@ -97,3 +97,24 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
  * the model, the browsers and the server share one machine here.
  */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+// ---- Persistence (story 4) ------------------------------------------------
+
+/** Compaction trigger: compact when this many update-log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ...or when the log's byte total reaches this. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/**
+ * Snapshot rows are kept under this size, which is far below the per-row size
+ * limit of SQLite-backed Durable Objects (see NOTES.md: the limit was
+ * re-checked against the current documentation during implementation).
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A LoadFailed board retries its load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5_000;
+/** PRD persist.large_board: the board size the persistence tests are built for. */
+export const PERSIST_TESTED_NOTES = 2_000;
+/** PRD persist.large_board: how long opening such a board may take. */
+export const BOARD_LOAD_BUDGET_MS = 3_000;
+/** Version of the room's storage tables (not of the board document schema). */
+export const STORAGE_SCHEMA_VERSION = 1;

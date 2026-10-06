@@ -55,6 +55,10 @@ function installedBrowsers(): (keyof typeof ALL_PROJECTS)[] {
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  // Story 4's persistence tests own their `wrangler dev` process (they restart
+  // it on purpose), so they run in their own project:
+  // `playwright.persistence.config.ts` / `npm run test:e2e:persistence`.
+  testIgnore: ["**/persistence.spec.ts", "**/broken-board.spec.ts"],
   fullyParallel: true,
   // The nightly soak (TC-29, TC-30) runs for minutes and is not part of every
   // commit: it lives in `playwright.nightly.config.ts` / `npm run test:e2e:nightly`.

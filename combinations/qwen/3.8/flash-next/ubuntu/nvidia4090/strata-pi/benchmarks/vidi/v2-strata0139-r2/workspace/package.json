@@ -13,7 +13,8 @@
     "test:integration": "vitest run --project integration",
     "test:e2e": "playwright test",
     "test:e2e:nightly": "playwright test --config playwright.nightly.config.ts",
-    "serve:e2e": "npm run build:test && wrangler dev --ip 127.0.0.1 --port 27840 --inspector-port 27841"
+    "serve:e2e": "npm run build:test && wrangler dev --ip 127.0.0.1 --port 27840 --inspector-port 27841",
+    "test:e2e:persistence": "playwright test --config playwright.persistence.config.ts"
   },
   "dependencies": {
     "lib0": "^0.2.119",
