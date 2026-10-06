@@ -14,6 +14,7 @@ import { type StickyColor } from "../../src/shared/config";
 import type { Handle, Rect } from "../../src/shared/geometry";
 import { BoardHarness, BoardUnderTest, type HarnessHandle, type HarnessOverrides } from "../fixtures/boardHarness";
 import type { SelectionApi } from "../../src/client/board/useSelection";
+import type { UndoController } from "../../src/client/board/undo";
 // Importing the fixture registers the `testbox` type exactly once, for every
 // component test: selection, moving and resizing must work for it exactly as they
 // do for a sticky note (`sel.all_types`).
@@ -234,6 +235,8 @@ export interface RenderOptions {
   extraProps?: Record<string, Record<string, unknown>>;
   /** Counts the gesture callbacks (TC-26). */
   gestures?: { onStart(): void; onEnd(): void };
+  /** Story 8: hand the board a history of the test's choosing (a spy, usually). */
+  undo?: UndoController;
 }
 
 export interface RenderHandle {
@@ -245,6 +248,8 @@ export interface RenderHandle {
   changeSelection(ids: readonly string[]): void;
   /** The selection state of the board on screen. */
   selection(): SelectionApi;
+  /** Story 8: this board's undo history (harness boards only). */
+  undo(): UndoController;
   unmount(): void;
 }
 
@@ -261,6 +266,7 @@ export function renderBoard(options: RenderOptions = {}): RenderHandle {
       overridesRef: overrides as never,
       handleRef: handleRef as never,
       gestures: options.gestures,
+      undo: options.undo,
     }),
   );
   return handleFor(doc, screen, overrides, handleRef);
@@ -337,6 +343,11 @@ function handleFor(
       const selection = handleRef.current?.selection();
       if (!selection) throw new Error("this board does not expose its selection");
       return selection;
+    },
+    undo() {
+      const controller = handleRef.current?.undo();
+      if (!controller) throw new Error("undo needs the board harness (renderBoard)");
+      return controller;
     },
     unmount: () => screen.unmount(),
   };

@@ -11,6 +11,7 @@ import { endEditNext, useSelection } from "./board/useSelection";
 import { useTransformGesture } from "./board/useTransformGesture";
 import { useMarquee, MarqueeRect } from "./board/Marquee";
 import { useBoardKeys } from "./board/useBoardKeys";
+import { UndoControllerContext, useUndo, useUndoHistory } from "./board/useUndo";
 import { SelectionOverlay } from "./board/SelectionOverlay";
 import { SelectionBar } from "./board/SelectionBar";
 import { Toolbar } from "./board/Toolbar";
@@ -63,12 +64,20 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
   );
 
   const selection = useSelection(visible);
+  // Story 8: one history for this board document, and it belongs to this tab.
+  const undo = useUndoHistory(doc);
+  const undoState = useUndo(undo, canEdit);
   const gesture = useTransformGesture({
     doc,
     camera,
     selection,
     snapshot: visible,
     canEdit,
+    // A gesture is one undo step: the capture window opens at the first real
+    // move and closes when the pointer lets go (or the gesture is cancelled), so
+    // every per-frame write in between belongs to the same step.
+    onGestureStart: undo.boundary,
+    onGestureEnd: undo.boundary,
   });
   const marquee = useMarquee(
     camera,
@@ -83,6 +92,7 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
     selectableTypes,
     canEdit,
     marquee: { active: () => marquee.active(), cancel: () => marquee.cancel() },
+    undo,
   });
   useConnectionTestHook(connectionState);
 
@@ -94,11 +104,14 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
     (point: CameraPoint) => {
       if (!canEdit) return;
       const world = screenToWorld(cameraRef.current, point);
+      // One created note is one undo step, whatever was done just before it.
+      undo.boundary();
       const id = createSticky(doc, world);
+      undo.boundary();
       if (typeof id !== "string") return;
       selection.startEdit(id);
     },
-    [canEdit, doc, selection],
+    [canEdit, doc, selection, undo],
   );
 
   /** The Sticky note tool: centred in the middle of the visible board area. */
@@ -113,9 +126,12 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
   const deleteSelection = useCallback(() => {
     const ids = Array.from(selection.ids);
     if (ids.length === 0) return;
+    // Deleting a whole selection is one step, not one per object.
+    undo.boundary();
     deleteObjects(doc, ids);
+    undo.boundary();
     selection.clear();
-  }, [doc, selection]);
+  }, [doc, selection, undo]);
 
   // Objects are painted in a stable order (by id) and stacked with CSS z-index.
   // Re-sorting the React children whenever z changes would re-parent the object
@@ -124,6 +140,7 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
   const paintOrder = useMemo(() => visible.slice().sort((a, b) => (a.id < b.id ? -1 : 1)), [visible]);
 
   return (
+    <UndoControllerContext.Provider value={undo}>
     <CameraApiContext.Provider value={board}>
       <BoardViewport
         onCreateAtPoint={createAtScreenPoint}
@@ -165,7 +182,7 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
         <MarqueeRect rect={marquee.rect} />
       </BoardViewport>
 
-      <Toolbar onCreateSticky={createAtViewportCentre} />
+      <Toolbar onCreateSticky={createAtViewportCentre} undo={undoState} />
       <ZoomControls
         zoomPercent={board.zoomPercent}
         canZoomIn={board.canZoomIn}
@@ -179,5 +196,6 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
       {/* Story 5: a board you are on is a board you can send somebody. */}
       {boardId !== undefined && <SharePanel boardId={boardId} />}
     </CameraApiContext.Provider>
+    </UndoControllerContext.Provider>
   );
 }

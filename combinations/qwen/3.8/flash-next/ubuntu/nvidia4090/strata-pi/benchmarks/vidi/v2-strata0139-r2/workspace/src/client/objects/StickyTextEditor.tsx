@@ -11,6 +11,7 @@ import type * as Y from "yjs";
 import { LOCAL_ORIGIN } from "../../shared/board-model";
 import { STICKY_FONT_MAX_PX, STICKY_TEXT_BOX_WORLD, STICKY_TEXT_MAX_CHARS } from "../../shared/config";
 import { applyTextDiff, clampToLimit, commonPrefixLength, counterVisible, fitFontSize, textBoxStyle } from "./StickyText";
+import { useUndoBoundary, useUndoController } from "../board/useUndo";
 
 /**
  * The textarea that edits a note's `Y.Text`.
@@ -25,6 +26,11 @@ import { applyTextDiff, clampToLimit, commonPrefixLength, counterVisible, fitFon
  *   the other person typed.
  * - Escape ends editing (the text stays); a pointerdown outside the note is
  *   handled by `StickyNote`, which unmounts this editor.
+ * - Story 8: opening and leaving a note closes an undo step, so what is typed in
+ *   one editing session groups into steps by the capture timeout alone. Ctrl/Cmd+Z
+ *   inside the field is answered here rather than by the browser, because the
+ *   browser's own textarea undo would leave the DOM and the shared `Y.Text`
+ *   disagreeing about what the note says.
  * - Enter inserts a newline (it never leaves the note).
  * - IME composition is committed on `compositionend`, never mid-composition;
  *   a remote change never overwrites text that is still being composed.
@@ -38,6 +44,8 @@ export interface StickyTextEditorProps {
 
 export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
+  const undo = useUndoController();
+  const boundary = useUndoBoundary();
   const composingRef = useRef(false);
   const [size, setSize] = useState<number>(() =>
     Number.isFinite(fontPx) ? fontPx : STICKY_FONT_MAX_PX,
@@ -79,6 +87,14 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     measure();
   }, [measure]);
 
+  // Edit start and edit end each close a capture window (`undo.boundaries`), so a
+  // drag or a colour change before or after this editing session is never merged
+  // into it. A boundary of its own changes nothing on the board.
+  useEffect(() => {
+    boundary();
+    return boundary;
+  }, [boundary]);
+
   const onInput = (event: ChangeEvent<HTMLTextAreaElement>) => {
     // Mid-composition keystrokes are not real text yet (IME, e.g. Japanese).
     if (composingRef.current) return;
@@ -114,6 +130,25 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       onEnd("selected");
       return;
     }
+
+    const mod = event.ctrlKey || event.metaKey;
+    if (mod && (event.key === "z" || event.key === "Z")) {
+      // The browser's native undo would change the field without changing
+      // Y.Text — and the next keystroke's diff would then write that divergence
+      // into the shared document. So the board's own history answers here.
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.shiftKey) undo?.redo();
+      else undo?.undo();
+      return;
+    }
+    if (event.ctrlKey && !event.metaKey && (event.key === "y" || event.key === "Y")) {
+      event.preventDefault();
+      event.stopPropagation();
+      undo?.redo();
+      return;
+    }
+
     // Enter adds a line break inside the note.
   };
 

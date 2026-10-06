@@ -389,3 +389,145 @@ Nothing in story 5 is blocked on this machine. The WebKit gap recorded under sto
 still applies to every e2e run in this repository, including TC-26 to TC-29 and TC-31:
 Chromium and Firefox run, WebKit's browser build is present but its system libraries
 (`libavif`) are not, and `sudo`/`apt` are unavailable.
+
+## Story 8 — undo and redo my own changes
+
+### Deviations from the design/tasks, and why
+
+1. **`UndoControllerContext` lives in `src/client/board/useUndo.ts`.** The design has
+   `App.tsx` own the controller, but a step boundary has to be requested *where the
+   change happens*: the text editor (mount and close), the note toolbar (colour,
+   delete) and the board (keys, create, nudge, gesture). Only `App` builds the
+   controller, so the pieces that change the model reach it through a context
+   (`useUndoController`, `useUndoBoundary`) instead of five more prop threads. The
+   context value is the controller; `useUndo(controller, canEdit)` — the button state
+   — is still taken once, in `App`, and passed to `Toolbar` as the design says.
+2. **A deferred "slot" controller instead of the controller itself.** `App` renders
+   inside `<StrictMode>`, so `useUndoHistory` runs mount → cleanup → mount. Handing
+   out the real `UndoController` and destroying it in cleanup would leave every
+   consumer holding a destroyed manager (and the second mount would build a second
+   `Y.UndoManager` on the same doc, doubling the stacks). `createUndoSlot()` returns a
+   stable facade with a fixed identity whose live controller can be replaced; the
+   cleanup path is idempotent, and `replace()` re-emits `onChange` so the buttons
+   refresh when the stacks move.
+3. **TC-13's exact endpoints are not drivable, so they are not driven.** The task says
+   "separated by exactly `UNDO_CAPTURE_TIMEOUT_MS` → two steps; by
+   `UNDO_CAPTURE_TIMEOUT_MS − 1` → one step". Yjs's clock is `lib0`'s
+   `getUnixTime = Date.now`, imported by `yjs` itself: neither `vi.useFakeTimers()`
+   nor `vi.mock("lib0/time")` reaches it (a first attempt at both is why
+   `vitest.config.ts` is unchanged). `tests/unit/undo-boundaries.test.ts` therefore
+   uses **real elapsed time** with a deliberately short capture window
+   (`captureTimeoutMs: 40`): changes are placed well inside the window and, after a
+   real wait, well outside it — plus a case showing `boundary()` closes the window
+   without adding a step of its own. The property the boundary case is about (the
+   window's edge is what splits steps) is asserted; the literal ±1 ms is not.
+4. **Task order.** Tasks 6 and 7 (the unit suites) were written first, as the
+   test-first rule requires, then 2, 8, 9, 10, 11 and 5 — i.e. the boundaries unit
+   tests existed before the wiring they describe.
+5. **No `deleteFilter`.** Yjs's `UndoManager` would let a `deleteFilter` restrict which
+   deletions an undo may redo. It is not needed and was not used: a stack item only
+   ever holds the inverse of *this tab's* `LOCAL_ORIGIN` transaction, so a colleague's
+   deletion is not in it. A first version that passed `deleteFilter: () => false`
+   broke the undo of a note this tab had created (its own deletion was refused too),
+   which is a good demonstration that the origin filter alone is the whole mechanism.
+6. **`LOAD_ORIGIN` moved from `src/worker/board-store.ts` to `src/shared/board-model.ts`,**
+   next to `LOCAL_ORIGIN`, so the origin contract ("who wrote this, and is it undoable")
+   is readable in one file and importable from both tsconfig projects. `board-store.ts`
+   and `board-room.ts` now import it.
+7. **`addScope(scope: Y.AbstractType<any>)`.** `Y.AbstractType`'s private event holder
+   makes it invariant, so the narrower `addScope` signature will not accept
+   `Y.Map<…>`/`Y.Text` structurally. The parameter type is widened to keep the story 16
+   hook honest without a cast at every call site.
+8. **Keyboard refusal is a refusal, not a `preventDefault`.** When `canEdit` is false
+   (board failed to load) the board does not claim Ctrl+Z at all: the browser's own
+   undo is left alone, and the buttons are disabled (TC-20). Inside a note's textarea
+   the editor answers Ctrl+Z itself and stops propagation, so the board's window
+   listener never sees it and the keystroke is answered exactly once.
+
+### What Yjs's `UndoManager` actually does (measured, not assumed)
+
+- `trackedOrigins: new Set([LOCAL_ORIGIN])` is the only history filter: a transaction
+  from the provider, from `LOAD_ORIGIN`, or from the manager itself is not captured.
+  The manager tracks its own transactions, so an undo is *undoable* — which is why,
+  after one Ctrl+Z, **Redo is enabled and Undo is disabled**, and after a Redo
+  **Undo is enabled again** (the redo was a change of mine). Every e2e button-state
+  assertion follows that, not an intuition.
+- Grouping is `now − lastChange < captureTimeout`. `stopCapturing()` sets
+  `lastChange = 0`, i.e. the next tracked transaction starts a new stack item.
+- `popStackItem` keeps popping inside one `undo()` call while an item has no effect,
+  which is what makes TC-07 ("the peer deleted what I moved") return `null` and
+  nothing, rather than throwing or skipping past it into someone else's work.
+- An undo transaction's origin is the manager, so the remote-adopt path in
+  `StickyTextEditor` re-syncs the textarea after an undo of its own typing.
+
+### Gap filled from story 7: a drag could lose its whole move
+
+`useTransformGesture` applies each pointer move on the next animation frame, and
+`finish()` cancelled the queued frame. When a release arrived before that frame ran —
+always for a very fast drag, and routinely for Playwright's fast synthetic gestures —
+the queued frame was cancelled and the object never moved at all: the selection and
+the z-order changed, the position did not. Now `pointerup` flushes the queued frame
+before finishing, so **a dragged object ends where the pointer was released**. A
+*cancelled* gesture still keeps the last *applied* position, which is what story 7's
+TC-21 asserts, and that test is unchanged.
+
+### Gap filled in the e2e harness: one mouse at a time
+
+`tests/e2e/helpers/input-lock.ts` is new, and it fixed a test that was red at HEAD.
+Playwright's `page.mouse` is per page, but when one worker points at several pages of
+one browser simultaneously the pointer streams do not all arrive where they were sent:
+measured with five editors each dragging their own note, awaited one page at a time
+every note ended exactly where it was pointed, while in `Promise.all` three of five
+landed elsewhere (a ten-step move arriving as two steps at the wrong distance, or
+never beginning at all). Chromium delivered some of them correctly and some not, so
+the affected tests were flaky there and deterministically wrong in Firefox.
+`selection.spec.ts` TC-36 was **red in Firefox at HEAD** for this reason and is green
+now; TC-35 (chromium and Firefox) was red under the load of a full run. Only
+*pointing* is serialised — the sessions stay connected and keep receiving each other's
+updates underneath a gesture, which is what those tests are about; keyboard input
+(undo, typing, Delete) still overlaps freely.
+
+`playwright.config.ts` now caps `workers` at 4 (`E2E_WORKERS` to override). Playwright's
+default here is 16; at 16 workers a dozen five-page rooms share one `wrangler dev`
+process and the *room*, not the product, exceeds the latency budgets the tests assert.
+No budget was loosened: `npm run test:e2e` is 89 passed, 1 skipped (WebKit, see story 1)
+with this cap, and was not with it.
+
+### How the e2e undo tests are set up
+
+- **Boards are seeded through the sync protocol, not through a participant's UI**
+  (`seedBoard` + a `Y.Doc` built in the test process, one update per note). Seeded notes
+  are therefore *remote* to every participant, so nothing is in anyone's history but
+  their own work — which is the thing TC-22 to TC-24 then prove. Seeding through a
+  participant's UI would put the seed itself into that person's undo stack and make the
+  test pass for the wrong reason.
+- **Board state is compared in world units from the inline `left`/`top`/`width`/`height`**
+  a note is painted with (`boardState`), never `boundingBox()`: camera-independent, and
+  `notes(page)` throws for a note painted off screen. Colours are compared as the
+  browser paints them (`rgb(…)`) and the baseline is read from the DOM, because the
+  model stores colour *names* and model-vs-DOM colour comparison is always false.
+
+### Test-count and harness notes
+
+- `Toolbar` gained a required `undo` prop, so `tests/component/ConnectionStatus.test.tsx`
+  passes a `NO_UNDO` state; `boardHarness`/`boardFixture` gained an `undo` controller
+  option and an `undo()` handle, and wrap `boundary()` into the story 7 gesture
+  start/end exactly as `App` does (story 7's gesture counting still works).
+- Component tests split by what they need: TC-14 to TC-17 use a real `Y.Doc`, a real
+  `Y.UndoManager` and the real gesture hook; TC-18 to TC-21 use a spy controller
+  (`fakeHistory`) so button state, keyboard refusal and the edit lock are asserted
+  against calls rather than against Yjs internals.
+- `tests/unit/helpers/peer.ts` syncs **both ways** at creation (a provider exchanges
+  state vectors, not one direction) and mutates the peer through `peer.transact(…,
+  REMOTE_ORIGIN)`; a one-directional sync let Yjs garbage-collect the peer's structs,
+  which showed up as "the peer's note disappeared" rather than as a helper bug.
+- `npm run test:integration` prints
+  `workerd/api/unsafe.c++:217: failed: jsg.Error: Application called abortAllDurableObjects()`
+  while shutting workerd down. It is pre-existing shutdown chatter from the harness,
+  printed after `63 passed`; it is not a test failure.
+
+### Blocked
+
+Nothing in story 8 is blocked on this machine. The WebKit gap recorded under story 1
+still applies (its browser build is present, `libavif` is not, and there is no root),
+so TC-22 to TC-24 run in Chromium and Firefox.

@@ -1,5 +1,8 @@
+import { UndoButtons } from "./UndoButtons";
+import type { UndoState } from "./useUndo";
+
 /**
- * Left-side board toolbar: the Sticky note tool.
+ * Left-side board toolbar: the Sticky note tool, and story 8's Undo and Redo.
  *
  * The button's accessible name is "Sticky note"; its tooltip spells out the
  * alternative (double-click the board). Clicking it creates a note in the
@@ -7,11 +10,13 @@
  */
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /** This tab's undo state: the buttons only ever reach this tab's history. */
+  undo: UndoState;
 }
 
 export const STICKY_TOOL_TOOLTIP = "Sticky note \u2013 centre of view";
 
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, undo }: ToolbarProps) {
   return (
     <div
       className="board-toolbar"
@@ -34,6 +39,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
         <span className="tool-glyph" aria-hidden="true" />
         <span className="tool-label">Sticky note</span>
       </button>
+      <UndoButtons {...undo} />
     </div>
   );
 }

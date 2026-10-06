@@ -17,6 +17,7 @@ import {
 import { fitFontSize, textBoxStyle } from "./StickyText";
 import { StickyTextEditor } from "./StickyTextEditor";
 import { NoteToolbar } from "./NoteToolbar";
+import { useUndoBoundary } from "../board/useUndo";
 import type { ObjectProps } from "./registry";
 
 /**
@@ -57,6 +58,8 @@ export function StickyNote({
 }: StickyNoteProps) {
   const id = object.id;
   const note = object as StickySnapshot;
+  // Story 8: a colour change and a delete are each one undo step.
+  const undoBoundary = useUndoBoundary();
   const box = objectBounds(object);
   // A resized sticky note stays square (its type is aspect-locked); the fit is
   // measured against the size it actually has.
@@ -187,10 +190,14 @@ export function StickyNote({
           <NoteToolbar
             color={note.color}
             onColor={(color: StickyColor) => {
+              undoBoundary();
               setStickyColor(doc, id, color);
+              undoBoundary();
             }}
             onDelete={() => {
+              undoBoundary();
               deleteObject(doc, id);
+              undoBoundary();
             }}
           />
         </div>

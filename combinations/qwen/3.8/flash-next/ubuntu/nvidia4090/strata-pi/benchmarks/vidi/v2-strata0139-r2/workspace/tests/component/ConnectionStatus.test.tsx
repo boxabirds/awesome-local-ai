@@ -9,7 +9,11 @@ import {
   type ProviderSignal,
 } from "../../src/client/sync/connection-state";
 import { Toolbar } from "../../src/client/board/Toolbar";
+import type { UndoState } from "../../src/client/board/useUndo";
 import { CONNECTED_CONFIRMATION_MS } from "../../src/shared/config";
+
+/** Story 8: the toolbar now carries this tab's undo state; this test is about the badge. */
+const NO_UNDO: UndoState = { canUndo: false, canRedo: false, undo: () => {}, redo: () => {} };
 
 /**
  * Story 3, task 7 - the connection badge (TC-19 to TC-21).
@@ -156,6 +160,7 @@ describe("connection status badge", () => {
             onCreateSticky={() => {
               created += 1;
             }}
+            undo={NO_UNDO}
           />
         </>,
       );

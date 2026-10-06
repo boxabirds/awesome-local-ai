@@ -20,6 +20,9 @@
  */
 
 import * as Y from "yjs";
+// The load origin (`board.model`): the room must neither store what it has just
+// read back nor broadcast it.
+import { LOAD_ORIGIN } from "../shared/board-model";
 import {
   COMPACTION_BYTES,
   COMPACTION_UPDATE_COUNT,
@@ -27,12 +30,6 @@ import {
   STORAGE_CREATED_AT_KEY,
   STORAGE_SCHEMA_VERSION,
 } from "../shared/config";
-
-/**
- * Origin tag for everything `load` applies: the room must neither store what it
- * has just read back nor broadcast it.
- */
-export const LOAD_ORIGIN: unique symbol = Symbol("vidi6-load");
 
 /**
  * How many transactions a stored log row covers.

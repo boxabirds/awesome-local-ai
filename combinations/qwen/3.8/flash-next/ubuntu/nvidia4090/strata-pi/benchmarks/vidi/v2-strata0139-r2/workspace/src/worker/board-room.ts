@@ -50,7 +50,8 @@ import {
   MESSAGE_SYNC,
   decodeMessage,
 } from "../shared/protocol";
-import { BoardStore, LOAD_ORIGIN, shouldCompact, type LoadResult } from "./board-store";
+import { BoardStore, shouldCompact, type LoadResult } from "./board-store";
+import { LOAD_ORIGIN } from "../shared/board-model";
 import {
   ROOM_LOAD_RETRY_MIN_INTERVAL_MS as LOAD_RETRY_MIN_INTERVAL_MS,
   nextRoomState,

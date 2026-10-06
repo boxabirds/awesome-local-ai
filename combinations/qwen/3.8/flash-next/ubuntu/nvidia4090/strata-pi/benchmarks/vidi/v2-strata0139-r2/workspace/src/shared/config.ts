@@ -96,6 +96,17 @@ export const MARQUEE_BORDER_COLOR = "#3b82f6";
 /** Border of the bounding box drawn around a multi-object selection. */
 export const SELECTION_BOX_COLOR = "#2563eb";
 
+// ---- Undo and redo (story 8) -------------------------------------------
+
+/**
+ * How long a pause in one person's typing must be before the next change starts
+ * a new undo step (PRD undo.typing). Anything shorter merges into the current
+ * step, which is what makes a burst of typing one step instead of twenty.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/** How many of a person's own steps one board tab remembers (PRD undo.limit). */
+export const UNDO_MAX_STEPS = 200;
+
 // ---- Live collaboration (story 3) ---------------------------------------
 
 /**

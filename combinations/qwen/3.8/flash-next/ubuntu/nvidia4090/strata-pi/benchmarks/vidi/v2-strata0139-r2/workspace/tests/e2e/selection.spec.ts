@@ -9,6 +9,7 @@ import {
 import * as board from "./helpers/board";
 import * as notes from "./helpers/notes";
 import * as selection from "./helpers/selection";
+import { withInputLock } from "./helpers/input-lock";
 import { expectEventually, expectNoProblems, openSession, type Session } from "./helpers/participants";
 
 /**
@@ -244,9 +245,13 @@ test.describe("workflow: reorganise a cluster", () => {
 
       await Promise.all(
         pages.map(async (page, index) => {
-          await selection.selectIds(page, selections[index]!);
+          // Only one page is pointed at a time (see `helpers/input-lock`): five
+          // simultaneous pointer streams from one worker do not all reach the page
+          // they were sent to. The sessions stay connected, so each gesture still
+          // lands on a board its colleagues are changing underneath it.
+          await withInputLock(() => selection.selectIds(page, selections[index]!));
           expect((await selection.selectionState(page)).selected).toBe(selections[index]!.length);
-          await selection.dragObjectBy(page, selections[index]![0]!, deltas[index]!);
+          await withInputLock(() => selection.dragObjectBy(page, selections[index]![0]!, deltas[index]!));
         }),
       );
 

@@ -11,6 +11,8 @@ import { MarqueeRect, useMarquee } from "../../src/client/board/Marquee";
 import { useBoardKeys } from "../../src/client/board/useBoardKeys";
 import { SelectionOverlay } from "../../src/client/board/SelectionOverlay";
 import { SelectionBar } from "../../src/client/board/SelectionBar";
+import { UndoControllerContext, useUndoHistory } from "../../src/client/board/useUndo";
+import type { UndoController } from "../../src/client/board/undo";
 import { getObjectType, registeredObjectTypes } from "../../src/client/objects/registry";
 import { deleteObjects } from "../../src/shared/board-model";
 
@@ -37,6 +39,8 @@ export interface HarnessOverrides {
 export interface HarnessHandle {
   selection(): SelectionApi;
   setOverrides(overrides: Record<string, Record<string, unknown>>): void;
+  /** Story 8: this board's undo history, for tests that assert on its stacks. */
+  undo(): UndoController;
 }
 
 export function BoardHarness({
@@ -45,6 +49,7 @@ export function BoardHarness({
   overridesRef,
   handleRef,
   gestures,
+  undo,
 }: {
   doc: Y.Doc;
   canEdit: boolean;
@@ -52,6 +57,11 @@ export function BoardHarness({
   handleRef: MutableRefObject<HarnessHandle | null>;
   /** Story 8's undo gesture window; counted here to prove it opens and closes once. */
   gestures?: { onStart(): void; onEnd(): void };
+  /**
+   * Story 8: a history of this board's own is created here unless the test hands
+   * one in — a fake is how the shortcut tests prove which calls the keyboard makes.
+   */
+  undo?: UndoController;
 }) {
   const viewportSize = useWindowSize();
   const board = useCamera(viewportSize);
@@ -64,14 +74,24 @@ export function BoardHarness({
   );
 
   const selection = useSelection(visible);
+  const ownHistory = useUndoHistory(doc);
+  const controller = undo ?? ownHistory;
   const gesture = useTransformGesture({
     doc,
     camera,
     selection,
     snapshot: visible,
     canEdit,
-    onGestureStart: gestures?.onStart,
-    onGestureEnd: gestures?.onEnd,
+    // Story 8: a gesture is one undo step, and the story 7 test still counts
+    // the window opening and closing exactly once.
+    onGestureStart: () => {
+      controller.boundary();
+      gestures?.onStart();
+    },
+    onGestureEnd: () => {
+      controller.boundary();
+      gestures?.onEnd();
+    },
   });
   const marquee = useMarquee(
     camera,
@@ -86,6 +106,7 @@ export function BoardHarness({
     selectableTypes,
     canEdit,
     marquee: { active: () => marquee.active(), cancel: () => marquee.cancel() },
+    undo: controller,
   });
 
   handleRef.current = {
@@ -93,11 +114,13 @@ export function BoardHarness({
     setOverrides: (byId) => {
       overridesRef.current = { byId };
     },
+    undo: () => controller,
   };
 
   const paintOrder = useMemo(() => visible.slice().sort((a, b) => (a.id < b.id ? -1 : 1)), [visible]);
 
   return (
+    <UndoControllerContext.Provider value={controller}>
     <CameraApiContext.Provider value={board}>
       <BoardViewport
         onCreateAtPoint={() => undefined}
@@ -145,6 +168,7 @@ export function BoardHarness({
         <MarqueeRect rect={marquee.rect} />
       </BoardViewport>
     </CameraApiContext.Provider>
+    </UndoControllerContext.Provider>
   );
 }
 

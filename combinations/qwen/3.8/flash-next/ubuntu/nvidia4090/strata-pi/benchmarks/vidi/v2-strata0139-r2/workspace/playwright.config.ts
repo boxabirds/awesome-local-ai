@@ -65,6 +65,16 @@ export default defineConfig({
   grepInvert: /@nightly/,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
+  /**
+   * Playwright's default is half the CPU count (16 on this machine). Every test
+   * here drives up to five real browser pages against one `wrangler dev` process,
+   * and at 16 workers the room becomes the bottleneck rather than the product:
+   * sync latency exceeds the budgets the tests assert, and the shared browser
+   * process drops pointer input. Four workers keep a five-editor room's updates
+   * inside the latency budget while still running nine tests at a time.
+   * Override with `E2E_WORKERS`.
+   */
+  workers: Number(process.env.E2E_WORKERS ?? 4),
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,

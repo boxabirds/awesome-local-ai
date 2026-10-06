@@ -10,13 +10,20 @@ import {
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from "../../shared/config";
 import type { Point } from "../../shared/geometry";
 import type { SelectionApi } from "./useSelection";
+import type { UndoController } from "./undo";
 
 /**
  * The board's selection keyboard (`sel.keyboard`).
  *
  * Ctrl/Cmd+A selects everything this board can select, Escape clears the
  * selection, the arrows nudge it (1 board unit, 10 with Shift) and
- * Delete/Backspace remove it. Story 2's Enter-to-edit stays.
+ * Delete/Backspace remove it. Story 2's Enter-to-edit stays, and story 8 adds
+ * Ctrl/Cmd+Z to undo this tab's last step, Ctrl/Cmd+Shift+Z (and Ctrl+Y) to redo
+ * it, with a step boundary around every keyboard change.
+ *
+ * Story 8's shortcuts are refused exactly where the design says: while focus is
+ * in an ordinary field (the share-link input, a note's own text editor, which
+ * handles Ctrl/Cmd+Z itself) and while this board may not be written to.
  *
  * Keys are refused while a person is typing — `editingId` is set or the focus is
  * in a field or a button — so Backspace edits text instead of deleting the
@@ -38,6 +45,11 @@ export interface BoardKeyOptions {
    * the marquee and leaves the previous selection alone.
    */
   marquee?: { active(): boolean; cancel(): void };
+  /**
+   * Story 8: this tab's undo history. Without it the undo and redo keys do
+   * nothing, which is also how a board with no history behaves.
+   */
+  undo?: UndoController;
 }
 
 /** What a handled key does. `null` leaves the key to the browser. */
@@ -46,7 +58,9 @@ export type BoardKeyCommand =
   | { type: "clear" }
   | { type: "nudge"; dx: number; dy: number }
   | { type: "delete" }
-  | { type: "edit" };
+  | { type: "edit" }
+  | { type: "undo" }
+  | { type: "redo" };
 
 /** The pure half of the keyboard: what a key means, given the board's state. */
 export function boardKeyCommand(
@@ -66,6 +80,15 @@ export function boardKeyCommand(
   const mod = event.ctrlKey || event.metaKey;
 
   if (mod && (event.key === "a" || event.key === "A")) return { type: "selectAll" };
+
+  // Story 8: Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl+Y redo. (Cmd+Y stays
+  // the browser's own — only Ctrl+Y means redo here.)
+  if (mod && (event.key === "z" || event.key === "Z")) {
+    return event.shiftKey ? { type: "redo" } : { type: "undo" };
+  }
+  if (event.ctrlKey && !event.metaKey && (event.key === "y" || event.key === "Y")) {
+    return { type: "redo" };
+  }
   if (event.key === "Escape") return state.hasSelection || state.isEditing ? { type: "clear" } : null;
 
   const arrow = ARROW_DELTAS[event.key];
@@ -101,7 +124,7 @@ export function useBoardKeys(options: BoardKeyOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { doc, selection, snapshot, selectableTypes, canEdit, marquee } = latest.current;
+      const { doc, selection, snapshot, selectableTypes, canEdit, marquee, undo } = latest.current;
 
       // Mid-marquee, Escape belongs to the marquee: cancel it, keep the selection.
       if (event.key === "Escape" && marquee?.active()) {
@@ -136,13 +159,29 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         case "nudge": {
           // preventDefault: no page scroll, and the board does not pan (TC-34).
           event.preventDefault();
+          // One nudge is one undo step, whatever happened just before it.
+          undo?.boundary();
           nudge(doc, snapshot, selection.ids, command.dx, command.dy);
+          undo?.boundary();
           return;
         }
         case "delete": {
           event.preventDefault();
+          // A whole selection deleted by one key is one step, not one per object.
+          undo?.boundary();
           deleteObjects(doc, Array.from(selection.ids));
+          undo?.boundary();
           selection.clear();
+          return;
+        }
+        case "undo": {
+          event.preventDefault();
+          undo?.undo();
+          return;
+        }
+        case "redo": {
+          event.preventDefault();
+          undo?.redo();
           return;
         }
         case "edit": {

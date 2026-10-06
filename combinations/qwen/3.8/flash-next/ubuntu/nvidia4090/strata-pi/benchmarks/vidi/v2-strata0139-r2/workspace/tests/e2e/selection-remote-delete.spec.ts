@@ -96,7 +96,18 @@ test.describe("TC-35 a colleague deletes one of my selected notes", () => {
         .poll(async () => (await selectionState(lee)).selected)
         .toBe(0);
       expect(await notes.noteCount(lee)).toBe(16);
-      expect(await notes.noteCount(sam)).toBe(16);
+      // Sam's screen is the far end of the room, and it is a background tab, whose
+      // painting a browser is allowed to defer. So it is brought forward and the
+      // three deletions are *waited for* — the count is asserted the moment it is
+      // true, and the waiting is what is measured, exactly as the single remote
+      // delete above is.
+      await sam.bringToFront();
+      const samSawThemAfterMs = await expectEventually(
+        "TC-35 Sam sees Lee's deletions",
+        async () => (await notes.noteCount(sam)) === 16,
+        LIVE_UPDATE_LATENCY_BUDGET_MS,
+      );
+      expect(samSawThemAfterMs).toBeLessThan(LIVE_UPDATE_LATENCY_BUDGET_MS);
       expect((await selectionState(lee)).bar).toBe(false);
 
       // Nothing Sam or Lee never saw: Sam's own selection is his business.

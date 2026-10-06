@@ -45,6 +45,16 @@ import { rectContains } from "./geometry";
 /** Origin tag for local mutations: story 8 uses it for undo, story 3 to avoid echoes. */
 export const LOCAL_ORIGIN: unique symbol = Symbol("vidi6-local");
 
+/**
+ * Origin tag for everything a board is *loaded* from (story 4): the room applies
+ * its own stored snapshot and update log with it, so a load is never mistaken for
+ * an edit — and never enters a person's undo history (story 8, undo.history).
+ *
+ * It lives here, next to `LOCAL_ORIGIN`, because the pair is the board's origin
+ * contract: local, remote (the provider's own object) and load.
+ */
+export const LOAD_ORIGIN: unique symbol = Symbol("vidi6-load");
+
 /** Bumped when the schema changes; persisted in `meta.schemaVersion`. */
 export const SCHEMA_VERSION = 1;
 

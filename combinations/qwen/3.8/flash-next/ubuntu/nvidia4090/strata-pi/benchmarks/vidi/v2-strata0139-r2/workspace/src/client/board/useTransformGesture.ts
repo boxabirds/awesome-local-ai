@@ -259,6 +259,11 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         const pointer = upEvent as unknown as PointerEventLike;
         if (gesture.pointerId !== pointer.pointerId) return;
         releasePointerCapture(el, pointer.pointerId);
+        // Moves are applied one animation frame at a time. If the release beats
+        // the frame that was queued for the last one, that frame must not be
+        // thrown away: a dragged object ends where the pointer was released.
+        // A *cancelled* gesture keeps the last applied position instead (TC-21).
+        if (gesture.frame !== null) applyFrame(gesture);
         // Press and release without movement is a click: it selects that object
         // alone, even when the press began inside a bigger selection (which is
         // what a press *with* movement needs in order to move the group).
