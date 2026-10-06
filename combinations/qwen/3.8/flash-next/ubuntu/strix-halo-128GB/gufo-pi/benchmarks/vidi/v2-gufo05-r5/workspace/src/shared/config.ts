@@ -88,3 +88,49 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** The colour of a newly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// ---- Live collaboration (story 3) ------------------------------------------
+
+/**
+ * Simultaneous-editor capacity of one board. A soft target: it is never enforced, the
+ * 6th person is accepted like anyone else. Tests read this instead of a literal.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/**
+ * How long a change may take to appear on every other connected screen (PRD
+ * live.propagate). Reported in the e2e latency log, never asserted there: model,
+ * browsers and server share one machine, so wall-clock timing is not a pass/fail signal.
+ */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Largest gap between two reconnection attempts, handed to the WebSocket provider. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays up after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/**
+ * How often a tab re-syncs with its room. A board nobody is editing must not look like a dead
+ * connection, so every tab asks the room for anything it is missing regularly; the room answers
+ * every request, which is also what lets a tab tell a live room from a silent one (see
+ * `CONNECTION_IDLE_TIMEOUT_MS`).
+ */
+export const RESYNC_INTERVAL_MS = 5000;
+/**
+ * How long a socket may carry nothing before the tab calls the connection lost. A browser whose
+ * network has vanished does not notice by itself - the socket simply stops carrying frames - and
+ * the provider's own silence timeout is 30 s and not configurable, so the tab watches the wire
+ * and closes the socket itself. That is what makes "Reconnecting…" appear within seconds of an
+ * outage instead of after half a minute.
+ */
+export const CONNECTION_IDLE_TIMEOUT_MS = 8000;
+
+/** Outage length used by the offline catch-up test (PRD live.catch_up). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/**
+ * Functional waiting budget in the e2e suites of every story: a change must *appear*
+ * within this time; how long it actually took is logged against
+ * LIVE_UPDATE_LATENCY_BUDGET_MS instead of asserted.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;

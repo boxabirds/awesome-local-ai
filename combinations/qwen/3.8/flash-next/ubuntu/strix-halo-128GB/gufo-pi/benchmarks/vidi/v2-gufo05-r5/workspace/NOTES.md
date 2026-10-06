@@ -190,3 +190,130 @@ no Chromium-only code.
 - Extra tests beyond the design's list, kept because they are cheap and guard decisions above:
   CRDT merge of a minimal diff with concurrent typing, surrogate-pair safety, a drag released
   outside the note, rapid creation, the counter-scaled toolbar, and Enter/Delete behaviour in e2e.
+
+## Running the checks (story 3 numbers)
+```bash
+npm run build            # unchanged: the window.__vidi6 test hook stays out of this bundle
+npm run typecheck        # src + tests (tsconfig.json) and the worker (tsconfig.worker.json)
+npm run test:unit        # 69 tests - adds board ids and protocol decoding
+npm run test:component   # 62 tests - adds the connection badge (TC-19 to TC-21 and around it)
+npm run test:integration # 28 tests - real Worker and real Durable Objects in workerd
+npm run test:e2e         # 41 tests in chromium - TC-22 to TC-28 plus stories 1 and 2
+npm run test:e2e:nightly # 2 tests - 45 s idle stability, 60 s soak at MAX_CONCURRENT_EDITORS
+```
+The nightly scenarios carry `@nightly` in their title: `test:e2e` inverts that match so they never
+run twice, and `test:e2e:nightly` runs only those, with one worker so its latency report is not
+measuring two suites competing for the machine. Last full run, all green:
+
+| suite | result | latency, where it is reported |
+|---|---|---|
+| unit | 69 passed | - |
+| component | 62 passed | - |
+| integration | 28 passed | asserted within `LIVE_UPDATE_LATENCY_BUDGET_MS` |
+| e2e | 41 passed (38 s) | TC-26: p50=19ms p95=49ms max=97ms |
+| nightly | 2 passed (1.8 min) | TC-30: 955 changes, p50=5ms p95=9ms max=16ms |
+
+An outage in TC-27 was noticed 10.9 s after the last frame and the board was live again about 2 s
+after the network came back; both are logged, and only the badge states are asserted.
+
+## Design decisions (story 3)
+- **The Worker only routes**: `/api/rooms/<boardId>` with a WebSocket upgrade goes to that board's
+  `BoardRoom` (`idFromName(boardId)`, one object per board id, which is what keeps separate boards
+  separate in the tests); anything else, including the same path without `Upgrade: websocket`,
+  returns `426 Upgrade Required`. There is no session and nobody is counted, so a 6th person on a
+  board is connected exactly like the first.
+- **`new WebSocketPair()` + the non-hibernating `server.accept()`**, deliberately: the document
+  lives in the object's memory in this story, and hibernation would evict the object while sockets
+  stay open and silently drop the board. Story 4 switches to `acceptWebSocket()` once the document
+  can be reloaded from storage.
+- **Workerd hands binary WebSocket messages as a `Blob`**, not an `ArrayBuffer` (`message instanceof
+  Blob` is true, `ArrayBuffer.isView` is false), and reading it is asynchronous. `toFrameBytes()`
+  normalizes `Blob | ArrayBuffer | ArrayBufferView | string`, and both the room and the integration
+  clients chain message handling per socket so one socket's frames stay in order - the initial
+  SyncStep1 / SyncStep2 handshake only works step by step.
+- **Wire format**: a sync frame is `varUint(0)` followed by the y-protocols message *itself* (step
+  byte included) with **no length prefix**; only awareness frames are `varUint8Array`-prefixed.
+  Wrapping sync payloads in `varUint8Array` works between equals and nowhere else - a real
+  `WebsocketProvider` hands the rest of the frame straight to `readSyncMessage`.
+  `src/shared/protocol.ts` owns both directions (`decodeMessage`, `syncFrame`).
+- **A bad frame costs one socket**: text, truncated, unknown type, or a payload Yjs rejects close
+  that socket with `1003` and leave the document and every other participant untouched.
+  `y-protocols` does not throw on an unusable update - `readSyncMessage` reports it through its
+  `errorHandler` - so the room turns that callback into a close by hand.
+- **A restarted room is repopulated by the client**, not by storage: on every (re)connection the
+  room sends SyncStep1, so the newcomer answers with a SyncStep2 holding everything the fresh room
+  lacks. That is what TC-18 asserts, and it is why a reload during a sync storm never loses work.
+- **`RESYNC_INTERVAL_MS` (5 s) re-sends a SyncStep1** while a board is idle: y-websocket 3.1.0
+  sends no ping of its own and closes after `messageReconnectTimeout` (30 s) of silence. The design's
+  "clients renew awareness periodically" describes the need; this provider version has no awareness
+  ping to renew with. Five seconds instead of, say, twenty, because it is also what tells the tab
+  below that the wire is dead.
+- **`CONNECTION_IDLE_TIMEOUT_MS` (8 s) is how long a tab waits for a silent wire**: a browser does
+  not notice a network that goes away quietly, and y-websocket only gives up after 30 s. The 5 s
+  resync means anything quieter than that is dead, so `webSocketWithIdleTimeout()` wraps the socket
+  class, timestamps the last frame in, and - on silence - gets the provider to disconnect and dial
+  again. It does *not* call `socket.close()`: on a dead network the browser sits in CLOSING waiting
+  for a close frame that is never coming. Measured in Chromium, an outage is reported 9 s after the
+  last frame and the board is live again about 2 s after the network returns.
+- **`window`'s `offline`/`online` events are listened to as well** and drop the badge to
+  "Reconnecting…" on the spot. They are a bonus, not the mechanism: in this sandbox `navigator.onLine`
+  is already false with nothing switched off, and Playwright's offline mode never fires them.
+- **A story 2 defect, found by dragging a second note**: a drag raises the note it drags, the render
+  order follows `z`, and re-ordering the children moves the dragged note's DOM node - which drops
+  pointer capture, and `onLostPointerCapture` treated that as a cancelled drag. So dragging any note
+  that was not already on top stopped dead on the first move, and no story 2 test caught it (they
+  only ever dragged the topmost note). `StickyNote` now takes the capture back when it is lost with
+  the button still down, and lets a real release end the drag. jsdom has no pointer capture, so the
+  e2e multi-note cases (TC-26, TC-30) are what cover this.
+- **`connectBoard()` is a wrapper around the real `WebsocketProvider`** and owns the badge's state
+  machine (design table): `status: 'connecting'` before the first sync, then `reconnecting`, and a
+  `confirmed` state that shows "Connected" for `CONNECTED_CONFIRMATION_MS` and unmounts. Because
+  y-websocket reports `status: 'connected'` as soon as the socket opens, the badge waits for the
+  provider's `sync` event, otherwise it would say "Connected" before the board is usable.
+- **`StickyTextEditor` accepts remote text while typing**: the editor keeps its own `value`, so a
+  remote change to the same note has to come in through `ytext.observe()` or the next diff would
+  delete the other person's characters. The caret is moved with the delta (`shiftCaret`) and IME
+  composition is left alone.
+- **Board switch = new document**: `useBoardDoc(boardId)` tears down provider and doc, and `App`
+  keys the board by id, so no state from the previous board survives.
+
+## Test technique (story 3)
+- **Integration tests (`--project integration`, `vitest.config.ts` workers pool)** run the real
+  Worker and real Durable Objects through `cloudflare:test`'s `SELF`. Clients come from the upgrade
+  *response*'s `webSocket` (`response.webSocket.accept()`), which is how workerd hands a connection
+  to a caller - the pair inside the room is the other half. Frames are re-implemented in
+  `tests/integration/ws-client.ts` on purpose: the client must not share the room's decoder, and it
+  mirrors `y-websocket` byte for byte (SyncStep1 on open, answer SyncStep1 with SyncStep2, relay
+  awareness, mark remote origins so a change is never echoed back).
+- **A fresh room is simulated** with a second Durable Object `idFromName` for the same board name
+  (`connectToStub`), which is what a restart does; TC-18 and the live catch-up test use it.
+- **Component tests fake only the wire**: `tests/component/fakeSocket.ts` is a scripted `WebSocket`
+  injected through the provider's `WebSocketPolyfill` option, so `WebsocketProvider`, y-protocols
+  and Yjs are the real ones and TC-19 to TC-21 (badge states, the `CONNECTED_CONFIRMATION_MS`
+  window, dropping again during it) are driven by `open()` / `close()` / `syncWith(roomDoc)` under
+  fake timers. `vi.advanceTimersByTime` runs inside `act()`, and the provider's backoff is waited
+  out with the real `RECONNECT_MAX_BACKOFF_MS` before the next attempt exists.
+- **Latency is measured, not asserted, in e2e** (per the story's own note): the e2e helpers log the
+  observed p50/p95/max for every propagation, while the integration tests assert the same thing
+  within `LIVE_UPDATE_LATENCY_BUDGET_MS`, where the timing is under our control.
+- **Convergence is checked three ways**: equal state vectors, equal rendered notes (what the user
+  sees), and - for the random-operations soak - equal note sets after 30 rounds of concurrent
+  mutation, so a mutation type that never reaches the other side cannot slip through. The browser
+  side reads the state vector through `window.__vidi6.stateVector()`, which is in the test build
+  only (`vite build --mode test`, what `npm run test:e2e` serves).
+- **The badge is read by `data-testid="connection-status"`** in e2e, because `role="status"` also
+  matches the zoom readout and the board's own hint.
+- **Each participant in e2e gets a part of the world** (`spreadOut`, cameras 3000 units apart) so a
+  drag always grabs the note its owner means to, and their notes cannot overlap each other's.
+  Overlap matters in the soak because every edit is a click: a buried note cannot be selected.
+- **The soak measures one watcher per change** - "the watcher sees exactly what the author sees", all
+  fields of the snapshot, so a keystroke in a note too long to display in full still counts as
+  arrived - and then asserts the whole group agrees. An edit that could not be made at all (no free
+  slot, nothing to edit) measures as 0 ms rather than failing: it is not a change that went missing.
+- **`test.use({ actionTimeout: 10_000 })`** in the live-collaboration spec: Playwright's default
+  action timeout is *no timeout*, and a click waiting for an element that will never appear looked
+  exactly like a slow board.
+- **Nightly scenarios are the `@nightly` title tag**: `npm run test:e2e` skips them and
+  `npm run test:e2e:nightly` runs only those, with one worker so the latency report is not measuring
+  two suites competing for the machine. `VIDI6_SOAK_MS` shortens the soak while the soak itself is
+  being worked on; the default is the 60 s the design names.

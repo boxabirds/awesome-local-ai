@@ -346,3 +346,51 @@ body {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
+
+/* ---- connection status (story 3) ---- */
+
+/* top centre: away from the tools on the left, the zoom controls and the hint at the bottom */
+.connection-status {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 999px;
+  background: var(--chrome-bg);
+  font-size: 13px;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgb(15 20 30 / 8%);
+  pointer-events: none;
+}
+
+/* the dot carries the colour, so the word itself stays readable in every state */
+.connection-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.connection-status--connecting {
+  color: var(--chrome-fg-muted);
+}
+
+/* amber: the link is down and the client is working to get it back */
+.connection-status--reconnecting {
+  color: #b45309;
+  border-color: #f0c674;
+  background: #fffbeb;
+}
+
+/* green: the link is back and the board has caught up on what happened while it was down */
+.connection-status--confirmed {
+  color: #15803d;
+  border-color: #a7e3b6;
+  background: #f0fdf4;
+}

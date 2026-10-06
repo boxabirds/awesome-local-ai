@@ -1,3 +1,92 @@
+commit 01ef223932796db07236db2b2ef63907b7ef8d97
+agent  Tue Oct 6 10:22:31 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                  | 127 +++++
+ PROGRESS.md                               |   8 +-
+ package.json                              |   1 +
+ playwright.config.ts                      |   4 +
+ src/client/App.tsx                        |  58 ++-
+ src/client/board/useBoardDoc.ts           |  35 +-
+ src/client/canvas/testHooks.ts            |  10 +-
+ src/client/objects/StickyNote.tsx         |  16 +-
+ src/client/objects/StickyTextEditor.tsx   |  54 ++-
+ src/client/styles.css                     |  48 ++
+ src/client/sync/ConnectionStatus.tsx      |  37 ++
+ src/client/sync/connectBoard.ts           | 213 ++++++++
+ src/shared/config.ts                      |  15 +
+ src/shared/protocol.ts                    |  39 +-
+ src/worker/board-room.ts                  |  22 +-
+ tests/component/ConnectionStatus.test.tsx | 295 ++++++++++++
+ tests/component/fakeSocket.ts             | 150 ++++++
+ tests/e2e/helpers/participants.ts         | 271 +++++++++++
+ tests/e2e/live-collaboration.spec.ts      | 775 ++++++++++++++++++++++++++++++
+ tests/integration/board-room.test.ts      |  35 +-
+ tests/integration/random-ops.ts           |  35 +-
+ tests/integration/worker.test.ts          |   4 +-
+ tests/integration/ws-client.ts            |  47 +-
+ tests/unit/protocol.test.ts               | 117 +++--
+ 24 files changed, 2288 insertions(+), 128 deletions(-)
+commit 247b69da5aa14ac212bbdecb8640f60964d149aa
+agent  Tue Oct 6 08:02:06 2026 +0000
+
+    story 3: BoardRoom relays Yjs sync and awareness; integration tests for routing and the room
+
+
+ PROGRESS.md                          |   8 +-
+ package.json                         |   1 +
+ src/shared/protocol.ts               |  28 +-
+ src/worker/board-room.ts             | 192 ++++++++++++-
+ tests/integration/board-room.test.ts | 514 +++++++++++++++++++++++++++++++++++
+ tests/integration/random-ops.ts      | 114 ++++++++
+ tests/integration/worker.test.ts     | 139 ++++++++++
+ tests/integration/ws-client.ts       | 342 +++++++++++++++++++++++
+ tests/unit/protocol.test.ts          |  23 ++
+ 9 files changed, 1350 insertions(+), 11 deletions(-)
+commit 8ae5bb29aa675b50af569de85bab66f6cd73ddd6
+agent  Tue Oct 6 07:27:42 2026 +0000
+
+    story 3 task 2: Worker entry, board ids, protocol decode, workers integration test project
+
+
+ PROGRESS.md               |     6 +-
+ package-lock.json         |     7 +
+ package.json              |     3 +-
+ src/shared/board-id.ts    |    13 +-
+ src/shared/protocol.ts    |    36 +-
+ src/worker/board-room.ts  |    21 +
+ src/worker/index.ts       |    84 +
+ tsconfig.json             |     5 +-
+ tsconfig.worker.json      |    12 +
+ vitest.config.ts          |    15 +-
+ worker-configuration.d.ts | 16189 ++++++++++++++++++++++++++++++++++++++++++++
+ wrangler.jsonc            |    28 +-
+ 12 files changed, 16400 insertions(+), 19 deletions(-)
+commit a22d9a9df4ed4a300f57a919cf5a90f067a4cc70
+agent  Tue Oct 6 07:17:25 2026 +0000
+
+    story 3 task 1: board id and protocol decode unit tests red phase (TC-01 to TC-03)
+
+
+ PROGRESS.md                 |    2 +-
+ package-lock.json           | 1008 ++++++++++++++++++++++++++++++++++++++++---
+ package.json                |    6 +-
+ src/shared/board-id.ts      |   30 ++
+ src/shared/config.ts        |   31 ++
+ src/shared/protocol.ts      |   45 ++
+ tests/unit/board-id.test.ts |   75 ++++
+ tests/unit/protocol.test.ts |  118 +++++
+ 8 files changed, 1253 insertions(+), 62 deletions(-)
+commit 14a45e94b9a69cd310737d3cf45d3d0a483c3a20
+vidi-agent  Tue Oct 6 07:09:44 2026 +0000
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit 0de9c5b7e6603b283c5443f0c44ede3cbbbb3c35
 agent  Tue Oct 6 07:08:41 2026 +0000
 

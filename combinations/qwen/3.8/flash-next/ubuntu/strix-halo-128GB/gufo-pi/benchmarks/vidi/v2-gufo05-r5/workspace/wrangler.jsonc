@@ -1,10 +1,28 @@
-// vidi6 static site served by a Cloudflare Worker.
-// Story 1 is assets-only (no Worker script); `main` and an asset binding are added in story 3.
+// vidi6: a Cloudflare Worker that serves the built client and one BoardRoom Durable
+// Object per board (story 3, live collaboration).
+//
+// `run_worker_first` keeps all routing in `src/worker/index.ts`: the room API goes to a
+// BoardRoom, everything else to the assets, whose `single-page-application` handling turns
+// client-side routes like `/b/<boardId>` into `index.html`.
+//
+// The migration is SQLite-backed (`new_sqlite_classes`) already so story 4 can persist
+// boards without a class migration; this story never writes to storage.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-01",
+  // 2026-08-01 rather than today: the workerd binary bundled by
+  // @cloudflare/vitest-pool-workers (through its pinned wrangler) supports dates up to
+  // 2026-08-22, and the integration project runs the same wrangler.jsonc.
+  "compatibility_date": "2026-08-01",
+  "main": "src/worker/index.ts",
   "assets": {
-    "directory": "./dist/client"
-  }
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
 }

@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from 'react';
+import { encodeStateVector } from 'yjs';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
 import { BoardViewport } from './canvas/BoardViewport';
 import { CameraProvider, useBoardCamera } from './canvas/CameraProvider';
@@ -7,16 +8,54 @@ import { ZoomControls } from './canvas/ZoomControls';
 import { IS_TEST_MODE, registerTestHooks } from './canvas/testHooks';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 
 export function App() {
+  // the whole board belongs to one board id, so switching boards starts from scratch
+  const boardId = useBoardRoute();
   return (
     <CameraProvider>
-      <Board />
+      <Board key={boardId} boardId={boardId} />
     </CameraProvider>
   );
+}
+
+/** The board id in an address (`/b/<board id>`), or null when it does not name one. */
+export function boardIdFromPath(pathname: string): string | null {
+  const match = /^\/b\/([^/]+)\/?$/.exec(pathname);
+  if (!match) return null;
+  const candidate = decodeURIComponent(match[1] ?? '');
+  return isValidBoardId(candidate) ? candidate : null;
+}
+
+/**
+ * The board the address asks for, kept in step with back and forward.
+ *
+ * An address that does not name a board - `/` or a mistyped id - becomes a brand new board
+ * whose address can be shared, which is what makes "open the same address in two windows"
+ * work. Story 5 replaces this client-side id with board creation on the server.
+ */
+function useBoardRoute(): string {
+  const [boardId, setBoardId] = useState(currentBoardId);
+  useEffect(() => {
+    const onLocationChange = () => setBoardId(currentBoardId());
+    window.addEventListener('popstate', onLocationChange);
+    return () => window.removeEventListener('popstate', onLocationChange);
+  }, []);
+  return boardId;
+}
+
+/** Reads the address, giving out a new board id and putting it in the address bar if needed. */
+function currentBoardId(): string {
+  const fromPath = boardIdFromPath(window.location.pathname);
+  if (fromPath) return fromPath;
+  const fresh = newBoardId();
+  window.history.replaceState(null, '', `/b/${fresh}`);
+  return fresh;
 }
 
 /** True when the keyboard belongs to a text field, not to the board. */
@@ -30,10 +69,9 @@ function isTextEntry(target: EventTarget | null): boolean {
  * The board: the document, the notes in it, this user's selection, and the keyboard and
  * toolbar commands that create, recolour and delete notes.
  */
-function Board() {
-  const { camera, size, getCamera, setCamera, hasNavigated, zoomStep, reset } =
-    useBoardCamera();
-  const { doc, notes } = useBoardDoc();
+function Board(props: { boardId: string }) {
+  const { camera, size, getCamera, setCamera, hasNavigated, zoomStep, reset } = useBoardCamera();
+  const { doc, notes, connection } = useBoardDoc(props.boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   // A note deleted (by the bin button, a key, or another user later) is neither selected
@@ -43,6 +81,11 @@ function Board() {
   const selectedNoteId = selected ? selectedId : null;
   const editingNoteId = editing && selectedNoteId === editingId ? editingId : null;
 
+  // the connection state for the test-only handle, read through a ref so registering the
+  // handle does not depend on every state change
+  const connectionRef = useRef(connection);
+  connectionRef.current = connection;
+
   // ---- test-only handle (excluded from production builds) ----
   useEffect(() => {
     if (!IS_TEST_MODE) return;
@@ -51,6 +94,8 @@ function Board() {
       setCamera,
       getDoc: () => doc,
       getNotes: () => snapshot(doc),
+      connectionState: () => connectionRef.current,
+      stateVector: () => Array.from(encodeStateVector(doc)),
     });
     return () => registerTestHooks(null);
   }, [doc, getCamera, setCamera]);
@@ -118,6 +163,7 @@ function Board() {
         ))}
       </BoardViewport>
       <Toolbar onCreateSticky={createAtViewportCentre} />
+      <ConnectionStatus state={connection} />
       <BoardChrome
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

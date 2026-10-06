@@ -1,6 +1,7 @@
-import type * as Y from 'yjs';
+import * as Y from 'yjs';
 import type { Camera } from './camera';
 import type { StickySnapshot } from '../../shared/board-model';
+import type { ConnectionState } from '../sync/connectBoard';
 
 /**
  * Test-only handle on the running board, enabled only when the bundle is built in
@@ -18,6 +19,13 @@ export interface Vidi6TestHooks {
   getDoc(): Y.Doc;
   /** The notes in the document, in render order. */
   getNotes(): readonly StickySnapshot[];
+  /** What `connectBoard` currently reports about the live connection (story 3). */
+  connectionState(): ConnectionState;
+  /**
+   * The document's state vector, as plain numbers so two tabs can be compared across page
+   * boundaries: equal vectors mean everyone holds exactly the same changes (story 3).
+   */
+  stateVector(): number[];
 }
 
 declare global {

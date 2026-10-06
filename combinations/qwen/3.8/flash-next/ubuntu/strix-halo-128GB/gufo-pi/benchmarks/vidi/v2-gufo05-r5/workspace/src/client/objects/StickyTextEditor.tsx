@@ -1,4 +1,33 @@
 /**
+ * Where the caret goes when somebody else's edit (a `Y.Text` delta) is taken in: characters
+ * inserted before it push it along, deleted ones pull it back, and a caret inside deleted
+ * text lands where the deletion started.
+ */
+function shiftCaret(
+  caret: number,
+  delta: readonly {
+    readonly retain?: number;
+    readonly insert?: unknown;
+    readonly delete?: number;
+  }[],
+): number {
+  let position = caret;
+  let index = 0; // how far into the *previous* text we have walked
+  for (const part of delta) {
+    if (typeof part.retain === 'number') {
+      index += part.retain;
+    } else if (typeof part.insert === 'string') {
+      if (index < position) position += part.insert.length;
+    } else if (typeof part.delete === 'number') {
+      const end = index + part.delete;
+      if (position > index) position = position >= end ? position - part.delete : index;
+      index = end;
+    }
+  }
+  return position;
+}
+
+/**
  * The text editor inside a sticky note.
  *
  * Mounted for exactly one note (the one being edited) and unmounted when editing ends.
@@ -37,11 +66,7 @@ export interface StickyTextEditorProps {
   onEnd(next: EndEditNext): void;
 }
 
-export function StickyTextEditor({
-  ytext,
-  fontPx,
-  onEnd,
-}: StickyTextEditorProps): JSX.Element {
+export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
   const [value, setValue] = useState(() => ytext.toString());
   const [fontPxState, setFontPx] = useState(fontPx);
   const ref = useRef<HTMLTextAreaElement | null>(null);
@@ -99,6 +124,25 @@ export function StickyTextEditor({
     },
     [ytext],
   );
+
+  // ---- text somebody else typed, taken in while this note is being edited ----
+  // Every keystroke is written to the shared text as it happens, so this editor's value is
+  // the shared text and nothing more: what arrives from elsewhere can simply be taken in,
+  // which is what keeps both people's characters instead of overwriting the other's. The
+  // caret moves along with the incoming edit so typing at either end does not yank it about.
+  useEffect(() => {
+    const onRemoteText = (event: Y.YTextEvent, origin: unknown) => {
+      // `LOCAL_ORIGIN` means "this screen wrote it", and it is already in the value; a
+      // composition in progress is left to finish on its own.
+      if (origin === LOCAL_ORIGIN || composingRef.current) return;
+      if (!ytext.doc) return; // the note was deleted mid-edit; the editor unmounts anyway
+      const el = ref.current;
+      if (el) caretRef.current = shiftCaret(el.selectionStart, event.delta);
+      setValue(clampToLimit(ytext.toString()));
+    };
+    ytext.observe(onRemoteText);
+    return () => ytext.unobserve(onRemoteText);
+  }, [ytext]);
 
   const handleChange = (event: { currentTarget: HTMLTextAreaElement }) => {
     const raw = event.currentTarget.value;

@@ -18,5 +18,8 @@
     "resolveJsonModule": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
+  // The Worker and its integration tests compile under tsconfig.worker.json: they need the
+  // Workers runtime types, which collide with the DOM lib the client uses.
+  "exclude": ["src/worker", "tests/integration", "worker-configuration.d.ts"]
 }

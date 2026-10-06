@@ -105,6 +105,10 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
+  // The nightly scenarios (TC-29 idle stability, TC-30 capacity soak) are minutes of waiting, so
+  // the everyday run leaves them out and `npm run test:e2e:nightly` runs only those.
+  grep: process.env.VIDI6_NIGHTLY ? /@nightly/ : undefined,
+  grepInvert: process.env.VIDI6_NIGHTLY ? undefined : /@nightly/,
   use: {
     baseURL: BASE_URL,
     viewport: VIEWPORT,

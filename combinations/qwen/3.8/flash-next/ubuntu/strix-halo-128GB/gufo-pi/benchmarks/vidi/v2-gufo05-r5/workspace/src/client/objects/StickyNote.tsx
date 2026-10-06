@@ -213,6 +213,20 @@ export function StickyNote({
     finishInteraction(false); // the note stays where it was last shown
   };
 
+  // A drag is also what raises the note above the others, and the render order follows `z`, so
+  // starting one moves the note's own DOM node - and a node taken out of the tree and put back
+  // loses pointer capture. With the button still under it that is the same drag, so the capture is
+  // simply taken back; without this, dragging any note that was not already drawn on top would
+  // end before the pointer had gone anywhere.
+  const onLostPointerCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const state = interaction.current;
+    if (state.state !== 'idle' && state.pointerId === event.pointerId && event.buttons !== 0) {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      return;
+    }
+    finishInteraction(false); // the note stays where it was last shown
+  };
+
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     // the board must not create a second note underneath this one
     event.stopPropagation();
@@ -263,7 +277,7 @@ export function StickyNote({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
-      onLostPointerCapture={onPointerCancel}
+      onLostPointerCapture={onLostPointerCapture}
       onDoubleClick={onDoubleClick}
     >
       {editing && ytext ? (
