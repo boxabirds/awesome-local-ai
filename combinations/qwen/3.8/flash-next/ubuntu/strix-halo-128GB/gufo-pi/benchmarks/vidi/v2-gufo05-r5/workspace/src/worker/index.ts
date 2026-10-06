@@ -24,6 +24,7 @@
  */
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { createBoard } from './create-board';
 import { deliverStorageHook, parseStorageHook, testHooksEnabled } from './test-hooks';
 
 export { BoardRoom };
@@ -39,6 +40,7 @@ export interface Env {
 }
 
 const ROOM_PREFIX = '/api/rooms/';
+const BOARDS_PREFIX = '/api/boards';
 const API_PREFIX = '/api/';
 
 /** `true` when the request asks to be switched to a WebSocket. */
@@ -83,6 +85,36 @@ export default {
       return env.ASSETS.fetch(request);
     }
 
+    // POST /api/boards – create a new board
+    if (url.pathname === BOARDS_PREFIX && request.method === 'POST') {
+      const result = await createBoard(env);
+      if (result.ok) {
+        return Response.json({ id: result.id }, { status: 201 });
+      }
+      return Response.json({ error: 'create_failed' }, { status: 500 });
+    }
+
+    // Other methods on /api/boards (exact match, no trailing slash path segment)
+    if (url.pathname === BOARDS_PREFIX) {
+      return statusResponse(405, 'Method Not Allowed');
+    }
+
+    // GET /api/boards/:id – check board existence
+    if (url.pathname.startsWith(BOARDS_PREFIX + '/') && request.method === 'GET') {
+      const id = url.pathname.slice(BOARDS_PREFIX.length + 1);
+      // Reject malformed ids without touching the namespace
+      if (!id || id.includes('/') || !isValidBoardId(decodeURIComponent(id))) {
+        return Response.json({ error: 'not_found' }, { status: 404 });
+      }
+      const boardId = decodeURIComponent(id);
+      const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+      const existsResult = await stub.exists();
+      if (existsResult) {
+        return Response.json({ id: boardId }, { status: 200 });
+      }
+      return Response.json({ error: 'not_found' }, { status: 404 });
+    }
+
     let boardId: string | null;
     try {
       boardId = boardIdFromPath(url.pathname);
@@ -92,8 +124,9 @@ export default {
     if (boardId === null) return statusResponse(404, 'Not Found');
 
     // An address is the only thing gating a board, so a malformed one never reaches a room
-    // (and never creates a Durable Object instance).
-    if (!isValidBoardId(boardId)) return statusResponse(400, 'Bad Request');
+    // (and never creates a Durable Object instance). 404 rather than 400: do not distinguish
+    // unknown from malformed.
+    if (!isValidBoardId(boardId)) return statusResponse(404, 'Not Found');
     if (!isWebSocketUpgrade(request)) return statusResponse(426, 'Upgrade Required');
 
     const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));

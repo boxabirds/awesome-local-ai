@@ -1,3 +1,64 @@
+commit e3e587b76bd15ce0fb796453d4a552945b07cba4
+agent  Tue Oct 6 14:32:00 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                      | 309 +++++---------------------
+ PROGRESS.md                                   |  22 +-
+ index.html                                    |   1 +
+ package.json                                  |   1 +
+ src/client/App.tsx                            | 234 ++-----------------
+ src/client/Board.tsx                          | 157 +++++++++++++
+ src/client/api.ts                             |  46 ++++
+ src/client/pages/BoardPage.tsx                |  74 ++++++
+ src/client/pages/HomePage.tsx                 |  46 ++++
+ src/client/pages/NotFoundPage.tsx             |  46 ++++
+ src/client/pages/state.ts                     |  41 ++++
+ src/client/router.ts                          |  41 ++++
+ src/client/share/SharePanel.tsx               | 133 +++++++++++
+ src/client/styles.css                         | 124 +++++++++++
+ src/shared/config.ts                          |  17 ++
+ src/worker/board-room.ts                      |  35 ++-
+ src/worker/board-store.ts                     |  57 +++++
+ src/worker/create-board.ts                    |  31 +++
+ src/worker/index.ts                           |  37 ++-
+ src/worker/test-hooks.ts                      |   9 +-
+ tests/component/helpers.tsx                   |  17 +-
+ tests/component/pages/board-page.test.tsx     |  55 +++++
+ tests/component/pages/home-page.test.tsx      |  84 +++++++
+ tests/component/pages/not-found-page.test.tsx |  30 +++
+ tests/component/router.test.ts                |  30 +++
+ tests/component/share/panel.test.tsx          | 128 +++++++++++
+ tests/e2e-restart/board-persistence.spec.ts   |   5 +-
+ tests/e2e-restart/storage-hooks-off.spec.ts   |   6 +-
+ tests/e2e/board-id-privacy.spec.ts            |  40 ++++
+ tests/e2e/board-load-failure.spec.ts          |   3 +-
+ tests/e2e/create-and-share.spec.ts            |  52 +++++
+ tests/e2e/helpers/navigate.ts                 |  35 +++
+ tests/e2e/helpers/participants.ts             |   4 +
+ tests/e2e/helpers/seed-board.ts               |  11 +
+ tests/e2e/navigation.spec.ts                  |  21 +-
+ tests/e2e/open-link.spec.ts                   |  16 ++
+ tests/e2e/share-panel.spec.ts                 |  31 +++
+ tests/e2e/sticky-move.spec.ts                 |  13 +-
+ tests/e2e/sticky-notes.spec.ts                |  25 ++-
+ tests/e2e/sticky-text.spec.ts                 |   3 +-
+ tests/integration/board-api.test.ts           | 213 ++++++++++++++++++
+ tests/integration/board-room.test.ts          |  11 +-
+ tests/integration/room-persistence.test.ts    |  12 +
+ tests/integration/worker.test.ts              |  16 +-
+ tests/integration/ws-client.ts                |  24 +-
+ tests/unit/create-board.test.ts               |  48 ++++
+ 46 files changed, 1856 insertions(+), 538 deletions(-)
+commit aac3bb324d2bd1643362b541b4510d53a5fb9ca0
+vidi-agent  Tue Oct 6 13:52:00 2026 +0000
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit 6fc3e92ae13f14f4dc07127089153c413208bac5
 agent  Tue Oct 6 13:49:33 2026 +0000
 

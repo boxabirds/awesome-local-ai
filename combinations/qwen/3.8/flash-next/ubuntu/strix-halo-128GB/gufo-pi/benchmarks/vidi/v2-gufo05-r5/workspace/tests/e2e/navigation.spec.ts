@@ -10,6 +10,7 @@ import {
   setCamera,
   zoomLabel,
 } from './helpers/board';
+import { navigateToNewBoard } from './helpers/navigate';
 import { screenToWorld } from '../../src/client/canvas/camera';
 import {
   GRID_SPACING_WORLD,
@@ -25,7 +26,7 @@ const CENTRE = { x: VIEWPORT.width / 2, y: VIEWPORT.height / 2 };
 
 test.describe('first visit navigation', () => {
   test('TC-28 -> TC-23 -> TC-24: hint, drag, zoom under the pointer', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
 
     // TC-28: the hint is shown on first visit, near the bottom centre
     const hint = page.getByTestId('navigation-hint');
@@ -79,7 +80,7 @@ test.describe('first visit navigation', () => {
   });
 
   test('TC-31 a plain wheel scrolls the board and never zooms the page', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     const scaleBefore = await pageScale(page);
     const before = await getCamera(page);
 
@@ -94,7 +95,7 @@ test.describe('first visit navigation', () => {
   });
 
   test('keyboard shortcuts zoom and reset without zooming the page', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     const scaleBefore = await pageScale(page);
     const centreWorldBefore = screenToWorld(await getCamera(page), CENTRE);
 
@@ -122,7 +123,7 @@ test.describe('first visit navigation', () => {
   });
 
   test('the dot grid scales and stays evenly spaced while navigating', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     expect(await gridSpacingPx(page)).toBeCloseTo(GRID_SPACING_WORLD, 2);
 
     // panning by exactly one grid cell leaves the grid pattern where it was
@@ -147,7 +148,7 @@ test.describe('first visit navigation', () => {
 
 test.describe('limits and recovery', () => {
   test('TC-25 stepping in with + reaches 400% and disables the button', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     const zoomIn = page.getByRole('button', { name: 'Zoom in' });
     const label = page.getByTestId('zoom-percent');
     await expect(label).toHaveText('100%');
@@ -171,7 +172,7 @@ test.describe('limits and recovery', () => {
   });
 
   test('TC-25b stepping out reaches 10% and the board centre stays fixed', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     const zoomOut = page.getByRole('button', { name: 'Zoom out' });
     const label = page.getByTestId('zoom-percent');
     const centreWorld = screenToWorld(await getCamera(page), CENTRE);
@@ -203,7 +204,7 @@ test.describe('limits and recovery', () => {
   });
 
   test('TC-26 Reset view returns to 100% with the starting point centred', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await setCamera(page, {
       x: UNBOUNDED_PAN_TESTED_EXTENT,
       y: -UNBOUNDED_PAN_TESTED_EXTENT,
@@ -226,7 +227,7 @@ test.describe('far travel', () => {
     test(`TC-27 panning is exact ${zoom === 1 ? 'at 100%' : 'at maximum zoom'} 1,000,000 units away`, async ({
       page,
     }) => {
-      await page.goto('/');
+      await navigateToNewBoard(page);
       const far = {
         x: UNBOUNDED_PAN_TESTED_EXTENT,
         y: -UNBOUNDED_PAN_TESTED_EXTENT,
@@ -265,7 +266,7 @@ test.describe('far travel', () => {
   }
 
   test('zoom limits hold far away too', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     const start = { x: -UNBOUNDED_PAN_TESTED_EXTENT, y: UNBOUNDED_PAN_TESTED_EXTENT, zoom: 1 };
     await setCamera(page, start);
 
@@ -298,7 +299,7 @@ test.describe('large viewport fixture', () => {
   test.use({ viewport: { width: 1920, height: 1080 } });
 
   test('the board opens centred and resets centred at 1920x1080', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     expect(await getCamera(page)).toEqual({ x: -960, y: -540, zoom: 1 });
 
     await setCamera(page, { x: 4321, y: -8765, zoom: 0.4 });

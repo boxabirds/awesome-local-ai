@@ -91,6 +91,26 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   /**
+   * RPC: initializes this board by creating tables and setting `created_at`.
+   * Returns 'created' if the board was newly initialized, 'exists' if it already was.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    if (this.store.setCreatedAtIfAbsent()) {
+      return 'created';
+    }
+    return 'exists';
+  }
+
+  /**
+   * RPC: checks whether this board exists without writing anything.
+   * True if `created_at` is set, or if there is legacy data (updates/snapshots).
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  /**
    * Reads the board from storage into a fresh document, or records that it could not be read.
    *
    * Runs in the constructor, and again after a storage failure or when a load-failed board is
@@ -104,15 +124,6 @@ export class BoardRoom extends DurableObject<Env> {
     this.#doc?.destroy();
     this.#doc = null;
     const doc = new Y.Doc();
-    try {
-      this.store.migrate();
-    } catch (error) {
-      // No tables, no board. The distinction does not matter to a person waiting: their board
-      // is not there, and it is not empty either.
-      doc.destroy();
-      this.#failedToLoad(`storage could not be opened: ${String(error)}`);
-      return;
-    }
     const result = this.store.load(doc);
     if (result.ok) {
       doc.on('update', (update: Uint8Array, origin: unknown) => {
@@ -179,6 +190,12 @@ export class BoardRoom extends DurableObject<Env> {
     // on, and no production config sets it (see `test-hooks.ts`).
     const hook = storageHookOf(request);
     if (hook !== null && testHooksEnabled(this.env)) return this.#runStorageHook(hook);
+
+    // Existence check: a room that was instantiated by a request to an unknown board returns
+    // 404 without accepting the connection or writing any storage.
+    if (!this.store.existsReadOnly()) {
+      return new Response('404 Not Found\n', { status: 404 });
+    }
 
     if ((request.headers.get('upgrade') ?? '').toLowerCase() !== 'websocket') {
       // the Worker already rejects this; a direct call gets the same answer

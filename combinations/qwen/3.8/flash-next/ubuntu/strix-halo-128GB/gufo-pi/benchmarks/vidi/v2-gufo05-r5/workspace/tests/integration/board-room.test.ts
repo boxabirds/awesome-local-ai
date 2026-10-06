@@ -30,6 +30,7 @@ import {
   connect,
   connectToStub,
   converge,
+  ensureBoard,
   sameNotes,
   sameState,
   SYNC_UPDATE,
@@ -64,6 +65,7 @@ const idsOf = (client: RoomClient): string[] =>
 /** Connects two synced participants on a fresh board. */
 async function pair(): Promise<{ a: RoomClient; b: RoomClient; boardId: string }> {
   const boardId = newBoardId();
+  await ensureBoard(boardId);
   const a = await connect(boardId);
   const b = await connect(boardId);
   await Promise.all([a.waitForSync(), b.waitForSync()]);
@@ -232,6 +234,7 @@ describe('simultaneous edits merge (TC-09 to TC-11)', () => {
 describe('many participants and many operations (TC-12, TC-14)', () => {
   test(`TC-12: ${MAX_CONCURRENT_EDITORS} participants × 200 random operations all end with the same board`, async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     const clients: RoomClient[] = [];
     try {
       for (let index = 0; index < MAX_CONCURRENT_EDITORS; index += 1) {
@@ -420,7 +423,9 @@ describe('reconnecting to the same room (TC-18 and live.catch_up)', () => {
     // rooms that only exist in this test; the "restart" is a brand new instance, exactly
     // what the runtime hands out after an eviction or a deploy
     const before = env.BOARD_ROOM.newUniqueId();
-    const a = await connectToStub(env.BOARD_ROOM.get(before));
+    const beforeStub = env.BOARD_ROOM.get(before);
+    await beforeStub.initialize();
+    const a = await connectToStub(beforeStub);
     await a.waitForSync();
     for (let note = 0; note < 5; note += 1) {
       createSticky(a.doc, { x: note * 50, y: note * 50 });
@@ -433,7 +438,9 @@ describe('reconnecting to the same room (TC-18 and live.catch_up)', () => {
 
     // fresh instance: empty document, nobody connected
     const after = env.BOARD_ROOM.newUniqueId();
-    const aBack = await connectToStub(env.BOARD_ROOM.get(after), { doc: a.doc });
+    const afterStub = env.BOARD_ROOM.get(after);
+    await afterStub.initialize();
+    const aBack = await connectToStub(afterStub, { doc: a.doc });
     await aBack.waitForSync();
     const bBack = await connectToStub(env.BOARD_ROOM.get(after), { doc: b.doc });
     await bBack.waitForSync();

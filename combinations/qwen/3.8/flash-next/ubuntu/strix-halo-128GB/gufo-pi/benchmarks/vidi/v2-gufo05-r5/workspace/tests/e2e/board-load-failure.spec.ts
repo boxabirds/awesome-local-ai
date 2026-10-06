@@ -27,7 +27,7 @@ import {
   type Participant,
 } from './helpers/participants';
 import { callStorageHook } from './helpers/storage-hooks';
-import { nudgeBoard, readBoard, seedBoard } from './helpers/seed-board';
+import { ensureBoardOnServer, nudgeBoard, readBoard, seedBoard } from './helpers/seed-board';
 import { newBoardId } from '../../src/shared/board-id';
 import {
   COMPACTION_UPDATE_COUNT,
@@ -92,6 +92,7 @@ test.describe('a board that cannot be read (TC-24)', () => {
     test.setTimeout(300_000);
     const boardId = newBoardId();
 
+    await ensureBoardOnServer(SHARED_SERVER_HTTP, boardId);
     // a board of 25 notes, lived in enough that the room has folded it
     const seeded = await seedBoard(SHARED_SERVER_WS, boardId, NOTES);
     await nudgeBoard(SHARED_SERVER_WS, boardId, NUDGE_MOVES);

@@ -409,3 +409,127 @@ body {
   border-color: #f2b8b5;
   background: #fef2f2;
 }
+
+/* ---- share button and panel ---- */
+
+.share-button {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  padding: 8px 16px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  z-index: 100;
+}
+
+.share-button:hover {
+  background: var(--chrome-hover);
+}
+
+.share-panel {
+  position: fixed;
+  top: 52px;
+  right: 16px;
+  padding: 12px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 280px;
+  z-index: 101;
+}
+
+.share-panel input[type="text"] {
+  padding: 6px 8px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 4px;
+  font-size: 13px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.share-panel button {
+  padding: 6px 12px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.share-panel button:hover {
+  background: var(--chrome-hover);
+}
+
+.share-note {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.share-manual {
+  margin: 0;
+  font-size: 12px;
+  color: #b45309;
+}
+
+/* ---- home and not-found pages ---- */
+
+.home-page,
+.not-found-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 12px;
+  font-family: system-ui, sans-serif;
+}
+
+.home-page h1,
+.not-found-page h1 {
+  margin: 0;
+}
+
+.home-page p,
+.not-found-page p {
+  margin: 0;
+  color: #4b5563;
+}
+
+.home-page button,
+.not-found-page button {
+  padding: 10px 24px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 1px solid var(--chrome-border);
+  background: var(--chrome-bg);
+}
+
+.home-page button:disabled,
+.not-found-page button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.board-loading,
+.board-unreachable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: system-ui, sans-serif;
+  font-size: 16px;
+  color: #6b7280;
+}

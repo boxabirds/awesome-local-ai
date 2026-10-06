@@ -44,6 +44,7 @@ import {
   closeAll,
   connect,
   converge,
+  ensureBoard,
   SYNC_UPDATE,
   waitFor,
   type RoomClient,
@@ -136,6 +137,7 @@ function pushState(client: RoomClient): void {
 describe('a change is written before it is seen (TC-12)', () => {
   test('TC-12: when B sees A\'s note, the note is in storage', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     const a = await connect(boardId);
     const b = await connect(boardId);
     await a.waitForSync();
@@ -157,6 +159,7 @@ describe('a change is written before it is seen (TC-12)', () => {
 
   test('TC-12: a change every client can see is one row per change, not one per client', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     const clients = [
       await connect(boardId),
       await connect(boardId),
@@ -185,6 +188,7 @@ describe('a change is written before it is seen (TC-12)', () => {
 describe('a board comes back when nobody is looking (TC-13)', () => {
   test('TC-13: reopening after everybody leaves gives the same board, in a room that never saw it', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     const a = await connect(boardId);
     await a.waitForSync();
     const notes = writeVariedBoard(a.doc);
@@ -216,6 +220,7 @@ describe('a board comes back when nobody is looking (TC-13)', () => {
 
   test('TC-13: a board reopened by two clients at once converges and stays stored', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     const seed = await connect(boardId);
     await seed.waitForSync();
     writeVariedBoard(seed.doc);
@@ -244,6 +249,7 @@ describe('a board comes back when nobody is looking (TC-13)', () => {
 describe('storage that stops working (TC-14, TC-26)', () => {
   test('TC-14: a change that could not be saved is not shown to anybody, and survives on the client that made it', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     const a = await connect(boardId);
     const b = await connect(boardId);
     await a.waitForSync();
@@ -283,6 +289,7 @@ describe('storage that stops working (TC-14, TC-26)', () => {
 
   test('TC-26: a room that cannot read its storage closes clients with 4500', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     const a = await connect(boardId);
     const b = await connect(boardId);
     await a.waitForSync();
@@ -338,6 +345,7 @@ describe('a board that cannot be loaded (TC-15, TC-16)', () => {
 
   test('TC-15: an unreadable snapshot closes the client with 4500 and stores nothing', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     await breakSnapshot(boardId);
     const rowsBefore = (await boardInStorage(boardId)).rows;
 
@@ -361,6 +369,7 @@ describe('a board that cannot be loaded (TC-15, TC-16)', () => {
 
   test('TC-16: a broken board is not read again until the retry interval has passed', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     await breakSnapshot(boardId);
 
     const first = await connect(boardId);
@@ -398,6 +407,7 @@ describe('a board that cannot be loaded (TC-15, TC-16)', () => {
 describe('frames that are not usable (TC-17)', () => {
   test('TC-17: a garbage update closes that client and adds no rows', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     const honest = await connect(boardId);
     await honest.waitForSync();
     const attacker = await connect(boardId, { init: false });
@@ -427,6 +437,7 @@ describe('frames that are not usable (TC-17)', () => {
 
   test('TC-17: a frame that is not this protocol closes that client and leaves the board alone', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     const honest = await connect(boardId);
     await honest.waitForSync();
     const rowsBefore = (await boardInStorage(boardId)).rows;
@@ -454,6 +465,7 @@ describe('frames that are not usable (TC-17)', () => {
 describe('a room that was evicted while people were connected (TC-18)', () => {
   test('TC-18: after the room is rebuilt, frames on sockets accepted earlier are stored and delivered', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     const a = await connect(boardId);
     const b = await connect(boardId);
     await a.waitForSync();

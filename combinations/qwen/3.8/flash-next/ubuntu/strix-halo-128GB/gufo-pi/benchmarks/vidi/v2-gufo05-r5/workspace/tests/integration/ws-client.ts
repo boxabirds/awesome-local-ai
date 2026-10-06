@@ -13,7 +13,7 @@ import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
 import * as Y from 'yjs';
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { initDoc, snapshot, type StickySnapshot } from '../../src/shared/board-model';
 import {
   MESSAGE_AWARENESS,
@@ -278,6 +278,28 @@ export function wrapClient(
 
   client.sendSyncStep1();
   return client;
+}
+
+/**
+ * Initializes a board via POST /api/boards, returning the created id.
+ * Use before `connect()` in tests that address a specific id.
+ */
+export async function createBoardViaApi(): Promise<string> {
+  const response = await SELF.fetch('http://vidi6.local/api/boards', { method: 'POST' });
+  if (response.status !== 201) {
+    throw new Error(`POST /api/boards returned ${response.status}`);
+  }
+  const body = (await response.json()) as { id: string };
+  return body.id;
+}
+
+/**
+ * Ensures a board with the given id exists (initializes it). Used before `connect()` in tests
+ * that already have a board id.
+ */
+export async function ensureBoard(boardId: string): Promise<void> {
+  const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+  await stub.initialize();
 }
 
 /** Connects through the Worker: `GET /api/rooms/<boardId>` with an upgrade. */

@@ -17,6 +17,7 @@
     "test:component": "vitest run --project component",
     "test:integration": "vitest run --project integration", 
     "test:component:watch": "vitest --project component",
+    "test:all": "npm run test:unit && npm run test:component && npm run test:integration && npm run test:e2e",
     "test:e2e": "playwright test",
     "test:e2e:nightly": "VIDI6_NIGHTLY=1 playwright test --workers=1",
     "wrangler:dev": "wrangler dev --ip 127.0.0.1 --port 28816 --inspector-port 28817"

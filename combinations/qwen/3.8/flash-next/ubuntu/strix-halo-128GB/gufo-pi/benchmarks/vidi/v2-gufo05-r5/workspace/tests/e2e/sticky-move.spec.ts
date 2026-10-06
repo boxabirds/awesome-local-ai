@@ -6,6 +6,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { getCamera, setCamera } from './helpers/board';
+import { navigateToNewBoard } from './helpers/navigate';
 import {
   dragToPoint,
   getNotes,
@@ -46,7 +47,7 @@ test.describe('dragging notes', () => {
   test('TC-31 at 50% a drag moves the note by the screen delta divided by the zoom', async ({
     page,
   }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await centredAt(page, 0.5);
     await createAtCentre(page);
     const before = await noteWorld(page, 0);
@@ -75,7 +76,7 @@ test.describe('dragging notes', () => {
   test('TC-32 at 200% a drag moves the note by half the screen delta and stays on top', async ({
     page,
   }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await centredAt(page, 2);
     await createAtCentre(page); // the note underneath
     await createAtCentre(page); // a second note, exactly overlapping and on top
@@ -106,7 +107,7 @@ test.describe('dragging notes', () => {
   test('a drag that ends outside the note still leaves it exactly where the pointer was', async ({
     page,
   }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await centredAt(page, 0.5);
     await createAtCentre(page);
     const before = await noteWorld(page, 0);
@@ -134,7 +135,7 @@ test.describe('dragging notes', () => {
   test('a two pixel press on a note selects it without moving it, three pixels drags it', async ({
     page,
   }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await createAtCentre(page);
     const before = await noteWorld(page, 0);
     const cameraBefore = await getCamera(page);
@@ -153,7 +154,7 @@ test.describe('dragging notes', () => {
 
 test.describe('note toolbar at different zoom levels', () => {
   test('the toolbar of the selected note keeps the same size on screen', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await createAtCentre(page);
 
     const sizes: { zoom: number; height: number; swatch: number }[] = [];
@@ -179,7 +180,7 @@ test.describe('golden path', () => {
   test('TC-30 -> TC-31 -> colour -> delete leaves exactly the expected board', async ({
     page,
   }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
 
     // TC-30: create by double-click and type
     await page.mouse.dblclick(400, 300);

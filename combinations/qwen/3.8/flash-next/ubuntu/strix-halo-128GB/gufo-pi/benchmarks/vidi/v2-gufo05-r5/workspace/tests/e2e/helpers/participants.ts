@@ -10,6 +10,7 @@
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import type { StickySnapshot } from '../../../src/shared/board-model';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
+import { ensureBoardOnServer } from './seed-board';
 
 /** Names for the people in the story's scenarios, in the order the design uses them. */
 export const PARTICIPANT_NAMES = ['Alex', 'Sam', 'Rio', 'Kim', 'Jordan'] as const;
@@ -81,6 +82,9 @@ export async function openParticipants(
       return { participant, page };
     }),
   );
+
+  // Ensure the board exists before navigating (story 5 requires board initialization)
+  await ensureBoardOnServer(SHARED_SERVER_HTTP, boardId);
 
   // Navigate one at a time: a context that reaches the board while another is still loading is
   // exactly the late-joiner case, but the initial sync is what every test starts from.

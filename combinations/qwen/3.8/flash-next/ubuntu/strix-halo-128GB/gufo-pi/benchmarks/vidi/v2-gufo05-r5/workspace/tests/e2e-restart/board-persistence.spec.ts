@@ -33,7 +33,7 @@ import {
   type Participant,
 } from '../e2e/helpers/participants';
 import { WranglerProcess } from '../e2e/helpers/wrangler-process';
-import { readBoard, seedBoard } from '../e2e/helpers/seed-board';
+import { ensureBoardOnServer, readBoard, seedBoard } from '../e2e/helpers/seed-board';
 import { newBoardId } from '../../src/shared/board-id';
 import {
   BOARD_LOAD_BUDGET_MS,
@@ -162,6 +162,7 @@ test.describe('overnight return (TC-19)', () => {
     const server = new WranglerProcess(test.info().workerIndex);
     await server.start();
     const boardId = newBoardId();
+    await ensureBoardOnServer(server.baseUrl, boardId);
     try {
       const alex = await openTab(browser, server, boardId);
       await buildBoardByHand(alex.page, 25);
@@ -215,6 +216,7 @@ test.describe('leaving immediately (TC-20)', () => {
     const server = new WranglerProcess(test.info().workerIndex);
     await server.start();
     const boardId = newBoardId();
+    await ensureBoardOnServer(server.baseUrl, boardId);
     try {
       const alex = await openTab(browser, server, boardId, 0);
       const sam = await openTab(browser, server, boardId, 1);
@@ -264,6 +266,7 @@ test.describe('a big board opening (TC-21)', () => {
     const server = new WranglerProcess(test.info().workerIndex);
     await server.start();
     const boardId = newBoardId();
+    await ensureBoardOnServer(server.baseUrl, boardId);
     try {
       const seeding = Date.now();
       const seeded = await seedBoard(server.wsUrl, boardId, PERSIST_TESTED_NOTES).catch(

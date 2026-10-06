@@ -201,6 +201,47 @@ export class BoardStore {
   }
 
   /**
+   * Whether this board exists: has `created_at` in `storage_meta`, or (legacy) has at least
+   * one row in `updates` or `snapshot_chunks`. Read-only: never creates tables, never writes.
+   *
+   * Checks `sqlite_master` first so an unknown board (no tables at all) returns false without
+   * attempting a query that would throw.
+   */
+  existsReadOnly(): boolean {
+    // Check if the tables exist at all
+    const tables = this.#sql
+      .exec<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_meta', 'updates', 'snapshot_chunks')",
+      )
+      .toArray();
+    const tableNames = new Set(tables.map((r) => r.name));
+
+    // A board with created_at is initialized
+    if (tableNames.has('storage_meta')) {
+      const rows = this.#sql
+        .exec<{ value: string }>("SELECT value FROM storage_meta WHERE key = 'created_at'")
+        .toArray();
+      if (rows.length > 0) return true;
+    }
+
+    // Legacy: has updates or snapshot_chunks rows but no created_at
+    if (tableNames.has('updates')) {
+      const row = this.#sql
+        .exec<{ c: number }>('SELECT COUNT(*) AS c FROM updates')
+        .one();
+      if (row.c > 0) return true;
+    }
+    if (tableNames.has('snapshot_chunks')) {
+      const row = this.#sql
+        .exec<{ c: number }>('SELECT COUNT(*) AS c FROM snapshot_chunks')
+        .one();
+      if (row.c > 0) return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Creates the tables if they are missing and records the storage schema version.
    *
    * Opening a board writes nothing else: a board nobody has ever edited stays at zero rows
@@ -260,6 +301,15 @@ export class BoardStore {
     this.loadAttempts += 1;
     try {
       this.#throwIfFaulted('load');
+      // Missing tables means no board data: return empty without creating them.
+      const tables = this.#sql
+        .exec<{ name: string }>(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_meta', 'updates', 'snapshot_chunks')",
+        )
+        .toArray();
+      if (tables.length === 0) {
+        return { ok: true, quarantined: 0 };
+      }
       this.#snapshotThroughSeq = Number(this.#meta(SNAPSHOT_THROUGH_SEQ) ?? '0');
       snapshot = joinChunks(this.#readSnapshotChunks());
       rows = this.#sql
@@ -483,6 +533,13 @@ export class BoardStore {
         }),
       );
     }
+  }
+
+  /** Sets `created_at` in storage_meta if not already set. Returns true if newly created. */
+  setCreatedAtIfAbsent(): boolean {
+    if (this.#meta('created_at') !== null) return false;
+    this.#setMeta('created_at', String(Date.now()));
+    return true;
   }
 
   #meta(key: string): string | null {

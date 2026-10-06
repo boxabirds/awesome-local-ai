@@ -178,3 +178,20 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
  * tables bumps it and migrates.
  */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// ---- Share (story 5) -------------------------------------------------------
+
+/**
+ * How long board creation may take from click to board visible (PRD share.create).
+ * Logged in e2e against real timing, never asserted (shared machine).
+ */
+export const CREATE_BUDGET_MS = 2000;
+
+/** How long "Link copied" is shown after a successful clipboard write. */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * First backoff interval when checking board existence fails due to an unreachable service.
+ * Doubles up to RECONNECT_MAX_BACKOFF_MS.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

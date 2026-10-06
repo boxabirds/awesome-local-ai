@@ -22,6 +22,17 @@ import {
 import { STICKY_COLORS, type StickyColor } from '../../../src/shared/config';
 import { MESSAGE_SYNC, syncFrame } from '../../../src/shared/protocol';
 
+/**
+ * Initializes a board on the running server via the test hook (TEST_HOOKS=1).
+ * Must be called before WebSocket-connection to a new board id in e2e tests.
+ */
+export async function ensureBoardOnServer(httpBaseUrl: string, boardId: string): Promise<void> {
+  const response = await fetch(`${httpBaseUrl}/__test/boards/${boardId}/init`, { method: 'POST' });
+  if (!response.ok) {
+    throw new Error(`ensureBoardOnServer failed: ${response.status} ${await response.text()}`);
+  }
+}
+
 /** Marks the seeding script's own changes, so nothing it receives is echoed back. */
 const LOCAL = Symbol('seeding');
 /** Marks changes that arrived from the room. */

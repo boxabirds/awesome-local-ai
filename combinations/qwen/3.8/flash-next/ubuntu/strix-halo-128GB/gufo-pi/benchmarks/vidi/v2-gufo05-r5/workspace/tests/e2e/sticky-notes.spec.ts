@@ -8,6 +8,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { getCamera, setCamera } from './helpers/board';
+import { navigateToNewBoard } from './helpers/navigate';
 import {
   cssColor,
   doubleClickToCreate,
@@ -49,7 +50,7 @@ test.describe('creating notes', () => {
   test('TC-30 double-clicking empty board space creates a note there and typing fills it', async ({
     page,
   }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await doubleClickToCreate(page, SPOT);
 
     await expect(page.getByTestId('sticky-note-input')).toBeVisible();
@@ -74,7 +75,7 @@ test.describe('creating notes', () => {
   test('TC-28 the Sticky note button creates one note in the middle of the view', async ({
     page,
   }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await page.getByTestId('create-sticky-button').click();
 
     expect(await noteCount(page)).toBe(1);
@@ -92,7 +93,7 @@ test.describe('creating notes', () => {
   test('TC-34 creating from far away in the board still lands in the middle of the screen', async ({
     page,
   }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     // pan tens of thousands of world units away from the origin, through the test hook
     const panned = { x: 52_000, y: -31_500, zoom: 1 };
     await setCamera(page, panned);
@@ -111,7 +112,7 @@ test.describe('creating notes', () => {
   });
 
   test('creating notes one after another makes separate notes', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     for (const text of ['one', 'two', 'three']) {
       await page.getByTestId('create-sticky-button').click();
       await expect(page.getByTestId('sticky-note-input')).toBeVisible();
@@ -133,7 +134,7 @@ test.describe('creating notes', () => {
   test('deselecting and then double-clicking empty space creates exactly one more note', async ({
     page,
   }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await createAtCentre(page);
 
     await clickNote(page, 0);
@@ -153,7 +154,7 @@ test.describe('creating notes', () => {
   test('TC-35 double-clicking a note edits it instead of creating another one', async ({
     page,
   }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await createAtCentre(page);
     const centre = await clickNote(page, 0);
 
@@ -164,7 +165,7 @@ test.describe('creating notes', () => {
   });
 
   test('TC-36 Enter with nothing selected creates and edits nothing', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await page.keyboard.press('Enter');
     await page.waitForTimeout(150);
 
@@ -176,7 +177,7 @@ test.describe('creating notes', () => {
 
 test.describe('recolouring and deleting', () => {
   test('TC-27 the colour swatches recolour the note and change nothing else', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await doubleClickToCreate(page, SPOT);
     await typeIntoEditor(page, SHORT_NOTE);
     await stopEditing(page);
@@ -198,7 +199,7 @@ test.describe('recolouring and deleting', () => {
   });
 
   test('TC-29 the bin removes the note', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await createAtCentre(page);
 
     await page.getByTestId('note-delete').click();
@@ -208,7 +209,7 @@ test.describe('recolouring and deleting', () => {
   });
 
   test('TC-25 a selected note is removed by Delete', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await createAtCentre(page);
     expect(await noteCount(page)).toBe(1);
 
@@ -218,7 +219,7 @@ test.describe('recolouring and deleting', () => {
   });
 
   test('TC-25 a selected note is removed by Backspace', async ({ page }) => {
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await createAtCentre(page);
     expect(await noteCount(page)).toBe(1);
 
@@ -231,7 +232,7 @@ test.describe('recolouring and deleting', () => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(String(error)));
 
-    await page.goto('/');
+    await navigateToNewBoard(page);
     await createAtCentre(page);
     const centre = await noteCentre(page, 0);
 

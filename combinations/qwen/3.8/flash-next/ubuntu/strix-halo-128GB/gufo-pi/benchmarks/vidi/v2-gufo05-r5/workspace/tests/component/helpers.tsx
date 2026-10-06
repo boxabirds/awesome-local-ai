@@ -1,11 +1,22 @@
 import { act, render } from '@testing-library/react';
 import { vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { CameraProvider } from '../../src/client/canvas/CameraProvider';
+import { Board } from '../../src/client/Board';
 import type { Camera } from '../../src/client/canvas/camera';
 
-/** Renders the whole app: provider + viewport + zoom controls + hint. */
+/** The board id used in component tests (matches setup.ts default path). */
+const TEST_BOARD_ID = 'abcdefghijklmnopqrstuv';
+
+/**
+ * Renders the board UI (stories 1–4) with the providers it needs.
+ * Used by all component tests that test board functionality.
+ */
 export function renderBoard() {
-  return render(<App />);
+  return render(
+    <CameraProvider>
+      <Board boardId={TEST_BOARD_ID} />
+    </CameraProvider>,
+  );
 }
 
 /** The live camera (test-mode hook; enabled because Vitest runs with MODE=test). */

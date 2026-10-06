@@ -15,6 +15,7 @@ import {
   stopEditing,
   typeIntoEditor,
 } from './helpers/notes';
+import { navigateToNewBoard } from './helpers/navigate';
 import {
   STICKY_FONT_MAX_PX,
   STICKY_FONT_MIN_PX,
@@ -26,7 +27,7 @@ const SPOT = { x: 400, y: 300 };
 
 /** Opens a fresh note in editing mode. */
 async function startNote(page: Page): Promise<void> {
-  await page.goto('/');
+  await navigateToNewBoard(page);
   await page.mouse.dblclick(SPOT.x, SPOT.y);
   await expect(editorOf(page)).toBeVisible();
 }

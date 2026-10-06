@@ -18,7 +18,7 @@
 import type { BoardRoom } from './board-room';
 
 /** What a hook call does to the board's storage. */
-export type StorageHookAction = 'corrupt-snapshot' | 'repair';
+export type StorageHookAction = 'corrupt-snapshot' | 'repair' | 'init';
 
 /** The bindings a hook needs: the board's room, which is the only thing that can reach its rows. */
 export interface StorageHookBindings {
@@ -32,7 +32,7 @@ export function testHooksEnabled(env: { TEST_HOOKS?: string }): boolean {
 
 /** The public path prefix, and the action that follows it: `/__test/boards/<id>/<action>`. */
 const HOOK_PREFIX = '/__test/boards/';
-const HOOK_ACTIONS: readonly StorageHookAction[] = ['corrupt-snapshot', 'repair'];
+const HOOK_ACTIONS: readonly StorageHookAction[] = ['corrupt-snapshot', 'repair', 'init'];
 
 /** The board and action a public hook request addresses, or `null` for any other path. */
 export function parseStorageHook(pathname: string): { boardId: string; action: StorageHookAction } | null {
@@ -58,6 +58,11 @@ export async function deliverStorageHook(
   action: StorageHookAction,
 ): Promise<Response> {
   const stub = bindings.BOARD_ROOM.get(bindings.BOARD_ROOM.idFromName(boardId));
+  if (action === 'init') {
+    // init calls the RPC method directly, not fetch, because it needs the initialize logic.
+    const result = await stub.initialize();
+    return Response.json({ result });
+  }
   return stub.fetch(new Request(`https://board-room${HOOK_ROOM_PATH}?action=${action}`, {
     method: 'POST',
   }));

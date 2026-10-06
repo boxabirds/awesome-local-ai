@@ -11,7 +11,7 @@ import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import worker, { type Env } from '../../src/worker/index';
 import { createSticky } from '../../src/shared/board-model';
-import { closeAll, connect, converge, sameState, SYNC_UPDATE, type RoomClient } from './ws-client';
+import { closeAll, connect, converge, ensureBoard, sameState, SYNC_UPDATE, type RoomClient } from './ws-client';
 
 /** The headers a browser sends when it asks for a WebSocket. */
 function upgradeHeaders(): Record<string, string> {
@@ -39,7 +39,7 @@ function spyingNamespace(real: Env['BOARD_ROOM'], calls: string[]): Env['BOARD_R
 }
 
 describe('worker routing (TC-04 to TC-06)', () => {
-  test('TC-04: an invalid board id is a 400 and never reaches a room instance', async () => {
+  test('TC-04: an invalid board id is a 404 and never reaches a room instance', async () => {
     const calls: string[] = [];
     const spyEnv: Env = { ...env, BOARD_ROOM: spyingNamespace(env.BOARD_ROOM, calls) };
 
@@ -47,12 +47,13 @@ describe('worker routing (TC-04 to TC-06)', () => {
       new Request('http://vidi6.local/api/rooms/bad!id', { headers: upgradeHeaders() }),
       spyEnv,
     );
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
     // the negative half: no object id was derived, so no instance was ever created
     expect(calls).toEqual([]);
 
     // control: the same spy does record a routed request, so the assertion above means it
     const valid = newBoardId();
+    await ensureBoard(valid);
     const ok = await worker.fetch(
       new Request(`http://vidi6.local/api/rooms/${valid}`, { headers: upgradeHeaders() }),
       spyEnv,
@@ -91,6 +92,7 @@ describe('worker routing (TC-04 to TC-06)', () => {
 describe('capacity and isolation', () => {
   test('TC-13: a 6th participant on a board is connected and their edits reach everyone', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     const clients: RoomClient[] = [];
     try {
       for (let i = 0; i < MAX_CONCURRENT_EDITORS + 1; i += 1) {
@@ -114,8 +116,12 @@ describe('capacity and isolation', () => {
   });
 
   test('TC-17: two boards never see each other (live.isolation)', async () => {
-    const first = await connect(newBoardId());
-    const second = await connect(newBoardId());
+    const id1 = newBoardId();
+    const id2 = newBoardId();
+    await ensureBoard(id1);
+    await ensureBoard(id2);
+    const first = await connect(id1);
+    const second = await connect(id2);
     try {
       await first.waitForSync();
       await second.waitForSync();

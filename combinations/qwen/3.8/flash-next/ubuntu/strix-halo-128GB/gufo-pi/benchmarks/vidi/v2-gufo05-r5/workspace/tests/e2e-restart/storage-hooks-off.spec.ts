@@ -10,7 +10,6 @@
 import { expect, test } from '@playwright/test';
 import { WranglerProcess } from '../e2e/helpers/wrangler-process';
 import { readBoard, seedBoard } from '../e2e/helpers/seed-board';
-import { newBoardId } from '../../src/shared/board-id';
 
 test.describe('storage hooks on a server that does not have them', () => {
   test('TC-24 the hook routes are not routed, and the board is unaffected', async () => {
@@ -18,7 +17,10 @@ test.describe('storage hooks on a server that does not have them', () => {
     // the same config the production build ships, and no `TEST_HOOKS` in it
     const server = new WranglerProcess(test.info().workerIndex, { testHooks: false });
     await server.start();
-    const boardId = newBoardId();
+    // Create a board via the public API (no TEST_HOOKS needed)
+    const createResp = await fetch(`${server.baseUrl}/api/boards`, { method: 'POST' });
+    expect(createResp.status).toBe(201);
+    const { id: boardId } = (await createResp.json()) as { id: string };
     try {
       for (const action of ['corrupt-snapshot', 'repair'] as const) {
         const response = await fetch(`${server.baseUrl}/__test/boards/${boardId}/${action}`, {
