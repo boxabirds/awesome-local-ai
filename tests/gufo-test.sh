@@ -131,6 +131,10 @@ case "$1" in
 esac
 STUB
 chmod +x "$FAKE_HOME/bin/podman"
+# `ps` is stubbed so the guard against a second model server sees only what a test asks it to: a developer
+# machine may be running ollama or LM Studio, and that must not decide whether these assertions pass.
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "${PS_OUT:-}"\n' > "$FAKE_HOME/bin/ps"
+chmod +x "$FAKE_HOME/bin/ps"
 
 ARGV="$WORK/argv"
 launch() { # env... -- runs the launcher under the fake home; argv lands in $ARGV
@@ -184,16 +188,23 @@ assert_fails "an unknown profile is refused"           launch PROFILE=nope
 
 echo
 echo "launcher: refuses beside another model server"
-mkdir -p "$WORK/other"
-# A process NAMED llama-server, as the guard looks for: a copy of the Python
-# interpreter (macOS will not run a renamed copy of a system binary like sleep).
-cp "$(python3 -c 'import sys; print(sys.executable)')" "$WORK/other/llama-server"
-"$WORK/other/llama-server" -c 'import time; time.sleep(30)' & FAKE_SERVERS+=($!)
-for _ in 1 2 3 4 5 6 7 8 9 10; do pgrep -x llama-server >/dev/null && break; sleep 0.2; done
+# The guard reads the process list, so the test writes one. It used to spawn a real process named
+# llama-server, which suited the old pgrep -x check; the guard now matches command lines, so every engine
+# is recognisable, and a stubbed list is both deterministic and able to pose as engines we cannot run here.
 rm -f "$ARGV"
-assert_fails "a running llama-server stops the launch" launch
+assert_fails "a running llama-server stops the launch" launch PS_OUT="  4242 /opt/llama.cpp/llama-server -m m.gguf --port 8010"
 assert_fails "...before podman ran"                    test -f "$ARGV"
 assert_ok    "...and says why"                         grep -q "another model server is running" "$WORK/launch.out"
+# ...and the engines a narrower guard used to miss. gufo's old pattern knew three names; these four ran beside it.
+for other in \
+  "  51 /Users/x/.venv/bin/python /Users/x/Strata/serve/server.py --engine strata --config r.json" \
+  "  52 /Users/x/.venv/bin/mlx-serve --serve --model q4" \
+  "  53 /usr/local/bin/tensorfold serve --model q" \
+  "  54 /Applications/Ollama.app/Contents/Resources/ollama serve" \
+  ; do
+  rm -f "$ARGV"
+  assert_fails "...and this one too: ${other##*/}" launch PS_OUT="$other"
+done
 rm -f "$ARGV"; launch ALLOW_COEXIST=1
 assert_ok    "ALLOW_COEXIST=1 overrides it"            test -f "$ARGV"
 # The guard matches names, not command lines: a process whose arguments merely

@@ -81,10 +81,15 @@ esac
 
 # One model server at a time: this one holds about 24 GiB of VRAM and 43 GiB of RAM. Another is a refusal, not a
 # warning. The process list is captured before it is filtered, so the filter's own text is not in it.
+# One model server at a time: each holds tens of gigabytes, and two on one machine means swap, which stops the
+# story that is running (6 Oct 2026: an installer's smoke test beside a live run took swap 0.13 -> 35.47 GB).
+# The pattern is the same in every launcher and knows every engine we run plus the common desktop ones: a
+# launcher that only recognised its own kind let the others past. The process list is captured before it is
+# filtered, so the filter's own text is not in it, and this shell is skipped by pid so it never matches itself.
 if [[ "${ALLOW_COEXIST:-0}" != "1" ]]; then
   snapshot="$(ps -axo pid=,command= 2>/dev/null || true)"
   others="$(printf '%s\n' "$snapshot" | awk -v self="$$" '$1 == self { next }
-    /llama-server|mtplx\.server|mtplx +serve|mlx-serve .*--serve|gufo +serve|gufo-runtime|tensorfold +serve|serve\/server\.py --engine strata|engine\/strata/ {
+    /llama-server|mtplx\.server|mtplx +serve|mlx-serve .*--serve|mlx-serve +serve|mlx_lm\.server|gufo +serve|gufo-runtime|tensorfold +serve|serve\/server\.py --engine strata|engine\/strata|MLX-Serve\.app|ollama +serve|LM Studio/ {
       sub(/^ +/, ""); print }')"
   if [[ -n "$others" ]]; then
     echo "${SERVER_CMD}: another model server is running:" >&2
