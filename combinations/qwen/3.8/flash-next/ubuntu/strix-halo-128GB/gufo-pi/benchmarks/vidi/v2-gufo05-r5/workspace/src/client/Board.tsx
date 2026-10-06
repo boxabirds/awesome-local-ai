@@ -3,7 +3,7 @@
  * transform gesture (stories 1–7).
  */
 import { encodeStateVector } from 'yjs';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
 import { BoardViewport } from './canvas/BoardViewport';
 import { useBoardCamera } from './canvas/CameraProvider';
@@ -40,7 +40,12 @@ import {
 } from '../shared/board-model';
 import { SHAPE_LABEL_MAX_CHARS } from '../shared/config';
 import { createText } from '../shared/objects/text';
-import { isShapeTool } from '../shared/tools';
+import { isShapeTool, type ToolId } from '../shared/tools';
+import { newBoardId } from '../shared/board-id';
+import { DropHighlight } from './images/DropHighlight';
+import { useImageInsert, type ImageInsertActions } from './images/useImageInsert';
+import { ImageInsertContext } from './objects/ImageObject';
+import { Toast } from './ui/Toast';
 
 /**
  * Who an object this screen creates is attributed to. Story 6 (identities) is not in this build,
@@ -53,6 +58,25 @@ export function Board(props: { boardId: string }) {
   const { camera, size, getCamera, setCamera, hasNavigated, zoomStep, reset } = useBoardCamera();
   const { doc, objects, connection, undo } = useBoardDoc(props.boardId);
 
+  /**
+   * Story 12: who started an upload, as far as this screen knows.
+   *
+   * Identities are story 6 and are not in this build, so this is a fresh id per mount rather than a
+   * stored one: two tabs of the same board are two people, which is exactly the distinction Retry has
+   * to get right - the tab that is holding the bytes is the only one that can send them again. It is
+   * written into every image added here, and it is not written anywhere else.
+   */
+  const [identityId] = useState(newBoardId);
+
+  /**
+   * `setTool`, one render late.
+   *
+   * The image hook is created before the tool hook because the toolbar and the keyboard are handed the
+   * picker from it, and the picker needs to put the tool back down when it hands files over. A ref is
+   * the honest way round: by the time a person has chosen a file, the tool hook has rendered.
+   */
+  const setToolRef = useRef<(tool: ToolId) => void>(() => {});
+
   // one list for everything: selection, marquee, keyboard and undo take every object, whatever
   // type it is, and each type is drawn by the component its registry spec names
   const selection = useSelection(objects);
@@ -63,13 +87,60 @@ export function Board(props: { boardId: string }) {
   // Story 8: this person's own history. Leaving the board discards it; a reload starts empty.
   const history = useUndo(undo, editable);
 
+  // ---- Story 12: adding images ----
+  //
+  // One hook owns the four ways in - drop, paste, the Image button, `I` - and the uploads behind them.
+  // What the objects on the board need from it (progress, whether Retry is possible, whose screen this
+  // is) goes down through `ImageInsertContext`, so adding a type never means changing how objects are
+  // rendered.
+  const insert = useImageInsert({
+    doc,
+    boardId: props.boardId,
+    camera,
+    connection,
+    identityId,
+    viewport: size,
+    // an add is a step of its own, whatever was being typed or dragged just before it
+    boundary: history.boundary,
+    // the picker was reached from a button, and the tool that was up while it was open goes back to
+    // Select once it has handed files over
+    toolDown: () => setToolRef.current('select'),
+  });
+
+  /** Remove on a failed or abandoned image: story 7's delete, as one step. */
+  const removeImage = useCallback(
+    (id: string) => {
+      if (!editable) return;
+      history.boundary();
+      deleteObjects(doc, [id]);
+      history.boundary();
+      // whatever happened to the object, this screen is no longer carrying its bytes
+      insert.forget(id);
+    },
+    [doc, editable, history, insert],
+  );
+
+  const imageActions = useMemo<ImageInsertActions>(
+    () => ({
+      identityId,
+      progress: insert.progress,
+      canRetry: insert.canRetry,
+      retry: insert.retry,
+      remove: removeImage,
+    }),
+    [identityId, insert.progress, insert.canRetry, insert.retry, removeImage],
+  );
+
   // Story 9 and 10: which tool this screen is holding, per screen and never shared with anyone else
   // on the board. It also decides what happens after a tool has made its object: back to Select,
   // with the new thing selected.
   const { tool, setTool, shapeKind, toolCreated } = useActiveTool({
     canEdit: editable,
     selection,
+    // `I` is the Image button, and the Image button is the file picker.
+    onImage: insert.openPicker,
   });
+  setToolRef.current = setTool;
 
   // Story 11: what the next stroke will be drawn with. Per screen, for this session only - the board
   // keeps the colour each stroke was drawn in, and never restyles one.
@@ -218,7 +289,7 @@ export function Board(props: { boardId: string }) {
   }, [doc, editable, history, selection]);
 
   return (
-    <>
+    <ImageInsertContext.Provider value={imageActions}>
       <BoardViewport
         onCreateAt={createAtScreenPoint}
         canEdit={editable}
@@ -298,6 +369,7 @@ export function Board(props: { boardId: string }) {
       <SelectionBar ids={selection.ids} onDelete={deleteSelection} />
       <Toolbar
         onCreateSticky={createAtViewportCentre}
+        onAddImage={insert.openPicker}
         canEdit={editable}
         tool={tool}
         shapeKind={shapeKind}
@@ -305,6 +377,9 @@ export function Board(props: { boardId: string }) {
         undo={{ canUndo: history.canUndo, canRedo: history.canRedo, onUndo: history.undo, onRedo: history.redo }}
       />
       <ConnectionStatus state={connection} />
+      {/* Story 12: what a dragged file will do if it is let go, and why it sometimes did nothing. */}
+      <DropHighlight visible={insert.dragOver} />
+      <Toast messages={insert.toasts} onDismiss={insert.dismissToasts} />
       <BoardChrome
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
@@ -314,7 +389,7 @@ export function Board(props: { boardId: string }) {
         onReset={reset}
         hintVisible={!hasNavigated}
       />
-    </>
+    </ImageInsertContext.Provider>
   );
 }
 

@@ -72,6 +72,10 @@ export function shapeKindOf(tool: ToolId): ShapeKind | undefined {
 /**
  * Keys that switch tools, unmodified. `n` is missing on purpose: it makes a note rather than
  * selecting a tool, and stays with the note code that places it.
+ *
+ * `i` names the Image button, which is also an action rather than a mode: it opens the file picker and
+ * leaves the board on Select. It is listed here so that one table says what every unmodified letter
+ * key on the board does.
  */
 export const TOOL_KEYS: Readonly<Record<string, ToolId>> = Object.freeze({
   v: 'select',
@@ -79,6 +83,7 @@ export const TOOL_KEYS: Readonly<Record<string, ToolId>> = Object.freeze({
   s: 'shape-rect',
   l: 'connector',
   p: 'pen',
+  i: 'image',
 });
 
 export function isToolId(value: unknown): value is ToolId {

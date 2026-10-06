@@ -42,6 +42,12 @@ export interface ActiveToolOptions {
   canEdit: boolean;
   /** So a tool that has just made an object can select it. */
   selection: SelectionController;
+  /**
+   * Story 12: the Image button's action, which the `I` key is a shortcut for. `image` is not a mode -
+   * there is nothing to stay armed for a second press of - so it is handed to the board as an action
+   * rather than becoming state here.
+   */
+  onImage?(): void;
 }
 
 export interface ActiveToolController {
@@ -57,7 +63,7 @@ export interface ActiveToolController {
 }
 
 export function useActiveTool(options: ActiveToolOptions): ActiveToolController {
-  const { canEdit, selection } = options;
+  const { canEdit, selection, onImage } = options;
   const [tool, setToolState] = useState<ToolId>('select');
   // The shape bar highlights a kind; leaving the shape tool and coming back should not have
   // forgotten it, so the last choice is kept separately from the tool itself.
@@ -111,7 +117,17 @@ export function useActiveTool(options: ActiveToolOptions): ActiveToolController 
       if (event.shiftKey) return;
 
       const pressed = TOOL_KEYS[event.key.toLowerCase()];
-      if (pressed === undefined || !isBuiltTool(pressed)) return;
+      if (pressed === undefined) return;
+      // Story 12: `I` is the Image button, and the Image button opens the file picker. It is not a
+      // tool that stays up, so there is nothing here to remember - and pressing it offline gets the
+      // same answer as clicking it, which the board gives.
+      if (pressed === 'image') {
+        if (!canEdit || onImage === undefined) return;
+        event.preventDefault();
+        onImage();
+        return;
+      }
+      if (!isBuiltTool(pressed)) return;
       // 'v' and 't' are also handled by the board's own keys; both paths arrive at the same value
       // through the same guard, and setting state to what it already is changes nothing.
       event.preventDefault();
@@ -123,7 +139,7 @@ export function useActiveTool(options: ActiveToolOptions): ActiveToolController 
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selection, setTool, lastShapeKind]);
+  }, [canEdit, onImage, selection, setTool, lastShapeKind]);
 
   const shapeKind = isShapeTool(tool) ? (shapeKindOf(tool) ?? lastShapeKind) : lastShapeKind;
 

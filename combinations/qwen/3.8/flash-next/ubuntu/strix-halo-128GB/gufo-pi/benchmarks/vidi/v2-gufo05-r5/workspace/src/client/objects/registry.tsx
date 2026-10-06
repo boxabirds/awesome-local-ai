@@ -12,6 +12,7 @@ import { hitConnector } from '../../shared/geometry/connector-geometry';
 import type { ComponentType } from 'react';
 import type { Point } from '../../shared/geometry';
 import {
+  IMAGE_MIN_SIZE_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   STROKE_MIN_SIZE_WORLD,
@@ -24,6 +25,7 @@ import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
+import { ImageBoardObject } from './ImageObject';
 
 export interface ObjectTypeSpec {
   /** React component that renders this object type (set during app initialization). */
@@ -163,4 +165,17 @@ registerObjectType('stroke', {
     if (obj.type !== 'stroke') return false;
     return hitStroke(obj, worldPoint, zoom ?? 1);
   },
+});
+
+// Story 12: a picture is a box like any other - moved, marquee-selected, resized, deleted, undone - and
+// the one type whose contents arrive later than the object does. `aspectLocked` is what keeps a dragged
+// corner growing a photo in proportion instead of squashing it, and `minSize` is the point below which
+// there would be no picture left to see.
+registerObjectType('image', {
+  Component: ImageBoardObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: rectHitTest,
 });

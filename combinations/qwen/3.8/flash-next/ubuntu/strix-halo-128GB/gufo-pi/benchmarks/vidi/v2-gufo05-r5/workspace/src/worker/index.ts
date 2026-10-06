@@ -23,6 +23,7 @@
  * test target, never a limit enforced here.
  */
 import { isValidBoardId } from '../shared/board-id';
+import { handleServe, handleUpload } from './assets';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { deliverStorageHook, parseStorageHook, testHooksEnabled } from './test-hooks';
@@ -35,6 +36,11 @@ export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client, served for every path that is not the room API. */
   ASSETS: Fetcher;
+  /**
+   * The bytes of the images people add (story 12). Keys are `<boardId>/<assetId>`, both halves an
+   * unguessable address, so holding one is the only way to read that image.
+   */
+  ASSETS_BUCKET: R2Bucket;
   /** `'1'` turns on the test-only storage hooks. Set by the e2e dev servers, never in production. */
   TEST_HOOKS?: string;
 }
@@ -42,6 +48,10 @@ export interface Env {
 const ROOM_PREFIX = '/api/rooms/';
 const BOARDS_PREFIX = '/api/boards';
 const API_PREFIX = '/api/';
+/** Where a stored image lives: `/api/assets/<boardId>/<assetId>` (story 12). */
+const ASSET_PREFIX = '/api/assets/';
+/** The tail of the upload address: `POST /api/boards/<boardId>/assets`. */
+const ASSETS_SUFFIX = '/assets';
 
 /** `true` when the request asks to be switched to a WebSocket. */
 function isWebSocketUpgrade(request: Request): boolean {
@@ -97,6 +107,37 @@ export default {
     // Other methods on /api/boards (exact match, no trailing slash path segment)
     if (url.pathname === BOARDS_PREFIX) {
       return statusResponse(405, 'Method Not Allowed');
+    }
+
+    // POST /api/boards/:id/assets – store one image for one board (story 12).
+    // The id is handed over undecoded-but-checked: `handleUpload` refuses a malformed one before it
+    // touches the namespace, so an unknown or disguised board can never receive an upload.
+    if (
+      request.method === 'POST' &&
+      url.pathname.startsWith(`${BOARDS_PREFIX}/`) &&
+      url.pathname.endsWith(ASSETS_SUFFIX)
+    ) {
+      const raw = url.pathname.slice(BOARDS_PREFIX.length + 1, -ASSETS_SUFFIX.length);
+      let boardId = raw;
+      try {
+        boardId = decodeURIComponent(raw);
+      } catch {
+        return Response.json({ error: 'not_found' }, { status: 404 });
+      }
+      return handleUpload(request, env, boardId);
+    }
+
+    // GET /api/assets/:boardId/:assetId – read one stored image (story 12). The key is validated as
+    // a whole string inside `handleServe`, so nothing that is not exactly two addresses gets here.
+    if (request.method === 'GET' && url.pathname.startsWith(ASSET_PREFIX)) {
+      const rawKey = url.pathname.slice(ASSET_PREFIX.length);
+      let key = rawKey;
+      try {
+        key = decodeURIComponent(rawKey);
+      } catch {
+        return Response.json({ error: 'not_found' }, { status: 404 });
+      }
+      return handleServe(env, key);
     }
 
     // GET /api/boards/:id – check board existence

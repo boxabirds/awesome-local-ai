@@ -1180,3 +1180,157 @@ body {
 .stroke-object[data-selected='true'] .stroke-object__line {
   stroke: var(--focus-ring);
 }
+
+/* ---- images (story 12) ---- */
+
+/* The box an image occupies, in world units, like every other object. Everything inside it that is a
+   *message* - the icon, the words, the buttons - is counter-scaled, so a placeholder says the same
+   thing at 25% zoom as at 400%; the picture itself is not, because the picture is the thing a person
+   is looking at. */
+.image-object {
+  position: absolute;
+  display: block;
+}
+
+.image-object__inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+/* Kept inside the box whoever resized it, and however odd a box it is now: the proportions of the
+   picture are the picture's own business (image.aspect_resize locks the box anyway). */
+.image-object__picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+/* The placeholder, and the reasons there is no picture: a grey box the size the image is, or was. */
+.image-object__panel {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  overflow: hidden;
+  border: 1px dashed var(--chrome-border);
+  border-radius: 6px;
+  background: #eef0f4;
+  color: var(--chrome-fg-muted);
+}
+
+.image-object__panel > * {
+  transform: scale(var(--image-inverse-zoom, 1));
+}
+
+.image-object__glyph {
+  opacity: 0.7;
+}
+
+.image-object__message {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* The figure is the fact and the bar is the shape of it; the uploader has both, everyone else has the
+   words, because progress belongs to whoever is carrying the bytes. */
+.image-object__bar {
+  display: block;
+  width: min(160px, 70%);
+  height: 6px;
+  border-radius: 999px;
+  background: #d5d9e0;
+  overflow: hidden;
+}
+
+.image-object__bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--focus-ring);
+}
+
+/* red: the one state that says "this went wrong", to the one person who can do anything about it */
+.image-object__panel--failed {
+  border-style: solid;
+  border-color: #e0a6a2;
+  background: #fef2f2;
+  color: #b3261e;
+}
+
+/* slightly deeper grey: nothing is coming, and there is nothing to blame */
+.image-object__panel--unavailable {
+  background: #e6e8ec;
+}
+
+.image-object__actions {
+  display: flex;
+  gap: 6px;
+  transform: scale(var(--image-inverse-zoom, 1));
+}
+
+.image-object__button {
+  padding: 3px 10px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+  background: var(--chrome-bg);
+  color: var(--chrome-fg);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.image-object__button:hover {
+  background: #f1f3f7;
+}
+
+.image-object__button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* A file is being dragged over the board, and this is what letting go would do (image.drop). It answers
+   no pointers - the drop belongs to the board underneath it - and it is not announced, because the
+   outline is not the news; the images are. */
+.board-drop-highlight {
+  position: fixed;
+  inset: 8px;
+  border: 2px dashed var(--focus-ring);
+  border-radius: 12px;
+  background: rgb(47 111 237 / 6%);
+  pointer-events: none;
+  z-index: 90;
+}
+
+/* The bottom-centre message: it says what was refused and why, and takes nothing away from what the
+   person was doing. Clear of the zoom controls and the hint, and never in the way. */
+.board-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 76px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: min(560px, calc(100vw - 32px));
+  pointer-events: none;
+  z-index: 120;
+}
+
+.board-toast__message {
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 999px;
+  background: var(--chrome-bg);
+  color: var(--chrome-fg);
+  font-size: 13px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgb(15 20 30 / 12%);
+}

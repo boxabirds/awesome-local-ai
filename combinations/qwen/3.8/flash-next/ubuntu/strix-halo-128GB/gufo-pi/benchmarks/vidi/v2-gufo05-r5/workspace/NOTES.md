@@ -577,3 +577,102 @@ design's sketches.
     for.** As in stories 8 to 10, Firefox and WebKit cannot launch on this host (missing system
     libraries), so the playwright config skips those two projects here with its usual warning. TC-17 is
     written without a single engine's quirks - plain pointer, plain rAF - so it will run where they can.
+
+---
+
+# Story 12 Implementation Notes
+
+Decisions and deviations from the spec/design that future readers should know:
+
+## Shared model
+
+1. **`placementSize` returns `null` for a size that is not finite or not positive.**
+   The design's signature has it answering `Size`. A zero-byte or absurdly scaled file is exactly the
+   thing that reaches this function from outside, and `null` means the caller refuses the file instead
+   of writing a box with no area that every later geometry has to argue with.
+
+2. **An unrecognised `status` in stored data reads as `failed`.**
+   `statusOf` coerces anything it does not know. A placeholder that cannot be understood is not
+   "uploading" (nobody is sending anything) and certainly not "ready" (there is no picture to show);
+   `failed` is the state that offers the person the two things they can actually do.
+
+3. **`displayStatus` normalises unknown values to `failed` for the same reason.** The placeholder's
+   wording is a decision, and the safest decision is the honest one.
+
+## Asset API
+
+4. **A corrupt PNG is *accepted* by the server.**
+   Sniffing twelve bytes says "this is a PNG"; it cannot say the IDAT stream is broken. The design
+   covers this case elsewhere: the browser is the one that discovers the picture will not load, and the
+   placeholder becomes an "Image unavailable" box. Integration tests document it rather than assert a
+   415 that would be a lie about what a magic-number check can know.
+
+5. **The integration tests' recording bucket is a Proxy over the real local R2 bucket.**
+   The point is to observe which keys were written and read while the real storage still answers, so
+   nothing about the serving path is faked.
+
+6. **Fixtures larger than 10 MB are not committed.** `scripts/generate-image-fixtures.mjs` writes them;
+   tests that need an oversized file build one in memory (a real JPEG header plus padding), because the
+   size limit is a decision about bytes made before anything is decoded.
+
+## Client
+
+7. **Drop and paste listeners live on `window`, not on the viewport.**
+   The viewport is `position: fixed; inset: 0`, so the two are equivalent for hit purposes, and a file
+   dragged over the toolbar or the share panel is still a file dragged over the board. The handlers
+   refuse to act while a text field has the focus (`isTextEntry`), which is what keeps a paste into a
+   note being edited a paste into that note.
+
+8. **The Image tool is an action, not a mode.** `TOOL_KEYS` has `i`, `useActiveTool` intercepts it
+   before the built-tool check and opens the picker; the board stays on Select. A person who presses `I`
+   twice expects two picker dialogs, not a tool they have to leave.
+
+9. **`ImageInsertController` does not extend `ImageInsertActions`; `Board` composes the context.**
+   The hook owns the bytes and their progress; deleting an object needs the history boundary and
+   `deleteObjects`, which are the board's. So the hook's own removal is called `forget` - it stops
+   tracking a file - and the context's `remove` is the board's, which does both.
+
+10. **Per-mount random identity (`newBoardId()`), because story 6 is not in this build.** Two tabs of
+    one board are two identities, so a Retry is only possible on the screen that still holds the file -
+    which is the behaviour the PRD wants after a reload, arrived at for the honest reason.
+
+11. **The stale-upload clock is one shared `setInterval` that exists only while somebody is waiting.**
+    `useImageClock` subscribes when an image has `status === 'uploading'`; the tick is
+    `IMAGE_CLOCK_TICK_MS` (30s), which is finer than the 5-minute stale line, so the box changes from
+    "Uploading…" to "Image upload didn't finish" without anybody having to interact.
+
+12. **`ImageObject` owns its own `broken` flag**, reset when `assetKey` changes. Whether a given
+    address loads is a fact about this screen's afternoon, not about the image, so it is not written to
+    the document; when `status === 'ready'` and the picture errored, the same box is drawn at the same
+    size with "Image unavailable".
+
+## Tests
+
+13. **`clampScale`'s aspect-locked branch is fixed for shrinking** (`src/shared/geometry.ts`).
+    It took `Math.min` of the two clamped scales in both directions, which for a *shrinking* drag is
+    the *less* restrictive answer: a 400x300 image dragged inward ended at 16x12, under
+    `IMAGE_MIN_SIZE_WORLD` on its short axis. The branch's own comment said "use the more restrictive",
+    so this is a bug fix rather than a change of behaviour: growing still stops at whichever axis would
+    overflow first, shrinking now stops at whichever would fall under its minimum first. Story 12's
+    TC-29 is what caught it; every existing geometry test (all square rects) passes unchanged.
+
+14. **Component tests stub `createImageBitmap` and `uploadImage`, and nothing else.**
+    A jsdom board can neither decode a picture nor transfer bytes; the percentage, the retry and the
+    refusal wording are all asserted through those two seams, against the real document and the real
+    provider over the scripted socket.
+
+15. **E2E drops are built as a real `DataTransfer` in the page** (`tests/e2e/helpers/images.ts`), and
+    those two tests are Chromium-only, which is what the design fixes. The picker path - Playwright's
+    own file-chooser interception - runs in every engine.
+
+16. **One E2E latency sample is over budget by design.** TC-25 stalls uploads for 1.2s so that
+    "Uploading…" is a state a colleague can be shown rather than a flicker; that leg's label says so,
+    and the budget is reported, never asserted.
+
+## This machine
+
+17. **Firefox and WebKit cannot launch here** (missing system libraries; an unprivileged user cannot
+    install them). `playwright.config.ts` detects it and skips those two projects with its standing
+    warning, so `npm run test:e2e` runs Chromium only on this host. TC-26 is written without any
+    engine-specific API - `setInputFiles` with in-memory files, plain DOM reads - so it will run in all
+    three where they can start. Nothing in story 12 is blocked for any other reason.

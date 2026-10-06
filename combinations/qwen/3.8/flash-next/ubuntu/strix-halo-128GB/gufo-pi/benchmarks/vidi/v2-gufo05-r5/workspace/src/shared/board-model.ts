@@ -42,6 +42,7 @@ import { type Point, type Rect, rectContains } from './geometry';
 import { readTextObject, type TextSnapshot } from './objects/text';
 import { readShapeObject, type ShapeSnapshot } from './objects/shape';
 import { readStrokeObject, type StrokeSnapshot } from './objects/stroke';
+import { readImageObject, type ImageSnapshot } from './objects/image';
 import {
   detachConnectorsTo,
   readConnectorObject,
@@ -55,6 +56,17 @@ export { createConnector, setConnectorEndpoint } from './objects/connector';
 export type { ShapeSnapshot } from './objects/shape';
 export { createStroke, scaledPoints, hitStroke } from './objects/stroke';
 export type { StrokeSnapshot, StrokeSnap, PenColor, PenThickness } from './objects/stroke';
+export type { ImageSnapshot, ImageSnap, ImageStatus, DisplayStatus } from './objects/image';
+export {
+  createImagePlaceholders,
+  displayStatus,
+  layoutRow,
+  markImageFailed,
+  markImageReady,
+  markImageRetrying,
+  placementSize,
+  UPLOAD_ORIGIN,
+} from './objects/image';
 export type { ConnectorSnapshot, Endpoint } from './objects/connector';
 import { LOCAL_ORIGIN } from './y-origin';
 
@@ -86,7 +98,8 @@ export type ObjectSnapshot =
   | TextSnapshot
   | ShapeSnapshot
   | ConnectorSnapshot
-  | StrokeSnapshot;
+  | StrokeSnapshot
+  | ImageSnapshot;
 
 /** True when a snapshot is a sticky note (narrows the `ObjectSnapshot` union). */
 export function isStickySnapshot(obj: ObjectSnapshot): obj is StickySnapshot {
@@ -111,6 +124,11 @@ export function isConnectorSnapshot(obj: ObjectSnapshot): obj is ConnectorSnapsh
 /** True when a snapshot is a freehand stroke (story 11). */
 export function isStrokeSnapshot(obj: ObjectSnapshot): obj is StrokeSnapshot {
   return obj.type === 'stroke';
+}
+
+/** True when a snapshot is an image (story 12). */
+export function isImageSnapshot(obj: ObjectSnapshot): obj is ImageSnapshot {
+  return obj.type === 'image';
 }
 
 type ObjectsMap = Y.Map<Y.Map<unknown>>;
@@ -143,6 +161,7 @@ function readObject(id: string, raw: Y.Map<unknown>): ObjectSnapshot | undefined
   if (type === 'text') return readTextObject(id, raw);
   if (type === 'shape') return readShapeObject(id, raw);
   if (type === 'stroke') return readStrokeObject(id, raw);
+  if (type === 'image') return readImageObject(id, raw);
   if (type !== 'sticky') return undefined;
   const x = raw.get('x');
   const y = raw.get('y');

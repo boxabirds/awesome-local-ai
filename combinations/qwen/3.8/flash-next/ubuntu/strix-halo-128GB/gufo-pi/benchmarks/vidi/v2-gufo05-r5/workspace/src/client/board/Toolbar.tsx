@@ -13,6 +13,12 @@ export interface ToolbarProps {
   /** Creates a note at the centre of the visible board area and starts editing it. */
   onCreateSticky(): void;
   /**
+   * Story 12: opens the system file picker, filtered to the image types the board can store. Like the
+   * Sticky note button this is an action, not a tool: nothing stays armed, and the button is never
+   * highlighted.
+   */
+  onAddImage(): void;
+  /**
    * False while the room could not load the board (story 4). The buttons stay where they are and
    * say why they are not answering, instead of quietly making an object that belongs to a board
    * nobody has.
@@ -49,6 +55,8 @@ export const SHAPE_TOOL_TOOLTIP = 'Shape (S) – drag the board to draw, or clic
 export const CONNECTOR_TOOL_TOOLTIP = 'Connector (L) – drag from one object to another';
 /** Tooltip of the Pen tool button. */
 export const PEN_TOOL_TOOLTIP = 'Pen (P) – draw freehand; release to finish a stroke';
+/** Tooltip of the Image button, naming the four types the board accepts. */
+export const IMAGE_BUTTON_TOOLTIP = 'Image (I) – add a PNG, JPEG, GIF or WebP image';
 /** The Shape kind menu, in the order the shapes appear. */
 export const SHAPE_KIND_LABELS: Readonly<Record<ShapeKind, string>> = {
   rect: 'Rectangle',
@@ -60,6 +68,7 @@ export const STICKY_NOTE_LOCKED_TOOLTIP = 'The board could not be loaded, so it 
 
 export function Toolbar({
   onCreateSticky,
+  onAddImage,
   canEdit = true,
   tool = 'select',
   onSelectTool,
@@ -251,6 +260,35 @@ export function Toolbar({
             fill="currentColor"
             d="M2.5 2.75A.75.75 0 0 1 3.25 2h9.5a.75.75 0 0 1 .75.75V9.5L9.5 14H3.25a.75.75 0 0 1-.75-.75v-10.5ZM10 10.25h2.35L10 12.6v-2.35Z"
           />
+        </svg>
+      </button>
+      {/* Story 12: the Image button is the file picker. Dropping a file on the board and pressing I
+          do the same thing; this is the one a person looking for an upload button can see. */}
+      <button
+        type="button"
+        className="board-toolbar__button"
+        data-testid="add-image-button"
+        aria-label="Image (I)"
+        title={canEdit ? IMAGE_BUTTON_TOOLTIP : STICKY_NOTE_LOCKED_TOOLTIP}
+        disabled={!canEdit}
+        onClick={() => {
+          if (!canEdit) return;
+          onAddImage();
+        }}
+      >
+        <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false">
+          <rect
+            x="1.8"
+            y="3"
+            width="12.4"
+            height="10"
+            rx="1.4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <circle cx="5.6" cy="6.4" r="1.2" fill="currentColor" />
+          <path fill="currentColor" d="M3.2 11.6 6.6 7.9l2.3 2.4 1.8-1.7 2.7 3Z" />
         </svg>
       </button>
       {undo ? <div className="board-toolbar__divider" aria-hidden="true" /> : null}

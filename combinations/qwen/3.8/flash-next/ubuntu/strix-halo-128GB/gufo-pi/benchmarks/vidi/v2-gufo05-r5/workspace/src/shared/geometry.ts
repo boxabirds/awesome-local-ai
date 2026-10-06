@@ -16,6 +16,12 @@ export interface Rect {
   height: number;
 }
 
+/** A width and a height and nothing else: the size part of a box (story 12). */
+export interface Size {
+  readonly width: number;
+  readonly height: number;
+}
+
 /** Resize handle positions (compass-style). */
 export type Handle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 
@@ -189,9 +195,13 @@ export function clampScale(
     }
   }
 
-  // If aspect locked (scale.x === scale.y), use the more restrictive
+  // If aspect locked (scale.x === scale.y), one scale has to satisfy both axes at once, so the more
+  // restrictive answer depends on which way the drag was going: growing stops at whichever axis would
+  // overflow first (the smaller scale), shrinking at whichever would fall under its minimum first (the
+  // larger one). Picking the smaller in both cases is what let a tall object be squeezed below its
+  // minimum on its short axis.
   if (scale.x === scale.y) {
-    const uniform = Math.min(clampedX, clampedY);
+    const uniform = scale.x < 1 ? Math.max(clampedX, clampedY) : Math.min(clampedX, clampedY);
     return { x: uniform, y: uniform };
   }
 

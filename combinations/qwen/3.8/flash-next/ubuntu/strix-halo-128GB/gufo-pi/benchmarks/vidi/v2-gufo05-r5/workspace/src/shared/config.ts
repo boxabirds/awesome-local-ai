@@ -389,3 +389,32 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * history lives in memory only, so a reload always starts empty.
  */
 export const UNDO_MAX_STEPS = 200;
+
+// ---- Images (story 12) ----------------------------------------------------------
+
+/** The image types a person may add, by media type. Anything else is refused. */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** The largest image file that may be added (10 MB). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** The most images one drop, paste or pick may add. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/** The longest side, in world units, an added image is scaled down to. */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** The smallest side an image may be resized to, in world units. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** The gap between images placed in a row, in world units. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/** How long an upload may sit before everyone is told it did not finish. */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** How long a stored image may be cached: its address never changes. */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/** How many leading bytes of a file decide its type (magic bytes). */
+export const IMAGE_SNIFF_BYTES = 12;
