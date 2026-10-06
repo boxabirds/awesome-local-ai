@@ -70,9 +70,16 @@ export interface TransformGestureOptions {
   selection: Selection;
   /** False while the board cannot be written to: a press selects and stops there. */
   canEdit: boolean;
-  /** Called once, when a gesture crosses the threshold and is allowed to write. */
+  /**
+   * Called once, when a gesture crosses the threshold and is allowed to write — before the first
+   * write, so that whatever the person did just before this drag is not part of it.
+   */
   onGestureStart?(): void;
-  /** Called once, when a gesture that started is over — however it ended. */
+  /**
+   * Called once, when a gesture that started is over — however it ended, including a pointer the
+   * system took back, which is the same shape of thing as a person letting go: the drag is over and
+   * what it wrote is one step.
+   */
   onGestureEnd?(): void;
 }
 
@@ -281,13 +288,17 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         );
         // Still a press: not a write, not a restack, not a drag. Exactly the threshold is a drag.
         if (distance < DRAG_THRESHOLD_PX) return;
+        // The person has started doing a thing. Whoever listens is told before the first write goes
+        // in, so that the restack below and every frame of this drag are one step of the history and
+        // the step before them — a nudge, a colour, the burst of typing that ended a moment ago —
+        // stays a separate one. See `undo.boundaries`.
+        startedRef.current?.();
         if (!startDrag(session)) {
           finishGesture();
           return;
         }
         session.started = true;
         setMovingIds(new Set(session.ids));
-        startedRef.current?.();
       }
       session.dirty = true;
       schedule();

@@ -530,3 +530,83 @@ unreachable` — but they are React state in the two components that use them, n
 | `npm run test:e2e`         | 14    | 64 of 66 green: 60 chromium (incl. TC-32…TC-36), 4 persistence, nightly `idle-stability`; nightly `capacity-soak` is the pre-existing hang above |
 
 `npm run build`, `npm run build:test` and `npm run typecheck` are clean.
+
+# Story 8: undo and redo my own changes without undoing anyone else's
+
+## Contract deviations (all deliberate)
+
+- **`App.tsx` is not modified**, for the third story running. The design's file table puts the
+  `UndoManager` in `App.tsx`; the controller is created in `Board.tsx`, next to the document it is
+  attached to — story 5's split made `App.tsx` routing plus a share panel, and it does not have a
+  `Y.Doc` to hand.
+- **`createUndo` wraps `Y.UndoManager`; it does not subclass it or reimplement it.** `undo()` and
+  `redo()` return a boolean — was there a step to take? — because the caller has nothing else to
+  report to the person, and `boundary()` is `stopCapturing()` under the name that says what it is
+  for. `canUndo()`/`canRedo()` stay methods, as the design's interface writes them.
+- **`useUndo(controller, canEdit)` reports `canUndo: false` on a board that cannot be edited**, even
+  with a full stack underneath. The stack is not wrong, and it is not the person's to spend either;
+  a greyed button tells the truth and an enabled one that does nothing does not. The history is
+  neither cleared nor reset by the lock — it is only unshown, and comes back with the connection.
+- **Step boundaries are called by the thing that knows a step has ended** — a drag at both ends, a
+  text editor at both ends, a colour pick and a delete at both ends — and the controller's capture
+  window is left to do the one job it is good at: making a burst of keystrokes one step. There is no
+  timer in the controller, no "wait and see if more typing came", nothing that has to be tuned.
+- **`ObjectProps` grew an optional `undo`** instead of an undo context. An object rendered outside a
+  board — a test, a future thumbnail — has no history, and `undo?.boundary()` says so at the place
+  where it is true rather than throwing at the place where it is not.
+- **A board that can be edited answers Ctrl+Z even when its history is empty.** `useBoardKeys` calls
+  `preventDefault()` whenever `canEdit` and a controller are present, and then does nothing if there
+  is nothing to undo. The alternative — letting the chord through when the stack is empty — hands the
+  keystroke to the browser, which is a second undo of a different thing altogether.
+- **The chord predicates are structural** (`ChordKeys`: `key`, `ctrlKey`, `metaKey`, `shiftKey`,
+  `altKey`). A DOM `KeyboardEvent` and React's synthetic one both satisfy them, which is what lets
+  the board's keys and the note's text editor agree on what Ctrl+Shift+Z means without either
+  importing the other.
+
+## Findings while testing the implementation
+
+- **`lib0/time`'s `getUnixTime` is `Date.now` bound at module load.** Neither `vi.useFakeTimers()`
+  nor replacing `Date.now` moves a Yjs capture window once `yjs` has been imported — the timer the
+  capture test wanted to fast-forward cannot be fast-forwarded. TC-12 and TC-13 therefore use a
+  short window (60 ms) and real timers, and say in the file why they do; a test that pretended to
+  control that clock would have been a test of the fake, not of the capture.
+- **Yjs walks past a step it cannot apply, and that is behaviour a test can easily mistake for a
+  bug.** When the object a step would move has been deleted by somebody else, `undo()` pops the dead
+  step *and applies the step under it* in the same press. Nothing is resurrected — that is the half
+  that matters, `redoItem` will not write into an object somebody deleted — but the person sees the
+  change underneath go back too. TC-23's e2e fixture was rewritten around this: the six notes are
+  Raj's, not Mia's, so Mia's history holds exactly the one dead step. Written the other way round it
+  asserted about however many notes Mia had made, and about yjs's stack-walking rather than about
+  the promise the story makes.
+- **The boundary goes in *before* the first write of a gesture, not after it starts.** In
+  `useTransformGesture` the threshold check is followed by a bring-to-front and then by the drag; the
+  first version called `onGestureStart` after `startDrag()` had returned, which closed a capture
+  window that the restack had already opened — and a colour click made a second ago joined the drag.
+  Same lesson as story 7's press-time rectangles, from the other side: a step begins where the first
+  write of it is.
+- **The text editor closes its step on the way out as well as on the way in**, because not every way
+  out is the person's own: a colleague deleting the note, a board clearing the selection and an
+  object type losing its registration all unmount an editor that is still open. A step left open at
+  that point takes the next thing the person does into a step that belongs to the note that is gone.
+- **Compare the boards before you compare the pages** — and this is the story that tripped on it
+  again. TC-24 read another person's page for a position while that person's own browser had already
+  undone the move, and reported an undo that had "not arrived". `expectSameBoard` first, positions
+  afterwards; and the agreement is not a courtesy here, it is the proof — a person's own browser
+  always holds their own undo, so five screens agreeing means all five undos reached all five.
+- **Firefox and WebKit still cannot start in this sandbox** (`SIGABRT` before any test code runs).
+  The design's "chromium, firefox, webkit" line for the undo chord is chromium-green here.
+- **Nightly TC-30 (capacity soak) hangs exactly as it did before this story**, at the same call site
+  and the same 300 s; stories 5 and 7 both measured it from a clean worktree of HEAD and found the
+  same, and the cause there is a board that re-renders every note on every document change. Per
+  commit, e2e is 63 chromium tests, 4 persistence ones and nightly `idle-stability`, all green.
+
+## Final test counts (story 8)
+
+| Suite                      | Files | Tests                                                                                                            |
+| -------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
+| `npm run test:unit`        | 17    | 301 (+ undo history 11 with a simulated peer: TC-01…TC-11; + capture window 4: TC-12, TC-13 and their bounds)     |
+| `npm run test:component`   | 18    | 237 (+ gesture/typing/colour/delete boundaries 9: TC-14…TC-17; + shortcuts, buttons and the edit lock 16: TC-18…TC-21) |
+| `npm run test:integration` | 9     | 144 (unchanged — undo is a client-side view of the document, and the room never hears about it)                   |
+| `npm run test:e2e`         | 15    | 68 of 69 green: 63 chromium (incl. TC-22…TC-24), 4 persistence, nightly `idle-stability`; nightly `capacity-soak` is the pre-existing hang above |
+
+`npm run build`, `npm run build:test` and `npm run typecheck` are clean.

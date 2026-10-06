@@ -1,5 +1,7 @@
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react';
 
+import { UndoButtons, type UndoButtonsProps } from './UndoButtons';
+
 /** Tooltip of the Sticky note button (exact product text). */
 export const STICKY_BUTTON_HINT = 'Sticky note – or double-click the board';
 
@@ -15,16 +17,31 @@ export interface ToolbarProps {
    * found and still says why nothing happens — `title` carries the reason.
    */
   canCreate?: boolean;
+  /**
+   * The undo history of the person using this board, already answered by `useUndo`: whether there is
+   * anything of theirs to take back or put back, and the two things to ask for. Left out, the toolbar
+   * offers no undo at all — which is what a board without a history controller looks like, rather than
+   * a board whose buttons have been clicked to death.
+   */
+  undo?: UndoButtonsProps;
 }
 
 /**
- * The fixed left-side toolbar. Only the Sticky note button exists in this story;
- * later stories add their tools here.
+ * The fixed left-side toolbar.
  *
- * The toolbar swallows pointer and wheel events, so clicking a tool never pans
- * the board or clears the selection.
+ * Story 2 put the Sticky note button here; story 8 put Undo and Redo under it, because "what can I
+ * still take back" is a question about the whole board rather than about one tool, and because the
+ * PRD's structure asks for them below the tools. A later story adds its tools above the divider and
+ * leaves the pair where it is.
+ *
+ * The toolbar swallows pointer and wheel events, so clicking a tool never pans the board or clears
+ * the selection.
  */
-export function Toolbar({ onCreateSticky, canCreate = true }: ToolbarProps): React.JSX.Element {
+export function Toolbar({
+  onCreateSticky,
+  canCreate = true,
+  undo,
+}: ToolbarProps): React.JSX.Element {
   const stop = (event: ReactPointerEvent<HTMLDivElement> | ReactWheelEvent<HTMLDivElement>) => {
     event.stopPropagation();
   };
@@ -58,6 +75,11 @@ export function Toolbar({ onCreateSticky, canCreate = true }: ToolbarProps): Rea
         </span>
         <span className="toolbar-label">Sticky note</span>
       </button>
+      {undo ? (
+        // A rule between the tools and the history, so the two groups read as two groups.
+        <div aria-hidden="true" className="toolbar-divider" data-testid="toolbar-divider" />
+      ) : null}
+      {undo ? <UndoButtons {...undo} unavailable={canCreate ? undefined : LOAD_FAILED_BUTTON_HINT} /> : null}
     </div>
   );
 }

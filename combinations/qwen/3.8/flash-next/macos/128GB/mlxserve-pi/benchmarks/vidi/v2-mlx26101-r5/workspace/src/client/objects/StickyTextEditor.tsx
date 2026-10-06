@@ -5,6 +5,8 @@ import type * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { applyTextDiff, clampToLimit, counterVisible, mergeRemoteText } from './StickyText';
+import { isRedoChord, isUndoChord } from '../board/undo';
+import type { UndoControls } from '../board/useUndo';
 
 export interface StickyTextEditorProps {
   /** The note's shared text; every input event is written straight into it. */
@@ -17,6 +19,21 @@ export interface StickyTextEditorProps {
    * goes on to read as "nothing is selected", and Escape is a key, which is not a press at all.
    */
   onEnd(): void;
+  /**
+   * This person's undo history, for the chords pressed with the caret inside the text.
+   *
+   * A textarea is the one place on the board where Ctrl+Z cannot be answered from outside: the
+   * browser will undo what is on screen — the words this person has typed since they opened the note,
+   * which are on screen and in the document at the same time — and it will not tell the document that
+   * it did. So the chord is taken here, from the keystroke, before the browser sees it, and answered
+   * from the board's own history, which is the only one that knows where this note was before the
+   * typing started.
+   *
+   * Left out, Ctrl+Z in this box is the browser's own — which is the right answer for a note that was
+   * opened empty and has had nothing typed into it since, and the wrong one everywhere else, which is
+   * why a board that has a history always passes one down.
+   */
+  undo?: UndoControls;
 }
 
 /** True when a key event target is a field the user is typing into. */
@@ -45,13 +62,37 @@ export function isTypingTarget(target: EventTarget | null): boolean {
  * always the shared text plus what has been typed here, which is what makes the
  * minimal diff above describe one person's keystroke and nothing else.
  */
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): React.JSX.Element {
+export function StickyTextEditor({ ytext, fontPx, onEnd, undo }: StickyTextEditorProps): React.JSX.Element {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
   const endedRef = useRef(false);
   const [length, setLength] = useState(() => ytext.toString().length);
   /** The shared text as this box knows it: the base every local diff is taken against. */
   const remoteRef = useRef(ytext.toString());
+
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+
+  /**
+   * Opening a note is the start of a step, and closing it is the end of one.
+   *
+   * A burst of typing is one thing a person did — the whole of it goes back under one press of undo —
+   * and the pause that ends a burst is the history's own half a second, not something this box has to
+   * know about. What it does have to say is where the burst begins and where it ends: the first line
+   * below closes whatever step was still open when this note was opened (a drag that ended a moment
+   * ago, a note typed into a moment ago), and the second closes this one, so that the next thing this
+   * person does to the board is never counted as part of these words.
+   *
+   * The closing half runs on unmount rather than in `finish`, because there are ways of stopping to
+   * edit a note that do not go through `finish` — somebody else deleted the note, the board closed the
+   * editor because the selection went away — and every one of them is still the end of a step.
+   */
+  useEffect(() => {
+    undoRef.current?.boundary();
+    return () => {
+      undoRef.current?.boundary();
+    };
+  }, []);
 
   /**
    * Brings the box up to date with the shared text, keeping what was typed into it.
@@ -190,7 +231,24 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   };
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
-    // Only Escape is handled: Enter inserts a newline, left to the browser.
+    // Undo and redo, taken out of the browser's hands before anything else is decided: see the note
+    // on the prop. `isUndoChord`/`isRedoChord` are the same two questions the board's window listener
+    // asks, so the chord means the same thing here as it does everywhere else on this board.
+    if (isUndoChord(event) || isRedoChord(event)) {
+      const history = undoRef.current;
+      // No history of ours to consult (a note rendered outside a board): leave the key to the browser,
+      // which is what it has always done with it.
+      if (history === undefined) return;
+      event.preventDefault();
+      // Not `stopPropagation`: `preventDefault` alone is enough to keep the board's own window
+      // listener off this chord, because that listener's first question is whether anybody has already
+      // answered the key. Stopping the propagation as well would take the keystroke away from anything
+      // else on this note that might want it, which is a thing this file has no business deciding.
+      if (isUndoChord(event)) history.undo();
+      else history.redo();
+      return;
+    }
+    // Only Escape is handled besides those: Enter inserts a newline, left to the browser.
     if (event.key === 'Escape') {
       // During an IME composition Escape belongs to the input method (it drops
       // the candidate), so it must not end editing.

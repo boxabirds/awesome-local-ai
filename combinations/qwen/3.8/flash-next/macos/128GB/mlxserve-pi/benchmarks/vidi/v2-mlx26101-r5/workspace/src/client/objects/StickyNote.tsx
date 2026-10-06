@@ -53,7 +53,7 @@ export type NoteInteraction = 'unselected' | 'pressed' | 'selected' | 'dragging'
 export function StickyNote(props: ObjectProps<StickySnapshot>): React.JSX.Element {
   // `zoom` is in the props every object type is handed, and a sticky note has no use for it:
   // the whole note is scaled by the board's own transform, text included.
-  const { obj, doc, selected, soleSelected, pressed, dragging, editing, editable } = props;
+  const { obj, doc, selected, soleSelected, pressed, dragging, editing, editable, undo } = props;
   const ref = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
 
@@ -101,14 +101,24 @@ export function StickyNote(props: ObjectProps<StickySnapshot>): React.JSX.Elemen
   const pickColor = (color: StickyColor) => {
     if (!editable) return;
     // Only the colour changes: text, position, size, stacking and selection all stay put.
+    //
+    // And it changes as a step of its own. A click on a swatch is one thing a person did, even when
+    // they did it a quarter of a second after dragging the note somewhere — and without the line
+    // before, undo would take the colour back and leave the note where it was moved from.
+    undo?.boundary();
     setStickyColor(doc, obj.id, color);
+    undo?.boundary();
   };
 
   const remove = () => {
     if (!editable) return;
     // Out of the same door everything else goes out of, so that the selection on the other side of
-    // it is one answer rather than two.
-    if (deleteObjects(doc, [obj.id]) > 0) props.onDeleted(obj.id);
+    // it is one answer rather than two. One click of the bin is one step: a selection of eight notes
+    // goes back under one undo, and the delete that follows a drag is not folded into the drag.
+    undo?.boundary();
+    const deleted = deleteObjects(doc, [obj.id]) > 0;
+    undo?.boundary();
+    if (deleted) props.onDeleted(obj.id);
   };
 
   const interaction: NoteInteraction = editing
@@ -169,6 +179,7 @@ export function StickyNote(props: ObjectProps<StickySnapshot>): React.JSX.Elemen
           fontPx={fit.fontPx}
           key={obj.id}
           onEnd={props.onEndEdit}
+          undo={undo}
           ytext={sharedText(doc, obj.id)}
         />
       ) : (

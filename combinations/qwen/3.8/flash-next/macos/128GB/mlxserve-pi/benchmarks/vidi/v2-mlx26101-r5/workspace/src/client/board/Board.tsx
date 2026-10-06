@@ -15,7 +15,7 @@
  * board's rather than any object's — the toolbar, the zoom control, the connection, and the keys.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 
 import { BoardViewport } from '../canvas/BoardViewport';
@@ -38,6 +38,8 @@ import { canEdit, type BoardStatus, type ConnectBoardOptions } from './connectio
 import { useSelection, type Selection } from './useSelection';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
+import { createUndo } from './undo';
+import { useUndo, type UndoControls } from './useUndo';
 import { MarqueeRect, useMarquee, type Marquee } from './Marquee';
 import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -156,6 +158,34 @@ export function Board({
   editableRef.current = editable;
 
   /**
+   * This person's undo history, for this document and no other (story 8).
+   *
+   * It belongs to the document rather than to the board's render, because what it remembers is the
+   * document's own past: it is made once when a board is opened and destroyed when the board is closed,
+   * and nothing else. A second board in a second tab has its own, holding nothing that was done here;
+   * reloading this one starts with an empty history, which is the PRD's `undo.session_only` and not a
+   * limitation we worked around — the steps are this tab's memory, and the server has no use for them.
+   */
+  const undoHistory = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => () => undoHistory.destroy(), [undoHistory]);
+
+  /** The two answers the toolbar buttons show, and the two things clicking them asks for. */
+  const undoActions = useUndo(undoHistory, editable);
+  /**
+   * The same, plus the call a write site owes the history: `boundary`, which says that the action
+   * being written is over. The keys, the objects and the note editor all take this one object, so the
+   * rule "one action, one step" is stated at the place that writes rather than in the history itself.
+   */
+  const undoControls = useMemo<UndoControls>(
+    () => ({ ...undoActions, boundary: undoHistory.boundary }),
+    [undoActions, undoHistory],
+  );
+  // Read by the write sites, which are callbacks that outlive any one render of the board and must
+  // not be rebuilt every time an undo button becomes enabled.
+  const undoRef = useRef(undoControls);
+  undoRef.current = undoControls;
+
+  /**
    * The one way an object is opened for editing: from the toolbar-centred create, from a
    * double-click on the object, from Enter. Going through here means a board that cannot be
    * written to has one door to shut rather than four.
@@ -180,7 +210,13 @@ export function Board({
   const createAt = useCallback(
     (world: Point) => {
       if (!editableRef.current) return;
+      // A note created is one step, whatever was done just before it. The editor this write is
+      // followed by closes the step from its own side when it mounts, but only after the note was
+      // already written — and a write that lands inside somebody else's step cannot be undone alone.
+      const history = undoRef.current;
+      history?.boundary();
       const id = createSticky(docRef.current, world);
+      history?.boundary();
       if (typeof id !== 'string') return;
       startEdit(id);
     },
@@ -211,9 +247,25 @@ export function Board({
     const current = selectionRef.current;
     const ids = [...current.ids];
     if (ids.length === 0) return;
+    // One press of the button is one step, for one object or for eight: the same as the Delete key,
+    // which says the same thing to the same history from the other door.
+    const history = undoRef.current;
+    history?.boundary();
     deleteObjects(docRef.current, ids);
+    history?.boundary();
     current.clear();
   }, []);
+
+  /**
+   * A gesture is one step of the history, from the first frame that moves something to the pointer
+   * coming up — the drag of a note across the board and the drag of a corner to resize it are each
+   * one thing a person did, however many frames of the document they wrote on the way. `boundary` at
+   * the start closes whatever was open (a colour, a burst of typing, the drag that ended a moment
+   * ago); the one at the end closes this drag, so that whatever comes next is a step of its own.
+   * A gesture that turned out to write nothing calls the same two and changes nothing: a step that
+   * was never opened is not closed by anything.
+   */
+  const gestureBoundary = undoHistory.boundary;
 
   /** One gesture, whatever is selected: press an object and the whole selection moves with it. */
   const gesture = useTransformGesture({
@@ -222,6 +274,8 @@ export function Board({
     snapshot,
     selection,
     canEdit: editable,
+    onGestureStart: gestureBoundary,
+    onGestureEnd: gestureBoundary,
   });
 
   /** Shift + drag on empty board space: the rectangle that selects, drawn over everything. */
@@ -233,9 +287,9 @@ export function Board({
     onSelect: (ids) => selectionRef.current.setMany(ids, true),
   });
 
-  // Select all, escape, the arrows, delete, and Enter: the keys the board answers, in one file so
-  // that the order they are tried in is written down once.
-  useBoardKeys({ doc, selection, snapshot, canEdit: editable });
+  // Select all, escape, the arrows, delete, Enter, and the two chords that mean undo and redo: the
+  // keys the board answers, in one file so that the order they are tried in is written down once.
+  useBoardKeys({ doc, selection, snapshot, canEdit: editable, undo: undoControls });
 
   if (handle) handle.current = { doc, snapshot, selection, marquee };
 
@@ -284,6 +338,7 @@ export function Board({
             pressed={gesture.pressedId === object.id}
             selected={selection.ids.has(object.id)}
             soleSelected={selection.ids.size === 1 && selection.ids.has(object.id)}
+            undo={undoControls}
             zoom={camera.zoom}
           />
         ))}
@@ -296,7 +351,7 @@ export function Board({
       />
       <MarqueeRect camera={camera} rect={marquee.rect} />
       <SelectionBar ids={selection.ids} onDelete={deleteSelection} snapshot={snapshot} />
-      <Toolbar onCreateSticky={createInCentre} canCreate={editable} />
+      <Toolbar canCreate={editable} onCreateSticky={createInCentre} undo={undoActions} />
       <ZoomControls
         canZoomIn={canZoomIn(camera)}
         canZoomOut={canZoomOut(camera)}

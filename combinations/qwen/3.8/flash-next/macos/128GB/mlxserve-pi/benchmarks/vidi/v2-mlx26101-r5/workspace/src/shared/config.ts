@@ -145,3 +145,24 @@ export const LINK_COPIED_MS = 2000;
  * a person who opened a link during an outage is retried on the same rhythm as everybody else.
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+/* ------------------------------------------------------------------ undo and redo (story 8) */
+
+/**
+ * The pause in typing that ends an undo step: keystrokes closer together than this are one thing the
+ * person did, a pause of this long or longer is two.
+ *
+ * Half a second is roughly where a person stops typing a word and starts deciding what to say next,
+ * which is the line the PRD draws ("typing that continues without a pause of half a second or more").
+ * A drag needs none of this: it is closed by an explicit boundary when the pointer comes up.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/**
+ * How many of a person's own steps the board remembers, oldest first to be forgotten.
+ *
+ * The number is generous because the cost of a step is small (one Yjs inverse range, in this tab's
+ * memory only) and the cost of running out is a mistake that cannot be taken back. It is also a
+ * bound: a board opened for a whole afternoon does not accumulate history without limit.
+ */
+export const UNDO_MAX_STEPS = 200;

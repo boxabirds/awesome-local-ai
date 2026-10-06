@@ -26,6 +26,7 @@ import {
 } from '../../shared/board-model';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
 import { rectContainsPoint, type Point } from '../../shared/geometry';
+import type { UndoControls } from '../board/useUndo';
 import { STICKY_OBJECT_TYPE, StickyNote } from './StickyNote';
 
 /**
@@ -71,6 +72,18 @@ export interface ObjectProps<T extends ObjectSnapshot = ObjectSnapshot> {
    * while leaving the selection where it was.
    */
   onObjectPointerDown(event: ReactPointerEvent<HTMLElement> | PointerEvent, id: string): void;
+  /**
+   * This person's undo history, for the writes an object makes to its own content.
+   *
+   * An object that changes its own colour, or asks to be deleted, is doing one thing — and one thing
+   * is one step of the history. It says so with `boundary` on either side of the write, because the
+   * history cannot tell on its own that a colour click is not the second half of the drag that ended
+   * a moment ago: from where it stands they are two writes half a second apart, which is exactly what
+   * a burst of typing looks like.
+   *
+   * Left out, the object's writes are still undone — they simply join whatever step was open.
+   */
+  undo?: UndoControls;
 }
 
 /**

@@ -26,6 +26,8 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { hasEditableText } from '../objects/registry';
 import { isTypingTarget } from '../objects/StickyTextEditor';
+import { isRedoChord, isUndoChord } from './undo';
+import type { UndoControls } from './useUndo';
 import type { Selection } from './useSelection';
 
 export interface BoardKeysOptions {
@@ -36,6 +38,12 @@ export interface BoardKeysOptions {
   snapshot: readonly ObjectSnapshot[];
   /** False while the board cannot be written to; then only the keys that write nothing are answered. */
   canEdit: boolean;
+  /**
+   * This person's undo history: the two things a chord with a modifier in it can ask for, and the
+   * boundary that says a key press is a step of its own. Left out, Ctrl/Cmd+Z is the browser's own —
+   * which is what a board with no history of its own should do, rather than swallow the key.
+   */
+  undo?: UndoControls;
 }
 
 /** The four arrow keys, and which way each of them goes. */
@@ -53,7 +61,7 @@ const isSelectAll = (event: KeyboardEvent): boolean =>
   !event.shiftKey &&
   (event.key === 'a' || event.key === 'A');
 
-export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOptions): void {
+export function useBoardKeys({ doc, selection, snapshot, canEdit, undo }: BoardKeysOptions): void {
   const docRef = useRef(doc);
   docRef.current = doc;
   const selectionRef = useRef(selection);
@@ -62,6 +70,8 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOpt
   snapshotRef.current = snapshot;
   const canEditRef = useRef(canEdit);
   canEditRef.current = canEdit;
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
 
   /** Moves the whole selection by one step, in one transaction, to absolute positions. */
   const nudge = useCallback((direction: Point, step: number) => {
@@ -79,14 +89,25 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOpt
     // Absolute positions, from the snapshot rather than from the document: whoever else is watching
     // sees the same six units, and whoever is moving the same objects at the same time arrives at the
     // same place instead of drifting by one step per frame.
+    //
+    // One key press is one undo step, so the history is told that whatever was being written before
+    // this press is finished, and that this press is finished too: a person holding the arrow key
+    // down across ten positions gets ten steps back, not one that returns them all at once.
+    const history = undoRef.current;
+    history?.boundary();
     moveObjects(docRef.current, positions);
+    history?.boundary();
   }, []);
 
   /** Deletes the whole selection, which is one transaction for any number of objects. */
   const deleteSelection = useCallback(() => {
     const selectionNow = selectionRef.current;
     if (selectionNow.ids.size === 0) return;
+    // One press of Delete is one step, whatever it was holding: eight objects go back on one undo.
+    const history = undoRef.current;
+    history?.boundary();
     deleteObjects(docRef.current, [...selectionNow.ids]);
+    history?.boundary();
     // The ids go out of the selection on the next snapshot, which is the same path as a delete done
     // by somebody else. The board does not have two ways to forget the same object.
     selectionNow.clear();
@@ -124,6 +145,22 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOpt
       }
 
       // Any other chord with Ctrl or Cmd belongs to the viewport: zoom in, zoom out, reset the view.
+      // Undo and redo are the two exceptions, and they are answered here rather than further down
+      // because the line below is the one that would otherwise hand this key to the browser.
+      if (isUndoChord(event) || isRedoChord(event)) {
+        const history = undoRef.current;
+        // A board with no history of its own leaves the key alone, and a board that cannot be written
+        // to has no undo to offer — including for the changes made before it went unreadable, which
+        // stay exactly where they are. The key is not swallowed in either case.
+        if (history === undefined || !canEditRef.current) return;
+        // Taken from the browser before anything else is decided: an undo chord that reaches the
+        // browser's own history rewinds the page's inputs behind our back, and the PRD says it may not.
+        event.preventDefault();
+        if (isUndoChord(event)) history.undo();
+        else history.redo();
+        return;
+      }
+
       if (event.ctrlKey || event.metaKey || event.altKey) return;
 
       if (event.key === 'Enter') {

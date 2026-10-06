@@ -210,8 +210,15 @@ body {
   cursor: pointer;
 }
 
-.toolbar-button:hover {
+.toolbar-button:hover:not(:disabled) {
   background: #eef1f5;
+}
+
+/* Undo and Redo sit dark when there is nothing of this person's to take back or put back: the
+   disabled state is the answer to "can I still undo this?", so it has to be visible. */
+.toolbar-button:disabled {
+  cursor: default;
+  opacity: 0.4;
 }
 
 .toolbar-button:focus-visible,
@@ -228,6 +235,15 @@ body {
 
 .toolbar-label {
   font-size: 11px;
+}
+
+/* The line between the board's tools and its history. `aria-hidden`, because it is a rule on paper
+   rather than a control, and a toolbar that announces it announces a button that does nothing. */
+.toolbar-divider {
+  align-self: stretch;
+  height: 1px;
+  margin: 2px 0;
+  background: var(--border);
 }
 
 /* Floating toolbar of the selected note. It lives inside the note (and so inside
