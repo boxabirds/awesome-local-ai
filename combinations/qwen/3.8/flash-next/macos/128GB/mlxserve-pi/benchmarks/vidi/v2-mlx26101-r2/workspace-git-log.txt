@@ -1,3 +1,120 @@
+commit e358e624e322f64a307d823d2eba13127907ed40
+agent  Tue Oct 6 20:05:22 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                           | 50 +++++++++++++++++++++++++++++++++-----
+ tests/e2e/broken-board.spec.ts     | 30 ++++++++++++++---------
+ tests/e2e/helpers/board-content.ts |  5 ++--
+ 3 files changed, 65 insertions(+), 20 deletions(-)
+commit 49533404709ee031be9f5a16fc08a71b4ce85e30
+agent  Tue Oct 6 19:59:00 2026 +0000
+
+    story 4: a board that cannot be loaded, proved in a browser
+
+
+ NOTES.md                              |  34 ++-
+ tests/e2e/broken-board.spec.ts        | 387 ++++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/board-content.ts    | 124 +++++++++++
+ tests/e2e/helpers/participants.ts     |  42 +++-
+ tests/e2e/helpers/wrangler-process.ts |  29 ++-
+ tests/e2e/persistence.spec.ts         |  87 +-------
+ 6 files changed, 617 insertions(+), 86 deletions(-)
+commit a4b53855b80b8dcc7557b9a71a2f4e897a17ec66
+agent  Tue Oct 6 19:36:23 2026 +0000
+
+    story 4: a board that could not be loaded says so, and takes no edits
+
+
+ NOTES.md                                  | 102 +++++++++++++
+ src/client/App.tsx                        |  28 +++-
+ src/client/board/Toolbar.tsx              |  19 ++-
+ src/client/canvas/BoardViewport.tsx       |  12 ++
+ src/client/objects/NoteToolbar.tsx        |  19 ++-
+ src/client/objects/StickyNote.tsx         |  42 ++++-
+ src/client/styles.css                     |  37 +++++
+ src/client/sync/ConnectionStatus.tsx      |  17 ++-
+ src/client/sync/connectBoard.ts           |  94 +++++++++++-
+ tests/component/ConnectionStatus.test.tsx | 170 ++++++++++++++++++++-
+ tests/component/LoadFailure.test.tsx      | 246 ++++++++++++++++++++++++++++++
+ tests/component/fake-link.ts              |  40 +++++
+ tests/component/helpers.tsx               |  51 +++++++
+ 13 files changed, 854 insertions(+), 23 deletions(-)
+commit 673fde5b55fc0541c80d7e78983424c3e9946d4d
+agent  Tue Oct 6 19:33:22 2026 +0000
+
+    story 4: the persistence tests that restart a real server
+
+
+ playwright.config.ts                  |   8 +-
+ src/worker/index.ts                   |  15 +-
+ src/worker/test-hooks.ts              |  56 +++++-
+ tests/e2e/helpers/sticky.ts           |  13 ++
+ tests/e2e/helpers/wrangler-process.ts | 369 ++++++++++++++++++++++++++++++++++
+ tests/e2e/persistence.spec.ts         | 321 +++++++++++++++++++++++++++++
+ tests/e2e/test-routes.spec.ts         |  97 +++++++++
+ 7 files changed, 863 insertions(+), 16 deletions(-)
+commit f780c6e1954f57f07f5d924bea6f0c12b5860e56
+agent  Sat Oct 3 20:52:57 2026 +0000
+
+    story 4: durability, failure and hibernation, tested against a room with a real database
+
+
+ NOTES.md                                         |  60 ++
+ src/worker/board-room.ts                         |  31 +-
+ src/worker/test-hooks.ts                         |  32 +-
+ tests/integration/board-room-persistence.test.ts | 749 +++++++++++++++++++++++
+ vitest.config.ts                                 |  18 +-
+ 5 files changed, 876 insertions(+), 14 deletions(-)
+commit 8972629e992c6fab8dce800f571121696a918cfe
+agent  Sat Oct 3 20:11:50 2026 +0000
+
+    story 4: the storage tests built on real boards, and a room that only writes what came off a socket
+
+
+ src/worker/board-room.ts              | 466 +++++++++++++++++++++++++++-------
+ src/worker/board-store.ts             |  14 +
+ src/worker/index.ts                   |  22 ++
+ src/worker/room-state.ts              |  23 ++
+ src/worker/test-hooks.ts              | 272 ++++++++++++++++++++
+ tests/fixtures/boards.ts              | 236 +++++++++++++++++
+ tests/integration/board-store.test.ts | 283 +++++++++++++++------
+ tsconfig.json                         |   4 +
+ tsconfig.tmp.json                     |   1 +
+ tsconfig.worker.json                  |   1 +
+ 10 files changed, 1153 insertions(+), 169 deletions(-)
+commit 71b2c1b109e9c61926b7ee74b5e4f78dfa4a3672
+agent  Sat Oct 3 19:34:58 2026 +0000
+
+    story 4: the storage layer against a real Durable Object database
+
+
+ tests/integration/board-store.test.ts | 620 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 620 insertions(+)
+commit 002a2154d778bb55d175961a294a44d7dcd46dbe
+agent  Sat Oct 3 19:21:58 2026 +0000
+
+    story 4: storage layer — snapshot + log, quarantine, and its unit tests
+
+
+ src/shared/config.ts                  |  45 ++++
+ src/shared/protocol.ts                |  13 +
+ src/worker/board-store.ts             | 452 ++++++++++++++++++++++++++++++++++
+ src/worker/room-state.ts              | 146 +++++++++++
+ tests/unit/board-store-chunks.test.ts | 237 ++++++++++++++++++
+ tests/unit/room-state.test.ts         | 163 ++++++++++++
+ tsconfig.json                         |   9 +
+ tsconfig.worker.json                  |   9 +-
+ 8 files changed, 1073 insertions(+), 1 deletion(-)
+commit 0bbcd96b653ee8b8ba0c0346b4a07901e9a77e6b
+vidi-agent  Sat Oct 3 19:42:05 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 54 ++++++++++--------------------------------------------
+ 1 file changed, 10 insertions(+), 44 deletions(-)
 commit 70785db030ce4ee7dee03c736b76515611b7951c
 agent  Sat Oct 3 18:38:46 2026 +0000
 
