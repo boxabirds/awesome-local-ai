@@ -26,7 +26,7 @@
 import { env, runInDurableObject } from 'cloudflare:test';
 import * as Y from 'yjs';
 
-import { snapshot, type StickySnapshot } from '../../../src/shared/board-model';
+import { isStickySnapshot, snapshot, type StickySnapshot } from '../../../src/shared/board-model';
 import {
   joinChunks,
   type BoardStore,
@@ -119,7 +119,9 @@ export function readStoredBoard(
   return inRoom(boardId, (_room, store) => {
     const doc = new Y.Doc();
     const result = store.load(doc);
-    return { result, notes: result.ok ? snapshot(doc) : [] };
+    // Notes, out of a board that story 7 made able to hold other kinds of object as well: what these
+    // tests check about a board read back from storage is the notes on it.
+    return { result, notes: result.ok ? snapshot(doc).filter(isStickySnapshot) : [] };
   });
 }
 
@@ -183,9 +185,15 @@ export function forgetTheBoard(boardId: string): Promise<void> {
   });
 }
 
-/** The room's own in-memory board, for a test that has to know what it is holding. */
+/**
+ * The notes the room is holding in memory, for a test that has to know what it is holding.
+ * Notes rather than every object, since story 7: the board can hold other kinds of thing and
+ * these tests are about notes.
+ */
 export function roomNotes(boardId: string): Promise<readonly StickySnapshot[] | null> {
-  return inRoom(boardId, (room) => (room.boardDoc === null ? null : snapshot(room.boardDoc)));
+  return inRoom(boardId, (room) =>
+    room.boardDoc === null ? null : snapshot(room.boardDoc).filter(isStickySnapshot),
+  );
 }
 
 /** Switches the room's storage hooks on, as the test environment does. */

@@ -4,6 +4,9 @@
   --ink: #1f2328;
   --surface: #ffffff;
   --border: #d6dae1;
+  /* The one blue that means "this is what you are working on": the selected note's outline, the
+     selection box, its handles and the marquee are all this colour. */
+  --select: #2563eb;
   color-scheme: light;
   font-family:
     ui-sans-serif,
@@ -749,4 +752,124 @@ body {
 .board-page {
   position: fixed;
   inset: 0;
+}
+
+/* ==========================================================================
+ * Story 7: the selection as one shape, and the two gestures that make one.
+ *
+ * Everything in this section is drawn in screen coordinates over the board. The board's own world is
+ * scaled and translated by the camera; a selection box is neither, because a box that grew and
+ * shrank with the zoom would be a box you could not grab at 25%. The objects keep drawing their own
+ * `data-selected` outline — this is only the one rectangle they make together.
+ * ========================================================================== */
+
+/*
+ * The box around a selection. It is transparent to the pointer on purpose: the objects inside it are
+ * what you press, and the only thing on it worth pressing is a handle, which switches pointer events
+ * back on for itself. A box that swallowed presses would make the middle of a group unusable.
+ */
+.selection-overlay {
+  position: fixed;
+  box-sizing: border-box;
+  border: 1px solid var(--select);
+  border-radius: 2px;
+  pointer-events: none;
+  /* Under both toolbars (5 and 10), over the objects: the box reports on the board, it does not
+     cover it up. */
+  z-index: 4;
+}
+
+/*
+ * The eight handles. Positioned against the viewport rather than against the box they belong to,
+ * because their coordinates are computed as screen points, and the box has no transform of its own
+ * for them to be relative to. Fixed size in pixels is the point: a handle is 8 CSS pixels at 10%
+ * zoom and at 400%, which is why the drag converts them back to world units before it moves
+ * anything.
+ */
+.selection-handle {
+  position: fixed;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 1px solid var(--select);
+  border-radius: 1px;
+  background: #ffffff;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  z-index: 4;
+}
+
+.selection-handle:hover {
+  background: var(--select);
+}
+
+.selection-handle:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 1px;
+}
+
+/* The rectangle being pulled with Shift held: the same blue as the selection, mostly see-through,
+   and never in the way of the pointer that is drawing it. */
+.board-marquee {
+  position: fixed;
+  box-sizing: border-box;
+  border: 1px dashed var(--select);
+  background: rgba(37, 99, 235, 0.12);
+  pointer-events: none;
+  z-index: 6;
+}
+
+/*
+ * The bar that says how many objects are selected. It appears with the second object, which is when
+ * the per-note toolbar has already gone away: one selection gets a toolbar about that note, a
+ * selection gets a bar about the lot.
+ */
+.selection-bar {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  z-index: 10;
+}
+
+.selection-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  /* The count changes while you drag a marquee; it must not push the delete button around, and a
+     number that is read out should not be the reason the bar changes width mid-gesture. */
+  min-width: 74px;
+}
+
+.selection-delete {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #b42318;
+  cursor: pointer;
+}
+
+.selection-delete:hover {
+  background: #fdeceb;
+  border-color: #f0a9a3;
+}
+
+.selection-delete:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
 }

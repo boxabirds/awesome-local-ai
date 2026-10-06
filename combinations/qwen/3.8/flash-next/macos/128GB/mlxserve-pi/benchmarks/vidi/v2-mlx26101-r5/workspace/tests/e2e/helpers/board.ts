@@ -426,3 +426,289 @@ async function closeEditor(page: Page): Promise<void> {
   await page.keyboard.press('Escape');
   await expect(editorLocator(page), 'waiting for the editor to close').toHaveCount(0);
 }
+
+/* ------------------------------------------------------------------ story 7: many objects at once */
+
+/** The rectangle a marquee, a selection box or an object occupies, in world units. */
+export interface WorldRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** The bar a selection of two or more gets, and the pieces of it. */
+export const selectionBar = (page: Page): Locator => page.getByTestId('selection-bar');
+export const selectionCountLocator = (page: Page): Locator => page.getByTestId('selection-count');
+export const deleteSelectionButton = (page: Page): Locator =>
+  page.getByTestId('delete-selection');
+/** The box around a selection, and one of its eight resize handles. */
+export const selectionOverlay = (page: Page): Locator => page.getByTestId('selection-overlay');
+export const resizeHandle = (page: Page, handle: string): Locator =>
+  page.getByTestId(`resize-${handle}`);
+/** The rectangle being pulled, and any object of any type. */
+export const marqueeLocator = (page: Page): Locator => page.getByTestId('marquee');
+export const objectOf = (page: Page, id: string): Locator => page.locator(`[data-object-id="${id}"]`);
+
+/**
+ * What the selection bar says — `4 selected` — or null when the selection is too small for one.
+ *
+ * A direct read of the DOM rather than a locator: a locator call waits for the element to *appear*,
+ * and this function is called precisely to ask whether it is absent.
+ */
+export function selectionBarText(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const element = document.querySelector('[data-testid="selection-count"]');
+    return element === null ? null : (element.textContent ?? null);
+  });
+}
+
+/** How many the bar says are selected: null is "there is no bar", which is not the same as 0. */
+export async function selectionBarCount(page: Page): Promise<number | null> {
+  const text = await selectionBarText(page);
+  return text === null ? null : Number.parseInt(text, 10);
+}
+
+/** Waits for the bar to say this number of objects, and returns what it said. */
+export async function expectSelectionCount(page: Page, count: number): Promise<string | null> {
+  await expect(selectionCountLocator(page), `waiting for ${count} selected`).toHaveText(
+    `${count} selected`,
+  );
+  return selectionBarText(page);
+}
+
+/** Every object the board is drawing as selected, in stacking order. */
+export function selectedIds(page: Page): Promise<string[]> {
+  return page
+    .locator('[data-object-id][data-selected="true"]')
+    .evaluateAll((els) => els.map((el) => el.dataset['objectId'] ?? ''));
+}
+
+/** The numbers of any object, of any type, in world units. */
+export function objectWorld(page: Page, id: string): Promise<WorldRect & { z: number }> {
+  return objectOf(page, id).evaluate((el) => ({
+    x: Number(el.dataset['x']),
+    y: Number(el.dataset['y']),
+    width: Number(el.dataset['width']),
+    height: Number(el.dataset['height']),
+    z: Number(el.dataset['z']),
+  }));
+}
+
+/** The interaction state an object reports: unselected, selected, pressed, dragging, editing. */
+export function objectInteraction(page: Page, id: string): Promise<string> {
+  return objectOf(page, id).evaluate((el) => el.dataset['interaction'] ?? 'unselected');
+}
+
+/** The selection's box in world units, or null when nothing is selected. */
+export async function overlayWorld(page: Page): Promise<WorldRect | null> {
+  if ((await selectionOverlay(page).count()) === 0) return null;
+  return selectionOverlay(page).evaluate((el) => ({
+    x: Number(el.dataset['x']),
+    y: Number(el.dataset['y']),
+    width: Number(el.dataset['width']),
+    height: Number(el.dataset['height']),
+  }));
+}
+
+/** The marquee's rectangle in world units, or null while nobody is pulling one. */
+export async function marqueeWorld(page: Page): Promise<WorldRect | null> {
+  if ((await marqueeLocator(page).count()) === 0) return null;
+  return marqueeLocator(page).evaluate((el) => ({
+    x: Number(el.dataset['x']),
+    y: Number(el.dataset['y']),
+    width: Number(el.dataset['width']),
+    height: Number(el.dataset['height']),
+  }));
+}
+
+/** The resize handles the board is offering, by compass label. */
+export function handleNames(page: Page): Promise<string[]> {
+  return page
+    .locator('[data-handle]')
+    .evaluateAll((els) => els.map((el) => el.dataset['handle'] ?? ''));
+}
+
+/** Where a handle is on the screen, at its centre. */
+export async function handleScreen(page: Page, handle: string): Promise<{ x: number; y: number }> {
+  const box = await resizeHandle(page, handle).boundingBox();
+  if (!box) throw new Error(`handle ${handle} is not on screen`);
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/** Where a world point is drawn, according to the camera the page is rendering. */
+export async function screenOfWorld(page: Page, world: { x: number; y: number }): Promise<{ x: number; y: number }> {
+  const camera = await readCamera(page);
+  return {
+    x: (world.x - camera.x) * camera.zoom,
+    y: (world.y - camera.y) * camera.zoom,
+  };
+}
+
+/** Presses and releases on an object with Shift held: it joins the selection, or leaves it. */
+export async function shiftClickObject(page: Page, id: string): Promise<void> {
+  const box = await objectOf(page, id).boundingBox();
+  if (!box) throw new Error(`object ${id} is not on screen`);
+  await page.keyboard.down('Shift');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+}
+
+/** Clicks one object and Shift-clicks the rest, which is how a person selects several. */
+export async function selectObjects(page: Page, ids: readonly string[]): Promise<void> {
+  const [first, ...rest] = ids;
+  if (first === undefined) return;
+  await clickNote(page, first);
+  for (const id of rest) await shiftClickObject(page, id);
+}
+
+/**
+ * Shift-drags a rectangle over the board, from one screen point to another.
+ *
+ * `whilePulling` runs with the button still down, which is the only moment a test can ask what the
+ * rectangle currently is: the selection it produces is the answer, and the rectangle is the question.
+ */
+export async function marqueeDrag(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  whilePulling?: () => Promise<void>,
+): Promise<void> {
+  await page.keyboard.down('Shift');
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 10, from.y + 10, { steps: 2 });
+  await page.mouse.move(to.x, to.y, { steps: 8 });
+  if (whilePulling) await whilePulling();
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+}
+
+/** Selects everything on the board with the keyboard. */
+export async function selectAllKeys(page: Page): Promise<void> {
+  await page.keyboard.press('Control+a');
+}
+
+/** Presses an arrow `times` times — with Shift held when asked, which is the long step. */
+export async function nudgeKeys(
+  page: Page,
+  key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight',
+  times: number,
+  shift = false,
+): Promise<void> {
+  for (let press = 0; press < times; press += 1) {
+    await page.keyboard.press(shift ? `Shift+${key}` : key);
+  }
+}
+
+/** Where the page itself is scrolled, which no key on this board is allowed to change. */
+export function pageScroll(page: Page): Promise<{ x: number; y: number }> {
+  return page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }));
+}
+
+/** Creates notes at these screen points, and returns their ids in the order asked for. */
+export async function createNotesAt(page: Page, points: readonly { x: number; y: number }[]): Promise<string[]> {
+  const ids: string[] = [];
+  for (const point of points) {
+    ids.push(await doubleClickCreate(page, point.x, point.y));
+    await page.keyboard.press('Escape');
+  }
+  await settled(page);
+  return ids;
+}
+
+/** How many objects of every type the board has drawn. */
+export function objectCount(page: Page): Promise<number> {
+  return page.locator('[data-object-id]').count();
+}
+
+/** Waits for the board to have drawn this many objects, and returns their ids. */
+export async function expectObjectCount(page: Page, count: number): Promise<string[]> {
+  await expect(page.locator('[data-object-id]'), 'waiting for objects').toHaveCount(count);
+  return page.locator('[data-object-id]').evaluateAll((els) => els.map((el) => el.dataset['objectId'] ?? ''));
+}
+
+/** Presses and releases on empty board space, which is how a selection gets cleared. */
+export async function clickEmptySpace(page: Page, point: { x: number; y: number }): Promise<void> {
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.up();
+}
+
+/** Presses on an object's centre, moves by (dx, dy) screen pixels, leaves the button down. */
+export async function pressObjectAndMove(
+  page: Page,
+  id: string,
+  dx: number,
+  dy: number,
+  steps = 5,
+): Promise<{ cx: number; cy: number }> {
+  const box = await objectOf(page, id).boundingBox();
+  if (!box) throw new Error(`object ${id} is not on screen`);
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + dx, cy + dy, { steps });
+  return { cx, cy };
+}
+
+/** Waits until an object of any type stops moving, then returns its numbers. */
+export async function waitForObjectAtRest(page: Page, id: string): Promise<WorldRect & { z: number }> {
+  let last = await objectWorld(page, id);
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    await page.waitForTimeout(20);
+    const next = await objectWorld(page, id);
+    if (
+      next.x === last.x &&
+      next.y === last.y &&
+      next.width === last.width &&
+      next.height === last.height &&
+      next.z === last.z
+    ) {
+      return next;
+    }
+    last = next;
+  }
+  return last;
+}
+
+/** Presses on the middle of a screen point, drags by (dx, dy), releases, waits for it to settle. */
+export async function dragFromPoint(
+  page: Page,
+  from: { x: number; y: number },
+  dx: number,
+  dy: number,
+): Promise<void> {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + dx * 0.2, from.y + dy * 0.2, { steps: 2 });
+  await page.mouse.move(from.x + dx, from.y + dy, { steps: 8 });
+  await page.mouse.up();
+}
+
+/** Drags an object by a screen delta, releases, and waits until the board has stopped moving it. */
+export async function dragObjectAndSettle(
+  page: Page,
+  id: string,
+  dx: number,
+  dy: number,
+): Promise<WorldRect & { z: number }> {
+  await pressObjectAndMove(page, id, dx, dy);
+  await page.mouse.up();
+  return waitForObjectAtRest(page, id);
+}
+
+/** Waits until the selection's box stops changing, then returns it in world units. */
+export async function waitForOverlayAtRest(page: Page): Promise<WorldRect | null> {
+  let last = await overlayWorld(page);
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    await page.waitForTimeout(20);
+    const next = await overlayWorld(page);
+    if (JSON.stringify(next) === JSON.stringify(last)) return next;
+    last = next;
+  }
+  return last;
+}

@@ -19,6 +19,7 @@ import {
   createSticky,
   getStickyText,
   initDoc,
+  isStickySnapshot,
   setStickyColor,
   snapshot,
   type StickySnapshot,
@@ -134,7 +135,9 @@ function build(noteCount: number, textOf: (index: number) => string): SeededBoar
   if (updates.length !== noteCount + 1) {
     throw new Error(`expected ${String(noteCount + 1)} updates, got ${String(updates.length)}`);
   }
-  return { doc, notes: snapshot(doc), updates };
+  // Every object that is a note: these fixtures only ever build notes, but story 7 made `snapshot`
+  // answer for every object type, so the type the fixture means has to be said out loud.
+  return { doc, notes: snapshot(doc).filter(isStickySnapshot), updates };
 }
 
 /** The retrospective board: 25 notes, mixed colours, multi-line text, overlapping. */
@@ -165,7 +168,7 @@ export function recolourUpdates(board: SeededBoard, count: number): Uint8Array[]
   const collect = (update: Uint8Array, transactionOrigin: unknown): void => {
     if (transactionOrigin === origin) updates.push(Uint8Array.from(update));
   };
-  const notes = snapshot(board.doc);
+  const notes = snapshot(board.doc).filter(isStickySnapshot);
   if (notes.length === 0) throw new Error('the fixture ran out of notes');
   board.doc.on('update', collect);
   try {

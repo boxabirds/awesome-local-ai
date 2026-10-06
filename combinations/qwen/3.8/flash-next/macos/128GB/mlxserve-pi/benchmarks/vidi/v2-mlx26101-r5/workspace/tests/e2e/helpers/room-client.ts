@@ -22,6 +22,7 @@ import { newBoardId } from '../../../src/shared/board-id';
 import {
   createSticky,
   getStickyText,
+  isStickySnapshot,
   snapshot,
   type StickySnapshot,
 } from '../../../src/shared/board-model';
@@ -104,7 +105,8 @@ export class RoomClient {
 
   /** The board as this client sees it. */
   notes(): readonly StickySnapshot[] {
-    return snapshot(this.doc);
+    // Story 7's snapshot answers for every object on the board; this client counts notes.
+    return snapshot(this.doc).filter(isStickySnapshot);
   }
 
   /** How many notes this client can see. */

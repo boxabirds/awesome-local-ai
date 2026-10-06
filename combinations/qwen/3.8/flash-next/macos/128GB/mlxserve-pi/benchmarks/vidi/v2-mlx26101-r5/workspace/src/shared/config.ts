@@ -42,6 +42,19 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 /** Colour of a newly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+/* ------------------------------------------------- selecting and transforming objects (story 7) */
+
+/** Side of one resize handle, in screen pixels (the same size at any zoom). */
+export const HANDLE_SIZE_PX = 8;
+/** Smallest sticky note, in world units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Largest any object may be resized to, in world units; one limit for every type. */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** One press of an arrow key moves the selection this many world units. */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift plus an arrow key moves the selection this many world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 /* ------------------------------------------------------------------ live collaboration (story 3) */
 
 /**

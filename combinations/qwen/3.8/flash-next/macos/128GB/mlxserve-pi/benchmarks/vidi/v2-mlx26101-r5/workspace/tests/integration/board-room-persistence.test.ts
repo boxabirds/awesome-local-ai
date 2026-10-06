@@ -32,6 +32,7 @@ import { newBoardId } from '../../src/shared/board-id';
 import {
   createSticky,
   getStickyText,
+  isStickySnapshot,
   setStickyColor,
   snapshot,
   type StickySnapshot,
@@ -128,7 +129,9 @@ async function theRoomHasCaughtUp(client: WsClient): Promise<void> {
 function flipOne(id: string): (doc: Y.Doc) => void {
   return (doc: Y.Doc) => {
     const note = snapshot(doc).find((candidate) => candidate.id === id);
-    if (!note) throw new Error(`note ${id} is not on the board`);
+    // A board holds objects, of which a note is one kind; the colour this test flips belongs to the
+    // note kind, so a thing that is not a note is as good as not being on the board here.
+    if (!note || !isStickySnapshot(note)) throw new Error(`note ${id} is not on the board`);
     setStickyColor(doc, id, note.color === 'yellow' ? 'orange' : 'yellow');
   };
 }
@@ -747,7 +750,7 @@ describe('a board with one damaged change in the log', () => {
     expect(
       comparable(reader.snapshot()),
       'the room serves the board the log can still account for, and says nothing else',
-    ).toEqual(comparable(snapshot(surviving)));
+    ).toEqual(comparable(snapshot(surviving).filter(isStickySnapshot)));
 
     // The rest of the board is not gone while somebody who saw it is still around. A returning
     // client is asked what the room is missing, and that is the board coming back — and being

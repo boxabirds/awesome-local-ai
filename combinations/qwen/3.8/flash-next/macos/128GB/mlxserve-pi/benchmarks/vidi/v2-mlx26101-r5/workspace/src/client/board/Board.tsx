@@ -7,6 +7,12 @@
  * reach vidi6" before a board is on screen at all, and a board that takes those answers on
  * itself would be three pages in one file. What is left here is the same board stories 1 to 4
  * drew, taking a `boardId` it is told and connecting to it.
+ *
+ * Story 7 is the story that stopped this file knowing what a sticky note is. It draws whatever the
+ * registry can draw, it hands a press to one gesture that moves as many objects as the selection
+ * holds, and it reads the whole snapshot rather than the notes in it. What it still owns is the
+ * arrangement: one document, one camera, one selection, and the handful of things that are the
+ * board's rather than any object's — the toolbar, the zoom control, the connection, and the keys.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -30,10 +36,14 @@ import { useBoardConnection } from './useBoardConnection';
 import { ConnectionStatus } from './ConnectionStatus';
 import { canEdit, type BoardStatus, type ConnectBoardOptions } from './connection';
 import { useSelection, type Selection } from './useSelection';
+import { useTransformGesture } from './useTransformGesture';
+import { useBoardKeys } from './useBoardKeys';
+import { MarqueeRect, useMarquee, type Marquee } from './Marquee';
+import { SelectionBar } from './SelectionBar';
+import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
-import { StickyNote } from '../objects/StickyNote';
-import { isTypingTarget } from '../objects/StickyTextEditor';
-import { deleteObject, createSticky, type StickySnapshot } from '../../shared/board-model';
+import { ObjectView } from '../objects/registry';
+import { createSticky, deleteObjects, type ObjectSnapshot } from '../../shared/board-model';
 
 /** The board fills the window; its size is the camera's viewport. */
 const measureWindow = (): Size =>
@@ -44,8 +54,11 @@ const measureWindow = (): Size =>
 /** Test handle: the pieces a component test needs to drive and inspect. */
 export interface BoardHandle {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  /** Every object on the board, of every type this build can read, in stacking order. */
+  snapshot: readonly ObjectSnapshot[];
   selection: Selection;
+  /** The marquee, so a test can ask what rectangle is being pulled without a pointer. */
+  marquee: Marquee;
 }
 
 export interface BoardProps {
@@ -69,13 +82,12 @@ export interface BoardProps {
 }
 
 /**
- * The whole board: the infinite viewport from story 1, the left toolbar, the
- * sticky notes, the zoom control and the first-use hint, all sharing one camera,
- * one `Y.Doc` and one local selection.
+ * The whole board: the infinite viewport from story 1, the left toolbar, the objects, the zoom
+ * control and the first-use hint, all sharing one camera, one `Y.Doc` and one local selection.
  *
- * Keyboard shortcuts live here, on `window`: Enter starts editing the selected
- * note, Delete/Backspace deletes it — and both are ignored while a note is being
- * edited or focus is in a field, so those keys edit text instead.
+ * Four things are the board's and no object's: the camera, the selection, the one gesture that
+ * transforms whatever is selected, and the keys. Each lives in its own file and is wired together
+ * here, which is the only reason a drag of six objects and a drag of one are the same drag.
  */
 export function Board({
   viewport: viewportProp,
@@ -90,11 +102,14 @@ export function Board({
   const controllerRef = useRef(controller);
   controllerRef.current = controller;
 
-  const { doc, notes } = useBoardDoc();
-  const selection = useSelection();
+  const { doc, snapshot } = useBoardDoc();
+  const selection = useSelection(snapshot);
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
-  if (handle) handle.current = { doc, notes, selection };
+  const snapshotRef = useRef(snapshot);
+  snapshotRef.current = snapshot;
+  const docRef = useRef(doc);
+  docRef.current = doc;
 
   // The live connection to the room this board lives in (story 3). Created once per
   // board id, and only when there is a board id to connect to.
@@ -105,17 +120,6 @@ export function Board({
   connectionRef.current = connection;
   const boardIdRef = useRef<string | null>(boardId ?? null);
   boardIdRef.current = boardId ?? null;
-
-  // A note that somebody else deleted cannot stay selected, cannot stay open for
-  // editing and cannot still be being dragged: it is gone from the board, so the
-  // selection that pointed at it is dropped. Drag state lives in the note itself, which
-  // unmounts with the note, and that ends the drag.
-  useEffect(() => {
-    const current = selectionRef.current;
-    const gone = (id: string | null): boolean =>
-      id !== null && !notes.some((note) => note.id === id);
-    if (gone(current.selectedId) || gone(current.editingId)) current.select(null);
-  }, [notes]);
 
   // Viewport size from a ResizeObserver. A resize changes only the size: the
   // camera's x/y (world point at the top-left) stays put.
@@ -152,8 +156,8 @@ export function Board({
   editableRef.current = editable;
 
   /**
-   * The one way a note is opened for editing: from the toolbar-centred create, from a
-   * double-click on the note, from Enter. Going through here means a board that cannot be
+   * The one way an object is opened for editing: from the toolbar-centred create, from a
+   * double-click on the object, from Enter. Going through here means a board that cannot be
    * written to has one door to shut rather than four.
    */
   const startEdit = useCallback((id: string) => {
@@ -161,26 +165,26 @@ export function Board({
     selectionRef.current.startEdit(id);
   }, []);
 
-  // A board that stops being writable stops being writable *now*, not when the note happens
+  // A board that stops being writable stops being writable *now*, not when the object happens
   // to close: an editor left open on a board the room cannot read invites text that has
-  // nowhere to go. The note stays selected, which is where the person left it.
+  // nowhere to go. The object stays selected, which is where the person left it.
   useEffect(() => {
     if (editable) return;
     const current = selectionRef.current;
-    if (current.editingId !== null) current.endEdit('selected');
+    if (current.editingId !== null) current.endEdit();
   }, [editable]);
 
   /** Creates a note centred on a world point and starts typing in it right away.
-   * Used for the toolbar button (screen centre converted once in App) and for a
+   * Used for the toolbar button (screen centre converted once here) and for a
    * double-click on empty board space (the viewport converts). */
   const createAt = useCallback(
     (world: Point) => {
       if (!editableRef.current) return;
-      const id = createSticky(doc, world);
+      const id = createSticky(docRef.current, world);
       if (typeof id !== 'string') return;
       startEdit(id);
     },
-    [doc, startEdit],
+    [startEdit],
   );
 
   /** Toolbar button: a note centred in the middle of the visible board area. */
@@ -189,11 +193,51 @@ export function Board({
     createAt(screenToWorld(cameraRef.current, { x: size.width / 2, y: size.height / 2 }));
   }, [createAt]);
 
-  /** The bin button deleted a note: drop the selection that pointed at it. */
-  const noteDeleted = useCallback((id: string) => {
-    const current = selectionRef.current;
-    if (current.selectedId === id || current.editingId === id) current.select(null);
+  /**
+   * An object's own bin deleted it. The next snapshot drops the id from the selection — that is the
+   * same path as a delete done by somebody else, and the board has no second way to forget an object.
+   * This only saves the frame in between, during which the selection would point at nothing.
+   */
+  const objectDeleted = useCallback((id: string) => {
+    if (selectionRef.current.ids.has(id)) selectionRef.current.clear();
   }, []);
+
+  /**
+   * The selection bar's delete: the whole selection, in one transaction, whatever is in it. The same
+   * call as the Delete key, so a button and a key cannot disagree about how many undo steps a delete
+   * of six objects is when story 8 comes to count them.
+   */
+  const deleteSelection = useCallback(() => {
+    const current = selectionRef.current;
+    const ids = [...current.ids];
+    if (ids.length === 0) return;
+    deleteObjects(docRef.current, ids);
+    current.clear();
+  }, []);
+
+  /** One gesture, whatever is selected: press an object and the whole selection moves with it. */
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    snapshot,
+    selection,
+    canEdit: editable,
+  });
+
+  /** Shift + drag on empty board space: the rectangle that selects, drawn over everything. */
+  const marquee = useMarquee({
+    camera,
+    snapshot,
+    // The marquee *adds*: the rectangle is drawn on top of a selection the person already has, and
+    // Shift is the modifier that means "as well as".
+    onSelect: (ids) => selectionRef.current.setMany(ids, true),
+  });
+
+  // Select all, escape, the arrows, delete, and Enter: the keys the board answers, in one file so
+  // that the order they are tried in is written down once.
+  useBoardKeys({ doc, selection, snapshot, canEdit: editable });
+
+  if (handle) handle.current = { doc, snapshot, selection, marquee };
 
   // Test-only hook (excluded from production builds by the mode check).
   useEffect(() => {
@@ -213,57 +257,45 @@ export function Board({
     });
   }, []);
 
-  // Enter edits the note; Delete/Backspace deletes it. The note is the selected
-  // one, or — for keyboard-only use — the one that has focus. While a note is
-  // being edited (or focus is in a field) the keys are left alone, so they edit
-  // characters instead of the note.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.altKey || event.shiftKey) return;
-      if (isTypingTarget(event.target)) return;
-      if (selectionRef.current.editingId !== null) return;
-      const id = selectionRef.current.selectedId ?? focusedNoteId(event.target);
-      if (!id) return;
-      if (event.key === 'Enter') {
-        if (!editableRef.current) return;
-        event.preventDefault();
-        startEdit(id);
-      } else if (event.key === 'Delete' || event.key === 'Backspace') {
-        // A key that does nothing should not swallow the browser's own meaning of it, so
-        // the gate comes before `preventDefault`.
-        if (!editableRef.current) return;
-        event.preventDefault();
-        deleteObject(doc, id);
-        selectionRef.current.select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, startEdit]);
-
+  // The selection bar and the resize handles are drawn over the board, in screen coordinates: the
+  // box is one rectangle around however many objects there are, and a handle is a fixed size on the
+  // screen whatever the board is scaled to.
   return (
     <div className="vidi6-app" data-testid="app" ref={containerRef}>
       <BoardViewport
         controller={controller}
+        marquee={marquee}
         onCreateSticky={createAt}
-        onClearSelection={() => selection.select(null)}
+        onClearSelection={() => selectionRef.current.clear()}
       >
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
+        {snapshot.map((object) => (
+          <ObjectView
+            key={object.id}
             doc={doc}
-            editing={selection.editingId === note.id}
-            note={note}
-            selected={selection.selectedId === note.id}
-            zoom={camera.zoom}
+            dragging={gesture.movingIds.has(object.id)}
             editable={editable}
-            onDeleted={noteDeleted}
+            editing={selection.editingId === object.id}
+            obj={object}
+            onDeleted={objectDeleted}
             onEndEdit={selection.endEdit}
-            onSelect={selection.select}
+            onObjectPointerDown={gesture.onObjectPointerDown}
+            onSelect={selection.click}
             onStartEdit={startEdit}
+            pressed={gesture.pressedId === object.id}
+            selected={selection.ids.has(object.id)}
+            soleSelected={selection.ids.size === 1 && selection.ids.has(object.id)}
+            zoom={camera.zoom}
           />
         ))}
       </BoardViewport>
+      <SelectionOverlay
+        camera={camera}
+        ids={selection.ids}
+        onHandlePointerDown={gesture.onHandlePointerDown}
+        snapshot={snapshot}
+      />
+      <MarqueeRect camera={camera} rect={marquee.rect} />
+      <SelectionBar ids={selection.ids} onDelete={deleteSelection} snapshot={snapshot} />
       <Toolbar onCreateSticky={createInCentre} canCreate={editable} />
       <ZoomControls
         canZoomIn={canZoomIn(camera)}
@@ -277,12 +309,4 @@ export function Board({
       <ConnectionStatus state={status} />
     </div>
   );
-}
-
-/**
- * The id of the note that has focus, or null. Only the note element itself counts:
- * a focused swatch or bin button must keep the browser's own Enter/Delete meaning.
- */
-function focusedNoteId(target: EventTarget | null): string | null {
-  return target instanceof HTMLElement ? (target.dataset['noteId'] ?? null) : null;
 }

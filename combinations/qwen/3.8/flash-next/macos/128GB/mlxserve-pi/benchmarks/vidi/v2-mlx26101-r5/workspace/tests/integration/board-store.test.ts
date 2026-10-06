@@ -39,7 +39,7 @@ import { runInDurableObject } from 'cloudflare:test';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import * as Y from 'yjs';
 
-import { snapshot, type StickySnapshot } from '../../src/shared/board-model';
+import { isStickySnapshot, snapshot, type StickySnapshot } from '../../src/shared/board-model';
 import {
   COMPACTION_UPDATE_COUNT,
   PERSIST_TESTED_NOTES,
@@ -175,7 +175,9 @@ class BoardStorage {
       const result = store.load(fresh);
       return {
         ...result,
-        notes: result.ok ? snapshot(fresh) : [],
+        // Story 7 widened the model's `snapshot()` to every kind of object a board holds. What these
+        // tests are holding the log for is notes, so the notes are what comes back out.
+        notes: result.ok ? snapshot(fresh).filter(isStickySnapshot) : [],
         quarantined: result.ok ? result.quarantined : 0,
       };
     });
@@ -193,7 +195,7 @@ class BoardStorage {
 
   /** The board the harness is holding. */
   notes(): Promise<readonly StickySnapshot[]> {
-    return Promise.resolve(snapshot(this.doc));
+    return Promise.resolve(snapshot(this.doc).filter(isStickySnapshot));
   }
 
   counts(): Promise<{
@@ -453,7 +455,7 @@ function laterChanges(fixture: SeededBoard, count: number): Uint8Array[] {
 
 /** The board a fixture holds at this moment. */
 function currentBoard(fixture: SeededBoard): readonly Omit<StickySnapshot, 'id'>[] {
-  return board(snapshot(fixture.doc));
+  return board(snapshot(fixture.doc).filter(isStickySnapshot));
 }
 
 describe('the board comes back as it was written down (TC-05)', () => {
@@ -660,7 +662,7 @@ describe('a change is one row, and a row can be missing (TC-04)', () => {
       const update = await store.row(row.seq);
       if (update) Y.applyUpdate(surviving, update);
     }
-    expect(board(loaded.notes)).toEqual(board(snapshot(surviving)));
+    expect(board(loaded.notes)).toEqual(board(snapshot(surviving).filter(isStickySnapshot)));
     expect(loaded.notes.length).toBeLessThan(fixture.notes.length);
   });
 
@@ -719,7 +721,7 @@ describe('damage in the log is one change, not the board (TC-09)', () => {
       if (index + 1 === 4) continue;
       Y.applyUpdate(expected, update);
     }
-    expect(board(loaded.notes)).toEqual(board(snapshot(expected)));
+    expect(board(loaded.notes)).toEqual(board(snapshot(expected).filter(isStickySnapshot)));
   });
 
   /**

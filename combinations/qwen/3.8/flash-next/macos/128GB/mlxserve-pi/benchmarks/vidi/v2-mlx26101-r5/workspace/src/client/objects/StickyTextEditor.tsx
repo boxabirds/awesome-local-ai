@@ -4,7 +4,6 @@ import type * as Y from 'yjs';
 
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
-import type { EndEditNext } from '../board/useSelection';
 import { applyTextDiff, clampToLimit, counterVisible, mergeRemoteText } from './StickyText';
 
 export interface StickyTextEditorProps {
@@ -12,8 +11,12 @@ export interface StickyTextEditorProps {
   ytext: Y.Text;
   /** Current auto-fit font size, in world units (the parent measures it). */
   fontPx: number;
-  /** Called once when editing ends: Escape keeps the selection, a click outside drops it. */
-  onEnd(next: EndEditNext): void;
+  /**
+   * Called exactly once when editing ends. It says nothing about what happens to the selection, and
+   * it does not need to: a press outside the note closes this editor and is the same press the board
+   * goes on to read as "nothing is selected", and Escape is a key, which is not a press at all.
+   */
+  onEnd(): void;
 }
 
 /** True when a key event target is a field the user is typing into. */
@@ -133,7 +136,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
 
   /** Ends editing exactly once, flushing anything not written yet. */
   const finish = useCallback(
-    (next: EndEditNext) => {
+    () => {
       if (endedRef.current) return;
       endedRef.current = true;
       const el = ref.current;
@@ -142,13 +145,15 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
         applyTextDiff(ytext, clampToLimit(el.value), LOCAL_ORIGIN);
         remoteRef.current = ytext.toString();
       }
-      onEnd(next);
+      onEnd();
     },
     [mergeFromRemote, onEnd, ytext],
   );
 
-  // A pointerdown anywhere outside this note's box ends editing and clears the
-  // selection. Capture phase, so it runs before the board reacts to the press.
+  // A pointerdown anywhere outside this note's box closes the editor. Capture phase, so that the
+  // text is committed before the board does anything with the same press — and it does not stop that
+  // press: the board sees it too, and reads it as the selection it is. That is why this file has no
+  // opinion about what the selection becomes.
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
       const el = ref.current;
@@ -156,7 +161,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       const note = el.closest('.sticky-note');
       const target = event.target;
       if (note && target instanceof Node && note.contains(target)) return;
-      finish('unselected');
+      finish();
     };
     document.addEventListener('pointerdown', onPointerDown, true);
     return () => document.removeEventListener('pointerdown', onPointerDown, true);
@@ -192,7 +197,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       if (composingRef.current) return;
       event.preventDefault();
       event.stopPropagation();
-      finish('selected');
+      finish();
     }
   };
 

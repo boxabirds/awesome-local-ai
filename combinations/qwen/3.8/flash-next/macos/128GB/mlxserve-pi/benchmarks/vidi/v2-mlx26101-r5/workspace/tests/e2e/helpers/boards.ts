@@ -90,3 +90,6 @@ export async function seedLegacyBoard(
   expect(response.status, `seeding a legacy board answered ${String(response.status)}`).toBe(200);
   return notes.length;
 }
+
+/** The same address as a room connection, for a test that wants to talk to the room itself. */
+export const DEFAULT_WS_ORIGIN = DEFAULT_ORIGIN.replace(/^http/, 'ws');

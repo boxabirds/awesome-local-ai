@@ -1,8 +1,8 @@
 # Notes
 
-Decisions, deviations and environment findings while implementing story 1 (everything
-up to "Findings while testing the implementation") and story 2 ("Story 2: sticky
-notes", at the end).
+Decisions, deviations and environment findings, story by story: story 1 (everything
+up to "Findings while testing the implementation"), then story 2, 3, 5 and 7 as their
+own sections at the end.
 
 ## Ports
 
@@ -420,3 +420,113 @@ unreachable` — but they are React state in the two components that use them, n
 
 `npm run build`, `npm run build:test` and `npm run typecheck` are clean. The nightly project runs
 `idle-stability` green and `capacity-soak` into the pre-existing hang above.
+
+# Story 7: select, move, resize and delete several objects at once
+
+## Contract deviations (all deliberate)
+
+- **`snapshot()` returns objects, not notes.** The board's read function used to return
+  `readonly StickySnapshot[]`; it returns `readonly ObjectSnapshot[]`, because after the registry a
+  board can hold things that are not sticky notes and a read that silently dropped them would be a
+  read that lies. Story 3's and story 4's integration helpers are the only tests touched, and only
+  where their own signature promises notes: they now end in `.filter(isStickySnapshot)`. Not one
+  assertion in them changed.
+- **`App.tsx` is not modified.** The design's file table puts the overlay, the bar and the keys in
+  `App.tsx`; they are wired in `Board.tsx`, which is the component that owns the document, the
+  camera and the selection. `App.tsx` is routing and a share panel, and it has no business knowing
+  about resize handles.
+- **`EndEditNext` does not exist.** The design mentions a selection action that closes the text
+  editor and selects something next. Closing the editor and changing the selection are two
+  decisions, and story 7 does not need the second one: by the time an editor closes, the selection
+  is already whatever the pointer put it at. `StickyTextEditor`'s `onEnd()` takes nothing, and
+  `useSelection.endEdit()` takes nothing. If a later story wants "select the next object", it is a
+  new action with its own name.
+- **`edit` does not collapse a selection.** `{ type: 'edit', id }` puts that object in the selection
+  if it is not in it, and leaves a group of five a group of five. Enter on a selected note opens
+  that note's text; it does not throw away the four objects selected alongside it. `Enter` only
+  opens a text editor when exactly one object is selected (`selectionOnlyId`), so the group case is
+  refused where it is cheap to refuse it rather than in the editor.
+- **`registerObjectType` also declares the type to the model.** One registry, one source of truth:
+  `board-model` cannot be told about a type by a different call than the one that gives the client a
+  component for it, or the two lists drift and an object with a component stops being selectable.
+  A "type the board does not know" test therefore has to use a type that was never registered.
+- **Three things in geometry beyond the design's list.** `rectContainsPoint` (a point inside a
+  rectangle — the existing `rectContains` rejects zero-area boxes, which is right for "is this box
+  fully inside that one" and wrong for a pointer hit test); `scaleRect` (the box a handle's scale
+  describes, which is what `resizeRect` was being asked twice, wrongly); and the fix to
+  `scaleWithin`, which moved children by the box's *starting* origin instead of its ending one — so
+  a drag of the west handle moved the notes without scaling them. Both are exported, both are
+  unit-tested, and nothing in them knows what a sticky note is.
+- **`useTransformGesture` is given the snapshot as an option named `snapshot`**, which shadows
+  `board-model`'s `snapshot()`; inside that file the model's function is imported as
+  `readSnapshot`. A name collision is a small cost for a hook that reads the board rather than
+  reaching for a document of its own.
+
+## Findings while testing the implementation
+
+- **Start rectangles are recorded when the pointer goes down, not when the drag passes the
+  threshold.** The design says both: its sequence diagram records them at `pointerdown`, its prose
+  says "at threshold crossing". The diagram is the one that can be right. Two people pressing the
+  same note and both dragging means the first one's writes arrive while the second one is still
+  pressing; if the second measures its movement from rectangles read at threshold-crossing, it
+  measures from a board the first person already moved, and its own absolute writes put the note
+  somewhere that depends on network timing. Story 4's TC-24 (two people drag the same note, one
+  note, both boards) is the test that shows this: it is deterministic with a press-time baseline and
+  fails with a threshold-time one. Absolute writes only converge if everybody computes from a
+  position they all agree is where they started.
+- **A proportion-locked object locks the whole drag.** `aspect = event.shiftKey || any selected
+  object keeps its proportions`. When the sizes stop, the two rules differ: shrinking takes
+  `max(allowed.x, allowed.y)` so that both objects reach their minimum, growing takes
+  `min(...)` so that neither passes its maximum. Taking one scale for all objects and one box for
+  all objects is what makes a group resize one number rather than a negotiation.
+- **Shift-pressing a second object in the middle of a drag is not a thing a mouse does**, and the
+  first version of TC-26 did it anyway (press A, shift-press B with the same pointer, drag). It
+  only passed because the gesture read the selection at the wrong moment. The test now does what a
+  person does — click A, Shift-click B, then press and drag — and asserts the middle click produced
+  no gesture at all, which is a rule worth having written down: selecting is not transforming.
+- **E2E: a test that moves things by screen coordinates has to put every window at the same zoom
+  before it makes the things.** TC-36 places notes by where they are seen, at five different
+  windows; made at zoom 1, they land outside the view of a window at zoom 0.5, and the assertion
+  about where a note ended up becomes a test of the camera. All five windows are set to the same
+  scale before the first note is created, and the expected positions are computed from the camera
+  each page is actually rendering.
+- **E2E: notes cannot be made underneath the interface.** The toolbar, the zoom controls, the share
+  button and now the selection bar are fixed over the board. A double-click that lands on one of
+  them makes no note, and the test waits for a note forever. The spots a test uses are chosen to be
+  clear of them, and the failure mode is written at the point where the spots are declared.
+- **E2E: compare the boards before you compare the pages.** `expectSameBoard` has to run before
+  per-note position assertions; reading another person's page while somebody is still dragging
+  measures the network, not the board, and a stale read of a page that has since caught up looks
+  exactly like a lost update.
+- **`npm run e2e:serve` builds once, and Playwright will reuse it.** `webServer.reuseExistingServer`
+  is on, so a `wrangler dev` left running from an earlier command answers the next
+  `npx playwright test` with the build it made at startup. Source changes are invisible. This is how
+  a real fix appeared to be a flake. Use a fresh `VIDI6_E2E_PORT` (the range allows it) or stop the
+  old server; a "the old server cannot be killed" sandbox makes the fresh port the easier half.
+- **The nightly soak (TC-30) does not finish on this machine, and did not finish before this story
+  either.** Run from a clean worktree of HEAD, on the same seed, it fails at the same call site at
+  300 s; given 900 s it still does not get through the soak's own 60-second loop. Story 5's notes
+  blamed the read: that is wrong, and worth correcting here. `locator.evaluateAll` does not wait for
+  a match — measured directly, it returned zero elements in 9 ms on a page with nothing matching —
+  so `noteIds` is not "waiting forever" in the gap between the last note going and the next one
+  arriving; the trace is only where the clock ran out. What is left as the explanation is the app:
+  every note is a component that re-renders when the document changes, five windows do that while
+  five people write continuously, and the main threads stop answering long before the loop's wall
+  clock is spent. Neither this story nor its predecessor caused it, and fixing it is a rendering
+  job (a note that subscribes to its own slice of the document, or a board that virtualises what it
+  draws), which belongs with the nightly suite that found it. Per-commit e2e is 60 chromium tests
+  plus 4 persistence ones, all green.
+- **Firefox and WebKit still cannot start in this sandbox** (`browserType.launch` fails; WebKit
+  aborts with `SIGABRT` before any test code runs). Re-measured on TC-32, which the design asks for
+  in chromium, firefox and webkit; it is chromium-green and cannot run otherwise here.
+
+## Final test counts (story 7)
+
+| Suite                      | Files | Tests                                                                                                            |
+| -------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
+| `npm run test:unit`        | 15    | 286 (+ geometry 51, group operations 33, registry, selection reducer; TC-01…TC-15)                               |
+| `npm run test:component`   | 16    | 212 (+ multi-select 14, marquee 8, group transform 19, keyboard 20; TC-16…TC-31)                                 |
+| `npm run test:integration` | 9     | 144 (unchanged; five helper call sites now filter the widened `snapshot()` down to notes)                        |
+| `npm run test:e2e`         | 14    | 64 of 66 green: 60 chromium (incl. TC-32…TC-36), 4 persistence, nightly `idle-stability`; nightly `capacity-soak` is the pre-existing hang above |
+
+`npm run build`, `npm run build:test` and `npm run typecheck` are clean.

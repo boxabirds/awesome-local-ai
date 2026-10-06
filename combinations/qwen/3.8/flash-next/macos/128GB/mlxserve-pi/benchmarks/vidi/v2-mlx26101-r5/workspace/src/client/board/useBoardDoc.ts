@@ -1,14 +1,24 @@
 import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 
-import { initDoc, OBJECTS_MAP, snapshot, type StickySnapshot } from '../../shared/board-model';
+import {
+  initDoc,
+  OBJECTS_MAP,
+  snapshot,
+  type ObjectSnapshot,
+} from '../../shared/board-model';
 
 /** What `useBoardDoc` gives the board: the shared document and its snapshot. */
 export interface BoardDoc {
   /** The one `Y.Doc` this page edits (story 3 attaches a provider to it). */
   doc: Y.Doc;
-  /** Notes sorted by `(z, id)`; a new array only when the document changed. */
-  notes: readonly StickySnapshot[];
+  /**
+   * Every object on the board, of every type, sorted by `(z, id)`; a new array only when the document
+   * changed. Story 7 made this "every object" rather than "every note": selection, marquee, group
+   * drag and delete all walk the whole board, and a snapshot that left out the types this build cannot
+   * draw would leave them unselectable by *select all* and invisible to a marquee.
+   */
+  snapshot: readonly ObjectSnapshot[];
 }
 
 /**
@@ -26,13 +36,13 @@ export function useBoardDoc(): BoardDoc {
     initDoc(created);
     return created;
   });
-  const cache = useRef<{ notes: readonly StickySnapshot[] | null }>({ notes: null });
+  const cache = useRef<{ snapshot: readonly ObjectSnapshot[] | null }>({ snapshot: null });
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
       const objects = doc.getMap(OBJECTS_MAP);
       const invalidate = () => {
-        cache.current.notes = null;
+        cache.current.snapshot = null;
         onStoreChange();
       };
       objects.observeDeep(invalidate);
@@ -45,11 +55,11 @@ export function useBoardDoc(): BoardDoc {
     [doc],
   );
 
-  const getSnapshot = useCallback((): readonly StickySnapshot[] => {
-    if (cache.current.notes === null) cache.current.notes = snapshot(doc);
-    return cache.current.notes;
+  const getSnapshot = useCallback((): readonly ObjectSnapshot[] => {
+    if (cache.current.snapshot === null) cache.current.snapshot = snapshot(doc);
+    return cache.current.snapshot;
   }, [doc]);
 
-  const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return { doc, notes };
+  const objects = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return { doc, snapshot: objects };
 }

@@ -17,12 +17,14 @@ import {
   type StickyColor,
 } from '../../src/shared/config';
 import {
+  allObjectIds,
   bringToFront,
   createSticky,
   deleteObject,
   getStickyText,
   initDoc,
   isStickyColor,
+  isStickySnapshot,
   LOCAL_ORIGIN,
   META_MAP,
   moveObject,
@@ -30,6 +32,7 @@ import {
   SCHEMA_VERSION,
   setStickyColor,
   snapshot,
+  type StickySnapshot,
 } from '../../src/shared/board-model';
 import { LONG_PROSE_1000, SHORT_PHRASE } from '../fixtures/texts';
 
@@ -71,6 +74,14 @@ const objects = (): Y.Map<Y.Map<unknown>> => doc.getMap(OBJECTS_MAP);
 const entry = (id: string): Y.Map<unknown> => objects().get(id) as Y.Map<unknown>;
 const zOf = (id: string): number => Number(entry(id).get('z'));
 
+/**
+ * The note at a position in the stacking order. Story 7 widened `snapshot` to answer for every kind of
+ * object a board can hold; these tests were written when a note was the only kind there was, so the
+ * narrowing happens here once instead of in every assertion about a colour or a body of text.
+ */
+const stickyAt = (index: number): StickySnapshot | undefined =>
+  snapshot(doc).filter(isStickySnapshot)[index];
+
 /** Forces a `z` value directly in the document (stacking fixtures). */
 const forceZ = (id: string, z: number): void => {
   doc.transact(() => {
@@ -100,7 +111,7 @@ describe('createSticky', () => {
     expect(updates.count()).toBe(1);
     expect(updates.origins()[0]).toBe(LOCAL_ORIGIN);
 
-    const notes = snapshot(doc);
+    const notes = snapshot(doc).filter(isStickySnapshot);
     expect(notes).toHaveLength(1);
     const note = notes[0];
     if (typeof id !== 'string' || !note) throw new Error('unreachable');
@@ -130,8 +141,7 @@ describe('createSticky', () => {
 
   it('uses the requested colour when it is one of the six presets', () => {
     const id = createSticky(doc, { x: 0, y: 0 }, 'violet');
-    const note = snapshot(doc)[0];
-    expect(typeof id === 'string' ? note?.color : null).toBe('violet');
+    expect(typeof id === 'string' ? stickyAt(0)?.color : null).toBe('violet');
   });
 
   it('TC-39 rejects non-finite coordinates without writing anything', () => {
@@ -230,7 +240,7 @@ describe('setStickyColor', () => {
     updates.reset();
     expect(setStickyColor(doc, id, 'teal')).toBe(false);
     expect(updates.count()).toBe(0);
-    expect(snapshot(doc)[0]?.color).toBe(DEFAULT_STICKY_COLOR);
+    expect(stickyAt(0)?.color).toBe(DEFAULT_STICKY_COLOR);
   });
 
   it('rejects a stale id and a non-string colour', () => {
@@ -250,7 +260,7 @@ describe('setStickyColor', () => {
     for (const name of names) {
       expect(isStickyColor(name)).toBe(true);
       setStickyColor(doc, id, name);
-      expect(snapshot(doc)[0]?.color).toBe(name);
+      expect(stickyAt(0)?.color).toBe(name);
     }
     expect(isStickyColor('teal')).toBe(false);
     expect(isStickyColor(undefined)).toBe(false);
@@ -342,7 +352,18 @@ describe('snapshot', () => {
     expect(snapshot(doc).map((note) => note.id)).toEqual([b, a]);
   });
 
-  it('TC-12 skips objects of an unknown type and does not throw', () => {
+  /**
+   * Story 7 changed what this case says.
+   *
+   * Story 2 promised that `snapshot` skipped objects of an unknown type. Selecting *everything on
+   * the board* cannot be built on that: a board written by a newer client holds types this build
+   * cannot draw, and they have to be seen — counted, resized around, left in the document — before
+   * they can be left alone. So the snapshot lists them and the renderer is what skips them, while
+   * `allObjectIds` keeps the promise that a person can only ever select what this build knows.
+   * What has not changed is that nothing is written, and that a value which is not an object at
+   * all is dropped rather than thrown over.
+   */
+  it('TC-12 lists objects of an unknown type, drops what is not an object, and does not throw', () => {
     const id = createSticky(doc, { x: 0, y: 0 }) as string;
     const shape = new Y.Map<unknown>();
     shape.set('type', 'shape');
@@ -350,17 +371,21 @@ describe('snapshot', () => {
     objects().set('garbage', 'not-a-map' as unknown as Y.Map<unknown>);
     updates.reset();
     const notes = snapshot(doc);
-    expect(notes).toHaveLength(1);
-    expect(notes[0]?.id).toBe(id);
+    expect(notes).toHaveLength(2);
+    // The shape has no z of its own, so it sorts below a note that was created here.
+    expect(notes.map((note) => note.type)).toEqual(['shape', 'sticky']);
+    expect(notes[1]?.id).toBe(id);
+    expect(notes[0]).toMatchObject({ id: 'shape-1', x: 0, y: 0, z: 0 });
+    expect(allObjectIds(notes)).toEqual([id]);
     expect(updates.count()).toBe(0);
   });
 
   it('reflects text edits made through the shared Y.Text', () => {
     const id = createSticky(doc, { x: 0, y: 0 }) as string;
     const ytext = getStickyText(doc, id) as Y.Text;
-    expect(snapshot(doc)[0]?.text).toBe('');
+    expect(stickyAt(0)?.text).toBe('');
     doc.transact(() => ytext.insert(0, LONG_PROSE_1000), LOCAL_ORIGIN);
-    expect(snapshot(doc)[0]?.text).toBe(LONG_PROSE_1000);
+    expect(stickyAt(0)?.text).toBe(LONG_PROSE_1000);
   });
 
   it('returns an immutable empty array for a doc that was never touched', () => {

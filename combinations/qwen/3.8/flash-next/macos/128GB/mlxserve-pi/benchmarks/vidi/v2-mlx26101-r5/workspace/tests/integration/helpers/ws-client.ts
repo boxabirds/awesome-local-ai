@@ -18,7 +18,7 @@ import * as syncProtocol from 'y-protocols/sync';
 import * as Y from 'yjs';
 
 import { newBoardId } from '../../../src/shared/board-id';
-import { snapshot, type StickySnapshot } from '../../../src/shared/board-model';
+import { isStickySnapshot, snapshot, type StickySnapshot } from '../../../src/shared/board-model';
 import {
   MESSAGE_SYNC,
   SYNC_STEP_1,
@@ -307,9 +307,15 @@ export class WsClient {
     await this.settle();
   }
 
-  /** The board as this client sees it. */
+  /**
+   * The notes on the board as this client sees it.
+   *
+   * Story 7 widened `snapshot()` to every kind of object a board can hold, which a test of
+   * sticky notes does not want: what these tests count, sort and read the text of are notes, so
+   * the notes are what this hands back.
+   */
   snapshot(): readonly StickySnapshot[] {
-    return snapshot(this.doc);
+    return snapshot(this.doc).filter(isStickySnapshot);
   }
 
   /** Runs `edit` as one local transaction, which sends it to the room. */

@@ -1,3 +1,57 @@
+commit 7a975f5a0313442f3b8940182a4be7e14ca94c7a
+agent  Tue Oct 6 05:53:56 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                         | 116 ++++-
+ PROGRESS.md                                      |  24 +-
+ src/client/board/Board.tsx                       | 186 +++----
+ src/client/board/Marquee.tsx                     | 159 ++++++
+ src/client/board/SelectionBar.tsx                |  55 +++
+ src/client/board/SelectionOverlay.tsx            | 147 ++++++
+ src/client/board/useBoardDoc.ts                  |  30 +-
+ src/client/board/useBoardKeys.ts                 | 183 +++++++
+ src/client/board/useSelection.ts                 | 201 ++++++--
+ src/client/board/useTransformGesture.ts          | 420 ++++++++++++++++
+ src/client/canvas/BoardViewport.tsx              |  73 ++-
+ src/client/objects/StickyNote.tsx                | 371 ++++----------
+ src/client/objects/StickyTextEditor.tsx          |  23 +-
+ src/client/objects/registry.tsx                  | 197 ++++++++
+ src/client/styles.css                            | 123 +++++
+ src/shared/board-model.ts                        | 299 +++++++++++-
+ src/shared/config.ts                             |  13 +
+ src/shared/geometry.ts                           | 252 ++++++++++
+ tests/component/GroupTransform.test.tsx          | 590 +++++++++++++++++++++++
+ tests/component/MarqueeSelect.test.tsx           | 187 +++++++
+ tests/component/MultiSelect.test.tsx             | 253 ++++++++++
+ tests/component/SelectionKeyboard.test.tsx       | 419 ++++++++++++++++
+ tests/component/harness.tsx                      | 211 +++++++-
+ tests/e2e/helpers/board.ts                       | 286 +++++++++++
+ tests/e2e/helpers/boards.ts                      |   3 +
+ tests/e2e/helpers/room-client.ts                 |   4 +-
+ tests/e2e/remote-delete-selection.spec.ts        | 170 +++++++
+ tests/e2e/select-several.spec.ts                 | 477 ++++++++++++++++++
+ tests/fixtures/boards.ts                         |   7 +-
+ tests/fixtures/testbox.tsx                       | 154 ++++++
+ tests/integration/board-room-persistence.test.ts |   7 +-
+ tests/integration/board-store.test.ts            |  14 +-
+ tests/integration/helpers/room-control.ts        |  16 +-
+ tests/integration/helpers/ws-client.ts           |  12 +-
+ tests/unit/board-model-group.test.ts             | 425 ++++++++++++++++
+ tests/unit/board-model.test.ts                   |  45 +-
+ tests/unit/geometry.test.ts                      | 427 ++++++++++++++++
+ tests/unit/registry.test.ts                      | 196 ++++++++
+ tests/unit/selection-reducer.test.ts             | 274 +++++++++++
+ 39 files changed, 6540 insertions(+), 509 deletions(-)
+commit 0cac00334399b9412f31bac00f7dc22648f95522
+vidi-agent  Tue Oct 6 03:41:21 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 27 +++++++++++++--------------
+ 1 file changed, 13 insertions(+), 14 deletions(-)
 commit 33e7570c18bc64b15753b93b238d0c0cdce9650e
 agent  Tue Oct 6 02:37:27 2026 +0000
 
