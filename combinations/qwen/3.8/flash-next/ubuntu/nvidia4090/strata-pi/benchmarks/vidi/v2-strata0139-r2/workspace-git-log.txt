@@ -1,3 +1,48 @@
+commit 020b01b9113035aa636a399be73b9fb6caa68bee
+vidi-agent  Wed Oct 7 00:00:29 2026 +0100
+
+    harness: snapshot after story 10 (uncommitted agent work)
+
+
+ PROGRESS.md                               |   8 +-
+ src/client/App.tsx                        |  90 ++++-
+ src/client/board/Toolbar.tsx              |  74 +++-
+ src/client/board/useBoardKeys.ts          |   9 +
+ src/client/board/useTool.ts               |  35 +-
+ src/client/canvas/BoardViewport.tsx       |  17 +-
+ src/client/canvas/shapeGeometry.ts        |  62 ++++
+ src/client/objects/ConnectorObject.tsx    | 125 +++++++
+ src/client/objects/ShapeObject.tsx        | 211 ++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  62 ++++
+ src/client/objects/registry.tsx           |  39 +++
+ src/client/styles.css                     | 215 ++++++++++++
+ src/client/tools/ConnectorTool.tsx        | 280 +++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 125 +++++++
+ src/client/tools/useActiveTool.ts         | 125 +++++++
+ src/client/tools/useCaptureGestures.ts    | 100 ++++++
+ src/shared/board-model.ts                 | 160 ++++++++-
+ src/shared/config.ts                      |  57 ++++
+ src/shared/geometry/connector-geometry.ts | 180 ++++++++++
+ src/shared/objects/connector.ts           | 383 +++++++++++++++++++++
+ src/shared/objects/shape.ts               | 233 +++++++++++++
+ tests/component/ConnectorTool.test.tsx    | 356 +++++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 268 +++++++++++++++
+ tests/e2e/helpers/shapes.ts               | 328 ++++++++++++++++++
+ tests/e2e/shapes.spec.ts                  | 431 +++++++++++++++++++++++
+ tests/e2e/undo.spec.ts                    |  14 +
+ tests/fixtures/boardHarness.tsx           |  60 +++-
+ tests/fixtures/checkout-flow.ts           | 105 ++++++
+ tests/unit/connector-model.test.ts        | 548 ++++++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 272 +++++++++++++++
+ 30 files changed, 4922 insertions(+), 50 deletions(-)
+commit da0bbbe477874084998c5f462dcefb8954360e87
+vidi-agent  Tue Oct 6 19:54:05 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 4c054b38e5ddb34892e6e910ae36e5fd2e8188b8
 vidi-agent  Tue Oct 6 19:53:52 2026 +0100
 

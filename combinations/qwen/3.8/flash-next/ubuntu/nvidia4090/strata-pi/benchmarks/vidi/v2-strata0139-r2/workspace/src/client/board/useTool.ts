@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useActiveTool } from "../tools/useActiveTool";
+import type { ToolId } from "../tools/useActiveTool";
 
 /**
  * The board's active tool (`tool.mode`).
@@ -8,16 +9,22 @@ import { useCallback, useEffect, useState } from "react";
  * Select). Stories 10-12 add their tools to the same state; nothing else about
  * the board changes when the tool changes.
  *
+ * From story 10 on the state itself lives in `../tools/useActiveTool` — the tool
+ * id, the shape kind and style, and the rule that creating an object hands the
+ * board back to Select. This file is the Select/Text view story 9 was written
+ * against: the same state, narrowed to the two tools story 9 knows, so the
+ * viewport, the keyboard and the toolbar keep talking to one API.
+ *
  * The shortcuts themselves are handled in `useBoardKeys` (V, T, N, Escape), the
  * buttons in `Toolbar`, and the click in `BoardViewport`. All three go through
  * this one state, so the tool can only ever be what one place says it is.
  *
- * `canEdit` (story 4) closes the Text tool: a board that could not be loaded has
- * nothing to write, so asking for the Text tool is ignored and the tool is put
- * back to Select when the board stops being editable.
+ * `canEdit` (story 4) closes the writing tools: a board that could not be loaded
+ * has nothing to write, so asking for a tool that writes is ignored and the tool
+ * is put back to Select when the board stops being editable.
  */
 
-export type Tool = "select" | "text";
+export type Tool = ToolId;
 
 export interface ToolApi {
   readonly tool: Tool;
@@ -27,20 +34,6 @@ export interface ToolApi {
 }
 
 export function useTool(canEdit: boolean): ToolApi {
-  const [tool, setToolState] = useState<Tool>("select");
-
-  const setTool = useCallback(
-    (next: Tool) => {
-      const target: Tool = next === "text" ? "text" : "select";
-      if (target === "text" && !canEdit) return;
-      setToolState((previous) => (previous === target ? previous : target));
-    },
-    [canEdit],
-  );
-
-  useEffect(() => {
-    setToolState((previous) => (previous === "select" ? previous : "select"));
-  }, [canEdit]);
-
-  return { tool, setTool, textActive: tool === "text" };
+  const active = useActiveTool({ canEdit });
+  return { tool: active.tool, setTool: active.setTool, textActive: active.tool === "text" };
 }

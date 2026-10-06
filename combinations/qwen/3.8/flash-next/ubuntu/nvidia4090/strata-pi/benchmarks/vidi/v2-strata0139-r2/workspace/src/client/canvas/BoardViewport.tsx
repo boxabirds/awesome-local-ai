@@ -50,10 +50,13 @@ export interface BoardViewportProps {
    * they keep their size at any zoom.
    */
   overlay?: ReactNode;
-  /**
-   * Story 9: the board's active tool. While `text` is active the next press on
-   * the board writes text there instead of panning, marquee-ing or selecting.
-   */
+    /**
+     * Story 9: the board's active tool. While `text` is active the next press on
+     * the board writes text there instead of panning, marquee-ing or selecting.
+     * Story 10 adds `shape` and `connector`, whose tools take the pointer
+     * themselves; for those three the viewport neither writes text nor creates a
+     * sticky note.
+     */
   tool?: Tool;
   /** Story 9: where the Text tool's click lands, as a screen point. */
   onTextCreate?(point: Point): void;
@@ -254,7 +257,7 @@ export function BoardViewport({
     return (
       viewport.contains(target) &&
       target.closest(
-        "[data-testid='sticky-note'], [data-testid='text-object'], [data-testid='note-toolbar'], [data-testid='text-toolbar'], textarea, button",
+        "[data-testid='sticky-note'], [data-testid='text-object'], [data-testid='shape-object'], [data-testid='connector-object'], [data-testid='note-toolbar'], [data-testid='text-toolbar'], [data-testid='shape-toolbar'], textarea, button",
       ) === null
     );
   };
@@ -338,6 +341,10 @@ export function BoardViewport({
       textCreatedRef.current = false;
       return;
     }
+    // Creating a note by double-clicking is the Select mode's gesture. Every
+    // other tool owns the press it is waiting for — story 10's Shape tool would
+    // otherwise draw two shapes *and* a note for one double-click.
+    if (toolRef.current !== "select") return;
     if (!isBoardSpace(event.target as HTMLElement)) return;
     onCreateAtPoint?.({ x: event.clientX, y: event.clientY });
   };

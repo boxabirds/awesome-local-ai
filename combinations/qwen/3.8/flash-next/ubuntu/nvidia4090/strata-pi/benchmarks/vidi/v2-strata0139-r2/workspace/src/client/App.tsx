@@ -11,7 +11,9 @@ import { endEditNext, useSelection } from "./board/useSelection";
 import { useTransformGesture } from "./board/useTransformGesture";
 import { useMarquee, MarqueeRect } from "./board/Marquee";
 import { useBoardKeys } from "./board/useBoardKeys";
-import { useTool } from "./board/useTool";
+import { useActiveTool } from "./tools/useActiveTool";
+import { ShapeTool } from "./tools/ShapeTool";
+import { ConnectorTool } from "./tools/ConnectorTool";
 import { UndoControllerContext, useUndo, useUndoHistory } from "./board/useUndo";
 import { SelectionOverlay } from "./board/SelectionOverlay";
 import { SelectionBar } from "./board/SelectionBar";
@@ -22,7 +24,9 @@ import { SharePanel } from "./pages/SharePanel";
 import { useConnectionTestHook } from "./sync/testHook";
 import { createSticky, deleteObjects } from "../shared/board-model";
 import { createText, setTextSize } from "../shared/objects/text";
-import type { TextSize } from "../shared/config";
+import { connectorLine, type ConnectorSnap } from "../shared/objects/connector";
+import { distanceToPolyline } from "../shared/geometry/connector-geometry";
+import { CONNECTOR_HIT_TOLERANCE_PX, type TextSize } from "../shared/config";
 
 /**
  * The board: camera (story 1), objects (story 2), the live room (story 3), the
@@ -68,8 +72,13 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
 
   const selection = useSelection(visible);
   // Story 9: which tool the board is in. One state, shared by the toolbar buttons,
-  // the keyboard and the viewport's click.
-  const tool = useTool(canEdit);
+  // the keyboard and the viewport's click. Story 10 widens it to Shape and
+  // Connector, and gives it the selection so that what a tool creates is what is
+  // selected next.
+  const tool = useActiveTool({
+    canEdit,
+    select: useCallback((id: string) => selection.click(id), [selection]),
+  });
   // Story 8: one history for this board document, and it belongs to this tab.
   const undo = useUndoHistory(doc);
   const undoState = useUndo(undo, canEdit);
@@ -151,8 +160,31 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
     onCreateSticky: createAtViewportCentre,
   });
 
-  /** Empty board space: nothing is selected and nothing is being typed in. */
-  const clearSelection = useCallback(() => selection.clear(), [selection]);
+  /**
+   * A press and release on what looks like empty board space. An arrow is the one
+   * thing there that is not empty: it is thin, so a click close enough to its
+   * line selects it (`connector.select`) even inside the box derived from its
+   * ends, and a click farther away than `CONNECTOR_HIT_TOLERANCE_PX` clears the
+   * selection as it always has.
+   */
+  const emptyBoardClick = useCallback(
+    (point: CameraPoint) => {
+      const cameraNow = cameraRef.current;
+      const world = screenToWorld(cameraNow, point);
+      const tolerance = CONNECTOR_HIT_TOLERANCE_PX / (cameraNow.zoom > 0 ? cameraNow.zoom : 1);
+      for (let index = visible.length - 1; index >= 0; index -= 1) {
+        const object = visible[index];
+        if (object.type !== "connector" || object.from === undefined || object.to === undefined) continue;
+        const line = connectorLine(object as ConnectorSnap, visible);
+        if (distanceToPolyline([line.from, line.to], world, tolerance) <= tolerance) {
+          selection.click(object.id);
+          return;
+        }
+      }
+      selection.clear();
+    },
+    [selection, visible],
+  );
 
   const deleteSelection = useCallback(() => {
     const ids = Array.from(selection.ids);
@@ -170,12 +202,19 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
   // pointer capture: the drag would silently end halfway through.
   const paintOrder = useMemo(() => visible.slice().sort((a, b) => (a.id < b.id ? -1 : 1)), [visible]);
 
+  // A selected arrow can have its ends re-attached in Select mode too, so the
+  // connector tool is present whenever a connector is selected.
+  const selectedConnectorIds = useMemo(
+    () => visible.filter((object) => object.type === "connector" && selection.ids.has(object.id)).map((object) => object.id),
+    [selection.ids, visible],
+  );
+
   return (
     <UndoControllerContext.Provider value={undo}>
     <CameraApiContext.Provider value={board}>
       <BoardViewport
         onCreateAtPoint={createAtScreenPoint}
-        onEmptyClick={clearSelection}
+        onEmptyClick={emptyBoardClick}
         marquee={marquee}
         tool={tool.tool}
         onTextCreate={createTextAtScreenPoint}
@@ -192,6 +231,7 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
               snapshot={visible}
               camera={camera}
               onDelete={deleteSelection}
+
               editingId={selection.editingId}
               onTextSize={(id: string, size: TextSize) => {
                 // One size change is one undo step.
@@ -200,6 +240,33 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
                 undo.boundary();
               }}
             />
+            {/* Story 10's tools draw in screen space over the board: the shape
+                preview and the connector's dots are never scaled by the zoom. */}
+            {tool.tool === "shape" ? (
+              <ShapeTool
+                doc={doc}
+                kind={tool.shapeKind}
+                fill={tool.fill}
+                stroke={tool.stroke}
+                camera={camera}
+                canEdit={canEdit}
+                onGestureBoundary={undo.boundary}
+                onCreated={tool.toolCreated}
+              />
+            ) : null}
+            {tool.tool === "connector" || selectedConnectorIds.length > 0 ? (
+              <ConnectorTool
+                doc={doc}
+                camera={camera}
+                zoom={camera.zoom}
+                snapshot={visible}
+                selectedConnectorIds={selectedConnectorIds}
+                toolActive={tool.tool === "connector"}
+                canEdit={canEdit}
+                onGestureBoundary={undo.boundary}
+                onCreated={tool.toolCreated}
+              />
+            ) : null}
           </>
         }
       >
@@ -222,7 +289,14 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
         <MarqueeRect rect={marquee.rect} />
       </BoardViewport>
 
-      <Toolbar onCreateSticky={createAtViewportCentre} undo={undoState} canEdit={canEdit} tool={tool} />
+      <Toolbar
+        onCreateSticky={createAtViewportCentre}
+        undo={undoState}
+        canEdit={canEdit}
+        tool={tool}
+        shapeKind={tool.shapeKind}
+        onShapeKind={tool.setShapeKind}
+      />
       <ZoomControls
         zoomPercent={board.zoomPercent}
         canZoomIn={board.canZoomIn}

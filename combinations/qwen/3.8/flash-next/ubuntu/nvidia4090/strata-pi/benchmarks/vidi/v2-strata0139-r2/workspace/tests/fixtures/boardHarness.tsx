@@ -10,7 +10,9 @@ import { endEditNext, useSelection, type SelectionApi } from "../../src/client/b
 import { useTransformGesture } from "../../src/client/board/useTransformGesture";
 import { MarqueeRect, useMarquee } from "../../src/client/board/Marquee";
 import { useBoardKeys } from "../../src/client/board/useBoardKeys";
-import { useTool } from "../../src/client/board/useTool";
+import { useActiveTool } from "../../src/client/tools/useActiveTool";
+import { ShapeTool } from "../../src/client/tools/ShapeTool";
+import { ConnectorTool } from "../../src/client/tools/ConnectorTool";
 import { SelectionOverlay } from "../../src/client/board/SelectionOverlay";
 import { SelectionBar } from "../../src/client/board/SelectionBar";
 import { UndoControllerContext, useUndoHistory } from "../../src/client/board/useUndo";
@@ -18,6 +20,9 @@ import type { UndoController } from "../../src/client/board/undo";
 import { getObjectType, registeredObjectTypes } from "../../src/client/objects/registry";
 import { deleteObjects } from "../../src/shared/board-model";
 import { createText } from "../../src/shared/objects/text";
+import { connectorLine, type ConnectorSnap } from "../../src/shared/objects/connector";
+import { distanceToPolyline } from "../../src/shared/geometry/connector-geometry";
+import { CONNECTOR_HIT_TOLERANCE_PX } from "../../src/shared/config";
 
 /**
  * The board the component tests mount.
@@ -77,8 +82,8 @@ export function BoardHarness({
   );
 
   const selection = useSelection(visible);
-  // Story 9: the same tool state the real board has.
-  const tool = useTool(canEdit);
+  // Story 9: the same tool state the real board has — story 10's tools included.
+  const tool = useActiveTool({ canEdit, select: (id) => selection.click(id) });
   const createTextAtScreenPoint = useCallback(
     (point: { x: number; y: number }) => {
       if (!canEdit) return;
@@ -135,12 +140,34 @@ export function BoardHarness({
 
   const paintOrder = useMemo(() => visible.slice().sort((a, b) => (a.id < b.id ? -1 : 1)), [visible]);
 
+  // A selected arrow's ends can be re-attached in Select mode as well.
+  const selectedConnectorIds = useMemo(
+    () => visible.filter((object) => object.type === "connector" && selection.ids.has(object.id)).map((object) => object.id),
+    [selection.ids, visible],
+  );
+
+  /** Empty board space, except near an arrow's line, which selects it. */
+  const emptyBoardClick = (point: { x: number; y: number }): void => {
+    const world = screenToWorld(camera, point);
+    const tolerance = CONNECTOR_HIT_TOLERANCE_PX / (camera.zoom > 0 ? camera.zoom : 1);
+    for (let index = visible.length - 1; index >= 0; index -= 1) {
+      const object = visible[index];
+      if (object.type !== "connector" || object.from === undefined || object.to === undefined) continue;
+      const line = connectorLine(object as ConnectorSnap, visible);
+      if (distanceToPolyline([line.from, line.to], world, tolerance) <= tolerance) {
+        selection.click(object.id);
+        return;
+      }
+    }
+    selection.clear();
+  };
+
   return (
     <UndoControllerContext.Provider value={controller}>
     <CameraApiContext.Provider value={board}>
       <BoardViewport
         onCreateAtPoint={() => undefined}
-        onEmptyClick={() => selection.clear()}
+        onEmptyClick={emptyBoardClick}
         marquee={marquee}
         tool={tool.tool}
         onTextCreate={createTextAtScreenPoint}
@@ -163,6 +190,31 @@ export function BoardHarness({
                 selection.clear();
               }}
             />
+            {tool.tool === "shape" ? (
+              <ShapeTool
+                doc={doc}
+                kind={tool.shapeKind}
+                fill={tool.fill}
+                stroke={tool.stroke}
+                camera={camera}
+                canEdit={canEdit}
+                onGestureBoundary={controller.boundary}
+                onCreated={tool.toolCreated}
+              />
+            ) : null}
+            {tool.tool === "connector" || selectedConnectorIds.length > 0 ? (
+              <ConnectorTool
+                doc={doc}
+                camera={camera}
+                zoom={camera.zoom}
+                snapshot={visible}
+                selectedConnectorIds={selectedConnectorIds}
+                toolActive={tool.tool === "connector"}
+                canEdit={canEdit}
+                onGestureBoundary={controller.boundary}
+                onCreated={tool.toolCreated}
+              />
+            ) : null}
           </>
         }
       >

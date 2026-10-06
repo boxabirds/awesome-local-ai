@@ -646,3 +646,218 @@ body {
   outline: 2px solid var(--vidi6-focus);
   outline-offset: 2px;
 }
+
+/* ---- Shapes (story 10) ---- */
+
+/* While the Shape tool waits, the cursor says what a press will do. */
+.board-viewport[data-tool="shape"],
+.board-viewport[data-tool="connector"] {
+  cursor: crosshair;
+}
+
+.shape-object {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: pointer;
+  color: var(--vidi6-fg);
+}
+
+.shape-object[data-selected="true"] {
+  outline: 2px solid var(--vidi6-selection);
+}
+
+.shape-object[data-dragging="true"] {
+  cursor: grabbing;
+}
+
+.shape-object:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+}
+
+.shape-svg {
+  display: block;
+  /* The arrow-less outline is the figure itself; nothing is drawn outside the
+   * rectangle, so the box the board stores is the box on screen. */
+  overflow: visible;
+}
+
+/*
+ * The label is laid out by the browser inside a `foreignObject` exactly as wide
+ * and tall as the shape, which is what makes a long label wrap into lines and
+ * re-wrap when a handle is dragged. Centring is CSS, never the model's job.
+ */
+.shape-label {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin: 0;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  /* Overflow is clipped, never re-truncated: the stored label stays whole. */
+  overflow: hidden;
+}
+
+.shape-label-editor {
+  resize: none;
+  outline: none;
+  caret-color: var(--vidi6-fg);
+  display: block;
+}
+
+/* Counter-scaled by 1/zoom inline, so the swatch row keeps a screen size. */
+.shape-toolbar-anchor {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  transform-origin: 0 100%;
+}
+
+.shape-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 4px;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  white-space: nowrap;
+}
+
+.shape-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.shape-swatch[data-color="none"] {
+  background: repeating-linear-gradient(45deg, #ffffff 0 5px, #e0e0e0 5px 10px);
+}
+
+.shape-swatch[aria-pressed="true"] {
+  border: 2px solid var(--vidi6-focus);
+}
+
+.shape-swatch:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
+}
+
+.shape-toolbar-separator {
+  width: 1px;
+  height: 22px;
+  background: var(--vidi6-border);
+}
+
+/* The dashed outline drawn while a shape is being dragged out. */
+.shape-preview {
+  position: absolute;
+  border: 2px dashed var(--vidi6-focus);
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+/* ---- Connectors (story 10) ---- */
+
+/*
+ * An arrow is thin, so it is never what a pointer lands on: what a click near it
+ * answers is the precise line test in the board's click handling, not a box.
+ */
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+}
+
+.connector-svg {
+  display: block;
+  overflow: visible;
+}
+
+.connector-line {
+  stroke: var(--vidi6-fg);
+  stroke-width: inherit;
+  fill: none;
+}
+
+.connector-arrowhead {
+  fill: var(--vidi6-fg);
+  stroke: none;
+}
+
+.connector-object[data-selected="true"] .connector-line,
+.connector-preview-line {
+  stroke: var(--vidi6-focus);
+}
+
+.connector-object[data-selected="true"] .connector-arrowhead {
+  fill: var(--vidi6-focus);
+}
+
+.connector-preview-line {
+  fill: none;
+  stroke-dasharray: 6 4;
+}
+
+.connector-endpoint-dot,
+.connector-handle {
+  position: absolute;
+  box-sizing: border-box;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-selection);
+  pointer-events: none;
+}
+
+.connector-endpoint-dot {
+  border-radius: 50%;
+}
+
+.connector-endpoint-dot[data-highlighted="true"] {
+  background: var(--vidi6-selection);
+}
+
+.connector-handle {
+  border-radius: 2px;
+}
+
+/* Screen-space layers: the tool's own drawing, never a hit target. */
+.connector-tool-layer,
+.connector-preview-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* The Shape / Connector buttons and the shape-kind menu (story 8's toolbar). */
+.shape-kind-menu[aria-expanded="true"] {
+  border-color: var(--vidi6-focus);
+}
+
+.tool-glyph-shape {
+  background: transparent;
+  border: 2px solid var(--vidi6-fg);
+  border-radius: 3px;
+}
+
+.tool-glyph-connector {
+  background: transparent;
+  border: 0;
+  border-top: 2px solid var(--vidi6-fg);
+  border-radius: 0;
+  height: 0;
+  width: 18px;
+}

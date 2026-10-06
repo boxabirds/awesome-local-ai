@@ -130,6 +130,63 @@ export const TEXT_GLYPH_WIDTH_RATIO = 0.5;
 /** Height a fresh text object is given before its first measurement. */
 export const TEXT_INITIAL_HEIGHT_WORLD = Math.round(TEXT_SIZES[DEFAULT_TEXT_SIZE] * TEXT_LINE_HEIGHT);
 
+// ---- Shapes and connectors (story 10) ---------------------------------
+
+/** The three shape kinds the Shape tool can draw. */
+export const SHAPE_KINDS = ["rect", "ellipse", "diamond"] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+/** Size of a shape dropped by a click (`shape.create_click`). */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** A drag smaller than this in either direction counts as a click.
+ *  It is also the smallest side a shape may be resized to. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** A shape's label never grows past this many characters (`shape.label`). */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Outline thickness, in board units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** The seven fill choices: six colours and "no fill". */
+export const SHAPE_FILL_COLORS = {
+  none: "transparent",
+  white: "#FFFFFF",
+  blue: "#BBDEFB",
+  green: "#C8E6C9",
+  yellow: "#FFF9C4",
+  pink: "#F8BBD0",
+  grey: "#E0E0E0",
+} as const;
+/** The six outline colours. */
+export const SHAPE_STROKE_COLORS = {
+  dark: "#263238",
+  blue: "#1E88E5",
+  green: "#43A047",
+  orange: "#FB8C00",
+  red: "#E53935",
+  grey: "#9E9E9E",
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+/** The fill names this build accepts, "no fill" included. */
+export const SHAPE_FILL_NAMES: readonly FillColor[] = Object.keys(SHAPE_FILL_COLORS) as FillColor[];
+/** The outline names this build accepts. */
+export const SHAPE_STROKE_NAMES: readonly StrokeColor[] = Object.keys(SHAPE_STROKE_COLORS) as StrokeColor[];
+export const DEFAULT_SHAPE_FILL: FillColor = "white";
+export const DEFAULT_SHAPE_STROKE: StrokeColor = "dark";
+/** Font size a shape label is drawn at, in board units (`shape.label`). */
+export const SHAPE_LABEL_FONT_PX = 18;
+
+/** A connector drag shorter than this (board units) creates nothing (`connector.no_accidental`). */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** How close to an arrow's line a click must be to select it, in screen pixels (`connector.select`). */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Arrow line thickness, in board units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Length of the arrowhead's two sides, in board units (`connector.create_attached`). */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius of a connection dot, in screen pixels (`connector.hover_points`). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+/** Diameter of a selected arrow's end handle, in screen pixels (`connector.reattach`). */
+export const CONNECTOR_HANDLE_SIZE_PX = 10;
+
 // ---- Undo and redo (story 8) -------------------------------------------
 
 /**

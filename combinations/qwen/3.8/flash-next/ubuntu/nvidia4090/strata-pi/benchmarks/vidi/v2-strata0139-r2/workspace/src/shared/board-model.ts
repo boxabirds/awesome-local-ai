@@ -1,15 +1,25 @@
 import * as Y from "yjs";
 import {
+  DEFAULT_SHAPE_FILL,
   DEFAULT_STICKY_COLOR,
+  DEFAULT_SHAPE_STROKE,
   MAX_OBJECT_SIZE_WORLD,
+  SHAPE_FILL_COLORS,
+  SHAPE_MIN_SIZE_WORLD,
+  SHAPE_STROKE_COLORS,
   STICKY_COLORS,
   STICKY_MIN_SIZE_WORLD,
   STICKY_SIZE_WORLD,
   TEXT_SIZES,
+  type FillColor,
+  type ShapeKind,
+  type StrokeColor,
   type StickyColor,
 } from "./config";
 import type { Point, Rect } from "./geometry";
 import { rectContains } from "./geometry";
+import { connectorBBox, resolveEndpoints } from "./geometry/connector-geometry";
+import { detachConnectorsTo } from "./objects/connector";
 
 /**
  * Board document model (`board.model`).
@@ -94,6 +104,19 @@ export interface ObjectSnapshot {
    * content, `fixed` once a handle has set it.
    */
   readonly widthMode?: "auto" | "fixed";
+  /** Shapes only (story 10): the kind, and the two colours. */
+  readonly kind?: ShapeKind;
+  readonly fill?: FillColor;
+  readonly stroke?: StrokeColor;
+  /** Shapes only (story 10): the label text, centred inside the shape. */
+  readonly label?: string;
+  /**
+   * Connectors only (story 10): the two ends. Each is either attached to an
+   * object or fixed to a board point; `x/y/width/height` of a connector *is*
+   * the line's bounding box, derived here from the current objects.
+   */
+  readonly from?: Endpoint;
+  readonly to?: Endpoint;
   /** Set by the type's create function when the caller had an identity. */
   readonly createdBy?: string;
 }
@@ -104,6 +127,19 @@ export interface StickySnapshot extends ObjectSnapshot {
   readonly color: StickyColor;
   readonly text: string;
 }
+
+/**
+ * An arrow's end (`connector.model`, story 10): attached to an object, with the
+ * point it was attached at kept as `fallback` for the case where that object is
+ * gone by the time this end is drawn, or free at a board point.
+ *
+ * An attached end stores **no side**: which side it sits on is recomputed from
+ * the object's current rectangle on every render, which is what lets an arrow
+ * follow a move by anybody without a single extra write.
+ */
+export type Endpoint =
+  | { readonly kind: "attached"; readonly objectId: string; readonly fallback: Point }
+  | { readonly kind: "free"; readonly x: number; readonly y: number };
 
 /** Creates `meta` and stamps the schema version, once, if absent. */
 export function initDoc(doc: Y.Doc): void {
@@ -213,8 +249,39 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     const object = asObject(id, value);
     if (object) objects.push(object);
   }
+  deriveConnectorBoxes(objects);
   objects.sort(compareNotes);
   return objects;
+}
+
+/**
+ * `connector.model`: a connector's stored `x/y/width/height` are 0, and its box
+ * is derived here from its ends and the **current** rectangles of the objects it
+ * is attached to. Doing it in the snapshot is what makes the marquee, the
+ * selection, the handles and every screen agree on one box without a single
+ * write, and why a snapshot taken after a move is a new object with new numbers.
+ */
+function deriveConnectorBoxes(objects: ObjectSnapshot[]): void {
+  const rects = new Map<string, Rect>();
+  for (const object of objects) {
+    if (object.type !== "connector") rects.set(object.id, objectBounds(object));
+  }
+
+  for (const object of objects) {
+    if (object.type !== "connector" || object.from === undefined || object.to === undefined) continue;
+    const ends = resolveEndpoints({ from: object.from, to: object.to }, rects);
+    const box = connectorBBox(ends.from, ends.to);
+    objects[objects.indexOf(object)] = {
+      ...object,
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+    };
+    // An arrow may itself be the object another arrow faces; its derived box is
+    // what that one sees.
+    rects.set(object.id, box);
+  }
 }
 
 /**
@@ -231,8 +298,17 @@ export function stickySnapshot(doc: Y.Doc): readonly StickySnapshot[] {
 /**
  * The box an object occupies: its position plus its persisted size, or
  * `STICKY_SIZE_WORLD` for an object created before sizes were persisted.
+ *
+ * A connector (`connector.model`, story 10) is the exception: its stored
+ * `x/y/width/height` are 0 and `snapshot` has already written the arrow's
+ * bounding box into them, which is the box the marquee and the selection use.
  */
 export function objectBounds(obj: ObjectSnapshot): Rect {
+  if (obj?.type === "connector") {
+    const width = isFiniteNumber(obj.width) && obj.width >= 0 ? obj.width : 0;
+    const height = isFiniteNumber(obj.height) && obj.height >= 0 ? obj.height : 0;
+    return { x: obj.x, y: obj.y, width, height };
+  }
   const width = isFiniteNumber(obj?.width) && obj.width > 0 ? obj.width : STICKY_SIZE_WORLD;
   const height = isFiniteNumber(obj?.height) && obj.height > 0 ? obj.height : STICKY_SIZE_WORLD;
   return { x: obj.x, y: obj.y, width, height };
@@ -413,6 +489,12 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (present.length === 0) return 0;
 
   doc.transact(() => {
+    // Story 10 (`connector.target_deleted`): an arrow survives the object it was
+    // attached to. Its end is turned into a free point at the place it was
+    // attached to *before* the object is removed — same transaction, so every
+    // screen sees the arrow and the delete as one change, and this client's undo
+    // history holds one step.
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
@@ -442,7 +524,10 @@ function objectEntry(doc: Y.Doc, id: string): Y.Map<unknown> | undefined {
 
 /** The smallest side a type may have, as far as the model itself knows. */
 function modelMinSize(type: unknown): number {
-  return type === "sticky" ? STICKY_MIN_SIZE_WORLD : 1;
+  if (type === "sticky") return STICKY_MIN_SIZE_WORLD;
+  // `shape.model`: a shape may not be resized below its minimum either.
+  if (type === "shape") return SHAPE_MIN_SIZE_WORLD;
+  return 1;
 }
 
 /** A rect the model is allowed to write: finite, and inside both size limits. */
@@ -479,6 +564,30 @@ function asObject(id: string, value: unknown): ObjectSnapshot | undefined {
 
   if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(z)) return undefined;
 
+  // `shape.model` (story 10): a shape's two colours always resolve to a name
+  // this build knows, so a value written by a newer client can never make a
+  // shape undrawable — it draws in the default colours instead.
+  const shape =
+    type === "shape"
+      ? {
+          kind: isShapeKind(value.get("kind")) ? (value.get("kind") as ShapeKind) : undefined,
+          fill: isFillColorName(value.get("fill")) ? (value.get("fill") as FillColor) : DEFAULT_SHAPE_FILL,
+          stroke: isStrokeColorName(value.get("stroke")) ? (value.get("stroke") as StrokeColor) : DEFAULT_SHAPE_STROKE,
+          label:
+            value.get("label") instanceof Y.Text
+              ? (value.get("label") as Y.Text).toString()
+              : typeof value.get("label") === "string"
+                ? (value.get("label") as string)
+                : "",
+        }
+      : undefined;
+
+  // `connector.model` (story 10): both ends have to read, or the arrow is not
+  // drawn at all (a half-known arrow would point nowhere).
+  const from = readEndpoint(value.get("from"));
+  const to = readEndpoint(value.get("to"));
+  if (type === "connector" && (from === undefined || to === undefined)) return undefined;
+
   return {
     id,
     type,
@@ -499,10 +608,50 @@ function asObject(id: string, value: unknown): ObjectSnapshot | undefined {
           ...(widthMode === "fixed" ? { widthMode } : { widthMode: "auto" as const }),
         }
       : {}),
+    ...(shape ?? {}),
+    ...(from !== undefined ? { from } : {}),
+    ...(to !== undefined ? { to } : {}),
     ...(typeof createdBy === "string" && createdBy.length > 0 ? { createdBy } : {}),
     z,
     createdAt: isFiniteNumber(createdAt) ? createdAt : 0,
   };
+}
+
+/** A shape kind this build knows (`shape.model`). */
+function isShapeKind(value: unknown): boolean {
+  return value === "rect" || value === "ellipse" || value === "diamond";
+}
+
+/**
+ * An endpoint as stored (`connector.model`): an attached end keeps the object id
+ * and the point it was attached to; a free end keeps a board point. Anything
+ * else — a non-string id, a non-finite point — is no endpoint at all, which
+ * makes the whole connector invisible rather than half-drawn.
+ */
+function readEndpoint(value: unknown): Endpoint | undefined {
+  if (!(value instanceof Y.Map)) return undefined;
+  const kind = value.get("kind");
+  if (kind === "attached") {
+    const objectId = value.get("objectId");
+    const fallback = readPoint(value.get("fallback"));
+    if (typeof objectId !== "string" || objectId.length === 0 || fallback === undefined) return undefined;
+    return { kind: "attached", objectId, fallback };
+  }
+  if (kind === "free") {
+    const x = value.get("x");
+    const y = value.get("y");
+    if (!isFiniteNumber(x) || !isFiniteNumber(y)) return undefined;
+    return { kind: "free", x, y };
+  }
+  return undefined;
+}
+
+function readPoint(value: unknown): Point | undefined {
+  if (value === null || typeof value !== "object") return undefined;
+  const x = (value as { x?: unknown }).x;
+  const y = (value as { y?: unknown }).y;
+  if (!isFiniteNumber(x) || !isFiniteNumber(y)) return undefined;
+  return { x, y };
 }
 
 function compareNotes(a: ObjectSnapshot, b: ObjectSnapshot): number {
@@ -526,6 +675,15 @@ function compareId(a: string, b: string): number {
 
 function isStickyColor(value: unknown): value is StickyColor {
   return typeof value === "string" && Object.prototype.hasOwnProperty.call(STICKY_COLORS, value);
+}
+
+/** Same checks as `isFillColor` / `isStrokeColor` in `objects/shape.ts`, kept here to avoid a cycle. */
+function isFillColorName(value: unknown): value is FillColor {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(SHAPE_FILL_COLORS, value);
+}
+
+function isStrokeColorName(value: unknown): value is StrokeColor {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(SHAPE_STROKE_COLORS, value);
 }
 
 /** Same check as `isTextSize` in `objects/text.ts`, kept here to avoid a cycle. */

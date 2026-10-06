@@ -417,10 +417,24 @@ test.describe("workflow: undo my own changes while colleagues work", () => {
 
     // In the end every screen shows the same board: everyone's own work is undone,
     // and nothing was undone twice or by the wrong person.
+    // DEBUG: does each board converge to the baseline, and how long does it take?
+    for (const [index, editor] of editors.entries()) {
+      const took = await expectEventually(`${editor.name} converges`, async () => {
+        const board = await boardState(editor.page);
+        if (board.size !== layout.length) return false;
+        for (const [id, entry] of board) if (!sameEntry(entry, baseline.get(id)!)) return false;
+        return true;
+      }, 20_000);
+      console.log("DEBUG converge", editors[index].name, took, "ms");
+    }
     const boards = await Promise.all(editors.map((editor) => boardState(editor.page)));
     for (const [index, board] of boards.entries()) {
       expect(board.size, `${editors[index].name} has a different number of notes`).toBe(layout.length);
       for (const [id, entry] of board) {
+        const base = baseline.get(id)!;
+        if (!sameEntry(entry, base)) {
+          console.log("FINAL DIFF", JSON.stringify({ id, editor: editors[index].name, entry, base }));
+        }
         expect(sameEntry(entry, baseline.get(id)!), `${editors[index].name}: note ${id} differs`).toBe(true);
       }
     }

@@ -11,6 +11,7 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from "../../shared/config";
 import type { Point } from "../../shared/geometry";
 import { getObjectType } from "../objects/registry";
 import type { Tool } from "./useTool";
+import { toolForShortcut } from "../tools/useActiveTool";
 import type { SelectionApi } from "./useSelection";
 import type { UndoController } from "./undo";
 
@@ -126,6 +127,14 @@ export function boardKeyCommand(
       return state.tool !== undefined && state.tool !== "text" ? { type: "tool", tool: "text" } : null;
     }
     if (event.key === "n" || event.key === "N") return { type: "createSticky" };
+    // Story 10's tool keys: S arms the Shape tool, L the Connector tool. Leaving
+    // either one is Escape or V. The other keys in the shortcut table belong to
+    // tools this board does not have yet.
+    const toolShortcut = toolForShortcut(event.key);
+    if (toolShortcut === "shape" || toolShortcut === "connector") {
+      if (state.tool === undefined) return null;
+      return state.tool !== toolShortcut ? { type: "tool", tool: toolShortcut } : null;
+    }
   }
 
   const arrow = ARROW_DELTAS[event.key];

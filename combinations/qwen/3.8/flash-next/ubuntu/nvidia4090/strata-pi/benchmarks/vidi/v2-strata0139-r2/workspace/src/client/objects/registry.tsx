@@ -8,6 +8,11 @@ import { StickyNote } from "./StickyNote";
 import { TextObject } from "./TextObject";
 import { TEXT_MIN_WIDTH_WORLD } from "../../shared/config";
 import { setTextWidthFixed } from "../../shared/objects/text";
+import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD } from "../../shared/config";
+import { ShapeObject } from "./ShapeObject";
+import { ConnectorObject } from "./ConnectorObject";
+import { connectorLine, type ConnectorSnap } from "../../shared/objects/connector";
+import { distanceToPolyline } from "../../shared/geometry/connector-geometry";
 
 /**
  * The object type registry (`sel.all_types`).
@@ -124,4 +129,38 @@ registerObjectType("text", {
   handles: "horizontal",
   resizeWidth: setTextWidthFixed,
   hitTest: hitTestBounds,
+});
+
+// Story 10: a shape is an ordinary resizable rectangle with editable text, so
+// the three kinds need nothing beyond this entry — the kind only decides which
+// figure is drawn inside the box the selection and the handles already use.
+registerObjectType("shape", {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: hitTestBounds,
+});
+
+// A connector has no box of its own to resize and no text to type: its rectangle
+// is derived from its ends, and it is hit by nearness to the line rather than by
+// being inside that derived box. `CONNECTOR_HIT_TOLERANCE_WORLD` is the tolerance
+// at zoom 1; the board scales it by the zoom where it actually answers a click.
+registerObjectType("connector", {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 1,
+  editableText: false,
+  hitTest(object, worldPoint) {
+    if (!worldPoint) return false;
+    // Against the ends the connector itself stores: the board answers a click on
+    // an arrow with the live positions of the objects it is attached to, and this
+    // is the version that works from the object alone.
+    const line = connectorLine(object as ConnectorSnap, []);
+    return (
+      distanceToPolyline([line.from, line.to], worldPoint, CONNECTOR_HIT_TOLERANCE_PX) <= CONNECTOR_HIT_TOLERANCE_PX
+    );
+  },
 });
