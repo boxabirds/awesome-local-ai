@@ -1,0 +1,10 @@
+// vidi6 static site served by a Cloudflare Worker.
+// Story 1 is assets-only (no Worker script); `main` and an asset binding are added in story 3.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist/client"
+  }
+}
