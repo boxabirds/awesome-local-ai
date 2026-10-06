@@ -138,6 +138,29 @@ the confounds below stated every time.
    Ubuntu generates, which is why it is copied across rather than taken from the clone. `~/build/q36-build.sh`
    on the machine does this and carries the memory watchdog below.
 
+   **Then it links against the wrong libstdc++.** With rocWMMA fixed, all 109 of 110 objects compile and the
+   final link fails:
+
+   ```
+   ld.bfd: libgufo_core.a(prompt_encoder.hip.o): undefined reference to
+     `std::__detail::__notify_impl(void const*, bool, std::__detail::__wait_args_base const&)'
+   ```
+
+   The machine has **both GCC 15 and GCC 16**. `g++` is 15.2.0, so CMake's C++ compiler, and the link line
+   (`-L/usr/lib/gcc/x86_64-linux-gnu/15`, same `-rpath`), are GCC 15. But clang — which compiles the HIP objects
+   — takes the *newest* GCC it finds for its libstdc++, so the `.hip.o` files were built against GCC **16**'s
+   headers (`include/c++/16/bits/atomic_wait.h` is in the error path). `std::__detail::__notify_impl` is a GCC 16
+   symbol that the 15 runtime does not export.
+
+   Pin clang to the same GCC as everything else, which is also the one the fork qualifies:
+
+   ```sh
+   cmake --preset release -DCMAKE_INSTALL_PREFIX="$HOME/.local" \
+     -DCMAKE_HIP_FLAGS="--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/15"
+   ```
+
+   The presets set no HIP flags of their own, so this is additive; it does force every HIP object to rebuild.
+
    **The compile is the part to pace.** The fork's own instruction is `--parallel 4`, not a full-width build.
    With a run live the machine had 14.7 GiB available of 122 and 1.35 GB of swap already in use, while the
    harness's machine guard stops a story below 8% free (about 9.8 GiB) or after 4 GB of swap growth. So a
