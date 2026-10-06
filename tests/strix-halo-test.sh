@@ -222,7 +222,9 @@ GPU_BACKENDS="vulkan rocm"; GPU_BACKEND_DEFAULT="$GPU_BACKEND_DEFAULT"
 SERVER_CMD="${INSTALL_ID}-server"
 EOF' > "$R/install.env"
 
-launch() { HOME="$FH" LOCAL_AI_INSTALL_REL=".local/share/qwen38-flash-next-strix" PORT=1 "$@" \
+# ALLOW_COEXIST=1: these check the command line the launcher builds, not its refusal to run beside another
+# model server, and a developer machine may well have one (ollama, LM Studio). The refusal has its own test.
+launch() { HOME="$FH" LOCAL_AI_INSTALL_REL=".local/share/qwen38-flash-next-strix" PORT=1 ALLOW_COEXIST=1 "$@" \
              bash "$REPO_ROOT/lib/runtime/server-llamacpp.sh" 2>&1; }
 fake_server "usage ... --spec-ngram-mod-n-max N ... --spec-draft-device <dev> ..."
 argv="$(launch env)"

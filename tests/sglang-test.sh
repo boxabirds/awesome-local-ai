@@ -104,6 +104,10 @@ case "$1" in
 esac
 STUB
   chmod +x "$FAKE_HOME/bin/docker"
+  # `ps` is stubbed so the guard against a second model server sees only what a test asks it to: a developer
+  # machine may be running ollama or LM Studio, and that must not decide whether these assertions pass.
+  printf '#!/usr/bin/env bash\nprintf "%%s\\n" "${PS_OUT:-}"\n' > "$FAKE_HOME/bin/ps"
+  chmod +x "$FAKE_HOME/bin/ps"
 }
 
 launch() { # env... -- runs the launcher under the fake home; argv lands in $ARGV

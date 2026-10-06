@@ -40,8 +40,8 @@ done
 echo
 echo "...including inside an ssh command, which is how a bench checkout is reached"
 assert_eq "ssh + reset --hard" "deny" \
-  "$(decide "ssh gruntus 'cd /home/julian/.dbench/repo && git fetch -q origin && git reset --hard origin/main'")"
-assert_eq "ssh + clean" "deny" "$(decide "ssh quintus 'cd ~/repo && git clean -fd'")"
+  "$(decide "ssh node-a 'cd /srv/repo && git fetch -q origin && git reset --hard origin/main'")"
+assert_eq "ssh + clean" "deny" "$(decide "ssh node-b 'cd ~/repo && git clean -fd'")"
 
 echo
 echo "the refusal says what to do instead"

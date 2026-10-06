@@ -154,12 +154,20 @@ fi
 # memory and the kernel killed it. Refuse rather than race the OOM killer.
 # Process NAMES, exactly: matching command lines (pgrep -f) would also catch a
 # shell or a tail whose arguments merely mention llama-server.
+# One model server at a time: each holds tens of gigabytes, and two on one machine means swap, which stops the
+# story that is running (6 Oct 2026: an installer's smoke test beside a live run took swap 0.13 -> 35.47 GB).
+# The pattern is the same in every launcher and knows every engine we run plus the common desktop ones: a
+# launcher that only recognised its own kind let the others past. The process list is captured before it is
+# filtered, so the filter's own text is not in it, and this shell is skipped by pid so it never matches itself.
 if [[ "${ALLOW_COEXIST:-0}" != "1" ]]; then
-  others="$(pgrep -lx 'llama-server|mlx-serve|gufo' 2>/dev/null || true)"
+  snapshot="$(ps -axo pid=,command= 2>/dev/null || true)"
+  others="$(printf '%s\n' "$snapshot" | awk -v self="$$" '$1 == self { next }
+    /llama-server|mtplx\.server|mtplx +serve|mlx-serve .*--serve|mlx-serve +serve|mlx_lm\.server|gufo +serve|gufo-runtime|tensorfold +serve|serve\/server\.py --engine strata|engine\/strata|MLX-Serve\.app|ollama +serve|LM Studio/ {
+      sub(/^ +/, ""); print }')"
   if [[ -n "$others" ]]; then
-    echo "${SERVER_CMD}: another model server is running; two will not fit in unified memory:" >&2
-    printf '%s\n' "$others" | sed 's/^/           /' >&2
-    echo "         Stop it first, or set ALLOW_COEXIST=1 if you know it fits." >&2
+    echo "${SERVER_CMD}: another model server is running:" >&2
+    printf '%s\n' "$others" | cut -c1-160 | sed 's/^/           /' >&2
+    echo "         Stop it first, or set ALLOW_COEXIST=1 if you are sure it is small." >&2
     exit 1
   fi
 fi
