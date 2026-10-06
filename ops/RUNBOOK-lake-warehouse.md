@@ -45,7 +45,7 @@ Ingest reads records from the repo's `origin/main`, never the working copy.
 | `events` | one timeline event | `sk`, `kind`, `t_ms` |
 | `compactions` | one compaction | `sk`, `reason`, `summary_chars` |
 | `attempts` | one harness attempt | `sk`, `n`, `seconds`, `steps` |
-| `conditions` | machine readings | — |
+| `conditions` | one 30 s machine reading during a story | `sk`, `run_id`, `at`, `free_pct`, `swap_gb`, `footprint_gb`, `gpu_mem_gb`, `gpu_busy_pct`, `gpu_temp_c`, `gpu_power_w` |
 
 ### Gotchas that cost time
 
@@ -111,6 +111,19 @@ select s.run, count(*) calls,
        round(100.0*sum(c.text_flags like '%shortcut%' or c.think_flags like '%shortcut%')/count(*),1) shortcut_pct
 from s join calls c on c.sk=s.sk group by 1 order by shortcut_pct desc;
 ```
+
+Whether a machine had memory to spare while it worked (`free_pct` is MemFree, not MemAvailable, so available
+headroom is higher by whatever cache is reclaimable):
+
+```sql
+select substr(s.stack,1,22) stack, s.run, count(*) readings,
+       round(min(c.free_pct),1) min_free_pct, round(max(c.swap_gb),2) max_swap_gb, round(max(c.gpu_mem_gb),1) max_vram
+from stories s join conditions c on c.sk=s.sk
+where s.machine='ubuntu/nvidia4090' group by 1,2 order by min_free_pct;
+```
+
+`conditions` was empty until 6 Oct 2026 — ingest parsed the readings into the event stream but never wrote the
+table. Fixed; the 26,756 readings then came back from the lake, so anything collected before that date is there.
 
 What the agent was asked, and what it claimed at the end:
 
