@@ -1,3 +1,143 @@
+commit d21f1ea425625ec0e92655266f65a630875825ee
+agent  Tue Oct 6 02:51:01 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md    | 147 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ PROGRESS.md |  18 ++++----
+ 2 files changed, 156 insertions(+), 9 deletions(-)
+commit 3b33911bf91f9aaa2d4297f948f101d0936b8404
+agent  Tue Oct 6 02:44:07 2026 +0000
+
+    story 10: a board tells React about remote changes once a frame, not per change
+
+
+ src/client/board/useBoardDoc.ts | 35 +++++++++++++++++++++++++++++++++--
+ 1 file changed, 33 insertions(+), 2 deletions(-)
+commit acbc1d5ccd8183976559d5a92793de05a4e7ee7f
+agent  Tue Oct 6 02:43:32 2026 +0000
+
+    story 10 task 15: e2e shapes and connectors (TC-23..TC-27)
+
+
+ src/client/board/Toolbar.tsx            |   1 +
+ src/client/styles.css                   |  12 +-
+ tests/e2e/helpers/board-writer.ts       |  51 +++-
+ tests/e2e/helpers/board.ts              | 156 ++++++++++-
+ tests/e2e/helpers/participants.ts       |  11 +-
+ tests/e2e/shapes-and-connectors.spec.ts | 467 ++++++++++++++++++++++++++++++++
+ 6 files changed, 692 insertions(+), 6 deletions(-)
+commit 6f9643ae68196aa18cbc010d0802683adcb9beb6
+agent  Tue Oct 6 00:53:42 2026 +0000
+
+    story 10 task 14: shape and connector component tests (TC-15 to TC-21, TC-28)
+
+
+ src/client/tools/ShapeTool.tsx     |   7 +
+ tests/component/Connector.test.tsx | 395 +++++++++++++++++++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx | 370 ++++++++++++++++++++++++++++++++++
+ tests/component/harness.tsx        |   5 +
+ 4 files changed, 777 insertions(+)
+commit 03c806737943720dba7eaa0832193455d1a2c6bc
+agent  Tue Oct 6 00:37:12 2026 +0000
+
+    story 10 task 13: Connector tool with hover dots, ConnectorObject with arrowhead and re-attach handles
+
+
+ src/client/board/BoardScreen.tsx          |  11 ++
+ src/client/objects/ConnectorObject.tsx    | 276 ++++++++++++++++++++++++++++++
+ src/client/objects/attachTargets.ts       |  47 +++++
+ src/client/objects/index.ts               |  20 ++-
+ src/client/objects/registry.tsx           |  29 +++-
+ src/client/styles.css                     |  72 ++++++++
+ src/client/tools/ConnectorTool.tsx        | 235 +++++++++++++++++++++++++
+ src/shared/geometry/connector-geometry.ts |   8 +-
+ src/shared/objects/connector.ts           |  18 +-
+ 9 files changed, 711 insertions(+), 5 deletions(-)
+commit c287ba484650884c953286c7f1f10cec122317bd
+agent  Tue Oct 6 00:20:50 2026 +0000
+
+    story 10 task 12: Shape tool, ShapeObject with centred label, ShapeToolbar
+
+
+ src/client/board/BoardScreen.tsx        |  18 +++
+ src/client/board/Toolbar.tsx            | 128 ++++++++++++++---
+ src/client/board/useTransformGesture.ts |  13 ++
+ src/client/objects/ShapeObject.tsx      | 238 ++++++++++++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx     | 114 +++++++++++++++
+ src/client/objects/index.ts             |  15 +-
+ src/client/styles.css                   | 199 ++++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx          | 210 ++++++++++++++++++++++++++++
+ src/shared/objects/shape.ts             |  48 +++++++
+ tests/unit/shape-model.test.ts          |  73 ++++++++++
+ 10 files changed, 1033 insertions(+), 23 deletions(-)
+commit 2101d049fcd6645010f45ff4ac3640ab03f4ab34
+agent  Tue Oct 6 00:02:55 2026 +0000
+
+    story 10 task 11: active tool hook with shortcuts, shape and connector palette buttons
+
+
+ src/client/board/BoardScreen.tsx       |  25 +++-
+ src/client/board/Toolbar.tsx           |  56 +++++++-
+ src/client/board/useBoardKeys.ts       |  40 +++++-
+ src/client/board/useTool.ts            |  52 -------
+ src/client/canvas/BoardViewport.tsx    |  10 +-
+ src/client/tools/useActiveTool.ts      | 152 ++++++++++++++++++++
+ src/shared/objects/shape.ts            |   8 ++
+ tests/component/useActiveTool.test.tsx | 250 +++++++++++++++++++++++++++++++++
+ 8 files changed, 523 insertions(+), 70 deletions(-)
+commit 966d789da936d149af769f25061ffa867353a36a
+agent  Mon Oct 5 23:49:52 2026 +0000
+
+    story 10 task 10: connector model, connector geometry, detach-on-delete
+
+
+ src/shared/board-model.ts                 |  94 +++++++-
+ src/shared/geometry/connector-geometry.ts | 165 ++++++++++++--
+ src/shared/geometry/polyline.ts           |  58 ++++-
+ src/shared/objects/connector.ts           | 360 ++++++++++++++++++++++++++++--
+ tests/unit/board-model.test.ts            |  25 ++-
+ tests/unit/connector-geometry.test.ts     |  24 +-
+ 6 files changed, 664 insertions(+), 62 deletions(-)
+commit f7b9f77c40e25c6b0fc487963759e92781760f19
+agent  Mon Oct 5 23:40:07 2026 +0000
+
+    story 10 task 9: connector model and geometry tests (TC-07..TC-14, TC-29) with stubs
+
+
+ src/shared/geometry/connector-geometry.ts |  50 +++++
+ src/shared/geometry/polyline.ts           |  13 ++
+ src/shared/objects/connector.ts           |  60 ++++++
+ tests/unit/board-model.test.ts            | 130 ++++++++++++
+ tests/unit/connector-geometry.test.ts     | 325 ++++++++++++++++++++++++++++++
+ 5 files changed, 578 insertions(+)
+commit 6bc374ac315e9df5e3e90488bbf6037644485c89
+agent  Mon Oct 5 23:34:04 2026 +0000
+
+    story 10 task 8: shape model (createShape, setShapeStyle, getShapeLabel)
+
+
+ src/shared/objects/shape.ts | 227 ++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 206 insertions(+), 21 deletions(-)
+commit e136415ac4aa6d69d4e7e21c0920ec1a82494fc6
+agent  Mon Oct 5 23:28:47 2026 +0000
+
+    story 10 task 7: shape model unit tests (TC-01..TC-06), config settings, shape stubs
+
+
+ src/shared/config.ts           |  69 +++++++++++
+ src/shared/objects/shape.ts    |  48 ++++++++
+ tests/unit/shape-model.test.ts | 258 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 375 insertions(+)
+commit 93e713dc57e726c9cc2dfef2c4e98b5420a3f1bc
+vidi-agent  Mon Oct 5 23:16:32 2026 +0000
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 9af13fdd5edef671bdb80c70bfe231f3ab04a448
 agent  Mon Oct 5 23:12:41 2026 +0000
 
