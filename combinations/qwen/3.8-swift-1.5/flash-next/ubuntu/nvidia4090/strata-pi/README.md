@@ -20,7 +20,7 @@ exists so that the claim can be read on held-out tests instead, against the orig
 
 | | |
 |---|---|
-| Strata | v0.1.39, pinned by commit `6f32ec07` |
+| Strata | v0.1.40, pinned by commit `1735d647` |
 | Weights | `ukisai/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-GGUF` at `b22d729e`, IQ3_XXS (76.0 GB in two files, sha256-checked) |
 | Why IQ3_XXS | the size the original runs, so the pair differs only in the fine-tune. Swift has no IQ3_S at all, and its Q2_0 is not packable (Strata's issue 171), so IQ3_XXS is also the largest it offers |
 | Context | 131,072 tokens (the benchmark's minimum), KV cache int8 |
