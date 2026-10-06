@@ -8,6 +8,7 @@ import {
 
 import { newBoardId } from '../../../src/shared/board-id.js';
 import type { StickySnapshot } from '../../../src/shared/board-model.js';
+import type { ConnectionState } from '../../../src/client/sync/connectBoard.js';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LIVE_UPDATE_LATENCY_BUDGET_MS,
@@ -45,12 +46,30 @@ const isTransportNoise = (text: string): boolean =>
     text,
   );
 
+/** What a page must reach before the test is handed it. */
+export interface OpenOptions {
+  /**
+   * `'connected'` is the usual: the page is in step with its room. `'load_failed'` is
+   * for a page opened onto a board the room cannot open, which is the one case where
+   * waiting for a connection is waiting for something that will never happen.
+   *
+   * The default is not a convenience. A test that opens a page onto a broken board and
+   * waits for it to connect times out reporting a page that never connected, when what
+   * it meant to establish is that the board could not be loaded; and a test that only
+   * waits for *a* badge accepts any badge - "Connecting…" among them, which a page
+   * shows on its way to every outcome, good and bad.
+   */
+  expect?: ConnectionState;
+}
+
 /** Open one context and page per name, all on the same board, all in step. */
 export async function openParticipants(
   browser: Browser,
   names: string[],
   url = newBoardUrl(),
+  options: OpenOptions = {},
 ): Promise<Participant[]> {
+  const waitingFor = options.expect ?? 'connected';
   const people: Participant[] = [];
   for (const name of names) {
     const context = await browser.newContext();
@@ -78,7 +97,8 @@ export async function openParticipants(
     // The board is up, drawn, and this person is in step with the room.
     await expect(zoomLabel(person.page)).toHaveText('100%');
     await waitForRender(person.page);
-    await waitForConnected(person);
+    if (waitingFor === 'load_failed') await waitForLoadFailure(person);
+    else await waitForConnected(person);
     people.push(person);
   }
   return people;
@@ -101,6 +121,26 @@ export async function badgeText(page: Page): Promise<string | null> {
 /** The connection state the app reports (test build only). */
 export async function connectionState(page: Page): Promise<string | null> {
   return page.evaluate(() => window.__vidi6?.connectionState ?? null);
+}
+
+/**
+ * Wait until this page has been told its board could not be loaded.
+ *
+ * This is a state the page cannot get to by itself: the room has to say so. Every
+ * other bad connection is the page's own guess - it has a socket and then it does not
+ * - whereas this one is an answer from the room, which is why the badge can be red
+ * instead of amber and why the board is locked. A page that has never reached the room
+ * and a page the room refused look the same in the DOM until this state arrives, and
+ * only one of them is refusing edits.
+ */
+export async function waitForLoadFailure(person: Participant): Promise<void> {
+  await expect
+    .poll(() => connectionState(person.page), {
+      message: `${person.name} was never told the board could not be loaded`,
+      timeout: E2E_EVENTUAL_TIMEOUT_MS,
+    })
+    .toBe('load_failed');
+  await expect(badge(person.page)).toBeVisible();
 }
 
 /** Wait until this person's page is in step with the room: no badge at all. */

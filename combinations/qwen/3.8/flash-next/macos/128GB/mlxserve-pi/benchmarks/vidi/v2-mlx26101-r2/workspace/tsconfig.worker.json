@@ -19,5 +19,13 @@
     "noEmit": true
   },
   "//": "Everything that runs inside the Workers runtime: the Worker and its integration tests (`npm run test:integration`). No DOM here, on purpose: if this project compiles, the Worker does not reach for a browser API it will not have.",
-  "include": ["src/worker", "src/shared", "tests/integration"]
+  "include": [
+    "src/worker",
+    "src/shared",
+    "tests/integration",
+    "tests/fixtures",
+    // The two unit tests that test Worker modules; see the note in tsconfig.json.
+    "tests/unit/room-state.test.ts",
+    "tests/unit/board-store-chunks.test.ts"
+  ]
 }

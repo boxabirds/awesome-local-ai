@@ -11,6 +11,10 @@
   --ui-accent: #2f6feb;
   --connection-warning: #b45309;
   --connection-ok: #15803d;
+  /* Amber says the room is out of reach and will come back; this one says the
+     room answered and would not open the board. Two different facts, so they may
+     not share a colour - and the board is only locked for the second. */
+  --connection-error: #b3261e;
   color: var(--ui-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-size: 14px;
@@ -220,6 +224,10 @@ body {
   background: var(--connection-ok);
 }
 
+.connection-status--load_failed {
+  background: var(--connection-error);
+}
+
 /* --------------------------------------------------------- sticky notes */
 
 /* A note is board content: it is positioned and sized in world units inside the
@@ -390,6 +398,21 @@ body {
   background: #f0f2f5;
 }
 
+/* The same courtesy as the toolbar button: on a board that cannot be changed,
+   the buttons that would change it are visibly out of reach rather than quietly
+   inert. The pressed swatch keeps its outline, because which colour the note is
+   remains true even while it cannot be changed. */
+.note-color-swatch:disabled,
+.note-delete:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.note-color-swatch:disabled:hover,
+.note-delete:disabled:hover {
+  background: transparent;
+}
+
 /* ------------------------------------------------------------- board toolbar */
 
 .board-toolbar {
@@ -427,6 +450,20 @@ body {
 
 .board-toolbar-button:hover {
   background: #f0f2f5;
+}
+
+/* A control that will be refused has to look refused: the Sticky note button is
+   how the board says whether it accepts new content, so greying it out is the
+   message being shown twice, once in words and once in the thing a person would
+   reach for. */
+.board-toolbar-button:disabled {
+  color: var(--ui-muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.board-toolbar-button:disabled:hover {
+  background: transparent;
 }
 
 .board-toolbar-button:focus-visible {

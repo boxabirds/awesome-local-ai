@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.json","include":[".tmp/fx.test.ts","src/shared","tests/fixtures"]}

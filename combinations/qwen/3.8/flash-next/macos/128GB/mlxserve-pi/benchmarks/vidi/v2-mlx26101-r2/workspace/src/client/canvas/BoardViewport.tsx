@@ -34,6 +34,13 @@ export interface BoardViewportProps {
   onStickyCreated(id: string): void;
   /** A single click landed on empty board space: the app clears the selection. */
   onEmptyClick(): void;
+  /**
+   * False while the board takes no content (see `canEdit`). Only the double-click
+   * that would create a note is affected: panning, zooming and clicking away a
+   * selection are how a person gets around a board, and a board that has stopped
+   * answering them looks frozen rather than read-only.
+   */
+  canEdit?: boolean;
 }
 
 type GestureEventLike = Event & {
@@ -56,6 +63,7 @@ export function BoardViewport({
   doc,
   onStickyCreated,
   onEmptyClick,
+  canEdit = true,
 }: BoardViewportProps): JSX.Element {
   const {
     camera,
@@ -149,6 +157,10 @@ export function BoardViewport({
    */
   const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     if (!isEmptyBoardSpace(event.target)) return;
+    // A note created here would go into the document and nowhere else: the room
+    // has said it cannot open this board. The gesture does nothing at all rather
+    // than something that looks like it worked.
+    if (!canEdit) return;
     const world = screenToWorld(camera, toBoardPoint(event));
     const id = createSticky(doc, world);
     if (typeof id === 'string') onStickyCreated(id);

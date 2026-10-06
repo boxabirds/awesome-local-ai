@@ -35,7 +35,13 @@ export default defineConfig({
   webServer: {
     // e2e runs against the same serving path as production: `wrangler dev`
     // statically serving dist/client. The test build exposes window.__vidi6.
-    command: `npm run build:test && exec wrangler dev --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT}`,
+    //
+    // `--var TEST_HOOKS:1` turns the room's test routes on (`src/worker/test-hooks.ts`:
+    // damage a board's snapshot, put it back, fold its log, fill it with notes). It is a
+    // command-line variable of *this* server and is deliberately absent from
+    // `wrangler.jsonc`, so the production configuration has no such routes - and one of
+    // the e2e tests asks a server started without it for them and expects a 404.
+    command: `npm run build:test && exec wrangler dev --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT} --var TEST_HOOKS:1`,
     url: BASE_URL,
     reuseExistingServer: true,
     timeout: 180_000,

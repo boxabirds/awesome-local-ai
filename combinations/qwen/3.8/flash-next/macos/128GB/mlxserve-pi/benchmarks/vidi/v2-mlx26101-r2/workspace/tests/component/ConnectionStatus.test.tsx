@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import * as Y from 'yjs';
@@ -7,9 +9,12 @@ import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus.js';
 import { connectBoard } from '../../src/client/sync/connectBoard.js';
 import type { ConnectionState } from '../../src/client/sync/connectBoard.js';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config.js';
+import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from '../../src/shared/protocol.js';
 import { act, cleanup, render, screen } from './tl.js';
-import { FakeLink, advance, setStatus } from './fake-link.js';
+import { FakeLink, advance, closeSocket, failToLoad, setStatus } from './fake-link.js';
 import {
+  badge as badgeOf,
+  canEdit as canEditOf,
   createNote,
   docNotes,
   escapeFromEditor,
@@ -265,5 +270,168 @@ describe('the badge never locks the board out', () => {
     expect(screen.queryByTestId('connection-status')).toBeNull();
     // The board itself is still there, and still the interactive surface.
     expect(screen.getByTestId('board-viewport')).toBeInTheDocument();
+  });
+});
+
+/**
+ * TC-22: the message a board gives when it could not be loaded. It is not a
+ * connection problem - the room answered - so it does not say "Reconnecting…",
+ * and it is not amber: the board is not coming back on its own, and the user
+ * should not read this as the same thing that happens when the wifi goes.
+ */
+describe('TC-22 — a board that could not be loaded', () => {
+  /** The sentence, exactly. A message that changes wording is a different message. */
+  const MESSAGE = "This board couldn't be loaded. Retrying…";
+
+  it('says it, and says it as a live region', () => {
+    const { link } = renderHarness();
+    setStatus(link, 'connected');
+    expect(screen.queryByRole('status')).toBeNull();
+
+    failToLoad(link);
+
+    const badge = screen.getByRole('status');
+    expect(badge).toHaveTextContent(MESSAGE);
+    expect(badge).toHaveAttribute('role', 'status');
+    expect(badge.getAttribute('aria-live') ?? 'polite').toBe('polite');
+    // Never a control: it must not be clickable, focusable, or able to swallow
+    // a gesture meant for the board.
+    expect(badge.querySelector('button, a, input, [role="button"]')).toBeNull();
+  });
+
+  it('is the load-failure styling, and the stylesheet paints it red', () => {
+    const { link } = renderHarness();
+    failToLoad(link);
+    const badge = screen.getByTestId('connection-status');
+    expect(badge).toHaveClass('connection-status--load_failed');
+    expect(badge).toHaveAttribute('data-state', 'load_failed');
+
+    // jsdom does not apply the stylesheet, so the colour is checked where it is
+    // written: the state has a rule, the rule names one custom property, and
+    // that property is a red. A state rendered with a class nobody styled would
+    // pass a DOM-only test and show the user an amber badge.
+    // Relative to the project root, which is where every test in this repo runs
+    // from (vitest.config.ts); `import.meta.url` is not a file URL in jsdom.
+    const css = readFileSync('src/client/styles.css', 'utf8');
+    const rule = css.slice(css.indexOf('.connection-status--load_failed'));
+    const declaration = rule.slice(0, rule.indexOf('}') + 1);
+    expect(declaration).toMatch(/background:\s*var\(--connection-error\)/u);
+
+    const value = /--connection-error:\s*(#[0-9a-f]{6})/iu.exec(css)?.[1];
+    if (value === undefined) throw new Error('styles.css defines no --connection-error');
+    const [red, green, blue] = [1, 3, 5].map((at) => Number.parseInt(value.slice(at, at + 2), 16));
+    expect(red > green && red > blue, `${value} is not a red`).toBe(true);
+  });
+
+  it('is not the message for a board that is merely out of reach', () => {
+    const { link } = renderHarness();
+    setStatus(link, 'connected');
+    setStatus(link, 'disconnected', false);
+    // The two sentences are different because the two situations are different.
+    expect(screen.getByRole('status')).toHaveTextContent('Reconnecting\u2026');
+    expect(screen.getByRole('status')).not.toHaveTextContent(MESSAGE);
+  });
+});
+
+/**
+ * TC-28: the close code is the whole difference between "the room is unreachable"
+ * and "the board is not there to be read", and the two must not be confused in
+ * either direction. A storage failure that showed as a load failure would tell
+ * people their work is gone when it is not; a load failure that showed as a
+ * storage failure would let them keep typing into a board they cannot save to.
+ */
+describe('TC-28 — what a close code means', () => {
+  it('4500 is "could not be loaded", and it is the only code that is', () => {
+    const codes: Array<[number | null, ConnectionState]> = [
+      // A storage failure: the board is readable, the room had a problem of its
+      // own, and the retry will bring it back with the unsaved changes in tow.
+      [CLOSE_STORAGE_FAILURE, 'reconnecting'],
+      // A close with no code at all: a dropped network, a laptop lid, a server
+      // that stopped mid-sentence. Nothing here says the board is unreadable.
+      [null, 'reconnecting'],
+      // Rubbish on the wire (story 3): the connection is unhealthy, not lost.
+      [1003, 'reconnecting'],
+      [1006, 'reconnecting'],
+      [4500, 'load_failed'],
+    ];
+
+    for (const [code, expected] of codes) {
+      const { states, link } = renderHarness();
+      setStatus(link, 'connected');
+      closeSocket(link, code);
+      expect(states.at(-1), `close code ${code}`).toBe(expected);
+    }
+  });
+
+  it('keeps the board editable while it says "Reconnecting\u2026" and locks it when it says it could not load', () => {
+    // The editable half: a storage failure is a room problem, not a user problem.
+    const link = renderApp();
+    setStatus(link, 'connected');
+    closeSocket(link, CLOSE_STORAGE_FAILURE);
+    expect(badgeOf()).toHaveTextContent('Reconnecting\u2026');
+    expect(canEditOf()).toBe(true);
+    createNote('written during an outage');
+    expect(docNotes()).toHaveLength(1);
+    escapeFromEditor();
+
+    // The locked half: same gestures, one digit different in the close code.
+    const locked = renderApp();
+    setStatus(locked, 'connected');
+    closeSocket(locked, CLOSE_BOARD_LOAD_FAILED);
+    expect(badgeOf()).toHaveTextContent("This board couldn't be loaded. Retrying…");
+    expect(canEditOf()).toBe(false);
+  });
+
+  it('says it again, and still the same thing, when the retry fails the same way', () => {
+    const { states, link } = renderHarness();
+    failToLoad(link);
+    expect(states.at(-1)).toBe('load_failed');
+
+    // The provider retries on its own: the socket opens, the room refuses it
+    // again, and the badge does not change its story. It never goes back to
+    // "Connecting\u2026", which would say this is a first load rather than a
+    // board that has refused to open four times in a row.
+    const before = states.length;
+    failToLoad(link);
+    failToLoad(link);
+    expect(states.slice(before)).toEqual([]);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      "This board couldn't be loaded. Retrying…",
+    );
+  });
+
+  it('the first sync after a load failure is a connection, and editing is open again without a reload', () => {
+    const { states, link } = renderHarness();
+    failToLoad(link);
+    expect(states.at(-1)).toBe('load_failed');
+    expect(screen.getByRole('status')).toHaveTextContent('could');
+
+    // Somewhere in the room the board got readable again - nothing on this page
+    // was reloaded, no button was pressed - and the retry gets through.
+    setStatus(link, 'connected');
+    expect(states.at(-1)).toBe('connected');
+    expect(screen.queryByRole('status')).toBeNull();
+
+    // And it means it: the board takes an edit.
+    const app = renderApp();
+    closeSocket(app, CLOSE_BOARD_LOAD_FAILED);
+    expect(canEditOf()).toBe(false);
+    setStatus(app, 'connected');
+    expect(canEditOf()).toBe(true);
+    createNote('typed after the retry');
+    expect(noteText()).toBe('typed after the retry');
+  });
+
+  it('does not mistake a load failure for an interruption on a board it had', () => {
+    const { states, link } = renderHarness();
+    setStatus(link, 'connected');
+    // A board that was in step, lost the room, and then was told the board
+    // cannot be loaded: the load failure is the stronger fact, and it wins even
+    // though it arrived second.
+    setStatus(link, 'disconnected', false);
+    expect(states.at(-1)).toBe('reconnecting');
+    failToLoad(link);
+    expect(states.at(-1)).toBe('load_failed');
+    expect(screen.getByRole('status')).toHaveTextContent("This board couldn't be loaded");
   });
 });

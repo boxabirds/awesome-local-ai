@@ -16,6 +16,7 @@ import {
   useViewportSize,
 } from './canvas/useCamera.js';
 import { ConnectionStatus } from './sync/ConnectionStatus.js';
+import { canEdit } from './sync/connectBoard.js';
 import { StickyNote } from './objects/StickyNote.js';
 import { isValidBoardId, newBoardId } from '../shared/board-id.js';
 import { createSticky, deleteObject } from '../shared/board-model.js';
@@ -97,15 +98,30 @@ function Board({ boardId, connect }: { boardId: string; connect?: BoardConnector
   const { doc, notes, connection } = useBoardDoc(boardId, connect);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
+  /**
+   * Whether this board takes edits. One decision, made from the connection state
+   * and handed to everything that could write: the toolbar button, the surface,
+   * the notes, the shortcuts. A lock that was implemented per control would be a
+   * lock with holes in it - the shortcut would work while the button was greyed
+   * out, and a drag is a longer path than either.
+   *
+   * It is false for one state only, `load_failed`: a room that said it could not
+   * open this board. A room that cannot be *reached* leaves the board editable,
+   * because there the changes have somewhere to go as soon as the connection
+   * comes back (see `canEdit`).
+   */
+  const editable = canEdit(connection);
+
   /** Create a note centred on a world point, select it and open it for typing. */
   const createAt = useCallback(
     (x: number, y: number) => {
+      if (!editable) return;
       const id = createSticky(doc, { x, y });
       if (typeof id !== 'string') return;
       select(id);
       startEdit(id);
     },
-    [doc, select, startEdit],
+    [doc, editable, select, startEdit],
   );
 
   /** The Sticky note button and the `N` shortcut: the middle of what is visible. */
@@ -156,12 +172,12 @@ function Board({ boardId, connect }: { boardId: string; connect?: BoardConnector
         event.preventDefault();
         createInMiddleOfView();
       } else if (event.key === 'Enter') {
-        if (selectedId !== null && editingId === null) {
+        if (selectedId !== null && editingId === null && editable) {
           event.preventDefault();
           startEdit(selectedId);
         }
       } else if (event.key === 'Delete' || event.key === 'Backspace') {
-        if (selectedId !== null && editingId === null) {
+        if (selectedId !== null && editingId === null && editable) {
           event.preventDefault();
           deleteObject(doc, selectedId);
         }
@@ -169,14 +185,15 @@ function Board({ boardId, connect }: { boardId: string; connect?: BoardConnector
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [api.camera, createInMiddleOfView, doc, editingId, select, selectedId, startEdit]);
+  }, [api.camera, createInMiddleOfView, doc, editable, editingId, select, selectedId, startEdit]);
 
   return (
     <div className="app" data-testid="app">
       <CameraProvider value={context}>
-        <Toolbar onCreateSticky={createInMiddleOfView} />
+        <Toolbar onCreateSticky={createInMiddleOfView} canEdit={editable} />
         <BoardViewport
           doc={doc}
+          canEdit={editable}
           onStickyCreated={(id) => {
             select(id);
             startEdit(id);
@@ -196,6 +213,7 @@ function Board({ boardId, connect }: { boardId: string; connect?: BoardConnector
               zoom={api.camera.zoom}
               selected={note.id === selectedId}
               editing={note.id === editingId}
+              canEdit={editable}
               onSelect={select}
               onStartEdit={startEdit}
               onEndEdit={endEdit}

@@ -80,6 +80,19 @@ export async function noteCentre(page: Page, index: number): Promise<Point> {
 }
 
 /** Poll until the document holds `count` notes and they are drawn. */
+/**
+ * The board this page is on, as the room addresses it.
+ *
+ * From the page rather than from the test: a test that starts its own server has to ask
+ * the room by id, and reading the id off the URL would be reading it off the address the
+ * test wrote, which is not evidence that this page is on that board.
+ */
+export async function boardIdOf(page: Page): Promise<string> {
+  const id = await page.evaluate(() => window.__vidi6Board?.getBoardId());
+  if (id === undefined) throw new Error('this page is not on a board');
+  return id;
+}
+
 export async function waitForNoteCount(page: Page, count: number): Promise<void> {
   await expect
     .poll(async () => (await docNotes(page)).length, { message: `expected ${count} notes` })

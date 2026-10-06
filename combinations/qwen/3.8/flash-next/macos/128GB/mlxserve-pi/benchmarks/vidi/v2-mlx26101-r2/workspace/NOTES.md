@@ -11,6 +11,14 @@ Every server listens inside `$AGENT_PORT_FIRST`..`$AGENT_PORT_LAST` (24208–242
 | 24208 (`AGENT_PORT_FIRST`) | `npm run dev` (Vite dev server) |
 | 24212 (`AGENT_PORT_FIRST + 4`) | e2e server: `wrangler dev` statically serving `dist/client` (test build) |
 | 24213 | the `wrangler dev` inspector port that goes with 24212 |
+| 24214-24215 | story 4's persistence specs (TC-19 to TC-21): a `wrangler dev` of their own per test, restarted in the test |
+| 24216-24217 | held here by a `wrangler dev` this sandbox cannot signal, like 24210/24211 used to be; specs move past it and say so |
+| 24218-24221 | story 4's "this server has no test routes" spec and TC-24's broken-board spec, which are not running at the same time (`workers: 1`) |
+
+Story 4's specs take a port *pair* (app + inspector) from where they are asked to
+start, and move up in steps of two until both ports bind free - see "e2e tests that
+start and kill a server" below. They therefore use whatever is free inside the
+range, and the table is what they get when nothing is left over.
 
 `wrangler dev` is started with `--ip 127.0.0.1 --port 24212 --inspector-port 24213`,
 and the Vite dev server is pinned to `host: '127.0.0.1'` (with the default it
@@ -230,13 +238,235 @@ The integration project runs the real Worker and the real `BoardRoom` inside wor
   `MAX_CONCURRENT_EDITORS` contexts and is chromium-only; TC-29 holds a board idle for 45 s and
   asserts the socket count never moves.
 
+## Story 4: persistence (a room, its SQLite, and tests that damage it)
+
+The board lives in the room's own Durable Object SQLite (`src/worker/board-store.ts`), and the
+integration tests read it back with a second `BoardStore` over the same `ctx.storage` - that is
+how a test knows it read the rows rather than remembered them. Things that needed learning or
+fixing on the way:
+
+- **Durable Object SQL is synchronous, so the room's constructor loads the board with a plain
+  call.** `this.storage.sql.exec()` returns a cursor and never awaits. The first version wrapped
+  that load in `ctx.blockConcurrencyWhile`, which left a pending RPC at the end of a test file and
+  made the pool print `EnvironmentTeardownError: Closing rpc while "resolve" was pending` after an
+  otherwise clean run. There is nothing to wait for, so there is nothing to block on.
+- **The cursor API is `.toArray()` and `.one()`.** There is no `.all()` and no `.first()`; `.one()`
+  throws when the cursor is empty, which is the right thing for "the one row that must be there".
+  `transactionSync(fn)` is on `DurableObjectStorage`, not on `SqlStorage`.
+- **`runInDurableObject` hands over the instance, not its state**, and `ctx` is `protected` on
+  `DurableObject<T>`. A test that wants the room's database writes
+  `(room as unknown as { ctx: { storage: DurableObjectStorage } }).ctx.storage`.
+- **A change is an update whose origin is one of the room's sockets** (`cameFromAClient`), not "an
+  update whose origin is not null". The difference is not academic: a bare write to a note's
+  `Y.Text` - which is what `getStickyText(doc, id).insert(...)` is - carries origin `null`, and so
+  does the update Yjs fires when it integrates bytes it had to hold back. The first has to be
+  stored, the second must not be. So the room asks the positive question, "did this come off a
+  socket?", and the test routes mark their own writes with `TEST_HOOK_ORIGIN` to be treated as
+  changes as well. Nested `doc.transact` keeps the *outermost* origin (verified with a probe),
+  which is what lets that marking survive the model function's own transaction inside it.
+- **The row count of a board is a formula, and the tests state it:** rows = (connections ever
+  made) + 2 per note. Each client's own `initDoc` reaches the room as its own update, when that
+  client answers the room's SyncStep1; a document that never ran `initDoc` contributes nothing.
+  That is why TC-18's quiet socket carries a bare `new Y.Doc()`: it has nothing to say back, so
+  nothing is written after the room is evicted and the test starts measuring.
+- **A test that is about to damage storage waits for the rows, not for the sender's screen**
+  (`settle(board, texts)` in the room tests, which reads the log with its own store). Waiting on
+  the sender's `snapshot()` is a race: a client applies its own change locally and at once, so the
+  assertion was already true before the update had crossed the socket, and the compaction or
+  damage that followed was measured against a board that had not been written yet. It showed up as
+  one row missing from a snapshot, and as a byte count exactly half of what it should have been.
+- **`wrangler.jsonc` has no `extends`.** wrangler 4.124 rejects that field, so the integration
+  project adds its binding through the pool plugin instead:
+  `cloudflareTest({ wrangler: { configPath: './wrangler.jsonc' }, miniflare: { bindings: {
+  TEST_HOOKS: '1' } } })`. `miniflare: { vars: ... }` does not reach the Worker; `bindings` does.
+  The e2e `wrangler dev` gets the same variable on its own command line, so the production config
+  stays free of those routes.
+- **A `fetch` in a workers test goes to the internet.** `http://localhost/...` is not the Worker
+  under test; `SELF.fetch` from `cloudflare:test` is. Reaching for the global one produced
+  `uncaught exception; source = Uncaught (in promise); stack = Error: internal error; reference =
+  ...` out of workerd, and a response status that had nothing to do with the Worker.
+- **A quarantined row leaves a hole in the log that has to be closed by hand.** When a row does not
+  decode, `Y.applyUpdate` throws partway through it and the rows after it are *deferred* by Yjs
+  rather than dropped (`doc.store.pendingStructs`), so the board comes back without everything
+  that followed the damage. `BoardStore.load` closes the clock gap by handing Yjs a **GC struct**
+  over `[last good clock, deferred clock)` - "there were changes here, they are gone" - after which
+  Yjs integrates the deferred bytes normally and only the damaged row's own content is missing
+  (TC-08). `gapFillUpdate()` is pure and unit-tested; the room never has to know.
+- **`EnvironmentTeardownError: [vitest-worker]: Closing rpc while "resolve" was pending` is the
+  runner's, not the suite's.** It comes and goes at the end of `npm run test:integration` - including
+  when only story 3's three integration files are run, before any of this story's code was in the
+  picture - and the run exits 0 with every test passed. The one place the suite itself provoked it
+  (a `blockConcurrencyWhile` in the room's constructor) is gone, per the first note.
+
+### Story 4: the client side, which is a different kind of bad news
+
+`ConnectionState` gained `load_failed`, and it is the only state that locks the board. Notes that
+came from getting the mapping and the lock right:
+
+- **A close code is the only thing that distinguishes "unreachable" from "not there".** Both look
+  identical to the status listener: the socket opened, and now it has not. So `BoardLink` gained
+  `onClose`, and y-websocket's `connection-close` is what feeds it. Two details of that event
+  matter. It fires *before* the `disconnected` status, so a listener is told what the room said
+  before it is told the room is gone; and it carries `null` rather than a code when this page hung
+  up itself (`provider.disconnect()`, and the "no message received" watchdog). A rule written as
+  "any code except 4500" is fine with that; a rule written as "no code means something went wrong"
+  would lock the board every time a test or a laptop lid ended a socket.
+- **4500 is deliberately outside the range y-websocket treats as final.** Its
+  `defaultShouldReconnect` refuses to retry codes 4400-4499, so a room that wanted to say "stop
+  trying" would have to pick a code in that band - and then the client would stop retrying and the
+  badge's "Retrying…" would be a lie. 4500 is the code just past that band: the room says it could
+  not open the board, and the client keeps knocking anyway, which is what makes recovery without a
+  reload (TC-24) work at all.
+- **While the board is in `load_failed`, nothing but a sync changes the badge.** The provider's own
+  retries open sockets and lose them, and each of those would otherwise flip the message between
+  "This board couldn't be loaded" and "Reconnecting…" - the second being the one thing that is not
+  true of this situation, because nothing is reconnecting to anything; the room answers every one
+  of those attempts and refuses them.
+- **jsdom does not apply the stylesheet, so "red" is tested where it is written.** The component
+  test asserts the class (`connection-status--load_failed`), that the rule for that class names
+  `var(--connection-error)`, and that the value of that custom property is a red (R greater than G
+  and B). A state rendered with a class nobody styled would pass a DOM-only test and show the user
+  an amber badge. In the browser the same claim is checked as a computed colour.
+- **`import.meta.url` is not a file URL in the component project**, since that project runs in
+  jsdom: `readFileSync(new URL('../..', import.meta.url))` throws `The URL must be of scheme file`.
+  The stylesheet is read relative to the project root instead, which is where every test here runs
+  from.
+- **The tests quote the message exactly, including its characters.** The design writes
+  `This board couldn't be loaded. Retrying…` with a plain ASCII apostrophe and a real ellipsis, and
+  that is what the source contains and what three tests compare against. A rewording should fail a
+  test rather than drift.
+- **`canEdit()` in the test helpers reads the interface, not the implementation.** It returns
+  whether the Sticky note button is enabled, not what the app's own `canEdit` says about the state.
+  A gate that exists in the handler and never reaches the control - the case where the button looks
+  usable and then does nothing - is exactly what a test that called the function would miss.
+- **The lock is one value handed down, not a check in each control.** `App` computes
+  `canEdit(connection)` once and passes it to the toolbar, the surface, the notes and the keyboard
+  shortcuts. Mutating any single one of those (a `Toolbar` without its `disabled`, an `App` that
+  ignores the state) fails 5 to 12 component tests, which is the check that the lock has no holes.
+- **jsdom gives back the same `backgroundPosition` string however the camera moves**, so a test
+  that wants to know whether the board can still be moved around asks `window.__vidi6.getCamera()`
+  - the camera itself - rather than reading the CSS that was derived from it. And a wheel without
+  ctrl *pans*; zooming needs ctrl or meta.
+
+### Story 4: e2e tests that start and kill a server
+
+`tests/e2e/helpers/wrangler-process.ts` runs a `wrangler dev` per test, with `--persist-to` its own
+directory, and these three things are what make the results mean something:
+
+- **Every address is absolute, and rebuilt from the port on every navigation.** The suite has a
+  `baseURL` (the shared dev server, needed anyway because the global `webServer` is what builds
+  `dist/client` in test mode), and `page.goto('/b/xyz')` resolves against it. TC-19 and TC-20 passed
+  for a while like that: they were opening their board on the shared server, which is never
+  restarted, and reporting that the board had survived. `newBoardPath()` returns a path and
+  `urlFor(path)` re-addresses it, because a server that had to change ports on restart would
+  otherwise have its pages reopened at an address that belongs to somebody else afterwards.
+- **A server is started only on a port that was free, proved by binding to it.** `lsof` is not
+  reliable in this sandbox (it reports nothing about a port that is demonstrably held), so the
+  helper binds and releases the pair through `node:net`. The leftover case is real, not
+  hypothetical: a run killed on a timeout never runs its `finally`, so the `wrangler dev` it started
+  keeps answering, and the next test's requests get answered by a process with a configuration it
+  did not choose - which is how "these routes do not exist" reported 200 for five routes that were
+  never registered on the server it had started. Port pairs in use: 24212/24213 shared suite server,
+  24214+ persistence, 24218+ the routes guard, each moving up in steps of two when a pair is taken.
+- **The kill is a signal to the process group.** `wrangler dev` spawns workerd as a child; killing
+  only the child, or only the parent, leaves something holding the port and holding the board in
+  memory. `detached: true` at spawn, `process.kill(-pid, 'SIGKILL')`, and then wait for the port to
+  be free again - and complain loudly if it is not, because that means a foreign process is
+  listening there.
+- **A board is only as tested as the way it was made.** TC-21 does not call the compaction route:
+  4000 writes cross the room's own 500-row threshold often enough that the room folds its own log
+  while the notes are being seeded, and the test asserts it did (1 snapshot chunk, ~1 log row left).
+  An earlier version asked for the fold explicitly and still passed with `append` deleted from the
+  room, because the only thing that had ever written storage was the test's own `compact` call.
+- **A server that restarts does not get to move.** TC-24 leaves pages open across the restart,
+  because the thing it asserts is that those pages recover without being reloaded - and a page
+  reconnects to the address it was loaded from. So `restart()` insists on the port it started on and
+  fails loudly if something took it while it was stopped, instead of drifting to the next free pair:
+  a server that came back on another port is a server those pages will never find, and the test
+  would then be waiting for a recovery that cannot happen, for a reason that has nothing to do with
+  the code under test. (It is also how it would end up talking to one of the suite's other servers.)
+- **The wait for a recovery is not the wait for a change.** `E2E_EVENTUAL_TIMEOUT_MS` (15 s) is how
+  long a change that has already been made may take to arrive; the board coming back is bound by two
+  timers instead - the client's reconnect backoff (up to `RECONNECT_MAX_BACKOFF_MS`, 10 s) and the
+  room's once-per-`LOAD_RETRY_MIN_INTERVAL_MS` (5 s) re-read - so TC-24 polls against their sum plus
+  room. Measured here: the board was a board again 5.9 s after the storage was repaired, on three
+  pages that were never reloaded. Reusing the 15 s wait would have made this test fail on a machine
+  that was merely slow, which is the kind of flake that gets a `sleep` added until the test asserts
+  nothing.
+- **"Red" is the pill, not the letters.** The badge has been white text on a coloured pill since
+  story 1 (amber to wait, green for a moment), so `load_failed` sets `background:
+  var(--connection-error)` and the e2e assertion reads `backgroundColor` - a first version asserted
+  `color` and failed with `rgb(255, 255, 255)`, correctly: the text is white on every badge, and
+  what is red about this state is the pill. Both are asserted, and the component test keeps checking
+  the mapping close-code → class → property → red hex that jsdom cannot paint.
+- **A locked board is mutated in the browser, not only in jsdom.** Two holes were planted and both
+  were named in the failure: `Delete` ungated in `App` ("the Delete key changed the board") and the
+  drag path in `StickyNote` ungated ("dragging a note changed the board") - with the toolbar button,
+  the bin and the swatches all still disabled, which is what a test that only looked at `disabled`
+  attributes would have missed. Rebuilding `dist/client` is part of such a run: the shared webServer
+  serves static files and is reused, so a mutation that is not compiled is a mutation that is not
+  tested. (Backups for these runs go under `.tmp/`, not `/tmp` - the sandbox refuses the latter, and
+  a `cp` that fails quietly leaves the mutation in the tree.)
+
+## Story 4: what the automated tests deliberately do not cover
+
+The design's "Not covered" list, with what was done instead and what would break if the reasoning
+behind each omission were wrong. This is written down because an omission nobody wrote down looks
+like an oversight the next time something breaks.
+
+- **The output gate's ordering.** That a Durable Object holds an outgoing WebSocket message until the
+  storage writes made before it are durable is a platform guarantee, and there is nothing here to
+  test it against: Miniflare's SQLite has no disk latency for a race to hide behind. What *is*
+  asserted is the half that is mine - `boardChanged` inserts the row before it broadcasts, in the same
+  turn (`tests/integration/board-room-persistence.test.ts` asks a socket that receives a change to
+  read the log and finds the row already there). If the guarantee were false, the failure would be
+  exactly the one the story forbids: a change on someone's screen that a restart loses.
+- **Production eviction, hibernation timing, and real Cloudflare restarts.** What is tested is the
+  room's own hibernation path - TC-18 reconstructs the object out of `ctx.getWebSockets()` and
+  delivers a message to a socket that was accepted before it went away, which is the behaviour that a
+  wrong assumption about hibernation breaks - and a real process restart over a real file (TC-19 to
+  TC-21, TC-24). The platform's schedule is not tested: how fast an idle object is evicted, and
+  whether a `stateReset` ever happens. Nothing in the room depends on either: every wake re-reads the
+  storage, and there is no cache to be wrong about.
+- **Storage quota exhaustion.** No test fills a board's database. A quota error arrives as a failed
+  `append`, which is the save-failure path that *is* tested (TC-13/TC-14: the change is not
+  broadcast, the sockets are closed with 1011, and the client that made it still has it and puts it
+  back in on reconnect). So a quota error is not silently lost - but no test says it is handled
+  well, and no test says the room keeps working afterwards.
+- **Wall-clock load time as a pass/fail criterion.** TC-21 reports navigation-start-to-last-note
+  against `BOARD_LOAD_BUDGET_MS` (1182 ms for 2000 notes on this machine, budget 3000 ms) and does
+  not assert it, because the model, the browser and the server share one machine and an asserted
+  budget here is a failure that means "somebody else was using the laptop". Nothing measures the
+  internet: `wrangler dev` is localhost, so real network latency is not in any number in this repo.
+- **Boards bigger than `PERSIST_TESTED_NOTES` (2000).** The measurement stops where the testing
+  stops: the cost per note is observed up to 2000 notes and not extrapolated beyond them. A board
+  with 20 000 notes is expected to work and is not known to.
+
 ## Deviations
 
 - None from the story's acceptance criteria. The e2e port differs (see Ports),
   Safari pinch gestures are not covered in e2e (see Browsers), which the story's
   test strategy explicitly allows, and Firefox/WebKit tests skip themselves on
-  this machine because those browsers cannot be launched here (see Browsers) -
-  story 1 and story 2 alike (68 e2e tests run, 68 skip themselves for that reason).
-  The same is true of this story's TC-22 to TC-28: they are written browser-agnostic
-  and run in chromium and chromium-retina here; the nightly capacity soak (TC-30) is
-  chromium-only by design.
+  this machine because those browsers cannot be launched here (see Browsers).
+  Counted at the time of writing, over the whole suite: 73 e2e tests run here and 83
+  skip themselves for browser reasons. The stories 1 to 3 tests and this story's TC-22
+  to TC-28 are browser-agnostic and so run in chromium and in the retina project too;
+  TC-19 to TC-21 and TC-24 are chromium-only, because they start, corrupt and kill a
+  server of their own and doing it four times over proves nothing extra; the nightly
+  capacity soak (TC-30) is chromium-only by design. (An earlier line here said "68 e2e
+  tests run, 68 skip themselves", which was a true count of a tree that no longer exists.)
+- Story 4's task 3 puts the e2e persistence tests in "its own Playwright project
+  without the shared webServer". They are in the ordinary projects instead, and
+  skip themselves on any browser but chromium - TC-19 to TC-21 and TC-24 alike.
+  The reason is that the global
+  `webServer` is what builds `dist/client` in test mode (`npm run build:test`,
+  `reuseExistingServer: true`), which every spec in the suite including these
+  depends on; a project that excluded it would have to build the client itself,
+  and two builds of the same directory racing each other is a worse flake than a
+  `test.skip`. What the task asked for - that these tests do not talk to the shared
+  server - holds: they open their own server and address it absolutely.
+- The room's test routes answer 404 `not found` from the Worker when
+  `TEST_HOOKS` is not set, rather than falling through to the asset server. The
+  asset server answers a `POST /__test/...` with the SPA's `index.html` and a 200,
+  which for a route that does not exist is the wrong status and the wrong body; the
+  test that checks "this server has no test routes" would have to allow for that.

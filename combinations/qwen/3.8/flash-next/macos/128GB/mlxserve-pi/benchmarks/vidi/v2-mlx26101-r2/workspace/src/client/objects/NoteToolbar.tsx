@@ -24,6 +24,14 @@ export interface NoteToolbarProps {
   color: StickyColor;
   onColor(color: StickyColor): void;
   onDelete(): void;
+  /**
+   * False while the board takes no edits (see `canEdit`): both buttons are then
+   * disabled. They act on a note that already exists, so a click would not be lost
+   * in the way a created note would be - it would be worse, because the note on
+   * screen would change and the board it belongs to would not, which is a
+   * difference nobody can see until the page is reloaded.
+   */
+  canEdit?: boolean;
 }
 
 /**
@@ -31,7 +39,12 @@ export interface NoteToolbarProps {
  * (bin) button. Rendered for the selected note only, and not while it is being
  * dragged or edited (the note decides when to show it).
  */
-export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX.Element {
+export function NoteToolbar({
+  color,
+  onColor,
+  onDelete,
+  canEdit = true,
+}: NoteToolbarProps): JSX.Element {
   return (
     <div
       className="note-toolbar"
@@ -55,6 +68,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX
           title={STICKY_COLOR_LABELS[name]}
           aria-pressed={name === color}
           style={{ backgroundColor: STICKY_COLORS[name] }}
+          disabled={!canEdit}
           onClick={() => onColor(name)}
         />
       ))}
@@ -63,7 +77,8 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX
         className="note-delete"
         data-testid="delete-note"
         aria-label="Delete note"
-        title="Delete note"
+        title={canEdit ? 'Delete note' : 'Delete note \u2013 this board could not be loaded'}
+        disabled={!canEdit}
         onClick={onDelete}
       >
         🗑

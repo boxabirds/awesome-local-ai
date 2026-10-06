@@ -38,6 +38,14 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * False while the board takes no edits (see `canEdit`). Every gesture that would
+   * write to the document is a no-op then - drag, recolour, delete, open for
+   * typing - while the note still behaves like a note to the pointer: it takes the
+   * press, so the board behind it does not pan, and it can still be selected,
+   * because which note a person is looking at is not board content.
+   */
+  canEdit?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: EndEditNext): void;
@@ -83,6 +91,7 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  canEdit = true,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -158,6 +167,14 @@ export function StickyNote({
       if (editing) return;
       // The board must not pan when a note is grabbed (sticky.no_pan).
       event.stopPropagation();
+      // A locked board takes the press and goes no further with it: no drag is
+      // armed, so there is nothing for the moves to write. Letting the press fall
+      // through instead would pan the board every time someone tried to find out
+      // whether this note could be moved.
+      if (!canEdit) {
+        onSelect(note.id);
+        return;
+      }
       event.currentTarget.setPointerCapture?.(event.pointerId);
       dragRef.current = {
         pointerId: event.pointerId,
@@ -169,7 +186,7 @@ export function StickyNote({
         pending: null,
       };
     },
-    [editing, note.x, note.y],
+    [canEdit, editing, note.id, note.x, note.y, onSelect],
   );
 
   const handlePointerMove = useCallback(
@@ -226,9 +243,13 @@ export function StickyNote({
       // and never reaches the viewport (which would).
       event.stopPropagation();
       if (editing) return;
+      // An open editor is a promise that what is typed will be saved, and on a
+      // board that cannot be loaded it could not be kept. The keystrokes have
+      // nowhere to go, which is the honest version of the badge's sentence.
+      if (!canEdit) return;
       onStartEdit(note.id);
     },
-    [editing, note.id, onStartEdit],
+    [canEdit, editing, note.id, onStartEdit],
   );
 
   // A note that disappears mid-drag or mid-edit ends silently: the frame loop is
@@ -246,16 +267,18 @@ export function StickyNote({
     (color: StickyColor) => {
       // Only the colour changes (sticky.color): text, position and stacking are
       // untouched, and the note stays selected.
+      if (!canEdit) return;
       setStickyColor(doc, note.id, color);
     },
-    [doc, note.id],
+    [canEdit, doc, note.id],
   );
 
   const handleDelete = useCallback(() => {
     // The bin button (and the Delete key, in App) removes the note from the
     // document; App then drops the selection that pointed at it.
+    if (!canEdit) return;
     deleteObject(doc, note.id);
-  }, [doc, note.id]);
+  }, [canEdit, doc, note.id]);
 
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -263,10 +286,10 @@ export function StickyNote({
       // the same shortcut when focus is elsewhere on the page.
       if (event.key === 'Enter' && !editing) {
         event.preventDefault();
-        onStartEdit(note.id);
+        if (canEdit) onStartEdit(note.id);
       }
     },
-    [editing, note.id, onStartEdit],
+    [canEdit, editing, note.id, onStartEdit],
   );
 
   return (
@@ -330,7 +353,12 @@ export function StickyNote({
           that note is being dragged or edited (PRD "Structure"). */}
       {selected && !dragging && !editing ? (
         <div className="note-toolbar-anchor">
-          <NoteToolbar color={note.color} onColor={handleColor} onDelete={handleDelete} />
+          <NoteToolbar
+            color={note.color}
+            onColor={handleColor}
+            onDelete={handleDelete}
+            canEdit={canEdit}
+          />
         </div>
       ) : null}
     </div>

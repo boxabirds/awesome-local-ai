@@ -105,3 +105,48 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
  * LIVE_UPDATE_LATENCY_BUDGET_MS rather than asserted.
  */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+/* --------------------------------------------------------------- persistence */
+
+/**
+ * How many stored update rows a board may accumulate before the log is folded
+ * into a snapshot (persist.board_store). It bounds the work a load does: a load
+ * replays one snapshot plus fewer than this many rows, however long the board
+ * has been lived in.
+ */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** The same threshold expressed in stored update bytes, for boards of long text. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Snapshot rows are this big at most. Durable Object SQLite limits how large a
+ * single row may be, so a board's encoded state is stored in several rows
+ * instead of one; 512 KiB is far below every limit documented at design time.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/**
+ * A room whose load failed retries at most this often: one load attempt per
+ * failed load, not one per reconnect. The client's own retry is the provider's
+ * backoff (RECONNECT_MAX_BACKOFF_MS), which is shorter, so this is what keeps a
+ * broken board from turning every reconnect into a full storage read.
+ */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5_000;
+
+/** The big board the PRD names (persist.large_board): how many notes it holds. */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/**
+ * Soft budget for opening the big board (PRD `persist.large_board`). e2e reports
+ * the measured open time against it and does not gate on it, because the model,
+ * the browsers and the server share one machine here.
+ */
+export const BOARD_LOAD_BUDGET_MS = 3_000;
+
+/**
+ * Version of the *storage* layout (the tables), written into `storage_meta` on
+ * migration. It is separate from the document's own `meta.schemaVersion`, which
+ * describes the board content and does not change when the tables do.
+ */
+export const STORAGE_SCHEMA_VERSION = 1;

@@ -26,8 +26,21 @@
     "tests/unit",
     "tests/component",
     "tests/e2e",
+    // The boards the tests open, built with the client's own model calls. Checked by
+    // both programs, because it has to work in node, in jsdom, in workerd and in
+    // Playwright's node process.
+    "tests/fixtures",
     "vite.config.ts",
     "vitest.config.ts",
     "playwright.config.ts"
+  ],
+  "exclude": [
+    // Two of the unit tests test the storage layer and the room's state machine,
+    // which are Worker modules (`tests/unit` otherwise tests only the modules in
+    // src/shared). They run in node exactly like the other unit tests, but they
+    // are type-checked by tsconfig.worker.json, because this program has no
+    // Workers globals and must not grow any.
+    "tests/unit/room-state.test.ts",
+    "tests/unit/board-store-chunks.test.ts"
   ]
 }

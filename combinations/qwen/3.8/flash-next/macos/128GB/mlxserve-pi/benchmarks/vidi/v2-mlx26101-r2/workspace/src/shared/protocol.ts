@@ -19,6 +19,19 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code sent to a socket whose message cannot be understood (RFC 6455 1003). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/**
+ * Close code sent by a room that could not load its board from storage. It is
+ * the client's signal to say "this board could not be loaded" rather than show
+ * an empty board: 4000-4999 is the range an application may define, and 4500 is
+ * chosen so it is clearly not one of the protocol's own codes.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/**
+ * Close code sent by a room that could not *write* what it just received. The
+ * board is readable and the change is not lost — the client keeps it and the
+ * reconnection handshake sends it again — so this is a retry, not a failure.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 /**
  * A decoded WebSocket message.

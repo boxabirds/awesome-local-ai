@@ -516,3 +516,54 @@ export function doubleClick(element: Element, point: Point = CENTRE): void {
   fireEvent.doubleClick(element, { clientX: point.x, clientY: point.y });
   settle();
 }
+
+/* ------------------------------------------------- connection and editing */
+
+/**
+ * The connection badge. Taken by test id rather than by role because the zoom
+ * label is a live region too, and a test about the badge does not want to care
+ * which of the two it is holding.
+ */
+export function badge(): HTMLElement {
+  const element = document.querySelector<HTMLElement>('[data-testid="connection-status"]');
+  if (!element) throw new Error('the app renders no connection badge');
+  return element;
+}
+
+/**
+ * Whether the board will take an edit.
+ *
+ * Measured the way a user measures it - is the thing that makes a note available
+ * - rather than by calling the app's own `canEdit`, which would pass even if
+ * nothing in the interface honoured it. The Sticky note button is the app's one
+ * affordance that says "this board accepts new content", so its disabled state
+ * is the claim the interface is making.
+ */
+export function canEdit(): boolean {
+  const button = document.querySelector<HTMLButtonElement>(
+    '[data-testid="create-sticky-button"]',
+  );
+  if (!button) throw new Error('the toolbar has no Sticky note button');
+  return !button.disabled;
+}
+
+/**
+ * Every write to the board document from now on. Board content is only ever
+ * changed through board-model, and every board-model write makes Yjs emit
+ * `update` on the document, so this counts model mutations without reaching
+ * into the module - which is what "no mutation happened" has to mean.
+ */
+export function countDocumentWrites(): { writes: () => number; stop(): void } {
+  const doc = boardDoc();
+  let writes = 0;
+  const listener = (): void => {
+    writes += 1;
+  };
+  doc.on('update', listener);
+  return {
+    writes: () => writes,
+    stop: () => {
+      doc.off('update', listener);
+    },
+  };
+}
