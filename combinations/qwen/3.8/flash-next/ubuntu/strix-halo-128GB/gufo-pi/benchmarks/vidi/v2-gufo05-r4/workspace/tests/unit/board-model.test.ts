@@ -12,8 +12,10 @@ import * as Y from 'yjs';
 import {
   LOCAL_ORIGIN,
   bringToFront,
+  boardObjects,
   createSticky,
   deleteObject,
+  deleteObjects,
   getStickyText,
   initDoc,
   moveObject,
@@ -21,6 +23,12 @@ import {
   snapshot,
   type StickySnapshot
 } from '../../src/shared/board-model';
+import {
+  createConnector,
+  detachConnectorsTo,
+  CONNECTOR_OBJECT_TYPE
+} from '../../src/shared/objects/connector';
+import { createShape } from '../../src/shared/objects/shape';
 import {
   BOARD_SCHEMA_VERSION,
   DEFAULT_STICKY_COLOR,
@@ -467,5 +475,134 @@ describe('document observers (what useBoardDoc subscribes to)', () => {
     bringToFront(doc, id);
     deleteObject(doc, id);
     expect(events).toBe(6);
+  });
+});
+
+/* ------------------------------------------------------------------ story 10 */
+
+/**
+ * `shape.model`, `connector.model`: a delete is the one thing that happens to two kinds of
+ * object at once, so it is the shared model's job — the arrow's end is rewritten inside the
+ * same transaction that removes the shape it pointed at, which is why nobody ever sees an
+ * arrow tied to an object that is gone.
+ */
+
+function boardWithArrow(): { doc: Y.Doc; a: string; b: string; arrow: string } {
+  const doc = new Y.Doc();
+  initDoc(doc);
+  const a = createShape(doc, { kind: 'rect', rect: { x: 0, y: 0, width: 100, height: 100 }, at: { x: 0, y: 0 } }, 'ana');
+  const b = createShape(doc, { kind: 'rect', rect: { x: 400, y: 0, width: 100, height: 100 }, at: { x: 400, y: 0 } }, 'ana');
+  const arrow = createConnector(doc, { from: { kind: 'attached', objectId: a! }, to: { kind: 'attached', objectId: b! } }, 'ana');
+  if (!a || !b || !arrow) throw new Error('the fixture could not draw two shapes and an arrow');
+  return { doc, a, b, arrow };
+}
+
+function endOf(doc: Y.Doc, id: string, key: 'from' | 'to'): unknown {
+  return doc.getMap<Y.Map<unknown>>('objects').get(id)?.get(key);
+}
+
+describe('deleting objects and their arrows (connector.model)', () => {
+  it('TC-14: an arrow tied to a deleted shape is rewritten in the delete itself, one update', () => {
+    const { doc, a, arrow } = boardWithArrow();
+    let updates = 0;
+    doc.on('update', () => {
+      updates += 1;
+    });
+
+    expect(deleteObjects(doc, [a])).toBe(1);
+    // One update for the delete and the rewrite together: an arrow is never seen tied to an
+    // object that no longer exists, not even for the moment between two writes.
+    expect(updates).toBe(1);
+    expect(endOf(doc, arrow, 'from')).toBeInstanceOf(Y.Map);
+    const from = endOf(doc, arrow, 'from') as Y.Map<unknown>;
+    expect(from.get('kind')).toBe('free');
+    // Free at the anchor it had while the shape was there: the arrow does not jump.
+    expect(from.get('x')).toBe(100);
+    expect(from.get('y')).toBe(50);
+    // The other end is still tied to the shape that survived.
+    expect((endOf(doc, arrow, 'to') as Y.Map<unknown>).get('kind')).toBe('attached');
+    // And the arrow is still on the board, drawn to where its shape used to be.
+    expect(boardObjects(doc).filter((object) => object.type === CONNECTOR_OBJECT_TYPE)).toHaveLength(1);
+  });
+
+  it('TC-14: a delete of both shapes frees both ends and still costs one update', () => {
+    const { doc, a, b, arrow } = boardWithArrow();
+    let updates = 0;
+    doc.on('update', () => {
+      updates += 1;
+    });
+    expect(deleteObjects(doc, [a, b])).toBe(2);
+    expect(updates).toBe(1);
+    for (const key of ['from', 'to'] as const) {
+      const end = endOf(doc, arrow, key) as Y.Map<unknown>;
+      expect(end.get('kind')).toBe('free');
+    }
+    expect((endOf(doc, arrow, 'from') as Y.Map<unknown>).get('x')).toBe(100);
+    expect((endOf(doc, arrow, 'to') as Y.Map<unknown>).get('x')).toBe(400);
+  });
+
+  it('TC-14: a mixed delete rewrites only the arrow that had an end on a deleted object', () => {
+    const { doc, a, b, arrow } = boardWithArrow();
+    const spare = createSticky(doc, { x: 900, y: 900 });
+    const untouched = createSticky(doc, { x: 1000, y: 1000 });
+    // A second arrow, tied to shapes nobody is deleting.
+    const other = createConnector(doc, { from: { kind: 'attached', objectId: untouched }, to: { kind: 'attached', objectId: b } }, 'ana');
+    if (!other) throw new Error('the fixture could not draw a second arrow');
+    const before = endOf(doc, other, 'to');
+
+    // One of the two ids carries an arrow, the other does not.
+    expect(deleteObjects(doc, [spare, a])).toBe(2);
+    expect((endOf(doc, arrow, 'from') as Y.Map<unknown>).get('kind')).toBe('free');
+    // The arrow that never referred to a deleted object is byte for byte what it was.
+    expect(endOf(doc, other, 'to')).toBe(before);
+    expect((endOf(doc, other, 'to') as Y.Map<unknown>).get('kind')).toBe('attached');
+    expect(boardObjects(doc).some((object) => object.id === a)).toBe(false);
+    expect(boardObjects(doc).some((object) => object.id === b)).toBe(true);
+  });
+
+  it('TC-14: detaching twice is not a second change', () => {
+    const { doc, a, arrow } = boardWithArrow();
+    deleteObjects(doc, [a]);
+    let updates = 0;
+    doc.on('update', () => {
+      updates += 1;
+    });
+    expect(detachConnectorsTo(doc, [a])).toBe(0);
+    // And a delete of an object that is already gone writes nothing either.
+    expect(deleteObjects(doc, [a])).toBe(0);
+    expect(updates).toBe(0);
+    expect((endOf(doc, arrow, 'from') as Y.Map<unknown>).get('x')).toBe(100);
+  });
+
+  it('TC-14: a single-object delete frees the end too, because the toolbar bin uses it', () => {
+    const { doc, b, arrow } = boardWithArrow();
+    expect(deleteObject(doc, b)).toBe(true);
+    expect((endOf(doc, arrow, 'to') as Y.Map<unknown>).get('kind')).toBe('free');
+    expect((endOf(doc, arrow, 'to') as Y.Map<unknown>).get('y')).toBe(50);
+  });
+
+  it('the connector box in the snapshot is derived from its ends, notes and shapes included', () => {
+    const doc = new Y.Doc();
+    initDoc(doc);
+    const note = createSticky(doc, { x: 0, y: 0 });
+    const shape = createShape(doc, { kind: 'diamond', rect: { x: 400, y: 300, width: 200, height: 200 }, at: { x: 400, y: 300 } }, 'ana');
+    if (!shape) throw new Error('the fixture could not draw a shape');
+    const arrow = createConnector(doc, { from: { kind: 'attached', objectId: note }, to: { kind: 'attached', objectId: shape } }, 'ana');
+    if (!arrow) throw new Error('the fixture could not draw an arrow');
+
+    const objects = boardObjects(doc);
+    const connector = objects.find((object) => object.id === arrow);
+    if (!connector) throw new Error('an arrow this build can draw is missing from the snapshot');
+    // The note spans -100..100, so its end leaves from its right side at (100,0); the shape
+    // spans 400..600 and 300..500, and its end leaves from its left side at (400,400).
+    expect({ x: connector.x, y: connector.y, width: connector.width, height: connector.height }).toEqual({
+      x: 100,
+      y: 0,
+      width: 300,
+      height: 400
+    });
+    // `snapshot()` is the sticky-note view: an arrow is not a note, and a shape is not either.
+    expect(snapshot(doc).map((note2) => note2.id)).toEqual([note]);
+    expect(objects.some((object) => object.id === shape)).toBe(true);
   });
 });

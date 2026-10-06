@@ -1380,3 +1380,150 @@ re-typing every spec that trusts it.
   `Sticky note (N)`, `Text (T)`, with Text disabled when the board cannot be written); the size
   buttons carry `aria-pressed`; the editor has an `aria-label`; a text element is `role="group"`
   labelled "Text", so a screen reader hears an object rather than floating words.
+
+## A second type in the document is read in two passes, not in one big `if`
+
+`boardObjects` now walks `objects` twice. The first pass reads the fields every type shares and
+collects the rectangles; the second hands each object to the reader its type registered, along with
+a `SnapshotContext` holding those rectangles, because a connector's box is not its own — it is the
+two shapes its ends are tied to. A connector that read the board for itself per end would be a
+reader that re-read the whole document per arrow.
+
+`connector.ts` is not imported by `board-model.ts`, deliberately: the model would then import a
+type that imports the model. Instead the connector type registers a cleanup callback,
+`onObjectsDeleted(detachConnectorsTo)`, when it registers, and `deleteObjects` calls whatever is
+registered. Adding a type cannot touch another type's deletion path, which is the same argument the
+registry makes about drawing.
+
+## An arrow's stored box is four zeroes
+
+A connector stores `x`, `y`, `width` and `height` as `0` and its snapshot's box is derived from the
+endpoints it resolves to. Storing a box and also deriving one invites the two to disagree, and
+there is no moment at which the stored one could be right: the arrow is exactly the line between two
+things that other people can move. So `ConnectorEnds` (what is stored: attached to an id, or a free
+point) and `ConnectorPoints` (what the snapshot resolves them to, plus the facing sides) are two
+types, named differently, so a function cannot be handed the one and read it as the other.
+
+Colours are palette *names*, for shapes as for notes. A hex string in the document would be a colour
+the palette cannot offer, and a second visitor's swatch row could not be made to agree with it.
+
+## The tool that draws is a surface over the board, not a behaviour in every object
+
+While the Shape or Connector tool is held, pressing the middle of a note draws a shape instead of
+moving it (`shape.create_drag`, TC-28). That is stated twice on purpose: the stylesheet makes the
+world's children inert, and `useTransformGesture` refuses the press when `toolOwnsPointer`. The
+stylesheet is what makes the cursor behave and what stops a hover; the ref check is what makes the
+rule true in jsdom, where no stylesheet applies. A tool that created is an overlay (`position:
+fixed; inset: 0`), so every point on the screen is a place to draw, including a point over something
+already drawn.
+
+The dashed preview and the shape that arrives are both computed by `shapeRectFromDrag` /
+`shapeRequestFromDrag`, so the box the tool promises cannot be a different box from the one it
+stores. The preview carries `data-vidi6="shape-preview-outline"` and `data-kind` on each drawn
+element, which is what TC-15 and TC-23 measure instead of trusting the model to agree with itself.
+
+## Where the pointer lands is a rule shared by the pen and by an end handle
+
+`attachTargets.ts` holds `CONNECTOR_TARGET_TYPES`, `isAttachTarget` and `attachTargetAt` (topmost by
+z-order). The Connector tool's hover dots and an end handle being dragged are the same question —
+what would this point attach to — asked twice, and a rule stated twice is two rules the moment
+somebody edits one of them.
+
+## `position: absolute` is load-bearing, and no component test can see it
+
+Arrows were drawn at the world's origin. `.vidi6-connector` had been given `pointer-events: none`
+and an SVG child, but not a position, so every arrow's box sat at (0,0) in world space regardless of
+where its ends were tied. jsdom cannot catch this: it has no CSS camera, so "placed by its box" and
+"not placed at all" look identical there, and every component test passed.
+
+What catches it is a comparison in the browser between the box the browser painted and the ends the
+board resolved, mapped through that screen's camera — which is why `arrowBoxOnScreen` replaced
+`arrowEndsOnScreen`. The old helper took the model's endpoints, mapped them to the screen with the
+camera, and compared them to the model's endpoints mapped to the screen with the camera: it passed
+whatever the stylesheet did. Reading the element's `boundingBox()` is the only version of this that
+can be wrong, and it was.
+
+## Seeding a board of shapes through `seedBoard` waits forever
+
+`seedBoard`/`readBoard` count *notes*, because they read `snapshot()`, which is the sticky-note view
+the earlier stories needed. A shape seeded through them was there in the document and invisible to
+the check, which then timed out. `seedAllObjects`/`readAllObjects` count every object through
+`boardObjects()`, and say so in their names.
+
+## The delete-and-draw race is arranged on the wire
+
+TC-27 needs one person to delete a shape at the same moment as another draws an arrow to it. The
+clock cannot be squeezed that finely and a test that hopes for an interleaving is not a test. So
+Sam's *outgoing* frames are held: `context.routeWebSocket` wraps her socket, `hold()` queues what
+she sends while her local delete happens, Dana draws her arrow to a shape that still exists on the
+server, and `release()` lets Sam's delete through. Both boards end with an arrow tied to an object
+that is not there, drawn at its fallback anchor, and neither throws. `openSession` grew a
+`beforeOpen(context, name)` for exactly this: the gate has to exist before the page does, because
+the frames that matter are the first ones.
+
+## A board tells React about other people's changes once a frame
+
+`live-collaboration` TC-26 — eight people typing into a full board — began failing about one run in
+four with "maximum update depth exceeded", thrown out of the document's observer and reported by
+y-protocols as "Caught error while handling a Yjs update". It passed six runs of the same file at
+93e713d, before this story, and it is a regression: the story's additions to every render pass are
+what tipped it.
+
+The mechanism was worth finding properly rather than retrying until it went green. The observer
+recomputed the snapshot and called React per transaction. Measurements from an instrumented build:
+65 document changes a second caused 250 `Board` renders and 3250 note renders a second, because a
+board of twenty-five notes repaints entirely for a change to one of them. A render takes a few
+milliseconds; a remote change lands inside it; React discards the pass and starts a synchronous one,
+and the next change is already waiting. React counts those nested updates, gives up after fifty, and
+takes the page with it — which is also how it took the neighbouring test down.
+
+Remote changes are now delivered once per animation frame and coalesced, from outside React's own
+work. The document is still re-read per transaction, so `getObjects()` — and every test that asks the
+document rather than the screen — is answered immediately; only the telling waits, and one frame's
+worth of changes is one render. A visitor's own change is delivered on the spot: it came from their
+gesture, React is not mid-render in front of it, and a test that types and looks expects to see it.
+Afterwards: 60-90 renders a second, and eight runs of `--repeat-each=4` on that file clean.
+
+The underlying cost is untouched and is the thing to do next: the whole board repaints for one
+keystroke, because `boardObjects` rebuilds every snapshot object each time, so a `React.memo` on an
+object component would compare four new props against four older ones and find them different.
+Reusing the previous snapshot object when nothing in it changed is what would make the repaint
+proportional to what moved.
+
+## What a full e2e run still costs, and what was already broken
+
+`free-text` TC-29 (two people typing into one text) fails in roughly one full-suite run in three:
+the double-click that opens the editor sometimes finds nothing. It reproduces at 93e713d, with this
+story's code absent, so it is not a story 10 regression and it is left alone here — but it is not
+nothing, and it is the same shape as the problem above: a page under load that React is still
+catching up with.
+
+## Test notes (story 10)
+
+- Unit: `tests/unit/shape-model.test.ts` (TC-01..TC-06) against a real `Y.Doc` — create by drag, by
+  click at the standard size, Shift for a square, the 500-character label clamp, style validation by
+  palette name — and `tests/unit/connector-geometry.test.ts` (TC-07..TC-14, TC-29) on the pure
+  geometry: which sides face, the switch at the diagonal, a free end staying where it was, and an end
+  whose object is gone falling back to the anchor it remembered.
+- Component: `ShapeTool.test.tsx` (TC-15 preview equals result, TC-16 clamp, TC-17 style),
+  `ShapeToolbar`/`ShapeObject` coverage in the same file, `Connector.test.tsx` (TC-18 hover dots,
+  TC-19 create-and-release, TC-20 hit by screen distance at 50% and 200%, TC-21 re-attach onto a
+  third shape, into empty space, and the refusal onto the object at the other end),
+  `useActiveTool.test.tsx` (TC-22 and the return-to-Select promise) and TC-28 in `ShapeTool.test.tsx`
+  — press on a note and on a shape with the tool held, and neither moves.
+- E2E: `tests/e2e/shapes-and-connectors.spec.ts` (TC-23..TC-27). TC-23 and TC-24 measure the browser:
+  screen pixels against board units at two zooms, a label that wraps past one-and-a-half line heights,
+  a label still centred within two pixels after a corner resize. TC-25 is the two-person follow, and
+  its last assertion is Dana zoomed to 200% on the new arrangement — a screen that had merely kept its
+  old picture would be wrong there. TC-26 deletes the shape at an end and then drags that free end
+  with the end handle, which is also the test that an arrow's box is inert to the pointer while its
+  stroke and its handle are not. TC-27 holds one person's wire to make the race happen rather than
+  hoping for it.
+- Editing a shape's label is the note's editor: `testId="shape-input"` is what the harness looks for,
+  and Escape — dispatched on the editor element — is what ends editing, because blur only writes.
+  `fireKey('Escape', { target: editor })` is the shape of that in a component test.
+- Accessibility: the two new palette buttons carry `aria-label` and `aria-pressed` (`Shape (S)`,
+  `Connector (L)`), both refused on a board that cannot be written; the kind menu is a `role="menu"`
+  of option buttons with `aria-pressed`; a shape is a `role="group"` named by its label, falling back
+  to "<kind> shape" when it has none, and so is an arrow (named "Connector"), which is a thing with
+  ends rather than a run of text.

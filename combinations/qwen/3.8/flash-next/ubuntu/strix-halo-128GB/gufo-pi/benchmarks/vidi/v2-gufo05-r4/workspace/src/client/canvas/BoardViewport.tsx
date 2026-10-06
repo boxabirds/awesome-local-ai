@@ -79,6 +79,14 @@ export interface BoardViewportProps {
    * space does nothing at all, rather than making a note that cannot be saved.
    */
   canCreateSticky?: boolean;
+  /**
+   * Which tool the pointer is holding, reported on the viewport (`tools.active_tool`).
+   *
+   * The viewport does not act on it beyond `textTool` above — the tools that need a surface
+   * of their own render it — but what the pointer means has to be readable from the screen
+   * for the tests that assert a key press picked a tool up. Defaults to `select`.
+   */
+  activeTool?: string;
 }
 
 /** WheelEvent.deltaMode values. */
@@ -360,7 +368,7 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
       ref={viewportRef}
       data-vidi6="viewport"
       data-interaction={panning ? 'panning' : 'idle'}
-      data-tool={props.textTool ? 'text' : 'select'}
+      data-tool={props.activeTool ?? (props.textTool ? 'text' : 'select')}
       style={viewportStyle}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

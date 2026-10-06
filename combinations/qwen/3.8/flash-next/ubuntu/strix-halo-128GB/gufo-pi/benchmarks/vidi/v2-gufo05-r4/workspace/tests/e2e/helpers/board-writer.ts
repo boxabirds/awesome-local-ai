@@ -18,7 +18,7 @@ import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../../src/shared/board-model';
+import { boardObjects, initDoc, snapshot, type ObjectSnapshot, type StickySnapshot } from '../../../src/shared/board-model';
 import { MESSAGE_SYNC, decodeMessage, frameBytes } from '../../../src/shared/protocol';
 
 /** The room endpoint for a board, as a `ws://` URL next to a dev server's origin. */
@@ -174,5 +174,54 @@ export async function readBoard(origin: string, boardId: string): Promise<readon
     return snapshot(doc);
   } finally {
     reader.close();
+  }
+}
+
+
+/**
+ * The same board, counted the way the objects list counts it: every object, not only the notes.
+ * A board of shapes and arrows has nothing for `readBoard` to find, and a test that waited on
+ * that count would wait forever.
+ */
+export async function readAllObjects(origin: string, boardId: string): Promise<ObjectSnapshot[]> {
+  const doc = new Y.Doc();
+  initDoc(doc);
+  const reader = await BoardConnection.join(boardId, origin, doc);
+  try {
+    await reader.waitForSync();
+    await sleep(100);
+    return boardObjects(doc);
+  } finally {
+    doc.destroy();
+    reader.close();
+  }
+}
+
+/**
+ * `seedBoard` for the things story 10 draws: shapes and arrows as well as notes. What confirms
+ * the write is a count of *objects*; `seedBoard` confirms a count of notes, and a board of only
+ * shapes has none of those.
+ */
+export async function seedAllObjects(
+  origin: string,
+  boardId: string,
+  fill: (doc: Y.Doc) => void,
+  expectedObjects: number
+): Promise<void> {
+  const doc = new Y.Doc();
+  initDoc(doc);
+  fill(doc);
+  const writer = await BoardConnection.join(boardId, origin, doc);
+  await sleep(300);
+  writer.close();
+
+  const deadline = Date.now() + 60_000;
+  for (;;) {
+    const held = await readAllObjects(origin, boardId);
+    if (held.length >= expectedObjects) return;
+    if (Date.now() > deadline) {
+      throw new Error(`the board holds ${held.length} of ${expectedObjects} seeded objects`);
+    }
+    await sleep(250);
   }
 }

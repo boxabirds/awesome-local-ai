@@ -18,6 +18,8 @@
  *          plus whatever the type itself keeps, read by that type's own reader:
  *            color: StickyColor, text: Y.Text                                        (sticky)
  *            size: 'S'|'M'|'L'|'XL', widthMode: 'auto'|'fixed', text: Y.Text         (text)
+ *            kind, fill, stroke, label: Y.Text                                       (shape)
+ *            from, to: end Y.Map { attached to an id, or a point on the board }      (connector)
  *
  * Rules that every mutation follows:
  *  - invalid input (stale id, unknown colour, non-finite coordinate) returns
@@ -195,7 +197,26 @@ const declaredTypes = new Set<string>([STICKY_OBJECT_TYPE]);
  * Returning `null` means "this is not a readable object of that type", which leaves
  * it out of every snapshot rather than half-drawn.
  */
-export type ObjectSnapshotReader = (object: ObjMap, common: ObjectSnapshot) => ObjectSnapshot | null;
+export type ObjectSnapshotReader = (
+  object: ObjMap,
+  common: ObjectSnapshot,
+  context?: SnapshotContext
+) => ObjectSnapshot | null;
+
+/**
+ * What the rest of the board looks like while a snapshot is being read: where every
+ * object is, by id.
+ *
+ * Most types need none of it — a note is a box, and it knows where its box is. A type
+ * whose bounds come from *other* objects needs them, which is the case for an arrow
+ * (`connector.model`): it stores the two objects it is tied to, so the line it occupies
+ * is only known once the shapes it points at are known too. Passing the map in rather
+ * than letting the reader walk the document keeps one walk per snapshot and keeps the
+ * reader a pure function of the document it was handed.
+ */
+export interface SnapshotContext {
+  readonly rects: ReadonlyMap<string, Rect>;
+}
 
 const objectReaders = new Map<string, ObjectSnapshotReader>();
 
@@ -393,6 +414,24 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 }
 
 /**
+ * Something to do the moment objects are deleted, before the transaction closes.
+ *
+ * An object of one type can refer to an object of another, and a delete must not leave the
+ * reference dangling for anyone to see: an arrow tied to a shape that is going (`connector.model`)
+ * has its end rewritten inside the same transaction, so there is never a state — not even a
+ * transient one, not even for a client that syncs mid-drag — where an arrow points at nothing.
+ * A type registers its hook when it is imported, the same way it declares itself readable.
+ */
+export type ObjectDeleteHook = (doc: Y.Doc, ids: readonly string[]) => void;
+
+const deleteHooks: ObjectDeleteHook[] = [];
+
+/** Say that deleting objects must also do this. See `ObjectDeleteHook`. */
+export function onObjectsDeleted(hook: ObjectDeleteHook): void {
+  if (typeof hook === 'function') deleteHooks.push(hook);
+}
+
+/**
  * Remove every object named (`sel.group_delete`). Ids that are already gone are
  * skipped, so a delete raced by a colleague who got there first is simply a smaller
  * change rather than an error.
@@ -401,6 +440,10 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = presentIds(doc, ids ?? []);
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Whoever referred to these objects is told first, while every object can still be
+    // measured: a rewrite that has to guess where the thing it referred to was would be a
+    // visible jump.
+    for (const hook of deleteHooks) hook(doc, present);
     const objects = objectsOf(doc);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
@@ -423,14 +466,20 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
  * rather than a half-read object, which is what keeps an unknown object out of every
  * list, selection and bounding box.
  */
-function readObject(id: string, object: ObjMap): ObjectSnapshot | StickySnapshot | null {
+/**
+ * The parts every object has, or `null` when this build cannot draw this object at all.
+ *
+ * Split out of `readObject` because the position of one object can depend on the position of
+ * another, and that is only knowable once every object has been looked at once.
+ */
+function readCommon(id: string, object: ObjMap): ObjectSnapshot | null {
   const type = object.get('type');
   if (typeof type !== 'string' || !isDeclaredObjectType(type)) return null;
   // Story 7: a note made before this story carries no size at all and is left without
   // the fields, so `objectBounds` can tell "never sized" from "sized to exactly 200".
   const width = isFiniteNumber(object.get('width')) ? (object.get('width') as number) : undefined;
   const height = isFiniteNumber(object.get('height')) ? (object.get('height') as number) : undefined;
-  const common: ObjectSnapshot = {
+  return {
     id,
     type,
     x: isFiniteNumber(object.get('x')) ? (object.get('x') as number) : 0,
@@ -439,10 +488,18 @@ function readObject(id: string, object: ObjMap): ObjectSnapshot | StickySnapshot
     ...(width !== undefined ? { width } : {}),
     ...(height !== undefined ? { height } : {})
   };
+}
+
+function readObject(
+  object: ObjMap,
+  common: ObjectSnapshot,
+  context: SnapshotContext
+): ObjectSnapshot | StickySnapshot | null {
+  const type = common.type;
   // A type that owns its own reader uses it; a declared type without one is drawn
   // from the common fields alone.
   const reader = objectReaders.get(type);
-  if (reader) return reader(object, common);
+  if (reader) return reader(object, common, context);
   if (type !== STICKY_OBJECT_TYPE) return common;
 
   const color = object.get('color');
@@ -462,14 +519,39 @@ function readObject(id: string, object: ObjMap): ObjectSnapshot | StickySnapshot
  * ties so two clients that sync equal `z` values still render the same order.
  */
 export function boardObjects(doc: Y.Doc): ObjectSnapshot[] {
-  const objects: ObjectSnapshot[] = [];
+  // Two passes, and only because a type can take its bounds from other objects: read what
+  // every object says about where it is, then read the objects themselves with the whole
+  // board to hand.
+  const entries: Array<{ object: ObjMap; common: ObjectSnapshot }> = [];
   for (const [id, object] of objectsOf(doc)) {
     if (!(object instanceof Y.Map)) continue;
-    const read = readObject(id, object as ObjMap);
+    const common = readCommon(id, object as ObjMap);
+    if (common) entries.push({ object: object as ObjMap, common });
+  }
+  const rects = new Map<string, Rect>();
+  for (const entry of entries) rects.set(entry.common.id, objectBounds(entry.common));
+  const context: SnapshotContext = { rects };
+
+  const objects: ObjectSnapshot[] = [];
+  for (const entry of entries) {
+    const read = readObject(entry.object, entry.common, context);
     if (read) objects.push(read);
   }
   objects.sort((a, b) => (a.z === b.z ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.z - b.z));
   return objects;
+}
+
+/**
+ * Where every object this build can draw is, by id — the same map a snapshot reader is
+ * handed, for the code that is not reading a snapshot and still has to know where things are.
+ *
+ * An arrow asks this question of the board to work out the anchor its end should hold, and the
+ * screen asks it to draw the line between two shapes it does not own.
+ */
+export function objectRects(doc: Y.Doc): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const object of boardObjects(doc)) rects.set(object.id, objectBounds(object));
+  return rects;
 }
 
 /**

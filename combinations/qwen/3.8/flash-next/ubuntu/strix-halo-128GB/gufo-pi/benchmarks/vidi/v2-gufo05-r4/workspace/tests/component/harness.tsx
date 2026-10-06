@@ -303,6 +303,11 @@ export function stickyEditor(root: HTMLElement): HTMLTextAreaElement | null {
   return root.querySelector<HTMLTextAreaElement>('[data-testid="sticky-input"]');
 }
 
+/** The Shape label editor, when a label is open (story 10). */
+export function shapeEditor(root: HTMLElement): HTMLTextAreaElement | null {
+  return root.querySelector<HTMLTextAreaElement>('[data-testid="shape-input"]');
+}
+
 /** The floating toolbar of a note, or null when it is not shown. */
 export function noteToolbar(note: HTMLElement): HTMLElement | null {
   return note.querySelector<HTMLElement>('[data-vidi6="note-toolbar"]');

@@ -148,7 +148,15 @@ export async function openBoardAt(page: Page, boardId: string, origin = ''): Pro
 export async function openSession(
   browser: Browser,
   names: string[],
-  options: { origin?: string } = {}
+  options: {
+    origin?: string;
+    /**
+     * Do something to a person's context before their page exists — for the one case that has
+     * to be true of the *wire* from the first frame, such as stopping one person's outgoing
+     * messages so two people's changes can be made to overlap on purpose.
+     */
+    beforeOpen?: (context: BrowserContext, name: string) => Promise<void>;
+  } = {}
 ): Promise<Session> {
   // Created first, through the API: a page that arrived at an address nobody had made would
   // correctly be told Board not found, and would spend the rest of the test waiting for a
@@ -160,6 +168,7 @@ export async function openSession(
     // A context of its own: no shared storage, no shared sockets, and no
     // BroadcastChannel even if the app had one.
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    if (options.beforeOpen) await options.beforeOpen(context, name);
     const page = await context.newPage();
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));

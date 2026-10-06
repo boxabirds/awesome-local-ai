@@ -11,8 +11,9 @@
  *  - `useTransformGesture` moves and resizes them, in absolute writes from where the
  *    gesture began;
  *  - `useBoardKeys` is Select all, Escape, the arrow nudge, group delete and Enter-to-edit;
- *  - `useTool` holds which tool the pointer is using — Select, or the Text tool that turns
- *    the next click into a piece of text (`text.tool`);
+ *  - `useActiveTool` holds which tool the pointer is using — Select, the Text tool that turns
+ *    the next click into a piece of text (`text.tool`), and from story 10 the Shape and
+ *    Connector tools that turn the next drag into a shape or an arrow (`tools.active_tool`);
  *  - `SelectionOverlay` and `SelectionBar` say where the selection is and what can be done
  *    to it.
  *
@@ -41,7 +42,9 @@ import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection, type SelectionControls } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
-import { useTool } from '../board/useTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { useActiveTool } from '../tools/useActiveTool';
 import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
@@ -112,12 +115,17 @@ function Board(props: BoardScreenProps): JSX.Element {
   const selectionRef = useRef<SelectionControls>(selection);
   selectionRef.current = selection;
 
-  // Which tool the pointer is holding (story 9, `text.tool`). Local state, on purpose:
-  // nobody else needs to know that you are holding the Text tool, and a refresh puts the
-  // pointer back to Select.
-  const { tool, setTool } = useTool(editable);
+  // Which tool the pointer is holding (story 9's `text.tool`, story 10's `tools.active_tool`).
+  // Local state, on purpose: nobody else needs to know that you are holding the Shape tool,
+  // and a refresh puts the pointer back to Select. Whatever a tool creates is handed to the
+  // selection, which is the whole of its return-to-Select promise.
+  const selectCreated = useCallback((id: string) => selectionRef.current.click(id), []);
+  const activeTool = useActiveTool({ canUseTools: editable, onSelect: selectCreated });
+  const { tool, setTool } = activeTool;
   const selectTool = useCallback(() => setTool('select'), [setTool]);
   const chooseTextTool = useCallback(() => setTool('text'), [setTool]);
+  const chooseShapeTool = useCallback(() => setTool('shape'), [setTool]);
+  const chooseConnectorTool = useCallback(() => setTool('connector'), [setTool]);
 
   const gesture = useTransformGesture({
     doc,
@@ -125,6 +133,9 @@ function Board(props: BoardScreenProps): JSX.Element {
     selection,
     snapshot: objects,
     canEdit: editable,
+    // While a tool that draws is held, pressing an object draws instead of moving it
+    // (`tools.paint_overlay`, TC-28).
+    toolOwnsPointer: tool === 'shape' || tool === 'connector',
     onGestureStart: beginGestureStep,
     onGestureEnd: endGestureStep
   });
@@ -198,6 +209,8 @@ function Board(props: BoardScreenProps): JSX.Element {
     undo: undoController,
     onSelectTool: selectTool,
     onTextTool: chooseTextTool,
+    onShapeTool: chooseShapeTool,
+    onConnectorTool: chooseConnectorTool,
     onCreateSticky: createAtScreenCentre
   });
 
@@ -225,6 +238,7 @@ function Board(props: BoardScreenProps): JSX.Element {
         onStickyCreated={startEdit}
         onEmptyClick={clear}
         textTool={tool === 'text'}
+        activeTool={tool}
         onTextPlace={placeText}
         onMarqueeStart={marquee.begin}
         onMarqueeMove={marquee.move}
@@ -242,6 +256,7 @@ function Board(props: BoardScreenProps): JSX.Element {
               bounds={objectBounds(object)}
               doc={doc}
               zoom={camera.zoom}
+              camera={camera}
               selected={selection.ids.has(object.id)}
               selectedCount={selection.ids.size}
               editing={selection.editingId === object.id}
@@ -272,11 +287,36 @@ function Board(props: BoardScreenProps): JSX.Element {
       />
       <MarqueeRect rect={marquee.rect} camera={camera} />
 
+      {/* A tool that creates covers the board while it is held, so every point is a place to
+          draw — including one over an object already there (`shape.create_drag`, TC-28). */}
+      {tool === 'shape' ? (
+        <ShapeTool
+          doc={doc}
+          kind={activeTool.shapeKind}
+          camera={camera}
+          canEdit={editable}
+          onCreated={activeTool.toolCreated}
+        />
+      ) : null}
+      {tool === 'connector' ? (
+        <ConnectorTool
+          doc={doc}
+          camera={camera}
+          snapshot={objects}
+          canEdit={editable}
+          onCreated={activeTool.toolCreated}
+        />
+      ) : null}
+
       <Toolbar
         onCreateSticky={createAtScreenCentre}
         tool={tool}
         onSelectTool={selectTool}
         onTextTool={chooseTextTool}
+        onShapeTool={chooseShapeTool}
+        onConnectorTool={chooseConnectorTool}
+        shapeKind={activeTool.shapeKind}
+        onShapeKind={activeTool.setShapeKind}
         disabled={!editable}
         undo={undoActions}
       />

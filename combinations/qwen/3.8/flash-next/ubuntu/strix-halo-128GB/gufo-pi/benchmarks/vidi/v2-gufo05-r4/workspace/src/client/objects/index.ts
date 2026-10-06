@@ -11,8 +11,17 @@
  */
 
 import { STICKY_OBJECT_TYPE } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  CONNECTOR_MIN_LENGTH_WORLD,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD
+} from '../../shared/config';
+import { CONNECTOR_OBJECT_TYPE } from '../../shared/objects/connector';
+import { SHAPE_OBJECT_TYPE } from '../../shared/objects/shape';
 import { TEXT_OBJECT_TYPE } from '../../shared/objects/text';
+import { ConnectorObject, connectorHitTest } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { hitTestBounds, registerObjectType, registeredTypes } from './registry';
@@ -36,6 +45,28 @@ export function registerObjectTypes(): void {
   // Free text (story 9): resizable in width only. Its height is the lines its words wrap
   // into, so the selection offers its two side handles and not the other six, and its
   // smallest width is the smallest width a line of words can be given.
+  // Shapes (story 10): resizable in every direction, and never smaller than the smallest box a
+  // label can be read inside (`shape.style`, `sel.size_limits`). Its label is text the visitor
+  // can type, so Enter and double-click edit it like a note's (`shape.label`).
+  registerObjectType(SHAPE_OBJECT_TYPE, {
+    Component: ShapeObject,
+    resizable: true,
+    aspectLocked: false,
+    minSize: SHAPE_MIN_SIZE_WORLD,
+    editableText: true,
+    hitTest: hitTestBounds
+  });
+  // Connectors (story 10): an arrow is not a box, so it is the one type that cannot be resized
+  // (`connector.reattach` moves its ends instead) and the one type that answers a click for
+  // itself: near its line, in screen pixels, whatever the zoom (`connector.select`).
+  registerObjectType(CONNECTOR_OBJECT_TYPE, {
+    Component: ConnectorObject,
+    resizable: false,
+    aspectLocked: false,
+    minSize: CONNECTOR_MIN_LENGTH_WORLD,
+    editableText: false,
+    hitTest: connectorHitTest
+  });
   registerObjectType(TEXT_OBJECT_TYPE, {
     Component: TextObject,
     resizable: true,

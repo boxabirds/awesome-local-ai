@@ -74,6 +74,16 @@ export interface TransformGestureOptions {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   /**
+   * True while a tool that *draws* is held (Shape, Connector). Then the tool owns the pointer
+   * and pressing an object or a handle starts nothing here: a drag from an object draws the
+   * tool's shape instead of moving that object (`tools.paint_overlay`, TC-28).
+   *
+   * In a browser the tool's surface is also above the objects, so the press never reaches them;
+   * this is the same rule stated where the code can see it, which is what makes it a rule rather
+   * than a side effect of the stylesheet.
+   */
+  toolOwnsPointer?: boolean;
+  /**
    * Called once when a gesture starts moving and once when it finishes. Story 8 wraps
    * what happens between them in a single undo step, which is why they are here rather
    * than inside the document writes.
@@ -341,6 +351,8 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
       // An object owns its own pointer events: the board must never pan under a drag.
       event.stopPropagation();
       if (event.button !== 0) return;
+      // ...unless a tool that draws is held, in which case this press belongs to that tool.
+      if (latest.current.toolOwnsPointer) return;
       const { selection } = latest.current;
       if (selection.editingId === id) return; // placing the caret is not a press on the object
 
@@ -362,6 +374,7 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
     (event: PointerLike, handle: Handle): void => {
       event.stopPropagation();
       if (event.button !== 0) return;
+      if (latest.current.toolOwnsPointer) return;
       const { selection, snapshot } = latest.current;
       const ids = [...selection.ids];
       const types = snapshot.filter((object) => selection.ids.has(object.id)).map((object) => object.type);

@@ -79,6 +79,23 @@ body {
   pointer-events: none;
 }
 
+/* Story 10's drawing tools own every point on the board the same way (`tools.paint_overlay`):
+   a crosshair, and the objects underneath stop answering for themselves so a drag from the
+   middle of a note draws a shape instead of moving it. The connector hovers for its targets by
+   asking where things are, not by being told a pointer arrived, so switching the objects off
+   costs it nothing. */
+.vidi6-viewport[data-tool='shape'],
+.vidi6-viewport[data-tool='connector'] {
+  cursor: crosshair;
+}
+
+.vidi6-viewport[data-tool='shape'] .vidi6-world,
+.vidi6-viewport[data-tool='shape'] .vidi6-world > *,
+.vidi6-viewport[data-tool='connector'] .vidi6-world,
+.vidi6-viewport[data-tool='connector'] .vidi6-world > * {
+  pointer-events: none;
+}
+
 /* Board content lives in world coordinates; the CSS transform places it. */
 .vidi6-world {
   position: absolute;
@@ -912,4 +929,266 @@ body {
   color: #a7aebc;
   cursor: default;
   background: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Shapes and connectors (story 10)
+   --------------------------------------------------------------------------- */
+
+/* The drawing tools' surface: the whole board, above the world and below the palettes, so a
+   press anywhere belongs to the tool and a press on the toolbar still belongs to the toolbar
+   (`tools.paint_overlay`). */
+.vidi6-shape-tool,
+.vidi6-connector-tool {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* The dashed outline of what the drag is making. Screen space, like the selection: it is a
+   promise about the pointer, not a thing on the board. */
+.vidi6-shape-preview,
+.vidi6-connector-preview {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.vidi6-shape-preview > * {
+  fill: none;
+  stroke: var(--note-selection);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.vidi6-connector-preview path {
+  fill: none;
+  stroke: var(--note-selection);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+/* A shape: the box, with the drawing inside it and the label centred over the drawing. */
+.vidi6-shape {
+  position: absolute;
+  color: var(--ink);
+  cursor: default;
+}
+
+.vidi6-shape-svg {
+  display: block;
+  overflow: visible;
+}
+
+.vidi6-shape-label,
+.vidi6-shape-edit {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+}
+
+.vidi6-shape-input {
+  text-align: center;
+}
+
+/* The shape's own toolbar, above the shape and centred on it, counter-scaled by 1 / zoom so it
+   stays a constant size on screen whatever the zoom (`shape.style`). */
+.vidi6-shape-toolbar-anchor {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  transform-origin: 50% 100%;
+  z-index: 1;
+}
+
+.vidi6-shape-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+  padding: 0 4px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+}
+
+.vidi6-shape-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgba(22, 24, 29, 0.25);
+  border-radius: 5px;
+  background: var(--vidi6-swatch, transparent);
+  cursor: pointer;
+}
+
+/* An outline swatch is a ring of the colour around a hollow middle, because it is an outline
+   and not a fill and the two sit next to each other. */
+.vidi6-shape-swatch--outline {
+  border-radius: 50%;
+  border: 3px solid var(--vidi6-swatch, currentColor);
+  background: transparent;
+}
+
+.vidi6-shape-swatch[aria-pressed='true'] {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.vidi6-shape-swatch:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.vidi6-shape-toolbar-separator {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--panel-border);
+}
+
+/* The Shape tool's button and its kind menu share a column, so the palette reads as one tool
+   with a choice attached to it (`shape.kinds`). */
+.vidi6-tool-split {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.vidi6-tool--caret {
+  width: 32px;
+  height: 14px;
+}
+
+.vidi6-kind-menu {
+  position: absolute;
+  left: calc(100% + 6px);
+  bottom: -4px;
+  display: flex;
+  flex-direction: column;
+  min-width: 132px;
+  padding: 4px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+  z-index: 2;
+}
+
+.vidi6-kind {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vidi6-kind:hover {
+  background: #f1f3f7;
+}
+
+.vidi6-kind[aria-checked='true'] {
+  background: #e8eefc;
+  border-color: var(--note-selection);
+  color: #1b4bb8;
+}
+
+/* An arrow. Like every other object it is placed by its box, in board coordinates, and the CSS
+   camera puts that box on the screen.
+
+   Its box is a frame around it, not a surface: the line is what you see, and the transparent
+   stroke beside it is what you click (`connector.select`) — so the box and the SVG are switched
+   off to the pointer, and only the stroke and the end handles are switched back on. */
+.vidi6-connector {
+  position: absolute;
+}
+
+.vidi6-connector,
+.vidi6-connector-svg {
+  pointer-events: none;
+}
+
+.vidi6-connector-svg {
+  display: block;
+  overflow: visible;
+}
+
+.vidi6-connector-line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-linecap: round;
+}
+
+.vidi6-connector-head {
+  fill: var(--ink);
+  stroke: none;
+}
+
+.vidi6-connector-hit {
+  pointer-events: stroke;
+}
+
+.vidi6-connector[data-selected='true'] .vidi6-connector-line {
+  stroke: var(--note-selection);
+}
+
+.vidi6-connector[data-selected='true'] .vidi6-connector-head {
+  fill: var(--note-selection);
+}
+
+/* A dragged end, and the four points an arrow can leave from: promises, so dashed and in the
+   colour of the selection rather than the colour of ink. */
+.vidi6-connector-reattach [data-role='line'] {
+  fill: none;
+  stroke: var(--note-selection);
+  stroke-dasharray: 4 3;
+}
+
+.vidi6-connector-reattach [data-role='head'] {
+  fill: var(--note-selection);
+}
+
+.vidi6-connector-end {
+  fill: var(--panel);
+  stroke: var(--note-selection);
+  stroke-width: 1.5;
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.vidi6-connector-dots {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.vidi6-connector-dot {
+  fill: var(--panel);
+  stroke: var(--note-selection);
+  stroke-width: 1.5;
+}
+
+.vidi6-connector-dot[data-highlighted='true'] {
+  fill: var(--note-selection);
 }

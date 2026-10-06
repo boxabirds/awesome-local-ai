@@ -15,6 +15,8 @@ import {
   type Size
 } from '../../../src/client/canvas/camera';
 import type { ObjectSnapshot, StickySnapshot } from '../../../src/shared/board-model';
+import type { ConnectorSnap } from '../../../src/shared/objects/connector';
+import type { ShapeSnap } from '../../../src/shared/objects/shape';
 import { UNBOUNDED_PAN_TESTED_EXTENT, ZOOM_MAX } from '../../../src/shared/config';
 
 export const BOARD_SIZE: Size = { width: 1280, height: 800 };
@@ -438,13 +440,13 @@ function round6(value: number): number {
  */
 
 /** One of the palette's tools, by name. */
-export function toolButton(page: Page, name: 'select' | 'sticky' | 'text'): Locator {
+export function toolButton(page: Page, name: 'select' | 'sticky' | 'text' | 'shape' | 'connector'): Locator {
   return page.locator(`[data-vidi6="tool-${name}"]`);
 }
 
 /** Which tool the palette says is lit, or null when none is. */
 export async function pressedTool(page: Page): Promise<string | null> {
-  for (const name of ['select', 'sticky', 'text'] as const) {
+  for (const name of ['select', 'sticky', 'text', 'shape', 'connector'] as const) {
     const pressed = await toolButton(page, name).getAttribute('aria-pressed');
     if (pressed === 'true') return name;
   }
@@ -521,4 +523,154 @@ export async function placeTextAt(page: Page, screen: Point): Promise<string> {
   );
   if (typeof id !== 'string' || id === '') throw new Error('the editor is not inside a text object');
   return id;
+}
+
+/**
+ * Story 10: shapes, and the arrows that follow what they are tied to.
+ *
+ * A shape and an arrow are both made by dragging a tool across the board, so the helpers do
+ * exactly that with a real mouse, and hand back the object that appeared. They find it by
+ * comparing what the document held before with what it holds after, rather than by counting:
+ * on a board two people are using, the count goes up for reasons this test did not cause.
+ */
+
+/** Every shape on screen, bottom to top. */
+export function shapeElements(page: Page): Locator {
+  return page.locator('[data-object-type="shape"]');
+}
+
+/** The shape with a given id. */
+export function shapeElement(page: Page, id: string): Locator {
+  return page.locator(`[data-vidi6="shape"][data-object-id="${id}"]`);
+}
+
+/** Every arrow on screen. */
+export function connectorElements(page: Page): Locator {
+  return page.locator('[data-vidi6="connector"]');
+}
+
+/** The one arrow with this id, as it is drawn. */
+export function connectorElement(page: Page, id: string): Locator {
+  return page.locator(`[data-vidi6="connector"][data-object-id="${id}"]`);
+}
+
+/** The side dots the Connector tool offers for the object under the pointer. */
+export function connectorDots(page: Page): Locator {
+  return page.locator('[data-vidi6="connector-dot"]');
+}
+
+/** The Connector tool's preview of the arrow being dragged. */
+export function connectorPreview(page: Page): Locator {
+  return page.locator('[data-testid="connector-preview"]');
+}
+
+/** One end handle of a selected arrow. */
+export function connectorEndHandle(page: Page, end: 'from' | 'to'): Locator {
+  return page.locator(`[data-vidi6="connector-end"][data-end="${end}"]`);
+}
+
+/** The kind of shape the Shape tool will draw. */
+export async function currentShapeKind(page: Page): Promise<string | null> {
+  return toolButton(page, 'shape').getAttribute('data-kind');
+}
+
+/** Choose which shape the Shape tool draws, and hold the tool. */
+export async function chooseShapeKind(page: Page, kind: 'rect' | 'ellipse' | 'diamond'): Promise<void> {
+  await toolButton(page, 'shape').click();
+  await shapeKindButton(page).click();
+  await page.locator(`[data-vidi6="shape-kind"][data-kind="${kind}"]`).click();
+  expect(await currentShapeKind(page)).toBe(kind);
+  expect(await toolMode(page)).toBe('shape');
+}
+
+function shapeKindButton(page: Page): Locator {
+  return page.locator('[data-vidi6="tool-shape-kind"]');
+}
+
+/** The one object of `type` that was not on the board a moment ago. */
+async function appeared<T extends ObjectSnapshot>(
+  page: Page,
+  type: string,
+  before: readonly string[]
+): Promise<T> {
+  await expect
+    .poll(async () => (await freshOf(page, type, before)).length, {
+      message: `exactly one new ${type} should appear`
+    })
+    .toBe(1);
+  const found = await freshOf(page, type, before);
+  if (found.length !== 1) throw new Error(`expected one new ${type}, found ${found.length}`);
+  return found[0] as T;
+}
+
+function freshOf(page: Page, type: string, before: readonly string[]): Promise<ObjectSnapshot[]> {
+  return boardObjects(page).then((held) => held.filter((o) => o.type === type && !before.includes(o.id)));
+}
+
+/** Press S and click once: the standard shape, centred where it was clicked. */
+export async function drawShapeByClick(page: Page, world: Point): Promise<ShapeSnap> {
+  const before = (await boardObjects(page)).map((object) => object.id);
+  // The kind is chosen beside the tool, which already puts the tool in hand; pressing S again
+  // would only be a second thought.
+  if ((await toolMode(page)) !== 'shape') await page.keyboard.press('s');
+  expect(await toolMode(page)).toBe('shape');
+  const at = await screenOf(page, world);
+  await page.mouse.click(at.x, at.y);
+  return appeared<ShapeSnap>(page, 'shape', before);
+}
+
+/** Press L and drag from one board point to another: the arrow between them. */
+export async function drawArrowByDrag(page: Page, fromWorld: Point, toWorld: Point): Promise<ConnectorSnap> {
+  const before = (await boardObjects(page)).map((object) => object.id);
+  await page.keyboard.press('l');
+  expect(await toolMode(page)).toBe('connector');
+  await dragByMouse(page, await screenOf(page, fromWorld), await screenOf(page, toWorld));
+  return appeared<ConnectorSnap>(page, 'connector', before);
+}
+
+/** The shapes the document holds, bottom to top. */
+export async function shapesOn(page: Page): Promise<ShapeSnap[]> {
+  return (await boardObjects(page)).filter((object) => object.type === 'shape') as ShapeSnap[];
+}
+
+/** The arrows the document holds. */
+export async function arrowsOn(page: Page): Promise<ConnectorSnap[]> {
+  return (await boardObjects(page)).filter((object) => object.type === 'connector') as ConnectorSnap[];
+}
+
+/** The arrow with a given id, as this page holds it now. */
+export async function arrowOn(page: Page, id: string): Promise<ConnectorSnap> {
+  const found = (await arrowsOn(page)).find((arrow) => arrow.id === id);
+  if (!found) throw new Error(`arrow ${id} is not on this page's board`);
+  return found;
+}
+
+/** Where an arrow's two ends are drawn, in screen pixels. */
+/**
+ * Where an arrow is drawn, as the browser laid it out. Compared against the two ends the model
+ * resolved, this is the check that a screen is drawing the arrow it holds rather than the one it
+ * drew a moment ago: the group's box runs from one end to the other, through the camera.
+ */
+export async function arrowBoxOnScreen(page: Page, id: string): Promise<Box> {
+  const box = await connectorElement(page, id).boundingBox();
+  if (!box) throw new Error(`arrow ${id} is not drawn on this page`);
+  return box;
+}
+
+/** A shape's box on the screen, and the middle of its label, both in CSS pixels. */
+export async function shapeLabelBox(page: Page, id: string): Promise<{ shape: Box; label: Box; words: string }> {
+  const element = shapeElement(page, id);
+  const shape = await element.boundingBox();
+  const label = element.locator('[data-testid="shape-label"]');
+  const box = await label.boundingBox();
+  const words = (await label.innerText()).trim();
+  if (!shape || !box) throw new Error(`shape ${id} is not drawn with a label`);
+  return { shape, label: box, words };
+}
+
+interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }

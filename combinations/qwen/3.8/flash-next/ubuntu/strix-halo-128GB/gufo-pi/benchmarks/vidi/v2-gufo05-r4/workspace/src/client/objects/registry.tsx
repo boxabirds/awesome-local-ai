@@ -21,6 +21,7 @@ import type { Doc } from 'yjs';
 import { declareObjectType, objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { rectContains, type Point, type Rect } from '../../shared/geometry';
 import type { EndEditNext } from '../board/useSelection';
+import type { Camera } from '../canvas/camera';
 
 /**
  * The bits of a pointer press a gesture needs, declared structurally so the same
@@ -55,6 +56,12 @@ export interface ObjectComponentProps {
   readonly doc: Doc;
   /** Camera zoom, for the few things a component keeps screen-sized. */
   readonly zoom: number;
+  /**
+   * The board's camera, for the rarer component that must know where the *pointer* is on the
+   * board rather than how big things look: an arrow is clicked near its line, and "near" has to
+   * be measured in board units (`connector.select`).
+   */
+  readonly camera: Camera;
   readonly selected: boolean;
   /** How many objects the selection holds: a note shows its own controls only when it is all of it. */
   readonly selectedCount: number;
@@ -78,8 +85,15 @@ export interface ObjectTypeSpec {
   readonly minSize: number;
   /** Does it hold text the visitor can type into? */
   readonly editableText: boolean;
-  /** Is `world` on this object? The default is its bounding rectangle. */
-  hitTest(obj: ObjectSnapshot, world: Point): boolean;
+  /**
+   * Is `world` on this object? The default is its bounding rectangle.
+   *
+   * `zoom` is the camera's, in screen pixels per board unit. It is optional because a type
+   * whose surface is its rectangle does not need it; a type whose surface is a line does,
+   * because a person clicks within a number of *pixels* of it, wherever the zoom happens to be
+   * (`connector.select`).
+   */
+  hitTest(obj: ObjectSnapshot, world: Point, zoom?: number): boolean;
   /**
    * Which handles the selection offers for this type. The default, `all`, is the eight of
    * story 7. `horizontal` is for a type whose height is not its own to give — free text
@@ -151,6 +165,17 @@ export function isAspectLocked(type: string): boolean {
 export function hitTestBounds(obj: ObjectSnapshot, world: Point): boolean {
   if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) return false;
   return rectContains(objectBounds(obj), { x: world.x, y: world.y, width: 0, height: 0 });
+}
+
+/**
+ * Is `world` on this object? The type answers for itself, defaulting to its bounding
+ * rectangle, so a screen that has to ask the question — a marquee, a connector looking for
+ * something to attach to — asks it once rather than repeating each type's rule.
+ */
+export function hitTestObject(obj: ObjectSnapshot, world: Point, zoom?: number): boolean {
+  const spec = getObjectType(obj.type);
+  if (!spec) return hitTestBounds(obj, world);
+  return spec.hitTest(obj, world, zoom);
 }
 
 /** Would a selection of these types show handles? */

@@ -280,6 +280,75 @@ export const CREATE_BUDGET_MS = 2000;
 /** How long the Share panel's "Link copied" confirmation stays up (`share.copy`). */
 export const LINK_COPIED_MS = 2000;
 
+/* --------------------------------------------------------- shapes and arrows (story 10) */
+
+/** The three kinds of shape the board draws, in the order the Shape menu lists them. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** A shape dropped by a click, or by a drag too small to be a shape. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/** A drag smaller than this in either direction counts as a click, not a shape. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** A shape label never holds more characters than this. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** Outline width of a shape, in world units, so it scales with the board's zoom. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** The seven fills: six colours and "no fill". */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0'
+} as const;
+
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** The six outline colours. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E'
+} as const;
+
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** The fill and outline of a newly created shape. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+/** Label font size, in world units, so it scales with the board's zoom. */
+export const SHAPE_LABEL_FONT_WORLD = 16;
+
+/** Gap between a label and the shape's edge, in world units. */
+export const SHAPE_LABEL_PADDING_WORLD = 8;
+
+/** An arrow shorter than this is a mis-drag, not an arrow. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/** How close, in screen pixels, a click has to be to an arrow's line to select it. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** Arrow line width, in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** Length of an arrowhead, in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** Radius of one connection dot, in screen pixels. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
 /**
  * First wait before re-checking whether a board link exists. Each failure doubles the
  * wait, up to `RECONNECT_MAX_BACKOFF_MS` — the same ceiling the live connection uses,

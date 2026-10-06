@@ -63,9 +63,40 @@ export function createBoardStore(source?: Y.Doc): BoardStore {
   };
   recompute();
 
-  (doc.getMap('objects') as Y.Map<unknown>).observeDeep(() => {
-    recompute();
+  // The document is read again straight away, so anything that asks the store right after a
+  // change — including a test's `getObjects()` — sees it. What is deferred is only the telling.
+  //
+  // Remote changes arrive from the socket, and eight people typing means they arrive faster than
+  // React can paint them. Told synchronously, an update lands inside the render it belongs to, so
+  // React throws that pass away and starts another with a synchronous-lane update; the next change
+  // arrives during *that* one, and the render never finishes. React counts these nested updates,
+  // gives up after fifty and says "maximum update depth exceeded".
+  //
+  // So remote changes are delivered once per frame, from outside React's own work, where an update
+  // is ordinary — and the board is only ever asked what it holds *now*, never about the changes in
+  // between. A visitor's own change is not deferred, so their strokes and clicks answer at once.
+  let queued = false;
+  const flush = () => {
+    queued = false;
     for (const listener of [...listeners]) listener();
+  };
+  const notify = (local: boolean) => {
+    // A change this visitor just made is shown on the spot: it came from their own gesture, so
+    // React is between renders and one more update is ordinary.
+    if (local) {
+      flush();
+      return;
+    }
+    if (queued) return;
+    queued = true;
+    // One frame's worth of other people's changes is one render, which is all anybody can see.
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(flush);
+    else setTimeout(flush, 16);
+  };
+
+  (doc.getMap('objects') as Y.Map<unknown>).observeDeep((_events, transaction) => {
+    recompute();
+    notify(transaction.local);
   });
 
   return {

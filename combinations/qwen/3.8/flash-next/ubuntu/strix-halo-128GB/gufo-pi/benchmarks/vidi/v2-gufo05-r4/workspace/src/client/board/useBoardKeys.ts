@@ -21,6 +21,7 @@ import { allObjectIds, deleteObjects, moveObjects, objectBounds, type ObjectSnap
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
+import { modeForShortcutKey, type ToolId } from '../tools/useActiveTool';
 import type { SelectionControls } from './useSelection';
 import type { UndoController } from './undo';
 
@@ -45,6 +46,10 @@ export interface BoardKeyOptions {
    * written to (`text.limit_access`).
    */
   onTextTool?(): void;
+  /** Hold the Shape tool (`shape.create_drag`). Refused on a board that cannot be written. */
+  onShapeTool?(): void;
+  /** Hold the Connector tool (`connector.draw`). Refused on a board that cannot be written. */
+  onConnectorTool?(): void;
   /** Story 2's action, now with a key: one note in the middle of the view (`sticky.create`). */
   onCreateSticky?(): void;
 }
@@ -78,6 +83,16 @@ function plainKey(event: KeyboardEvent, letter: string): boolean {
   return event.key.toLowerCase() === letter;
 }
 
+/**
+ * Which held tool an unmodified key asks for (`tools.active_tool`), from the one table of
+ * tool letters. Null for a letter nothing claims and for a tool this build cannot offer,
+ * including `N`: a sticky note is made, not held (`sticky.create`), and is answered below.
+ */
+function heldToolKey(event: KeyboardEvent): ToolId | null {
+  if (event.ctrlKey || event.metaKey || event.altKey) return null;
+  return modeForShortcutKey(event.key);
+}
+
 /** How far one arrow press moves the selection, in board units. */
 function nudgeStep(event: KeyboardEvent): Point {
   const step = event.shiftKey ? NUDGE_LARGE_STEP_WORLD : NUDGE_STEP_WORLD;
@@ -99,8 +114,18 @@ export function useBoardKeys(options: BoardKeyOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, undo, onSelectTool, onTextTool, onCreateSticky } =
-        latest.current;
+      const {
+        doc,
+        selection,
+        snapshot,
+        canEdit,
+        undo,
+        onSelectTool,
+        onTextTool,
+        onShapeTool,
+        onConnectorTool,
+        onCreateSticky
+      } = latest.current;
       if (selection.editingId) return; // the text editor owns every key while it is open
       if (isTextEntry(event.target) || isControl(event.target)) return;
 
@@ -121,16 +146,19 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       }
 
       // The tool keys, with no modifiers: Cmd/Ctrl+T and Ctrl+N belong to the browser.
-      if (plainKey(event, 'v')) {
+      const held = heldToolKey(event);
+      if (held === 'select') {
         event.preventDefault();
         onSelectTool?.();
         return;
       }
-      if (plainKey(event, 't')) {
-        // A board that failed to load has no Text tool to offer (TC-15).
+      if (held !== null) {
+        // A board that failed to load has no tool that writes to offer (TC-15).
         if (!canEdit) return;
         event.preventDefault();
-        onTextTool?.();
+        if (held === 'text') onTextTool?.();
+        else if (held === 'shape') onShapeTool?.();
+        else if (held === 'connector') onConnectorTool?.();
         return;
       }
       if (plainKey(event, 'n')) {
