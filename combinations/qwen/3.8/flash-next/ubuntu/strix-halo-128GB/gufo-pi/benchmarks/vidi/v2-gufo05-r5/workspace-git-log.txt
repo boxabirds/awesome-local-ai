@@ -1,3 +1,87 @@
+commit 372f64fa9935350de8729bb9d827dcdf4993192f
+agent  Tue Oct 6 22:18:44 2026 +0000
+
+    story 11: Sketch freehand with a pen
+
+
+ NOTES.md    | 142 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ PROGRESS.md |   8 ++--
+ 2 files changed, 146 insertions(+), 4 deletions(-)
+commit 15167a6c80902e30272b6e72103daf458189d2c6
+agent  Tue Oct 6 22:18:37 2026 +0000
+
+    story 11 task 6: pen e2e workflows (TC-17 to TC-20)
+
+
+ tests/e2e/helpers/strokes.ts | 113 +++++++++++
+ tests/e2e/pen.spec.ts        | 453 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 566 insertions(+)
+commit dad8c22e4e288af097e06f83c4e16fa9a9c1eba3
+agent  Tue Oct 6 21:58:09 2026 +0000
+
+    story 11 task 5: component tests for the Pen and the stroke object - TC-09 to TC-16 and TC-21, driven through the real board with synthetic pointers and faked frames
+
+
+ tests/component/PenTool.test.tsx      | 527 ++++++++++++++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx | 340 ++++++++++++++++++++++
+ 2 files changed, 867 insertions(+)
+commit d76f43918bdf92b9c0b1412ebc7f3740ce0a26b9
+agent  Tue Oct 6 21:57:56 2026 +0000
+
+    story 11 task 4: StrokeObject - ink drawn from scaledPoints, an invisible hit path as wide as the click tolerance, and the registry entry that selects a stroke by its line and resizes it in proportion
+
+
+ src/client/objects/StrokeObject.tsx | 101 ++++++++++++++++++++++++++++++++++++
+ src/client/objects/registry.tsx     |  30 ++++++++++-
+ 2 files changed, 129 insertions(+), 2 deletions(-)
+commit 2b883ed982be54cdbe20158a2e98f1a16571fd61
+agent  Tue Oct 6 21:57:56 2026 +0000
+
+    story 11 task 3: the Pen tool - P arms it and keeps it armed, its own surface owns the pointer, a screen-space preview is painted once per frame from a ref, and a finished stroke is written once as one undo step (styles for the stroke object ride along, the stylesheet is one file)
+
+
+ src/client/Board.tsx                |  28 ++++
+ src/client/board/Toolbar.tsx        |  30 +++-
+ src/client/canvas/BoardViewport.tsx |   6 +
+ src/client/styles.css               | 127 ++++++++++++++++
+ src/client/tools/PenTool.tsx        | 290 ++++++++++++++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx     |  94 ++++++++++++
+ src/client/tools/useActiveTool.ts   |   5 +
+ src/client/tools/usePenOptions.ts   |  24 +++
+ src/shared/tools.ts                 |   6 +-
+ 9 files changed, 608 insertions(+), 2 deletions(-)
+commit eb842c156ad12c012e8e05133af82d962c47fe8b
+agent  Tue Oct 6 21:30:28 2026 +0000
+
+    story 11 task 2: stroke model - RDP simplify, split at the point limit, smooth path, createStroke, scaled points and the line hit test
+
+
+ PROGRESS.md                     |   4 +-
+ src/shared/geometry/simplify.ts | 121 +++++++++++++++++++----
+ src/shared/objects/stroke.ts    | 214 +++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 295 insertions(+), 44 deletions(-)
+commit 318709b77f0750ca917e2be1e1ca54f0f427d584
+agent  Tue Oct 6 21:27:15 2026 +0000
+
+    story 11 task 1: stroke model and geometry unit tests first (TC-01 to TC-08), failing on 'not implemented'
+
+
+ PROGRESS.md                     |   2 +-
+ src/shared/board-model.ts       |  16 +-
+ src/shared/config.ts            |  41 ++++
+ src/shared/geometry/simplify.ts |  43 ++++
+ src/shared/objects/stroke.ts    |  91 ++++++++
+ tests/fixtures/pen-paths.ts     |  92 ++++++++
+ tests/unit/stroke.test.ts       | 457 ++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 740 insertions(+), 2 deletions(-)
+commit 25f0e647a25ba49100e71add4c14f801b415aba1
+vidi-agent  Tue Oct 6 21:11:53 2026 +0000
+
+    harness: PROGRESS.md for story 11
+
+
+ PROGRESS.md | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
 commit cf60c3b0bac72a29b763627c6ba5e735f3bdcf9e
 agent  Tue Oct 6 21:08:56 2026 +0000
 
