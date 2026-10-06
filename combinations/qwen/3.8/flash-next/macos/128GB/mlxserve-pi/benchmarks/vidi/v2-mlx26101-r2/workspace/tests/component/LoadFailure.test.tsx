@@ -26,7 +26,7 @@ import {
   noteElements,
   noteScreenCentre,
   pressKey,
-  renderApp,
+  renderBoard,
   selectedNoteId,
   wheelEvent,
 } from './helpers.js';
@@ -47,7 +47,7 @@ import {
 
 /** A board that is open, in step with its room, and holding one note. */
 function boardWithANote(text = 'written before the failure'): { writes: () => number; id: string } {
-  const link = renderApp();
+  const link = renderBoard();
   const id = createSelectedNote(text);
   // Counting starts after the board got its content, so from here it counts only
   // what the locked board is asked to do.
@@ -164,7 +164,7 @@ describe('TC-23 — a board that could not be loaded takes no edits', () => {
   it('does the same to a board that was never in step with its room', () => {
     // The load failure can be the first thing that ever happens: the page opens,
     // the room answers it, and closes 4500 without sending a board at all.
-    const link = renderApp();
+    const link = renderBoard();
     failToLoad(link);
     const writes = countDocumentWrites();
 
@@ -181,7 +181,7 @@ describe('TC-23 — a board that could not be loaded takes no edits', () => {
     // Locking a board is about its content. Someone standing in front of a board
     // they cannot read still needs to get around it, and a page that has stopped
     // answering the wheel looks more broken than it is.
-    const link = renderApp();
+    const link = renderBoard();
     createSelectedNote('still readable');
     failToLoad(link);
     const before = camera();
@@ -205,7 +205,7 @@ describe('TC-23 — a board that could not be loaded takes no edits', () => {
   });
 
   it('opens again the moment the board comes back, with nothing reloaded', () => {
-    const link = renderApp();
+    const link = renderBoard();
     createSelectedNote('made before');
     failToLoad(link);
     clickStickyButton();
@@ -228,7 +228,7 @@ describe('TC-23 — a board that could not be loaded takes no edits', () => {
   it('is not what a storage failure does to a board', () => {
     // The negative of the whole feature: the neighbouring failure leaves the board
     // editable, and the difference between the two is one digit of a close code.
-    const link = renderApp();
+    const link = renderBoard();
     createSelectedNote('made before');
     setStatus(link, 'connected');
     const writes = countDocumentWrites();

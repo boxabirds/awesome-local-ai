@@ -20,7 +20,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
 
-import { newBoardId } from '../../../src/shared/board-id.js';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -57,7 +56,24 @@ export interface WranglerProcess {
    * worse to somebody else. A test holds the board's path and asks this for the address
    * each time it navigates.
    */
-  newBoardPath(): string;
+  /**
+   * A brand-new board on THIS server, made before the path is handed over.
+   *
+   * Absolute, and rebuilt from the current port on every call. Both halves matter. The
+   * suite's `baseURL` is the shared dev server (`playwright.config.ts`), so a relative
+   * address handed to `page.goto()` opens a board on a server this test never started and
+   * never killed - which makes a restart test pass by remembering the board in a process
+   * that is still running. And a server that had to move to another port after a restart
+   * would otherwise have its pages reopened on an address that now belongs to nobody, or
+   * worse to somebody else. A test holds the board's path and asks this for the address
+   * each time it navigates.
+   *
+   * The board is created by `POST /api/boards` on this server first. Since story 5 an
+   * address this server has never heard of is a board that is not there, and a persistence
+   * test that opened one and waited for a board to come back would be waiting for a board
+   * that was never there.
+   */
+  newBoardPath(): Promise<string>;
   /** An address on this server, as it is right now: `/b/<id>`, `/api/rooms/:id`, `/health`. */
   urlFor(path: string): string;
   /** The directory its Durable Object storage lives in. Survives `restart()`. */
@@ -116,8 +132,18 @@ class Server implements WranglerProcess {
     return `http://127.0.0.1:${this.port}`;
   }
 
-  newBoardPath(): string {
-    return `/b/${newBoardId()}`;
+  async newBoardPath(): Promise<string> {
+    const response = await fetch(`${this.baseUrl}/api/boards`, { method: 'POST' });
+    if (response.status !== 201) {
+      throw new Error(
+        `this server would not make a board: ${response.status} ${await response.text()}`,
+      );
+    }
+    const body = (await response.json()) as { id?: unknown };
+    if (typeof body.id !== 'string' || body.id.length === 0) {
+      throw new Error(`this server made a board with no id: ${JSON.stringify(body)}`);
+    }
+    return `/b/${body.id}`;
   }
 
   urlFor(path: string): string {

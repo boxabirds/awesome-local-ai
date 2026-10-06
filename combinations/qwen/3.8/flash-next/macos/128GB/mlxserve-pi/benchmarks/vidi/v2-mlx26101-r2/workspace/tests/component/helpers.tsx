@@ -2,7 +2,8 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react';
 
 import * as Y from 'yjs';
 
-import { App } from '../../src/client/App.js';
+import { BoardSurface } from '../../src/client/board/BoardSurface.js';
+import { newBoardId } from '../../src/shared/board-id.js';
 import type { StickySnapshot } from '../../src/shared/board-model.js';
 import type { Camera, Point } from '../../src/client/canvas/camera.js';
 import { worldToScreen, zoomAt } from '../../src/client/canvas/camera.js';
@@ -55,14 +56,24 @@ export function flushFrames(): void {
   settle();
 }
 
-export function renderApp(link = new FakeLink()): FakeLink {
+/**
+ * Render the board surface — the stories 1-4 UI, which is what these files are about -
+ * and return its fake room link.
+ *
+ * It renders `BoardSurface` and not `App`, and that is a story 5 consequence rather than
+ * a shortcut: `App` is now a router, and the board it shows is behind a question put to a
+ * server ("is this board there?"), so rendering `App` here would make every test in these
+ * files a test of `fetch` before it was a test of the board. The pages own that question,
+ * and `pages.test.tsx` renders them; the wiring of the whole thing is e2e's job.
+ */
+export function renderBoard(link = new FakeLink()): FakeLink {
   // Tests that loop over several renders would otherwise stack containers.
   cleanup();
   const connect: BoardConnector = (doc, boardId, onState) =>
     connectBoard(doc, boardId, onState, { createLink: () => link });
   activeLink = link;
   act(() => {
-    render(<App connect={connect} />);
+    render(<BoardSurface boardId={newBoardId()} connect={connect} />);
   });
   flushFrames();
   return link;
@@ -71,14 +82,14 @@ export function renderApp(link = new FakeLink()): FakeLink {
 /**
  * The board's connection is faked in component tests: a component test that
  * opened a real socket would be testing the network, and jsdom's WebSocket
- * cannot reach the room anyway. `renderApp` hands the app a fake and remembers
+ * cannot reach the room anyway. `renderBoard` hands the board a fake and remembers
  * it here, so a test can say what the connection did. It reports nothing on its
  * own, which leaves the badge on "Connecting…" - a test that needs a board that
  * is in step with its room says so.
  */
 let activeLink: FakeLink | null = null;
 
-/** The connection the last `renderApp` used. */
+/** The connection the last `renderBoard` used. */
 export function connectionLink(): FakeLink {
   if (activeLink === null) throw new Error('no app is rendered');
   return activeLink;

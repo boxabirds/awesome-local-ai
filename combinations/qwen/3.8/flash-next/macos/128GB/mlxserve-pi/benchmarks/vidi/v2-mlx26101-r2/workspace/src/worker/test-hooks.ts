@@ -20,6 +20,8 @@
  * - `repair` — put it back;
  * - `compact` — fold the log into a snapshot now, whatever the thresholds say;
  * - `seed` — fill the board with notes;
+ * - `seed-legacy` — write a board's rows *without* `created_at`, which is what a
+ *   board that predates story 5 looks like, and the only way a test can have one;
  * - `state` — say what the board's rows are, and nothing else.
  */
 
@@ -47,7 +49,7 @@ export const TEST_HOOK_PREFIX = '/__test/boards/';
  */
 export const TEST_HOOK_ORIGIN: unique symbol = Symbol('vidi6-test-hook');
 
-const ACTIONS = ['corrupt-snapshot', 'repair', 'compact', 'seed', 'state'] as const;
+const ACTIONS = ['corrupt-snapshot', 'repair', 'compact', 'seed', 'seed-legacy', 'state'] as const;
 
 /** One of the test routes. */
 export type TestHookAction = (typeof ACTIONS)[number];
@@ -125,6 +127,8 @@ export function handleTestHook(
       return compact(room);
     case 'seed':
       return seed(room, request);
+    case 'seed-legacy':
+      return seedLegacy(room, request);
     case 'state':
       // The room's own debug state, with nothing done to the room first. A test that
       // wants to know whether a change it made is in storage - before it kills the
@@ -226,6 +230,54 @@ function seed(room: TestRoom, request: Request): Response | Promise<Response> {
       return json({ ok: true, added, ...room.state() });
     })
     .catch((error: unknown) => json({ ok: false, error: String(error) }, 400));
+}
+
+/**
+ * Write a board that was made before story 5 existed: the rows, and no
+ * `created_at`.
+ *
+ * There is no other way to get one. Every board this app makes from now on is made
+ * by `initialize()`, which writes `created_at`, and the existence rule has to keep
+ * opening the boards that were already there when that was not how it worked (PRD
+ * `share.legacy_boards`) — so a test needs a board whose storage has content and no
+ * birthday, and the only honest way to have one is to write it the way storage is
+ * written: the same `append` a person's change goes through, on a document built by
+ * the same model functions, with the creation step left out because that is exactly
+ * the step these boards never had.
+ *
+ * The room is then made to forget the board it was holding, which is what an object
+ * that has been sitting since before the rows were written amounts to: the next
+ * person who connects reads the rows that are there now, and sees the notes.
+ */
+function seedLegacy(room: TestRoom, request: Request): Response | Promise<Response> {
+  return readJson(request)
+    .then((body) => {
+      const notes = numberIn(body['notes'], 1, 20_000);
+      const textLength = numberIn(body['textLength'], 0, 2_000);
+      const texts = textsIn(body['texts']);
+      const added = writeLegacyBoard(room, notes, textLength, texts);
+      return json({ ok: true, added, ...room.state() });
+    })
+    .catch((error: unknown) => json({ ok: false, error: String(error) }, 400));
+}
+
+/**
+ * The board, as rows: one document built note by note, stored as the log rows a
+ * room would have written for it. No `created_at` is written here, and nothing else
+ * writes one — `append` builds the schema and stops at the row.
+ */
+function writeLegacyBoard(room: TestRoom, notes: number, textLength: number, texts: string[]): number {
+  const doc = new Y.Doc();
+  initDoc(doc);
+  const added = addNotes(doc, notes, textLength, texts);
+  // The whole board as one update row. The existence rule asks whether the board has
+  // rows, not how they are divided up, and a board that was compacted before it was
+  // left looks the same from where the rule is standing.
+  room.store.append(Y.encodeStateAsUpdate(doc));
+  doc.destroy();
+  // The object was holding this board before it had anything in it.
+  room.hibernate();
+  return added;
 }
 
 /* ------------------------------------------------------------------------ helpers */

@@ -87,6 +87,40 @@ export class BoardRoom extends DurableObject<Env> {
     this.loadBoard('wake');
   }
 
+  // ---------------------------------------------------------------- creation
+
+  /**
+   * Make this board real (design "Board creation and existence API").
+   *
+   * Called over RPC by `createBoard`, once per new id. It writes the schema and
+   * `created_at` and nothing else — no update rows, no document state — so a board
+   * that nobody edits is an empty board rather than a board with a receipt in it.
+   *
+   * It answers `exists` for a board that already has a `created_at`, and it never
+   * changes one that does: being asked twice is not a reason to move a board's
+   * birthday, and an `exists` for a freshly minted id is how `createBoard` learns
+   * that the 128 bits collided (TC-15).
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    const had = this.store.createdAt();
+    const at = this.store.markCreated(Date.now());
+    if (had !== null) return 'exists';
+    // The board now has storage. The room may be holding an empty document from a
+    // load that ran before it existed — which is what an object that was only ever
+    // *asked* about this id holds — and an empty document is the right thing for an
+    // empty board, so there is nothing to reload.
+    return at === had ? 'exists' : 'created';
+  }
+
+  /**
+   * Does this board exist? Read-only: it writes nothing, so a link that a person
+   * mistyped can be asked about as often as they like without anything appearing
+   * where an empty board would have appeared (TC-06).
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   // ---------------------------------------------------------------- lifecycle
 
   /**
@@ -101,7 +135,12 @@ export class BoardRoom extends DurableObject<Env> {
 
     let result: LoadResult;
     try {
-      this.store.migrate();
+      // No `migrate()` here. Building the schema was how an object used to make a board
+      // exist by being woken - by a link, by a probe, by anything that said its name -
+      // and story 5 is about that being a thing that only `POST /api/boards` does. The
+      // store reads a board with no tables as the empty board it is, and the schema is
+      // made by `initialize()` or, for a board that predates `initialize()`, in front of
+      // the first change that needs somewhere to go.
       result = this.store.load(doc);
     } catch (error) {
       // Storage itself was unreachable: the same honest answer, a different reason.
@@ -209,9 +248,21 @@ export class BoardRoom extends DurableObject<Env> {
    * in carries `LOAD_ORIGIN`, and the update Yjs fires when it at last fits together the
    * pieces it had held back - the ones behind a row it had to quarantine - carries no
    * origin at all. Writing either again would fill the log with copies of rows it has.
+   *
+   * The socket is asked whether it is a socket rather than whether it is still in
+   * `getWebSockets()`, because those are not the same question and only one of them is
+   * about where the change came from. A person who edits and closes the tab in the same
+   * breath has a last change that arrives after the runtime has already hung that
+   * socket up - it is delivered, it is applied, and it is the last thing anybody will
+   * ever know about the board unless it is written here. `getWebSockets()` says nothing
+   * holds it anymore; the message in hand says a client sent it. Skipping it would be
+   * the loss this file exists to prevent: the change is on the screen of the person who
+   * made it and in nobody's storage, and the next person to open the board gets a board
+   * with that note missing.
    */
   private cameFromAClient(origin: unknown): boolean {
     if (origin === TEST_HOOK_ORIGIN) return true;
+    if (origin instanceof WebSocket) return true;
     for (const socket of this.ctx.getWebSockets()) {
       if (socket === origin) return true;
     }
@@ -299,6 +350,23 @@ export class BoardRoom extends DurableObject<Env> {
     const upgrade = request.headers.get('Upgrade') ?? '';
     if (upgrade.toLowerCase() !== 'websocket') {
       return new Response('expected a WebSocket upgrade', { status: 426 });
+    }
+
+    // Story 5: a board nobody created is not a board you can join. The question is
+    // asked here, inside the object, on the object's own storage, because this is the
+    // one place that can ask it without creating the thing it is asking about - and it
+    // is asked before the socket is accepted, so a mistyped link leaves no trace: not a
+    // row, not a table, not a board that looks like somebody's lost work.
+    //
+    // It is answered from what the board holds (`created_at`, or rows), not from a list
+    // of boards, because there is no such list and this object is not allowed to
+    // consider itself evidence: an object that was merely woken by a link is holding an
+    // empty document, and an empty document is not a board that exists.
+    if (!this.store.existsReadOnly()) {
+      return new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
     }
 
     const pair = new WebSocketPair();

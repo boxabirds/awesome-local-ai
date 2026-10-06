@@ -150,3 +150,27 @@ export const BOARD_LOAD_BUDGET_MS = 3_000;
  * describes the board content and does not change when the tables do.
  */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+/* ------------------------------------------------------------------ sharing */
+
+/**
+ * How long clicking **New board** may take before it is late (PRD
+ * `share.create`: "open it within 2 seconds on a typical broadband connection").
+ * e2e logs the measured click-to-board time against it and does not gate on it,
+ * for the same reason every other budget here is reported and not asserted.
+ */
+export const CREATE_BUDGET_MS = 2000;
+
+/**
+ * How long the Share panel's **Copy link** button says "Link copied" before it
+ * goes back to being a button (PRD `share.copy`).
+ */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * The first wait before a board link check is retried (PRD `share.unreachable`).
+ * It doubles on every failure — 1 s, 2 s, 4 s — and stops doubling at
+ * {@link RECONNECT_MAX_BACKOFF_MS}, which is the ceiling the socket's own
+ * reconnect already uses: one retry ceiling for the whole app.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

@@ -2,6 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 import type { Camera, Point } from '../../../src/client/canvas/camera.js';
 import { decodePng, meanDifference, meanLightness, type Image } from './png.js';
+import { createBoardPath } from './boards.js';
 
 /** The board area the tests run in (matches playwright.config.ts). */
 export const VIEWPORT = { width: 1280, height: 800 };
@@ -21,13 +22,25 @@ export const zoomInButton = (page: Page): Locator => page.getByLabel('Zoom in');
 export const zoomOutButton = (page: Page): Locator => page.getByLabel('Zoom out');
 export const resetViewButton = (page: Page): Locator => page.getByRole('button', { name: 'Reset view' });
 
-/** Open the board and wait until the standard view is drawn. */
-export async function openBoard(page: Page): Promise<void> {
-  await page.goto('/');
+/**
+ * Open a board and wait until the standard view is drawn.
+ *
+ * The board is created first, by the route the home page's button uses. It used to be
+ * enough to drive to `/` and be shown a board; since story 5 the home page makes boards and
+ * a board page is an address that a server has agreed to. A test that wants to look at the
+ * board asks for one, exactly as a person does, and the address it gets back is one the
+ * server wrote - which is also what lets a test about sharing a link be about a link.
+ *
+ * The path is returned so a test can take a second page to the same board.
+ */
+export async function openBoard(page: Page): Promise<string> {
+  const path = await createBoardPath(page.request);
+  await page.goto(path);
   await expect(zoomLabel(page)).toHaveText('100%');
   await waitForRender(page);
   await expect(originMarker(page)).toBeInViewport();
   await expectMarkerAt(page, CENTRE);
+  return path;
 }
 
 /**

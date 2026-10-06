@@ -54,7 +54,7 @@ test('a server that was not given the test routes does not have them', async ({ 
   try {
     // A board with something on it, so that "nothing happened" is a claim about a board
     // and not about an empty one.
-    const path = server.newBoardPath();
+    const path = await server.newBoardPath();
     const people = await openParticipants(browser, ['Alex'], server.urlFor(path));
     const page = people[0]!.page;
     const boardId = await boardIdOf(page);

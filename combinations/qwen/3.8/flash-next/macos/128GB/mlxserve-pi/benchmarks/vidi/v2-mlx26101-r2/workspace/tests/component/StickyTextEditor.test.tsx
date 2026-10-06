@@ -24,7 +24,7 @@ import {
   noteText,
   pressKey,
   pressNote,
-  renderApp,
+  renderBoard,
   renderedNoteText,
   selectedNoteId,
   typeMore,
@@ -44,7 +44,7 @@ import { PROSE_1000, PROSE_1050, RETRO_ITEM, SHORT_TEXT } from '../fixtures/text
  */
 
 beforeEach(() => {
-  renderApp();
+  renderBoard();
 });
 
 /** The character counter, if one is rendered. */

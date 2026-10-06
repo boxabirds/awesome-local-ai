@@ -12,7 +12,7 @@
  * the difference.
  */
 
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import * as Y from 'yjs';
@@ -447,13 +447,32 @@ class FakeClient implements Client {
 }
 
 /**
+ * Make a board with exactly this id, the way `POST /api/boards` does it: the same
+ * `initialize()` RPC, on the same object the socket will reach.
+ *
+ * Story 5 is why these tests need it. Until then a board came into being when a
+ * client connected to its address, so a test could invent an id and connect to it;
+ * now the room refuses a board nobody created — which is the whole of
+ * `share.not_found` — and a test that wants a room has to create the board first,
+ * exactly as the home page does. The id still comes from the test, because these
+ * tests are about which room answers, not about who picked the address.
+ */
+export async function createBoard(boardId: string): Promise<'created' | 'exists'> {
+  return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).initialize();
+}
+
+/**
  * Connect to a board through the Worker entry the way a browser does — an
  * `Upgrade: websocket` fetch of `/api/rooms/:boardId` — with a document that is
  * set up the way `useBoardDoc` sets its own up.
+ *
+ * The board is created first, because a browser could not connect to a board that
+ * was never created and a test that pretended otherwise would be testing a 404.
  */
 export async function connectClient(boardId: string, doc?: Y.Doc): Promise<Client> {
   const boardDoc = doc ?? new Y.Doc();
   if (doc === undefined) initDoc(boardDoc);
+  await createBoard(boardId);
   const response = await SELF.fetch(`http://localhost/api/rooms/${boardId}`, {
     headers: { Upgrade: 'websocket' },
   });

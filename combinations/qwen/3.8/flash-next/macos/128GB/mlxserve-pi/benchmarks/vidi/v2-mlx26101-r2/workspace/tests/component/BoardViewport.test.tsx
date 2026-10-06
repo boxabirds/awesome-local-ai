@@ -20,7 +20,7 @@ import {
   pointerMove,
   pointerUp,
   renderedCamera,
-  renderApp,
+  renderBoard,
   wheelEvent,
   worldLayer,
   zoomLabel,
@@ -44,7 +44,7 @@ const expectPoints = (actual: Point, expected: Point, precision = 6): void => {
 };
 
 beforeEach(() => {
-  renderApp();
+  renderBoard();
 });
 
 describe('pan by dragging (TC-13)', () => {

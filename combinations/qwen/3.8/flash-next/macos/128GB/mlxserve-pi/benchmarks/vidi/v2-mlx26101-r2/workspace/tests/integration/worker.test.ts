@@ -5,7 +5,7 @@ import { SELF, env, listDurableObjectIds } from 'cloudflare:test';
 import { createSticky } from '../../src/shared/board-model.js';
 import { BOARD_ID_PATTERN, newBoardId } from '../../src/shared/board-id.js';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config.js';
-import { connectClient, eventually, syncedClient, requestRoom, type Client } from './ws-client.js';
+import { connectClient, createBoard, eventually, syncedClient, requestRoom, type Client } from './ws-client.js';
 import { sameBoard } from './random-ops.js';
 
 /**
@@ -41,8 +41,11 @@ describe('worker entry', () => {
     const before = await roomIds();
 
     // The case from the coverage table: `bad!id`, which is not base64url.
+    // Story 5 made this a 404 rather than a 400: the answer to a malformed id and to
+    // an unknown one is the same answer — there is no board here — and the client's
+    // Board-not-found page is one page, not two (design "HTTP contract").
     const bad = await requestRoom('bad!id', true);
-    expect(bad.status).toBe(400);
+    expect(bad.status).toBe(404);
     expect(bad.webSocket).toBeFalsy();
 
     // The same answer for every other shape that is not 22 base64url characters.
@@ -60,7 +63,7 @@ describe('worker entry', () => {
     ];
     for (const boardId of malformed) {
       const response = await requestRoom(boardId, true);
-      expect(response.status, `board id ${JSON.stringify(boardId)}`).toBe(400);
+      expect(response.status, `board id ${JSON.stringify(boardId)}`).toBe(404);
       expect(response.webSocket).toBeFalsy();
     }
 
@@ -70,6 +73,9 @@ describe('worker entry', () => {
 
   it('TC-04 sends an id that is a board id on to that board’s room', async () => {
     const boardId = newBoardId();
+    // Story 5: the board is created before it is joined, so this test still asks the
+    // question it was built to ask — which room answers this address?
+    expect(await createBoard(boardId)).toBe('created');
     const before = await roomIds();
 
     const response = await requestRoom(boardId, true);
@@ -77,10 +83,10 @@ describe('worker entry', () => {
     expect(response.webSocket?.readyState).toBe(WebSocket.READY_STATE_OPEN);
 
     // The room that answered is the object this board name routes to — which is
-    // what makes boards separate — and it is the only one this request created.
+    // what makes boards separate — and the request opened no other one.
     const ids = await roomIds();
     expect(ids.filter((id) => id === idOf(boardId))).toHaveLength(1);
-    expect(ids.length).toBe(before.length + 1);
+    expect(ids.length).toBe(before.length);
 
     // The client end of the pair is ours to shut: workerd wants it accepted first.
     const socket = response.webSocket;
@@ -157,7 +163,7 @@ describe('worker entry', () => {
     // path, so `/api/rooms/../x` is not a room path at all — it is `/api/x`, which
     // is not a route either and gets the client. What matters is that it opens no
     // room, and it opens none; the encoded form, which the parser cannot collapse,
-    // is refused with a 400 (TC-04).
+    // is refused with a 404 (TC-04).
     const response = await get('/api/rooms/../x', { Upgrade: 'websocket' });
     expect(response.webSocket).toBeFalsy();
     expect(response.status).toBe(200);

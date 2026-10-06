@@ -21,7 +21,7 @@ import {
   keydown,
   noteElements,
   noteText,
-  renderApp,
+  renderBoard,
 } from './helpers.js';
 
 const BOARD_ID = 'vN8d2mKx1pQ0tY7rZ4wL3A';
@@ -230,7 +230,7 @@ describe('the badge never locks the board out', () => {
   const badge = () => screen.getByTestId('connection-status');
 
   it('creates, types into and deletes notes while it says "Reconnecting…"', () => {
-    const link = renderApp();
+    const link = renderBoard();
     setStatus(link, 'connected');
     setStatus(link, 'disconnected', false);
     expect(badge()).toHaveAttribute('role', 'status');
@@ -253,7 +253,7 @@ describe('the badge never locks the board out', () => {
   });
 
   it('is not focusable and holds no control', () => {
-    const link = renderApp();
+    const link = renderBoard();
     setStatus(link, 'connected');
     setStatus(link, 'disconnected', false);
     expect(badge().tabIndex).toBe(-1);
@@ -261,7 +261,7 @@ describe('the badge never locks the board out', () => {
   });
 
   it('sits in the board layout without hiding the toolbar, the zoom controls or the hint', () => {
-    const link = renderApp();
+    const link = renderBoard();
     expect(screen.getByTestId('board-toolbar')).toBeInTheDocument();
     expect(screen.getByTestId('zoom-controls')).toBeInTheDocument();
     expect(screen.getByTestId('navigation-hint')).toBeInTheDocument();
@@ -365,7 +365,7 @@ describe('TC-28 — what a close code means', () => {
 
   it('keeps the board editable while it says "Reconnecting\u2026" and locks it when it says it could not load', () => {
     // The editable half: a storage failure is a room problem, not a user problem.
-    const link = renderApp();
+    const link = renderBoard();
     setStatus(link, 'connected');
     closeSocket(link, CLOSE_STORAGE_FAILURE);
     expect(badgeOf()).toHaveTextContent('Reconnecting\u2026');
@@ -375,7 +375,7 @@ describe('TC-28 — what a close code means', () => {
     escapeFromEditor();
 
     // The locked half: same gestures, one digit different in the close code.
-    const locked = renderApp();
+    const locked = renderBoard();
     setStatus(locked, 'connected');
     closeSocket(locked, CLOSE_BOARD_LOAD_FAILED);
     expect(badgeOf()).toHaveTextContent("This board couldn't be loaded. Retrying…");
@@ -413,7 +413,7 @@ describe('TC-28 — what a close code means', () => {
     expect(screen.queryByRole('status')).toBeNull();
 
     // And it means it: the board takes an edit.
-    const app = renderApp();
+    const app = renderBoard();
     closeSocket(app, CLOSE_BOARD_LOAD_FAILED);
     expect(canEditOf()).toBe(false);
     setStatus(app, 'connected');

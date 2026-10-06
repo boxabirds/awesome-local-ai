@@ -35,7 +35,7 @@ import {
   pressAt,
   pressNote,
   renderedNoteText,
-  renderApp,
+  renderBoard,
   selectedNoteId,
   typeText,
 } from './helpers.js';
@@ -52,7 +52,7 @@ import {
  */
 
 beforeEach(() => {
-  renderApp();
+  renderBoard();
 });
 
 describe('sticky.interaction: select', () => {

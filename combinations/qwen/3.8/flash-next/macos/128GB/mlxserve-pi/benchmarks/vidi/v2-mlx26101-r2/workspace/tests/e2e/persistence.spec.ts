@@ -58,7 +58,7 @@ test('TC-19 comes back to a board the next day and finds all 25 notes as they we
   test.setTimeout(240_000);
   const server: WranglerProcess = await startWrangler({ port: PORT });
   try {
-    const path = server.newBoardPath();
+    const path = await server.newBoardPath();
     const alex = await openParticipants(browser, ['Alex'], server.urlFor(path));
     const page = alex[0]!.page;
 
@@ -102,7 +102,7 @@ test('TC-20 a note that the other person already saw is there after the server d
   test.setTimeout(180_000);
   const server = await startWrangler({ port: PORT });
   try {
-    const path = server.newBoardPath();
+    const path = await server.newBoardPath();
     const people = await openParticipants(browser, ['Alex', 'Sam'], server.urlFor(path));
     const [alex, sam] = people as [Participant, Participant];
 
@@ -151,7 +151,7 @@ test('TC-21 opens a board of every note the design had us test with, and reports
   test.setTimeout(600_000);
   const server = await startWrangler({ port: PORT });
   try {
-    const path = server.newBoardPath();
+    const path = await server.newBoardPath();
     // Somebody has to be on the board for the room to be holding it, and the notes have
     // to come in through the room's own update path - the seed route writes with the
     // model functions and the same storage call a client's change goes through.

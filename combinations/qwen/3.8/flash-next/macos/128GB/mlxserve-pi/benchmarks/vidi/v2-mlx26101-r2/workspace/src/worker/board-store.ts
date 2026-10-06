@@ -42,6 +42,25 @@ import {
 export const SNAPSHOT_THROUGH_SEQ_KEY = 'snapshot_through_seq';
 /** The value of `storage_meta.storage_schema_version`. */
 export const STORAGE_SCHEMA_VERSION_KEY = 'storage_schema_version';
+/**
+ * The value of `storage_meta.created_at`: the moment this board was created, in
+ * epoch milliseconds. Writing it is what making a board *is* (design "Existence
+ * rule"), and it is written once, by `initialize()`, never again.
+ *
+ * A board can exist without it: every board this app made before story 5 has the
+ * tables and the rows and no `created_at`, and opening one of those still opens
+ * the board (PRD `share.legacy_boards`). So `created_at` is how a board says it was
+ * made, and rows are how a board says it has something in it.
+ */
+export const CREATED_AT_KEY = 'created_at';
+
+/** The tables of this schema, named for the read-only existence check below. */
+const TABLE_NAMES: readonly string[] = [
+  'storage_meta',
+  'updates',
+  'snapshot_chunks',
+  'quarantined_updates',
+];
 
 /**
  * Origin of every update the store applies *into* a document while loading it. It
@@ -208,22 +227,85 @@ export class BoardStore {
   /** How much of the log the snapshot already contains (0 when there is none). */
   private snapshotThrough = 0;
 
+  /**
+   * Whether the tables of this board are known to be there. It starts false because
+   * this store does not know: an object woken for a link that was never created has
+   * no tables and must not make any, and an object woken for a board that has them
+   * does not need to be told.
+   *
+   * The only things that set it are `migrate()` — which is `initialize()`, and the
+   * lazy step in front of the first `append()` — and nothing else.
+   */
+  private tablesKnown = false;
+
   constructor(protected readonly storage: DurableObjectStorage) {}
 
   /**
    * Create the tables and record their version. Idempotent, and it writes no update
    * rows: a board that was never edited stays an empty board, and opening one must
    * not make it "have" something.
+   *
+   * Story 5 narrowed who may call it. It used to be the first thing every object did,
+   * which is how a board came to exist just because somebody typed an address at it;
+   * now it is called by `initialize()`, which is what making a board means, and once
+   * more in front of the first `append()`, for a board that was made before there was
+   * an `initialize()` to make it with.
    */
   migrate(): void {
     for (const statement of SCHEMA_STATEMENTS) this.exec(statement);
     if (this.metaGet(STORAGE_SCHEMA_VERSION_KEY) === null) {
       this.metaSet(STORAGE_SCHEMA_VERSION_KEY, String(STORAGE_SCHEMA_VERSION));
     }
+    this.tablesKnown = true;
+  }
+
+  /**
+   * Does this board exist? Read-only in the strong sense: the first statement is
+   * against `sqlite_master`, so a board that was never made costs one small lookup
+   * and no tables, rather than a schema built in order to discover it is empty
+   * (design "Existence rule", and the negative test that probing writes nothing).
+   *
+   * Two answers are yes. `created_at` is the ordinary one. The other is a board with
+   * rows and no `created_at`, which is every board this app made before story 5: it
+   * has a board in it, so it is one (PRD `share.legacy_boards`). A board with nothing
+   * in it at all, and no `created_at` because it was never clicked into existence, is
+   * a board that does not exist — which is what lets a mistyped link be answered
+   * honestly instead of with an empty board that looks like stolen work.
+   */
+  existsReadOnly(): boolean {
+    const present = this.presentTables();
+    if (present.size === 0) return false;
+    if (present.has('storage_meta') && this.metaGet(CREATED_AT_KEY) !== null) return true;
+    // No `created_at` (or nowhere that would hold one): the board is what its
+    // contents are. Both counts tolerate a table this board never had, so a storage
+    // layout that is part-built says what it has rather than throwing.
+    return this.countRows('updates', present) + this.countRows('snapshot_chunks', present) > 0;
+  }
+
+  /** When this board was created, or null when nothing created it. */
+  createdAt(): number | null {
+    if (!this.presentTables().has('storage_meta')) return null;
+    const stored = this.metaGet(CREATED_AT_KEY);
+    const at = stored === null ? Number.NaN : Number(stored);
+    return Number.isFinite(at) ? at : null;
+  }
+
+  /**
+   * Say that this board has been made. Returns the stored value either way: a board
+   * that already had one keeps it, unchanged, because `created_at` is a fact about
+   * when a board began and not a timestamp to be refreshed (TC-15).
+   */
+  markCreated(at: number): number {
+    this.migrate();
+    const existing = this.createdAt();
+    if (existing !== null) return existing;
+    this.metaSet(CREATED_AT_KEY, String(at));
+    return at;
   }
 
   /** The version of the tables this board was created with. */
   schemaVersion(): number {
+    if (!this.presentTables().has('storage_meta')) return 0;
     const stored = this.metaGet(STORAGE_SCHEMA_VERSION_KEY);
     const version = stored === null ? Number.NaN : Number(stored);
     return Number.isFinite(version) ? version : 0;
@@ -246,12 +328,12 @@ export class BoardStore {
 
   /** Rows currently sitting in `quarantined_updates`. */
   quarantinedCount(): number {
-    return this.rows<{ n: number }>(`SELECT COUNT(*) AS n FROM quarantined_updates`)[0]?.n ?? 0;
+    return this.countRows('quarantined_updates');
   }
 
   /** How many rows the snapshot is spread over (0 when this board has none). */
   chunkRowCount(): number {
-    return this.rows<{ n: number }>(`SELECT COUNT(*) AS n FROM snapshot_chunks`)[0]?.n ?? 0;
+    return this.countRows('snapshot_chunks');
   }
 
   /**
@@ -260,6 +342,7 @@ export class BoardStore {
    * 3), so a failure must not be swallowed here.
    */
   append(update: Uint8Array): void {
+    this.ensureTables();
     this.exec(`INSERT INTO updates (data, bytes) VALUES (?, ?)`, blob(update), update.byteLength);
     this.log.count += 1;
     this.log.bytes += update.byteLength;
@@ -276,6 +359,17 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      if (this.presentTables().size === 0) {
+        // No tables at all: this board was never made, and an empty document is the
+        // truth about it rather than a lie. Nothing is created here — not the schema,
+        // not a row — because reading a board that does not exist has to leave the
+        // storage exactly as it found it, which is what "a bad link says Board not
+        // found, and creates nothing" is made of.
+        this.log = { count: 0, bytes: 0 };
+        this.snapshotThrough = 0;
+        return { ok: true, quarantined: 0 };
+      }
+
       this.snapshotThrough = Number(this.metaGet(SNAPSHOT_THROUGH_SEQ_KEY) ?? '0');
       this.log = { count: 0, bytes: 0 };
 
@@ -377,6 +471,43 @@ export class BoardStore {
   /** One SQL statement that reads. */
   protected rows<T extends Record<string, SqlValue>>(sql: string, ...bindings: SqlValue[]): T[] {
     return this.storage.sql.exec<T>(sql, ...bindings).toArray();
+  }
+
+  /**
+   * Which of this schema's tables the board actually has, read out of
+   * `sqlite_master`. Once they are all there the answer is remembered, because every
+   * read after that is on a board that exists; while they are missing nothing is
+   * remembered, so an object that was constructed before `initialize()` built the
+   * schema notices the moment it has one.
+   */
+  private presentTables(): Set<string> {
+    if (this.tablesKnown) return new Set(TABLE_NAMES);
+    const placeholders = TABLE_NAMES.map(() => '?').join(', ');
+    const present = new Set(
+      this.rows<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`,
+        ...TABLE_NAMES,
+      ).map((row) => row.name),
+    );
+    if (present.size === TABLE_NAMES.length) this.tablesKnown = true;
+    return present;
+  }
+
+  /** Rows of one table, or 0 for a board that never had it. */
+  private countRows(table: 'updates' | 'snapshot_chunks' | 'quarantined_updates', present = this.presentTables()): number {
+    if (!present.has(table)) return 0;
+    return this.rows<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table}`)[0]?.n ?? 0;
+  }
+
+  /**
+   * Make sure the schema is there before a write that needs it. This is the lazy half
+   * of story 5's rule: a board made before `initialize()` existed still gets its
+   * change written, and a board nobody is changing is never built by this call,
+   * because nothing calls it for a board that has no change to write.
+   */
+  private ensureTables(): void {
+    if (this.tablesKnown) return;
+    this.migrate();
   }
 
   /**

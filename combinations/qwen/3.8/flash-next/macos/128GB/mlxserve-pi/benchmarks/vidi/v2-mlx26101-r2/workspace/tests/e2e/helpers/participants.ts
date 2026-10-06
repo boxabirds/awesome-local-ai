@@ -14,6 +14,7 @@ import {
   LIVE_UPDATE_LATENCY_BUDGET_MS,
 } from '../../../src/shared/config.js';
 import { waitForRender, zoomLabel } from './board.js';
+import { createBoardPath } from './boards.js';
 import { docNotes, notes } from './sticky.js';
 
 /**
@@ -37,7 +38,14 @@ export interface Participant {
   dialogs: string[];
 }
 
-/** The address of a brand-new board. Ids come from `newBoardId()`, never typed in. */
+/**
+ * The address of a brand-new board.
+ *
+ * It is not a board yet, and since story 5 that is a difference the server makes: a page
+ * taken to an address it has never heard of is shown "Board not found". Tests that want a
+ * board ask for one (`createBoardPath`); this is only for a test that wants an address it
+ * knows is empty.
+ */
 export const newBoardUrl = (): string => `/b/${newBoardId()}`;
 
 /** A WebSocket failure message, as opposed to an application error. */
@@ -62,15 +70,27 @@ export interface OpenOptions {
   expect?: ConnectionState;
 }
 
-/** Open one context and page per name, all on the same board, all in step. */
+/**
+ * Open one context and page per name, all on the same board, all in step.
+ *
+ * With no address given, the board is created first through the server's own route, because
+ * that is the only way a board comes to exist. A test that means "two people, one board"
+ * gets two pages on a board that is really there, rather than two pages on a guess.
+ */
 export async function openParticipants(
   browser: Browser,
   names: string[],
-  url = newBoardUrl(),
+  url?: string,
   options: OpenOptions = {},
 ): Promise<Participant[]> {
   const waitingFor = options.expect ?? 'connected';
   const people: Participant[] = [];
+  let boardUrl = url;
+  if (boardUrl === undefined) {
+    const asking = await browser.newContext();
+    boardUrl = await createBoardPath(asking.request);
+    await asking.close();
+  }
   for (const name of names) {
     const context = await browser.newContext();
     const page = await context.newPage();
@@ -93,7 +113,7 @@ export async function openParticipants(
       person.dialogs.push(`${dialog.type()}: ${dialog.message()}`);
       await dialog.dismiss();
     });
-    await page.goto(url);
+    await page.goto(boardUrl);
     // The board is up, drawn, and this person is in step with the room.
     await expect(zoomLabel(person.page)).toHaveText('100%');
     await waitForRender(person.page);

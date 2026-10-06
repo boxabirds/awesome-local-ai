@@ -475,3 +475,199 @@ body {
   font-size: 15px;
   line-height: 1;
 }
+
+/* ------------------------------------------------------------------ pages
+   Home, "Opening board…" and Board not found are one layout: a card in the middle
+   of the screen, with the vertical rhythm fixed by the *page* rather than by its
+   content. The message slot under the button is always there, empty or not,
+   because a failure that appears underneath a button moves the button, and a
+   button that moves between the click and the re-click is how someone ends up
+   clicking the wrong thing. */
+
+.page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  background: var(--ui-background);
+}
+
+.page-brand {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ui-muted);
+}
+
+.page-brand-home {
+  font-size: 28px;
+  color: var(--ui-text);
+}
+
+.page-heading {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.page-text {
+  margin: 0;
+  max-width: 34em;
+  color: var(--ui-muted);
+}
+
+.page-button {
+  margin-top: 8px;
+  padding: 9px 18px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ui-background);
+  background: var(--ui-accent);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.page-button:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+/* A button that is disabled because a board is on its way has to look busy and
+   not broken, so it keeps its colour and loses only the pointer. */
+.page-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.page-button:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+.page-message {
+  /* Reserved: two lines tall whether or not there is a message, so the button
+     above it does not move when "Couldn't create a board." arrives. */
+  min-height: 2.6em;
+  margin: 0;
+  max-width: 30em;
+  color: var(--connection-error);
+}
+
+.page-link {
+  color: var(--ui-accent);
+}
+
+/* ------------------------------------------------------------------ share
+   Page chrome, like the toolbar and the zoom controls: `fixed`, so a note can
+   never be drawn over the Share button, and a high z-index, because the panel
+   contains the link to the board and should be the thing on top of everything
+   the board is showing. */
+
+.share {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 3;
+}
+
+.share-button {
+  padding: 6px 14px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ui-text);
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.share-button:hover {
+  background: #f0f2f5;
+}
+
+.share-button:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+}
+
+.share-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 340px;
+  padding: 12px;
+  text-align: left;
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 18%);
+}
+
+.share-field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+
+.share-row {
+  display: flex;
+  gap: 6px;
+}
+
+.share-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 8px;
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--ui-text);
+  background: var(--board-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  /* The link is the whole point of the panel: a field that could be typed into
+     would suggest the address is the thing to edit. */
+  cursor: text;
+}
+
+.share-copy {
+  flex: 0 0 auto;
+  min-width: 96px;
+  padding: 6px 10px;
+  font: inherit;
+  color: var(--ui-text);
+  background: var(--ui-background);
+  border: 1px solid var(--ui-accent);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.share-copy:hover {
+  background: #eef4ff;
+}
+
+/* The confirmation is green, which is the colour this app already uses to say
+   "the thing you asked for happened", and the button keeps its width so the
+   panel does not twitch as the label changes. */
+.share-copy[data-copied='true'] {
+  color: var(--connection-ok);
+  border-color: var(--connection-ok);
+}
+
+.share-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+
+.share-manual {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--connection-warning);
+}

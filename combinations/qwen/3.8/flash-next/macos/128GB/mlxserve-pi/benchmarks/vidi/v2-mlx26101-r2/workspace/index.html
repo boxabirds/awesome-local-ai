@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
+    <!--
+      Privacy (story 5): a board's link is the only thing that keeps a board
+      private, so it must not leave the page in a Referer header. Browsers send a
+      board's full address to third parties by default when a person follows a link
+      or loads a subresource from another origin; this says do not, for everything
+      on the page and on every page of it.
+    -->
+    <meta name="referrer" content="no-referrer" />
     <title>vidi6</title>
   </head>
   <body>

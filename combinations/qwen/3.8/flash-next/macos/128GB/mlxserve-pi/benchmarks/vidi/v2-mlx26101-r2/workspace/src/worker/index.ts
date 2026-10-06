@@ -23,6 +23,7 @@
 
 import { isValidBoardId } from '../shared/board-id.js';
 import { BoardRoom } from './board-room.js';
+import { createBoard } from './create-board.js';
 import { testHookOf } from './test-hooks.js';
 
 export interface Env {
@@ -41,11 +42,64 @@ export interface Env {
 /** The prefix of the live-connection route. */
 const ROOM_PREFIX = '/api/rooms/';
 
+/** The board collection (`POST /api/boards`) and one board (`GET /api/boards/:id`). */
+const BOARDS_PATH = '/api/boards';
+const BOARD_PREFIX = '/api/boards/';
+
+/** A JSON response, and the only body shape these routes have: one `error`, no detail. */
+const json = (body: unknown, status: number): Response =>
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
 /** The board id in `/api/rooms/:boardId`, or `''` for `/api/rooms` itself. */
 const boardIdOf = (pathname: string): string => pathname.slice(ROOM_PREFIX.length);
 
 const isRoomPath = (pathname: string): boolean =>
   pathname === '/api/rooms' || pathname.startsWith(ROOM_PREFIX);
+
+const isBoardsPath = (pathname: string): boolean =>
+  pathname === BOARDS_PATH || pathname.startsWith(BOARD_PREFIX);
+
+/**
+ * `POST /api/boards` — make one board — and `GET /api/boards/:id` — is this board
+ * real? Everything else this file does with a `/api/boards` path is a 405.
+ */
+async function handleBoards(request: Request, env: Env, pathname: string): Promise<Response> {
+  if (pathname === BOARDS_PATH) {
+    if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+    const created = await createBoard(env);
+    if (!created.ok) return json({ error: created.reason }, 500);
+    return json({ id: created.id }, 201);
+  }
+
+  // One board, by id. A request that is not a question about the board does not get
+  // to ask whether it exists.
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return json({ error: 'method_not_allowed' }, 405);
+  }
+
+  const boardId = pathname.slice(BOARD_PREFIX.length);
+  if (!isValidBoardId(boardId)) {
+    // Malformed and unknown give the same answer, and nothing is looked up to find
+    // out: a string that is not 22 base64url characters cannot name a board, and
+    // asking an object about it would both cost an object and tell the asker that
+    // the difference between "rubbish" and "nobody made this" is worth knowing.
+    return json({ error: 'not_found' }, 404);
+  }
+
+  const room = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+  let exists: boolean;
+  try {
+    exists = await room.exists();
+  } catch (error) {
+    // The service did not answer the question, which is not the same as the board
+    // not being there — and the client has to be able to tell the two apart, because
+    // one of them is "Board not found" and the other is "Retrying…".
+    console.error('[worker] the existence check could not run', { error: String(error) });
+    return json({ error: 'check_failed' }, 500);
+  }
+
+  return exists ? json({ id: boardId }, 200) : json({ error: 'not_found' }, 404);
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -63,6 +117,8 @@ export default {
       return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(hook.boardId)).fetch(request);
     }
 
+    if (isBoardsPath(pathname)) return handleBoards(request, env, pathname);
+
     if (!isRoomPath(pathname)) {
       // The board page, the SPA fallback for `/b/<id>` and every asset.
       return env.ASSETS.fetch(request);
@@ -70,15 +126,18 @@ export default {
 
     const boardId = boardIdOf(pathname);
     if (!isValidBoardId(boardId)) {
-      // An id that is not 22 base64url characters is not a board: say so, and
-      // never create a room for it.
-      return new Response('invalid board id', { status: 400 });
+      // An id that is not 22 base64url characters is not a board. Story 3 called this
+      // a 400; story 5 calls it a 404, because from this side of the wire the two are
+      // the same answer — there is no board here — and a code that says "your address
+      // is malformed" is a second way of telling a stranger what an address is worth.
+      return json({ error: 'not_found' }, 404);
     }
     if ((request.headers.get('Upgrade') ?? '').toLowerCase() !== 'websocket') {
       return new Response('expected a WebSocket upgrade', { status: 426 });
     }
 
-    // One object per board id: the isolation between boards is this call.
+    // One object per board id: the isolation between boards is this call. The object
+    // itself turns a board nobody created into a 404 before it accepts the socket.
     const roomId = env.BOARD_ROOM.idFromName(boardId);
     return env.BOARD_ROOM.get(roomId).fetch(request);
   },

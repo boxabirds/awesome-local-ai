@@ -10,7 +10,6 @@ import {
   expectNoteCount,
   expectSameBoard,
   measureChange,
-  newBoardUrl,
   openParticipants,
   person,
   printLatencyReport,
@@ -181,9 +180,11 @@ test('TC-30: a full house editing at random ends on one identical board @nightly
   test.setTimeout(8 * 60_000);
 
   const names = Array.from({ length: MAX_CONCURRENT_EDITORS }, (_, i) => `Editor ${i + 1}`);
-  // A board of its own, so the soak's timings are nobody else's business.
-  console.log(`[soak] board ${newBoardUrl()}`);
+  // A board of its own, made by the server the soak runs against, so its timings are
+  // nobody else's business. The address is printed because a soak that fails at 03:00 is
+  // worth being able to look at again.
   const people = await openParticipants(browser, names);
+  console.log(`[soak] board ${people[0]?.page.url() ?? '(no board)'}`);
   console.log(
     `[soak] ${names.length} people for ${CAPACITY_SOAK_MS / 1000}s, seed ${SOAK_SEED} ` +
       `(VIDI6_NIGHTLY_SEED plays it back)`,

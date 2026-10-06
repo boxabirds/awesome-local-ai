@@ -1,11 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// All servers must listen inside $AGENT_PORT_FIRST..$AGENT_PORT_LAST (see NOTES.md).
-// +4 because 24210/24211 were left occupied by a wrangler dev that this sandbox
-// cannot signal (see NOTES.md); 24212/24213 are free.
-const PORT = Number(process.env.E2E_PORT ?? (Number(process.env.AGENT_PORT_FIRST ?? 24208) + 4));
+import { BASE_URL, PORT } from './tests/e2e/target.js';
+
+// The address comes from tests/e2e/target.ts, because the tests ask the server for a board
+// from Node before any page is opened, and that request has to go to the same server this
+// config starts (all servers listen inside $AGENT_PORT_FIRST..$AGENT_PORT_LAST, see NOTES.md).
 const INSPECTOR_PORT = Number(process.env.E2E_INSPECTOR_PORT ?? PORT + 1);
-const BASE_URL = `http://127.0.0.1:${PORT}`;
 const VIEWPORT = { width: 1280, height: 800 };
 
 export default defineConfig({

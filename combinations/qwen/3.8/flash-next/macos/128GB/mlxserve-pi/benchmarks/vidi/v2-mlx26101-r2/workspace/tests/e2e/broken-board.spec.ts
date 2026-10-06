@@ -203,7 +203,7 @@ test('TC-24 a board that could not be loaded says so in red, and is a board agai
   test.setTimeout(420_000);
   const server: WranglerProcess = await startWrangler({ port: PORT });
   try {
-    const path = server.newBoardPath();
+    const path = await server.newBoardPath();
     const people = await openParticipants(browser, ['Alex', 'Sam'], server.urlFor(path));
     const [alex, sam] = people as [Participant, Participant];
 

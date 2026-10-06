@@ -14,7 +14,7 @@ import {
   pointerDown,
   pointerMove,
   pointerUp,
-  renderApp,
+  renderBoard,
   wheelEvent,
 } from './helpers.js';
 
@@ -40,7 +40,7 @@ describe('navigation hint copy', () => {
 
 describe('first camera change dismisses the hint (TC-22)', () => {
   it('visible -> hidden -> hidden across two navigations', () => {
-    renderApp();
+    renderBoard();
     // 1. The board opens with the hint.
     expect(screen.getByTestId('navigation-hint')).toBeInTheDocument();
 
@@ -79,7 +79,7 @@ describe('first camera change dismisses the hint (TC-22)', () => {
     ];
 
     for (const { name, navigate } of dismissals) {
-      renderApp();
+      renderBoard();
       expect(screen.getByTestId('navigation-hint'), `hint shown on open (${name})`).toBeInTheDocument();
       navigate();
       expect(screen.queryByTestId('navigation-hint'), `hint gone after ${name}`).toBeNull();
@@ -87,7 +87,7 @@ describe('first camera change dismisses the hint (TC-22)', () => {
   });
 
   it('is not dismissed by a camera change that does not happen', () => {
-    renderApp();
+    renderBoard();
     // Ctrl/Cmd + 0 resets the view; at the standard view there is nothing to
     // reset, so nothing moves and the hint stays (a no-op is not navigation).
     const reset = keydown('0', { meta: true });
@@ -97,7 +97,7 @@ describe('first camera change dismisses the hint (TC-22)', () => {
   });
 
   it('treats zooming past a limit as a no-op for the camera', () => {
-    renderApp();
+    renderBoard();
     // Zoom all the way in, then keep zooming in: the camera stops changing once
     // the limit is reached (the hint was dismissed by the first real zoom).
     for (let i = 0; i < 40; i += 1) keydown('=', { ctrl: true });

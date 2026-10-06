@@ -26,7 +26,7 @@ import {
   pointerDown,
   pointerMove,
   pointerUp,
-  renderApp,
+  renderBoard,
   selectedNoteId,
   typeText,
 } from './helpers.js';
@@ -49,7 +49,7 @@ function toRgb(hex: string): string {
 }
 
 beforeEach(() => {
-  renderApp();
+  renderBoard();
 });
 
 describe('sticky.toolbar: creating', () => {

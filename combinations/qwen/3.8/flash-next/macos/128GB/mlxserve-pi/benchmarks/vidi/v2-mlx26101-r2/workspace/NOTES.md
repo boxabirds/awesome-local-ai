@@ -26,6 +26,10 @@ binds `::1` here and `http://127.0.0.1:24208` refuses connections).
 Ports 24210/24211 are held by a `wrangler dev` process that this sandbox cannot
 signal (`kill` is refused), so the e2e port is `AGENT_PORT_FIRST + 4` rather than
 `+ 2`; the port stays configurable through `E2E_PORT` / `E2E_INSPECTOR_PORT`.
+From story 5 the resolved value lives in one module, `tests/e2e/target.ts`, which
+`playwright.config.ts` and the specs both import: boards are made by the server now, so
+a test needs the port *before* it has a page, and a helper that reads it off a page's
+own URL would have nothing to read it from.
 
 ## Browsers
 
@@ -448,7 +452,7 @@ like an oversight the next time something breaks.
   Safari pinch gestures are not covered in e2e (see Browsers), which the story's
   test strategy explicitly allows, and Firefox/WebKit tests skip themselves on
   this machine because those browsers cannot be launched here (see Browsers).
-  Counted at the time of writing, over the whole suite: 73 e2e tests run here and 83
+  Counted at the time of writing, over the whole suite: 89 e2e tests run here and 107
   skip themselves for browser reasons. The stories 1 to 3 tests and this story's TC-22
   to TC-28 are browser-agnostic and so run in chromium and in the retina project too;
   TC-19 to TC-21 and TC-24 are chromium-only, because they start, corrupt and kill a
@@ -470,3 +474,109 @@ like an oversight the next time something breaks.
   asset server answers a `POST /__test/...` with the SPA's `index.html` and a 200,
   which for a route that does not exist is the wrong status and the wrong body; the
   test that checks "this server has no test routes" would have to allow for that.
+
+### Story 5: deviations
+
+- `nextBoardPageState` takes a fourth argument, the board id, which the design's contract
+  line does not list. The reason is the `ready` state: it is the board's own id, and a page
+  cannot render a board, a Share panel or a title without it. The three arguments the design
+  names are the ones that decide the transition; the fourth is carried through to the state
+  that says "this one".
+- A board page asks the server whether the board is there on every mount, including when the
+  navigation came from a **New board** press that was told the board was made a moment ago.
+  The design allows a page to remember that an id was answered with `exists` and go straight
+  to ready; this one does not, because the answer belongs to the mount that asked for it, and
+  the state that would carry it between mounts would be a second copy of the truth that can
+  disagree with the first. The cost is one 2-byte request per navigation, which TC-26 measures
+  as part of the click-to-board time it prints.
+- `src/client/board/BoardSurface.tsx` is a file the design's Files table does not name. The
+  table splits `App.tsx` into `router.ts` and `pages/BoardPage.tsx`; between them sits the
+  board UI of stories 1 to 4, and both files would have to own it. So `App.tsx` keeps routing,
+  `pages/BoardPage.tsx` keeps the existence check, and `BoardSurface` is what the board page
+  renders when the answer is yes - which is also what lets the component harness drive 136 old
+  tests through the router instead of around it.
+- Story 4's `cameFromAClient()` in `src/worker/board-room.ts` is changed here (see the
+  durability note above). It is another story's file, and the change is not part of this
+  story's acceptance criteria; it is a fault in the durable path that this story's request
+  pattern exposed, and leaving it in place would have meant shipping a board that loses what
+  it was shown. The story 4 suite still passes unchanged, and one test was added to that
+  story's own file to say the behaviour out loud.
+
+## Story 5: links, and the pages that stand behind them
+
+- **A malformed board id is "not found", at both doors.** `GET /api/boards/abc` answers 404
+  and `GET /api/rooms/abc` answers 404 before a Durable Object is named (TC-07), which is what
+  keeps the second half of the id rule true: a string that cannot be an id must not be able to
+  spawn the storage of one. A 400 would be the pedantic answer and would cost the client a
+  second kind of failure to tell apart from the first: from the person's side, a link typed
+  wrong and a link to a board that was deleted are the same event, and the design spends a
+  whole page on it (`share.not_found`). So `BoardPage` decides "this is not a board id" before
+  it sends anything (TC-19), and the server says the same thing when something else sends it.
+- **The client asks before it connects, and the room stopped opening boards.** Stories 1 to 4
+  treated `/api/rooms/:id` as the place a board comes from: connect, and the board exists
+  afterwards, in whatever browser got there first. Story 5 takes that permission away, because
+  a board has to exist before the first link is sent, and because "any address makes a board"
+  and "an unknown address says so" cannot both be true. A board page now sends `GET
+  /api/boards/:id` and opens the WebSocket only on a 200 - which also means the page never
+  fails a WebSocket it was never supposed to try. The room's `fetch` still serves everything it
+  served (load, join, wire messages, `__vidi6Board`), and the story 4 test hooks still work on a
+  board id they are given, because those hooks address a board rather than create one.
+- **A WebSocket the runtime built is not a `WebSocketClient`, and story 5's timing turned that
+  into a board that forgot.** Story 4's `cameFromAClient()` asked whether the origin of a change
+  was `instanceof WebSocket`, which is true of every socket the room accepted itself through
+  `ws.accept()` and false of the one the runtime constructs for the client's first frame in
+  Miniflare: the load and the welcome are not client changes (they are the room answering), and
+  the durable path dropped them. It did not matter while the first load was the last thing that
+  touched a board: `boardChanged` writes the row before it broadcasts, so the first change a
+  person made put the board into the log, and every write after it carries the snapshot forward.
+  With story 5 there is a request between the load and anything else - the existence check - and
+  when that request is what wakes a cold object and nothing at all follows, the object is left
+  holding a board it has read and never stored, and the next wake reads an empty board.
+  `tests/integration/board-room-persistence.test.ts` says it as a test: load a board over a real
+  WebSocket, destroy the object without any client change, wake it, and find the board - the
+  test fails with the old line and passes with the fix. The fix is to accept `WebSocket` as
+  well, and nothing wider: a change that came from a socket the room did not accept is not
+  something to store, and the load is the room's answer to a question the client asked, not a
+  client's edit. What was already stored is untouched - the durable path still ignores the load
+  in the sense that matters, which is that a load writes nothing (TC-06/TC-09: a board probed by
+  a stranger has no rows at all, not even a snapshot).
+- **A board page mounts a moment after the address bar moves.** The page asks the server first,
+  so `page.goto('/b/<id>')` returns while the page is still holding the question. Reading the
+  document hooks (`window.__vidi6Board`) at that moment throws, and Playwright's `expect.poll`
+  treats an error thrown by the thing it is polling as the assertion failing rather than as a
+  condition not yet true - which produced failures that read "the e2e suite needs the test
+  build" on a server that was serving exactly that build. `waitForBoard(page)` from
+  `helpers/boards.ts` is the honest version: it asks whether the board is mounted, by name, and
+  waits. It is what every spec - including the older stories' - calls after a navigation, and
+  `openBoard()` calls it too, because every spec that follows it reaches for the document.
+- **The e2e helpers now make boards, and one helper's meaning changed.** `openBoard()` and
+  `openParticipants()` create a board through the API before navigating (a board page is no
+  longer what the home page is), `Server.newBoardPath()` does the same on the server it started,
+  and `newBoardUrl()` - which used to mean "a board, which the first navigation will make" - now
+  means "an id nobody ever made", which is exactly what TC-27 and TC-31 want. Every id in every
+  spec still comes from `newBoardId()`; the two specs that seed boards and the two that want an
+  unknown address are the ones that read that meaning directly.
+- **The component harness renders `App`, and `BoardSurface` is what the board page renders.**
+  Story 1 to 4's component tests asked for a board by rendering the board's root; that root is
+  now `BoardSurface`, and rendering it directly would leave the router, the pages and the
+  existence check outside every one of the 136 tests the old stories own. So `renderBoard()`
+  renders `App` at `/b/<id>` with a stubbed existence check and gets to the board the way a
+  person does, then waits for the board to mount in the same fake-time loop it already used -
+  the board appearing is the first thing those tests do rather than a thing they assume. What
+  they assert is unchanged.
+- **The Share panel treats a clipboard that says no as an ordinary answer.** `writeText` can
+  reject (a permission the person refused) and can throw out of the call (a browser without the
+  API in that context); both leave the link selected in the field with the keystroke written
+  under it, which is why the panel does not consider a rejected promise a bug in itself. The
+  selection is read back and asserted in the component tests (TC-23/TC-24) and in e2e (TC-29),
+  because "we tried to select it" and "the keystroke will copy the whole link" are different
+  claims.
+- **The tab says which board it is.** `BoardSurface` sets `document.title` to `Board <id> - vidi6`
+  while it is mounted and puts the old title back when it goes. The design does not ask for it;
+  it is the consequence of a board having an address, which is that a person can be handed three
+  of them and cannot tell them apart by looking at the tab.
+- **The link is the only secret, so nothing travels with it.** `<meta name="referrer"
+  content="no-referrer">` is in `index.html`, and e2e checks it is in the served page and that
+  the board page itself asks for nothing beyond its own origin. A board address is 22 characters
+  of randomness and no access control; the page's own address is the one thing that must not
+  leak to a third party through a subresource, and there are no subresources to leak it to.
