@@ -1,6 +1,6 @@
 {
   "state": "failed",
   "reason": "exit 75: MACHINE UNFIT: story 11 was stopped (swap guard: swap 0.13 -> 35.47 GB, free memory at least 12.0%); still swap 2.6 GB, above the 1.1 GB it may be. Waiting for it to recover.",
-  "at": "2026-10-06T13:53:56Z",
+  "at": "2026-10-06T13:59:07Z",
   "host": "Apple M5 Max 128GB"
 }
