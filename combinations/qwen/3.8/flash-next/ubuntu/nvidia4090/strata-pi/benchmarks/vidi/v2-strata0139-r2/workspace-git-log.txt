@@ -1,3 +1,61 @@
+commit 51b7e5fb71250dcf6d0c0d4313c91f233802752e
+agent  Tue Oct 6 07:29:37 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                         | 172 +++++++++++
+ PROGRESS.md                                      |  34 ++-
+ index.html                                       |   3 +
+ package.json                                     |   2 +-
+ src/client/App.tsx                               |   3 +
+ src/client/api.ts                                |  79 +++++
+ src/client/main.tsx                              |  24 +-
+ src/client/pages/BoardPage.tsx                   | 113 +++++++
+ src/client/pages/HomePage.tsx                    | 102 +++++++
+ src/client/pages/NotFoundPage.tsx                |  72 +++++
+ src/client/pages/SharePanel.tsx                  | 181 +++++++++++
+ src/client/pages/state.ts                        |  89 ++++++
+ src/client/router.tsx                            |  89 ++++++
+ src/client/routing.ts                            |  13 +-
+ src/client/styles.css                            | 168 ++++++++++
+ src/shared/api.ts                                |  29 ++
+ src/shared/config.ts                             |  18 ++
+ src/worker/board-room.ts                         | 118 +++++++-
+ src/worker/board-store.ts                        |  81 ++++-
+ src/worker/create-board.ts                       |  46 +++
+ src/worker/index.ts                              | 131 ++++++--
+ src/worker/test-hooks.ts                         |  75 +++++
+ tests/component/11-app-router.test.tsx           | 174 +++++++++++
+ tests/component/12-share-panel.test.tsx          | 271 +++++++++++++++++
+ tests/component/13-home-page.test.tsx            | 158 ++++++++++
+ tests/component/14-board-page.test.tsx           | 354 ++++++++++++++++++++++
+ tests/e2e/helpers/api.ts                         |  82 +++++
+ tests/e2e/helpers/board.ts                       |  28 +-
+ tests/e2e/helpers/participants.ts                |  51 +++-
+ tests/e2e/helpers/sync-client.ts                 |   2 +-
+ tests/e2e/helpers/wrangler-process.ts            |   9 +-
+ tests/e2e/live-collaboration-nightly.spec.ts     |  77 ++++-
+ tests/e2e/live-collaboration.spec.ts             | 123 ++++++--
+ tests/e2e/persistence.spec.ts                    |   8 +-
+ tests/e2e/share.spec.ts                          | 370 +++++++++++++++++++++++
+ tests/integration/board-api.test.ts              | 308 +++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |  16 +-
+ tests/integration/board-room.test.ts             |   6 +-
+ tests/integration/build-assets.ts                |  14 +
+ tests/integration/helpers/ws-client.ts           |  69 ++++-
+ tests/integration/worker.test.ts                 |  17 +-
+ tests/unit/create-board.test.ts                  | 114 +++++++
+ vitest.config.ts                                 |   3 +
+ 43 files changed, 3763 insertions(+), 133 deletions(-)
+commit 0626ba975575d126396e188f73cb502cba8dc38f
+vidi-agent  Tue Oct 6 03:59:46 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit 45461e670402082fad9ce7daf9642eb28137032b
 vidi-agent  Tue Oct 6 03:59:35 2026 +0100
 
