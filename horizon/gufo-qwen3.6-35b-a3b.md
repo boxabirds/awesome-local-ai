@@ -1,0 +1,126 @@
+# gufo fork: Qwen3.6-35B-A3B Q6dense (a new combination)
+
+**Status:** gated (6 Oct 2026) — on a **from-source ROCm build**, which is the only way to run it. The owner has
+asked for the combination and a series on the Strix Halo box once it is free.
+
+The tool-call gate is **cleared**: the fork's merge base with upstream is `2026-10-02T11:08:42Z`, which is gufo
+0.5.0 to the minute, so it carries PR #373 — the fix for our issue 304 — and its engine base is the *same
+version this repository already pins* for the Flash-Next gufo runs. That is a much smaller confound than a fork
+of unknown vintage.
+
+What replaces it as the gate: **the fork publishes no runtime image.** It has no releases, no image-publishing
+workflow of its own (upstream's image is built in the separate `gufo-org/toolboxes` repository), and its own
+quickstart points at upstream's `gufo-runtime:latest`, which does not contain this model. Every gufo run here
+uses a digest-pinned image and builds nothing on the host (`GPU_API="none"`). This combination cannot.
+
+**Kind:** a new combination, not an engine bump. The model, the quantisation and the engine build all differ
+from `qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi`, so nothing about it is a variable change to an
+existing stack. Proposed path `combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-q6dense-pi` — the
+quant belongs in the combination, as with `llamacpp-iq3xxs-pi`; the name is not settled.
+
+## What it is
+
+[NinjaPear/gufo-Qwen3.6-35B-A3B-Q6dense](https://github.com/NinjaPear/gufo-Qwen3.6-35B-A3B-Q6dense) is a fork of
+the gufo engine that adds support for Qwen 3.6 35B-A3B. It is an engine fork, not a weights repository: the
+weights are [ligamentexceed/Qwen3.6-35B-A3B-Q6dense-GGUF](https://huggingface.co/ligamentexceed/Qwen3.6-35B-A3B-Q6dense-GGUF).
+
+**Read the author's own description of it before anything else** (the repository's description field, verbatim):
+
+> "This is a fork of gufo to support Qwen 3.6 35B A3B for workloads that prioritizes speed over intelligence."
+
+The person who built it says it trades intelligence for speed. That is a claim about this stack from the one
+party who has run it most, and it is the hypothesis our pack would test rather than a reason not to test it —
+but any result should be read next to it, and a poor score would be the author's own expectation, not a
+surprise.
+
+**What the fork actually changes.** Two commits ahead of upstream, forty behind, "diverged" (GitHub compare,
+6 Oct 2026). The two commits are not branding: they add `src/models/qwen36_35b_a3b/` — config, engine, weights,
+CPU ops, ROCm/HIP kernels including a `gfx1151` MoE wave64 path and a vendored `mmq` quantised-matmul set, MTP
+cost/policy/sampling headers — with fourteen test files under `tests/models/qwen36_35b_a3b/` and a
+`llama_parity.py`. It is a substantial piece of kernel work by one author, with its own tests.
+
+**"Q6dense" does not mean the model is dense.** It is still a mixture of experts, and the card says the routing
+is retained. The suffix names which half of the weights got Q6:
+
+| Weights | Quantisation, as the card states it |
+|---|---|
+| Trunk **dense** weights: attention, DeltaNet, shared expert, output head | Q6_K |
+| Routed experts | Unsloth UD-Q4_K_XL (gate/up Q4_K, down Q5_K; a few layers Q5_K/Q6_K) |
+
+So it reads as "Q6 on the dense part", not "a dense model". 36B parameters, 22,388,168,960 bytes (~22.4 GB) by
+the card, and it includes the model's native MTP (multi-token prediction) block.
+
+The fork's own published figures, on its own hardware and not measured by us: "3000 tok/s prefill; 120 tok/s
+decode" in its title, and a table reading 3,095.44 tok/s prefill and up to 190.67 tok/s decode for a single
+user. **These are not the reason to run it.** Throughput is not what this benchmark ranks, and a figure from
+someone else's machine settles nothing about held-out tests passed.
+
+## Why it is interesting
+
+3B active parameters. Every local combination benchmarked so far carries far more weight per token, and the open
+question this stack would answer is not how fast it is but whether a model this sparse can do multi-hour agentic
+coding work at all — whether it holds a contract across a compaction, reads a specification rather than
+recalling it, and lands a story. If it scores respectably, the cost of a useful local coding agent falls a long
+way. If it does not, that is worth knowing with the same evidence.
+
+Qwen 3.6 35B-A3B has **never been benchmarked in this repository**. One combination exists for it,
+`combinations/qwen/3.6/35b-a3b/ubuntu/nvidia3090/sglang-opencode`, and it has no runs: no `metrics.json` under
+it and nothing in the warehouse (checked 6 Oct 2026). It also uses the OpenCode client, so even if it had runs
+they would not compare with the vidi `pi` series.
+
+## Where it could run
+
+The Strix Halo box. The fork targets exactly that hardware — its README describes gufo as built for "the AMD
+Strix Halo hardware: Ryzen AI MAX+ 395 systems with Radeon 8060S (`gfx1151`), up to 128 GiB of unified memory" —
+and it is the only machine here that runs gufo at all. 22.4 GB of weights is no constraint on 128 GB.
+
+It would be compared with the gufo Flash-Next series (`v2-gufo05-r1`…`-r5`) on the same machine and pack, with
+the confounds below stated every time.
+
+## Checks before a run
+
+1. ~~**What is the fork's base version, and does it carry the tool-call fix?**~~ **Done, 6 Oct 2026.** The merge
+   base with `gufo-org/gufo` is `2026-10-02T11:08:42Z` — gufo 0.5.0, which closed our issue 304 (PR #373), and
+   the version this repository already pins. The fix is in.
+2. **It has to be built from source, on the Strix Halo box.** No image exists (above). The fork's own
+   instructions: "Install a C++20 compiler, CMake 3.21+, Ninja, pkg-config and the following development
+   libraries", with a Nix path as the alternative, and ROCm/HIP for `gfx1151`. Nothing in this repository builds
+   an engine from source on a host — every combination either pulls an image or installs a released binary — so
+   this needs a new install path in `lib/gufo.sh` (or a `gufo-src` backend), not just a `config.sh`. **This is
+   the gate.** Until a build succeeds and prints a version, there is nothing to queue.
+3. **Licences.** Qwen 3.6's own terms, and the weights'. The fork states MIT for the original gufo code and says
+   model weights retain their publishers' terms without naming them. Not checked.
+4. **The engine answers, with tools.** The short check from the smoke-run rule: the server starts, answers a
+   request, returns a structured tool call, reuses a prompt. Ten minutes, not a story.
+5. **A tool call with raw newlines**, specifically. Upstream kept finding tool-call defects *after* 0.5.0, and
+   the fork has none of those fixes: of the forty commits it is behind, at least six are server tool-call fixes
+   (`#393` parse tool output using the admitted request format, `#396` JSON string ownership during tool
+   recovery, `#397` end DeepSeek tool output after the call block, `#400` keep tool-call framing out of
+   assistant content, `#404` reuse replayed tool turns with union and typed arguments, `#441` keep tool calls in
+   native model syntax) and about five more are cache fixes. Our own `toolcall_text_resumes` signature is the
+   thing to watch, and a clean smoke story does not clear it — the defect bites on particular tool payloads.
+6. **Context.** Nothing read so far states a context limit for this build; its own docs say it "uses the
+   model's native context by default" with `--context N` per session. The pack needs 128k; confirm it before a
+   series, because a short window invalidates the comparison rather than losing a story.
+7. Then one unrecorded partial rerun of a story that exercises the pattern, as [gufo 0.5](gufo-0.5.md) did, and
+   only then a recorded series.
+
+## Confounds
+
+Four things differ at once from the gufo Flash-Next runs, which is why this is a combination and not a variant:
+
+- **The model**: Qwen 3.6, not 3.8 — an older generation, and 35B total against Flash-Next's 125B.
+- **Active parameters**: 3B active against Flash-Next's.
+- **The quantisation**: mixed Q6_K trunk with 4-bit routed experts, against the 4-bit Flash-Next pack.
+- **The engine**: the same 0.5.0 base, but built from source rather than the pinned image, and without the
+  forty commits upstream has added since — including six tool-call fixes and about five cache fixes.
+
+MTP is also on by the fork's own description ("Q6dense with native MTP"), which moves timing on its own.
+
+A result here therefore says something about *this stack*, and nothing on its own about Qwen 3.6, about sparse
+MoE in general, or about the fork's engine work. Reading it as any of those would be the mistake.
+
+**Last checked:** 6 Oct 2026 (the fork's README and repository metadata, the GitHub compare against upstream,
+its weights card, and this repository's own combinations and warehouse). **Recheck when:** a from-source build
+is attempted on the Strix Halo box — which moves this to candidate (it built, with a version string) or to
+blocked (it did not, with the error).
