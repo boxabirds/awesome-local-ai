@@ -1,3 +1,98 @@
+commit 6fc3e92ae13f14f4dc07127089153c413208bac5
+agent  Tue Oct 6 13:49:33 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                    |  93 ++++++++
+ playwright.config.ts                        |   7 +-
+ src/client/App.tsx                          |  16 +-
+ src/client/board/Toolbar.tsx                |  13 +-
+ src/client/canvas/BoardViewport.tsx         |  15 +-
+ src/client/objects/NoteToolbar.tsx          |  10 +-
+ src/client/objects/StickyNote.tsx           |  24 ++
+ src/client/styles.css                       |  15 ++
+ src/client/sync/ConnectionStatus.tsx        |  16 +-
+ src/client/sync/connectBoard.ts             |  69 +++++-
+ src/worker/board-room.ts                    |  49 ++++
+ src/worker/board-store.ts                   |  46 ++++
+ src/worker/index.ts                         |  18 ++
+ src/worker/test-hooks.ts                    |  73 ++++++
+ tests/component/BoardLoadFailure.test.tsx   | 348 ++++++++++++++++++++++++++++
+ tests/e2e-restart/board-persistence.spec.ts |   2 +-
+ tests/e2e-restart/storage-hooks-off.spec.ts |  54 +++++
+ tests/e2e/board-load-failure.spec.ts        | 166 +++++++++++++
+ tests/e2e/helpers/participants.ts           |  16 +-
+ tests/e2e/helpers/seed-board.ts             |  40 +++-
+ tests/e2e/helpers/storage-hooks.ts          |  45 ++++
+ tests/e2e/helpers/wrangler-process.ts       |  18 +-
+ 22 files changed, 1130 insertions(+), 23 deletions(-)
+commit 5bb6f1986b90c4bf06300459399f4b2e0056fcdb
+agent  Tue Oct 6 12:39:03 2026 +0000
+
+    story 4 task 6: e2e persistence across real process restarts (TC-19 to TC-21)
+
+
+ NOTES.md                                    |  46 ++++
+ playwright.config.ts                        |  42 +++-
+ tests/e2e-restart/board-persistence.spec.ts | 327 ++++++++++++++++++++++++++++
+ tests/e2e/helpers/seed-board.ts             | 263 ++++++++++++++++++++++
+ tests/e2e/helpers/wrangler-process.ts       | 245 +++++++++++++++++++++
+ 5 files changed, 919 insertions(+), 4 deletions(-)
+commit 8d6aaf7dbba7b89887da4950f88302a5d36eeec9
+agent  Tue Oct 6 12:11:39 2026 +0000
+
+    story 4 task 5: persistent room integration tests (TC-12 to TC-18, TC-26)
+
+
+ NOTES.md                                   |  32 ++
+ tests/integration/room-persistence.test.ts | 491 +++++++++++++++++++++++++++++
+ 2 files changed, 523 insertions(+)
+commit 1e100df65a66720f7ebf17e8cbb852dda013c5cb
+agent  Tue Oct 6 12:01:00 2026 +0000
+
+    story 4 task 4: persistent room - load on wake, store before broadcast, hibernation, load and storage failure handling (+TC-04b chunking at production size)
+
+
+ NOTES.md                              | 423 +++++++++-------------------------
+ src/worker/board-room.ts              | 379 ++++++++++++++++++++++--------
+ src/worker/board-store.ts             |  12 +
+ tests/fixtures/boards.ts              |  26 +++
+ tests/integration/board-store.test.ts |  50 ++++
+ tsconfig.tsbuildinfo                  |   1 +
+ 6 files changed, 474 insertions(+), 417 deletions(-)
+commit f6e0ddc7f04a46eb439f120b0dd7da1e7e4091b9
+agent  Tue Oct 6 11:37:25 2026 +0000
+
+    story 4 task 3: BoardStore integration tests against real Durable Object SQLite (TC-03 to TC-11, TC-25)
+
+
+ src/worker/board-store.ts             | 366 +++++++++++++++++--
+ src/worker/room-state.ts              |  69 +++-
+ tests/fixtures/boards.ts              | 372 +++++++++++++++++++
+ tests/integration/board-store.test.ts | 670 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 1447 insertions(+), 30 deletions(-)
+commit ffae3d97e6b9de5632e8683cc02fc7255132c843
+agent  Tue Oct 6 10:46:27 2026 +0000
+
+    story 4 task 1: persistence unit tests red phase (TC-01, TC-02, TC-27) with stubs
+
+
+ src/shared/config.ts                  |  44 +++++++++
+ src/shared/protocol.ts                |  14 +++
+ src/worker/board-store.ts             | 138 +++++++++++++++++++++++++++++
+ src/worker/room-state.ts              |  87 ++++++++++++++++++
+ tests/unit/board-store-chunks.test.ts |  83 +++++++++++++++++
+ tests/unit/room-state.test.ts         | 162 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 528 insertions(+)
+commit 3fe915452910790a8fc054141defaec30be47366
+vidi-agent  Tue Oct 6 10:25:48 2026 +0000
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit 01ef223932796db07236db2b2ef63907b7ef8d97
 agent  Tue Oct 6 10:22:31 2026 +0000
 
