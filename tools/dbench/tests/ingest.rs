@@ -203,6 +203,73 @@ fn story_inputs(rel: &str, text: &str, rec: Value, complete: bool) -> ingest::St
 
 const RUN: &str = "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1";
 
+/// The harness's readings of the machine while a story runs, as it writes them to
+/// `stories/NN/conditions.jsonl`: one JSON object a line, every 30 s.
+const CONDITIONS: &str = concat!(
+    r#"{"t": 1790000010.0, "ac": true, "low_power": false, "thermal": "nominal", "swap_gb": 1.98, "free_pct": 24.0, "footprint_gb": 0.18, "footprint_peak_gb": 0.21, "gpu": {"busy_pct": 100, "sclk_mhz": 2775, "power_w": 128.77, "temp_c": 46.0, "vram_gb": 23.13, "throttle": "0x00"}}"#,
+    "\n",
+    r#"{"t": 1790000040.0, "ac": true, "low_power": false, "thermal": "nominal", "swap_gb": 2.01, "free_pct": 19.5, "footprint_gb": 0.19, "footprint_peak_gb": 0.22, "gpu": {"busy_pct": 98, "sclk_mhz": 2760, "power_w": 131.0, "temp_c": 47.0, "vram_gb": 23.2, "throttle": "0x00"}}"#,
+    "\n",
+);
+
+// The lake has carried conditions.jsonl all along and ingest parsed it into the event stream, but nothing ever
+// wrote it to the `conditions` table: `replace_conditions` had no caller. The table was empty across 99 collected
+// files, so a question about a machine's memory could only be answered by sampling the box by hand (6 Oct 2026).
+#[test]
+fn a_storys_machine_readings_are_written_to_the_conditions_table_not_only_to_the_event_stream() {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let text = fixture("accounting__pi-nudged");
+    let rel = format!("{RUN}/stories/01");
+    let rec = json!({"title": "One", "status": "DONE", "started": 1790000000.0, "agent_finished": 1790000122.0});
+    let mut inp = story_inputs(&rel, &text, rec, true);
+    inp.conditions_text = Some(CONDITIONS.to_string());
+    let out = ingest::ingest_story(&mut db, &parts, &inp, 1_790_001_000.0).unwrap();
+
+    let n: i64 = db.conn.query_row("select count(*) from conditions where sk = ?1", [out.sk], |r| r.get(0)).unwrap();
+    assert_eq!(n, 2, "both readings belong in the conditions table");
+    let (at, free_pct, swap, vram, run_id): (f64, f64, f64, f64, String) = db
+        .conn
+        .query_row(
+            "select at, free_pct, swap_gb, gpu_mem_gb, run_id from conditions where sk = ?1 order by at limit 1",
+            [out.sk],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+        )
+        .unwrap();
+    assert_eq!(at, 1790000010.0);
+    assert_eq!(free_pct, 24.0);
+    assert_eq!(swap, 1.98);
+    assert_eq!(vram, 23.13);
+    assert_eq!(run_id, RUN, "the row carries its run, so a run's readings can be read without a join");
+
+    // Ingesting the story again replaces its readings rather than doubling them.
+    ingest::ingest_story(&mut db, &parts, &inp, 1_790_002_000.0).unwrap();
+    let again: i64 = db.conn.query_row("select count(*) from conditions where sk = ?1", [out.sk], |r| r.get(0)).unwrap();
+    assert_eq!(again, 2, "re-ingest replaces, never doubles");
+}
+
+// A run's stories are ingested one at a time, so writing one story's readings must not remove another's.
+#[test]
+fn one_storys_readings_do_not_remove_another_storys_from_the_same_run() {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let text = fixture("accounting__pi-nudged");
+    let rec = json!({"title": "One", "status": "DONE", "started": 1790000000.0, "agent_finished": 1790000122.0});
+    let mut first = story_inputs(&format!("{RUN}/stories/01"), &text, rec.clone(), true);
+    first.conditions_text = Some(CONDITIONS.to_string());
+    let a = ingest::ingest_story(&mut db, &parts, &first, 1_790_001_000.0).unwrap();
+
+    let later = CONDITIONS.replace("1790000010.0", "1790009010.0").replace("1790000040.0", "1790009040.0");
+    let mut second = story_inputs(&format!("{RUN}/stories/02"), &text, rec, true);
+    second.conditions_text = Some(later);
+    let b = ingest::ingest_story(&mut db, &parts, &second, 1_790_002_000.0).unwrap();
+
+    for (sk, which) in [(a.sk, "story 1"), (b.sk, "story 2")] {
+        let n: i64 = db.conn.query_row("select count(*) from conditions where sk = ?1", [sk], |r| r.get(0)).unwrap();
+        assert_eq!(n, 2, "{which} kept its readings");
+    }
+}
+
 #[test]
 fn a_story_is_written_whole_its_stream_in_time_order_and_read_back_by_range_and_by_cursor() {
     let mut db = Db::open_memory().unwrap();
