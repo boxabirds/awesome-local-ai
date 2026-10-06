@@ -189,6 +189,7 @@
    "packVersion": "vidi-v1.1",
    "state": "finished",
    "stateAt": "2026-09-29T14:02:31Z",
+   "expertCache": { "requested": "auto", "experts": 9094, "vramGib": 14.73 },
    "stories": [
     {
      "id": "1",
