@@ -293,7 +293,7 @@
 <p>A failure of the scoring is never a score. Every checkpoint is scored three times: the failing tests, and a seeded sample of the passing ones, are rerun and each takes its majority result.</p>
 <ul class="ins-nums"><li>A <a class="term" href="#g-rescore" data-term="rescore">re-score</a> more than 3 tests from the run's <a class="term" href="#g-live-score" data-term="live-score">live score</a>, or one that ran a different number of tests, is flagged and not recorded.</li><li>Both scoring faults of 30 Sep 2026 differed from their <a class="term" href="#g-live-score" data-term="live-score">live scores</a> by 63 tests; on the v2 records, live and record agree to within one test.</li><li>A sample of passing tests is rerun: a fifth, at least five.</li></ul>
 
-<blockquote><p>A failure of the scoring is never a score.</p><footer>EVALUATION-POLICY.md, rule 11</footer></blockquote>
+<blockquote><p>A failure of the scoring is never a score.</p><footer>EVALUATION-POLICY.md, rule 12</footer></blockquote>
 <p class="ins-use"><strong>What it led to.</strong> The rule that makes the <a class="term" href="#g-score-record" data-term="score-record">score of record</a> safe to rank by.</p>
 <p class="ins-src">Combinations: all. Source: <a class="repo" href="../../../benchmarks/spec-bench/EVALUATION-POLICY.md">EVALUATION-POLICY.md</a>.</p>
 </div>
@@ -1059,7 +1059,7 @@
 <p>A failure of the scoring is never a score. Every checkpoint is scored three times: the failing tests, and a seeded sample of the passing ones, are rerun and each takes its majority result.</p>
 <ul class="ins-nums"><li>A <a class="term" href="#g-rescore" data-term="rescore">re-score</a> more than 3 tests from the run's <a class="term" href="#g-live-score" data-term="live-score">live score</a>, or one that ran a different number of tests, is flagged and not recorded.</li><li>Both scoring faults of 30 Sep 2026 differed from their <a class="term" href="#g-live-score" data-term="live-score">live scores</a> by 63 tests; on the v2 records, live and record agree to within one test.</li><li>A sample of passing tests is rerun: a fifth, at least five.</li></ul>
 
-<blockquote><p>A failure of the scoring is never a score.</p><footer>EVALUATION-POLICY.md, rule 11</footer></blockquote>
+<blockquote><p>A failure of the scoring is never a score.</p><footer>EVALUATION-POLICY.md, rule 12</footer></blockquote>
 <p class="ins-use"><strong>What it led to.</strong> The rule that makes the <a class="term" href="#g-score-record" data-term="score-record">score of record</a> safe to rank by.</p>
 <p class="ins-src">Combinations: all. Source: <a class="repo" href="../../../benchmarks/spec-bench/EVALUATION-POLICY.md">EVALUATION-POLICY.md</a>.</p>
 </div>
@@ -1551,7 +1551,7 @@
 <p>A failure of the scoring is never a score. Every checkpoint is scored three times: the failing tests, and a seeded sample of the passing ones, are rerun and each takes its majority result.</p>
 <ul class="ins-nums"><li>A <a class="term" href="#g-rescore" data-term="rescore">re-score</a> more than 3 tests from the run's <a class="term" href="#g-live-score" data-term="live-score">live score</a>, or one that ran a different number of tests, is flagged and not recorded.</li><li>Both scoring faults of 30 Sep 2026 differed from their <a class="term" href="#g-live-score" data-term="live-score">live scores</a> by 63 tests; on the v2 records, live and record agree to within one test.</li><li>A sample of passing tests is rerun: a fifth, at least five.</li></ul>
 
-<blockquote><p>A failure of the scoring is never a score.</p><footer>EVALUATION-POLICY.md, rule 11</footer></blockquote>
+<blockquote><p>A failure of the scoring is never a score.</p><footer>EVALUATION-POLICY.md, rule 12</footer></blockquote>
 <p class="ins-use"><strong>What it led to.</strong> The rule that makes the <a class="term" href="#g-score-record" data-term="score-record">score of record</a> safe to rank by.</p>
 <p class="ins-src">Combinations: all. Source: <a class="repo" href="../../../benchmarks/spec-bench/EVALUATION-POLICY.md">EVALUATION-POLICY.md</a>.</p>
 </div>
@@ -2510,7 +2510,7 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 <p class="s-parts"><span class="lbl">In the picture:</span> <a class="term" href="#g-rescore" data-term="rescore">Re-score</a> the final build clean install, three scorings</p>
 <p>Every checkpoint is scored three times: the failing tests, and a seeded sample of the passing ones (a fifth, at least five), are rerun twice without a rebuild, and each rerun test takes its majority result. The record reports how many <a class="term" href="#g-flaky" data-term="flaky">flaky tests</a> changed result, split into those that failed first and those that passed first. Rerunning only the failures made a test that passes half the time count as passing 62.5% of the time; sampling the passing ones fixes that.</p>
 
-<p class="where"><span class="lbl">In the repo:</span></p><ul class="where-list"><li><a class="repo" href="../../../benchmarks/spec-bench/EVALUATION-POLICY.md">EVALUATION-POLICY.md: rule 13</a></li></ul>
+<p class="where"><span class="lbl">In the repo:</span></p><ul class="where-list"><li><a class="repo" href="../../../benchmarks/spec-bench/EVALUATION-POLICY.md">EVALUATION-POLICY.md: rule 14</a></li></ul>
 <p class="s-state"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span> </p>
 <details class="insight" data-insight="scoring-guard" data-theme="method">
 <summary><span class="in-practice">In practice</span><span class="ins-title">Why the score of record is re-scored, three times, and guarded</span><span class="ins-theme theme-method">Method</span></summary>
@@ -2518,7 +2518,7 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 <p>A failure of the scoring is never a score. Every checkpoint is scored three times: the failing tests, and a seeded sample of the passing ones, are rerun and each takes its majority result.</p>
 <ul class="ins-nums"><li>A <a class="term" href="#g-rescore" data-term="rescore">re-score</a> more than 3 tests from the run's <a class="term" href="#g-live-score" data-term="live-score">live score</a>, or one that ran a different number of tests, is flagged and not recorded.</li><li>Both scoring faults of 30 Sep 2026 differed from their <a class="term" href="#g-live-score" data-term="live-score">live scores</a> by 63 tests; on the v2 records, live and record agree to within one test.</li><li>A sample of passing tests is rerun: a fifth, at least five.</li></ul>
 
-<blockquote><p>A failure of the scoring is never a score.</p><footer>EVALUATION-POLICY.md, rule 11</footer></blockquote>
+<blockquote><p>A failure of the scoring is never a score.</p><footer>EVALUATION-POLICY.md, rule 12</footer></blockquote>
 <p class="ins-use"><strong>What it led to.</strong> The rule that makes the <a class="term" href="#g-score-record" data-term="score-record">score of record</a> safe to rank by.</p>
 <p class="ins-src">Combinations: all. Source: <a class="repo" href="../../../benchmarks/spec-bench/EVALUATION-POLICY.md">EVALUATION-POLICY.md</a>.</p>
 </div>
@@ -2530,7 +2530,7 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 <p>Before the result is recorded, it is compared with the run's own <a class="term" href="#g-live-score" data-term="live-score">live score</a> of the same code under the same suite version. More than 3 tests apart, or a different number of tests, is flagged. So is a <a class="term" href="#g-rescore" data-term="rescore">re-score</a> whose every failure shares one error across two or more stories and at least five failures, unless the live scoring failed the same way.</p>
 <p>Why: two scoring faults on 30 September 2026 differed from their <a class="term" href="#g-live-score" data-term="live-score">live scores</a> by 63 tests.</p>
 
-<p class="where"><span class="lbl">In the repo:</span></p><ul class="where-list"><li><a class="repo" href="../../../benchmarks/spec-bench/harness/finalize.py">harness/finalize.py (guard)</a></li><li><a class="repo" href="../../../benchmarks/spec-bench/EVALUATION-POLICY.md">EVALUATION-POLICY.md: rule 12</a></li></ul>
+<p class="where"><span class="lbl">In the repo:</span></p><ul class="where-list"><li><a class="repo" href="../../../benchmarks/spec-bench/harness/finalize.py">harness/finalize.py (guard)</a></li><li><a class="repo" href="../../../benchmarks/spec-bench/EVALUATION-POLICY.md">EVALUATION-POLICY.md: rule 13</a></li></ul>
 <p class="s-state"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span> </p>
 
 </li>

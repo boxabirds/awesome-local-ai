@@ -1101,7 +1101,7 @@ GUIDE_DATA.insights = [
       "Both scoring faults of 30 Sep 2026 differed from their live scores by 63 tests; on the v2 records, live and record agree to within one test.",
       "A sample of passing tests is rerun: a fifth, at least five.",
     ],
-    quotes: [{ text: "A failure of the scoring is never a score.", who: "EVALUATION-POLICY.md, rule 11" }],
+    quotes: [{ text: "A failure of the scoring is never a score.", who: "EVALUATION-POLICY.md, rule 12" }],
     use: "The rule that makes the score of record safe to rank by.",
     sources: [POLICY],
   },
@@ -1790,14 +1790,14 @@ GUIDE_DATA.flows = [
       {
         title: "Three scorings, majority", nodes: ["resc"], edges: [],
         text: ["Every checkpoint is scored three times: the failing tests, and a seeded sample of the passing ones (a fifth, at least five), are rerun twice without a rebuild, and each rerun test takes its majority result. The record reports how many {g:flaky|flaky tests} changed result, split into those that failed first and those that passed first. Rerunning only the failures made a test that passes half the time count as passing 62.5% of the time; sampling the passing ones fixes that."],
-        where: [["benchmarks/spec-bench/EVALUATION-POLICY.md", "EVALUATION-POLICY.md: rule 13"]],
+        where: [["benchmarks/spec-bench/EVALUATION-POLICY.md", "EVALUATION-POLICY.md: rule 14"]],
         state: "built",
         insights: ["scoring-guard"],
       },
       {
         title: "The guard", nodes: ["resc", "guard"], edges: ["resc>guard"],
         text: ["Before the result is recorded, it is compared with the run's own live score of the same code under the same suite version. More than 3 tests apart, or a different number of tests, is flagged. So is a re-score whose every failure shares one error across two or more stories and at least five failures, unless the live scoring failed the same way.", "Why: two scoring faults on 30 September 2026 differed from their live scores by 63 tests."],
-        where: [["benchmarks/spec-bench/harness/finalize.py", "harness/finalize.py (guard)"], ["benchmarks/spec-bench/EVALUATION-POLICY.md", "EVALUATION-POLICY.md: rule 12"]],
+        where: [["benchmarks/spec-bench/harness/finalize.py", "harness/finalize.py (guard)"], ["benchmarks/spec-bench/EVALUATION-POLICY.md", "EVALUATION-POLICY.md: rule 13"]],
         state: "built",
       },
       {
