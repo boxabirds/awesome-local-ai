@@ -35,6 +35,7 @@ import {
   STICKY_SIZE_WORLD,
   type StickyColor,
 } from './config';
+import { type Point, type Rect, rectContains } from './geometry';
 
 /** Transaction origin for changes made by this user (story 3 never echoes these back). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6-local');
@@ -55,7 +56,14 @@ export interface StickySnapshot {
   readonly text: string;
   readonly z: number;
   readonly createdAt: number;
+  /** Explicit width (world units); absent = STICKY_SIZE_WORLD (story 7 additive). */
+  readonly width?: number;
+  /** Explicit height (world units); absent = STICKY_SIZE_WORLD (story 7 additive). */
+  readonly height?: number;
 }
+
+/** Any board object snapshot (extends with new types in stories 9–12). */
+export type ObjectSnapshot = StickySnapshot;
 
 type ObjectsMap = Y.Map<Y.Map<unknown>>;
 
@@ -89,6 +97,8 @@ function readObject(id: string, raw: Y.Map<unknown>): StickySnapshot | undefined
   const color = raw.get('color');
   if (!finite(x) || !finite(y) || !finite(z) || !isStickyColor(color)) return undefined;
   const createdAt = raw.get('createdAt');
+  const w = raw.get('width');
+  const h = raw.get('height');
   return Object.freeze({
     id,
     type: 'sticky' as const,
@@ -98,6 +108,8 @@ function readObject(id: string, raw: Y.Map<unknown>): StickySnapshot | undefined
     text: textOf(raw),
     z,
     createdAt: finite(createdAt) ? createdAt : 0,
+    ...(finite(w) ? { width: w } : {}),
+    ...(finite(h) ? { height: h } : {}),
   });
 }
 
@@ -250,4 +262,162 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 /** All notes as immutable data, in render order (sorted by `z` then `id`). */
 export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
   return Object.freeze(readAll(doc));
+}
+
+// ---- Story 7: generic group operations -------------------------------------------
+
+/** Returns the bounding rectangle of an object (with STICKY_SIZE_WORLD fallback). */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  return {
+    x: obj.x,
+    y: obj.y,
+    width: obj.width ?? STICKY_SIZE_WORLD,
+    height: obj.height ?? STICKY_SIZE_WORLD,
+  };
+}
+
+/**
+ * Returns ids of objects in `snapshot` that are fully contained within `rect`.
+ * Objects only partly inside (or merely touching the edge) are NOT selected.
+ */
+export function objectsInRect(
+  snapshot: readonly ObjectSnapshot[],
+  rect: Rect,
+): string[] {
+  const ids: string[] = [];
+  for (const obj of snapshot) {
+    if (rectContains(rect, objectBounds(obj))) {
+      ids.push(obj.id);
+    }
+  }
+  return ids;
+}
+
+/** Returns ids of all objects in the snapshot (already filtered to known types by readAll). */
+export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
+  return snapshot.map((obj) => obj.id);
+}
+
+/**
+ * Moves multiple objects to absolute positions. Returns count changed.
+ * Skips missing ids; rejects non-finite values and empty lists (no transaction).
+ */
+export function moveObjects(
+  doc: Y.Doc,
+  positions: ReadonlyMap<string, Point>,
+): number {
+  if (positions.size === 0) return 0;
+  // Validate all positions are finite before starting transaction
+  for (const pos of positions.values()) {
+    if (!finite(pos.x) || !finite(pos.y)) return 0;
+  }
+  let count = 0;
+  doc.transact(() => {
+    for (const [id, pos] of positions) {
+      const obj = objectsOf(doc).get(id);
+      if (!(obj instanceof Y.Map)) continue;
+      obj.set('x', pos.x);
+      obj.set('y', pos.y);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Resizes multiple objects by writing x, y, width, height. Returns count changed.
+ * Skips missing ids; rejects non-finite values and empty lists (no transaction).
+ * The first resize of a sticky note writes both width and height explicitly.
+ */
+export function resizeObjects(
+  doc: Y.Doc,
+  rects: ReadonlyMap<string, Rect>,
+): number {
+  if (rects.size === 0) return 0;
+  // Validate all rect values are finite
+  for (const r of rects.values()) {
+    if (!finite(r.x) || !finite(r.y) || !finite(r.width) || !finite(r.height)) return 0;
+  }
+  let count = 0;
+  doc.transact(() => {
+    for (const [id, rect] of rects) {
+      const obj = objectsOf(doc).get(id);
+      if (!(obj instanceof Y.Map)) continue;
+      obj.set('x', rect.x);
+      obj.set('y', rect.y);
+      obj.set('width', rect.width);
+      obj.set('height', rect.height);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Raises all objects in `ids` above all unselected objects while preserving
+ * relative z order among the selected objects. Returns count changed.
+ */
+export function bringObjectsToFront(
+  doc: Y.Doc,
+  ids: readonly string[],
+): number {
+  if (ids.length === 0) return 0;
+  const objects = objectsOf(doc);
+  const idSet = new Set(ids);
+
+  // Find the maximum z among unselected objects
+  let maxUnselectedZ = 0;
+  for (const [id, raw] of objects) {
+    if (idSet.has(id)) continue;
+    if (!(raw instanceof Y.Map)) continue;
+    const z = raw.get('z');
+    if (finite(z) && z > maxUnselectedZ) maxUnselectedZ = z;
+  }
+
+  // Sort selected ids by their current z (to preserve relative order)
+  const selected: { id: string; z: number }[] = [];
+  for (const id of ids) {
+    const raw = objects.get(id);
+    if (!(raw instanceof Y.Map)) continue;
+    const z = raw.get('z');
+    selected.push({ id, z: finite(z) ? z : 0 });
+  }
+  selected.sort((a, b) => a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+  let count = 0;
+  doc.transact(() => {
+    for (let i = 0; i < selected.length; i++) {
+      const obj = objects.get(selected[i]!.id);
+      if (!(obj instanceof Y.Map)) continue;
+      const newZ = maxUnselectedZ + 1 + i;
+      if (obj.get('z') !== newZ) {
+        obj.set('z', newZ);
+        count++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Deletes multiple objects. Returns count actually deleted.
+ * Skips missing ids; empty list → 0, no transaction.
+ */
+export function deleteObjects(
+  doc: Y.Doc,
+  ids: readonly string[],
+): number {
+  if (ids.length === 0) return 0;
+  const objects = objectsOf(doc);
+  // Check which ids exist
+  const existing = ids.filter((id) => objects.has(id));
+  if (existing.length === 0) return 0;
+  let count = 0;
+  doc.transact(() => {
+    for (const id of existing) {
+      objects.delete(id);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
 }

@@ -1,9 +1,9 @@
 /**
- * The board: the document, the notes in it, this user's selection, and the keyboard and
- * toolbar commands that create, recolour and delete notes (stories 1–4).
+ * The board: document, objects, selection, keyboard, toolbar, overlay, and the generic
+ * transform gesture (stories 1–7).
  */
 import { encodeStateVector } from 'yjs';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
 import { BoardViewport } from './canvas/BoardViewport';
 import { useBoardCamera } from './canvas/CameraProvider';
@@ -12,31 +12,24 @@ import { ZoomControls } from './canvas/ZoomControls';
 import { IS_TEST_MODE, registerTestHooks } from './canvas/testHooks';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { useTransformGesture } from './board/useTransformGesture';
+import { useBoardKeys } from './board/useBoardKeys';
+import { useMarquee, MarqueeRect } from './board/Marquee';
+import { SelectionOverlay } from './board/SelectionOverlay';
+import { SelectionBar } from './board/SelectionBar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
-import { createSticky, deleteObject, snapshot } from '../shared/board-model';
-
-/** True when the keyboard belongs to a text field, not to the board. */
-function isTextEntry(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
-}
+import { createSticky, deleteObjects, snapshot } from '../shared/board-model';
 
 export function Board(props: { boardId: string }) {
   const { camera, size, getCamera, setCamera, hasNavigated, zoomStep, reset } = useBoardCamera();
   const { doc, notes, connection } = useBoardDoc(props.boardId);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const selection = useSelection(notes);
 
   // Story 4: while the room cannot produce this board, nothing here may write.
   const editable = canEdit(connection);
-
-  const selected = notes.some((note) => note.id === selectedId);
-  const editing = notes.some((note) => note.id === editingId);
-  const selectedNoteId = selected ? selectedId : null;
-  const editingNoteId = editing && selectedNoteId === editingId ? editingId : null;
 
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
@@ -51,6 +44,7 @@ export function Board(props: { boardId: string }) {
       getNotes: () => snapshot(doc),
       connectionState: () => connectionRef.current,
       stateVector: () => Array.from(encodeStateVector(doc)),
+      createNote: (x: number, y: number) => createSticky(doc, { x, y }),
     });
     return () => registerTestHooks(null);
   }, [doc, getCamera, setCamera]);
@@ -61,10 +55,9 @@ export function Board(props: { boardId: string }) {
       if (!editable) return;
       const id = createSticky(doc, screenToWorld(getCamera(), point));
       if (!id) return;
-      select(id);
-      startEdit(id);
+      selection.startEdit(id);
     },
-    [doc, editable, getCamera, select, startEdit],
+    [doc, editable, getCamera, selection],
   );
 
   /** The Sticky note button: a note in the middle of what the user can see. */
@@ -72,35 +65,47 @@ export function Board(props: { boardId: string }) {
     createAtScreenPoint({ x: size.width / 2, y: size.height / 2 });
   }, [createAtScreenPoint, size.height, size.width]);
 
-  // ---- keyboard ----
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!editable) return;
-      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
-      if (editingNoteId !== null || isTextEntry(event.target)) return;
-      if (selectedNoteId === null) return;
+  // ---- Transform gesture ----
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+    onDragStateChange: setDraggingId,
+  });
 
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        startEdit(selectedNoteId);
-        return;
-      }
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        event.preventDefault();
-        deleteObject(doc, selectedNoteId);
-        select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, editable, selectedNoteId, editingNoteId, startEdit, select]);
+  // ---- Keyboard ----
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+  });
+
+  // ---- Marquee ----
+  const marquee = useMarquee(camera, notes, (ids) => {
+    selection.setMany(ids, true);
+  });
+
+  // ---- Selection bar delete action ----
+  const deleteSelection = useCallback(() => {
+    if (!editable) return;
+    deleteObjects(doc, [...selection.ids]);
+    selection.clear();
+  }, [doc, editable, selection]);
 
   return (
     <>
       <BoardViewport
         onCreateAt={createAtScreenPoint}
         canEdit={editable}
-        onClearSelection={() => { select(null); }}
+        onClearSelection={() => { selection.clear(); }}
+        onMarqueeBegin={(screen) => marquee.begin(screen)}
+        onMarqueeMove={(screen) => marquee.move(screen)}
+        onMarqueeEnd={() => marquee.end()}
+        onMarqueeCancel={() => marquee.cancel()}
       >
         {notes.map((note) => (
           <StickyNote
@@ -108,15 +113,31 @@ export function Board(props: { boardId: string }) {
             note={note}
             doc={doc}
             zoom={camera.zoom}
-            selected={note.id === selectedNoteId}
-            editing={note.id === editingNoteId}
+            selected={selection.ids.has(note.id)}
+            editing={selection.editingId === note.id}
+            dragging={draggingId === note.id}
             canEdit={editable}
-            onSelect={select}
-            onStartEdit={startEdit}
-            onEndEdit={endEdit}
+            onSelect={selection.click}
+            onToggle={selection.toggle}
+            onStartEdit={selection.startEdit}
+            onEndEdit={selection.endEdit}
+            onObjectPointerDown={gesture.onObjectPointerDown}
           />
         ))}
       </BoardViewport>
+      {/* Marquee rectangle (screen-space overlay) */}
+      <MarqueeRect rect={marquee.rect} camera={camera} />
+      {/* Selection overlay: bounding box and handles */}
+      {selection.ids.size > 0 && (
+        <SelectionOverlay
+          ids={selection.ids}
+          snapshot={notes}
+          camera={camera}
+          onHandlePointerDown={gesture.onHandlePointerDown}
+        />
+      )}
+      {/* Selection bar */}
+      <SelectionBar ids={selection.ids} onDelete={deleteSelection} />
       <Toolbar onCreateSticky={createAtViewportCentre} canEdit={editable} />
       <ConnectionStatus state={connection} />
       <BoardChrome

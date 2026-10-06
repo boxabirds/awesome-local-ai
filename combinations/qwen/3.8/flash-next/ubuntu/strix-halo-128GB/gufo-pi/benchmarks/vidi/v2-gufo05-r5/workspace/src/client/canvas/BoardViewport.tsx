@@ -67,6 +67,14 @@ export interface BoardViewportProps {
    * zooming and selecting go on working, and a double-click on empty space creates nothing.
    */
   canEdit?: boolean;
+  /** Shift+drag started on empty space: begin marquee at this screen point. */
+  onMarqueeBegin?(screen: Point): void;
+  /** Marquee pointer moved. */
+  onMarqueeMove?(screen: Point): void;
+  /** Marquee pointer released: select objects inside rectangle. */
+  onMarqueeEnd?(): void;
+  /** Marquee was cancelled (pointercancel/escape): discard without selecting. */
+  onMarqueeCancel?(): void;
 }
 
 /**
@@ -82,6 +90,10 @@ export function BoardViewport({
   onCreateAt,
   onClearSelection,
   canEdit = true,
+  onMarqueeBegin,
+  onMarqueeMove,
+  onMarqueeEnd,
+  onMarqueeCancel,
 }: BoardViewportProps) {
   const {
     camera,
@@ -95,10 +107,12 @@ export function BoardViewport({
   } = useBoardCamera();
   const [node, setNodeState] = useState<HTMLDivElement | null>(null);
   const [panning, setPanning] = useState(false);
+  const [marqueeing, setMarqueeing] = useState(false);
   // Guards the drag independently of render timing (Idle / Panning in the design).
   // `moved` remembers whether this gesture actually panned: a click without movement
   // on empty space clears the selection instead.
   const panningGuard = useRef({ active: false, moved: false, startX: 0, startY: 0 });
+  const marqueeGuard = useRef({ active: false, moved: false, startX: 0, startY: 0 });
 
   const setNode = useCallback(
     (el: HTMLDivElement | null) => {
@@ -198,10 +212,20 @@ export function BoardViewport({
     if (e.pointerType === 'touch') return; // touch navigation is out of scope (story 1)
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const target = e.target as HTMLElement | null;
-    // Only empty board space starts a pan; board objects handle their own gestures.
+    // Only empty board space starts a pan or marquee; board objects handle their own gestures.
     if (target?.closest('[data-board-object]')) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture?.(e.pointerId);
+
+    // Shift+drag on empty space: marquee selection
+    if (e.shiftKey && onMarqueeBegin) {
+      marqueeGuard.current = { active: true, moved: false, startX: e.clientX, startY: e.clientY };
+      setMarqueeing(true);
+      onMarqueeBegin({ x: e.clientX, y: e.clientY });
+      return;
+    }
+
+    // Normal pan
     panningGuard.current = {
       active: true,
       moved: false,
@@ -213,6 +237,17 @@ export function BoardViewport({
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    // Marquee move
+    const mg = marqueeGuard.current;
+    if (mg.active) {
+      if (!mg.moved) {
+        const distance = Math.hypot(e.clientX - mg.startX, e.clientY - mg.startY);
+        if (distance >= DRAG_THRESHOLD_PX) mg.moved = true;
+      }
+      onMarqueeMove?.({ x: e.clientX, y: e.clientY });
+      return;
+    }
+    // Pan move
     const guard = panningGuard.current;
     if (!guard.active) return;
     if (!guard.moved) {
@@ -222,7 +257,20 @@ export function BoardViewport({
     panMove({ x: e.clientX, y: e.clientY });
   };
 
-  const stopPanning = (e: ReactPointerEvent<HTMLDivElement>, released: boolean) => {
+  const stopInteraction = (e: ReactPointerEvent<HTMLDivElement>, released: boolean) => {
+    // Marquee end
+    const mg = marqueeGuard.current;
+    if (mg.active) {
+      marqueeGuard.current = { active: false, moved: false, startX: 0, startY: 0 };
+      setMarqueeing(false);
+      if (released) {
+        onMarqueeEnd?.();
+      } else {
+        onMarqueeCancel?.();
+      }
+      return;
+    }
+    // Pan end
     const guard = panningGuard.current;
     if (!guard.active) return;
     panningGuard.current = { active: false, moved: false, startX: 0, startY: 0 };
@@ -254,7 +302,7 @@ export function BoardViewport({
       className="board-viewport"
       data-testid="board-viewport"
       data-board-surface
-      data-interaction-state={panning ? 'panning' : 'idle'}
+      data-interaction-state={marqueeing ? 'marquee' : panning ? 'panning' : 'idle'}
       data-camera-x={camera.x}
       data-camera-y={camera.y}
       data-camera-zoom={camera.zoom}
@@ -269,13 +317,13 @@ export function BoardViewport({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(e) => {
-        stopPanning(e, true);
+        stopInteraction(e, true);
       }}
       onPointerCancel={(e) => {
-        stopPanning(e, false);
+        stopInteraction(e, false);
       }}
       onLostPointerCapture={(e) => {
-        stopPanning(e, false);
+        stopInteraction(e, false);
       }}
       onDoubleClick={onDoubleClick}
     >

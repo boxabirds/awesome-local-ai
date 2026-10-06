@@ -533,3 +533,76 @@ body {
   font-size: 16px;
   color: #6b7280;
 }
+
+/* ---- Story 7: Selection overlay ---- */
+
+.selection-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.selection-bbox {
+  position: absolute;
+  border: 1.5px solid var(--accent, #2563eb);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.selection-handle {
+  position: absolute;
+  background: #fff;
+  border: 1.5px solid var(--accent, #2563eb);
+  border-radius: 1px;
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+/* ---- Story 7: Marquee rectangle ---- */
+
+.marquee-rect {
+  position: fixed;
+  border: 1px solid var(--accent, #2563eb);
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+  z-index: 9;
+  box-sizing: border-box;
+}
+
+/* ---- Story 7: Selection bar ---- */
+
+.selection-bar {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--chrome-bg, #fff);
+  border: 1px solid var(--chrome-border, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 20;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+}
+
+.selection-bar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  color: #dc2626;
+}
+
+.selection-bar button:hover {
+  background: #fee2e2;
+}

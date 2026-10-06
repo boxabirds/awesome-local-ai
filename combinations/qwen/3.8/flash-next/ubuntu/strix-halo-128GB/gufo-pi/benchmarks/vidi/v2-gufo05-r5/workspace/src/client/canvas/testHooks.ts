@@ -26,6 +26,8 @@ export interface Vidi6TestHooks {
    * boundaries: equal vectors mean everyone holds exactly the same changes (story 3).
    */
   stateVector(): number[];
+  /** Creates a sticky note at the given world centre; returns its id. */
+  createNote(x: number, y: number): string;
 }
 
 declare global {
