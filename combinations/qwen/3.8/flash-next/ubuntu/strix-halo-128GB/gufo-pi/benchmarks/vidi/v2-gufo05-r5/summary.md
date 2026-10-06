@@ -15,8 +15,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | 5/5 | 0 | 0 | 35/36 |
 | 7 | 8/8 | 0 | 0 | 43/44 |
 | 8 | 7/7 | 0 | 0 | 50/51 |
+| 9 | 5/6 | 0 | 1 | 56/57 |
 
-**New work** 45/47, **regressions** 0, **repairs** 1, **cumulative** 50/51.
+**New work** 50/53, **regressions** 0, **repairs** 2, **cumulative** 56/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,8 +28,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | Share a board with others using a link | DONE | 41.2 | None | None | None | — | — | green | 35/36 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE | 49.3 | None | None | None | — | — | green | 43/44 |  | 0 / 1 | 1 | — | throttled 0%, server peak 0 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 92.7 | None | None | None | — | — | green | 50/51 |  | 0 / 0 | 3 | — | throttled 0%, server peak 0 GB |
+| 9 | Write free text anywhere on the board | DONE | 139.6 | None | None | None | — | — | green | 56/57 |  | 0 / 1 | 5 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 7 stories, 692 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/7, final acceptance 50/51, stalled 0, partial 0, 20054 lines in src+tests.
+**Totals:** 8 stories, 832 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/8, final acceptance 56/57, stalled 0, partial 0, 24005 lines in src+tests.
 
 ## How it happened
 
@@ -43,11 +45,14 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | 1 by the agent | 1856 / 538 | `NOTES.md` (309), `App.tsx` (234), `Board.tsx` (157), `SharePanel.tsx` (133), `styles.css` (124), `BoardPage.tsx` (74), +14 more |
 | 7 | 1 by the agent | 2806 / 278 | `useTransformGesture.ts` (380), `geometry.ts` (216), `StickyNote.tsx` (209), `board-model.ts` (170), `useSelection.ts` (138), `SelectionOverlay.tsx` (132), +10 more |
 | 8 | 1 by the agent | 1868 / 25 | `undo.ts` (101), `useUndo.ts` (81), `NOTES.md` (80), `UndoButtons.tsx` (72), `StickyTextEditor.tsx` (33), `useBoardDoc.ts` (30), +8 more |
+| 9 | 12 by the agent | 4600 / 524 | `text.ts` (363), `TextEditor.tsx` (262), `StickyTextEditor.tsx` (251), `TextObject.tsx` (228), `textLayout.ts` (201), `styles.css` (155), +21 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 3 broke 0, fixed 1** earlier held-out tests (story 3: See other people's edits appear live on the same board; story 3: BoardRoom relays Yjs sync and awareness; integration tests for routing and the room; story 3 task 2: Worker entry, board ids, protocol decode, workers integration test project; story 3 task 1: board id and protocol decode unit tests red phase (TC-01 to TC-03)). Source files it changed most: `worker-configuration.d.ts` (16189), `board-room.ts` (235), `connectBoard.ts` (213), `protocol.ts` (148), `NOTES.md` (127), `index.ts` (84), +16 more.
   - story 2: 9/10 → 10/10; fixed 1
+- **Story 9 broke 0, fixed 1** earlier held-out tests (story 9: Write free text anywhere on the board; story 9 task 10: end-to-end text workflows (TC-26 to TC-31); story 9 task 10: a text drawn taller than its box grows it, so nothing is cut off; story 9 task 9: component tests for text editing, sizes, handles and undo; story 9 task 8: text objects render, edit and resize through the registry; story 9 task 7: component tests for tool keys, click-to-place text and the read-only board; story 9 task 6: Select and Text tools with V/T/N/Escape shortcuts and click-to-place text; story 9 task 5: box sync component tests - remote changes never write a box (TC-12, TC-13); story 9 task 4: text layout, canvas measurer with estimate fallback, local-only box sync; story 9 task 3: text layout unit tests red phase (TC-07 to TC-11, TC-32) with stubs; story 9 task 2: text object model and shared text-edit helpers; story 9 task 1: text model unit tests red phase (TC-01 to TC-06) with stubs). Source files it changed most: `text.ts` (363), `TextEditor.tsx` (262), `StickyTextEditor.tsx` (251), `TextObject.tsx` (228), `textLayout.ts` (201), `styles.css` (155), +21 more.
+  - story 3: 6/7 → 7/7; fixed 1
 
 ### Interruptions and dead time
 
