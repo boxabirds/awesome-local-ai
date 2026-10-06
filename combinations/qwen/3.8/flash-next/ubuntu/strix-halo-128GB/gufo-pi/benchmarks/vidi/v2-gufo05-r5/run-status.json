@@ -1,6 +1,6 @@
 {
-  "state": "failed",
-  "reason": "exit 1: preflight failed; not starting the run",
-  "at": "2026-10-06T05:14:22Z",
+  "state": "started",
+  "reason": "harness 0b4a70acb (harness-v2026.10.05.2), client pi, model qwen3.8-flash-next-gufo",
+  "at": "2026-10-06T05:17:17Z",
   "host": "AMD RYZEN AI MAX+ 395 w/ Radeon 8060S 122GB, bd:00.0 Display controller: Advanced Micro Devices, Inc. [AMD/ATI] Strix Halo [Radeon Graphics / Radeon 8050S Graphics / Radeon 8060S Graphics] (rev c1)"
 }
