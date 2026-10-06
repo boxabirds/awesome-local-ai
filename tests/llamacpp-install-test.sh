@@ -92,6 +92,25 @@ assert_eq "IMAGE_MIN_TOKENS survives"           "1024"     "$(get IMGTOK)"
 assert_eq "LLAMA_DIR moved into the backend"    ".local/share/qwen38-27b/llama.cpp" "$(get LLAMA_DIR)"
 
 echo
+# Every quant a combination lists must resolve to a complete, self-consistent shard list: the right directory, the
+# right file names, and as many shards as the names claim. A typo here is invisible until the download runs.
+echo "each listed quant resolves to its own shards"
+FN="$REPO_ROOT/combinations/qwen/3.8/flash-next/macos/128GB/llamacpp-pi/config.sh"
+LISTED="$(sed -nE 's/^  (UD-[A-Za-z0-9_]+)\) MODEL_ASSETS=.*/\1/p' "$FN")"
+assert_ok "the combination lists more than one quant" bash -c "[ \"\$(printf '%s\n' \"$LISTED\" | wc -l)\" -ge 2 ]"
+for Q in $LISTED; do
+  ASSETS="$(QUANT="$Q" bash -c ". '$REPO_ROOT/lib/common.sh' >/dev/null 2>&1; . '$FN' >/dev/null 2>&1; printf '%s\n' \"\$MODEL_ASSETS\"" 2>/dev/null \
+            | awk -F'|' '$3 == "model" || $3 == "shard" {print $2}')"
+  N="$(printf '%s\n' "$ASSETS" | grep -c . || true)"
+  assert_ok "$Q: every shard sits under its own directory and names the quant" bash -c "
+    printf '%s\n' \"$ASSETS\" | grep -q . && ! printf '%s\n' \"$ASSETS\" | grep -qv '^$Q/.*$Q.*\.gguf$'"
+  CLAIMED="$(printf '%s\n' "$ASSETS" | sed -nE 's/.*-of-0*([0-9]+)\.gguf$/\1/p' | sort -u)"
+  assert_eq "$Q: the shard count matches what the file names claim" "$N" "$CLAIMED"
+done
+assert_fails "a quant the combination does not list is refused" bash -c "
+  QUANT=UD-NOPE bash -c \". '$REPO_ROOT/lib/common.sh' >/dev/null 2>&1; . '$FN'\" >/dev/null 2>&1"
+
+echo
 echo "backend contract"
 assert_eq "defines ensure_backend"        "1" "$(get HAS_ensure_backend)"
 assert_eq "defines backend_profile_table" "1" "$(get HAS_profile_table)"
