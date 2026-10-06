@@ -1,3 +1,46 @@
+commit 4781aa5f030eebb3dccb35bd0db1406b300ea24b
+vidi-agent  Tue Oct 6 15:47:15 2026 +0100
+
+    harness: snapshot after story 8 (uncommitted agent work)
+
+
+ NOTES.md                                  | 142 ++++++++++
+ PROGRESS.md                               |  16 +-
+ playwright.config.ts                      |  10 +
+ src/client/App.tsx                        |  24 +-
+ src/client/board/Toolbar.tsx              |  10 +-
+ src/client/board/UndoButtons.tsx          |  50 ++++
+ src/client/board/undo.ts                  | 166 ++++++++++++
+ src/client/board/useBoardKeys.ts          |  45 +++-
+ src/client/board/useTransformGesture.ts   |   5 +
+ src/client/board/useUndo.ts               | 140 ++++++++++
+ src/client/objects/StickyNote.tsx         |   7 +
+ src/client/objects/StickyTextEditor.tsx   |  35 +++
+ src/shared/board-model.ts                 |  10 +
+ src/shared/config.ts                      |  11 +
+ src/worker/board-room.ts                  |   3 +-
+ src/worker/board-store.ts                 |   9 +-
+ tests/component/ConnectionStatus.test.tsx |   5 +
+ tests/component/UndoBoundaries.test.tsx   | 212 +++++++++++++++
+ tests/component/UndoControls.test.tsx     | 259 ++++++++++++++++++
+ tests/component/boardFixture.ts           |  11 +
+ tests/e2e/helpers/input-lock.ts           |  27 ++
+ tests/e2e/selection-remote-delete.spec.ts |  13 +-
+ tests/e2e/selection.spec.ts               |   9 +-
+ tests/e2e/undo.spec.ts                    | 433 ++++++++++++++++++++++++++++++
+ tests/fixtures/boardHarness.tsx           |  28 +-
+ tests/unit/helpers/peer.ts                |  94 +++++++
+ tests/unit/undo-boundaries.test.ts        | 171 ++++++++++++
+ tests/unit/undo-history.test.ts           | 384 ++++++++++++++++++++++++++
+ 28 files changed, 2301 insertions(+), 28 deletions(-)
+commit d94fc11f12cc3a38e240f2b6def8c2a4517f7b41
+vidi-agent  Tue Oct 6 11:41:13 2026 +0100
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 commit c27b328edc2985d2289d2e19c0ff5899d05a76f2
 vidi-agent  Tue Oct 6 11:40:59 2026 +0100
 
