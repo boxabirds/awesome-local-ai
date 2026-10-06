@@ -82,6 +82,12 @@ SERVER_CMD="$INSTALL_ID-server"
 CLOUD=0; [[ "$BACKEND" == anthropic ]] && CLOUD=1
 [[ "$CLOUD" == 1 ]] || command -v "$SERVER_CMD" >/dev/null || { echo "no $SERVER_CMD on PATH" >&2; exit 1; }
 
+# A harness release carries the harness, not the combination: its launcher and profile reach a machine only by
+# running its installer. Refuse rather than spend hours, or a run's restarts, on a configuration that is not the
+# one in this checkout (A-046).
+. "$HARNESS/installed-config.sh"
+installed_config_drift "$INSTALL_ID" "$BACKEND" "$COMBO_DIR" "$RESULTS_ROOT" >&2 || exit 1
+
 # The pack's name (benchmarks/<name>, or bench.json's "name") names the results folder and the records.
 export SPEC_BENCH_PACK_NAME
 SPEC_BENCH_PACK_NAME="$(cd "$HARNESS" && python3 -c 'import sys, pack; print(pack.load(sys.argv[1]).name)' "$PACK")" \
