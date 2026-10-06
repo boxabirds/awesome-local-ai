@@ -53,7 +53,7 @@ Ingest reads records from the repo's `origin/main`, never the working copy.
   means six of the first twenty tests pass after two stories. `dbench status`'s per-story "accept 0/10" column is
   the delta. Do not mix them.
 - **`machine` is the hardware, not the node name**: `ubuntu/nvidia4090`, `macos/128GB`, `ubuntu/strix-halo-128GB`.
-  There is no `gruntus` in the warehouse.
+  The node names the machines are known by in `dbench` are not in the warehouse at all.
 - **`tools.error` is `'0'`/`'1'` as text**, not null-or-message. `where error is not null` matches everything and
   will tell you every tool failed. Use `where error='1'`.
 - **`requests.source` differs by engine** (`engine-log` for Strata/gufo/mlx-serve, `llama-log` for llama.cpp) and
