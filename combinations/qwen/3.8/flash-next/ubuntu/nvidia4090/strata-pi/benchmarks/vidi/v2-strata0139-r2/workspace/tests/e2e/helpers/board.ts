@@ -99,9 +99,11 @@ export async function renderedCamera(page: Page): Promise<Camera> {
   let ty: number;
   if (scaleMatch) {
     zoom = numbers(scaleMatch[1])[0] ?? 0;
+    // Firefox shortens a translate whose second component is zero, and CSS
+    // reads a single-argument translate() as (x, 0) — never (x, x).
     const parts = translateMatch ? numbers(translateMatch[1]) : [];
     tx = parts[0] ?? 0;
-    ty = parts[1] ?? parts[0] ?? 0;
+    ty = parts[1] ?? 0;
   } else {
     const matrix = /matrix\(([^)]*)\)/.exec(raw.computed);
     if (!matrix) throw new Error(`unexpected world transform: "${raw.transform}"`);

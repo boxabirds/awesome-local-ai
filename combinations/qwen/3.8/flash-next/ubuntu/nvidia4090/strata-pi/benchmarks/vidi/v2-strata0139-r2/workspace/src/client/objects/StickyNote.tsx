@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -8,205 +7,76 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import * as Y from "yjs";
+import { deleteObject, objectBounds, setStickyColor, type StickySnapshot } from "../../shared/board-model";
 import {
-  bringToFront,
-  deleteObject,
-  moveObject,
-  setStickyColor,
-  type StickySnapshot,
-} from "../../shared/board-model";
-import {
-  DRAG_THRESHOLD_PX,
   STICKY_COLORS,
   STICKY_FONT_MAX_PX,
-  STICKY_SIZE_WORLD,
   STICKY_TEXT_BOX_WORLD,
   type StickyColor,
 } from "../../shared/config";
 import { fitFontSize, textBoxStyle } from "./StickyText";
 import { StickyTextEditor } from "./StickyTextEditor";
 import { NoteToolbar } from "./NoteToolbar";
+import type { ObjectProps } from "./registry";
 
 /**
  * One sticky note: rendered in the world layer at its board position, so it
  * scales with the board zoom.
  *
- * Interaction state (never stored in the document):
- *   Unselected -> Pressed (pointerdown) -> Selected (pointerup within
- *   DRAG_THRESHOLD_PX) or Dragging (moved at least DRAG_THRESHOLD_PX) ->
- *   Selected. Editing is entered by a double-click or Enter.
+ * Story 7 moved the *gesture* machinery out of this file: pressing a note hands
+ * the pointer over to `useTransformGesture`, which is where moving (one note or
+ * a whole selection, with the threshold, the bring-to-front and the per-frame
+ * write) lives, and where resizing is decided for every type. What stays here is
+ * what is specific to a sticky note — its colour, its text and its auto-fit, the
+ * text editor, story 2's note toolbar, and the rules that keep a note's gestures
+ * from panning or zooming the board.
  *
- * Every pointer event on a note stops propagation, so the viewport neither
- * pans nor clears the selection while a note is used (sticky.no_pan).
+ * Interaction state (never stored in the document):
+ *   Unselected -> Pressed -> Selected, or Dragging (moved at least
+ *   DRAG_THRESHOLD_PX) -> Selected. Editing is entered by a double-click or
+ *   Enter. `dragging` and `selected` arrive as props, from the selection and the
+ *   gesture.
+ *
+ * Every pointer event on a note stops propagation, so the viewport neither pans
+ * nor clears the selection while a note is used (sticky.no_pan).
  */
-export interface StickyNoteProps {
-  note: StickySnapshot;
+export interface StickyNoteProps extends ObjectProps {
   doc: Y.Doc;
-  /** Camera zoom: drag deltas are screen pixels and are divided by it. */
-  zoom: number;
-  selected: boolean;
-  editing: boolean;
-  onSelect(id: string): void;
-  onStartEdit(id: string): void;
-  onEndEdit(next: "selected" | "unselected"): void;
-}
-
-type DragState = "idle" | "pressed" | "dragging";
-
-/** Placeholder held while a frame is queued, replaced by the real handle. */
-const PENDING_FRAME = -1;
-
-interface DragRecord {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  /** Note top-left when the press began, in world units. */
-  originX: number;
-  originY: number;
-  dx: number;
-  dy: number;
-}
-
-interface Fit {
-  fontPx: number;
-  overflow: boolean;
 }
 
 export function StickyNote({
-  note,
+  object,
   doc,
   zoom,
   selected,
   editing,
-  onSelect,
+  dragging,
+  onObjectPointerDown,
   onStartEdit,
   onEndEdit,
 }: StickyNoteProps) {
-  const id = note.id;
+  const id = object.id;
+  const note = object as StickySnapshot;
+  const box = objectBounds(object);
+  // A resized sticky note stays square (its type is aspect-locked); the fit is
+  // measured against the size it actually has.
+  const textBox = Number.isFinite(box.width) && box.width > 0 ? box.width : STICKY_TEXT_BOX_WORLD;
 
   const noteRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
   const anchorRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<DragRecord | null>(null);
-  const dragStateRef = useRef<DragState>("idle");
-  const frameRef = useRef<number | null>(null);
   const zoomRef = useRef(zoom);
   zoomRef.current = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
 
-  const [dragState, setDragState] = useState<DragState>("idle");
-  const [fit, setFit] = useState<Fit>({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
-
-  const setDrag = useCallback((next: DragState) => {
-    dragStateRef.current = next;
-    setDragState((previous) => (previous === next ? previous : next));
-  }, []);
-
-  const noteStillExists = useCallback((): boolean => {
-    return doc.getMap<Y.Map<unknown>>("objects").has(id);
-  }, [doc, id]);
-
-  // ---- dragging -----------------------------------------------------------
-
-  const cancelFrame = useCallback(() => {
-    if (frameRef.current !== null && typeof cancelAnimationFrame === "function") {
-      cancelAnimationFrame(frameRef.current);
-    }
-    frameRef.current = null;
-  }, []);
-
-  /** One `moveObject` per animation frame, at most. */
-  const flushMove = useCallback(() => {
-    frameRef.current = null;
-    const drag = dragRef.current;
-    if (!drag) return;
-    // The note was deleted by someone else: end the interaction silently.
-    if (!noteStillExists()) {
-      dragRef.current = null;
-      setDrag("idle");
-      return;
-    }
-    const scale = zoomRef.current;
-    moveObject(doc, id, drag.originX + drag.dx / scale, drag.originY + drag.dy / scale);
-  }, [doc, id, noteStillExists, setDrag]);
-
-  const scheduleMove = useCallback(() => {
-    if (frameRef.current !== null) return;
-    if (typeof requestAnimationFrame !== "function") {
-      flushMove();
-      return;
-    }
-    // A sentinel first: `flushMove` clears the slot itself, which keeps the
-    // throttle correct even if the frame callback runs synchronously.
-    frameRef.current = PENDING_FRAME;
-    const handle = requestAnimationFrame(flushMove);
-    // `flushMove` already cleared the slot when the callback ran synchronously.
-    if (frameRef.current === PENDING_FRAME) frameRef.current = handle;
-  }, [flushMove]);
-
-  const endDrag = useCallback(
-    (select: boolean) => {
-      cancelFrame();
-      dragRef.current = null;
-      setDrag("idle");
-      if (select && noteStillExists()) onSelect(id);
-    },
-    [cancelFrame, noteStillExists, onSelect, id, setDrag],
-  );
+  const [fit, setFit] = useState<{ fontPx: number; overflow: boolean }>({
+    fontPx: STICKY_FONT_MAX_PX,
+    overflow: false,
+  });
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    // The board must never pan, and the selection must not clear, because a
-    // note was pressed.
-    event.stopPropagation();
-    if (editing) return;
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-
-    noteRef.current?.setPointerCapture?.(event.pointerId);
-    dragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      originX: note.x,
-      originY: note.y,
-      dx: 0,
-      dy: 0,
-    };
-    setDrag("pressed");
-  };
-
-  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    event.stopPropagation();
-
-    drag.dx = event.clientX - drag.startX;
-    drag.dy = event.clientY - drag.startY;
-
-    if (dragStateRef.current !== "dragging") {
-      if (Math.hypot(drag.dx, drag.dy) < DRAG_THRESHOLD_PX) return;
-      // Brought to front once, so the note is above everything it overlaps.
-      bringToFront(doc, id);
-      setDrag("dragging");
-    }
-    scheduleMove();
-  };
-
-  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.stopPropagation();
-    if (!dragRef.current) return;
-    noteRef.current?.releasePointerCapture?.(event.pointerId);
-    endDrag(true);
-  };
-
-  const onPointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.stopPropagation();
-    // A cancelled drag keeps the last applied position.
-    endDrag(true);
-  };
-
-  const onLostPointerCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
-    event.stopPropagation();
-    endDrag(true);
+    // The gesture itself belongs to `useTransformGesture`: it decides whether
+    // this press selects, adds to a selection or moves one.
+    onObjectPointerDown(event, id);
   };
 
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -233,9 +103,10 @@ export function StickyNote({
     return () => {
       for (const [name] of gestures) el.removeEventListener(name, stop);
     };
-  }, [selected, editing, dragState]);
+  }, [selected, editing, dragging]);
 
-  // A pointerdown anywhere outside the note ends editing (sticky.edit_end).
+  // A pointerdown anywhere outside the note ends editing (sticky.edit_end) —
+  // including one on empty board space, which also clears the selection.
   useEffect(() => {
     if (!editing) return;
     const onOutsidePointerDown = (event: PointerEvent) => {
@@ -247,29 +118,18 @@ export function StickyNote({
     return () => document.removeEventListener("pointerdown", onOutsidePointerDown);
   }, [editing, onEndEdit]);
 
-  // Interaction cleanup: nothing may outlive the note (TC-37).
-  useEffect(
-    () => () => {
-      cancelFrame();
-      dragRef.current = null;
-      dragStateRef.current = "idle";
-    },
-    [cancelFrame],
-  );
-
   // ---- text auto-fit (display mode) --------------------------------------
   useLayoutEffect(() => {
     if (editing) return;
     const el = textRef.current;
     if (!el) return;
-    const next = fitFontSize(el, STICKY_TEXT_BOX_WORLD);
+    const next = fitFontSize(el, textBox);
     setFit((previous) =>
       previous.fontPx === next.fontPx && previous.overflow === next.overflow ? previous : next,
     );
-  }, [editing, note.text]);
+  }, [editing, note.text, textBox]);
 
   // ---- rendering -----------------------------------------------------------
-  const dragging = dragState === "dragging";
   const showToolbar = selected && !editing && !dragging;
 
   return (
@@ -277,6 +137,7 @@ export function StickyNote({
       ref={noteRef}
       className={`sticky-note${selected ? " is-selected" : ""}`}
       data-testid="sticky-note"
+      data-object-type="sticky"
       data-note-id={id}
       data-selected={selected ? "true" : "false"}
       data-dragging={dragging ? "true" : "false"}
@@ -285,10 +146,10 @@ export function StickyNote({
       aria-label={`Sticky note, ${note.color}`}
       tabIndex={0}
       style={{
-        left: `${round(note.x)}px`,
-        top: `${round(note.y)}px`,
-        width: `${STICKY_SIZE_WORLD}px`,
-        height: `${STICKY_SIZE_WORLD}px`,
+        left: `${round(box.x)}px`,
+        top: `${round(box.y)}px`,
+        width: `${round(box.width)}px`,
+        height: `${round(box.height)}px`,
         background: STICKY_COLORS[note.color],
         // Stacking is the document's z, applied as a CSS z-index. The DOM order
         // stays stable, so a drag is never interrupted by the board re-parenting
@@ -296,18 +157,10 @@ export function StickyNote({
         zIndex: note.z,
       }}
       onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onLostPointerCapture={onLostPointerCapture}
       onDoubleClick={onDoubleClick}
     >
       {editing ? (
-        <StickyTextEditor
-          ytext={textOf(doc, id)}
-          fontPx={fit.fontPx}
-          onEnd={onEndEdit}
-        />
+        <StickyTextEditor ytext={textOf(doc, id)} fontPx={fit.fontPx} onEnd={onEndEdit} />
       ) : (
         <div
           ref={textRef}
@@ -337,7 +190,6 @@ export function StickyNote({
               setStickyColor(doc, id, color);
             }}
             onDelete={() => {
-              dragRef.current = null;
               deleteObject(doc, id);
             }}
           />
@@ -355,11 +207,6 @@ function textOf(doc: Y.Doc, id: string): Y.Text {
   // Should not happen: the editor is only mounted for a note in the document.
   return new Y.Text();
 }
-
-/**
- * Positions the text box inside the note from the board settings, so CSS does
- * not repeat a board measurement.
- */
 
 function round(value: number): number {
   return Math.round(value * 1e6) / 1e6;

@@ -15,6 +15,7 @@ import {
   GRID_SPACING_WORLD,
   ORIGIN_MARKER_SIZE_WORLD,
 } from "../../shared/config";
+import type { MarqueeApi } from "../board/Marquee";
 import type { Camera, Point } from "./camera";
 import { useCamera, useWindowSize, wheelDeltaToPixels, type CameraApi } from "./useCamera";
 
@@ -35,6 +36,19 @@ export interface BoardViewportProps {
   onCreateAtPoint?(point: Point): void;
   /** A press and release on empty board space without dragging. */
   onEmptyClick?(point: Point): void;
+  /**
+   * The Shift+drag selection rectangle (story 7). When given, pressing Shift on
+   * empty board space drags a marquee instead of panning, and the viewport
+   * reports the press, the movement and the release to it. A marquee never
+   * pans the board and never clears the selection.
+   */
+  marquee?: MarqueeApi | null;
+  /**
+   * Screen-space furniture drawn over the board (the selection overlay and the
+   * selection bar): children of the viewport, but outside the world layer, so
+   * they keep their size at any zoom.
+   */
+  overlay?: ReactNode;
 }
 
 /** Safari trackpad pinch, which Firefox/Chromium deliver as a Ctrl+wheel. */
@@ -44,18 +58,31 @@ interface GestureEventLike extends Event {
   clientY?: number;
 }
 
-export function BoardViewport({ children, onCreateAtPoint, onEmptyClick }: BoardViewportProps) {
+export function BoardViewport({ children, onCreateAtPoint, onEmptyClick, marquee, overlay }: BoardViewportProps) {
   const provided = useContext(CameraApiContext);
   const windowSize = useWindowSize();
   const ownApi = useCamera(windowSize, { testHooks: provided === null });
   const api = provided ?? ownApi;
   const camera = api.camera;
 
+  const marqueeRef = useRef(marquee);
+  marqueeRef.current = marquee;
+  const marqueeActiveRef = useRef(false);
+
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);
   const apiRef = useRef(api);
   apiRef.current = api;
+
+  /** A pointer event's position relative to the viewport element. */
+  const viewportPoint = (event: { clientX: number; clientY: number }): Point => {
+    const rect = viewportRef.current?.getBoundingClientRect();
+    return {
+      x: event.clientX - (rect?.left ?? 0),
+      y: event.clientY - (rect?.top ?? 0),
+    };
+  };
 
   const [panning, setPanning] = useState(false);
   const panningRef = useRef(false);
@@ -156,6 +183,36 @@ export function BoardViewport({ children, onCreateAtPoint, onEmptyClick }: Board
     if (!isBoardSpace(target)) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
 
+    // Shift + drag on empty board space draws the selection rectangle instead of
+    // panning, and clears nothing on release.
+    const activeMarquee = marqueeRef.current;
+    if (event.shiftKey && activeMarquee) {
+      event.preventDefault();
+      event.stopPropagation();
+      pressRef.current = null;
+      marqueeActiveRef.current = true;
+      activeMarquee.begin(viewportPoint(event));
+      const onMarqueeMove = (moveEvent: PointerEvent) => {
+        if (!marqueeActiveRef.current) return;
+        activeMarquee.move(viewportPoint(moveEvent));
+      };
+      const finishMarquee = (kind: "end" | "cancel") => {
+        if (!marqueeActiveRef.current) return;
+        marqueeActiveRef.current = false;
+        window.removeEventListener("pointermove", onMarqueeMove);
+        window.removeEventListener("pointerup", onMarqueeUp);
+        window.removeEventListener("pointercancel", onMarqueeCancel);
+        if (kind === "end") activeMarquee.end();
+        else activeMarquee.cancel();
+      };
+      const onMarqueeUp = () => finishMarquee("end");
+      const onMarqueeCancel = () => finishMarquee("cancel");
+      window.addEventListener("pointermove", onMarqueeMove);
+      window.addEventListener("pointerup", onMarqueeUp);
+      window.addEventListener("pointercancel", onMarqueeCancel);
+      return;
+    }
+
     event.preventDefault();
     el.setPointerCapture?.(event.pointerId);
     panningRef.current = true;
@@ -236,6 +293,7 @@ export function BoardViewport({ children, onCreateAtPoint, onEmptyClick }: Board
         />
         {children}
       </div>
+      {overlay}
     </div>
   );
 }

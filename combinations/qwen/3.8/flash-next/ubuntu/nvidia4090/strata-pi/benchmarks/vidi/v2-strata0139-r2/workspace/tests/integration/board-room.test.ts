@@ -17,7 +17,7 @@ import {
   getStickyText,
   moveObject,
   setStickyColor,
-  snapshot,
+  stickySnapshot,
   type StickySnapshot,
 } from "../../src/shared/board-model";
 import { MAX_CONCURRENT_EDITORS, type StickyColor } from "../../src/shared/config";
@@ -188,7 +188,7 @@ describe("merging", () => {
     // The edit cannot survive anywhere in the room's document either.
     const replay = new Y.Doc();
     Y.applyUpdate(replay, await inRoom(boardId, (room) => (room.doc === null ? new Uint8Array() : Y.encodeStateAsUpdate(room.doc))));
-    expect(snapshot(replay).some((note) => note.text.includes("ghost"))).toBe(false);
+    expect(stickySnapshot(replay).some((note) => note.text.includes("ghost"))).toBe(false);
 
     // Neither client was hurt by the conflict.
     expect(a.isClosed).toBe(false);

@@ -75,6 +75,27 @@ export const STICKY_TEXT_PADDING_WORLD = 12;
 /** Height/width of the text box inside a note (derived from the two above). */
 export const STICKY_TEXT_BOX_WORLD = STICKY_SIZE_WORLD - 2 * STICKY_TEXT_PADDING_WORLD;
 
+// ---- Selecting and transforming objects (story 7) ----------------------
+
+/** Edge length of a resize handle, in screen pixels (constant at any zoom). */
+export const HANDLE_SIZE_PX = 8;
+/** Transparent padding around a handle that still counts as hitting it. */
+export const HANDLE_HIT_PAD_PX = 6;
+/** Smallest side a sticky note may be resized to, in board units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Largest side any board object may reach, in board units (all types). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** One arrow-key nudge, in board units. */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift + arrow-key nudge, in board units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+/** Fill of the Shift+drag selection rectangle (light blue, translucent). */
+export const MARQUEE_FILL_COLOR = "rgba(96, 165, 250, 0.25)";
+/** Border of the selection rectangle. */
+export const MARQUEE_BORDER_COLOR = "#3b82f6";
+/** Border of the bounding box drawn around a multi-object selection. */
+export const SELECTION_BOX_COLOR = "#2563eb";
+
 // ---- Live collaboration (story 3) ---------------------------------------
 
 /**

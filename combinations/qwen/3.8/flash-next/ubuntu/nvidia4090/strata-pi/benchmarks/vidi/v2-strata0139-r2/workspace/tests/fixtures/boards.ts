@@ -17,7 +17,7 @@ import {
   initDoc,
   moveObject,
   setStickyColor,
-  snapshot,
+  stickySnapshot,
   type StickySnapshot,
 } from "../../src/shared/board-model";
 import {
@@ -107,7 +107,7 @@ export function retroBoard(count = 25, seed = 20260901): BoardFixture {
     updates.push(Y.encodeStateAsUpdate(doc, before));
   }
 
-  return { doc, notes: snapshot(doc), updates };
+  return { doc, notes: stickySnapshot(doc) as StickySnapshot[], updates };
 }
 
 // ---- the PERSIST_TESTED_NOTES board --------------------------------------
@@ -168,7 +168,7 @@ export function largeBoard(count: number = PERSIST_TESTED_NOTES, seed = 20260904
     updates.push(Y.encodeStateAsUpdate(doc, before));
   }
 
-  return { doc, notes: snapshot(doc), updates };
+  return { doc, notes: stickySnapshot(doc) as StickySnapshot[], updates };
 }
 
 // ---- small edits, for reaching the compaction thresholds ------------------
@@ -179,7 +179,7 @@ export function largeBoard(count: number = PERSIST_TESTED_NOTES, seed = 20260904
  */
 export function seededEdits(doc: Y.Doc, count: number, seed = 20260902): Uint8Array[] {
   const random = seededRandom(seed);
-  const ids = snapshot(doc).map((note) => note.id);
+  const ids = stickySnapshot(doc).map((note) => note.id);
   if (ids.length === 0) throw new Error("seededEdits needs a board with notes");
 
   const updates: Uint8Array[] = [];

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import * as Y from "yjs";
-import { initDoc, snapshot, type StickySnapshot } from "../../shared/board-model";
+import { initDoc, snapshot, type ObjectSnapshot } from "../../shared/board-model";
 import { connectBoard, type ConnectionState } from "../sync/connectBoard";
 
 /**
  * Owns the board's `Y.Doc`, connects it to the board's room, and exposes an
- * immutable snapshot of its notes to React through `useSyncExternalStore`.
+ * immutable snapshot of its objects to React through `useSyncExternalStore`.
  *
  * Yjs is the source of truth; React re-renders when `objects.observeDeep`
  * fires — whether the change came from this client's keyboard or from the
@@ -17,13 +17,17 @@ import { connectBoard, type ConnectionState } from "../sync/connectBoard";
  */
 export interface BoardDoc {
   readonly doc: Y.Doc;
-  /** Notes sorted by (z, id) — the render order. */
-  readonly notes: readonly StickySnapshot[];
+  /**
+   * Every object on the board with a usable shape, sorted by (z, id) — the
+   * render order. Story 7 broadened this from sticky notes to all object types:
+   * the board renders whatever its registry knows and ignores the rest.
+   */
+  readonly objects: readonly ObjectSnapshot[];
   /** Live connection state, for the badge. `connecting` when not connected. */
   readonly connectionState: ConnectionState;
-  /** Latest notes for event handlers that must not read a stale closure. */
-  getNotes(): readonly StickySnapshot[];
-  getNote(id: string): StickySnapshot | undefined;
+  /** The same list, for event handlers that must not read a stale closure. */
+  getObjects(): readonly ObjectSnapshot[];
+  getObject(id: string): ObjectSnapshot | undefined;
 }
 
 export interface UseBoardDocOptions {
@@ -48,16 +52,16 @@ export function useBoardDoc({ doc: provided, boardId }: UseBoardDocOptions = {})
 
   /** Bumped on every document change; keys the snapshot cache. */
   const revisionRef = useRef(0);
-  const cacheRef = useRef<{ revision: number; notes: readonly StickySnapshot[] } | null>(null);
+  const cacheRef = useRef<{ revision: number; objects: readonly ObjectSnapshot[] } | null>(null);
 
-  const currentNotes = useCallback((): readonly StickySnapshot[] => {
+  const currentObjects = useCallback((): readonly ObjectSnapshot[] => {
     const revision = revisionRef.current;
     let cache = cacheRef.current;
     if (!cache || cache.revision !== revision) {
-      cache = { revision, notes: snapshot(doc) };
+      cache = { revision, objects: snapshot(doc) };
       cacheRef.current = cache;
     }
-    return cache.notes;
+    return cache.objects;
   }, [doc]);
 
   const subscribe = useCallback(
@@ -73,18 +77,18 @@ export function useBoardDoc({ doc: provided, boardId }: UseBoardDocOptions = {})
     [doc],
   );
 
-  const notes = useSyncExternalStore(
+  const objects = useSyncExternalStore(
     subscribe,
-    currentNotes,
-    currentNotes,
+    currentObjects,
+    currentObjects,
   );
 
-  const getNote = useCallback(
-    (id: string): StickySnapshot | undefined => currentNotes().find((note) => note.id === id),
-    [currentNotes],
+  const getObject = useCallback(
+    (id: string): ObjectSnapshot | undefined => currentObjects().find((object) => object.id === id),
+    [currentObjects],
   );
 
-  return { doc, notes, connectionState, getNotes: currentNotes, getNote };
+  return { doc, objects, connectionState, getObjects: currentObjects, getObject };
 }
 
 function createDoc(): Y.Doc {

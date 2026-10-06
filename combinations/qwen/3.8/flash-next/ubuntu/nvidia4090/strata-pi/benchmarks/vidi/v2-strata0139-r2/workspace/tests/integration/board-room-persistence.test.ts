@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
 import {
   createSticky,
   getStickyText,
-  snapshot,
+  stickySnapshot,
   type StickySnapshot,
 } from "../../src/shared/board-model";
 import {
@@ -96,7 +96,7 @@ async function storedBoard(
     const store = new BoardStore(storageOf(room));
     const doc = new Y.Doc();
     const result = store.load(doc);
-    return { result, notes: snapshot(doc) };
+    return { result, notes: stickySnapshot(doc) };
   });
 }
 

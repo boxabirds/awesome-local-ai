@@ -13,7 +13,7 @@ import * as Y from "yjs";
 import * as decoding from "lib0/decoding";
 import * as encoding from "lib0/encoding";
 import * as syncProtocol from "y-protocols/sync";
-import { snapshot, type StickySnapshot } from "../../../src/shared/board-model";
+import { stickySnapshot, type StickySnapshot } from "../../../src/shared/board-model";
 import {
   MESSAGE_AWARENESS,
   MESSAGE_QUERY_AWARENESS,
@@ -220,7 +220,7 @@ export class TestClient {
   }
 
   get notes(): readonly StickySnapshot[] {
-    return this.doc === null ? [] : snapshot(this.doc);
+    return this.doc === null ? [] : stickySnapshot(this.doc);
   }
 
   /** A frame this socket has not consumed yet, or the next one to arrive. */
@@ -508,7 +508,7 @@ export function inRoom<T>(boardId: string, work: (room: BoardRoom) => T | Promis
 
 /** The room's own document as board-model snapshots, or `null` if it has none. */
 export function roomSnapshot(boardId: string): Promise<readonly StickySnapshot[] | null> {
-  return inRoom(boardId, (room) => (room.doc === null ? null : snapshot(room.doc)));
+  return inRoom(boardId, (room) => (room.doc === null ? null : stickySnapshot(room.doc)));
 }
 
 /** The room's document state vector, for "identical document" assertions. */
@@ -520,7 +520,7 @@ export function roomStateVector(boardId: string): Promise<Uint8Array | null> {
 export function roomDocEquals(boardId: string, doc: Y.Doc): Promise<boolean> {
   return inRoom(boardId, (room) => {
     if (room.doc === null) return false;
-    return JSON.stringify(snapshot(room.doc)) === JSON.stringify(snapshot(doc));
+    return JSON.stringify(stickySnapshot(room.doc)) === JSON.stringify(stickySnapshot(doc));
   });
 }
 

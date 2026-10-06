@@ -14,7 +14,7 @@ import * as Y from "yjs";
 import { env, runInDurableObject } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { BoardStore, type StoreState } from "../../src/worker/board-store";
-import { snapshot, type StickySnapshot } from "../../src/shared/board-model";
+import { stickySnapshot, snapshot, type StickySnapshot } from "../../src/shared/board-model";
 import {
   BOARD_LOAD_BUDGET_MS,
   COMPACTION_BYTES,
@@ -190,7 +190,7 @@ describe("round trip (TC-04)", () => {
     const loaded = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       const result = store.load(doc);
-      return { result, notes: snapshot(doc) };
+      return { result, notes: stickySnapshot(doc) };
     });
 
     expect(loaded.result).toEqual({ ok: true, quarantined: 0 });
@@ -224,13 +224,13 @@ describe("round trip (TC-04)", () => {
       expect(store.load(doc).ok).toBe(true);
       const [edit] = seededEdits(doc, 1);
       store.append(edit!, doc);
-      return snapshot(doc);
+      return stickySnapshot(doc);
     });
 
     const reloaded = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       store.load(doc);
-      return snapshot(doc);
+      return stickySnapshot(doc);
     });
     expect(reloaded).toEqual(edited);
   });
@@ -283,7 +283,7 @@ describe("a damaged log row (TC-05)", () => {
     const loaded = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       const result = store.load(doc);
-      return { result, notes: snapshot(doc) };
+      return { result, notes: stickySnapshot(doc) };
     });
 
     expect(loaded.result).toEqual({ ok: true, quarantined: 1 });
@@ -316,7 +316,7 @@ describe("a damaged log row (TC-05)", () => {
     const again = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       const result = store.load(doc);
-      return { result, notes: snapshot(doc) };
+      return { result, notes: stickySnapshot(doc) };
     });
     expect(again.result).toEqual({ ok: true, quarantined: 0 });
     expect(again.notes).toEqual(loaded.notes);
@@ -333,7 +333,7 @@ describe("a damaged log row (TC-05)", () => {
     const loaded = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       const result = store.load(doc);
-      return { result, notes: snapshot(doc) };
+      return { result, notes: stickySnapshot(doc) };
     });
 
     expect(loaded.result).toEqual({ ok: true, quarantined: 1 });
@@ -356,7 +356,7 @@ describe("a damaged log row (TC-05)", () => {
     const loaded = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       const result = store.load(doc);
-      return { result, notes: snapshot(doc) };
+      return { result, notes: stickySnapshot(doc) };
     });
 
     expect(loaded.result).toEqual({ ok: true, quarantined: 2 });
@@ -392,7 +392,7 @@ describe("compaction (TC-06)", () => {
     const compacted = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       expect(store.load(doc).ok).toBe(true);
-      const expected = snapshot(doc);
+      const expected = stickySnapshot(doc);
       const didCompact = store.compactIfNeeded(doc);
       return { didCompact, expected, state: store.state() };
     });
@@ -406,7 +406,7 @@ describe("compaction (TC-06)", () => {
     const reloaded = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       const result = store.load(doc);
-      return { result, notes: snapshot(doc) };
+      return { result, notes: stickySnapshot(doc) };
     });
     expect(reloaded.result.ok).toBe(true);
     expect(reloaded.notes).toEqual(compacted.expected);
@@ -417,14 +417,14 @@ describe("compaction (TC-06)", () => {
       expect(store.load(doc).ok).toBe(true);
       const [edit] = seededEdits(doc, 1);
       store.append(edit!, doc);
-      return snapshot(doc);
+      return stickySnapshot(doc);
     });
     expect(withExtra.length).toBe(compacted.expected.length);
 
     const finalReload = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       const result = store.load(doc);
-      return { result, notes: snapshot(doc) };
+      return { result, notes: stickySnapshot(doc) };
     });
     expect(finalReload.notes).toEqual(withExtra);
     expect((await facts(board)).updateRows).toBe(1);
@@ -442,7 +442,7 @@ describe("snapshot chunking (TC-07)", () => {
       appendThroughDoc(store, fixture.updates);
       const doc = new Y.Doc();
       expect(store.load(doc).ok).toBe(true);
-      const expected = snapshot(doc);
+      const expected = stickySnapshot(doc);
       const encodedBytes = Y.encodeStateAsUpdate(doc).byteLength;
       const didCompact = store.compactIfNeeded(doc);
       return { didCompact, expected, state: store.state(), encodedBytes };
@@ -468,7 +468,7 @@ describe("snapshot chunking (TC-07)", () => {
     const reloaded = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       const result = store.load(doc);
-      return { result, notes: snapshot(doc) };
+      return { result, notes: stickySnapshot(doc) };
     });
     expect(reloaded.result).toEqual({ ok: true, quarantined: 0 });
     expect(reloaded.notes).toEqual(compacted.expected);
@@ -492,7 +492,7 @@ describe("the board size the PRD names (TC-08, TC-09)", () => {
     const compacted = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       expect(store.load(doc).ok).toBe(true);
-      const expected = snapshot(doc);
+      const expected = stickySnapshot(doc);
       const didCompact = store.compactIfNeeded(doc);
       return { didCompact, expected };
     });
@@ -506,7 +506,7 @@ describe("the board size the PRD names (TC-08, TC-09)", () => {
     const loaded = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       const result = store.load(doc);
-      return { result, notes: snapshot(doc) };
+      return { result, notes: stickySnapshot(doc) };
     });
     const elapsedMs = Date.now() - started;
 
@@ -551,7 +551,7 @@ describe("compaction failure rolls back (TC-10, TC-11)", () => {
           const doc = new Y.Doc();
           expect(store.load(doc).ok).toBe(true);
           const didCompact = store.compactIfNeeded(doc);
-          return { didCompact, notes: snapshot(doc) };
+          return { didCompact, notes: stickySnapshot(doc) };
         }),
     );
 
@@ -567,7 +567,7 @@ describe("compaction failure rolls back (TC-10, TC-11)", () => {
     const reloaded = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       const result = store.load(doc);
-      return { result, notes: snapshot(doc) };
+      return { result, notes: stickySnapshot(doc) };
     });
     expect(reloaded.result.ok).toBe(true);
     expect(reloaded.notes).toEqual(outcome.notes);
@@ -584,7 +584,7 @@ describe("compaction failure rolls back (TC-10, TC-11)", () => {
           const doc = new Y.Doc();
           expect(store.load(doc).ok).toBe(true);
           const didCompact = store.compactIfNeeded(doc);
-          return { didCompact, notes: snapshot(doc) };
+          return { didCompact, notes: stickySnapshot(doc) };
         }),
     );
 
@@ -598,7 +598,7 @@ describe("compaction failure rolls back (TC-10, TC-11)", () => {
     const reloaded = await inBoard(board, (store) => {
       const doc = new Y.Doc();
       const result = store.load(doc);
-      return { result, notes: snapshot(doc) };
+      return { result, notes: stickySnapshot(doc) };
     });
     expect(reloaded.result.ok).toBe(true);
     expect(reloaded.notes).toEqual(outcome.notes);
