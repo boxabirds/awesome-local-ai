@@ -501,6 +501,7 @@ pub fn ingest_story(db: &mut db::Db, parts: &RunParts, inp: &StoryInputs, now: f
     db.replace_story_rows(sk, &rows, &timing, &inp.rec)?;
     let timed = join_call_timing(&rows, &timing);
     let conds = conditions(inp.conditions_text.as_deref(), &inp.rec, sk);
+    db.replace_conditions(&inp.run_dir, sk, &conds)?;
     let stream = stream_events(&rows, &timing, &timed, &[], &conds);
     let events_written = if inp.complete {
         db.replace_events(sk, &stream)?;

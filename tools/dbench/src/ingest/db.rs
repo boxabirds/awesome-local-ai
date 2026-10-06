@@ -322,9 +322,11 @@ impl Db {
         Ok(())
     }
 
-    pub fn replace_conditions(&mut self, run_id: &str, rows: &[super::ConditionRow]) -> Result<()> {
+    /// One story's machine readings. Scoped to the story, not the run: a run's stories are ingested one at a
+    /// time, so deleting by run would drop every earlier story's readings as the next one arrived.
+    pub fn replace_conditions(&mut self, run_id: &str, sk: i64, rows: &[super::ConditionRow]) -> Result<()> {
         let tx = self.conn.transaction()?;
-        tx.execute("delete from conditions where run_id = ?1", params![run_id])?;
+        tx.execute("delete from conditions where sk = ?1", params![sk])?;
         for c in rows {
             tx.execute(
                 "insert or replace into conditions(run_id, at, sk, ac, low_power, thermal, swap_gb, free_pct, footprint_gb, footprint_peak_gb,
