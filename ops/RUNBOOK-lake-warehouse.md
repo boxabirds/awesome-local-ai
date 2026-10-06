@@ -49,6 +49,15 @@ Ingest reads records from the repo's `origin/main`, never the working copy.
 
 ### Gotchas that cost time
 
+- **`stories.run` is NOT unique. The key is `(stack, run)`.** A run name is the series position, and every
+  combination running that series uses it: `v2-r1` … `v2-r4` each name three different runs, on three different
+  machines, and `v2-r5` names two. 24 distinct run names cover 33 stack+run pairs. Any `partition by run` or
+  `group by run` silently mixes machines — on 6 October 2026 one invented a −24-test regression that reached a
+  committed strategic-insights note. `tests/warehouse-sql-test.sh` fails any committed query that does it.
+- **A `like` for a quoted literal must escape the quote.** `args_json` holds JSON, so source text
+  `aria-label="Sticky note"` is stored as `aria-label=\"Sticky note\"`. The unescaped pattern matches nothing and
+  returns zero for every row, which reads like a finding. Check a `like` returns *something* before believing a
+  zero.
 - **`stories.passed`/`total` are CUMULATIVE over the suite**, not that story's own tests. Story 2 showing `6/20`
   means six of the first twenty tests pass after two stories. `dbench status`'s per-story "accept 0/10" column is
   the delta. Do not mix them.

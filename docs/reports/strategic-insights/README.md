@@ -30,4 +30,10 @@ re-derived, and so a wrong one can be found and corrected rather than quietly in
 
 | Note | Claim | Status |
 |---|---|---|
-| [Truncated stories do not cascade](2026-10-06-truncated-stories-do-not-cascade.md) | Cutting a story short at the time cap guarantees the next story fails | **Refuted** |
+| [Truncated stories do not cascade](2026-10-06-truncated-stories-do-not-cascade.md) | Cutting a story short at the time cap guarantees the next story fails | **Refuted** (corrected 6 Oct) |
+
+## When one of these turns out to be wrong
+
+Correct the note in place, keep its name, and add a section at the end saying what the figures were, what they
+are, and what made the error survive. A note that is quietly rewritten teaches nothing, and the index should
+show that a published conclusion has been revised. If the conclusion itself changes, say so in the status.

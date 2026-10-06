@@ -40,19 +40,35 @@ be expected to show.
 Changes a machine-checkable identifier — an `aria-label`, `role`, test id, route or exact user-facing string —
 away from a literal the specification states, because its own wording seems better.
 
-**Detect:** for each literal the spec mandates, count tool payloads containing it, per run. A zero where a peer
-run has a hit is drift.
+**Detect:** search tool payloads for the *drifted* form, not for the mandated literal. In `args_json` the payload
+is JSON, so a quote in the source is stored as `\"`; a JSX expression has no quote at all, which is what makes the
+drift findable.
 
 ```sql
-select s.run, sum(t.args_json like '%aria-label="Sticky note"%') kept
+select s.stack, s.run, s.story,
+       sum(t.args_json like '%aria-label={%Sticky note,%') drifted
 from stories s join tools t on t.sk = s.sk
-where s.story = '2' group by s.run;
+group by s.stack, s.run, s.story having drifted > 0;
 ```
+
+Run against the warehouse on 6 October 2026 this returns three rows: `v2-strata0139-r2` story 2 (the decisive
+edit) and story 7, and `v2-mlx26101-r5` story 12. Nothing else in 33 stack+run pairs.
+
+**Counting the mandated literal instead does not work, and the first version of this file said it did.** Every
+one of the 33 pairs writes `aria-label=\"Sticky note\"` at some point, Strata included — four times in story 2.
+A run that writes the right literal and then changes it is indistinguishable, by that count, from one that keeps
+it. "A zero where a peer has a hit" never happens.
+
+Two traps this cost: a run name is not unique — `v2-r4` names a run in three stacks, so every query here keys on
+`(stack, run)` — and a `like` for a quoted literal must escape the quote as `\"` or it silently matches nothing.
+Both are in `ops/RUNBOOK-lake-warehouse.md`.
 
 **Evidence:** the whole failure. It wrote `aria-label="Sticky note"` correctly at call 48, confirmed it by grep at
 call 149, and at call 150 changed it to ``aria-label={`Sticky note, ${note.color}`}``. Every held-out test for
 stories 2 and 3 locates a note through `div[role="group"][aria-label="Sticky note"]`, so all of them stopped
-finding notes at all. The drifted string persisted into stories 4, 7, 8 and 9.
+finding notes at all. The drifted form was written again in story 7; the warehouse records what a run *wrote*,
+not the state of its files, so how long the attribute stayed drifted in between is an inference from the
+held-out results, not a measurement.
 
 **Why it is the most dangerous class:** the cost is wildly out of proportion to the act. One attribute, changed
 once, for a defensible-sounding reason, cost twenty-one tests across two stories.
@@ -91,10 +107,12 @@ Declares the story finished on a suite it wrote and amended, while the external 
 **Detect:** `sum(tools.passed)` high with a held-out gain of zero.
 
 ```sql
-with s as (select sk, run, story, passed - lag(passed,1,0) over (partition by run order by cast(story as integer)) gained
+with s as (select sk, stack, run, story,
+                  passed - lag(passed,1,0) over (partition by stack, run order by cast(story as integer)) gained
            from stories)
-select s.run, s.story, s.gained, sum(t.passed) own_passed
-from s join tools t on t.sk = s.sk group by s.run, s.story having s.gained = 0 and own_passed > 100;
+select s.stack, s.run, s.story, s.gained, sum(t.passed) own_passed
+from s join tools t on t.sk = s.sk
+group by s.stack, s.run, s.story having s.gained = 0 and own_passed > 100;
 ```
 
 **Evidence:** story 2, call 236 — *"All green (typecheck clean; build ✓; 57 + 67 + 36 tests pass)."* Held-out:
