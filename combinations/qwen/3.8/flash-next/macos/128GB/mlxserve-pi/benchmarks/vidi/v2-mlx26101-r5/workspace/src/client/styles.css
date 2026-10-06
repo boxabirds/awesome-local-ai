@@ -1321,3 +1321,213 @@ body {
   stroke: var(--select);
   fill: none;
 }
+
+/* ------------------------------------------------------------------ story 11: the pen */
+
+/*
+ * The pen's cursor, over everything the pointer could land on.
+ *
+ * A crosshair, for the reason the drawing tools above it use a crosshair: the pointer is about to make
+ * something and the note underneath is not what the press is for. It is written over the objects as well as
+ * over the board because the pen does not stop at empty space — a circle drawn round a cluster of notes
+ * starts on one of them — and a cursor that became a grabbing hand as it crossed a note would be a cursor
+ * describing a tool that had quietly stopped working.
+ *
+ * This is the board's cursor and not the pen's own dot: the dot that follows the pointer is drawn by the
+ * tool, at the size of the ink, because a cursor cannot be sized in CSS from a document setting and a dot
+ * that is the wrong size for the pen is describing the wrong pen.
+ */
+.board-viewport[data-tool='pen'],
+.board-viewport[data-tool='pen'] .sticky-note,
+.board-viewport[data-tool='pen'] .text-object,
+.board-viewport[data-tool='pen'] .shape-object,
+.board-viewport[data-tool='pen'] .connector-object,
+.board-viewport[data-tool='pen'] .stroke-object {
+  cursor: crosshair;
+}
+
+/*
+ * The stroke: a line, and a box that is deliberately nothing to the pointer.
+ *
+ * The box is the bounding rectangle of everything the line touches, which for a circle drawn round three
+ * notes is those three notes and a great deal of air between them. `pointer-events: none` on the box — set
+ * inline as well, so a component cannot forget it in a style sheet — is what keeps that rectangle from being
+ * a wall between a person and the things they drew around; the wide invisible stroke inside the SVG is the
+ * only part of a drawing a pointer can hold, which is the same three-layer arrangement an arrow uses and
+ * for the same reason.
+ */
+.stroke-object {
+  position: absolute;
+  pointer-events: none;
+}
+
+.stroke-object-svg {
+  display: block;
+  overflow: visible;
+}
+
+/* The line, once it can be moved: the drawing's own cursor, and only on the line itself. */
+.stroke-object .stroke-hit {
+  cursor: grab;
+}
+
+.stroke-object[data-selected='true'] .stroke-line {
+  /* Not a colour: a drawing's colour is the colour it was drawn in, and repainting somebody's sketch in
+     the board's blue to say "this is selected" would be saying it by destroying the thing it names. The
+     box around it is what the board uses to say selected; this is the drawing agreeing. */
+  filter: drop-shadow(0 0 1px var(--select));
+}
+
+.stroke-object[data-selected='true'] .stroke-hit {
+  cursor: grabbing;
+}
+
+/*
+ * The line being drawn: fixed to the screen, out of the pointer's way, and gone the moment the pointer
+ * comes up — because what replaces it is the real object, drawn from the same points by the same curve.
+ *
+ * `z-index: 8` puts it over the objects and under the toolbars, which is where a thing that is not yet
+ * real belongs: it must be visible over the notes it is being drawn on top of, and it must never be
+ * something a person can click.
+ */
+.pen-preview {
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/*
+ * The pen's dot: the ink, at the ink's size, under the pointer.
+ *
+ * Positioned by the tool writing `transform` on the element directly rather than by a render per pointer
+ * event, which is the only way a cursor can follow a 500 Hz mouse on a board that is also drawing; the size
+ * comes from React, because the size only changes when the pen or the zoom does.
+ */
+.pen-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 9;
+  opacity: 0.75;
+  /* Counter-scaled by nothing: the size is already `thickness × zoom`, worked out in the component. */
+  will-change: transform;
+}
+
+/*
+ * The pen's two rows, beside the toolbar and not in it.
+ *
+ * The toolbar is one column of tools and this is two rows of settings for one of them; putting nine buttons
+ * into the column would make the tools harder to read for the sake of a choice that only means something
+ * while the pen is lit. So it sits next to the toolbar, at the same height, in the same surface: the same
+ * box, because it belongs to the same place, and no connector or line to the pen's button, because a
+ * person who pressed P knows what the two rows are for.
+ */
+.pen-toolbar {
+  position: fixed;
+  left: 76px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  font-size: 13px;
+}
+
+.pen-colors,
+.pen-thicknesses {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/*
+ * A colour, as a circle of that colour.
+ *
+ * The same swatch the shape's palette uses — round, thin-ringed, and lit with the board's blue — because
+ * "which of these six" is the same question in both places, and a pen swatch drawn differently from a shape
+ * swatch would be a hint that one of the two is not a colour choice.
+ */
+.pen-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 0.2);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.pen-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--select);
+  outline-offset: 1px;
+}
+
+.pen-swatch:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 1px;
+}
+
+/*
+ * A thickness, as the word for it over a line of that thickness.
+ *
+ * Words rather than three dots of three sizes because the words are what the design says on the buttons and
+ * what a screen reader has to say; the rule underneath is so that the difference between thin and thick is
+ * not something a person has to read a word to notice.
+ */
+.pen-thickness {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 6px;
+  min-width: 44px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.pen-thickness::after {
+  content: '';
+  width: 24px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* One world unit of pen to one screen pixel of rule: the three buttons carry the widths the model keeps,
+   drawn rather than only named, so that the difference between thin and thick is not something a person
+   has to read a word to notice. */
+.pen-thickness[data-width='2']::after {
+  height: 2px;
+}
+
+.pen-thickness[data-width='4']::after {
+  height: 4px;
+}
+
+.pen-thickness[data-width='8']::after {
+  height: 8px;
+}
+
+.pen-thickness:hover:not(:disabled) {
+  background: #f2f4f8;
+}
+
+.pen-thickness[aria-pressed='true'] {
+  background: #e2ebfd;
+  border-color: #b6cdf7;
+  color: #1d4ed8;
+}
+
+.pen-thickness:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 1px;
+}

@@ -39,6 +39,9 @@ import { useSelection, type Selection } from './useSelection';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
 import { createUndo } from './undo';
@@ -244,13 +247,13 @@ export function Board({
   }, [createAt]);
 
   /**
-   * The tool the pointer is in: Select, Text, Shape or Connector — the same pointer with a different job.
+   * The tool the pointer is in: Select, Text, Shape, Connector or Pen — the same pointer with a different job.
    *
    * It is the board's state and not the document's: two people on one board can be in different tools,
    * because a tool is what this person's pointer is doing and nobody else's screen has an interest in
-   * that. What the board does with it is here too — the toolbar's buttons, the keys, and the two tools that
+   * that. What the board does with it is here too — the toolbar's buttons, the keys, and the tools that
    * hold the pointer and write for themselves — so that there is one answer to "what happens when I press
-   * T", and the same answer to S and to L.
+   * T", and the same answer to S, to L and to P.
    */
   const tools = useActiveTool({
     canEdit: editable,
@@ -260,6 +263,18 @@ export function Board({
   });
   const toolsRef = useRef(tools);
   toolsRef.current = tools;
+
+  /**
+   * The pen's colour and thickness, for as long as this board is open.
+   *
+   * Board state and not document state, which is the whole of why a second person sees the finished line in
+   * the colour it was drawn in and never sees the choosing: what goes into the document is the stroke with
+   * its colour already on it, and this is the setting that picked that colour, which is nobody's business but
+   * the drawer's. It is also why nothing here is saved: a pen is picked up for a drawing and put down, and a
+   * board that remembered the last person's red on the next person's first stroke would be remembering the
+   * wrong thing.
+   */
+  const pen = usePenOptions();
 
   /**
    * A point on this screen as the point on the board it is over.
@@ -487,7 +502,7 @@ export function Board({
         ))}
       </BoardViewport>
       {
-        // The two tools that hold the pointer themselves. They are rendered while they are lit and on a
+        // The three tools that hold the pointer themselves. They are rendered while they are lit and on a
         // board that can be written to, and unmounted otherwise — which is also how a tool that is half
         // way through a drag is cancelled: Escape, or a letter, or the board going read-only takes the tool
         // away, the tool's listeners come off with it, and the drag writes nothing on the way out.
@@ -517,6 +532,25 @@ export function Board({
           />
         ) : null
       }
+      {
+        // The pen, and the one tool of the three that is not handed back after it makes something: no
+        // `onCreated`, because a person sketching draws several strokes in a row and a tool that put them
+        // back to the arrow pointer after every line would be a tool they had to switch back to by hand.
+        // The pen stays until they say otherwise, and saying otherwise is Escape or another letter — which
+        // is also the way out of a stroke that has gone wrong, since unmounting this discards whatever it
+        // had drawn and had not yet written.
+        tools.tool === 'pen' && editable ? (
+          <PenTool
+            camera={camera}
+            color={pen.color}
+            doc={doc}
+            identityId={boardIdentity().name}
+            thickness={pen.thickness}
+            toWorld={toWorld}
+            undo={undoControls}
+          />
+        ) : null
+      }
       <SelectionOverlay
         camera={camera}
         ids={selection.ids}
@@ -539,6 +573,18 @@ export function Board({
         tool={tools.tool}
         undo={undoActions}
       />
+      {
+        // The pen's own choices, beside the pen's button and only while the pen is lit — six colours and
+        // three thicknesses that belong to this person and to this visit, next to the tool that uses them.
+        tools.tool === 'pen' ? (
+          <PenToolbar
+            color={pen.color}
+            onColor={pen.setColor}
+            onThickness={pen.setThickness}
+            thickness={pen.thickness}
+          />
+        ) : null
+      }
       <ZoomControls
         canZoomIn={canZoomIn(camera)}
         canZoomOut={canZoomOut(camera)}

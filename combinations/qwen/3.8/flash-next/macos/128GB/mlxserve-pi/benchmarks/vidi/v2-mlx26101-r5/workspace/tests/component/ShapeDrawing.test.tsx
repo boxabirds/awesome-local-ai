@@ -283,10 +283,12 @@ describe('the Shape tool', () => {
 
   it('TC-15 leaves the reserved letters of stories nobody has written to the browser', async () => {
     renderBoard();
-    // P is the pen's letter in the design's naming scheme, and there is no pen. A key that was swallowed
-    // on the way to doing nothing is worse than a key the browser still has.
-    expect(await key('p')).toBe(false);
-    expect(toolOnScreen()).toBe('select');
+    // P was the pen's letter with no pen behind it, and this story's test used to assert that pressing it
+    // did nothing. Story 11 wrote the pen, so the letter is earned now: it lights the pen, which is what
+    // the design's naming scheme always said it would.
+    expect(await key('p')).toBe(true);
+    expect(toolOnScreen()).toBe('pen');
+    await key('Escape');
     // N is the sticky note's, and it was the sticky note's before this story: pressing it makes a note,
     // it does not enter a tool.
     expect(await key('n')).toBe(true);

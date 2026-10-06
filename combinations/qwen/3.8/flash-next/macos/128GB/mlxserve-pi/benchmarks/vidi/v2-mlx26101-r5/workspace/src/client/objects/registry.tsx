@@ -28,6 +28,7 @@ import {
   CONNECTOR_HIT_TOLERANCE_PX,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import { rectContainsPoint, type Point, type Rect } from '../../shared/geometry';
@@ -36,12 +37,15 @@ import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
 import type { TextSnapshot } from '../../shared/objects/text';
 import type { ConnectorSnapshot } from '../../shared/objects/connector';
 import type { ShapeSnapshot } from '../../shared/objects/shape';
+import type { StrokeSnapshot } from '../../shared/objects/stroke';
+import { scaledPoints, strokeHitRadius } from '../../shared/objects/stroke';
 import type { Camera } from '../canvas/camera';
 import type { UndoControls } from '../board/useUndo';
 import { STICKY_OBJECT_TYPE, StickyNote } from './StickyNote';
 import { TEXT_OBJECT_TYPE, TextObject } from './TextObject';
 import { SHAPE_OBJECT_TYPE, ShapeObject } from './ShapeObject';
 import { CONNECTOR_OBJECT_TYPE, ConnectorObject } from './ConnectorObject';
+import { STROKE_OBJECT_TYPE, StrokeObject } from './StrokeObject';
 
 /**
  * What the board gives an object so that it can take part in the board's behaviour. An object never
@@ -52,6 +56,18 @@ import { CONNECTOR_OBJECT_TYPE, ConnectorObject } from './ConnectorObject';
  * `ObjectProps<StickySnapshot>`. The board reads an object, looks its type up here and hands the
  * component the props of exactly that type.
  */
+/**
+ * Either kind of pointer event an object can be handed: React's, over the element the press landed on,
+ * or the browser's own.
+ *
+ * The element is a union and not one type because an object is not always a `div`: a note and a shape are
+ * pressed on HTML elements, and the only part of an arrow or a drawing that a pointer can hold is an SVG
+ * path. A gesture that moves objects by the rules of the document cannot care which sort of element it was
+ * pressed on, so both readings are accepted, and the objects do not have to reach for the native event to
+ * hand their press to the board.
+ */
+export type ObjectPointerEvent = ReactPointerEvent<HTMLElement | SVGGraphicsElement> | PointerEvent;
+
 export interface ObjectProps<T extends ObjectSnapshot = ObjectSnapshot> {
   /** The object being drawn. */
   obj: T;
@@ -91,7 +107,7 @@ export interface ObjectProps<T extends ObjectSnapshot = ObjectSnapshot> {
    * on one object may have to move twenty, and an object that dragged itself would move one object
    * while leaving the selection where it was.
    */
-  onObjectPointerDown(event: ReactPointerEvent<HTMLElement> | PointerEvent, id: string): void;
+  onObjectPointerDown(event: ObjectPointerEvent, id: string): void;
   /**
    * This person's undo history, for the writes an object makes to its own content.
    *
@@ -412,5 +428,36 @@ registerObjectType<ConnectorSnapshot>(CONNECTOR_OBJECT_TYPE, {
     if (context === undefined) return rectContainsPoint(objectBounds(obj), worldPoint);
     const ends = resolveEndpoints({ from: obj.from, to: obj.to }, context.rects);
     return distanceToPolyline([ends.from, ends.to], worldPoint) <= CONNECTOR_HIT_TOLERANCE_PX / context.zoom;
+  },
+});
+
+registerObjectType<StrokeSnapshot>(STROKE_OBJECT_TYPE, {
+  Component: StrokeObject,
+  // A drawing has a box — the box around the line that was drawn — and a handle can change it. What the
+  // line does when the box changes is arithmetic (`scaledPoints` scales the points to the box), which is
+  // why an object whose shape is two hundred numbers can be resized by the same gesture as a sticky note.
+  resizable: true,
+  // …and it keeps its proportions while it does. A sketch is a picture of something: a circle dragged
+  // wider is a circle squashed, and the person who drags the bottom-right corner of a sketch means "bigger",
+  // not "wider". A drawing has no other proportion to keep and no content of its own to resize, so unlike
+  // a shape — whose squareness is a property of the *kind* and not of the drawing — it has only this one.
+  aspectLocked: true,
+  // The size a stroke stops at. A sketch of an arrow dragged to nothing is a sketch of nothing, and four
+  // world units is the dot the thickest pen makes, which is the smallest thing this board can draw at all.
+  minSize: STROKE_MIN_SIZE_WORLD,
+  // There is nothing to type into: a drawing's whole content is the line.
+  editableText: false,
+  // With the board's context, a drawing is its line: six screen pixels either side of it, or half its own
+  // ink where the ink is thicker than that, at any zoom. This is the rule that makes a click inside a
+  // circle drawn round three notes a click on the note under it and not a click on the circle, which is
+  // the difference between an annotation and a sheet of glass over the board.
+  // Without it — the marquee, *select all* — a drawing is the box around it, which is what a rectangle
+  // drawn round a sketch encloses, and the box the resize handles are drawn around.
+  hitTest: (obj, worldPoint, context) => {
+    if (context === undefined) return rectContainsPoint(objectBounds(obj), worldPoint);
+    // The zoom is the whole of the tolerance's units, so a zoom that does not have one is asked nothing:
+    // a board that cannot say how big a pixel is does not get to select a drawing from across the room.
+    const radius = strokeHitRadius(obj, context.zoom);
+    return Number.isFinite(radius) && distanceToPolyline(scaledPoints(obj), worldPoint) <= radius;
   },
 });

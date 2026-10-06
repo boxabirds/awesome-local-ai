@@ -59,11 +59,16 @@ export const TOOL_SHORTCUTS: Readonly<Record<string, ToolId>> = {
  * The tools this build can actually point with.
  *
  * `sticky` is absent because there is no sticky tool: pressing its key makes a note, it does not change
- * the pointer. `pen`, `image` and `comment` are absent for the plain reason that no story has drawn
- * them yet. A tool that is not here cannot be entered — `setTool` says no — which is the difference
- * between a reserved letter and a working one.
+ * the pointer. `image` and `comment` are absent for the plain reason that no story has drawn them yet. A
+ * tool that is not here cannot be entered — `setTool` says no — which is the difference between a reserved
+ * letter and a working one.
+ *
+ * `pen` is in it, and the pen is the first tool in this list that does not hand the pointer back: every
+ * other entry makes one thing and returns to Select, and the pen makes one thing and stays. Nothing here
+ * says how long a tool lasts once it is entered, because this list is not a state machine — it is the list
+ * of doors, and what a person does after walking through one is the tool's own affair.
  */
-export const BUILT_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+export const BUILT_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
 /** Whether this build has the tool, as opposed to only having a letter for it. */
 export function isBuiltTool(tool: ToolId): boolean {

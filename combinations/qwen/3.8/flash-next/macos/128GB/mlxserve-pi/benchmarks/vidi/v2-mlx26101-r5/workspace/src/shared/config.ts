@@ -283,3 +283,71 @@ export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 export const CONNECTOR_DOT_RADIUS_PX = 4;
 /** Radius of the two handles a selected arrow shows at its ends, in screen pixels. */
 export const CONNECTOR_HANDLE_RADIUS_PX = 5;
+
+/* ------------------------------------------------------------------ sketching with a pen (story 11) */
+
+/**
+ * The six colours the Pen draws with, in toolbar order.
+ *
+ * Names are what the document stores (`black`, not `#212121`), which is what lets a later change to what
+ * `blue` looks like restyle every stroke ever drawn — and what makes a stroke drawn by a client with a
+ * bigger palette still readable here (see {@link strokeColorOf}). A stroke keeps the name it was drawn
+ * with for ever: changing the pen's colour changes the next stroke and never the last one.
+ */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+export type PenColor = keyof typeof PEN_COLORS;
+/** Every colour name, in the order the pen toolbar draws its swatches. */
+export const PEN_COLOR_NAMES = Object.keys(PEN_COLORS) as readonly PenColor[];
+/**
+ * The three thicknesses, in world (board) units.
+ *
+ * Board units and not screen pixels, on purpose and in spite of the fact that the pointer that draws the
+ * stroke is measured in pixels: a stroke is a mark *on the board*, so it has to be as thick at 50 % as
+ * the board it sits on is small, which is what makes a sketched diagram still look like the diagram when
+ * it is zoomed out. The three names are what the document stores; the numbers are how they are drawn.
+ */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+/** Every thickness name, in the order the pen toolbar draws its buttons. */
+export const PEN_THICKNESS_NAMES = Object.keys(PEN_THICKNESS_WORLD) as readonly PenThickness[];
+/** What a stroke is drawn in before anybody has chosen. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+/** How thick a stroke is before anybody has chosen. */
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+/**
+ * How far the finished stroke may lie from the path that was drawn, in screen pixels.
+ *
+ * The smoothing's whole budget, and the PRD's whole sentence about it: no point of the finished stroke is
+ * farther than this from the path the person drew. It is divided by the zoom in use while drawing, so it
+ * is one *pixel* on that person's screen at any zoom and a finer line at 200 % than at 50 % — which is
+ * the right way round: zoomed in, the drawing is being done in more pixels, so it may be kept to fewer.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/**
+ * Most points one stroke may hold.
+ *
+ * A stroke is a plain array in the document, so its size is the document's problem: five thousand points
+ * is a stroke that has been drawn for a couple of minutes without lifting the pointer, and a board whose
+ * objects can each hold ten thousand numbers is a board that syncs slowly for everybody. Past the limit the
+ * stroke is finished and the drawing continues as a new stroke from the same last point, so a two-minute
+ * squiggle is two objects that join with no gap rather than one object of unbounded size.
+ */
+export const STROKE_MAX_POINTS = 5000;
+/**
+ * How close to a stroke's line a click has to be to be *on* it, in screen pixels.
+ *
+ * The same rule the arrow was built with, for the reason the arrow was built with it: it is a statement
+ * about what a pointer can aim at, so it is stated in pixels and divided by the zoom, and a stroke is
+ * exactly as easy to pick up at 50 % as at 200 %. It is also the reason a stroke does not swallow the
+ * board: a scribble's bounding box is mostly air, and air is not on the line.
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** Smallest a stroke may be dragged to, in world units: its dot at the thickest pen, give or take. */
+export const STROKE_MIN_SIZE_WORLD = 4;

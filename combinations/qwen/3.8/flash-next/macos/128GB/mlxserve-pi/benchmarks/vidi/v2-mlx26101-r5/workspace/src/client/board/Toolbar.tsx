@@ -20,6 +20,9 @@ export const SHAPE_BUTTON_HINT = 'Shape – or press S';
 /** Tooltip of the Connector tool button (exact product text). */
 export const CONNECTOR_BUTTON_HINT = 'Connector – or press L';
 
+/** Tooltip of the Pen tool button (exact product text). */
+export const PEN_BUTTON_HINT = 'Pen – or press P';
+
 /** What the Sticky note button says when the board cannot be written to. */
 export const LOAD_FAILED_BUTTON_HINT = "This board couldn't be loaded, so it can't be changed";
 
@@ -212,6 +215,27 @@ export function Toolbar({
               {'↗'}
             </span>
             <span className="toolbar-label">Connector</span>
+          </button>
+          <button
+            // The pen is the fifth pointer and the first one that does not go away: the four above it make
+            // one object and hand the pointer back to the arrow, and this one makes one object and stays,
+            // because a person sketching draws several lines and does not want to reach for P between them.
+            // It is why the lit state of this button matters more than the lit state of the others — it is
+            // on for a whole drawing, and the pen's colour and thickness are beside it while it is.
+            aria-disabled={canCreate ? undefined : 'true'}
+            aria-label="Pen (P)"
+            aria-pressed={tool === 'pen'}
+            className="toolbar-button"
+            data-testid="tool-pen"
+            disabled={!canCreate}
+            title={canCreate ? PEN_BUTTON_HINT : LOAD_FAILED_BUTTON_HINT}
+            type="button"
+            onClick={() => onToolSelect('pen')}
+          >
+            <span aria-hidden="true" className="toolbar-icon">
+              {'✎'}
+            </span>
+            <span className="toolbar-label">Pen</span>
           </button>
         </>
       ) : null}

@@ -1,3 +1,42 @@
+commit a1a3968b84c801232fded31b23b301501e6b8d2d
+agent  Tue Oct 6 15:57:08 2026 +0000
+
+    story 11: Sketch freehand with a pen
+
+
+ NOTES.md                                | 110 +++++
+ PROGRESS.md                             |  12 +-
+ src/client/board/Board.tsx              |  54 ++-
+ src/client/board/Toolbar.tsx            |  24 +
+ src/client/board/useTransformGesture.ts |  11 +-
+ src/client/canvas/BoardViewport.tsx     |  13 +-
+ src/client/objects/StrokeObject.tsx     | 176 ++++++++
+ src/client/objects/registry.tsx         |  49 +-
+ src/client/styles.css                   | 210 +++++++++
+ src/client/tools/PenTool.tsx            | 448 +++++++++++++++++++
+ src/client/tools/PenToolbar.tsx         | 104 +++++
+ src/client/tools/useActiveTool.ts       |  13 +-
+ src/client/tools/usePenOptions.ts       |  61 +++
+ src/shared/board-model.ts               |  61 ++-
+ src/shared/config.ts                    |  68 +++
+ src/shared/geometry/simplify.ts         | 195 ++++++++
+ src/shared/objects/stroke.ts            | 267 +++++++++++
+ tests/component/PenTool.test.tsx        | 611 +++++++++++++++++++++++++
+ tests/component/ShapeDrawing.test.tsx   |  10 +-
+ tests/component/StrokeObject.test.tsx   | 621 ++++++++++++++++++++++++++
+ tests/e2e/helpers/pen.ts                | 426 ++++++++++++++++++
+ tests/e2e/pen.spec.ts                   | 506 +++++++++++++++++++++
+ tests/fixtures/pen-paths.ts             | 144 ++++++
+ tests/unit/stroke.test.ts               | 762 ++++++++++++++++++++++++++++++++
+ 24 files changed, 4931 insertions(+), 25 deletions(-)
+commit 3aae8effed3c0430c32a383b51fbb47588870efa
+vidi-agent  Tue Oct 6 13:07:03 2026 +0100
+
+    harness: PROGRESS.md for story 11
+
+
+ PROGRESS.md | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
 commit 5aadc66652bcf3c819d1b962f569ab966c4f3810
 agent  Tue Oct 6 12:02:42 2026 +0000
 

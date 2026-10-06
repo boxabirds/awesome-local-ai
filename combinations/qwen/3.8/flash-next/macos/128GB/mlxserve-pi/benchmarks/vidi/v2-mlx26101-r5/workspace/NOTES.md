@@ -905,3 +905,113 @@ Story 10.
 | `npm run test:e2e`         | 25    | 79 of 80 green: 75 chromium (incl. TC-23…TC-27), 4 persistence, nightly `idle-stability`; nightly `capacity-soak` is the pre-existing hang above |
 
 `npm run build`, `npm run build:test`, `npm run typecheck` (client and worker) and `npm run test` are clean.
+
+## Contract deviations (all deliberate)
+
+Story 11 — the pen.
+
+- **`StrokeSnapshot`, not `StrokeSnap`.** The design's interface is `StrokeSnap`; every snapshot type in this
+  codebase is called `*Snapshot`, and story 10 recorded the same decision for `ConnectorSnapshot` for the same
+  reason. Fields, units and semantics are the design's, unchanged: the four numbers every object has, the line
+  as `[x0, y0, x1, y1, …]` relative to its box's top-left and at that box's size, `baseWidth`/`baseHeight` for
+  the box it was drawn into, and the two choices it was drawn with.
+- **`ObjectPointerEvent` also accepts an `SVGGraphicsElement`.** Story 10's contract was `HTMLElement`, which
+  was enough while every clickable surface was a `div`. A drawing's clickable surface *is* its `<path>`, and
+  the box around it is `pointer-events: none` on purpose — the inside of a loop belongs to whatever the loop
+  was drawn round — so the event that has to reach the transform gesture comes out of SVG. Widening the union
+  is additive: the gesture reads `clientX`, `clientY`, `pointerId`, `button` and `shiftKey`, and an
+  `SVGGraphicsElement` has all five.
+- **A drawing carries `data-selected` and no `data-interaction`.** Sticky notes, text boxes and shapes publish
+  `pressed`/`dragging` because each of them has its own drag style in the CSS; nothing in this story's styling
+  asks the ink to change while it is being moved, so a dragged drawing is a selection box with an unchanged
+  path inside it. This is recorded because the e2e helper copied the sticky note's `interaction` field first
+  and answered `unselected` for every drawing for the rest of the session: a helper that can only return the
+  reassuring answer is the most expensive kind of helper.
+- **`data-digits` on a drawing's visible path** is how many points the drawing holds. The design does not ask
+  for it, and without it "was the line simplified?" is a question a test answers by counting letters in a path
+  string. It is the one number both ends of the wire have to agree about, and the only place it is written
+  down is the drawing itself.
+- **The pen's colour and pen are `useState` in `Board`, one level above the viewport, and nothing more.**
+  Session-only in the sense the PRD means: a board opens black and medium, a reload forgets what you were
+  drawing with. A module-level store would have outlived a board change, and the assertion that these are the
+  pen's options and not the selected object's needs a place to mount and unmount.
+- **One existing test was changed, and it is the one this story makes false.** Story 10's TC-15 asserted that
+  pressing `p` does nothing — its comment read "P is the pen's letter in the design's naming scheme, and there
+  is no pen". There is a pen now, so the letter is earned: the assertion is `key('p') === true` and the tool is
+  `pen`, with an Escape after it so that the letters tested below it are still tested from the arrow. Every
+  other test in `tests/` is untouched, the harness included; the pen's component tests are two new files and
+  the e2e helper is a new file that re-exports the old helpers rather than editing them.
+- **The frame sampler that proves the line is repainted every frame is installed by the test, not by the
+  app.** `startFrameSampler` puts a `requestAnimationFrame` loop into the page with `page.evaluate`, and that
+  loop writes the preview's `d` — or `null` — into an array on `window`. The alternative was a counter inside
+  `PenTool` that exists so a test can read it, which is product code with no product purpose.
+
+## Findings while testing the implementation
+
+Story 11.
+
+- **A live preview has to be measured in frames, and "a frame behind the hand" is a bound rather than an
+  equality.** The frame sampler turned a 400-point drag into dozens of samples, most of them a longer path
+  than the frame before, and the assertion that goes with it is "more than a third of the painted frames
+  changed", not "every frame changed" — a frame can fall between two samples. The tip of the preview is
+  asserted to be *within 80 pixels* of the pointer, because the preview is painted from the points the last
+  frame managed to collect and one frame of a two-second drag is tens of pixels of pointer travel. Asserting
+  that the tip equals the pointer position asserts the preview is painted synchronously with the pointer,
+  which is the one thing a frame-batched tool refuses to be, and it is exactly the assertion that would make
+  somebody "fix" a tool that was working.
+- **The browser's own batching is why all the points arrive at all**, and it is worth naming: `PenTool`
+  records `event.getCoalescedEvents()` and not the single position on the `pointermove`. The loop comes back
+  as 287 stored points from 400 replayed pointer positions — 400, less whatever Ramer-Douglas-Peucker took,
+  which is a meaningful number only because nothing was dropped on the way in. A tool that read the coalesced
+  event's own position would draw the same shape, store a fraction of the wobble, and be caught by nothing
+  except a deviation measured against a fixture.
+- **Painted geometry is not stored geometry.** `getBoundingClientRect()` of the rendered path came in nine
+  units — 1.7 % — *inside* the box the model stores for the same drawing: a wobbly loop's extremes are exactly
+  where the simplifier trades a handful of points for a chord, and the midpoint smoothing then pulls that
+  chord further inside the box. So `data-x`/`data-width` are asserted to the half unit, the painted ink to
+  five percent, and the test says out loud what the five percent still rules out.
+- **A proportional resize takes whichever axis moved most in proportion to its own size** — and on an
+  underline 362 × 10 that is always the short one. A casual +160/+160 pull on the corner multiplied the
+  drawing sixteen times, and the test then failed with `locator.boundingBox: handle se is not on screen`,
+  which is a fixture that has left the viewport wearing a broken-overlay costume. The same sketch is made
+  bigger by 30 × 3. Nothing is wrong with the board: ten-unit-tall boxes just do not lend themselves to
+  hundred-pixel drags.
+- **A flat drawing has no empty box to click in.** That underline is ten units tall and a pointer catches its
+  ink six pixels either side, so every point inside its box is *on* the drawing; "a click in the box finds
+  nothing" cannot be written about it. The case belongs to the loop instead, which is also the only way to
+  test the half of the hit rule that matters most: a click inside a drawing's box, on a sticky note inside the
+  loop, selects the note, and the same drawing is selected a moment later by a click on its ink.
+- **A fixture's extremes are where the generator put them, not where its parameters say.** A loop that starts
+  its lap at the top with a radius that breathes by four percent tops out nearer y ≈ 43 than the ellipse's
+  nominal 50; a click at the radius I had reasoned my way to missed the ink by seven units and reported
+  *the hit test does not work*. Point the pointer at a point of the path — `handwrittenLoop[100]` — rather
+  than at a coordinate derived from the description of the shape.
+- **Fixtures placed in screen pixels have to be placed after the camera is set.** Two notes were
+  double-clicked at (540, 400) and (740, 400) under the default camera and the test then set its own; under
+  that camera those notes stood three hundred pixels away, the click that was supposed to select a note
+  selected nothing, and the whole thing read as the new object type swallowing clicks.
+- **A helper that chooses a tool's option has to light the tool first.** The pen's swatches are on the screen
+  only while the pen is the tool; `drawStroke` picked a colour before entering the pen, and the run then spent
+  180 seconds waiting for a button that could not exist on the page it was looking at.
+- **Firefox and WebKit still cannot start in this sandbox**, which matters more here than in any story before:
+  TC-17 asks for the same sketch in all three, and pointer coalescing and animation-frame cadence are the two
+  things browsers are least likely to agree about. WebKit aborts on launch (`Abort trap: 6`, exit 134 out of
+  `pw_run.sh`, before any test code runs) and Firefox aborts the same way. The frame assertions are written to
+  be cadence-agnostic for that reason — a bound on the tip's lag, a third of frames changed rather than
+  all — but that is a reasonable expectation and not a measurement.
+- **The frozen asset manifest is still worth routing around, and this time it stayed out of the way.** Every
+  run that began with a build went to a fresh port in the allowed range (`VIDI6_E2E_PORT=20787`) as story 10
+  advises; the runs that stayed on 20784 across a production `vite build` also passed, and `wrangler dev` had
+  printed `Assets directory watcher hit a platform limit`, so whether it re-reads a manifest or not is not a
+  thing to rely on in either direction. Fresh port, every time, is the cheap rule.
+
+## Final test counts (story 11)
+
+| Suite                      | Files | Tests                                                                                                            |
+| -------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
+| `npm run test:unit`        | 22    | 515 (+ stroke 58 blocks / 64 cases: TC-01…TC-08 — the simplifier and its tolerance, the split at the point limit, the smoothed path, the box, the hit radius) |
+| `npm run test:component`   | 25    | 356 (+ pen tool 22: TC-09…TC-14, the point limit mid-stroke, `pointercancel` and lost capture; + stroke object 20: TC-15, TC-16, TC-21 and the hit-path edges) |
+| `npm run test:integration` | 9     | 144 (unchanged — a stroke is a document change like any other, and the room still never hears which type it is)   |
+| `npm run test:e2e`         | 16 board specs, plus nightly and persistence | 79 chromium green (TC-17…TC-20 new), 4 persistence green, nightly `idle-stability` green; nightly `capacity-soak` is the same pre-existing hang, and firefox/webkit are the launch failures above |
+
+`npm run build`, `npm run build:test`, `npm run typecheck` (client and worker) and `npm run test` are clean.

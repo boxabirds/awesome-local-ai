@@ -397,6 +397,13 @@ export function BoardViewport({
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || event.ctrlKey || event.metaKey) return;
     if (!isBoardSurface(event.target)) return;
+    // The pen holds its own pointer, on the document and before this handler is reached, so a stroke drawn
+    // over the board never becomes a pan and a stroke drawn over a note never becomes a move of that note.
+    // This line is not what makes that true; it is here so that the board is on record as knowing it. The
+    // one case it does decide is a press that reaches this handler by a route the tool's own listener did
+    // not take — a pointer the tool was not listening for — and the answer to that is still "the pen has
+    // this pointer", rather than a board that starts to move under a drawing.
+    if (tool === 'pen') return;
     const point = localPoint(event.clientX, event.clientY);
     const el = viewportRef.current;
     try {
@@ -457,8 +464,10 @@ export function BoardViewport({
     // A drawing tool answers its own double-click. Stopping the press does not stop the browser from
     // putting a `dblclick` on the wire afterwards, so without this a person who double-clicks to draw a
     // rectangle gets a sticky note under it — the second click of the pair is not a request for a note,
-    // any more than it is one for the Text tool, whose double-click is held further up this file.
-    if (tool === 'shape' || tool === 'connector') return;
+    // any more than it is one for the Text tool, whose double-click is held further up this file. The pen
+    // is in the list for the plainest reason of the three: a dot is a stroke somebody made on purpose, and
+    // a dot that also spawned a note would mean a dot could not be made at all.
+    if (tool === 'shape' || tool === 'connector' || tool === 'pen') return;
     const camera = controllerRef.current.camera;
     onCreateSticky?.(screenToWorld(camera, localPoint(event.clientX, event.clientY)));
   };

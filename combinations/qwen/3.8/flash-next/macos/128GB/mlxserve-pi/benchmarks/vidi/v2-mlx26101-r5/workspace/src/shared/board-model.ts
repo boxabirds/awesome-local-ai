@@ -18,16 +18,22 @@
 import * as Y from 'yjs';
 
 import {
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
   DEFAULT_SHAPE_FILL,
   DEFAULT_SHAPE_KIND,
   DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
   DEFAULT_TEXT_SIZE,
+  PEN_COLORS,
+  PEN_THICKNESS_WORLD,
   SHAPE_KINDS,
   SHAPE_STROKE_WIDTH_WORLD,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   TEXT_SIZES,
+  type PenColor,
+  type PenThickness,
   type ShapeKind,
   type StickyColor,
 } from './config';
@@ -37,6 +43,7 @@ import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 import { detachConnectorsTo, readEndpoint, type ConnectorSnapshot } from './objects/connector';
 import type { TextSize, TextSnapshot } from './objects/text';
 import type { ShapeSnapshot } from './objects/shape';
+import type { StrokeSnapshot } from './objects/stroke';
 
 /** Name of the `Y.Map` holding `{ schemaVersion }`. */
 export const META_MAP = 'meta';
@@ -68,6 +75,15 @@ export const SHAPE_TYPE = 'shape';
  * it joins are, which is what makes an arrow follow what it points at. See {@link snapshot}.
  */
 export const CONNECTOR_TYPE = 'connector';
+
+/**
+ * The `type` value of a freehand stroke (story 11).
+ *
+ * Spelled here for the same reason as the two above: the snapshot has to name the type it is reading, and
+ * `./objects/stroke` imports this one. Unlike an arrow, a stroke owns its box — the box is the union of the
+ * line that was drawn, padded by half the ink, and the line is stored relative to it.
+ */
+export const STROKE_TYPE = 'stroke';
 
 /** Transaction origin of every local mutation (story 8 undo, story 3 echo guard). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6-local');
@@ -136,11 +152,25 @@ export function isShapeKindValue(value: unknown): value is ShapeKind {
   return typeof value === 'string' && (SHAPE_KINDS as readonly string[]).includes(value);
 }
 
+/**
+ * A colour the pen draws.
+ *
+ * Checked against the palette object rather than against a list written out beside it, so that the palette
+ * and the check cannot drift apart — the same way `isShapeKindValue` reads `SHAPE_KINDS`.
+ */
+export function isPenColorValue(value: unknown): value is PenColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_COLORS, value);
+}
+
+/** A thickness the pen draws, checked the same way and for the same reason. */
+export function isPenThicknessValue(value: unknown): value is PenThickness {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_THICKNESS_WORLD, value);
+}
+
 /** A colour, or any other string the document holds, or the fallback when it holds nothing usable. */
 function stringValue(value: unknown, fallback: string): string {
   return typeof value === 'string' && value.length > 0 ? value : fallback;
 }
-
 const objectsOf = (doc: Y.Doc): Y.Map<Y.Map<unknown>> =>
   doc.getMap(OBJECTS_MAP) as Y.Map<Y.Map<unknown>>;
 
@@ -349,6 +379,35 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       };
       objects.push(connector);
       connectors.push(connector);
+      continue;
+    }
+    if (type === STROKE_TYPE) {
+      // A stroke carries the line itself, the box the line was drawn into, and the two choices it was
+      // drawn with. The line is passed through as the document holds it — an array of numbers read in
+      // pairs — because it is written whole and never edited point by point, and because a renderer that
+      // dropped a stroke over one unusable number would be a stroke that disappears on the way to a
+      // stranger's screen. `scaledPoints` is where the pairs are read and the unusable ones are left out.
+      const stored: unknown = value.get('points');
+      const baseWidth = finite(value.get('baseWidth')) ? (value.get('baseWidth') as number) : (width ?? 0);
+      const baseHeight = finite(value.get('baseHeight')) ? (value.get('baseHeight') as number) : (height ?? 0);
+      const stroke: StrokeSnapshot = {
+        id,
+        type: STROKE_TYPE,
+        x,
+        y,
+        ...(width === undefined ? {} : { width }),
+        ...(height === undefined ? {} : { height }),
+        z,
+        createdAt,
+        points: (Array.isArray(stored) ? stored : []) as readonly number[],
+        baseWidth,
+        baseHeight,
+        color: isPenColorValue(value.get('color')) ? (value.get('color') as PenColor) : DEFAULT_PEN_COLOR,
+        thickness: isPenThicknessValue(value.get('thickness'))
+          ? (value.get('thickness') as PenThickness)
+          : DEFAULT_PEN_THICKNESS,
+      };
+      objects.push(stroke);
       continue;
     }
     if (type !== STICKY_TYPE) {

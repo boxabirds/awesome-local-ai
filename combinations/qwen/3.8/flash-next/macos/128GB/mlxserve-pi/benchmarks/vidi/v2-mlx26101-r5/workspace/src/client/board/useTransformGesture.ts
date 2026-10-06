@@ -30,7 +30,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { Doc } from 'yjs';
 
 import {
@@ -56,12 +55,18 @@ import {
 } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
 import { keepsAspect, handlesForObjects, isResizableType, minSizeWorld } from '../objects/registry';
+import type { ObjectPointerEvent as RegistryObjectPointerEvent } from '../objects/registry';
 import { defaultMeasurer } from '../objects/textLayout';
 import { remeasureTextBox } from '../objects/useTextBoxSync';
 import type { Selection } from './useSelection';
 
-/** Either kind of pointer event an object or a handle can be handed. */
-export type ObjectPointerEvent = ReactPointerEvent<HTMLElement> | PointerEvent;
+/**
+ * Either kind of pointer event an object or a handle can be handed.
+ *
+ * The objects' own type, and not a second answer to the same question: what a component hands the board and
+ * what the board accepts are the same list, and a list kept in two files is two lists.
+ */
+export type ObjectPointerEvent = RegistryObjectPointerEvent;
 
 export interface TransformGestureOptions {
   /** The shared document the objects live in. */
