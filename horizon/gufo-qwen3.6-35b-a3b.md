@@ -1,7 +1,17 @@
 # gufo fork: Qwen3.6-35B-A3B Q6dense (a new combination)
 
-**Status:** gated (6 Oct 2026) — on a **from-source ROCm build**, which is the only way to run it. The owner has
-asked for the combination and a series on the Strix Halo box once it is free.
+**Status:** candidate (6 Oct 2026) — **it builds.** `cmake --build --preset release` completes 95 of 95 with two
+host-side fixes recorded below, and produces a 248 MB `gufo` binary that runs, has no missing libraries, and
+whose `serve llm --help` confirms the model is in it ("Qwen3.6 uses its native MTP"). Built at `--parallel 2`
+beside a live benchmark without disturbing it: memory ended at 16.1 GiB available and swap unmoved at 1,351 MiB,
+exactly where it started, and the watchdog never fired. The owner has asked for the combination and a series on
+the Strix Halo box once it is free.
+
+**A source build reports no version, so it must be pinned by commit.** The binary says
+`gufo version development (unknown)` — no release number and no hash. `lib/gufo.sh` refuses a mis-pinned image by
+matching the engine's own version string against `GUFO_VERSION`; a source build gives it nothing to match. The
+combination must record **the git commit it was built from** (`d7e938e`, 3 Oct 2026) in the install manifest and
+check that instead.
 
 The tool-call gate is **cleared**: the fork's merge base with upstream is `2026-10-02T11:08:42Z`, which is gufo
 0.5.0 to the minute, so it carries PR #373 — the fix for our issue 304 — and its engine base is the *same
