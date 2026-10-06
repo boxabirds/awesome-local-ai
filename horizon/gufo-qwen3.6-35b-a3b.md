@@ -82,12 +82,39 @@ the confounds below stated every time.
 1. ~~**What is the fork's base version, and does it carry the tool-call fix?**~~ **Done, 6 Oct 2026.** The merge
    base with `gufo-org/gufo` is `2026-10-02T11:08:42Z` — gufo 0.5.0, which closed our issue 304 (PR #373), and
    the version this repository already pins. The fix is in.
-2. **It has to be built from source, on the Strix Halo box.** No image exists (above). The fork's own
-   instructions: "Install a C++20 compiler, CMake 3.21+, Ninja, pkg-config and the following development
-   libraries", with a Nix path as the alternative, and ROCm/HIP for `gfx1151`. Nothing in this repository builds
-   an engine from source on a host — every combination either pulls an image or installs a released binary — so
-   this needs a new install path in `lib/gufo.sh` (or a `gufo-src` backend), not just a `config.sh`. **This is
-   the gate.** Until a build succeeds and prints a version, there is nothing to queue.
+2. **It has to be built from source, on the Strix Halo box.** No image exists (above). Nothing in this
+   repository builds an engine from source on a host — every combination either pulls an image or installs a
+   released binary — so this needs a new install path, not just a `config.sh`.
+
+   **Progress, 6 Oct 2026, while `v2-gufo05-r5` was still running** (all of it read-only or additive, none of it
+   touching the live run):
+
+   - Cloned and pinned at `d7e938e` (3 Oct 2026, the fork's HEAD) in `~/build/gufo-q36` on the machine.
+   - `cmake --preset release` **fails**, on `find_package(ICU)`. Configure cost 42 MiB of memory, so the
+     preparation is free; it is the compile that needs care.
+   - The machine has cmake, ninja, g++ 15.2.0 and Ubuntu's `hipcc` (HIP 7.1.52801, clang 21.1.8). It has **no
+     `/opt/rocm` and no AMD ROCm repository**: the HIP tooling is Ubuntu's own packaging. The fork says its
+     "currently qualified toolchain is GCC 15.3 and ROCm 7.2.3", so both are a little below what it qualifies.
+   - **Eleven development packages are missing**, including every ROCm one. AMD's names (`hipblas-dev` etc.) are
+     not in the machine's sources, but Ubuntu 26.04 ships all of them as `lib…-dev`, so no third-party
+     repository is needed:
+
+     ```sh
+     sudo apt install --no-install-recommends pkg-config libicu-dev libpng-dev libjpeg-dev libwebp-dev \
+       ffmpeg libhipblas-dev libhipblaslt-dev librocblas-dev libhipcub-dev librocprim-dev librocwmma-dev
+     ```
+
+     `apt-get install -s` for exactly that set: **107 new packages, 0 removals, 0 upgrades, and nothing matching
+     amdgpu, dkms, linux-image, linux-modules, mesa or libdrm.** Purely additive, so it cannot disturb a gufo
+     container that is mid-run. Disk is no constraint (1.6 TB free).
+   - It needs `sudo`, which on this machine asks for a password, so **the install is the owner's to run.** That,
+     and not the machine being busy, is what blocks the build.
+
+   **The compile is the part to pace.** The fork's own instruction is `--parallel 4`, not a full-width build.
+   With a run live the machine had 14.7 GiB available of 122 and 1.35 GB of swap already in use, while the
+   harness's machine guard stops a story below 8% free (about 9.8 GiB) or after 4 GB of swap growth. So a
+   full-width build must not be run beside a story; `--parallel 2` with a watch on `available` is the way to do
+   it during one, and a free machine makes the question moot.
 3. **Licences.** Qwen 3.6's own terms, and the weights'. The fork states MIT for the original gufo code and says
    model weights retain their publishers' terms without naming them. Not checked.
 4. **The engine answers, with tools.** The short check from the smoke-run rule: the server starts, answers a
