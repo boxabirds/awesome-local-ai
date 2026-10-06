@@ -55,10 +55,13 @@ test.describe("header: identity", () => {
 
   // Strata sizes its hot-expert cache to the VRAM that is free, so the size is a fact of the run: two runs of one
   // combination can differ, and one with a smaller cache decodes more slowly (A-045).
+  // From the FIXTURE's record, not patched into the page's state. An injected value proves the component renders
+  // what it is handed; it cannot prove the server hands it over under the name the page reads. The two halves of
+  // that chain were tested separately and nothing joined them: sources.test.ts asserts the record's
+  // engine_settings.expert_cache parses to runNotes().expertCache, this asserts a record's expertCache reaches the
+  // page. Rename the field on either side and one of the two now fails.
   test("the expert cache the engine settled on, where the record has one", async ({ page }) => {
-    await patchState(page, (s) => Object.assign(rowOf(s, SWIFT, "v2-r5"),
-      { expertCache: { requested: "auto", experts: 9094, vramGib: 14.73 } }));
-    await open(page, SWIFT, "v2-r5");
+    await open(page, GUFO, "canvas-gufo-r3");
     const fact = section(page, "header").locator('[data-fact="expertCache"]');
     await expect(fact).toHaveText("14.73 GiB · 9094 experts");
     await expect(fact.locator("[data-tip]")).toHaveAttribute("data-tip", /asked for auto/);
