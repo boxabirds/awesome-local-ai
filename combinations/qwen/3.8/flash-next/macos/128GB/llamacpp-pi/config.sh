@@ -57,8 +57,17 @@ MIN_LLAMA_COMMIT_DATE="2026-09-08"
 # Unsloth's dynamic quants. Sizes are the Hub's own byte counts, read
 # 2026-09-25. top-1 agreement / mean KLD against BF16 are Unsloth's figures.
 #
+#   UD-IQ3_XXS   81.96 GB      -      -    3-bit, for the quantisation comparison; Unsloth
+#                                           publish no agreement or KLD figure for it here
 #   UD-IQ4_XS    93.68 GB   89.6%  0.084   default: leaves room for 128k+ context
 #   UD-Q4_K_XL  111.33 GB   92.3%  0.047   best quality; tight, see low_memory_advice
+#
+# UD-IQ3_XXS is here to answer one question and is not a default: whether 3-bit
+# Flash-Next can do agentic coding at all. Strata's GSQ-RCO IQ3_XXS scored 6 of 27
+# at story 3 where every 4-bit-and-up stack scored 21-24, and that run moved engine
+# and quantisation together. This holds the engine still so the bit depth is the
+# only variable. A different quantiser at the same nominal depth, so it answers
+# "is 3-bit Flash-Next usable", not "are Strata's weights usable".
 #
 # The shards live in a subdirectory of the repo, and llama.cpp opens the rest
 # of a split GGUF from the first, so the first shard is the `model` asset and
@@ -68,6 +77,11 @@ MODEL_SUBDIR="models/Qwen3.8-Flash-Next-GGUF"
 _R="unsloth/Qwen3.8-Flash-Next-GGUF"
 _F="${QUANT}/Qwen3.8-Flash-Next-${QUANT}"
 case "$QUANT" in
+  UD-IQ3_XXS) MODEL_ASSETS="
+${_R}|${_F}-00001-of-00003.gguf|model|10.9 MB
+${_R}|${_F}-00002-of-00003.gguf|shard|49.57 GB
+${_R}|${_F}-00003-of-00003.gguf|shard|32.38 GB
+" ;;
   UD-IQ4_XS) MODEL_ASSETS="
 ${_R}|${_F}-00001-of-00003.gguf|model|10.9 MB
 ${_R}|${_F}-00002-of-00003.gguf|shard|49.84 GB
@@ -79,7 +93,7 @@ ${_R}|${_F}-00002-of-00004.gguf|shard|49.86 GB
 ${_R}|${_F}-00003-of-00004.gguf|shard|49.38 GB
 ${_R}|${_F}-00004-of-00004.gguf|shard|12.09 GB
 " ;;
-  *) err "QUANT=${QUANT} is not one this combination lists (UD-IQ4_XS, UD-Q4_K_XL)." ;;
+  *) err "QUANT=${QUANT} is not one this combination lists (UD-IQ3_XXS, UD-IQ4_XS, UD-Q4_K_XL)." ;;
 esac
 # The MTP draft head, as a separate file (Unsloth's MTP/README.md is the
 # source for what follows). "shared" heads borrow the target's embedding and
