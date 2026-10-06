@@ -1,7 +1,7 @@
 {
   "version": "vidi-v2.0-pre2",
   "pack_ref": "vidi-v2.0-pre2",
-  "at": "2026-10-05T16:38:53Z",
+  "at": "2026-10-06T14:26:16Z",
   "bundle": "workspace.bundle",
   "outside_workspace": {
     "ok": true,
@@ -16,25 +16,25 @@
   },
   "guard": {
     "story": 12,
-    "record": "15/75",
+    "record": "12/75",
     "live": "74/75",
     "live_version": "vidi-v2.0-pre2+88a5c4002",
     "comparable": false,
     "threshold": 3,
     "difference": null,
-    "failures": 60,
+    "failures": 63,
     "one_signature": true,
     "live_same_signature": false,
-    "flagged": "all 60 failures share one error signature across stories, and the live scoring of the same code cannot vouch for it (not comparable)"
+    "flagged": "all 63 failures share one error signature across stories, and the live scoring of the same code cannot vouch for it (not comparable)"
   },
   "rescore": "flagged",
-  "reason": "all 60 failures share one error signature across stories, and the live scoring of the same code cannot vouch for it (not comparable)",
+  "reason": "all 63 failures share one error signature across stories, and the live scoring of the same code cannot vouch for it (not comparable)",
   "reason_kind": "flagged",
-  "needs_person": false,
-  "retries_exhausted": false,
-  "attempts": 4,
+  "needs_person": true,
+  "retries_exhausted": true,
+  "attempts": 5,
   "max_attempts": 5,
-  "last_attempt_at": "2026-10-05T16:38:53Z",
+  "last_attempt_at": "2026-10-06T14:26:16Z",
   "history": [
     {
       "at": "2026-10-04T20:07:17Z",
@@ -59,6 +59,12 @@
       "rescore": "flagged",
       "reason_kind": "flagged",
       "reason": "all 60 failures share one error signature across stories, and the live scoring of the same code cannot vouch for it (not comparable)"
+    },
+    {
+      "at": "2026-10-06T14:26:16Z",
+      "rescore": "flagged",
+      "reason_kind": "flagged",
+      "reason": "all 63 failures share one error signature across stories, and the live scoring of the same code cannot vouch for it (not comparable)"
     }
   ]
 }
