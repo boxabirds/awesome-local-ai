@@ -494,6 +494,14 @@ GUIDE_DATA.entities = [
     example: "1 October 2026, mlx-serve v2-r2 story 9: the guard stopped the run, its exit looked like a crash, and dbench restarted it 30 s later without checking the machine. `machine_fit.py` was added.",
   },
   {
+    id: "install-guard", name: "Installed-config guard", group: "guard", row: 2,
+    short: "Refuses a job when the combination on the machine is not the one in the checkout.",
+    what: "A harness release carries the harness. A combination's launcher (`lib/runtime/server-<backend>.sh`) and profile (`combinations/**/profiles.tsv`) reach a machine only by running that combination's installer, so a fix to either can be committed, released and pulled and still not be running. Before a job starts, the harness compares the installed copies with the checkout's, byte for byte, and refuses with both paths and the installer command rather than run on configuration that is not this checkout's. A file the checkout does not have (a cloud stack has no launcher) is not compared.",
+    rel: [["refuses", "job"]],
+    repo: [["benchmarks/spec-bench/harness/installed-config.sh", "harness/installed-config.sh"], ["tests/stale-install-test.sh", "tests/stale-install-test.sh"]],
+    example: "5 October 2026: the Strata VRAM gate was fixed, released and pulled, and the run still failed twice quoting a figure that no longer existed in the repository, because the installed profile was the old one.",
+  },
+  {
     id: "credential-scan", name: "Credential scan", group: "guard", row: 3,
     short: "Credentials are replaced by a marker before anything is published.",
     what: "Every file staged for a public commit, except `workspace.bundle`, is scanned for credentials. A match is replaced by a marker that names what it was and how long, never the value (`EXAMPLE_API_KEY=[redacted: 35 characters]`), and the names are recorded with the story. It looks for environment-style assignments, known key prefixes, bearer tokens and private-key blocks. The full log on the machine is left as it is.",
