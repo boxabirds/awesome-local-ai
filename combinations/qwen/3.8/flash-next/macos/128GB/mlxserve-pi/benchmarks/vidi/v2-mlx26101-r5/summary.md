@@ -76,4 +76,12 @@ No story changed an earlier story's held-out results.
 
 A gap in a story's agent events with a restart or a logged intervention inside it is dead time (the machine or the run was down), not agent time. *Active* is the story's event span minus that dead time, across every attempt. *Recorded* is the harness's agent time, which covers only the attempt after the last restart.
 
-No interruptions inside a story.
+**1 restart (no intervention logged); 121 min dead in total.**
+
+| Story | When (UTC) | Down for | Kind | Logged cause |
+|---|---|---|---|---|
+| 11 | 06 Oct 12:29 | 121 min | restart (no intervention logged) | — |
+
+| Story | Active | Dead | Recorded |
+|---|---|---|---|
+| 11 | 110 min | 121 min | 110 min |
