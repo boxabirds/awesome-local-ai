@@ -48,6 +48,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [Strata](strata.md) | gated | RTX 4090 | Flash-Next (125B MoE) on one 4090 by offloading experts to RAM; engine checks passed at 131k context, harness backend next |
 | [Strata on a small card](strata-small-card.md) | open question | none we own | does the floor for a useful coding agent drop to a 12 GB card with 64 GB RAM? The quality half is answered by the 4090 Strata runs, which use the same IQ3_XXS pack |
 | [Flash-Next Coder](flash-next-coder.md) | candidate | RTX 4090 | ISTA-DASLab's Flash-Next with half the experts removed, for code; about 30 GB in memory; runs on Strata |
+| [gufo fork: Qwen3.6-35B-A3B Q6dense](gufo-qwen3.6-35b-a3b.md) | gated | Strix Halo | a new combination: 3B-active MoE, mixed Q6/Q4, gufo 0.5.0 base plus one author's kernels; no image exists, so it must be built from source |
 | [gufo 0.5](gufo-0.5.md) | running | Strix Halo | pinned to 0.5.0; smoke passed; five recorded runs under way |
 | [mlx-serve 26.10.1](mlx-serve-26.10.1.md) | running | M5 Max | one release ahead of the old pin; long sessions stay cached, a looping fix; five recorded runs under way |
 | [Prompt lookup (n-gram speculation)](ngram-speculation.md) | parked | RTX 4090 (Ubuntu) | engine setting; test on the dense 27B; eliminated for sparse MoE |
