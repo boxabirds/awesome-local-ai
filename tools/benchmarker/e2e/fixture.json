@@ -189,7 +189,11 @@
    "packVersion": "vidi-v1.1",
    "state": "finished",
    "stateAt": "2026-09-29T14:02:31Z",
-   "expertCache": { "requested": "auto", "experts": 9094, "vramGib": 14.73 },
+   "expertCache": {
+    "requested": "auto",
+    "experts": 9094,
+    "vramGib": 14.73
+   },
    "stories": [
     {
      "id": "1",
@@ -708,7 +712,22 @@
      "at": "2026-09-28T12:00:00Z"
     }
    },
-   "host": "Intel Core i9 + RTX 4090 64GB"
+   "host": "Intel Core i9 + RTX 4090 64GB",
+   "rescored": {
+    "vidi-v2.0-pre1": {
+     "after": "2",
+     "byStory": {
+      "1": {
+       "passed": 6,
+       "total": 6
+      },
+      "2": {
+       "passed": 3,
+       "total": 14
+      }
+     }
+    }
+   }
   },
   {
    "pack": "vidi",
@@ -894,7 +913,29 @@
      "at": "2026-09-29T20:00:00Z"
     }
    },
-   "host": "Intel Core i9 + RTX 4090 64GB"
+   "host": "Intel Core i9 + RTX 4090 64GB",
+   "interventions": [
+    {
+     "at": 1790755800,
+     "story": "1",
+     "text": "interrupted a tool call silent for 600s (killed processes under the workspace)"
+    },
+    {
+     "at": 1790755830,
+     "story": "1",
+     "text": "interrupted a tool call silent for 600s (killed processes under the workspace)"
+    },
+    {
+     "at": 1790758800,
+     "story": null,
+     "text": "node-a rebooted by the operator; the run resumed at story 2"
+    },
+    {
+     "at": 1790764200,
+     "story": "2",
+     "text": "story ended by the operator at its cap"
+    }
+   ]
   },
   {
    "pack": "vidi",
@@ -1231,7 +1272,10 @@
     }
    ],
    "scores": {},
-   "host": "Intel Core i9 + RTX 4090 64GB"
+   "host": "Intel Core i9 + RTX 4090 64GB",
+   "rescoreFaults": {
+    "vidi-v2.0-pre1": "the re-score found no held-out suite for this pack version"
+   }
   },
   {
    "pack": "vidi",

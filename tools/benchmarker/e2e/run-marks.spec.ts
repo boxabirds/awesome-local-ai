@@ -26,7 +26,8 @@ const matrix = (page: Page) => page.getByRole("table", { name: "Runs × stories"
 const mRow = (page: Page, run: string) => matrix(page).locator(`tr[data-run="${run}"]`);
 const mCell = (page: Page, run: string, story: string) => mRow(page, run).locator(`td.m-cell[data-story="${story}"]`);
 
-/** v2-r8's four interventions, as the fixture's record has them. */
+/** The four interventions the fixture's v2-r6 record has. v2-r8 has them too, but it is marked invalid and so
+ * never reaches the app's state at all (asserted below), which is why a renderable run needs its own. */
 const FOUR: Intervention[] = [
   { at: 1790755800, story: "1", text: "interrupted a tool call silent for 600s (killed processes under the workspace)" },
   { at: 1790755830, story: "1", text: "interrupted a tool call silent for 600s (killed processes under the workspace)" },
@@ -47,8 +48,15 @@ async function patchState(page: Page, change: (s: State) => void) {
   });
 }
 
-/** v2-r5 with v2-r8's interventions. */
-const intervened = (page: Page) => patchState(page, (s) => { rowOf(s, "v2-r5").interventions = FOUR; });
+/** The run whose record carries interventions, and one that carries none. Both come from the fixture: a value
+ * patched into the page's state after the server sent it proves the component renders what it is handed, not
+ * that a record's interventions ever reach it. */
+const IV_RUN = "v2-r6";
+const CLEAN_RUN = "v2-r5";
+
+/** v2-r5 with IV_RUN's interventions. Only for what the fixture cannot hold: the link targets, which depend on
+ * story 2 having a conversation (IV_RUN has none), and the tests that need a different set. */
+const intervened = (page: Page) => patchState(page, (s) => { rowOf(s, CLEAN_RUN).interventions = FOUR; });
 
 test.beforeEach(async ({ request }) => {
   await request.post("/api/test/reset");
@@ -63,7 +71,8 @@ test.describe("the server", () => {
       expect(r).not.toHaveProperty("invalid");
       expect(r).not.toHaveProperty("finalize");
     }
-    expect(rowOf(s, "v2-r5").interventions).toEqual([]);
+    expect(rowOf(s, CLEAN_RUN).interventions).toEqual([]);
+    expect(rowOf(s, IV_RUN).interventions).toEqual(FOUR);
     const feed = (await (await request.get("/api/faults")).json()) as { faults: { kind: string; run: string; detail: Record<string, unknown> }[] };
     const invalid = feed.faults.find((f) => f.kind === "run_invalid" && f.run === "v2-r8")!;
     expect(invalid.detail).toMatchObject({ reason: "read the reference build in story 2, through a clone of the repo the sandbox did not hide", since: "2026-09-30" });
@@ -230,8 +239,7 @@ test.describe("intervened: the mark leads to the story's conversation, filtered 
 
 test.describe("intervened: marked, and still counted", () => {
   test("run page: a marker by the status, every intervention on hover (repeats once, with how many times), in the page's words", async ({ page }) => {
-    await intervened(page);
-    await page.goto(runUrl("v2-r5"));
+    await page.goto(runUrl(IV_RUN));
     const m = page.locator('[data-page="run"] [data-fact="status"] .intervened');
     await expect(m).toHaveText("✱ intervened");
     await expect(m).toHaveAttribute("data-intervened", "3");
@@ -244,8 +252,7 @@ test.describe("intervened: marked, and still counted", () => {
   });
 
   test("run page: the interventions section lists each, oldest first; the cost table marks the stories touched", async ({ page }) => {
-    await intervened(page);
-    await page.goto(runUrl("v2-r5"));
+    await page.goto(runUrl(IV_RUN));
     const list = page.locator('[data-page="run"] [data-section="interventions"] li');
     await expect(list).toHaveCount(3);
     expect(await list.evaluateAll((ls) => ls.map((l) => (l as HTMLElement).dataset.story))).toEqual(["1", "run", "2"]);
@@ -278,14 +285,13 @@ test.describe("intervened: marked, and still counted", () => {
   });
 
   test("story-run pages: only the interventions in that story; none on a story nobody touched; a run-wide one on none", async ({ page }) => {
-    await intervened(page);
-    await page.goto(storyRunUrl("v2-r5", "1"));
+    await page.goto(storyRunUrl(IV_RUN, "1"));
     const m = page.locator('[data-page="storyRun"] .of-run .intervened');
     await expect(m).toHaveAttribute("data-intervened", "1");          // two guard firings on one silent call
     await m.hover();
     await expect(tip(page)).toContainText("Interventions (1):");
     await expect(tip(page)).not.toContainText("the run:");
-    await page.goto(storyRunUrl("v2-r5", "2"));
+    await page.goto(storyRunUrl(IV_RUN, "2"));
     await expect(page.locator('[data-page="storyRun"] .of-run .intervened')).toHaveAttribute("data-intervened", "1");
     await page.goto(storyRunUrl("v2-r4", "1"));
     await expect(page.locator('[data-page="storyRun"] .rp-header')).toBeVisible();
@@ -293,28 +299,25 @@ test.describe("intervened: marked, and still counted", () => {
   });
 
   test("combination matrix: a mark in each affected cell and on the run; none elsewhere", async ({ page }) => {
-    await intervened(page);
     await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
-    await expect(mCell(page, "v2-r5", "1").locator(".intervened")).toHaveAttribute("data-intervened", "1");
-    await expect(mCell(page, "v2-r5", "2").locator(".intervened")).toHaveAttribute("data-intervened", "1");
-    await expect(mRow(page, "v2-r5").locator("th .intervened")).toHaveAttribute("data-intervened", "3");
+    await expect(mCell(page, IV_RUN, "1").locator(".intervened")).toHaveAttribute("data-intervened", "1");
+    await expect(mCell(page, IV_RUN, "2").locator(".intervened")).toHaveAttribute("data-intervened", "1");
+    await expect(mRow(page, IV_RUN).locator("th .intervened")).toHaveAttribute("data-intervened", "3");
     await expect(matrix(page).locator(".intervened")).toHaveCount(3);
-    await mCell(page, "v2-r5", "1").locator(".intervened").hover();
+    await mCell(page, IV_RUN, "1").locator(".intervened").hover();
     await expect(tip(page)).toContainText(`story 1: ${SILENT}`);
   });
 
   test("machine page: a mark on the history row of a run with interventions; none on the others", async ({ page }) => {
-    await intervened(page);
     await page.goto("/#/m/node-a");
     const h = page.locator('[data-page="machine"] [data-section="history"]');
-    await expect(h.locator('tr[data-run="v2-r5"] .intervened')).toHaveAttribute("data-intervened", "3");
+    await expect(h.locator(`tr[data-run="${IV_RUN}"] .intervened`)).toHaveAttribute("data-intervened", "3");
     await expect(h.locator(".intervened")).toHaveCount(1);
   });
 
   test("story page: a mark on the affected story run's entry", async ({ page }) => {
-    await intervened(page);
     await page.goto("/#/vidi/s/2");
-    await expect(page.locator(`[data-page="story"] tbody[data-stack="${SWIFT}"] tr.sp-entry[data-run="v2-r5"] .intervened`)).toHaveAttribute("data-intervened", "1");
+    await expect(page.locator(`[data-page="story"] tbody[data-stack="${SWIFT}"] tr.sp-entry[data-run="${IV_RUN}"] .intervened`)).toHaveAttribute("data-intervened", "1");
   });
 
   test("a run with interventions stays in every figure: ranking, KPIs, median, flags; and is marked", async ({ page }) => {
@@ -345,8 +348,7 @@ test.describe("intervened: marked, and still counted", () => {
   });
 
   test("keyboard: the marker takes focus and shows its list", async ({ page }) => {
-    await intervened(page);
-    await page.goto(runUrl("v2-r5"));
+    await page.goto(runUrl(IV_RUN));
     await page.locator('[data-page="run"] [data-fact="status"] .intervened').focus();
     await expect(tip(page)).toContainText("Interventions (3):");
   });

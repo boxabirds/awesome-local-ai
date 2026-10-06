@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import type { State } from "../shared/types.ts";
 
 // The app presents results. It never shows its own or the harness's faults, diagnoses, causes, remedies, commands or
@@ -164,5 +164,39 @@ test.describe("the neutral state where a figure is not available", () => {
     const missing = a.faults.filter((f) => f.kind === "conversation_missing");
     expect(missing.length).toBeGreaterThan(0);
     expect(missing.every((f) => f.story)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Two fields the record-reading layer derives that nothing asserted the SERVER WIRING of. Neither reaches a
+// page: `rescoreFaults` is carried on the fault that reports an unscored run, and `rescored` decides a run's
+// story squares, so these assert the server's own output, which is where they are observable.
+//
+// `rescored` does have a unit test, of `storiesWorking()` in isolation (domain.test.ts). That is not the same
+// thing: buildFullRows passes it `r.rescored?.[suite]`, and with that argument replaced by `undefined` the whole
+// unit suite still passed while the test below failed. The function was tested; the wiring to the record was not.
+// `sandbox` is deliberately NOT here: server/faults.test.ts already covers all four of its cells by mutating the
+// fixture in-process, and it asserts the unmutated fixture raises no sandbox fault -- a baseline a fixture
+// carrying a permissive sandbox would destroy.
+test.describe("what the record says, where the record is the only source", () => {
+  const faultsOf = async (request: APIRequestContext) =>
+    ((await (await request.get("/api/faults")).json()) as { faults: { kind: string; run: string; detail: Record<string, unknown> }[] }).faults;
+
+  // Why a finished run has no score of record, in the record's own words, carried on the fault that reports it.
+  test("a re-score fault the record names is carried in not_scored", async ({ request }) => {
+    const f = (await faultsOf(request)).find((x) => x.kind === "not_scored" && x.run === "canvas-s-01")!;
+    expect(f.detail.rescore_faults).toEqual({ "vidi-v2.0-pre1": "the re-score found no held-out suite for this pack version" });
+  });
+
+  // A re-score under the current suite decides how each story stands against the latest build, over the run's own
+  // per-story results. Observable as the run's squares: story 2 is part-built at 3 of 14, which is the re-score's
+  // figure and appears nowhere else in that record.
+  test("a re-score under the current suite decides the run's story squares", async ({ request }) => {
+    const s = (await (await request.get("/api/state")).json()) as State;
+    const r = s.rows.find((x) => x.stack === SWIFT && x.runId === "v2-r4")!;
+    const sq = (id: string) => r.storiesWorking.squares.find((q) => q.id === id)!;
+    expect(sq("1")).toMatchObject({ state: "ok", passed: 6, total: 6 });
+    expect(sq("2")).toMatchObject({ state: "part", passed: 3, total: 14 });
+    expect(r.storiesWorking.working).toBe(1);
   });
 });
