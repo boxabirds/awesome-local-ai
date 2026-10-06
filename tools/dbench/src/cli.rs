@@ -142,6 +142,18 @@ pub enum Cmd {
     /// (`dbench release <node>` is something else: it ends a hold.)
     #[command(name = "harness-release")]
     HarnessRelease(HarnessReleaseArgs),
+    /// Move a queued job up the queue: to the front, or just before another queued job.
+    ///
+    /// The queue is otherwise strictly submission order, and a correction to a job means cancel and resubmit,
+    /// which appends. Moving changes order only: no job's state, work or record is touched, and a held node can
+    /// be reordered. A running job cannot be moved.
+    Move {
+        node: String,
+        id: String,
+        /// Put it immediately before this queued job; omit for the front of the queue.
+        #[arg(long)]
+        before: Option<String>,
+    },
     /// Cancel a job (SIGTERM, then SIGKILL, to its process group).
     Cancel {
         node: String,
@@ -553,6 +565,12 @@ mod tests {
     fn harness_release_does_not_take_over_release_of_a_held_node() {
         let cli = Cli::try_parse_from(["dbench", "release", "node-a"]).unwrap();
         assert!(matches!(cli.cmd, Cmd::Release { node } if node == "node-a"));
+        // Moving a queued job: the front by default, or before a named one. A forgotten id must not parse.
+        let cli = Cli::try_parse_from(["dbench", "move", "node-a", "job-1"]).unwrap();
+        assert!(matches!(cli.cmd, Cmd::Move { ref node, ref id, before: None } if node == "node-a" && id == "job-1"));
+        let cli = Cli::try_parse_from(["dbench", "move", "node-a", "job-1", "--before", "job-2"]).unwrap();
+        assert!(matches!(cli.cmd, Cmd::Move { before: Some(ref b), .. } if b == "job-2"));
+        assert!(Cli::try_parse_from(["dbench", "move", "node-a"]).is_err());
         let cli = Cli::try_parse_from(["dbench", "harness-release", "--check-only"]).unwrap();
         assert!(matches!(cli.cmd, Cmd::HarnessRelease(a) if a.check_only && !a.dry_run));
         // A forgotten node name must not start a release.

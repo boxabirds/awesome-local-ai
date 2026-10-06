@@ -248,6 +248,22 @@ impl Api {
         .await
     }
 
+    pub async fn move_job(
+        &self,
+        id: &str,
+        before: Option<&str>,
+    ) -> Result<(reqwest::StatusCode, serde_json::Value)> {
+        let body = match before {
+            Some(b) => serde_json::json!({ "before": b }),
+            None => serde_json::json!({}),
+        };
+        self.send(
+            self.req(reqwest::Method::POST, &format!("/v1/jobs/{id}/move"))
+                .json(&body),
+        )
+        .await
+    }
+
     pub async fn skip_story(
         &self,
         id: &str,
@@ -958,6 +974,26 @@ pub async fn cmd_cancel(ctx: &Ctx, node: &str, id: &str, reason: &str) -> Result
         200 => eprintln!("{node}: job {id} cancelled"),
         202 => eprintln!("{node}: job {id} is being stopped (SIGTERM to its process group, SIGKILL after the grace period)"),
         _ => bail!("{node}: {status}: {}", error_text(&v)),
+    }
+    Ok(())
+}
+
+pub async fn cmd_move(ctx: &Ctx, node: &str, id: &str, before: Option<&str>) -> Result<()> {
+    let (status, v) = ctx.api(node)?.move_job(id, before).await?;
+    if ctx.json {
+        print_json(&v)?;
+    }
+    if status.as_u16() != 200 {
+        bail!("{node}: {status}: {}", error_text(&v));
+    }
+    match before {
+        Some(b) => eprintln!("{node}: job {id} moved before {b}"),
+        None => eprintln!("{node}: job {id} moved to the front of the queue"),
+    }
+    // The queue as it now stands, so the result is read rather than assumed.
+    if let Some(q) = v["queue"].as_array() {
+        let names: Vec<&str> = q.iter().filter_map(|x| x.as_str()).collect();
+        eprintln!("{node}: queue now: {}", names.join(", "));
     }
     Ok(())
 }

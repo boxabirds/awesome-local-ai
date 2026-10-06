@@ -750,6 +750,98 @@ async fn missing_resources_fail_at_once_and_say_why() {
     assert!(!reason.contains("later noise"), "{reason}");
 }
 
+// ---- moving a queued job (dbench has no reschedule; cancel+submit always appended) ----------------
+// A run at 26/27 sat eleventh on a queue for three days because correcting a job meant cancel and resubmit,
+// and submit appends. Order is now something an operator can set, and no work is touched by setting it.
+
+impl Server {
+    async fn move_job(&self, id: &str, body: Option<Value>) -> (u16, Value) {
+        self.call(reqwest::Method::POST, &format!("/v1/jobs/{id}/move"), body)
+            .await
+    }
+    async fn queue_now(&self) -> Vec<String> {
+        self.get("/v1/node").await["queue"]
+            .as_array()
+            .expect("the node reports its queue")
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect()
+    }
+}
+
+#[tokio::test]
+async fn a_queued_job_can_be_moved_to_the_front_or_before_another_without_touching_any_work() {
+    let env = setup();
+    let srv = start(&env, false);
+    // Held, so nothing starts and the whole queue stays observable.
+    assert_eq!(srv.hold(Some(json!({"reason": "ordering test"}))).await.0, 200);
+    for id in ["a", "b", "c", "d"] {
+        assert_eq!(srv.submit(id, &spec("fakepack", &format!("run-{id}"))).await.0, 201);
+    }
+    assert_eq!(srv.queue_now().await, ["a", "b", "c", "d"]);
+
+    // The move's own response is the queue as it was rewritten under the lock, so it never races the runner
+    // (which pops a job, sees the hold, and pushes it back).
+    let order = |v: &Value| -> Vec<String> {
+        v["queue"].as_array().expect("the move reports the queue")
+            .iter().map(|x| x.as_str().unwrap().to_string()).collect()
+    };
+
+    // ...to the front.
+    let (code, v) = srv.move_job("d", Some(json!({}))).await;
+    assert_eq!(code, 200, "{v}");
+    assert_eq!(order(&v), ["d", "a", "b", "c"]);
+
+    // ...before a named queued job.
+    let (code, v) = srv.move_job("c", Some(json!({"before": "a"}))).await;
+    assert_eq!(code, 200, "{v}");
+    assert_eq!(order(&v), ["d", "c", "a", "b"]);
+
+    // Moving a job before itself changes nothing and is not an error.
+    let (code, v) = srv.move_job("c", Some(json!({"before": "c"}))).await;
+    assert_eq!(code, 200, "{v}");
+    assert_eq!(order(&v), ["d", "c", "a", "b"]);
+
+    // The node reports the same order, so an operator can read the queue rather than infer it.
+    assert_eq!(srv.queue_now().await, ["d", "c", "a", "b"]);
+
+    // The move is recorded on the job, so the order is not a mystery later.
+    let log = srv.log("c").await;
+    assert!(log.contains("moved"), "the move is logged: {log}");
+
+    // Every job is still queued: moving touches order, never state or work.
+    for id in ["a", "b", "c", "d"] {
+        assert_eq!(srv.get(&format!("/v1/jobs/{id}")).await["state"]["status"], "queued");
+    }
+}
+
+#[tokio::test]
+async fn moving_refuses_what_it_cannot_order_and_says_why() {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(srv.hold(Some(json!({"reason": "ordering test"}))).await.0, 200);
+    assert_eq!(srv.submit("a", &spec("fakepack", "run-a")).await.0, 201);
+
+    assert_eq!(srv.move_job("nope", Some(json!({}))).await.0, 404);
+    let (code, v) = srv.move_job("a", Some(json!({"before": "nope"}))).await;
+    assert_eq!(code, 400, "{v}");
+    assert!(v["error"].as_str().unwrap().contains("nope"), "{v}");
+    assert_eq!(srv.queue_now().await, ["a"], "a refused move leaves the queue alone");
+    assert_eq!(srv.move_job("a", Some(json!({}))).await.0, 200, "the front is always a legal move");
+}
+
+#[tokio::test]
+async fn a_running_job_cannot_be_moved() {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(srv.submit("slow", &spec("slowpack", "run-s")).await.0, 201);
+    assert_eq!(srv.submit("queued", &spec("fakepack", "run-q")).await.0, 201);
+    srv.wait_status("slow", "running").await;
+    let (code, v) = srv.move_job("slow", Some(json!({}))).await;
+    assert_eq!(code, 409, "{v}");
+    assert_eq!(srv.cancel("slow").await.0, 202);
+}
+
 /// `exit` is the harness's recorded exit: 143 (SIGTERM) or 137 (SIGKILL).
 async fn cancel_kills_group(pack: &str, exit: i32) {
     let env = setup();

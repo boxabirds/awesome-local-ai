@@ -47,6 +47,10 @@ pub struct NodeInfo {
     /// Set while the node is held: it starts no new job (absent from servers before holds existed).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hold: Option<crate::control::Hold>,
+    /// The queued jobs, in the order they will run. Reportable so an operator can see what `move` did, and so
+    /// queue order is something you can read rather than infer from submission times.
+    #[serde(default)]
+    pub queue: Vec<String>,
 }
 
 /// Run a probe with the harness PATH; first line of stdout on success.
@@ -176,6 +180,8 @@ pub async fn gather(
         repo_head,
         current_job,
         hold: None,
+        queue: Vec::new(),   // the server fills this in; gather() does not know the queue
+
     }
 }
 
