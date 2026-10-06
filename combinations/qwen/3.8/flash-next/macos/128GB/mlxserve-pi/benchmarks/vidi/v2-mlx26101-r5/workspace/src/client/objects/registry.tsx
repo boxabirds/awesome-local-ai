@@ -38,6 +38,7 @@ import type { TextSnapshot } from '../../shared/objects/text';
 import type { ConnectorSnapshot } from '../../shared/objects/connector';
 import type { ShapeSnapshot } from '../../shared/objects/shape';
 import type { StrokeSnapshot } from '../../shared/objects/stroke';
+import type { ImageSnap } from '../../shared/objects/image';
 import { scaledPoints, strokeHitRadius } from '../../shared/objects/stroke';
 import type { Camera } from '../canvas/camera';
 import type { UndoControls } from '../board/useUndo';
@@ -45,6 +46,7 @@ import { STICKY_OBJECT_TYPE, StickyNote } from './StickyNote';
 import { TEXT_OBJECT_TYPE, TextObject } from './TextObject';
 import { SHAPE_OBJECT_TYPE, ShapeObject } from './ShapeObject';
 import { CONNECTOR_OBJECT_TYPE, ConnectorObject } from './ConnectorObject';
+import { IMAGE_OBJECT_TYPE, imageObjectType } from './ImageObject';
 import { STROKE_OBJECT_TYPE, StrokeObject } from './StrokeObject';
 
 /**
@@ -461,3 +463,9 @@ registerObjectType<StrokeSnapshot>(STROKE_OBJECT_TYPE, {
     return Number.isFinite(radius) && distanceToPolyline(scaledPoints(obj), worldPoint) <= radius;
   },
 });
+
+// A picture is the one object on this board whose box is a copy of something else, which is the whole reason
+// story 12 had to add anything to this file at all: `aspectLocked` and a minimum of its own are the only two
+// rules about dragging that a picture changes (PRD `image.aspect_resize`). The specification itself lives
+// with the object, for the same reason the arrow's does — see `ImageObject.tsx`.
+registerObjectType<ImageSnap>(IMAGE_OBJECT_TYPE, imageObjectType);

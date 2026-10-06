@@ -29,7 +29,7 @@ import { isTypingTarget } from '../objects/StickyTextEditor';
 import { isRedoChord, isUndoChord } from './undo';
 import type { UndoControls } from './useUndo';
 import type { Selection } from './useSelection';
-import { TOOL_SHORTCUTS, isBuiltTool, type ToolId } from '../tools/useActiveTool';
+import { TOOL_SHORTCUTS, isBuiltTool, opensFilePicker, type ToolId } from '../tools/useActiveTool';
 
 export interface BoardKeysOptions {
   doc: Doc;
@@ -238,7 +238,12 @@ export function useBoardKeys({
       // toolbar gives with a button it has not got. Shift does not change the answer: capital S is the
       // same key as small s, and a tool is not something a person means by holding Shift down.
       const wanted = TOOL_SHORTCUTS[event.key.length === 1 ? event.key.toLowerCase() : ''];
-      if (wanted !== undefined && isBuiltTool(wanted)) {
+      // A tool the pointer can be put into, or the one letter that opens a file picker instead: both are
+      // answered the same way, by handing the letter to whoever owns the toolbar's buttons. The second half
+      // of this test is why `opensFilePicker` is exported from the tools module rather than written out
+      // here — the rule about which letters mean something has one home, and it is not the file that
+      // happens to be listening for keys.
+      if (wanted !== undefined && (isBuiltTool(wanted) || opensFilePicker(wanted))) {
         // A tool that writes something is not offered by a board that cannot be written to, and the key
         // is not swallowed either: the same answer the disabled button gives.
         if (selectToolRef.current === undefined || !canEditRef.current) return;

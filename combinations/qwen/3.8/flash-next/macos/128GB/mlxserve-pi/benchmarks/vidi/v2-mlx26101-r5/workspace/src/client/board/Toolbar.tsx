@@ -23,6 +23,15 @@ export const CONNECTOR_BUTTON_HINT = 'Connector – or press L';
 /** Tooltip of the Pen tool button (exact product text). */
 export const PEN_BUTTON_HINT = 'Pen – or press P';
 
+/**
+ * The Image button's tooltip.
+ *
+ * It is the only button on this toolbar that does not change the pointer: it opens the file picker instead,
+ * which is why it is not `aria-pressed` like the tools around it — a button that is never lit is a button
+ * that was never a mode, and a pressed state that could never be reached would be a state with no way out.
+ */
+export const IMAGE_BUTTON_HINT = 'Image – or press I';
+
 /** What the Sticky note button says when the board cannot be written to. */
 export const LOAD_FAILED_BUTTON_HINT = "This board couldn't be loaded, so it can't be changed";
 
@@ -236,6 +245,26 @@ export function Toolbar({
               {'✎'}
             </span>
             <span className="toolbar-label">Pen</span>
+          </button>
+          <button
+            // Pictures are added, not pointed with: this button opens the file picker and leaves the pointer
+            // exactly where it was (see `opensFilePicker`). It sits with the tools because that is where a
+            // person looks for the way to put something on the board, and it is disabled by the same rule —
+            // a board that cannot be written to cannot be given a picture either, and the upload behind this
+            // button needs the connection that a board which failed to load has not got.
+            aria-disabled={canCreate ? undefined : 'true'}
+            aria-label="Image (I)"
+            className="toolbar-button"
+            data-testid="tool-image"
+            disabled={!canCreate}
+            title={canCreate ? IMAGE_BUTTON_HINT : LOAD_FAILED_BUTTON_HINT}
+            type="button"
+            onClick={() => onToolSelect('image')}
+          >
+            <span aria-hidden="true" className="toolbar-icon">
+              {'🖼'}
+            </span>
+            <span className="toolbar-label">Image</span>
           </button>
         </>
       ) : null}

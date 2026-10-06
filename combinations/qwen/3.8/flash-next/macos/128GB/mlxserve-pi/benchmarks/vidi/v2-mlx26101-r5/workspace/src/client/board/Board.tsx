@@ -53,6 +53,10 @@ import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
 import { ObjectView } from '../objects/registry';
 import type { BoardContext } from '../objects/registry';
+import { ImageRuntimeContext, type ImageRuntime } from '../objects/ImageObject';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { Toast } from '../ui/Toast';
 import { defaultMeasurer } from '../objects/textLayout';
 import { remeasureTextBox } from '../objects/useTextBoxSync';
 import {
@@ -255,11 +259,30 @@ export function Board({
    * hold the pointer and write for themselves — so that there is one answer to "what happens when I press
    * T", and the same answer to S, to L and to P.
    */
+  /**
+   * Pictures: the three ways in, the progress of the one this person is sending, and the way out of a
+   * failure (story 12).
+   *
+   * It is given the connection state and not just `editable`, because an upload is an HTTP request and not a
+   * document write: a line that is down holds a Yjs update until it comes back, and holds nothing else.
+   * Everything it writes goes into the same document as everything else, so a placeholder is shared, moved,
+   * resized and deleted by everybody on the board with no new machinery behind any of that.
+   */
+  const imageInsert = useImageInsert({
+    doc,
+    boardId: boardId ?? '',
+    camera,
+    connection: status,
+    identityId: boardIdentity().name,
+  });
+
   const tools = useActiveTool({
     canEdit: editable,
     // The thing a tool has just made is what this person wants next, so it comes to them already selected
     // — which is the board's own selection, said to the tool rather than reached into by it.
     select: (id) => selectionRef.current.setMany([id], false),
+    // The Image button and the I key: a file picker, not a pointer.
+    openImage: imageInsert.openPicker,
   });
   const toolsRef = useRef(tools);
   toolsRef.current = tools;
@@ -384,6 +407,30 @@ export function Board({
   }, []);
 
   /**
+   * What a picture is told about the board it is drawn on: this person's percentages, whether Retry has a
+   * file behind it, and how to take a placeholder away.
+   *
+   * The removal is the same `deleteObjects` the Delete key and the selection bar's bin call, so a placeholder
+   * deleted by the button on its own grey box is one undo step in exactly the same way — which is the only
+   * way five objects and a failed upload can be deleted together and come back as two separate undos.
+   */
+  const imageRuntime = useMemo<ImageRuntime>(
+    () => ({
+      progressOf: (id) => imageInsert.progress.get(id),
+      canRetry: imageInsert.canRetry,
+      retry: imageInsert.retry,
+      remove: (id) => {
+        const history = undoRef.current;
+        history?.boundary();
+        deleteObjects(docRef.current, [id]);
+        history?.boundary();
+        objectDeleted(id);
+      },
+    }),
+    [imageInsert.progress, imageInsert.canRetry, imageInsert.retry, objectDeleted],
+  );
+
+  /**
    * The selection bar's delete: the whole selection, in one transaction, whatever is in it. The same
    * call as the Delete key, so a button and a key cannot disagree about how many undo steps a delete
    * of six objects is when story 8 comes to count them.
@@ -470,7 +517,17 @@ export function Board({
   // box is one rectangle around however many objects there are, and a handle is a fixed size on the
   // screen whatever the board is scaled to.
   return (
-    <div className="vidi6-app" data-testid="app" ref={containerRef}>
+    <div
+      className="vidi6-app"
+      data-testid="app"
+      ref={containerRef}
+      // Files dragged over the board are allowed to land on it; everything else a drag might carry is left
+      // to the browser. See `useImageInsert`: the drop is validated there, and the highlight that says
+      // "drop it here" is drawn by a component that listens for the same events and writes nothing.
+      onDragOver={imageInsert.onDragOver}
+      onDrop={imageInsert.onDrop}
+    >
+      <ImageRuntimeContext.Provider value={imageRuntime}>
       <BoardViewport
         controller={controller}
         marquee={marquee}
@@ -501,6 +558,7 @@ export function Board({
           />
         ))}
       </BoardViewport>
+      </ImageRuntimeContext.Provider>
       {
         // The three tools that hold the pointer themselves. They are rendered while they are lit and on a
         // board that can be written to, and unmounted otherwise — which is also how a tool that is half
@@ -595,6 +653,16 @@ export function Board({
       />
       <NavigationHint visible={!controller.hasNavigated} />
       <ConnectionStatus state={status} />
+      {
+        // The dashed outline over the whole board while a file is being dragged over it. It owns its own
+        // listeners and writes nothing, so it is mounted here rather than given the board's drag events.
+        <DropHighlight />
+      }
+      {
+        // One line of feedback at a time, at the bottom of the screen: a file that was refused, and the
+        // board's reason for refusing it. See `Toast`.
+        <Toast />
+      }
     </div>
   );
 }

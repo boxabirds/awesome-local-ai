@@ -1015,3 +1015,122 @@ Story 11.
 | `npm run test:e2e`         | 16 board specs, plus nightly and persistence | 79 chromium green (TC-17…TC-20 new), 4 persistence green, nightly `idle-stability` green; nightly `capacity-soak` is the same pre-existing hang, and firefox/webkit are the launch failures above |
 
 `npm run build`, `npm run build:test`, `npm run typecheck` (client and worker) and `npm run test` are clean.
+
+## Contract deviations (all deliberate)
+
+Story 12 — pictures on the board.
+
+- **`ImageSnap`, in a codebase whose other five object types are all `*Snapshot`.** Stories 10 and 11 renamed
+  the design's `ConnectorSnap`/`StrokeSnap` to `*Snapshot` and documented it; this story keeps the design's
+  name, because this story's brief is to follow the design's interfaces exactly and `displayStatus`,
+  `createImagePlaceholders` and `ImageObjectProps` are all written against it in the design's own text. The
+  result is one type named out of step with its five neighbours, which is recorded here rather than quietly
+  repeated: the clean fix is a rename of all six in one commit that changes nothing else.
+- **`validateFiles` returns `{ accepted, rejections: Set<FileRejection> }`, and `messagesFor` /
+  `rejectionMessages` build the sentence.** The design names the exact messages and the reasons, not the shape
+  of the answer; a `Set` is what the caller actually needs, because a batch of 21 files where three are too
+  big and two are PDFs has two true things to say and the insert hook says both. The messages themselves are
+  the design's strings, character for character, in `REJECTION_MESSAGES`.
+- **`IMAGE_MAX_FILES_PER_ADD` was already in `src/shared/config.ts`, set to 5.** The design and TC-09 say 20.
+  It had no reader before this story — nothing in the tree imported it — which is why `npm run typecheck` had
+  never had an opinion about it. It is 20 now, and TC-09 is the test that would notice if it drifted back.
+- **`IMAGE_STALE_TICK_MS = 30_000` is a setting the design does not name.** The design's `image.object`
+  contract says the clock re-renders "every 30 s while any image is uploading"; a number that a component and a
+  test both have to agree about lives in config next to `IMAGE_UPLOAD_STALE_MS`, the value it is a fraction
+  of, rather than twice as a literal.
+- **`src/worker/env.d.ts` is a new file.** `Cloudflare.Env` is an empty interface that the Workers types expect
+  to be filled in by declaration merging, and the new `ASSETS_BUCKET` binding has to be on it or
+  `npm run typecheck` fails on the worker. It cannot live in the client program, whose `types` do not include
+  the Workers runtime — which is the same reason `tsconfig.worker.json` exists.
+- **'image' is not in `BUILT_TOOLS`.** `tests/component/sticky-tool.test.ts` and the toolbar tests assert that
+  list verbatim, and it means "the tools that have a mode you stay in" — which the Image tool has never had:
+  it opens a file dialog and leaves. `useActiveTool` grew an optional `openImage` action (the way it grew
+  `openSticky`) and exports `IMAGE_TOOL_ID` and `opensFilePicker(tool)` so `useBoardKeys` asks the question
+  rather than knowing the answer.
+- **`ImageObject` and `ImageObjectView` are two exports of one renderer.** The design's contract is
+  `ImageObject(props)` with every input passed in, so the component test renders exactly that with explicit
+  props; what the object registry needs is an adapter that reads the shared document and the runtime context.
+  One renderer, two front doors, and no props invented for the registry's convenience.
+- **`data-status` on the picture's frame**, with the values `uploading`, `uploading-other`, `ready`, `failed`,
+  `unavailable`, `unfinished`. The design asks for the per-state class names (`image-object--uploading` and
+  the rest); the attribute is the same string once more for the e2e side to read, and without it an e2e
+  assertion about "what state does the other person see this box in" is an assertion about a computed style.
+- **`Toast` grew `currentToast()` and `clearToast()`.** The design names `showToast(text, durationMs?)`. The
+  two additions are so a component test can read what was said and clear it between tests instead of waiting
+  out a five-second timeout or reaching for a DOM node the design does not describe; both are no-ops in
+  production code paths.
+- **Two existing integration test files were touched, and only to add the new binding.**
+  `tests/integration/worker-routing.test.ts` and `board-api.test.ts` build an `env` stub by hand, and the
+  worker now expects `ASSETS_BUCKET` on it. Nothing asserted differently; a stub of the bucket that returns
+  nothing was added, so those files' own claims are unchanged.
+- **`wrangler.jsonc` names the bucket `vidi6-assets`.** The design names the *binding* (`ASSETS_BUCKET`) and
+  never says what the bucket is called; the name had to be invented, and the wrangler config now has a
+  `r2_buckets` entry with it.
+
+## Findings while testing the implementation
+
+Story 12.
+
+- **A held request has no progress, which is the difference between two ways to slow a test down.** TC-25
+  started as `page.route('**/assets', route => sleep(1200).then(() => route.continue()))` and then asserted the
+  uploader's percentage — and it was 0, forever, correctly. An intercepted request has not been sent, so there
+  are no bytes sent to report, and `upload.onprogress` is a measurement of a transfer under way. What slowed the
+  network instead is the browser's own bandwidth dial (`Network.emulateNetworkConditions` over the devtools
+  protocol, 3 KB/s up, 400 KB/s down), so every percentage asserted in TC-25 came from a real progress event on
+  a real socket, against a server the test did not touch. The helper reports `reportsProgress`, so the
+  Firefox/WebKit path — which has no such dial and falls back to holding the response — says in the assertion
+  it skips which single claim it is not in a position to check.
+- **A resize handle off the end of the screen is a handle a mouse cannot reach, and nothing will tell you.**
+  A 1440 × 900 photograph is placed at 800 × 500 world units, which at a 100 % camera in this suite's
+  1280 × 800 window puts its south-east handle at y ≈ 807. `boundingBox()` reported it, `page.mouse.move()`
+  dispatched coordinates that reach nobody, the picture did not resize, and the only symptom in the failure was
+  a number that had not moved — which reads like a bug in the floor, not like a test that dragged nothing.
+  TC-27 now zooms to 0.5 before it drags anything, and says why in the test.
+- **The aspect lock chooses its dominant axis by proportion, not by distance, and that is the feature.**
+  Pulling the corner of an 800 × 500 picture two hundred units right and two hundred down gives 1120 × 700 —
+  a scale of 1.4 — not 1000 × 700: `|dx| / width` is less than `|dy| / height`, so the vertical axis answers
+  for both sides. A test that asserted "100 screen pixels, so 200 world units wider" would have pinned the
+  wrong rule and would have been green doing it, so TC-27 asserts the two scales are equal to six decimal
+  places and equal to the one number the pointer asked for.
+- **The minimum size is a floor on the short side.** `allowedScale` shrinks with the *larger* of the two
+  clamped scales, so an image dragged far below the floor ends up 25.6 × 16 — the short side exactly on
+  `IMAGE_MIN_SIZE_WORLD`, the long side whatever the proportion says. Both sides respect the minimum; the
+  assertion is `Math.min(w, h) ≈ 16`, and a test that expected 16 on the long side would have been asking for
+  an image that stops being a photograph of the thing it photographed.
+- **"The document says ready" and "there is a picture on the screen" are two moments, and a flake lived in the
+  four hundred milliseconds between them.** TC-26 asserted `img.complete && naturalWidth > 0` immediately after
+  the status went `ready` and failed twice in about twenty runs. The `<img>` is mounted by the same render that
+  prints the word "ready" and has still to fetch the file; the fix is a polling assertion, and the same
+  distinction is made from the other side in `tests/component/ImageObject.test.tsx`, where the document is
+  ready and the image has not loaded. Noted because this flake was in the *test*, and the tempting change —
+  asserting the status instead of the pixels — would have made the test unable to tell a served picture from a
+  box with a URL in it.
+- **`page.waitForFileChooser` does not exist; `page.waitForEvent('filechooser')` does.** Playwright 1.63 types
+  the event, not the convenience wrapper, so the helper that catches the system's dialog is written against the
+  event. Worth a line because the failure was at typecheck, not at runtime, and the API's absence is not in the
+  version's headline docs.
+- **The nightly capacity soak hangs with none of story 12 in the tree.** `TC-30 a busy board full of people
+  ends up as one board` times out at its own 300 s budget on this machine, in the same line of
+  `tests/e2e/helpers/soak.ts`, at the same 5.0-minute duration, whether or not this story's code is present —
+  checked by running the nightly project in a second `git worktree` checked out at `HEAD` — the commit before
+  this story, with none of its files in it — and getting the identical failure at the identical duration. Story 11's notes already recorded it as "the same pre-existing hang". Nothing
+  in `tests/e2e/nightly/` was changed, and the hang is not a story 12 regression; it is a machine that cannot
+  do five browsers × three operations per round inside the budget the soak gives itself.
+- **One toast, so one line with both true things in it.** TC-26 asks for "type and size toasts" from a single
+  batch in which one file is a PDF named `.png` and one is fifteen megabytes. The size is known the moment the
+  list is walked and the type only when the bytes are opened, which is two moments; a second toast element
+  would cover the first, and `role="status"` is one announcement to a screen reader anyway. What the person is
+  left with is one line containing both of the design's sentences, in the order type, size, count — asserted by
+  `expectToast(page, REJECTION_MESSAGES.type)` *and* a `toContain(REJECTION_MESSAGES.size)` on what it got.
+
+## Final test counts (story 12)
+
+| Suite                      | Files | Tests                                                                                                            |
+| -------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
+| `npm run test:unit`        | 25    | 573 (+58: image-format 15 — sniffing every fixture's first bytes, the key pattern; image-model 28 — TC-03…TC-07, placement, the row, the untracked origin, `unfinished`; validate-files 15 — TC-08, TC-09 and the joined refusal lines) |
+| `npm run test:component`   | 27    | 414 (+58: useImageInsert 29 — TC-17…TC-19, drop/paste/picker, offline, abort, retry, stale; ImageObject 29 — TC-21…TC-24, TC-29, the six states, uploader vs observer) |
+| `npm run test:integration` | 10    | 167 (+23 — TC-10…TC-13, TC-15, TC-16 against real R2: sniffing, both size checks, key shape, immutable headers, the four ways a GET can fail) |
+| `npm run test:e2e`         | 17 board specs, plus nightly and persistence | 83 chromium green (TC-25…TC-28 new), 4 persistence green, nightly `idle-stability` green; nightly `capacity-soak` is the same pre-existing hang above, and firefox/webkit are the launch failures recorded in story 11 |
+
+`npm run build`, `npm run build:test`, `npm run typecheck` (client and worker), `npm run test` and
+`npx playwright test --project=chromium --project=persistence` are clean.

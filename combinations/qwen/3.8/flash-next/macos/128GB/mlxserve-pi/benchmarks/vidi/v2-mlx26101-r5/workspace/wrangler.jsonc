@@ -24,6 +24,16 @@
       }
     ]
   },
+  // Story 12: the board's pictures. Images have no state to share, so they never enter a
+  // Durable Object — they are written to this bucket under `boards/<boardId>/<assetId>` and
+  // read back by the Worker. Locally the bucket lives in `.wrangler/state`, like everything
+  // else a `wrangler dev` instance keeps.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   "migrations": [
     {
       "tag": "v1",

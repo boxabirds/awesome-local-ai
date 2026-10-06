@@ -351,3 +351,44 @@ export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 /** Smallest a stroke may be dragged to, in world units: its dot at the thickest pen, give or take. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// ---------------------------------------------------------------------------
+// Story 12 — images: formats, limits, placement, upload
+//
+// Every number the PRD states as a product setting is here, named, and named with the
+// design's name: "up to 20 images at once", "10 MB or smaller", "no longer than 800 board
+// units", "never smaller than 16", "after 5 minutes". Four files ask these questions — the
+// Worker that refuses an upload, the client that refuses a file before uploading it, the
+// model that decides where a picture is put and the object that says what it is doing — and
+// each of them asks the setting rather than repeating the number.
+// ---------------------------------------------------------------------------
+
+/** The four formats, as MIME types. Nothing else is added, uploaded or served. */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** The heaviest file that may be added or uploaded, in bytes: 10 MB. */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** The most images one drop, paste or picker may add; the rest are skipped with a message. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/** The longest side an added image is placed at, in world units; bigger pictures scale down. */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** The shortest side an image may be resized to, in world units. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** The space left between images placed in a row, in world units. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/** How long an image may sit `uploading` before everyone is told it did not finish: 5 minutes. */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** How often the board looks again at images that are still uploading, so `unfinished` appears. */
+export const IMAGE_STALE_TICK_MS = 30_000;
+
+/** A stored asset never changes: its key names the bytes, so a browser may keep it for a year. */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/** How many bytes of a file are read to decide what it is: enough for `RIFF....WEBP`. */
+export const IMAGE_SNIFF_BYTES = 12;

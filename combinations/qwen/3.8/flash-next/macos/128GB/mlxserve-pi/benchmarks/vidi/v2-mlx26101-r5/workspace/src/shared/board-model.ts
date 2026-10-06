@@ -41,6 +41,7 @@ import type { Point, Rect } from './geometry';
 import { rectContains } from './geometry';
 import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 import { detachConnectorsTo, readEndpoint, type ConnectorSnapshot } from './objects/connector';
+import { IMAGE_OBJECT_TYPE, isImageStatus, type ImageSnap } from './objects/image';
 import type { TextSize, TextSnapshot } from './objects/text';
 import type { ShapeSnapshot } from './objects/shape';
 import type { StrokeSnapshot } from './objects/stroke';
@@ -408,6 +409,40 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
           : DEFAULT_PEN_THICKNESS,
       };
       objects.push(stroke);
+      continue;
+    }
+    if (type === IMAGE_OBJECT_TYPE) {
+      // A picture carries a reference and a size, never the bytes themselves. `assetKey` is null for as
+      // long as the upload has not answered — which is the state everybody else sees first — and a status
+      // that is not one of the three is read as `uploading`, because a placeholder is the safe reading of
+      // an object this build cannot fully explain: it shows a box and asks for nothing.
+      const assetKey: unknown = value.get('assetKey');
+      const contentType: unknown = value.get('contentType');
+      const naturalWidth = finite(value.get('naturalWidth')) ? (value.get('naturalWidth') as number) : 0;
+      const naturalHeight = finite(value.get('naturalHeight')) ? (value.get('naturalHeight') as number) : 0;
+      const uploaderId: unknown = value.get('uploaderId');
+      const uploadStartedAt = finite(value.get('uploadStartedAt'))
+        ? (value.get('uploadStartedAt') as number)
+        : createdAt;
+      const status: unknown = value.get('status');
+      const image: ImageSnap = {
+        id,
+        type: IMAGE_OBJECT_TYPE,
+        x,
+        y,
+        ...(width === undefined ? {} : { width }),
+        ...(height === undefined ? {} : { height }),
+        z,
+        createdAt,
+        assetKey: typeof assetKey === 'string' && assetKey.length > 0 ? assetKey : null,
+        contentType: typeof contentType === 'string' ? contentType : 'image/png',
+        naturalWidth,
+        naturalHeight,
+        status: isImageStatus(status) ? status : 'uploading',
+        uploadStartedAt,
+        uploaderId: typeof uploaderId === 'string' ? uploaderId : '',
+      };
+      objects.push(image);
       continue;
     }
     if (type !== STICKY_TYPE) {

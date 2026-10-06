@@ -1531,3 +1531,204 @@ body {
   outline: 2px solid var(--select);
   outline-offset: 1px;
 }
+
+/* ==========================================================================
+   Images (story 12).
+
+   Three things live down here, and they have one thing in common: all three are about a file that is not
+   yet a picture on the board. `.image-object` is the box a picture is drawn in — and, before it is a
+   picture, the box it is *coming* in, which is the same box at the same size, so that nothing on the board
+   moves when the bytes arrive. `.drop-highlight` is the outline that says a file will land here. `.toast`
+   is the one line the board says out loud when it refuses a file.
+
+   The sizes below are board units, not screen pixels: the world layer is scaled by the camera, so a label
+   written at 14 units is 14 pixels at 100 % and grows and shrinks with the picture it is describing. That
+   is deliberate — a placeholder whose words stayed the same size on screen while its box shrank would be a
+   caption too big for its own picture.
+   ========================================================================== */
+
+.image-object {
+  position: absolute;
+  box-sizing: border-box;
+  /* The world layer turns pointer events off for everything; a picture is one of the things a pointer can
+     hold, including while it is still a placeholder — whose box is already the box the picture will be. */
+  pointer-events: auto;
+  cursor: grab;
+  overflow: hidden;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  color: #57606a;
+  font-size: 14px;
+  line-height: 1.2;
+  text-align: center;
+  user-select: none;
+}
+
+/* A picture that has arrived is its own edge: no border, no background, just the thing itself. */
+.image-object--ready {
+  border: none;
+  padding: 0;
+  background: transparent;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+}
+
+.image-object[data-selected='true'] {
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
+}
+
+.image-object[data-interaction='dragging'] {
+  cursor: grabbing;
+}
+
+/* The states that are a hole in the board with a label on it: dashed, grey, and the shape of the picture
+   that belongs in it. This includes the failed one seen by a stranger, which is a missing picture from
+   where they are standing and is drawn like one. */
+.image-object--uploading,
+.image-object--uploading-other,
+.image-object--unfinished,
+.image-object--unavailable {
+  border-style: dashed;
+  background: #eef0f4;
+}
+
+/* The uploader's own failure is the one state that is red, because it is the one that can be acted on.
+   See `imageObjectType`'s `minSize`: the box never shrinks below the point where these words still fit. */
+.image-object--failed {
+  border: 2px solid #d1242f;
+  background: #fff1f1;
+  color: #82071e;
+}
+
+.image-object__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The object's box carries the picture's own proportion — that is what `aspectLocked` means — so there is
+     nothing to fit and nothing to crop: this is the same rectangle the file has, drawn at the size this
+     person chose. */
+  object-fit: fill;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.image-object__icon {
+  font-size: 24px;
+  line-height: 1;
+  opacity: 0.5;
+}
+
+/* One line, truncated rather than overflowing: the box is the size of a picture, and a message that pushed
+   the board's layout around to make itself readable would be a message that changed somebody's board. */
+.image-object__label {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.image-object__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.image-object__button {
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.image-object__button:hover {
+  background: #f2f4f8;
+}
+
+.image-object__button:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 1px;
+}
+
+/* The transfer, as a bar. It is 70 % of the box rather than all of it so that a thin strip of a wide
+   panorama is still recognisably a progress bar and not a border that has arrived early. */
+.image-object__bar {
+  position: relative;
+  display: block;
+  width: 70%;
+  min-width: 48px;
+  height: 6px;
+  border-radius: 3px;
+  background: #d8dde5;
+  overflow: hidden;
+}
+
+.image-object__bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--select);
+}
+
+/* A drawing made with the pen, a shape being dragged out, an arrow being pulled between two things: while
+   one of those tools is lit, a picture is scenery. It is the only kind of object that could swallow the
+   gesture by being in the way, because it is the only one whose box is usually big. */
+.board-viewport[data-tool='pen'] .image-object,
+.board-viewport[data-tool='shape'] .image-object,
+.board-viewport[data-tool='connector'] .image-object,
+.board-viewport[data-tool='text'] .image-object {
+  pointer-events: none;
+}
+
+/* The file chooser is not a control: it is opened by the Image button and by `I`, and it is the one element
+   on this board that has to exist in the DOM to work and must never be seen. */
+.image-picker-input {
+  display: none;
+}
+
+/* The outline that says *this is where it goes*, over the whole board. `pointer-events: none` is not a
+   decoration: a highlight that caught the pointer would intercept the drop it is announcing. It sits over
+   the objects and under the toolbars (which are at 10), and inside the window's edge so that it reads as a
+   frame around the board rather than a border on the browser. */
+.drop-highlight {
+  position: fixed;
+  inset: 12px;
+  border: 3px dashed var(--select);
+  border-radius: 12px;
+  background: rgb(37 99 235 / 0.06);
+  pointer-events: none;
+  z-index: 9;
+}
+
+/* The board's one line of feedback, at the bottom and out of the way of both the toolbar and the zoom
+   controls, which live in the two bottom corners. `role="status"` is announced politely and does not
+   interrupt what is being read, which is the right manner for a file that was refused: it is news, not an
+   error, and there is no dialog to dismiss.
+   `z-index: 40` is above every panel on the board, including the share panel (30) and its own copy field
+   (31): the sentence "that file is too big for this board" is the one thing that must not be behind a panel. */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  max-width: min(560px, 80vw);
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
+  /* Nobody can click a message out of the way; it leaves by itself, which is what "a few seconds" is for. */
+  pointer-events: none;
+  z-index: 40;
+}

@@ -70,6 +70,19 @@ export const TOOL_SHORTCUTS: Readonly<Record<string, ToolId>> = {
  */
 export const BUILT_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
+/**
+ * The Image tool's id, written once because two files have to agree about it.
+ *
+ * It is deliberately *not* in `BUILT_TOOLS`: it has no cursor, no drag gesture and no `toolCreated` to
+ * report, so a tool system that treated it as one of its own would spend the next four files explaining why
+ * this tool does none of the things tools do. What it is is a letter on a toolbar with a file dialog behind
+ * it, which is what `opensFilePicker` says — and all it says.
+ */
+export const IMAGE_TOOL_ID = 'image';
+
+/** Does choosing this tool open a file picker instead of changing the pointer? */
+export const opensFilePicker = (tool: ToolId | string): boolean => tool === IMAGE_TOOL_ID
+
 /** Whether this build has the tool, as opposed to only having a letter for it. */
 export function isBuiltTool(tool: ToolId): boolean {
   return BUILT_TOOLS.includes(tool);
@@ -95,6 +108,14 @@ export interface ActiveToolOptions {
    * is a tool with a wider cursor and not a broken one.
    */
   select?(id: string): void;
+  /**
+   * Opens the picture picker: the one toolbar button that is a question asked of the person using it.
+   *
+   * Given rather than imported, because this file is about pointers and this is about files. With nothing to
+   * hand it to, choosing the Image tool does exactly nothing — which is why a board with no upload runtime
+   * has an Image button that does nothing rather than one that looks broken.
+   */
+  openImage?(): void;
 }
 
 export interface ActiveToolControls {
@@ -122,7 +143,7 @@ export interface ActiveToolControls {
  * only ever asked by the Shape tool, and a board that has a shape on it is a board that was in that tool
  * a moment ago. Splitting them would mean two places that have to agree about which tool is lit.
  */
-export function useActiveTool({ canEdit, select }: ActiveToolOptions): ActiveToolControls {
+export function useActiveTool({ canEdit, select, openImage }: ActiveToolOptions): ActiveToolControls {
   const [tool, setToolState] = useState<ToolId>('select');
   const [shapeKind, setShapeKindState] = useState<ShapeKind>(DEFAULT_SHAPE_KIND);
 
@@ -133,13 +154,25 @@ export function useActiveTool({ canEdit, select }: ActiveToolOptions): ActiveToo
 
   const setTool = useCallback(
     (next: ToolId) => {
+      // The Image tool is not a mode: it is the toolbar's name for a file dialog. It is taken and dropped on
+      // the spot, the hand stays where it was, and the only thing that changes is which window the operating
+      // system has put on the screen. A person who presses Escape in that dialog finds the board exactly as
+      // they left it, because nothing was ever switched.
+      if (opensFilePicker(next)) {
+        // The same rule the other writing tools follow: a board that cannot be written to does not open a
+        // door that leads to a write. The button is already disabled for it; this is the key that has to be
+        // told the same thing.
+        if (!canEdit) return;
+        openImage?.();
+        return;
+      }
       // A letter reserved for a story that has not been written is not a tool, and the key that names it
       // is left to the browser rather than being swallowed on the way to doing nothing.
       if (!isBuiltTool(next)) return;
       if (next !== 'select' && !canEdit) return;
       setToolState(next);
     },
-    [canEdit],
+    [canEdit, openImage],
   );
 
   const setShapeKind = useCallback((next: ShapeKind) => {

@@ -18,6 +18,8 @@ import { isValidBoardId } from '../shared/board-id';
 import { ROOM_PATH_PREFIX } from '../shared/config';
 import type { BoardRoom } from './board-room';
 import { boardExists, createBoard } from './create-board';
+import { assetKeyFor } from '../shared/image-format';
+import { handleServe, handleUpload } from './assets';
 import { routeTestHook } from './test-hooks';
 
 /** Bindings declared in `wrangler.jsonc`. */
@@ -26,6 +28,12 @@ export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client, served with a single-page-application fallback. */
   ASSETS: Fetcher;
+  /**
+   * The board's pictures. One bucket for every board, and a key that names the board each
+   * picture belongs to — an image has no state to share and nothing to relay, so it does not
+   * live in a board's SQLite, it lives here.
+   */
+  ASSETS_BUCKET: R2Bucket;
   /**
    * `'1'` turns on the storage hooks the persistence e2e tests use to break a board on
    * purpose. It is a deployment-time variable and is set by nothing in this repo's config,
@@ -39,6 +47,10 @@ const ROOM_PREFIX = `${ROOM_PATH_PREFIX}/`;
 
 /** Where boards are created and looked up: `POST /api/boards`, `GET /api/boards/:id`. */
 const BOARDS_PATH = '/api/boards';
+/** `POST /api/boards/:boardId/assets` — one picture, uploaded into a board. */
+const BOARD_ASSETS = /^\/api\/boards\/([^/]+)\/assets$/;
+/** `GET /api/assets/:boardId/:assetId` — one picture, read back out of a board. */
+const ASSET_ITEM = /^\/api\/assets\/([^/]+)\/([^/]+)$/;
 
 /** The rest of the path after a prefix, or null when the prefix is not there. */
 function after(path: string, prefix: string): string | null {
@@ -50,6 +62,15 @@ const BOARD_PREFIX = `${BOARDS_PATH}/`;
 
 /** Everything under `/api/` belongs to the Worker, never to the client bundle. */
 const API_PREFIX = '/api/';
+
+/** One path segment, decoded — an id with a `%` in it is still the id the address meant. */
+function decodeSegment(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
 
 /** True for a WebSocket upgrade request (the header is case-insensitive). */
 function isUpgrade(request: Request): boolean {
@@ -111,6 +132,25 @@ async function routeBoards(request: Request, env: Env, boardId: string | null): 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const path = new URL(request.url).pathname;
+
+    // A picture, in either direction. Both are decided before the board routes below: an upload is not
+    // a question about a board's state and a fetch is not either — one files bytes under a board's name
+    // and the other reads them back — and `/api/boards/:id/assets` would otherwise be answered by the
+    // route that only ever expects one segment after the id. Neither one is validated here: the shape of
+    // an id and the shape of a key belong to the two handlers, because a handler that owns a check is
+    // the only place it can be written once.
+    const upload = path.match(BOARD_ASSETS);
+    if (upload !== null) {
+      return handleUpload(request, env, decodeSegment(upload[1] as string));
+    }
+    const asset = path.match(ASSET_ITEM);
+    if (asset !== null) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return apiError(405, 'method_not_allowed', 'A stored picture is read by GET.');
+      }
+      return handleServe(env, assetKeyFor(decodeSegment(asset[1] as string), decodeSegment(asset[2] as string)));
+    }
+
     if (path === BOARDS_PATH || path.startsWith(BOARD_PREFIX)) {
       const rest = after(path, BOARD_PREFIX);
       // `/api/boards` itself has no id on the end; anything below it has exactly one path

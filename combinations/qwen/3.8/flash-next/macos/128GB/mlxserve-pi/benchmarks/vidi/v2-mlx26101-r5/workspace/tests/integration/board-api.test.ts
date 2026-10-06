@@ -136,6 +136,9 @@ function spiedRooms(stub: Partial<Record<'initialize' | 'exists', () => unknown>
     ASSETS: {
       fetch: async () => new Response('the client', { status: 200 }),
     } as unknown as Env['ASSETS'],
+    // Story 12's bucket, empty and unused by any route asserted here: the bindings a Worker is written
+    // against are one object, so an env for this Worker has all of them.
+    ASSETS_BUCKET: {} as unknown as Env['ASSETS_BUCKET'],
   } satisfies Env;
   return { env, idFromName, get, methods };
 }

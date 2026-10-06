@@ -21,6 +21,21 @@ import type { BoardRoom } from '../../src/worker/board-room';
 import worker, { type Env } from '../../src/worker/index';
 import { RoomSocket } from './helpers/ws-client';
 
+/** A bucket with nothing in it, for routes that are not supposed to open one. */
+function emptyBucket(): Env['ASSETS_BUCKET'] {
+  const refuse = async (what: string): Promise<never> => {
+    throw new Error(`the routing tests never expect the asset bucket to be touched (${what})`);
+  };
+  return {
+    head: async (key: string) => (await refuse(key), null),
+    get: async (key: string) => (await refuse(key), null),
+    put: async (key: string) => (await refuse(key), undefined),
+    delete: async (key: string) => refuse(key),
+    list: async () => refuse('list'),
+    createMultipartUpload: async () => refuse('multipart'),
+  } as unknown as Env['ASSETS_BUCKET'];
+}
+
 /** The origin the tests address the Worker by. */
 const ORIGIN = 'https://vidi6.test';
 
@@ -39,6 +54,10 @@ function spiedEnv() {
   const env = {
     BOARD_ROOM: { idFromName, get } as unknown as Env['BOARD_ROOM'],
     ASSETS: { fetch: assetsFetch } as unknown as Env['ASSETS'],
+    // Story 12 gave the Worker a bucket. None of the routes asserted here read from it, but the bindings a
+    // Worker is written against are one object: an env that leaves one out is an env for a different
+    // Worker, so it is handed a bucket that has nothing in it and says so if it is ever asked.
+    ASSETS_BUCKET: emptyBucket(),
   } satisfies Env;
   return { env, idFromName, get, assetsFetch };
 }
