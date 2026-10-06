@@ -1,5 +1,5 @@
 /**
- * The board's tools, named in one place (story 10).
+ * The board's tools, named in one place (stories 10 and 11).
  *
  * A tool is per-screen state - never written to the document - so two people on the same board can
  * be in different tools at the same time. The ids are shared between the toolbar, the keyboard and
@@ -16,6 +16,7 @@ export type ToolId =
   | 'shape-ellipse'
   | 'shape-diamond'
   | 'connector'
+  | 'pen'
   | 'image';
 
 /** Every tool the vocabulary knows, in toolbar order. */
@@ -27,6 +28,7 @@ export const TOOL_IDS: readonly ToolId[] = [
   'shape-ellipse',
   'shape-diamond',
   'connector',
+  'pen',
   'image',
 ];
 
@@ -42,6 +44,7 @@ export const BUILT_TOOLS: readonly ToolId[] = [
   'shape-ellipse',
   'shape-diamond',
   'connector',
+  'pen',
 ];
 
 /** The three shape tools, in the order the shape bar shows them. */
@@ -75,6 +78,7 @@ export const TOOL_KEYS: Readonly<Record<string, ToolId>> = Object.freeze({
   t: 'text',
   s: 'shape-rect',
   l: 'connector',
+  p: 'pen',
 });
 
 export function isToolId(value: unknown): value is ToolId {

@@ -210,6 +210,47 @@ export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 /** Radius of a connection dot in screen pixels (it does not grow with zoom). */
 export const CONNECTOR_DOT_RADIUS_PX = 4;
 
+// ---- Pen and strokes (story 11) ------------------------------------------------
+
+/** The six pen colours; the key is the name the document stores. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+/** The three pen thicknesses, in world units, so a stroke scales with the board. */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+/** The colour of a newly drawn stroke, and the colour the pen toolbar starts on. */
+export const DEFAULT_PEN_COLOR = 'black';
+
+/** The thickness of a newly drawn stroke, and the thickness the pen toolbar starts on. */
+export const DEFAULT_PEN_THICKNESS = 'medium';
+
+/**
+ * How far a finished stroke may lie from the path that was drawn, in *screen* pixels at the zoom
+ * the stroke was drawn at (PRD pen.smooth). The model runs its simplification at this tolerance
+ * divided by the zoom, so the promise is about what a person sees and not about world units.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * How many recorded points one stroke may hold. A drag that reaches it finishes the stroke and
+ * carries on drawing a new one from the same point, so a very long line costs memory but never a
+ * frozen tab (PRD pen.long_stroke).
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/** How close to a stroke's line a click has to be, in screen pixels, to select it. */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/** The smallest width or height a stroke's box may be resized to, in world units. */
+export const STROKE_MIN_SIZE_WORLD = 4;
+
 // ---- Live collaboration (story 3) ------------------------------------------
 
 /**

@@ -9,6 +9,11 @@
  *  * `shapeKind`: which shape the Shape tool will draw, remembered across visits to the shape bar;
  *  * `toolCreated(id)`: what happens to the tool and the selection when a tool has made its object.
  *
+ * Not every tool calls `toolCreated`. The Pen (story 11) commits its stroke itself and leaves this
+ * hook alone on purpose: `pen.stay_active` says the tool stays armed after every stroke, so the
+ * person draws one line after another until they press Escape or pick another tool - and a stroke
+ * they have just finished is not what they want selected, it is the next one they are aiming at.
+ *
  * Tool state is per screen and is never written to the document. Keyboard shortcuts are ignored
  * while focus is in a text field or a note is being written, so typing "s" into a note stays a
  * letter - the same guard the board's other keys use.

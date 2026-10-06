@@ -14,13 +14,16 @@ import type { Point } from '../../shared/geometry';
 import {
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
+import { hitStroke } from '../../shared/objects/stroke';
 import type { ObjectProps } from './ObjectProps';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
 
 export interface ObjectTypeSpec {
   /** React component that renders this object type (set during app initialization). */
@@ -34,8 +37,14 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Whether the object has inline text editing. */
   editableText: boolean;
-  /** Hit-test: is `worldPoint` inside this object? */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Hit-test: is `worldPoint` inside this object?
+   *
+   * `zoom` (story 11) is the zoom the board is at, for a type whose tolerance is measured in *screen*
+   * pixels rather than world units - a drawn stroke, which is selected by its line. A caller with no
+   * zoom to offer (a test, a board at 1:1) passes nothing, and the type answers for 1:1.
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
   /**
    * Which resize handles this type offers (story 9). `'all'` (the default) is the 8 handles round
    * the box; `'horizontal'` is the two sides only, for an object whose height belongs to its
@@ -137,4 +146,21 @@ registerObjectType('connector', {
     return hitConnector(obj.ends, worldPoint, 1);
   },
   handles: 'none',
+});
+
+// Story 11: a drawn stroke is an ordinary box for moving, marquee-selecting, resizing and deleting - and
+// the one type whose click is measured against the line instead of the box, because the box of a
+// scribble is mostly not a scribble. The rule lives in `hitStroke`, and `StrokeObject` draws exactly that
+// width invisibly, so what a person can hit and what the board answers to are one measurement.
+// `aspectLocked` is `pen.resize`: a drawing grows in proportion, or not at all.
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest(obj, worldPoint, zoom) {
+    if (obj.type !== 'stroke') return false;
+    return hitStroke(obj, worldPoint, zoom ?? 1);
+  },
 });

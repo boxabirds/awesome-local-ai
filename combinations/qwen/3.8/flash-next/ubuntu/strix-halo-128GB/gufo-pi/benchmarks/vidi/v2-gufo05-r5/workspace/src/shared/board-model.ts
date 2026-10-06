@@ -41,6 +41,7 @@ import {
 import { type Point, type Rect, rectContains } from './geometry';
 import { readTextObject, type TextSnapshot } from './objects/text';
 import { readShapeObject, type ShapeSnapshot } from './objects/shape';
+import { readStrokeObject, type StrokeSnapshot } from './objects/stroke';
 import {
   detachConnectorsTo,
   readConnectorObject,
@@ -52,6 +53,8 @@ export type { TextSnapshot } from './objects/text';
 export { createShape, setShapeStyle, getShapeLabel } from './objects/shape';
 export { createConnector, setConnectorEndpoint } from './objects/connector';
 export type { ShapeSnapshot } from './objects/shape';
+export { createStroke, scaledPoints, hitStroke } from './objects/stroke';
+export type { StrokeSnapshot, StrokeSnap, PenColor, PenThickness } from './objects/stroke';
 export type { ConnectorSnapshot, Endpoint } from './objects/connector';
 import { LOCAL_ORIGIN } from './y-origin';
 
@@ -78,7 +81,12 @@ export interface StickySnapshot {
 }
 
 /** Any board object snapshot (stories 10–12 add their types to this union). */
-export type ObjectSnapshot = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot;
+export type ObjectSnapshot =
+  | StickySnapshot
+  | TextSnapshot
+  | ShapeSnapshot
+  | ConnectorSnapshot
+  | StrokeSnapshot;
 
 /** True when a snapshot is a sticky note (narrows the `ObjectSnapshot` union). */
 export function isStickySnapshot(obj: ObjectSnapshot): obj is StickySnapshot {
@@ -98,6 +106,11 @@ export function isShapeSnapshot(obj: ObjectSnapshot): obj is ShapeSnapshot {
 /** True when a snapshot is a connector (story 10). */
 export function isConnectorSnapshot(obj: ObjectSnapshot): obj is ConnectorSnapshot {
   return obj.type === 'connector';
+}
+
+/** True when a snapshot is a freehand stroke (story 11). */
+export function isStrokeSnapshot(obj: ObjectSnapshot): obj is StrokeSnapshot {
+  return obj.type === 'stroke';
 }
 
 type ObjectsMap = Y.Map<Y.Map<unknown>>;
@@ -129,6 +142,7 @@ function readObject(id: string, raw: Y.Map<unknown>): ObjectSnapshot | undefined
   // an unknown `type` from a later story is skipped rather than crashing the board
   if (type === 'text') return readTextObject(id, raw);
   if (type === 'shape') return readShapeObject(id, raw);
+  if (type === 'stroke') return readStrokeObject(id, raw);
   if (type !== 'sticky') return undefined;
   const x = raw.get('x');
   const y = raw.get('y');

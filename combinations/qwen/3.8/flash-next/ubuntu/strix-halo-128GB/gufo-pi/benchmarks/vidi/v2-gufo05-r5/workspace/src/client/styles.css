@@ -1053,3 +1053,130 @@ body {
   stroke: var(--focus-ring);
   fill: var(--focus-ring);
 }
+
+/* ---- story 11: the Pen ---- */
+
+/* The stroke being drawn. Screen space, one path, rewritten once per frame: it belongs to this screen
+   and to nobody else, so it is not in the world layer and not in the document. */
+.pen-tool__preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* The nib: how wide the line will be, at the zoom the board is at. It follows the pointer, so the
+   person sees the thickness before they have drawn any of it. */
+.pen-tool__cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* The pen's own bar, beside the left toolbar for as long as the Pen is up. It sets the colour and
+   thickness of the *next* stroke, and is never written to the document. */
+.pen-toolbar {
+  position: fixed;
+  left: 70px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius);
+  box-shadow: 0 1px 4px rgb(15 20 30 / 8%);
+}
+
+.pen-toolbar__swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgb(31 24 48 / 25%);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.pen-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.pen-toolbar__divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--chrome-border);
+}
+
+/* A thickness is shown as a line of that thickness, halved so the three still fit on a 20px button:
+   the word is in the label, the picture is only a reminder. */
+.pen-toolbar__thickness {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--chrome-radius) - 4px);
+  background: transparent;
+  cursor: pointer;
+}
+
+.pen-toolbar__thickness:hover {
+  background: rgb(15 20 30 / 6%);
+}
+
+.pen-toolbar__thickness[aria-pressed='true'] {
+  border-color: var(--focus-ring);
+  background: rgb(47 111 237 / 10%);
+}
+
+.pen-toolbar__thickness-mark {
+  display: block;
+  width: 14px;
+  border-radius: 999px;
+  background: var(--chrome-fg);
+}
+
+/* A drawn stroke: ink, not a box. The wrapper takes no pointers at all - a click inside the bounds of
+   a scribble but far from its line belongs to whatever is underneath (pen.select). */
+.stroke-object {
+  position: absolute;
+  pointer-events: none;
+}
+
+.stroke-object__svg {
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.stroke-object__line {
+  fill: none;
+  pointer-events: none;
+}
+
+/* The invisible target: as wide on the screen as the click tolerance, in world units per render. */
+.stroke-object__hit {
+  stroke: transparent;
+  fill: none;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+/* The selected stroke is ringed by its own box, like every other object, and drawn in the focus
+   colour so it reads as the thing that is selected. */
+.stroke-object[data-selected='true'] .stroke-object__line {
+  stroke: var(--focus-ring);
+}

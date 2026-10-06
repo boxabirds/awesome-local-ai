@@ -247,6 +247,10 @@ export function BoardViewport({
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'touch') return; // touch navigation is out of scope (story 1)
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // Story 11: while the Pen is up a drag sketches. The Pen's own surface covers this one and takes
+    // the pointer first, so this guard is for a press that reaches the viewport anyway: it must not
+    // pan, marquee or deselect behind the pen's back (`pen.navigation`).
+    if (tool === 'pen') return;
     const target = e.target as HTMLElement | null;
     // Only empty board space starts a pan or marquee; board objects handle their own gestures.
     if (target?.closest('[data-board-object]')) return;
@@ -323,6 +327,8 @@ export function BoardViewport({
     if (target?.closest('[data-board-object]')) return;
     // With the Text tool up there is no double-click action: those clicks placed text.
     if (tool === 'text') return;
+    // With the Pen up there is none either: those clicks drew something.
+    if (tool === 'pen') return;
     // …and the second click of the gesture that placed a text is not a request for a sticky note.
     const placed = placedText.current;
     if (

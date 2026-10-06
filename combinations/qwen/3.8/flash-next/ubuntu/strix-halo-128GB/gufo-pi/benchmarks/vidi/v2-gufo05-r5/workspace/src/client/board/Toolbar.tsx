@@ -1,7 +1,8 @@
 /**
  * The fixed left toolbar. Story 2 adds the Sticky note button; story 8 adds Undo and Redo
  * underneath it as their own strip; story 9 puts the two tools - Select and Text - above it; story
- * 10 adds the two drawing tools - Shape, with its kind menu, and Connector.
+ * 10 adds the two drawing tools - Shape, with its kind menu, and Connector; story 11 adds the Pen,
+ * whose colour and thickness live in their own bar beside it.
  */
 import { useState, type JSX, type PointerEvent as ReactPointerEvent } from 'react';
 import { UndoButtons } from './UndoButtons';
@@ -46,6 +47,8 @@ export const TEXT_TOOL_TOOLTIP = 'Text (T) – click the board to write';
 export const SHAPE_TOOL_TOOLTIP = 'Shape (S) – drag the board to draw, or click for a default size';
 /** Tooltip of the Connector tool button. */
 export const CONNECTOR_TOOL_TOOLTIP = 'Connector (L) – drag from one object to another';
+/** Tooltip of the Pen tool button. */
+export const PEN_TOOL_TOOLTIP = 'Pen (P) – draw freehand; release to finish a stroke';
 /** The Shape kind menu, in the order the shapes appear. */
 export const SHAPE_KIND_LABELS: Readonly<Record<ShapeKind, string>> = {
   rect: 'Rectangle',
@@ -200,6 +203,31 @@ export function Toolbar({
             stroke="currentColor"
             strokeWidth="1.6"
             d="M3 12.5 12 4M9.4 3.4H13V7"
+          />
+        </svg>
+      </button>
+      {/* Story 11: the Pen. It stays armed after every stroke, so the button stays pressed until
+          Escape or another tool puts it down. */}
+      <button
+        type="button"
+        className={tool === 'pen' ? 'board-toolbar__button is-active' : 'board-toolbar__button'}
+        data-testid="pen-tool-button"
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        title={canEdit ? PEN_TOOL_TOOLTIP : STICKY_NOTE_LOCKED_TOOLTIP}
+        disabled={!canEdit}
+        onClick={() => {
+          if (!canEdit) return;
+          choose('pen');
+        }}
+      >
+        <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false">
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+            d="M11.4 2.6 13.4 4.6 6.4 11.6 3.4 12.6 4.4 9.6Z"
           />
         </svg>
       </button>

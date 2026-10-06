@@ -18,6 +18,9 @@ import { useUndo } from './board/useUndo';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool, type ShapeCreateRequest } from './tools/ShapeTool';
 import { ConnectorTool, type ConnectorCreateRequest } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
@@ -67,6 +70,10 @@ export function Board(props: { boardId: string }) {
     canEdit: editable,
     selection,
   });
+
+  // Story 11: what the next stroke will be drawn with. Per screen, for this session only - the board
+  // keeps the colour each stroke was drawn in, and never restyles one.
+  const pen = usePenOptions();
 
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
@@ -254,6 +261,27 @@ export function Board(props: { boardId: string }) {
       ) : null}
       {editable && tool === 'connector' ? (
         <ConnectorTool camera={camera} snapshot={objects} onCreate={createConnectorFromTool} />
+      ) : null}
+      {/* Story 11: the Pen draws on its own surface too, and keeps its own counsel: it commits the
+          stroke itself and does not hand over to Select, so the next stroke can start immediately.
+          Its bar is the colour and thickness of the *next* stroke, and is kept out of the document. */}
+      {editable && tool === 'pen' ? (
+        <PenTool
+          camera={camera}
+          color={pen.color}
+          thickness={pen.thickness}
+          doc={doc}
+          identityId={LOCAL_AUTHOR}
+          undo={history.controller}
+        />
+      ) : null}
+      {editable && tool === 'pen' ? (
+        <PenToolbar
+          color={pen.color}
+          thickness={pen.thickness}
+          onColor={pen.setColor}
+          onThickness={pen.setThickness}
+        />
       ) : null}
       {/* Marquee rectangle (screen-space overlay) */}
       <MarqueeRect rect={marquee.rect} camera={camera} />
