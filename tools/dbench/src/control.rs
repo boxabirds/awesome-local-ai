@@ -51,6 +51,17 @@ pub struct CancelRequest {
     pub reason: String,
 }
 
+/// `POST /v1/jobs/{id}/move` body: where to put a queued job. dbench had no way to order a queue, so correcting
+/// a job meant cancel and resubmit, and submit appends -- which once left a run at 26 of 27 eleventh in line for
+/// three days. Moving touches order only: no job's state, work or record changes.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
+#[serde(deny_unknown_fields)]
+pub struct MoveRequest {
+    /// Put it immediately before this queued job; absent means the front of the queue.
+    #[serde(default)]
+    pub before: Option<String>,
+}
+
 /// `POST /v1/jobs/{id}/skip-story` body.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]

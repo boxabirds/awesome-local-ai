@@ -250,6 +250,7 @@ pub fn router(shared: Arc<Shared>) -> Router {
         .route("/v1/jobs", get(list_jobs))
         .route("/v1/jobs/{id}", get(get_job).put(submit))
         .route("/v1/jobs/{id}/cancel", post(cancel))
+        .route("/v1/jobs/{id}/move", post(move_job))
         .route("/v1/jobs/{id}/skip-story", post(skip_story))
         .route("/v1/jobs/{id}/log", get(log))
         .route("/v1/jobs/{id}/events", get(events))
@@ -293,7 +294,11 @@ async fn health() -> Json<serde_json::Value> {
 async fn node(State(st): State<Arc<Shared>>) -> Json<crate::node::NodeInfo> {
     let current = st.lock().current.clone();
     let mut info = crate::node::gather(&st.cfg.repo, &st.cfg.share_dir, &st.cfg.child_path(), current).await;
-    info.hold = st.lock().hold.clone();
+    {
+        let inner = st.lock();
+        info.hold = inner.hold.clone();
+        info.queue = inner.queue.iter().cloned().collect();
+    }
     Json(info)
 }
 
@@ -451,6 +456,58 @@ async fn submit(
     st.log_line(&id, &format!("submitted by {}", peer.ip()));
     st.wake.notify_one();
     (StatusCode::CREATED, Json(st.view(job))).into_response()
+}
+
+/// Move a queued job: to the front, or immediately before another queued job. A held node can be reordered --
+/// that is when it is most useful -- and nothing but the queue's order changes.
+async fn move_job(
+    State(st): State<Arc<Shared>>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    UrlPath(id): UrlPath<String>,
+    body: Bytes,
+) -> Response {
+    let Some(job) = st.job(&id) else {
+        return err(StatusCode::NOT_FOUND, format!("no job {id}"));
+    };
+    // A missing or empty body means the front, as the CLI's bare `move` does.
+    let req = serde_json::from_slice::<crate::control::MoveRequest>(&body).unwrap_or_default();
+    if !matches!(job.state, JobState::Queued) {
+        return err(
+            StatusCode::CONFLICT,
+            format!("job {id} is {}; only a queued job can be moved", job.state.label()),
+        );
+    }
+    // Before itself is a no-op, not a move to the front: asking for a position a job already holds should
+    // never silently relocate it.
+    if req.before.as_deref() == Some(id.as_str()) {
+        let queue = st.lock().queue.iter().cloned().collect::<Vec<_>>();
+        return (StatusCode::OK, Json(json!({ "queue": queue }))).into_response();
+    }
+    let before = req.before.clone();
+    let line = match &before {
+        Some(b) => format!("moved before {b} by {}", peer.ip()),
+        None => format!("moved to the front of the queue by {}", peer.ip()),
+    };
+    let queue = {
+        let mut inner = st.lock();
+        if let Some(b) = &before {
+            if !inner.queue.iter().any(|q| q == b) {
+                let msg = format!("no queued job {b} to move {id} before");
+                drop(inner);
+                return err(StatusCode::BAD_REQUEST, msg);
+            }
+        }
+        inner.queue.retain(|q| q != &id);
+        let at = match &before {
+            Some(b) => inner.queue.iter().position(|q| q == b).unwrap_or(0),
+            None => 0,
+        };
+        inner.queue.insert(at, id.clone());
+        inner.queue.iter().cloned().collect::<Vec<_>>()
+    };
+    st.update(&id, |j, _| j.note(now_secs(), line.clone()));
+    st.log_line(&id, &line);
+    (StatusCode::OK, Json(json!({ "queue": queue }))).into_response()
 }
 
 async fn cancel(

@@ -92,6 +92,9 @@ async fn main() -> Result<()> {
         Cmd::Analyse(args) => dbench::analytics::cmd_analyse(&args, cli.json),
         Cmd::Collect(args) => dbench::collector::cmd_collect(&Ctx::load(cli.config, cli.json)?, &args).await,
         Cmd::Release { node } => client::cmd_release(&Ctx::load(cli.config, cli.json)?, &node).await,
+        Cmd::Move { node, id, before } => {
+            client::cmd_move(&Ctx::load(cli.config, cli.json)?, &node, &id, before.as_deref()).await
+        }
         Cmd::Cancel { node, id, reason } => {
             client::cmd_cancel(&Ctx::load(cli.config, cli.json)?, &node, &id, &reason).await
         }
