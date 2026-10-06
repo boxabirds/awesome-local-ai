@@ -43,10 +43,17 @@ body {
   cursor: grabbing;
 }
 
+/* Story 9: while the Text tool waits, the cursor says what a click will do. */
+.board-viewport[data-tool="text"] {
+  cursor: text;
+}
+
 .board-grid {
   position: absolute;
   inset: 0;
   /* background-image / -size / -position are set inline from the camera */
+  /* The grid is decoration: the board underneath it is what answers pointers. */
+  pointer-events: none;
 }
 
 .board-world {
@@ -189,6 +196,12 @@ body {
   background: #f1f4f8;
 }
 
+/* The tool the board is in is marked on its own button (story 9). */
+.tool-button[aria-pressed="true"] {
+  border-color: var(--vidi6-focus);
+  background: #eaf1fe;
+}
+
 .tool-button:focus-visible {
   outline: 2px solid var(--vidi6-focus);
   outline-offset: 2px;
@@ -279,6 +292,25 @@ body {
   color: rgba(31, 41, 51, 0.6);
   font-variant-numeric: tabular-nums;
   pointer-events: none;
+}
+
+/* ---- Selection bar (story 7) ---- */
+
+/*
+ * Positioned by the component's own left/top, so it sits over the board rather
+ * than in the viewport's normal flow - which is what makes its buttons, story 9's
+ * Text toolbar among them, something a pointer can actually reach.
+ */
+.selection-bar {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 8px;
 }
 
 /* ---- Floating note toolbar (story 2) ---- */
@@ -542,4 +574,75 @@ body {
   margin: 0;
   color: #14532d;
   font-size: 14px;
+}
+
+/* ---- Text objects (story 9) ---- */
+
+/* Plain text on the board: no fill, no border, nothing drawn around it. */
+.text-object {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  /* Must match TEXT_LINE_HEIGHT, which is what the measured height uses. */
+  line-height: 1.3;
+}
+
+.text-object-text {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: pre-wrap;
+  /* A word too long for the box gets a line of its own, exactly as `layoutText`
+   * counts it — breaking it inside the word would make more lines than the
+   * stored height accounts for. */
+  overflow-wrap: normal;
+}
+
+.text-object-editor {
+  resize: none;
+  outline: none;
+  caret-color: var(--vidi6-fg);
+  display: block;
+  overflow: hidden;
+}
+
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.text-toolbar-size,
+.text-toolbar-delete {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 6px;
+  background: var(--vidi6-surface);
+  color: var(--vidi6-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.text-toolbar-size[aria-pressed="true"] {
+  border-color: var(--vidi6-focus);
+  background: #eaf1fe;
+}
+
+.text-toolbar-size:focus-visible,
+.text-toolbar-delete:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
 }

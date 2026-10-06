@@ -5,6 +5,7 @@ import {
   STICKY_COLORS,
   STICKY_MIN_SIZE_WORLD,
   STICKY_SIZE_WORLD,
+  TEXT_SIZES,
   type StickyColor,
 } from "./config";
 import type { Point, Rect } from "./geometry";
@@ -84,7 +85,17 @@ export interface ObjectSnapshot {
   readonly createdAt: number;
   /** Sticky notes only. */
   readonly color?: StickyColor;
+  /** Sticky notes and text objects. */
   readonly text?: string;
+  /** Text objects only (`text.size`, one of `TEXT_SIZES`). */
+  readonly size?: string;
+  /**
+   * Text objects only (`text.fixed_width`): `auto` while the width follows the
+   * content, `fixed` once a handle has set it.
+   */
+  readonly widthMode?: "auto" | "fixed";
+  /** Set by the type's create function when the caller had an identity. */
+  readonly createdBy?: string;
 }
 
 /** A sticky note: an `ObjectSnapshot` that always has its colour and text. */
@@ -335,6 +346,12 @@ export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): num
       write.entry.set("y", write.rect.y);
       write.entry.set("width", write.rect.width);
       write.entry.set("height", write.rect.height);
+      // Story 9: an object whose width still follows its content stops
+      // following it the moment a resize gives it a different width. Its height
+      // is left to whatever the type derives from its content.
+      if (write.entry.get("widthMode") === "auto" && write.entry.get("width") !== write.rect.width) {
+        write.entry.set("widthMode", "fixed");
+      }
     }
   }, LOCAL_ORIGIN);
   return writes.length;
@@ -454,6 +471,9 @@ function asObject(id: string, value: unknown): ObjectSnapshot | undefined {
   const height = value.get("height");
   const color = value.get("color");
   const text = value.get("text");
+  const size = value.get("size");
+  const widthMode = value.get("widthMode");
+  const createdBy = value.get("createdBy");
   const z = value.get("z");
   const createdAt = value.get("createdAt");
 
@@ -472,6 +492,14 @@ function asObject(id: string, value: unknown): ObjectSnapshot | undefined {
           text: text instanceof Y.Text ? text.toString() : "",
         }
       : {}),
+    ...(type === "text"
+      ? {
+          text: text instanceof Y.Text ? text.toString() : "",
+          ...(isTextSize(size) ? { size } : {}),
+          ...(widthMode === "fixed" ? { widthMode } : { widthMode: "auto" as const }),
+        }
+      : {}),
+    ...(typeof createdBy === "string" && createdBy.length > 0 ? { createdBy } : {}),
     z,
     createdAt: isFiniteNumber(createdAt) ? createdAt : 0,
   };
@@ -498,6 +526,11 @@ function compareId(a: string, b: string): number {
 
 function isStickyColor(value: unknown): value is StickyColor {
   return typeof value === "string" && Object.prototype.hasOwnProperty.call(STICKY_COLORS, value);
+}
+
+/** Same check as `isTextSize` in `objects/text.ts`, kept here to avoid a cycle. */
+function isTextSize(value: unknown): value is string {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(TEXT_SIZES, value);
 }
 
 function isFiniteNumber(value: unknown): value is number {

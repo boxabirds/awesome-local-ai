@@ -16,6 +16,7 @@ import {
   ORIGIN_MARKER_SIZE_WORLD,
 } from "../../shared/config";
 import type { MarqueeApi } from "../board/Marquee";
+import type { Tool } from "../board/useTool";
 import type { Camera, Point } from "./camera";
 import { useCamera, useWindowSize, wheelDeltaToPixels, type CameraApi } from "./useCamera";
 
@@ -49,6 +50,13 @@ export interface BoardViewportProps {
    * they keep their size at any zoom.
    */
   overlay?: ReactNode;
+  /**
+   * Story 9: the board's active tool. While `text` is active the next press on
+   * the board writes text there instead of panning, marquee-ing or selecting.
+   */
+  tool?: Tool;
+  /** Story 9: where the Text tool's click lands, as a screen point. */
+  onTextCreate?(point: Point): void;
 }
 
 /** Safari trackpad pinch, which Firefox/Chromium deliver as a Ctrl+wheel. */
@@ -58,7 +66,15 @@ interface GestureEventLike extends Event {
   clientY?: number;
 }
 
-export function BoardViewport({ children, onCreateAtPoint, onEmptyClick, marquee, overlay }: BoardViewportProps) {
+export function BoardViewport({
+  children,
+  onCreateAtPoint,
+  onEmptyClick,
+  marquee,
+  overlay,
+  tool = "select",
+  onTextCreate,
+}: BoardViewportProps) {
   const provided = useContext(CameraApiContext);
   const windowSize = useWindowSize();
   const ownApi = useCamera(windowSize, { testHooks: provided === null });
@@ -88,6 +104,73 @@ export function BoardViewport({ children, onCreateAtPoint, onEmptyClick, marquee
   const panningRef = useRef(false);
   const pressRef = useRef<{ startX: number; startY: number; moved: boolean } | null>(null);
   const gestureRef = useRef<{ prevScale: number } | null>(null);
+  /** Set when the Text tool has just written an object, so the same double-click
+   * does not also create a sticky note. */
+  const textCreatedRef = useRef(false);
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  const textCreateRef = useRef(onTextCreate);
+  textCreateRef.current = onTextCreate;
+
+  // ---- the Text tool takes the board's pointer gestures -----------------
+  //
+  // Attached to the viewport itself in the **capture** phase: the press is
+  // stopped before it reaches a board object, the pan, the marquee or React's
+  // own delegated handler, so while the Text tool waits, a press can only ever
+  // write text — on empty board space or on top of an existing object.
+  // A press that turns into a drag is simply ignored: the Text tool never pans.
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el || tool !== "text") return;
+
+    let press: { pointerId: number; startX: number; startY: number; moved: boolean } | null = null;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      const target = event.target;
+      // A control (the editor's own field, a toolbar button) keeps its behaviour:
+      // typing in an object that is already being edited is not a request to
+      // write another one.
+      if (target instanceof HTMLElement && target.closest("textarea, input, select, button, [contenteditable=\"true\"]")) {
+        return;
+      }
+      press = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false };
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (!press || press.pointerId !== event.pointerId) return;
+      if (Math.hypot(event.clientX - press.startX, event.clientY - press.startY) >= DRAG_THRESHOLD_PX) {
+        press.moved = true;
+      }
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (!press || press.pointerId !== event.pointerId) return;
+      const moved = press.moved;
+      press = null;
+      if (moved) return;
+      textCreatedRef.current = true;
+      textCreateRef.current?.(viewportPoint(event));
+    };
+
+    const onPointerCancel = () => {
+      press = null;
+    };
+
+    el.addEventListener("pointerdown", onPointerDown, true);
+    el.addEventListener("pointerup", onPointerUp, true);
+    el.addEventListener("pointermove", onPointerMove, true);
+    el.addEventListener("pointercancel", onPointerCancel, true);
+    return () => {
+      press = null;
+      el.removeEventListener("pointerdown", onPointerDown, true);
+      el.removeEventListener("pointerup", onPointerUp, true);
+      el.removeEventListener("pointermove", onPointerMove, true);
+      el.removeEventListener("pointercancel", onPointerCancel, true);
+    };
+  }, [tool]);
 
   // ---- wheel (non-passive) and Safari pinch gestures -------------------
   useEffect(() => {
@@ -170,7 +253,9 @@ export function BoardViewport({ children, onCreateAtPoint, onEmptyClick, marquee
     // notes, note toolbars and text fields handle their own gestures.
     return (
       viewport.contains(target) &&
-      target.closest("[data-testid='sticky-note'], [data-testid='note-toolbar'], textarea, button") === null
+      target.closest(
+        "[data-testid='sticky-note'], [data-testid='text-object'], [data-testid='note-toolbar'], [data-testid='text-toolbar'], textarea, button",
+      ) === null
     );
   };
 
@@ -247,6 +332,12 @@ export function BoardViewport({ children, onCreateAtPoint, onEmptyClick, marquee
   };
 
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    // Story 9: the click that wrote text is not also a double-click that
+    // creates a sticky note.
+    if (textCreatedRef.current) {
+      textCreatedRef.current = false;
+      return;
+    }
     if (!isBoardSpace(event.target as HTMLElement)) return;
     onCreateAtPoint?.({ x: event.clientX, y: event.clientY });
   };
@@ -260,6 +351,7 @@ export function BoardViewport({ children, onCreateAtPoint, onEmptyClick, marquee
       className="board-viewport"
       data-testid="board-viewport"
       data-panning={panning ? "true" : "false"}
+      data-tool={tool}
       role="application"
       aria-label="Board"
       tabIndex={0}

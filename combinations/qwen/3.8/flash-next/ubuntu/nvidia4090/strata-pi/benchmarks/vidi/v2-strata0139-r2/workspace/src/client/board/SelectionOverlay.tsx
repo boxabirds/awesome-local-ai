@@ -17,6 +17,9 @@ import { getObjectType } from "../objects/registry";
  * to `useTransformGesture`, which is where resizing is decided.
  */
 
+/** The handles a derived-height object can be resized by. */
+const HORIZONTAL_HANDLES: readonly Handle[] = ["e", "w"];
+
 export interface SelectionOverlayProps {
   ids: ReadonlySet<string>;
   snapshot: readonly ObjectSnapshot[];
@@ -32,6 +35,13 @@ export function SelectionOverlay({ ids, snapshot, camera, onHandlePointerDown }:
   const zoom = Number.isFinite(camera.zoom) && camera.zoom > 0 ? camera.zoom : 1;
   // Handles only exist for a selection something can resize.
   const resizable = objects.some((object) => getObjectType(object.type)?.resizable === true);
+  // Story 9: an object whose height is derived from its content has no top or
+  // bottom edge to drag. A selection made only of those types gets the two side
+  // handles; a mixed selection keeps the whole box, because the box is the
+  // selection's, not any one object's.
+  const horizontalOnly =
+    objects.length > 0 && objects.every((object) => getObjectType(object.type)?.handles === "horizontal");
+  const handles = horizontalOnly ? HORIZONTAL_HANDLES : HANDLES;
 
   // The viewport listens for `wheel` natively, ahead of React, so zooming must
   // be stopped here the same way story 2 stops it on the note toolbar.
@@ -95,7 +105,7 @@ export function SelectionOverlay({ ids, snapshot, camera, onHandlePointerDown }:
       })}
 
       {resizable
-        ? HANDLES.map((handle) => {
+        ? handles.map((handle) => {
             const position = handlePosition(handle, width, height);
             return (
               <button

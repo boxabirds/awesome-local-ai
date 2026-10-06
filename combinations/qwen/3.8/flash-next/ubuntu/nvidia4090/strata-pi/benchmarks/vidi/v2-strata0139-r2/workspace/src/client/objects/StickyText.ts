@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import * as Y from "yjs";
+import type * as Y from "yjs";
 import {
   STICKY_COUNTER_THRESHOLD_CHARS,
   STICKY_FONT_MAX_PX,
@@ -7,6 +7,10 @@ import {
   STICKY_TEXT_MAX_CHARS,
   STICKY_TEXT_PADDING_WORLD,
 } from "../../shared/config";
+import {
+  applyTextDiff as applyTextDiffShared,
+  clampToLimit as clampToLimitShared,
+} from "../../shared/text-edit";
 
 /**
  * Sticky note text logic (`sticky.text`).
@@ -14,13 +18,17 @@ import {
  * Pure, testable pieces of note editing: the length limit, the minimal
  * textarea -> Y.Text diff, the counter rule and the font auto-fit. The React
  * editor component (`StickyTextEditor.tsx`) is only glue around these.
+ *
+ * The clamp and the diff writer moved to `src/shared/text-edit.ts` in story 9,
+ * where text objects share them; they are re-exported here with the note limit
+ * so story 2's callers are unchanged.
  */
+
+export { commonPrefixLength, commonSuffixLength } from "../../shared/text-edit";
 
 /** Drops every character beyond `max` (default `STICKY_TEXT_MAX_CHARS`). */
 export function clampToLimit(next: string, max = STICKY_TEXT_MAX_CHARS): string {
-  if (typeof next !== "string") return "";
-  const limit = Number.isFinite(max) && max >= 0 ? Math.floor(max) : STICKY_TEXT_MAX_CHARS;
-  return next.length <= limit ? next : next.slice(0, limit);
+  return clampToLimitShared(next, max);
 }
 
 /**
@@ -28,30 +36,16 @@ export function clampToLimit(next: string, max = STICKY_TEXT_MAX_CHARS): string 
  * and common suffix are left alone, so a single typed character stays a single
  * insert and text typed concurrently by someone else is never destroyed.
  *
- * Boundaries are moved off surrogate pairs so an emoji is never cut in half.
- * Does nothing (and opens no transaction) when the text is unchanged.
+ * Surrogate-safe, and like every text write it is one transaction per input
+ * event (nested calls join the open transaction).
  */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  if (!(ytext instanceof Y.Text) || typeof next !== "string") return;
-
-  const current = ytext.toString();
-  if (current === next) return;
-
-  const prefix = commonPrefixLength(current, next);
-  const suffix = commonSuffixLength(current, next, prefix);
-  const deleteLength = current.length - prefix - suffix;
-  const insert = next.slice(prefix, next.length - suffix);
-  if (deleteLength === 0 && insert.length === 0) return;
-
-  const apply = () => {
-    if (deleteLength > 0) ytext.delete(prefix, deleteLength);
-    if (insert.length > 0) ytext.insert(prefix, insert);
-  };
-
-  // One transaction per input event (nested calls join the open transaction).
-  const doc = ytext.doc;
-  if (doc) doc.transact(apply, origin);
-  else apply();
+export function applyTextDiff(
+  ytext: Y.Text,
+  next: string,
+  origin: unknown,
+  max = STICKY_TEXT_MAX_CHARS,
+): void {
+  applyTextDiffShared(ytext, next, origin, max);
 }
 
 /** True when `length` leaves `STICKY_COUNTER_THRESHOLD_CHARS` or fewer to type. */
@@ -121,30 +115,4 @@ export function textBoxStyle(extra?: CSSProperties): CSSProperties {
     left: STICKY_TEXT_PADDING_WORLD,
     ...(extra ?? {}),
   };
-}
-
-/** Common prefix in UTF-16 units, moved back off a partial surrogate pair. */
-export function commonPrefixLength(a: string, b: string): number {
-  const max = Math.min(a.length, b.length);
-  let i = 0;
-  while (i < max && a.charCodeAt(i) === b.charCodeAt(i)) i += 1;
-  if (i > 0 && isHighSurrogate(a.charCodeAt(i - 1))) i -= 1;
-  return i;
-}
-
-/** Common suffix that cannot overlap the prefix, aligned to a pair boundary. */
-function commonSuffixLength(a: string, b: string, prefix: number): number {
-  const max = Math.min(a.length - prefix, b.length - prefix);
-  let i = 0;
-  while (i < max && a.charCodeAt(a.length - 1 - i) === b.charCodeAt(b.length - 1 - i)) i += 1;
-  if (i > 0 && isLowSurrogate(a.charCodeAt(a.length - i))) i -= 1;
-  return Math.max(0, i);
-}
-
-function isHighSurrogate(code: number): boolean {
-  return code >= 0xd800 && code <= 0xdbff;
-}
-
-function isLowSurrogate(code: number): boolean {
-  return code >= 0xdc00 && code <= 0xdfff;
 }

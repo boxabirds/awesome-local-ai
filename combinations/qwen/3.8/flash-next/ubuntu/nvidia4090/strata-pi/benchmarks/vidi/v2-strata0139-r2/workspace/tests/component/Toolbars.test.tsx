@@ -117,14 +117,14 @@ describe("sticky.toolbar: the Sticky note tool", () => {
     expect(screen.queryAllByTestId("sticky-note")).toHaveLength(2);
   });
 
-  it("the Sticky note tool is the only story 2 addition to the board toolbar", () => {
+  it("the Sticky note tool keeps its place in the board toolbar beside the two tools", () => {
     const doc = new Y.Doc();
     const screen = render(<App doc={doc} />);
     const button = toolbarButton(screen, "create-sticky");
 
     expect(button.tagName).toBe("BUTTON");
-    expect(button.getAttribute("aria-label")).toBe("Sticky note");
-    expect(button.getAttribute("title")).toBe("Sticky note \u2013 centre of view");
+    expect(button.getAttribute("aria-label")).toBe("Sticky note (N)");
+    expect(button.getAttribute("title")).toBe("Sticky note (N) \u2013 centre of view");
   });
 });
 

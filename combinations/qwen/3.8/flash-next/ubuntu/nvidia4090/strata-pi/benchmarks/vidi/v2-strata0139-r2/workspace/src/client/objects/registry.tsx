@@ -5,6 +5,9 @@ import { objectBounds } from "../../shared/board-model";
 import { rectContains, type Point } from "../../shared/geometry";
 import { STICKY_MIN_SIZE_WORLD } from "../../shared/config";
 import { StickyNote } from "./StickyNote";
+import { TextObject } from "./TextObject";
+import { TEXT_MIN_WIDTH_WORLD } from "../../shared/config";
+import { setTextWidthFixed } from "../../shared/objects/text";
 
 /**
  * The object type registry (`sel.all_types`).
@@ -49,6 +52,19 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** True when the object holds text a person can type into. */
   editableText: boolean;
+  /**
+   * Which selection handles this type takes (story 9): `all` (the default) or
+   * `horizontal`, for an object whose height is derived from its content and
+   * must not be dragged.
+   */
+  handles?: "all" | "horizontal";
+  /**
+   * How a horizontal handle drag writes this type. Only used for a selection
+   * whose types are all `handles: 'horizontal'`; absent means the generic box
+   * resize. A text object needs it because fixing its width is part of its
+   * schema and its height is measured, not dragged.
+   */
+  resizeWidth?(doc: Y.Doc, id: string, width: number): boolean;
   /** Is `worldPoint` on this object? (Board coordinates.) */
   hitTest(object: ObjectSnapshot, worldPoint: Point): boolean;
 }
@@ -94,5 +110,18 @@ registerObjectType("sticky", {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: hitTestBounds,
+});
+
+// Story 9: text is a type added purely through this registry — nothing else in
+// the board knows what a text object is.
+registerObjectType("text", {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: "horizontal",
+  resizeWidth: setTextWidthFixed,
   hitTest: hitTestBounds,
 });

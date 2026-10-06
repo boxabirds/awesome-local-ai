@@ -96,6 +96,40 @@ export const MARQUEE_BORDER_COLOR = "#3b82f6";
 /** Border of the bounding box drawn around a multi-object selection. */
 export const SELECTION_BOX_COLOR = "#2563eb";
 
+// ---- Free text (story 9) -----------------------------------------------
+
+/**
+ * Widest a text object may become while its width is still following its
+ * content (`text.auto_width`). A longer line wraps instead of stretching.
+ */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Narrowest a text object may be fixed to by a side handle (`text.fixed_width`). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Longest text a text object may hold (`text.limit`). */
+export const TEXT_MAX_CHARS = 5000;
+/** The four size presets, in board units of font size (`text.size`). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** A text object created by the Text tool starts at this size (PRD: size M). */
+export const DEFAULT_TEXT_SIZE: TextSize = "M";
+/** Line boxes are this multiple of the font size (height always follows content). */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** The board's standard sans-serif, used for measuring and for rendering. */
+export const TEXT_FONT_FAMILY = "Inter, system-ui, sans-serif";
+/**
+ * Head-room added to a measured line when an automatic box is sized, so the
+ * browser never wraps a line the measurer just fitted (design: "width =
+ * measured line + padding").
+ */
+export const TEXT_PADDING_WORLD = 8;
+/**
+ * Average glyph width as a fraction of the font size, used when no text
+ * measurer is available (no canvas): the estimate, never a throw.
+ */
+export const TEXT_GLYPH_WIDTH_RATIO = 0.5;
+/** Height a fresh text object is given before its first measurement. */
+export const TEXT_INITIAL_HEIGHT_WORLD = Math.round(TEXT_SIZES[DEFAULT_TEXT_SIZE] * TEXT_LINE_HEIGHT);
+
 // ---- Undo and redo (story 8) -------------------------------------------
 
 /**

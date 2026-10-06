@@ -11,6 +11,7 @@ import { endEditNext, useSelection } from "./board/useSelection";
 import { useTransformGesture } from "./board/useTransformGesture";
 import { useMarquee, MarqueeRect } from "./board/Marquee";
 import { useBoardKeys } from "./board/useBoardKeys";
+import { useTool } from "./board/useTool";
 import { UndoControllerContext, useUndo, useUndoHistory } from "./board/useUndo";
 import { SelectionOverlay } from "./board/SelectionOverlay";
 import { SelectionBar } from "./board/SelectionBar";
@@ -20,6 +21,8 @@ import { ConnectionStatus } from "./sync/ConnectionStatus";
 import { SharePanel } from "./pages/SharePanel";
 import { useConnectionTestHook } from "./sync/testHook";
 import { createSticky, deleteObjects } from "../shared/board-model";
+import { createText, setTextSize } from "../shared/objects/text";
+import type { TextSize } from "../shared/config";
 
 /**
  * The board: camera (story 1), objects (story 2), the live room (story 3), the
@@ -64,6 +67,9 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
   );
 
   const selection = useSelection(visible);
+  // Story 9: which tool the board is in. One state, shared by the toolbar buttons,
+  // the keyboard and the viewport's click.
+  const tool = useTool(canEdit);
   // Story 8: one history for this board document, and it belongs to this tab.
   const undo = useUndoHistory(doc);
   const undoState = useUndo(undo, canEdit);
@@ -85,15 +91,6 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
     useCallback((ids: string[], additive: boolean) => selection.setMany(ids, additive), [selection]),
     selectableTypes,
   );
-  useBoardKeys({
-    doc,
-    selection,
-    snapshot: visible,
-    selectableTypes,
-    canEdit,
-    marquee: { active: () => marquee.active(), cancel: () => marquee.cancel() },
-    undo,
-  });
   useConnectionTestHook(connectionState);
 
   const cameraRef = useRef<Camera>(camera);
@@ -119,6 +116,40 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
     const centre: CameraPoint = { x: viewportSize.width / 2, y: viewportSize.height / 2 };
     createAtScreenPoint(centre);
   }, [createAtScreenPoint, viewportSize.width, viewportSize.height]);
+
+  /**
+   * The Text tool (story 9): text written at the point that was clicked, its top
+   * left corner under the cursor, straight into editing. The tool is left behind
+   * on the way, so the click that created this text cannot create another one.
+   */
+  const createTextAtScreenPoint = useCallback(
+    (point: CameraPoint) => {
+      if (!canEdit) return;
+      const world = screenToWorld(cameraRef.current, point);
+      // One created text object is one undo step.
+      undo.boundary();
+      const id = createText(doc, world);
+      undo.boundary();
+      if (typeof id !== "string") return;
+      tool.setTool("select");
+      selection.startEdit(id);
+    },
+    [canEdit, doc, selection, tool, undo],
+  );
+
+  // The keyboard is wired last, because its tool keys and `N` reach the same
+  // creation functions the toolbar buttons use.
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: visible,
+    selectableTypes,
+    canEdit,
+    marquee: { active: () => marquee.active(), cancel: () => marquee.cancel() },
+    undo,
+    tool,
+    onCreateSticky: createAtViewportCentre,
+  });
 
   /** Empty board space: nothing is selected and nothing is being typed in. */
   const clearSelection = useCallback(() => selection.clear(), [selection]);
@@ -146,6 +177,8 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
         onCreateAtPoint={createAtScreenPoint}
         onEmptyClick={clearSelection}
         marquee={marquee}
+        tool={tool.tool}
+        onTextCreate={createTextAtScreenPoint}
         overlay={
           <>
             <SelectionOverlay
@@ -159,6 +192,13 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
               snapshot={visible}
               camera={camera}
               onDelete={deleteSelection}
+              editingId={selection.editingId}
+              onTextSize={(id: string, size: TextSize) => {
+                // One size change is one undo step.
+                undo.boundary();
+                setTextSize(doc, id, size);
+                undo.boundary();
+              }}
             />
           </>
         }
@@ -182,7 +222,7 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
         <MarqueeRect rect={marquee.rect} />
       </BoardViewport>
 
-      <Toolbar onCreateSticky={createAtViewportCentre} undo={undoState} />
+      <Toolbar onCreateSticky={createAtViewportCentre} undo={undoState} canEdit={canEdit} tool={tool} />
       <ZoomControls
         zoomPercent={board.zoomPercent}
         canZoomIn={board.canZoomIn}

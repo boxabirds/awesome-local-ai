@@ -15,12 +15,13 @@ import {
   unionRects,
   resizeRect,
   type Handle,
+  type MinSize,
   type Point,
   type Rect,
 } from "../../shared/geometry";
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from "../../shared/config";
 import type { Camera } from "../canvas/camera";
-import { getObjectType } from "../objects/registry";
+import { getObjectType, type ObjectTypeSpec } from "../objects/registry";
 import type { SelectionApi } from "./useSelection";
 
 /**
@@ -386,7 +387,7 @@ function applyResize(
   const box = gesture.box;
   if (!box) return;
 
-  const entries: Array<{ id: string; rect: Rect; minSize: number }> = [];
+  const entries: Array<{ id: string; rect: Rect; minSize: MinSize; spec: ObjectTypeSpec; autoWidth: boolean }> = [];
   for (const id of gesture.ids) {
     const object = present.get(id);
     const start = gesture.startRects.get(id);
@@ -394,7 +395,17 @@ function applyResize(
     const spec = getObjectType(object.type);
     // An object whose type this client cannot render is never resized.
     if (!spec || !spec.resizable) continue;
-    entries.push({ id, rect: start, minSize: spec.minSize });
+    // A type's minimum is a floor on its **draggable** dimensions. A text object
+    // has a minimum width and no minimum height at all — its height is measured
+    // from its content — and giving its height a floor too would stop a whole
+    // group shrinking because one short line of text is in it.
+    entries.push({
+      id,
+      rect: start,
+      minSize: spec.handles === "horizontal" ? { width: spec.minSize, height: 0 } : spec.minSize,
+      spec,
+      autoWidth: spec.handles === "horizontal" && object.widthMode !== "fixed",
+    });
   }
   if (entries.length === 0) return;
 
@@ -409,9 +420,51 @@ function applyResize(
   // reaches its limit, and further pointer movement changes nothing.
   const finalBox = boxForScale(box, gesture.handle, scale, gesture.aspectLocked);
 
+  // Nothing but horizontal-handle types on a side handle is a **width drag**:
+  // the type's own commit is asked for (for a text object, its width becoming
+  // fixed is part of its schema) and the height that belongs to the new width is
+  // measured by that type's own box sync, never dragged here. In a mixed
+  // selection the generic box resize stands: every object is repositioned
+  // proportionally inside the box, which scales a fixed width.
+  const widthDrag =
+    (gesture.handle === "e" || gesture.handle === "w") &&
+    entries.every((entry) => entry.spec.handles === "horizontal");
+
   const rects = new Map<string, Rect>();
-  for (const entry of entries) rects.set(entry.id, scaleWithin(entry.rect, box, finalBox));
-  resizeObjects(doc, rects);
+  const moves = new Map<string, Point>();
+  for (const entry of entries) {
+    const scaled = scaleWithin(entry.rect, box, finalBox);
+    if (!widthDrag) {
+      // An object whose width follows its content is only **repositioned** by a
+      // group resize: scaling its width would fix it, which its type says must
+      // not happen by dragging a box it happens to share with something else.
+      // Its own box sync gives it the width its content needs at the new place.
+      rects.set(
+        entry.id,
+        entry.autoWidth ? { x: scaled.x, y: scaled.y, width: entry.rect.width, height: entry.rect.height } : scaled,
+      );
+      continue;
+    }
+    if (entry.spec.resizeWidth) entry.spec.resizeWidth(doc, entry.id, scaled.width);
+    else rects.set(entry.id, { ...scaled, height: entry.rect.height });
+
+    // Dragging the west handle keeps the east edge still, which means the object
+    // moves by exactly as much as its width shrank - including the width the type
+    // clamped to its own minimum. Dragging the east handle leaves `x` alone.
+    const minWidth = typeof entry.minSize === "number" ? entry.minSize : entry.minSize.width ?? 0;
+    if (gesture.handle === "w") {
+      const applied = Math.max(minWidth, scaled.width);
+      const targetX = entry.rect.x + entry.rect.width - applied;
+      const current = present.get(entry.id);
+      const from = typeof current?.x === "number" ? current.x : entry.rect.x;
+      const y = typeof current?.y === "number" ? current.y : entry.rect.y;
+      if (targetX !== from) moves.set(entry.id, { x: targetX, y });
+    }
+  }
+  if (rects.size > 0) resizeObjects(doc, rects);
+  // Positions are corrected after the width, so the anchor is computed against
+  // the width that was actually stored.
+  if (moves.size > 0) moveObjects(doc, moves);
 }
 
 function elementOf(event: PointerLike): HTMLElement | null {

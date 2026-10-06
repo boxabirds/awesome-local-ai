@@ -105,6 +105,23 @@ export function resizeRect(start: Rect, handle: Handle, delta: Point, aspectLock
 }
 
 /**
+ * A type's minimum size: the same floor on both axes, or a floor on one axis
+ * only. Story 9's text object has a minimum width and no minimum height, because
+ * its height is measured from its content and is never dragged.
+ */
+export type MinSize = number | { width?: number; height?: number };
+
+function axisMinimums(min: MinSize): { width: number; height: number } {
+  if (typeof min === "number") {
+    const value = isFiniteNumber(min) && min > 0 ? min : 0;
+    return { width: value, height: value };
+  }
+  const width = min && isFiniteNumber(min.width) && (min.width as number) > 0 ? (min.width as number) : 0;
+  const height = min && isFiniteNumber(min.height) && (min.height as number) > 0 ? (min.height as number) : 0;
+  return { width, height };
+}
+
+/**
  * The single scale a group resize may apply.
  *
  * Every rect is measured against its own type's minimum and against one global
@@ -115,7 +132,7 @@ export function resizeRect(start: Rect, handle: Handle, delta: Point, aspectLock
 export function clampScale(
   scale: Point,
   rects: readonly Rect[],
-  minSizes: readonly number[],
+  minSizes: readonly MinSize[],
   maxSize: number,
 ): Point {
   if (!isFiniteNumber(scale?.x) || !isFiniteNumber(scale?.y)) return { x: 1, y: 1 };
@@ -129,15 +146,15 @@ export function clampScale(
 
   rects.forEach((rect, index) => {
     if (!isRect(rect)) return;
-    const min = isFiniteNumber(minSizes[index]) && minSizes[index] > 0 ? minSizes[index] : 0;
+    const min = axisMinimums(minSizes[index] as MinSize);
     const max = isFiniteNumber(maxSize) && maxSize > 0 ? maxSize : Number.POSITIVE_INFINITY;
 
     if (rect.width > 0) {
-      loX = Math.max(loX, min / rect.width);
+      loX = Math.max(loX, min.width / rect.width);
       hiX = Math.min(hiX, max / rect.width);
     }
     if (rect.height > 0) {
-      loY = Math.max(loY, min / rect.height);
+      loY = Math.max(loY, min.height / rect.height);
       hiY = Math.min(hiY, max / rect.height);
     }
   });

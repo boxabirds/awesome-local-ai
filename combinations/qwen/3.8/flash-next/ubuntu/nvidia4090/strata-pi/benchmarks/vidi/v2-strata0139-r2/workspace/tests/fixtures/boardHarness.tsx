@@ -1,20 +1,23 @@
-import { createElement, useMemo, useRef, type MutableRefObject } from "react";
+import { createElement, useCallback, useMemo, useRef, type MutableRefObject } from "react";
 import * as Y from "yjs";
 import { App } from "../../src/client/App";
 import { BoardViewport, CameraApiContext } from "../../src/client/canvas/BoardViewport";
 import { useCamera, useWindowSize } from "../../src/client/canvas/useCamera";
 import type { Camera } from "../../src/client/canvas/camera";
+import { screenToWorld } from "../../src/client/canvas/camera";
 import { useBoardDoc } from "../../src/client/board/useBoardDoc";
 import { endEditNext, useSelection, type SelectionApi } from "../../src/client/board/useSelection";
 import { useTransformGesture } from "../../src/client/board/useTransformGesture";
 import { MarqueeRect, useMarquee } from "../../src/client/board/Marquee";
 import { useBoardKeys } from "../../src/client/board/useBoardKeys";
+import { useTool } from "../../src/client/board/useTool";
 import { SelectionOverlay } from "../../src/client/board/SelectionOverlay";
 import { SelectionBar } from "../../src/client/board/SelectionBar";
 import { UndoControllerContext, useUndoHistory } from "../../src/client/board/useUndo";
 import type { UndoController } from "../../src/client/board/undo";
 import { getObjectType, registeredObjectTypes } from "../../src/client/objects/registry";
 import { deleteObjects } from "../../src/shared/board-model";
+import { createText } from "../../src/shared/objects/text";
 
 /**
  * The board the component tests mount.
@@ -74,6 +77,18 @@ export function BoardHarness({
   );
 
   const selection = useSelection(visible);
+  // Story 9: the same tool state the real board has.
+  const tool = useTool(canEdit);
+  const createTextAtScreenPoint = useCallback(
+    (point: { x: number; y: number }) => {
+      if (!canEdit) return;
+      const id = createText(doc, screenToWorld(camera, point));
+      if (typeof id !== "string") return;
+      tool.setTool("select");
+      selection.startEdit(id);
+    },
+    [canEdit, camera, doc, selection, tool],
+  );
   const ownHistory = useUndoHistory(doc);
   const controller = undo ?? ownHistory;
   const gesture = useTransformGesture({
@@ -107,6 +122,7 @@ export function BoardHarness({
     canEdit,
     marquee: { active: () => marquee.active(), cancel: () => marquee.cancel() },
     undo: controller,
+    tool,
   });
 
   handleRef.current = {
@@ -126,6 +142,8 @@ export function BoardHarness({
         onCreateAtPoint={() => undefined}
         onEmptyClick={() => selection.clear()}
         marquee={marquee}
+        tool={tool.tool}
+        onTextCreate={createTextAtScreenPoint}
         overlay={
           <>
             <SelectionOverlay
