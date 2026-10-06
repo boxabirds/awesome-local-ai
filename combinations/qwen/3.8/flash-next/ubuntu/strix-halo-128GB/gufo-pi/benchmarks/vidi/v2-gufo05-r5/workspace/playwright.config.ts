@@ -39,6 +39,25 @@ const CANDIDATES: Candidate[] = [
   },
 ];
 
+/**
+ * Story 4's tests that own their server (`tests/e2e-restart`): they kill it and start another one
+ * over the same storage, which is the only honest way to test "the board was on disk". They ride
+ * with Chromium, and they run one at a time because each binds a fixed port pair and reads the
+ * storage directory belonging to that server.
+ *
+ * They are a project inside this config rather than a config of their own because Playwright allows
+ * exactly one global web server: the restart tests must leave the shared one alone (never kill it,
+ * never clear its storage), so they start servers of their own on other ports, and they are kept
+ * out of the browser projects by living in their own test directory.
+ */
+const RESTART_PROJECT: PlaywrightTestProject = {
+  name: 'chromium-restart',
+  testDir: './tests/e2e-restart',
+  use: { ...devices['Desktop Chrome'], viewport: VIEWPORT },
+  fullyParallel: false,
+  workers: 1,
+};
+
 const skipNotice = (name: string): string =>
   `[vidi6] e2e: skipping "${name}" - its browser cannot launch on this host (missing system ` +
   `libraries; try "npx playwright install-deps ${name}"). Its tests stay in the suite and run on ` +
@@ -68,9 +87,15 @@ async function isLaunchable(browserType: BrowserType): Promise<boolean> {
 async function resolveProjects(): Promise<PlaywrightTestProject[]> {
   const fromMainProcess = process.env.VIDI6_E2E_ENGINES;
   if (fromMainProcess !== undefined) {
-    return CANDIDATES.filter((candidate) =>
-      fromMainProcess.split(',').includes(candidate.name),
-    ).map((candidate) => ({ name: candidate.name, use: candidate.use }));
+    const engines = fromMainProcess.split(',');
+    return [
+      ...CANDIDATES.filter((candidate) => engines.includes(candidate.name)).map((candidate) => ({
+        name: candidate.name,
+        use: candidate.use,
+      })),
+      // the restart project rides on Chromium, so workers are told about it the same way
+      ...(engines.includes('chromium') ? [RESTART_PROJECT] : []),
+    ];
   }
 
   const pinned = (process.env.VIDI6_E2E_BROWSERS ?? '')
@@ -95,7 +120,16 @@ async function resolveProjects(): Promise<PlaywrightTestProject[]> {
     }
   }
 
-  process.env.VIDI6_E2E_ENGINES = projects.map((project) => project.name).join(',');
+  const engines = projects.map((project) => project.name);
+  // the restart tests need a launchable browser too, and Chromium is the one they are written for
+  if (engines.includes('chromium')) {
+    projects.push(RESTART_PROJECT);
+  } else {
+    console.warn(
+      '[vidi6] e2e: skipping "chromium-restart" - its browser cannot launch on this host.',
+    );
+  }
+  process.env.VIDI6_E2E_ENGINES = engines.join(',');
   return projects;
 }
 
@@ -117,8 +151,11 @@ export default defineConfig({
   projects: await resolveProjects(),
   webServer: {
     // Serve the client through the same path production uses: `wrangler dev` over dist/client.
-    // `--mode test` enables the window.__vidi6 test hook (see src/client/canvas/testHooks.ts).
-    command: `npm run build:test && npx wrangler dev --config wrangler.jsonc --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT} --persist-to .wrangler/e2e`,
+    // `--mode test` enables the window.__vidi6 test hook (see src/client/canvas/testHooks.ts), and
+    // `--var TEST_HOOKS:1` the Worker's storage hooks (see src/worker/test-hooks.ts). Neither is in
+    // wrangler.jsonc, so a production deploy has neither; a reused server started without them will
+    // make the storage test fail rather than pass quietly.
+    command: `npm run build:test && npx wrangler dev --config wrangler.jsonc --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT} --persist-to .wrangler/e2e --var TEST_HOOKS:1`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

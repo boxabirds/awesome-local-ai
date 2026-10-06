@@ -134,3 +134,47 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
  * LIVE_UPDATE_LATENCY_BUDGET_MS instead of asserted.
  */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+// ---- Persistence (story 4) --------------------------------------------------
+
+/**
+ * How many update rows a board's log may hold before the room folds it into a fresh
+ * snapshot. This is what bounds the work a board has to do when it wakes up: at most one
+ * snapshot plus fewer than this many log rows, however long the board has been lived in.
+ */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** Or when the log's bytes reach this, whichever comes first. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Size of one snapshot row. Rows are kept small on purpose: SQLite-backed Durable Objects
+ * have a per-row size limit (Cloudflare's limits page puts it in the megabytes), and a
+ * long-lived board must never grow a row past it. A fifth of a megabyte is far below every
+ * number documented while this story was written, and a snapshot is read by concatenating
+ * its rows, so chunking costs one extra row per half megabyte.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/**
+ * A board whose storage could not be read keeps trying, but no more often than this: a
+ * broken board that everybody has open must not hammer the database.
+ */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** The largest board this product is tested with (PRD persist.large_board). */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/**
+ * How long a saved board of `PERSIST_TESTED_NOTES` notes may take to appear (PRD
+ * persist.large_board). The e2e suite measures and reports it rather than asserting it:
+ * model, browsers and server share one machine.
+ */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/**
+ * The version of the *storage tables* (not of the board document, which has its own
+ * `meta.schemaVersion`). Written once into `storage_meta`; a future story that changes the
+ * tables bumps it and migrates.
+ */
+export const STORAGE_SCHEMA_VERSION = 1;

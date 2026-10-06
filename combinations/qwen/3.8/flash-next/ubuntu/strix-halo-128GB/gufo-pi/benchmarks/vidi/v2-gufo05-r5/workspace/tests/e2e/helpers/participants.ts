@@ -27,6 +27,14 @@ export function boardUrl(boardId: string): string {
   return `/b/${boardId}`;
 }
 
+/**
+ * The suite's shared dev server, for the rare test that talks to it from Node instead of from a
+ * page - seeding a board, or calling a storage hook. The same address the config starts it on.
+ */
+export const SHARED_SERVER_HTTP = `http://127.0.0.1:${Number(process.env.VIDI6_E2E_PORT ?? 28816)}`;
+/** ...and the WebSocket scheme of it, which is what a seeder connects to. */
+export const SHARED_SERVER_WS = SHARED_SERVER_HTTP.replace(/^http/, 'ws');
+
 /** Network noise that is a fact about this sandbox, not about the board. */
 const BENIGN_CONSOLE = [
   /favicon/i,
@@ -111,7 +119,13 @@ export function personAt(participants: readonly Participant[], index: number): P
   return found;
 }
 
-export type BoardConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+/** Mirrors `ConnectionState` in the client, including the state that says the board is unreadable. */
+export type BoardConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
 
 export function connectionState(participant: Participant): Promise<BoardConnectionState> {
   return participant.page.evaluate(() => window.__vidi6?.connectionState() ?? 'connecting');

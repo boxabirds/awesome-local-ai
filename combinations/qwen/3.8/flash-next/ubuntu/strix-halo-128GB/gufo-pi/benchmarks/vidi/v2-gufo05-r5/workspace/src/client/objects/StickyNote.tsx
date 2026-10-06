@@ -48,6 +48,12 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * Whether this note may be changed (story 4). False while the room could not load the board:
+   * the note can still be selected and read, but it cannot be dragged, typed in, recoloured or
+   * deleted.
+   */
+  canEdit?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: EndEditNext): void;
@@ -91,6 +97,7 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  canEdit = true,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -105,6 +112,11 @@ export function StickyNote({
   // frame was scheduled with
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
+  // the drag loop writes positions from a scheduled frame, so it reads the current answer rather
+  // than the one its callback was created with: a board that turns read-only halfway through a
+  // drag leaves the note where it is
+  const canEditRef = useRef(canEdit);
+  canEditRef.current = canEdit;
 
   const interaction = useRef<Interaction>({ ...IDLE });
 
@@ -122,6 +134,7 @@ export function StickyNote({
   const applyPosition = useCallback((): boolean => {
     const state = interaction.current;
     if (state.state !== 'dragging') return true;
+    if (!canEditRef.current) return true;
     const currentZoom = zoomRef.current > 0 ? zoomRef.current : 1;
     const x = state.originX + (state.latestX - state.startX) / currentZoom;
     const y = state.originY + (state.latestY - state.startY) / currentZoom;
@@ -160,6 +173,12 @@ export function StickyNote({
     // panning the board starts on empty space only: a note never pans the board
     event.stopPropagation();
     if (editing) return; // typing (and selecting text) is the textarea's business
+    if (!canEdit) {
+      // selecting a note is not changing it, so this still happens; what does not happen is the
+      // press that would turn into a drag (story 4)
+      onSelect(note.id);
+      return;
+    }
 
     const element = ref.current;
     element?.setPointerCapture?.(event.pointerId);
@@ -233,6 +252,8 @@ export function StickyNote({
     event.preventDefault();
     if (editing) return;
     onSelect(note.id);
+    // no editing on a board that could not be loaded (story 4)
+    if (!canEdit) return;
     onStartEdit(note.id);
   };
 
@@ -300,10 +321,13 @@ export function StickyNote({
       {selected && !editing && !dragging ? (
         <NoteToolbar
           color={note.color}
+          canEdit={canEdit}
           onColor={(color: StickyColor) => {
+            if (!canEdit) return;
             setStickyColor(doc, note.id, color); // text, position and selection untouched
           }}
           onDelete={() => {
+            if (!canEdit) return;
             deleteObject(doc, note.id);
             onEndEdit('unselected');
           }}

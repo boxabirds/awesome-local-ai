@@ -9,6 +9,11 @@
  * - anything else -> the static assets, with the SPA fallback serving `index.html` for
  *   client-side routes such as `/b/<boardId>`
  *
+ * One thing is routed before all of that, and only when `TEST_HOOKS=1`: the storage hooks at
+ * `/__test/boards/:boardId/{corrupt-snapshot,repair}` (see `test-hooks.ts`). With the switch off -
+ * which is every config but the e2e dev server's - those paths are not `/api/...` either, so they
+ * land on the assets and get the SPA's `index.html`, exactly like any unknown address.
+ *
  * Isolation (`live.isolation`): `idFromName(boardId)` gives every board its own Durable
  * Object, so a room only ever holds one board's document and only broadcasts to that
  * board's sockets.
@@ -19,6 +24,7 @@
  */
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { deliverStorageHook, parseStorageHook, testHooksEnabled } from './test-hooks';
 
 export { BoardRoom };
 
@@ -28,6 +34,8 @@ export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client, served for every path that is not the room API. */
   ASSETS: Fetcher;
+  /** `'1'` turns on the test-only storage hooks. Set by the e2e dev servers, never in production. */
+  TEST_HOOKS?: string;
 }
 
 const ROOM_PREFIX = '/api/rooms/';
@@ -59,6 +67,16 @@ export default {
   // `ctx` is always passed by the runtime; optional so a test can call the handler directly.
   async fetch(request: Request, env: Env, _ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    // Switched off unless the environment says so, which production config never does: the hooks
+    // let an end-to-end test make a board unreadable and readable again while the server runs.
+    if (testHooksEnabled(env)) {
+      const hook = parseStorageHook(url.pathname);
+      if (hook !== null) {
+        if (!isValidBoardId(hook.boardId)) return statusResponse(400, 'Bad Request');
+        return deliverStorageHook(env, hook.boardId, hook.action);
+      }
+    }
 
     if (!url.pathname.startsWith(API_PREFIX)) {
       // the client, and the SPA fallback for `/b/<boardId>` and friends

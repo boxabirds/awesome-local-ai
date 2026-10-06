@@ -9,6 +9,7 @@ import { IS_TEST_MODE, registerTestHooks } from './canvas/testHooks';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
@@ -74,6 +75,11 @@ function Board(props: { boardId: string }) {
   const { doc, notes, connection } = useBoardDoc(props.boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
+  // Story 4: while the room cannot produce this board, this screen is not holding a copy of it,
+  // so nothing here may write. Navigation, selection and reading go on working - which is how the
+  // person can still find the note they were looking at while the room retries.
+  const editable = canEdit(connection);
+
   // A note deleted (by the bin button, a key, or another user later) is neither selected
   // nor edited any more; the stale ids are ignored rather than acted upon.
   const selected = notes.some((note) => note.id === selectedId);
@@ -103,12 +109,13 @@ function Board(props: { boardId: string }) {
   /** Creates a note centred on a screen point and starts typing it. */
   const createAtScreenPoint = useCallback(
     (point: { x: number; y: number }) => {
+      if (!editable) return;
       const id = createSticky(doc, screenToWorld(getCamera(), point));
       if (!id) return;
       select(id);
       startEdit(id);
     },
-    [doc, getCamera, select, startEdit],
+    [doc, editable, getCamera, select, startEdit],
   );
 
   /** The Sticky note button: a note in the middle of what the user can see. */
@@ -119,6 +126,7 @@ function Board(props: { boardId: string }) {
   // ---- keyboard: Enter edits the selected note, Delete/Backspace removes it ----
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!editable) return; // a board that could not be loaded is not edited by a keystroke
       if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
       // while a note's text is being edited the keys belong to the text: Delete and
       // Backspace edit characters and the note is never removed
@@ -138,12 +146,13 @@ function Board(props: { boardId: string }) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selectedNoteId, editingNoteId, startEdit, select]);
+  }, [doc, editable, selectedNoteId, editingNoteId, startEdit, select]);
 
   return (
     <>
       <BoardViewport
         onCreateAt={createAtScreenPoint}
+        canEdit={editable}
         onClearSelection={() => {
           select(null);
         }}
@@ -156,13 +165,14 @@ function Board(props: { boardId: string }) {
             zoom={camera.zoom}
             selected={note.id === selectedNoteId}
             editing={note.id === editingNoteId}
+            canEdit={editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtViewportCentre} />
+      <Toolbar onCreateSticky={createAtViewportCentre} canEdit={editable} />
       <ConnectionStatus state={connection} />
       <BoardChrome
         zoomPercent={zoomPercent(camera)}

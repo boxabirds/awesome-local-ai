@@ -10,6 +10,8 @@
  *   connected      the socket is open and the board is in sync (nothing shown)
  *   reconnecting   the connection dropped after the board had been live
  *   confirmed      just back after a drop; held for CONNECTED_CONFIRMATION_MS, then hidden
+ *   load_failed    the room said it could not load this board (story 4): the board is not to be
+ *                  trusted, so it is read-only until a sync works
  * ```
  *
  * The provider does the re connecting: it retries with exponential backoff up to
@@ -23,8 +25,26 @@ import {
   RECONNECT_MAX_BACKOFF_MS,
   RESYNC_INTERVAL_MS,
 } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
+
+/**
+ * Whether the person may change the board in this connection state.
+ *
+ * Every state but `load_failed` says the board on this screen is a copy of the board the room is
+ * serving, so changes made to it are welcome. `load_failed` says the opposite: the room could not
+ * produce the board, so anything typed here would go onto a board that is not the one the address
+ * names, and would be seen by whoever loads it properly next.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 export interface BoardConnection {
   /** Closes the connection and stops the provider listening to the document. */
@@ -135,6 +155,12 @@ export function connectBoard(
   let state: ConnectionState = 'connecting';
   /** Whether this board has ever been live; everything after that first sync is a reconnect. */
   let hadBeenLive = false;
+  /**
+   * Set when the room closes a connection saying it could not load the board, and cleared only by
+   * a sync that worked. It is not cleared by any other close: the retry after a load failure often
+   * ends in a plain dropped socket, and "we still do not have the board" is the fact that matters.
+   */
+  let loadFailed = false;
   /** Set while the connection is down, so the next sync is a return and gets confirmed. */
   let awaitingReturn = false;
   let confirmTimer: ReturnType<typeof setTimeout> | undefined;
@@ -156,6 +182,17 @@ export function connectBoard(
   const evaluate = (): void => {
     const live = provider.wsconnected && provider.synced;
     if (live) {
+      if (loadFailed) {
+        // The room got the board after all - it retries on its own, and one of those retries
+        // worked. The changes this tab made in the meantime are ordinary Yjs changes and merge
+        // themselves, so the person can carry on with no reload.
+        loadFailed = false;
+        hadBeenLive = true;
+        awaitingReturn = false;
+        clearConfirmation();
+        publish('connected');
+        return;
+      }
       if (!hadBeenLive) {
         hadBeenLive = true;
         awaitingReturn = false;
@@ -177,7 +214,33 @@ export function connectBoard(
     // a confirmation that is still counting down is off: the link dropped again first
     clearConfirmation();
     if (hadBeenLive) awaitingReturn = true;
-    publish(hadBeenLive ? 'reconnecting' : 'connecting');
+    publish(loadFailed ? 'load_failed' : hadBeenLive ? 'reconnecting' : 'connecting');
+  };
+
+  /**
+   * What a close means depends on why the room closed it.
+   *
+   * `CLOSE_BOARD_LOAD_FAILED` is the one message a room can send that says "the board is the
+   * problem", and it is the only reason to stop trusting the board on this screen. Everything else
+   * - `CLOSE_STORAGE_FAILURE` (1011: a write could not be stored, so this tab's unsaved changes are
+   *   still in its document and go out again when the connection returns), a network drop, a socket
+   *   this tab dropped itself - is an ordinary outage: the board this tab holds is a real copy of
+   *   the board, and reading and editing it is exactly what a person wants to keep doing.
+   */
+  const onClose = (event: CloseEvent | null): void => {
+    if (event !== null && event.code === CLOSE_BOARD_LOAD_FAILED) {
+      // A decision, not a reading. `connection-close` is emitted before the provider stops
+      // counting this socket as live, so asking `evaluate` here would find a connection that
+      // still looks fine and would clear the flag again a moment later. The room has said the
+      // board is the problem: that is the state until a sync proves otherwise.
+      loadFailed = true;
+      clearConfirmation();
+      publish('load_failed');
+      return;
+    }
+    // Anything else is an ordinary outage, and the status events that follow describe it: the
+    // provider reconnects on its own, and `evaluate` says what that looks like.
+    evaluate();
   };
 
   const onStatus = (): void => evaluate();
@@ -194,6 +257,7 @@ export function connectBoard(
 
   provider.on('status', onStatus);
   provider.on('sync', onSync);
+  provider.on('connection-close', onClose);
   // Report the starting state unconditionally: a caller that reuses this hook for another
   // board has to be told the connection started over, even though the state is still
   // "connecting" as far as this connection is concerned.
@@ -207,6 +271,7 @@ export function connectBoard(
       window.removeEventListener('online', onBrowserOnline);
       provider.off('status', onStatus);
       provider.off('sync', onSync);
+      provider.off('connection-close', onClose);
       provider.destroy();
     },
   };

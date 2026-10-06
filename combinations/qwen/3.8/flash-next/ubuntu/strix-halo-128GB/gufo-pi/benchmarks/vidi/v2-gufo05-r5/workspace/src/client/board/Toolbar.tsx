@@ -7,12 +7,19 @@ import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 export interface ToolbarProps {
   /** Creates a note at the centre of the visible board area and starts editing it. */
   onCreateSticky(): void;
+  /**
+   * False while the room could not load the board (story 4). The button stays where it is and says
+   * why it is not answering, instead of quietly making a note that belongs to a board nobody has.
+   */
+  canEdit?: boolean;
 }
 
 /** Tooltip (and accessible hint) of the Sticky note button, as worded in the PRD. */
 export const STICKY_NOTE_TOOLTIP = 'Sticky note – or double-click the board';
+/** Why the button is switched off, in the same place the tooltip normally explains it. */
+export const STICKY_NOTE_LOCKED_TOOLTIP = 'The board could not be loaded, so it cannot be edited';
 
-export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, canEdit = true }: ToolbarProps): JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -28,8 +35,10 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
         className="board-toolbar__button"
         data-testid="create-sticky-button"
         aria-label="Sticky note"
-        title={STICKY_NOTE_TOOLTIP}
+        title={canEdit ? STICKY_NOTE_TOOLTIP : STICKY_NOTE_LOCKED_TOOLTIP}
+        disabled={!canEdit}
         onClick={() => {
+          if (!canEdit) return;
           onCreateSticky();
         }}
       >

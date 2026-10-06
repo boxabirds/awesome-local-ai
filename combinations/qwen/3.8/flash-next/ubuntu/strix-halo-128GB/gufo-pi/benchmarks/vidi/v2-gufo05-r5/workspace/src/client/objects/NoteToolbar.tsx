@@ -10,6 +10,12 @@ import { STICKY_COLORS, type StickyColor } from '../../shared/config';
 export interface NoteToolbarProps {
   /** The note's current colour, shown as pressed. */
   color: StickyColor;
+  /**
+   * False while the board could not be loaded (story 4): the swatches and the bin are disabled
+   * rather than hidden, so the board does not rearrange itself around a problem and the tools are
+   * still where the person left them when it loads.
+   */
+  canEdit?: boolean;
   onColor(color: StickyColor): void;
   onDelete(): void;
 }
@@ -27,7 +33,7 @@ function stopPropagation(event: { stopPropagation(): void }): void {
   event.stopPropagation();
 }
 
-export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX.Element {
+export function NoteToolbar({ color, canEdit = true, onColor, onDelete }: NoteToolbarProps): JSX.Element {
   return (
     <div
       className="sticky-note__toolbar"
@@ -47,6 +53,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX
           style={{ background: STICKY_COLORS[name] }}
           aria-label={stickyColorLabel(name)}
           title={stickyColorLabel(name)}
+          disabled={!canEdit}
           aria-pressed={color === name}
           onClick={() => {
             onColor(name);
@@ -59,6 +66,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX
         data-testid="note-delete"
         aria-label="Delete note"
         title="Delete note"
+        disabled={!canEdit}
         onClick={() => {
           onDelete();
         }}

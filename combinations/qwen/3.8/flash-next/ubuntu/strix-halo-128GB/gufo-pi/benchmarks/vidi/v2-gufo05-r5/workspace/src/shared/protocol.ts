@@ -38,6 +38,20 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
 /**
+ * Close code sent to a socket whose board could not be loaded from storage (story 4).
+ * A tab that sees this says "This board couldn't be loaded. Retrying…" and stops offering
+ * the board for editing: an empty board here would look like a deleted one.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/**
+ * Close code sent to every socket when the room could not write a change (story 4). The
+ * change was never broadcast, so nobody saw it as saved; each tab keeps it in its own
+ * document and re-sends it on reconnect, where it is written again.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
+/**
  * What a runtime puts into a WebSocket message event. workerd hands binary frames as a
  * `Blob` (async to read), a plain `ArrayBuffer` or a `Uint8Array` depending on the side of
  * the connection, and a text frame as a `string`.

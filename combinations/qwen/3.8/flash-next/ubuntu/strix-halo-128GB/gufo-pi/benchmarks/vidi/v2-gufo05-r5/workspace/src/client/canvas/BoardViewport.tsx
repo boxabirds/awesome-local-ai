@@ -62,6 +62,11 @@ export interface BoardViewportProps {
   onCreateAt?(point: Point): void;
   /** Empty board space was clicked without panning: clear the selection. */
   onClearSelection?(): void;
+  /**
+   * Whether the board may be changed (story 4). False while the room could not load it: panning,
+   * zooming and selecting go on working, and a double-click on empty space creates nothing.
+   */
+  canEdit?: boolean;
 }
 
 /**
@@ -72,7 +77,12 @@ export interface BoardViewportProps {
  * Gestures that start on a board object (anything inside `[data-board-object]`) are the
  * object's business: the viewport neither pans nor creates anything for those.
  */
-export function BoardViewport({ children, onCreateAt, onClearSelection }: BoardViewportProps) {
+export function BoardViewport({
+  children,
+  onCreateAt,
+  onClearSelection,
+  canEdit = true,
+}: BoardViewportProps) {
   const {
     camera,
     registerViewport,
@@ -228,6 +238,9 @@ export function BoardViewport({ children, onCreateAt, onClearSelection }: BoardV
     // a double-click on a note edits that note; only empty space creates one
     if (target?.closest('[data-board-object]')) return;
     e.preventDefault();
+    // read-only is read-only: the double-click is swallowed, not answered with a note the
+    // person will lose when the board finally loads (story 4)
+    if (!canEdit) return;
     onCreateAt?.({ x: e.clientX, y: e.clientY });
   };
 
