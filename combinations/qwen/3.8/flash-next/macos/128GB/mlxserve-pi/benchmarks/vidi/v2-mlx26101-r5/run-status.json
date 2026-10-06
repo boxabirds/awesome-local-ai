@@ -1,6 +1,6 @@
 {
   "state": "failed",
-  "reason": "exit 75: [story 11] stopped by the swap guard: swap 0.13 -> 35.47 GB, free memory at least 12.0%. Not checkpointed; the run resumes once the machine has recovered (machine_fit.py).",
-  "at": "2026-10-06T12:30:28Z",
+  "reason": "exit 75: MACHINE UNFIT: story 11 was stopped (swap guard: swap 0.13 -> 35.47 GB, free memory at least 12.0%); still swap 2.8 GB, above the 1.1 GB it may be. Waiting for it to recover.",
+  "at": "2026-10-06T12:36:03Z",
   "host": "Apple M5 Max 128GB"
 }
