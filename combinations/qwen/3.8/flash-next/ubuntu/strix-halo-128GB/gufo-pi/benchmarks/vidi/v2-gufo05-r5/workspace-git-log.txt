@@ -1,3 +1,72 @@
+commit 0de9c5b7e6603b283c5443f0c44ede3cbbbb3c35
+agent  Tue Oct 6 07:08:41 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                       |  83 ++++++++++++++
+ PROGRESS.md                    |   8 +-
+ tests/e2e/helpers/notes.ts     | 140 +++++++++++++++++++++++
+ tests/e2e/sticky-move.spec.ts  | 224 ++++++++++++++++++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts | 251 +++++++++++++++++++++++++++++++++++++++++
+ tests/e2e/sticky-text.spec.ts  | 158 ++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts |   1 +
+ 7 files changed, 861 insertions(+), 4 deletions(-)
+commit 3fa7962b6cc38d88b5e920cadb4310a5be6bfd5a
+agent  Tue Oct 6 06:50:49 2026 +0000
+
+    story 2 tasks 6-7: toolbars, wiring and component tests
+
+
+ tests/component/StickyNote.test.tsx       | 291 ++++++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 192 ++++++++++++++++++++
+ tests/component/Toolbars.test.tsx         | 140 ++++++++++++++
+ 3 files changed, 623 insertions(+)
+commit 43a883e9b79004221d60261bfdd5f3608df92155
+agent  Tue Oct 6 06:43:42 2026 +0000
+
+    story 2 tasks 2-5: board model, sticky text logic and note components
+
+
+ PROGRESS.md                             |  10 +-
+ src/client/App.tsx                      | 143 ++++++++++++++-
+ src/client/board/Toolbar.tsx            |  45 +++++
+ src/client/board/useBoardDoc.ts         |  65 +++++++
+ src/client/board/useSelection.ts        |  44 +++++
+ src/client/canvas/BoardViewport.tsx     |  67 +++++--
+ src/client/canvas/CameraProvider.tsx    |   8 -
+ src/client/canvas/testHooks.ts          |   6 +
+ src/client/objects/NoteToolbar.tsx      |  75 ++++++++
+ src/client/objects/StickyNote.tsx       | 300 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts        | 150 ++++++++++++++++
+ src/client/objects/StickyTextEditor.tsx | 159 +++++++++++++++++
+ src/client/styles.css                   | 176 +++++++++++++++++++
+ src/shared/board-model.ts               | 230 ++++++++++++++++++++----
+ tests/fixtures/texts.ts                 |  48 +++++
+ tests/unit/board-model.test.ts          |  27 ++-
+ tests/unit/sticky-text.test.ts          | 176 +++++++++++++++++++
+ 17 files changed, 1657 insertions(+), 72 deletions(-)
+commit 7ded925c67f44a52bde8ff7d61a5875f5a5d1a4b
+agent  Tue Oct 6 06:23:50 2026 +0000
+
+    story 2 task 1: board model unit tests red phase (TC-01 to TC-12, TC-39)
+
+
+ PROGRESS.md                    |   2 +-
+ package-lock.json              |  48 ++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  87 +++++++++
+ src/shared/config.ts           |  38 ++++
+ tests/unit/board-model.test.ts | 395 +++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 570 insertions(+), 3 deletions(-)
+commit 5a9526ee9034a4b92b0a77b82be0a341b09556ac
+vidi-agent  Tue Oct 6 06:16:19 2026 +0000
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 35 ++++++++++-------------------------
+ 1 file changed, 10 insertions(+), 25 deletions(-)
 commit 10275970fa470d0ec866e92ae836093d3f826fde
 agent  Tue Oct 6 06:15:11 2026 +0000
 
