@@ -176,8 +176,10 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         const dy = moveEvent.clientY - g.startY;
         if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
         g.started = true;
-        bringObjectsToFront(doc, g.ids);
+        // Story 8: the step starts before the first write, so raising the note to the front is
+        // part of the same step as the move that caused it - one undo takes both back.
         onGestureStartRef.current?.();
+        bringObjectsToFront(doc, g.ids);
         onDragStateChangeRef.current?.(g.ids[0] ?? null);
       }
 

@@ -189,6 +189,19 @@ body {
   box-shadow: 0 1px 4px rgb(15 20 30 / 8%);
 }
 
+/* story 8: the undo strip hangs below the create tool, divided from it */
+.board-toolbar__divider {
+  height: 1px;
+  margin: 2px 4px;
+  background: var(--chrome-border);
+}
+
+.board-toolbar__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .board-toolbar__button {
   font: inherit;
   color: var(--chrome-fg);

@@ -22,6 +22,7 @@ import {
   type StickySnapshot,
 } from '../../shared/board-model';
 import type { EndEditNext } from '../board/useSelection';
+import type { UndoController } from '../board/undo';
 import {
   STICKY_COLORS,
   STICKY_FONT_MAX_PX,
@@ -53,6 +54,8 @@ export interface StickyNoteProps {
   onEndEdit(next?: EndEditNext): void;
   /** The generic transform gesture handler for move and shift-click toggle. */
   onObjectPointerDown(e: ReactPointerEvent, id: string): void;
+  /** Story 8: this person's history, for the note's own commands and the text editor. */
+  undo?: UndoController | null;
 }
 
 export function StickyNote({
@@ -68,6 +71,7 @@ export function StickyNote({
   onStartEdit,
   onEndEdit,
   onObjectPointerDown,
+  undo,
 }: StickyNoteProps): JSX.Element {
   const textRef = useRef<HTMLDivElement | null>(null);
   const [fontPx, setFontPx] = useState(STICKY_FONT_MAX_PX);
@@ -143,7 +147,7 @@ export function StickyNote({
       onDoubleClick={onDoubleClick}
     >
       {editing && ytext ? (
-        <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} />
+        <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} undo={undo} />
       ) : (
         <>
           <div
@@ -165,11 +169,16 @@ export function StickyNote({
           canEdit={canEdit}
           onColor={(color: StickyColor) => {
             if (!canEdit) return;
+            // one chosen colour is one step, even when the same swatch is clicked again
+            undo?.boundary();
             setStickyColor(doc, note.id, color);
+            undo?.boundary();
           }}
           onDelete={() => {
             if (!canEdit) return;
+            undo?.boundary();
             deleteObject(doc, note.id);
+            undo?.boundary();
             onEndEdit('unselected');
           }}
         />

@@ -14,6 +14,7 @@ import {
 } from '../../shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
 import type { SelectionController } from './useSelection';
+import type { UndoActions } from './useUndo';
 
 /** True when the keyboard belongs to a text field, not to the board. */
 function isTextEntry(target: EventTarget | null): boolean {
@@ -27,16 +28,33 @@ export interface BoardKeysOptions {
   selection: SelectionController;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** Story 8: this person's own history. */
+  undo: UndoActions;
 }
 
 export function useBoardKeys(opts: BoardKeysOptions): void {
-  const { doc, selection, snapshot, canEdit } = opts;
+  const { doc, selection, snapshot, canEdit, undo } = opts;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // Never intercept when typing in a field
       if (selection.editingId !== null || isTextEntry(event.target)) return;
       if (event.defaultPrevented) return;
+
+      // Story 8: Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl/Cmd+Y redo. Checked before the
+      // Ctrl/Cmd group below, which returns for every shortcut it does not own. An undo is a
+      // mutation, so on a board that cannot be edited the shortcut does what the disabled toolbar
+      // button does: nothing.
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && (key === 'z' || key === 'y')) {
+        event.preventDefault();
+        if (key === 'y' || event.shiftKey) undo.redo();
+        else undo.undo();
+        // The selection is dropped: an undo can remove the note it points at, and an id that is
+        // no longer on the board would make the next Delete or nudge do the wrong thing.
+        selection.clear();
+        return;
+      }
 
       // Ctrl/Cmd+A: select all
       if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key === 'a') {
@@ -86,7 +104,10 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
             positions.set(id, { x: obj.x + dx, y: obj.y + dy });
           }
           if (positions.size > 0) {
+            // one nudge is one step, and the next keypress starts a new one
+            undo.boundary();
             moveObjects(doc, positions);
+            undo.boundary();
           }
           return;
         }
@@ -94,7 +115,10 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         // Delete/Backspace: delete selection
         if (event.key === 'Delete' || event.key === 'Backspace') {
           event.preventDefault();
+          // one delete is one step, whatever it happens to contain
+          undo.boundary();
           deleteObjects(doc, [...selection.ids]);
+          undo.boundary();
           selection.clear();
           return;
         }
@@ -103,5 +127,5 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selection, snapshot, canEdit]);
+  }, [doc, selection, snapshot, canEdit, undo]);
 }

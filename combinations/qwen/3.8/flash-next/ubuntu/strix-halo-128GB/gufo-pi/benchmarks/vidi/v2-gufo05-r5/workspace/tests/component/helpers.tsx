@@ -5,7 +5,7 @@ import { Board } from '../../src/client/Board';
 import type { Camera } from '../../src/client/canvas/camera';
 
 /** The board id used in component tests (matches setup.ts default path). */
-const TEST_BOARD_ID = 'abcdefghijklmnopqrstuv';
+export const TEST_BOARD_ID = 'abcdefghijklmnopqrstuv';
 
 /**
  * Renders the board UI (stories 1–4) with the providers it needs.

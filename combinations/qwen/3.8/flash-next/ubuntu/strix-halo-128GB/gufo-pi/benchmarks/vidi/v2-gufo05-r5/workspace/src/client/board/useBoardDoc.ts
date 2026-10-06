@@ -10,6 +10,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
+import { createUndo, type UndoController } from './undo';
 
 export interface BoardDoc {
   /** The shared document: pass it to the board-model mutations. */
@@ -18,6 +19,11 @@ export interface BoardDoc {
   readonly notes: readonly StickySnapshot[];
   /** How the live connection to the other people on this board is doing (story 3). */
   readonly connection: ConnectionState;
+  /**
+   * This person's history on this board (story 8). It belongs here, next to the document its
+   * steps are made of: leaving the board throws it away, and a reload starts empty.
+   */
+  readonly undo: UndoController;
 }
 
 interface SnapshotStore {
@@ -62,13 +68,19 @@ function createSnapshotStore(doc: Y.Doc): SnapshotStore {
 export function useBoardDoc(boardId: string): BoardDoc {
   // One document per board. It outlives re-renders and is deliberately never destroyed, so a
   // StrictMode remount cannot wipe the board; only a different board replaces it.
-  const ref = useRef<{ boardId: string; doc: Y.Doc; store: SnapshotStore } | null>(null);
+  const ref = useRef<{ boardId: string; doc: Y.Doc; store: SnapshotStore; undo: UndoController } | null>(
+    null,
+  );
+  // A board this screen has moved off is torn down after the next one is on screen - never during
+  // a render, so a StrictMode double render cannot destroy a history something still points at.
+  const retired = useRef<{ doc: Y.Doc; undo: UndoController }[]>([]);
   if (!ref.current || ref.current.boardId !== boardId) {
     const doc = new Y.Doc();
     initDoc(doc);
-    ref.current = { boardId, doc, store: createSnapshotStore(doc) };
+    if (ref.current) retired.current.push({ doc: ref.current.doc, undo: ref.current.undo });
+    ref.current = { boardId, doc, store: createSnapshotStore(doc), undo: createUndo(doc) };
   }
-  const { doc, store } = ref.current;
+  const { doc, store, undo } = ref.current;
   const notes = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   const [connection, setConnection] = useState<ConnectionState>('connecting');
 
@@ -78,5 +90,15 @@ export function useBoardDoc(boardId: string): BoardDoc {
     return () => live.destroy();
   }, [doc, boardId]);
 
-  return { doc, notes, connection };
+  useEffect(() => {
+    // let go of the boards this screen has moved on from
+    const stale = retired.current;
+    retired.current = [];
+    for (const old of stale) {
+      old.undo.destroy();
+      old.doc.destroy();
+    }
+  });
+
+  return { doc, notes, connection, undo };
 }

@@ -212,3 +212,18 @@ export const NUDGE_STEP_WORLD = 1;
 
 /** Shift+arrow nudge step in world units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// ---- Undo (story 8) -------------------------------------------------------------
+
+/**
+ * The typing pause that ends an undo step: consecutive changes this close together are one
+ * step (a burst of typing), anything further apart starts a new one. Gesture and editing
+ * boundaries close the window explicitly, so this only ever merges typing.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/**
+ * How many of a person's own steps one tab remembers. Older steps fall off the front; the
+ * history lives in memory only, so a reload always starts empty.
+ */
+export const UNDO_MAX_STEPS = 200;

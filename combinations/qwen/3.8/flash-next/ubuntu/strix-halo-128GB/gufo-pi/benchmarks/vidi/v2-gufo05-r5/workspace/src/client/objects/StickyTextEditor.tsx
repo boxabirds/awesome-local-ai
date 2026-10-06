@@ -47,6 +47,7 @@ import {
 } from 'react';
 import * as Y from 'yjs';
 import type { EndEditNext } from '../board/useSelection';
+import type { UndoController } from '../board/undo';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import {
@@ -64,9 +65,15 @@ export interface StickyTextEditorProps {
   fontPx: number;
   /** Called when editing ends: back to selected (Escape) or deselected (click outside). */
   onEnd(next: EndEditNext): void;
+  /**
+   * Story 8: this person's history. The editor is a step of its own - typing starts a step when it
+   * opens and closes one when it shuts - and Ctrl/Cmd+Z inside the field belongs to that history
+   * rather than to the browser's textarea undo.
+   */
+  undo?: UndoController | null;
 }
 
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
+export function StickyTextEditor({ ytext, fontPx, onEnd, undo }: StickyTextEditorProps): JSX.Element {
   const [value, setValue] = useState(() => ytext.toString());
   const [fontPxState, setFontPx] = useState(fontPx);
   const ref = useRef<HTMLTextAreaElement | null>(null);
@@ -76,6 +83,18 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   const caretRef = useRef<number | null>(null);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+
+  // ---- story 8: editing this note is a step of its own ----
+  useEffect(() => {
+    undoRef.current?.boundary();
+    return () => {
+      // whatever was typed in this session with the field open is one step, whether it was two
+      // characters or two hundred
+      undoRef.current?.boundary();
+    };
+  }, []);
 
   // ---- start editing: focus the note's text and put the caret at the end ----
   useEffect(() => {
@@ -164,6 +183,18 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Story 8: Ctrl/Cmd+Z inside the field is this person's history, not the textarea's. Without
+    // taking the key over, the browser would undo into the shared text on its own terms - mixing
+    // in the other person's characters, and putting back something the board has already lost.
+    const key = event.key.toLowerCase();
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && (key === 'z' || key === 'y')) {
+      event.preventDefault();
+      if (key === 'y' || event.shiftKey) undoRef.current?.redo();
+      else undoRef.current?.undo();
+      // The shared text changed underneath the field; the observer below takes it in (and moves
+      // the caret), so focus and editing stay where they are.
+      return;
+    }
     if (event.key !== 'Escape') return; // Enter inserts a new line, Delete edits text
     event.preventDefault();
     event.stopPropagation();

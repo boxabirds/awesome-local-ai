@@ -14,6 +14,7 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
+import { useUndo } from './board/useUndo';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
@@ -25,11 +26,14 @@ import { createSticky, deleteObjects, snapshot } from '../shared/board-model';
 
 export function Board(props: { boardId: string }) {
   const { camera, size, getCamera, setCamera, hasNavigated, zoomStep, reset } = useBoardCamera();
-  const { doc, notes, connection } = useBoardDoc(props.boardId);
+  const { doc, notes, connection, undo } = useBoardDoc(props.boardId);
   const selection = useSelection(notes);
 
   // Story 4: while the room cannot produce this board, nothing here may write.
   const editable = canEdit(connection);
+
+  // Story 8: this person's own history. Leaving the board discards it; a reload starts empty.
+  const history = useUndo(undo, editable);
 
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
@@ -53,11 +57,14 @@ export function Board(props: { boardId: string }) {
   const createAtScreenPoint = useCallback(
     (point: { x: number; y: number }) => {
       if (!editable) return;
+      // a new note is a step of its own; what gets typed into it is the next one
+      history.boundary();
       const id = createSticky(doc, screenToWorld(getCamera(), point));
+      history.boundary();
       if (!id) return;
       selection.startEdit(id);
     },
-    [doc, editable, getCamera, selection],
+    [doc, editable, getCamera, history, selection],
   );
 
   /** The Sticky note button: a note in the middle of what the user can see. */
@@ -73,6 +80,9 @@ export function Board(props: { boardId: string }) {
     selection,
     snapshot: notes,
     canEdit: editable,
+    // story 8: a gesture is one step, from its first write to the pointer coming up
+    onGestureStart: history.boundary,
+    onGestureEnd: history.boundary,
     onDragStateChange: setDraggingId,
   });
 
@@ -82,6 +92,7 @@ export function Board(props: { boardId: string }) {
     selection,
     snapshot: notes,
     canEdit: editable,
+    undo: history,
   });
 
   // ---- Marquee ----
@@ -92,9 +103,12 @@ export function Board(props: { boardId: string }) {
   // ---- Selection bar delete action ----
   const deleteSelection = useCallback(() => {
     if (!editable) return;
+    // one delete is one step, whatever it happens to contain
+    history.boundary();
     deleteObjects(doc, [...selection.ids]);
+    history.boundary();
     selection.clear();
-  }, [doc, editable, selection]);
+  }, [doc, editable, history, selection]);
 
   return (
     <>
@@ -122,6 +136,7 @@ export function Board(props: { boardId: string }) {
             onStartEdit={selection.startEdit}
             onEndEdit={selection.endEdit}
             onObjectPointerDown={gesture.onObjectPointerDown}
+            undo={history.controller}
           />
         ))}
       </BoardViewport>
@@ -138,7 +153,11 @@ export function Board(props: { boardId: string }) {
       )}
       {/* Selection bar */}
       <SelectionBar ids={selection.ids} onDelete={deleteSelection} />
-      <Toolbar onCreateSticky={createAtViewportCentre} canEdit={editable} />
+      <Toolbar
+        onCreateSticky={createAtViewportCentre}
+        canEdit={editable}
+        undo={{ canUndo: history.canUndo, canRedo: history.canRedo, onUndo: history.undo, onRedo: history.redo }}
+      />
       <ConnectionStatus state={connection} />
       <BoardChrome
         zoomPercent={zoomPercent(camera)}
