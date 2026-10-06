@@ -1,0 +1,8 @@
+{
+  "at": 1791289827.692629,
+  "story": 11,
+  "reason": "swap guard: swap 0.13 -> 35.47 GB, free memory at least 12.0%",
+  "swap_start_gb": 0.13,
+  "swap_max_gb": 35.47,
+  "free_min_pct": 12.0
+}
