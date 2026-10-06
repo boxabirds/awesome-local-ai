@@ -48,6 +48,24 @@ When problems lead to recommended actions, give each one as:
 - **Recommended solution:** the change that would address it.
 - **Proposed actions:** the concrete steps, marked with whether each needs the owner's approval.
 
+## Never reset a bench checkout
+
+A bench machine's repository is where the harness writes and commits a run's records. `git reset --hard`,
+`git checkout -- .`, `git clean -fd` and anything else that discards work are forbidden there. Use
+`git pull --ff-only` and let it fail: a refusal costs a retry, a reset costs results.
+
+The records are the only thing at risk. A run's raw data -- logs, conditions, artifacts, the workspace -- is
+gitignored and the collector copies it to the lake. Its **scores** are tracked in git, so between the harness
+committing them and the push landing they exist in one place only. The collector takes the record files too
+since 6 October 2026, which makes the lake a second copy, but it pulls on a cadence rather than instantly, so
+the window is smaller rather than gone.
+
+Why: on 6 October 2026 a session ran `git reset --hard origin/main` twice on a live bench checkout to pick up a
+config change, while a benchmark was running in it. Nothing was lost, because both prior HEADs happened to be
+ancestors of origin/main. Four days earlier, in A-044, fourteen story records sat unpushed on a machine for
+twenty hours; the same command then would have deleted all of them. `--ff-only` would have done the job both
+times.
+
 ## No branches
 
 Never create a branch: not local, not remote, not temporary, not in a scratch clone, and not "to keep main safe". Work on the checked-out branch (main) and commit there. That rules out `git checkout -b`, `git switch -c`, `git checkout -B`, `git branch <name>`, `git worktree add` without `--detach`, and pushing to any new remote branch. Agents and subagents follow the same rule. If some work seems to need isolation, ask the owner first.

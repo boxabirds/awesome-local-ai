@@ -1705,7 +1705,8 @@ async fn files_manifest_by_job_and_by_run_path_lists_only_allow_listed_files() {
     assert_eq!(srv.submit("grow", &spec("growpack", "run-g")).await.0, 201);
     srv.wait_status("grow", "done").await;
 
-    // By job: every allow-listed file the run has, with its kind; nothing else (metrics.json is git's).
+    // By job: every allow-listed file the run has, with its kind. The records are in the list too -- they are
+    // tracked in git, so until the push lands the lake is their only other copy.
     let m = srv.get("/v1/jobs/grow/files").await;
     assert_eq!(m["run"], GROW_RUN);
     assert_eq!(m["job"], "grow");
@@ -1726,6 +1727,9 @@ async fn files_manifest_by_job_and_by_run_path_lists_only_allow_listed_files() {
             ("server.log", "append"),
             ("progress.json", "whole"),
             ("egress.jsonl", "append"),
+            ("metrics.json", "whole"),
+            ("run.json", "whole"),
+            ("run-status.json", "whole"),
         ]
     );
     let events_size = files[0]["size"].as_u64().unwrap();
@@ -1771,13 +1775,9 @@ async fn files_manifest_by_job_and_by_run_path_lists_only_allow_listed_files() {
         )
         .await;
     assert_eq!(code, 404, "{v}");
-    for name in [
-        "metrics.json",
-        "run.json",
-        "work_dir.txt",
-        "../token",
-        "stories/01/accept.json",
-    ] {
+    // Still refused: not a record, not a log, or an escape. metrics.json and run.json are served now, as the
+    // lake's second copy of the scores.
+    for name in ["work_dir.txt", "../token", "stories/01/accept.json"] {
         let (code, v) = srv
             .call(
                 reqwest::Method::GET,
@@ -2012,7 +2012,13 @@ async fn collect_pulls_deltas_resumes_after_the_node_was_unreachable_and_complet
     assert_eq!(std::fs::read(&events).unwrap(), std::fs::read(&node_file).unwrap());
     assert_eq!(std::fs::read(lake_dir.join("server.log")).unwrap(), std::fs::read(node_dir.join("server.log")).unwrap());
     let held_after: u64 = ["stories/01/agent-events.jsonl", "server.log"].iter().map(|f| std::fs::metadata(lake_dir.join(f)).unwrap().len()).sum();
-    let whole_files: u64 = ["progress.json", "egress.jsonl"].iter().map(|f| std::fs::metadata(lake_dir.join(f)).map_or(0, |m| m.len())).sum();
+    // Everything fetched whole rather than appended: progress and egress, and the run's records, which the lake
+    // takes so the scores are never single-copy. An absent one counts zero.
+    let whole_files: u64 = [
+        "progress.json", "egress.jsonl",
+        "metrics.json", "run.json", "run-status.json", "interventions.md",
+        "stories/01/accept-summary.json", "stories/01/gate.json", "stories/01/base-commit",
+    ].iter().map(|f| std::fs::metadata(lake_dir.join(f)).map_or(0, |m| m.len())).sum();
     // The append-only files' growth, plus the small files fetched whole (progress.json changes with every line).
     assert!(run["pulled_bytes"].as_u64().unwrap() <= held_after - held_before + whole_files, "only the delta: {run} ({held_before} -> {held_after})");
     assert!(len2 > len1, "the job wrote more after the first pass");
@@ -2064,8 +2070,13 @@ async fn collect_refetches_a_file_the_node_rewrote_and_backfills_a_run_that_has_
     let (ok, v, err) = collect_once(&config, &["--no-ingest"]);
     assert!(ok, "{err}");
     let run = v[0]["runs"].as_array().unwrap().iter().find(|r| r["run"] == GROW_RUN).unwrap().clone();
-    assert_eq!(run["pulled_files"], 2);
+    // Two logs and two records: the lake takes a run's scores as well as its raw data, so the scores are never
+    // single-copy while the harness's push is still pending.
+    assert_eq!(run["pulled_files"], 4);
     let c = read_collection(&store, GROW_RUN);
+    let mut got: Vec<&str> = c["files"].as_object().unwrap().keys().map(String::as_str).collect();
+    got.sort_unstable();
+    assert_eq!(got, ["run-status.json", "run.json", "server.log", "stories/01/agent-events.jsonl"]);
     assert!(c["job"].is_null() && c["job_state"].is_null());
     assert_eq!(c["run_status"]["state"], "finished");
     // Settled and at eof with no job: complete after the grace.
