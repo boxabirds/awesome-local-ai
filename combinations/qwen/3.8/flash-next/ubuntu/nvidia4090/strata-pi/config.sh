@@ -35,16 +35,26 @@ MIN_DEVICE_MEM_MIB=23000
 STRATA_MIN_RAM_MIB=50000
 
 # ---- backend --------------------------------------------------------------
-# v0.1.39, pinned by the commit its tag points at (a tag can be moved; a commit can't). Moved up from 0.1.36 on
-# 5 Oct 2026, before the first run, so nothing recorded straddles the change. What the three releases since 0.1.36
-# bring here: --vram-reserve-mib documented (0.1.37, the flag below), a silent-engine watchdog that ends a request
-# after engine_silence_s (300 by default, longer while a long prompt is read; our own guard interrupts a silent tool
-# call at 600), faster prompts and a tensor-core path for --kv q4_0 (0.1.38), and decode about 6% faster with a fix
-# for prompts under a RAM budget that 0.1.38 had made 15-40% slower (0.1.39).
+# v0.1.40, pinned by the commit its tag points at (a tag can be moved; a commit can't). Moved up from 0.1.39 on
+# 6 Oct 2026, after v2-strata0139-r2 finished, so nothing recorded straddles the change: that run is the record of
+# 0.1.39 and anything after this is 0.1.40. Any verdict on this engine names the build it is about.
+# Why move: 0.1.40 is a correctness release here, not a speed one. Decode against 0.1.39 on NVIDIA at IQ3_XXS is
+# +2.9% code and +2.3% story by its authors' measurement, which is nothing; but it fixes non-finite values in the
+# fused SwiGLU q8_1 quantizers, makes the residency-table upload wait for its own copy before the verifier reads it,
+# runs the all-resident verify graph only while every expert is in VRAM, and fails a window on a stale plan instead
+# of printing "!!!!". Our 0.1.39 server log shows none of those signatures (no "!!!!", no NaN, no stalls over 47,134
+# lines), so they are not known to have touched our runs -- but they are correctness bugs in the build we were on.
+# Not relevant to this combination: its multi-GPU fixes, including the 0.1.39 bug where adaptive swaps copied back
+# from the wrong card's cache, which needs a layer split across cards. This machine has one.
+# What the earlier releases brought, kept for the record: --vram-reserve-mib documented (0.1.37, the flag below), a
+# silent-engine watchdog that ends a request after engine_silence_s (300 by default, longer while a long prompt is
+# read; our own guard interrupts a silent tool call at 600), faster prompts and a tensor-core path for --kv q4_0
+# (0.1.38), and decode about 6% faster with a fix for prompts under a RAM budget that 0.1.38 had made 15-40% slower
+# (0.1.39).
 # 0.1.38 also hardened the server: without an api_key it answers only requests addressed to a name it knows and
 # refuses cross-site ones. The launcher binds 127.0.0.1 and pi sends no Origin, so this is checked, not assumed.
-STRATA_VERSION="0.1.39"
-STRATA_COMMIT="6f32ec070f23ced9f50e704d854d775da52591ab"
+STRATA_VERSION="0.1.40"
+STRATA_COMMIT="1735d6471df29b42c26170efaac1f1446a58640f"
 STRATA_REPO_URL="https://github.com/Niko1221/Strata.git"
 # The size and the context the benchmark runs: the owner chose IQ3_XXS (IQ3_S needs 62 GB of RAM with little else
 # running, and a story also runs the agent, browsers and test servers on the same machine); 131072 is the benchmark's
