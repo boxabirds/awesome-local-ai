@@ -9,7 +9,6 @@ import {
 } from 'react';
 import type { Size } from './camera';
 import { useCamera, type CameraController } from './useCamera';
-import { IS_TEST_MODE, registerTestHooks } from './testHooks';
 
 interface CameraContextValue extends CameraController {
   /** Current size of the board area in CSS pixels. */
@@ -71,13 +70,6 @@ export function CameraProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('resize', onResize);
     };
   }, [viewportEl]);
-
-  const { getCamera, setCamera } = controller;
-  useEffect(() => {
-    if (!IS_TEST_MODE) return;
-    registerTestHooks({ getCamera, setCamera });
-    return () => registerTestHooks(null);
-  }, [getCamera, setCamera]);
 
   const value = useMemo<CameraContextValue>(
     () => ({ ...controller, size, registerViewport }),

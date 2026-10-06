@@ -3,12 +3,14 @@ import {
   useEffect,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
-import { worldToScreen } from './camera';
+import { worldToScreen, type Point } from './camera';
 import { useBoardCamera } from './CameraProvider';
 import {
+  DRAG_THRESHOLD_PX,
   GRID_DOT_SIZE_SCREEN,
   GRID_SPACING_WORLD,
   WHEEL_LINE_MODE_PIXELS,
@@ -53,12 +55,24 @@ function isTextEntry(target: EventTarget | null): boolean {
   );
 }
 
+export interface BoardViewportProps {
+  /** Board objects (story 2: sticky notes), rendered in world coordinates. */
+  children?: ReactNode;
+  /** Empty board space was double-clicked: create an object at this screen point. */
+  onCreateAt?(point: Point): void;
+  /** Empty board space was clicked without panning: clear the selection. */
+  onClearSelection?(): void;
+}
+
 /**
  * The board's input surface: an unbounded area with a dot grid that moves with the
  * camera, a world layer (transformed with CSS) holding board objects, and an origin
  * marker that gives tests a stable pixel target.
+ *
+ * Gestures that start on a board object (anything inside `[data-board-object]`) are the
+ * object's business: the viewport neither pans nor creates anything for those.
  */
-export function BoardViewport({ children }: { children?: ReactNode }) {
+export function BoardViewport({ children, onCreateAt, onClearSelection }: BoardViewportProps) {
   const {
     camera,
     registerViewport,
@@ -72,7 +86,9 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
   const [node, setNodeState] = useState<HTMLDivElement | null>(null);
   const [panning, setPanning] = useState(false);
   // Guards the drag independently of render timing (Idle / Panning in the design).
-  const panningGuard = useRef({ active: false });
+  // `moved` remembers whether this gesture actually panned: a click without movement
+  // on empty space clears the selection instead.
+  const panningGuard = useRef({ active: false, moved: false, startX: 0, startY: 0 });
 
   const setNode = useCallback(
     (el: HTMLDivElement | null) => {
@@ -176,21 +192,43 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
     if (target?.closest('[data-board-object]')) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture?.(e.pointerId);
-    panningGuard.current.active = true;
+    panningGuard.current = {
+      active: true,
+      moved: false,
+      startX: e.clientX,
+      startY: e.clientY,
+    };
     setPanning(true);
     beginPan({ x: e.clientX, y: e.clientY });
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!panningGuard.current.active) return;
+    const guard = panningGuard.current;
+    if (!guard.active) return;
+    if (!guard.moved) {
+      const distance = Math.hypot(e.clientX - guard.startX, e.clientY - guard.startY);
+      if (distance >= DRAG_THRESHOLD_PX) guard.moved = true;
+    }
     panMove({ x: e.clientX, y: e.clientY });
   };
 
-  const stopPanning = () => {
-    if (!panningGuard.current.active) return;
-    panningGuard.current.active = false;
+  const stopPanning = (e: ReactPointerEvent<HTMLDivElement>, released: boolean) => {
+    const guard = panningGuard.current;
+    if (!guard.active) return;
+    panningGuard.current = { active: false, moved: false, startX: 0, startY: 0 };
     setPanning(false);
     endPan(); // the board stays exactly where it was
+    // a click on empty board space without panning deselects (a pan keeps the selection);
+    // a cancelled gesture or a lost capture is not a click, so it changes nothing
+    if (released && !guard.moved) onClearSelection?.();
+  };
+
+  const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement | null;
+    // a double-click on a note edits that note; only empty space creates one
+    if (target?.closest('[data-board-object]')) return;
+    e.preventDefault();
+    onCreateAt?.({ x: e.clientX, y: e.clientY });
   };
 
   const origin = worldToScreen(camera, { x: 0, y: 0 });
@@ -217,9 +255,16 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={stopPanning}
-      onPointerCancel={stopPanning}
-      onLostPointerCapture={stopPanning}
+      onPointerUp={(e) => {
+        stopPanning(e, true);
+      }}
+      onPointerCancel={(e) => {
+        stopPanning(e, false);
+      }}
+      onLostPointerCapture={(e) => {
+        stopPanning(e, false);
+      }}
+      onDoubleClick={onDoubleClick}
     >
       <div
         className="board-world"

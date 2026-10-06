@@ -50,3 +50,41 @@ export const GRID_DOT_SIZE_SCREEN = 2;
 
 /** How far from the start the board is guaranteed to pan without an edge. */
 export const UNBOUNDED_PAN_TESTED_EXTENT = 1_000_000;
+
+// ---- Sticky notes ----------------------------------------------------------
+
+/** Width and height of a sticky note in world units (a square, like paper). */
+export const STICKY_SIZE_WORLD = 200;
+
+/** Longest note text; characters beyond this are never stored. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+
+/** The character counter appears once this many characters (or fewer) are left. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+
+/** Largest note font size in world units, used when the text is short. */
+export const STICKY_FONT_MAX_PX = 24;
+
+/** Smallest note font size in world units; below it the text is clipped instead. */
+export const STICKY_FONT_MIN_PX = 10;
+
+/** Padding between the note edge and its text in world units. */
+export const STICKY_PADDING_WORLD = 16;
+
+/** Pointer movement that turns a press on a note into a drag (screen pixels). */
+export const DRAG_THRESHOLD_PX = 3;
+
+/** The six note colours the user can choose from; the key is the stored name. */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+
+export type StickyColor = keyof typeof STICKY_COLORS;
+
+/** The colour of a newly created note. */
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';

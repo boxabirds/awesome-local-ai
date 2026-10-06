@@ -107,3 +107,86 @@ run in Chromium, Firefox and WebKit; here they run in Chromium only.
 - Dragging with the pointer outside the window mid-drag ends the drag through `lostpointercapture`, leaving the
   board where it was.
 - Cursor is `grab` at rest and `grabbing` while panning.
+
+---
+
+# Notes for story 2 (Capture ideas on sticky notes and rearrange them)
+
+## Running the checks (story 2 numbers)
+```bash
+npm run build          # production client build (dist/client), excludes the test hook
+npm run typecheck      # tsc --noEmit over src, tests and the config files
+npm run test:unit      # Vitest project unit      (node)  - 53 tests (board model, sticky text, story 1 camera)
+npm run test:component # Vitest project component (jsdom) - 53 tests (24 story 2 notes/toolbars + 29 story 1)
+npm run test:e2e       # Playwright               - 34 tests per launched browser
+```
+Everything passes. Firefox and WebKit still cannot launch on this machine (see the story 1 section:
+missing GTK/ICU system libraries, `sudo` blocked), so `npm run test:e2e` runs the Chromium project
+here and prints the skip warning for the other two; the note tests are browser-agnostic and contain
+no Chromium-only code.
+
+## Design decisions
+- **`createSticky` returns `''` when it rejects the point.** The contract returns `string` and the
+  error row says "returns false; 0 updates" for non-finite coordinates. An empty string is the
+  falsy member of the return type: callers do `const id = createSticky(...); if (!id) return;` and
+  nothing is written to the doc (asserted in TC-39).
+- **`STICKY_PADDING_WORLD` (16) is an extra named setting** in `src/shared/config.ts` next to the
+  ones the design names. The note's text box (`STICKY_TEXT_BOX_WORLD` = 200 - 2 x 16 = 168) is what
+  `fitFontSize` measures against, and the same value is handed to CSS through `--note-padding`, so
+  layout and fitting cannot drift apart.
+- **`useBoardDoc` owns the `Y.Doc`** (`useState(() => new Y.Doc())` + `initDoc`) and exposes an
+  immutable snapshot through `useSyncExternalStore`, recomputed on `objects.observeDeep`. Selection
+  and editing live in `useSelection` (local React state) and are never written to the doc, exactly
+  as the design requires.
+- **`BoardViewport` grew two optional props** - `onCreateAt(point)` and `onClearSelection()` - and
+  keeps its `children` slot. The viewport decides *that* empty board space was double-clicked or
+  clicked without panning; `App` decides *what* that means (create a note at `screenToWorld(point)`,
+  clear the selection). A pan keeps the selection; a click without movement clears it; a cancelled
+  gesture changes nothing. Gestures that start on `[data-board-object]` are still ignored, and a
+  note's `pointerdown` calls `stopPropagation`, so dragging a note never pans the board (TC-20).
+- **Double-click uses the native `dblclick` event.** Chromium does fire `dblclick` after
+  `preventDefault()` on `pointerdown` (checked in a probe before choosing this), so no manual
+  double-tap timer is needed. A `dblclick` that lands on a note is stopped there and edits that
+  note instead of creating a second one (TC-35).
+- **The note toolbar is counter-scaled, not re-positioned.** It is rendered inside the note (so it
+  needs no camera coordinates) with `transform: scale(var(--note-inverse-zoom))`, which keeps it the
+  same size on screen at 50%, 100% and 200%. The design does not name a size for it; an extra e2e
+  test pins the behaviour so a later story cannot quietly make it grow with zoom.
+- **Auto-fit is measured in world units.** `fitFontSize` runs on the un-scaled element (the world
+  layer carries the zoom transform), so the fitted size is a property of the text and the note, and
+  zooming never triggers a re-measure. Binary search over integer px in
+  `[STICKY_FONT_MIN_PX, STICKY_FONT_MAX_PX]`; if it does not fit at the minimum, the text is clipped
+  by `overflow: hidden` and a bottom fade is rendered (`data-overflow`, `.sticky-note__fade`).
+- **Editing writes on every input event**, so ending editing (Escape, click outside, blur) writes
+  nothing more. The diff is the minimal common-prefix/suffix insert-delete, never a rewrite, so
+  text someone else typed at the same time survives (a two-doc merge test asserts this). IME
+  composition defers the write to `compositionend`, and a truncated input restores the caret.
+- **A note that disappears mid-interaction is silent.** `moveObject`/`setStickyColor`/
+  `deleteObject`/`bringToFront` return `false` for a stale id and write nothing; the note component
+  resets its drag state when its id changes, and the editor checks `ytext.doc` before writing (a
+  deleted note's `Y.Text` is detached). Covered by TC-37 in both component and e2e tests - the e2e
+  one deletes the note with the Delete key while the pointer is still down.
+- **Colours are only the six names** in `STICKY_COLORS`; `setStickyColor` rejects unknown names and
+  a no-op recolour to the same colour, and `StickySnapshot.color` is typed `StickyColor`.
+
+## Test technique (story 2)
+- **Test hook extended**: `window.__vidi6` now also has `getDoc()` and `getNotes()` (test builds
+  only, same `IS_TEST_MODE` gate as story 1). Component tests use them to run model calls the UI has
+  no button for (deleting mid-drag), e2e tests use `getNotes()` for world positions, which is far
+  more stable than reading pixels.
+- **Component tests drive the note with `fireEvent.pointer*` and real timers.** jsdom has no
+  `setPointerCapture` (the component calls it optionally), and rAF is flushed with the existing
+  `runFrames()` helper, so the drag/threshold logic is deterministic without fake timers.
+- **Text is typed with `page.keyboard.insertText`** in e2e, which delivers a whole string as one
+  input event, i.e. behaves like a paste (that is what TC-14 and TC-33 need).
+- **This environment's `@playwright/test` build (1.63) lacks `test.each`, `locator.insertText` and
+  `page.getByLabelText`**, so the specs use two explicit tests instead of `test.each`,
+  `page.keyboard.insertText` and `page.getByLabel`. Nothing else in the suite depends on that.
+- **`getComputedStyle` returns `rgb(...)`, not the configured hex**, so the e2e helper converts
+  `STICKY_COLORS` values with `cssColor()` before comparing.
+- **Font fitting needs real text layout**, so it is asserted in e2e only (TC-33): one word =
+  24 px, a few lines = smaller, 1,000 characters = at or above 10 px with `scrollHeight >
+  clientHeight` and the fade present, and back to 24 px when the text is short again.
+- Extra tests beyond the design's list, kept because they are cheap and guard decisions above:
+  CRDT merge of a minimal diff with concurrent typing, surrogate-pair safety, a drag released
+  outside the note, rapid creation, the counter-scaled toolbar, and Enter/Delete behaviour in e2e.

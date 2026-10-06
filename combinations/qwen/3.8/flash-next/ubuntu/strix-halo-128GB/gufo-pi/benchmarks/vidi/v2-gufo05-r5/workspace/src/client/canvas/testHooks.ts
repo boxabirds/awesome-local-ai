@@ -1,4 +1,6 @@
+import type * as Y from 'yjs';
 import type { Camera } from './camera';
+import type { StickySnapshot } from '../../shared/board-model';
 
 /**
  * Test-only handle on the running board, enabled only when the bundle is built in
@@ -12,6 +14,10 @@ export interface Vidi6TestHooks {
   setCamera(cam: Camera): void;
   /** Read the current camera. */
   getCamera(): Camera;
+  /** The board document, so a test can call the board model the app does. */
+  getDoc(): Y.Doc;
+  /** The notes in the document, in render order. */
+  getNotes(): readonly StickySnapshot[];
 }
 
 declare global {
