@@ -310,7 +310,7 @@ fetch a browser), `all_green`, `harness_fault`.
 `skipped` (the pack has none: n/a, not 0/0), `build_exit`, `runner_exit`, `runner_tail`, `passed`,
 `total`, `on_partial` (tests built on PARTIAL stories), `by_story`, `setup_fallbacks` (from pack
 vidi-v1.2: `tests` whose setup fell back to the documented flow, and their count `by_owner`, the story
-that owns the behaviour; EVALUATION-POLICY rule 8), `harness_fault`; and, in the private copy only, `runner_tail`
+that owns the behaviour; EVALUATION-POLICY rule 9), `harness_fault`; and, in the private copy only, `runner_tail`
 and `tests` (per test, each with its own `setup_fallbacks` list). The public `metrics.json` keeps the counts;
 the rest is in the git-ignored `heldout-detail.json` beside it.
 
