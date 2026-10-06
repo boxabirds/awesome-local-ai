@@ -36,8 +36,9 @@ The held-out suite is the pack's acceptance tests, kept in the private repo and 
    that. But the agent did not choose to stop, so under rule 4 the story and any total containing it carry the
    mark wherever they are reported, and a figure is never compared with one from a run that had no cap without
    saying so. The stories that follow are **not** discounted and no known-good base is substituted for them:
-   measured on 6 Oct 2026 over every recorded run, eight of the nine stories that followed a cap on a capable
-   stack scored at or near full marks, and one even repaired an earlier failing test
+   measured on 6 Oct 2026 over every recorded run, all nine stories that followed a cap on a capable stack
+   recovered — 46 held-out tests gained against 45 that became available, two of them repairing a test that had
+   been failing before the cap
    (`docs/reports/strategic-insights/2026-10-06-truncated-stories-do-not-cascade.md`). Truncation does not
    invalidate what comes after it; failing to recover from one is a property of the stack, and worth reporting as
    its own figure.
