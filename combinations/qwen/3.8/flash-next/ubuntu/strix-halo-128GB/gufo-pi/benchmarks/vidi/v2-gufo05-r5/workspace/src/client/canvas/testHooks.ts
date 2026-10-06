@@ -1,6 +1,8 @@
 import * as Y from 'yjs';
 import type { Camera } from './camera';
 import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
+import type { Endpoint } from '../../shared/objects/connector';
+import type { ShapeKind } from '../../shared/objects/shape';
 import type { ConnectionState } from '../sync/connectBoard';
 
 /**
@@ -35,6 +37,24 @@ export interface Vidi6TestHooks {
    * when the point was not usable (story 9).
    */
   createTextAt(x: number, y: number): string;
+  /**
+   * Creates a shape of a kind inside the given world rectangle, with an optional label, through the
+   * real model; returns its id, or `''` when the model refused the request (story 10).
+   */
+  createShapeAt(shape: {
+    kind: ShapeKind;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    label?: string;
+  }): string;
+  /**
+   * Creates an arrow between two endpoints - `{ kind: 'attached', objectId, fallback }` or
+   * `{ kind: 'free', x, y }` - through the real model; returns its id, or `''` when the model
+   * refused it (story 10).
+   */
+  createConnectorBetween(from: Endpoint, to: Endpoint): string;
 }
 
 declare global {

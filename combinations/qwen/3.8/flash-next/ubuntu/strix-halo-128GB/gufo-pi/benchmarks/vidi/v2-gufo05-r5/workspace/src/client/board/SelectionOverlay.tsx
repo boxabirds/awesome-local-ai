@@ -41,7 +41,14 @@ const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
  */
 export function handlesFor(selected: readonly ObjectSnapshot[]): readonly Handle[] {
   if (selected.length === 0) return HANDLES;
-  return selected.every((obj) => (getObjectType(obj.type)?.handles ?? 'all') === 'horizontal')
+  // Story 10: an arrow has no box of its own to drag out. A selection of nothing but arrows offers
+  // no handles at all; mixed in with real boxes, it goes along for the move and contributes nothing
+  // to the resize.
+  const resizable = selected.filter(
+    (obj) => (getObjectType(obj.type)?.handles ?? 'all') !== 'none',
+  );
+  if (resizable.length === 0) return [];
+  return resizable.every((obj) => (getObjectType(obj.type)?.handles ?? 'all') === 'horizontal')
     ? HORIZONTAL_HANDLES
     : HANDLES;
 }

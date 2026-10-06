@@ -774,3 +774,282 @@ body {
 .selection-bar button:hover {
   background: #fee2e2;
 }
+
+/* ---- Story 10: the toolbar's shape kind menu ---- */
+
+/* The toolbar floats above the board, and above a drawing tool's surface: whoever is holding a tool
+   must always be able to put it down with the mouse. */
+.board-toolbar {
+  z-index: 30;
+}
+
+.board-toolbar__button--menu {
+  padding: 4px 6px;
+  color: var(--chrome-fg-muted);
+}
+
+.board-toolbar__menu {
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius);
+  box-shadow: 0 2px 8px rgb(15 20 30 / 12%);
+}
+
+.board-toolbar__menu-item {
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--chrome-fg);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.board-toolbar__menu-item:hover {
+  background: #f1f3f7;
+}
+
+.board-toolbar__menu-item.is-active {
+  border-color: var(--focus-ring);
+  color: var(--focus-ring);
+}
+
+/* ---- Story 10: the tool surface (Shape and Connector) ---- */
+
+/* A drawing tool owns the pointer: the surface covers the board, so a drag that starts on top of an
+   object draws instead of moving it, and nothing under it is panned, marquee-dragged or selected.
+   It sits below the toolbar and below a selected object's own bar. */
+.tool-surface {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tool-surface__preview {
+  position: absolute;
+  border: 1.5px dashed var(--focus-ring);
+  background: rgb(47 111 237 / 8%);
+  pointer-events: none;
+}
+
+.tool-surface__lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.tool-surface__preview-line {
+  stroke: var(--focus-ring);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  fill: none;
+}
+
+/* the four "where would it attach" dots, constant in size on screen */
+.connector-tool__dot {
+  position: absolute;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid var(--focus-ring);
+  pointer-events: none;
+}
+
+.connector-tool__dot[data-highlighted='true'] {
+  background: var(--focus-ring);
+  box-shadow: 0 0 0 3px rgb(47 111 237 / 25%);
+}
+
+/* ---- Story 10: shapes ---- */
+
+.shape-object {
+  position: absolute;
+  cursor: grab;
+  color: var(--note-text);
+}
+
+.shape-object[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.shape-object[data-selected='true'] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.shape-object:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The outline is drawn inside the box; `overflow: visible` keeps a thick stroke from being clipped
+   at the edges of the SVG's own box. */
+.shape-object__svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.shape-object__label {
+  position: absolute;
+  inset: var(--shape-label-inset, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+.shape-object__editor {
+  position: absolute;
+  inset: var(--shape-label-inset, 8px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: Inter, system-ui, sans-serif;
+  line-height: 1.25;
+  text-align: center;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.shape-object__toolbar {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius);
+  box-shadow: 0 1px 4px rgb(15 20 30 / 8%);
+  transform: scale(var(--shape-inverse-zoom, 1)) translateY(-8px);
+  transform-origin: 0 100%;
+  cursor: default;
+}
+
+.shape-object__swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgb(31 24 48 / 25%);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* an outline swatch is a hollow square with the colour as its border: a filled square would be
+   showing the wrong thing */
+.shape-object__swatch--line {
+  background: #ffffff;
+  border-width: 3px;
+  border-radius: 4px;
+}
+
+.shape-object__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.shape-object__swatch:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.shape-object__toolbar-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--chrome-border);
+}
+
+.shape-object__delete {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+}
+
+.shape-object__delete:hover {
+  background: #fee2e2;
+}
+
+/* ---- Story 10: connectors ---- */
+
+/* The box of an arrow is mostly not an arrow: only the line and its handles answer to the pointer,
+   and everything else lets the board through. */
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+}
+
+.connector-object__svg {
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-object__line {
+  stroke: var(--connector-stroke, #263238);
+  fill: none;
+  pointer-events: none;
+}
+
+.connector-object__head {
+  fill: var(--connector-stroke, #263238);
+  pointer-events: none;
+}
+
+/* the invisible target: as wide on screen as the click tolerance, set in world units per render */
+.connector-object__hit {
+  stroke: transparent;
+  fill: none;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.connector-object__handle {
+  fill: #ffffff;
+  stroke: var(--focus-ring);
+  stroke-width: 1.5;
+  pointer-events: all;
+  cursor: grab;
+}
+
+.connector-object[data-selected='true'] .connector-object__line,
+.connector-object[data-selected='true'] .connector-object__head {
+  stroke: var(--focus-ring);
+  fill: var(--focus-ring);
+}

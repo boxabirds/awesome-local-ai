@@ -40,9 +40,19 @@ import {
 } from './config';
 import { type Point, type Rect, rectContains } from './geometry';
 import { readTextObject, type TextSnapshot } from './objects/text';
+import { readShapeObject, type ShapeSnapshot } from './objects/shape';
+import {
+  detachConnectorsTo,
+  readConnectorObject,
+  type ConnectorSnapshot,
+} from './objects/connector';
 
 export { LOCAL_ORIGIN } from './y-origin';
 export type { TextSnapshot } from './objects/text';
+export { createShape, setShapeStyle, getShapeLabel } from './objects/shape';
+export { createConnector, setConnectorEndpoint } from './objects/connector';
+export type { ShapeSnapshot } from './objects/shape';
+export type { ConnectorSnapshot, Endpoint } from './objects/connector';
 import { LOCAL_ORIGIN } from './y-origin';
 
 /** The schema version this build writes and understands. */
@@ -68,7 +78,7 @@ export interface StickySnapshot {
 }
 
 /** Any board object snapshot (stories 10–12 add their types to this union). */
-export type ObjectSnapshot = StickySnapshot | TextSnapshot;
+export type ObjectSnapshot = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot;
 
 /** True when a snapshot is a sticky note (narrows the `ObjectSnapshot` union). */
 export function isStickySnapshot(obj: ObjectSnapshot): obj is StickySnapshot {
@@ -78,6 +88,16 @@ export function isStickySnapshot(obj: ObjectSnapshot): obj is StickySnapshot {
 /** True when a snapshot is a text object (story 9). */
 export function isTextSnapshot(obj: ObjectSnapshot): obj is TextSnapshot {
   return obj.type === 'text';
+}
+
+/** True when a snapshot is a shape (story 10). */
+export function isShapeSnapshot(obj: ObjectSnapshot): obj is ShapeSnapshot {
+  return obj.type === 'shape';
+}
+
+/** True when a snapshot is a connector (story 10). */
+export function isConnectorSnapshot(obj: ObjectSnapshot): obj is ConnectorSnapshot {
+  return obj.type === 'connector';
 }
 
 type ObjectsMap = Y.Map<Y.Map<unknown>>;
@@ -108,6 +128,7 @@ function readObject(id: string, raw: Y.Map<unknown>): ObjectSnapshot | undefined
   const type = raw.get('type');
   // an unknown `type` from a later story is skipped rather than crashing the board
   if (type === 'text') return readTextObject(id, raw);
+  if (type === 'shape') return readShapeObject(id, raw);
   if (type !== 'sticky') return undefined;
   const x = raw.get('x');
   const y = raw.get('y');
@@ -136,15 +157,45 @@ function compareStack(a: { z: number; id: string }, b: { z: number; id: string }
   return a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-/** Reads and validates every object in the document. */
+/**
+ * Reads and validates every object in the document.
+ *
+ * Two passes, because an arrow is drawn between other objects: pass one reads everything with a
+ * box of its own and collects those boxes, pass two reads the arrows against them. A single pass
+ * could only resolve an arrow against whatever happened to be read before it.
+ */
 function readAll(doc: Y.Doc): ObjectSnapshot[] {
+  const rects = new Map<string, Rect>();
   const items: ObjectSnapshot[] = [];
+  const arrows: [string, Y.Map<unknown>][] = [];
   for (const [id, raw] of objectsOf(doc)) {
     if (!(raw instanceof Y.Map)) continue;
+    if (raw.get('type') === 'connector') {
+      arrows.push([id, raw]);
+      continue;
+    }
     const item = readObject(id, raw);
+    if (!item) continue;
+    items.push(item);
+    rects.set(id, objectBounds(item));
+  }
+  for (const [id, raw] of arrows) {
+    const item = readConnectorObject(id, raw, rects);
     if (item) items.push(item);
   }
   return items.sort(compareStack);
+}
+
+/**
+ * The box of every object in a snapshot, by id - the map an arrow resolves its ends against.
+ *
+ * The client builds this once per render and hands it to the arrows it draws, so every arrow on the
+ * screen sees the same rectangles the rest of the frame is drawn from.
+ */
+export function objectRects(snapshot: readonly ObjectSnapshot[]): ReadonlyMap<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const obj of snapshot) rects.set(obj.id, objectBounds(obj));
+  return rects;
 }
 
 /** True when `name` is one of the six palette colour names. */
@@ -261,11 +312,18 @@ export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
   return true;
 }
 
-/** Removes an object (any type) from the board. */
+/**
+ * Removes an object (any type) from the board.
+ *
+ * Arrows attached to it are freed first, in the same transaction, so the board never holds an arrow
+ * pointing at something that is not there, and one undo brings back the object and its arrows
+ * together (story 10: deleting an object keeps the arrows that were connected to it).
+ */
 export function deleteObject(doc: Y.Doc, id: string): boolean {
   const objects = objectsOf(doc);
   if (!objects.has(id)) return false;
   doc.transact(() => {
+    detachConnectorsTo(doc, [id]);
     objects.delete(id);
   }, LOCAL_ORIGIN);
   return true;
@@ -339,6 +397,9 @@ export function moveObjects(
     for (const [id, pos] of positions) {
       const obj = objectsOf(doc).get(id);
       if (!(obj instanceof Y.Map)) continue;
+      // Story 10: an arrow has no position of its own - it is drawn between the objects its ends
+      // name - so dragging a selection that contains one leaves that arrow where it belongs.
+      if (obj.get('type') === 'connector') continue;
       obj.set('x', pos.x);
       obj.set('y', pos.y);
       count++;
@@ -366,6 +427,7 @@ export function resizeObjects(
     for (const [id, rect] of rects) {
       const obj = objectsOf(doc).get(id);
       if (!(obj instanceof Y.Map)) continue;
+      if (obj.get('type') === 'connector') continue; // story 10: an arrow has no box to resize
       obj.set('x', rect.x);
       obj.set('y', rect.y);
       obj.set('width', rect.width);
@@ -437,6 +499,9 @@ export function deleteObjects(
   if (existing.length === 0) return 0;
   let count = 0;
   doc.transact(() => {
+    // Detach first, while the objects are still there to be measured: what is left of an arrow
+    // whose object is deleted is a line ending where that object's side used to be.
+    detachConnectorsTo(doc, existing);
     for (const id of existing) {
       objects.delete(id);
       count++;

@@ -15,7 +15,9 @@ import { useSelection } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useUndo } from './board/useUndo';
-import { useTool } from './board/useTool';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool, type ShapeCreateRequest } from './tools/ShapeTool';
+import { ConnectorTool, type ConnectorCreateRequest } from './tools/ConnectorTool';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
@@ -25,12 +27,17 @@ import { Toolbar } from './board/Toolbar';
 import { getObjectType, type BoardObjectComponent } from './objects/registry';
 import type { ObjectProps } from './objects/ObjectProps';
 import {
+  createConnector,
+  createShape,
   createSticky,
   deleteObjects,
+  getShapeLabel,
   snapshot,
   stickySnapshot,
 } from '../shared/board-model';
+import { SHAPE_LABEL_MAX_CHARS } from '../shared/config';
 import { createText } from '../shared/objects/text';
+import { isShapeTool } from '../shared/tools';
 
 /**
  * Who an object this screen creates is attributed to. Story 6 (identities) is not in this build,
@@ -53,8 +60,13 @@ export function Board(props: { boardId: string }) {
   // Story 8: this person's own history. Leaving the board discards it; a reload starts empty.
   const history = useUndo(undo, editable);
 
-  // Story 9: Select or Text, per screen, never shared with anyone else on the board.
-  const { tool, setTool } = useTool(editable);
+  // Story 9 and 10: which tool this screen is holding, per screen and never shared with anyone else
+  // on the board. It also decides what happens after a tool has made its object: back to Select,
+  // with the new thing selected.
+  const { tool, setTool, shapeKind, toolCreated } = useActiveTool({
+    canEdit: editable,
+    selection,
+  });
 
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
@@ -72,6 +84,21 @@ export function Board(props: { boardId: string }) {
       stateVector: () => Array.from(encodeStateVector(doc)),
       createNote: (x: number, y: number) => createSticky(doc, { x, y }),
       createTextAt: (x: number, y: number) => createText(doc, { x, y }, LOCAL_AUTHOR) ?? '',
+      // Story 10: a test sets up shapes and arrows with the model, exactly as the tools do, and then
+      // drives the pointers itself. The label is written the way typing would write it.
+      createShapeAt: (shape) => {
+        const rect = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+        const id = createShape(
+          doc,
+          { kind: shape.kind, rect, at: { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 } },
+          LOCAL_AUTHOR,
+        );
+        if (id !== null && typeof shape.label === 'string' && shape.label.length > 0) {
+          getShapeLabel(doc, id)?.insert(0, shape.label.slice(0, SHAPE_LABEL_MAX_CHARS));
+        }
+        return id ?? '';
+      },
+      createConnectorBetween: (from, to) => createConnector(doc, from, to, LOCAL_AUTHOR) ?? '',
     });
     return () => registerTestHooks(null);
   }, [doc, getCamera, setCamera]);
@@ -109,6 +136,38 @@ export function Board(props: { boardId: string }) {
       selection.startEdit(id);
     },
     [doc, editable, getCamera, history, selection, setTool],
+  );
+
+  /** The Shape tool released its drag: one shape, then back to Select with it selected. */
+  const createShapeFromTool = useCallback(
+    (request: ShapeCreateRequest) => {
+      if (!editable) return;
+      // the shape is a step of its own; what gets typed into its label is the next one
+      history.boundary();
+      const id = createShape(
+        doc,
+        { kind: request.kind, rect: request.rect, at: request.at, square: request.square },
+        LOCAL_AUTHOR,
+      );
+      history.boundary();
+      if (id !== null) toolCreated(id);
+    },
+    [doc, editable, history, toolCreated],
+  );
+
+  /**
+   * The Connector tool released its drag: one arrow, if the model will have it. A refusal - the same
+   * object at both ends, or a line too short to be an arrow - leaves the tool armed to try again.
+   */
+  const createConnectorFromTool = useCallback(
+    (request: ConnectorCreateRequest) => {
+      if (!editable) return;
+      history.boundary();
+      const id = createConnector(doc, request.from, request.to, LOCAL_AUTHOR);
+      history.boundary();
+      if (id !== null) toolCreated(id);
+    },
+    [doc, editable, history, toolCreated],
   );
 
   // ---- Transform gesture ----
@@ -187,6 +246,15 @@ export function Board(props: { boardId: string }) {
           return <Component key={object.id} note={object} {...props} />;
         })}
       </BoardViewport>
+      {/* Story 10: a drawing tool owns the pointer while it is up, so nothing under it is panned,
+          marquee-dragged or moved. The toolbar stays above both, so the person can always put the
+          tool down with the mouse. */}
+      {editable && isShapeTool(tool) ? (
+        <ShapeTool kind={shapeKind} camera={camera} onCreate={createShapeFromTool} />
+      ) : null}
+      {editable && tool === 'connector' ? (
+        <ConnectorTool camera={camera} snapshot={objects} onCreate={createConnectorFromTool} />
+      ) : null}
       {/* Marquee rectangle (screen-space overlay) */}
       <MarqueeRect rect={marquee.rect} camera={camera} />
       {/* Selection overlay: bounding box and handles */}
@@ -204,6 +272,7 @@ export function Board(props: { boardId: string }) {
         onCreateSticky={createAtViewportCentre}
         canEdit={editable}
         tool={tool}
+        shapeKind={shapeKind}
         onSelectTool={setTool}
         undo={{ canUndo: history.canUndo, canRedo: history.canRedo, onUndo: history.undo, onRedo: history.redo }}
       />

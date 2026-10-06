@@ -273,3 +273,165 @@ built thing is deliberately different.
     Chromium (67 tests, and the suite twice in a row green). The playwright config skips the two
     projects with a warning rather than failing, so the cross-browser wrapping check happens on a
     host that has the browsers.
+
+# Story 10 Implementation Notes
+
+Shapes with labels, and arrows that stay attached to them. What the design asked for, what was
+built, and the places where the built thing is deliberately different.
+
+## Deviations from design.md
+
+1. **`ShapeObject` and `ConnectorObject` receive the object as `note`.**
+   The design's file table gives them `shape: ShapeSnap` and `connector: ConnectorSnap`. The registry
+   renders every object through one component signature (`ObjectProps`), whose object prop is called
+   `note` - the name sticky notes gave it in story 2 - and `Board.tsx` passes `note` to everything.
+   A second naming would have meant either a special case in the render loop or a rename through
+   four stories of tests, so the two new components read `note` and narrow it themselves
+   (`isShapeSnapshot` / `isConnectorSnapshot` are already there for exactly this).
+
+2. **An arrow stores its ends as plain objects, not as nested `Y.Map`s.**
+   `{ kind: 'attached', objectId, fallback: {x, y} }` and `{ kind: 'free', x, y }`, written with one
+   `map.set('from', ...)` per end. An end is only ever replaced whole - never edited in place - so
+   the sharing a nested `Y.Map` would buy is never used, and the reads stay one `map.get`.
+
+3. **`detachConnectorsTo` runs before the objects are deleted, in the same transaction.**
+   An end that is being set free is set free *at the side of the shape it was on*, which needs that
+   shape's rectangle. Story 7's `deleteObjects` therefore asks the connector module first and removes
+   the objects second, inside one `doc.transact`: one update on the wire, and no state in which an
+   arrow has been left with nothing to measure against.
+
+4. **`moveObjects` and `resizeObjects` skip arrows.**
+   An arrow's `x`, `y`, `width`, `height` are a bounding box derived from its ends, so writing a
+   position to it would be writing nonsense that the next snapshot throws away. Selecting an arrow
+   and dragging it therefore moves nothing - which is what the picture shows, since the line stays
+   where its two shapes are.
+
+5. **`ConnectorSnapshot` carries its resolved `ends`.**
+   `resolveEndpoints` needs every shape's rectangle, and the renderer would otherwise have to be
+   handed a map of them. Snapshot time is where the map already is, so the snapshot carries
+   `{ from: Point, to: Point }` and `ConnectorObject` draws what it is told. The cost is one more
+   derived field; the gain is that the picture cannot disagree with the document about which side an
+   arrow left from, because there is only one place that decides.
+
+6. **Each end is aimed at the *centre* of the object at the other end, not at that end's anchor.**
+   The anchor of one end depends on the side the other end faces, and the side the other end faces
+   depends back; a pair that depends on itself has no answer. Centres break the circle and pick the
+   same side for every shape but the degenerate.
+
+7. **The Shape tool creates at the point the pointer went down, and hands the pointer back to Select
+   after both a drag and a click.**
+   `tasks.md`'s "click makes a default-sized shape centred on the click point" and `design.md`'s
+   state diagram (`Sizing --> [*] : pointerup create and switch to Select`) agree that one gesture is
+   one shape: the tool is not a stamp that stays down. The click case takes the `rect: null` path, so
+   `createShape` decides the default size, and the point it centres on is `p0` - where the pointer
+   went down - because that is the point the person was aiming at, and a shape that appeared half a
+   default size away from the cursor would look like a bug.
+
+8. **The keyboard belongs to `useActiveTool`, and `S` means "the kind I drew last".**
+   V/T/S/L and Escape live with the tool hook rather than `useBoardKeys`; the overlap on V, T and
+   Escape is idempotent (both set the same tool), and it keeps the story's three new shortcuts and
+   their `canEdit` guard in one file. Pressing `S` resolves through `shapeToolId(lastShapeKind)`, so
+   somebody drawing diamonds does not find themselves drawing rectangles every time they reach for
+   the keyboard.
+
+9. **`.board-toolbar` is above the tool surface; the surface is above the board.**
+   The shape and connector tools cover the whole viewport with a capture surface (z-index 15), which
+   would otherwise swallow the click on the Select button that is the only way out of the tool
+   besides Escape. The toolbar is 30, so arming a tool never locks the toolbar away.
+
+10. **An arrow only answers on the line.**
+    The wrapper div is `pointer-events: none`, an invisible `line` under the visible one is
+    `pointer-events: stroke` and `strokeWidth = (CONNECTOR_HIT_TOLERANCE_PX * 2) / zoom`, and the
+    wrapper's own handler measures the same distance (`hitConnector`) before it stops propagation.
+    The bounding box of a diagonal arrow is mostly empty board, and a click in that emptiness has to
+    reach the board. Both measures are the same function, so what a person can hit and what the code
+    thinks they hit are one rule.
+
+11. **`hitConnector` is exported from `connector-geometry.ts`, and the registry's `hitTest` calls it
+    at zoom 1.**
+    One rule, two callers. `ConnectorObject` measures a click with the live zoom, which is the zoom
+    the click was made at; the registry entry that `tasks.md` asks for has no camera to ask, so it
+    answers for the board at 1:1. Nothing in the board calls the registry's `hitTest` today -
+    selection and the marquee work from bounding boxes, and `ConnectorObject` refuses the empty
+    corner of an arrow's box itself - so the entry is the interface's honest version of the rule
+    rather than the one a pointer meets; the unit test for it covers the corner case that makes the
+    difference visible.
+
+12. **The label's toolbar counter-scales with `--shape-inverse-zoom`.**
+    Set by `ShapeObject` from the live zoom, read by the stylesheet's
+    `transform: scale(var(--shape-inverse-zoom, 1))`, the same mechanism the note's colour bar and a
+    text's size picker use. A toolbar that grew with the board would be a wall of swatches at 400%.
+
+13. **New test hooks: `createShapeAt` and `createConnectorBetween`.**
+    Story 9 left `createTextAt` and nothing else; a shape or an arrow test that had to build its
+    board by pointing at pixels would spend the whole test on setup. Both hooks call the real model
+    (`createShape`, `getShapeLabel().insert`, `createConnector`) in the page, so a fixture board is
+    still a board the model made, and the pointer is left for the gestures a test is actually about.
+    The label goes in through `insert`, which is what typing into the editor would have done.
+
+## Facts about shapes, geometry and CSS that shaped the tests
+
+14. **`nearestSide` is a cone test, not a distance test.**
+    `|dy| * width <= |dx| * height` decides horizontal over vertical without dividing, and reduces to
+    the familiar 45 degrees for a square. A "nearest edge by distance" rule would put the end of a
+    wide, flat diamond on its top corner for a target almost level with it, which reads as the arrow
+    changing its mind.
+
+15. **An end whose object is gone is drawn at its own `fallback`.**
+    That is the whole of the delete-race promise, and it is why `createConnector` keeps the caller's
+    fallback for an object that is not on the board instead of refusing: an arrow that arrives at a
+    shape somebody else is deleting is created, and drawn where the pointer let go. TC-27 asserts the
+    position and *reports* which of the two interleavings happened - free end at the release point, or
+    attached to the id that is gone - because the room decides, and both are correct.
+
+16. **The connector's SVG is drawn in world units.**
+    `viewBox="${left} ${top} ${width} ${height}"` with `x1`/`y1` straight from the ends, so an e2e
+    test can read `x2` off the DOM and compare it with what the document says without knowing the
+    camera at all. That is what makes "both screens show the same arrow" an assertion instead of a
+    screenshot.
+
+17. **A shape's label is centred by CSS, and measured in world units.**
+    `.shape-object__label` is `position: absolute; inset: 8px` with flex centring and
+    `pointer-events: none`; the font is `SHAPE_LABEL_FONT_SIZE_WORLD` (16) and the stylesheet's
+    `line-height: 1.25`. The e2e centring check compares `offsetLeft/offsetWidth` against the shape's
+    own box - offsets inside the shape, so they are world units and hold at any zoom - and the wrap
+    check asks for more than 1.5 times one line's height, which is the point where "it wrapped" stops
+    being a guess.
+
+18. **`SHAPE_DEFAULT_SIZE_WORLD` is a world size, so 200% zoom does not make a bigger shape.**
+    TC-24 clicks at 200% and expects the same 160x160 as at 100%, and gets it: the tool converts the
+    screen point to world before asking for the shape. What doubles is the picture of it.
+
+19. **`data-selected`, `data-shape-id`, `data-connector-id`, `data-handle`: the e2e suite reads the
+    board through attributes, not through pixels.**
+    Already the convention for notes; the two new object types carry the same, and the selection
+    overlay's handles have carried `data-handle` since story 7.
+
+## E2E, and this machine
+
+20. **Playwright cannot delay the frames of a WebSocket that is already open**, so `tasks.md`'s
+    "(Playwright route delay on Sam's WebSocket traffic to force overlap)" is not available:
+    `page.route` does not intercept WebSocket messages, only the upgrade request. TC-27 therefore
+    arranges the overlap instead of timing it - Dana's pointer is down over B, Sam deletes B, the test
+    waits until *Dana's document* says B is gone, and only then lets the pointer up. That is a harder
+    guarantee than a delay: the delete provably landed in the middle of the gesture.
+
+21. **TC-23 runs in every engine; TC-24 to TC-27 are skipped outside chromium, which is what the
+    story's "Done when" asks for** ("All functional assertions pass in chromium; TC-23 also in
+    firefox and webkit"). The multi-context cases are the expensive ones, and three engines' opinions
+    of the same pointer sequence is the part of the suite's wall clock this story can give back.
+    As in stories 8 and 9, Firefox and WebKit cannot launch on this machine (missing system
+    libraries), so the playwright config skipped those two projects here with its usual warning and
+    TC-23's cross-browser claim is one this host cannot make.
+
+22. **The design's people are called Dana and Sam; `PARTICIPANT_NAMES` does not have a Dana.**
+    Rather than renumber every other story's participants, the connector spec sets `.name` on the two
+    contexts it opened, so a failure says "Dana" where the design says Dana.
+
+23. **The checkout-flow fixture describes a board; the board is built by the model.**
+    `tests/fixtures/checkout-flow.ts` is data - four labelled shapes and four arrows - plus the
+    mapping from a fixture end to an `Endpoint`. `applyCheckoutFlow` in the e2e helpers walks that
+    data through `createShapeAt` / `createConnectorBetween`. Nothing serialises a board to be pasted
+    in, which is how the other fixtures work and the reason a fixture board cannot encode a state the
+    model would have refused. It also has one arrow whose head is free on purpose: a fixture with
+    only attached arrows never shows what an arrow does when the thing at its end is gone.

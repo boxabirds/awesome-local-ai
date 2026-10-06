@@ -8,12 +8,19 @@
  */
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
+import { hitConnector } from '../../shared/geometry/connector-geometry';
 import type { ComponentType } from 'react';
 import type { Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import type { ObjectProps } from './ObjectProps';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
 
 export interface ObjectTypeSpec {
   /** React component that renders this object type (set during app initialization). */
@@ -33,9 +40,10 @@ export interface ObjectTypeSpec {
    * Which resize handles this type offers (story 9). `'all'` (the default) is the 8 handles round
    * the box; `'horizontal'` is the two sides only, for an object whose height belongs to its
    * content and must not be dragged. A selection of several types shows the union: what every
-   * object in it can do.
+   * object in it can do. `'none'` (story 10) is for an object with no box of its own to resize -
+   * an arrow, whose shape belongs to the two objects it joins.
    */
-  handles?: 'all' | 'horizontal';
+  handles?: 'all' | 'horizontal' | 'none';
 }
 
 /**
@@ -99,4 +107,34 @@ registerObjectType('text', {
   editableText: true,
   hitTest: rectHitTest,
   handles: 'horizontal',
+});
+
+// Story 10: a shape is a box like any other - moved, resized, marquee-selected and deleted by the
+// generic code - and brings its own hit test only in that it is the box. Its label is edited the
+// same way a note's text is, through the registry's `editableText`.
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: rectHitTest,
+});
+
+// Story 10: an arrow is the one object that is not a box. Its box is derived from its ends, so
+// there is nothing to resize; what a click has to be measured against is the line, within
+// CONNECTOR_HIT_TOLERANCE_PX (see ConnectorObject, which does the same thing in screen pixels).
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest(obj, worldPoint) {
+    if (obj.type !== 'connector') return false;
+    // The registry's hit test has no zoom to work with, so it answers for the board at 1:1. The
+    // component does the same measurement with the live zoom, which is the one a click is made at.
+    return hitConnector(obj.ends, worldPoint, 1);
+  },
+  handles: 'none',
 });

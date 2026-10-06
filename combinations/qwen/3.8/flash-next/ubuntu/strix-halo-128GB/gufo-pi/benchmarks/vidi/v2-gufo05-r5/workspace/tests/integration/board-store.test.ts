@@ -17,7 +17,7 @@ import {
   STORAGE_SCHEMA_VERSION,
 } from '../../src/shared/config';
 import { newBoardId } from '../../src/shared/board-id';
-import { snapshot } from '../../src/shared/board-model';
+import { isStickySnapshot, snapshot } from '../../src/shared/board-model';
 import { BoardStore, type LoadResult } from '../../src/worker/board-store';
 import type { BoardRoom } from '../../src/worker/board-room';
 import {
@@ -90,7 +90,7 @@ function snapshotBytes(state: DurableObjectState): number[] {
 function expectedText(session: AuthoredSession, id: string): string {
   const doc = session.docs[0];
   if (!doc) throw new Error('the session has no documents');
-  const note = snapshot(doc).find((each) => each.id === id);
+  const note = snapshot(doc).filter(isStickySnapshot).find((each) => each.id === id);
   if (!note) throw new Error('the session does not contain that note');
   return note.text;
 }
@@ -220,8 +220,9 @@ describe('the log holds every change (TC-04, TC-05)', () => {
       return {
         load,
         notes: notes.length,
-        texts: notes.map((note) => note.text).sort(),
+        texts: notes.filter(isStickySnapshot).map((note) => note.text).sort(),
         expected: snapshot(session.docs[0] as Y.Doc)
+          .filter(isStickySnapshot)
           .map((note) => note.text)
           .sort(),
         same: sameBoardState(doc, session.docs[0] as Y.Doc),
@@ -472,7 +473,7 @@ describe('a snapshot too big for one row (TC-04b)', () => {
         load,
         notes: snapshot(doc).length,
         same: sameBoardState(doc, boardOf(session)),
-        text: snapshot(doc).at(-1)?.text.length ?? 0,
+        text: snapshot(doc).filter(isStickySnapshot).at(-1)?.text.length ?? 0,
       };
     });
     expect(reloaded.load).toEqual({ ok: true, quarantined: 0 });
@@ -527,7 +528,9 @@ describe('damage (TC-09, TC-10)', () => {
 
     // and the board opens with all ten notes, only the damaged change missing
     expect(outcome.notes).toHaveLength(10);
-    const byId = new Map(outcome.notes.map((note) => [note.id, note.text]));
+    const byId = new Map(
+      outcome.notes.filter(isStickySnapshot).map((note) => [note.id, note.text]),
+    );
     expect(byId.get(damagedTextOf)).toBe('');
     for (const [index, id] of session.ids.entries()) {
       if (id === damagedTextOf) continue;
@@ -591,7 +594,9 @@ describe('damage (TC-09, TC-10)', () => {
     expect(outcome.state).toEqual(Array.from(boardUpdate(boardWithout(session, outcome.damagedSeq))));
 
     // the author whose change was not damaged lost nothing at all
-    const byId = new Map(outcome.notes.map((note) => [note.id, note.text]));
+    const byId = new Map(
+      outcome.notes.filter(isStickySnapshot).map((note) => [note.id, note.text]),
+    );
     for (const id of idsOf(otherAuthor)) {
       expect(byId.get(id), 'the undamaged author kept every note and its text').toBe(
         expectedText(session, id),
