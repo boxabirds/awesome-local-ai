@@ -38,6 +38,12 @@ export interface ToolbarProps {
   /** Hold the Connector tool: the next drag draws an arrow (`connector.draw`). */
   onConnectorTool?(): void;
   /**
+   * Hold the Pen tool: every drag draws a line until the pen is put down (`pen.draw`). Unlike the
+   * other drawing tools it stays held after a stroke, so it is picked up and put down rather than
+   * spent.
+   */
+  onPenTool?(): void;
+  /**
    * Which shape the Shape tool will draw (`shape.kinds`). Defaults to the first kind, so a
    * palette that says nothing draws a rectangle.
    */
@@ -91,7 +97,7 @@ function ShapeKindIcon({ kind }: { kind: ShapeKind }): JSX.Element {
 }
 
 export function Toolbar(props: ToolbarProps): JSX.Element {
-  const { onCreateSticky, onSelectTool, onTextTool, onShapeTool, onConnectorTool, onShapeKind, undo } = props;
+  const { onCreateSticky, onSelectTool, onTextTool, onShapeTool, onConnectorTool, onPenTool, onShapeKind, undo } = props;
   const disabled = props.disabled === true;
   const shapeKind = props.shapeKind ?? SHAPE_KINDS[0];
   // The kind menu is open. It is the palette's own business: an open menu is not a tool, and
@@ -241,6 +247,31 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           <path
             fill="currentColor"
             d="M5.2 9.1h5.9l-1.6-1.6 1.4-1.4L15 9.1l-4.1 4-1.4-1.4 1.6-1.6H5.2v-1ZM2.6 13.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Zm12.1-8.1a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z"
+          />
+        </svg>
+      </button>
+
+      <button
+        type="button"
+        className="vidi6-tool"
+        data-vidi6="tool-pen"
+        aria-label="Pen (P)"
+        aria-pressed={props.tool === 'pen'}
+        aria-disabled={disabled}
+        disabled={disabled}
+        title={disabled ? 'This board could not be loaded' : 'Pen \u2013 drag to draw a line; it stays in hand (P)'}
+        onClick={onPenTool}
+      >
+        {/* A nib with a mark under it: this tool leaves a line wherever it goes. */}
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M13.6 2.3 17.7 6.4 8.9 15.2l-5 1.1 1.1-5 8.6-9Zm-1.2 3.5L5.6 12.6l-.4 1.9 1.9-.4 6.8-6.8-1.5-1.5Z"
+          />
+          <path
+            fill="currentColor"
+            opacity="0.55"
+            d="M3 18c2.2 0 2.2-1.6 4.4-1.6 1.3 0 1.9.8 1.9.8h1.4S10 16 8.6 16C6.4 16 6.2 18 3 18Z"
           />
         </svg>
       </button>

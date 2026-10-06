@@ -50,6 +50,8 @@ export interface BoardKeyOptions {
   onShapeTool?(): void;
   /** Hold the Connector tool (`connector.draw`). Refused on a board that cannot be written. */
   onConnectorTool?(): void;
+  /** Hold the Pen tool (`pen.draw`). Refused on a board that cannot be written. */
+  onPenTool?(): void;
   /** Story 2's action, now with a key: one note in the middle of the view (`sticky.create`). */
   onCreateSticky?(): void;
 }
@@ -124,6 +126,7 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         onTextTool,
         onShapeTool,
         onConnectorTool,
+        onPenTool,
         onCreateSticky
       } = latest.current;
       if (selection.editingId) return; // the text editor owns every key while it is open
@@ -159,6 +162,7 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         if (held === 'text') onTextTool?.();
         else if (held === 'shape') onShapeTool?.();
         else if (held === 'connector') onConnectorTool?.();
+        else if (held === 'pen') onPenTool?.();
         return;
       }
       if (plainKey(event, 'n')) {

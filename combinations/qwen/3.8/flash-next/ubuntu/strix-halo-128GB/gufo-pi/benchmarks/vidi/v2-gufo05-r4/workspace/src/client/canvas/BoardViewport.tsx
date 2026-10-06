@@ -85,6 +85,11 @@ export interface BoardViewportProps {
    * The viewport does not act on it beyond `textTool` above — the tools that need a surface
    * of their own render it — but what the pointer means has to be readable from the screen
    * for the tests that assert a key press picked a tool up. Defaults to `select`.
+   *
+   * `pen` is the one tool whose surface covers this whole one (`PenTool`), so a press can only
+   * reach the viewport here by not having gone to the pen. It is refused rather than acted on:
+   * a Pen drag pans nothing and moves nothing under it, while the wheel still navigates
+   * (`pen.navigation`).
    */
   activeTool?: string;
 }
@@ -159,10 +164,13 @@ export function BoardViewport(props: BoardViewportProps = {}): JSX.Element {
     (target: EventTarget | null): boolean => {
       const viewport = viewportRef.current;
       if (!viewport || !(target instanceof HTMLElement)) return false;
+      // The Pen tool holds the pointer wherever it lands, so nothing this viewport does with a
+      // press — pan, marquee, a note on double-click — is on while it is held (`pen.navigation`).
+      if (props.activeTool === 'pen') return false;
       if (target === viewport || target.dataset.vidi6 === 'grid') return true;
       return props.textTool === true && viewport.contains(target);
     },
-    [props.textTool]
+    [props.activeTool, props.textTool]
   );
 
   const handlePointerDown = useCallback(

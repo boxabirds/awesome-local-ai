@@ -16,6 +16,7 @@ import {
 } from '../../../src/client/canvas/camera';
 import type { ObjectSnapshot, StickySnapshot } from '../../../src/shared/board-model';
 import type { ConnectorSnap } from '../../../src/shared/objects/connector';
+import type { StrokeSnap } from '../../../src/shared/objects/stroke';
 import type { ShapeSnap } from '../../../src/shared/objects/shape';
 import { UNBOUNDED_PAN_TESTED_EXTENT, ZOOM_MAX } from '../../../src/shared/config';
 
@@ -440,13 +441,16 @@ function round6(value: number): number {
  */
 
 /** One of the palette's tools, by name. */
-export function toolButton(page: Page, name: 'select' | 'sticky' | 'text' | 'shape' | 'connector'): Locator {
+export function toolButton(
+  page: Page,
+  name: 'select' | 'sticky' | 'text' | 'shape' | 'connector' | 'pen'
+): Locator {
   return page.locator(`[data-vidi6="tool-${name}"]`);
 }
 
 /** Which tool the palette says is lit, or null when none is. */
 export async function pressedTool(page: Page): Promise<string | null> {
-  for (const name of ['select', 'sticky', 'text', 'shape', 'connector'] as const) {
+  for (const name of ['select', 'sticky', 'text', 'shape', 'connector', 'pen'] as const) {
     const pressed = await toolButton(page, name).getAttribute('aria-pressed');
     if (pressed === 'true') return name;
   }
@@ -673,4 +677,145 @@ interface Box {
   y: number;
   width: number;
   height: number;
+}
+
+/* ------------------------------------------------------------------ story 11 */
+
+/**
+ * The pen: a tool that is held rather than spent, so its helpers are about the gesture while it
+ * is happening as much as about the stroke it leaves.
+ *
+ * `drawStrokeByPath` is the heart of it. It does not click and hope: it puts the mouse down, moves
+ * it in steps, and reads the screen *between* the steps, which is the only way a test can tell a
+ * line that is being drawn from a line that has been drawn.
+ */
+
+/** The pen's own surface, which covers the board while the pen is held. */
+export function penSurface(page: Page): Locator {
+  return page.locator('[data-vidi6="pen-tool"]');
+}
+
+/** The line being drawn right now, in screen space. */
+export function penPreviewPath(page: Page): Locator {
+  return page.locator('[data-vidi6="pen-preview"] path');
+}
+
+/** The round cursor that stands for the pen tip. */
+export function penCursor(page: Page): Locator {
+  return page.locator('[data-vidi6="pen-cursor"]');
+}
+
+/** The pen toolbar, and its swatches and thickness buttons. */
+export function penToolbar(page: Page): Locator {
+  return page.locator('[data-vidi6="pen-toolbar"]');
+}
+
+export function penColorButton(page: Page, color: string): Locator {
+  return penToolbar(page).locator(`[data-vidi6="pen-swatch"][data-color="${color}"]`);
+}
+
+export function penThicknessButton(page: Page, thickness: string): Locator {
+  return penToolbar(page).locator(`[data-vidi6="pen-thickness"][data-thickness="${thickness}"]`);
+}
+
+/** Every stroke on screen. */
+export function strokeElements(page: Page): Locator {
+  return page.locator('[data-vidi6="stroke"]');
+}
+
+/** The strokes the document holds, bottom to top. */
+export async function strokesOn(page: Page): Promise<StrokeSnap[]> {
+  return (await boardObjects(page)).filter((object) => object.type === 'stroke') as StrokeSnap[];
+}
+
+/** How many points a stored stroke holds. */
+export function storedPointCount(stroke: StrokeSnap): number {
+  return stroke.points.length / 2;
+}
+
+/** Put the pen in hand with its key, and check the board agreed. */
+export async function holdPenTool(page: Page): Promise<void> {
+  await page.keyboard.press('p');
+  expect(await toolMode(page)).toBe('pen');
+  await expect(penSurface(page)).toBeVisible();
+}
+
+/** Put the pen down again, however it is being put down. */
+export async function putPenDown(page: Page): Promise<void> {
+  await page.keyboard.press('v');
+  await expect(penSurface(page)).toHaveCount(0);
+}
+
+/**
+ * Draw with the real mouse through `worldPoints`, reading the preview as it goes.
+ *
+ * Returns the preview's `d` attribute after every mouse move, so a caller can assert the line grew
+ * with the pointer rather than arriving all at once at the end (`pen.draw`) — and the strokes the
+ * document holds when the gesture is over, found by comparing what it held before with what it
+ * holds after, because on a board other people are using the count rises for reasons this gesture
+ * did not cause.
+ *
+ * `endAs` is how the gesture ends: released (`up`, the usual), or interrupted by the keyboard
+ * (`escape` puts the pen down mid-draw, `select` switches tool).
+ */
+export async function drawStrokeByPath(
+  page: Page,
+  worldPoints: Point[],
+  options: {
+    steps?: number;
+    endAs?: 'up' | 'escape' | 'select';
+    /** Look at the screen between two moves: what the line looks like while the hand is moving. */
+    onStep?: (info: { d: string; index: number }) => Promise<void>;
+  } = {}
+): Promise<{ preview: string[]; strokes: StrokeSnap[] }> {
+  if (worldPoints.length === 0) throw new Error('a stroke needs somewhere to start');
+  const before = new Set((await boardObjects(page)).map((object) => object.id));
+  const path: Point[] = [];
+  for (const world of worldPoints) path.push(await screenOf(page, world));
+
+  await page.mouse.move((path[0] as Point).x, (path[0] as Point).y);
+  await page.mouse.down();
+
+  const preview: string[] = [];
+  const steps = options.steps ?? 3;
+  for (let index = 1; index < path.length; index += 1) {
+    const from = path[index - 1] as Point;
+    const to = path[index] as Point;
+    for (let step = 1; step <= steps; step += 1) {
+      await page.mouse.move(
+        from.x + ((to.x - from.x) * step) / steps,
+        from.y + ((to.y - from.y) * step) / steps
+      );
+      const d = (await penPreviewPath(page).getAttribute('d')) ?? '';
+      preview.push(d);
+      if (options.onStep) await options.onStep({ d, index: preview.length });
+    }
+  }
+
+  const endAs = options.endAs ?? 'up';
+  if (endAs === 'up') {
+    await page.mouse.up();
+  } else {
+    // The pen is put down under the mouse: the pointer comes up over the board, not over a pen
+    // that has stopped existing.
+    await page.keyboard.press(endAs === 'escape' ? 'Escape' : 'v');
+    await page.mouse.up();
+  }
+
+  const strokes = ((await boardObjects(page)).filter(
+    (object) => object.type === 'stroke' && !before.has(object.id)
+  ) ?? []) as StrokeSnap[];
+  return { preview, strokes };
+}
+
+/** The box one stored stroke is drawn at, as the browser laid it out. */
+export async function strokeBoxOnScreen(page: Page, id: string): Promise<{ x: number; y: number; width: number; height: number }> {
+  const box = await page.locator(`[data-vidi6="stroke"][data-object-id="${id}"]`).boundingBox();
+  if (!box) throw new Error(`stroke ${id} is not drawn on this page`);
+  return box;
+}
+
+/** The `d` of the ink of one stored stroke. */
+export function strokeInk(page: Page, id: string): Locator {
+  return page.locator(`[data-vidi6="stroke"][data-object-id="${id}"] [data-vidi6="stroke-line"]`);
 }

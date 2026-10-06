@@ -1527,3 +1527,187 @@ catching up with.
   of option buttons with `aria-pressed`; a shape is a `role="group"` named by its label, falling back
   to "<kind> shape" when it has none, and so is an arrow (named "Connector"), which is a thing with
   ends rather than a run of text.
+
+---
+
+# Story 11 notes — decisions and deviations
+
+## The pen's wheel comes with the pen
+
+The overlay is a sibling of `BoardViewport`, fixed over the whole window, so while the pen is held
+every wheel event lands on it and never reaches the viewport's listener. That is not a detail to
+discover later: the viewport's wheel handler is the only place `preventDefault` happens, and without
+it a two-finger scroll while drawing pans the *page* as well as the board, and `pen.navigation`
+("the board still pans and zooms while the pen is held") fails with the board not moving at all.
+`PenTool` therefore installs its own `{ passive: false }` wheel listener on the surface and hands
+each event to `useCameraContext().wheel()`. Two things follow that are worth writing down:
+
+- The listener cannot be React's `onWheel`. React attaches wheel handlers passively at the root, so
+  `preventDefault` inside one does nothing and Chrome prints a console error; the tool adds a real
+  `addEventListener` in an effect and removes it on unmount.
+- The overlay must not be `touch-action: none` *and* swallow the gesture it does not want. Pressing
+  is the pen's; a wheel is the board's. The split is by event type, not by "whoever is on top wins".
+
+## A stroke stores its points relative to its own box
+
+`points` is a flat `[x0, y0, x1, y1, …]` array in board units, measured from the stroke's own
+top-left, with the box it was drawn into kept as `baseWidth`/`baseHeight`. `scaledPoints()` maps the
+stored numbers into the box the stroke has *now*, which is what makes `pen.tidy` true: resizing
+scales the drawing, and the recorded points are untouched — the e2e case asserts the stored array is
+byte-for-byte the same before and after a corner drag. The alternative (absolute world points) would
+have a resize rewrite every point of a long line, which is both slower and a worse merge with
+somebody else editing the same stroke while you resize it.
+
+## The quadratic chain starts at the first midpoint, and a test found out why
+
+Smoothing is Ramer-Douglas-Peucker at `STROKE_SIMPLIFY_TOLERANCE_PX`, then a chain of quadratics
+through the surviving points. The first version of `smoothPath` began the chain at the *first point*.
+On a densely sampled squiggle you cannot see the difference; on a line that `simplify` has thinned to
+three points it is a smile where an underline should be, because the first quadratic then spans from
+the start to the middle of the second segment and the bow grows with the length of the leg. What
+caught it was `tests/e2e/pen.spec.ts` — "a stroke is selected by its line, not by its box" — clicking
+on what the stroke's own points say is its middle, at 200 % zoom, missed by more than the hit
+tolerance. So the path is `M p0`, `L mid(p0, p1)`, quadratics from midpoint to midpoint, `L p[n-1]`,
+and `tests/unit/stroke.test.ts` has a case that would have failed then: `smoothPath` of four
+collinear points must contain no y-coordinate that is not exactly the line's.
+
+## Preview in screen units, commit in board units
+
+Two buffers are filled during a drag: screen points drive the preview, world points drive the commit.
+The preview is drawn in the surface's own coordinates (so it is crisp, and the tolerance the PRD
+speaks of — "at the zoom being drawn at" — is directly what the pixels show) and is one `<path>`
+element whose `d` is replaced in a `requestAnimationFrame`, not per pointer event. Keeping the world
+points alongside is not duplication for its own sake: a colleague's change, or a wheel, can move the
+board under a line in progress, and a stroke rebuilt from the pointer's *current* world position at
+release would then contain a jump that the hand never drew. `toWorldScreen` is applied per point as
+it arrives, at the camera of that moment.
+
+## The point limit starts a new stroke, and the seam is a shared point
+
+Reaching `STROKE_MAX_POINTS` commits what is in hand and starts the next stroke at the last point of
+the one just committed, so a hundred-metre scribble is a chain of ordinary strokes with no gap where
+they join. `splitPoints` takes the parts apart from the flat array, and the boundary cases
+(point exactly on a part's end, fewer points than a part, an empty buffer) are unit-tested because
+off-by-one there is a hole in the line. One asymmetry to know: a *single* leftover point after a
+split is not committed — that point is the seam, not a mark — whereas a press that never travelled
+does become a dot. The dot rule is measured in screen pixels against `DRAG_THRESHOLD_PX`: a dot is
+what the hand did, not what the board is.
+
+## Escape is not a commit, and the pen is not a spent tool
+
+`useActiveTool` keeps `'pen'` active after a stroke, which is the one place it differs from
+`Shape` and `Connector`: those tools return to Select because their gesture produced one thing, and
+the pen stays down because a person is mid-thought. So `drawStroke` never calls
+`selectTool('select')` and there is no `toolCreated` for story 8's undo-creates-only rule. Escape and
+`V` go through the same path as any other tool: the overlay unmounts, and its cleanup drops the
+buffer without committing. That cleanup also cancels the pending frame, which is the difference
+between "the line I abandoned went away" and "it went into the board", plus a warning about setting
+state on an unmounted component.
+
+Each commit is bracketed by `undoManager.boundary()`, so Ctrl+Z removes one line however many
+pointer events and splits it took — two component tests check that with two strokes drawn and two
+undos. A split line is two strokes, so it is also two undos; that is stated in the test rather than
+hidden, because it is the visible consequence of the limit rule.
+
+## Hit by line, not by box, and the hit path widens as the camera pulls back
+
+`StrokeObject` renders two paths with identical `d`: the ink, and an invisible one under the pointer
+with `pointer-events: stroke` whose width is
+`max(thicknessWorld, 2 * STROKE_HIT_TOLERANCE_PX / zoom)`. The box itself is inert
+(`pointer-events: none`), like `ConnectorObject`, so a stroke cannot be selected by the empty corner
+of its box — the case `pen.select` asks for and which the e2e file checks by clicking inside a loop
+of ink and getting nothing selected. The registry's `hitTest` (distance to the polyline, same
+tolerance) is what the marquee and tap-through use, so both rules agree by construction: they call
+the same `strokeHitTest`. `distanceToSegment` was un-exported in `geometry/polyline.ts`; it is
+exported now.
+
+A stroke is `role="img"` with the name "Drawing" — it is a picture, and unlike a shape it has no text
+to be named by. `aria-label` on the ink path would be read for every path element, so the label is on
+the `<svg>` and the paths are `aria-hidden` by inheritance from `role="img"` with a single name.
+
+## The pen's options belong to this tab
+
+`usePenOptions` lives in `BoardScreen`, not in the document: choosing a colour is not something to
+undo (story 8 would have to ignore it) and not something to share (my red is not your red). It is
+remembered until reload, which is what the PRD asks, and it writes nothing — a component test counts
+document updates while clicking swatches and expects zero. The toolbar sits beside the tool palette
+rather than above the object, because at the moment you choose there is no object.
+
+`colourName` from story 10 became `optionLabel`, since the same capitalisation rule now serves
+thickness buttons ("Thick") as well as colours ("Black pen").
+
+## `aspectLocked` and a floor on size
+
+A stroke is the first object whose picture is not its box, so it takes story 7's registry
+`aspectLocked: true` rather than growing a resize rule of its own, and `minSize:
+STROKE_MIN_SIZE_WORLD` (4 units) stops a thin line being crushed to a zero-height box, which would
+make `scaledPoints` divide by zero and the line disappear.
+
+## Test notes (story 11)
+
+- `drawStrokeByPath` in `tests/e2e/helpers/board.ts` reads the preview's `d` *between* mouse moves and
+  returns the list; that is the only way to tell "a line being drawn" from "a line drawn", and its
+  `onStep` hook lets a case look at the board mid-gesture — `pen.share`'s "no half-finished strokes
+  appear for others" is asserted while the pointer is still down, which is the only moment the claim
+  is worth anything.
+- **Playwright's `reuseExistingServer` reuses the *build* too.** The web server runs
+  `npm run build:test` only when it starts, so after changing client code a browser run tests
+  yesterday's bundle. The smoothing fix sat invisible until `pkill -f "[w]rangler dev"` (note the
+  brackets, or the `pkill` pattern matches the test command itself and the run kills its own shell).
+- Clicking near a *box corner* in a browser hits the resize handle, not the board. The e2e
+  empty-corner case aims well inside the box, and `pen.tidy` uses `dragResizeHandleBy` deliberately
+  instead of a plain drag, which would have grabbed the ink.
+- jsdom performs no hit testing, so the component version of "click the empty corner" dispatches on
+  the stroke element itself and asserts the stroke did not take the selection; the real fall-through
+  — to a note underneath, or to nothing — is only visible in Chromium.
+- The fixture paths in `tests/fixtures/pen-paths.ts` are generated, and the fidelity assertions walk
+  *every* raw point against the result, which is what `pen.smooth` actually promises. A triangle would
+  pass for almost any algorithm; a 400-point handwritten loop and a 120-point underline do not.
+  `longSpiral` holds `STROKE_MAX_POINTS + 10` so the limit case is the real limit, not a copy of it.
+- `data-selected` on the stroke element, and the live region, are what the component tests assert
+  rather than the selection bar — the bar is only rendered for two or more objects.
+
+## Deviations
+
+- `TC-17`'s "the preview changes on consecutive animation frames" is asserted as the promise behind
+  it: the preview's `d` is read after every pointer move and each read differs, and the page is polled
+  until the last painted point reaches the pointer. Sampling `d` inside a `requestAnimationFrame`
+  callback would have measured the same thing less legibly.
+- `TC-16` is split by what each level can honestly show. The component case proves the stroke lets
+  the press go (an empty corner of its box selects nothing) and that the registry's `hitTest` is
+  false there; the browser case is the one that puts a *note* under that corner and asserts the
+  design's outcome — the note ends up selected and the stroke does not — because choosing among
+  overlapping elements is the browser's hit testing, and jsdom has none.
+- The wheel the pen forwards is converted with `wheelDeltaToPixels`, exported from `BoardViewport`
+  rather than copied, so the overlay and the board cannot disagree about what a `deltaMode: LINE`
+  scroll means. `TC-19` is asserted both ways: the component case pans with a plain wheel (jsdom
+  knows nothing about the browser's scroll, only about our handler), and the browser case pans with a
+  plain wheel and zooms with a pinch, because a real wheel over a real page is the case where a
+  missing `preventDefault` would show.
+- The pen toolbar is a vertical strip just right of the tool palette rather than a horizontal bar;
+  the PRD says "next to the left toolbar", and a vertical strip is the same shape as the palette and
+  does not move when a stroke is selected. Colour and thickness are in one group with separators, so
+  `optionLabel` (see above) replaced story 10's `colourName`, which was also used for shape kinds.
+- Offline behaviour gets no pen-specific test here. A stroke is an ordinary local transaction on the
+  Y.Doc, so story 3's outage-and-replay coverage applies unchanged; the PRD's alternate flow
+  ("drawing while offline") is that story's contract, not this one's.
+
+## Blocked
+
+Nothing new. E2E still runs in Chromium only on this host (story 1's note about missing GTK applies
+unchanged); nothing in this story is Chromium-specific — the interaction is standard Pointer Events
+and Wheel Events, and the SVG path is ordinary path data.
+
+## Verification (story 11)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` | clean |
+| `npm run test:unit` | 259 passed — 12 new (`stroke.test.ts`: TC-01…TC-08 plus simplify/split edges) |
+| `npm run test:component` | 227 passed — 20 new (`PenTool.test.tsx` 14, `StrokeObject.test.tsx` 6; TC-09…TC-16, TC-21) |
+| `npm run test:integration` | 61 passed (no change — the server is untouched) |
+| `npm test` | 547 passed (46 files) |
+| `npm run test:e2e` | 79 passed in chromium + persistence — 8 new in `pen.spec.ts` (TC-17…TC-20 and the two-person option case) |
+| `npx playwright test tests/e2e/pen.spec.ts --repeat-each=3` | 24 passed, no flakes |
+| `npm run test:e2e:nightly` | 2 passed (2.1 m): the idle boards stayed connected, and the capacity soak delivered 603 changes at p50 15 ms / p95 122 ms / max 134 ms |
+| `npm run build` | succeeds; `grep -c __vidi6 dist/client/assets/*.js` → 0 |

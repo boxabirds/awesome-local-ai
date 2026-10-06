@@ -12,8 +12,9 @@
  *    gesture began;
  *  - `useBoardKeys` is Select all, Escape, the arrow nudge, group delete and Enter-to-edit;
  *  - `useActiveTool` holds which tool the pointer is using — Select, the Text tool that turns
- *    the next click into a piece of text (`text.tool`), and from story 10 the Shape and
- *    Connector tools that turn the next drag into a shape or an arrow (`tools.active_tool`);
+ *    the next click into a piece of text (`text.tool`), the Shape and Connector tools
+ *    that turn the next drag into a shape or an arrow, and the Pen that turns every drag into a
+ *    line until it is put down (`tools.active_tool`);
  *  - `SelectionOverlay` and `SelectionBar` say where the selection is and what can be done
  *    to it.
  *
@@ -43,8 +44,11 @@ import { useSelection, type SelectionControls } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
 import { ShapeTool } from '../tools/ShapeTool';
 import { useActiveTool } from '../tools/useActiveTool';
+import { usePenOptions } from '../tools/usePenOptions';
 import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
@@ -126,6 +130,13 @@ function Board(props: BoardScreenProps): JSX.Element {
   const chooseTextTool = useCallback(() => setTool('text'), [setTool]);
   const chooseShapeTool = useCallback(() => setTool('shape'), [setTool]);
   const chooseConnectorTool = useCallback(() => setTool('connector'), [setTool]);
+  const choosePenTool = useCallback(() => setTool('pen'), [setTool]);
+
+  // What the pen draws with, for as long as this page is open (`pen.options`). Held here rather
+  // than in `useActiveTool`, which is about which tool is held and knows nothing about what a
+  // tool makes — and deliberately not in the document, because nobody else's pen should change
+  // because yours did.
+  const pen = usePenOptions();
 
   const gesture = useTransformGesture({
     doc,
@@ -135,7 +146,7 @@ function Board(props: BoardScreenProps): JSX.Element {
     canEdit: editable,
     // While a tool that draws is held, pressing an object draws instead of moving it
     // (`tools.paint_overlay`, TC-28).
-    toolOwnsPointer: tool === 'shape' || tool === 'connector',
+    toolOwnsPointer: tool === 'shape' || tool === 'connector' || tool === 'pen',
     onGestureStart: beginGestureStep,
     onGestureEnd: endGestureStep
   });
@@ -211,6 +222,7 @@ function Board(props: BoardScreenProps): JSX.Element {
     onTextTool: chooseTextTool,
     onShapeTool: chooseShapeTool,
     onConnectorTool: chooseConnectorTool,
+    onPenTool: choosePenTool,
     onCreateSticky: createAtScreenCentre
   });
 
@@ -307,6 +319,20 @@ function Board(props: BoardScreenProps): JSX.Element {
           onCreated={activeTool.toolCreated}
         />
       ) : null}
+      {/* The pen is held rather than spent, so this is the one tool surface that stays put between
+          gestures (`pen.stay_active`) — and the one whose drawing never leaves the tab until the
+          line is finished (`pen.share`). */}
+      {tool === 'pen' ? (
+        <PenTool
+          doc={doc}
+          camera={camera}
+          color={pen.color}
+          thickness={pen.thickness}
+          // Story 6 (names and cursors) is not in this build, so there is no identity to record.
+          identityId=""
+          canEdit={editable}
+        />
+      ) : null}
 
       <Toolbar
         onCreateSticky={createAtScreenCentre}
@@ -315,11 +341,23 @@ function Board(props: BoardScreenProps): JSX.Element {
         onTextTool={chooseTextTool}
         onShapeTool={chooseShapeTool}
         onConnectorTool={chooseConnectorTool}
+        onPenTool={choosePenTool}
         shapeKind={activeTool.shapeKind}
         onShapeKind={activeTool.setShapeKind}
         disabled={!editable}
         undo={undoActions}
       />
+      {/* The pen's own choices travel with the pen: colour and thickness are picked while it is
+          held, and they change the next stroke and nothing already drawn (`pen.options`). */}
+      {tool === 'pen' ? (
+        <PenToolbar
+          color={pen.color}
+          thickness={pen.thickness}
+          onColor={pen.setColor}
+          onThickness={pen.setThickness}
+          disabled={!editable}
+        />
+      ) : null}
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

@@ -96,6 +96,14 @@ body {
   pointer-events: none;
 }
 
+/* The Pen tool the same way again, and it owns the whole board rather than one gesture
+   (`pen.stay_active`): the objects underneath stop answering for themselves, so a drag that
+   starts in the middle of a note draws over it instead of moving it (`pen.navigation`). */
+.vidi6-viewport[data-tool='pen'] .vidi6-world,
+.vidi6-viewport[data-tool='pen'] .vidi6-world > * {
+  pointer-events: none;
+}
+
 /* Board content lives in world coordinates; the CSS transform places it. */
 .vidi6-world {
   position: absolute;
@@ -1191,4 +1199,119 @@ body {
 
 .vidi6-connector-dot[data-highlighted='true'] {
   fill: var(--note-selection);
+}
+
+/* ------------------------------------------------------------------ the pen (story 11) */
+
+/* The pen's surface is the whole board, and it is the one tool held between gestures
+   (`pen.stay_active`) — so unlike the shape and connector overlays it is not empty while it
+   waits. The system cursor is hidden over it because the round preview below *is* the cursor,
+   at the size the pen draws. */
+.vidi6-pen-tool {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  cursor: none;
+  touch-action: none;
+}
+
+/* The line being drawn. Screen space, like the selection: a promise about the pointer, never a
+   thing on the board (`pen.share`). */
+.vidi6-pen-preview {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.vidi6-pen-preview path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The pen tip: centred on the pointer, sized to the thickness at the current zoom. */
+.vidi6-pen-cursor {
+  position: absolute;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* The pen's choices, beside the palette rather than attached to an object: they belong to the
+   tool, and they are there before there is anything to point at (`pen.options`). */
+.vidi6-pen-toolbar {
+  position: fixed;
+  left: 64px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+  z-index: 10;
+}
+
+.vidi6-pen-swatch,
+.vidi6-pen-thickness {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--vidi6-swatch, var(--ink));
+  cursor: pointer;
+}
+
+.vidi6-pen-swatch[aria-pressed='true'],
+.vidi6-pen-thickness[aria-pressed='true'] {
+  border-color: var(--note-selection);
+  background: rgba(30, 136, 229, 0.12);
+}
+
+.vidi6-pen-swatch:disabled,
+.vidi6-pen-thickness:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.vidi6-pen-toolbar-separator {
+  height: 1px;
+  margin: 2px 0;
+  background: var(--panel-border);
+}
+
+/* A stroke: a frame around a line. The box answers to nothing — only the line does, and only
+   near it (`pen.select`). */
+.vidi6-stroke {
+  position: absolute;
+}
+
+.vidi6-stroke,
+.vidi6-stroke-svg {
+  pointer-events: none;
+}
+
+.vidi6-stroke-svg {
+  display: block;
+  overflow: visible;
+}
+
+.vidi6-stroke-line {
+  /* Round ends and round joins: the pen that drew this had a round nib, and a stroke with
+   mitred corners is a different drawing (`pen.dot`). */
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.vidi6-stroke-hit {
+  pointer-events: stroke;
 }

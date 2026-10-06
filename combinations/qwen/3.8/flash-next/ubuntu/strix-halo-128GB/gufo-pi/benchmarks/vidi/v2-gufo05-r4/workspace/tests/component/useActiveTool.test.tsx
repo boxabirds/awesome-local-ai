@@ -102,9 +102,11 @@ describe('the active tool hook (tools.active_tool)', () => {
     expect(TOOL_SHORTCUTS.i).toBe('image');
     expect(TOOL_SHORTCUTS.c).toBe('comment');
 
-    // Story 10 adds these two; the rest of the union belongs to stories 11 and 12.
+    // Story 10 added the Shape and Connector tools and story 11 the Pen; the rest of the union
+    // belongs to story 12.
     expect(MODE_TOOLS).toContain('shape');
     expect(MODE_TOOLS).toContain('connector');
+    expect(MODE_TOOLS).toContain('pen');
     const ids: ToolId[] = ['select', 'sticky', 'text', 'shape', 'connector', 'pen', 'image', 'comment'];
     for (const mode of MODE_TOOLS) expect(ids).toContain(mode);
   });
@@ -113,9 +115,9 @@ describe('the active tool hook (tools.active_tool)', () => {
     expect(modeForShortcutKey('s')).toBe('shape');
     expect(modeForShortcutKey('l')).toBe('connector');
     expect(modeForShortcutKey('q')).toBeNull();
-    // N makes a note rather than becoming a mode, and P, I and C are later stories.
+    // N makes a note rather than becoming a mode, and I and C are story 12's tools.
     expect(modeForShortcutKey('n')).toBeNull();
-    expect(modeForShortcutKey('p')).toBeNull();
+    expect(modeForShortcutKey('p')).toBe('pen');
     expect(modeForShortcutKey('i')).toBeNull();
     expect(modeForShortcutKey('c')).toBeNull();
     // A modified key is the browser's, and a bare modifier is nobody's.
@@ -151,7 +153,8 @@ describe('the active tool hook (tools.active_tool)', () => {
     expect(result.current.tool).toBe('select');
     expect(result.current.shapeKind).toBe('rect');
 
-    act(() => result.current.setTool('pen'));
+    // The Pen tool exists now (story 11); the image tool is the one nothing can draw.
+    act(() => result.current.setTool('image'));
     expect(result.current.tool).toBe('select');
 
     act(() => result.current.setTool('shape'));

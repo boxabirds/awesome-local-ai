@@ -14,14 +14,17 @@ import { STICKY_OBJECT_TYPE } from '../../shared/board-model';
 import {
   CONNECTOR_MIN_LENGTH_WORLD,
   SHAPE_MIN_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD
 } from '../../shared/config';
 import { CONNECTOR_OBJECT_TYPE } from '../../shared/objects/connector';
 import { SHAPE_OBJECT_TYPE } from '../../shared/objects/shape';
+import { STROKE_OBJECT_TYPE } from '../../shared/objects/stroke';
 import { TEXT_OBJECT_TYPE } from '../../shared/objects/text';
 import { ConnectorObject, connectorHitTest } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
+import { StrokeObject, strokeHitTest } from './StrokeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { hitTestBounds, registerObjectType, registeredTypes } from './registry';
@@ -75,6 +78,19 @@ export function registerObjectTypes(): void {
     editableText: true,
     handles: 'horizontal',
     hitTest: hitTestBounds
+  });
+  // Strokes (story 11): a drawing is an object like any other — moved, deleted, and resized in
+  // proportion, because a sketch that squashed when you dragged a corner stops being the sketch
+  // somebody drew (`pen.resize`). It holds no text. And like an arrow it answers a click for
+  // itself, near its line rather than anywhere in its box, because the box of a scribble is mostly
+  // nothing and the things underneath it still have to be reachable (`pen.select`).
+  registerObjectType(STROKE_OBJECT_TYPE, {
+    Component: StrokeObject,
+    resizable: true,
+    aspectLocked: true,
+    minSize: STROKE_MIN_SIZE_WORLD,
+    editableText: false,
+    hitTest: strokeHitTest
   });
 }
 

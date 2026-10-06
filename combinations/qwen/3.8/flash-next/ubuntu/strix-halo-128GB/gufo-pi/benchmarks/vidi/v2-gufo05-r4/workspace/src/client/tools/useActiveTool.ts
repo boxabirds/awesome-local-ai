@@ -13,17 +13,20 @@
  *    arrives as an ordinary document update. So this state is not in `Y.Doc`, is not synced
  *    and is not persisted — a refresh returns the pointer to Select.
  *  - the tool is **read by four places**: the toolbar (which button is lit), the viewport
- *    (the cursor, and what a press means), the keyboard (V, T, S, L, Escape) and the board
+ *    (the cursor, and what a press means), the keyboard (V, T, S, L, P, Escape) and the board
  *    screen (which selects and edits whatever the tool created).
  *  - **a tool that made something is spent** (`tools.return_to_select`): `toolCreated(id)`
  *    makes the new object the selection and puts the pointer back to Select, so the thing
  *    that just arrived can be moved, resized or typed into without a second click elsewhere.
  *    The alternative — staying in the tool — turns every click into a new object, which is
  *    right for a wall of sticky notes and wrong for drawing one flow diagram.
+ *    The Pen tool is the deliberate exception (`pen.stay_active`): a sketch is several strokes,
+ *    and it never calls `toolCreated`, so the pointer stays where it was put. Nothing here needs
+ *    to know that — spending a tool is something a tool does to itself.
  *  - **a tool the board cannot offer is not entered.** On a board that failed to load there
  *    is nothing to place (`text.limit_access`), and a tool this build has no component for
- *    (`pen`, `image`, `comment` — stories 11 and 12) would leave the pointer holding
- *    something nothing can draw. Asking for either leaves the tool exactly as it was.
+ *    (`image`, `comment` — story 12) would leave the pointer holding something nothing can
+ *    draw. Asking for either leaves the tool exactly as it was.
  *
  * Escape is not handled here: it belongs to `useBoardKeys`, which already decides which key
  * presses are the board's and calls `setTool('select')`. A tool in the middle of a drag is
@@ -65,10 +68,10 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 /**
  * The tools this build can actually hold: a mode with a component behind it.
  *
- * `sticky` is an action, not a mode, and the last three are stories 11 and 12 — their letters
- * do nothing until their tools exist.
+ * `sticky` is an action, not a mode, and the last two are story 12 — their letters do nothing
+ * until their tools exist.
  */
-export const MODE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+export const MODE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
 /**
  * Which tool the letter `key` selects, or null when it selects none: an unknown letter, a

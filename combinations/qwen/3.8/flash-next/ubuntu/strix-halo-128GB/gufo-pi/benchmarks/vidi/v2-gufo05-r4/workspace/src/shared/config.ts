@@ -349,6 +349,49 @@ export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 /** Radius of one connection dot, in screen pixels. */
 export const CONNECTOR_DOT_RADIUS_PX = 4;
 
+/* ------------------------------------------------------------- freehand pen (story 11) */
+
+/** The six pen colours, by name — a stroke stores the name, never the hex. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA'
+} as const;
+
+/** The three pen thicknesses, in *board* units, so a stroke scales with the zoom. */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+/** The colour and thickness of a pen that has just been picked up. */
+export const DEFAULT_PEN_COLOR = 'black';
+export const DEFAULT_PEN_THICKNESS = 'medium';
+
+/**
+ * How far, in *screen* pixels at the zoom being drawn at, a finished stroke may stray from the
+ * path the hand drew (`pen.smooth`). Ramer-Douglas-Peucker run at this tolerance keeps every
+ * recorded point within it of the result, which is what "smoothed but faithful" means.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * How many recorded points one stroke may hold (`pen.long_stroke`). Reaching it finishes the
+ * stroke and starts a new one at the same point, so an unbroken hundred-metre scribble costs no
+ * more memory than a series of long ones.
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/**
+ * How close, in screen pixels, a click has to be to a stroke's line to select it
+ * (`pen.select`). Half the stroke's own thickness is the floor, so a thick line stays as easy
+ * to hit as it is to see.
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/** The smallest a stroke may be resized to, in board units. */
+export const STROKE_MIN_SIZE_WORLD = 4;
+
 /**
  * First wait before re-checking whether a board link exists. Each failure doubles the
  * wait, up to `RECONNECT_MAX_BACKOFF_MS` — the same ceiling the live connection uses,

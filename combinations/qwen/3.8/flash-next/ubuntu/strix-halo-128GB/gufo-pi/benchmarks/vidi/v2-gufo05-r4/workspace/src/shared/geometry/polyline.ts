@@ -25,7 +25,7 @@ function usable(point: Point | undefined): point is Point {
 }
 
 /** How far `p` is from the segment `a`-`b`, measured to the segment rather than its line. */
-function distanceToSegment(a: Point, b: Point, p: Point): number {
+export function distanceToSegment(a: Point, b: Point, p: Point): number {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const lengthSq = dx * dx + dy * dy;
