@@ -110,6 +110,34 @@ the confounds below stated every time.
    - It needs `sudo`, which on this machine asks for a password, so **the install is the owner's to run.** That,
      and not the machine being busy, is what blocks the build.
 
+   **The twelfth package is broken, and the fix needs no root.** With all twelve installed, `cmake --preset
+   release` succeeds (OpenMP 4.5 found) and the compile runs to 145 of 254 before failing — **not in the Qwen3.6
+   code, which built, including its gfx1151 MoE wave64 kernels**, but in `deepseek_v4_flash`, on:
+
+   ```
+   /usr/include/rocwmma/rocwmma.hpp:29: fatal error: 'internal/accessors.hpp' file not found
+   ```
+
+   Ubuntu 26.04's `librocwmma-dev` ships five headers and **omits the entire `internal/` directory** that
+   `rocwmma.hpp` includes on its first line, so the package cannot compile anything. rocWMMA is used only by
+   DeepSeek V4 Flash — `grep -rl rocwmma src/` hits that model alone — but `CMakeLists.txt` adds it
+   unconditionally under `ENGINE_ENABLE_HIP`, so it cannot simply be skipped.
+
+   rocWMMA is header-only, so the fix is to put a complete tree ahead of `/usr/include`, with no root and no
+   patch to the fork:
+
+   ```sh
+   git clone --depth 1 --branch rocm-7.1.0 https://github.com/ROCm/rocWMMA.git ~/build/rocWMMA
+   mkdir -p ~/build/rocwmma-include/rocwmma
+   cp -r ~/build/rocWMMA/library/include/rocwmma/. ~/build/rocwmma-include/rocwmma/
+   cp /usr/include/rocwmma/rocwmma-version.hpp ~/build/rocwmma-include/rocwmma/   # generated, not in the source
+   export CPATH="$HOME/build/rocwmma-include${CPATH:+:$CPATH}"
+   ```
+
+   The source tree holds exactly Ubuntu's four headers plus `internal/`; the version header is the one piece
+   Ubuntu generates, which is why it is copied across rather than taken from the clone. `~/build/q36-build.sh`
+   on the machine does this and carries the memory watchdog below.
+
    **The compile is the part to pace.** The fork's own instruction is `--parallel 4`, not a full-width build.
    With a run live the machine had 14.7 GiB available of 122 and 1.35 GB of swap already in use, while the
    harness's machine guard stops a story below 8% free (about 9.8 GiB) or after 4 GB of swap growth. So a
