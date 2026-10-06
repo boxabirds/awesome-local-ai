@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # combinations/qwen/3.8/flash-next/macos/128GB/llamacpp-pi/config.sh
 #
-# Qwen3.8-Flash-Next (Unsloth UD-IQ4_XS GGUF + the shared-Q8_0 MTP head) on a 128 GB Apple silicon
+# Qwen3.8-Flash-Next (Unsloth UD-IQ3_XXS GGUF + the shared-Q8_0 MTP head) on a 128 GB Apple silicon
 # Mac, served by llama.cpp's Metal backend, with pi as the client. It is the Strix Halo stack
 # (ubuntu/strix-halo-128GB/llamacpp-pi) moved to a Mac: same llama.cpp branch and commit, same
 # weights, same MTP settings, same sampling and context. Only the GPU backend differs (Metal, not
@@ -10,10 +10,10 @@
 #
 # This file is DATA. All the logic lives in lib/ (lib/accel/metal.sh, lib/llamacpp.sh).
 
-INSTALL_ID="qwen38-flash-next-metal"
-DISPLAY_NAME="Qwen3.8-Flash-Next (Mac, llama.cpp Metal)"
-MODEL_DISPLAY_NAME="Qwen3.8-Flash-Next GGUF (Unsloth)"
-ROOT_ENV_VAR="QWEN38_FLASH_NEXT_ROOT"
+INSTALL_ID="qwen38-flash-next-metal-iq3xxs"
+DISPLAY_NAME="Qwen3.8-Flash-Next 3-bit (Mac, llama.cpp Metal)"
+MODEL_DISPLAY_NAME="Qwen3.8-Flash-Next GGUF UD-IQ3_XXS (Unsloth)"
+ROOT_ENV_VAR="QWEN38_FLASH_NEXT_IQ3XXS_ROOT"
 
 # Unmeasured: ranks below any measured combination for the same machine. It
 # offers there. Remove once the profiles below hold measured numbers.
@@ -57,33 +57,36 @@ MIN_LLAMA_COMMIT_DATE="2026-09-08"
 # Unsloth's dynamic quants. Sizes are the Hub's own byte counts, read
 # 2026-09-25. top-1 agreement / mean KLD against BF16 are Unsloth's figures.
 #
-#   UD-IQ4_XS    93.68 GB   89.6%  0.084   default: leaves room for 128k+ context
-#   UD-Q4_K_XL  111.33 GB   92.3%  0.047   best quality; tight, see low_memory_advice
+#   UD-IQ3_XXS   81.96 GB      -      -    3-bit, for the quantisation comparison; Unsloth
+#                                           publish no agreement or KLD figure for it here
+#   UD-IQ3_XXS   81.96 GB      -      -    this combination; Unsloth publish no agreement
+#                                           or KLD figure for it on this model's card
+# The 4-bit sibling's sizes, for comparison: UD-IQ4_XS 93.68 GB (89.6% top-1, 0.084 KLD),
+# UD-Q4_K_XL 111.33 GB (92.3%, 0.047).
 #
-# 3-bit is its own combination, qwen/3.8/flash-next/macos/128GB/llamacpp-iq3xxs-pi:
-# a combination is what the benchmarker ranks, so its quant does not vary here.
+# UD-IQ3_XXS is here to answer one question and is not a default: whether 3-bit
+# Flash-Next can do agentic coding at all. Strata's GSQ-RCO IQ3_XXS scored 6 of 27
+# at story 3 where every 4-bit-and-up stack scored 21-24, and that run moved engine
+# and quantisation together. This holds the engine still so the bit depth is the
+# only variable. A different quantiser at the same nominal depth, so it answers
+# "is 3-bit Flash-Next usable", not "are Strata's weights usable".
 #
 # The shards live in a subdirectory of the repo, and llama.cpp opens the rest
 # of a split GGUF from the first, so the first shard is the `model` asset and
 # the others ride along under a free-form role.
-QUANT="${QUANT:-UD-IQ4_XS}"
+# Fixed, not a knob. This combination exists to measure one bit depth, so its quant is part of its identity:
+# a combination is what the benchmarker ranks, and a stack whose weights can change between runs cannot be
+# compared with itself. The 4-bit sibling is qwen/3.8/flash-next/macos/128GB/llamacpp-pi, and the pair differs
+# in the quantisation and nothing else -- same engine, branch, machine, sampling, context and client.
+QUANT="UD-IQ3_XXS"
 MODEL_SUBDIR="models/Qwen3.8-Flash-Next-GGUF"
 _R="unsloth/Qwen3.8-Flash-Next-GGUF"
 _F="${QUANT}/Qwen3.8-Flash-Next-${QUANT}"
-case "$QUANT" in
-  UD-IQ4_XS) MODEL_ASSETS="
+MODEL_ASSETS="
 ${_R}|${_F}-00001-of-00003.gguf|model|10.9 MB
-${_R}|${_F}-00002-of-00003.gguf|shard|49.84 GB
-${_R}|${_F}-00003-of-00003.gguf|shard|43.84 GB
-" ;;
-  UD-Q4_K_XL) MODEL_ASSETS="
-${_R}|${_F}-00001-of-00004.gguf|model|10.9 MB
-${_R}|${_F}-00002-of-00004.gguf|shard|49.86 GB
-${_R}|${_F}-00003-of-00004.gguf|shard|49.38 GB
-${_R}|${_F}-00004-of-00004.gguf|shard|12.09 GB
-" ;;
-  *) err "QUANT=${QUANT} is not one this combination lists (UD-IQ4_XS, UD-Q4_K_XL)." ;;
-esac
+${_R}|${_F}-00002-of-00003.gguf|shard|49.57 GB
+${_R}|${_F}-00003-of-00003.gguf|shard|32.38 GB
+"
 # The MTP draft head, as a separate file (Unsloth's MTP/README.md is the
 # source for what follows). "shared" heads borrow the target's embedding and
 # output projection, saving ~1.3 GB, and draft identically to the
@@ -105,7 +108,7 @@ MODEL_ASSETS="${MODEL_ASSETS}${_R}|mmproj-F16.gguf|mmproj|904.0 MB
 unset _R _F _M
 
 # ---- serving --------------------------------------------------------------
-MODEL_ALIAS_DEFAULT="qwen3.8-flash-next"  # stable id advertised at /v1/models
+MODEL_ALIAS_DEFAULT="qwen3.8-flash-next-iq3xxs"  # stable id advertised at /v1/models
 DEFAULT_PROFILE="coding"
 
 # break tool calling on this model -- and with two KV heads the cache is small
