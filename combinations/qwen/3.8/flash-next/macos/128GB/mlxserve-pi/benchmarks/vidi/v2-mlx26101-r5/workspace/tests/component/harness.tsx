@@ -11,7 +11,11 @@ import {
 import { BoardViewport } from '../../src/client/canvas/BoardViewport';
 import { NavigationHint } from '../../src/client/canvas/NavigationHint';
 import { ZoomControls } from '../../src/client/canvas/ZoomControls';
-import { useCamera, type CameraController, type CameraPatch } from '../../src/client/canvas/useCamera';
+import {
+  useCamera,
+  type CameraController,
+  type CameraPatch,
+} from '../../src/client/canvas/useCamera';
 
 /** Laptop viewport from the design's fixtures. */
 export const VIEWPORT: Size = { width: 1280, height: 800 };
@@ -123,7 +127,12 @@ export function pointer(
 }
 
 /** Drags the board surface by (dx, dy) screen pixels. */
-export function dragBy(dx: number, dy: number, from: Point = { x: 400, y: 300 }, pointerId = 1): void {
+export function dragBy(
+  dx: number,
+  dy: number,
+  from: Point = { x: 400, y: 300 },
+  pointerId = 1,
+): void {
   const el = board();
   pointer('pointerDown', el, { ...from, pointerId });
   pointer('pointerMove', el, { x: from.x + dx, y: from.y + dy, pointerId });
@@ -184,7 +193,7 @@ import {
 } from '../../src/shared/board-model';
 import type { Selection } from '../../src/client/board/useSelection';
 import type { ConnectBoardOptions } from '../../src/client/board/connection';
-import { Board, type BoardHandle } from '../../src/client/App';
+import { Board, type BoardHandle } from '../../src/client/board/Board';
 
 /** The whole board, plus the pieces a test needs to look inside it. */
 export interface BoardFixture {
@@ -212,7 +221,9 @@ export function renderBoard(
   board: { boardId?: string; connect?: ConnectBoardOptions } = {},
 ): BoardFixture {
   const handle: { current: BoardHandle | null } = { current: null };
-  render(<Board handle={handle} viewport={viewport} boardId={board.boardId} connect={board.connect} />);
+  render(
+    <Board handle={handle} viewport={viewport} boardId={board.boardId} connect={board.connect} />,
+  );
 
   const fixture: BoardFixture = {
     handle,

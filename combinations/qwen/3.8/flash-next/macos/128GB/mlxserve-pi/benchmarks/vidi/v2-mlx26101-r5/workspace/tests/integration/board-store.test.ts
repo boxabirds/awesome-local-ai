@@ -108,16 +108,24 @@ class BoardStorage {
   ) {}
 
   /**
-   * Opens the storage of a board of this name. The object is constructed by being fetched,
-   * which is also when its tables are created; the document is this harness's, standing in
-   * for the room's, and is what the store is handed to fold.
+   * Opens the storage of a board of this name — a board that exists, which since story 5 is
+   * something that has to happen: the object is constructed by being asked to create itself,
+   * which is the same call `POST /api/boards` makes and the only thing that makes tables.
+   * The document is this harness's, standing in for the room's, and is what the store is
+   * handed to fold.
    */
   static async open(name: string): Promise<BoardStorage> {
     const stub = rooms.get(rooms.idFromName(name));
-    // A request for a board whose name is a valid one, which the room answers with "this is a
-    // websocket endpoint" — the point is only that the object now exists and has made its tables.
-    await stub.fetch('https://board-store.test/store-probe');
+    // Creating the board is the honest way to get to "a board with no changes on it": a plain
+    // request to the object would now be answered with "this is a websocket endpoint" and
+    // would leave the board's tables uncreated, because a request that reads creates nothing.
+    await stub.initialize();
     return new BoardStorage(stub, new Y.Doc());
+  }
+
+  /** Runs a statement about this board's storage that the object itself answers. */
+  initialize(): Promise<'created' | 'exists'> {
+    return this.stub.initialize();
   }
 
   /** Runs a statement about this board's storage, inside the object that owns it. */
@@ -240,10 +248,16 @@ class BoardStorage {
   quarantinedRows(): Promise<readonly { seq: number; error: string; bytes: number }[]> {
     return this.run((_store, sql) => {
       const rows: { seq: number; error: string; bytes: number }[] = [];
-      for (const row of sql.exec<{ seq: number; error: string; data: ArrayBuffer }>(
-        'SELECT seq, error, data FROM quarantined_updates ORDER BY seq',
-      )) {
-        rows.push({ seq: row.seq, error: row.error, bytes: new Uint8Array(row.data).length });
+      for (const row of sql.exec<{
+        seq: number;
+        error: string;
+        data: ArrayBuffer;
+      }>('SELECT seq, error, data FROM quarantined_updates ORDER BY seq')) {
+        rows.push({
+          seq: row.seq,
+          error: row.error,
+          bytes: new Uint8Array(row.data).length,
+        });
       }
       return rows;
     });
@@ -300,7 +314,10 @@ class BoardStorage {
   /** One log row's bytes, as the database holds them. */
   row(seq: number): Promise<Uint8Array | null> {
     return this.run((_store, sql) => {
-      for (const found of sql.exec<{ data: ArrayBuffer }>('SELECT data FROM updates WHERE seq = ?', seq)) {
+      for (const found of sql.exec<{ data: ArrayBuffer }>(
+        'SELECT data FROM updates WHERE seq = ?',
+        seq,
+      )) {
         return new Uint8Array(found.data);
       }
       return null;
@@ -530,7 +547,7 @@ describe('an empty board, and what the first change writes (TC-03, TC-25)', () =
     expect(loaded.notes).toEqual([]);
   });
 
-  it('gets its schema version from the first change, which is the client\'s own', async () => {
+  it("gets its schema version from the first change, which is the client's own", async () => {
     const fixture = retroBoard();
     const store = await openStore('first-change-writes-meta');
     const first = fixture.updates[0];
@@ -548,7 +565,7 @@ describe('an empty board, and what the first change writes (TC-03, TC-25)', () =
     expect(board((await store.read()).notes)).toEqual([]);
   });
 
-  it('leaves the document\'s own meta alone when the board is folded away (TC-07)', async () => {
+  it("leaves the document's own meta alone when the board is folded away (TC-07)", async () => {
     const fixture = retroBoard();
     const store = await openStore('meta-through-compaction');
     await seed(store, fixture.updates);
@@ -632,7 +649,9 @@ describe('a change is one row, and a row can be missing (TC-04)', () => {
 
     const after = await store.updateRows();
     expect(after).toHaveLength(rows.length);
-    expect(after[after.length - 1]?.seq, 'the log went on past the hole').toBeGreaterThan(missing.seq);
+    expect(after[after.length - 1]?.seq, 'the log went on past the hole').toBeGreaterThan(
+      missing.seq,
+    );
 
     const loaded = await store.read();
     expect(loaded).toMatchObject({ ok: true, quarantined: 0 });
@@ -693,7 +712,7 @@ describe('damage in the log is one change, not the board (TC-09)', () => {
     const records = await store.quarantinedRows();
     expect(records).toHaveLength(1);
     expect(records[0]).toMatchObject({ seq: 4, bytes: damagedLength });
-    expect(records[0]?.error, 'the record says why, in the reader\'s words').toMatch(/Error/);
+    expect(records[0]?.error, "the record says why, in the reader's words").toMatch(/Error/);
 
     const expected = new Y.Doc();
     for (const [index, update] of fixture.updates.entries()) {
@@ -853,9 +872,10 @@ describe('a snapshot that cannot be read is never an empty board (TC-10)', () =>
     expect(loaded.ok).toBe(false);
     expect(loaded.ok ? '' : loaded.reason).toBe('sql-error');
     expect(loaded.ok ? '' : loaded.error).toMatch(/the storage said no/);
-    expect((await store.counts()).quarantined, 'a database that will not answer is not damage to report on').toBe(
-      0,
-    );
+    expect(
+      (await store.counts()).quarantined,
+      'a database that will not answer is not damage to report on',
+    ).toBe(0);
   });
 
   it('refuses to load when it cannot read its own record', async () => {
@@ -967,7 +987,10 @@ describe('a log that has grown is folded into a snapshot (TC-06, TC-08)', () => 
     expect((await store.counts()).pendingRows).toBe(0);
     const next = fixture.updates[0] as Uint8Array;
     await store.append(next);
-    expect(await store.counts()).toMatchObject({ pendingRows: 1, pendingBytes: next.length });
+    expect(await store.counts()).toMatchObject({
+      pendingRows: 1,
+      pendingBytes: next.length,
+    });
   });
 
   it('keeps a change that arrives while the log is being folded (TC-11)', async () => {
@@ -1045,7 +1068,11 @@ describe('a compaction that fails has not happened (TC-11)', () => {
 
     await store.clearFaults();
     expect(await store.compact(), 'the next change gives it another go').toBe(true);
-    expect(await store.counts()).toMatchObject({ updates: 0, pendingRows: 0, pendingBytes: 0 });
+    expect(await store.counts()).toMatchObject({
+      updates: 0,
+      pendingRows: 0,
+      pendingBytes: 0,
+    });
     expect(board((await store.read()).notes)).toEqual(board(fixture.notes));
   });
 

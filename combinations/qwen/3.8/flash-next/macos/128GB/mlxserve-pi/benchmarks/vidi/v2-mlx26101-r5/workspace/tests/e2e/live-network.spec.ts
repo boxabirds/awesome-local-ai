@@ -17,6 +17,7 @@ import { expect, test } from '@playwright/test';
 
 import { CATCH_UP_TEST_OUTAGE_MS, E2E_EVENTUAL_TIMEOUT_MS } from '../../src/shared/config';
 import { doubleClickCreate, noteIds, noteText, editorLocator } from './helpers/board';
+import { ensureBoard } from './helpers/boards';
 import {
   badge,
   badgeText,
@@ -100,12 +101,16 @@ test('TC-27 a person who drops off comes back with everything', async ({ browser
   ).toBe('reconnecting');
   // The premise, checked rather than assumed: Alex's browser really cannot reach the server,
   // and Sam's really can.
-  expect(await canReachServer(alex.page), 'Alex is offline in the browser, not just in name').toBe(false);
+  expect(await canReachServer(alex.page), 'Alex is offline in the browser, not just in name').toBe(
+    false,
+  );
   expect(await canReachServer(sam.page), 'Sam was never affected').toBe(true);
 
   // Sam keeps working and is told nothing is wrong: Sam's board is connected, and Alex's
   // notes have not reached it because they could not have.
-  expect(await canRead(sam, alexWords), 'Alex’s offline notes did not leak into the room').toBe(false);
+  expect(await canRead(sam, alexWords), 'Alex’s offline notes did not leak into the room').toBe(
+    false,
+  );
   expect(await badgeText(sam.page), 'Sam was never told anything was wrong').toBeNull();
 
   // However long that took, the outage is at least the 30 seconds the story is about.
@@ -124,7 +129,8 @@ test('TC-27 a person who drops off comes back with everything', async ({ browser
   const backIn = await expectEventually(
     alex,
     'the badge to go away again',
-    async () => (await badgeText(alex.page)) === null && (await connectionState(alex.page)) === 'connected',
+    async () =>
+      (await badgeText(alex.page)) === null && (await connectionState(alex.page)) === 'connected',
     { timeoutMs: OFFLINE_DETECTION_TIMEOUT_MS, record: false },
   );
   console.info(
@@ -148,7 +154,10 @@ test('TC-27 a person who drops off comes back with everything', async ({ browser
     expect([...ids].sort()).toEqual([...alexIds, ...samIds].sort());
   }
   // Text is intact in both directions, not just the note objects.
-  for (const [id, word] of [...alexIds.map((note, index) => [note, alexWords[index]]), ...samIds.map((note, index) => [note, samWords[index]])]) {
+  for (const [id, word] of [
+    ...alexIds.map((note, index) => [note, alexWords[index]]),
+    ...samIds.map((note, index) => [note, samWords[index]]),
+  ]) {
     expect(await noteText(alex.page, id as string)).toBe(word as string);
     expect(await noteText(sam.page, id as string)).toBe(word as string);
   }
@@ -183,8 +192,12 @@ test('a room that cannot be reached says so, and the person can keep working', a
   const alex = await openPersonPage(browser, 'Alex');
 
   // The room is unreachable: every attempt to dial it is turned away, while the page itself
-  // loads normally. This is a room that is down, not a browser that is offline.
+  // loads normally. This is a room that is down, not a browser that is offline — and not a board
+  // that was never made either, which since story 5 is a different answer the page would give
+  // before it ever got as far as a room. So the board is made first, by the real route, and then
+  // the room it lives in is taken away from it.
   let reachable = false;
+  await ensureBoard(boardId);
   await alex.context.routeWebSocket(/\/api\/rooms\//, (socket) => {
     if (reachable) {
       const room = socket.connectToServer();
@@ -218,7 +231,8 @@ test('a room that cannot be reached says so, and the person can keep working', a
   await expectEventually(
     alex,
     'the board to get itself into the room',
-    async () => (await badgeText(alex.page)) === null && (await connectionState(alex.page)) === 'connected',
+    async () =>
+      (await badgeText(alex.page)) === null && (await connectionState(alex.page)) === 'connected',
     { timeoutMs: 6 * EVENTUAL_TIMEOUT_MS, record: false },
   );
 

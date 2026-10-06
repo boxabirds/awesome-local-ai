@@ -11,7 +11,7 @@
  * offline and know precisely what the room saw.
  */
 
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
@@ -29,15 +29,39 @@ import {
   encodeVarUint,
   encodeVarUint8Array,
 } from '../../../src/shared/protocol';
+import type { Env } from '../../../src/worker/index';
 
 /** The origin the tests address the Worker by. */
 export const ORIGIN = 'https://vidi6.test';
+
+/** The room namespace, as the deployed Worker declares it. */
+const rooms = (env as unknown as Env).BOARD_ROOM;
+
+/**
+ * Makes a board exist under this id, by the same call `POST /api/boards` makes.
+ *
+ * From story 5 on, a socket requires a board: an upgrade to an id nobody created is answered
+ * with a 404 and no connection at all (that is `share.not_found`, and `board-api.test.ts`
+ * asserts it by doing the upgrade itself, through `SELF.fetch`, precisely so that this helper
+ * is not in the way). Everything else in this directory is about a room that people are
+ * working on, and a room that people are working on is a board that exists. These tests choose
+ * their own ids — so that five connections can be pointed at one board, or two boards can be
+ * told apart — so a socket opens on a board that was created first.
+ */
+export async function ensureBoard(boardId: string): Promise<void> {
+  await rooms.get(rooms.idFromName(boardId)).initialize();
+}
 
 /** One binary frame as it crossed the wire. */
 export type Frame = Uint8Array;
 
 /** The runtime exposes the ready states as numbers, not as constants. */
-export const READY_STATES = { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 } as const;
+export const READY_STATES = {
+  CONNECTING: 0,
+  OPEN: 1,
+  CLOSING: 2,
+  CLOSED: 3,
+} as const;
 
 /** How a socket ended. */
 export interface SocketClose {
@@ -103,6 +127,8 @@ export class RoomSocket {
 
   /** Opens a WebSocket to `/api/rooms/<boardId>` through the Worker. */
   static async connect(boardId: string = newBoardId()): Promise<RoomSocket> {
+    // The board has to be a board before anything can connect to one; see `ensureBoard`.
+    await ensureBoard(boardId);
     const response = await SELF.fetch(
       new Request(`${ORIGIN}/api/rooms/${boardId}`, {
         headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
@@ -168,10 +194,15 @@ export class RoomSocket {
         },
         reject,
       };
-      const timer = timeoutMs > 0 ? setTimeout(() => {
-        this.waiters = this.waiters.filter((pending) => pending !== waiter);
-        reject(new Error(`no frame from the room within ${timeoutMs}ms (board ${this.boardId})`));
-      }, timeoutMs) : undefined;
+      const timer =
+        timeoutMs > 0
+          ? setTimeout(() => {
+              this.waiters = this.waiters.filter((pending) => pending !== waiter);
+              reject(
+                new Error(`no frame from the room within ${timeoutMs}ms (board ${this.boardId})`),
+              );
+            }, timeoutMs)
+          : undefined;
       this.waiters.push(waiter);
     });
   }
@@ -201,7 +232,8 @@ export class RoomSocket {
 /** Indexes a list a test knows the length of. */
 export function at<T>(items: readonly T[], index: number): T {
   const item = items[index];
-  if (item === undefined) throw new Error(`expected at least ${index + 1} items, got ${items.length}`);
+  if (item === undefined)
+    throw new Error(`expected at least ${index + 1} items, got ${items.length}`);
   return item;
 }
 
@@ -409,7 +441,12 @@ export class WsClient {
       }
     } else {
       // Applied with this client as the origin, so it is not sent back out again.
-      syncProtocol.readSyncMessage(decoding.createDecoder(decoded.payload), encoder, this.doc, this);
+      syncProtocol.readSyncMessage(
+        decoding.createDecoder(decoded.payload),
+        encoder,
+        this.doc,
+        this,
+      );
     }
 
     const reply = encoding.toUint8Array(encoder);
@@ -481,6 +518,7 @@ function copyBuffer(frame: Uint8Array): ArrayBuffer {
 function toFrame(data: unknown): Frame {
   if (typeof data === 'string') return new TextEncoder().encode(data);
   if (data instanceof ArrayBuffer) return new Uint8Array(data);
-  if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  if (ArrayBuffer.isView(data))
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
   return new Uint8Array(0);
 }

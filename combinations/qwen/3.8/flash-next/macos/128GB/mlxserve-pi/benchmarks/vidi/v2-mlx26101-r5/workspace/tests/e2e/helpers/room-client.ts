@@ -34,7 +34,14 @@ import {
   decodeMessage,
 } from '../../../src/shared/protocol';
 
-const COLORS = ['yellow', 'orange', 'green', 'blue', 'pink', 'violet'] as const satisfies readonly StickyColor[];
+const COLORS = [
+  'yellow',
+  'orange',
+  'green',
+  'blue',
+  'pink',
+  'violet',
+] as const satisfies readonly StickyColor[];
 /** Notes per row when laying a board out in a grid. */
 const ROW = 20;
 
@@ -80,7 +87,12 @@ export class RoomClient {
         client.sendSyncStep1();
         resolveOpen();
       });
-      ws.addEventListener('error', (event) => rejectOpen((event as ErrorEvent).message ?? 'could not connect'));
+      // `||` and not `??`: a socket that was turned away at the door — a board that does not
+      // exist, say — reports an error event whose message is the empty string, and a test failure
+      // that reads `''` says nothing about what happened.
+      ws.addEventListener('error', (event) =>
+        rejectOpen((event as ErrorEvent).message || `could not connect to /api/rooms/${boardId}`),
+      );
     });
     return client;
   }
@@ -173,7 +185,8 @@ export class RoomClient {
       const seen = this.inbound;
       await new Promise((resolveWait) => setTimeout(resolveWait, quietMs));
       if (this.framesSince(seen) === 0 || !this.open) return;
-      if (Date.now() > until) throw new Error(`the room kept sending for longer than ${timeoutMs}ms`);
+      if (Date.now() > until)
+        throw new Error(`the room kept sending for longer than ${timeoutMs}ms`);
     }
   }
 
@@ -237,7 +250,12 @@ export class RoomClient {
       }
     } else {
       // Origin is us, so applying it does not send it straight back.
-      syncProtocol.readSyncMessage(decoding.createDecoder(decoded.payload), encoder, this.doc, this);
+      syncProtocol.readSyncMessage(
+        decoding.createDecoder(decoded.payload),
+        encoder,
+        this.doc,
+        this,
+      );
     }
 
     const reply = encoding.toUint8Array(encoder);

@@ -35,6 +35,7 @@ import {
   toolbarCreate,
   type NoteState,
 } from '../helpers/board';
+import { ensureBoard } from '../helpers/boards';
 import {
   persistenceDir,
   resetPersistenceDir,
@@ -84,6 +85,9 @@ async function openOn(
   name: string,
 ): Promise<Participant> {
   const person = await openPersonPage(browser, name);
+  // The board has to be a board the server has made, the same as it does on any server built
+  // since story 5; the room would otherwise turn this person's socket away at the door.
+  await ensureBoard(boardId, server.origin);
   await person.page.goto(server.boardAddress(boardId));
   await expect(person.page.getByTestId('app')).toBeVisible();
   await waitForConnected(person.page);
@@ -93,14 +97,17 @@ async function openOn(
 /** Waits for the badge to go away, however long the board takes to come back. */
 async function waitForBadgeGone(page: Participant['page'], timeoutMs: number): Promise<number> {
   const began = Date.now();
-  await expect(badge(page), 'waiting for the board to come back').toHaveCount(0, { timeout: timeoutMs });
+  await expect(badge(page), 'waiting for the board to come back').toHaveCount(0, {
+    timeout: timeoutMs,
+  });
   return Date.now() - began;
 }
 
 test.describe('coming back to a board', () => {
-  test(
-    'overnight return: a board left and opened again is the board that was left',
-    async ({ browser, room }) => {
+  test('overnight return: a board left and opened again is the board that was left', async ({
+    browser,
+    room,
+  }) => {
     test.setTimeout(420_000);
     const server = await room.start('overnight');
     const boardId = newBoard();
@@ -114,18 +121,17 @@ test.describe('coming back to a board', () => {
 
     // And time passes, in the only way time can pass here: the process that was holding the
     // board is stopped and another one is started against the same files.
-      const later = await room.restart(server);
+    const later = await room.restart(server);
 
-      const back = await openOn(browser, later, boardId, 'Alex');
-      await expectNoteCount(back.page, 25);
+    const back = await openOn(browser, later, boardId, 'Alex');
+    await expectNoteCount(back.page, 25);
     const after = await noteStates(back.page);
 
     // Not "the same number of notes": the same board. Text, colour, position, stacking, and
     // the identity of every note, which is the part a rebuild from scratch would get wrong.
-      expect(after).toEqual(before);
-      expect(await connectionState(back.page)).toBe('connected');
-    },
-  );
+    expect(after).toEqual(before);
+    expect(await connectionState(back.page)).toBe('connected');
+  });
 
   test('leave immediately: a change made and the browser closed at once is still there', async ({
     browser,
@@ -163,13 +169,19 @@ test.describe('coming back to a board', () => {
     expect(only?.text).toBe('Written down at the last moment');
   });
 
-  test('big board open: a board with thousands of notes arrives whole', async ({ browser, room }) => {
+  test('big board open: a board with thousands of notes arrives whole', async ({
+    browser,
+    room,
+  }) => {
     test.setTimeout(600_000);
     const server = await room.start('large-board');
     const boardId = newBoard();
 
     // Written through the protocol rather than the interface, because clicking two thousand
     // times is not a test, it is an afternoon. What is asserted afterwards is in the interface.
+    // The board is made first, because since story 5 a room only answers for a board the service
+    // has made: a client that dials an address nobody issued is turned away at the door.
+    await ensureBoard(boardId, server.origin);
     const writer = await RoomClient.connect(server.wsOrigin, boardId);
     const seeding = Date.now();
     writer.createNotes(PERSIST_TESTED_NOTES);
@@ -191,12 +203,13 @@ test.describe('coming back to a board', () => {
     await stored.close();
 
     const person = await openPersonPage(browser, 'Alex');
+    await ensureBoard(boardId, server.origin);
     const opening = Date.now();
     await person.page.goto(server.boardAddress(boardId));
-    await expect(person.page.locator('.sticky-note'), 'waiting for the board to arrive').toHaveCount(
-      PERSIST_TESTED_NOTES,
-      { timeout: EVENTUAL_TIMEOUT_MS },
-    );
+    await expect(
+      person.page.locator('.sticky-note'),
+      'waiting for the board to arrive',
+    ).toHaveCount(PERSIST_TESTED_NOTES, { timeout: EVENTUAL_TIMEOUT_MS });
     const renderedIn = Date.now() - opening;
 
     const notes = await noteStates(person.page);
@@ -231,7 +244,9 @@ test.describe('coming back to a board', () => {
     expect(await folded.json()).toMatchObject({ ok: true, folded: true, chunks: 1 });
 
     // Damage it. The room finds out on its next look, and everybody on it is told.
-    const damaged = await fetch(server.hookAddress(boardId, 'corrupt-snapshot'), { method: 'POST' });
+    const damaged = await fetch(server.hookAddress(boardId, 'corrupt-snapshot'), {
+      method: 'POST',
+    });
     expect(damaged.status).toBe(200);
     expect((await damaged.json()).closedWith).toBe(4500);
 
@@ -269,7 +284,9 @@ test.describe('coming back to a board', () => {
     const recoveredIn = await waitForBadgeGone(alex.page, 60_000);
     console.log(`broken board: recovered in ${recoveredIn}ms after the storage was mended`);
 
-    expect(await alex.page.evaluate(() => (window as unknown as { sentinel: number }).sentinel)).toBe(1);
+    expect(
+      await alex.page.evaluate(() => (window as unknown as { sentinel: number }).sentinel),
+    ).toBe(1);
     expect(await noteStates(alex.page)).toEqual(before);
     expect(await connectionState(alex.page)).toBe('connected');
 

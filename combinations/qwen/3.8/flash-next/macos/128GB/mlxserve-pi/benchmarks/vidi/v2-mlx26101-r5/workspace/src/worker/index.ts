@@ -17,6 +17,7 @@
 import { isValidBoardId } from '../shared/board-id';
 import { ROOM_PATH_PREFIX } from '../shared/config';
 import type { BoardRoom } from './board-room';
+import { boardExists, createBoard } from './create-board';
 import { routeTestHook } from './test-hooks';
 
 /** Bindings declared in `wrangler.jsonc`. */
@@ -36,6 +37,17 @@ export interface Env {
 /** Every room request starts here; the rest of the path is the board id. */
 const ROOM_PREFIX = `${ROOM_PATH_PREFIX}/`;
 
+/** Where boards are created and looked up: `POST /api/boards`, `GET /api/boards/:id`. */
+const BOARDS_PATH = '/api/boards';
+
+/** The rest of the path after a prefix, or null when the prefix is not there. */
+function after(path: string, prefix: string): string | null {
+  return path.startsWith(prefix) ? path.slice(prefix.length) : null;
+}
+
+/** The room route is `/api/rooms/:boardId` — the same id in the same position. */
+const BOARD_PREFIX = `${BOARDS_PATH}/`;
+
 /** Everything under `/api/` belongs to the Worker, never to the client bundle. */
 const API_PREFIX = '/api/';
 
@@ -48,19 +60,72 @@ function isUpgrade(request: Request): boolean {
 function apiError(status: number, code: string, message: string): Response {
   return new Response(JSON.stringify({ error: code, message }), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'x-vidi6-error': code },
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'x-vidi6-error': code,
+    },
   });
+}
+
+/** A JSON answer from the board API. */
+function apiJson(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json; charset=utf-8' },
+  });
+}
+
+/**
+ * `POST /api/boards` — make a board — and `GET /api/boards/:id` — is this link a board?
+ *
+ * Both are answers about existence and nothing else: there is no list of anybody's boards,
+ * and a wrong method is a 405 rather than a guess at what was meant.
+ */
+async function routeBoards(request: Request, env: Env, boardId: string | null): Promise<Response> {
+  if (boardId === null) {
+    // `/api/boards` itself. Only a POST creates; in particular a GET does not list anybody's
+    // boards, because there is no such thing in any current story.
+    if (request.method !== 'POST') {
+      return apiError(405, 'method_not_allowed', 'Boards are created by POSTing to this path.');
+    }
+    const created = await createBoard(env);
+    if (!created.ok) {
+      return apiError(500, created.reason, 'The board could not be created.');
+    }
+    return apiJson({ id: created.id }, 201);
+  }
+
+  if (request.method !== 'GET') {
+    return apiError(405, 'method_not_allowed', 'A board is read with GET.');
+  }
+  // A malformed id is rejected here, so it never names a Durable Object at all. The answer is
+  // the same 404 an unknown id gets: the difference between "not a link" and "nobody's link"
+  // is not worth leaking to whoever is asking.
+  if (!isValidBoardId(boardId)) {
+    return apiError(404, 'not_found', 'No such board.');
+  }
+  if (await boardExists(env, boardId)) return apiJson({ id: boardId });
+  return apiError(404, 'not_found', 'No such board.');
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const path = new URL(request.url).pathname;
+    if (path === BOARDS_PATH || path.startsWith(BOARD_PREFIX)) {
+      const rest = after(path, BOARD_PREFIX);
+      // `/api/boards` itself has no id on the end; anything below it has exactly one path
+      // segment, which is either a board id or not.
+      const boardId = path === BOARDS_PATH ? null : rest === null ? null : rest;
+      return routeBoards(request, env, boardId);
+    }
     if (path.startsWith(ROOM_PREFIX)) {
       const boardId = path.slice(ROOM_PREFIX.length);
-      // A board id is 22 base64url characters; anything else is a bad address, and
-      // it is answered here so that no object instance is ever created for it.
+      // A board id is 22 base64url characters; anything else is a bad address, and it is
+      // answered here so that no object instance is ever created for it. Story 3 made this a
+      // 400; story 5 makes it the same 404 as a link to a board that does not exist, because
+      // that is what it is.
       if (!isValidBoardId(boardId)) {
-        return apiError(400, 'invalid_board_id', 'A board id is 22 characters of [A-Za-z0-9_-].');
+        return apiError(404, 'invalid_board_id', 'A board id is 22 characters of [A-Za-z0-9_-].');
       }
       // The route exists only as a WebSocket. A plain GET would otherwise be an
       // assets miss rendered as index.html, which is useless to a client.
@@ -68,7 +133,9 @@ export default {
         return apiError(426, 'upgrade_required', 'This board is reachable over a WebSocket.');
       }
       // `idFromName` is the whole isolation story: one stable id per board, so every
-      // connection to a board reaches that board's room and no other.
+      // connection to a board reaches that board's room and no other. Whether the board exists
+      // at all is the room's answer, not this one's — it is the object that can look in its own
+      // storage without anybody guessing.
       const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
       return stub.fetch(request);
     }

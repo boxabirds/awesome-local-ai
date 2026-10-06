@@ -6,6 +6,11 @@
  *     which board ids are allowed to create a Durable Object at all (TC-04, TC-05);
  *   - `SELF.fetch`, the Worker's real service binding, for everything that needs the
  *     real Durable Object and the real assets binding (TC-06, TC-07, TC-08, TC-09).
+ *
+ * Story 5 changed one of the answers asserted here: a malformed board id on the room route used
+ * to be a 400, and is now the same 404 as a link to a board that does not exist. The assertions
+ * that a malformed id never instantiates an object, never reaches the assets binding and never
+ * gets the client shell are unchanged, because story 5 did not change them.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -59,14 +64,17 @@ const malformed: readonly { label: string; id: string }[] = [
 
 describe('the room route refuses malformed board ids (TC-04, TC-05)', () => {
   for (const { label, id } of malformed) {
-    it(`${label} is a 400 and never reaches a Durable Object`, async () => {
+    it(`${label} is a 404 and never reaches a Durable Object`, async () => {
       const { env, idFromName, get, assetsFetch } = spiedEnv();
 
       const upgraded = await worker.fetch(request(`/api/rooms/${id}`, { headers: UPGRADE }), env);
       const plain = await worker.fetch(request(`/api/rooms/${id}`), env);
 
       for (const response of [upgraded, plain]) {
-        expect(response.status).toBe(400);
+        // 404, where story 3 answered 400 (share.not_found). A malformed id is not a different
+        // kind of error to a person at this route: it is a link that is not a board, and the
+        // answer to both is the same page. What has not changed is that nothing was instantiated.
+        expect(response.status).toBe(404);
         expect(response.headers.get('x-vidi6-error')).toBe('invalid_board_id');
       }
       expect(idFromName).not.toHaveBeenCalled();
@@ -76,7 +84,9 @@ describe('the room route refuses malformed board ids (TC-04, TC-05)', () => {
   }
 
   it('the real Worker answers a malformed id the same way, with no room behind it', async () => {
-    const response = await SELF.fetch(request(`/api/rooms/${'not-a-board-id'}`, { headers: UPGRADE }));
+    const response = await SELF.fetch(
+      request(`/api/rooms/${'not-a-board-id'}`, { headers: UPGRADE }),
+    );
 
     expect(response.status).toBeGreaterThanOrEqual(400);
     expect(response.status).toBeLessThan(500);
@@ -156,7 +166,10 @@ describe('GET /api/rooms/<valid id> without an Upgrade header is 426 (TC-07)', (
     expect([first.status, second.status]).toEqual([418, 418]); // the stub's answer
     expect(idFromName.mock.calls).toEqual([[validId], [validId]]);
     // One id, one stub: both connections are handed the same room.
-    expect(get.mock.calls).toEqual([[idFromName.mock.results[0]?.value], [idFromName.mock.results[0]?.value]]);
+    expect(get.mock.calls).toEqual([
+      [idFromName.mock.results[0]?.value],
+      [idFromName.mock.results[0]?.value],
+    ]);
     expect(get.mock.results[0]?.value).toBe(get.mock.results[1]?.value);
   });
 
@@ -191,7 +204,7 @@ describe('routes that are not a board do not return index.html (TC-08)', () => {
   it('an empty id on the room route is the malformed-id answer, not index.html', async () => {
     const response = await SELF.fetch(request('/api/rooms/'));
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
     expect(response.headers.get('x-vidi6-error')).toBe('invalid_board_id');
     expect(await response.text()).not.toContain('<div id="root"');
   });
@@ -199,7 +212,7 @@ describe('routes that are not a board do not return index.html (TC-08)', () => {
   it('a malformed id on the room route is JSON as well', async () => {
     const response = await SELF.fetch(request('/api/rooms/nope'));
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
     expect(response.headers.get('content-type')).toContain('application/json');
     expect(await response.text()).not.toContain('<div id="root"');
   });

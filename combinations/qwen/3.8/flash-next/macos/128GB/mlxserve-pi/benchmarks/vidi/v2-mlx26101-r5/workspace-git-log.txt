@@ -1,3 +1,61 @@
+commit 33e7570c18bc64b15753b93b238d0c0cdce9650e
+agent  Tue Oct 6 02:37:27 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                  | 106 +++++++
+ PROGRESS.md                               |  20 +-
+ index.html                                |   3 +
+ package.json                              |   2 +-
+ src/client/App.tsx                        | 323 ++-------------------
+ src/client/api.ts                         |  81 ++++++
+ src/client/board/Board.tsx                | 288 +++++++++++++++++++
+ src/client/board/InvalidBoard.tsx         |  39 ---
+ src/client/board/useBoardRoute.ts         |  88 ------
+ src/client/pages/BoardPage.tsx            | 132 +++++++++
+ src/client/pages/HomePage.tsx             |  58 ++++
+ src/client/pages/NotFoundPage.tsx         |  82 ++++++
+ src/client/pages/messages.ts              |  39 +++
+ src/client/pages/useCreateBoard.ts        |  73 +++++
+ src/client/router.ts                      | 144 ++++++++++
+ src/client/share/SharePanel.tsx           | 252 +++++++++++++++++
+ src/client/styles.css                     | 254 ++++++++++++++++-
+ src/shared/config.ts                      |  18 ++
+ src/worker/board-room.ts                  | 143 ++++++++--
+ src/worker/board-store.ts                 | 196 +++++++++++--
+ src/worker/create-board.ts                |  73 +++++
+ src/worker/index.ts                       |  77 ++++-
+ src/worker/test-hooks.ts                  |  85 +++++-
+ tests/component/BoardPage.test.tsx        | 362 ++++++++++++++++++++++++
+ tests/component/HomePage.test.tsx         | 195 +++++++++++++
+ tests/component/SharePanel.test.tsx       | 359 ++++++++++++++++++++++++
+ tests/component/harness.tsx               |  19 +-
+ tests/component/helpers/fake-api.ts       |  87 ++++++
+ tests/component/routing.test.tsx          | 298 --------------------
+ tests/e2e/helpers/board.ts                |  35 ++-
+ tests/e2e/helpers/boards.ts               |  92 ++++++
+ tests/e2e/helpers/participants.ts         |  99 +++++--
+ tests/e2e/helpers/room-client.ts          |  26 +-
+ tests/e2e/live-network.spec.ts            |  26 +-
+ tests/e2e/persistence/persistence.spec.ts |  53 ++--
+ tests/e2e/share.spec.ts                   | 291 +++++++++++++++++++
+ tests/integration/board-api.test.ts       | 452 ++++++++++++++++++++++++++++++
+ tests/integration/board-store.test.ts     |  67 +++--
+ tests/integration/helpers/ws-client.ts    |  56 +++-
+ tests/integration/worker-routing.test.ts  |  25 +-
+ tests/unit/connection.test.ts             |  62 +---
+ tests/unit/create-board.test.ts           | 127 +++++++++
+ tests/unit/router.test.ts                 | 140 +++++++++
+ 43 files changed, 4514 insertions(+), 933 deletions(-)
+commit f8a630a1b6692cee33c457b2557709f6b429809c
+vidi-agent  Tue Oct 6 01:57:38 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit 4176606dd9f3b0c067c54d60e242c4e060b18a1b
 agent  Tue Oct 6 00:54:25 2026 +0000
 

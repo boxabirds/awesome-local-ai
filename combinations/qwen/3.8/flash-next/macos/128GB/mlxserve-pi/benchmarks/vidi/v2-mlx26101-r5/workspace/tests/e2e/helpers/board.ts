@@ -7,6 +7,7 @@ import {
   ZOOM_MIN,
   ZOOM_STEP_FACTOR,
 } from '../../../src/shared/config';
+import { boardAddress, createBoard } from './boards';
 
 export type Camera = { x: number; y: number; zoom: number };
 
@@ -27,13 +28,23 @@ export const board = (page: Page): Locator => page.getByTestId('board-viewport')
 export const originMarker = (page: Page): Locator => page.getByTestId('origin-marker');
 export const zoomLabel = (page: Page): Locator => page.getByTestId('zoom-label');
 export const zoomInButton = (page: Page): Locator => page.getByRole('button', { name: 'Zoom in' });
-export const zoomOutButton = (page: Page): Locator => page.getByRole('button', { name: 'Zoom out' });
-export const resetButton = (page: Page): Locator => page.getByRole('button', { name: 'Reset view' });
+export const zoomOutButton = (page: Page): Locator =>
+  page.getByRole('button', { name: 'Zoom out' });
+export const resetButton = (page: Page): Locator =>
+  page.getByRole('button', { name: 'Reset view' });
 export const hint = (page: Page): Locator => page.getByTestId('navigation-hint');
 
-/** Loads the board and waits for the starting point to be centred. */
+/**
+ * Loads a board of this test's own and waits for the starting point to be centred.
+ *
+ * Since story 5 the board is reached through a link the service issued, so the test asks for a
+ * board first — the same `POST /api/boards` the home page makes — and opens the address that comes
+ * back. What this helper is *about* is the camera, and that is unchanged: a board made through the
+ * API starts at the same starting point as the board that used to be there for the asking.
+ */
 export async function openBoard(page: Page): Promise<void> {
-  await page.goto('/');
+  const boardId = await createBoard();
+  await page.goto(boardAddress(boardId));
   await expect(zoomLabel(page)).toHaveText('100%');
   await expectCamera(page, {
     x: -VIEWPORT.width / 2,
@@ -162,7 +173,6 @@ export function pageZoomSignals(page: Page): Promise<{ scale: number; dpr: numbe
 export const gridOffsetFor = (value: number, spacing: number): number =>
   Number((((value % spacing) + spacing) % spacing).toFixed(6));
 
-
 /* ------------------------------------------------------------------ story 2: sticky notes */
 
 /** The note's locator. */
@@ -177,7 +187,9 @@ export const editorLocator = (page: Page): Locator => page.locator('.sticky-edit
 
 /** Ids of every rendered note, in document (stacking) order. */
 export function noteIds(page: Page): Promise<string[]> {
-  return page.locator('.sticky-note').evaluateAll((els) => els.map((el) => el.dataset['noteId'] ?? ''));
+  return page
+    .locator('.sticky-note')
+    .evaluateAll((els) => els.map((el) => el.dataset['noteId'] ?? ''));
 }
 
 /** Waits for exactly `count` notes and returns their ids in stacking order. */
@@ -231,7 +243,9 @@ export function editorValue(page: Page): Promise<string> {
 export async function noteFontPx(page: Page, id: string): Promise<number> {
   const editing = (await note(page, id).locator('.sticky-editor').count()) > 0;
   const selector = editing ? '.sticky-editor' : '.sticky-text';
-  const size = await note(page, id).locator(selector).evaluate((el) => getComputedStyle(el).fontSize);
+  const size = await note(page, id)
+    .locator(selector)
+    .evaluate((el) => getComputedStyle(el).fontSize);
   return Number.parseFloat(size);
 }
 
@@ -282,7 +296,12 @@ export async function clickNote(page: Page, id: string): Promise<void> {
 }
 
 /** Presses on a note's centre, moves by (dx, dy) and leaves the button down. */
-export async function pressNoteAndMove(page: Page, id: string, dx: number, dy: number): Promise<void> {
+export async function pressNoteAndMove(
+  page: Page,
+  id: string,
+  dx: number,
+  dy: number,
+): Promise<void> {
   const box = await noteScreenBox(page, id);
   await page.mouse.move(box.cx, box.cy);
   await page.mouse.down();

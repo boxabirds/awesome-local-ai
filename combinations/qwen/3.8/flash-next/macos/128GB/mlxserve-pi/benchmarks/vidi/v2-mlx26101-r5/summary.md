@@ -12,8 +12,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 2 | 9/10 | 0 | 0 | 19/20 |
 | 3 | 7/7 | 0 | 0 | 26/27 |
 | 4 | 4/4 | 0 | 0 | 30/31 |
+| 5 | 4/5 | 0 | 0 | 34/36 |
 
-**New work** 26/27, **regressions** 0, **repairs** 0, **cumulative** 30/31.
+**New work** 30/32, **regressions** 0, **repairs** 0, **cumulative** 34/36.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -21,13 +22,15 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 69.3 | None | None | None | — | — | green | 19/20 |  | 0 / 0 | 3 | — | throttled 99%, server peak 93 GB |
 | 3 | See other people's edits appear live on the same board | PARTIAL (amber) | 240.0 | None | None | None | — | — | green | 26/27 |  | 0 / 0 | 7 | — | throttled 62%, server peak 94 GB |
 | 4 | Return to a board and find everything as it was left | DONE, on partial 3 | 142.6 | None | None | None | — | — | green | 30/31 |  | 0 / 0 | 7 | — | throttled 86%, server peak 95 GB |
+| 5 | Share a board with others using a link | DONE, on partial 3 | 100.6 | None | None | None | — | — | green | 34/36 |  | 0 / 1 | 4 | — | throttled 64%, server peak 95 GB |
 
-**Totals:** 4 stories, 487 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/4, final acceptance 30/31, stalled 0, partial 1, 18580 lines in src+tests.
+**Totals:** 5 stories, 587 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/5, final acceptance 34/36, stalled 0, partial 1, 22046 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 3 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **amber**: gate green, tasks not verified [4, 7, 8, 9] (implementation: [4]), held-out 7/7 (floor 0.571).
 - Story 4, built on partial 3: held-out tests on the partial base 11/11; partial story's tests fixed 0, regressed 0; 2 stub-like lines added to src/.
+- Story 5, built on partial 3: held-out tests on the partial base 15/16; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -39,6 +42,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 2 | 1 by the agent | 4409 / 26 | `StickyNote.tsx` (365), `styles.css` (207), `board-model.ts` (196), `StickyTextEditor.tsx` (167), `NOTES.md` (161), `App.tsx` (147), +9 more |
 | 3 | 2 by the agent, + harness snapshot | 7866 / 91 | `connection.ts` (393), `board-room.ts` (192), `protocol.ts` (165), `styles.css` (128), `StickyText.ts` (116), `identity.ts` (111), +19 more |
 | 4 | 1 by the agent | 5521 / 164 | `board-room.ts` (466), `board-store.ts` (364), `test-hooks.ts` (200), `room-state.ts` (155), `connection.ts` (83), `App.tsx` (57), +13 more |
+| 5 | 1 by the agent | 4514 / 933 | `App.tsx` (323), `Board.tsx` (288), `styles.css` (254), `SharePanel.tsx` (252), `board-store.ts` (196), `router.ts` (144), +17 more |
 
 ### Earlier stories broken or fixed
 

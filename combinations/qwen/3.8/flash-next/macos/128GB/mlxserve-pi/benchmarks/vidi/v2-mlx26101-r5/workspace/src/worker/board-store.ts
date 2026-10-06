@@ -49,6 +49,22 @@ export type LoadResult =
 /** `storage_meta` keys this store owns. */
 export const SCHEMA_VERSION_KEY = 'storage_schema_version';
 export const SNAPSHOT_THROUGH_SEQ_KEY = 'snapshot_through_seq';
+/**
+ * When this board was created, in epoch milliseconds — the mark that says *this link belongs
+ * to somebody*. Story 5 is what writes it: a board exists when it has a `created_at`, or when
+ * it has content from before story 5 shipped and therefore never got one.
+ */
+export const CREATED_AT_KEY = 'created_at';
+
+/** Every table this store owns, in the order they are created. */
+export const TABLE_NAMES = [
+  'storage_meta',
+  'updates',
+  'snapshot_chunks',
+  'quarantined_updates',
+] as const;
+
+export type TableName = (typeof TABLE_NAMES)[number];
 
 /**
  * Points inside this store where a test can make a statement fail, to see what the room
@@ -76,10 +92,7 @@ const UPSERT_META =
   'INSERT INTO storage_meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value';
 
 /** Splits `data` into chunks of at most `size` bytes; empty input, empty list. */
-export function chunkBytes(
-  data: Uint8Array,
-  size: number = SNAPSHOT_CHUNK_BYTES,
-): Uint8Array[] {
+export function chunkBytes(data: Uint8Array, size: number = SNAPSHOT_CHUNK_BYTES): Uint8Array[] {
   if (!Number.isInteger(size) || size <= 0) {
     throw new RangeError(`chunk size must be a positive integer, got ${String(size)}`);
   }
@@ -164,14 +177,101 @@ export class BoardStore {
 
   constructor(private readonly storage: DurableObjectStorage) {}
 
-  /** Creates the tables; records the schema version. Writes no update rows (TC-25). */
+  /**
+   * Creates the tables; records the schema version. Writes no update rows (TC-25).
+   *
+   * Only two things call it: `BoardRoom.initialize()` (a board being created, through
+   * `markCreatedAt()`) and this store's first `append()` (a board that predates the tables and
+   * is being written to for the first time since). A *read* never creates tables — that is the
+   * whole of story 5's "probing a link leaves nothing behind".
+   */
   migrate(): void {
     for (const statement of CREATE_TABLES) this.storage.sql.exec(statement);
-    this.inject('load:meta');
+    this.tablesPresent = true;
     const version = this.meta(SCHEMA_VERSION_KEY);
     if (version === null) this.setMeta(SCHEMA_VERSION_KEY, String(STORAGE_SCHEMA_VERSION));
     const through = this.meta(SNAPSHOT_THROUGH_SEQ_KEY);
     this.throughSeq = through === null ? 0 : Number(through);
+  }
+
+  /**
+   * True once this store knows its tables are there. `sqlite_master` is not free to ask and a
+   * table this store has created this never goes away again, so the answer is kept.
+   */
+  private tablesPresent = false;
+
+  /** Does this board have one named table? Reads `sqlite_master`; writes nothing. */
+  tableExists(name: TableName): boolean {
+    for (const _row of this.storage.sql.exec(
+      'SELECT 1 AS present FROM sqlite_master WHERE type = ?1 AND name = ?2',
+      'table',
+      name,
+    )) {
+      return true;
+    }
+    return false;
+  }
+
+  /** Have this board's tables ever been created? */
+  tablesExist(): boolean {
+    if (this.tablesPresent) return true;
+    let found = 0;
+    for (const row of this.storage.sql.exec<{ count: number }>(
+      'SELECT COUNT(*) AS count FROM sqlite_master WHERE type = ?1 AND name IN (?2, ?3, ?4, ?5)',
+      'table',
+      TABLE_NAMES[0],
+      TABLE_NAMES[1],
+      TABLE_NAMES[2],
+      TABLE_NAMES[3],
+    )) {
+      found = Number(row.count ?? 0);
+    }
+    if (found === TABLE_NAMES.length) this.tablesPresent = true;
+    return this.tablesPresent;
+  }
+
+  /**
+   * Is there a board here? Read-only in the strict sense: no `CREATE TABLE`, no `INSERT`, no
+   * `migrate()` — a link that was guessed, mistyped or truncated is answered and left exactly
+   * as empty as it was (share.not_found).
+   *
+   * Two things count as a board:
+   *
+   * - `storage_meta.created_at`, written once when the board is created; and
+   * - any content at all — a log row or a snapshot chunk — which is every board that was
+   *   already being used when links were introduced (share.legacy_boards). Those boards were
+   *   never given a `created_at`, and there is no honest moment to retro-fit one.
+   */
+  existsReadOnly(): boolean {
+    if (!this.tablesExist()) return false;
+    if (this.meta(CREATED_AT_KEY) !== null) return true;
+    return this.hasAnyRow('updates') || this.hasAnyRow('snapshot_chunks');
+  }
+
+  /** One row of this table, any row? */
+  private hasAnyRow(table: TableName): boolean {
+    if (!this.tableExists(table)) return false;
+    for (const _row of this.storage.sql.exec(`SELECT 1 AS present FROM ${table} LIMIT 1`)) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Marks this board as existing. True when this call is the one that created it, false when
+   * it was already here — which is how `initialize()` answers a second call with `exists`
+   * without touching anything that is already there (TC-15).
+   */
+  markCreatedAt(now: number = Date.now()): boolean {
+    this.migrate();
+    if (this.meta(CREATED_AT_KEY) !== null) return false;
+    this.setMeta(CREATED_AT_KEY, String(now));
+    return true;
+  }
+
+  /** When this board was created, as the text it is stored as; null when nothing says. */
+  createdAt(): string | null {
+    return this.meta(CREATED_AT_KEY);
   }
 
   /** This board's SQL, for the tests that damage a row or count one. */
@@ -190,13 +290,23 @@ export class BoardStore {
 
   /** Rows of snapshot the board has, and the log row it already contains. */
   snapshotInfo(): { chunks: number; throughSeq: number } {
-    const rows = [...this.storage.sql.exec('SELECT COUNT(*) AS count FROM snapshot_chunks')];
-    return { chunks: Number(rows[0]?.count ?? 0), throughSeq: this.throughSeq };
+    return {
+      chunks: this.countRows('snapshot_chunks'),
+      throughSeq: this.throughSeq,
+    };
   }
 
   /** How many changes could not be read and were set aside. */
   quarantinedCount(): number {
-    const rows = [...this.storage.sql.exec('SELECT COUNT(*) AS count FROM quarantined_updates')];
+    return this.countRows('quarantined_updates');
+  }
+
+  /** How many rows a table has; 0 when the table has not been created. */
+  private countRows(table: TableName): number {
+    if (!this.tableExists(table)) return 0;
+    const rows = [
+      ...this.storage.sql.exec<{ count: number }>(`SELECT COUNT(*) AS count FROM ${table}`),
+    ];
     return Number(rows[0]?.count ?? 0);
   }
 
@@ -206,7 +316,14 @@ export class BoardStore {
    */
   append(update: Uint8Array): void {
     this.inject('append');
-    this.storage.sql.exec('INSERT INTO updates (data, bytes) VALUES (?1, ?2)', asBlob(update), update.length);
+    // The write that creates a board's tables, if anything other than `initialize()` ever got
+    // this far — which in practice means a board that had content before the tables existed.
+    if (!this.tablesExist()) this.migrate();
+    this.storage.sql.exec(
+      'INSERT INTO updates (data, bytes) VALUES (?1, ?2)',
+      asBlob(update),
+      update.length,
+    );
     this.rows += 1;
     this.bytes += update.length;
   }
@@ -219,7 +336,22 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
-      this.migrate();
+      // Missing tables are an empty board, not a board to create. Story 4 could afford to
+      // `migrate()` on the way in, because everything that reached this point had been asked
+      // for by name through a room that was being joined. Story 5 asks about boards by link
+      // instead, and a question must not leave an answer behind: an unknown id is read, found
+      // to be empty and left with nothing in `sqlite_master`.
+      if (!this.tablesExist()) {
+        this.rows = 0;
+        this.bytes = 0;
+        this.throughSeq = 0;
+        return { ok: true, quarantined: 0 };
+      }
+      // Reading what the board already contains starts with reading the record of how far the
+      // snapshot got. A database that will not answer that is a database that cannot be read,
+      // and the room finds out here rather than half-way through a board.
+      this.inject('load:meta');
+      this.throughSeq = Number(this.meta(SNAPSHOT_THROUGH_SEQ_KEY) ?? '0');
       this.inject('load:snapshot');
       const chunks: Uint8Array[] = [];
       for (const row of this.storage.sql.exec('SELECT data FROM snapshot_chunks ORDER BY idx')) {
@@ -231,7 +363,11 @@ export class BoardStore {
         } catch (error) {
           // The bulk of the board is unreadable. The snapshot stays where it is — damaged,
           // but ours — and the caller refuses to serve the board.
-          return { ok: false, reason: 'snapshot-unreadable', error: describe(error) };
+          return {
+            ok: false,
+            reason: 'snapshot-unreadable',
+            error: describe(error),
+          };
         }
       }
 
@@ -293,7 +429,13 @@ export class BoardStore {
       // whole board, and Yjs has dropped everything deleted along the way.
       snapshot = Y.encodeStateAsUpdate(doc);
     } catch (error) {
-      console.error(JSON.stringify({ event: 'compaction-failed', stage: 'encode', error: describe(error) }));
+      console.error(
+        JSON.stringify({
+          event: 'compaction-failed',
+          stage: 'encode',
+          error: describe(error),
+        }),
+      );
       return false;
     }
     let maxSeq = 0;
@@ -301,7 +443,13 @@ export class BoardStore {
       const rows = [...this.storage.sql.exec('SELECT MAX(seq) AS max_seq FROM updates')];
       maxSeq = Number(rows[0]?.max_seq ?? 0);
     } catch (error) {
-      console.error(JSON.stringify({ event: 'compaction-failed', stage: 'max-seq', error: describe(error) }));
+      console.error(
+        JSON.stringify({
+          event: 'compaction-failed',
+          stage: 'max-seq',
+          error: describe(error),
+        }),
+      );
       return false;
     }
     if (maxSeq === 0) {
@@ -316,7 +464,11 @@ export class BoardStore {
         this.storage.sql.exec('DELETE FROM snapshot_chunks');
         this.inject('compact:after-chunk-delete');
         chunks.forEach((chunk, index) => {
-          this.storage.sql.exec('INSERT INTO snapshot_chunks (idx, data) VALUES (?1, ?2)', index, asBlob(chunk));
+          this.storage.sql.exec(
+            'INSERT INTO snapshot_chunks (idx, data) VALUES (?1, ?2)',
+            index,
+            asBlob(chunk),
+          );
         });
         this.storage.sql.exec('DELETE FROM updates WHERE seq <= ?1', maxSeq);
         this.inject('compact:after-log-delete');
@@ -326,7 +478,11 @@ export class BoardStore {
       // `transactionSync` has rolled all of it back: the old snapshot and every log row are
       // where they were. The board is still readable; it just keeps replaying a longer log.
       console.error(
-        JSON.stringify({ event: 'compaction-failed', stage: 'transaction', error: describe(error) }),
+        JSON.stringify({
+          event: 'compaction-failed',
+          stage: 'transaction',
+          error: describe(error),
+        }),
       );
       return false;
     }
@@ -349,11 +505,17 @@ export class BoardStore {
       this.storage.sql.exec('DELETE FROM updates WHERE seq = ?1', seq);
     });
     console.error(
-      JSON.stringify({ event: 'update-quarantined', seq, bytes: data.length, error }),
+      JSON.stringify({
+        event: 'update-quarantined',
+        seq,
+        bytes: data.length,
+        error,
+      }),
     );
   }
 
   private meta(key: string): string | null {
+    if (!this.tableExists('storage_meta')) return null;
     const rows = [...this.storage.sql.exec('SELECT value FROM storage_meta WHERE key = ?1', key)];
     return rows.length === 0 ? null : String(rows[0]?.value);
   }

@@ -114,3 +114,21 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Version of the storage tables, kept in `storage_meta.storage_schema_version`. */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+/* ------------------------------------------------------------------ sharing a board by link (story 5) */
+
+/**
+ * How long a click on New board may take before the board is on screen (PRD `share.create`).
+ * Creation is one id generation plus one Durable Object call plus one small SQLite write, so
+ * this is a promise that can be kept; the e2e test measures it and logs it rather than
+ * asserting it, because the machine running the test is not a machine to promise timings on.
+ */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the Share panel's button says "Link copied". */
+export const LINK_COPIED_MS = 2000;
+/**
+ * How long a board page waits before checking a link it could not reach. Doubles on every
+ * failure, up to `RECONNECT_MAX_BACKOFF_MS` — the same backoff the live connection uses, so
+ * a person who opened a link during an outage is retried on the same rhythm as everybody else.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

@@ -13,7 +13,14 @@
  * timeout.
  */
 
-import { expect, type Browser, type BrowserContext, type Locator, type Page, type TestInfo } from '@playwright/test';
+import {
+  expect,
+  type Browser,
+  type BrowserContext,
+  type Locator,
+  type Page,
+  type TestInfo,
+} from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
@@ -25,6 +32,7 @@ import {
   ROOM_SILENCE_LIMIT_MS,
 } from '../../../src/shared/config';
 import { newBoardId } from '../../../src/shared/board-id';
+import { ensureBoard } from './boards';
 
 export { LIVE_UPDATE_LATENCY_BUDGET_MS };
 
@@ -78,7 +86,8 @@ export function badgeText(page: Page): Promise<string | null> {
 export function connectionState(page: Page): Promise<string> {
   return page.evaluate(() => {
     const state = window.__vidi6?.connectionState;
-    if (state === undefined) throw new Error('window.__vidi6.connectionState is missing from this build');
+    if (state === undefined)
+      throw new Error('window.__vidi6.connectionState is missing from this build');
     return state;
   });
 }
@@ -91,19 +100,52 @@ export function connectionState(page: Page): Promise<string> {
 export function connectionStates(page: Page): Promise<readonly string[]> {
   return page.evaluate(() => {
     const states = window.__vidi6?.connectionStates;
-    if (states === undefined) throw new Error('window.__vidi6.connectionStates is missing from this build');
+    if (states === undefined)
+      throw new Error('window.__vidi6.connectionStates is missing from this build');
     return states;
   });
 }
 
-/** Opens a board and waits for it to be live: badge gone, board on screen, room reached. */
-export async function openBoardAt(page: Page, boardId: string): Promise<void> {
+/**
+ * Opens a board and waits for it to be live: badge gone, board on screen, room reached.
+ *
+ * The board is made to exist first (see `helpers/boards.ts`): since story 5 an address the service
+ * has never issued is a board it will not open, and every test here is a test about a board that a
+ * person has a link to.
+ *
+ * The milliseconds are printed under `VIDI6_TRACE=1`, because FR-4 is a promise about how long this
+ * takes and this is the one place every person in every test passes. What is timed is the page
+ * arriving: the fetch that makes the board exist is a test's doing and is left out. What is printed
+ * is a measurement, not an assertion — the assertion is that the board opened at all, and the place
+ * a duration is asserted is TC-26, which makes its own board through the interface.
+ *
+ * The page's own clock is read with `page.evaluate` rather than a locator, which is the idiom every
+ * measurement here uses: a locator call waits for an element to *appear*, so a locator in a loop
+ * that is watching for elements to disappear leaves calls piled up holding up the ones behind it.
+ */
+export async function openBoardAt(page: Page, boardId: string, origin?: string): Promise<void> {
+  await ensureBoard(boardId, origin);
+  const started = Date.now();
   await page.goto(boardAddress(boardId));
   await expect(page.getByTestId('app')).toBeVisible();
+  const painted = Date.now() - started;
   await waitForConnected(page);
+  const live = Date.now() - started;
+  // The page's own wall clock, read the same way `waitForConnected` reads its state: a locator call
+  // waits for the element to appear, and this function is called in loops that expect things to be
+  // gone, so a locator here would hold up the calls that follow it.
+  const since = await page.evaluate(() => Math.round(performance.now()));
+  if (process.env.VIDI6_TRACE) {
+    console.info(
+      `   open /b/${boardId}: painted ${painted}ms, live ${live}ms (the page says ${since}ms)`,
+    );
+  }
 }
 
-/** Waits for the badge to go away, which is the board saying it is in the room. */
+/**
+ * Waits for the badge to go away, which is the board saying it is in the room, and then for the
+ * board itself to say so: the badge can be gone because it was never painted.
+ */
 export async function waitForConnected(page: Page): Promise<void> {
   await expect(badge(page), 'waiting for the board to reach the room').toHaveCount(0, {
     timeout: EVENTUAL_TIMEOUT_MS,
@@ -113,11 +155,21 @@ export async function waitForConnected(page: Page): Promise<void> {
 
 /**
  * One person: a browser context of their own, with everything the browser complains about
- * collected on the way. Nothing is opened and nothing is waited for, which is what a test
- * that breaks the network before the page loads needs.
+ * collected on the way. Nothing is opened and nothing is waited for, which is what a test that
+ * breaks the network before the page loads needs.
+ *
+ * `permissions` is there for the one case that needs the browser's permission asked for before the
+ * page exists rather than after: a test that reads back what the board put on the clipboard. It
+ * reaches only the browsers that have such a thing, and an empty list changes nothing.
  */
-export async function openPersonPage(browser: Browser, name: string): Promise<Participant> {
-  const context = await browser.newContext();
+export async function openPersonPage(
+  browser: Browser,
+  name: string,
+  permissions: readonly string[] = [],
+): Promise<Participant> {
+  const context = await browser.newContext(
+    permissions.length > 0 ? { permissions: [...permissions] } : {},
+  );
   const page = await context.newPage();
   const consoleErrors: string[] = [];
   // `VIDI6_TRACE=1 npx playwright test …` puts what the board itself said into the test output.
@@ -126,7 +178,9 @@ export async function openPersonPage(browser: Browser, name: string): Promise<Pa
   if (process.env.VIDI6_TRACE) {
     const born = Date.now();
     const line = (label: string, text: string) =>
-      console.info(`   ${label} +${((Date.now() - born) / 1000).toFixed(1)}s ${text.slice(0, 300)}`);
+      console.info(
+        `   ${label} +${((Date.now() - born) / 1000).toFixed(1)}s ${text.slice(0, 300)}`,
+      );
     page.on('console', (message) => line(name, message.text()));
     page.on('pageerror', (error) => line(`${name} pageerror`, error.message));
   }
@@ -156,7 +210,11 @@ export async function openParticipant(
 }
 
 /** Several people on one board, all of them in the room before the test starts. */
-export async function openParticipants(browser: Browser, names: readonly [string], boardId: string): Promise<[Participant]>;
+export async function openParticipants(
+  browser: Browser,
+  names: readonly [string],
+  boardId: string,
+): Promise<[Participant]>;
 export async function openParticipants(
   browser: Browser,
   names: readonly [string, string],
@@ -254,7 +312,10 @@ export function percentiles(values: readonly number[]): { p50: number; p95: numb
 }
 
 /** The sentence the tests print: percentiles against the budget, and what it means. */
-export function latencyReport(values: readonly number[], budget = LIVE_UPDATE_LATENCY_BUDGET_MS): string {
+export function latencyReport(
+  values: readonly number[],
+  budget = LIVE_UPDATE_LATENCY_BUDGET_MS,
+): string {
   const { p50, p95, max } = percentiles(values);
   const worst = max <= budget ? 'inside' : 'over';
   return (
@@ -366,11 +427,13 @@ export async function canReachServer(page: Page): Promise<boolean> {
   // The page itself, not a room address: `/api/rooms/...` answers 426 to a plain fetch, which
   // the browser logs as a failed load — a test that asks "can this browser reach the server"
   // should not go and make an error for the browser to complain about.
-  return page.evaluate(() =>
-    fetch(`/?reachability-check=${Date.now()}`, { cache: 'no-store' })
-      .then((response) => response.status)
-      .catch(() => 0),
-  ).then((status) => status !== 0);
+  return page
+    .evaluate(() =>
+      fetch(`/?reachability-check=${Date.now()}`, { cache: 'no-store' })
+        .then((response) => response.status)
+        .catch(() => 0),
+    )
+    .then((status) => status !== 0);
 }
 
 /** Writes what was measured, for the report printed at the end of the run. */

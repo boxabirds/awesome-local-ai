@@ -1,7 +1,8 @@
 /**
- * The pure half of live sync: which room a board id points at, which board an address is
- * asking for, and what the badge says in each state. No sockets and no timers here —
- * those are in `tests/component/ConnectionStatus.test.tsx`.
+ * The pure half of live sync: which room a board id points at and what the badge says in each
+ * state. No sockets and no timers here — those are in
+ * `tests/component/ConnectionStatus.test.tsx`, and "which page does this address ask for" is
+ * `tests/unit/router.test.ts` now that story 5 puts that question in front of the board.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -12,8 +13,7 @@ import {
   roomUrl,
   serverUrl,
 } from '../../src/client/board/connection';
-import { boardPath, boardRoute } from '../../src/client/board/useBoardRoute';
-import { isValidBoardId, newBoardId } from '../../src/shared/board-id';
+import { newBoardId } from '../../src/shared/board-id';
 
 describe('roomUrl — the address of a board room', () => {
   it('is the room path on the page’s own origin, with wss on https', () => {
@@ -56,7 +56,9 @@ describe('roomUrl — the address of a board room', () => {
     // twice, and the Worker would read `<id>/<id>` as a board id and refuse it.
     const boardId = newBoardId();
     expect(serverUrl('https://vidi6.app/')).toBe('wss://vidi6.app/api/rooms');
-    expect(roomUrl(boardId, 'https://vidi6.app/')).toBe(`${serverUrl('https://vidi6.app/')}/${boardId}`);
+    expect(roomUrl(boardId, 'https://vidi6.app/')).toBe(
+      `${serverUrl('https://vidi6.app/')}/${boardId}`,
+    );
   });
 
   it('does not leave a slash for the provider to double up', () => {
@@ -71,54 +73,6 @@ describe('roomUrl — the address of a board room', () => {
     const first = newBoardId();
     const second = newBoardId();
     expect(roomUrl(first, 'https://vidi6.app/')).not.toBe(roomUrl(second, 'https://vidi6.app/'));
-  });
-});
-
-describe('boardRoute — the board an address asks for', () => {
-  // A board id that is a legal one, so "the fresh id wins" can be asserted as a value.
-  const fresh = 'freshfreshfreshfresh01';
-
-  it('takes the board from /b/<id>', () => {
-    const boardId = newBoardId();
-    expect(boardRoute(`/b/${boardId}`, fresh)).toEqual({ kind: 'board', boardId });
-  });
-
-  it('sends a visitor at / to a board rather than an empty screen', () => {
-    expect(boardRoute('/', fresh)).toEqual({ kind: 'board', boardId: fresh });
-    expect(isValidBoardId((boardRoute('/', fresh) as { boardId: string }).boardId)).toBe(true);
-  });
-
-  it('treats /b/ as “a board, please”', () => {
-    expect(boardRoute('/b/', fresh).kind).toBe('board');
-  });
-
-  it('ignores a query string when reading the id', () => {
-    const boardId = newBoardId();
-    expect(boardRoute(`/b/${boardId}?utm=mail`, fresh)).toEqual({ kind: 'board', boardId });
-  });
-
-  it('says so when the address names something that is not a board', () => {
-    // Not redirected away: this is a link somebody pasted, and it has to stay on screen
-    // to be explained.
-    expect(boardRoute('/b/nope', fresh)).toEqual({ kind: 'invalid', boardId: 'nope' });
-    expect(boardRoute('/b/short', fresh)).toEqual({ kind: 'invalid', boardId: 'short' });
-    expect(boardRoute('/b/../etc/passwd', fresh).kind).toBe('invalid');
-  });
-
-  it('gives an unrecognised address a board of its own', () => {
-    expect(boardRoute('/pricing', fresh)).toEqual({ kind: 'board', boardId: fresh });
-  });
-
-  it('round-trips through boardPath', () => {
-    const boardId = newBoardId();
-    expect(boardRoute(boardPath(boardId), fresh)).toEqual({ kind: 'board', boardId });
-  });
-
-  it('never makes up an id that the board id rules would reject', () => {
-    for (const pathname of ['/', '/b/', '/anything', '/b/..', '/b/not-a-board']) {
-      const route = boardRoute(pathname, fresh);
-      if (route.kind === 'board') expect(isValidBoardId(route.boardId)).toBe(true);
-    }
   });
 });
 

@@ -14,6 +14,7 @@
 
 import { isValidBoardId } from '../shared/board-id';
 import { CLOSE_BOARD_LOAD_FAILED } from '../shared/protocol';
+import { BoardStore } from './board-store';
 import type { Env } from './index';
 
 /** The variable that turns these routes on, and the only value that turns them on. */
@@ -32,14 +33,20 @@ const ROOM_HOOK_ACTIONS: readonly RoomHookAction[] = [
   'hibernate',
   'corrupt-snapshot',
   'repair',
+  'initialize',
+  'seed-legacy',
 ];
 
 /**
  * What a board's object can be asked to do to itself. `corrupt-snapshot` and `repair` are about
  * the bytes in its storage; `compact` and `hibernate` are about what it is holding in memory,
- * and are answered by the object itself before they get here.
+ * and are answered by the object itself before they get here. The last two are story 5's:
+ * `initialize` is the same call `POST /api/boards` makes — a test that needs a board to exist
+ * under an id of its own, rather than one the server chose, asks for one this way — and
+ * `seed-legacy` writes the content of a board that predates links, with no `created_at`.
  */
-export type RoomHookAction = 'compact' | 'hibernate' | 'corrupt-snapshot' | 'repair';
+export type RoomHookAction =
+  'compact' | 'hibernate' | 'corrupt-snapshot' | 'repair' | 'initialize' | 'seed-legacy';
 
 /** Where the original bytes of a damaged chunk are kept while it is damaged. */
 const SAVED_CHUNKS_TABLE = '__test_saved_chunks';
@@ -53,7 +60,10 @@ export function testHooksEnabled(env: Pick<Env, 'TEST_HOOKS'>): boolean {
 function hookError(status: number, code: string, message: string): Response {
   return new Response(JSON.stringify({ error: code, message }), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'x-vidi6-error': code },
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'x-vidi6-error': code,
+    },
   });
 }
 
@@ -90,8 +100,14 @@ export async function routeTestHook(request: Request, env: Env): Promise<Respons
   }
 
   const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+  // Whatever body the caller sent goes on to the object with it. `seed-legacy` is given the
+  // updates to write; every other hook is asked by path alone.
+  const body = await request.text();
   return stub.fetch(
-    new Request(`https://board-room.internal${ROOM_HOOK_PREFIX}${action}`, { method: 'POST' }),
+    new Request(`https://board-room.internal${ROOM_HOOK_PREFIX}${action}`, {
+      method: 'POST',
+      ...(body === '' ? {} : { body, headers: { 'content-type': 'application/json' } }),
+    }),
   );
 }
 
@@ -107,9 +123,11 @@ export function runRoomTestHook(
   storage: DurableObjectStorage,
   action: string,
   evict: () => void,
+  body: unknown = undefined,
 ): Response {
   if (action === 'corrupt-snapshot') return corruptSnapshot(storage, evict);
   if (action === 'repair') return repairSnapshot(storage);
+  if (action === 'seed-legacy') return seedLegacyBoard(storage, body, evict);
   return hookError(404, 'not_found', `No such hook: ${action}`);
 }
 
@@ -163,11 +181,64 @@ function corruptSnapshot(storage: DurableObjectStorage, evict: () => void): Resp
   return json({ ...damage, closedWith: CLOSE_BOARD_LOAD_FAILED });
 }
 
+/**
+ * Writes a board that predates links: content, and no `created_at`.
+ *
+ * Before story 5 a board simply was whatever address somebody happened to open, and it
+ * acquired its content the way a board does — by being edited. Such a board has log rows and
+ * no record of ever having been created, and it is exactly what `existsReadOnly()` has to
+ * recognise as existing (share.legacy_boards). A test cannot go and live one, so this puts one
+ * there: the updates are real Yjs updates, written as log rows, by the same store a board that
+ * had been edited would have written them with.
+ */
+function seedLegacyBoard(
+  storage: DurableObjectStorage,
+  body: unknown,
+  reset: () => void,
+): Response {
+  const updates = legacyUpdateList(body);
+  if (!updates) return hookError(400, 'bad_seed', 'Expected { updates: [base64, …] }.');
+  const store = new BoardStore(storage);
+  try {
+    store.migrate(); // the tables a board of that age has: and `created_at` is not one of them
+    // Seeding twice is the same board, not a board with two of everything.
+    store.sql.exec('DELETE FROM updates');
+    store.sql.exec('DELETE FROM snapshot_chunks');
+    for (const update of updates) {
+      store.append(update);
+    }
+  } catch (error) {
+    return hookError(500, 'seed_failed', String(error));
+  }
+  // The room has to come at this board through storage, the way a restarted one would.
+  reset();
+  return json({ ok: true, rows: updates.length, created_at: false });
+}
+
+/** The updates a seed request asked for, decoded from base64; null when it asked for nothing. */
+function legacyUpdateList(body: unknown): Uint8Array[] | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const updates = (body as { updates?: unknown }).updates;
+  if (!Array.isArray(updates) || updates.length === 0) return null;
+  const decoded: Uint8Array[] = [];
+  for (const item of updates) {
+    if (typeof item !== 'string') return null;
+    decoded.push(fromBase64(item));
+  }
+  return decoded;
+}
+
+/** Base64 text to bytes. */
+function fromBase64(text: string): Uint8Array {
+  const binary = atob(text);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
 function repairSnapshot(storage: DurableObjectStorage): Response {
   try {
-    const saved = [
-      ...storage.sql.exec(`SELECT idx, data FROM ${SAVED_CHUNKS_TABLE} ORDER BY idx`),
-    ];
+    const saved = [...storage.sql.exec(`SELECT idx, data FROM ${SAVED_CHUNKS_TABLE} ORDER BY idx`)];
     if (saved.length === 0) return json({ ok: true, repaired: 0 });
     storage.transactionSync(() => {
       for (const row of saved) {

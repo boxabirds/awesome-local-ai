@@ -469,58 +469,284 @@ body {
   }
 }
 
-/* An address that names no board. */
-.vidi6-invalid {
+/* PAGES (story 5) — see the block below */
+
+/*
+ * Pages — home, board, and the two kinds of "no" (story 5).
+ *
+ * The same three pages, from `/`, from a link, from a link that turns out to be a bad one. They
+ * share one shell because they share one job: say one thing, and give one way onwards. The board
+ * page is not in here — the board is the whole window and has owned its own styles since story 1.
+ */
+
+/*
+ * The shell. `min-height: 100svh` rather than `100vh` so a phone's browser bar does not push the
+ * button below the fold on the one page whose whole job is that button.
+ */
+.page {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 100svh;
   padding: 24px;
   background: var(--board-bg);
   color: var(--ink);
-}
-
-.invalid-board {
-  max-width: 32rem;
   text-align: center;
 }
 
-.invalid-board__message {
+.home-name {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.home-tagline {
+  margin: 0 0 12px;
+  font-size: 15px;
+  color: #57606a;
+}
+
+.page-title {
   margin: 0 0 8px;
   font-size: 20px;
   font-weight: 600;
 }
 
-.invalid-board__detail {
-  margin: 0 0 20px;
+.page-detail {
+  /* A readable measure: centred text that runs the width of a wide window is not readable. */
+  max-width: 34rem;
+  margin: 0 0 12px;
   font-size: 14px;
+  line-height: 1.5;
   color: #57606a;
 }
 
-.invalid-board__id {
+/* The link that was asked for, in the font it arrives in: a person compares it with the one in
+ * their chat window, and a proportional font is no good for that. */
+.page-asked-for {
+  max-width: 34rem;
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #57606a;
+}
+
+.page-asked-for code {
   padding: 2px 6px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
-  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  /* A board id is 22 characters and does not break; a pasted-in path can be long, and the page
+   * must stay on the screen rather than widen it. */
   overflow-wrap: anywhere;
 }
 
-.invalid-board__new {
+/*
+ * The primary action of the home page, and of the page that says there is no board. Blue, and
+ * the largest thing on the page apart from the heading: on mobile the only way to get a board is
+ * this button, so it is not something a person has to look for.
+ */
+.page-button,
+.home-button {
   font: inherit;
+  font-weight: 600;
+  padding: 10px 20px;
+  border: 1px solid #1f5fd0;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.page-button:hover,
+.home-button:hover {
+  background: #1d55c9;
+}
+
+.page-button:focus-visible,
+.home-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/*
+ * A button that is waiting is not a button that is broken: it keeps its size and its place and
+ * loses its colour, and the words say what it is doing ("Creating board…"). `cursor: default`
+ * rather than `progress`, because pressing it twice would make two boards and it does not.
+ */
+.page-button:disabled,
+.home-button:disabled {
+  border-color: var(--border);
+  background: #eef1f5;
+  color: #57606a;
+  cursor: default;
+}
+
+/*
+ * The one sentence that is not a page of its own, kept in the space below the button where the
+ * button's own words were. It reserves its own height so a failure does not shove the page up
+ * by a line at the moment a person is reading it.
+ */
+.page-error {
+  min-height: 20px;
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: #b42318;
+}
+
+.home-link {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.home-link a {
+  color: #2563eb;
+}
+
+/*
+ * The waiting pages. Both are one sentence in the middle of the window, and both are a
+ * `role="status"` so a screen reader says it once; the difference between them is the words,
+ * which is the difference between "the service answered" and "the service did not answer".
+ */
+.page-waiting {
+  font-size: 16px;
+  color: #57606a;
+}
+
+/*
+ * Share — the button on a board, and the panel it opens.
+ *
+ * Top-right, at the same height as the board's connection badge and to the right of it in
+ * importance: the toolbar is bottom-left, the zoom control is bottom-right, so this corner is the
+ * one the board does not need. It is `position: fixed` for the same reason the toolbar is: the
+ * board is a fixed layer that fills the window and scrolls nothing itself, so an element that
+ * belongs to the board rather than to the paper has to be pinned to the window.
+ */
+.share-button {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 30;
+  font: inherit;
+  font-weight: 600;
   padding: 8px 16px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
   cursor: pointer;
 }
 
-.invalid-board__new:hover {
+.share-button:hover {
   background: #eef1f5;
 }
 
-.invalid-board__new:focus-visible {
+.share-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/*
+ * The panel hangs off the button it came from. `max-width` in viewport units rather than pixels
+ * so that on a phone the panel is the window minus a margin and the link inside it is still a
+ * link rather than a horizontal scroll.
+ */
+.share {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 31;
+}
+
+.share-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(460px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+}
+
+/*
+ * The link, as text you can read: a readonly field, because a person who has just been handed a
+ * link wants to see it and select it, not correct it. Monospace for the same reason as the
+ * not-found page — an id is compared character by character when it goes wrong.
+ */
+.share-link-field {
+  width: 100%;
+  min-width: 260px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #f6f7f9;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  user-select: all;
+}
+
+.share-link-field:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 1px;
+}
+
+.share-copy {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 14px;
+  border: 1px solid #1f5fd0;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.share-copy:hover {
+  background: #1d55c9;
+}
+
+.share-copy:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/*
+ * The two things the panel can say under the button. Both reserve a line, so the panel does not
+ * grow and shrink as the clipboard does one thing and then the other; a panel that jumps while a
+ * person is reading it is a panel they stop reading.
+ */
+.share-status {
+  min-height: 18px;
+  margin: 0;
+  font-size: 13px;
+  color: #57606a;
+}
+
+.share-status--manual {
+  color: #8a5a00;
+}
+
+.share-note {
+  margin: 0;
+  font-size: 12px;
+  color: #57606a;
+}
+
+/* The board page is the board, plus the Share button floating over it; nothing to lay out. */
+.board-page {
+  position: fixed;
+  inset: 0;
 }

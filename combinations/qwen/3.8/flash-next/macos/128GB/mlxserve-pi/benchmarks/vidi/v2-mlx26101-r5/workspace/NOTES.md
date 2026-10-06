@@ -314,3 +314,109 @@ the test reported a stale state for 45 s while the page was fine.
 is there or not. Rule taken away: **inside a poll that waits for something to disappear, do not use
 an API that waits for it to appear.** When a page seems to stop reporting the truth, check whether
 the observation itself is queued.
+
+---
+
+# Story 5: share a board with others using a link
+
+## Contract deviations (all deliberate)
+
+- **`App.tsx` is two files now.** `git mv src/client/App.tsx src/client/board/Board.tsx`, and the
+  new `src/client/App.tsx` is a router shell: `useRoute()`, then `HomePage`, `BoardPage` or
+  `NotFoundPage`. Story 4's board is unchanged in behaviour; it just no longer owns the address.
+  Two reasons, one of them mechanical: `App → BoardPage → Board → App` is a cycle, and one of them
+  had to stop importing the other.
+- **`pages/state.ts` with `nextBoardPageState` did not happen.** The states are exactly the ones in
+  the contract — home: `idle | creating | failed`; board: `checking | ready | notFound |
+unreachable` — but they are React state in the two components that use them, not a reducer module:
+  `useCreateBoard` (Home and Board-not-found share the create machine) and `BoardPage`. The one
+  piece of that machine worth testing apart from the rendering is the retry schedule, and it is
+  exported for that: `boardCheckDelay(retry)` (1 s, 2 s, 4 s … capped at `RECONNECT_MAX_BACKOFF_MS`).
+- **`PageNavigator`, not `Navigator`** — the DOM lib already exports that name, and shadowing it in
+  a browser app is a trap for whoever writes the next hook in this file.
+- **`SharePanel` lives in `src/client/share/`, not `board/`**: it is about the link, not the
+  document, and `board/` is the stories 1–4 board with nothing new added to it.
+- **The `/b/<id>` match is exact.** `/b/<id>/edit` is Board not found, not a board. The id segment
+  is percent-decoded, and a segment with a malformed escape (`%E0%A4%A`) or with control or space
+  characters in it is refused by `decodeSegment()` before anything is asked of the service (TC-19's
+  "no request at all" is a property of the router, not of the page).
+- **`/api/rooms/:id` with a malformed id answers 404 where story 3 answered 400**, per the design;
+  `tests/integration/worker-routing.test.ts` was updated rather than left asserting a 400 that no
+  longer exists.
+- **`initialize()` and `exists()` are Durable Object RPC methods**, not HTTP routes inside the
+  object. `BoardStore.existsReadOnly()` looks at `sqlite_master` first, so a probe of an address
+  nobody issued cannot create tables — TC-06 and TC-09 assert that nothing was written afterwards.
+  `migrate()` still creates the tables, and now runs from `initialize()` and lazily before the first
+  `append()`.
+- **`inject('load:meta')` moved from `migrate()` to `load()`.** Story 4's "refuses to load when it
+  cannot read its own record" arms that fault and expects it during a _read_; with the inject in
+  `migrate()` it fired during a step that test never reaches, and the test passed for the wrong
+  reason.
+- **`BoardStorage.open()` in story 4's integration tests calls `stub.initialize()`** instead of a
+  bare `fetch()`: since this story a plain fetch to the room is refused (426 without an upgrade,
+  404 for a board that does not exist), and nothing creates tables on a fetch any more.
+- **`e2e:serve` passes `--var TEST_HOOKS:1`.** The `/__test/boards/:id/<action>` hooks are compiled
+  out of the default build; the e2e server already needed them for story 4's corruption tests, which
+  started their own `wrangler dev`, and now the shared server needs them too, because every test
+  that navigates to an address has to be able to make the board behind it. Two hooks were added:
+  `initialize` (the same RPC `POST /api/boards` makes) and `seed-legacy` (writes `updates` rows with
+  no `created_at`, which is TC-31's board that predates links).
+- **e2e helpers create the board they are about to open.** `openBoard`, `openBoardAt` and story 4's
+  `RoomClient` path call `ensureBoard()` first, which is one POST to the test hook — the same
+  `initialize()` RPC the real button makes, over the same route. Without it every story 1–4 test
+  would land on Board not found, since each one invented its own board id and never registered it.
+- **Two story 3/4 tests were opening boards that did not exist** and only worked because the room
+  used to create whatever it was asked for: live-network's "a room that cannot be reached" and
+  story 4's "big board open". Both now create the board first, and the first says so in a comment —
+  a room that is down and a board that was never made are different answers, and the test is about
+  the first one.
+- **`room-client.ts` rejects with a message when `ErrorEvent.message` is empty.** A refused upgrade
+  gives an error event whose message is `''`, so the failure line of a five-minute test was literally
+  `''`. `||`, not `??`.
+
+## Findings while testing the implementation
+
+- **The Share panel closed itself in the act of opening, and only in a browser.** The panel closes
+  on a click outside itself, listened for on the document. Opening replaced the Share button with a
+  different tree, and the click that opened the panel was still on its way to the document: by the
+  time the listener existed, its own button was gone, so the click that opened the panel was an
+  outside click, and the panel vanished in the same millisecond. TC-26 found it; the component suite
+  could not, because jsdom hands the event to the document before React has built anything. The
+  first fix was a timestamp rule ("ignore a click that predates the panel"), which was wrong twice
+  over: it is a race dressed up as a rule, and jsdom's `MouseEvent.timeStamp` is `Date.now()`-based
+  while its `performance.now()` starts at 0, so the rule was inert exactly where the tests ran. The
+  fix is structural: one tree always, `div.share` holding the button, the panel rendered inside it
+  when open — the click that opens cannot be outside the thing it opened. The component test is now
+  that invariant ("keeps the button it was opened by inside itself") rather than a stopwatch.
+- **A state that passes is not a state you can look for afterwards.** TC-28's "Opening board…" is
+  on screen for one frame before the first attempt fails, and `toBeVisible()` on it was a coin toss
+  decided by machine load. The test now installs a `MutationObserver` with `addInitScript` that
+  records every `data-testid` and every `[role="status"]` text from the first frame onwards, and
+  asserts against what the page actually said. This is the same pile-up lesson as story 2's
+  `badgeText`, seen from the other side: _either wait for a state to appear, or record it as it
+  passes — do not go looking for it after it has gone._
+- **nightly TC-30 (capacity soak) hangs, and hangs at HEAD too.** It failed twice here at
+  `soakOps → noteIds → locator.evaluateAll`, so it was run from a clean worktree of the commit
+  before this one: same call site, same 300 s timeout, nothing measured. It is the pile-up class
+  already described above — the soak reads note ids with a locator, in a five-browser loop, while
+  other people delete the notes under it. Not caused by this story and not fixed by it; it should
+  be fixed in `tests/e2e/helpers/soak.ts` (read with `page.evaluate`, as `badgeText` was) in whatever
+  story is next.
+- **Firefox and WebKit still cannot start in this sandbox** — `browserType.launch` aborts
+  (`SIGABRT`) before any test code runs, verified again on TC-27 and TC-29, which is the design's
+  "also in firefox and webkit" line. Same finding as stories 1 and 2; the two tests are Chromium-green.
+- **FR-4 is measured in TC-26** (click "New board" to an editable board: ~200 ms against a
+  2 000 ms budget, logged and annotated, never asserted), and `openBoardAt` prints its own painted/
+  live numbers under `VIDI6_TRACE=1`. Nothing in the suite fails because a duration was too long.
+
+## Final test counts (story 5)
+
+| Suite                      | Files | Tests                                                                                                                 |
+| -------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------- |
+| `npm run test:unit`        | 11    | 158 (+ board id TC-04, router table incl. traversal and malformed escapes)                                            |
+| `npm run test:component`   | 12    | 151 (+ HomePage 8, BoardPage 18, SharePanel 21; − story 3's routing tests, which the router unit suite covers better) |
+| `npm run test:integration` | 9     | 144 (+ board-api 25: TC-05…TC-10, TC-12, TC-14, TC-15, TC-32)                                                         |
+| `npm run test:e2e`         | 12    | 58 chromium (54 shared-server + 4 persistence), incl. share.spec TC-26…TC-29, TC-31                                   |
+
+`npm run build`, `npm run build:test` and `npm run typecheck` are clean. The nightly project runs
+`idle-stability` green and `capacity-soak` into the pre-existing hang above.

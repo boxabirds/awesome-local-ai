@@ -174,6 +174,44 @@ export class BoardRoom extends DurableObject<Env> {
     return this.board;
   }
 
+  /**
+   * Creates this board: makes the tables, and writes `created_at` if it is not already there.
+   *
+   * Called over RPC by `createBoard()` (one call, one board — share.create), and by nothing
+   * else in the product. It answers `exists` rather than starting the board again when
+   * `created_at` is already there, which is the only sane answer to two creations of the same
+   * id and the reason the caller does not need a retry loop.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    // The constructor's read has to have finished first: `markCreatedAt` writes into the same
+    // tables, and an object that answered `exists` about a board it had not read yet would be
+    // guessing.
+    await this.loaded;
+    const created = this.store.markCreatedAt();
+    if (created) {
+      // There is a board now. Whatever this object was serving a moment ago — an empty
+      // document, because when it looked there was nothing here — is still correct for a board
+      // that has just been created, and the first change it is given will be written down.
+      console.info(
+        JSON.stringify({
+          event: 'board-created',
+          created_at: this.store.createdAt(),
+        }),
+      );
+      return 'created';
+    }
+    return 'exists';
+  }
+
+  /**
+   * Is there a board here? Read-only: a link that was guessed at, mistyped or truncated gets a
+   * `false` and leaves nothing in storage behind (share.not_found).
+   */
+  async exists(): Promise<boolean> {
+    await this.loaded;
+    return this.store.existsReadOnly();
+  }
+
   /** Accepts a WebSocket upgrade; anything else is a 426. */
   override async fetch(request: Request): Promise<Response> {
     await this.loaded;
@@ -183,16 +221,28 @@ export class BoardRoom extends DurableObject<Env> {
     const hook = new URL(request.url).pathname;
     if (testHooksEnabled(this.env) && hook.startsWith('/__test/')) {
       const action = hook.slice('/__test/'.length);
-      const done = this.roomHook(action);
+      const done = await this.roomHook(action);
       if (done) return done;
-      return runRoomTestHook(this.ctx.storage, action, () => {
-        this.forgetBoard();
-        this.phase = 'load-failed';
-        this.loadFailedAt = Date.now();
-        for (const socket of this.ctx.getWebSockets()) {
-          this.close(socket, CLOSE_BOARD_LOAD_FAILED, CLOSE_REASON.loadFailed);
-        }
-      });
+      return runRoomTestHook(
+        this.ctx.storage,
+        action,
+        () => {
+          this.forgetBoard();
+          if (action === 'seed-legacy') {
+            // Nothing has gone wrong with this board — the room has simply been handed content
+            // it has never read, which is where a room that had just woken up would be. Telling
+            // it to read again is the whole of making that content visible.
+            this.phase = nextRoomState(this.phase, 'idle');
+            return;
+          }
+          this.phase = 'load-failed';
+          this.loadFailedAt = Date.now();
+          for (const socket of this.ctx.getWebSockets()) {
+            this.close(socket, CLOSE_BOARD_LOAD_FAILED, CLOSE_REASON.loadFailed);
+          }
+        },
+        await readJsonBody(request),
+      );
     }
 
     const upgrade = request.headers.get('Upgrade');
@@ -200,6 +250,20 @@ export class BoardRoom extends DurableObject<Env> {
       return new Response('Upgrade Required', {
         status: 426,
         headers: { 'x-vidi6-error': 'upgrade_required' },
+      });
+    }
+
+    // Story 5 ends the era of the board that comes into being because somebody connected to
+    // it. A room that has no `created_at` and no content is not a board, and the answer to a
+    // connection is 404 — before a socket is accepted, so a mistyped link is a page that says
+    // "Board not found" rather than a blank canvas somebody starts working on.
+    if (!this.store.existsReadOnly()) {
+      return new Response(JSON.stringify({ error: 'not_found', message: 'No such board.' }), {
+        status: 404,
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'x-vidi6-error': 'not_found',
+        },
       });
     }
 
@@ -342,7 +406,13 @@ export class BoardRoom extends DurableObject<Env> {
     }
     if (!result.ok) {
       // Say so, and refuse to serve. An empty board here would be a lie with a text box in it.
-      console.error(JSON.stringify({ event: 'board-load-failed', reason: result.reason, error: result.error }));
+      console.error(
+        JSON.stringify({
+          event: 'board-load-failed',
+          reason: result.reason,
+          error: result.error,
+        }),
+      );
       this.board = null;
       this.loadFailedAt = Date.now();
       this.phase = nextRoomState('loading', 'load-error');
@@ -353,7 +423,10 @@ export class BoardRoom extends DurableObject<Env> {
     this.phase = nextRoomState('loading', result.quarantined > 0 ? 'load-quarantined' : 'load-ok');
     if (result.quarantined > 0) {
       console.error(
-        JSON.stringify({ event: 'board-loaded-with-damage', quarantined: result.quarantined }),
+        JSON.stringify({
+          event: 'board-loaded-with-damage',
+          quarantined: result.quarantined,
+        }),
       );
     }
   }
@@ -380,11 +453,25 @@ export class BoardRoom extends DurableObject<Env> {
    * schedule. Nothing here is reachable unless `TEST_HOOKS` is set, which nothing in the
    * production configuration sets.
    */
-  private roomHook(action: string): Response | null {
+  private async roomHook(action: string): Promise<Response | null> {
+    if (action === 'initialize') {
+      // The same call `POST /api/boards` makes. A test that has to own the id — because it has
+      // already written the address into five browsers — asks this way; the board that comes
+      // into existence is the real one, by the real route.
+      const result = await this.initialize();
+      return hookJson(200, {
+        ok: true,
+        result,
+        created_at: this.store.createdAt(),
+      });
+    }
     if (action === 'compact') {
       const board = this.board;
       if (board === null) {
-        return hookJson(409, { ok: false, reason: 'this room is not holding a board to fold' });
+        return hookJson(409, {
+          ok: false,
+          reason: 'this room is not holding a board to fold',
+        });
       }
       const folded = this.store.compactNow(board);
       return hookJson(200, { ok: true, folded, ...this.store.snapshotInfo() });
@@ -455,7 +542,8 @@ export class BoardRoom extends DurableObject<Env> {
 
   /** The board to serve from, reloading first if this object has lost it. */
   private wake(): Serving {
-    if (this.phase === 'hibernated' || this.phase === 'storage-failed') return this.reloadBy('wake');
+    if (this.phase === 'hibernated' || this.phase === 'storage-failed')
+      return this.reloadBy('wake');
     if (this.phase === 'ready' && this.board === null) return this.reloadBy('wake');
     return this.serving();
   }
@@ -476,9 +564,17 @@ export class BoardRoom extends DurableObject<Env> {
     const board = this.board;
     if (this.phase === 'ready' && board !== null) return { ok: true, doc: board };
     if (this.phase === 'storage-failed') {
-      return { ok: false, closeCode: CLOSE_STORAGE_FAILURE, reason: CLOSE_REASON.storageFailed };
+      return {
+        ok: false,
+        closeCode: CLOSE_STORAGE_FAILURE,
+        reason: CLOSE_REASON.storageFailed,
+      };
     }
-    return { ok: false, closeCode: CLOSE_BOARD_LOAD_FAILED, reason: CLOSE_REASON.loadFailed };
+    return {
+      ok: false,
+      closeCode: CLOSE_BOARD_LOAD_FAILED,
+      reason: CLOSE_REASON.loadFailed,
+    };
   }
 
   /** Sends bytes. A socket that cannot be written to is not the board's problem. */
@@ -507,4 +603,19 @@ function hookJson(status: number, body: unknown): Response {
     status,
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
+}
+
+/**
+ * The JSON a hook request carried, or undefined when it carried nothing. A hook that needs a
+ * body says so by rejecting the undefined; none of them wants to know whether the caller sent
+ * `{}` or nothing at all.
+ */
+async function readJsonBody(request: Request): Promise<unknown> {
+  const text = await request.text();
+  if (text === '') return undefined;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
 }
