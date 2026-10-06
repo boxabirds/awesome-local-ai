@@ -1,3 +1,45 @@
+commit 43186b161a47be70855279e83524ff09d7efac43
+agent  Tue Oct 6 23:18:21 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ src/client/board/BoardSurface.tsx       | 139 +++++----
+ src/client/board/useBoardDoc.ts         |  18 +-
+ src/client/board/useBoardKeys.ts        | 130 +++++++++
+ src/client/board/useSelection.ts        | 223 +++++++++++----
+ src/client/board/useTransformGesture.ts | 333 ++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  56 +++-
+ src/client/canvas/Marquee.tsx           | 124 ++++++++
+ src/client/canvas/testHooks.ts          |   4 +-
+ src/client/objects/SelectionBar.tsx     |  47 +++
+ src/client/objects/SelectionOverlay.tsx | 159 +++++++++++
+ src/client/objects/StickyNote.tsx       | 349 +++++++----------------
+ src/client/objects/registry.tsx         | 124 ++++++++
+ src/client/styles.css                   |  90 ++++++
+ src/shared/board-model.ts               | 372 ++++++++++++++++++++++--
+ src/shared/config.ts                    |  29 ++
+ src/shared/geometry.ts                  | 221 +++++++++++++++
+ tests/component/helpers.tsx             |   8 +-
+ tests/component/multi-select.test.tsx   | 487 ++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/select.ts             | 169 +++++++++++
+ tests/e2e/helpers/sticky.ts             |   3 +-
+ tests/e2e/multi-select.spec.ts          | 261 +++++++++++++++++
+ tests/fixtures/testbox.tsx              | 102 +++++++
+ tests/unit/board-model-group.test.ts    | 236 ++++++++++++++++
+ tests/unit/geometry.test.ts             | 157 ++++++++++
+ tests/unit/registry.test.ts             |  75 +++++
+ tests/unit/selection-reducer.test.ts    | 105 +++++++
+ tsconfig.worker.json                    |   6 +
+ 27 files changed, 3619 insertions(+), 408 deletions(-)
+commit 44a04dd8c75d9c3bbb3d0d4762a3656d56c10a11
+vidi-agent  Tue Oct 6 22:35:30 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit 3601f122145de7cc9d44954555a83c93d13741d2
 agent  Tue Oct 6 21:30:42 2026 +0000
 

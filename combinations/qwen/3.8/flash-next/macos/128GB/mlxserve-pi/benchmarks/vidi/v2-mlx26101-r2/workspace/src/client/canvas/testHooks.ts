@@ -1,6 +1,6 @@
 import type { Camera } from './camera.js';
 import type { ConnectionState } from '../sync/connectBoard.js';
-import type { StickySnapshot } from '../../shared/board-model.js';
+import type { ObjectSnapshot } from '../../shared/board-model.js';
 import type * as Y from 'yjs';
 
 /**
@@ -64,7 +64,7 @@ export function testHooks(): Vidi6TestHooks | undefined {
  */
 export interface Vidi6BoardTestHooks {
   getDoc(): Y.Doc | undefined;
-  getNotes(): readonly StickySnapshot[];
+  getNotes(): readonly ObjectSnapshot[];
   /** The board this page is on, from the URL. */
   getBoardId(): string;
 }

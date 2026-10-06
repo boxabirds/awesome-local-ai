@@ -51,6 +51,35 @@ export const STICKY_TEXT_PADDING_WORLD = 12;
  */
 export const DRAG_THRESHOLD_PX = 3;
 
+/* ------------------------------------------------------- selection (story 7) */
+
+/**
+ * The resize handles are drawn this wide and tall in *screen* pixels, so they
+ * stay grabbable at every zoom level; the transform gesture counter-scales them
+ * by 1/zoom.
+ */
+export const HANDLE_SIZE_PX = 8;
+
+/**
+ * The smallest a sticky note may be resized to, in world units. Sticky notes are
+ * square, so this is both their minimum width and minimum height; the registry
+ * hands it to `clampScale` as sticky's `minSize`.
+ */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/**
+ * The largest any single object may be resized to, in world units. Unlike the
+ * minimum (which each type declares in the registry) the maximum is one number
+ * shared by every object type (`sel.size_limits`).
+ */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** How far one arrow-key press moves the selection, in world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** How far one Shift+arrow press moves the selection, in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 /** The six note colours a user may choose from (sticky.color). */
 export const STICKY_COLORS = {
   yellow: '#FFF59D',

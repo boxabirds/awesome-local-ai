@@ -17,6 +17,9 @@ import { Toolbar } from './Toolbar.js';
 import { useBoardDoc } from './useBoardDoc.js';
 import type { BoardConnector } from './useBoardDoc.js';
 import { useSelection } from './useSelection.js';
+import { useTransformGesture } from './useTransformGesture.js';
+import { useBoardKeys } from './useBoardKeys.js';
+import { useMarquee } from '../canvas/Marquee.js';
 import { BoardViewport } from '../canvas/BoardViewport.js';
 import { screenToWorld, viewportCentre } from '../canvas/camera.js';
 import { NavigationHint } from '../canvas/NavigationHint.js';
@@ -29,10 +32,16 @@ import {
 } from '../canvas/useCamera.js';
 import { ConnectionStatus } from '../sync/ConnectionStatus.js';
 import { canEdit } from '../sync/connectBoard.js';
-import { StickyNote } from '../objects/StickyNote.js';
-import { createSticky, deleteObject } from '../../shared/board-model.js';
+import SelectionBar from '../objects/SelectionBar.js';
+import SelectionOverlay from '../objects/SelectionOverlay.js';
+import { getObjectType } from '../objects/registry.js';
+import { createSticky, deleteObjects } from '../../shared/board-model.js';
 
-/** Focus guard: a keyboard shortcut must not fire while the user is typing. */
+/**
+ * Focus guard: a keyboard shortcut must not fire while the user is typing. Kept
+ * here only for the `N` (new note) shortcut; the selection-wide shortcuts
+ * (select-all, deselect, nudge, delete, Enter) live in `useBoardKeys`.
+ */
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const name = target.tagName;
@@ -58,7 +67,9 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
   // and once the document is shared (story 3) writing it there would move other
   // people's selection.
   const { doc, notes, connection } = useBoardDoc(boardId, connect);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  // The selection is a set now (story 7). It is pruned internally whenever the
+  // document changes, so a note a colleague deleted leaves it on its own.
+  const selection = useSelection(notes);
 
   /**
    * Whether this board takes edits. One decision, made from the connection state
@@ -93,10 +104,9 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
       if (!editable) return;
       const id = createSticky(doc, { x, y });
       if (typeof id !== 'string') return;
-      select(id);
-      startEdit(id);
+      selection.startEdit(id);
     },
-    [doc, editable, select, startEdit],
+    [doc, editable, selection],
   );
 
   /** The Sticky note button and the `N` shortcut: the middle of what is visible. */
@@ -105,6 +115,37 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
     const world = screenToWorld(api.camera, centre);
     createAt(world.x, world.y);
   }, [api.camera, createAt, viewport]);
+
+  // The move/resize gesture and the marquee are board-level: one gesture acts on
+  // the whole selection (Key decision 4), and a Shift+drag on empty space sweeps
+  // objects into it (`sel.marquee`). Both read the same camera and notes the rest
+  // of the board does.
+  const transform = useTransformGesture({
+    doc,
+    camera: api.camera,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+  });
+
+  const addToSelection = useCallback(
+    (ids: string[]) => selection.setMany(ids, true),
+    [selection],
+  );
+  const marquee = useMarquee(api.camera, notes, addToSelection);
+
+  // The shortcuts that act on the whole selection (select-all, deselect, nudge,
+  // delete, Enter-to-edit). `N` to create stays below, because it makes a note
+  // rather than touching the selection.
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable });
+
+  /** Delete every selected object in one action, then clear the selection. */
+  const deleteSelection = useCallback(() => {
+    const ids = [...selection.ids];
+    if (ids.length === 0) return;
+    deleteObjects(doc, ids);
+    selection.clear();
+  }, [doc, selection]);
 
   /**
    * The notes in a stable order, which is *not* the drawing order: they are drawn
@@ -124,43 +165,25 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
   );
 
   // A note that is no longer in the document cannot stay selected or open for
-  // editing: clicking the bin - or a delete that arrives from elsewhere - clears
-  // the local state that pointed at it, and nothing is re-created.
-  useEffect(() => {
-    const alive = new Set(notes.map((note) => note.id));
-    if (editingId !== null && !alive.has(editingId)) {
-      endEdit('unselected');
-    } else if (selectedId !== null && !alive.has(selectedId)) {
-      select(null);
-    }
-  }, [notes, editingId, selectedId, endEdit, select]);
+  // editing; `useSelection` prunes its own set against the snapshot on every
+  // document change, so there is nothing to do here.
 
-  // The keyboard shortcuts belong to the board, not to a focused element, so
-  // this listener is on `window` rather than on the canvas.
+  // The `N` shortcut creates a note at the centre of what is visible. It is the
+  // only board shortcut left in this file because it *makes* something rather
+  // than acting on the selection (which `useBoardKeys` owns). It never fires
+  // while a text field has the keyboard.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      // Never swallow a keystroke that belongs to a text field.
       if (isTypingTarget(event.target)) return;
-
       if (event.key === 'n' || event.key === 'N') {
         event.preventDefault();
         createInMiddleOfView();
-      } else if (event.key === 'Enter') {
-        if (selectedId !== null && editingId === null && editable) {
-          event.preventDefault();
-          startEdit(selectedId);
-        }
-      } else if (event.key === 'Delete' || event.key === 'Backspace') {
-        if (selectedId !== null && editingId === null && editable) {
-          event.preventDefault();
-          deleteObject(doc, selectedId);
-        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [api.camera, createInMiddleOfView, doc, editable, editingId, select, selectedId, startEdit]);
+  }, [createInMiddleOfView]);
 
   return (
     <div className="app" data-testid="app">
@@ -169,32 +192,48 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
         <BoardViewport
           doc={doc}
           canEdit={editable}
+          marquee={marquee}
           onStickyCreated={(id) => {
-            select(id);
-            startEdit(id);
+            selection.startEdit(id);
           }}
           onEmptyClick={() => {
             // Clicking empty board space selects nothing. While a note is being
             // edited its own editor ends the editing (and clears the selection),
             // so the note the user is typing into is never lost by a stray click.
-            if (editingId === null) select(null);
+            if (selection.editingId === null) selection.clear();
           }}
         >
-          {stackOrder.map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={doc}
-              zoom={api.camera.zoom}
-              selected={note.id === selectedId}
-              editing={note.id === editingId}
-              canEdit={editable}
-              onSelect={select}
-              onStartEdit={startEdit}
-              onEndEdit={endEdit}
-            />
-          ))}
+          {stackOrder.map((note) => {
+            // Draw each object through its type; a type this build cannot draw is
+            // skipped, never rendered as something a drag could half-move.
+            const spec = getObjectType(note.type);
+            if (spec === undefined) return null;
+            const Component = spec.Component;
+            return (
+              <Component
+                key={note.id}
+                object={note}
+                doc={doc}
+                zoom={api.camera.zoom}
+                selected={selection.ids.has(note.id)}
+                editing={selection.editingId === note.id}
+                canEdit={editable}
+                selectionSize={selection.ids.size}
+                selection={selection}
+                gesture={transform}
+              />
+            );
+          })}
         </BoardViewport>
+        {/* Screen-space selection chrome: an outline per selected object plus
+            resize handles around the whole selection, and a bar for a multi-
+            selection. Fixed, so handles stay a constant 8 px at any zoom. */}
+        <SelectionOverlay
+          snapshot={notes}
+          ids={selection.ids}
+          onHandlePointerDown={transform.onHandlePointerDown}
+        />
+        <SelectionBar count={selection.ids.size} onDelete={deleteSelection} />
       </CameraProvider>
       <ZoomControls
         zoomPercent={context.zoomPercent}

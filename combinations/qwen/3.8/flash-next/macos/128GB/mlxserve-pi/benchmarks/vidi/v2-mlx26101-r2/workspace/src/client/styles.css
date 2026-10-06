@@ -671,3 +671,93 @@ body {
   font-size: 12px;
   color: var(--connection-warning);
 }
+
+/* ------------------------------------------- story 7: selection & marquee */
+
+/* The selection overlay is a fixed layer over the whole board area, drawn in
+   screen space so outlines stay one crisp pixel and handles stay 8 px at any
+   zoom (Key decision 5). `pointer-events: none` on the container is load-bearing:
+   it covers the entire viewport, and anything that could be clicked would also
+   swallow the marquee drag and the note drags that start underneath it. The
+   handles re-enable their own pointer events, because grabbing one is the point. */
+.selection-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.selection-outline {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--ui-accent);
+  pointer-events: none;
+}
+
+.resize-handle {
+  position: absolute;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1px solid var(--ui-accent);
+  border-radius: 1px;
+  /* The only interactive part of the overlay: a handle must catch its own
+     pointerdown so the transform gesture can resize the whole selection. */
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* The multi-selection bar: a lone object shows its own toolbar instead, so this
+   only appears for two or more. Fixed top-centre, below the connection badge and
+   clear of the left toolbar and the bottom-right zoom controls, so it never
+   covers a control or a drag target. */
+.selection-bar {
+  position: fixed;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  z-index: 31;
+}
+
+.selection-count {
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--ui-text);
+}
+
+.selection-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.selection-delete:hover {
+  background: rgb(0 0 0 / 8%);
+}
+
+/* The marquee box lives inside the scaled world layer, so it is sized in world
+   units and its border is counter-scaled inline to stay one pixel on screen. */
+.marquee-rect {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed var(--ui-accent);
+  background: rgb(74 144 226 / 12%);
+  pointer-events: none;
+}

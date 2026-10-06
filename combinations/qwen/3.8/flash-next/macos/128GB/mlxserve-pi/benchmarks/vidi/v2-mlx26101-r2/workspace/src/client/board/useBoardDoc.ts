@@ -8,8 +8,8 @@ import type { BoardConnection, ConnectionState } from '../sync/connectBoard.js';
 import {
   DOC_OBJECTS_MAP,
   initDoc,
-  snapshot,
-  type StickySnapshot,
+  objectSnapshot,
+  type ObjectSnapshot,
 } from '../../shared/board-model.js';
 
 /** How a board gets its connection; tests hand in a fake (see `connectBoard`). */
@@ -23,8 +23,8 @@ export type BoardConnector = (
 export interface UseBoardDocResult {
   /** The one document of this visit, shared with everyone on this board. */
   doc: Y.Doc;
-  /** Every note, sorted by (z, id); a new array only when the doc changed. */
-  notes: readonly StickySnapshot[];
+  /** Every object, sorted by (z, id); a new array only when the doc changed. */
+  notes: readonly ObjectSnapshot[];
   /** The connection badge's state; `connecting` until this room is reached. */
   connection: ConnectionState;
 }
@@ -35,9 +35,9 @@ export interface UseBoardDocResult {
  * by the document (a WeakMap) rather than by the component, because React's
  * StrictMode renders the same document through two hook instances.
  */
-const caches = new WeakMap<Y.Doc, { notes: readonly StickySnapshot[] | null }>();
+const caches = new WeakMap<Y.Doc, { notes: readonly ObjectSnapshot[] | null }>();
 
-const cacheFor = (doc: Y.Doc): { notes: readonly StickySnapshot[] | null } => {
+const cacheFor = (doc: Y.Doc): { notes: readonly ObjectSnapshot[] | null } => {
   let cache = caches.get(doc);
   if (!cache) {
     cache = { notes: null };
@@ -87,9 +87,9 @@ export function useBoardDoc(
     [doc],
   );
 
-  const getSnapshot = useCallback((): readonly StickySnapshot[] => {
+  const getSnapshot = useCallback((): readonly ObjectSnapshot[] => {
     const cache = cacheFor(doc);
-    if (cache.notes === null) cache.notes = snapshot(doc);
+    if (cache.notes === null) cache.notes = objectSnapshot(doc);
     return cache.notes;
   }, [doc]);
 
@@ -111,7 +111,7 @@ export function useBoardDoc(
   useEffect(() => {
     registerBoardTestHooks({
       getDoc: () => doc,
-      getNotes: () => snapshot(doc),
+      getNotes: () => objectSnapshot(doc),
       getBoardId: () => boardId,
     });
     return () => clearBoardTestHooks();

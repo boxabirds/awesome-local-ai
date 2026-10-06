@@ -4,7 +4,7 @@ import * as Y from 'yjs';
 
 import { BoardSurface } from '../../src/client/board/BoardSurface.js';
 import { newBoardId } from '../../src/shared/board-id.js';
-import type { StickySnapshot } from '../../src/shared/board-model.js';
+import type { ObjectSnapshot, StickySnapshot } from '../../src/shared/board-model.js';
 import type { Camera, Point } from '../../src/client/canvas/camera.js';
 import { worldToScreen, zoomAt } from '../../src/client/canvas/camera.js';
 import { STICKY_SIZE_WORLD } from '../../src/shared/config.js';
@@ -277,8 +277,8 @@ export function boardDoc(): Y.Doc {
   return doc;
 }
 
-/** The notes as the model sees them, in drawing order (z, then id). */
-export function docNotes(): readonly StickySnapshot[] {
+/** Every object in the document (any type), as the model sees it, in drawing order. */
+export function docNotes(): readonly ObjectSnapshot[] {
   const hooks = window.__vidi6Board;
   if (!hooks) throw new Error('board test hooks are not registered');
   return hooks.getNotes();
@@ -298,7 +298,7 @@ export function noteElement(index = 0): HTMLElement {
 
 export function noteData(index = 0): StickySnapshot {
   const notes = docNotes();
-  const note = notes[index];
+  const note = notes[index] as StickySnapshot | undefined;
   if (!note) throw new Error(`no note in the document at position ${index} of ${notes.length}`);
   return note;
 }

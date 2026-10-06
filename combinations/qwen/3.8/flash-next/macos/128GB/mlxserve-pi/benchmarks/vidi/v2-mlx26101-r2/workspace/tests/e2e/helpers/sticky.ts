@@ -37,7 +37,8 @@ export async function docNotes(page: Page): Promise<StickySnapshot[]> {
     if (!hooks) {
       throw new Error('window.__vidi6Board is missing: the e2e suite needs the test build');
     }
-    return [...hooks.getNotes()];
+    // The shipped build knows only sticky notes, so every object here is one.
+    return [...hooks.getNotes()] as StickySnapshot[];
   });
 }
 

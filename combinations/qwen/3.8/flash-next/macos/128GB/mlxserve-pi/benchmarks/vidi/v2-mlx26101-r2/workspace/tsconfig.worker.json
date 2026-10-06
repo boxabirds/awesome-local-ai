@@ -27,5 +27,11 @@
     // The two unit tests that test Worker modules; see the note in tsconfig.json.
     "tests/unit/room-state.test.ts",
     "tests/unit/board-store-chunks.test.ts"
+  ],
+  "exclude": [
+    // The story-7 `testbox` fixture draws a React component and imports the client
+    // object registry (`.tsx`), so it belongs to the client program only. The rest
+    // of `tests/fixtures` is Workers-safe (pure board-model builders) and stays in.
+    "tests/fixtures/testbox.tsx"
   ]
 }

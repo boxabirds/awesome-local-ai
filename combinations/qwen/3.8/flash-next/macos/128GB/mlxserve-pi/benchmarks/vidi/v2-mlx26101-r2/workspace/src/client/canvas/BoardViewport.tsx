@@ -15,6 +15,7 @@ import { createSticky } from '../../shared/board-model.js';
 import { GRID_SPACING_WORLD, DRAG_THRESHOLD_PX } from '../../shared/config.js';
 import { screenToWorld, type Point } from './camera.js';
 import { useCameraContext } from './useCamera.js';
+import { MarqueeRect, type MarqueeController } from './Marquee.js';
 
 /**
  * The input surface: an unbounded board drawn with a dot grid, plus a world
@@ -41,6 +42,12 @@ export interface BoardViewportProps {
    * answering them looks frozen rather than read-only.
    */
   canEdit?: boolean;
+  /**
+   * The Shift+drag marquee (`sel.marquee`). A drag on empty space with Shift held
+   * draws a selection box instead of panning; the box's state and release live in
+   * the board surface, which owns the selection.
+   */
+  marquee?: MarqueeController;
 }
 
 type GestureEventLike = Event & {
@@ -64,6 +71,7 @@ export function BoardViewport({
   onStickyCreated,
   onEmptyClick,
   canEdit = true,
+  marquee,
 }: BoardViewportProps): JSX.Element {
   const {
     camera,
@@ -82,6 +90,8 @@ export function BoardViewport({
   // browser still reports must not clear the selection.
   const draggedRef = useRef(false);
   const downPointRef = useRef<Point | null>(null);
+  // The pointer currently drawing a marquee (Shift held), if any.
+  const marqueeingRef = useRef<number | null>(null);
   const [panning, setPanning] = useState(false);
 
   /** Viewport-client coordinates -> coordinates inside the board area. */
@@ -116,6 +126,15 @@ export function BoardViewport({
     // Touch-screen navigation is out of scope for the board (see PRD).
     if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
     if (!isEmptyBoardSpace(event.target)) return;
+    // Shift held on empty space is the marquee, not a pan (`sel.marquee`).
+    if (event.shiftKey && marquee) {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      marqueeingRef.current = event.pointerId;
+      downPointRef.current = toBoardPoint(event);
+      draggedRef.current = false;
+      marquee.begin(downPointRef.current);
+      return;
+    }
     event.currentTarget.setPointerCapture?.(event.pointerId);
     activePointerRef.current = event.pointerId;
     draggedRef.current = false;
@@ -125,7 +144,8 @@ export function BoardViewport({
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (activePointerRef.current !== event.pointerId) return;
+    const marqueing = marqueeingRef.current === event.pointerId;
+    if (!marqueing && activePointerRef.current !== event.pointerId) return;
     const point = toBoardPoint(event);
     const from = downPointRef.current;
     // Past the drag threshold this pointer gesture is a pan, not a click, even
@@ -137,6 +157,10 @@ export function BoardViewport({
     ) {
       draggedRef.current = true;
     }
+    if (marqueing) {
+      marquee?.move(point);
+      return;
+    }
     panMove(point);
   };
 
@@ -147,6 +171,29 @@ export function BoardViewport({
     activePointerRef.current = null;
     setPanning(false);
     endPan();
+  };
+
+  /** Release: a marquee in flight selects what is fully inside it. */
+  const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeingRef.current === event.pointerId) {
+      marqueeingRef.current = null;
+      marquee?.end();
+      return;
+    }
+    finishDrag(event);
+  };
+
+  /**
+   * A cancelled gesture abandons a marquee without touching the selection
+   * (TC-22) - the opposite of a release, which selects.
+   */
+  const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeingRef.current === event.pointerId) {
+      marqueeingRef.current = null;
+      marquee?.cancel();
+      return;
+    }
+    finishDrag(event);
   };
 
   /**
@@ -244,9 +291,9 @@ export function BoardViewport({
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={finishDrag}
-      onPointerCancel={finishDrag}
-      onLostPointerCapture={finishDrag}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onLostPointerCapture={handlePointerCancel}
       onDoubleClick={handleDoubleClick}
       onClick={handleClick}
     >
@@ -265,6 +312,7 @@ export function BoardViewport({
         >
           <div className="origin-marker" data-testid="origin-marker" />
         </div>
+        {marquee?.rect ? <MarqueeRect rect={marquee.rect} camera={camera} /> : null}
         {children}
       </div>
     </div>
