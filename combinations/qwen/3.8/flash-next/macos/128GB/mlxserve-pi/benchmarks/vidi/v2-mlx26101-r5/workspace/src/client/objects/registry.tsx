@@ -24,10 +24,12 @@ import {
   type ObjectSnapshot,
   type StickySnapshot,
 } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { rectContainsPoint, type Point } from '../../shared/geometry';
+import type { TextSnapshot } from '../../shared/objects/text';
 import type { UndoControls } from '../board/useUndo';
 import { STICKY_OBJECT_TYPE, StickyNote } from './StickyNote';
+import { TEXT_OBJECT_TYPE, TextObject } from './TextObject';
 
 /**
  * What the board gives an object so that it can take part in the board's behaviour. An object never
@@ -61,8 +63,14 @@ export interface ObjectProps<T extends ObjectSnapshot = ObjectSnapshot> {
   onSelect(id: string): void;
   /** Open this object's editing surface, if its type has one. Sticky notes do; shapes do not. */
   onStartEdit(id: string): void;
-  /** Close this object's editing surface. */
-  onEndEdit(): void;
+  /**
+   * Close this object's editing surface, given this object's id.
+   *
+   * The id is not decoration: a single pointer press can close one object's editor and open another's,
+   * and the object that is finished is the one that says so — closing "the open editor" would close the
+   * editor that this very press opened.
+   */
+  onEndEdit(owner?: string): void;
   /** The object is gone from the document: stop drawing it and drop any editing state. */
   onDeleted(id: string): void;
   /**
@@ -87,6 +95,15 @@ export interface ObjectProps<T extends ObjectSnapshot = ObjectSnapshot> {
 }
 
 /**
+ * Which handles a type offers: all eight around its box, or the two on its sides.
+ *
+ * One word per type, decided by the type and read by whoever draws or drags the handles: the overlay
+ * that draws them, the gesture that is driven by them and the tests that count them all ask the same
+ * question, and none of them is the place the answer belongs.
+ */
+export type HandlesMode = 'all' | 'horizontal';
+
+/**
  * What one object type tells the board about itself.
  *
  * `Component` and `hitTest` are declared as methods rather than as properties holding functions: the
@@ -106,6 +123,15 @@ export interface ObjectTypeSpec<T extends ObjectSnapshot = ObjectSnapshot> {
   minSize: number;
   /** True when the type has a text body a person can type into (text, sticky notes). */
   editableText: boolean;
+  /**
+   * Which handles this type has: all eight around the box, or the two on its sides.
+   *
+   * Left out it is `'all'`, which is every object this board had until story 9. `'horizontal'` is for a
+   * thing whose height is its content's own business: a text object has no handle that makes it taller,
+   * because the only thing that makes text taller is more text. A type that could not be given a height
+   * by a handle does not get one to try.
+   */
+  handles?: HandlesMode;
   /** Is this object at this world point? Where the type is, is the type's own business. */
   hitTest(obj: T, worldPoint: Point): boolean;
 }
@@ -172,6 +198,33 @@ export function hasEditableText(type: string): boolean {
   return getObjectType(type)?.editableText === true;
 }
 
+/** Which handles a type offers: `'all'` unless it said otherwise. Unknown types get none at all. */
+export function handlesOf(type: string): HandlesMode {
+  return isResizableType(type) && getObjectType(type)?.handles === 'horizontal' ? 'horizontal' : 'all';
+}
+
+/**
+ * The handles a whole selection offers.
+ *
+ * A selection of text objects has the two side handles, because that is what each of them has. Add a
+ * sticky note to it and the selection has eight, because the selection can now resize something that
+ * takes any shape it is given — and the text objects in it are resized by that same gesture in the one
+ * way they can be: wider, or narrower, with their height following their own content.
+ *
+ * Types this build cannot draw are not counted: they are in the selection and in the bounding box, but
+ * they are not what the handles are offered for.
+ */
+export function handlesForObjects(objects: readonly ObjectSnapshot[]): HandlesMode {
+  let resizable = 0;
+  let horizontal = 0;
+  for (const obj of objects) {
+    if (!isResizableType(obj.type)) continue;
+    resizable += 1;
+    if (handlesOf(obj.type) === 'horizontal') horizontal += 1;
+  }
+  return resizable > 0 && resizable === horizontal ? 'horizontal' : 'all';
+}
+
 /** Where this object is, according to its own type. Unknown types are nowhere. */
 export function hitTestObject(obj: ObjectSnapshot, worldPoint: Point): boolean {
   const spec = getObjectType(obj.type);
@@ -193,7 +246,7 @@ export function ObjectView(props: ObjectProps): ReactNode {
   return <Component {...props} />;
 }
 
-// The types this build ships with. Stories 9–12 add their own line here and nothing else.
+// The types this build ships with. Stories 10-12 add their own line here and nothing else.
 registerObjectType<StickySnapshot>(STICKY_OBJECT_TYPE, {
   Component: StickyNote,
   // A note is a note: it has a size and a handle can change it.
@@ -206,5 +259,23 @@ registerObjectType<StickySnapshot>(STICKY_OBJECT_TYPE, {
   // Its body is the text; Enter opens it.
   editableText: true,
   // A sticky note is exactly where its bounds say it is, to the last unit and not one beyond.
+  hitTest: (obj, worldPoint) => rectContainsPoint(objectBounds(obj), worldPoint),
+});
+
+registerObjectType<TextSnapshot>(TEXT_OBJECT_TYPE, {
+  Component: TextObject,
+  // A text object has a width, and a handle can change it.
+  resizable: true,
+  // …but no proportion of any kind: its height is the number of lines its content makes, so a handle
+  // that scaled width and height together would be writing a height that the next keystroke undoes.
+  aspectLocked: false,
+  // The narrowest a text column may be dragged to, and the width a fixed width never goes below.
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  // Its body is the text; Enter opens it, and so does a double-click on it.
+  editableText: true,
+  // Two handles, on the sides: nothing on this board makes a text object taller but more text.
+  handles: 'horizontal',
+  // The box the document holds is the whole of it: the selection, the marquee and a click all agree
+  // with the pixels on the answer the measurement wrote.
   hitTest: (obj, worldPoint) => rectContainsPoint(objectBounds(obj), worldPoint),
 });

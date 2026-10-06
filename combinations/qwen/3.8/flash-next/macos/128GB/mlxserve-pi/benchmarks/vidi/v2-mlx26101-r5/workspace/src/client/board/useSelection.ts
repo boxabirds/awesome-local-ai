@@ -41,7 +41,7 @@ export type SelectionAction =
    * selection: opening an object means working on that object. null closes it and leaves the
    * selection exactly as it was, which is what Escape does.
    */
-  | { type: 'edit'; id: string | null }
+  | { type: 'edit'; id: string | null; owner?: string }
   /**
    * Objects went away: drop them from the selection and close an editor they had open. The only
    * action that can empty the selection without anyone asking it to.
@@ -94,6 +94,12 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
       if (action.id === null) {
         // Closing the editor leaves the selection alone: Escape ends editing, it does not deselect.
         if (state.editingId === null) return state;
+        // Who is closing it, when the caller knows. One click can close one object's editor and open
+        // another's — a click on the board with the Text tool lit does exactly that, to the editor that
+        // was already open — and the one that is finishing must not take the other one's session with
+        // it. Without this the text placed by that click has no editor open on it, which is the one
+        // thing a person typing next expects to be there.
+        if (action.owner !== undefined && state.editingId !== action.owner) return state;
         return { ids: state.ids, editingId: null };
       }
       // Opening an object's editing surface means it is the object at work, so it is in the
@@ -133,8 +139,14 @@ export interface Selection extends SelectionState {
   clear(): void;
   /** Opens an object's editing surface, and selects it. */
   startEdit(id: string): void;
-  /** Closes it. The selection is what it was. */
-  endEdit(): void;
+  /**
+   * Closes it. The selection is what it was.
+   *
+   * Given the id of the object whose editor is closing, the closing is refused when some other object's
+   * editor is open — which is what two editors in flight over one pointer press is, and the one case
+   * where "close the editor" cannot mean "close whichever editor is open".
+   */
+  endEdit(owner?: string): void;
 }
 
 /**
@@ -167,7 +179,7 @@ export function useSelection(objects: readonly ObjectSnapshot[]): Selection {
         dispatch({ type: 'setMany', ids, additive }),
       clear: () => dispatch({ type: 'clear' }),
       startEdit: (id: string) => dispatch({ type: 'edit', id }),
-      endEdit: () => dispatch({ type: 'edit', id: null }),
+      endEdit: (owner?: string) => dispatch({ type: 'edit', id: null, owner }),
     }),
     [state],
   );

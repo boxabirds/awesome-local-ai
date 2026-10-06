@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
-import { GRID_SPACING_WORLD } from '../../shared/config';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import { screenToWorld } from './camera';
 import type { Point } from './camera';
 import type { CameraController } from './useCamera';
 import type { Marquee } from '../board/Marquee';
+import type { Tool } from '../board/useTool';
 
 /** Wheel `deltaMode === LINE`: pixels per line. */
 const WHEEL_DELTA_LINE_PX = 16;
@@ -13,6 +14,18 @@ const WHEEL_DELTA_LINE_PX = 16;
 const WHEEL_DELTA_PAGE_FRACTION = 0.9;
 /** Safari's non-standard pinch events. */
 const GESTURE_EVENTS = ['gesturestart', 'gesturechange', 'gestureend'] as const;
+
+/**
+ * How long a second click at the same place is still the same person's double-click.
+ *
+ * The number every browser uses for the same question, and it is here for a reason: the Text tool
+ * places text on the *first* click and hands the pointer back to Select, so a person who double-clicks
+ * — which is what every other story on this board has taught people to do when they want to write
+ * something — would otherwise get a sticky note out of the second click, on top of the text they just
+ * placed. The second click of that pair is swallowed for this long, and for no longer: a click half a
+ * second later at a different place is a click somebody meant.
+ */
+const DOUBLE_CLICK_WINDOW_MS = 500;
 
 interface GestureEventLike extends Event {
   readonly scale?: number;
@@ -59,6 +72,21 @@ export interface BoardViewportProps {
    * story 2 press on the background closes a note's editor and takes its selection with it.
    */
   onClearSelection?(): void;
+  /**
+   * The tool the pointer is in.
+ *
+   * `'text'` takes the pointer away from everything the board normally does with it: no pan, no marquee,
+   * no pressing the object underneath — a click means "write here" and nothing else. Left out, the board
+   * has one tool and behaves as it did before story 9.
+   */
+  tool?: Tool;
+  /**
+   * A click with the Text tool, with the point converted to world coordinates.
+   *
+   * Given together with `tool`, because a tool that is drawn but leads nowhere is worse than no tool: a
+   * person would press T, click, and get nothing at all.
+   */
+  onCreateText?(world: Point): void;
 }
 
 /**
@@ -77,6 +105,8 @@ export function BoardViewport({
   marquee,
   onCreateSticky,
   onClearSelection,
+  tool,
+  onCreateText,
 }: BoardViewportProps): React.JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef(controller);
@@ -90,6 +120,12 @@ export function BoardViewport({
   controllerRef.current = controller;
   const marqueeRef = useRef(marquee);
   marqueeRef.current = marquee;
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  const createTextRef = useRef(onCreateText);
+  createTextRef.current = onCreateText;
+  /** Where and when the Text tool last placed something, in client pixels. */
+  const placedRef = useRef<{ x: number; y: number; at: number } | null>(null);
 
   const { camera, isPanning } = controller;
 
@@ -193,6 +229,169 @@ export function BoardViewport({
   const isBoardSurface = (target: EventTarget | null): boolean =>
     target instanceof HTMLElement && target.dataset['boardSurface'] !== undefined;
 
+  /**
+   * The Text tool's hold on the pointer, taken first in the capture phase on the document.
+   *
+   * Capture, and on the document rather than on the board element, for one reason: the click that places
+   * text has to be taken off everything underneath it — the pan, the marquee, and the object the pointer
+   * happened to land on, which is the case the design asks for and the one a bubble-phase handler cannot
+   * reach. React binds the board's own handlers at the root of what it renders, which sits above the
+   * board element and so would hear the event before a listener on the board itself: a listener on the
+   * board could stop the board's click and double-click handlers but not its pointer-down-capture one,
+   * which is the one that starts a pan. Stopped here, the event reaches none of them, and the object
+   * underneath is neither selected nor dragged: text goes on top of it, which is what a person writing a
+   * heading over a pile of notes means.
+   *
+   * Controls keep their own clicks. A board covered in buttons that swallowed them all would be a board
+   * whose tools had stopped working, and the toolbar, the note's palette and an open text field are all
+   * things a person clicks while the Text tool is lit.
+   *
+   * Attached once, for as long as the board is on screen: whether a pointer belongs to the tool is asked
+   * at the pointer, from refs, because the tool changes in the middle of the click that places the text —
+   * the first click puts text down and hands the pointer back to Select, and the second click of the same
+   * double-click still belongs to the tool that made the first.
+   */
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    let press: { pointerId: number; x: number; y: number; moved: boolean; second: boolean } | null =
+      null;
+
+    const writing = (): boolean => toolRef.current === 'text' && createTextRef.current !== undefined;
+
+    /** The second click of a double-click: same place, still inside the window browsers allow. */
+    const again = (x: number, y: number): boolean => {
+      const placed = placedRef.current;
+      return (
+        placed !== null &&
+        Date.now() - placed.at <= DOUBLE_CLICK_WINDOW_MS &&
+        Math.abs(x - placed.x) <= DRAG_THRESHOLD_PX &&
+        Math.abs(y - placed.y) <= DRAG_THRESHOLD_PX
+      );
+    };
+
+    const owns = (x: number, y: number): boolean => writing() || again(x, y);
+
+    const isControl = (target: EventTarget | null): boolean =>
+      target instanceof HTMLElement &&
+      target.closest('button, textarea, input, select, [role="toolbar"]') !== null;
+
+    /** The event is on this board: the document is where this listens, not what it listens for. */
+    const onBoard = (target: EventTarget | null): boolean =>
+      target instanceof Node && el.contains(target);
+
+    const mine = (target: EventTarget | null): boolean => onBoard(target) && !isControl(target);
+
+    /**
+     * Takes the event, and says how thoroughly.
+     *
+     * While the tool is lit, the event is stopped on its way down and everybody further in — the board,
+     * the objects on it — is denied it, but the other handlers standing on the document itself keep
+     * theirs. One of those handlers is the open text editor's, which commits what was typed on a press
+     * outside the object: a person who writes a heading over the note they were still typing into needs
+     * that commit to happen, and it is the reason this hold is not simply taken with a heavier hand.
+     *
+     * The one event that belongs to nobody is the second click of a double-click. It is not a press
+     * outside the object the first click just placed, however the geometry looks: it is the same click,
+     * made twice, and it must not reach the editor's handler either — which would commit an empty text
+     * object, take the rule that an empty text object does not stay, and delete the text half a second
+     * after the person placed it. So the tail of a double-click is stopped where it stands, in front of
+     * every other handler on the document, and the editor stays open with the caret in it.
+     */
+    const claim = (event: Event, guard: boolean): void => {
+      if (guard) event.stopImmediatePropagation();
+      else event.stopPropagation();
+    };
+
+    const local = (clientX: number, clientY: number): Point => {
+      const rect = el.getBoundingClientRect();
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!mine(event.target) || !owns(event.clientX, event.clientY)) return;
+      // Only the left button: the right one opens the browser's menu, and the middle one is a scroll.
+      if (event.button !== 0) return;
+      const guard = !writing();
+      claim(event, guard);
+      press = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        moved: false,
+        // A press that only this hold accounts for — the second click of the pair — writes nothing.
+        second: guard,
+      };
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (!mine(event.target)) return;
+      if (!press && !owns(event.clientX, event.clientY)) return;
+      claim(event, !writing());
+      if (!press || press.pointerId !== event.pointerId) return;
+      if (
+        Math.abs(event.clientX - press.x) > DRAG_THRESHOLD_PX ||
+        Math.abs(event.clientY - press.y) > DRAG_THRESHOLD_PX
+      ) {
+        press.moved = true;
+      }
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (!mine(event.target) || !owns(event.clientX, event.clientY)) return;
+      const pressed = press;
+      const guard = !writing();
+      press = null;
+      claim(event, guard);
+      // A pointer the system took back is not a click somebody made, and writes nothing.
+      if (event.type !== 'pointerup') return;
+      // A drag is not a click: with the Text tool lit the pointer either writes or does nothing, and a
+      // person who wanted to pan the board will press T first. Same for a second click, which is the
+      // tail of a double-click and not a request for a second piece of text.
+      if (!pressed || pressed.second || pressed.moved || pressed.pointerId !== event.pointerId) return;
+      const camera = controllerRef.current.camera;
+      placedRef.current = { x: event.clientX, y: event.clientY, at: Date.now() };
+      createTextRef.current?.(screenToWorld(camera, local(event.clientX, event.clientY)));
+    };
+
+    const onDoubleClick = (event: MouseEvent) => {
+      if (!mine(event.target) || !owns(event.clientX, event.clientY)) return;
+      claim(event, !writing());
+    };
+
+    /**
+     * The click that follows the release, which is not the same event and so is not stopped by stopping
+     * the release.
+     *
+     * It has to be stopped too, because the board reads a click on empty space as "select nothing" — and
+     * the click that has just placed a piece of text is a click on empty space as far as that handler is
+     * concerned. Without this the text is created, selected and opened for typing, and then deselected and
+     * closed in the same click, which is a tool that appears to work for one frame.
+     */
+    const onClick = (event: MouseEvent) => {
+      if (!mine(event.target) || !owns(event.clientX, event.clientY)) return;
+      claim(event, !writing());
+    };
+
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('pointermove', onPointerMove, true);
+    document.addEventListener('pointerup', onPointerUp, true);
+    document.addEventListener('pointercancel', onPointerUp, true);
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('dblclick', onDoubleClick, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('pointermove', onPointerMove, true);
+      document.removeEventListener('pointerup', onPointerUp, true);
+      document.removeEventListener('pointercancel', onPointerUp, true);
+      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('dblclick', onDoubleClick, true);
+    };
+    // Everything this reads arrives through a ref, so it is attached once for the life of the board.
+    // The board element is read here rather than captured at mount: React remounts the board's own
+    // element when the document it draws changes, and the tool holds on to whatever is on screen.
+  }, []);
+
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || event.ctrlKey || event.metaKey) return;
     if (!isBoardSurface(event.target)) return;
@@ -271,6 +470,7 @@ export function BoardViewport({
       data-camera-y={camera.y}
       data-camera-zoom={camera.zoom}
       data-panning={isPanning ? 'true' : 'false'}
+      data-tool={tool ?? 'select'}
       data-testid="board-viewport"
       ref={viewportRef}
       role="application"

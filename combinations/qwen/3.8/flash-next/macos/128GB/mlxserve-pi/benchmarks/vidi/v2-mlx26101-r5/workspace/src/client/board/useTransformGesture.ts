@@ -35,6 +35,7 @@ import type { Doc } from 'yjs';
 
 import {
   bringObjectsToFront,
+  isTextSnapshot,
   moveObjects,
   objectBounds,
   resizeObjects,
@@ -42,6 +43,7 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import {
   clampScale,
   resizeRect,
@@ -53,7 +55,9 @@ import {
   type Rect,
 } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
-import { keepsAspect, isResizableType, minSizeWorld } from '../objects/registry';
+import { keepsAspect, handlesForObjects, isResizableType, minSizeWorld } from '../objects/registry';
+import { defaultMeasurer } from '../objects/textLayout';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
 import type { Selection } from './useSelection';
 
 /** Either kind of pointer event an object or a handle can be handed. */
@@ -112,6 +116,17 @@ interface Session {
   startBox: Rect | null;
   /** True when this drag keeps proportions: the object's own rule, or Shift. */
   aspect: boolean;
+  /**
+   * True when this drag is one person sizing one object by its sides, and nothing else was in the way.
+   *
+   * It is decided once, at the press, from the same answer the overlay used to decide which handles to
+   * draw — so a drag of a handle that was offered cannot turn around and be told it was not offered —
+   * together with the fact that this selection is the one object those handles were drawn around. It is
+   * what lets a side pulled on a piece of text mean "this wide, until I say otherwise": the one moment
+   * the width of an auto-width object is a person's to choose, because they have just chosen it and
+   * there is no group box for that choice to have been about something else.
+   */
+  solo: boolean;
   frame: number | null;
   dirty: boolean;
 }
@@ -208,11 +223,35 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
     });
     const target = scaleRect(box, session.handle, allowedScale(wanted, rects, minSizes, session.aspect));
     const rectsNow = new Map<string, Rect>();
+    // Where a text object ends up: its place in the group, and nothing else. Its width is the one thing
+    // a handle may give it, and only when it already holds a width a person chose — an auto-width object
+    // is as wide as its longest line, and a drag that changed that would be a drag whose effect the next
+    // keystroke takes back. The height is nobody's to set but its content's.
+    const positions = new Map<string, Point>();
     session.ids.forEach((id, index) => {
       const start = session.startRects[index];
-      if (start) rectsNow.set(id, scaleWithin(start, box, target));
+      if (!start) return;
+      const object = objectsRef.current.find((candidate) => candidate.id === id);
+      if (object !== undefined && isTextSnapshot(object)) {
+        const scaled = scaleWithin(start, box, target);
+        positions.set(id, { x: scaled.x, y: scaled.y });
+        // The width a handle gives an object on its own is a width somebody asked for: a thing that was
+        // as wide as its longest line becomes a thing that is as wide as they dragged it, and keeps that
+        // width over the lines that follow. In a group, where the box being pulled is mostly somebody
+        // else's note or somebody else's heading, an auto-width object keeps its own idea of how wide it
+        // is, and only a width that was already chosen scales along with the rest.
+        if (object.widthMode === 'fixed' || session.solo) {
+          setTextWidthFixed(docRef.current, id, scaled.width);
+        }
+        // The box this text asks for now, measured here, in this person's fonts, by the person who
+        // dragged: the same rule that decides who measures after a keystroke.
+        remeasureTextBox(docRef.current, id, defaultMeasurer());
+        return;
+      }
+      rectsNow.set(id, scaleWithin(start, box, target));
     });
     resizeObjects(docRef.current, rectsNow);
+    moveObjects(docRef.current, positions);
   }, []);
 
   const schedule = useCallback(() => {
@@ -372,6 +411,9 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         startBox: unionRects(rects),
         // Proportions: an object type that has to keep them, or Shift, which is the person saying so.
         aspect: event.shiftKey || picked.some((object) => keepsAspect(object.type)),
+        // The same question the overlay asked before it drew a handle, plus the one thing that makes a
+        // pull on those two handles a choice about this object: that this object is what was selected.
+        solo: picked.length === 1 && handlesForObjects(picked) === 'horizontal',
         frame: null,
         dirty: false,
       };

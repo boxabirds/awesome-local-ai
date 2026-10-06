@@ -14,6 +14,10 @@ import {
   STICKY_FONT_MIN_PX,
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
+import {
+  applyTextDiff as applyTextDiffShared,
+  clampToLimit as clampToLimitShared,
+} from '../../shared/text-edit';
 
 /** True for UTF-16 high surrogates (the first unit of an emoji pair). */
 const isHighSurrogate = (code: number): boolean => code >= 0xd800 && code <= 0xdbff;
@@ -24,16 +28,13 @@ const isLowSurrogate = (code: number): boolean => code >= 0xdc00 && code <= 0xdf
  * Keeps at most `max` characters (default `STICKY_TEXT_MAX_CHARS`): typing or
  * pasting that would exceed the limit adds nothing beyond the last allowed
  * character.
+ *
+ * The rule itself lives in `src/shared/text-edit.ts` from story 9, because a text
+ * object and a sticky note are held to the same one rule; this is the sticky note's
+ * default, and the re-export story 2's callers keep using.
  */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (typeof next !== 'string') return '';
-  const limit = Number.isFinite(max) && max > 0 ? Math.floor(max) : 0;
-  if (next.length <= limit) return next;
-  const cut = next.slice(0, limit);
-  // Never leave half of a surrogate pair behind.
-  const last = cut.length > 0 ? cut.charCodeAt(cut.length - 1) : 0;
-  if (limit > 0 && isHighSurrogate(last)) return cut.slice(0, -1);
-  return cut;
+  return clampToLimitShared(next, max);
 }
 
 /**
@@ -41,49 +42,12 @@ export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS):
  * and suffix are kept, everything between them is one delete and/or one insert
  * inside a single transaction. The minimal diff is what lets two people type in
  * the same note without destroying each other's characters (story 3).
+ *
+ * The implementation is the shared one in `src/shared/text-edit.ts`; sticky notes
+ * and text objects cannot drift apart on how a keystroke reaches a shared `Y.Text`.
  */
 export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-  const oldLength = current.length;
-  const newLength = next.length;
-
-  let start = 0;
-  while (start < oldLength && start < newLength && current[start] === next[start]) start += 1;
-  let endOld = oldLength;
-  let endNew = newLength;
-  while (endOld > start && endNew > start && current[endOld - 1] === next[endNew - 1]) {
-    endOld -= 1;
-    endNew -= 1;
-  }
-  // Pull the boundaries out of any surrogate pair they landed in.
-  if (
-    start > 0 &&
-    start < oldLength &&
-    isHighSurrogate(current.charCodeAt(start - 1)) &&
-    isLowSurrogate(current.charCodeAt(start))
-  ) {
-    start -= 1;
-  }
-  if (
-    endOld > start &&
-    endOld < oldLength &&
-    isLowSurrogate(current.charCodeAt(endOld)) &&
-    isHighSurrogate(current.charCodeAt(endOld - 1))
-  ) {
-    endOld -= 1;
-    endNew -= 1;
-  }
-
-  const removed = endOld - start;
-  const added = next.slice(start, endNew);
-  const apply = () => {
-    if (removed > 0) ytext.delete(start, removed);
-    if (added.length > 0) ytext.insert(start, added);
-  };
-  const doc = ytext.doc;
-  if (doc) doc.transact(apply, origin);
-  else apply();
+  applyTextDiffShared(ytext, next, origin);
 }
 
 /** A remote change, spliced into what you are typing. */

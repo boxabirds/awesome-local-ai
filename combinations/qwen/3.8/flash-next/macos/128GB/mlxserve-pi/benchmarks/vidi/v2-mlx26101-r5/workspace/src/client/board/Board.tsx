@@ -36,16 +36,26 @@ import { useBoardConnection } from './useBoardConnection';
 import { ConnectionStatus } from './ConnectionStatus';
 import { canEdit, type BoardStatus, type ConnectBoardOptions } from './connection';
 import { useSelection, type Selection } from './useSelection';
+import { useTool } from './useTool';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
 import { createUndo } from './undo';
 import { useUndo, type UndoControls } from './useUndo';
+import { boardIdentity } from './identity';
 import { MarqueeRect, useMarquee, type Marquee } from './Marquee';
 import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
 import { ObjectView } from '../objects/registry';
-import { createSticky, deleteObjects, type ObjectSnapshot } from '../../shared/board-model';
+import { defaultMeasurer } from '../objects/textLayout';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
+import {
+  createSticky,
+  deleteObjects,
+  isTextSnapshot,
+  type ObjectSnapshot,
+} from '../../shared/board-model';
+import { createText, setTextSize, type TextSize } from '../../shared/objects/text';
 
 /** The board fills the window; its size is the camera's viewport. */
 const measureWindow = (): Size =>
@@ -230,6 +240,80 @@ export function Board({
   }, [createAt]);
 
   /**
+   * The tool the pointer is in: Select, or Text — which is the same pointer with a different job.
+   *
+   * It is the board's state and not the document's: two people on one board can be in different tools,
+   * because a tool is what this person's pointer is doing and nobody else's screen has an interest in
+   * that. What the board does with it is here too — the toolbar's buttons, the three keys, and the
+   * click that writes — so that there is one answer to "what happens when I press T".
+   */
+  const tools = useTool(editable);
+  const toolsRef = useRef(tools);
+  toolsRef.current = tools;
+
+  /**
+   * The Text tool's click: some text begins here, and the pointer goes back to Select.
+   *
+   * The top-left of the new object is the point that was clicked — not its centre. A person clicking
+   * where a heading is going to start means "here is where the words begin", and an object centred on
+   * the cursor would put its first letter somewhere the person was not pointing. The editor opens on it
+   * straight away, because nobody places a text object and then goes looking for the way to type in it;
+   * and if nothing is typed into it, it goes away again when the editor closes, which is the object's
+   * own rule and not something this call has to remember.
+   */
+  const createTextAt = useCallback(
+    (world: Point) => {
+      if (!editableRef.current) return;
+      // One created object is one step, for the same reason a created note is: the write that made it
+      // must be undoable on its own, and not folded into whatever was done half a second before it.
+      const history = undoRef.current;
+      history?.boundary();
+      const id = createText(docRef.current, world, boardIdentity().name);
+      history?.boundary();
+      if (typeof id !== 'string') return;
+      // Back to Select with the text placed: the next thing a person does with the pointer after
+      // putting words down is nearly always something a pointer does anyway.
+      toolsRef.current.setTool('select');
+      // The click that put this text down was a click on the board, and a click on the board has always
+      // meant "whatever was picked out is picked out again". The Text tool listens for that click before
+      // the board does, so the clearing it would have done has to be said here — otherwise the object this
+      // person was busy with a moment ago stays in the selection next to the one they are about to type
+      // into, and a bar about one piece of text becomes a bar about two.
+      selectionRef.current.clear();
+      startEdit(id);
+    },
+    [startEdit],
+  );
+
+  /**
+   * The size of the one selected text object, and the box that goes with it.
+   *
+   * The two writes are one step and they are always both made: a heading is a different shape from the
+   * body text it was, and a document left holding the new size and the old box would be a text object
+   * whose selection is the wrong size for its words until somebody types in it. The measurement is
+   * taken here, in this person's fonts, by the person who asked for the size — which is the same rule
+   * the typing follows, and for the same reason: whoever is watching draws what was written rather
+   * than measuring it again and disagreeing about the height of a line.
+   */
+  const changeTextSize = useCallback(
+    (size: TextSize) => {
+      if (!editableRef.current) return;
+      const current = selectionRef.current;
+      if (current.ids.size !== 1) return;
+      const id = [...current.ids][0];
+      if (id === undefined) return;
+      const object = snapshotRef.current.find((candidate) => candidate.id === id);
+      if (object === undefined || !isTextSnapshot(object)) return;
+      const history = undoRef.current;
+      history?.boundary();
+      setTextSize(docRef.current, id, size);
+      remeasureTextBox(docRef.current, id, defaultMeasurer());
+      history?.boundary();
+    },
+    [],
+  );
+
+  /**
    * An object's own bin deleted it. The next snapshot drops the id from the selection — that is the
    * same path as a delete done by somebody else, and the board has no second way to forget an object.
    * This only saves the frame in between, during which the selection would point at nothing.
@@ -287,9 +371,19 @@ export function Board({
     onSelect: (ids) => selectionRef.current.setMany(ids, true),
   });
 
-  // Select all, escape, the arrows, delete, Enter, and the two chords that mean undo and redo: the
-  // keys the board answers, in one file so that the order they are tried in is written down once.
-  useBoardKeys({ doc, selection, snapshot, canEdit: editable, undo: undoControls });
+  // Select all, escape, the arrows, delete, Enter, the three tool keys, and the two chords that mean
+  // undo and redo: the keys the board answers, in one file so that the order they are tried in is
+  // written down once.
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot,
+    canEdit: editable,
+    tool: tools.tool,
+    onSelectTool: tools.setTool,
+    onCreateSticky: createInCentre,
+    undo: undoControls,
+  });
 
   if (handle) handle.current = { doc, snapshot, selection, marquee };
 
@@ -320,7 +414,9 @@ export function Board({
         controller={controller}
         marquee={marquee}
         onCreateSticky={createAt}
+        onCreateText={createTextAt}
         onClearSelection={() => selectionRef.current.clear()}
+        tool={tools.tool}
       >
         {snapshot.map((object) => (
           <ObjectView
@@ -350,8 +446,20 @@ export function Board({
         snapshot={snapshot}
       />
       <MarqueeRect camera={camera} rect={marquee.rect} />
-      <SelectionBar ids={selection.ids} onDelete={deleteSelection} snapshot={snapshot} />
-      <Toolbar canCreate={editable} onCreateSticky={createInCentre} undo={undoActions} />
+      <SelectionBar
+        ids={selection.ids}
+        onDelete={deleteSelection}
+        onTextSize={changeTextSize}
+        snapshot={snapshot}
+      />
+      <Toolbar
+        canCreate={editable}
+        onCreateSticky={createInCentre}
+        onSelectTextTool={() => tools.setTool('text')}
+        onSelectTool={() => tools.setTool('select')}
+        tool={tools.tool}
+        undo={undoActions}
+      />
       <ZoomControls
         canZoomIn={canZoomIn(camera)}
         canZoomOut={canZoomOut(camera)}

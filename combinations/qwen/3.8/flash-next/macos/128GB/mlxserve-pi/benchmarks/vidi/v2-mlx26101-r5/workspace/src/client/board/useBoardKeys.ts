@@ -29,6 +29,7 @@ import { isTypingTarget } from '../objects/StickyTextEditor';
 import { isRedoChord, isUndoChord } from './undo';
 import type { UndoControls } from './useUndo';
 import type { Selection } from './useSelection';
+import type { Tool } from './useTool';
 
 export interface BoardKeysOptions {
   doc: Doc;
@@ -38,6 +39,22 @@ export interface BoardKeysOptions {
   snapshot: readonly ObjectSnapshot[];
   /** False while the board cannot be written to; then only the keys that write nothing are answered. */
   canEdit: boolean;
+  /**
+   * The tool the pointer is in, and the way to put it back to Select.
+   *
+   * V and T are the two tools, and Escape leaves the writing one — three keys that say what the pointer
+   * is, answered before any key that acts on a selection, because a person standing in the Text tool
+   * who presses Escape means the tool and not the selection. Left out, none of the three is answered
+   * here and the toolbar's buttons are the only way to change the tool.
+   */
+  tool?: Tool;
+  onSelectTool?(tool: Tool): void;
+  /**
+   * N: the Sticky note button under another name, which is the same thing it has always done — make a
+   * note in the middle of what this person can see. It is the board that knows where the middle is, so
+   * the key is handed there rather than being reproduced here.
+   */
+  onCreateSticky?(): void;
   /**
    * This person's undo history: the two things a chord with a modifier in it can ask for, and the
    * boundary that says a key press is a step of its own. Left out, Ctrl/Cmd+Z is the browser's own —
@@ -61,7 +78,16 @@ const isSelectAll = (event: KeyboardEvent): boolean =>
   !event.shiftKey &&
   (event.key === 'a' || event.key === 'A');
 
-export function useBoardKeys({ doc, selection, snapshot, canEdit, undo }: BoardKeysOptions): void {
+export function useBoardKeys({
+  doc,
+  selection,
+  snapshot,
+  canEdit,
+  tool,
+  onSelectTool,
+  onCreateSticky,
+  undo,
+}: BoardKeysOptions): void {
   const docRef = useRef(doc);
   docRef.current = doc;
   const selectionRef = useRef(selection);
@@ -72,6 +98,12 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit, undo }: BoardK
   canEditRef.current = canEdit;
   const undoRef = useRef(undo);
   undoRef.current = undo;
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  const selectToolRef = useRef(onSelectTool);
+  selectToolRef.current = onSelectTool;
+  const createStickyRef = useRef(onCreateSticky);
+  createStickyRef.current = onCreateSticky;
 
   /** Moves the whole selection by one step, in one transaction, to absolute positions. */
   const nudge = useCallback((direction: Point, step: number) => {
@@ -124,6 +156,14 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit, undo }: BoardK
       if (selectionNow.editingId !== null) return;
 
       if (event.key === 'Escape') {
+        // The writing tool is left before the selection is: Escape with the Text tool lit means "I am
+        // done pointing at things", and the selection underneath it is not what was being said. Only
+        // once the tool is back to Select does the same key start meaning "not these".
+        if (toolRef.current === 'text' && selectToolRef.current !== undefined) {
+          event.preventDefault();
+          selectToolRef.current('select');
+          return;
+        }
         // Escape on a board with nothing selected is the browser's own: a dialog it may close, a
         // field it may leave. With something selected it means "not these".
         if (selectionNow.ids.size === 0) return;
@@ -162,6 +202,33 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit, undo }: BoardK
       }
 
       if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+      // The three tool keys, after every chord with a modifier has been dealt with and before anything
+      // that acts on a selection: V, T and N are keys on the board's own surface, and a board with a
+      // text object selected still answers them.
+      if (event.key === 'v' || event.key === 'V') {
+        // Select is always reachable, even on a board that cannot be written to: it writes nothing.
+        if (selectToolRef.current === undefined) return;
+        event.preventDefault();
+        selectToolRef.current('select');
+        return;
+      }
+      if (event.key === 't' || event.key === 'T') {
+        // A board that cannot be written to does not have this key: not swallowed, not half-answered,
+        // just not there — the same answer the toolbar gives with a disabled button.
+        if (selectToolRef.current === undefined || !canEditRef.current) return;
+        event.preventDefault();
+        selectToolRef.current('text');
+        return;
+      }
+      if (event.key === 'n' || event.key === 'N') {
+        // The Sticky note button's key, and deliberately the button itself rather than a second copy of
+        // what it does: a note appears in the middle of what this person can see, edits open.
+        if (createStickyRef.current === undefined || !canEditRef.current) return;
+        event.preventDefault();
+        createStickyRef.current();
+        return;
+      }
 
       if (event.key === 'Enter') {
         const id = editTarget(selectionNow, snapshotRef.current, event.target);

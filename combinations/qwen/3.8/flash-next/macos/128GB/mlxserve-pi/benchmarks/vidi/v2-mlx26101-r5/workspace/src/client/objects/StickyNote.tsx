@@ -178,7 +178,7 @@ export function StickyNote(props: ObjectProps<StickySnapshot>): React.JSX.Elemen
         <StickyTextEditor
           fontPx={fit.fontPx}
           key={obj.id}
-          onEnd={props.onEndEdit}
+          onEnd={() => props.onEndEdit(obj.id)}
           undo={undo}
           ytext={sharedText(doc, obj.id)}
         />

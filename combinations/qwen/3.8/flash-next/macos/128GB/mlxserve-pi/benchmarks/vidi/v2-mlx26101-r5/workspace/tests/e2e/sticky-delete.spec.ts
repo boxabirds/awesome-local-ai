@@ -28,7 +28,14 @@ const CENTRE = { x: VIEWPORT.width / 2, y: VIEWPORT.height / 2 };
 /**
  * Presses Tab until this note's own element has focus and returns the number of
  * stops it took. The note is `tabindex=0`, so it is reachable; the loop is bounded
- * by one turn of the page's focus ring (note toolbar, toolbar button, zoom control).
+ * by one turn of the page's focus ring, which after an edit is: the note, its six
+ * colours and its delete button, the two tool buttons and the Sticky note button
+ * that the toolbar leads with, undo, the four stops of the zoom control, the share
+ * button, and the page itself — seventeen before the note comes round again. The
+ * body is a stop in some browsers and not in others, and the bound is deliberately
+ * a little wider than the count: the promise being tested is that a note is
+ * reachable by Tab at all, not how many stops the chrome in front of it happens to
+ * be worth.
  */
 async function tabUntilNoteFocused(page: Parameters<typeof note>[0], id: string): Promise<number> {
   const focused = () =>
@@ -37,7 +44,7 @@ async function tabUntilNoteFocused(page: Parameters<typeof note>[0], id: string)
       return el?.dataset['noteId'] ?? null;
     });
   let stops = 0;
-  while ((await focused()) !== id && stops < 16) {
+  while ((await focused()) !== id && stops < 24) {
     await page.keyboard.press('Tab');
     stops += 1;
   }

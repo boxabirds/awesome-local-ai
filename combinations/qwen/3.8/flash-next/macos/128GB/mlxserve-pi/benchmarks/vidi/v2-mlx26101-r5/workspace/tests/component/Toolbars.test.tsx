@@ -208,7 +208,7 @@ describe('the left toolbar', () => {
     const button = screen.getByTestId('create-sticky');
     expect(button.getAttribute('title')).toBe('Sticky note – or double-click the board');
     expect(STICKY_BUTTON_HINT).toBe('Sticky note – or double-click the board');
-    expect(button.getAttribute('aria-label')).toBe('Sticky note');
+    expect(button.getAttribute('aria-label')).toBe('Sticky note (N)');
     expect(screen.getByTestId('board-toolbar').getAttribute('role')).toBe('toolbar');
     expect(screen.getByTestId('board-toolbar').getAttribute('aria-label')).toBe('Board tools');
   });

@@ -19,12 +19,15 @@ import * as Y from 'yjs';
 
 import {
   DEFAULT_STICKY_COLOR,
+  DEFAULT_TEXT_SIZE,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  TEXT_SIZES,
   type StickyColor,
 } from './config';
 import type { Point, Rect } from './geometry';
 import { rectContains } from './geometry';
+import type { TextSize, TextSnapshot } from './objects/text';
 
 /** Name of the `Y.Map` holding `{ schemaVersion }`. */
 export const META_MAP = 'meta';
@@ -34,6 +37,14 @@ export const OBJECTS_MAP = 'objects';
 export const SCHEMA_VERSION = 1;
 /** The only `type` value this story renders; unknown types are skipped. */
 export const STICKY_TYPE = 'sticky';
+/**
+ * The `type` value of a free text object (story 9).
+ *
+ * Spelled here rather than imported from `./objects/text`: the snapshot has to name the type it is
+ * reading, and that file imports this one. The import above is a type-only one for the same reason —
+ * the two files share a schema, not code.
+ */
+export const TEXT_TYPE = 'text';
 
 /** Transaction origin of every local mutation (story 8 undo, story 3 echo guard). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6-local');
@@ -75,7 +86,7 @@ export interface StickySnapshot extends ObjectSnapshot {
  * registry ({@link declareObjectType}) adds the types it can draw, which is how *select all*
  * knows what it is allowed to select.
  */
-const knownObjectTypes = new Set<string>([STICKY_TYPE]);
+const knownObjectTypes = new Set<string>([STICKY_TYPE, TEXT_TYPE]);
 
 /** Says that this build can render `type`; called once per type by the registry. */
 export function declareObjectType(type: string): void {
@@ -222,8 +233,34 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     // size its type was born with, and the first resize writes both fields.
     const width = finite(value.get('width')) ? (value.get('width') as number) : undefined;
     const height = finite(value.get('height')) ? (value.get('height') as number) : undefined;
+    if (type === TEXT_TYPE) {
+      // A text object carries its own text, its size preset and its width mode; a document written by a
+      // client that knew a size or a mode this one does not reads as the default of each, so the
+      // renderer always gets something it can draw.
+      const ytext: unknown = value.get('text');
+      const size: unknown = value.get('size');
+      const widthMode: unknown = value.get('widthMode');
+      const text: TextSnapshot = {
+        id,
+        type: TEXT_TYPE,
+        x,
+        y,
+        ...(width === undefined ? {} : { width }),
+        ...(height === undefined ? {} : { height }),
+        z,
+        createdAt,
+        text: ytext instanceof Y.Text ? ytext.toString() : '',
+        size:
+          typeof size === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, size)
+            ? (size as TextSize)
+            : DEFAULT_TEXT_SIZE,
+        widthMode: widthMode === 'fixed' ? 'fixed' : 'auto',
+      };
+      objects.push(text);
+      continue;
+    }
     if (type !== STICKY_TYPE) {
-      // Stories 9-12 objects (and anything a newer client wrote): listed so that they are
+      // Stories 10-12 objects (and anything a newer client wrote): listed so that they are
       // counted and can be found, skipped by the renderer and by select-all.
       objects.push({
         id,
@@ -265,6 +302,17 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
  */
 export function isStickySnapshot(obj: ObjectSnapshot): obj is StickySnapshot {
   return obj.type === STICKY_TYPE;
+}
+
+/**
+ * Is this object a piece of text? The same kind of question as the one above, and the reason it is here
+ * rather than in `objects/text.ts` is who asks it: the selection bar (is the one thing selected a text
+ * object, does it get the size buttons), the resize gesture (do these objects take a width and give back
+ * a height) and the board (does this one get the toolbar of one text object). All of them are holding a
+ * snapshot they read off the board and need to know which of its shapes it is.
+ */
+export function isTextSnapshot(obj: ObjectSnapshot): obj is TextSnapshot {
+  return obj.type === TEXT_TYPE;
 }
 
 /* ------------------------------------------------------------------ objects, in groups (story 7) */

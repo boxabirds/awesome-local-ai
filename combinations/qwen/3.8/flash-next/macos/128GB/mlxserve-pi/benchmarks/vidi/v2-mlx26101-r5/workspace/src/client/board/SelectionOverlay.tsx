@@ -20,7 +20,7 @@ import { HANDLE_SIZE_PX } from '../../shared/config';
 import { HANDLES, unionRects, type Handle, type Rect } from '../../shared/geometry';
 import { worldToScreen } from '../canvas/camera';
 import type { Camera } from '../canvas/camera';
-import { isResizableType } from '../objects/registry';
+import { isResizableType, handlesForObjects } from '../objects/registry';
 
 export interface SelectionOverlayProps {
   /** What is selected. An empty selection draws nothing. */
@@ -35,6 +35,15 @@ export interface SelectionOverlayProps {
 
 /** The order handles are drawn in, so the DOM order matches the box. */
 const CORNERS_AND_EDGES: readonly Handle[] = HANDLES;
+
+/**
+ * The handles of a selection whose every resizable type is sized by what is written on it: the two on
+ * its sides, and nothing else.
+ *
+ * A text object has a width a handle can change and a height that belongs to its lines, so a handle on
+ * its top edge would be an offer this board cannot keep — the next keystroke would take it back.
+ */
+const SIDE_HANDLES: readonly Handle[] = ['w', 'e'];
 
 /** `aria-label="Resize <position>"`, in the words a person would say to the person next to them. */
 const HANDLE_LABELS: Record<Handle, string> = {
@@ -104,6 +113,10 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
   // Not one type in the selection can be resized: nothing to pull. An object of a type this build
   // cannot draw is in that count too — it is selected, and it is not going to change size here.
   const resizable = selected.some((object) => isResizableType(object.type));
+  // What there is to pull: all eight, or the two that a thing sized by its content has. Decided by the
+  // types in the selection and not by how many of them there are — twenty text objects are still twenty
+  // things with no use for a handle above them.
+  const handles = handlesForObjects(selected) === 'horizontal' ? SIDE_HANDLES : CORNERS_AND_EDGES;
   const style: React.CSSProperties = {
     left: `${box.x}px`,
     top: `${box.y}px`,
@@ -116,6 +129,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
       className="selection-overlay"
       data-testid="selection-overlay"
       data-resizable={resizable ? 'true' : 'false'}
+      data-handles={handles === SIDE_HANDLES ? 'horizontal' : 'all'}
       data-x={world.x}
       data-y={world.y}
       data-width={world.width}
@@ -123,7 +137,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
       style={style}
     >
       {resizable
-        ? CORNERS_AND_EDGES.map((handle) => (
+        ? handles.map((handle) => (
             <button
               aria-label={`Resize ${HANDLE_LABELS[handle]}`}
               className={`selection-handle selection-handle-${handle}`}

@@ -610,3 +610,151 @@ unreachable` — but they are React state in the two components that use them, n
 | `npm run test:e2e`         | 15    | 68 of 69 green: 63 chromium (incl. TC-22…TC-24), 4 persistence, nightly `idle-stability`; nightly `capacity-soak` is the pre-existing hang above |
 
 `npm run build`, `npm run build:test` and `npm run typecheck` are clean.
+
+# Story 9: Write free text anywhere on the board
+
+## Contract deviations (all deliberate)
+
+- **`ObjectProps.onEndEdit` takes an optional owner id** (`onEndEdit(owner?: string)`), where story 7's
+  contract is `onEndEdit()`. The reason is a single pointer press that closes one object's editor and
+  opens another's: the board's reducer chains the actions of one event, so by the time the closing
+  editor's `onEnd` runs, the selection already holds the object the same press just opened, and
+  "close the open editor" closes the editor this press opened. `endEdit(owner)` refuses the close when
+  a *different* object's editor is open, and every object now passes its own id
+  (`StickyNote` and `TextObject` both do). `useSelection`'s `'edit'` action carries the same optional
+  owner on the way back.
+- **`TextObject` is `ObjectProps<TextSnapshot>`, not `ObjectProps & { note: TextSnapshot }`**:
+  `ObjectProps` was already generic in the snapshot it carries, and the registry passes the snapshot it
+  read. A `note` prop on a text object would be a name that lies.
+- **`TextEditor`'s props grew past the contract** with the things two owners actually need to disagree
+  about: `label` (the textarea's accessible name), `className`, `testId` (prefix for
+  `<testId>-editor` / `<testId>-counter`, because a note and a heading open on the same screen are two
+  boxes a test has to tell apart), `counterFrom` (left out means no counter — a note counts down towards
+  1 000 because a nearly-full note looks full; a heading has nothing that counts down), and `onInput()`,
+  which is where a text object measures its own box. `onEnd(next: TextEditorExit)` keeps the design's
+  union but the value now answers "is there anything left in here", which is the only thing the editor
+  knows at that moment; a sticky note ignores it, because a note left empty is still a note.
+- **`useTool` returns a named `ToolControls`** (`{ tool, setTool }`) — the contract's two members, with
+  the interface named because `Board` passes it down and `BoardViewport` reads it. `setTool('text')` on
+  a board that cannot be written to is refused rather than entered and failed in.
+- **`createText` stores a box straight away**, from `estimatedTextBox()` (the shared
+  `TEXT_GLYPH_WIDTH_RATIO` estimate, floor of 1 unit), where the contract's contract is "an empty text
+  object is created". The board draws objects from their stored `width`/`height`; an object created with
+  no box at all is an object that draws as nothing until somebody measures it, and the client that
+  creates it is not always the client that measures it. `estimatedTextBox` is exported and unit-tested,
+  and the first local measurement replaces it — the estimate is what a box looks like before it has a
+  measurement, not instead of one.
+- **`createdBy` is `boardIdentity().name`, not `identity.id`.** The design's `createText(point,
+  identity.id)` assumes story 6's per-participant identity; what this build has is the name and colour
+  `identity.ts` keeps in `sessionStorage`, and `name` is what the board already stores on a sticky note.
+- **`isTypingTarget` moved from `StickyTextEditor.tsx` to `TextEditor.tsx`** (re-exported from the old
+  file, unchanged), because it describes the generalised editor and `StickyTextEditor.tsx` is now a
+  configuration of it. Story 2's note pointing at the old file stands as history; the definition is in
+  one place.
+- **`SelectionBar` answers for one text object**, which story 7 explicitly did not do (`selected.length
+  < MIN_GROUP (2)` returned null). A heading's size is a property of one object, and the design asks for
+  S/M/L/XL buttons on a single selected text; the bar keeps its two-object minimum for everything else
+  and renders `TextToolbar` when the one thing selected is a text object.
+- **`useTextBoxSync` is three exports, not one hook**: `measureTextBox(doc, id, measure)` (pure read of
+  the box the content asks for), `remeasureTextBox(doc, id, measure)` (measure and store), and the hook
+  that hands `TextObject` a stable `remeasureAfterLocalChange`. The two functions exist so a component
+  test can assert "the write happened, and happened only after a local change" against a real `Y.Doc`
+  without rendering anything, which is exactly what TC-12 and TC-13 are.
+- **A side-handle drag writes text width conditionally.** Position is always written; `width` is written
+  only when the object is in `fixed` mode or it is the only object and the only *kind* in the selection
+  (`session.solo`); `height` is always re-measured from the new width. The design says "a horizontal
+  handle drag on a single text calls `setTextWidthFixed`" and "in mixed selections fixed widths scale" —
+  an `auto` text in a mixed group is the case neither sentence covers, and the answer taken is: a group
+  drag is about the group, and the heading's own width stays the content's business unless the person
+  gave the text a width of their own first.
+- **`layoutText` adds no padding.** The contract's width is `min(longest line,
+  TEXT_MAX_AUTO_WIDTH_WORLD)`; the note's inner padding (`STICKY_PADDING_WORLD`) is a note's business —
+  free text has no box to sit inside, so its measured width is its longest line and nothing else.
+- **The tool component test is `tests/component/TextTool.test.tsx`, not `Tool.test.tsx`**, next to
+  `TextObject.test.tsx` and `TextBoxSync.test.tsx`.
+
+## Findings while testing the implementation
+
+- **React 19 delegates from the root container, so the Text tool has to claim its clicks above that.**
+  The first version put a capture-phase `pointerdown` listener on the viewport element and
+  `stopPropagation()`ed when the tool was lit; in a real browser the click still reached
+  `BoardViewport`'s own `onClick`, which cleared the selection and closed the editor that had just been
+  opened. The viewport element is a *descendant* of the container React 19 attaches to, so a listener
+  there runs after React's. The claim listeners (pointerdown, pointerup, click) go on `document`, which
+  is an ancestor of everything, and `stopPropagation()` there lands before React's dispatch. `click` is
+  claimed as well as `pointerup`, because stopping the pointer-up does not stop the click event that
+  follows it.
+- **The second half of a double-click needs a guard that is a time, not a state.** Placing text returns
+  the tool to Select — so the down-up of a double-click that made a heading is followed, a frame later,
+  by a Select-tool press at the same point, which starts a marquee and selects the object the same
+  gesture just made. The guard is the position and the moment of the last placement (`placedRef`): a
+  press within `DRAG_THRESHOLD_PX` of it and inside `DOUBLE_CLICK_WINDOW_MS` (500 ms) is the tail of the
+  placement and is swallowed with `stopImmediatePropagation()`, while a press elsewhere passes through
+  normally. While the tool is still lit the claim is only `stopPropagation()`, so the document's other
+  handlers keep theirs; the difference is in `claim(event, guard)` and it is the difference between
+  ending a gesture and cancelling somebody else's.
+- **`createTextAt` clears the selection before it opens the new object's editor.** Story 7's `'edit'`
+  action *adds* the id to the selection and leaves a group a group, which is right for Enter on a
+  selected note and wrong for a click on empty board: without the `clear()` the new heading joined
+  whatever had been selected before, and the toolbar that appeared was the group's.
+- **`isEmptyText` counts characters, not visible ones.** Whitespace-only text is text: a heading left
+  with three spaces in it stays on the board. The PRD's "contains no characters" is the rule, and a space
+  is a character. TC-20 asserts the two halves of that (empty goes, `"   "` stays) because the convenient
+  implementation — `trim()` — is the one that loses somebody's deliberate blank line.
+- **E2E: find your own object by the editor you opened, not by diffing the board.** `placeText` used to
+  note the text ids, click, and expect exactly one new id. With five people each placing a heading at
+  the same moment it found four, and the ones it found were other people's. The object this page made is
+  the object this page has open for writing: `.text-object[data-interaction="editing"]` answers in one
+  read and is true whether or not the board is shared, and it additionally proves the tool switched back
+  and the editor opened.
+- **E2E: wait for the words, not for the count.** TC-30 waited for `textCount(page) === 5` and compared
+  the five screens; it failed with five objects on every screen and each screen holding one person's
+  heading. The count was already satisfied the moment the objects were *created* — it was the typing
+  that had not arrived. The wait is now on the content (`every heading string appears in the page's text
+  snapshot`) before any cross-screen comparison. A board that has the objects and not the text is
+  precisely the state this test exists to catch, and a count cannot see it.
+- **A component test cannot predict a scale, so it stops trying.** TC-23 (a group drag moves and scales
+  a heading, keeps a note's aspect) is asserted relationally: read the note's own growth as the group's
+  scale (`scale = noteNow.width / noteWas.width`) and check the heading's offset from the note scaled by
+  that same number. The alternative is a test that recomputes `allowedScale` → `clampScale` →
+  aspect-reconciliation by hand, which is a copy of the implementation and breaks whenever the clamps
+  are tuned — and `allowedScale` takes `min(allowed.x, allowed.y)` when growing, which is exactly the
+  kind of detail a test should not have to know.
+- **jsdom does not measure text**, so `createCanvasMeasurer` falls back to `estimateTextWidth` there
+  (once per test file the "Not implemented" note appears; `getContext` returns null and the estimate is
+  used, which is the contract's "measurer unavailable" path, not an error). Anything the story's promises
+  say about *rendered* lines — wrapping, a box that is a whole number of lines, a caption that fits — is
+  asserted in e2e against real Chromium layout; the component suite asserts stored boxes, update counts
+  and what the DOM says.
+- **The keyboard ring of the board grew by two stops and a bounded Tab walk noticed.** `sticky-delete`'s
+  "Tab reaches a note" walks the focus ring until it lands on the note, with a bound of 16 that had one
+  stop of slack. The toolbar leads with two tool buttons now, so the ring is seventeen stops before the
+  note comes round again (measured: note, six colours, delete, tool-select, tool-text, sticky, undo,
+  zoom-out, zoom-in, reset, share, body). The bound is 24 and the comment names the stops; the promise
+  under test is that a note is reachable by Tab at all, not what the chrome in front of it counts.
+- **`fixture.create(x, y)` centres the note**, it does not place its top-left: `createSticky` subtracts
+  `STICKY_SIZE_WORLD / 2` internally. A test that reads it as a top-left reasons about an object that is
+  100 units away from where the board put it, which is how one of the new component tests spent its time
+  failing on a position that was correct.
+- **`undo-capture` TC-13 is a load flake, not a story 9 one.** It uses real timers with 60 ms windows
+  (the capture clock is `lib0/time`'s bound `Date.now`, which no fake can move — story 8's finding) and
+  fails when four vitest workers share the machine; it passes in isolation and it passes in a full run
+  on a quiet machine. Nothing in story 9 touches it.
+- **Firefox and WebKit still cannot start in this sandbox** (`browserType.launch` aborts before test
+  code runs), so TC-26's "also in firefox and webkit" line is chromium-only here — the same finding as
+  stories 1, 2, 5, 7 and 8.
+- **Nightly `capacity-soak` (TC-30) still does not finish**, at the same call site and the same 300 s.
+  Measured again from a clean worktree of HEAD this story, with the same failure, so it is the
+  render-everything-on-every-change cost stories 5 and 7 already wrote up and not something text added.
+  Nightly `idle-stability` is green; per-commit e2e is 69 chromium tests plus 4 persistence ones.
+
+## Final test counts (story 9)
+
+| Suite                      | Files | Tests                                                                                                            |
+| -------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
+| `npm run test:unit`        | 19    | 364 (+ text model 39: TC-01…TC-06 and the schema's edges; + text layout 24: TC-07…TC-11, TC-32 with a fake measurer) |
+| `npm run test:component`   | 21    | 271 (+ box sync 7: TC-12, TC-13; + tool 12: TC-14…TC-18; + text objects 15: TC-19…TC-25)                           |
+| `npm run test:integration` | 9     | 144 (unchanged — a text object is a document change like any other, and the room never hears that it is text)     |
+| `npm run test:e2e`         | 16    | 73 of 74 green: 69 chromium (incl. TC-26…TC-31), 4 persistence, nightly `idle-stability`; nightly `capacity-soak` is the pre-existing hang above |
+
+`npm run build`, `npm run build:test`, `npm run typecheck` (client and worker) and `npm run test` are clean.

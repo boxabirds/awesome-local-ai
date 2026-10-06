@@ -889,3 +889,190 @@ body {
   outline: 2px solid var(--select);
   outline-offset: 2px;
 }
+
+/* ------------------------------------------------------------------ story 9: text on the board */
+
+/*
+ * The active tool, lit. Two buttons and one of them is what the pointer is doing right now, so the
+ * state has to be visible rather than inferred from the cursor: a person who pressed T and sees nothing
+ * will press it again, and again, and then click, which is how text ends up somewhere they did not
+ * mean. `aria-pressed` carries the same fact for somebody who cannot see it.
+ */
+.toolbar-button[aria-pressed='true'] {
+  background: #e2ebfd;
+  border-color: #b6cdf7;
+  color: #1d4ed8;
+}
+
+.toolbar-button[aria-pressed='true']:hover:not(:disabled) {
+  background: #d6e4fc;
+}
+
+.toolbar-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/*
+ * The Text tool's cursor, over everything the pointer could land on.
+ *
+ * It is written over the objects as well as over the board because the tool does not stop at the edge of
+ * empty space: clicking a sticky note with the Text tool lit writes text on top of it, and a cursor that
+ * turned into a grabbing hand the moment it crossed a note would be a cursor describing a tool that had
+ * quietly stopped working.
+ */
+.board-viewport[data-tool='text'],
+.board-viewport[data-tool='text'] .sticky-note,
+.board-viewport[data-tool='text'] .text-object,
+.board-viewport[data-tool='text'] .sticky-note[data-interaction],
+.board-viewport[data-tool='text'] .text-object[data-interaction] {
+  cursor: text;
+}
+
+/*
+ * A piece of text: the words, and nothing else.
+ *
+ * No fill, no border, no shadow, nothing behind it — the difference between this and a sticky note is
+ * the whole point of it. The box the document holds is put on the screen as it is held (see the width
+ * and height coming from the snapshot in the component), which is what lets the selection around it,
+ * the marquee that finds it and everybody else's screen all agree with the pixels: one number, written
+ * by the one person who measured it.
+ */
+.text-object {
+  position: absolute;
+  box-sizing: border-box;
+  /* The object owns its own pointer events; the world layer turns them off. */
+  pointer-events: auto;
+  cursor: grab;
+  color: var(--ink);
+  padding: 0;
+}
+
+.text-object[data-selected='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.text-object[data-interaction='dragging'] {
+  cursor: grabbing;
+}
+
+/*
+ * The words as they are drawn.
+ *
+ * `pre-wrap` is the whole of the text object's relationship with the enter key: newlines somebody typed
+ * stay, and a line that reaches the edge of the box wraps there. The box's width is the width the
+ * measurement gave the text, so wrapping on the screen and wrapping in the stored box are the same
+ * arithmetic — except for a fixed width that is narrower than a single word, which the browser breaks
+ * where it must and the layout leaves alone (see `layoutText`).
+ */
+.text-object-body {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  user-select: none;
+  color: inherit;
+}
+
+/*
+ * Typing into it: a textarea laid over the words, invisible but for the caret and the selection.
+ *
+ * It inherits the font size and the line height from the object rather than being told them, and the
+ * object is told them by the same two settings the measurement asks about — so the text does not move
+ * when the editor opens over it, which is the one thing a person typing would notice if it did.
+ */
+.text-editor {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  min-width: 1ch;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  cursor: text;
+}
+
+/* The characters left, while somebody is near the limit. */
+.text-counter {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  font-size: 11px;
+  line-height: 1.2;
+  color: rgb(31 35 40 / 0.65);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * One text object's own bar. It takes the place of the count, which for one object would be the least
+ * interesting thing the bar could say.
+ */
+.selection-bar-single {
+  padding: 6px;
+}
+
+/* The four sizes of the selected text, and the bin. */
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.text-size-button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 30px;
+  padding: 5px 8px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.text-size-button:hover {
+  background: #eef1f5;
+}
+
+/* The size the text already is, marked rather than hidden: the question the four buttons answer is
+   "which of these?", and a bar that shows no answer to that is four buttons and a guess. */
+.text-size-button[aria-pressed='true'] {
+  background: #e2ebfd;
+  border-color: #b6cdf7;
+  color: #1d4ed8;
+}
+
+.text-size-button:focus-visible,
+.text-delete:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
+}
+
+.text-delete {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 10px;
+  margin-left: 4px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #b42318;
+  cursor: pointer;
+}
+
+.text-delete:hover {
+  background: #fdeceb;
+  border-color: #f0a9a3;
+}

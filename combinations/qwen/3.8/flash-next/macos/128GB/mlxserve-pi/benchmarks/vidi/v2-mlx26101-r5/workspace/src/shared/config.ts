@@ -166,3 +166,21 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * bound: a board opened for a whole afternoon does not accumulate history without limit.
  */
 export const UNDO_MAX_STEPS = 200;
+
+/* ------------------------------------------------------------------ free text (story 9) */
+
+/** Largest width a text object grows to on its own before its lines wrap, in world units. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Narrowest a text object may be dragged to with a side handle, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Longest a text object may become, in characters; extra characters are not added. */
+export const TEXT_MAX_CHARS = 5000;
+/** The four size presets, in world units — the font size of a size at 100 % zoom. */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Size of a newly created text object. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** One line is `TEXT_SIZES[size] × TEXT_LINE_HEIGHT` world units tall. */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** The font text objects are measured and drawn in: the board's standard sans-serif. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
