@@ -24,6 +24,7 @@ import {
   COMPACTION_BYTES,
   COMPACTION_UPDATE_COUNT,
   SNAPSHOT_CHUNK_BYTES,
+  STORAGE_CREATED_AT_KEY,
   STORAGE_SCHEMA_VERSION,
 } from "../shared/config";
 
@@ -166,6 +167,42 @@ export class BoardStore {
     this.storage = storage;
   }
 
+  /**
+   * Does this board exist? (`share.not_found`, `share.legacy_boards`)
+   *
+   * A board exists when its storage says so:
+   *
+   *   - `storage_meta.created_at` is set (created through `POST /api/boards`), or
+   *   - it has board content that predates this feature — at least one row in
+   *     `updates` or `snapshot_chunks` — which is what keeps a board people were
+   *     already using at an address working (share.legacy_boards).
+   *
+   * Read-only: the existence of `sqlite_master` is consulted before any table is
+   * queried, so probing an unknown link neither creates tables nor writes a row
+   * (TC-06, TC-09). A board is never created by *asking* about it.
+   */
+  existsReadOnly(): boolean {
+    if (this.tableExists("storage_meta") && this.createdAt() !== null) return true;
+    if (this.tableExists("updates") && this.hasRows("updates")) return true;
+    if (this.tableExists("snapshot_chunks") && this.hasRows("snapshot_chunks")) return true;
+    return false;
+  }
+
+  /** When this board was created, or `null` when it never was. */
+  createdAt(): number | null {
+    if (!this.tableExists("storage_meta")) return null;
+    const value = this.getMeta(STORAGE_CREATED_AT_KEY);
+    if (value === undefined) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  /** Stamps the board as created. Written once, by `BoardRoom.initialize()`. */
+  setCreatedAt(createdAtMs: number): void {
+    this.migrate();
+    this.setMeta(STORAGE_CREATED_AT_KEY, String(createdAtMs));
+  }
+
   /** Creates the tables and stamps the storage schema version. Writes no rows. */
   migrate(): void {
     if (this.migrated) return;
@@ -218,12 +255,19 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
-      this.migrate();
+      // Reading a board does not create one (share.not_found): a board that has
+      // never been initialised has no tables, and that is an empty board, not a
+      // failure and not a reason to migrate. Tables are created by `initialize()`
+      // and, for boards older than that, lazily by the first `append`.
+      const hasSnapshotTable = this.tableExists("snapshot_chunks");
+      const hasLogTable = this.tableExists("updates");
 
-      const throughSeq = Number(this.getMeta(SNAPSHOT_THROUGH_SEQ_KEY) ?? "0");
-      const chunkRows = this.storage.sql
-        .exec("SELECT idx, data FROM snapshot_chunks ORDER BY idx")
-        .toArray();
+      const throughSeq = this.tableExists("storage_meta")
+        ? Number(this.getMeta(SNAPSHOT_THROUGH_SEQ_KEY) ?? "0")
+        : 0;
+      const chunkRows = hasSnapshotTable
+        ? this.storage.sql.exec("SELECT idx, data FROM snapshot_chunks ORDER BY idx").toArray()
+        : [];
 
       if (chunkRows.length > 0) {
         const snapshot = joinChunks(chunkRows.map((row) => asBytes(row.data)));
@@ -244,9 +288,12 @@ export class BoardStore {
       let quarantined = 0;
       let rows = 0;
       let bytes = 0;
-      for (const row of this.storage.sql
-        .exec("SELECT seq, data, bytes FROM updates WHERE seq > ? ORDER BY seq", throughSeq)
-        .toArray()) {
+      const logRows = hasLogTable
+        ? this.storage.sql
+            .exec("SELECT seq, data, bytes FROM updates WHERE seq > ? ORDER BY seq", throughSeq)
+            .toArray()
+        : [];
+      for (const row of logRows) {
         const seq = Number(row.seq);
         const update = asBytes(row.data);
         try {
@@ -333,12 +380,26 @@ export class BoardStore {
     };
   }
 
-  /** True once `load` has run: a freshly woken room knows what it read. */
+  /** True once this store has tables of its own: after `migrate()` or a write. */
   get loaded(): boolean {
     return this.migrated;
   }
 
   // ---- internals ----------------------------------------------------------
+
+  /** True when the table is in `sqlite_master`. Never creates anything. */
+  private tableExists(name: string): boolean {
+    const row = this.storage.sql
+      .exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", name)
+      .next();
+    return row !== undefined && row.done !== true && row.value !== undefined;
+  }
+
+  /** True when the table holds at least one row. Only called for tables that exist. */
+  private hasRows(table: string): boolean {
+    const row = this.storage.sql.exec(`SELECT 1 AS one FROM ${table} LIMIT 1`).next();
+    return row !== undefined && row.done !== true && row.value !== undefined;
+  }
 
   /** The state vector this new row should be computed against. */
   private lookBackUpdate(doc: Y.Doc): Uint8Array {

@@ -40,7 +40,7 @@ export async function openSyncClient(port: number, boardId: string): Promise<Syn
     socket.addEventListener("error", () => reject(new Error(`sync client could not reach ${url}`)));
   });
   await Promise.race([
-    new Promise<void>((resolve) => socket.addEventListener("open", resolve)),
+    new Promise<void>((resolve) => socket.addEventListener("open", () => resolve())),
     failed,
   ]);
 

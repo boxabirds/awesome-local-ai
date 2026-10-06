@@ -25,6 +25,16 @@
  * The lifecycle edges are not ad-hoc: every state change goes through
  * `nextRoomState` from `room-state.ts`, the file that `TC-27` tests edge by
  * edge.
+ *
+ * Story 5 makes the board's *existence* part of the room's contract:
+ *
+ * - `initialize()` and `exists()` are RPC methods the Worker calls on this
+ *   object's stub — creation happens there, never as a side effect of opening a
+ *   socket;
+ * - `fetch` answers 404 for a board that does not exist *before* accepting a
+ *   socket, so an unknown or mistyped link cannot create a board;
+ * - "exists" is a storage fact (`BoardStore.existsReadOnly`), so a board that
+ *   already had content before this feature keeps working at its address.
  */
 
 import { DurableObject } from "cloudflare:workers";
@@ -93,26 +103,92 @@ export class BoardRoom extends DurableObject<Env> {
     this.#ready = ctx.blockConcurrencyWhile(async () => await this.#loadBoard());
   }
 
+  /**
+   * RPC (`share.board_api`): create this board.
+   *
+   * `migrate()` plus one `created_at` row, and nothing else. Called once per
+   * freshly generated id by `createBoard`, and it is the only place board
+   * storage is ever created. An id that already exists is reported, not
+   * re-initialised: `created_at` keeps its first value (TC-15).
+   */
+  async initialize(): Promise<"created" | "exists"> {
+    await this.#ready;
+    const store = this.#storeForWriting();
+    if (store.createdAt() !== null) return "exists";
+    store.setCreatedAt(Date.now());
+    return "created";
+  }
+
+  /**
+   * RPC (`share.board_api`): does this board exist?
+   *
+   * Delegates to `BoardStore.existsReadOnly`, which reads `sqlite_master` first
+   * and writes nothing: asking about an unknown link leaves no storage behind
+   * (TC-06).
+   */
+  async exists(): Promise<boolean> {
+    await this.#ready;
+    return (this.store ?? new BoardStore(this.ctx.storage)).existsReadOnly();
+  }
+
+  /**
+   * RPC — reachable only from `src/worker/test-hooks.ts`, which only exists when
+   * the Worker is run with `TEST_HOOKS=1`.
+   *
+   * Writes `updates` (base64) into this board through the room's own
+   * apply-then-store path and deliberately **without** stamping `created_at`,
+   * which is the shape of a board that already had content before story 5 shipped
+   * (TC-31). It is the real write path, so the rows it leaves are the rows a
+   * person's edits would have left.
+   */
+  async seedBoardUpdates(updates: readonly string[]): Promise<number> {
+    await this.#ready;
+    if (this.doc === null) await this.#awaitServingState();
+    const doc = this.doc;
+    if (doc === null) throw new Error("this board could not be loaded");
+
+    for (const encoded of updates) {
+      // Not LOAD_ORIGIN on purpose: an update the room is *given* is stored and
+      // broadcast like any other change.
+      Y.applyUpdate(doc, decodeBase64(encoded), TEST_SEED_ORIGIN);
+    }
+    return updates.length;
+  }
+
   /** WebSocket upgrade only; anything else is answered with 426. */
   async fetch(request: Request): Promise<Response> {
     if (!isUpgradeRequest(request)) {
       return new Response("Upgrade Required", { status: 426 });
     }
 
+    // Existence first, and read-only: a board nobody created is not created by
+    // being connected to (`share.not_found`, TC-09).
+    const existence = await this.#boardExists();
+    if (existence === "unknown") {
+      return new Response(JSON.stringify({ error: "not_found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const state = await this.#awaitServingState();
     const [client, server] = Object.values(new WebSocketPair());
 
-    if (roomServes(state) && this.doc !== null) {
+    // A board whose storage cannot be read is not "missing": it is accepted and
+    // closed with 4500, so the person is told the board could not be read rather
+    // than being handed an empty one (story 4, `persist.load_failure`).
+    if (existence !== "unreadable" && roomServes(state) && this.doc !== null) {
       const socket = server;
       this.ctx.acceptWebSocket(socket, [newConnectionTag()]);
       this.#send(socket, this.#syncFrame((encoder) => syncProtocol.writeSyncStep1(encoder, this.doc!)));
       return new Response(null, { status: 101, webSocket: client });
     }
 
-    // A board that could not be read is accepted and closed immediately, so the
-    // person sees 4500 rather than a connection that pretends the board is empty.
     this.ctx.acceptWebSocket(server, [newConnectionTag()]);
-    server.close(CLOSE_BOARD_LOAD_FAILED, "this board could not be loaded");
+    server.close(
+      CLOSE_BOARD_LOAD_FAILED,
+      existence === "unreadable" ? "this board could not be read" : "this board could not be loaded",
+    );
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -180,6 +256,30 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   // ---- load ---------------------------------------------------------------
+
+  /**
+   * Whether this board exists, as its storage says it does.
+   *
+   * `"unknown"` is the answer that produces a 404; `"unreadable"` is a storage
+   * error, which is a different failure and must not look like "this board does
+   * not exist" (a person would be told their board is gone).
+   */
+  async #boardExists(): Promise<"exists" | "unknown" | "unreadable"> {
+    await this.#ready;
+    try {
+      const store = this.store ?? new BoardStore(this.ctx.storage);
+      return store.existsReadOnly() ? "exists" : "unknown";
+    } catch (error) {
+      logError("board-existence-check-failed", { error: errorMessage(error) });
+      return "unreadable";
+    }
+  }
+
+  /** The store writes go through, recreated after a load failure. */
+  #storeForWriting(): BoardStore {
+    this.store ??= new BoardStore(this.ctx.storage);
+    return this.store;
+  }
 
   /**
    * The state a new connection should be answered with, reloading first when
@@ -423,6 +523,16 @@ export class BoardRoom extends DurableObject<Env> {
 /** One tag per connection, stored in the socket so it survives hibernation. */
 function newConnectionTag(): string {
   return crypto.randomUUID();
+}
+
+/** Origin for test-hook seeding: stored like a person's edit, never read back as loaded state. */
+const TEST_SEED_ORIGIN: unique symbol = Symbol("vidi6-test-seed");
+
+function decodeBase64(value: string): Uint8Array {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
 }
 
 function isUpgradeRequest(request: Request): boolean {

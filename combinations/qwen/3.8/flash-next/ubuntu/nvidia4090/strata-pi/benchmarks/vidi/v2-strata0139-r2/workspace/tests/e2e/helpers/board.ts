@@ -15,13 +15,37 @@ export interface XY {
   y: number;
 }
 
-export async function openBoard(page: Page) {
-  await page.goto("/");
+/**
+ * Opens a board the way story 5 says a board is opened: create one, then go to
+ * its link. Returns the id, so a test can name the board it is looking at.
+ *
+ * (`page.goto("/")` would land on the home page, which is no longer a board.)
+ */
+export async function openBoard(page: Page): Promise<string> {
+  const boardId = await createBoardThroughApi(page);
+  await openBoardLink(page, boardId);
+  return boardId;
+}
+
+/** Opens one specific board link and waits for the board to be on screen. */
+export async function openBoardLink(page: Page, boardId: string): Promise<void> {
+  await page.goto(`/b/${boardId}`);
   await expect(page.getByTestId("board-viewport")).toBeVisible();
   // Wait for the test hook so tests can never race the app boot.
   await expect
     .poll(async () => page.evaluate(() => typeof window.__vidi6?.getCamera === "function"))
     .toBe(true);
+}
+
+/** `POST /api/boards` from the page's own request context (config baseURL). */
+async function createBoardThroughApi(page: Page): Promise<string> {
+  const response = await page.request.post("/api/boards");
+  if (!response.ok()) {
+    throw new Error(`POST /api/boards answered ${response.status()}: ${await response.text()}`);
+  }
+  const body = (await response.json()) as { id?: unknown };
+  if (typeof body.id !== "string") throw new Error(`POST /api/boards returned no id: ${JSON.stringify(body)}`);
+  return body.id;
 }
 
 export function boardArea(page: Page) {

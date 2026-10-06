@@ -40,7 +40,7 @@ import {
   inRoom,
   restartRoom,
   roomSnapshot,
-  testBoardId,
+  createTestBoard,
   type TestClient,
 } from "./helpers/ws-client";
 
@@ -184,7 +184,7 @@ const byId = (notes: readonly StickySnapshot[]): StickySnapshot[] =>
 
 describe("write path (TC-12, TC-14, TC-17)", () => {
   it("TC-12 an update is in storage before another client can have received it", async () => {
-    const boardId = testBoardId();
+    const boardId = await createTestBoard();
     const a = await connectBoard(boardId);
     const b = await connectBoard(boardId);
     await a.waitForSync();
@@ -218,7 +218,7 @@ describe("write path (TC-12, TC-14, TC-17)", () => {
   });
 
   it("TC-14 a change that could not be written is never broadcast, and is stored when the sender returns", async () => {
-    const boardId = testBoardId();
+    const boardId = await createTestBoard();
     const a = await connectBoard(boardId);
     const b = await connectBoard(boardId);
     await a.waitForSync();
@@ -270,7 +270,7 @@ describe("write path (TC-12, TC-14, TC-17)", () => {
   });
 
   it("TC-17 garbage that is rejected is not stored", async () => {
-    const boardId = testBoardId();
+    const boardId = await createTestBoard();
     const a = await connectBoard(boardId);
     const b = await connectBoard(boardId);
     await a.waitForSync();
@@ -307,7 +307,7 @@ describe("write path (TC-12, TC-14, TC-17)", () => {
 
 describe("reload path (TC-13)", () => {
   it("TC-13 a new room instance over the same storage gives the same board", async () => {
-    const boardId = testBoardId();
+    const boardId = await createTestBoard();
     const fixture = retroBoard(25);
 
     const a = await connectBoard(boardId);
@@ -341,7 +341,7 @@ describe("reload path (TC-13)", () => {
 describe("load failure (TC-15, TC-16, TC-26)", () => {
   /** 25 notes, compacted into a snapshot, with the log emptied behind it. */
   const snapshottedBoard = async (): Promise<string> => {
-    const boardId = testBoardId();
+    const boardId = await createTestBoard();
     const a = await connectBoard(boardId);
     await a.waitForSync();
     await seedNotes(a, 25);
@@ -422,7 +422,7 @@ describe("load failure (TC-15, TC-16, TC-26)", () => {
   });
 
   it("TC-26 a query that fails is a failed load, not an empty board", async () => {
-    const boardId = testBoardId();
+    const boardId = await createTestBoard();
     const a = await connectBoard(boardId);
     await a.waitForSync();
     await seedNotes(a, 25);
@@ -451,7 +451,7 @@ describe("load failure (TC-15, TC-16, TC-26)", () => {
 
 describe("hibernation (TC-18)", () => {
   it("TC-18 a broadcast reaches sockets accepted before the room was reconstructed", async () => {
-    const boardId = testBoardId();
+    const boardId = await createTestBoard();
     const fixture = retroBoard(25);
 
     const a = await connectBoard(boardId);

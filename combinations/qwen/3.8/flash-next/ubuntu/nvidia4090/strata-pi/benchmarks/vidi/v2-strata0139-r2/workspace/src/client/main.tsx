@@ -1,31 +1,21 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
-import { boardIdFromPath } from "./routing";
-import { newBoardId } from "../shared/board-id";
+import { AppRouter } from "./router";
 import "./styles.css";
 
 const container = document.getElementById("root");
 if (!container) throw new Error("missing #root element");
 
 /**
- * Which board to open.
+ * The page is chosen by the URL (`router.tsx`): `/` is home, `/b/<boardId>` is a
+ * board, anything else is Board not found.
  *
- * `/b/<boardId>` opens that board. `/` opens a new one — visiting a board is
- * how you create it until story 5 adds the board list, which is also what makes
- * two people land on the same board: they are given the same `/b/...` link.
- * A path that names no board at all is treated the same way rather than shown
- * an error screen.
+ * Story 3 redirected `/` to a new board id, which is how visiting an address
+ * created a board. Story 5 removes that: a board exists only if the server made
+ * one, so opening a link that names no board is an error page, not a board.
  */
-const boardId = boardIdFromPath(window.location.pathname) ?? newBoardId();
-
-if (window.location.pathname === "/") {
-  // Keep the address bar honest: the board this screen is on has an id.
-  window.history.replaceState(null, "", `/b/${boardId}`);
-}
-
 createRoot(container).render(
   <StrictMode>
-    <App boardId={boardId} />
+    <AppRouter />
   </StrictMode>,
 );

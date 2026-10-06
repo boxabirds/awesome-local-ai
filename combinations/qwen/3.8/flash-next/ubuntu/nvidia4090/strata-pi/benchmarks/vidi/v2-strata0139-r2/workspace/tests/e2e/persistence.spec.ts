@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import { newBoardId } from "../../src/shared/board-id";
 import { BOARD_LOAD_BUDGET_MS, PERSIST_TESTED_NOTES, STICKY_COLORS, type StickyColor } from "../../src/shared/config";
 import { RETRO_ITEMS, largeBoard } from "../fixtures/boards";
+import { createBoard } from "./helpers/api";
 import * as board from "./helpers/board";
 import * as notes from "./helpers/notes";
 import { openParticipant, waitUntilConnected, type Participant } from "./helpers/participants";
@@ -95,7 +95,7 @@ test.describe("story 4 persistence across process restarts", () => {
     test.setTimeout(420_000);
     const persistTo = newPersistDir();
     let handle = await startWrangler({ persistTo });
-    const boardId = newBoardId();
+    const boardId = await createBoard(handle.port);
 
     try {
       const author = await openBoard(browser, "author", boardId);
@@ -162,7 +162,7 @@ test.describe("story 4 persistence across process restarts", () => {
     test.setTimeout(300_000);
     const persistTo = newPersistDir();
     let handle = await startWrangler({ persistTo });
-    const boardId = newBoardId();
+    const boardId = await createBoard(handle.port);
     const text = "Written, then the tab was closed at once";
 
     try {
@@ -210,7 +210,7 @@ test.describe("story 4 persistence across process restarts", () => {
     test.setTimeout(600_000);
     const persistTo = newPersistDir();
     const handle = await startWrangler({ persistTo });
-    const boardId = newBoardId();
+    const boardId = await createBoard(handle.port);
 
     try {
       // The board is written through the sync protocol (one frame per note, as a

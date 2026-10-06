@@ -64,6 +64,10 @@ export async function startWrangler(options: StartOptions = {}): Promise<Wrangle
       String(inspectorPort),
       "--persist-to",
       persistTo,
+      // Story 5's seeding hook: these tests need boards that the product cannot
+      // produce for them (a board with content and no `created_at`).
+      "--var",
+      "TEST_HOOKS:1",
       ...(options.args ?? []),
     ],
     { detached: true, stdio: ["ignore", "pipe", "pipe"] },
@@ -128,7 +132,10 @@ async function kill(child: ChildProcess, port: number): Promise<void> {
 
   signal("SIGTERM");
   await new Promise<void>((resolve) => {
-    if (child.exitCode !== null || child.exitSignal !== null) return resolve();
+    // `exitSignal` is not in every @types/node version this repo is typed against,
+    // so the already-exited check reads the child defensively.
+    const exited = (child as unknown as { exitSignal?: string | null }).exitSignal;
+    if (child.exitCode !== null || (exited ?? null) !== null) return resolve();
     child.once("exit", () => resolve());
     setTimeout(() => {
       signal("SIGKILL");

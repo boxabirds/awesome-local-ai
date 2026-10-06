@@ -118,3 +118,21 @@ export const PERSIST_TESTED_NOTES = 2_000;
 export const BOARD_LOAD_BUDGET_MS = 3_000;
 /** Version of the room's storage tables (not of the board document schema). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// ---- Sharing a board (story 5) -------------------------------------------
+
+/**
+ * PRD share.create: New board must land the person on an empty board within
+ * this many milliseconds. Reported in e2e (TC-26), never asserted — see the
+ * timing policy above.
+ */
+export const CREATE_BUDGET_MS = 2_000;
+/** How long the Share panel's "Link copied" confirmation stays up (share.copy). */
+export const LINK_COPIED_MS = 2_000;
+/**
+ * PRD share.unreachable: the first wait before re-checking a board link.
+ * Doubles per attempt, capped at `RECONNECT_MAX_BACKOFF_MS` (story 3).
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1_000;
+/** A board's own key in `storage_meta`: written once, by `initialize()`. */
+export const STORAGE_CREATED_AT_KEY = "created_at";

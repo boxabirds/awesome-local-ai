@@ -28,6 +28,9 @@ export default defineConfig({
           name: "integration",
           include: ["tests/integration/**/*.test.ts"],
           setupFiles: ["tests/integration/setup.ts"],
+          // The pool serves `dist/client` as assets (that is what wrangler.jsonc
+          // says), so the build has to exist before a test asks for it.
+          globalSetup: ["tests/integration/build-assets.ts"],
           // Real sockets, real Durable Objects: the convergence waits are longer
           // than Vitest's default 5s.
           testTimeout: 40_000,

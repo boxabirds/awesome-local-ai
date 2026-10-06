@@ -16,17 +16,20 @@ import {
   requestRoom,
   roomSnapshot,
   sleep,
+  createTestBoard,
   testBoardId,
 } from "./helpers/ws-client";
 
 describe("board id routing", () => {
-  it("TC-04 answers 400 for a malformed board id and never opens an object", async () => {
+  it("TC-04 answers 404 for a malformed board id and never opens an object", async () => {
     const { namespace, names } = namespaceSpy();
     const request = new Request("http://board.test/api/rooms/bad!id", { headers: { Upgrade: "websocket" } });
 
     const response = await fetchFromWorker(request, namespace);
 
-    expect(response.status).toBe(400);
+    // Story 5's contract: every id that does not name a board gets the same 404,
+    // so a probe learns nothing about *why* it was refused.
+    expect(response.status).toBe(404);
     // Routing refused before the namespace was consulted: no instance exists.
     expect(names).toEqual([]);
   });
@@ -43,13 +46,13 @@ describe("board id routing", () => {
         }),
         namespace,
       );
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(404);
     }
     expect(names).toEqual([]);
   });
 
   it("TC-05 answers 426 for a valid board id without an Upgrade header", async () => {
-    const boardId = testBoardId();
+    const boardId = await createTestBoard();
 
     const response = await requestRoom(boardId, { upgrade: false });
 
@@ -77,7 +80,7 @@ describe("static assets fallback", () => {
 
 describe("capacity", () => {
   it(`TC-13 accepts MAX_CONCURRENT_EDITORS + 1 (${MAX_CONCURRENT_EDITORS + 1}) sockets and syncs them`, async () => {
-    const boardId = testBoardId();
+    const boardId = await createTestBoard();
     const count = MAX_CONCURRENT_EDITORS + 1;
 
     const clients = [];
@@ -111,8 +114,8 @@ describe("capacity", () => {
 
 describe("board isolation", () => {
   it("TC-17 keeps one board's edits out of another board's room", async () => {
-    const board1 = testBoardId();
-    const board2 = testBoardId();
+    const board1 = await createTestBoard();
+    const board2 = await createTestBoard();
     expect(board1).not.toBe(board2);
 
     const alex = await connectBoard(board1);

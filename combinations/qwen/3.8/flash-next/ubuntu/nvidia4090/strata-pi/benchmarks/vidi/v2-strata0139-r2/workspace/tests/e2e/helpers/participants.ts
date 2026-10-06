@@ -1,5 +1,5 @@
 import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import { newBoardId } from "../../../src/shared/board-id";
+import { createBoard, E2E_PORT } from "./api";
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LIVE_UPDATE_LATENCY_BUDGET_MS,
@@ -67,9 +67,14 @@ export async function waitUntilConnected(participant: Participant, timeoutMs = 2
     .toBe("connected");
 }
 
-/** `names.length` isolated participants on one fresh board, all in sync. */
-export async function openSession(browser: Browser, names: string[]): Promise<Session> {
-  const boardId = newBoardId();
+/**
+ * `names.length` isolated participants on one fresh board, all in sync.
+ *
+ * The board is created through the API first: from story 5 on, a link only works
+ * if a board exists behind it.
+ */
+export async function openSession(browser: Browser, names: string[], port: number = E2E_PORT): Promise<Session> {
+  const boardId = await createBoard(port);
   const participants: Participant[] = [];
   try {
     for (const name of names) {
@@ -194,10 +199,18 @@ export async function noteCount(page: Page): Promise<number> {
   return page.locator("[data-testid='sticky-note']").count();
 }
 
-/** Asserts no participant logged a console error or an uncaught exception. */
-export function expectNoProblems(participants: readonly Participant[]): void {
+/**
+ * Asserts no participant logged a console error or an uncaught exception.
+ *
+ * `ignore` lists problems the test means to cause: during an emulated outage the
+ * browser itself logs every refused reconnect, and failing on the outage's own
+ * symptoms would prove nothing.
+ */
+export function expectNoProblems(participants: readonly Participant[], ignore: readonly RegExp[] = []): void {
   const found = participants.flatMap((participant) =>
-    participant.problems.map((problem) => `${participant.name}: ${problem}`),
+    participant.problems
+      .filter((problem) => !ignore.some((pattern) => pattern.test(problem)))
+      .map((problem) => `${participant.name}: ${problem}`),
   );
   expect(found).toEqual([]);
 }
@@ -211,16 +224,33 @@ export function expectNoProblems(participants: readonly Participant[]): void {
  */
 export async function instrumentSockets(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    const counters = window as unknown as { __vidi6Sockets?: number };
+    const counters = window as unknown as { __vidi6Sockets?: number; __vidi6SocketRefs?: WebSocket[] };
     counters.__vidi6Sockets = 0;
+    counters.__vidi6SocketRefs = [];
     const Native = window.WebSocket;
     class CountedWebSocket extends Native {
       constructor(url: string | URL, protocols?: string | string[]) {
         super(url, protocols);
         counters.__vidi6Sockets = (counters.__vidi6Sockets ?? 0) + 1;
+        counters.__vidi6SocketRefs!.push(this);
       }
     }
     window.WebSocket = CountedWebSocket as unknown as typeof WebSocket;
+  });
+}
+
+/**
+ * Closes every socket this page opened, from the page side.
+ *
+ * Chromium's `setOffline` emulates a network for HTTP and leaves an established
+ * WebSocket running, so a test that means "the connection dropped" has to drop
+ * it: close the sockets the page made, and (with `routeWebSocket` refusing the
+ * reconnects) keep them down for the length of the outage.
+ */
+export async function closeSockets(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const refs = (window as unknown as { __vidi6SocketRefs?: WebSocket[] }).__vidi6SocketRefs ?? [];
+    for (const socket of refs) socket.close();
   });
 }
 
@@ -235,7 +265,10 @@ export async function startBadgeRecorder(page: Page): Promise<void> {
     const log: (string | null)[] = [];
     target.__vidi6BadgeLog = log;
     const read = () => {
-      const badge = document.querySelector<HTMLElement>('[role="status"]');
+      // The connection badge specifically. The navigation hint carries
+      // `role="status"` too and sits earlier in the DOM, so a bare
+      // `[role="status"]` query reads the hint instead of the badge.
+      const badge = document.querySelector<HTMLElement>(".connection-status");
       const text = badge?.textContent ?? null;
       if (log[log.length - 1] !== text) log.push(text);
     };

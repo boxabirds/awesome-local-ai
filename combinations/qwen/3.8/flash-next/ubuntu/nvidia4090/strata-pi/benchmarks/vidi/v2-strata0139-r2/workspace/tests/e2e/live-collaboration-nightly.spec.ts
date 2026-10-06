@@ -33,6 +33,19 @@ import type { ConnectionState } from "../../src/client/sync/connection-state";
 const IDLE_MS = 45_000;
 const SOAK_MS = 60_000;
 
+/**
+ * Where the soak's gestures are allowed to point.
+ *
+ * A note's toolbar is drawn *above* the note, so a note pushed off the top of the
+ * board has no toolbar for the next gesture to click; and a click that lands on one
+ * of the board's own floating panels — the tool panel on the left, the zoom controls
+ * bottom right, the navigation hint along the bottom — never reaches the board
+ * underneath. Both are true for a person as well as for this test, so notes are
+ * created here and kept here: 200×200 notes centred inside this rectangle have room
+ * for their toolbars and clickable centres.
+ */
+const GESTURE_ZONE = { x: 180, y: 170, width: 780, height: 530 };
+
 /** Same generator as the integration fixture, so a soak failure is reproducible. */
 function seededRandom(seed: number): () => number {
   let state = seed >>> 0;
@@ -220,7 +233,7 @@ async function runRandomOperation(
 
   if (roll < 0.5) {
     const word = ` ${WORDS[Math.floor(random() * WORDS.length)]!}`;
-    await selectAndEdit(page, target);
+    if (!(await selectAndEdit(page, target))) return;
     await page.keyboard.type(word);
     await notes.endEditing(page);
     await waitForChange(participant, session, target.id, true, `${label} type`);
@@ -228,23 +241,32 @@ async function runRandomOperation(
   }
 
   if (roll < 0.8) {
-    const dx = Math.round(random() * 240) - 120;
-    const dy = Math.round(random() * 200) - 100;
-    await notes.dragOnBoard(page, notes.centreOf(target), dx, dy);
+    const centre = notes.centreOf(target);
+    const dx = clamp(
+      Math.round(random() * 240) - 120,
+      GESTURE_ZONE.x - centre.x,
+      GESTURE_ZONE.x + GESTURE_ZONE.width - centre.x,
+    );
+    const dy = clamp(
+      Math.round(random() * 200) - 100,
+      GESTURE_ZONE.y - centre.y,
+      GESTURE_ZONE.y + GESTURE_ZONE.height - centre.y,
+    );
+    await notes.dragOnBoard(page, centre, dx, dy);
     await waitForChange(participant, session, target.id, true, `${label} move`);
     return;
   }
 
   if (roll < 0.9) {
     const color = COLOR_NAMES[Math.floor(random() * COLOR_NAMES.length)]!;
-    await selectNote(page, target);
+    if (!(await selectNote(page, target))) return;
     await page.getByTestId(`swatch-${color}`).click();
     await page.mouse.click(60, 700); // click empty board space to drop the selection
     await waitForChange(participant, session, target.id, true, `${label} recolour`);
     return;
   }
 
-  await selectNote(page, target);
+  if (!(await selectNote(page, target))) return;
   await page.getByTestId("note-delete").click();
   await waitForChange(participant, session, target.id, false, `${label} delete`);
 }
@@ -280,15 +302,42 @@ async function waitForChange(
   });
 }
 
-async function selectNote(page: Page, note: BoardDomSnapshot): Promise<void> {
-  await page.mouse.click(note.box.x + note.box.width / 2, note.box.y + note.box.height / 2);
+/**
+ * Selects `note` and reports whether its toolbar came up.
+ *
+ * Five editors are editing the same board at the same time: between the snapshot
+ * this gesture was planned from and the click, another editor may have moved or
+ * deleted that note. When the toolbar does not appear there is nothing here to
+ * operate on, and the soak moves on to the next gesture instead of waiting for
+ * buttons that are no longer on the page. The click uses the freshest box, not the
+ * position the plan was made from.
+ */
+async function selectNote(page: Page, note: BoardDomSnapshot): Promise<boolean> {
+  const current = await byId(page, note.id);
+  if (!current) return false;
+  await page.mouse.click(current.box.x + current.box.width / 2, current.box.y + current.box.height / 2);
   await notes.settle(page);
+  return page
+    .getByTestId("note-toolbar")
+    .waitFor({ state: "visible", timeout: 2_000 })
+    .then(() => true)
+    .catch(() => false);
 }
 
-async function selectAndEdit(page: Page, note: BoardDomSnapshot): Promise<void> {
-  await selectNote(page, note);
+async function selectAndEdit(page: Page, note: BoardDomSnapshot): Promise<boolean> {
+  if (!(await selectNote(page, note))) return false;
   await page.keyboard.press("Enter");
-  await expect(page.getByTestId("sticky-note-input")).toBeVisible();
+  return page
+    .getByTestId("sticky-note-input")
+    .waitFor({ state: "visible", timeout: 2_000 })
+    .then(() => true)
+    .catch(() => false);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  const low = Math.min(min, max);
+  const high = Math.max(min, max);
+  return Math.max(low, Math.min(high, value));
 }
 
 /** A board spot that is not covered by a note, so the double-click creates one. */
@@ -296,8 +345,8 @@ async function freePoint(page: Page, random: () => number): Promise<{ x: number;
   const notes = await snapshotOf(page);
   for (let attempt = 0; attempt < 30; attempt += 1) {
     const at = {
-      x: 130 + Math.round(random() * 1000),
-      y: 120 + Math.round(random() * 560),
+      x: GESTURE_ZONE.x + Math.round(random() * GESTURE_ZONE.width),
+      y: GESTURE_ZONE.y + Math.round(random() * GESTURE_ZONE.height),
     };
     const covered = notes.some(
       (note) =>
@@ -308,7 +357,7 @@ async function freePoint(page: Page, random: () => number): Promise<{ x: number;
     );
     if (!covered) return at;
   }
-  return { x: 40, y: 40 };
+  return { x: GESTURE_ZONE.x + 100, y: GESTURE_ZONE.y + 100 };
 }
 
 /** Double-click to create, type `text`, close the editor. Returns the note id. */

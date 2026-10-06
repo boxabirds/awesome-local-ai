@@ -21,8 +21,9 @@ import {
   decodeMessage,
   type Decoded,
 } from "../../../src/shared/protocol";
-import { newBoardId } from "../../../src/shared/board-id";
+import { newBoardId, isValidBoardId } from "../../../src/shared/board-id";
 import type { BoardRoom } from "../../../src/worker/board-room";
+import type { Env } from "../../../src/worker";
 import worker from "../../../src/worker";
 
 /** `y-protocols` sync step types. */
@@ -409,8 +410,13 @@ export function namespaceSpy(): { namespace: DurableObjectNamespace<BoardRoom>; 
 export function fetchFromWorker(
   request: Request,
   namespace?: DurableObjectNamespace<BoardRoom>,
+  overrides: Partial<Env> = {},
 ): Promise<Response> {
-  return worker.fetch(request, { ...env, BOARD_ROOM: namespace ?? env.BOARD_ROOM }, createExecutionContext());
+  return worker.fetch(
+    request,
+    { ...env, BOARD_ROOM: namespace ?? env.BOARD_ROOM, ...overrides },
+    createExecutionContext(),
+  );
 }
 
 /** Opens a board socket, failing with the status if the upgrade was refused. */
@@ -428,6 +434,65 @@ export async function connectBoard(boardId: string, options: ConnectOptions = {}
 /** A fresh board id for a test, so board isolation is real isolation. */
 export function testBoardId(): string {
   return newBoardId();
+}
+
+// ---- the board API (story 5) ---------------------------------------------
+
+/**
+ * Creates a board the way the product does — `POST /api/boards` through the real
+ * Worker — and returns its id.
+ *
+ * From story 5 on, a board has to exist before anyone can connect to it, so
+ * every test that opens a socket asks for a board first. `testBoardId()` remains
+ * for the cases that need an id that is *not* a board.
+ */
+export async function createTestBoard(): Promise<string> {
+  const response = await requestBoards({ method: "POST" });
+  if (response.status !== 201) {
+    throw new Error(`POST /api/boards answered ${response.status}: ${await response.text()}`);
+  }
+  const body = (await response.json()) as { id?: unknown };
+  if (typeof body.id !== "string" || !isValidBoardId(body.id)) {
+    throw new Error(`POST /api/boards returned no usable id: ${JSON.stringify(body)}`);
+  }
+  return body.id;
+}
+
+/** A request to `/api/boards` or `/api/boards/:id`. */
+export function requestBoards(init: RequestInit = {}, path = "/api/boards"): Promise<Response> {
+  return SELF.fetch(`http://board.test${path}`, init);
+}
+
+/** `GET /api/boards/:id` — the existence check the client performs. */
+export function checkBoardApi(boardId: string): Promise<Response> {
+  return requestBoards({ method: "GET" }, `/api/boards/${boardId}`);
+}
+
+/** Runs `work` with a namespace whose `initialize()` RPC throws (TC-12). */
+export function namespaceWithFailingInitialize(): DurableObjectNamespace<BoardRoom> {
+  const real = env.BOARD_ROOM;
+  const failingGet = (id: DurableObjectId) => {
+    const stub = real.get(id);
+    return new Proxy(stub, {
+      get(target, property: string | symbol) {
+        if (property === "initialize") {
+          return async (): Promise<"created"> => {
+            throw new Error("injected RPC failure");
+          };
+        }
+        const value = Reflect.get(target, property) as unknown;
+        return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+      },
+    }) as unknown as BoardRoom;
+  };
+
+  return new Proxy(real, {
+    get(target, property: string | symbol) {
+      if (property === "get") return failingGet;
+      const value = Reflect.get(target, property) as unknown;
+      return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+    },
+  }) as unknown as DurableObjectNamespace<BoardRoom>;
 }
 
 // ---- looking inside the room ---------------------------------------------

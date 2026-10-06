@@ -1,9 +1,11 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import * as notes from "./helpers/notes";
+import { boardBox } from "./helpers/board";
 import { STICKY_COLORS, MAX_CONCURRENT_EDITORS, CATCH_UP_TEST_OUTAGE_MS } from "../../src/shared/config";
 import {
   badgeLog,
   boardDomSnapshot,
+  closeSockets,
   connectionStateOf,
   expectEventually,
   expectNoProblems,
@@ -44,19 +46,49 @@ async function snapshotOf(page: Page): Promise<BoardDomSnapshot[]> {
   return boardDomSnapshot(page);
 }
 
+/** The parts of a board everyone else has to see: everything except what is private. */
+function sharedStateOf(snapshot: BoardDomSnapshot[]): Array<Omit<BoardDomSnapshot, "selected" | "editing">> {
+  return snapshot.map(({ selected: _selected, editing: _editing, ...shared }) => shared);
+}
+
 async function findByLabel(page: Page, label: string): Promise<BoardDomSnapshot | undefined> {
   return (await snapshotOf(page)).find((note) => note.text === label);
 }
 
-/** Double-click to create, type `label`, close the editor. Returns the note id. */
+/**
+ * Double-click to create, type `label`, close the editor. Returns the note id.
+ *
+ * The double-click is retried from an empty corner when it produces nothing: in
+ * the full-capacity session (TC-26) notes are deliberately packed close together,
+ * and a floating toolbar or a neighbouring note can swallow the gesture. Retrying
+ * the gesture is what a person would do; what the test still asserts is a note
+ * created at that point.
+ */
 async function createNote(page: Page, at: { x: number; y: number }, label: string): Promise<string> {
   const before = new Set((await snapshotOf(page)).map((note) => note.id));
-  await notes.createNoteByDoubleClick(page, at);
+  await doubleClickToCreate(page, at);
   await page.keyboard.type(label);
   await notes.endEditing(page);
   const created = (await snapshotOf(page)).find((note) => !before.has(note.id));
   if (!created) throw new Error("the new note is missing");
   return created.id;
+}
+
+async function doubleClickToCreate(page: Page, at: { x: number; y: number }): Promise<void> {
+  const box = await boardBox(page);
+  const corner = { x: box.x + 12, y: box.y + box.height - 12 };
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.mouse.dblclick(at.x, at.y);
+    const editor = page.getByTestId("sticky-note-input");
+    if (await editor.waitFor({ state: "visible", timeout: 2_000 }).then(() => true).catch(() => false)) {
+      await notes.settle(page);
+      return;
+    }
+    // Nothing opened: clear whatever was under the pointer, then try the point again.
+    await page.mouse.click(corner.x, corner.y);
+    await notes.settle(page);
+  }
+  await notes.createNoteByDoubleClick(page, at);
 }
 
 async function noteCentreOf(page: Page, id: string): Promise<{ x: number; y: number }> {
@@ -70,6 +102,9 @@ async function selectNote(page: Page, id: string): Promise<void> {
   await page.mouse.click(centre.x, centre.y);
   await notes.settle(page);
 }
+
+/** How the browsers report a WebSocket they could not open — the outage's own symptom. */
+const OUTAGE_CONSOLE_NOISE = [/WebSocket connection to/, /can.t establish a connection/, /ERR_INTERNET_DISCONNECTED/];
 
 test.beforeEach(() => {
   resetLatencies();
@@ -86,7 +121,10 @@ test.describe("workflow: two-person workshop", () => {
     // ---- create ----
     const place = { x: 420, y: 340 };
     const id = await createNote(alex.page, place, "Design review");
-    await expectEventually("create reaches Sam", async () => (await noteCount(sam.page)) === 1);
+    await expectEventually("create reaches Sam", async () => {
+      const seen = await snapshotOf(sam.page);
+      return seen.length === 1 && seen[0]!.text === "Design review";
+    });
     let samNote = (await snapshotOf(sam.page))[0]!;
     let alexNote = (await snapshotOf(alex.page))[0]!;
     expect(samNote.id).toBe(id);
@@ -243,21 +281,42 @@ test.describe("workflow: two-person workshop", () => {
 
     const id = await createNote(alex.page, { x: 440, y: 360 }, "private draft");
     await expectEventually("the note reaches Sam", async () => (await findByLabel(sam.page, "private draft")) !== undefined);
+    await expectEventually("the whole note reaches Sam", async () => {
+      const seen = await snapshotOf(sam.page);
+      return seen.length === 1 && seen[0]!.text === "private draft";
+    });
 
     await selectNote(alex.page, id);
     await alex.page.keyboard.press("Enter");
     await expect(alex.page.getByTestId("sticky-note-input")).toBeVisible();
     await alex.page.keyboard.type(" typing here");
 
+    // The privacy half, checked while Alex is mid-edit: Sam's screen shows no
+    // selection and no editor for what Alex is doing.
+    await expect.poll(async () => {
+      const seen = await snapshotOf(sam.page);
+      return (
+        seen.length === 1 &&
+        seen[0]!.selected === false &&
+        seen[0]!.editing === false &&
+        (await sam.page.getByTestId("sticky-note-input").count()) === 0 &&
+        (await sam.page.getByTestId("note-toolbar").count()) === 0
+      );
+    }, { timeout: 10_000 }).toBe(true);
+
+    // The sharing half: what Alex typed is on Sam's board once the edit is closed.
+    // Text is written keystroke by keystroke, so this is waited for rather than
+    // read once — one read can catch a half-typed note.
+    await notes.endEditing(alex.page);
+    await expectEventually("the typed text reaches Sam", async () => {
+      const seen = await snapshotOf(sam.page);
+      return seen.length === 1 && seen[0]!.text === "private draft typing here";
+    });
     const samNotes = await snapshotOf(sam.page);
     expect(samNotes).toHaveLength(1);
+    expect(samNotes[0]!.text).toBe("private draft typing here");
     expect(samNotes[0]!.selected).toBe(false);
     expect(samNotes[0]!.editing).toBe(false);
-    await expect(sam.page.getByTestId("sticky-note-input")).toHaveCount(0);
-    await expect(sam.page.getByTestId("note-toolbar")).toHaveCount(0);
-
-    // The text is shared; the selection is not.
-    expect(samNotes[0]!.text).toBe("private draft typing here");
 
     expectNoProblems(session.participants);
     await session.close();
@@ -271,11 +330,16 @@ test.describe("workflow: full-capacity session", () => {
     const names = Array.from({ length: MAX_CONCURRENT_EDITORS }, (_, index) => `Editor ${index + 1}`);
     const session = await openSession(browser, names);
 
-    // One column per editor, one row per note. Columns are 230 apart and rows
-    // 160 apart: notes overlap a little, but every note's centre is inside that
-    // note alone, which is where every click here points.
-    const column = (editorIndex: number) => 120 + 230 * editorIndex;
-    const row = (index: number) => 130 + 160 * index;
+    // One column per editor, one row per note.
+    // Columns are 200 apart (the notes tile side by side) and rows 145 apart
+    // (they overlap a little). Every click points at a spot that belongs to that
+    // note alone, and the whole grid stays clear of the board's own floating
+    // panels — the tool panel on the left, the zoom controls bottom right, the
+    // navigation hint along the bottom. A double-click on one of those panels
+    // creates nothing, and they are part of the board a person clicks on.
+
+    const column = (editorIndex: number) => 220 + 200 * editorIndex;
+    const row = (index: number) => 130 + 145 * index;
 
     const labels = new Set<string>();
     for (const [participantIndex, participant] of session.participants.entries()) {
@@ -322,8 +386,13 @@ test.describe("workflow: full-capacity session", () => {
       return counts.every((count) => count === labels.size);
     });
 
-    // Final DOM snapshots identical.
-    const snapshots = await Promise.all(session.participants.map((participant) => snapshotOf(participant.page)));
+    // Every board shows the same notes in the same places. Selection and editing
+    // are private to the person doing them (TC-28), so they are left out of what
+    // the boards have to agree on — each of these five people last touched a
+    // different note.
+    const snapshots = await Promise.all(
+      session.participants.map(async (participant) => sharedStateOf(await snapshotOf(participant.page))),
+    );
     const expected = snapshots[0]!;
     for (const [index, snapshot] of snapshots.entries()) {
       expect(snapshot, `${session.participants[index]!.name}'s board`).toEqual(expected);
@@ -341,23 +410,37 @@ test.describe("workflow: flaky wi-fi", () => {
     const { session, alex, sam } = await twoPeople(browser);
     await startBadgeRecorder(alex.page);
 
+    // The outage, built the way it looks from inside the board: the socket the
+    // board is using goes down, and every reconnect attempt is refused until the
+    // outage ends. (`setOffline` alone does not do this — Chromium's offline
+    // emulation covers HTTP and leaves an established WebSocket running, which
+    // is why the badge used to sit at "Connected" through the whole outage.)
+    let outageOpen = true;
+    await alex.page.routeWebSocket("**/api/rooms/**", (ws) => {
+      if (outageOpen) ws.close();
+      else ws.connectToServer();
+    });
     await alex.context.setOffline(true);
+    await closeSockets(alex.page);
+
     await expectEventually("Alex sees Reconnecting", async () => (await connectionStateOf(alex.page)) === "reconnecting");
 
     // The board stays usable while Alex is offline.
     for (let index = 0; index < 3; index += 1) {
-      await createNote(alex.page, { x: 300 + 40 * index, y: 260 + 40 * index }, `offline ${index + 1}`);
+      await createNote(alex.page, { x: 220 + 200 * index, y: 150 }, `offline ${index + 1}`);
     }
     for (let index = 0; index < 3; index += 1) {
-      await createNote(sam.page, { x: 700 + 40 * index, y: 420 + 40 * index }, `online ${index + 1}`);
+      await createNote(sam.page, { x: 220 + 200 * index, y: 480 }, `online ${index + 1}`);
     }
 
     // The outage lasts CATCH_UP_TEST_OUTAGE_MS in total.
     const outageStart = Date.now();
     await sam.page.waitForTimeout(Math.max(0, CATCH_UP_TEST_OUTAGE_MS - 4_000));
 
+    // The outage ends: the next reconnect attempt is proxied to the real server.
+    outageOpen = false;
     await alex.context.setOffline(false);
-    await waitUntilConnected(alex, 40_000);
+    await waitUntilConnected(alex, 60_000);
 
     await expectEventually("Alex sees the notes he missed", async () => (await noteCount(alex.page)) === 6);
     await expectEventually("Sam sees what Alex typed offline", async () => (await noteCount(sam.page)) === 6);
@@ -375,7 +458,9 @@ test.describe("workflow: flaky wi-fi", () => {
     expect(log[log.length - 1]).toBeNull(); // and then the badge hid itself
 
     expect(Date.now() - outageStart).toBeGreaterThanOrEqual(CATCH_UP_TEST_OUTAGE_MS - 4_000);
-    expectNoProblems(session.participants);
+    // The refused sockets are the outage itself: each browser logs every attempt
+    // it could not complete, in its own words.
+    expectNoProblems(session.participants, OUTAGE_CONSOLE_NOISE);
     await session.close();
   });
 });

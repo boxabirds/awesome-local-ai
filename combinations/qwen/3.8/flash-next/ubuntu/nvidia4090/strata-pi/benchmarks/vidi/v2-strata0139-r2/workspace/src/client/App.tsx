@@ -11,6 +11,7 @@ import { useSelection, type SelectionApi } from "./board/useSelection";
 import { Toolbar } from "./board/Toolbar";
 import { StickyNote } from "./objects/StickyNote";
 import { ConnectionStatus } from "./sync/ConnectionStatus";
+import { SharePanel } from "./pages/SharePanel";
 import { useConnectionTestHook } from "./sync/testHook";
 import { createSticky, deleteObject, type StickySnapshot } from "../shared/board-model";
 
@@ -97,6 +98,8 @@ export function App({ doc: providedDoc, boardId }: AppProps = {}) {
       />
       <NavigationHint visible={!board.hasNavigated} />
       <ConnectionStatus state={connectionState} />
+      {/* Story 5: a board you are on is a board you can send somebody. */}
+      {boardId !== undefined && <SharePanel boardId={boardId} />}
     </CameraApiContext.Provider>
   );
 }

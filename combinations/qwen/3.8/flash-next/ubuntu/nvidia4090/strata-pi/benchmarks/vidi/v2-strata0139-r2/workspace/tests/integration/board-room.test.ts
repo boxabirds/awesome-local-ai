@@ -31,7 +31,7 @@ import {
   roomDocEquals,
   roomSnapshot,
   sleep,
-  testBoardId,
+  createTestBoard,
   waitUntil,
   waitUntilAsync,
   type TestClient,
@@ -45,7 +45,7 @@ interface Pair {
 
 /** Two synced clients on a fresh board, with frame logs cleared. */
 async function twoClients(): Promise<Pair> {
-  const boardId = testBoardId();
+  const boardId = await createTestBoard();
   const a = await connectBoard(boardId);
   const b = await connectBoard(boardId);
   await Promise.all([a.waitForSync(), b.waitForSync()]);
@@ -201,7 +201,7 @@ describe("merging", () => {
   it(`TC-12 ${MAX_CONCURRENT_EDITORS} clients × 200 seeded edits converge to identical boards`, async () => {
     const seedBase = 20260815;
     const ops = 200;
-    const boardId = testBoardId();
+    const boardId = await createTestBoard();
 
     const clients: TestClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i += 1) {
