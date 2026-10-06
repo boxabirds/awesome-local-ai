@@ -34,6 +34,13 @@ pub const PROXY_LOG: &str = "proxy.log";
 pub const EGRESS_DIR: &str = "egress";
 /// The virtual name under which the run's egress log is served.
 pub const EGRESS_NAME: &str = "egress.jsonl";
+/// A run's published records: tracked in git, so the lake is their only other copy before the push lands.
+pub const METRICS_FILE: &str = "metrics.json";
+pub const RUN_FILE: &str = "run.json";
+pub const INTERVENTIONS_FILE: &str = "interventions.md";
+pub const ACCEPT_SUMMARY_FILE: &str = "accept-summary.json";
+pub const GATE_FILE: &str = "gate.json";
+pub const BASE_COMMIT_FILE: &str = "base-commit";
 pub const BENCH_HOME_ENV: &str = "VIDI_BENCH_HOME";
 pub const DEFAULT_BENCH_HOME: &str = ".vidi-bench";
 
@@ -74,7 +81,7 @@ struct Collectable {
 }
 
 /// The whole allow-list. Nothing outside it is ever served.
-const COLLECTABLE: [Collectable; 6] = [
+const COLLECTABLE: [Collectable; 13] = [
     Collectable {
         pattern: Pattern::Story(EVENTS_FILE),
         kind: FileKind::Append,
@@ -104,6 +111,44 @@ const COLLECTABLE: [Collectable; 6] = [
         pattern: Pattern::Fixed(EGRESS_NAME),
         kind: FileKind::Append,
         source: Source::Egress,
+    },
+    // The run's published records. These are tracked in git, unlike everything above, so until the harness's push
+    // lands they exist only in the machine's checkout -- one destructive git command or one dead disk from being
+    // gone, while the raw data describing them sits safe here. Taking them makes the lake a complete second copy.
+    Collectable {
+        pattern: Pattern::Fixed(METRICS_FILE),
+        kind: FileKind::Whole,
+        source: Source::RunDir,
+    },
+    Collectable {
+        pattern: Pattern::Fixed(RUN_FILE),
+        kind: FileKind::Whole,
+        source: Source::RunDir,
+    },
+    Collectable {
+        pattern: Pattern::Fixed(RUN_STATUS_FILE),
+        kind: FileKind::Whole,
+        source: Source::RunDir,
+    },
+    Collectable {
+        pattern: Pattern::Fixed(INTERVENTIONS_FILE),
+        kind: FileKind::Whole,
+        source: Source::RunDir,
+    },
+    Collectable {
+        pattern: Pattern::Story(ACCEPT_SUMMARY_FILE),
+        kind: FileKind::Whole,
+        source: Source::RunDir,
+    },
+    Collectable {
+        pattern: Pattern::Story(GATE_FILE),
+        kind: FileKind::Whole,
+        source: Source::RunDir,
+    },
+    Collectable {
+        pattern: Pattern::Story(BASE_COMMIT_FILE),
+        kind: FileKind::Whole,
+        source: Source::RunDir,
     },
 ];
 
@@ -425,12 +470,14 @@ mod tests {
             "stories//agent-events.jsonl",
             "stories/1234/agent-events.jsonl",
             "stories/03/agent-events.jsonl/x",
-            "metrics.json",
-            "run.json",
             "work_dir.txt",
             "SERVER.LOG",
         ] {
             assert!(parse_name(bad).is_none(), "{bad:?}");
+        }
+        // The records are allow-listed too, and whole-file: a half-written score is no score.
+        for name in ["metrics.json", "run.json", "run-status.json", "stories/01/accept-summary.json"] {
+            assert_eq!(parse_name(name).unwrap().kind(), FileKind::Whole, "{name}");
         }
         assert_eq!(parse_name("progress.json").unwrap().kind(), FileKind::Whole);
         assert_eq!(parse_name("server.log").unwrap().kind(), FileKind::Append);
@@ -469,6 +516,45 @@ mod tests {
         std::fs::remove_dir_all(&root).unwrap();
     }
 
+    /// A run's published records -- its scores -- lived only in the machine's git checkout between the harness
+    /// committing them and the push landing, so a destructive git command or a dead disk lost them while the raw
+    /// data they describe sat safe in the lake. The lake takes them too now.
+    #[test]
+    fn the_lake_takes_a_runs_records_as_well_as_its_logs_so_scores_are_never_single_copy() {
+        let root = temp_dir("manifest-records");
+        let run_dir = root.join("run");
+        let bench_home = root.join("bench");
+        std::fs::create_dir_all(run_dir.join("stories/01")).unwrap();
+        std::fs::create_dir_all(bench_home.join(EGRESS_DIR)).unwrap();
+        for (name, body) in [
+            ("metrics.json", "{}"),
+            ("run.json", "{}"),
+            (RUN_STATUS_FILE, "{}"),
+            ("interventions.md", "-"),
+        ] {
+            std::fs::write(run_dir.join(name), body).unwrap();
+        }
+        for (name, body) in [
+            ("accept-summary.json", "{}"),
+            ("gate.json", "{}"),
+            ("base-commit", "abc"),
+        ] {
+            std::fs::write(run_dir.join("stories/01").join(name), body).unwrap();
+        }
+        let got: Vec<String> = manifest(&run_dir, &bench_home).iter().map(|f| f.name.clone()).collect();
+        for want in [
+            "metrics.json",
+            "run.json",
+            "run-status.json",
+            "interventions.md",
+            "stories/01/accept-summary.json",
+            "stories/01/gate.json",
+            "stories/01/base-commit",
+        ] {
+            assert!(got.iter().any(|g| g == want), "{want} is not offered: {got:?}");
+        }
+    }
+
     #[test]
     fn manifest_lists_existing_files_with_size_and_mtime_and_the_egress_log_from_work_dir_txt() {
         let root = temp_dir("manifest");
@@ -494,6 +580,7 @@ mod tests {
                 ("stories/02/agent-events.jsonl", 0),
                 ("server.log", 10),
                 ("progress.json", 2),
+                ("metrics.json", 2),
             ]
         );
         let m = manifest(&run_dir, &bench_home);
@@ -508,7 +595,7 @@ mod tests {
         std::fs::write(bench_home.join(EGRESS_DIR).join("run-7.jsonl"), "{}\n").unwrap();
         let m = manifest(&run_dir, &bench_home);
         assert_eq!(
-            m.last().map(|f| (f.name.as_str(), f.size)),
+            m.iter().find(|f| f.name == EGRESS_NAME).map(|f| (f.name.as_str(), f.size)),
             Some((EGRESS_NAME, 3))
         );
         // Nothing under stories/ is listed when it isn't a directory of all-digit names.
