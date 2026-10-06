@@ -4,6 +4,7 @@ dist
 .playwright-report
 playwright-report
 test-results
+.test-durable
 *.log
 .DS_Store
 scratch

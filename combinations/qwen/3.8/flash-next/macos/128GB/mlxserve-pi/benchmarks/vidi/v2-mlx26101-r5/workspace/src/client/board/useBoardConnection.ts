@@ -4,14 +4,19 @@ import type * as Y from 'yjs';
 import {
   connectBoard,
   type BoardConnection,
-  type BoardStatus,
+  type ConnectionState,
   type ConnectBoardOptions,
 } from './connection';
 
 /** What `useBoardConnection` gives the board. */
 export interface BoardConnectionHook {
-  /** What the badge shows. `connected` when the board has no room to join at all. */
-  status: BoardStatus;
+  /**
+   * What the badge shows. `connected` when the board has no room to join at all.
+   *
+   * A connection state rather than a full `BoardStatus`: "this link is not a board" is the
+   * address's news, not the connection's, and the connection has never heard of it.
+   */
+  status: ConnectionState;
   /** The live connection, or null when this board is not on the network. */
   connection: BoardConnection | null;
 }
@@ -35,7 +40,7 @@ export function useBoardConnection(
   // The first frame already says what is true: with a board to join, we are waiting for
   // it. Waiting for the effect to say so would leave one painted frame claiming a board
   // is live when the request has not even gone out.
-  const [status, setStatus] = useState<BoardStatus>(() =>
+  const [status, setStatus] = useState<ConnectionState>(() =>
     boardId === undefined ? 'connected' : 'connecting',
   );
   const [connection, setConnection] = useState<BoardConnection | null>(null);

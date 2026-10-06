@@ -183,6 +183,7 @@ import {
   type StickySnapshot,
 } from '../../src/shared/board-model';
 import type { Selection } from '../../src/client/board/useSelection';
+import type { ConnectBoardOptions } from '../../src/client/board/connection';
 import { Board, type BoardHandle } from '../../src/client/App';
 
 /** The whole board, plus the pieces a test needs to look inside it. */
@@ -206,9 +207,12 @@ export interface BoardFixture {
 }
 
 /** Renders the real `Board` (viewport, toolbars, notes, keyboard) at a fixed size. */
-export function renderBoard(viewport: Size = VIEWPORT): BoardFixture {
+export function renderBoard(
+  viewport: Size = VIEWPORT,
+  board: { boardId?: string; connect?: ConnectBoardOptions } = {},
+): BoardFixture {
   const handle: { current: BoardHandle | null } = { current: null };
-  render(<Board handle={handle} viewport={viewport} />);
+  render(<Board handle={handle} viewport={viewport} boardId={board.boardId} connect={board.connect} />);
 
   const fixture: BoardFixture = {
     handle,

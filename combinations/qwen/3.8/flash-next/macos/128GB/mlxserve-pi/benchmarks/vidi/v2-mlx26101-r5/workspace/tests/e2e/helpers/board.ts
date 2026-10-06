@@ -335,3 +335,75 @@ export async function settled(page: Page): Promise<void> {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   await page.waitForTimeout(80);
 }
+
+/* ------------------------------------------------------------------ story 4: coming back to a board */
+
+/** Everything the board is, as one page sees it: notes in stacking order, with what is on them. */
+export interface NoteState {
+  /** The note's identity, which the board keeps across a restart. */
+  id: string;
+  text: string;
+  color: string;
+  x: number;
+  y: number;
+  z: number;
+}
+
+/**
+ * Every note as the page holds it, in the order the document holds them.
+ *
+ * One read of the DOM rather than four per note, because story 4's cases compare a board with
+ * itself after the server that had it has been thrown away and built again — and a comparison
+ * that takes a hundred round trips to make is a comparison that starts being timed out instead
+ * of being passed.
+ */
+export function noteStates(page: Page): Promise<NoteState[]> {
+  return page.locator('.sticky-note').evaluateAll((els) =>
+    els.map((el) => ({
+      id: el.dataset['noteId'] ?? '',
+      text: el.querySelector('.sticky-text')?.textContent ?? '',
+      color: el.dataset['color'] ?? '',
+      x: Number(el.dataset['x']),
+      y: Number(el.dataset['y']),
+      z: Number(el.dataset['z']),
+    })),
+  );
+}
+
+/**
+ * Creates `count` notes through the interface — a double-click, a typed line, a colour — laid
+ * out in a grid so that no two of them are alike.
+ *
+ * Varied is the point. A board of identical notes is a board that a load which stopped halfway
+ * through could return and nobody could tell from a count alone.
+ *
+ * Returns what the board holds when it is done, which is what the same board is expected to
+ * hold after the server that had it has been thrown away and built again.
+ */
+export async function createNotesOnAGrid(
+  page: Page,
+  count: number,
+  colors: readonly string[],
+): Promise<NoteState[]> {
+  const columns = 5;
+  for (let index = 0; index < count; index += 1) {
+    const x = 180 + (index % columns) * 200;
+    const y = 140 + Math.floor(index / columns) * 130;
+    const id = await doubleClickCreate(page, x, y);
+    await page.keyboard.type(`Note ${index + 1}`);
+    await closeEditor(page);
+    const color = colors[index % colors.length];
+    if (color) {
+      await clickNote(page, id);
+      await page.getByTestId(`color-${color}`).click();
+    }
+  }
+  await settled(page);
+  return noteStates(page);
+}
+
+/** Leaves editing, and waits until the editor is gone. */
+async function closeEditor(page: Page): Promise<void> {
+  await page.keyboard.press('Escape');
+  await expect(editorLocator(page), 'waiting for the editor to close').toHaveCount(0);
+}

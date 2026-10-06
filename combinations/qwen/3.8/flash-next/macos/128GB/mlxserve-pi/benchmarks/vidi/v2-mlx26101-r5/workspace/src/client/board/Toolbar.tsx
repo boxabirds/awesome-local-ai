@@ -3,9 +3,18 @@ import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent }
 /** Tooltip of the Sticky note button (exact product text). */
 export const STICKY_BUTTON_HINT = 'Sticky note – or double-click the board';
 
+/** What the Sticky note button says when the board cannot be written to. */
+export const LOAD_FAILED_BUTTON_HINT = "This board couldn't be loaded, so it can't be changed";
+
 export interface ToolbarProps {
   /** Creates a sticky note in the middle of the visible board area. */
   onCreateSticky(): void;
+  /**
+   * False while the board cannot be written to (story 4: the room could not load it). The
+   * button is disabled rather than hidden or quietly inert, so that it is still there to be
+   * found and still says why nothing happens — `title` carries the reason.
+   */
+  canCreate?: boolean;
 }
 
 /**
@@ -15,7 +24,7 @@ export interface ToolbarProps {
  * The toolbar swallows pointer and wheel events, so clicking a tool never pans
  * the board or clears the selection.
  */
-export function Toolbar({ onCreateSticky }: ToolbarProps): React.JSX.Element {
+export function Toolbar({ onCreateSticky, canCreate = true }: ToolbarProps): React.JSX.Element {
   const stop = (event: ReactPointerEvent<HTMLDivElement> | ReactWheelEvent<HTMLDivElement>) => {
     event.stopPropagation();
   };
@@ -35,10 +44,12 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): React.JSX.Element {
       onWheel={stop}
     >
       <button
+        aria-disabled={canCreate ? undefined : 'true'}
         aria-label="Sticky note"
         className="toolbar-button"
         data-testid="create-sticky"
-        title={STICKY_BUTTON_HINT}
+        disabled={!canCreate}
+        title={canCreate ? STICKY_BUTTON_HINT : LOAD_FAILED_BUTTON_HINT}
         type="button"
         onClick={onCreateSticky}
       >

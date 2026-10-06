@@ -11,7 +11,10 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
-          include: ['tests/unit/**/*.test.ts'],
+          // `tests/unit-workers` is the Worker's own unit tests: pure functions from
+          // `src/worker`, type-checked against the Workers types, run in this same
+          // project because they need no runtime around them.
+          include: ['tests/unit/**/*.test.ts', 'tests/unit-workers/**/*.test.ts'],
         },
       },
       {

@@ -12,6 +12,11 @@
  * between, which is worse than staying on "Reconnecting…". So after a connection has
  * once been established, coming back has to *hold* for `CONNECTED_CONFIRMATION_MS`
  * before the badge believes it.
+ *
+ * `load_failed` is the one state that is not about the line. The room closed the door on
+ * us because it could not read the board, which no amount of retrying at the network
+ * level will fix, so this state does not flicker and does not soften: it holds until a
+ * sync actually completes, which is the only news that the board is readable again.
  */
 
 import * as Y from 'yjs';
@@ -25,10 +30,16 @@ import {
   ROOM_RESYNC_INTERVAL_MS,
   ROOM_SILENCE_LIMIT_MS,
 } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 import { boardIdentity, type BoardIdentity } from './identity';
 
-/** Where the connection is, as the badge shows it. */
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting';
+/**
+ * Where the connection is, as the badge shows it.
+ *
+ * `load_failed` is the room saying it could not read this board; the other three are
+ * about the line between here and there.
+ */
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'load_failed';
 
 /** Everything the badge can show, including a link that is not a board at all. */
 export type BoardStatus = ConnectionState | 'invalid-board';
@@ -46,6 +57,15 @@ export interface BoardProvider {
   offStatus(handler: (status: ProviderStatus) => void): void;
   onSync(handler: (synced: boolean) => void): void;
   offSync(handler: (synced: boolean) => void): void;
+  /**
+   * Hears that a connection was closed, with the close code the server sent (null when we
+   * closed it ourselves). The code is the room's answer to "can I have this board?", and it
+   * is the only way to tell "the line is down" apart from "that board cannot be read" — a
+   * distinction the status event cannot make, because both look like a disconnected socket.
+   * Optional so a fake that has nothing to say about codes is still a provider.
+   */
+  onClose?(handler: (code: number | null) => void): void;
+  offClose?(handler: (code: number | null) => void): void;
   /** The awareness to publish this client's identity on. */
   readonly awareness: { setLocalStateField(field: string, value: unknown): void } | null;
   /**
@@ -134,6 +154,10 @@ export function roomUrl(boardId: string, base?: string): string {
 function wrapProvider(provider: WebsocketProvider): BoardProvider {
   const statuses = new Map<(status: ProviderStatus) => void, (event: { status: ProviderStatus }) => void>();
   const syncs = new Map<(synced: boolean) => void, (synced: boolean) => void>();
+  const closes = new Map<
+    (code: number | null) => void,
+    (event: { code: number } | null, provider: WebsocketProvider) => void
+  >();
   // The attempt currently in flight, and when it started. Keyed by the socket itself, so a
   // dial that fails quickly and dials again is not counted as one long attempt.
   let attempt: { socket: WebSocket; since: number } | null = null;
@@ -229,6 +253,17 @@ function wrapProvider(provider: WebsocketProvider): BoardProvider {
       provider.off('sync', handler);
       syncs.delete(handler);
     },
+    onClose(handler) {
+      const wrapped = (event: { code: number } | null): void => handler(event?.code ?? null);
+      closes.set(handler, wrapped);
+      provider.on('connection-close', wrapped);
+    },
+    offClose(handler) {
+      const wrapped = closes.get(handler);
+      if (wrapped === undefined) return;
+      provider.off('connection-close', wrapped);
+      closes.delete(handler);
+    },
     awareness: provider.awareness,
     destroy: () => provider.destroy(),
   };
@@ -311,6 +346,7 @@ export function connectBoard(
   };
 
   const onProviderStatus = (status: ProviderStatus): void => {
+    if (state === 'load_failed') return;
     if (status === 'connected') {
       confirmInDueCourse();
       return;
@@ -324,15 +360,41 @@ export function connectBoard(
   const onProviderSync = (isSynced: boolean): void => {
     synced = isSynced;
     if (isSynced) {
+      // A board that has just been read is the end of the story `load_failed` tells: the
+      // room found the board after all and gave it to us. There is no reason to make
+      // somebody wait two seconds to be told that the board they can see is live, so this
+      // is believed at once — the hold is for a line that keeps going up and down, and a
+      // completed sync is not that.
+      if (state === 'load_failed') {
+        stopConfirmation();
+        publish('connected');
+        return;
+      }
       confirmInDueCourse();
       return;
     }
     stopConfirmation();
+    if (state === 'load_failed') return;
     if (everConnected) publish('reconnecting');
+  };
+
+  /**
+   * The room's answer to being asked for the board. Everything but "that board could not be
+   * read" is a line problem, which the provider is already dealing with by dialing again and
+   * which costs nothing the board had: a storage failure on the way out is the room's
+   * difficulty, and our unsaved changes go over again when the line comes back.
+   */
+  const onProviderClose = (code: number | null): void => {
+    if (code === CLOSE_BOARD_LOAD_FAILED) {
+      publish('load_failed');
+      return;
+    }
+    publish(everConnected ? 'reconnecting' : 'connecting');
   };
 
   provider.onStatus(onProviderStatus);
   provider.onSync(onProviderSync);
+  provider.onClose?.(onProviderClose);
 
   // Two ways a connection can be stuck without ever saying so, and neither is reported by an
   // event: an attempt that hangs (no `connected`, no `disconnected`, nothing) and a line that
@@ -367,6 +429,7 @@ export function connectBoard(
       stopConfirmation();
       provider.offStatus(onProviderStatus);
       provider.offSync(onProviderSync);
+      provider.offClose?.(onProviderClose);
       provider.destroy();
     },
   };
@@ -379,6 +442,8 @@ export function connectionLabel(status: BoardStatus): string {
       return 'Connecting…';
     case 'reconnecting':
       return 'Reconnecting…';
+    case 'load_failed':
+      return "This board couldn't be loaded. Retrying…";
     case 'invalid-board':
       return 'Not a valid board link';
     case 'connected':
@@ -389,5 +454,19 @@ export function connectionLabel(status: BoardStatus): string {
 /** Whether the badge should be on screen at all. */
 export function connectionIsVisible(status: BoardStatus): boolean {
   return status !== 'connected';
+}
+
+/**
+ * Whether this board may be written to.
+ *
+ * One state says no, and it is the one where writing is not merely inconvenient but
+ * pointless: the room could not read the board, so anything written here is a change to a
+ * copy that the room has never seen, on a board that might not even be damaged in the way
+ * it looks damaged. A dropped line is different — the board is readable, the changes are
+ * held in the document and go over again when the line comes back, which is exactly what
+ * people expect from an editor that says "Reconnecting…".
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
 }
 

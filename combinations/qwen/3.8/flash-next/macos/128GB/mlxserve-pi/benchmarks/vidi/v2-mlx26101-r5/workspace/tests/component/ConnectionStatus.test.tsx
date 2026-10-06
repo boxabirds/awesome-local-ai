@@ -1,10 +1,11 @@
 /**
- * TC-19, TC-20 and TC-21: the connection badge and the state machine behind it.
+ * TC-19, TC-20, TC-21, TC-22 and TC-28: the connection badge and the state machine behind it.
  *
  * The provider is a fake that emits the events a network would, when the test says so.
- * That is the whole point of these three cases: a connection that comes back for half a
+ * That is the whole point of these cases: a connection that comes back for half a
  * second has to be *noticed* as half a second, and the only way to test a window of two
- * seconds is to own the clock.
+ * seconds is to own the clock. Story 4 adds the close codes to what the fake can say, which
+ * is the only way to have a room that says "I could not read this board" on a schedule.
  */
 
 import { act, render, screen } from '@testing-library/react';
@@ -14,68 +15,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConnectionStatus } from '../../src/client/board/ConnectionStatus';
 import { useBoardConnection } from '../../src/client/board/useBoardConnection';
-import type {
-  BoardProvider,
-  BoardStatus,
-  ProviderStatus,
-} from '../../src/client/board/connection';
+import type { BoardProvider, BoardStatus, ConnectionState } from '../../src/client/board/connection';
+import { FakeProvider } from './helpers/fake-provider';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
+import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from '../../src/shared/protocol';
+import { canEdit } from '../../src/client/board/connection';
 import { initDoc } from '../../src/shared/board-model';
 import { IDENTITY_COLORS } from '../../src/client/board/identity';
 
 /** The board under test. A real id, so nothing special has to be excused. */
 const BOARD_ID = 'boardboardboardboard01';
-
-/** A provider that emits what a network would, on request. */
-class FakeProvider implements BoardProvider {
-  private statuses: Array<(status: ProviderStatus) => void> = [];
-  private syncs: Array<(synced: boolean) => void> = [];
-  /** Every field the board published on awareness, in order. */
-  readonly published: Array<{ field: string; value: unknown }> = [];
-  /** How many times a status listener was registered — once, or something is wrong. */
-  statusRegistrations = 0;
-  destroyed = false;
-
-  readonly awareness = {
-    setLocalStateField: (field: string, value: unknown): void => {
-      this.published.push({ field, value });
-    },
-  };
-
-  onStatus(handler: (status: ProviderStatus) => void): void {
-    this.statusRegistrations += 1;
-    this.statuses.push(handler);
-  }
-
-  offStatus(handler: (status: ProviderStatus) => void): void {
-    this.statuses = this.statuses.filter((registered) => registered !== handler);
-  }
-
-  onSync(handler: (synced: boolean) => void): void {
-    this.syncs.push(handler);
-  }
-
-  offSync(handler: (synced: boolean) => void): void {
-    this.syncs = this.syncs.filter((registered) => registered !== handler);
-  }
-
-  destroy(): void {
-    this.destroyed = true;
-  }
-
-  emitStatus(status: ProviderStatus): void {
-    for (const handler of [...this.statuses]) handler(status);
-  }
-
-  emitSync(synced: boolean): void {
-    for (const handler of [...this.syncs]) handler(synced);
-  }
-
-  /** Still listening? A torn-down connection must not be left holding anything. */
-  get listening(): boolean {
-    return this.statuses.length > 0 || this.syncs.length > 0;
-  }
-}
 
 /** What the board shows: the badge, plus the state the badge is built from. */
 function Harness({
@@ -85,7 +34,7 @@ function Harness({
 }: {
   provider: BoardProvider;
   boardId?: string;
-  onState?: (state: BoardStatus) => void;
+  onState?: (state: ConnectionState) => void;
 }) {
   const [doc] = useState(() => {
     const created = new Y.Doc();
@@ -119,6 +68,15 @@ function advance(ms: number): void {
   act(() => {
     vi.advanceTimersByTime(ms);
   });
+}
+
+/**
+ * Consecutive repeats are one state, not two. `Harness` reports the state as it renders it,
+ * and a re-render for any other reason says the same thing again; what a test asks about is
+ * the sequence the badge was shown in. (The confirmation test above does the same by hand.)
+ */
+function distinct(states: readonly ConnectionState[]): ConnectionState[] {
+  return states.filter((state, index) => index === 0 || states[index - 1] !== state);
 }
 
 describe('TC-19 — the badge while a board is coming up', () => {
@@ -391,12 +349,150 @@ describe('the badge on its own', () => {
 
   it('names each state in its own words', () => {
     const seen = new Set<string>();
-    for (const state of ['connecting', 'reconnecting', 'invalid-board'] as const) {
+    for (const state of ['connecting', 'reconnecting', 'load_failed', 'invalid-board'] as const) {
       const { unmount } = render(<ConnectionStatus state={state} />);
       const text = badge().textContent as string;
       expect(seen.has(text)).toBe(false);
       seen.add(text);
       unmount();
     }
+  });
+});
+
+
+describe('TC-22 — the badge when the room could not read the board', () => {
+  it('says the board could not be loaded, in red, and says it as news', () => {
+    const provider = new FakeProvider();
+    render(<Harness provider={provider} />);
+    act(() => provider.emitClose(CLOSE_BOARD_LOAD_FAILED));
+
+    expect(badge().textContent).toBe("This board couldn't be loaded. Retrying…");
+    expect(badge().getAttribute('role'), 'a screen reader is told').toBe('status');
+    expect(badge().getAttribute('data-state')).toBe('load_failed');
+    expect(badge().className, 'red, the colour of a board that is not coming').toContain(
+      'connection-status--load_failed',
+    );
+    expect(badge().className, 'and not the amber of a line that is being difficult').not.toContain(
+      'connection-status--reconnecting',
+    );
+  });
+
+  it('is not softened by retries that go nowhere', () => {
+    // The provider dials again — that is what it does, and what the badge's "Retrying…" is
+    // pointing at — and each dial is refused in the same way. A badge that went back to
+    // "Reconnecting…" between refusals would be reporting on the line while the board is
+    // the thing that is wrong.
+    const seen: ConnectionState[] = [];
+    const provider = new FakeProvider();
+    render(<Harness provider={provider} onState={(state) => seen.push(state)} />);
+    act(() => provider.emitClose(CLOSE_BOARD_LOAD_FAILED));
+    act(() => provider.emitStatus('connecting'));
+    act(() => provider.emitSync(false));
+    act(() => provider.emitStatus('disconnected'));
+    act(() => provider.emitClose(CLOSE_BOARD_LOAD_FAILED));
+    act(() => provider.emitClose(CLOSE_BOARD_LOAD_FAILED));
+
+    expect(distinct(seen)).toEqual(['connecting', 'load_failed']);
+  });
+
+  it('is the state that stops the board being written to', () => {
+    const seen: ConnectionState[] = [];
+    const provider = new FakeProvider();
+    render(<Harness provider={provider} onState={(state) => seen.push(state)} />);
+    act(() => provider.emitClose(CLOSE_BOARD_LOAD_FAILED));
+    expect(canEdit(distinct(seen)[distinct(seen).length - 1] as ConnectionState), 'a board we cannot read is not a board to type into').toBe(
+      false,
+    );
+  });
+
+  it('is not a give-up: the provider is still connected to and still dialing', () => {
+    const provider = new FakeProvider();
+    render(<Harness provider={provider} />);
+    act(() => provider.emitClose(CLOSE_BOARD_LOAD_FAILED));
+    expect(provider.destroyed, 'nothing tore the provider down').toBe(false);
+    expect(provider.listening, 'the board is still listening for the room to come right').toBe(true);
+  });
+});
+
+describe('TC-28 — what a close code means to the board', () => {
+  /**
+   * A board that got as far as working, because a close only means something to a board that
+   * had a connection to lose.
+   */
+  function workingBoard(): {
+    provider: FakeProvider;
+    seen: ConnectionState[];
+  } {
+    const provider = new FakeProvider();
+    const seen: ConnectionState[] = [];
+    render(<Harness provider={provider} onState={(state) => seen.push(state)} />);
+    act(() => {
+      provider.emitStatus('connected');
+      provider.emitSync(true);
+    });
+    return { provider, seen };
+  }
+
+  it('takes a storage failure for a line problem, and keeps the board editable', () => {
+    const { provider, seen } = workingBoard();
+    act(() => provider.emitClose(CLOSE_STORAGE_FAILURE));
+
+    expect(distinct(seen)).toEqual(['connecting', 'connected', 'reconnecting']);
+    expect(badge().getAttribute('data-state')).toBe('reconnecting');
+    expect(
+      canEdit(distinct(seen)[distinct(seen).length - 1] as ConnectionState),
+      'the board is readable and the changes it holds go over again on the next connection',
+    ).toBe(true);
+  });
+
+  it('takes a close with no code at all the same way', () => {
+    // A polyfill that reports no code must not be read as "the room refused this board",
+    // which is the mistake that would lock a perfectly good board.
+    const { provider, seen } = workingBoard();
+    act(() => provider.emitClose(null));
+    expect(distinct(seen)).toEqual(['connecting', 'connected', 'reconnecting']);
+    expect(canEdit(distinct(seen)[distinct(seen).length - 1] as ConnectionState)).toBe(true);
+  });
+
+  it('takes a close code that is somebody else\'s answer the same way', () => {
+    // 1003 is the room saying "that was not a change". It is about one message, not about
+    // the board; the badge says nothing about it and the board stays editable.
+    const { provider, seen } = workingBoard();
+    act(() => provider.emitClose(1003));
+    expect(distinct(seen)).toEqual(['connecting', 'connected', 'reconnecting']);
+    expect(badge().getAttribute('data-state')).toBe('reconnecting');
+  });
+
+  it('ends itself the moment the board arrives, without a reload', () => {
+    const provider = new FakeProvider();
+    const seen: ConnectionState[] = [];
+    render(<Harness provider={provider} onState={(state) => seen.push(state)} />);
+    act(() => provider.emitClose(CLOSE_BOARD_LOAD_FAILED));
+    expect(screen.getByTestId('connection-status')).not.toBeNull();
+
+    // The room found the board and sent it. There is no second half to this: nobody reloads
+    // the page, nobody presses anything, and the wait for a connection to *hold* does not
+    // apply to news as good as the board being in your hands.
+    act(() => provider.emitSync(true));
+    expect(distinct(seen)).toEqual(['connecting', 'load_failed', 'connected']);
+    expect(screen.queryByTestId('connection-status')).toBeNull();
+    expect(canEdit('connected')).toBe(true);
+    expect(provider.destroyed).toBe(false);
+    expect(provider.listening).toBe(true);
+  });
+
+  it('does not mistake a load failure for a reconnection the other way round either', () => {
+    // A board that never worked and gets refused: it stays on the load failure rather than
+    // claiming a reconnection that never happened, and it never says "Connecting…" again
+    // under somebody's fingers.
+    const provider = new FakeProvider();
+    const seen: ConnectionState[] = [];
+    render(<Harness provider={provider} onState={(state) => seen.push(state)} />);
+    act(() => provider.emitClose(CLOSE_BOARD_LOAD_FAILED));
+    act(() => provider.emitStatus('connected'));
+    expect(distinct(seen), 'the socket being open is not the board being readable').toEqual([
+      'connecting',
+      'load_failed',
+    ]);
   });
 });

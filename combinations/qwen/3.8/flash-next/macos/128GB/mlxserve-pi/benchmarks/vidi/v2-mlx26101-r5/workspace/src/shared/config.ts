@@ -92,3 +92,25 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
  * the model, the browsers and the server share one machine.
  */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+/* ------------------------------------------------------------------ persistence (story 4) */
+
+/** Compact a board's update log once this many rows have piled up. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** …or once this many bytes of updates have piled up. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/**
+ * Size of one snapshot chunk row. Chosen far below the per-row size limit of
+ * SQLite-backed Durable Objects (2 MiB as documented when this was written, and
+ * 1 MiB in older builds), so a snapshot of any board size is a list of rows that
+ * each fit comfortably.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A board that failed to load is loaded again at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** The board size the persistence tests create and measure (PRD `persist.large_board`). */
+export const PERSIST_TESTED_NOTES = 2000;
+/** How long opening a `PERSIST_TESTED_NOTES` board may take (PRD `persist.large_board`). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the storage tables, kept in `storage_meta.storage_schema_version`. */
+export const STORAGE_SCHEMA_VERSION = 1;

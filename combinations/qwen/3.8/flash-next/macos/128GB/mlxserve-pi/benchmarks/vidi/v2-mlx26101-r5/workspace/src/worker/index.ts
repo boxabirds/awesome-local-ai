@@ -17,6 +17,7 @@
 import { isValidBoardId } from '../shared/board-id';
 import { ROOM_PATH_PREFIX } from '../shared/config';
 import type { BoardRoom } from './board-room';
+import { routeTestHook } from './test-hooks';
 
 /** Bindings declared in `wrangler.jsonc`. */
 export interface Env {
@@ -24,6 +25,12 @@ export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client, served with a single-page-application fallback. */
   ASSETS: Fetcher;
+  /**
+   * `'1'` turns on the storage hooks the persistence e2e tests use to break a board on
+   * purpose. It is a deployment-time variable and is set by nothing in this repo's config,
+   * so a normal build has no such routes. Nothing else enables it: not `'true'`, not `'0'`.
+   */
+  TEST_HOOKS?: string;
 }
 
 /** Every room request starts here; the rest of the path is the board id. */
@@ -70,6 +77,11 @@ export default {
     if (path === '/api' || path.startsWith(API_PREFIX)) {
       return apiError(404, 'not_found', `No such endpoint: ${path}`);
     }
+    // Test-only storage hooks (see `test-hooks.ts`): they have to reach a board's object,
+    // so they are routed before the static client swallows the path. When the deployment has
+    // not switched them on this returns null immediately and nothing here changes.
+    const hook = await routeTestHook(request, env);
+    if (hook) return hook;
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;

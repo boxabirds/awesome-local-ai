@@ -29,6 +29,20 @@ const nightly = {
   use: { ...devices['Desktop Chrome'], viewport },
 };
 
+// Story 4's restart tests. They cannot share the suite's server, because the whole point of
+// them is that the server is stopped and another one is started in its place; they bring a
+// `wrangler dev` of their own, on ports 20796/20797 and a storage directory of their own.
+// Chromium, whatever the matrix is: it is the browser that always starts in here.
+const persistence = {
+  name: 'persistence',
+  testDir: './tests/e2e/persistence',
+  // The root `testIgnore` keeps this directory out of the browser projects, which is how a
+  // commit avoids running a restart twice per browser. Inside its own project the files are
+  // exactly the ones wanted.
+  testIgnore: [] as string[],
+  use: { ...devices['Desktop Chrome'], viewport },
+};
+
 const selected = (process.env.VIDI6_E2E_PROJECTS ?? 'chromium')
   .split(',')
   .map((name) => name.trim())
@@ -37,7 +51,7 @@ const selected = (process.env.VIDI6_E2E_PROJECTS ?? 'chromium')
 export default defineConfig({
   testDir: './tests/e2e',
   // Everything under tests/e2e/nightly belongs to the nightly project and to nothing else.
-  testIgnore: [/[/\\]nightly[/\\]/],
+  testIgnore: [/[/\\]nightly[/\\]/, /[/\\]persistence[/\\]/],
   fullyParallel: true,
   // Each test opens a browser context per person, so the worker count is roughly the
   // number of browsers open at once. Four is plenty for the suite and keeps one machine
@@ -53,7 +67,11 @@ export default defineConfig({
     trace: 'off',
     video: 'off',
   },
-  projects: [...selected.map((name) => allProjects[name as keyof typeof allProjects]), nightly],
+  projects: [
+    ...selected.map((name) => allProjects[name as keyof typeof allProjects]),
+    nightly,
+    persistence,
+  ],
   webServer: {
     command: process.env.VIDI6_E2E_SERVE ?? 'npm run e2e:serve',
     url: baseURL,

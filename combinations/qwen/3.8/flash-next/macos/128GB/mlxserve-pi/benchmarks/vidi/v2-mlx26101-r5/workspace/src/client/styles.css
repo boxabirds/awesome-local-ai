@@ -435,6 +435,22 @@ body {
   border-color: #f2b3ad;
 }
 
+/*
+ * Red: the room could not read this board. Same family as an address that names no board,
+ * because both are "this board is not here" rather than "the way to it is busy". It is the
+ * colour of a thing that is not going to fix itself, which is why it is not the amber of a
+ * retry that is going somewhere.
+ */
+.connection-status--load_failed {
+  color: #b42318;
+  background: #fee4e2;
+  border-color: #f2b3ad;
+}
+
+.connection-status--load_failed::before {
+  animation: connection-pulse 1.2s ease-in-out infinite;
+}
+
 @keyframes connection-pulse {
   0%,
   100% {
@@ -447,7 +463,8 @@ body {
 
 /* A badge that flashes is a badge that says "look at me" while you are typing. */
 @media (prefers-reduced-motion: reduce) {
-  .connection-status--reconnecting::before {
+  .connection-status--reconnecting::before,
+  .connection-status--load_failed::before {
     animation: none;
   }
 }

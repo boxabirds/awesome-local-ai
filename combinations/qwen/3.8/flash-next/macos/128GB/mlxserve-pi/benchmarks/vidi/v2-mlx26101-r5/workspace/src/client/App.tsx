@@ -19,7 +19,7 @@ import { useBoardConnection } from './board/useBoardConnection';
 import { useBoardRoute } from './board/useBoardRoute';
 import { ConnectionStatus } from './board/ConnectionStatus';
 import { InvalidBoard } from './board/InvalidBoard';
-import type { BoardStatus } from './board/connection';
+import { canEdit, type BoardStatus, type ConnectBoardOptions } from './board/connection';
 import { useSelection, type Selection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
@@ -50,6 +50,12 @@ export interface BoardProps {
    * the component tests drive straight into the document.
    */
   boardId?: string;
+  /**
+   * How to connect. Normally nobody passes this: the board dials the room for `boardId`. A
+   * component test passes a provider of its own, which is the only way to have a room that
+   * closes the connection with a particular code on a particular millisecond.
+   */
+  connect?: ConnectBoardOptions;
 }
 
 /**
@@ -65,6 +71,7 @@ export function Board({
   viewport: viewportProp,
   handle,
   boardId,
+  connect,
 }: BoardProps = {}): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [measured, setMeasured] = useState<Size>(measureWindow);
@@ -81,7 +88,7 @@ export function Board({
 
   // The live connection to the room this board lives in (story 3). Created once per
   // board id, and only when there is a board id to connect to.
-  const { status, connection } = useBoardConnection(doc, boardId);
+  const { status, connection } = useBoardConnection(doc, boardId, connect);
   const statusRef = useRef<BoardStatus>(status);
   statusRef.current = status;
   const connectionRef = useRef(connection);
@@ -125,16 +132,45 @@ export function Board({
   const viewportRef = useRef(viewport);
   viewportRef.current = viewport;
 
+  /**
+   * Whether this board may be written to. One connection state says no: the room answered
+   * "I could not read this board", and a change made to a copy of a board that could not be
+   * read is not a change anybody is going to see. A dropped line says yes — see `canEdit`.
+   */
+  const editable = canEdit(status);
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
+
+  /**
+   * The one way a note is opened for editing: from the toolbar-centred create, from a
+   * double-click on the note, from Enter. Going through here means a board that cannot be
+   * written to has one door to shut rather than four.
+   */
+  const startEdit = useCallback((id: string) => {
+    if (!editableRef.current) return;
+    selectionRef.current.startEdit(id);
+  }, []);
+
+  // A board that stops being writable stops being writable *now*, not when the note happens
+  // to close: an editor left open on a board the room cannot read invites text that has
+  // nowhere to go. The note stays selected, which is where the person left it.
+  useEffect(() => {
+    if (editable) return;
+    const current = selectionRef.current;
+    if (current.editingId !== null) current.endEdit('selected');
+  }, [editable]);
+
   /** Creates a note centred on a world point and starts typing in it right away.
    * Used for the toolbar button (screen centre converted once in App) and for a
    * double-click on empty board space (the viewport converts). */
   const createAt = useCallback(
     (world: Point) => {
+      if (!editableRef.current) return;
       const id = createSticky(doc, world);
       if (typeof id !== 'string') return;
-      selection.startEdit(id);
+      startEdit(id);
     },
-    [doc, selection],
+    [doc, startEdit],
   );
 
   /** Toolbar button: a note centred in the middle of the visible board area. */
@@ -179,9 +215,13 @@ export function Board({
       const id = selectionRef.current.selectedId ?? focusedNoteId(event.target);
       if (!id) return;
       if (event.key === 'Enter') {
+        if (!editableRef.current) return;
         event.preventDefault();
-        selectionRef.current.startEdit(id);
+        startEdit(id);
       } else if (event.key === 'Delete' || event.key === 'Backspace') {
+        // A key that does nothing should not swallow the browser's own meaning of it, so
+        // the gate comes before `preventDefault`.
+        if (!editableRef.current) return;
         event.preventDefault();
         deleteObject(doc, id);
         selectionRef.current.select(null);
@@ -189,7 +229,7 @@ export function Board({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc]);
+  }, [doc, startEdit]);
 
   return (
     <div className="vidi6-app" data-testid="app" ref={containerRef}>
@@ -206,14 +246,15 @@ export function Board({
             note={note}
             selected={selection.selectedId === note.id}
             zoom={camera.zoom}
+            editable={editable}
             onDeleted={noteDeleted}
             onEndEdit={selection.endEdit}
             onSelect={selection.select}
-            onStartEdit={selection.startEdit}
+            onStartEdit={startEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createInCentre} />
+      <Toolbar onCreateSticky={createInCentre} canCreate={editable} />
       <ZoomControls
         canZoomIn={canZoomIn(camera)}
         canZoomOut={canZoomOut(camera)}

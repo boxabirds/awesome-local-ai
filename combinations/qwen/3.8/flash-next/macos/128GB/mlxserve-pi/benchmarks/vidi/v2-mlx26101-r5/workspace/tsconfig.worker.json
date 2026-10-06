@@ -12,7 +12,8 @@
   "include": [
     "src/worker",
     "src/shared",
-    "tests/integration"
+    "tests/integration",
+    "tests/unit-workers"
   ],
   "exclude": []
 }

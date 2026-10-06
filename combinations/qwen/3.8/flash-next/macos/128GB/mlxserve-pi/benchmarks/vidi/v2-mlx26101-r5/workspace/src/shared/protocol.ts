@@ -21,6 +21,17 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 
 /** Close code sent to a socket that sent something undecodable. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/**
+ * Close code sent to a client when the board itself could not be loaded.
+ *
+ * It is in the 4500-4599 range, which `y-websocket` reads as "the server decided, and
+ * trying again later is the right response": the provider keeps retrying, which is what
+ * a board that may yet load needs. A 44xx code would stop the retries, and the board
+ * would sit on "couldn't be loaded" forever.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/** Close code sent to every socket when the room could not write a change down. */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 /* ---------------------------------------------------------------- y-protocols/sync sub-types */
 

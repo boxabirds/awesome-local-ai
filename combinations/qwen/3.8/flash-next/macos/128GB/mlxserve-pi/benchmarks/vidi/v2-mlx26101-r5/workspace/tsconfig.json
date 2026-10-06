@@ -21,6 +21,7 @@
   "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
   // The Worker and its integration tests are type-checked with the Workers runtime
   // types instead of the DOM (`tsc -p tsconfig.worker.json`); the two global type
-  // sets cannot coexist in one program.
-  "exclude": ["src/worker", "tests/integration"]
+  // sets cannot coexist in one program. `tests/unit-workers` holds the Worker's own
+  // unit tests, which are pure but written against the Worker's storage types.
+  "exclude": ["src/worker", "tests/integration", "tests/unit-workers"]
 }

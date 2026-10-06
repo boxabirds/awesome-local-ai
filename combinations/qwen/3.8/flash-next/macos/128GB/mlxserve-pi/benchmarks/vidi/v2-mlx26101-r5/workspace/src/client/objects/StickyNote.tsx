@@ -40,6 +40,15 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * False while the board cannot be written to (story 4: the room could not load it).
+   * Everything on the note that would change the board is then stopped at this component:
+   * a press selects and goes no further (so there is no drag session, and nothing that a
+   * drag session could write), a double-click does not open the editor, and the colour and
+   * delete tools are not offered at all. Selection and editing-of-text are view state and
+   * stay available wherever they were already open.
+   */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: EndEditNext): void;
@@ -77,7 +86,18 @@ interface DragState {
  * zoom so the grabbed point stays under the pointer at 50 %, 100 % or 200 %.
  */
 export function StickyNote(props: StickyNoteProps): React.JSX.Element {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit, onDeleted } = props;
+  const {
+    note,
+    doc,
+    zoom,
+    selected,
+    editing,
+    editable = true,
+    onSelect,
+    onStartEdit,
+    onEndEdit,
+    onDeleted,
+  } = props;
   const ref = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -180,6 +200,13 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
     event.stopPropagation();
     if (editing) return; // clicking inside the editor edits text, not the note
     if (event.button !== 0 || event.ctrlKey || event.metaKey) return;
+    if (!editable) {
+      // The note can still be looked at and picked out; it cannot be moved, and there is
+      // deliberately no drag session started here — a session is what every write from a
+      // drag goes through, so not starting one is the whole of the lock.
+      onSelect(note.id);
+      return;
+    }
     const el = ref.current;
     try {
       el?.setPointerCapture?.(event.pointerId);
@@ -270,15 +297,18 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     // A double-click on a note edits it; the board must not create a new note.
     event.stopPropagation();
+    if (!editable) return; // opening the editor would be an invitation to write
     if (!editing) onStartEdit(note.id);
   };
 
   const pickColor = (color: StickyColor) => {
+    if (!editable) return;
     // Only the colour changes: text, position, stacking and selection stay put.
     setStickyColor(doc, note.id, color);
   };
 
   const remove = () => {
+    if (!editable) return;
     if (deleteObject(doc, note.id)) onDeleted?.(note.id);
   };
 
@@ -352,7 +382,7 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
         </div>
       )}
       {fit.overflow ? <div aria-hidden="true" className="sticky-overflow-fade" data-testid="sticky-overflow-fade" /> : null}
-      {selected && !dragging && !editing ? (
+      {selected && !dragging && !editing && editable ? (
         <NoteToolbar color={note.color} onColor={pickColor} onDelete={remove} />
       ) : null}
     </div>
