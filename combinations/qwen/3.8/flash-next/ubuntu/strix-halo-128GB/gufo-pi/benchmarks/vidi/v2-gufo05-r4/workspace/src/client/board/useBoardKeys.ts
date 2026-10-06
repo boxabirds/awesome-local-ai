@@ -54,6 +54,8 @@ export interface BoardKeyOptions {
   onPenTool?(): void;
   /** Story 2's action, now with a key: one note in the middle of the view (`sticky.create`). */
   onCreateSticky?(): void;
+  /** Story 12: open the image file picker. */
+  onImageTool?(): void;
 }
 
 /** Is the caret somewhere the user is typing? Then the keys are theirs. */
@@ -169,6 +171,12 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         if (!canEdit) return;
         event.preventDefault();
         onCreateSticky?.();
+        return;
+      }
+      if (plainKey(event, 'i')) {
+        if (!canEdit) return;
+        event.preventDefault();
+        latest.current.onImageTool?.();
         return;
       }
 

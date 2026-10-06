@@ -44,6 +44,11 @@ export interface ToolbarProps {
    */
   onPenTool?(): void;
   /**
+   * Open the image file picker (story 12, `image.pick`). An action, not a mode: one press,
+   * the OS file picker opens, chosen files appear on the board, and the tool stays on Select.
+   */
+  onImageTool?(): void;
+  /**
    * Which shape the Shape tool will draw (`shape.kinds`). Defaults to the first kind, so a
    * palette that says nothing draws a rectangle.
    */
@@ -97,7 +102,7 @@ function ShapeKindIcon({ kind }: { kind: ShapeKind }): JSX.Element {
 }
 
 export function Toolbar(props: ToolbarProps): JSX.Element {
-  const { onCreateSticky, onSelectTool, onTextTool, onShapeTool, onConnectorTool, onPenTool, onShapeKind, undo } = props;
+  const { onCreateSticky, onSelectTool, onTextTool, onShapeTool, onConnectorTool, onPenTool, onImageTool, onShapeKind, undo } = props;
   const disabled = props.disabled === true;
   const shapeKind = props.shapeKind ?? SHAPE_KINDS[0];
   // The kind menu is open. It is the palette's own business: an open menu is not a tool, and
@@ -273,6 +278,22 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
             opacity="0.55"
             d="M3 18c2.2 0 2.2-1.6 4.4-1.6 1.3 0 1.9.8 1.9.8h1.4S10 16 8.6 16C6.4 16 6.2 18 3 18Z"
           />
+        </svg>
+      </button>
+
+      <button
+        type="button"
+        className="vidi6-tool"
+        data-vidi6="tool-image"
+        aria-label="Image"
+        aria-disabled={disabled}
+        disabled={disabled}
+        title={disabled ? 'This board could not be loaded' : 'Image \u2013 pick a file to place on the board'}
+        onClick={onImageTool}
+      >
+        {/* A picture frame with a mountain and sun: the universal image icon. */}
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M3 4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4Zm2 1v7.6l3-3 3.5 3.5L15 10v1H5Zm8-0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" />
         </svg>
       </button>
 

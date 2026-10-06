@@ -63,6 +63,10 @@ import { CameraProvider, useCameraContext } from '../canvas/useCamera';
 import { registerObjectTypes } from '../objects';
 import { getObjectType } from '../objects/registry';
 import { SharePanel } from '../share/SharePanel';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { ToastContainer, useToast } from '../ui/Toast';
+import { setImageRetryCallback } from '../objects/ImageObject';
 
 // The object types the board can draw. Importing this module is what makes a sticky note
 // exist as a type, so it happens before the first render of anything.
@@ -93,6 +97,12 @@ function Board(props: BoardScreenProps): JSX.Element {
   // provider, and the connection reads `connected`.
   const boardId = props.doc ? undefined : props.boardId;
   const { doc, objects, connection } = useBoardDoc({ boardId, doc: props.doc });
+
+  // Toast for image upload messages
+  const toast = useToast();
+
+  // Viewport wrapper ref for drop point conversion
+  const viewportWrapperRef = useRef<HTMLDivElement | null>(null);
 
   // One undo history per board document (story 8), scoped to this client's own writes.
   // A fresh document — a board that changed identity — gets a fresh, empty history, and
@@ -137,6 +147,26 @@ function Board(props: BoardScreenProps): JSX.Element {
   // tool makes — and deliberately not in the document, because nobody else's pen should change
   // because yours did.
   const pen = usePenOptions();
+
+  // Image insertion (story 12)
+  const viewCentreScreen = { x: viewport.width / 2, y: viewport.height / 2 };
+  const viewCentreWorld = screenToWorld(camera, viewCentreScreen);
+  const imageInsert = useImageInsert({
+    doc,
+    boardId: boardId ?? '',
+    camera,
+    viewportRef: viewportWrapperRef,
+    connection,
+    identityId: '',
+    showToast: toast.show,
+    viewCentre: viewCentreWorld
+  });
+
+  // Wire the retry callback so ImageObject can call it
+  useEffect(() => {
+    setImageRetryCallback(imageInsert.retry);
+    return () => setImageRetryCallback(null);
+  }, [imageInsert.retry]);
 
   const gesture = useTransformGesture({
     doc,
@@ -223,8 +253,16 @@ function Board(props: BoardScreenProps): JSX.Element {
     onShapeTool: chooseShapeTool,
     onConnectorTool: chooseConnectorTool,
     onPenTool: choosePenTool,
-    onCreateSticky: createAtScreenCentre
+    onCreateSticky: createAtScreenCentre,
+    onImageTool: imageInsert.openPicker
   });
+
+  // Paste event: only when the board has focus and no text editor is active
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => imageInsert.onPaste(e);
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [imageInsert.onPaste]);
 
   // Test builds expose what the document holds and how the connection looks, so
   // e2e asserts on real state rather than guessing it from the screen.
@@ -244,6 +282,15 @@ function Board(props: BoardScreenProps): JSX.Element {
 
   return (
     <UndoProvider controller={undoController}>
+      <div
+        ref={viewportWrapperRef}
+        data-vidi6="viewport-wrapper"
+        style={{ position: 'absolute', inset: 0 }}
+        onDragOver={(e) => imageInsert.onDragOver(e.nativeEvent)}
+        onDragEnter={(e) => { if ((e as any).nativeEvent.dataTransfer?.types.includes('Files')) { /* handled by hook counter */ }}}
+        onDragLeave={(e) => imageInsert.onDragLeave(e.nativeEvent)}
+        onDrop={(e) => imageInsert.onDrop(e.nativeEvent)}
+      >
       <BoardViewport
         doc={doc}
         canCreateSticky={editable}
@@ -342,6 +389,7 @@ function Board(props: BoardScreenProps): JSX.Element {
         onShapeTool={chooseShapeTool}
         onConnectorTool={chooseConnectorTool}
         onPenTool={choosePenTool}
+        onImageTool={imageInsert.openPicker}
         shapeKind={activeTool.shapeKind}
         onShapeKind={activeTool.setShapeKind}
         disabled={!editable}
@@ -371,6 +419,24 @@ function Board(props: BoardScreenProps): JSX.Element {
       {/* Share lives here rather than in the toolbar: the toolbar is for making things on
           the board, and this is about who else is looking at it. */}
       {boardId !== undefined && <SharePanel boardId={boardId} />}
+      </div>
+
+      {/* Drop highlight: dashed outline over the board while files are dragged over it */}
+      {imageInsert.dropActive && <DropHighlight />}
+
+      {/* Hidden file input for the Image tool picker */}
+      <input
+        ref={imageInsert.fileInputRef}
+        type="file"
+        multiple
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        style={{ display: 'none' }}
+        data-vidi6="image-file-input"
+        onChange={(e) => imageInsert.onFileInputChange(e.nativeEvent)}
+      />
+
+      {/* Toast messages */}
+      <ToastContainer messages={toast.messages} onDismiss={toast.dismiss} />
     </UndoProvider>
   );
 }

@@ -1315,3 +1315,87 @@ body {
 .vidi6-stroke-hit {
   pointer-events: stroke;
 }
+
+/* Image objects (story 12) */
+
+.vidi6-image-object {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.vidi6-image-uploading,
+.vidi6-image-unavailable,
+.vidi6-image-unfinished {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8eaed;
+  border: 1px solid #d0d3d8;
+}
+
+.vidi6-image-failed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fdeaea;
+  border: 2px solid #e9a0a0;
+}
+
+.vidi6-image-status {
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-align: center;
+  user-select: none;
+}
+
+/* Drop highlight: dashed outline over the board while files are dragged over it */
+.vidi6-drop-highlight {
+  position: absolute;
+  inset: 0;
+  border: 3px dashed #2f6feb;
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 10000;
+  background: rgba(47, 111, 235, 0.04);
+}
+
+/* Toast (story 12) */
+.vidi6-toast-container {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 20000;
+  pointer-events: none;
+}
+
+.vidi6-toast {
+  background: var(--ink);
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.vidi6-image-retry {
+  margin-top: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  border: 1px solid #e9a0a0;
+  border-radius: 4px;
+  background: #fff;
+  color: #8f1d1d;
+  cursor: pointer;
+}
+
+.vidi6-image-retry:hover {
+  background: #fdeaea;
+}

@@ -3,6 +3,7 @@
 // Runtime types generated with workerd@1.20261001.1 2026-09-17
 interface __BaseEnv_Env {
 	ASSETS: Fetcher;
+	ASSETS_BUCKET: R2Bucket;
 	BOARD_ROOM: DurableObjectNamespace<import("./src/worker/index").BoardRoom>;
 }
 declare namespace Cloudflare {

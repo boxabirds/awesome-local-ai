@@ -398,3 +398,32 @@ export const STROKE_MIN_SIZE_WORLD = 4;
  * so one unreachable service costs one backoff rhythm however the app is knocking.
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+/* -------------------------------------------------------- drop images (story 12) */
+
+/** The image types accepted for upload. */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** Largest image file the board accepts, in bytes (10 MB). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Most images that can be added in one action. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/** Longest side of an image placed on the board, in world units. */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** Smallest an image may be resized to, in world units. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** Gap between images placed in a row, in world units. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/** An upload older than this (ms) is considered unfinished. */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** Cache-Control max-age for served assets, in seconds (one year). */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/** How many bytes to read from the head of a file for magic-byte type sniffing. */
+export const IMAGE_SNIFF_BYTES = 12;

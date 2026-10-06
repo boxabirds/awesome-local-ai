@@ -24,11 +24,13 @@ import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { handleTestHookRequest, testHooksEnabled, TEST_HOOK_PREFIX } from './test-hooks';
+import { handleUpload, handleServe } from './assets';
 
 /** Bindings declared in `wrangler.jsonc`. */
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   /**
    * Set to `1` only by the end-to-end web server (`playwright.config.ts` passes
    * `--var TEST_HOOKS:1`). It turns on the `/__test/` board-surgery routes, and nothing
@@ -46,6 +48,9 @@ const BOARDS_PATH = '/api/boards';
 
 /** Everything under this prefix is one board's existence. */
 const BOARDS_PREFIX = '/api/boards/';
+
+/** Everything under this prefix is an asset serve request. */
+const ASSETS_SERVE_PREFIX = '/api/assets/';
 
 /** Is this the WebSocket handshake? (The client sends `Upgrade: websocket`.) */
 function wantsWebSocketUpgrade(request: Request): boolean {
@@ -123,9 +128,26 @@ async function handleBoardApi(pathname: string, request: Request, env: Env): Pro
     if (request.method !== 'POST') return methodNotAllowed();
     return createBoardResponse(env);
   }
-  if (!pathname.startsWith(BOARDS_PREFIX)) return null;
+  // POST /api/boards/:id/assets — upload an image to a board
+  if (pathname.startsWith(BOARDS_PREFIX)) {
+    const rest = pathname.slice(BOARDS_PREFIX.length);
+    if (rest.endsWith('/assets')) {
+      const id = rest.slice(0, -'/assets'.length);
+      if (request.method !== 'POST') return methodNotAllowed();
+      return handleUpload(request, env, id);
+    }
+    if (request.method !== 'GET') return methodNotAllowed();
+    return checkBoardResponse(segmentAfter(pathname, BOARDS_PREFIX), env);
+  }
+  return null;
+}
+
+/** Serve an image asset: GET /api/assets/:boardId/:assetId */
+async function handleAssetServe(pathname: string, request: Request, env: Env): Promise<Response | null> {
+  if (!pathname.startsWith(ASSETS_SERVE_PREFIX)) return null;
   if (request.method !== 'GET') return methodNotAllowed();
-  return checkBoardResponse(segmentAfter(pathname, BOARDS_PREFIX), env);
+  const key = pathname.slice(ASSETS_SERVE_PREFIX.length);
+  return handleServe(env, key);
 }
 
 export default {
@@ -140,6 +162,9 @@ export default {
 
     const api = await handleBoardApi(url.pathname, request, env);
     if (api !== null) return api;
+
+    const asset = await handleAssetServe(url.pathname, request, env);
+    if (asset !== null) return asset;
 
     if (!url.pathname.startsWith(ROOM_PREFIX)) return env.ASSETS.fetch(request);
 

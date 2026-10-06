@@ -13,16 +13,19 @@
 import { STICKY_OBJECT_TYPE } from '../../shared/board-model';
 import {
   CONNECTOR_MIN_LENGTH_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STROKE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD
 } from '../../shared/config';
 import { CONNECTOR_OBJECT_TYPE } from '../../shared/objects/connector';
+import { IMAGE_OBJECT_TYPE } from '../../shared/objects/image';
 import { SHAPE_OBJECT_TYPE } from '../../shared/objects/shape';
 import { STROKE_OBJECT_TYPE } from '../../shared/objects/stroke';
 import { TEXT_OBJECT_TYPE } from '../../shared/objects/text';
 import { ConnectorObject, connectorHitTest } from './ConnectorObject';
+import { ImageObject } from './ImageObject';
 import { ShapeObject } from './ShapeObject';
 import { StrokeObject, strokeHitTest } from './StrokeObject';
 import { StickyNote } from './StickyNote';
@@ -91,6 +94,16 @@ export function registerObjectTypes(): void {
     minSize: STROKE_MIN_SIZE_WORLD,
     editableText: false,
     hitTest: strokeHitTest
+  });
+  // Images (story 12): resizable with aspect locked and a minimum size, no editable text,
+  // hit test is the bounding box.
+  registerObjectType(IMAGE_OBJECT_TYPE, {
+    Component: ImageObject,
+    resizable: true,
+    aspectLocked: true,
+    minSize: IMAGE_MIN_SIZE_WORLD,
+    editableText: false,
+    hitTest: hitTestBounds
   });
 }
 
