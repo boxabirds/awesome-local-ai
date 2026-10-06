@@ -1,3 +1,52 @@
+commit c27b328edc2985d2289d2e19c0ff5899d05a76f2
+vidi-agent  Tue Oct 6 11:40:59 2026 +0100
+
+    harness: snapshot after story 7 (uncommitted agent work)
+
+
+ src/client/App.tsx                               | 217 ++++++------
+ src/client/board/Marquee.tsx                     | 124 +++++++
+ src/client/board/SelectionBar.tsx                |  76 ++++
+ src/client/board/SelectionOverlay.tsx            | 154 +++++++++
+ src/client/board/useBoardDoc.ts                  |  40 ++-
+ src/client/board/useBoardKeys.ts                 | 189 ++++++++++
+ src/client/board/useSelection.ts                 | 183 ++++++++--
+ src/client/board/useTransformGesture.ts          | 423 +++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx              |  60 +++-
+ src/client/objects/StickyNote.tsx                | 241 +++----------
+ src/client/objects/registry.tsx                  |  98 ++++++
+ src/shared/board-model.ts                        | 364 +++++++++++++++----
+ src/shared/config.ts                             |  21 ++
+ src/shared/geometry.ts                           | 259 ++++++++++++++
+ tests/component/BoardKeys.test.tsx               | 272 +++++++++++++++
+ tests/component/Marquee.test.tsx                 | 183 ++++++++++
+ tests/component/SelectionBar.test.tsx            | 198 +++++++++++
+ tests/component/TransformGesture.test.tsx        | 342 ++++++++++++++++++
+ tests/component/boardFixture.ts                  | 263 +++++++++++++-
+ tests/e2e/helpers/board.ts                       |   4 +-
+ tests/e2e/helpers/selection.ts                   | 271 +++++++++++++++
+ tests/e2e/selection-remote-delete.spec.ts        | 143 ++++++++
+ tests/e2e/selection.spec.ts                      | 324 +++++++++++++++++
+ tests/fixtures/boardHarness.tsx                  | 184 ++++++++++
+ tests/fixtures/boards.ts                         |   8 +-
+ tests/fixtures/testbox.tsx                       |  88 +++++
+ tests/integration/board-room-persistence.test.ts |   4 +-
+ tests/integration/board-room.test.ts             |   4 +-
+ tests/integration/board-store.test.ts            |  40 +--
+ tests/integration/helpers/ws-client.ts           |   8 +-
+ tests/unit/board-model-group.test.ts             | 381 ++++++++++++++++++++
+ tests/unit/geometry.test.ts                      | 223 ++++++++++++
+ tests/unit/registry.test.ts                      | 101 ++++++
+ tests/unit/selection-reducer.test.ts             | 154 +++++++++
+ 34 files changed, 5181 insertions(+), 463 deletions(-)
+commit f287fdfc055f29ad9743bc55e83de8aa90cae8a2
+vidi-agent  Tue Oct 6 07:35:35 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 41 +++++++++++++----------------------------
+ 1 file changed, 13 insertions(+), 28 deletions(-)
 commit 51b7e5fb71250dcf6d0c0d4313c91f233802752e
 agent  Tue Oct 6 07:29:37 2026 +0100
 
