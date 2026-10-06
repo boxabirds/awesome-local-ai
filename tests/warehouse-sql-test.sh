@@ -45,8 +45,10 @@ assert_fails "it ignores prose naming another column" offends "every other group
 echo
 echo "and no committed file treats a run name as unique"
 hits=0
+SELF="tests/$(basename "${BASH_SOURCE[0]}")"
 while IFS= read -r f; do
-  case "$f" in *node_modules/*) continue;; esac
+  # This file is the one place the pattern has to appear: its fixtures above are what prove the detector works.
+  case "$f" in *node_modules/*) continue;; "$SELF") continue;; esac
   [[ -f "$REPO_ROOT/$f" ]] || continue
   while IFS=: read -r lineno line; do
     [[ -n "${lineno:-}" ]] || continue

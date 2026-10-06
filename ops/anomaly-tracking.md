@@ -699,6 +699,27 @@ test that would reproduce it. Details under the entries.
 - **Status:** worked around by re-running the combination's installer on the machine. Open: the general case is
   unguarded, and the same staleness applies to every combination's launcher and profile on every node.
 
+---
+
+### A-047 — A run standing at 26 of 27 waited two days and nineteen hours behind eight jobs, because the only way to correct a job was to cancel it and submit it again
+- **First seen:** 2026-10-03 22:11 BST (the resubmission) · **Last seen:** 2026-10-06 16:44 BST (moved to the front)
+- **Where:** `dbench`'s per-node queue (`tools/dbench/src/server.rs`); the M5 Max, job `vidi-v2-mlx26101-r2-again1`, run `v2-mlx26101-r2` on `qwen/3.8/flash-next/macos/128GB/mlxserve-pi`.
+- **Observed:** `v2-mlx26101-r2` was the strongest run in progress — 6/6, 20/20 and **26 of 27** after three
+  stories — and was cancelled part-way through story 4 on 3 Oct at 22:11 BST, deliberately, to restart it on
+  `harness-v2026.10.03.1` so that machine readings would be recorded (the cancel reason says so). It was
+  resubmitted the same second as `-again1`. The queue is strictly submission order and `submit` appends, so the
+  resubmission went to the back: at that moment eight jobs ahead of it had not started — `vidi-v2-mlx26101-r3`
+  (which began 311 s later), `-r4`, `-r5`, and five MTPLX runs. r3 ran until 5 Oct, r4 until 6 Oct, r5 is still
+  running. Nobody decided the run was less important; the only verb available put it there, and there was no
+  priority, no reorder and no restart-in-place. It was moved to the front on 6 Oct at 16:44 BST and is still
+  queued. **2 days 19 hours (239,577 s) of ordering, chosen by nobody.**
+- **Bucket:** internal bug (`dbench`'s queue: it had one way to express every correction, and that way reordered the work) — **confidence high**.
+- **Status:** resolved 6 Oct. `dbench move <node> <id> [--before <other>]` moves a queued job to the front or
+  before another; a held node can be reordered, a running job cannot and says so, and moving a job before itself
+  is a no-op. Order is all it changes. `/v1/node` now reports the queue, so the order is read rather than
+  inferred from submission times. The deeper cause — that a correction had to be expressed as a cancel — is not
+  fixed: there is still no verb for "restart this job on the current release in place".
+
 
 ---
 
@@ -708,13 +729,13 @@ By bucket (A-018 is a scheduling flag and has no bucket):
 
 | Bucket | Open: needs someone | Open: watched | Explained / resolved | Total |
 |---|---|---|---|---|
-| internal bug | 2 (A-035, A-046) | 7 (A-016, A-020, A-028, A-029, A-031, A-034, A-037) | 12 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-015, A-023, A-025, A-032, A-045) | 21 |
+| internal bug | 2 (A-035, A-046) | 7 (A-016, A-020, A-028, A-029, A-031, A-034, A-037) | 13 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-015, A-023, A-025, A-032, A-045, A-047) | 22 |
 | genuine LLM behaviour | 0 | 4 (A-010, A-012, A-013, A-026) | 3 (A-006, A-007, A-017) | 7 |
 | stuck job | 0 | 0 | 0 | 0 |
 | broken pipeline | 1 (A-011) | 1 (A-030) | 1 (A-024) | 3 |
 | environment | 1 (A-022) | 1 (A-005) | 0 | 2 |
 | unexplained | 0 | 3 (A-019, A-021, A-036) | 0 | 3 |
-| **Total** | **4** (+A-018) | **15** | **16** | **35** (+A-018, A-027, A-033) |
+| **Total** | **4** (+A-018) | **15** | **17** | **36** (+A-018, A-027, A-033) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
@@ -728,5 +749,5 @@ By combination (an anomaly is listed under the one it mainly concerns):
 | qwen 3.8 flash-next, strata-pi | the RTX 4090 machine | A-045 |
 | qwen 3.8 27B and Swift 27B (v1), llamacpp-pi | the RTX 4090 machine | A-009 |
 | several | — | A-008 |
-| none (harness tests, CI, dbench, the fault feed) | — | A-023, A-024, A-025, A-031, A-032, A-034, A-036, A-046 |
+| none (harness tests, CI, dbench, the fault feed) | — | A-023, A-024, A-025, A-031, A-032, A-034, A-036, A-046, A-047 |
 | older runs, several stacks | all four | A-028, A-029, A-030 |
