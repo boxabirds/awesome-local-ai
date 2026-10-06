@@ -13,12 +13,15 @@
  *   meta: Y.Map { schemaVersion: 1 }
  *   objects: Y.Map<string /* id *\/, Y.Map>
  *     <id>: Y.Map {
- *       type: 'sticky'
+ *       type: 'sticky'                                    // story 2
  *       x: number, y: number   // top-left corner, world units
  *       color: StickyColor
  *       text: Y.Text
  *       z: number              // stacking order, higher is drawn on top
  *       createdAt: number      // epoch milliseconds
+ *     }
+ *     <id>: Y.Map {           // story 9: the schema of every other type lives with that type
+ *       type: 'text', ..., text: Y.Text, size, widthMode  // see objects/text.ts
  *     }
  * ```
  *
@@ -36,9 +39,11 @@ import {
   type StickyColor,
 } from './config';
 import { type Point, type Rect, rectContains } from './geometry';
+import { readTextObject, type TextSnapshot } from './objects/text';
 
-/** Transaction origin for changes made by this user (story 3 never echoes these back). */
-export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6-local');
+export { LOCAL_ORIGIN } from './y-origin';
+export type { TextSnapshot } from './objects/text';
+import { LOCAL_ORIGIN } from './y-origin';
 
 /** The schema version this build writes and understands. */
 export const SCHEMA_VERSION = 1;
@@ -62,8 +67,18 @@ export interface StickySnapshot {
   readonly height?: number;
 }
 
-/** Any board object snapshot (extends with new types in stories 9–12). */
-export type ObjectSnapshot = StickySnapshot;
+/** Any board object snapshot (stories 10–12 add their types to this union). */
+export type ObjectSnapshot = StickySnapshot | TextSnapshot;
+
+/** True when a snapshot is a sticky note (narrows the `ObjectSnapshot` union). */
+export function isStickySnapshot(obj: ObjectSnapshot): obj is StickySnapshot {
+  return obj.type === 'sticky';
+}
+
+/** True when a snapshot is a text object (story 9). */
+export function isTextSnapshot(obj: ObjectSnapshot): obj is TextSnapshot {
+  return obj.type === 'text';
+}
 
 type ObjectsMap = Y.Map<Y.Map<unknown>>;
 
@@ -89,8 +104,11 @@ function textOf(raw: Y.Map<unknown>): string {
  * Reads one object into a snapshot, or `undefined` when it is not a note this build
  * understands (an unknown `type` from a later story, or a malformed record).
  */
-function readObject(id: string, raw: Y.Map<unknown>): StickySnapshot | undefined {
-  if (raw.get('type') !== 'sticky') return undefined;
+function readObject(id: string, raw: Y.Map<unknown>): ObjectSnapshot | undefined {
+  const type = raw.get('type');
+  // an unknown `type` from a later story is skipped rather than crashing the board
+  if (type === 'text') return readTextObject(id, raw);
+  if (type !== 'sticky') return undefined;
   const x = raw.get('x');
   const y = raw.get('y');
   const z = raw.get('z');
@@ -119,14 +137,14 @@ function compareStack(a: { z: number; id: string }, b: { z: number; id: string }
 }
 
 /** Reads and validates every object in the document. */
-function readAll(doc: Y.Doc): StickySnapshot[] {
-  const notes: StickySnapshot[] = [];
+function readAll(doc: Y.Doc): ObjectSnapshot[] {
+  const items: ObjectSnapshot[] = [];
   for (const [id, raw] of objectsOf(doc)) {
     if (!(raw instanceof Y.Map)) continue;
-    const note = readObject(id, raw);
-    if (note) notes.push(note);
+    const item = readObject(id, raw);
+    if (item) items.push(item);
   }
-  return notes.sort(compareStack);
+  return items.sort(compareStack);
 }
 
 /** True when `name` is one of the six palette colour names. */
@@ -259,9 +277,14 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   return text instanceof Y.Text ? text : undefined;
 }
 
-/** All notes as immutable data, in render order (sorted by `z` then `id`). */
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+/** Every object as immutable data, in render order (sorted by `z` then `id`). */
+export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   return Object.freeze(readAll(doc));
+}
+
+/** The sticky notes only, in render order (what stories 2–8 render). */
+export function stickySnapshot(doc: Y.Doc): readonly StickySnapshot[] {
+  return Object.freeze(readAll(doc).filter(isStickySnapshot));
 }
 
 // ---- Story 7: generic group operations -------------------------------------------

@@ -16,7 +16,7 @@ import {
   initDoc,
   LOCAL_ORIGIN,
   setStickyColor,
-  snapshot,
+  stickySnapshot,
 } from '../../src/shared/board-model';
 import { createUndo, type UndoController } from '../../src/client/board/undo';
 import { UNDO_CAPTURE_TIMEOUT_MS } from '../../src/shared/config';
@@ -27,7 +27,7 @@ const MARGIN = 250;
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 function noteOf(doc: Y.Doc, id: string) {
-  return snapshot(doc).find((note) => note.id === id);
+  return stickySnapshot(doc).find((note) => note.id === id);
 }
 
 /** A board with one fresh note, and the undo controller over it. */
@@ -59,11 +59,11 @@ describe('undo.boundaries: typing bursts', () => {
 
     expect(undo.undo()).toBe(true);
     expect(text.toString()).toBe(''); // the entire burst fell away at once
-    expect(snapshot(doc).map((note) => note.id)).toEqual([id]); // the note itself is untouched
+    expect(stickySnapshot(doc).map((note) => note.id)).toEqual([id]); // the note itself is untouched
 
     // and the step below it is the creation, still waiting
     expect(undo.undo()).toBe(true);
-    expect(snapshot(doc)).toHaveLength(0);
+    expect(stickySnapshot(doc)).toHaveLength(0);
   });
 
   test('TC-13: a pause of UNDO_CAPTURE_TIMEOUT_MS - MARGIN stays one step', async () => {

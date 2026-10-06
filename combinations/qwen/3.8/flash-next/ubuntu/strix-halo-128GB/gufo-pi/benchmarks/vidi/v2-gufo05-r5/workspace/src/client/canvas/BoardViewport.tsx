@@ -16,7 +16,10 @@ import {
   WHEEL_LINE_MODE_PIXELS,
   WHEEL_PAGE_MODE_PIXELS,
   WHEEL_ZOOM_SENSITIVITY,
+  TEXT_TOOL_DOUBLE_CLICK_GUARD_MS,
+  TEXT_TOOL_DOUBLE_CLICK_GUARD_PX,
 } from '../../shared/config';
+import type { Tool } from '../board/useTool';
 
 /** WheelEvent.deltaMode values (the static constants are not in every environment). */
 const DELTA_MODE_LINE = 1;
@@ -75,6 +78,14 @@ export interface BoardViewportProps {
   onMarqueeEnd?(): void;
   /** Marquee was cancelled (pointercancel/escape): discard without selecting. */
   onMarqueeCancel?(): void;
+  /**
+   * Story 9: the tool the board is on. While it is `text`, a click anywhere on the board - on an
+   * object or on empty space - neither pans, selects nor moves anything: it asks for a text object
+   * at that point.
+   */
+  tool?: Tool;
+  /** Story 9: the Text tool clicked the board: write here (screen coordinates). */
+  onCreateText?(point: Point): void;
 }
 
 /**
@@ -94,6 +105,8 @@ export function BoardViewport({
   onMarqueeMove,
   onMarqueeEnd,
   onMarqueeCancel,
+  tool = 'select',
+  onCreateText,
 }: BoardViewportProps) {
   const {
     camera,
@@ -113,6 +126,9 @@ export function BoardViewport({
   // on empty space clears the selection instead.
   const panningGuard = useRef({ active: false, moved: false, startX: 0, startY: 0 });
   const marqueeGuard = useRef({ active: false, moved: false, startX: 0, startY: 0 });
+  // Where and when the Text tool last placed an object, to tell a deliberate double-click on empty
+  // space from the second click of the gesture that placed a text.
+  const placedText = useRef<{ x: number; y: number; at: number } | null>(null);
 
   const setNode = useCallback(
     (el: HTMLDivElement | null) => {
@@ -207,6 +223,26 @@ export function BoardViewport({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [zoomStep, reset]);
 
+  // ---- the Text tool owns the board (story 9) ----
+  //
+  // Captured on the surface itself, so it runs before any object's own pointer handler: with the
+  // Text tool up, a click on a sticky note is still a click *on the board*, and the note is not
+  // selected, moved, nor edited. `stopPropagation` keeps the gesture away from the pan, marquee,
+  // selection and object handlers alike.
+  useEffect(() => {
+    if (!node || tool !== 'text') return;
+    const onPlacementDown = (event: PointerEvent) => {
+      if (event.pointerType === 'touch') return; // touch navigation is out of scope (story 1)
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      placedText.current = { x: event.clientX, y: event.clientY, at: Date.now() };
+      onCreateText?.({ x: event.clientX, y: event.clientY });
+    };
+    node.addEventListener('pointerdown', onPlacementDown, true);
+    return () => node.removeEventListener('pointerdown', onPlacementDown, true);
+  }, [node, tool, onCreateText]);
+
   // ---- pointer drag ----
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'touch') return; // touch navigation is out of scope (story 1)
@@ -285,6 +321,17 @@ export function BoardViewport({
     const target = e.target as HTMLElement | null;
     // a double-click on a note edits that note; only empty space creates one
     if (target?.closest('[data-board-object]')) return;
+    // With the Text tool up there is no double-click action: those clicks placed text.
+    if (tool === 'text') return;
+    // …and the second click of the gesture that placed a text is not a request for a sticky note.
+    const placed = placedText.current;
+    if (
+      placed &&
+      Date.now() - placed.at <= TEXT_TOOL_DOUBLE_CLICK_GUARD_MS &&
+      Math.hypot(e.clientX - placed.x, e.clientY - placed.y) <= TEXT_TOOL_DOUBLE_CLICK_GUARD_PX
+    ) {
+      return;
+    }
     e.preventDefault();
     // read-only is read-only: the double-click is swallowed, not answered with a note the
     // person will lose when the board finally loads (story 4)
@@ -303,6 +350,7 @@ export function BoardViewport({
       data-testid="board-viewport"
       data-board-surface
       data-interaction-state={marqueeing ? 'marquee' : panning ? 'panning' : 'idle'}
+      data-tool={tool}
       data-camera-x={camera.x}
       data-camera-y={camera.y}
       data-camera-zoom={camera.zoom}

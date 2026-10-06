@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 import type { Camera } from './camera';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
 import type { ConnectionState } from '../sync/connectBoard';
 
 /**
@@ -19,6 +19,8 @@ export interface Vidi6TestHooks {
   getDoc(): Y.Doc;
   /** The notes in the document, in render order. */
   getNotes(): readonly StickySnapshot[];
+  /** Every object in the document, notes and text alike, in render order (story 9). */
+  getObjects(): readonly ObjectSnapshot[];
   /** What `connectBoard` currently reports about the live connection (story 3). */
   connectionState(): ConnectionState;
   /**
@@ -28,6 +30,11 @@ export interface Vidi6TestHooks {
   stateVector(): number[];
   /** Creates a sticky note at the given world centre; returns its id. */
   createNote(x: number, y: number): string;
+  /**
+   * Creates a text object with its top-left at the given world point; returns its id, or `''`
+   * when the point was not usable (story 9).
+   */
+  createTextAt(x: number, y: number): string;
 }
 
 declare global {

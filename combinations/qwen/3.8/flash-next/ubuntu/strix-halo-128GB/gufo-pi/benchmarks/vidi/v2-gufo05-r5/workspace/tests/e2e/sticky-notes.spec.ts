@@ -86,7 +86,7 @@ test.describe('creating notes', () => {
     await expect(page.getByTestId('sticky-note-input')).toBeVisible();
     await expect(page.getByTestId('create-sticky-button')).toHaveAttribute(
       'title',
-      'Sticky note – or double-click the board',
+      'Sticky note (N) – or double-click the board',
     );
   });
 

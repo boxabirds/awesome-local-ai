@@ -89,6 +89,56 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 /** The colour of a newly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+// ---- Free text (story 9) --------------------------------------------------------
+
+/**
+ * The widest an automatic text box gets: a line longer than this is wrapped instead of
+ * stretching across the board (PRD text.auto_width).
+ */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** The narrowest width a side handle may set (PRD text.fixed_width). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Longest text object; characters beyond this are never stored (PRD text.limit). */
+export const TEXT_MAX_CHARS = 5000;
+
+/** The four size presets, in world units of font size (PRD text.size). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** The size of a newly created text object. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Line spacing multiplier: height = lines × font size × this (PRD text.height). */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** The board's standard sans-serif for text objects (PRD readability). */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/**
+ * Headroom added to the measured width of an automatic text box, so a browser whose
+ * real font is slightly wider than the measured one still does not wrap the line.
+ */
+export const TEXT_BOX_PADDING_WORLD = 4;
+
+/**
+ * Average glyph width as a fraction of the font size, used to estimate a line's width
+ * when no canvas is available to measure with (story 9 error path).
+ */
+export const TEXT_ESTIMATE_GLYPH_RATIO = 0.52;
+
+/**
+ * How long after placing a text object a double-click on the board is still considered the second
+ * half of that same gesture, and so is not a request to create a sticky note (story 9). Browsers
+ * treat two clicks within roughly half a second as a double-click; the same window is used here.
+ */
+export const TEXT_TOOL_DOUBLE_CLICK_GUARD_MS = 500;
+
+/** How close to the placed point that second click has to be, in screen pixels. */
+export const TEXT_TOOL_DOUBLE_CLICK_GUARD_PX = 16;
+
 // ---- Live collaboration (story 3) ------------------------------------------
 
 /**

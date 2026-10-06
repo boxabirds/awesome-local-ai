@@ -20,6 +20,7 @@ import {
   moveObject,
   setStickyColor,
   snapshot,
+  stickySnapshot,
   type StickySnapshot,
 } from '../../src/shared/board-model';
 import {
@@ -79,7 +80,7 @@ function writeRawObject(
 }
 
 function getNote(doc: Y.Doc, id: string): StickySnapshot | undefined {
-  return snapshot(doc).find((note) => note.id === id);
+  return stickySnapshot(doc).find((note) => note.id === id);
 }
 
 describe('board.model.create', () => {

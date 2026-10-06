@@ -134,7 +134,16 @@ describe('toolbar.board', () => {
   test('the Sticky note button has the documented accessible name and description', () => {
     renderBoard();
     const button = screen.getByTestId('create-sticky-button');
-    expect(button).toHaveAccessibleName('Sticky note');
-    expect(button).toHaveAttribute('title', 'Sticky note – or double-click the board');
+    expect(button).toHaveAccessibleName('Sticky note (N)');
+    expect(button).toHaveAttribute('title', 'Sticky note (N) – or double-click the board');
+  });
+
+  test('the two tool buttons have the documented names and the Select one is on', () => {
+    renderBoard();
+    const select = screen.getByRole('button', { name: 'Select (V)' });
+    const text = screen.getByRole('button', { name: 'Text (T)' });
+    expect(select).toHaveAttribute('aria-pressed', 'true');
+    expect(text).toHaveAttribute('aria-pressed', 'false');
+    expect(text).toHaveAttribute('title', 'Text (T) – click the board to write');
   });
 });

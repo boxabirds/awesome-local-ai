@@ -14,15 +14,13 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import * as Y from 'yjs';
 import {
   deleteObject,
   getStickyText,
   setStickyColor,
   type StickySnapshot,
 } from '../../shared/board-model';
-import type { EndEditNext } from '../board/useSelection';
-import type { UndoController } from '../board/undo';
+import type { ObjectProps } from './ObjectProps';
 import {
   STICKY_COLORS,
   STICKY_FONT_MAX_PX,
@@ -34,28 +32,8 @@ import { fitFontSize, STICKY_TEXT_BOX_WORLD } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 import { NoteToolbar } from './NoteToolbar';
 
-export interface StickyNoteProps {
+export interface StickyNoteProps extends ObjectProps {
   note: StickySnapshot;
-  doc: Y.Doc;
-  /** Current board zoom, so text fit can account for it. */
-  zoom: number;
-  selected: boolean;
-  editing: boolean;
-  dragging: boolean;
-  /**
-   * Whether this note may be changed (story 4). False while the room could not load the board:
-   * the note can still be selected and read, but it cannot be dragged, typed in, recoloured or
-   * deleted.
-   */
-  canEdit?: boolean;
-  onSelect(id: string): void;
-  onToggle(id: string): void;
-  onStartEdit(id: string): void;
-  onEndEdit(next?: EndEditNext): void;
-  /** The generic transform gesture handler for move and shift-click toggle. */
-  onObjectPointerDown(e: ReactPointerEvent, id: string): void;
-  /** Story 8: this person's history, for the note's own commands and the text editor. */
-  undo?: UndoController | null;
 }
 
 export function StickyNote({

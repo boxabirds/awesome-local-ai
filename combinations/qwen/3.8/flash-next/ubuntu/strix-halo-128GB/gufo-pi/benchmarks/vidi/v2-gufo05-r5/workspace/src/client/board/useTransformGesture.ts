@@ -7,6 +7,7 @@
  */
 import { useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import * as Y from 'yjs';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import {
   moveObjects,
   resizeObjects,
@@ -156,11 +157,29 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     if (g.handle.includes('w')) finalBBox.x = g.startBBox.x + g.startBBox.width - finalWidth;
     if (g.handle.includes('n')) finalBBox.y = g.startBBox.y + g.startBBox.height - finalHeight;
 
-    const rectsMap = new Map<string, Rect>();
+    // Every other type takes its scaled rect. A text object is the exception (design key
+    // decision 2): its height belongs to its content, and its font is a choice the handles never
+    // make. So a text is always repositioned with the group, given a width only when the drag came
+    // from a side - always for a side handle, and for a text that already has a width of its own -
+    // and the height is then re-measured by `useTextBoxSync`, which wraps.
+    const horizontal = g.handle === 'e' || g.handle === 'w';
+    const dragsWidth = g.handle.includes('e') || g.handle.includes('w');
+    const group = new Map<string, Rect>();
+    const moved = new Map<string, { x: number; y: number }>();
+    const widths = new Map<string, number>();
     for (const [id, startRect] of g.startRects) {
-      rectsMap.set(id, scaleWithin(startRect, g.startBBox, finalBBox));
+      const rect = scaleWithin(startRect, g.startBBox, finalBBox);
+      const object = snapshotRef.current.find((o) => o.id === id);
+      if (object && object.type === 'text') {
+        moved.set(id, { x: rect.x, y: rect.y });
+        if (horizontal || (object.widthMode === 'fixed' && dragsWidth)) widths.set(id, rect.width);
+        continue;
+      }
+      group.set(id, rect);
     }
-    resizeObjects(doc, rectsMap);
+    resizeObjects(doc, group);
+    if (moved.size > 0) moveObjects(doc, moved);
+    for (const [id, width] of widths) setTextWidthFixed(doc, id, width);
   }, [doc]);
 
   /** Attaches window-level move/up/cancel listeners for a move gesture. */

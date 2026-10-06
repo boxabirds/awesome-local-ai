@@ -16,7 +16,7 @@ import {
   moveObjects,
   resizeObjects,
   setStickyColor,
-  snapshot,
+  stickySnapshot,
   type StickySnapshot,
 } from '../../src/shared/board-model';
 import { createUndo, type UndoController } from '../../src/client/board/undo';
@@ -54,7 +54,7 @@ function addNote(
 }
 
 function noteOf(doc: Y.Doc, id: string): StickySnapshot | undefined {
-  return snapshot(doc).find((note) => note.id === id);
+  return stickySnapshot(doc).find((note) => note.id === id);
 }
 
 describe('undo.history', () => {
@@ -76,13 +76,13 @@ describe('undo.history', () => {
     });
 
     expect(noteOf(doc, idA)!.x).toBe(250);
-    expect(snapshot(doc)).toHaveLength(3);
+    expect(stickySnapshot(doc)).toHaveLength(3);
 
     expect(undo.undo()).toBe(true);
 
     expect(noteOf(doc, idA)!.x).toBe(-100); // createSticky centres the note
     expect(noteOf(doc, idA)!.y).toBe(-100);
-    expect(snapshot(doc)).toHaveLength(3); // Raj's note is still here
+    expect(stickySnapshot(doc)).toHaveLength(3); // Raj's note is still here
     expect(noteOf(doc, idC)!.color).toBe('blue'); // and keeps Raj's colour
   });
 
@@ -93,7 +93,7 @@ describe('undo.history', () => {
     });
     expect(undo.canUndo()).toBe(false);
     expect(undo.undo()).toBe(false);
-    expect(snapshot(doc)).toHaveLength(1); // nothing was reversed
+    expect(stickySnapshot(doc)).toHaveLength(1); // nothing was reversed
   });
 
   test('TC-03: updates applied with the load origin are not mine to undo', () => {
@@ -108,7 +108,7 @@ describe('undo.history', () => {
     const undo = createUndo(doc);
     expect(undo.canUndo()).toBe(false);
     expect(undo.undo()).toBe(false);
-    expect(snapshot(doc)).toHaveLength(2);
+    expect(stickySnapshot(doc)).toHaveLength(2);
   });
 
   test('TC-04: undoing one delete brings eight notes back exactly as they were', () => {
@@ -131,15 +131,15 @@ describe('undo.history', () => {
     undo.boundary();
 
     // the board exactly as it stands at the moment of the accidental Delete
-    const atDelete = new Map(snapshot(doc).map((note) => [note.id, note]));
+    const atDelete = new Map(stickySnapshot(doc).map((note) => [note.id, note]));
 
     deleteObjects(doc, ids); // one action, eight objects
     undo.boundary();
-    expect(snapshot(doc)).toHaveLength(0);
+    expect(stickySnapshot(doc)).toHaveLength(0);
 
     expect(undo.undo()).toBe(true);
 
-    const restored = snapshot(doc);
+    const restored = stickySnapshot(doc);
     expect(restored).toHaveLength(8);
     for (const note of restored) {
       const was = atDelete.get(note.id);
@@ -266,12 +266,12 @@ describe('undo.history', () => {
     for (let step = 0; step < UNDO_MAX_STEPS + 1; step += 1) {
       ids.push(addNote(doc, undo, { x: step * 300, y: 0 }));
     }
-    expect(snapshot(doc)).toHaveLength(UNDO_MAX_STEPS + 1);
+    expect(stickySnapshot(doc)).toHaveLength(UNDO_MAX_STEPS + 1);
 
     let undone = 0;
     while (undo.undo()) undone += 1;
     expect(undone).toBe(UNDO_MAX_STEPS); // the oldest step had fallen off the front
-    expect(snapshot(doc)).toHaveLength(1);
+    expect(stickySnapshot(doc)).toHaveLength(1);
     expect(noteOf(doc, ids[0]!)).toBeDefined(); // and it is the very first note
   });
 
@@ -282,12 +282,12 @@ describe('undo.history', () => {
       ids.push(addNote(doc, undo, { x: step * 300, y: 0 }));
     }
     ids.push(addNote(doc, undo, { x: UNDO_MAX_STEPS * 300, y: 0 })); // the 200th
-    expect(snapshot(doc)).toHaveLength(UNDO_MAX_STEPS);
+    expect(stickySnapshot(doc)).toHaveLength(UNDO_MAX_STEPS);
 
     let undone = 0;
     while (undo.undo()) undone += 1;
     expect(undone).toBe(UNDO_MAX_STEPS);
-    expect(snapshot(doc)).toHaveLength(0); // nothing was dropped
+    expect(stickySnapshot(doc)).toHaveLength(0); // nothing was dropped
   });
 
   test('TC-11: a fresh controller starts empty, so a reload offers nothing', () => {

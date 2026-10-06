@@ -8,8 +8,12 @@
  */
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
+import type { ComponentType } from 'react';
 import type { Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import type { ObjectProps } from './ObjectProps';
+import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 export interface ObjectTypeSpec {
   /** React component that renders this object type (set during app initialization). */
@@ -25,7 +29,21 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** Hit-test: is `worldPoint` inside this object? */
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Which resize handles this type offers (story 9). `'all'` (the default) is the 8 handles round
+   * the box; `'horizontal'` is the two sides only, for an object whose height belongs to its
+   * content and must not be dragged. A selection of several types shows the union: what every
+   * object in it can do.
+   */
+  handles?: 'all' | 'horizontal';
 }
+
+/**
+ * The component contract every object type meets. The spec field is loose so a type can declare
+ * the snapshot it really draws (a note, a text); this is the same contract written out for the
+ * place that renders an object without knowing which type it got.
+ */
+export type BoardObjectComponent = ComponentType<ObjectProps & { note: ObjectSnapshot }>;
 
 const registry = new Map<string, ObjectTypeSpec>();
 
@@ -62,10 +80,23 @@ export function rectHitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
 // ---- Register built-in types ----
 
 registerObjectType('sticky', {
-  Component: null, // set by registerStickyComponent() at app startup
+  Component: StickyNote,
   resizable: true,
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
   hitTest: rectHitTest,
+});
+
+// Story 9: a new type without touching selection, move, marquee, delete or undo - the registry is
+// the only place that knows text exists. Its height is derived from its content, so it offers the
+// two side handles only.
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  hitTest: rectHitTest,
+  handles: 'horizontal',
 });

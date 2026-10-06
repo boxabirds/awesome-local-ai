@@ -20,6 +20,7 @@ import {
   createSticky,
   initDoc,
   snapshot,
+  stickySnapshot,
   type StickySnapshot,
 } from '../../src/shared/board-model';
 import { RECONNECT_MAX_BACKOFF_MS } from '../../src/shared/config';
@@ -120,14 +121,14 @@ function nextAttempt(): FakeSocket {
 async function tryToChangeTheBoard(noteId: string): Promise<void> {
   const board = doc();
   const writes = watchLocalWrites(board);
-  const before = plain(snapshot(board));
+  const before = plain(stickySnapshot(board));
 
   const step = async (name: string, action: () => void): Promise<void> => {
     const written = writes.count;
     action();
     await runFrames();
     expect(writes.count, `${name} wrote to the board`).toBe(written);
-    expect(plain(snapshot(board)), `${name} changed the notes`).toEqual(before);
+    expect(plain(stickySnapshot(board)), `${name} changed the notes`).toEqual(before);
   };
 
   await step('double-click on empty board', () => {
@@ -155,6 +156,24 @@ async function tryToChangeTheBoard(noteId: string): Promise<void> {
     fireEvent.doubleClick(noteElement(noteId), { clientX: 300, clientY: 300 });
     // with no editor open these keystrokes land on the page, which is the whole point of the check
     dispatchKey(document.body, { key: 'x' });
+  });
+
+  // Story 9: the Text tool is a way of changing the board, so it is closed too - the key, the
+  // button, and a click on the board with the tool supposedly up.
+  await step('the Text tool key and a click on the board', () => {
+    dispatchKey(window, { key: 't' });
+    fireEvent.pointerDown(viewport(), pointer(500, 420));
+    fireEvent.pointerUp(viewport(), pointer(500, 420));
+  });
+
+  await step('the Text tool button', () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Text (T)' }));
+  });
+
+  // the clicks above cleared the selection, and the caller goes on to look at the note's toolbar
+  await step('selecting the note again', () => {
+    fireEvent.pointerDown(noteElement(noteId), pointer(300, 300));
+    fireEvent.pointerUp(noteElement(noteId), pointer(300, 300));
   });
 }
 
@@ -213,6 +232,39 @@ describe('the board says it could not be loaded (TC-22)', () => {
     expect(ruleFor('load_failed')).not.toBe(ruleFor('reconnecting'));
   });
 
+  test('TC-15 a board that could not be loaded has no Text tool', () => {
+    const room = roomDoc();
+    renderBoardWithScriptedWire();
+    openAndSync(room);
+
+    const board = doc();
+    const writes = watchLocalWrites(board);
+
+    act(() => {
+      FakeSocket.latest.close(CLOSE_BOARD_LOAD_FAILED, 'the board could not be loaded');
+    });
+    expect(badgeInBoard()).toHaveAttribute('data-state', 'load_failed');
+
+    const textButton = screen.getByRole('button', { name: 'Text (T)' });
+    expect(textButton).toBeDisabled();
+    expect(textButton).toHaveAttribute('aria-pressed', 'false');
+
+    // T is ignored: the tool that writes cannot be reached on a board that cannot be written to.
+    dispatchKey(window, { key: 't' });
+    expect(textButton).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(textButton);
+    expect(textButton).toHaveAttribute('aria-pressed', 'false');
+
+    // so a click on the board is an ordinary click, and it changes nothing
+    fireEvent.pointerDown(viewport(), pointer(400, 300));
+    fireEvent.pointerUp(viewport(), pointer(400, 300));
+    expect(writes.count).toBe(0);
+    expect(snapshot(board)).toHaveLength(1);
+
+    // looking around is still open, because the tool is a view tool as much as anything else
+    expect(screen.getByRole('button', { name: 'Select (V)' })).toBeEnabled();
+  });
+
   test('TC-22c only a load failure locks the board', () => {
     const states: ConnectionState[] = ['connecting', 'connected', 'reconnecting', 'confirmed'];
     expect(canEdit('load_failed')).toBe(false);
@@ -229,7 +281,7 @@ describe('a board that could not be loaded is read-only (TC-23)', () => {
 
     const board = doc();
     const writes = watchLocalWrites(board);
-    const before = plain(snapshot(board));
+    const before = plain(stickySnapshot(board));
     const noteId = snapshot(board).at(0)?.id;
     if (!noteId) throw new Error('the synced board has no note to try to change');
 
@@ -242,7 +294,7 @@ describe('a board that could not be loaded is read-only (TC-23)', () => {
 
     await tryToChangeTheBoard(noteId);
 
-    expect(plain(snapshot(board))).toEqual(before);
+    expect(plain(stickySnapshot(board))).toEqual(before);
     expect(writes.count).toBe(0);
     // the note toolbar is present when selected, and every tool in it is switched off
     const toolbar = within(noteElement(noteId)).getByTestId('note-toolbar');

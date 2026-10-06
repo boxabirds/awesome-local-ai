@@ -8,15 +8,18 @@
  */
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshot, type ObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 import { createUndo, type UndoController } from './undo';
 
 export interface BoardDoc {
   /** The shared document: pass it to the board-model mutations. */
   readonly doc: Y.Doc;
-  /** The notes to render, in render order (recomputed when the document changes). */
-  readonly notes: readonly StickySnapshot[];
+  /**
+   * Every board object, in render order (recomputed when the document changes). Selection,
+   * marquee and undo work on this list; a screen splits it by `type` to render.
+   */
+  readonly objects: readonly ObjectSnapshot[];
   /** How the live connection to the other people on this board is doing (story 3). */
   readonly connection: ConnectionState;
   /**
@@ -28,7 +31,7 @@ export interface BoardDoc {
 
 interface SnapshotStore {
   subscribe(onStoreChange: () => void): () => void;
-  getSnapshot(): readonly StickySnapshot[];
+  getSnapshot(): readonly ObjectSnapshot[];
 }
 
 /**
@@ -37,7 +40,7 @@ interface SnapshotStore {
  */
 function createSnapshotStore(doc: Y.Doc): SnapshotStore {
   const objects = doc.getMap<Y.Map<unknown>>('objects');
-  let current: readonly StickySnapshot[] = snapshot(doc);
+  let current: readonly ObjectSnapshot[] = snapshot(doc);
   const listeners = new Set<() => void>();
 
   objects.observeDeep(() => {
@@ -59,7 +62,7 @@ function createSnapshotStore(doc: Y.Doc): SnapshotStore {
 }
 
 /**
- * The board's document, the notes it currently holds, and the live connection to everybody
+ * The board's document, the objects it currently holds, and the live connection to everybody
  * else on `boardId`.
  *
  * The provider writes other people's changes into the document, and this document's changes go
@@ -81,7 +84,7 @@ export function useBoardDoc(boardId: string): BoardDoc {
     ref.current = { boardId, doc, store: createSnapshotStore(doc), undo: createUndo(doc) };
   }
   const { doc, store, undo } = ref.current;
-  const notes = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const objects = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   const [connection, setConnection] = useState<ConnectionState>('connecting');
 
   // the connection belongs to this document and this board, and closes when they go away
@@ -100,5 +103,5 @@ export function useBoardDoc(boardId: string): BoardDoc {
     }
   });
 
-  return { doc, notes, connection, undo };
+  return { doc, objects, connection, undo };
 }

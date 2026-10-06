@@ -8,6 +8,7 @@ import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { unionRects, type Handle, type Rect } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
 import { HANDLE_SIZE_PX } from '../../shared/config';
+import { getObjectType } from '../objects/registry';
 
 export interface SelectionOverlayProps {
   ids: ReadonlySet<string>;
@@ -28,6 +29,22 @@ const HANDLE_LABELS: Record<Handle, string> = {
 };
 
 const HANDLES: readonly Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+
+/** The two sides, for an object whose height belongs to its content (story 9). */
+const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
+
+/**
+ * The handles a selection offers: every side of the box, unless every object in the selection
+ * takes the two sides only. A mixed selection offers what the objects in it have in common to do
+ * with - the group box is resized as a whole, and each object is scaled the way its own type says
+ * (a text keeps its font and re-wraps).
+ */
+export function handlesFor(selected: readonly ObjectSnapshot[]): readonly Handle[] {
+  if (selected.length === 0) return HANDLES;
+  return selected.every((obj) => (getObjectType(obj.type)?.handles ?? 'all') === 'horizontal')
+    ? HORIZONTAL_HANDLES
+    : HANDLES;
+}
 
 function worldToScreen(cam: Camera, x: number, y: number): { x: number; y: number } {
   return { x: (x - cam.x) * cam.zoom, y: (y - cam.y) * cam.zoom };
@@ -103,8 +120,8 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
           height: screenBox.height,
         }}
       />
-      {/* 8 resize handles */}
-      {HANDLES.map((handle) => {
+      {/* resize handles: all 8, or the two sides for an object whose height is derived */}
+      {handlesFor(selected).map((handle) => {
         const pos = handlePosition(screenBox, handle);
         return (
           <div

@@ -56,6 +56,12 @@ body {
   cursor: grabbing;
 }
 
+/* With the Text tool up, the pointer says what a click anywhere on the board does (story 9). */
+.board-viewport[data-tool='text'],
+.board-viewport[data-tool='text'] .board-world * {
+  cursor: text;
+}
+
 .board-world {
   position: absolute;
   top: 0;
@@ -218,6 +224,16 @@ body {
   background: #f1f3f7;
 }
 
+.board-toolbar__button[aria-pressed='true'] {
+  /* the tool the board is on is pressed into the toolbar */
+  background: #e6ebf5;
+  border-color: #c8d3e8;
+}
+
+.board-toolbar__button[aria-pressed='true']:hover {
+  background: #dde5f2;
+}
+
 .board-toolbar__button:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
@@ -366,6 +382,145 @@ body {
 .sticky-note__delete:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
+}
+
+/* ---- free text (story 9) ---- */
+
+/*
+ * No fill and no border: the characters are the object. The box is the one the model stores, so
+ * what this screen draws and what every other screen draws are the same shape.
+ *
+ * `box-sizing: content-box` is what makes the stored box and the drawn text agree: `width` and
+ * `height` are then the area the text is laid out in, which is exactly what `layoutText` measured,
+ * so a line the layout says fits never wraps here and the stored height is the height a person
+ * sees. The padding sits outside that area, which is why the selection outline leaves room around
+ * the letters instead of cutting through them.
+ */
+.board-text {
+  position: absolute;
+  box-sizing: content-box;
+  padding: var(--text-padding, 4px);
+  cursor: grab;
+  color: var(--note-text);
+}
+
+.board-text[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.board-text[data-selected='true'] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+}
+
+.board-text:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/*
+ * The three numbers here are the ones the layout maths uses - `TEXT_FONT_FAMILY`,
+ * `TEXT_LINE_HEIGHT` and `TEXT_BOX_PADDING_WORLD` in `shared/config.ts` - and a test says so: text
+ * is measured with one set of them and drawn with the other, so a change to either alone makes the
+ * stored box and the drawn text disagree.
+ */
+.board-text__content {
+  width: 100%;
+  height: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-family: Inter, system-ui, sans-serif;
+  line-height: 1.3;
+}
+
+/*
+ * The editor stands exactly where the text stood, at the same size, so the caret does not jump
+ * when a person starts typing. It scrolls rather than grows: the box is the object's, not the
+ * field's.
+ */
+.board-text__input {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: Inter, system-ui, sans-serif;
+  line-height: 1.3;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* the size picker of the selected text, counter-scaled like the note's toolbar */
+.board-text__toolbar {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius);
+  box-shadow: 0 1px 4px rgb(15 20 30 / 8%);
+  transform: scale(var(--text-inverse-zoom, 1)) translateY(-8px);
+  transform-origin: 0 100%;
+  cursor: default;
+}
+
+.board-text__size {
+  min-width: 26px;
+  height: 24px;
+  padding: 0 4px;
+  font: 600 12px/1 var(--chrome-font, inherit);
+  color: var(--chrome-fg);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.board-text__size:hover {
+  background: #f1f3f7;
+}
+
+.board-text__size[aria-pressed='true'] {
+  background: #e6ebf5;
+  border-color: #c8d3e8;
+}
+
+.board-text__delete {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--chrome-fg-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.board-text__delete:hover {
+  background: #f1f3f7;
+  color: #b3261e;
+}
+
+.board-text__size:focus-visible,
+.board-text__delete:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.board-text__size:disabled,
+.board-text__delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 /* ---- connection status (story 3) ---- */

@@ -16,7 +16,7 @@ import {
   createSticky,
   getStickyText,
   moveObject,
-  snapshot,
+  stickySnapshot,
   type StickySnapshot,
 } from '../../../src/shared/board-model';
 import { STICKY_COLORS, type StickyColor } from '../../../src/shared/config';
@@ -117,7 +117,7 @@ class BoardConnection {
   }
 
   notes(): readonly StickySnapshot[] {
-    return snapshot(this.doc);
+    return stickySnapshot(this.doc);
   }
 
   /** Why the room hung up, if it did: a close code is part of this story's contract. */

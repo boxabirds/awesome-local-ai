@@ -1,5 +1,6 @@
 /**
- * Board keyboard commands (story 7): select all, clear, nudge, delete.
+ * Board keyboard commands: select all, clear, nudge, delete (story 7) and the tool keys V, T, N
+ * (story 9).
  *
  * Mounted once per board; attaches a window-level keydown listener.
  * Ignores keys when focus is in a text input or when editing text.
@@ -13,8 +14,10 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
+import { getObjectType } from '../objects/registry';
 import type { SelectionController } from './useSelection';
 import type { UndoActions } from './useUndo';
+import type { Tool } from './useTool';
 
 /** True when the keyboard belongs to a text field, not to the board. */
 function isTextEntry(target: EventTarget | null): boolean {
@@ -30,10 +33,14 @@ export interface BoardKeysOptions {
   canEdit: boolean;
   /** Story 8: this person's own history. */
   undo: UndoActions;
+  /** Story 9: the tool keys. Only `setTool`: nothing here needs to read the current tool. */
+  setTool(tool: Tool): void;
+  /** Story 9: N is the Sticky note button's key - the same action, at the centre of the view. */
+  onCreateSticky(): void;
 }
 
 export function useBoardKeys(opts: BoardKeysOptions): void {
-  const { doc, selection, snapshot, canEdit, undo } = opts;
+  const { doc, selection, snapshot, canEdit, undo, setTool, onCreateSticky } = opts;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -67,17 +74,43 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       // Ctrl/Cmd shortcuts are for zoom, not our business
       if (event.ctrlKey || event.metaKey) return;
 
-      // Escape: clear selection
+      // Escape: clear selection and go back to the Select tool (leaving the Text tool is what
+      // Escape is for here, and the toolbar's Select button does the same thing)
       if (event.key === 'Escape') {
         selection.clear();
+        setTool('select');
         return;
       }
 
-      // Enter: start editing a single selected sticky note
+      // Tool keys, unmodified: V selects, T writes, N makes a note. While a note or a text is
+      // being edited this hook has already returned, so those keys stay characters.
+      if (!event.shiftKey && !event.altKey) {
+        if (key === 'v') {
+          event.preventDefault();
+          setTool('select');
+          return;
+        }
+        if (key === 't') {
+          // a board that cannot be edited has no Text tool to offer
+          if (!canEdit) return;
+          event.preventDefault();
+          setTool('text');
+          return;
+        }
+        if (key === 'n') {
+          if (!canEdit) return;
+          event.preventDefault();
+          onCreateSticky();
+          return;
+        }
+      }
+
+      // Enter: start editing a single selected object that has text of its own - which the registry
+      // says, so a text object behaves like a note without this file knowing what a text is
       if (event.key === 'Enter' && selection.ids.size === 1) {
         const id = [...selection.ids][0]!;
         const obj = snapshot.find((o) => o.id === id);
-        if (obj && obj.type === 'sticky' && canEdit) {
+        if (obj && getObjectType(obj.type)?.editableText && canEdit) {
           event.preventDefault();
           selection.startEdit(id);
           return;
@@ -127,5 +160,5 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selection, snapshot, canEdit, undo]);
+  }, [doc, selection, snapshot, canEdit, undo, setTool, onCreateSticky]);
 }

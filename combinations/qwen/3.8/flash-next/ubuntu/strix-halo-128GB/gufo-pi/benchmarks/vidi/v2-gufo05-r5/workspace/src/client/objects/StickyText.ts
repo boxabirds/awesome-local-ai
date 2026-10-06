@@ -2,12 +2,11 @@
  * Note text logic: the character limit, the minimal Y.Text edit, the counter and the
  * auto-fit font size.
  *
- * `applyTextDiff` is what makes concurrent typing possible later (story 3): a change
- * from "abc" to "abXc" is sent as one insert of "X" at index 2, not as a delete of the
- * whole note followed by an insert, so text other people typed at the same moment
- * survives the merge.
+ * The limit and the diff live in `shared/text-edit.ts` since story 9, because text objects
+ * need exactly the same rules; they are re-exported here with the note's own limit so story
+ * 2's callers are unchanged.
  */
-import * as Y from 'yjs';
+import { clampToLimit as clampSharedText } from '../../shared/text-edit';
 import {
   STICKY_COUNTER_THRESHOLD_CHARS,
   STICKY_FONT_MAX_PX,
@@ -17,28 +16,19 @@ import {
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
 
+export { applyTextDiff } from '../../shared/text-edit';
+
 /** The area inside a note that text may cover, in world units (a square). */
 export const STICKY_TEXT_BOX_WORLD = STICKY_SIZE_WORLD - STICKY_PADDING_WORLD * 2;
 
-function isHighSurrogate(code: number): boolean {
-  return code >= 0xd800 && code <= 0xdbff;
-}
-
-function isLowSurrogate(code: number): boolean {
-  return code >= 0xdc00 && code <= 0xdfff;
-}
-
 /**
- * Keeps at most `max` characters; characters beyond the limit are never stored.
+ * Keeps at most `max` note characters, the note's own limit being the default.
+ *
  * A cut that would land inside an emoji is moved before it, so the kept text is always
- * valid Unicode.
+ * valid Unicode (the rule itself is shared with text objects).
  */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  const limit = Math.max(0, Math.floor(max));
-  if (next.length <= limit) return next;
-  const last = next.charCodeAt(limit - 1);
-  const cut = isHighSurrogate(last) ? limit - 1 : limit;
-  return next.slice(0, cut);
+  return clampSharedText(next, max);
 }
 
 /** True when the remaining characters are few enough to be worth showing. */
@@ -48,69 +38,6 @@ export function counterVisible(
   threshold: number = STICKY_COUNTER_THRESHOLD_CHARS,
 ): boolean {
   return max - length <= threshold;
-}
-
-interface DiffRange {
-  /** First character that differs (and where new text is inserted). */
-  start: number;
-  /** End of the characters to delete from the current text. */
-  deleteEnd: number;
-  /** End of the text to insert (slice of `next`). */
-  insertEnd: number;
-}
-
-/**
- * Common prefix and common suffix of `current` and `next`, widened so no split ever
- * lands between the two halves of a surrogate pair.
- */
-function diffRange(current: string, next: string): DiffRange {
-  const longest = Math.min(current.length, next.length);
-  let start = 0;
-  while (start < longest && current[start] === next[start]) start += 1;
-
-  let deleteEnd = current.length;
-  let insertEnd = next.length;
-  while (
-    deleteEnd > start &&
-    insertEnd > start &&
-    current[deleteEnd - 1] === next[insertEnd - 1]
-  ) {
-    deleteEnd -= 1;
-    insertEnd -= 1;
-  }
-
-  // Widen the edit outwards so a multi-code-unit character is replaced as a whole.
-  const splitBefore = (text: string, index: number): boolean =>
-    index > 0 && isHighSurrogate(text.charCodeAt(index - 1));
-  const splitAfter = (text: string, index: number): boolean =>
-    index < text.length && isLowSurrogate(text.charCodeAt(index));
-
-  if (splitBefore(current, start) || splitBefore(next, start)) start -= 1;
-  while (splitAfter(current, deleteEnd) || splitAfter(next, insertEnd)) {
-    deleteEnd += 1;
-    insertEnd += 1;
-  }
-  return { start, deleteEnd, insertEnd };
-}
-
-/**
- * Writes `next` into a shared text with the smallest possible edit: one delete and one
- * insert, inside a single transaction.
- */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-  const { start, deleteEnd, insertEnd } = diffRange(current, next);
-  const remove = deleteEnd - start;
-  const inserted = next.slice(start, insertEnd);
-
-  const run = () => {
-    if (remove > 0) ytext.delete(start, remove);
-    if (inserted.length > 0) ytext.insert(start, inserted);
-  };
-
-  if (ytext.doc) ytext.doc.transact(run, origin);
-  else run();
 }
 
 export interface FontFit {

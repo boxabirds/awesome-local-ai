@@ -14,7 +14,7 @@ import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
 import * as Y from 'yjs';
 import { env, SELF } from 'cloudflare:test';
-import { initDoc, snapshot, type StickySnapshot } from '../../src/shared/board-model';
+import { initDoc, stickySnapshot, type StickySnapshot } from '../../src/shared/board-model';
 import {
   MESSAGE_AWARENESS,
   MESSAGE_QUERY_AWARENESS,
@@ -193,7 +193,7 @@ export function wrapClient(
     updateFrames: () =>
       client.frames.filter((entry) => entry.kind === 'sync' && entry.syncType === SYNC_UPDATE)
         .length,
-    notes: () => snapshot(doc),
+    notes: () => stickySnapshot(doc),
     sendBytes: (bytes) => {
       socket.send(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
     },

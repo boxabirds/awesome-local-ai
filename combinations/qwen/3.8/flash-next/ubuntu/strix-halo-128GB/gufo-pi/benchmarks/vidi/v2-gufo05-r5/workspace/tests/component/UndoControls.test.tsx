@@ -8,7 +8,7 @@
 import { act, fireEvent } from '@testing-library/react';
 import * as Y from 'yjs';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { snapshot } from '../../src/shared/board-model';
+import { stickySnapshot } from '../../src/shared/board-model';
 import { CLOSE_BOARD_LOAD_FAILED } from '../../src/shared/protocol';
 import { UNDO_TOOLTIP, REDO_TOOLTIP } from '../../src/client/board/UndoButtons';
 import { dispatchKey, renderBoard, runFrames } from './helpers';
@@ -38,7 +38,7 @@ function roomDoc(): Y.Doc {
   return room;
 }
 
-function plain(notes: readonly ReturnType<typeof snapshot>[number][]) {
+function plain(notes: readonly ReturnType<typeof stickySnapshot>[number][]) {
   return notes.map((note) => [note.id, note.x, note.y, note.color, note.text, note.z]);
 }
 
@@ -181,7 +181,7 @@ describe('undo.controls in the app', () => {
 
       // while the board was readable, this screen made a change of its own
       const id = await mineNote(0, 0);
-      const before = plain(snapshot(boardDoc()));
+      const before = plain(stickySnapshot(boardDoc()));
       expect(undoButton()).toBeEnabled();
 
       // the room reports the board unreadable and hangs up
@@ -189,7 +189,7 @@ describe('undo.controls in the app', () => {
         FakeSocket.latest.close(CLOSE_BOARD_LOAD_FAILED, 'the board could not be loaded');
       });
       await runFrames();
-      const board = snapshot(boardDoc());
+      const board = stickySnapshot(boardDoc());
       expect(board.find((note) => note.id === id)).toBeDefined();
 
       // the history still holds the step, but nothing here may write, so the strip is switched off
@@ -205,7 +205,7 @@ describe('undo.controls in the app', () => {
         expect(event.defaultPrevented, `${JSON.stringify(shortcut)} should not reach the browser`).toBe(
           true,
         );
-        expect(plain(snapshot(boardDoc())), `${JSON.stringify(shortcut)} changed the board`).toEqual(
+        expect(plain(stickySnapshot(boardDoc())), `${JSON.stringify(shortcut)} changed the board`).toEqual(
           before,
         );
       }

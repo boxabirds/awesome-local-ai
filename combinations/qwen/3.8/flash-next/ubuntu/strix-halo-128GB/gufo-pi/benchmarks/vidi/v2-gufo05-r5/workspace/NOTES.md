@@ -148,3 +148,128 @@ the built thing is deliberately different.
 
 14. **Firefox and WebKit still cannot launch on this machine** (missing system libraries), so story
     8's e2e ran on Chromium; the config skips those projects with a warning rather than failing.
+
+---
+
+# Story 9 Implementation Notes
+
+Free text anywhere on the board. What the design asked for, what was built, and the places where the
+built thing is deliberately different.
+
+## Deviations from design.md
+
+1. **The size toolbar renders inside `TextObject`, not in `SelectionBar`.**
+   The design's file table puts the S/M/L/XL picker in `SelectionBar`. The note's toolbar
+   (`NoteToolbar`) hangs off the note itself, and a heading's size belongs to the heading: anchoring
+   the picker to the object keeps it over the thing it changes while a multi-select bar stays about
+   the group (count, delete). `SelectionBar` is unchanged, and a selected text shows its toolbar the
+   same way a selected note shows its colours.
+
+2. **A box that cannot hold the words it was drawn with grows (design has only "the writer
+   measures").**
+   `useTextBoxSync` keeps the design's rule exactly - a change arriving from anyone else never causes
+   a measurement or a write here. What it could not anticipate is that two people typing into one
+   `Y.Text` merge into a shape *neither* of them measured, so both screens hold a box too short for
+   the text both now show, and the annotation is cut off. So the screen that drew the words checks
+   what it drew (`TextObject`'s fit check) and calls `growTextBox`, under three rules that keep the
+   one-writer property: only values *smaller* than the measurement are written (a box can grow and
+   never shrink, so browsers with different fonts converge instead of arguing), a `fixed` width is
+   never widened (that width is a person's decision and the words wrap inside it), and the write
+   carries `BOX_ORIGIN` rather than `LOCAL_ORIGIN`, so it syncs to everybody but is not an undo step
+   - undo can therefore never cut text off again. The check also runs when `document.fonts.ready`
+   settles, because a webfont arriving after the first paint rewraps everything with nothing else
+   happening.
+
+3. **`LOCAL_ORIGIN` (and now `BOX_ORIGIN`) live in `src/shared/y-origin.ts`.**
+   `objects/text.ts` has to mark its own transactions and must not import the document model to get
+   the symbol - `board-model` reads the object modules, not the other way round. `board-model`
+   re-exports `LOCAL_ORIGIN`, so every existing caller is unchanged.
+
+4. **`TextSnapshot` is a standalone interface, and `snapshot()` returns every object type.**
+   `ObjectSnapshot` is a union, and an interface cannot extend a union, so the text shape is spelled
+   out. Making `snapshot()` type-agnostic would have changed what the note tests read, so
+   `snapshot()` now returns all objects while `stickySnapshot()` filters to notes: existing
+   semantics stay, generic code (selection, marquee, registry) reads `snapshot()`.
+
+5. **`Board.tsx` renders objects through the registry, and knows no type name.**
+   `objects.map(object => getObjectType(object.type)?.Component)` with unknown types skipped. This is
+   the smallest change that adds text without a second rendering path, and it is what makes the next
+   object type a registration rather than an edit of the board.
+
+6. **The Text tool intercepts pointers on the viewport node, in the capture phase.**
+   Board objects `stopPropagation()` on pointerdown - correctly, or clicking a note would pan the
+   board - so a React handler on a parent would never hear the click that is meant to place text. The
+   tool's listener is a native capture-phase listener on the viewport element, and it stops
+   propagation itself. It also lays down a short guard (`TEXT_TOOL_DOUBLE_CLICK_GUARD_MS` / `_PX`):
+   the second click of a double-click that began as "place a text" must not be read by the sticky
+   note tool as "make a note here".
+
+7. **`createdBy` is the placeholder `'local'`.**
+   Story 6 (identity) is not implemented; the field is written and read, and the author of a text is
+   whatever the board was told. Nothing in story 9 depends on whose it is.
+
+## Facts about text and CSS that shaped the tests
+
+8. **`.board-text` is `box-sizing: content-box`, on purpose.**
+   Then the inline `width`/`height` the model stores *is* the area `layoutText` measured, and the CSS
+   padding sits outside it - the selection outline therefore has headroom around the letters, and a
+   line the maths says fits never wraps in the browser. A test (`text.object.styles`) reads
+   `styles.css` and asserts the four numbers the drawing uses - `box-sizing`, the padding,
+   `font-family`, `line-height` - equal the constants the measurement uses, because those two halves
+   of the story agree only if somebody checks.
+
+9. **Auto width is `min(longest line + padding, TEXT_MAX_AUTO_WIDTH_WORLD)`, and the text area is
+   `width - TEXT_BOX_PADDING_WORLD` - one padding, not two.**
+   The one padding is the right-hand headroom that keeps a line the measure called "fitting" from
+   being broken by subpixel rounding. A 300-character sentence therefore lands on a box exactly
+   600 units wide, and the e2e measures the browser's own wrapping to check the stored height holds
+   it (`textIsWhole` compares `scrollHeight` with `clientHeight` - the assertion that nobody's words
+   are cut off).
+
+10. **A word wider than the box: the layout leaves it whole, the browser breaks it, and the height
+    absorbs the difference.**
+    `layoutText` never rewrites what a person typed and gives such a word its own line (unit-tested,
+    including that it terminates). `.board-text__content` has `overflow-wrap: break-word`, so the
+    browser splits it instead - which would make the drawn text taller than the stored box if nothing
+    noticed. It is noticed, by the fit check in note 2. This is visible at `TEXT_MIN_WIDTH_WORLD`,
+    where almost any word is too wide, which is where the e2e checks it.
+
+11. **Undo steps are cut by boundaries, not by time alone.**
+    Placing a text ends with `boundary()`; the editor calls `boundary()` when it mounts and again
+    when it unmounts. Typing and the boxes it writes are therefore one step, separate from the
+    placement (TC-25: one undo leaves the text where it was placed - empty, at `TEXT_MIN_WIDTH_WORLD`
+    - and redo brings the words and their box back together).
+
+12. **`setTextBox` writes only the keys that differ**, so a remeasure that found nothing changed puts
+    nothing on the wire (TC-13), and the tests can say which key a gesture was responsible for: a
+    side-handle drag writes `width` + `widthMode`, and the box sync answers with `height` alone.
+
+## Small things worth knowing
+
+13. **One canvas measures everything.** `useTextBoxSync` takes a measurer argument (the component
+    tests inject a fake) and defaults to a module-level `createCanvasMeasurer()` made on first use.
+    Where there is no canvas - jsdom - it falls back to the character estimate once, the same way a
+    browser without `measureText` would, so component tests are deterministic about *that* the box
+    follows the text and leave the exact numbers to the layout's unit tests.
+
+14. **`transactionOrigin(...)` is variadic.** Observers get `(event, transaction)`, the `Doc`'s
+    `update` event gets the origin directly, and a transaction is sometimes handed over alone; the
+    function scans its arguments for the first one that carries an origin and returns `undefined`
+    when none does.
+
+15. **`setCamera` in the e2e helpers now waits for the drawing, not just the state.**
+    Camera updates are coalesced into a frame, so `getCamera()` can already report the new camera
+    while the screen still shows the old one. Story 2's far-travel test (TC-27) read the grid right
+    after a `setCamera` and failed only in a busy parallel run. It now also waits for the viewport's
+    `data-camera-x/y/zoom`, which is what the drawing was made from.
+
+16. **Concurrent typing is asserted by character counts, not by string equality** (as in story 3's
+    TC-23): two people typing `AAAA` and `BBBB` into one text must end with at least four of each in
+    both documents, and both documents must hold the same string. The interleaving is the CRDT's
+    business.
+
+17. **Firefox and WebKit still cannot launch on this machine** (missing system libraries), so
+    tasks.md's "TC-26 in firefox and webkit too" was not run here; every other e2e case ran on
+    Chromium (67 tests, and the suite twice in a row green). The playwright config skips the two
+    projects with a warning rather than failing, so the cross-browser wrapping check happens on a
+    host that has the browsers.

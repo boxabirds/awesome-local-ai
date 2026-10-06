@@ -16,12 +16,23 @@ export async function getCamera(page: Page): Promise<Camera> {
   });
 }
 
-/** Jumps the camera somewhere. Camera updates are coalesced into a frame, so wait for it. */
+/**
+ * Jumps the camera somewhere, and waits until the screen shows it.
+ *
+ * Camera updates are coalesced into a frame: the state moves at once, the drawing follows in the
+ * next one. Waiting for the state alone is enough while the machine is idle and sees the frame
+ * before the new camera when it is busy, which is the kind of failure that only happens in a full
+ * parallel run. The three attributes of the viewport are what the drawing was made from.
+ */
 export async function setCamera(page: Page, want: Camera): Promise<void> {
   await page.evaluate((cam) => window.__vidi6?.setCamera(cam), want);
   await expect
     .poll(() => getCamera(page), { message: `camera should become ${JSON.stringify(want)}` })
     .toEqual(want);
+  const viewport = page.getByTestId('board-viewport');
+  await expect(viewport).toHaveAttribute('data-camera-x', String(want.x));
+  await expect(viewport).toHaveAttribute('data-camera-y', String(want.y));
+  await expect(viewport).toHaveAttribute('data-camera-zoom', String(want.zoom));
 }
 
 /** Centre of the origin marker: a stable pixel target for world point (0,0). */

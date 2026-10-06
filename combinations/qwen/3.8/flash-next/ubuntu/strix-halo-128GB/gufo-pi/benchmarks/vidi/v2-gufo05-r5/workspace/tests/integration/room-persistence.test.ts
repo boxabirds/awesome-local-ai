@@ -24,6 +24,7 @@ import {
   moveObject,
   setStickyColor,
   snapshot,
+  stickySnapshot,
   type StickySnapshot,
 } from '../../src/shared/board-model';
 import {
@@ -86,7 +87,7 @@ async function boardInStorage(boardId: string): Promise<{
     const load = store.load(doc);
     return {
       load,
-      notes: snapshot(doc),
+      notes: stickySnapshot(doc),
       rows: countRows(state, 'updates'),
       chunks: countRows(state, 'snapshot_chunks'),
       quarantined: countRows(state, 'quarantined_updates'),
