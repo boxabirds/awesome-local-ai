@@ -758,3 +758,150 @@ unreachable` — but they are React state in the two components that use them, n
 | `npm run test:e2e`         | 16    | 73 of 74 green: 69 chromium (incl. TC-26…TC-31), 4 persistence, nightly `idle-stability`; nightly `capacity-soak` is the pre-existing hang above |
 
 `npm run build`, `npm run build:test`, `npm run typecheck` (client and worker) and `npm run test` are clean.
+
+## Contract deviations (all deliberate)
+
+Story 10 — shapes, and the arrows that hold two of them.
+
+- **`shapeRect(rect, at, square)` is what decides a click from a drag**, not the tool. The design left the
+  question where it usually is left; the answer here is "a box that fails to reach `SHAPE_MIN_SIZE_WORLD`
+  (20) on either axis is a click, and becomes the standard 160 × 160 centred on the point that was pressed".
+  Putting it in the model is what lets the *preview* be honest — the tool draws the box `shapeRect` will
+  write, so what a person watches while the button is down is the rectangle that appears when it comes up,
+  including the standard size. A tool that decided "is this a click" by distance and a model that decided
+  it by size would be two answers, and the preview would be a promise the release breaks.
+- **`createShape` returns `string | null`** — `null` for a kind nobody draws, a rect made of `NaN`, or a
+  point that isn't a point, with no transaction opened. The id comes back because the tool has to select
+  the thing it made, and a tool that went looking for "the shape that just appeared" would be guessing.
+- **`ShapeSnapshot` carries `text: string`** (the label's content, for the read-only snapshot) while the
+  label itself lives in the entry as a `Y.Text` shared type. `snapshot()` reads one; the editor writes the
+  other. `getShapeLabel` returns `Y.Text | undefined` rather than `| null`, to match how the rest of this
+  codebase answers "is it there".
+- **A shape's label is an HTML overlay, not a `foreignObject` inside the shape's SVG.** The geometry is SVG
+  (`<rect>`, `<ellipse>`, `<polygon>`), the words are a positioned `div` on top of it. The design allowed
+  either; `foreignObject` is the more faithful markup and the worse neighbour — text inside it is not laid
+  out by jsdom at all, so every component test about wrapping would have to be an E2E test, and browsers
+  still disagree about scrolling and focus inside it. The centring, the wrapping and the font are the same
+  in either markup, and TC-24 measures them in the browser where markup stops being a preference.
+- **`ConnectorSnapshot`, not `ConnectorSnap`**, for consistency with `ObjectSnapshot`/`ShapeSnapshot`.
+- **A free endpoint is `{ kind: 'free', x, y }`**, not `{ kind: 'free', point: {x, y} }`: an endpoint is
+  already a place-shaped thing and nesting a point inside it buys a second way to write the same pair.
+- **`detachConnectorsTo(doc, deletedIds: readonly string[])`** takes an array. A `Set` at that boundary
+  would be an optimisation on a list the caller has already built once.
+- **A connector's `x`/`y`/`width`/`height` are derived, not stored facts.** `snapshot()` runs
+  `deriveConnectorBoxes()`, which resolves both ends through the current boxes of the shapes it holds and
+  writes the bounding box of the result. Width or height can legitimately be 0 (an arrow drawn dead
+  horizontal or dead vertical), which is why the registry's hit test for a connector is a distance to its
+  polyline and never a box. Chains (A→B→C) need the boxes of arrows that are themselves endpoints of
+  nothing but are still read as boxes by nothing — the loop runs up to `connectors.length + 1` passes and
+  leaves as soon as a pass changes nothing, which is also what makes a cycle survivable.
+- **The registry's `hitTest` grew an optional third argument**, `context: HitContext` (`{ zoom, rects }`),
+  and `hitTestObject`/`topmostObjectAt` pass it through. An arrow's hit test cannot be done in world units
+  alone: the tolerance is six *screen* pixels, which is six divided by the zoom in world ones. Every other
+  object ignores the argument. `BoardContext` (`camera`, `objects`, `rects`, `toWorld`) was added to
+  `ObjectProps` for the same reason the connector's handle needs to know what is under the pointer.
+- **`useTool` is gone; `useActiveTool` replaces it** (`git rm`'d). `ToolId` is the whole vocabulary of the
+  toolbar including names this build does not implement (`sticky`, `pen`, `image`, `comment`): they are in
+  the type and in `TOOL_SHORTCUTS` — so the key table is complete and a story that adds a pen adds a button
+  and nothing else — and `BUILT_TOOLS` is what `setTool` will actually accept. `n` keeps its old behaviour:
+  it is in the shortcut table and is answered before the generic branch, because it makes a note rather
+  than switching a tool.
+- **`Toolbar` takes one `onToolSelect(tool: ToolId)`** instead of a callback per tool, plus `tool`,
+  `shapeKind` and `onShapeKindSelect`. Three no-arg callbacks was three ways to say the same sentence.
+- **The Shape tool's kind buttons are derived from `SHAPE_KINDS`**, so a fourth kind is a config entry, and
+  their `title` says only what the button does — the design's prose mentioned R/E/D letters, which are not
+  in the design's own keyboard table and are not implemented. A tooltip that promises a shortcut that does
+  not exist is a bug with better spelling.
+- **Extra config, all in one place:** `SHAPE_LABEL_FONT_SIZE_WORLD` (20, same as `TEXT_SIZES.M`, so a label
+  and a text object of the same size are the same size), `CONNECTOR_COLOR` (`#263238`, the same ink as a
+  shape's label; this build has no arrow-colour UI), and the screen-pixel constants below.
+- **The dots the Connector tool draws over a shape carry `data-hover-object-id`, not `data-object-id`.**
+  They are not objects and were inflating the existing E2E `objectCount` helper — which is to say the board
+  appeared to have grown shapes that were only ever hints. The helper was right to complain.
+
+## Findings while testing the implementation
+
+Story 10.
+
+- **`expect(promise).toBe(x)` in Playwright compares the promise, not its answer.** It fails with
+  `Received: Promise {}` — there is no implicit awaiting and no `.resolves` (that is a vitest habit).
+  Two helpers were written that way and both were silent about it until they were used: the fix is
+  `await expect.poll(() => toolOnScreen(page)).toBe(tool)` for an attribute read through `evaluate`, or the
+  locator's own web-first matcher (`await expect(button).toHaveAttribute('aria-pressed', 'true')`) where
+  there is a locator to hang it on. Reading into a local and asserting locally is the third way, and the
+  only one that works inside a `whileDown` callback, which is a callback and not a test body.
+- **The board's chrome owns its own clicks, and that cost an hour of thinking a shape was not being made.**
+  The toolbar is `position: fixed` down the left edge, vertically centred — at 1280 × 800 it covers roughly
+  x 16–150 and y 150–650 — and both drawing tools ignore a press on `button, textarea, input, select,
+  [role="toolbar"]` on purpose (a lit Shape tool must not steal the click from the swatch a person is
+  aiming at). So a fixture drag that *starts* at (120, 500) draws nothing, correctly, and the failure looks
+  exactly like the tool being broken. Every fixture in `shapes.spec.ts` and `connectors.spec.ts` now draws
+  clear of that column, and the specs say so.
+- **A wrapped label is measured with a `Range`, not with the label's own box.** The label element is
+  `inset: 0` inside the shape and centred with flexbox, so its `getBoundingClientRect()` is the *shape*:
+  dividing its height by the line height says "six lines" at any width, which is how one assertion passed
+  on a label that had not wrapped and then failed on one that had. `document.createRange()` over the
+  label's contents, then `range.getClientRects()`, is one rectangle per line the words are actually drawn
+  on — the number the PRD means by "it wrapped".
+- **A shared type's observers run after the transaction they police has closed**, so a limit enforced in a
+  model observer is always two updates (the write, then the cut) and always a second step in the history.
+  That is why the label limit is a *backstop*: `TextEditor`'s `maxChars` clamp is the enforcement point and
+  an ordinary keystroke is one transaction. The observer is there for writes that arrive by some other
+  route, and it polices only local writes (`origin === null`, or `LOCAL_ORIGIN`) — a colleague's 600
+  characters are their words and this client does not edit them down (TC-06). A `policing` flag keeps the
+  cut from being a write it then has to police again.
+- **Tool pointer ownership needs capture phase, and `stopPropagation` is the right stop, not
+  `stopImmediatePropagation`.** Document-level capture listeners are what let a drag that begins on a note
+  belong to the tool rather than to the note; `stopPropagation` keeps the event from ever reaching React's
+  root listener, which is the whole of what "the board never sees it" means, while still letting another
+  document-level capture listener run — specifically the open text editor's commit-on-press-outside handler,
+  which is how a shape drawn while a label was being typed keeps the text that was in the box.
+  `stopImmediatePropagation` silenced that editor commit, and the lost characters were the only symptom.
+- **Stopping `pointerdown` does not stop the browser synthesising `dblclick`.** Two fast clicks with a
+  drawing tool lit would otherwise open a text editor underneath the drag, so `BoardViewport`'s double-click
+  handler has its own tool guard. Pointer events and the click events the browser manufactures from them
+  are two systems and you have to be in both.
+- **jsdom has no layout, so screen-pixel semantics are asserted in two halves in component tests.** An arrow
+  you can click "six pixels from the ink" cannot be clicked at a distance in jsdom, because jsdom will not
+  tell you where the ink is. The component test asserts the DOM-visible half (`data-stroke-width` on the
+  hit line is `2 × 6 / zoom`) and the geometry half through `hitTestObject(snapshot, point, { zoom, rects })`
+  directly; the browser half is TC-20 in E2E. Similar for wrapping: component tests assert the text and the
+  box, E2E asserts the lines.
+- **Coordinates in component tests are screen coordinates unless you say otherwise.** The default camera
+  after `resetCamera` is `{ x: -640, y: -400, zoom: 1 }` and the app div sits at (0, 0) in jsdom, so world
+  and screen differ by exactly (640, 400) — enough to write an assertion that is right about a board the
+  test is not looking at. `screenOfWorld`/`worldAt` pairs in the test file keep the conversion in one place;
+  `window.__vidi6.setCamera({ zoom })` is the way to test a zoomed board, with an `act` + frame afterwards.
+- **The board's own test hook made the zoomed-hit-test test honest**: rather than reasoning about what six
+  pixels at zoom 0.5 should be, the test sets the camera, reads `data-stroke-width` off the rendered arrow,
+  and asserts the number is the tolerance divided by the zoom it just asked for.
+- **Firefox and WebKit still cannot start in this sandbox** (`browserType.launch` aborts before test code
+  runs), so this story's e2e is chromium-only — the same finding as stories 1, 2, 5, 7, 8 and 9. Nightly
+  `capacity-soak` (TC-30) still does not finish, at the same call site and the same 300 s; nothing in this
+  story is on its path.
+- **Rebuilding the bundle underneath a running `wrangler dev` breaks e2e in a way that looks like a broken
+  app.** The nightly `idle-stability` test failed with `getByTestId('app')` — element(s) not found, which is
+  "the page is empty", not "the board is wrong". Cause: `wrangler dev` takes its static-asset manifest when
+  it starts, and vite names every bundle by content hash. `index.html` is read afresh, so it pointed at the
+  new hash; the manifest did not know that name, the request fell through to the SPA fallback, and the
+  module came back as `200 OK` / `text/html`, which the browser refuses for a module script — so nothing
+  booted. Verified with `curl -I`: the hash the server knows answers `text/javascript`, the one it does not
+  answers `text/html`. Nothing to do with story 10, and it went green again once the bundle it was serving
+  was the one the server had seen. Two rules: if an e2e run says the whole app is missing, look at `dist`
+  and at the server before looking at the code; and a server started before a rebuild is a server that has
+  to be restarted. Which brings the environment finding for this story: **a background `wrangler dev` cannot
+  be stopped from here** — `pkill`/`ps` report no such process (the sandbox cannot see it) while the port
+  goes on answering, and Playwright's `reuseExistingServer` will hand that same frozen-manifest server to
+  the next run. Either leave `dist` exactly as the server saw it, as this session ended up doing, or point
+  the next run at another port in 20784–20799 with `VIDI6_E2E_PORT`.
+
+## Final test counts (story 10)
+
+| Suite                      | Files | Tests                                                                                                            |
+| -------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
+| `npm run test:unit`        | 21    | 451 (+ shape model 31: TC-01…TC-06 and the label guard's edges; + connector model 56: TC-07…TC-14, TC-29 and the geometry under zoom) |
+| `npm run test:component`   | 23    | 314 (+ shape tool/object/toolbar 21: TC-15…TC-17, TC-28; + connector tool/object 22: TC-18…TC-22)                   |
+| `npm run test:integration` | 9     | 144 (unchanged — a shape and an arrow are document changes like any other, and the room never hears which they are) |
+| `npm run test:e2e`         | 25    | 79 of 80 green: 75 chromium (incl. TC-23…TC-27), 4 persistence, nightly `idle-stability`; nightly `capacity-soak` is the pre-existing hang above |
+
+`npm run build`, `npm run build:test`, `npm run typecheck` (client and worker) and `npm run test` are clean.

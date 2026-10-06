@@ -1,3 +1,48 @@
+commit 5aadc66652bcf3c819d1b962f569ab966c4f3810
+agent  Tue Oct 6 12:02:42 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  | 147 +++++
+ PROGRESS.md                               |  18 +-
+ src/client/board/Board.tsx                |  93 +++-
+ src/client/board/Toolbar.tsx              | 131 ++++-
+ src/client/board/useBoardKeys.ts          |  39 +-
+ src/client/board/useTool.ts               |  64 ---
+ src/client/canvas/BoardViewport.tsx       |  17 +-
+ src/client/objects/ConnectorObject.tsx    | 335 ++++++++++++
+ src/client/objects/ShapeObject.tsx        | 283 ++++++++++
+ src/client/objects/ShapeToolbar.tsx       | 111 ++++
+ src/client/objects/registry.tsx           | 145 ++++-
+ src/client/styles.css                     | 245 +++++++++
+ src/client/tools/ConnectorTool.tsx        | 256 +++++++++
+ src/client/tools/ShapeTool.tsx            | 218 ++++++++
+ src/client/tools/useActiveTool.ts         | 163 ++++++
+ src/shared/board-model.ts                 | 148 +++++
+ src/shared/config.ts                      |  99 ++++
+ src/shared/geometry/connector-geometry.ts | 180 +++++++
+ src/shared/geometry/polyline.ts           |  75 +++
+ src/shared/objects/connector.ts           | 332 ++++++++++++
+ src/shared/objects/shape.ts               | 447 ++++++++++++++++
+ tests/component/ConnectorDrawing.test.tsx | 696 ++++++++++++++++++++++++
+ tests/component/ShapeDrawing.test.tsx     | 589 ++++++++++++++++++++
+ tests/e2e/connectors.spec.ts              | 278 ++++++++++
+ tests/e2e/helpers/connectors.ts           | 249 +++++++++
+ tests/e2e/helpers/shapes.ts               | 326 +++++++++++
+ tests/e2e/shapes.spec.ts                  | 221 ++++++++
+ tests/unit/connector-model.test.ts        | 863 ++++++++++++++++++++++++++++++
+ tests/unit/registry.test.ts               |   4 +-
+ tests/unit/shape-model.test.ts            | 442 +++++++++++++++
+ 30 files changed, 7095 insertions(+), 119 deletions(-)
+commit 93e79de29153eb515239bdcd3bfcf1491e026e0b
+vidi-agent  Tue Oct 6 10:50:15 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 09b6617b76958d697dec711a287452a5f9fa3dbe
 agent  Tue Oct 6 09:45:57 2026 +0000
 

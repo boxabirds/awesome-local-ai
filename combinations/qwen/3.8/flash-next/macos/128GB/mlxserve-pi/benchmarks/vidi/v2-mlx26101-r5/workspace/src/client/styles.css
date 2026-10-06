@@ -1076,3 +1076,248 @@ body {
   background: #fdeceb;
   border-color: #f0a9a3;
 }
+
+/* ------------------------------------------------------------------ story 10: shapes and arrows */
+
+/*
+ * The two tools that draw rather than point.
+ *
+ * A crosshair, over the whole board and over the objects on it: the pointer is about to make something
+ * rather than pick something up, and the shape underneath a shape being drawn is not what the press is
+ * for. The objects' own `grab` cursors are overridden for the same reason they are overridden for the
+ * Text tool — a cursor that promises a drag the tool will not perform is a cursor that lies.
+ */
+.board-viewport[data-tool='shape'],
+.board-viewport[data-tool='connector'],
+.board-viewport[data-tool='shape'] .shape-object,
+.board-viewport[data-tool='shape'] .connector-object,
+.board-viewport[data-tool='connector'] .shape-object,
+.board-viewport[data-tool='connector'] .connector-object,
+.board-viewport[data-tool='shape'] .sticky-note,
+.board-viewport[data-tool='shape'] .text-object,
+.board-viewport[data-tool='connector'] .sticky-note,
+.board-viewport[data-tool='connector'] .text-object {
+  cursor: crosshair;
+}
+
+/* Which of the three shapes the Shape tool will draw. A row of three rather than three more buttons in
+   the toolbar's column, because they answer a question that only means something once a shape is being
+  drawn, and the toolbar is one column wide. */
+.toolbar-shape-kinds {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+}
+
+.toolbar-button-kind {
+  padding: 4px 6px;
+}
+
+/*
+ * A shape: a box on the board, drawn by an SVG inside that box.
+ *
+ * The box is the object — the selection is drawn around it, an arrow attaches to its sides, and a click
+ * anywhere in it is a click on the shape — and the SVG is only how the box is painted. `overflow: visible`
+ * on the SVG (set in the component) is what lets a stroke that straddles the edge be drawn rather than
+ * clipped in half, which is the difference between a rectangle and three and a half of its sides.
+ */
+.shape-object {
+  position: absolute;
+  box-sizing: border-box;
+  /* The object owns its own pointer events; the world layer turns them off. */
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.shape-object[data-selected='true'] {
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
+}
+
+.shape-object[data-interaction='dragging'] {
+  cursor: grabbing;
+}
+
+.shape-object-svg {
+  display: block;
+}
+
+/*
+ * The label, as it is when nobody is typing into it.
+ *
+ * Centred in the box, on both axes, because that is where a word inside a box goes: a shape is a box with
+ * a word in it, and a label stuck at the top-left is a caption about the box rather than the thing inside
+ * it. `user-select: none` is the sticky note's rule, for the reason it is the sticky note's rule: a drag of
+ * the shape should move the shape and not highlight its label.
+ */
+.shape-object-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  text-align: center;
+  user-select: none;
+}
+
+/* The shape's own palette: fills on one row, outlines on the next, above the shape it belongs to. It is
+   the note toolbar in another shape — same place above the object, same counter-scale, so it is the size
+   it is at any zoom. */
+.shape-toolbar {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  transform: scale(var(--inv-zoom, 1));
+  transform-origin: 0 100%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+}
+
+.shape-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.shape-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 0.2);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.shape-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--select);
+  outline-offset: 1px;
+}
+
+.shape-swatch:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 1px;
+}
+
+/* No fill, said as a line through the circle: the alternative to a colour is not another colour, and a
+   swatch of the board's own background would read as a colour that happens to be the colour of nothing. */
+.shape-fill-none {
+  background-image: linear-gradient(
+    45deg,
+    transparent 44%,
+    #e53935 44%,
+    #e53935 56%,
+    transparent 56%
+  );
+}
+
+/*
+ * The box the Shape tool is dragging, which is not a shape yet and is drawn so that it stays that way:
+ * fixed to the screen, out of the pointer's way, and outlined in the board's selection blue rather than
+ * painted in the fill it will get when the pointer comes up. The box it draws is the box the model will
+ * write, which is the whole point of showing it: a person who drags a narrow strip and gets a square
+ * should be able to see the square coming.
+ */
+.shape-preview {
+  position: fixed;
+  pointer-events: none;
+  z-index: 8;
+  border: 2px dashed var(--select);
+  border-radius: 2px;
+  background: rgb(37 99 235 / 0.08);
+  box-sizing: border-box;
+}
+
+/*
+ * An arrow: a line, an arrowhead, and a box that is deliberately nothing to the pointer.
+ *
+ * The box is the bounding rectangle of the two ends, which for a diagonal arrow across the board is most
+ * of the board. `pointer-events: none` on the box (set inline as well, so a component cannot forget it in
+ * a style sheet) is what keeps that rectangle from being a wall between a person and the shapes behind
+ * it; the wide invisible stroke inside the SVG is the one thing on the arrow that can be clicked.
+ */
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+}
+
+.connector-object-svg {
+  display: block;
+  overflow: visible;
+}
+
+.connector-object[data-selected='true'] .connector-line {
+  stroke: var(--select);
+}
+
+/* An arrow's own selection mark: the line itself in the board's blue, and not a rectangle around it —
+   the rectangle is a box around a line, and a box around a line is not what was selected. */
+.connector-object[data-selected='true'] .connector-head {
+  fill: var(--select);
+}
+
+/*
+ * An end of the arrow, off the line, for the pointer to hold.
+ *
+ * The two handles are the only way an arrow moves, so they are drawn as the thing they are: a hole the
+ * line comes out of, big enough to catch at any zoom (`--inv-zoom`, like every other handle on this
+ * board), and out of the pointer's way nowhere else.
+ */
+.connector-handle {
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--select);
+  box-sizing: border-box;
+  cursor: grab;
+  z-index: 4;
+}
+
+.connector-handle:active {
+  cursor: grabbing;
+}
+
+/*
+ * What the Connector tool shows while it is lit: the four places an end can go, and the arrow being
+ * dragged to one of them.
+ *
+ * Neither writes anything, and neither is in the pointer's way: the dots are drawn on the document, over
+ * the objects, and the press that goes through them is the press that begins the arrow. The lit one is the
+ * side the arrow will attach to — filled rather than outlined, which is the same difference the toolbar
+ * draws between the colour a shape already is and the ones it could be.
+ */
+.connector-tool-layer {
+  z-index: 8;
+}
+
+.connector-dots {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.connector-dot {
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1.5px solid var(--select);
+  box-sizing: border-box;
+}
+
+.connector-dot-active {
+  background: var(--select);
+}
+
+.connector-preview-svg line {
+  stroke: var(--select);
+  fill: none;
+}

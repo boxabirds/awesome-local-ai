@@ -6,7 +6,7 @@ import { screenToWorld } from './camera';
 import type { Point } from './camera';
 import type { CameraController } from './useCamera';
 import type { Marquee } from '../board/Marquee';
-import type { Tool } from '../board/useTool';
+import type { ToolId } from '../tools/useActiveTool';
 
 /** Wheel `deltaMode === LINE`: pixels per line. */
 const WHEEL_DELTA_LINE_PX = 16;
@@ -74,12 +74,14 @@ export interface BoardViewportProps {
   onClearSelection?(): void;
   /**
    * The tool the pointer is in.
- *
+   *
    * `'text'` takes the pointer away from everything the board normally does with it: no pan, no marquee,
-   * no pressing the object underneath — a click means "write here" and nothing else. Left out, the board
-   * has one tool and behaves as it did before story 9.
+   * no pressing the object underneath — a click means "write here" and nothing else. `'shape'` and
+   * `'connector'` take the pointer the same way, but by their own hands: those two tools hold the pointer
+   * themselves, on the document, and this prop is how the board knows not to answer what they already
+   * answered. Left out, the board has one tool and behaves as it did before story 9.
    */
-  tool?: Tool;
+  tool?: ToolId;
   /**
    * A click with the Text tool, with the point converted to world coordinates.
    *
@@ -452,6 +454,11 @@ export function BoardViewport({
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     // Only empty board space: a note stops propagation and edits itself.
     if (!isBoardSurface(event.target)) return;
+    // A drawing tool answers its own double-click. Stopping the press does not stop the browser from
+    // putting a `dblclick` on the wire afterwards, so without this a person who double-clicks to draw a
+    // rectangle gets a sticky note under it — the second click of the pair is not a request for a note,
+    // any more than it is one for the Text tool, whose double-click is held further up this file.
+    if (tool === 'shape' || tool === 'connector') return;
     const camera = controllerRef.current.camera;
     onCreateSticky?.(screenToWorld(camera, localPoint(event.clientX, event.clientY)));
   };

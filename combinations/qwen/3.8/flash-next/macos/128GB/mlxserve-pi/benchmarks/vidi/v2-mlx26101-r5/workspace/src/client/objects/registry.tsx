@@ -24,12 +24,24 @@ import {
   type ObjectSnapshot,
   type StickySnapshot,
 } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
-import { rectContainsPoint, type Point } from '../../shared/geometry';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
+import { rectContainsPoint, type Point, type Rect } from '../../shared/geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
 import type { TextSnapshot } from '../../shared/objects/text';
+import type { ConnectorSnapshot } from '../../shared/objects/connector';
+import type { ShapeSnapshot } from '../../shared/objects/shape';
+import type { Camera } from '../canvas/camera';
 import type { UndoControls } from '../board/useUndo';
 import { STICKY_OBJECT_TYPE, StickyNote } from './StickyNote';
 import { TEXT_OBJECT_TYPE, TextObject } from './TextObject';
+import { SHAPE_OBJECT_TYPE, ShapeObject } from './ShapeObject';
+import { CONNECTOR_OBJECT_TYPE, ConnectorObject } from './ConnectorObject';
 
 /**
  * What the board gives an object so that it can take part in the board's behaviour. An object never
@@ -92,6 +104,17 @@ export interface ObjectProps<T extends ObjectSnapshot = ObjectSnapshot> {
    * Left out, the object's writes are still undone — they simply join whatever step was open.
    */
   undo?: UndoControls;
+  /**
+   * The board this object is on: its camera, its other objects, their boxes, and how a point on the screen
+   * becomes a point on the board.
+   *
+   * Almost nothing needs it — a note, a shape and a piece of text are each entirely described by their own
+   * entry — and it is here for the one type that is not: an arrow, which is drawn between two *other*
+   * objects and has to know where they are, and whose handles have to know where the screen is. It is the
+   * same picture the board is drawing this frame, handed down rather than looked up, so that an object and
+   * the selection around it cannot disagree about where a shape is.
+   */
+  board?: BoardContext;
 }
 
 /**
@@ -102,6 +125,52 @@ export interface ObjectProps<T extends ObjectSnapshot = ObjectSnapshot> {
  * question, and none of them is the place the answer belongs.
  */
 export type HandlesMode = 'all' | 'horizontal';
+
+/**
+ * What a type is told about the pointer when it is asked where it is.
+ *
+ * Two of the three things an object's own hit test could want are already in its snapshot, and the third —
+ * how far a pointer has to be to count as being on it — is not a property of the object at all but of the
+ * pointer and the scale the board is drawn at. A sticky note is where its box is at any zoom, so it never
+ * looks at this; an arrow is a line six *screen pixels* wide, so it cannot say where it is without knowing
+ * the zoom, and cannot say where its ends are without knowing where the objects it is attached to are.
+ *
+ * Left out, a type is asked the question in the terms it has always been asked: is this point inside the box
+ * in the document. That is what the marquee and *select all* ask, and the answer an arrow gives them is its
+ * bounding box, which is the honest answer to that question and not the one a click wants.
+ */
+export interface HitContext {
+  /** How big a world unit is on this screen. */
+  zoom: number;
+  /** Every object's box, by id: the boxes an arrow's ends are placed from. */
+  rects: ReadonlyMap<string, Rect>;
+}
+
+/**
+ * What the board knows, that an object sometimes has to know about the board.
+ *
+ * An object does not move, resize or select itself, and it does not have to know what else is on the board
+ * either — until it is an arrow, whose whole being is a relation between two other objects. This is the
+ * small set of board-wide facts an object is given rather than allowed to reach for: where the board is on
+ * the screen, what is on it, and what box everything has. Every one of them is the board's own answer to a
+ * question the board has already been asked this frame, so there is still exactly one of each.
+ */
+export interface BoardContext {
+  /** The camera this board is being looked through. */
+  camera: Camera;
+  /** Every object on the board, in stacking order. */
+  objects: readonly ObjectSnapshot[];
+  /** Every object's box, by id. */
+  rects: ReadonlyMap<string, Rect>;
+  /**
+   * A point on this screen as the point on the board it is over.
+   *
+   * Given rather than derived, because the board owns the element the pointer is measured against: an
+   * object that measured it again would be a second answer to where the board starts, and the two would
+   * disagree the moment the board was not the whole window.
+   */
+  toWorld(point: Point): Point;
+}
 
 /**
  * What one object type tells the board about itself.
@@ -133,7 +202,7 @@ export interface ObjectTypeSpec<T extends ObjectSnapshot = ObjectSnapshot> {
    */
   handles?: HandlesMode;
   /** Is this object at this world point? Where the type is, is the type's own business. */
-  hitTest(obj: T, worldPoint: Point): boolean;
+  hitTest(obj: T, worldPoint: Point, context?: HitContext): boolean;
 }
 
 /**
@@ -226,9 +295,34 @@ export function handlesForObjects(objects: readonly ObjectSnapshot[]): HandlesMo
 }
 
 /** Where this object is, according to its own type. Unknown types are nowhere. */
-export function hitTestObject(obj: ObjectSnapshot, worldPoint: Point): boolean {
+export function hitTestObject(obj: ObjectSnapshot, worldPoint: Point, context?: HitContext): boolean {
   const spec = getObjectType(obj.type);
-  return spec ? spec.hitTest(obj, worldPoint) : false;
+  return spec ? spec.hitTest(obj, worldPoint, context) : false;
+}
+
+/**
+ * The object a pointer is on, of the ones on the board — or nothing, which is what most of a board is.
+ *
+ * The board is walked back to front, which is the order the snapshot is already in and the order the pixels
+ * are painted in, so the answer is the object a person would say they were pointing at: the top one. Ties
+ * are impossible in a document whose stacking order is a single number, and the first hit wins regardless.
+ *
+ * This is the question the Connector tool asks on every pointer move, and the question an arrow's handle
+ * asks when it is dropped — which is why it asks the registry rather than having an opinion of its own about
+ * what is on the board: an arrow is a line, a shape is a box, and the only thing that knows the difference
+ * is the type.
+ */
+export function topmostObjectAt(
+  objects: readonly ObjectSnapshot[],
+  worldPoint: Point,
+  context?: HitContext,
+): ObjectSnapshot | null {
+  for (let index = objects.length - 1; index >= 0; index -= 1) {
+    const object = objects[index];
+    if (object === undefined) continue;
+    if (hitTestObject(object, worldPoint, context)) return object;
+  }
+  return null;
 }
 
 /**
@@ -278,4 +372,45 @@ registerObjectType<TextSnapshot>(TEXT_OBJECT_TYPE, {
   // The box the document holds is the whole of it: the selection, the marquee and a click all agree
   // with the pixels on the answer the measurement wrote.
   hitTest: (obj, worldPoint) => rectContainsPoint(objectBounds(obj), worldPoint),
+});
+
+registerObjectType<ShapeSnapshot>(SHAPE_OBJECT_TYPE, {
+  Component: ShapeObject,
+  // A shape is a box, and a handle can change the box: that is the whole of what a shape is.
+  resizable: true,
+  // …without proportion of any kind. A rectangle drawn 300 wide and 100 high is a wide rectangle, and a
+  // handle that insisted it stay square would be refusing the shape the person dragged. (Shift squares a
+  // shape while it is being *drawn*, which is a different thing from being square for ever.)
+  aspectLocked: false,
+  // The smallest a shape may be dragged to, and the size below which a drag is read as a click and the
+  // shape gets the standard size instead.
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  // Its label is a text body: Enter opens it, a double-click opens it, and 500 characters is its limit.
+  editableText: true,
+  // A shape is exactly where its box is. Not "exactly where its ellipse is" — the box an arrow attaches to
+  // and a selection draws around is the box in the document, and a hit test that knew the curve better than
+  // the box would be an arrow attaching to a corner of a box that is not there.
+  hitTest: (obj, worldPoint) => rectContainsPoint(objectBounds(obj), worldPoint),
+});
+
+registerObjectType<ConnectorSnapshot>(CONNECTOR_OBJECT_TYPE, {
+  Component: ConnectorObject,
+  // An arrow has no size to resize. Its four numbers are derived from wherever its ends are, and a handle
+  // that wrote them would be writing an answer to a question nobody asked.
+  resizable: false,
+  aspectLocked: false,
+  // It has no minimum size either, so this is the length under which the model refuses to make one at all.
+  minSize: 0,
+  // There is nothing to type into: an arrow's whole content is which two things it joins.
+  editableText: false,
+  // With the board's context, an arrow is its line: six screen pixels either side of it, at any zoom. The
+  // tolerance is divided by the zoom to get the world distance a click may miss by, which is the whole of
+  // why an arrow is exactly as easy to pick up at 50 % as at 200 %.
+  // Without it — the marquee, *select all* — an arrow is the box its two ends make, which is what a
+  // rectangle drawn around a diagram encloses.
+  hitTest: (obj, worldPoint, context) => {
+    if (context === undefined) return rectContainsPoint(objectBounds(obj), worldPoint);
+    const ends = resolveEndpoints({ from: obj.from, to: obj.to }, context.rects);
+    return distanceToPolyline([ends.from, ends.to], worldPoint) <= CONNECTOR_HIT_TOLERANCE_PX / context.zoom;
+  },
 });

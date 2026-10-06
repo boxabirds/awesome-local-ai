@@ -84,7 +84,9 @@ describe('TC-12 a type this build does not know is missing, not broken', () => {
   it('has no definition', () => {
     expect(getObjectType('mystery')).toBeUndefined();
     expect(getObjectType('')).toBeUndefined();
-    expect(getObjectType('shape')).toBeUndefined();
+    // Story 10 built 'shape' and 'connector', so the type that is still missing is the one the next story
+    // has not drawn: a board that holds one of those is the board this test is about.
+    expect(getObjectType('draw')).toBeUndefined();
   });
 
   it('still has a minimum size, so a board that holds one can be resized around it', () => {

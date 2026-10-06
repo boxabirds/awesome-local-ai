@@ -29,7 +29,7 @@ import { isTypingTarget } from '../objects/StickyTextEditor';
 import { isRedoChord, isUndoChord } from './undo';
 import type { UndoControls } from './useUndo';
 import type { Selection } from './useSelection';
-import type { Tool } from './useTool';
+import { TOOL_SHORTCUTS, isBuiltTool, type ToolId } from '../tools/useActiveTool';
 
 export interface BoardKeysOptions {
   doc: Doc;
@@ -42,13 +42,13 @@ export interface BoardKeysOptions {
   /**
    * The tool the pointer is in, and the way to put it back to Select.
    *
-   * V and T are the two tools, and Escape leaves the writing one — three keys that say what the pointer
-   * is, answered before any key that acts on a selection, because a person standing in the Text tool
-   * who presses Escape means the tool and not the selection. Left out, none of the three is answered
-   * here and the toolbar's buttons are the only way to change the tool.
+   * The tool letters are answered from one table (`TOOL_SHORTCUTS`) and this one way to change the tool:
+   * a letter says what the pointer is, and it is answered before any key that acts on a selection, because
+   * a person standing in a drawing tool who presses Escape means the tool and not the selection. Left out,
+   * none of the letters is answered here and the toolbar's buttons are the only way to change the tool.
    */
-  tool?: Tool;
-  onSelectTool?(tool: Tool): void;
+  tool?: ToolId;
+  onSelectTool?(tool: ToolId): void;
   /**
    * N: the Sticky note button under another name, which is the same thing it has always done — make a
    * note in the middle of what this person can see. It is the board that knows where the middle is, so
@@ -156,10 +156,12 @@ export function useBoardKeys({
       if (selectionNow.editingId !== null) return;
 
       if (event.key === 'Escape') {
-        // The writing tool is left before the selection is: Escape with the Text tool lit means "I am
-        // done pointing at things", and the selection underneath it is not what was being said. Only
-        // once the tool is back to Select does the same key start meaning "not these".
-        if (toolRef.current === 'text' && selectToolRef.current !== undefined) {
+        // Any tool but Select is left before the selection is: Escape with a drawing tool lit means "I am
+        // done pointing at things", and the selection underneath it is not what was being said. Only once
+        // the tool is back to Select does the same key start meaning "not these". An object that is open for
+        // editing answered its own Escape further up this handler, so a tool really is the last thing open
+        // by the time this line is reached.
+        if (toolRef.current !== undefined && toolRef.current !== 'select' && selectToolRef.current !== undefined) {
           event.preventDefault();
           selectToolRef.current('select');
           return;
@@ -227,6 +229,21 @@ export function useBoardKeys({
         if (createStickyRef.current === undefined || !canEditRef.current) return;
         event.preventDefault();
         createStickyRef.current();
+        return;
+      }
+
+      // Every other tool letter, read off one table instead of being written out again: S for a shape,
+      // L for an arrow, and the letters this build has no tool for — P, I, C, and N's own letter, which
+      // is a sticky note and was answered above — are left for the browser, which is the same answer the
+      // toolbar gives with a button it has not got. Shift does not change the answer: capital S is the
+      // same key as small s, and a tool is not something a person means by holding Shift down.
+      const wanted = TOOL_SHORTCUTS[event.key.length === 1 ? event.key.toLowerCase() : ''];
+      if (wanted !== undefined && isBuiltTool(wanted)) {
+        // A tool that writes something is not offered by a board that cannot be written to, and the key
+        // is not swallowed either: the same answer the disabled button gives.
+        if (selectToolRef.current === undefined || !canEditRef.current) return;
+        event.preventDefault();
+        selectToolRef.current(wanted);
         return;
       }
 

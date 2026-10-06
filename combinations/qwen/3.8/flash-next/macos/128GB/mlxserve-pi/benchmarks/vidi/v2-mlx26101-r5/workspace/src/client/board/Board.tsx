@@ -36,7 +36,9 @@ import { useBoardConnection } from './useBoardConnection';
 import { ConnectionStatus } from './ConnectionStatus';
 import { canEdit, type BoardStatus, type ConnectBoardOptions } from './connection';
 import { useSelection, type Selection } from './useSelection';
-import { useTool } from './useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
 import { createUndo } from './undo';
@@ -47,12 +49,14 @@ import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
 import { ObjectView } from '../objects/registry';
+import type { BoardContext } from '../objects/registry';
 import { defaultMeasurer } from '../objects/textLayout';
 import { remeasureTextBox } from '../objects/useTextBoxSync';
 import {
   createSticky,
   deleteObjects,
   isTextSnapshot,
+  objectBounds,
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { createText, setTextSize, type TextSize } from '../../shared/objects/text';
@@ -240,16 +244,58 @@ export function Board({
   }, [createAt]);
 
   /**
-   * The tool the pointer is in: Select, or Text — which is the same pointer with a different job.
+   * The tool the pointer is in: Select, Text, Shape or Connector — the same pointer with a different job.
    *
    * It is the board's state and not the document's: two people on one board can be in different tools,
    * because a tool is what this person's pointer is doing and nobody else's screen has an interest in
-   * that. What the board does with it is here too — the toolbar's buttons, the three keys, and the
-   * click that writes — so that there is one answer to "what happens when I press T".
+   * that. What the board does with it is here too — the toolbar's buttons, the keys, and the two tools that
+   * hold the pointer and write for themselves — so that there is one answer to "what happens when I press
+   * T", and the same answer to S and to L.
    */
-  const tools = useTool(editable);
+  const tools = useActiveTool({
+    canEdit: editable,
+    // The thing a tool has just made is what this person wants next, so it comes to them already selected
+    // — which is the board's own selection, said to the tool rather than reached into by it.
+    select: (id) => selectionRef.current.setMany([id], false),
+  });
   const toolsRef = useRef(tools);
   toolsRef.current = tools;
+
+  /**
+   * A point on this screen as the point on the board it is over.
+   *
+   * The board owns the element the pointer is measured against, so this is the one place the subtraction of
+   * its top-left happens — and the same subtraction BoardViewport does for its own gestures, against the
+   * same rectangle, because the viewport and this container are both the whole window. Given to the two
+   * drawing tools and to every object through the board context below, because a tool that measured the
+   * window again would be a second answer to where the board starts.
+   */
+  const toWorld = useCallback(
+    (point: Point): Point => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      return screenToWorld(cameraRef.current, { x: point.x - (rect?.left ?? 0), y: point.y - (rect?.top ?? 0) });
+    },
+    [],
+  );
+
+  /**
+   * Every object's box, by id, recomputed whenever the board changes.
+   *
+   * One map for the frame, handed to the tools and to the objects: an arrow's ends are placed from these,
+   * a pointer that is over something is asked of these, and the two drawing tools ask the same question of
+   * the same numbers. It is derived from the snapshot and never cached anywhere longer than that, which is
+   * what keeps it from ever disagreeing with the object a selection is drawn around.
+   */
+  const rects = useMemo(
+    () => new Map(snapshot.map((object) => [object.id, objectBounds(object)])),
+    [snapshot],
+  );
+
+  /** What an object is told about the board it is on. See `BoardContext`. */
+  const boardContext = useMemo<BoardContext>(
+    () => ({ camera, objects: snapshot, rects, toWorld }),
+    [camera, snapshot, rects, toWorld],
+  );
 
   /**
    * The Text tool's click: some text begins here, and the pointer goes back to Select.
@@ -434,11 +480,43 @@ export function Board({
             pressed={gesture.pressedId === object.id}
             selected={selection.ids.has(object.id)}
             soleSelected={selection.ids.size === 1 && selection.ids.has(object.id)}
+            board={boardContext}
             undo={undoControls}
             zoom={camera.zoom}
           />
         ))}
       </BoardViewport>
+      {
+        // The two tools that hold the pointer themselves. They are rendered while they are lit and on a
+        // board that can be written to, and unmounted otherwise — which is also how a tool that is half
+        // way through a drag is cancelled: Escape, or a letter, or the board going read-only takes the tool
+        // away, the tool's listeners come off with it, and the drag writes nothing on the way out.
+        tools.tool === 'shape' && editable ? (
+          <ShapeTool
+            by={boardIdentity().name}
+            camera={camera}
+            doc={doc}
+            kind={tools.shapeKind}
+            onCreated={tools.toolCreated}
+            toWorld={toWorld}
+            undo={undoControls}
+          />
+        ) : null
+      }
+      {
+        tools.tool === 'connector' && editable ? (
+          <ConnectorTool
+            by={boardIdentity().name}
+            camera={camera}
+            doc={doc}
+            objects={snapshot}
+            onCreated={tools.toolCreated}
+            rects={rects}
+            toWorld={toWorld}
+            undo={undoControls}
+          />
+        ) : null
+      }
       <SelectionOverlay
         camera={camera}
         ids={selection.ids}
@@ -455,8 +533,9 @@ export function Board({
       <Toolbar
         canCreate={editable}
         onCreateSticky={createInCentre}
-        onSelectTextTool={() => tools.setTool('text')}
-        onSelectTool={() => tools.setTool('select')}
+        onShapeKindSelect={tools.setShapeKind}
+        onToolSelect={tools.setTool}
+        shapeKind={tools.shapeKind}
         tool={tools.tool}
         undo={undoActions}
       />

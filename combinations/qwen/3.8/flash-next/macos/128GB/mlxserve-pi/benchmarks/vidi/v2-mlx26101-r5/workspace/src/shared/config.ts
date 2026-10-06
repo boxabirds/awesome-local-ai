@@ -184,3 +184,102 @@ export const DEFAULT_TEXT_SIZE: TextSize = 'M';
 export const TEXT_LINE_HEIGHT = 1.3;
 /** The font text objects are measured and drawn in: the board's standard sans-serif. */
 export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/* ------------------------------------------------------------------ shapes and connectors (story 10) */
+
+/**
+ * The three shape kinds, in the order the Shape menu lists them.
+ *
+ * A kind is decided when the shape is made and never changed afterwards — "no changing a shape's kind"
+ * is the PRD's out-of-scope list, which is why nothing in the model takes a kind after creation.
+ */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+/** The kind the Shape tool is on before anybody picks one. */
+export const DEFAULT_SHAPE_KIND: ShapeKind = 'rect';
+/** The size a shape is when the pointer clicked instead of dragged, in world units (both sides). */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/**
+ * Smallest a shape drag may be and still be the rectangle that was dragged.
+ *
+ * Below this in *either* direction the drag is a click: the shape is the standard size instead, which
+ * is what makes a flick of the wrist a shape and not a 4-unit sliver nobody can click on again. It is
+ * also the smallest a resize handle may take a shape to.
+ */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Longest a shape's label may become, in characters; extra characters are not added. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Outline width of a shape, in world units — so it scales with the shape, as a drawn line does. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/**
+ * The label's font size, in world units.
+ *
+ * Not in the design's settings list; a label has to be drawn at *some* size, and the size has to be in
+ * the document's units rather than measured from the shape, because a label that grew with its shape
+ * would be a label nobody asked for when they dragged a corner.
+ */
+export const SHAPE_LABEL_FONT_SIZE_WORLD = 20;
+/** The seven fill names, in toolbar order; `none` is the shape drawn with only its outline. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+/** The six outline names, in toolbar order. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+/** Fill of a newly created shape. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+/** Outline of a newly created shape. */
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+/** Label colour of a shape: the darkest outline, so a white shape is readable by default. */
+export const SHAPE_LABEL_COLOR = '#263238';
+
+/* ------------------------------------------------------------------ connectors (story 10) */
+
+/**
+ * Shortest an arrow may be, in world units.
+ *
+ * A drag shorter than this is a pointer that was lifted where it was put down: nobody draws an arrow by
+ * moving two pixels, and an arrow between an object and itself two pixels away is clutter nobody can
+ * pick up again.
+ */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/**
+ * How close to an arrow's line a click has to be to be *on* it, in screen pixels.
+ *
+ * Screen pixels, not world units, on purpose: the tolerance is a statement about what a pointer can
+ * aim at, and it has to stay that size when the board is zoomed. The hit test divides it by the zoom to
+ * get the world distance a click is allowed to miss by, which is why an arrow is exactly as hard to
+ * click at 50 % as at 200 %.
+ */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Width of the arrow's line, in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/**
+ * What an arrow is drawn in.
+ *
+ * The same ink a shape's label is written in, and for the same reason: a diagram is ink on a board, and a
+ * second colour in the palette would be a thing to choose that nobody asked to choose. This build has no
+ * UI for arrow colour, so it is a setting and not a field of the document — an arrow written by a client
+ * that has one is still drawn in this colour, which is a preference and not a fault.
+ */
+export const CONNECTOR_COLOR = '#263238';
+/** Length of the arrowhead's point, in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius of the four connection dots the Connector tool shows, in screen pixels. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+/** Radius of the two handles a selected arrow shows at its ends, in screen pixels. */
+export const CONNECTOR_HANDLE_RADIUS_PX = 5;

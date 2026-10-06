@@ -18,16 +18,25 @@
 import * as Y from 'yjs';
 
 import {
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_KIND,
+  DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
   DEFAULT_TEXT_SIZE,
+  SHAPE_KINDS,
+  SHAPE_STROKE_WIDTH_WORLD,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   TEXT_SIZES,
+  type ShapeKind,
   type StickyColor,
 } from './config';
 import type { Point, Rect } from './geometry';
 import { rectContains } from './geometry';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import { detachConnectorsTo, readEndpoint, type ConnectorSnapshot } from './objects/connector';
 import type { TextSize, TextSnapshot } from './objects/text';
+import type { ShapeSnapshot } from './objects/shape';
 
 /** Name of the `Y.Map` holding `{ schemaVersion }`. */
 export const META_MAP = 'meta';
@@ -45,6 +54,20 @@ export const STICKY_TYPE = 'sticky';
  * the two files share a schema, not code.
  */
 export const TEXT_TYPE = 'text';
+/**
+ * The `type` value of a shape (story 10).
+ *
+ * Spelled here rather than imported from `./objects/shape` for the same reason as the one above: the
+ * snapshot has to name the type it is reading, and that file imports this one.
+ */
+export const SHAPE_TYPE = 'shape';
+/**
+ * The `type` value of a connector — an arrow between two objects (story 10).
+ *
+ * Its box is not its own: a connector's `x`/`y`/`width`/`height` are derived from where the two objects
+ * it joins are, which is what makes an arrow follow what it points at. See {@link snapshot}.
+ */
+export const CONNECTOR_TYPE = 'connector';
 
 /** Transaction origin of every local mutation (story 8 undo, story 3 echo guard). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6-local');
@@ -103,6 +126,19 @@ const finite = (value: unknown): value is number => typeof value === 'number' &&
 /** True when `value` is one of the six preset colour names. */
 export function isStickyColor(value: unknown): value is StickyColor {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(STICKY_COLORS, value);
+}
+
+/**
+ * Is this one of the three shape kinds this build draws (story 10)? The same kind of question as the
+ * one above, asked of a document that may have been written by a client with a bigger set.
+ */
+export function isShapeKindValue(value: unknown): value is ShapeKind {
+  return typeof value === 'string' && (SHAPE_KINDS as readonly string[]).includes(value);
+}
+
+/** A colour, or any other string the document holds, or the fallback when it holds nothing usable. */
+function stringValue(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.length > 0 ? value : fallback;
 }
 
 const objectsOf = (doc: Y.Doc): Y.Map<Y.Map<unknown>> =>
@@ -207,6 +243,9 @@ export function deleteObject(doc: Y.Doc, id: string): boolean {
   const objects = objectsOf(doc);
   if (!objects.has(id)) return false;
   doc.transact(() => {
+    // The same promise `deleteObjects` makes: an arrow that was pointing at this object is let go in
+    // this transaction, in the moment before the object stops being there to be asked where it was.
+    detachConnectorsTo(doc, [id]);
     objects.delete(id);
   }, LOCAL_ORIGIN);
   return true;
@@ -222,6 +261,7 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 /** Immutable snapshot of every object, sorted by `(z, id)`; unknown types are listed as-is. */
 export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects: ObjectSnapshot[] = [];
+  const connectors: ConnectorSnapshot[] = [];
   for (const [id, value] of objectsOf(doc)) {
     if (!(value instanceof Y.Map)) continue; // not an object at all: forward compatibility
     const type: unknown = value.get('type');
@@ -259,6 +299,58 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       objects.push(text);
       continue;
     }
+    if (type === SHAPE_TYPE) {
+      // A shape carries its kind and its two colours; a document written by a client that knew a kind
+      // this one does not draws the default one rather than nothing, which is the same deal the text
+      // object's size gets above.
+      const ytext: unknown = value.get('text');
+      const kind: unknown = value.get('kind');
+      const strokeWidth: unknown = value.get('strokeWidth');
+      const shape: ShapeSnapshot = {
+        id,
+        type: SHAPE_TYPE,
+        x,
+        y,
+        ...(width === undefined ? {} : { width }),
+        ...(height === undefined ? {} : { height }),
+        z,
+        createdAt,
+        text: ytext instanceof Y.Text ? ytext.toString() : '',
+        kind: isShapeKindValue(kind) ? kind : DEFAULT_SHAPE_KIND,
+        fill: stringValue(value.get('fill'), DEFAULT_SHAPE_FILL),
+        stroke: stringValue(value.get('stroke'), DEFAULT_SHAPE_STROKE),
+        strokeWidth:
+          typeof strokeWidth === 'number' && Number.isFinite(strokeWidth) && strokeWidth >= 0
+            ? strokeWidth
+            : SHAPE_STROKE_WIDTH_WORLD,
+      };
+      // The label's length limit is not policed from here: a document that arrived with a longer label
+      // came from somebody else, and only this board's own writes are policed. The editor asks for the
+      // label by name, and that is where the watching starts — see `getShapeLabel`.
+      objects.push(shape);
+      continue;
+    }
+    if (type === CONNECTOR_TYPE) {
+      // An arrow has no box of its own: the document holds four zeros where a size would be, and the box
+      // filled in below is the box its two ends make wherever the objects they sit on happen to be. That
+      // deriving is what lets an arrow follow a shape a stranger moved — there is nothing about the arrow
+      // to update, because there was never a position stored for it to have gone out of date.
+      const connector: ConnectorSnapshot = {
+        id,
+        type: CONNECTOR_TYPE,
+        x,
+        y,
+        ...(width === undefined ? {} : { width }),
+        ...(height === undefined ? {} : { height }),
+        z,
+        createdAt,
+        from: readEndpoint(value.get('from')),
+        to: readEndpoint(value.get('to')),
+      };
+      objects.push(connector);
+      connectors.push(connector);
+      continue;
+    }
     if (type !== STICKY_TYPE) {
       // Stories 10-12 objects (and anything a newer client wrote): listed so that they are
       // counted and can be found, skipped by the renderer and by select-all.
@@ -290,9 +382,60 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     };
     objects.push(sticky);
   }
+  // The arrows' boxes are the last thing worked out, after every other object's box is known: an arrow
+  // joined to another arrow can only be drawn once that one knows how big it is.
+  deriveConnectorBoxes(objects, connectors);
   // `(z, id)` so two clients that merged equal z values still agree on order.
   objects.sort((a, b) => (a.z === b.z ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.z - b.z));
   return objects;
+}
+
+/**
+ * Fills in the box of every arrow on the board, from the boxes of everything else.
+ *
+ * The array is one this function has just built and nobody outside has yet been handed, which is the only
+ * reason the boxes can be written into it here: the caller's promise is a snapshot that is read-only from
+ * now on, and by the time it is, these numbers have been in it since before it existed. An arrow's box is
+ * never stored and never written to the document, so this runs on every read — which costs a comparison
+ * per arrow and buys an arrow that cannot be out of date, in either direction, ever.
+ *
+ * It settles by repeating itself: an arrow joined to a shape was answered the first time round; one
+ * joined to another arrow needed that one's box first. The pass count is capped by the number of arrows,
+ * which is enough for any number of arrows pointing at each other in a line and stops even when two of
+ * them are pointing at each other in a circle, because a document from a newer client is allowed to be
+ * strange and this one still has to finish reading it.
+ */
+function deriveConnectorBoxes(objects: readonly ObjectSnapshot[], connectors: readonly ConnectorSnapshot[]): void {
+  if (connectors.length === 0) return;
+  const rects = new Map<string, Rect>();
+  for (const object of objects) rects.set(object.id, objectBounds(object));
+
+  const maxPasses = connectors.length + 1;
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    let settled = true;
+    for (const connector of connectors) {
+      const ends = resolveEndpoints(connector, rects);
+      const box = connectorBBox(ends.from, ends.to);
+      if (connector.x !== box.x || connector.y !== box.y || connector.width !== box.width || connector.height !== box.height) {
+        settled = false;
+        connector.x = box.x;
+        connector.y = box.y;
+        connector.width = box.width;
+        connector.height = box.height;
+      }
+      rects.set(connector.id, box);
+    }
+    if (settled) return;
+  }
+}
+
+/**
+ * Is this object an arrow? The question the selection bar asks when it decides whether to offer a resize
+ * (it does not, for an arrow: an arrow is as long as the distance between two objects), and that the
+ * gesture asks when it decides whether a drag moves a box or moves an end.
+ */
+export function isConnectorSnapshot(obj: ObjectSnapshot): obj is ConnectorSnapshot {
+  return obj.type === CONNECTOR_TYPE;
 }
 
 /**
@@ -501,6 +644,11 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   }
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Every arrow that was holding one of these objects is let go first, in this same transaction, and
+    // while the objects are still there to be asked where they were (see `detachConnectorsTo`). One
+    // transaction, so one update, so nobody on the far end of the network ever sees an arrow attached to
+    // an object that is gone — not even for the instant a second write would have taken.
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
