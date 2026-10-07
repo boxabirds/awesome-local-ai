@@ -390,7 +390,9 @@ def test_known_good_mode_is_refused_unless_it_is_told_plainly_which_stories_to_r
 
 # ======================= an ordinary run =======================
 
-RECORD_KEYS = {"title", "conditions_start", "started", "engine_settings", "agent", "agent_finished", "conditions",
+# "memory_start": what the model server held as the story began (memory_snapshot.py), added 7 Oct 2026. The set is
+# pinned on purpose, so a new field in the record is a decision and not an accident; it is in TELEMETRY.md too.
+RECORD_KEYS = {"title", "conditions_start", "started", "engine_settings", "memory_start", "agent", "agent_finished", "conditions",
                "containment", "agent_commits", "provenance", "gate", "accept", "commit", "requests", "time_split",
                "conversation", "loc", "finished", "status", "ended_by", "partial_base", "tasks", "tasks_claimed", "end_reason"}
 ENTRY_KEYS = {"id", "title", "status", "ended_by", "started_at", "ended_at", "agent_minutes", "calls", "output_tokens",
@@ -988,7 +990,9 @@ def test_a_story_skipped_before_the_harness_restarted_is_ended_from_its_log_with
     loop.main()
     assert [r["story"] for r in loop.agent_runs()] == [2]                    # story 1's agent was never started
     rec = loop.story(1)
-    assert set(rec) == (RECORD_KEYS - {"conditions_start", "containment"}) | {"skip", "verdict"}
+    # No agent was started for this story, so it has no memory snapshot either: one is taken as a story BEGINS, and a
+    # story ended from its log never did. Absent, not zero.
+    assert set(rec) == (RECORD_KEYS - {"conditions_start", "containment", "memory_start"}) | {"skip", "verdict"}
     assert rec["status"] == drive.PARTIAL and rec["skip"] == {"story": 1, "reason": "not worth the wait", "by": drive.OPERATOR, "at": 7.0}
     agent = rec["agent"]
     assert agent["reconstructed_from_log"] is True and agent["ended_by_operator"] is True and agent["exit"] is None

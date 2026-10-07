@@ -294,6 +294,7 @@ cd "$HARNESS"
 record_event started "harness $HARNESS_COMMIT${HARNESS_RELEASE:+ ($HARNESS_RELEASE)}, client $CLIENT_NAME, model $MODEL_ID"
 uv run --quiet drive.py --run-dir "$RUN_DIR" --base-url "$AGENT_URL" --client "$CLIENT_NAME" \
   ${SERVER_LOG:+--server-log "$SERVER_LOG"} \
+  --install-env "$ENV_FILE" \
   --model-id "$MODEL_ID" --pack "$PACK" ${SCOPE:+--scope "$SCOPE"} ${EPIC:+--epic "$EPIC"} \
   --context-limit "$CONTEXT_LIMIT" --output-limit "$OUTPUT_LIMIT" \
   ${ONLY:+--only "$ONLY"} ${RECORD:+--record} ${COMPACT_AT:+--compact-at "$COMPACT_AT"} \

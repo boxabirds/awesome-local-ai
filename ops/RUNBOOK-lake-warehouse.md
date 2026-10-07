@@ -32,7 +32,7 @@ Ingest reads records from the repo's `origin/main`, never the working copy.
 
 ## The tables, and what a row is
 
-`sqlite3` on the warehouse. Nine tables:
+`sqlite3` on the warehouse. Ten tables:
 
 | Table | One row is | Key columns |
 |---|---|---|
@@ -46,8 +46,24 @@ Ingest reads records from the repo's `origin/main`, never the working copy.
 | `compactions` | one compaction | `sk`, `reason`, `summary_chars` |
 | `attempts` | one harness attempt | `sk`, `n`, `seconds`, `steps` |
 | `conditions` | one 30 s machine reading during a story | `sk`, `run_id`, `at`, `free_pct`, `swap_gb`, `footprint_gb`, `gpu_mem_gb`, `gpu_busy_pct`, `gpu_temp_c`, `gpu_power_w` |
+| `memory` | what the model server held as one story began (from the record's `memory_start`; none for stories recorded before 7 Oct 2026) | `sk`, `run_id`, `resident_mib`, `model_bytes`, `engine`, `cache_retained_mib`, `cache_capacity_mib`, `cache_skipped_for_capacity`, `cache_evictions`, `cache_evicted_mib`, `extras_json` |
 
 ### Gotchas that cost time
+
+- **`memory` columns are NULL when an engine does not say, never 0.** The engines offer different things about
+  themselves: gufo has a cache `capacity` and what it `retained`; llama.cpp prints neither and has `cache_evictions`
+  instead. `where cache_capacity_mib is not null` is therefore "a gufo story", and a llama.cpp story has no
+  capacity to compare. `resident_mib` is NULL when the total could not be read: a containerised engine once read
+  0.0 for every sample (2,381 on one run) because the port's owner was podman's shim, and a zero looks like an empty
+  server where NULL looks like what it is.
+- **`cache_evictions` and `cache_evicted_mib` (llama.cpp) are cumulative since the SERVER started, not per story.**
+  A story's own evictions are the difference from the previous story's row in the same run, and a restart of the
+  server resets the count, so a row smaller than the one before it means a restart. Compare rows within a run.
+- **`model_bytes` is the exact size of the files the install manifest names**, every shard and the draft head, and is
+  NULL when the model itself is not on the machine. A draft head alone is deliberately not reported: it would read as
+  a small model.
+- **`footprint_gb` in `conditions` is the same total sampled every 30 s; `memory.resident_mib` is the one reading at a
+  story's start.** Use `conditions` for the peak during a story and `memory` for the breakdown at its start.
 
 - **`stories.run` is NOT unique. The key is `(stack, run)`.** A run name is the series position, and every
   combination running that series uses it: `v2-r1` … `v2-r4` each name three different runs, on three different
@@ -74,6 +90,18 @@ Ingest reads records from the repo's `origin/main`, never the working copy.
   so `requests` joins to runs by path, not to `stories` by `sk`.
 
 ## Recipes
+
+What a run's server was holding at the start of each story, and whether its prompt cache is full or churning:
+
+```sql
+select s.story, round(m.resident_mib/1024.0,1) resident_gib, round(m.model_bytes/1073741824.0,1) model_gib,
+       m.engine, round(m.cache_retained_mib/1024.0,1) cache_gib, round(m.cache_capacity_mib/1024.0,1) cache_cap_gib,
+       m.cache_skipped_for_capacity skipped, m.cache_evictions evictions
+from memory m join stories s on s.sk = m.sk
+where s.stack = ? and s.run = ?  -- (stack, run): a run name is not unique
+order by cast(s.story as integer);
+```
+
 
 A story across every stack on one machine:
 

@@ -1,6 +1,6 @@
 # name|ctx|kv_type|vision|np|ub|need_mib|summary
 #
-# NOT MEASURED BY THIS REPO. Every need_mib below is an ESTIMATE, built from:
+# Apart from the coding profile (measured: see below), NOT MEASURED BY THIS REPO. Every other need_mib is an ESTIMATE, built from:
 #   weights   UD-IQ4_XS = 93,682,584,224 bytes on the Hub = 89,342 MiB
 #   KV cache  two KV heads: a Strix Halo report puts 128k -> 256k at ~5 GB
 #   total     drluoto reports weights + 262k + vision at ~106 GB (~101,000 MiB)
@@ -20,9 +20,12 @@
 #
 # The coding profile's need_mib is MEASURED: 98,333 MiB resident (three samples, steady) for the server process
 # at ctx 131072 with one slot, taken from v2-iq3xxs-r1 on the M5 Max on 7 Oct 2026 while it was serving story 4.
-# Rounded up to 98,400. Weights are about 78,200 MiB of that (10.9 MB + 49.57 GB + 32.38 GB of IQ3_XXS shards),
-# so roughly 20 GiB is the KV cache at 128k, the Q8_0 draft head and engine overhead. This build prints no
-# per-component figures, so that split is arithmetic, not measurement.
+# Rounded up to 98,400. The weights are MEASURED too: 79.77 GiB (81,700 MiB) on disk, the model's three shards plus
+# the Q8_0 draft head and the image projector, from the harness's own memory snapshot (memory_snapshot.py), which sums
+# the files the install manifest names. So about 16.3 GiB of the resident figure is everything else: the KV cache at
+# 128k, compute buffers and engine overhead. This build prints no per-component figures, so that split of the
+# remainder is arithmetic, not measurement. (An earlier version of this comment said "about 78,200 MiB" and "roughly
+# 20 GiB": that was worked out from the file list and was wrong on both.)
 #
 # The other profiles are still ESTIMATES inherited from the 4-bit sibling and are wrong until measured: they
 # claim MORE than this 3-bit pack needs at the same context. Do not quote them.
