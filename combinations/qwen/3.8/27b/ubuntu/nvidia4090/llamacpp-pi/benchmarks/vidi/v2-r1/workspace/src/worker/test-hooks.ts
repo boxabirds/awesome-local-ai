@@ -10,7 +10,7 @@
 import * as Y from 'yjs';
 import { firstRow, toUint8Array, type BoardStore } from './board-store';
 
-export type TestHookOp = 'compact' | 'corrupt-snapshot' | 'repair' | 'reload' | 'seed';
+export type TestHookOp = 'compact' | 'corrupt-snapshot' | 'repair' | 'reload' | 'seed' | 'seed-legacy';
 
 export const TEST_HOOK_OPS: readonly TestHookOp[] = [
   'compact',
@@ -18,6 +18,9 @@ export const TEST_HOOK_OPS: readonly TestHookOp[] = [
   'repair',
   'reload',
   'seed',
+  // Story 5: handled in BoardRoom.fetch (it must also reload the room after
+  // the SQL write), like 'reload'.
+  'seed-legacy',
 ];
 
 export function isTestHookPath(url: URL): boolean {

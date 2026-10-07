@@ -89,3 +89,15 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 export const BUDGET_RECOVERY_MS = 5000;
 /** Version of the Durable Object storage schema (storage_meta row). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Board sharing (story 5) -----------------------------------------------
+
+/** PRD share.create: a new board must open within this time (ms) on a typical
+ *  broadband connection. Reported in e2e, not asserted. */
+export const CREATE_BUDGET_MS = 2000;
+/** PRD share.copy: the "Link copied" confirmation is shown for this long (ms). */
+export const LINK_COPIED_MS = 2000;
+/** PRD share.unreachable: base backoff for the board existence check while the
+ *  service cannot be reached; doubles per attempt, capped at
+ *  RECONNECT_MAX_BACKOFF_MS (story 3). */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

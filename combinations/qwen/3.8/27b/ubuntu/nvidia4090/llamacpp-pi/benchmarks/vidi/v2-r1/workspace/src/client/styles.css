@@ -342,3 +342,150 @@ body {
   border-color: #ef4444;
   color: #b91c1c;
 }
+
+/* --- Story 5: home, board-not-found, board-opening and share panel ------- */
+
+.page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 40px;
+  letter-spacing: -0.5px;
+  color: #101828;
+}
+
+.page-subtitle {
+  margin: 0 0 12px;
+  font-size: 15px;
+  color: #475467;
+}
+
+.new-board-button {
+  padding: 10px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--selection-blue);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.new-board-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.new-board-button:focus-visible,
+.share-button:focus-visible,
+.share-copy-button:focus-visible,
+.share-link-input:focus-visible,
+.home-link:focus-visible {
+  outline: 2px solid var(--selection-blue);
+  outline-offset: 2px;
+}
+
+.page-error {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #b42318;
+}
+
+.home-link {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--selection-blue);
+}
+
+.board-opening,
+.board-unreachable {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: #475467;
+}
+
+/* Share button (top-right of the board) and its panel */
+
+.share-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 40;
+  padding: 7px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #101828;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  box-shadow: var(--ui-shadow);
+  cursor: pointer;
+}
+
+.share-panel {
+  position: absolute;
+  top: 52px;
+  right: 12px;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 320px;
+  padding: 14px;
+  text-align: left;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  box-shadow: var(--ui-shadow);
+}
+
+.share-link-input {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: #344054;
+  background: #f9fafb;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+}
+
+.share-copy-button {
+  align-self: flex-start;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--selection-blue);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.share-copy-button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.share-manual-copy {
+  margin: 0;
+  font-size: 13px;
+  color: #b45309;
+}
+
+.share-note {
+  margin: 0;
+  font-size: 12px;
+  color: #667085;
+}

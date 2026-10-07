@@ -11,7 +11,7 @@ import * as Y from 'yjs';
 import * as sync from 'y-protocols/sync';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
-import { SELF } from 'cloudflare:test';
+import { env, SELF, runInDurableObject } from 'cloudflare:test';
 
 const MESSAGE_SYNC = 0;
 const MESSAGE_AWARENESS = 1;
@@ -45,7 +45,19 @@ function getObjectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
  * updates. Pass `existingDoc` to reconnect with a doc that already holds
  * (unsent) changes, as a real client would after a server-initiated close.
  */
+/**
+ * Story 5: rooms are no longer created implicitly by connecting — a board
+ * must exist first. These integration tests predate the board API and choose
+ * their own ids, so they initialise the board through the same RPC the
+ * Worker's POST /api/boards uses. Idempotent: an existing board is untouched.
+ */
+export async function ensureBoardInitialized(boardId: string): Promise<void> {
+  const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+  await runInDurableObject(stub, (instance) => instance.initialize());
+}
+
 export async function createWsClient(boardId: string, existingDoc?: Y.Doc): Promise<WsClient> {
+  await ensureBoardInitialized(boardId);
   const doc = existingDoc ?? new Y.Doc();
 
   const receivedUpdates: Uint8Array[] = [];

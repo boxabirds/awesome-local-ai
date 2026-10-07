@@ -16,7 +16,13 @@ export default defineConfig({
           name: 'component',
           environment: 'jsdom',
           environmentOptions: {
-            jsdom: { pretendToBeVisual: true, url: 'http://localhost:28432/' },
+            // Story 5: '/' is now the home page; the default component-test
+            // URL opens a board so the existing App-rendering specs see the
+            // board UI. Pages specs pushState to their own URLs per test.
+            jsdom: {
+              pretendToBeVisual: true,
+              url: 'http://localhost:28432/b/' + 'a'.repeat(22),
+            },
           },
           include: ['tests/component/**/*.test.tsx'],
           setupFiles: ['tests/setup/component.ts'],
@@ -28,6 +34,8 @@ export default defineConfig({
           include: ['tests/integration/**/*.test.ts'],
           pool: '@cloudflare/vitest-pool-workers',
           testTimeout: 30000,
+          // Build dist/client when missing (the SPA fallback tests need it).
+          globalSetup: './scripts/ensure-dist.mjs',
           poolOptions: {
             workers: {
               wrangler: { configPath: 'wrangler.jsonc' },

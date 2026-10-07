@@ -29,7 +29,7 @@ import {
   decodeMessage,
 } from '../shared/protocol';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config';
-import { BoardStore, LOAD_ORIGIN } from './board-store';
+import { BoardStore, LOAD_ORIGIN, META_CREATED_AT, firstRow } from './board-store';
 import { nextRoomState, type RoomState } from './room-state';
 import { handleTestHook, isTestHookPath } from './test-hooks';
 import type { Env } from './index';
@@ -50,8 +50,29 @@ export class BoardRoom extends DurableObject {
     this.store = new BoardStore(ctx.storage);
     console.log({ event: 'board_room.constructed' });
     // Load synchronously before any event runs: fetch and webSocketMessage
-    // only observe 'ready' or 'load-failed'.
+    // only observe 'ready' or 'load-failed'. Story 5: the load never writes
+    // (an unknown board's missing tables are an empty board, not a failure),
+    // so probing a link constructs the object without leaving storage behind.
     void ctx.blockConcurrencyWhile(() => this.runLoad());
+  }
+
+  /** Story 5 (share.board_api): initialise this board's storage. Runs the
+   * migrations and records created_at exactly once; a second call (or a
+   * collision on a fresh id) returns 'exists' without touching created_at.
+   * The only RPC that writes storage. */
+  async initialize(): Promise<'created' | 'exists'> {
+    const sql = this.ctx.storage.sql;
+    this.store.migrate();
+    const existing = firstRow<{ value: string }>(sql, 'SELECT value FROM storage_meta WHERE key = ?1', META_CREATED_AT);
+    if (existing !== null) return 'exists';
+    sql.exec('INSERT INTO storage_meta (key, value) VALUES (?1, ?2)', META_CREATED_AT, String(Date.now()));
+    return 'created';
+  }
+
+  /** Story 5 (share.board_api): read-only existence check (created_at, or
+   * legacy updates/snapshot rows). Never writes. */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
   }
 
   async fetch(req: Request): Promise<Response> {
@@ -68,8 +89,42 @@ export class BoardRoom extends DurableObject {
           headers: { 'Content-Type': 'application/json' },
         });
       }
+      if (url.pathname === '/__test/seed-legacy') {
+        // Story 5 test hook (TC-31): seed a pre-story-5 board — the story 4
+        // schema and an updates row, but no created_at — then reload the room
+        // so it serves the seeded state. TEST_HOOKS-gated like every hook.
+        const update = new Uint8Array(await req.arrayBuffer());
+        const scratch = new Y.Doc();
+        try {
+          Y.applyUpdate(scratch, update);
+        } catch {
+          scratch.destroy();
+          return new Response(JSON.stringify({ ok: false, error: 'invalid update' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        scratch.destroy();
+        this.store.seedLegacy(update);
+        this.state = 'loading';
+        await this.runLoad();
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       const response = await handleTestHook(req, url, this.ctx.storage, this.store, this.doc);
       if (response !== null) return response;
+    }
+
+    // Story 5 (share.not_found): unknown boards are rejected before anything
+    // is accepted. The check is read-only; no tables exist for an unknown id,
+    // so probing a link leaves no storage behind.
+    if (!this.store.existsReadOnly()) {
+      return new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     const pairs = new WebSocketPair();
@@ -148,7 +203,9 @@ export class BoardRoom extends DurableObject {
   // --- internals -----------------------------------------------------------
 
   private async runLoad(): Promise<void> {
-    this.store.migrate();
+    // Story 5: no migrate here — load() treats missing tables as an empty
+    // board. migrate() runs from initialize() and lazily before the first
+    // append, so an unknown board is never touched by a load or a probe.
     const fresh = new Y.Doc();
     const result = this.store.load(fresh);
     this.lastLoadAttemptAt = Date.now();

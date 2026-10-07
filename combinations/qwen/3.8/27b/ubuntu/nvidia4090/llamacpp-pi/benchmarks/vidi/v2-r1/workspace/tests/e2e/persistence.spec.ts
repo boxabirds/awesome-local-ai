@@ -44,12 +44,21 @@ async function waitForHooks(page: import('@playwright/test').Page): Promise<void
   });
 }
 
+/** Create a board through the story 5 API and return its id. */
+async function createBoard(base: string): Promise<string> {
+  const res = await fetch(`${base}/api/boards`, { method: 'POST' });
+  if (res.status !== 201) throw new Error(`board creation failed: ${res.status}`);
+  const body = (await res.json()) as { id: string };
+  return body.id;
+}
+
 test.describe('persistence across process restarts', () => {
   test('TC-19: overnight return — 25 varied notes survive a kill and restart', async ({ browser }) => {
     const wrangler = await createWranglerProcess();
     try {
       await wrangler.start();
-      const boardId = newBoardId();
+      // Story 5: the board must exist before its link opens.
+      const boardId = await createBoard(wrangler.base);
       const spec = retroSpec();
       expect(spec).toHaveLength(25);
 
@@ -109,7 +118,8 @@ test.describe('persistence across process restarts', () => {
     const wrangler = await createWranglerProcess();
     try {
       await wrangler.start();
-      const boardId = newBoardId();
+      // Story 5: the board must exist before its link opens.
+      const boardId = await createBoard(wrangler.base);
 
       const ctxAlex = await browser.newContext();
       const pageAlex = await ctxAlex.newPage();

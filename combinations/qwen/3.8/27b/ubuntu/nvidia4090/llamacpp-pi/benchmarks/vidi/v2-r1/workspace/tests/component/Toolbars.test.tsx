@@ -15,8 +15,8 @@ function theNote(): HTMLElement {
 const noteToolbar = () => screen.queryByRole('toolbar', { name: 'Sticky note options' });
 
 describe('toolbars (component)', () => {
-  it('TC-27: clicking the Pink swatch recolors the note and keeps the selection', () => {
-    renderApp();
+  it('TC-27: clicking the Pink swatch recolors the note and keeps the selection', async () => {
+    await renderApp();
     const id = addNote(0, 0);
     expect(note(id)!.color).toBe('yellow');
 
@@ -36,8 +36,8 @@ describe('toolbars (component)', () => {
     expect(el).toHaveStyle({ background: STICKY_COLORS.pink });
   });
 
-  it('TC-28: the Sticky note button creates one note centred on the viewport centre, in editing', () => {
-    renderApp();
+  it('TC-28: the Sticky note button creates one note centred on the viewport centre, in editing', async () => {
+    await renderApp();
     const cam = hooks().getCamera();
     // The button creates the note at the viewport centre in screen space;
     // convert that to world coords the same way the app does.
@@ -57,8 +57,8 @@ describe('toolbars (component)', () => {
     expect(screen.getByTestId('sticky-note')).toHaveAttribute('data-selected');
   });
 
-  it('TC-29: the bin button deletes the selected note and clears the selection', () => {
-    renderApp();
+  it('TC-29: the bin button deletes the selected note and clears the selection', async () => {
+    await renderApp();
     const id = addNote(0, 0);
 
     const el = theNote();

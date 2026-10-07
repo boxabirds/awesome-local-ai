@@ -349,6 +349,12 @@ describe('BoardRoom persistence (persist.room)', () => {
   it('TC-26: the SELECT in load throws → the room closes clients with 4500', async () => {
     const boardId = newBoardId();
 
+    // Story 5: a load only reaches the log-read SELECT for a board that has
+    // tables, so create this one first (the API's initialize RPC).
+    await runInDurableObject(boardStub(boardId), (instance) => {
+      return instance.initialize();
+    });
+
     // Make the log-read SELECT inside store.load throw; load() maps that to
     // { ok: false, reason: 'sql-error' } and the room goes load-failed.
     await runInDurableObject(boardStub(boardId), (instance, _state) => {

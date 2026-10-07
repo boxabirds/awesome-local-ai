@@ -31,8 +31,8 @@ function dblclick(el: Element): void {
 }
 
 describe('sticky text editing (component)', () => {
-  it('TC-23: Enter on the selected note starts editing with the textarea focused, caret at the end', () => {
-    renderApp();
+  it('TC-23: Enter on the selected note starts editing with the textarea focused, caret at the end', async () => {
+    await renderApp();
     const id = addNote(0, 0);
     typeIntoEditorByClick(id, 'existing'); // give the note some text
 
@@ -46,8 +46,8 @@ describe('sticky text editing (component)', () => {
     expect(ta.selectionEnd).toBe(ta.value.length);
   });
 
-  it('TC-24: Escape ends editing and keeps the note selected with its text', () => {
-    renderApp();
+  it('TC-24: Escape ends editing and keeps the note selected with its text', async () => {
+    await renderApp();
     const id = addNote(0, 0);
     typeIntoEditorByClick(id, 'draft');
 
@@ -63,8 +63,8 @@ describe('sticky text editing (component)', () => {
     expect(noteText(id)).toBe('draft more');
   });
 
-  it('TC-25: Delete removes the selected note', () => {
-    renderApp();
+  it('TC-25: Delete removes the selected note', async () => {
+    await renderApp();
     const id = addNote(0, 0);
     const el = theNote();
     click(el);
@@ -76,8 +76,8 @@ describe('sticky text editing (component)', () => {
     expect(screen.queryByRole('toolbar', { name: 'Sticky note options' })).not.toBeInTheDocument();
   });
 
-  it('TC-25: Backspace removes the selected note (separate run)', () => {
-    renderApp();
+  it('TC-25: Backspace removes the selected note (separate run)', async () => {
+    await renderApp();
     const id = addNote(0, 0);
     const el = theNote();
     click(el);
@@ -88,8 +88,8 @@ describe('sticky text editing (component)', () => {
     expect(hooks().getNotes()).toHaveLength(0);
   });
 
-  it('TC-26: Backspace while editing deletes a character, not the note', () => {
-    renderApp();
+  it('TC-26: Backspace while editing deletes a character, not the note', async () => {
+    await renderApp();
     const id = addNote(0, 0);
     const el = theNote();
     dblclick(el);
@@ -107,8 +107,8 @@ describe('sticky text editing (component)', () => {
     expect(screen.getByTestId('sticky-editor')).toBeInTheDocument(); // still editing
   });
 
-  it('TC-35: a double-click on an existing note edits it and creates no new note', () => {
-    renderApp();
+  it('TC-35: a double-click on an existing note edits it and creates no new note', async () => {
+    await renderApp();
     const id = addNote(0, 0);
     const el = theNote();
 
@@ -119,8 +119,8 @@ describe('sticky text editing (component)', () => {
     expect(note(id)).toBeDefined();
   });
 
-  it('TC-36: Enter while nothing is selected creates nothing and edits nothing', () => {
-    renderApp();
+  it('TC-36: Enter while nothing is selected creates nothing and edits nothing', async () => {
+    await renderApp();
 
     fireEvent.keyDown(window, { key: 'Enter' });
 
@@ -129,8 +129,8 @@ describe('sticky text editing (component)', () => {
     expect(screen.queryByTestId('sticky-note')).not.toBeInTheDocument();
   });
 
-  it('TC-38: typing then clicking outside ends editing, unselects, and keeps the text', () => {
-    renderApp();
+  it('TC-38: typing then clicking outside ends editing, unselects, and keeps the text', async () => {
+    await renderApp();
     const id = addNote(0, 0);
     const el = theNote();
     dblclick(el);
@@ -147,8 +147,8 @@ describe('sticky text editing (component)', () => {
     expect(el).not.toHaveAttribute('data-selected');
   });
 
-  it('the counter appears within the threshold and shows length/limit', () => {
-    renderApp();
+  it('the counter appears within the threshold and shows length/limit', async () => {
+    await renderApp();
     addNote(0, 0);
     const el = theNote();
     dblclick(el);

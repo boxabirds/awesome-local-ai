@@ -4,6 +4,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { PROSE_1000 } from '../fixtures/texts';
+import { newBoardId } from '../../src/shared/board-id';
 import type { Vidi6NoteInfo } from '../../src/client/testHooks';
 
 async function notes(page: Page): Promise<Vidi6NoteInfo[]> {
@@ -25,8 +26,9 @@ const note = (page: Page) => page.getByTestId('sticky-note');
 
 // Fresh app state per test; wait until React has mounted before any
 // interaction (module transforms are pre-warmed by the global setup).
+// Story 5: '/' is the home page, so these specs open a board directly.
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto(`/b/${newBoardId()}`);
   await page.getByTestId('board-root').waitFor();
 });
 

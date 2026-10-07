@@ -1,7 +1,7 @@
 // Shared helpers for story 2 component tests: render the real <App />,
 // create notes through the model, and drive pointer interactions.
 
-import { render, fireEvent, type RenderResult } from '@testing-library/react';
+import { render, screen, fireEvent, type RenderResult } from '@testing-library/react';
 import { act } from 'react';
 import { App } from '../../src/client/App';
 import {
@@ -11,8 +11,16 @@ import {
 } from '../../src/shared/board-model';
 import type { Vidi6NoteInfo, Vidi6TestHooks } from '../../src/client/testHooks';
 
-export function renderApp(): RenderResult {
-  return render(<App />);
+/** Render the real <App /> and wait for the board to be mounted. Story 5:
+ * the board is checked for existence (mocked to exist by the component
+ * setup) before it mounts, so the mount is a microtask away. */
+export async function renderApp(): Promise<RenderResult> {
+  const result = render(<App />);
+  await screen.findByTestId('board-root');
+  // The board mounted in a microtask outside act; flush its passive effects
+  // (test hooks, listeners) before handing the tree back to the test.
+  await act(async () => {});
+  return result;
 }
 
 export function hooks(): Vidi6TestHooks {

@@ -91,6 +91,10 @@ export function toUint8Array(value: unknown): Uint8Array {
 
 const META_SCHEMA_VERSION = 'storage_schema_version';
 const META_SNAPSHOT_THROUGH_SEQ = 'snapshot_through_seq';
+/** Story 5 (share.board_api): written once by BoardRoom.initialize(); its
+ * presence marks a board as created. Legacy boards (pre-story-5) never have
+ * it and count as existing by their updates/snapshot rows instead. */
+export const META_CREATED_AT = 'created_at';
 
 /** First row of a SELECT, or null. (cursor.one() throws on 0 and 2+ rows.) */
 export function firstRow<T extends Record<string, SqlStorageValue>>(
@@ -114,24 +118,24 @@ export class BoardStore {
   private readonly faults: BoardStoreFaults;
   private logCount = 0;
   private logBytes = 0;
+  /** Story 5: migrate() no longer runs on construct (probing an unknown link
+   * must write nothing); it runs from initialize() and lazily here. */
+  private tablesReady = false;
 
   constructor(storage: DurableObjectStorage, faults: BoardStoreFaults = {}) {
     this.storage = storage;
     this.faults = faults;
   }
 
-  /** Rows/bytes currently in the update log (tracked in memory after load;
-   * updated by append/compaction). */
-  get logStats(): { count: number; bytes: number } {
-    return { count: this.logCount, bytes: this.logBytes };
-  }
-
-  compactionDue(): boolean {
-    return shouldCompact(this.logCount, this.logBytes);
-  }
-
-  /** Create tables and record the schema version. Writes no update rows. */
+  /** Create tables and record the schema version. Writes no update rows.
+   * Idempotent; safe to call from multiple paths (initialize, first append). */
   migrate(): void {
+    if (this.tablesReady) return;
+    this.runMigrations();
+    this.tablesReady = true;
+  }
+
+  private runMigrations(): void {
     const sql = this.storage.sql;
     for (const statement of MIGRATIONS) sql.exec(statement);
     const row = firstRow<{ value: string }>(sql, 'SELECT value FROM storage_meta WHERE key = ?1', META_SCHEMA_VERSION);
@@ -144,9 +148,59 @@ export class BoardStore {
     }
   }
 
+  /** Story 5 (share.board_api): read-only existence check. A board exists if
+   * its storage has storage_meta.created_at, or (legacy) at least one row in
+   * updates or snapshot_chunks. Queries sqlite_master first and never creates
+   * tables, so probing a link to an unknown board leaves no storage behind. */
+  existsReadOnly(): boolean {
+    const sql = this.storage.sql;
+    const tables = this.tableNames();
+    if (tables.has('storage_meta')) {
+      const meta = firstRow<{ value: string }>(sql, 'SELECT value FROM storage_meta WHERE key = ?1', META_CREATED_AT);
+      if (meta !== null) return true;
+    }
+    if (tables.has('updates')) {
+      const row = firstRow<{ n: number | null }>(sql, 'SELECT COUNT(*) AS n FROM updates');
+      if (row !== null && (row.n ?? 0) > 0) return true;
+    }
+    if (tables.has('snapshot_chunks')) {
+      const row = firstRow<{ n: number | null }>(sql, 'SELECT COUNT(*) AS n FROM snapshot_chunks');
+      if (row !== null && (row.n ?? 0) > 0) return true;
+    }
+    return false;
+  }
+
+  /** Story 5 test hook (TC-31): seed a pre-story-5 board — the story 4
+   * schema and an updates row, but no created_at (legacy board). */
+  seedLegacy(update: Uint8Array): void {
+    this.migrate();
+    this.storage.sql.exec('INSERT INTO updates (data, bytes) VALUES (?1, ?2)', update, update.length);
+  }
+
+  /** The names of the tables that currently exist in this board's database. */
+  private tableNames(): Set<string> {
+    const rows = this.storage.sql
+      .exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .toArray();
+    return new Set(rows.map((row) => row.name));
+  }
+
+  /** Rows/bytes currently in the update log (tracked in memory after load;
+   * updated by append/compaction). */
+  get logStats(): { count: number; bytes: number } {
+    return { count: this.logCount, bytes: this.logBytes };
+  }
+
+  compactionDue(): boolean {
+    return shouldCompact(this.logCount, this.logBytes);
+  }
+
   /** Append one Yjs update to the log. Throws on SQL failure (the caller must
-   * then fail the room over: close 1011 and discard the in-memory doc). */
+   * then fail the room over: close 1011 and discard the in-memory doc).
+   * Migrates lazily before the first append (story 5: legacy boards already
+   * have tables; fresh boards are migrated by initialize() or here). */
   append(update: Uint8Array): void {
+    this.migrate();
     this.storage.sql.exec('INSERT INTO updates (data, bytes) VALUES (?1, ?2)', update, update.length);
     this.logCount += 1;
     this.logBytes += update.length;
@@ -154,27 +208,42 @@ export class BoardStore {
 
   /** Load the persisted state (snapshot, then log rows) into `doc`. Never throws:
    * a damaged snapshot is a load failure, a damaged log row is quarantined and
-   * skipped, a SQL failure is a load failure. */
+   * skipped, a SQL failure is a load failure. Story 5: missing tables are an
+   * empty board (an unknown link is never a load failure) and nothing is
+   * created. */
   load(doc: Y.Doc): LoadResult {
     const sql = this.storage.sql;
     try {
-      const throughRow = firstRow<{ value: string }>(sql, 'SELECT value FROM storage_meta WHERE key = ?1', META_SNAPSHOT_THROUGH_SEQ);
-      const throughSeq = throughRow === null ? 0 : Number(throughRow.value);
+      const tables = this.tableNames();
+      if (!tables.has('storage_meta') && !tables.has('updates') && !tables.has('snapshot_chunks')) {
+        // Unknown board: no tables, nothing persisted → empty board, no writes.
+        this.logCount = 0;
+        this.logBytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
 
-      const chunkRows = sql
-        .exec<{ data: ArrayBuffer }>('SELECT data FROM snapshot_chunks ORDER BY idx')
-        .toArray();
-      if (chunkRows.length > 0) {
-        const snapshot = joinChunks(chunkRows.map((row) => toUint8Array(row.data)));
-        try {
-          Y.applyUpdate(doc, snapshot, LOAD_ORIGIN);
-        } catch (error) {
-          console.error({ event: 'board_store.snapshot_unreadable', error: errorMessage(error) });
-          return { ok: false, reason: 'snapshot-unreadable', error: errorMessage(error) };
+      let throughSeq = 0;
+      if (tables.has('storage_meta')) {
+        const throughRow = firstRow<{ value: string }>(sql, 'SELECT value FROM storage_meta WHERE key = ?1', META_SNAPSHOT_THROUGH_SEQ);
+        throughSeq = throughRow === null ? 0 : Number(throughRow.value);
+      }
+
+      if (tables.has('snapshot_chunks')) {
+        const chunkRows = sql
+          .exec<{ data: ArrayBuffer }>('SELECT data FROM snapshot_chunks ORDER BY idx')
+          .toArray();
+        if (chunkRows.length > 0) {
+          const snapshot = joinChunks(chunkRows.map((row) => toUint8Array(row.data)));
+          try {
+            Y.applyUpdate(doc, snapshot, LOAD_ORIGIN);
+          } catch (error) {
+            console.error({ event: 'board_store.snapshot_unreadable', error: errorMessage(error) });
+            return { ok: false, reason: 'snapshot-unreadable', error: errorMessage(error) };
+          }
         }
       }
 
-      const rows = this.readLogRows(throughSeq);
+      const rows = tables.has('updates') ? this.readLogRows(throughSeq) : [];
       let quarantined = 0;
       let keptBytes = 0;
       for (const row of rows) {

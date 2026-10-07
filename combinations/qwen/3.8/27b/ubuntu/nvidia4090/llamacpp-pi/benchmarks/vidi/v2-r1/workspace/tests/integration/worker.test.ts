@@ -8,11 +8,11 @@ import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { createWsClient } from './ws-client';
 
 describe('Worker routing (sync.worker_entry)', () => {
-  it('TC-04: GET /api/rooms/bad!id with Upgrade returns 400', async () => {
+  it('TC-04: GET /api/rooms/bad!id with Upgrade returns 404 (story 5: malformed is 404, was 400)', async () => {
     const res = await SELF.fetch('http://127.0.0.1/api/rooms/bad!id', {
       headers: { Upgrade: 'websocket' },
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
   });
 
   it('TC-05: GET /api/rooms/<valid> without Upgrade returns 426', async () => {

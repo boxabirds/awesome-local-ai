@@ -7,11 +7,40 @@ import * as Y from 'yjs';
 import * as sync from 'y-protocols/sync';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
+import { isValidBoardId, newBoardId } from './src/shared/board-id';
 
-// Inlined from src/shared/board-id.ts
-const BOARD_ID_PATTERN = /^[A-Za-z0-9_-]{22}$/;
-function isValidBoardId(s: string): boolean {
-  return BOARD_ID_PATTERN.test(s);
+/**
+ * In-memory stand-in for the Worker's board API (story 5) on the Vite dev
+ * server. The dev server has no persistent storage, so "a board exists" is
+ * "the id is well formed" — the pre-story-5 room semantics, which keep the
+ * story 1–4 e2e specs (they open /b/<id> directly) working. The real
+ * unknown-board 404s are proven against `wrangler dev` in share.spec.ts.
+ */
+function handleBoardApi(req: { method?: string; url?: string }, res: { writeHead(code: number, headers?: Record<string, string>): void; end(body?: string): void }): void {
+  const path = (req.url ?? '').split('?')[0];
+  const json = (code: number, body: Record<string, unknown>) => {
+    res.writeHead(code, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(body));
+  };
+
+  if (path === '/api/boards') {
+    if (req.method === 'POST') {
+      json(201, { id: newBoardId() });
+      return;
+    }
+    json(405, { error: 'method_not_allowed' });
+    return;
+  }
+  const match = path.match(/^\/api\/boards\/([^/]+)$/);
+  if (match !== null) {
+    if (req.method !== 'GET') {
+      json(405, { error: 'method_not_allowed' });
+      return;
+    }
+    const id = match[1];
+    if (isValidBoardId(id)) json(200, { id });
+    else json(404, { error: 'not_found' });
+  }
 }
 
 // Inlined from src/shared/protocol.ts
@@ -142,6 +171,17 @@ export function boardSyncPlugin(): Plugin {
     configureServer(server) {
       if (!server.httpServer) return;
 
+      // Board API (story 5) for the dev server; the real Worker contract is
+      // covered by the integration and share e2e suites.
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url ?? '').split('?')[0];
+        if (path === '/api/boards' || path.startsWith('/api/boards/')) {
+          handleBoardApi(req, res);
+          return;
+        }
+        next();
+      });
+
       const wss = new WebSocketServer({ noServer: true });
 
       // Listen for upgrade events. We use 'once' pattern: when we detect
@@ -155,7 +195,8 @@ export function boardSyncPlugin(): Plugin {
 
         const boardId = match[1];
         if (!isValidBoardId(boardId)) {
-          socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+          // Story 5: malformed ids are 404 (was 400 in story 3), as on the Worker.
+          socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
           socket.destroy();
           return;
         }

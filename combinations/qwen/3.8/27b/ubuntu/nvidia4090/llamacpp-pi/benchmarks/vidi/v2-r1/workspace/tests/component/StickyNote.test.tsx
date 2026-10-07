@@ -32,8 +32,8 @@ const noteToolbar = () => screen.queryByRole('toolbar', { name: 'Sticky note opt
 // *deltas* rather than absolute values.
 
 describe('sticky note interaction (component)', () => {
-  it('TC-18: a press without movement selects the note and shows the note toolbar', () => {
-    renderApp();
+  it('TC-18: a press without movement selects the note and shows the note toolbar', async () => {
+    await renderApp();
     const id = addNote(0, 0);
     const el = theNote();
     const before = note(id)!;
@@ -50,8 +50,8 @@ describe('sticky note interaction (component)', () => {
     expect(el).toHaveAccessibleName('Sticky note');
   });
 
-  it('TC-19: a press + 2 px move + release is below the drag threshold: selected, no move', () => {
-    renderApp();
+  it('TC-19: a press + 2 px move + release is below the drag threshold: selected, no move', async () => {
+    await renderApp();
     const id = addNote(0, 0);
     const el = theNote();
     const before = note(id)!;
@@ -66,7 +66,7 @@ describe('sticky note interaction (component)', () => {
   });
 
   it('TC-19: exactly 3 px starts a drag (boundary)', async () => {
-    renderApp();
+    await renderApp();
     const id = addNote(0, 0);
     const el = theNote();
     const before = note(id)!;
@@ -81,7 +81,7 @@ describe('sticky note interaction (component)', () => {
   });
 
   it('TC-20: a drag starting on a note never pans the board camera', async () => {
-    renderApp();
+    await renderApp();
     addNote(0, 0);
     const el = theNote();
     const before = hooks().getCamera();
@@ -97,7 +97,7 @@ describe('sticky note interaction (component)', () => {
   });
 
   it('TC-21: pointercancel during a drag ends in Selected at the last applied position', async () => {
-    renderApp();
+    await renderApp();
     const id = addNote(0, 0);
     const el = theNote();
     const before = note(id)!;
@@ -113,8 +113,8 @@ describe('sticky note interaction (component)', () => {
     expect(el).toHaveAttribute('data-selected');
   });
 
-  it('TC-22: a click on the empty board clears the selection and hides the toolbar', () => {
-    renderApp();
+  it('TC-22: a click on the empty board clears the selection and hides the toolbar', async () => {
+    await renderApp();
     addNote(0, 0);
     const el = theNote();
     click(el);
@@ -127,7 +127,7 @@ describe('sticky note interaction (component)', () => {
   });
 
   it('TC-37: a note deleted via the model while Dragging ends the interaction silently', async () => {
-    renderApp();
+    await renderApp();
     const id = addNote(0, 0);
     const el = theNote();
 
@@ -146,8 +146,8 @@ describe('sticky note interaction (component)', () => {
     expect(hooks().getNotes()).toHaveLength(0);
   });
 
-  it('TC-37: a note deleted via the model while Editing unmounts the editor without error', () => {
-    renderApp();
+  it('TC-37: a note deleted via the model while Editing unmounts the editor without error', async () => {
+    await renderApp();
     const id = addNote(0, 0);
     const el = theNote();
     click(el);

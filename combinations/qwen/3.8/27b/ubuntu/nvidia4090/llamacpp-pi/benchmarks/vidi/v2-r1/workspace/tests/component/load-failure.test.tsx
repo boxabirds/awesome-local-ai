@@ -113,6 +113,8 @@ describe('story 4: client load-failure state', () => {
 
   it('TC-23: load_failed blocks every edit path with zero model mutations', async () => {
     render(<App />);
+    // Story 5: the board mounts after the (mocked) existence check.
+    await screen.findByTestId('board-root');
     const provider = lastProvider();
     act(() => provider.emitClose(4500));
 

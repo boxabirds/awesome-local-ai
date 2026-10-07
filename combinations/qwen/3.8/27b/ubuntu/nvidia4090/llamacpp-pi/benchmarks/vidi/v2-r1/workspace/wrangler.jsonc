@@ -1,7 +1,7 @@
 {
   "name": "vidi6",
   "main": "src/worker/index.ts",
-  "compatibility_date": "2025-01-01",
+  "compatibility_date": "2025-06-01",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./dist/client",

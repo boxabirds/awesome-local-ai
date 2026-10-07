@@ -19,8 +19,9 @@ export default defineConfig({
       name: 'chromium',
       use: { browserName: 'chromium' },
       // persistence/broken-board specs run their own wrangler process under
-      // playwright.persistence.config.ts (no shared webServer).
-      testIgnore: ['nightly.spec.ts', 'persistence.spec.ts', 'broken-board.spec.ts'],
+      // playwright.persistence.config.ts; share.spec.ts likewise runs under
+      // playwright.share.config.ts (no shared webServer).
+      testIgnore: ['nightly.spec.ts', 'persistence.spec.ts', 'broken-board.spec.ts', 'share.spec.ts'],
     },
     {
       name: 'nightly',
