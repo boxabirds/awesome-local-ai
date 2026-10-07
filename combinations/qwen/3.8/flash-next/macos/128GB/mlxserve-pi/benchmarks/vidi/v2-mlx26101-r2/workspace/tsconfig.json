@@ -41,6 +41,12 @@
     // are type-checked by tsconfig.worker.json, because this program has no
     // Workers globals and must not grow any.
     "tests/unit/room-state.test.ts",
-    "tests/unit/board-store-chunks.test.ts"
+    "tests/unit/board-store-chunks.test.ts",
+    // Story 8's undo tests are the same case for the same reason: TC-03 has to
+    // apply a board update with the *real* `LOAD_ORIGIN`, which only exists in the
+    // Worker's storage module, so `tests/unit/peer.ts` (the peer the undo tests
+    // share) imports a Worker module. Type-checked by tsconfig.worker.json.
+    "tests/unit/peer.ts",
+    "tests/unit/undo-history.test.ts"
   ]
 }

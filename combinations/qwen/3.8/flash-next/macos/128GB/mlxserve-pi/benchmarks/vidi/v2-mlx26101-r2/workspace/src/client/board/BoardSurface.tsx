@@ -19,6 +19,7 @@ import type { BoardConnector } from './useBoardDoc.js';
 import { useSelection } from './useSelection.js';
 import { useTransformGesture } from './useTransformGesture.js';
 import { useBoardKeys } from './useBoardKeys.js';
+import { useUndo, useUndoController } from './useUndo.js';
 import { useMarquee } from '../canvas/Marquee.js';
 import { BoardViewport } from '../canvas/BoardViewport.js';
 import { screenToWorld, viewportCentre } from '../canvas/camera.js';
@@ -85,6 +86,18 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
    */
   const editable = canEdit(connection);
 
+  /**
+   * This tab's own undo history, for as long as this board is open (story 8). It
+   * belongs to the document rather than to any object, because the thing it
+   * undoes is a change to the document: one history for notes, for the toolbar,
+   * for the shortcuts and for story 16's comments, and one history *per person*,
+   * because it never leaves this tab and only ever holds the transactions this
+   * tab issued. Undoing here can no more take back a colleague's note than the
+   * selection can.
+   */
+  const undoHistory = useUndoController(doc);
+  const undo = useUndo(undoHistory, editable);
+
   // The tab says which board it is holding. This starts to matter the day boards have
   // links: a board gets shared, somebody ends up with three of them open, and a tab that
   // just says "vidi6" is a tab that gets the next pasted link in the wrong place. Restored
@@ -102,11 +115,17 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
   const createAt = useCallback(
     (x: number, y: number) => {
       if (!editable) return;
+      // The creation is one undo step and the typing that opens up on the note
+      // straight afterwards is the next one - otherwise a double-click that made a
+      // note and typed in it would come back as a note that is empty but still on
+      // the board.
+      undoHistory.boundary();
       const id = createSticky(doc, { x, y });
+      undoHistory.boundary();
       if (typeof id !== 'string') return;
       selection.startEdit(id);
     },
-    [doc, editable, selection],
+    [doc, editable, selection, undoHistory],
   );
 
   /** The Sticky note button and the `N` shortcut: the middle of what is visible. */
@@ -126,6 +145,11 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
     selection,
     snapshot: notes,
     canEdit: editable,
+    // A drag is one undo step: the window is closed before the gesture's first
+    // write and after its last, so the frames in between - which are milliseconds
+    // apart, and would otherwise merge with anything nearby - stay one movement.
+    onGestureStart: undoHistory.boundary,
+    onGestureEnd: undoHistory.boundary,
   });
 
   const addToSelection = useCallback(
@@ -137,15 +161,17 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
   // The shortcuts that act on the whole selection (select-all, deselect, nudge,
   // delete, Enter-to-edit). `N` to create stays below, because it makes a note
   // rather than touching the selection.
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable });
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo: undoHistory });
 
   /** Delete every selected object in one action, then clear the selection. */
   const deleteSelection = useCallback(() => {
     const ids = [...selection.ids];
     if (ids.length === 0) return;
+    undoHistory.boundary();
     deleteObjects(doc, ids);
+    undoHistory.boundary();
     selection.clear();
-  }, [doc, selection]);
+  }, [doc, selection, undoHistory]);
 
   /**
    * The notes in a stable order, which is *not* the drawing order: they are drawn
@@ -188,7 +214,7 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
   return (
     <div className="app" data-testid="app">
       <CameraProvider value={context}>
-        <Toolbar onCreateSticky={createInMiddleOfView} canEdit={editable} />
+        <Toolbar onCreateSticky={createInMiddleOfView} canEdit={editable} undo={undo} />
         <BoardViewport
           doc={doc}
           canEdit={editable}
@@ -221,6 +247,7 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
                 selectionSize={selection.ids.size}
                 selection={selection}
                 gesture={transform}
+                undo={undoHistory}
               />
             );
           })}

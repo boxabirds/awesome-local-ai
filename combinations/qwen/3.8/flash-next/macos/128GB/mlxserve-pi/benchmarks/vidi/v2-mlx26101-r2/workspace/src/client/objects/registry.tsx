@@ -10,6 +10,7 @@ import {
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config.js';
 import type { Camera } from '../canvas/camera.js';
 import type { TransformGesture } from '../board/useTransformGesture.js';
+import type { UndoController } from '../board/undo.js';
 import type { UseSelectionResult } from '../board/useSelection.js';
 import StickyNote from './StickyNote.js';
 
@@ -50,6 +51,14 @@ export interface ObjectProps {
   selection: UseSelectionResult;
   /** The shared move/resize gesture controller. */
   gesture: TransformGesture;
+  /**
+   * This tab's own undo history (story 8), handed to every object type alike. It
+   * is the same controller whichever object is being drawn - undo is a property of
+   * the board and the person using it, not of the object - and an object that can
+   * change the document uses it to say where one action stops and the next starts.
+   * Optional so an object can be drawn by a test, or a board, that keeps no history.
+   */
+  undo?: UndoController;
 }
 
 /**

@@ -18,6 +18,11 @@ import { defineConfig } from 'vitest/config';
 
 const unitProject = {
   test: {
+    // yjs and lib0 go through Vite's module graph rather than being loaded straight
+    // from node_modules. That is what lets a test mock `lib0/time` and have *yjs* see
+    // the mock rather than its own untouched copy: TC-12 and TC-13 step the capture
+    // window past 500 ms without the suite waiting for half a second to pass.
+    server: { deps: { inline: ['yjs', 'lib0'] } },
     name: 'unit',
     environment: 'node',
     include: ['tests/unit/**/*.test.ts'],

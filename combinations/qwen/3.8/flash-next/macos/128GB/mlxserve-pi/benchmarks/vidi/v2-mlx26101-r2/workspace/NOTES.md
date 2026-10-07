@@ -580,3 +580,68 @@ like an oversight the next time something breaks.
   the board page itself asks for nothing beyond its own origin. A board address is 22 characters
   of randomness and no access control; the page's own address is the one thing that must not
   leak to a third party through a subresource, and there are no subresources to leak it to.
+
+## Story 8: undo, and what one person's history holds
+
+- **The controller lives with the document, not in `App`.** The design's §5 builds it in
+  `App` and passes `onUndo`/`onRedo` down as props; `App` in this codebase is a router that
+  never holds a `Y.Doc` - the document is made in `BoardSurface`, which is also where the
+  toolbar, the shortcuts and the object list are assembled. `useUndoController(doc)` in
+  `BoardSurface` is the same object with the same lifetime (one per board tab, `destroy()`
+  when that board unmounts), and three things read it: `<Toolbar undo={undo}>` for the
+  buttons, `useBoardKeys({ undo })` for the shortcuts, and the `undo` prop on the object
+  registry for the step boundaries. The callbacks are still one object (`UseUndoResult`)
+  so the components do not care which of the three they came from.
+- **Making the controller survive React's double-mount is not optional.** A controller
+  created in `useState` and destroyed in the cleanup of an effect is destroyed on
+  StrictMode's first pass and then handed to a render that still holds it, so Undo fires on
+  a manager whose listeners are gone and does nothing - silently, and only in tests, since
+  StrictMode is not in the production tree. `useUndoController` keeps the controllers it
+  has destroyed in a `WeakSet` and builds a fresh one for the remount. Story 8's own
+  component tests are what caught this; the pattern is worth copying for any future
+  per-document object with a `destroy()`.
+- **"Personal" means by transaction origin, not by person.** `trackedOrigins` holds
+  `LOCAL_ORIGIN` and nothing else, so TC-03's "a change with no local origin at all" is
+  what the filter is written against: a story-14 identity would work the same way and
+  change nothing here. Story 9's free text and story 16's comments write with
+  `LOCAL_ORIGIN` like everything else, so they are in this history already; a *second*
+  Y.Map for comments needs `UndoController.addScope()` (a five-line passthrough in
+  `undo.ts`, because `Y.UndoManager`'s scopes are per `AbstractType` and the objects map
+  cannot know about it).
+- **One press consumes one step, and a step can have nothing left to do.** When somebody
+  else deletes the note a person was working on, that person's next Undo pops a step whose
+  inverse has no effect on the board and stops there: the board does not move at all
+  (TC-07), and the step is gone from the history. `undo()` returns `true` for it, because
+  the contract is about steps and not about pixels; a test that reads the return value as
+  "the board changed" would be wrong.
+- **`Ctrl+Y` is not claimed.** The design lists it as a redo alias. Chromium performs
+  `Ctrl+Y` itself inside a focused textarea - the keydown arrives with the editing already
+  done, so a page handler cannot be the thing that decides - and outside an editor it is
+  not a gesture this board can honour either. `Ctrl+Shift+Y` is left alone exactly as the
+  design says. The Redo tooltip therefore names only the two shortcuts that are
+  implemented; both are tested, and the tooltip carries "nothing to undo" / "nothing to
+  redo" when the button is disabled (TC-18 asserts the design's wording is still in it).
+- **TC-12 and TC-13 are unit tests, not component tests.** They need the clock moved past
+  the 500 ms capture window, and `vi.useFakeTimers()` in the component project has no
+  MessageChannel polyfill for React 19's scheduler (see "jsdom limits worked around"
+  above), so a render never finishes and the project's own 20 s teardown fires before the
+  first assertion does. They run in the unit project against a real `Y.Doc` and a real
+  controller instead, with `lib0/time`'s `getUnixTime` mocked, which is the only clock
+  `Y.UndoManager` reads; the component project proves the *boundaries* (TC-14 to TC-17),
+  which is the half of the story that needs the real gesture code. Mocking `lib0/time` at
+  all needed `server.deps.inline: ['yjs', 'lib0']` in the unit project - see the comment in
+  `vitest.config.ts` - because otherwise yjs loads its own untouched copy of the module and
+  the mock is invisible to it.
+- **The design's "one sticky width (240 world units)" is not this codebase's**: a note is
+  `STICKY_SIZE_WORLD` = 200 world units, so its top-left is 100 units left of its centre.
+  The component tests' drag distances are written in terms of the constant, not the number.
+- **Undo e2e tests have to count steps.** Making a note is one step; typing in it is
+  another (the editor closes the capture window when it opens and when it closes, which is
+  what makes them come back separately). `tests/e2e/undo.spec.ts` therefore has `makeNote`
+  for the first and `writeIn` for the second, and a spec that made a note, typed in it and
+  pressed Ctrl+Z once was asserting that an *empty* note disappears - which is not what the
+  board did.
+- `tests/unit/peer.ts` (the simulated remote peer) and `tests/unit/undo-history.test.ts`
+  are added to the two tsconfigs in the same shape story 7 left: TC-03 needs the real
+  `LOAD_ORIGIN`, which only exists in the Worker's storage module, so `peer.ts` imports a
+  Worker module and the main program must not see it.

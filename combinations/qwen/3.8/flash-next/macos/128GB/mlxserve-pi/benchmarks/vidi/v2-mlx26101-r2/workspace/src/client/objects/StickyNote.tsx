@@ -18,7 +18,6 @@ import { NoteToolbar } from './NoteToolbar.js';
 import { fitFontSize } from './StickyText.js';
 import { StickyTextEditor } from './StickyTextEditor.js';
 import type { ObjectProps } from './registry.js';
-
 /**
  * One sticky note on the board (design anchor `sticky.component`,
  * `sticky.interaction`) - the component the object registry points at for the
@@ -44,8 +43,18 @@ function showsOwnToolbar(props: ObjectProps): boolean {
 }
 
 export function StickyNote(props: ObjectProps): JSX.Element {
-  const { object, doc, zoom, selected, editing, canEdit = true, selection, gesture, selectionSize } =
-    props;
+  const {
+    object,
+    doc,
+    zoom,
+    selected,
+    editing,
+    canEdit = true,
+    selection,
+    gesture,
+    selectionSize,
+    undo,
+  } = props;
   const sticky = object as StickySnapshot;
 
   const [fit, setFit] = useState<{ fontPx: number; overflow: boolean }>({
@@ -119,9 +128,14 @@ export function StickyNote(props: ObjectProps): JSX.Element {
   const handleColor = useCallback(
     (color: StickyColor) => {
       if (!canEdit) return;
+      // One click on a colour is one undo step, even when two colours are clicked
+      // one after the other inside half a second: the capture window is closed on
+      // both sides of the write, so a history matches the clicks it took.
+      undo?.boundary();
       setStickyColor(doc, object.id, color);
+      undo?.boundary();
     },
-    [canEdit, doc, object.id],
+    [canEdit, doc, object.id, undo],
   );
 
   const handleDelete = useCallback(() => {
@@ -129,9 +143,11 @@ export function StickyNote(props: ObjectProps): JSX.Element {
     // Deleting the note deletes the whole selection it belongs to (the toolbar
     // only shows for a lone note, so this is that one note), then clears it.
     const ids = selection.ids.size > 0 ? [...selection.ids] : [object.id];
+    undo?.boundary();
     deleteObjects(doc, ids);
+    undo?.boundary();
     selection.clear();
-  }, [canEdit, doc, selection, object.id]);
+  }, [canEdit, doc, selection, object.id, undo]);
 
   const handleTextEnd = useCallback(
     (next: 'selected' | 'unselected') => {
@@ -175,7 +191,7 @@ export function StickyNote(props: ObjectProps): JSX.Element {
     >
       <div className="sticky-note-content">
         {editing && ytext ? (
-          <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={handleTextEnd} />
+          <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={handleTextEnd} undo={undo} />
         ) : (
           <div
             className="sticky-text"

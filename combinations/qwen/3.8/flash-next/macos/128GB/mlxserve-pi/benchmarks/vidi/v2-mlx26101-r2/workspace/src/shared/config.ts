@@ -102,6 +102,25 @@ export const STICKY_COLOR_NAMES = Object.keys(STICKY_COLORS) as StickyColor[];
 export const isStickyColor = (value: unknown): value is StickyColor =>
   typeof value === 'string' && Object.prototype.hasOwnProperty.call(STICKY_COLORS, value);
 
+/* ------------------------------------------------------------------- undo (story 8) */
+
+/**
+ * The typing pause that ends an undo step (PRD `undo.typing`: "typing that
+ * continues without a pause of half a second or more"). Keystrokes closer
+ * together than this are one step; a pause of this long or longer starts a new
+ * one. It is also what merges the animation-frame writes of one drag into one
+ * step, which is why the gestures and the text editor close the window
+ * explicitly with `UndoController.boundary()` rather than waiting for a pause.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/**
+ * How many of a person's own steps one board tab remembers (`undo.limit`). The
+ * oldest step is discarded when a new one arrives at the limit; the number is a
+ * memory bound, not a feature - nobody is expected to press undo 200 times.
+ */
+export const UNDO_MAX_STEPS = 200;
+
 /* ------------------------------------------------------- live collaboration */
 
 /**

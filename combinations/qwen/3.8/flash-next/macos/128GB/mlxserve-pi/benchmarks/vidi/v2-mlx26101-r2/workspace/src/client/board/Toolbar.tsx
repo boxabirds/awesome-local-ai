@@ -1,5 +1,8 @@
 import type { JSX } from 'react';
 
+import type { UndoButtonsProps } from './UndoButtons.js';
+import { UndoButtons } from './UndoButtons.js';
+
 /** Exact tooltip of the Sticky note button (PRD "Structure"). */
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note \u2013 or double-click the board';
 
@@ -20,13 +23,20 @@ export interface ToolbarProps {
    * it, which is a fact about the board and not about the toolbar.
    */
   canEdit?: boolean;
+  /**
+   * This person's own undo/redo state (story 8), which is why these two buttons
+   * can be greyed out on a board that is full of changes: everything a colleague
+   * did is in the document and in none of this tab's history. Omitted by a board
+   * that keeps no history at all, which renders neither button.
+   */
+  undo?: UndoButtonsProps;
 }
 
 /**
  * The left-side vertical toolbar. Story 2 contributes the Sticky note button;
  * later stories add their tools here.
  */
-export function Toolbar({ onCreateSticky, canEdit = true }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, canEdit = true, undo }: ToolbarProps): JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -54,6 +64,7 @@ export function Toolbar({ onCreateSticky, canEdit = true }: ToolbarProps): JSX.E
         </span>
         <span className="board-toolbar-label">Sticky note</span>
       </button>
+      {undo ? <UndoButtons {...undo} /> : null}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import * as Y from 'yjs';
 
 import { LOCAL_ORIGIN } from '../../shared/board-model.js';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config.js';
+import type { UndoController } from '../board/undo.js';
 import { applyTextDiff, clampToLimit, counterVisible } from './StickyText.js';
 
 /** How the editor finds the note it belongs to (for "clicked outside the note"). */
@@ -17,6 +18,16 @@ export interface StickyTextEditorProps {
   fontPx: number;
   /** Escape (still selected) or a click outside (nothing selected). */
   onEnd(next: 'selected' | 'unselected'): void;
+  /**
+   * This tab's own undo history (story 8). Typing in a note is the one place
+   * where the browser would otherwise undo something the board has never heard
+   * of: a native Ctrl/Cmd+Z rewinds the textarea on its own, and the textarea is
+   * uncontrolled, so the document and what the person sees would part company.
+   * The editor therefore takes the shortcut itself and asks the board's history -
+   * which writes the shared text, and the observer below redraws this textarea
+   * from it, which is how the caret ends up where the text says it should.
+   */
+  undo?: UndoController;
 }
 
 /** The editor's accessible name. */
@@ -32,13 +43,15 @@ export const STICKY_EDITOR_LABEL = 'Sticky note text';
  * (sticky.edit_end). IME composition is left to the browser and applied once,
  * on `compositionend`, so composing a character cannot duplicate it.
  */
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
+export function StickyTextEditor({ ytext, fontPx, onEnd, undo }: StickyTextEditorProps): JSX.Element {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
   const ytextRef = useRef(ytext);
   ytextRef.current = ytext;
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
 
   const [length, setLength] = useState<number>(() => ytext.toString().length);
 
@@ -78,18 +91,47 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       onEndRef.current('selected');
     }
     // Enter is left alone: the textarea inserts a new line (PRD behaviour).
+    //
+    // Ctrl/Cmd+Z and its redo counterparts belong to the board's history here,
+    // not to the textarea. Typing is the one place where undo steps are made by
+    // keystrokes rather than by gestures, and the rule is the same as everywhere
+    // else on the board: a pause of half a second or more ends a step
+    // (`undo.typing`) - the manager's capture window, which this editor opens and
+    // closes at its own start and end.
+    const mod = event.metaKey || event.ctrlKey;
+    if (mod && !event.altKey && event.key.toLowerCase() === 'z') {
+      event.preventDefault();
+      if (event.shiftKey) undoRef.current?.redo();
+      else undoRef.current?.undo();
+    } else if (
+      event.ctrlKey &&
+      !event.metaKey &&
+      !event.shiftKey &&
+      event.key.toLowerCase() === 'y'
+    ) {
+      event.preventDefault();
+      undoRef.current?.redo();
+    }
   }, []);
 
   // Put the caret at the end of the existing text as soon as the editor is
   // mounted (sticky.edit_start: "the cursor at the end of its text"), and focus
   // so the very next keystroke lands in the note - which is what makes a
   // double-click-then-type flow work without another click.
+  //
+  // The same two moments close and open the undo capture window: starting to edit
+  // is the start of a step, and stopping - by Escape, by a click outside, by the
+  // note vanishing mid-edit - is its end. Leaving the end of it to the timeout
+  // alone would let a note that was dragged and then typed into come back as one
+  // step that un-moves the note and takes the text with it.
   useLayoutEffect(() => {
+    undoRef.current?.boundary();
     const el = textareaRef.current;
-    if (!el) return;
+    if (!el) return () => undoRef.current?.boundary();
     el.focus();
     const end = el.value.length;
     el.setSelectionRange(end, end);
+    return () => undoRef.current?.boundary();
   }, []);
 
   // A pointerdown anywhere outside the note ends editing and clears the

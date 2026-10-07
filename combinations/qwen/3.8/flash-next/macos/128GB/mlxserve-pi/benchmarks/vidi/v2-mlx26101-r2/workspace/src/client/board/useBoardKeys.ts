@@ -11,6 +11,7 @@ import {
 } from '../../shared/board-model.js';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config.js';
 import { getObjectType } from '../objects/registry.js';
+import type { UndoController } from './undo.js';
 import type { UseSelectionResult } from './useSelection.js';
 
 /**
@@ -46,6 +47,13 @@ export interface BoardKeysOptions {
   selection: UseSelectionResult;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /**
+   * This tab's own undo history (story 8), or nothing for a board that has no
+   * history to keep. It is only ever asked to undo and redo - whose stacks hold
+   * only this tab's transactions, which is why the same shortcut on two machines
+   * undoes two different things.
+   */
+  undo?: UndoController;
 }
 
 /**
@@ -53,7 +61,7 @@ export interface BoardKeysOptions {
  * Everything is skipped while a text editor owns the keyboard, so typing never
  * mutates the board.
  */
-export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOptions): void {
+export function useBoardKeys({ doc, selection, snapshot, canEdit, undo }: BoardKeysOptions): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // Typing anywhere, or an open text editor: the keys are the editor's.
@@ -72,6 +80,24 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOpt
         return;
       }
 
+      // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y - here rather than in the object
+      // components, because the PRD's "Undo applies to the last action of the
+      // current client, whichever object it touched": one shortcut, one history,
+      // across every type. It runs *before* the "needs a selection" gate below,
+      // since undoing the deletion of the only note on the board is exactly a
+      // case of undo with nothing selected. Typing is excluded above, so a Ctrl+Z
+      // inside a note's textarea is the editor's (story 11 keeps the caret there).
+      if (isUndoGesture(event) || isRedoGesture(event)) {
+        // A board that will not take edits (`undo.not_editable`) has nothing for
+        // these to do: the keystroke goes back to the browser rather than being
+        // spent on a history that is not allowed to change the document.
+        if (!canEdit) return;
+        event.preventDefault();
+        if (isUndoGesture(event)) undo?.undo();
+        else undo?.redo();
+        return;
+      }
+
       // Everything below changes the document, so it needs edit rights, and
       // needs something selected.
       if (!canEdit || selection.ids.size === 0) return;
@@ -86,7 +112,12 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOpt
           const rect = objectBounds(object);
           positions.set(object.id, { x: rect.x + delta.x * step, y: rect.y + delta.y * step });
         }
+        // One arrow key press is one undo step. Without the boundaries around it,
+        // a person tapping an arrow key eight times fast would be one step, which
+        // is a history that does not match the keys they pressed.
+        undo?.boundary();
         moveObjects(doc, positions);
+        undo?.boundary();
         return;
       }
 
@@ -94,7 +125,9 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOpt
         // Even here the editor can't be open (checked above), so Backspace on a
         // selection of notes deletes the notes.
         event.preventDefault();
+        undo?.boundary();
         deleteObjects(doc, [...selection.ids]);
+        undo?.boundary();
         selection.clear();
         return;
       }
@@ -114,7 +147,7 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit }: BoardKeysOpt
     // `selection` is a fresh object whenever the selection changes, so the
     // listener always closes over the current selection without re-subscribing on
     // every render (its action callbacks are stable).
-  }, [doc, selection, snapshot, canEdit]);
+  }, [doc, selection, snapshot, canEdit, undo]);
 }
 
 const ARROW_DELTAS: ReadonlyMap<string, Point> = new Map<string, Point>([
@@ -123,6 +156,18 @@ const ARROW_DELTAS: ReadonlyMap<string, Point> = new Map<string, Point>([
   ['ArrowUp', { x: 0, y: -1 }],
   ['ArrowDown', { x: 0, y: 1 }],
 ]);
+
+/** Ctrl/Cmd+Z: undo. Shift belongs to redo, so it is excluded here. */
+function isUndoGesture(event: KeyboardEvent): boolean {
+  return (event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && keyIs(event, 'z');
+}
+
+/** Ctrl/Cmd+Shift+Z, or Ctrl+Y on Windows. Mac has no Ctrl+Y binding by convention. */
+function isRedoGesture(event: KeyboardEvent): boolean {
+  if (event.altKey) return false;
+  if ((event.ctrlKey || event.metaKey) && event.shiftKey && keyIs(event, 'z')) return true;
+  return event.ctrlKey && !event.metaKey && !event.shiftKey && keyIs(event, 'y');
+}
 
 /** Match a key case-insensitively, for letters that arrive shifted on some layouts. */
 function keyIs(event: KeyboardEvent, key: string): boolean {
