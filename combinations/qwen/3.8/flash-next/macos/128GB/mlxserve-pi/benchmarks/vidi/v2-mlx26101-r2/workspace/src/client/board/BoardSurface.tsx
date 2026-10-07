@@ -14,7 +14,9 @@ import { useCallback, useEffect, useMemo } from 'react';
 import type { JSX } from 'react';
 
 import { Toolbar } from './Toolbar.js';
-import { useTool } from './useTool.js';
+import { useActiveTool } from '../tools/useActiveTool.js';
+import { ShapeTool } from '../tools/ShapeTool.js';
+import { ConnectorTool } from '../tools/ConnectorTool.js';
 import { useBoardDoc } from './useBoardDoc.js';
 import type { BoardConnector } from './useBoardDoc.js';
 import { useSelection } from './useSelection.js';
@@ -38,9 +40,10 @@ import SelectionBar from '../objects/SelectionBar.js';
 import SelectionOverlay from '../objects/SelectionOverlay.js';
 import { getObjectType } from '../objects/registry.js';
 import { remeasureTextBox } from '../objects/useTextBoxSync.js';
-import { createSticky, deleteObjects } from '../../shared/board-model.js';
+import { createSticky, deleteObjects, objectBounds, type ObjectSnapshot, type Rect } from '../../shared/board-model.js';
 import { setTextSize, TEXT_TYPE, type TextSnapshot } from '../../shared/objects/text.js';
-import type { TextSize } from '../../shared/config.js';
+import { setShapeStyle, SHAPE_TYPE, type ShapeSnap } from '../../shared/objects/shape.js';
+import type { FillColor, StrokeColor, TextSize } from '../../shared/config.js';
 
 /**
  * Focus guard: a keyboard shortcut must not fire while the user is typing. Kept
@@ -103,11 +106,13 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
   const undo = useUndo(undoHistory, editable);
 
   /**
-   * Which tool the pointer is set to (story 9). Local to this tab like the
-   * selection is, and pulled back to Select by itself the moment the board stops
-   * taking edits - the same `editable` that greys the button out.
+   * Which tool the pointer is set to (story 9, three more tools in story 10). Local
+   * to this tab like the selection is, and pulled back to Select by itself the moment
+   * the board stops taking edits - the same `editable` that greys the button out.
+   * It owns the single-letter shortcuts, including Escape out of a tool, and
+   * `toolCreated`, which is what puts a freshly drawn thing in the selection.
    */
-  const tools = useTool(editable);
+  const tools = useActiveTool(selection, editable);
 
   // The tab says which board it is holding. This starts to matter the day boards have
   // links: a board gets shared, somebody ends up with three of them open, and a tab that
@@ -170,16 +175,15 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
   const marquee = useMarquee(api.camera, notes, addToSelection);
 
   // The shortcuts that act on the whole selection (select-all, deselect, nudge,
-  // delete, Enter-to-edit) and the tool keys (V, T). `N` to create a note stays
-  // below, because it makes a note rather than touching the selection.
+  // delete, Enter-to-edit). The tool keys (V, T, S, L) and Escape out of a tool
+  // belong to `useActiveTool`, and `N` to the effect below, because it *makes*
+  // something rather than acting on the selection.
   useBoardKeys({
     doc,
     selection,
     snapshot: notes,
     canEdit: editable,
     undo: undoHistory,
-    tool: tools.tool,
-    onTool: tools.setTool,
   });
 
   /**
@@ -236,6 +240,47 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
   );
 
   /**
+   * Every object's live rectangle, computed once for the screen rather than once per
+   * object. An arrow's geometry is a question about the two boxes it joins, the
+   * selection outline is drawn from the same boxes, and both have to be the same
+   * answer: an arrow whose end landed where the outline no longer was would be the
+   * board disagreeing with itself.
+   */
+  const rects = useMemo(() => {
+    const map = new Map<string, Rect>();
+    for (const object of notes) map.set(object.id, objectBounds(object));
+    return map as ReadonlyMap<string, Rect>;
+  }, [notes]);
+
+  /**
+   * The one selected object, when it is a shape: the selection bar then shows that
+   * shape's colours instead of a count of one.
+   */
+  const soleShape = useMemo<ShapeSnap | null>(() => {
+    if (selection.ids.size !== 1) return null;
+    const [id] = [...selection.ids];
+    const object = notes.find((candidate) => candidate.id === id);
+    return object !== undefined && object.type === SHAPE_TYPE ? (object as ShapeSnap) : null;
+  }, [notes, selection.ids]);
+
+  /**
+   * A click on a colour swatch: one field of one shape, one undo step. Nothing else
+   * is asked of it - not a remeasure (a shape's box is its own, unlike text's), and
+   * not a word about the selection, which is how a shape keeps the words somebody
+   * else is typing into it.
+   */
+  const changeShapeStyle = useCallback(
+    (style: { fill?: FillColor; stroke?: StrokeColor }) => {
+      if (!editable || selection.ids.size !== 1) return;
+      const [id] = [...selection.ids];
+      undoHistory.boundary();
+      setShapeStyle(doc, id, style);
+      undoHistory.boundary();
+    },
+    [doc, editable, selection.ids, undoHistory],
+  );
+
+  /**
    * The notes in a stable order, which is *not* the drawing order: they are drawn
    * by their `z` (a CSS stacking order), while the DOM keeps one element per note
    * in the order they were made. Reordering the elements every time a note is
@@ -280,6 +325,8 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
           onCreateSticky={createInMiddleOfView}
           tool={tools.tool}
           onTool={tools.setTool}
+          shapeKind={tools.shapeKind}
+          onShapeKind={tools.setShapeKind}
           canEdit={editable}
           undo={undo}
         />
@@ -318,10 +365,35 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
                 selection={selection}
                 gesture={transform}
                 undo={undoHistory}
+                rects={rects}
+                snapshot={notes as readonly ObjectSnapshot[]}
               />
             );
           })}
         </BoardViewport>
+        {/* The tools that draw rather than click (story 10) stand between the board
+            and its chrome: they own every pointer event over the board while they are
+            up - which is what makes a shape drag that started on somebody's note
+            never move that note - and they go away the moment they have made their
+            one thing, or the board stopped taking edits. */}
+        {editable && tools.tool === 'shape' ? (
+          <ShapeTool
+            doc={doc}
+            kind={tools.shapeKind}
+            camera={api.camera}
+            undo={undoHistory}
+            onCreated={tools.toolCreated}
+          />
+        ) : null}
+        {editable && tools.tool === 'connector' ? (
+          <ConnectorTool
+            doc={doc}
+            camera={api.camera}
+            snapshot={notes}
+            undo={undoHistory}
+            onCreated={tools.toolCreated}
+          />
+        ) : null}
         {/* Screen-space selection chrome: an outline per selected object plus
             resize handles around the whole selection, and a bar for a multi-
             selection. Fixed, so handles stay a constant 8 px at any zoom. */}
@@ -335,6 +407,8 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
           onDelete={deleteSelection}
           textSize={soleText?.size ?? null}
           onTextSize={changeTextSize}
+          shape={soleShape}
+          onShapeStyle={changeShapeStyle}
         />
       </CameraProvider>
       <ZoomControls

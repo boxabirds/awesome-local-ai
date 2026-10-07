@@ -35,6 +35,13 @@ import {
   STICKY_SIZE_WORLD,
   type StickyColor,
 } from './config.js';
+import {
+  defaultObjectSize,
+  isKnownObjectType,
+  objectSnapshotReader,
+  STICKY_TYPE,
+} from './object-registry.js';
+import { detachConnectorsTo } from './objects/connector.js';
 import type { Point, Rect } from './geometry.js';
 import { rectContains } from './geometry.js';
 
@@ -49,61 +56,24 @@ export const DOC_META_MAP = 'meta';
 export const DOC_OBJECTS_MAP = 'objects';
 /** Schema version written into `meta` (story 4 migrates from this number). */
 export const SCHEMA_VERSION = 1;
-/** The only object type this story knows; stories 9-12 add others. */
-export const STICKY_TYPE = 'sticky';
-
 /**
- * The object types board-model knows how to read, move, resize and restack.
- *
- * This is deliberately a *board-model* set rather than the client's render
- * registry: board-model is framework-free (the room imports it), so it cannot
- * import `src/client/objects/registry.tsx`. When the client registry registers a
- * type it calls {@link registerBoardObjectType} so the two agree on which types
- * are real, and a group operation refuses an object of a type board-model has
- * never heard of (a `bringToFront` of an unknown object is still `false`).
+ * The object types board-model knows, and how each one is read into a snapshot,
+ * live in `object-registry.ts` - a module with no run-time imports of its own, so
+ * that a type module (story 9's text, story 10's shape and connector) can register
+ * itself here and be imported by board-model without the two files' initialisers
+ * racing each other. Everything is re-exported, because every caller of story 2-9
+ * already imports it from here.
  */
-const boardObjectTypes = new Set<string>([STICKY_TYPE]);
-
-/**
- * Tell board-model about an object type the client registry has registered,
- * so group operations (move, resize, stack, delete) will act on it. Story 7 only
- * registers `sticky`; stories 9-12 add their types through the same path.
- */
-export function registerBoardObjectType(type: string): void {
-  if (typeof type === 'string' && type.length > 0) boardObjectTypes.add(type);
-}
-
-/** Whether board-model recognises `type` as a movable, resizable object. */
-export function isKnownObjectType(type: unknown): type is string {
-  return typeof type === 'string' && boardObjectTypes.has(type);
-}
-
-/**
- * Turns one object map into the snapshot its own type needs. Story 9's text
- * objects register one so their extra fields (`size`, `widthMode`) reach the
- * client through {@link objectSnapshot} instead of every renderer having to know
- * how to read a text object; a type without a reader gets the generic
- * {@link readObjectSnapshot}, which is enough to draw and to move.
- *
- * The reader lives with the type, so a story 9-12 module can add a type without
- * board-model having to import it (which it must not: the room imports board-model
- * and nothing of the client's).
- */
-export type ObjectSnapshotReader = (id: string, map: Y.Map<unknown>) => ObjectSnapshot | undefined;
-
-const objectSnapshotReaders = new Map<string, ObjectSnapshotReader>();
-
-/** Give a type its own snapshot reader; see {@link ObjectSnapshotReader}. */
-export function registerObjectSnapshotReader(type: string, reader: ObjectSnapshotReader): void {
-  if (typeof type === 'string' && type.length > 0 && typeof reader === 'function') {
-    objectSnapshotReaders.set(type, reader);
-  }
-}
-
-/** The reader a type registered, if any. */
-export function objectSnapshotReader(type: unknown): ObjectSnapshotReader | undefined {
-  return typeof type === 'string' ? objectSnapshotReaders.get(type) : undefined;
-}
+export {
+  defaultObjectSize,
+  isKnownObjectType,
+  objectSnapshotReader,
+  registerBoardObjectType,
+  registerDefaultObjectSize,
+  registerObjectSnapshotReader,
+  STICKY_TYPE,
+  type ObjectSnapshotReader,
+} from './object-registry.js';
 
 /** Field names inside one object map. */
 export const OBJECT_FIELDS = {
@@ -184,13 +154,6 @@ const readObjectMap = (objects: ObjectsMap, id: string): Y.Map<unknown> | undefi
   if (!isKnownObjectType(map.get(OBJECT_FIELDS.type))) return undefined;
   return map;
 };
-
-/**
- * The default size of an object that carries no explicit width or height. Only
- * sticky notes exist so far and they default to a square
- * {@link STICKY_SIZE_WORLD}; stories 9-12 widen this to per-type defaults.
- */
-const defaultObjectSize = (): number => STICKY_SIZE_WORLD;
 
 /** Highest z in the document (0 when there are no objects). */
 function maxZ(objects: ObjectsMap): number {
@@ -381,6 +344,12 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = ids.filter((id) => objects.get(id) instanceof Y.Map);
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // The arrows that pointed at these objects are detached first, while the
+    // rectangles that say *where* they were attached are still on the board: one
+    // transaction, so the delete and the detaching are one update, one undo step,
+    // and no screen ever shows an arrow attached to a gone object
+    // (`connector.target_deleted`).
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
@@ -587,7 +556,7 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
  * migration (Key decision 5).
  */
 export function objectBounds(obj: ObjectSnapshot): Rect {
-  const size = defaultObjectSize();
+  const size = defaultObjectSize(obj.type);
   const width = isFiniteNumber(obj.width) && (obj.width as number) > 0 ? (obj.width as number) : size;
   const height = isFiniteNumber(obj.height) && (obj.height as number) > 0 ? (obj.height as number) : size;
   return { x: obj.x, y: obj.y, width, height };

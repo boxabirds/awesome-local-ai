@@ -1,7 +1,9 @@
 import type { JSX } from 'react';
 
-import type { TextSize } from '../../shared/config.js';
+import type { FillColor, StrokeColor, TextSize } from '../../shared/config.js';
+import type { ShapeSnap } from '../../shared/objects/shape.js';
 import { TextToolbar } from './TextToolbar.js';
+import { ShapeToolbar } from './ShapeToolbar.js';
 
 /**
  * The bar that floats over the selection
@@ -37,6 +39,15 @@ export interface SelectionBarProps {
   textSize?: TextSize | null;
   /** Make the selected text object that size (and let its box be measured again). */
   onTextSize?(size: TextSize): void;
+  /**
+   * The shape that is selected on its own, when it is - which is the other selection
+   * that gets a toolbar of its own rather than a count. A story 9's text is an object
+   * with nothing to draw, and a shape is an object with two colours to choose, and
+   * both are things a person selects one of at a time.
+   */
+  shape?: ShapeSnap | null;
+  /** Give the selected shape that fill and/or that outline. */
+  onShapeStyle?(style: { fill?: FillColor; stroke?: StrokeColor }): void;
 }
 
 export default function SelectionBar({
@@ -44,7 +55,31 @@ export default function SelectionBar({
   onDelete,
   textSize = null,
   onTextSize,
+  shape = null,
+  onShapeStyle,
 }: SelectionBarProps): JSX.Element | null {
+  // A lone shape gets its colours; the check is on the object rather than on a
+  // colour being set, because a shape whose fill is 'none' is still a shape.
+  if (count === 1 && shape !== null && onShapeStyle !== undefined) {
+    return (
+      <div
+        className="selection-bar"
+        role="toolbar"
+        aria-label="Selection"
+        data-testid="selection-bar"
+        data-shape-object-selection="true"
+      >
+        <ShapeToolbar
+          fill={shape.fill}
+          stroke={shape.stroke}
+          onFill={(colour) => onShapeStyle({ fill: colour })}
+          onStroke={(colour) => onShapeStyle({ stroke: colour })}
+          onDelete={onDelete}
+        />
+      </div>
+    );
+  }
+
   // A lone object that has its own toolbar uses it, not this bar; nothing selected
   // shows nothing at all.
   if (count === 1 && textSize !== null && onTextSize) {

@@ -7,6 +7,10 @@ import { newBoardId } from '../../src/shared/board-id.js';
 import type { ObjectSnapshot, StickySnapshot } from '../../src/shared/board-model.js';
 import { objectBounds } from '../../src/shared/board-model.js';
 import type { TextSnapshot } from '../../src/shared/objects/text.js';
+import type { ShapeSnap } from '../../src/shared/objects/shape.js';
+import type { ConnectorSnap } from '../../src/shared/objects/connector.js';
+import { resolveEndpoints } from '../../src/shared/geometry/connector-geometry.js';
+import type { Rect } from '../../src/shared/geometry.js';
 import type { TextSize } from '../../src/shared/config.js';
 import type { Camera, Point } from '../../src/client/canvas/camera.js';
 import { worldToScreen, zoomAt } from '../../src/client/canvas/camera.js';
@@ -412,18 +416,20 @@ export function selectToolButton(): HTMLElement {
 }
 
 /** Which tool the toolbar says is active, by its button's `aria-pressed`. */
-export function pressedTool(): 'select' | 'text' | 'neither' {
-  const select = selectToolButton().getAttribute('aria-pressed') === 'true';
-  const text = textToolButton().getAttribute('aria-pressed') === 'true';
-  if (select && text) throw new Error('two tools are pressed at once');
-  if (select) return 'select';
-  if (text) return 'text';
-  return 'neither';
+export function pressedTool(): 'select' | 'text' | 'shape' | 'connector' | 'neither' {
+  const isPressed = (tool: 'select' | 'text' | 'shape' | 'connector'): boolean =>
+    document.querySelector<HTMLElement>(`[data-testid="${tool}-tool-button"]`)?.getAttribute('aria-pressed') ===
+    'true';
+  const active = (['select', 'text', 'shape', 'connector'] as const).filter(isPressed);
+  if (active.length > 1) throw new Error(`${active.length} tools are pressed at once`);
+  return active[0] ?? 'neither';
 }
 
 /** Press the Text tool button (or Select's). */
-export function clickTool(tool: 'select' | 'text'): void {
-  fireEvent.click(tool === 'text' ? textToolButton() : selectToolButton());
+export function clickTool(tool: 'select' | 'text' | 'shape' | 'connector'): void {
+  const button = document.querySelector<HTMLElement>(`[data-testid="${tool}-tool-button"]`);
+  if (!button) throw new Error(`the toolbar has no ${tool} tool button`);
+  fireEvent.click(button);
   settle();
 }
 
@@ -488,10 +494,13 @@ export function editingTextId(): string | null {
   return editing?.dataset.objectId ?? null;
 }
 
-/** The id the board holds selected, whether it is a note or a text object. */
+/** The ids the board holds selected, whatever the objects are. */
 export function selectedObjectIds(): string[] {
   const selected = document.querySelectorAll<HTMLElement>(
-    '[data-testid="sticky-note"][data-selected="true"], [data-testid="text-object"][data-selected="true"]',
+    '[data-testid="sticky-note"][data-selected="true"], ' +
+      '[data-testid="text-object"][data-selected="true"], ' +
+      '[data-testid="shape-object"][data-selected="true"], ' +
+      '[data-testid="connector-object"][data-selected="true"]',
   );
   return Array.from(selected).map((element) => element.dataset.objectId ?? element.dataset.noteId ?? '');
 }
@@ -787,4 +796,408 @@ export function countDocumentWrites(): { writes: () => number; stop(): void } {
       doc.off('update', listener);
     },
   };
+}
+
+/* --------------------------------------- story 10: shapes and connector arrows */
+
+/** A button in the toolbar, by its test id. */
+function toolbarButton(testId: string): HTMLElement {
+  const button = document.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
+  if (!button) throw new Error(`the toolbar has no ${testId} button`);
+  return button;
+}
+
+export function shapeToolButton(): HTMLElement {
+  return toolbarButton('shape-tool-button');
+}
+
+export function connectorToolButton(): HTMLElement {
+  return toolbarButton('connector-tool-button');
+}
+
+/** The three shape kinds, as the Shape button's menu lists them. */
+export function shapeKindButtons(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-testid="shape-kind-button"]'));
+}
+
+export function shapeKindMenu(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-testid="shape-kind-menu"]');
+}
+
+/** Which shape the Shape tool will draw. */
+export function pressedShapeKind(): string | null {
+  const pressed = shapeKindButtons().find((button) => button.getAttribute('aria-pressed') === 'true');
+  return pressed?.getAttribute('data-kind') ?? null;
+}
+
+/** Choose the shape the Shape tool draws next. */
+export function clickShapeKind(kind: string): void {
+  const button = shapeKindButtons().find((candidate) => candidate.getAttribute('data-kind') === kind);
+  if (!button) throw new Error(`the shape menu has no ${kind}`);
+  fireEvent.click(button);
+  settle();
+}
+
+/** The tool layer of one drawing tool, which is what its pointer events go to. */
+export function toolSurface(tool: 'shape' | 'connector'): HTMLElement {
+  const surface = document.querySelector<HTMLElement>(`[data-testid="${tool}-tool-surface"]`);
+  if (!surface) throw new Error(`the board renders no ${tool} tool layer`);
+  return surface;
+}
+
+export function shapeSurface(): HTMLElement {
+  return toolSurface('shape');
+}
+
+export function connectorSurface(): HTMLElement {
+  return toolSurface('connector');
+}
+
+/** The tool layer is there only while its tool is the active one. */
+export function toolSurfaceExists(tool: 'shape' | 'connector'): boolean {
+  return document.querySelector(`[data-testid="${tool}-tool-surface"]`) !== null;
+}
+
+export interface DragOptions {
+  /** Hold Shift for the whole gesture (a square shape). */
+  shift?: boolean;
+  /** How many `pointermove` events to send between the press and the release. */
+  steps?: number;
+  /** Hold Shift only on the last move and the release (Shift pressed mid-drag). */
+  shiftFrom?: number;
+}
+
+/**
+ * A drag on a tool layer: press, move in equal steps, release. Every step drains
+ * the frame queue, and the release is the moment the tool writes - so a test that
+ * wants to see the preview looks between the moves, not after this returns.
+ */
+export function dragOnTool(tool: 'shape' | 'connector', from: Point, to: Point, options: DragOptions = {}): void {
+  const { shift = false, steps = 4, shiftFrom = null } = options;
+  const element = toolSurface(tool);
+  const held = (step: number): boolean => shift || (shiftFrom !== null && step >= shiftFrom);
+  fireEvent.pointerDown(element, {
+    pointerId: POINTER_ID,
+    pointerType: 'mouse',
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    shiftKey: held(0),
+    clientX: from.x,
+    clientY: from.y,
+  });
+  settle();
+  for (let step = 1; step <= steps; step += 1) {
+    const t = step / steps;
+    fireEvent.pointerMove(element, {
+      pointerId: POINTER_ID,
+      pointerType: 'mouse',
+      buttons: 1,
+      shiftKey: held(step),
+      clientX: from.x + (to.x - from.x) * t,
+      clientY: from.y + (to.y - from.y) * t,
+    });
+    settle();
+  }
+  fireEvent.pointerUp(element, {
+    pointerId: POINTER_ID,
+    pointerType: 'mouse',
+    button: 0,
+    shiftKey: held(steps + 1),
+    clientX: to.x,
+    clientY: to.y,
+  });
+  settle();
+}
+
+/** The dashed outline the Shape tool draws while the drag is in the air. */
+export function shapePreview(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-testid="shape-preview"]');
+}
+
+/** The dashed arrow the Connector tool draws while the drag is in the air. */
+export function connectorPreview(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-testid="connector-preview-line"]');
+}
+
+/** Every object the tool layer would attach an arrow to, in drawing order. */
+export function toolTargets(): readonly ObjectSnapshot[] {
+  return docNotes().filter((object) => object.type !== 'connector');
+}
+
+/**
+ * The topmost object under a world point, which is what the tool layer answers to.
+ * The same rule the tool uses, restated here so a test can say "the pointer is over
+ * B" without re-deriving it from the fixture.
+ */
+export function objectAtWorld(point: Point): ObjectSnapshot | null {
+  let found: ObjectSnapshot | null = null;
+  for (const object of toolTargets()) {
+    const rect = objectBounds(object);
+    if (point.x < rect.x || point.x > rect.x + rect.width) continue;
+    if (point.y < rect.y || point.y > rect.y + rect.height) continue;
+    if (found === null || object.z >= found.z) found = object;
+  }
+  return found;
+}
+
+/** Where a world point is on the screen, with the camera the app holds. */
+export function screenOf(point: Point): Point {
+  return worldToScreen(camera(), point);
+}
+
+/** Where a screen point is on the board, with the camera the app holds. */
+export function worldOfScreen(point: Point): Point {
+  const cam = camera();
+  return { x: point.x / cam.zoom + cam.x, y: point.y / cam.zoom + cam.y };
+}
+
+/** The four connection dots of one object, as the Connector tool shows them. */
+export function connectorDots(objectId?: string): HTMLElement[] {
+  const dots = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="connector-dot"]'));
+  return objectId === undefined ? dots : dots.filter((dot) => dot.getAttribute('data-object') === objectId);
+}
+
+/** The dot the arrow would attach to. */
+export function highlightedDot(objectId: string): HTMLElement | null {
+  return connectorDots(objectId).find((dot) => dot.getAttribute('data-highlighted') === 'true') ?? null;
+}
+
+/* ------------------------------------------------------------------ shapes */
+
+export function shapeElements(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-testid="shape-object"]'));
+}
+
+export function shapeElement(index = 0): HTMLElement {
+  const elements = shapeElements();
+  const element = elements[index];
+  if (!element) throw new Error(`no shape rendered at position ${index} of ${elements.length}`);
+  return element;
+}
+
+export function shapes(): readonly ShapeSnap[] {
+  return docNotes().filter((object): object is ShapeSnap => object.type === 'shape');
+}
+
+export function shapeData(index = 0): ShapeSnap {
+  const list = shapes();
+  const shape = list[index];
+  if (!shape) throw new Error(`the board has no shape at position ${index} of ${list.length}`);
+  return shape;
+}
+
+export function shapeId(index = 0): string {
+  return shapeData(index).id;
+}
+
+export function shapeLabelElements(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-testid="shape-label"]'));
+}
+
+export function shapeLabel(index = 0): string {
+  const element = shapeLabelElements()[index];
+  if (!element) throw new Error(`no shape label rendered at position ${index}`);
+  return element.textContent ?? '';
+}
+
+/** The shape's own editor, open. */
+export function shapeEditor(index = 0): HTMLTextAreaElement {
+  const elements = Array.from(document.querySelectorAll<HTMLTextAreaElement>('[data-testid="shape-label-editor"]'));
+  const element = elements[index];
+  if (!element) throw new Error(`no shape editor is open at position ${index}`);
+  return element;
+}
+
+/** Type into a shape's label the way the editor is typed into. */
+export function typeShapeText(value: string, index = 0): void {
+  const element = shapeEditor(index);
+  act(() => {
+    element.value = value;
+    fireEvent.input(element, { target: { value } });
+  });
+  settle();
+}
+
+/** Where a shape's centre is on the screen. */
+export function shapeScreenCentre(index = 0): Point {
+  const shape = shapeData(index);
+  const rect = objectBounds(shape);
+  return screenOf({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 });
+}
+
+/** The selection bar's shape toolbar. */
+export function shapeToolbarElement(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-testid="shape-toolbar"]');
+}
+
+export function shapeFillButton(colour: string): HTMLElement {
+  const button = document.querySelector<HTMLElement>(`[data-testid="shape-fill-button"][data-color="${colour}"]`);
+  if (!button) throw new Error(`the shape toolbar has no ${colour} fill swatch`);
+  return button;
+}
+
+export function shapeStrokeButton(colour: string): HTMLElement {
+  const button = document.querySelector<HTMLElement>(
+    `[data-testid="shape-stroke-button"][data-color="${colour}"]`,
+  );
+  if (!button) throw new Error(`the shape toolbar has no ${colour} outline swatch`);
+  return button;
+}
+
+export function pressedShapeFill(): string | null {
+  return pressedShapeColour('shape-fill-button');
+}
+
+export function pressedShapeStroke(): string | null {
+  return pressedShapeColour('shape-stroke-button');
+}
+
+function pressedShapeColour(testId: string): string | null {
+  const buttons = Array.from(document.querySelectorAll<HTMLElement>(`[data-testid="${testId}"]`));
+  const pressed = buttons.find((button) => button.getAttribute('aria-pressed') === 'true');
+  return pressed?.getAttribute('data-color') ?? null;
+}
+
+/* -------------------------------------------------------------- connectors */
+
+export function connectorElements(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-testid="connector-object"]'));
+}
+
+export function connectorElement(index = 0): HTMLElement {
+  const elements = connectorElements();
+  const element = elements[index];
+  if (!element) throw new Error(`no connector rendered at position ${index} of ${elements.length}`);
+  return element;
+}
+
+export function connectors(): readonly ConnectorSnap[] {
+  return docNotes().filter((object): object is ConnectorSnap => object.type === 'connector');
+}
+
+export function connectorData(index = 0): ConnectorSnap {
+  const list = connectors();
+  const connector = list[index];
+  if (!connector) throw new Error(`the board has no connector at position ${index} of ${list.length}`);
+  return connector;
+}
+
+/** The two points an arrow is drawn between, according to the document. */
+export function connectorEnds(index = 0): { from: Point; to: Point } {
+  return resolveEndpoints({ from: connectorData(index).from, to: connectorData(index).to }, rectsOfBoard());
+}
+
+/** Every object's live rectangle, as the renderer computes it. */
+export function rectsOfBoard(): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const object of docNotes()) {
+    if (object.type === 'connector') continue;
+    rects.set(object.id, objectBounds(object));
+  }
+  return rects;
+}
+
+/** The two handles of a selected arrow. */
+export function connectorHandleElements(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-testid="connector-handle"]'));
+}
+
+export function connectorHandle(end: 'from' | 'to'): SVGCircleElement {
+  const handles = Array.from(document.querySelectorAll<SVGCircleElement>(
+    `[data-testid="connector-handle"][data-end="${end}"]`,
+  ));
+  const handle = handles[0];
+  if (!handle) throw new Error(`the selected arrow has no ${end} handle`);
+  return handle;
+}
+
+/**
+ * Where a handle is on the board, in board units: the arrow's own box plus the
+ * handle's place in it. Both are inline styles in world units, which is what makes
+ * this readable without a layout engine - jsdom lays nothing out, so
+ * `getBoundingClientRect` would say the handle is at the origin of the universe.
+ */
+function handleWorldPoint(handle: SVGCircleElement): Point {
+  const box = handle.closest<SVGSVGElement>('[data-testid="connector-object"]');
+  if (box === null) throw new Error('a connector handle is drawn outside its arrow');
+  return {
+    x: parseFloat(box.style.left) + Number(handle.getAttribute('cx') ?? '0'),
+    y: parseFloat(box.style.top) + Number(handle.getAttribute('cy') ?? '0'),
+  };
+}
+
+/**
+ * Drag one end handle of a selected arrow to a screen point: press the handle, move
+ * in steps (watched on the window, because the pointer leaves the handle at once),
+ * release. What the release means - attached, or fixed where it was dropped - is the
+ * test's question, not this helper's.
+ */
+export function dragConnectorHandleToEnd(end: 'from' | 'to', to: Point, steps = 4): void {
+  const handle = connectorHandle(end);
+  const start = screenOf(handleWorldPoint(handle));
+  fireEvent.pointerDown(handle, {
+    pointerId: POINTER_ID,
+    pointerType: 'mouse',
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    clientX: start.x,
+    clientY: start.y,
+  });
+  settle();
+  for (let step = 1; step <= steps; step += 1) {
+    const t = step / steps;
+    fireEvent.pointerMove(window, {
+      pointerId: POINTER_ID,
+      pointerType: 'mouse',
+      buttons: 1,
+      clientX: start.x + (to.x - start.x) * t,
+      clientY: start.y + (to.y - start.y) * t,
+    });
+    settle();
+  }
+  fireEvent.pointerUp(window, {
+    pointerId: POINTER_ID,
+    pointerType: 'mouse',
+    button: 0,
+    clientX: to.x,
+    clientY: to.y,
+  });
+  settle();
+}
+
+/**
+ * Put the camera somewhere else. The hook the e2e tests use to teleport is the one
+ * a component test uses too: a wheel gesture would take a hundred events to get to
+ * 200%, and the answer would be the same number.
+ */
+export function setCamera(next: Camera): void {
+  const hooks = window.__vidi6;
+  if (!hooks) throw new Error('test hooks are not registered');
+  act(() => {
+    hooks.setCamera(next);
+  });
+  flushFrames();
+}
+
+/** Zoom to a fraction (0.5 for 50%, 2 for 200%), about the centre of the view. */
+export function setZoom(zoom: number): void {
+  const hooks = window.__vidi6;
+  if (!hooks) throw new Error('test hooks are not registered');
+  setCamera(zoomAt(camera(), CENTRE, zoom / camera().zoom));
+}
+
+/** The line a click on an arrow answers, as drawn. */
+export function connectorHitElement(index = 0): SVGElement {
+  const elements = Array.from(document.querySelectorAll<SVGElement>('[data-testid="connector-hit"]'));
+  const element = elements[index];
+  if (!element) throw new Error(`no arrow drawn at position ${index} to click`);
+  return element;
+}
+
+/** Where an arrow's two ends are, in board units, as the board draws them. */
+export function connectorScreenEnds(index = 0): { from: Point; to: Point } {
+  const ends = connectorEnds(index);
+  return { from: screenOf(ends.from), to: screenOf(ends.to) };
 }

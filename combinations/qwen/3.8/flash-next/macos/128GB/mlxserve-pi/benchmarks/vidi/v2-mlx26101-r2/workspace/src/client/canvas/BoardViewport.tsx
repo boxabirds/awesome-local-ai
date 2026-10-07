@@ -15,7 +15,7 @@ import { createSticky } from '../../shared/board-model.js';
 import { createText } from '../../shared/objects/text.js';
 import { GRID_SPACING_WORLD, DRAG_THRESHOLD_PX, DOUBLE_CLICK_WINDOW_MS } from '../../shared/config.js';
 import { screenToWorld, type Point } from './camera.js';
-import type { Tool } from '../board/useTool.js';
+import type { ToolId } from '../tools/useActiveTool.js';
 import { useCameraContext } from './useCamera.js';
 import { MarqueeRect, type MarqueeController } from './Marquee.js';
 
@@ -61,7 +61,7 @@ export interface BoardViewportProps {
    * Absent means the board has no tools, which is what every board was before
    * story 9 and what a component test of one object still is.
    */
-  tool?: Tool;
+  tool?: ToolId;
   /** The Text tool's click placed a text object: switch back to Select, edit it. */
   onTextCreated?(id: string): void;
   /**
@@ -394,6 +394,10 @@ export function BoardViewport({
       data-testid="board-viewport"
       data-panning={panning ? 'true' : 'false'}
       data-text-tool={tool === 'text' ? 'true' : 'false'}
+      // Which tool the pointer is set to, on the surface itself. Story 9 asked for
+      // the one attribute it needed; a board with four tools says the whole answer,
+      // because "which mode am I in?" is a question about the surface.
+      data-tool={tool ?? 'select'}
       aria-label="Board"
       role="application"
       style={{

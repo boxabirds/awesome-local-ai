@@ -11,6 +11,8 @@ import {
   objectSnapshot,
   type ObjectSnapshot,
 } from '../../shared/board-model.js';
+import { createShape, getShapeLabel, setShapeStyle } from '../../shared/objects/shape.js';
+import { createConnector } from '../../shared/objects/connector.js';
 
 /** How a board gets its connection; tests hand in a fake (see `connectBoard`). */
 export type BoardConnector = (
@@ -113,6 +115,12 @@ export function useBoardDoc(
       getDoc: () => doc,
       getNotes: () => objectSnapshot(doc),
       getBoardId: () => boardId,
+      // Story 10's fixtures write shapes and arrows with the same calls the tools
+      // make, so a fixture's content is board content and not a description of it.
+      createShape: (input, by) => createShape(doc, input, by),
+      setShapeStyle: (id, style) => setShapeStyle(doc, id, style),
+      shapeLabel: (id) => getShapeLabel(doc, id),
+      createConnector: (from, to, by) => createConnector(doc, from, to, by),
     });
     return () => clearBoardTestHooks();
   }, [doc, boardId]);

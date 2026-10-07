@@ -8,14 +8,20 @@ import {
   type ObjectSnapshot,
   type Rect,
 } from '../../shared/board-model.js';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config.js';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config.js';
 import { TEXT_TYPE } from '../../shared/objects/text.js';
+import { SHAPE_TYPE } from '../../shared/objects/shape.js';
+import { CONNECTOR_TYPE, type ConnectorSnap } from '../../shared/objects/connector.js';
+import { resolveEndpoints } from '../../shared/geometry/connector-geometry.js';
+import { distanceToPolyline } from '../../shared/geometry/polyline.js';
 import type { Camera } from '../canvas/camera.js';
 import type { TransformGesture } from '../board/useTransformGesture.js';
 import type { UndoController } from '../board/undo.js';
 import type { UseSelectionResult } from '../board/useSelection.js';
 import StickyNote from './StickyNote.js';
 import TextObject, { resizeTextObject } from './TextObject.js';
+import ShapeObject from './ShapeObject.js';
+import ConnectorObject from './ConnectorObject.js';
 
 /**
  * The object type registry (story 7, `src/client/objects/registry.tsx`).
@@ -54,14 +60,28 @@ export interface ObjectProps {
   selection: UseSelectionResult;
   /** The shared move/resize gesture controller. */
   gesture: TransformGesture;
-  /**
-   * This tab's own undo history (story 8), handed to every object type alike. It
+  /** This tab's own undo history (story 8), handed to every object type alike. It
    * is the same controller whichever object is being drawn - undo is a property of
    * the board and the person using it, not of the object - and an object that can
    * change the document uses it to say where one action stops and the next starts.
    * Optional so an object can be drawn by a test, or a board, that keeps no history.
    */
   undo?: UndoController;
+  /**
+   * Every other object's live rectangle, keyed by id (`connector.follow`).
+   *
+   * An arrow's geometry is a question about two other objects, so it cannot be drawn
+   * from its own snapshot alone. The board has the rectangles already - the selection
+   * outline is drawn from them - and computing them once here keeps every object
+   * looking at the same set, which is what makes an arrow and the box it points at
+   * agree on one screen. A type that draws only itself never asks.
+   */
+  rects?: ReadonlyMap<string, Rect>;
+  /**
+   * The whole board, for a type that has to know what else is under the pointer -
+   * an arrow's end being dragged to a new object, and nothing else so far.
+   */
+  snapshot?: readonly ObjectSnapshot[];
 }
 
 /**
@@ -80,8 +100,14 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Whether it has editable text (so Enter and the toolbar pencil apply). */
   editableText: boolean;
-  /** Whether a point (world units) is inside it; the default hit test. */
-  hitTest?(object: ObjectSnapshot, point: { x: number; y: number }): boolean;
+  /** Whether a point (world units) is inside it; the default hit test.
+   *
+   * `zoom` and `rects` are there for the one type that is not a box: an arrow is
+   * found by how near its *line* the point is, which needs the zoom to turn screen
+   * pixels into board units and the live rectangles to know where that line is. A
+   * type that is a box ignores both.
+   */
+  hitTest?(object: ObjectSnapshot, point: { x: number; y: number }, zoom?: number, rects?: ReadonlyMap<string, Rect>): boolean;
   /**
    * Which of the eight handles this type is resized by. `'all'` (the default, and
    * what a shape that keeps its proportions is drawn with) shows the whole set;
@@ -149,6 +175,26 @@ function squareHitTest(object: ObjectSnapshot, point: { x: number; y: number }):
   );
 }
 
+/** No rectangles to ask: an attached end is drawn at the point it kept. */
+const NO_RECTS: ReadonlyMap<string, Rect> = new Map<string, Rect>();
+
+/**
+ * How near an arrow's line a point has to be to be on the arrow (`connector.select`):
+ * `CONNECTOR_HIT_TOLERANCE_PX` *screen* pixels, divided by the zoom to get board
+ * units, so the arrow is as easy to hit at 400% as at 40% and a click inside the box
+ * but far from the line is not a click on the arrow at all.
+ */
+export function connectorHitTest(
+  object: ObjectSnapshot,
+  point: { x: number; y: number },
+  zoom = 1,
+  rects: ReadonlyMap<string, Rect> = NO_RECTS,
+): boolean {
+  const connector = object as ConnectorSnap;
+  const ends = resolveEndpoints({ from: connector.from, to: connector.to }, rects);
+  return distanceToPolyline([ends.from, ends.to], point) <= CONNECTOR_HIT_TOLERANCE_PX / (zoom || 1);
+}
+
 // The one object type story 7 ships with. Resizable, aspect-locked, editable.
 registerObjectType('sticky', {
   Component: StickyNote,
@@ -171,6 +217,32 @@ registerObjectType(TEXT_TYPE, {
   handles: 'horizontal',
   hitTest: squareHitTest,
   resizeTo: resizeTextObject,
+});
+
+// Story 10's shapes. Resizable, never aspect-locked (a shape is as square as the
+// drag that made it, and a Shift held *while drawing* is the only thing that makes
+// one square again), editable text in the middle, and hit as a box - the figure is
+// drawn inside the box, so a click in the corner of a diamond's box is a click on
+// the diamond's neighbourhood, which is what a box-shaped board means.
+registerObjectType(SHAPE_TYPE, {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: squareHitTest,
+});
+
+// Story 10's arrows. Not resizable: an arrow has no box of its own to resize, only
+// two ends, which are moved by their own handles. No editable text, and hit by its
+// line rather than by its box - see `connectorHitTest`.
+registerObjectType(CONNECTOR_TYPE, {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest: connectorHitTest,
 });
 
 export { isKnownObjectType };

@@ -11,7 +11,6 @@ import {
 } from '../../shared/board-model.js';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config.js';
 import { getObjectType } from '../objects/registry.js';
-import type { Tool } from './useTool.js';
 import type { UndoController } from './undo.js';
 import type { UseSelectionResult } from './useSelection.js';
 
@@ -55,15 +54,6 @@ export interface BoardKeysOptions {
    * undoes two different things.
    */
   undo?: UndoController;
-  /**
-   * The active tool and the way to change it (story 9): `V` and `T` live here with
-   * every other shortcut that is not about one object, and for the same reason the
-   * rest of them do - the rule "no shortcut runs while a text editor owns the
-   * keyboard" is worth stating once. A board that has no tool state (a component
-   * test of one object) passes neither.
-   */
-  tool?: Tool;
-  onTool?: (tool: Tool) => void;
 }
 
 /**
@@ -77,8 +67,6 @@ export function useBoardKeys({
   snapshot,
   canEdit,
   undo,
-  tool,
-  onTool,
 }: BoardKeysOptions): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -95,32 +83,10 @@ export function useBoardKeys({
 
       if (keyIs(event, 'Escape')) {
         selection.clear();
-        // Escape also steps out of a tool: it is the key for "never mind", and
-        // after "never mind" the pointer should mean what it meant before.
-        if (tool === 'text') onTool?.('select');
+        // Leaving a tool is `useActiveTool`'s job - it is the one place that knows
+        // which letters are tools at all, and Escape is the same "never mind" to both
+        // of us: clear the selection, and put the pointer back to what it meant.
         return;
-      }
-
-      // The tool keys, below the typing guard and so above the "needs a
-      // selection" gate: they change what the next click means, not the document.
-      // A modifier means the browser owns the key - Cmd/Ctrl+V is paste, Cmd/Ctrl+T
-      // is a new tab - and `T` while a note is open for typing types a "t" into it
-      // rather than changing the mode behind the person's back.
-      if (onTool && !event.metaKey && !event.ctrlKey && !event.altKey) {
-        if (keyIs(event, 'v')) {
-          event.preventDefault();
-          onTool('select');
-          return;
-        }
-        if (keyIs(event, 't')) {
-          // A read-only board has no Text tool to enter (and `useTool` pulls an
-          // active one back to Select); the key does nothing at all, like every
-          // other shortcut that would write.
-          if (!canEdit) return;
-          event.preventDefault();
-          onTool('text');
-          return;
-        }
       }
 
       // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y - here rather than in the object
@@ -190,7 +156,7 @@ export function useBoardKeys({
     // `selection` is a fresh object whenever the selection changes, so the
     // listener always closes over the current selection without re-subscribing on
     // every render (its action callbacks are stable).
-  }, [doc, selection, snapshot, canEdit, undo, tool, onTool]);
+  }, [doc, selection, snapshot, canEdit, undo]);
 }
 
 const ARROW_DELTAS: ReadonlyMap<string, Point> = new Map<string, Point>([

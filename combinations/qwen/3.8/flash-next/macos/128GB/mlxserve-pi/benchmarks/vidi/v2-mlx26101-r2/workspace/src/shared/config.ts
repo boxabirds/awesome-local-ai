@@ -177,6 +177,112 @@ export const TEXT_AUTO_WIDTH_PADDING_WORLD = 8;
  */
 export const TEXT_GLYPH_WIDTH_RATIO = 0.5;
 
+/* ------------------------------------------------------- shapes (story 10) */
+
+/**
+ * The three kinds a shape may be drawn as (`shape.create_drag`). The keys are
+ * what the document stores; changing a shape's kind after it is made is out of
+ * scope, so this list is only ever asked at creation and by the Shape menu.
+ */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** Is `value` one of the three kinds? An unknown kind creates nothing. */
+/** Is `value` one of the three shape kinds? */
+export const isShapeKind = (value: unknown): value is ShapeKind =>
+  typeof value === 'string' && (SHAPE_KINDS as readonly string[]).includes(value);
+
+/** What each shape kind is called in the interface (`shape.ui`'s kind menu). */
+export const SHAPE_KIND_NAMES: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+
+/**
+ * The size of a shape dropped by a click (`shape.create_click`): a standard
+ * square of this many board units, centred on the point that was clicked.
+ */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/**
+ * The smallest a dragged shape may be, in board units *in either direction*: a
+ * drag narrower than this is a click that wobbled, and becomes a standard-size
+ * shape instead. It is also the registry's `minSize` for the shape type, so
+ * resizing stops at the same number.
+ */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** Hard limit on the characters a shape's label may hold (`shape.label`). */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** The outline of a shape, in board units, so it scales with the board. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/**
+ * The seven fill swatches (`shape.style`): six colours and "no fill", which is a
+ * colour name like any other as far as the document is concerned.
+ */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+
+/** The six outline swatches (`shape.style`). */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** Is `value` one of the seven fill names (including `none`)? */
+export const isFillColor = (value: unknown): value is FillColor =>
+  typeof value === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_FILL_COLORS, value);
+
+/** Is `value` one of the six outline names? */
+export const isStrokeColor = (value: unknown): value is StrokeColor =>
+  typeof value === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_STROKE_COLORS, value);
+
+/** The fill and outline of a newly created shape. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+/* ---------------------------------------------------- connectors (story 10) */
+
+/**
+ * How far the pointer must travel for a Connector drag to be an arrow at all
+ * (`connector.no_accidental`): below this many board units nothing is created.
+ */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/**
+ * How close a click must come to an arrow's line to select it
+ * (`connector.select`), in *screen* pixels - so the hit area is this wide at
+ * every zoom, which is why the client divides it by the zoom to get board units.
+ */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** The arrow's line, in board units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** How big the arrowhead is, in board units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** The radius of the four connection dots, in screen pixels. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
 /* ------------------------------------------------------------------- undo (story 8) */
 
 /**

@@ -35,6 +35,12 @@
     // The story-7 `testbox` fixture draws a React component and imports the client
     // object registry (`.tsx`), so it belongs to the client program only. The rest
     // of `tests/fixtures` is Workers-safe (pure board-model builders) and stays in.
-    "tests/fixtures/testbox.tsx"
+    "tests/fixtures/testbox.tsx",
+    // Story 10's flow fixture is the same case in a different shape: it is a *Playwright*
+    // fixture - it drives a page through the Shape and Connector tools, so it imports the
+    // e2e helpers, which reach for `window` and `document`. It is type-checked by the
+    // client program, which has a DOM; it is excluded here so that this program keeps
+    // meaning "no browser API in the Worker".
+    "tests/fixtures/checkout-flow.ts"
   ]
 }

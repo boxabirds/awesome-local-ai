@@ -1,6 +1,9 @@
 import type { Camera } from './camera.js';
 import type { ConnectionState } from '../sync/connectBoard.js';
 import type { ObjectSnapshot } from '../../shared/board-model.js';
+import type { Point, Rect } from '../../shared/geometry.js';
+import type { ShapeKind } from '../../shared/objects/shape.js';
+import type { Endpoint } from '../../shared/objects/connector.js';
 import type * as Y from 'yjs';
 
 /**
@@ -67,6 +70,23 @@ export interface Vidi6BoardTestHooks {
   getNotes(): readonly ObjectSnapshot[];
   /** The board this page is on, from the URL. */
   getBoardId(): string;
+  /**
+   * Story 10's model calls, so a fixture can put shapes and arrows on a board
+   * before a test starts acting (`tests/fixtures/checkout-flow.ts`).
+   *
+   * A page cannot `import` the app's modules into `page.evaluate`, and writing the
+   * `objects` fields by hand would be a fixture that *describes* content instead of
+   * one that writes it. So these are the app's own functions - the ones the Shape
+   * tool and the Connector tool call - bound to this page's document, which is the
+   * only document there is and so is left out of the arguments. Like everything in
+   * this file they exist only in the test build; the shapes they write are the
+   * shapes a person would have drawn, colours, `z` and all.
+   */
+  createShape(input: { kind: ShapeKind; rect: Rect | null; at: Point; square?: boolean }, by: string): string | null;
+  setShapeStyle(id: string, style: { fill?: string; stroke?: string }): boolean;
+  /** A shape's label, as the `Y.Text` it is: the fixture writes into it directly. */
+  shapeLabel(id: string): Y.Text | undefined;
+  createConnector(from: Endpoint, to: Endpoint, by: string): string | null;
 }
 
 declare global {

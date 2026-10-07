@@ -2,7 +2,8 @@ import type { JSX } from 'react';
 
 import type { UndoButtonsProps } from './UndoButtons.js';
 import { UndoButtons } from './UndoButtons.js';
-import type { Tool } from './useTool.js';
+import type { ToolId } from '../tools/useActiveTool.js';
+import { SHAPE_KINDS, SHAPE_KIND_NAMES, type ShapeKind } from '../../shared/config.js';
 
 /** Exact tooltip of the Sticky note button (PRD "Structure"). */
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note \u2013 or double-click the board';
@@ -18,15 +19,23 @@ export interface ToolbarProps {
   /** Create a sticky note in the middle of what the user is looking at. */
   onCreateSticky(): void;
   /**
-   * The active tool, and the way to change it (story 9). Both optional, and the
-   * two tool buttons are drawn only when they are given: a board that was built
-   * before there were tools - and there is one, story 2's component test - draws
-   * the toolbar it always drew rather than a Select button it cannot press.
+   * The active tool, and the way to change it (story 9, four tools by story 10).
+   * Both optional, and the tool buttons are drawn only when they are given: a board
+   * that was built before there were tools - and there is one, story 2's component
+   * test - draws the toolbar it always drew rather than a Select button it cannot
+   * press.
    */
-  tool?: Tool;
+  tool?: ToolId;
   /** Make a tool the active one ('Select' and 'Text' buttons, and the shortcuts).
    * Omitted together with `tool` by a board with no tools. */
-  onTool?: (tool: Tool) => void;
+  onTool?: (tool: ToolId) => void;
+  /**
+   * Which shape the Shape tool will draw (story 10). Shown as the pressed state of
+   * the three kind buttons, which appear under the Shape button while it is the tool.
+   */
+  shapeKind?: ShapeKind;
+  /** Draw that shape next. */
+  onShapeKind?: (kind: ShapeKind) => void;
   /**
    * False while the board will not accept new content (a board the room could not
    * load - see `canEdit`). The button is then shown disabled rather than hidden:
@@ -47,7 +56,15 @@ export interface ToolbarProps {
  * The left-side vertical toolbar. Story 2 contributes the Sticky note button;
  * later stories add their tools here.
  */
-export function Toolbar({ onCreateSticky, tool, onTool, canEdit = true, undo }: ToolbarProps): JSX.Element {
+export function Toolbar({
+  onCreateSticky,
+  tool,
+  onTool,
+  shapeKind = 'rect',
+  onShapeKind,
+  canEdit = true,
+  undo,
+}: ToolbarProps): JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -97,6 +114,65 @@ export function Toolbar({ onCreateSticky, tool, onTool, canEdit = true, undo }: 
               T
             </span>
             <span className="board-toolbar-label">Text</span>
+          </button>
+          {/* Story 10's two drawing tools. They are the first tools that make a thing
+              rather than a cursor: the Shape tool waits for a drag and the Connector
+              tool waits for a release, so both are greyed out with everything else
+              that writes, and both leave on their own the moment they have made their
+              one thing. */}
+          <button
+            type="button"
+            className="board-toolbar-button"
+            data-testid="shape-tool-button"
+            aria-label="Shape (S)"
+            title="Draw a rectangle, ellipse or diamond (S)"
+            aria-pressed={tool === 'shape' ? 'true' : 'false'}
+            disabled={!canEdit}
+            onClick={() => onTool('shape')}
+          >
+            <span className="board-toolbar-icon" aria-hidden="true">
+              &#9645;
+            </span>
+            <span className="board-toolbar-label">Shape (S)</span>
+          </button>
+          {tool === 'shape' && onShapeKind ? (
+            // The kind is chosen here rather than being a tool of its own, because the
+            // three shapes are one gesture with three answers: press S, pick a shape,
+            // draw. The popup is the toolbar growing a second row, not a floating
+            // panel, so it is out of the way of what is being drawn and is part of the
+            // same click trail.
+            <span className="board-toolbar-popup" data-testid="shape-kind-menu" role="group" aria-label="Shape kind">
+              {SHAPE_KINDS.map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className="board-toolbar-kind"
+                  data-testid="shape-kind-button"
+                  data-kind={kind}
+                  aria-label={SHAPE_KIND_NAMES[kind]}
+                  title={`Draw a ${SHAPE_KIND_NAMES[kind]}`}
+                  aria-pressed={shapeKind === kind ? 'true' : 'false'}
+                  onClick={() => onShapeKind(kind)}
+                >
+                  {SHAPE_KIND_NAMES[kind]}
+                </button>
+              ))}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            className="board-toolbar-button"
+            data-testid="connector-tool-button"
+            aria-label="Connector (L)"
+            title="Draw an arrow between two objects (L)"
+            aria-pressed={tool === 'connector' ? 'true' : 'false'}
+            disabled={!canEdit}
+            onClick={() => onTool('connector')}
+          >
+            <span className="board-toolbar-icon" aria-hidden="true">
+              &#8594;
+            </span>
+            <span className="board-toolbar-label">Connector (L)</span>
           </button>
         </>
       ) : null}
