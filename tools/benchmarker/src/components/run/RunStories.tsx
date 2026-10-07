@@ -8,6 +8,7 @@ import { conversationHref, storyRunHref } from "../../../shared/routes.ts";
 import { StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { CollapsedMark, InterventionMark, interventionHref } from "../RunMarks.tsx";
 import { short } from "../UsageCells.tsx";
+import { StoryJudgeLink } from "../JudgeCell.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { duration, qualityClass } from "../../format.ts";
 import { Missing, NotApplicable, Section, Stat, Term, full } from "./bits.tsx";
@@ -42,7 +43,7 @@ function engineTip(u: Usage, cloud: boolean): string | undefined {
   return `${part("generation", u.decodeTokS)} · ${part("reading", u.prefillTokS)}`;
 }
 
-export function RunStories({ run, rows }: { run: Row; rows: Row[] }) {
+export function RunStories({ run, rows, judgeUrl }: { run: Row; rows: Row[]; judgeUrl: string }) {
   const t = runTotals(run);
   const cloud = isCloud(run);
   const { bars, scaleSeconds } = runTimeBars(run);
@@ -120,6 +121,7 @@ export function RunStories({ run, rows }: { run: Row; rows: Row[] }) {
                       : <td colSpan={FIGURES.length} className="no-usage"><Missing why={whyMissing(null, "story")} /> no usage recorded for this story</td>}
                     <td className="rp-bar-check">
                       <span className="rp-bar-story" data-tip={GLOSSARY.storyInEveryCombination.what}><StoryLink pack={run.pack} story={r.id}>all runs</StoryLink></span>
+                      {s ? <StoryJudgeLink row={run} url={judgeUrl} story={s} /> : null}
                     </td>
                   </tr>
                 );

@@ -113,6 +113,10 @@ export interface Intervention {
 
 /** One finished story of a run. */
 export interface Story {
+  /** This story can be judged: it has a record of its own and the run has its workspace history. Weaker than the
+   * run's judgeReady on purpose -- a finished story of a running run is judgeable, and the review page rebuilds
+   * the workspace story by story. */
+  judgeReady?: boolean;
   id: string;
   title: string;
   status: string;
