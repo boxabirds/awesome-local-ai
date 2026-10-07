@@ -1,8 +1,9 @@
 /**
- * Task 1.1: Unit tests for board-id (TC-01, TC-02).
+ * Task 1 & 5.1: Unit tests for board-id (TC-01, TC-02, TC-04).
+ * TC-04: link-code format and uniqueness
  */
 import { describe, it, expect } from 'vitest';
-import { isValidBoardId, newBoardId, BOARD_ID_PATTERN } from '@/shared/board-id';
+import { isValidBoardId, newBoardId, BOARD_ID_PATTERN, BOARD_ID_BYTES } from '@/shared/board-id';
 
 describe('board-id unit tests', () => {
   // ---- TC-01: isValidBoardId validation ----
@@ -50,5 +51,39 @@ describe('board-id unit tests', () => {
       ids.add(id);
     }
     expect(ids.size).toBe(10_000);
+  });
+
+  // ---- TC-04: link-code format and uniqueness ----
+  describe('TC-04: unguessable board codes', () => {
+    it('codes are 22 characters long', () => {
+      for (let i = 0; i < 100; i++) {
+        const id = newBoardId();
+        expect(id.length).toBe(22);
+      }
+    });
+
+    it('all 10,000 codes unique', () => {
+      const ids = new Set<string>();
+      for (let i = 0; i < 10_000; i++) {
+        ids.add(newBoardId());
+      }
+      expect(ids.size).toBe(10_000);
+    });
+
+    it('all codes match BOARD_ID_PATTERN', () => {
+      for (let i = 0; i < 10_000; i++) {
+        expect(newBoardId()).toMatch(BOARD_ID_PATTERN);
+      }
+    });
+
+    it('uses at least 16 bytes (128 bits) of randomness', () => {
+      // Verify the constant reflects 16 bytes = 128 bits
+      expect(BOARD_ID_BYTES).toBe(16);
+      // A 16-byte buffer produces 22 base64url chars (no padding)
+      const buf = crypto.getRandomValues(new Uint8Array(BOARD_ID_BYTES));
+      const encoded = Buffer.from(buf).toString('base64url');
+      expect(encoded).toHaveLength(22);
+      expect(encoded).not.toContain('=');
+    });
   });
 });

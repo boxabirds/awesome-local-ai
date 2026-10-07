@@ -25,6 +25,11 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS;
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+// Story 5 — share / board creation settings
+export const CREATE_BUDGET_MS = 2000;
+export const LINK_COPIED_MS = 2000;
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
 // Story 3 — live collaboration settings
 export const MAX_CONCURRENT_EDITORS = 5;
 export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;

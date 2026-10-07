@@ -1,34 +1,20 @@
-# Story 4: Return to a board and find everything as it was left
+# Story 5: Share a board with others using a link
+
+Your progress on this story's tasks. Keep the Status column up to date as you work.
 
 | # | Task | Status |
 |---|-------|--------|
-| 1 | Write storage and room-state unit tests first (TC-01, TC-02, TC-27) | done |
-| 2 | Implement BoardStore: SQLite schema, append, load with quarantine, chunked compaction | done |
-| 3 | Integration tests for BoardStore against real Durable Object SQLite (TC-03 to TC-11, TC-25) | done |
-| 4 | Make BoardRoom persistent: load on wake, store before broadcast, hibernation API, load/storage failure handling | done |
-| 5 | Integration tests for persistent room: durability, failures, hibernation (TC-12 to TC-18, TC-26) | done |
-| 6 | E2E persistence across real process restarts and large-board load time (TC-19 to TC-21) | done |
-| 7 | Implement client load-failure state: red message and editing disabled | done |
-| 8 | Component tests for load-failure badge, edit lock and close-code mapping (TC-22, TC-23, TC-28) | done |
-| 9 | E2E broken board: honest failure, edit lock, recovery without reload (TC-24) | done |
+| 1 | Write board id unit test first: link-code format and uniqueness (TC-04) | done |
+| 2 | Implement board API: POST /api/boards, GET existence, 404 for unknown rooms | done |
+| 3 | Integration tests for board API against real Worker, RPC and SQLite (TC-05 to TC-10, TC-12, TC-14, TC-15, TC-32) | done |
+| 4 | Implement router, API client, Home, Board (existence check with retry) and Board not found pages | done |
+| 5 | Implement Share panel with copy link and manual-copy fallback | done |
+| 6 | Component tests for pages and Share panel (TC-16, TC-17, TC-19 to TC-25) | todo |
+| 7 | E2E share workflows: create-share-join, bad link, flaky service, clipboard blocked, legacy board (TC-26 to TC-29, TC-31) | todo |
 
-All tasks complete. Tests pass: 116 unit + 19 component + 32 integration = 167 total.
+Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
 
-## Notes
-
-### Key implementation details
-
-- **BoardStore** (`src/worker/board-store-do.ts`): Full class with SQLite schema (storage_meta, updates, snapshot_chunks, quarantined_updates), append with sequence numbers, load that merges snapshot chunks then applies log rows, quarantine of damaged rows, chunk-based compaction respecting SNAPSHOT_CHUNK_BYTES config.
-
-- **BoardRoom** (`src/worker/board-room.ts`): Hibernating DO with `blockConcurrencyWhile` for sync document load on wake. `doc.on('update')` handler calls `store.append()` before broadcasting to other sockets. Storage failure closes all sockets with CLOSE_STORAGE_FAILURE (1011). Load failure returns CLOSE_BOARD_LOAD_FAILED (4500) after retry interval.
-
-- **Client wiring** (`connectBoard.ts`, `ConnectionStatus.tsx`, `App.tsx`): New states `load-failed` and `storage-failed` handled in WebSocket close event listener. ConnectionStatus shows red badges. App disables sticky creation, deletion, and keyboard shortcuts when not in an editable state.
-
-### Vitest configuration
-
-Split into three projects via workspace files: vitest.unit.config.ts (node env), vitest.component.config.ts (jsdom + React), vitest.integration.config.ts (pure import checks). All run under npx vitest.
-
-### Test gap notes
-
-- Full DO+SQlite lifecycle testing requires wrangler dev or miniflare modules resolver — unit tests cover pure functions, integration tests verify schema compliance and code structure, e2e tests verify actual persistence through the server.
-- The vitest-pool-workers plugin is incompatible with vitest 3.x (requires 2.x), so we use direct Miniflare instantiation pattern within node-env tests instead.
+### Notes on bug fixes (turn context)
+- **Critical fix**: inverted cursor.done logic — `done === false` means row found, `done === true` means no row
+- **Critical fix**: removed lazy migration; tables created synchronously in `initialize()` via `transactionSync`
+- **Race condition fixed**: ensureMigrated() replaced with direct transactionSync in initialize() so tables always exist before SQL queries

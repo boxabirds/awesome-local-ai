@@ -3,13 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
     <title>vidi6 — infinite whiteboard</title>
     <style>
       html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+  <!-- Server-rendered fallback: show title, JS will replace this -->
+  <noscript>
+    <p style="padding:2rem;font-family:system-ui;text-align:center;"><b>This app requires JavaScript.</b></p>
+  </noscript>
+</div>
     <script type="module" src="/src/client/main.tsx"></script>
   </body>
 </html>

@@ -1,6 +1,7 @@
 /**
  * BoardStore — SQLite-backed Durable Object storage for board persistence.
  * Story 4 — persistence.
+ * Story 5 — lazy migration, existsReadOnly.
  *
  * Wraps DurableObjectStorage (SQL + transactionSync) to provide append,
  * load-with-quarantine, and compaction operations on Yjs update logs.
@@ -17,7 +18,7 @@ const LOAD_ORIGIN = Symbol('load-origin');
 // ─── Public types ────────────────────────────────────────────────────
 
 export type LoadResult =
-  | { ok: true; quarantined: number }
+  | { ok: true; quarantined: number; tablesExist: boolean }
   | { ok: false; reason: 'snapshot-unreadable' | 'sql-error'; error: string };
 
 // ─── Schema constants ────────────────────────────────────────────────
@@ -43,6 +44,7 @@ export class BoardStore {
   /**
    * Create all tables if absent; set schema version.
    * Does not create any update rows.
+   * Story 5: called lazily from BoardRoom.initialize() and before first append().
    */
   migrate(): void {
     this.storage.transactionSync(() => {
@@ -63,9 +65,33 @@ export class BoardStore {
   }
 
   /**
+   * Read-only existence check: does the board have created_at, or legacy data?
+   * Does NOT create any tables. Returns false if tables don't exist.
+   */
+  existsReadOnly(): boolean {
+    try {
+      const row = this.storage.sql.exec(
+        "SELECT value FROM storage_meta WHERE key = ?",
+        '_story5_created_at',
+      ).next();
+      // row.done === false means row found
+      if (!row.done && (row.value as unknown as Record<string, string>)?.value) return true;
+      return true;
+    } catch {
+      // tables don't exist — board is unknown
+      return false;
+    }
+  }
+
+  /**
    * Append an update to the log. Throws on SQL failure.
+   * Story 5: lazy migration ensures tables exist for legacy boards.
    */
   append(update: Uint8Array): void {
+    // Lazy migration for legacy boards that have tables but no created_at
+    try {
+      this.migrate();
+    } catch { /* ignore — will fail on INSERT if truly broken */ }
     const bytes = update.length;
     const result = this.storage.sql.exec(
       'INSERT INTO updates (data, bytes) VALUES (?, ?)',
@@ -79,9 +105,23 @@ export class BoardStore {
    * Load the document state from storage into the provided Y.Doc.
    * Reads snapshot chunks → applies snapshot, then applies remaining log rows.
    * Damaged log rows are quarantined; damaged snapshots return LoadResult.ok:false.
+   * Story 5: does NOT create tables — returns tablesExist flag.
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // Check if tables exist (story 5: unknown boards have no tables)
+      let tablesExist = false;
+      try {
+        this.storage.sql.exec('SELECT 1 FROM storage_meta LIMIT 1').next();
+        tablesExist = true;
+      } catch {
+        // No tables — empty board, nothing to load
+      }
+
+      if (!tablesExist) {
+        return { ok: true, quarantined: 0, tablesExist: false };
+      }
+
       // Step 1: Read and apply snapshot if present
       const throughSeq = this.readSnapshotThroughSeq();
       const snapLoaded = this.loadSnapshot(doc, throughSeq);
@@ -118,7 +158,7 @@ export class BoardStore {
         return { ok: false, reason: 'sql-error', error: String(_err) };
       }
 
-      return { ok: true, quarantined };
+      return { ok: true, quarantined, tablesExist: true };
     } catch (_err) {
       return { ok: false, reason: 'sql-error', error: String(_err) };
     }
@@ -177,7 +217,7 @@ export class BoardStore {
     }
 
     if (chunks.length === 0) {
-      return { ok: true, quarantined: 0 }; // No snapshot — just apply log below
+      return { ok: true, quarantined: 0, tablesExist: true }; // No snapshot — but tables exist (legacy)
     }
 
     try {
@@ -187,7 +227,7 @@ export class BoardStore {
       return { ok: false, reason: 'snapshot-unreadable', error: 'Failed to decode snapshot' };
     }
 
-    return { ok: true, quarantined: 0 };
+    return { ok: true, quarantined: 0, tablesExist: true };
   }
 
   private quarantineRow(seq: number, data: ArrayBuffer, error: string): void {

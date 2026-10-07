@@ -2146,6 +2146,557 @@
           "fixed": 0,
           "regressed": 2
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r1/server.log"
+        ],
+        "private": {
+          "copied": 43,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "cfd93a582"
+      }
+    },
+    "5": {
+      "title": "Share a board with others using a link",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "unmonitored"
+      },
+      "started": 1791368559.2062244,
+      "engine_settings": {
+        "server_started_at": "2026-10-07T06:21:03Z",
+        "engine": "gufo-fork-ninjapear",
+        "engine_version": "gufo version development (unknown)",
+        "thinking_mode": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "thinking_budget": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "context_size": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "kv_cache_type": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "speculative": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "temperature": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "top_p": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "top_k": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "min_p": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "quantisation": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "reasoning_effort": {
+          "requested": "low",
+          "engine": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+          },
+          "client": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "effective": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+          },
+          "matches_request": null
+        },
+        "gaps": [
+          "reasoning effort: 'low' requested, neither the engine nor the client applies one",
+          "context: 131072 requested, not on the engine's command line"
+        ]
+      },
+      "agent": {
+        "seconds": 3527.2,
+        "steps": 182,
+        "tool_calls": 198,
+        "compactions": 1,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 3133680,
+          "output": 76398,
+          "reasoning": 0,
+          "cache_read": 8427821,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 1,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": true,
+        "ended_in_error": false,
+        "sessions": [
+          "01a115e2-fb82-75ad-b53f-f5aba6de8130",
+          "01a115e2-fb82-75ad-b53f-f5aba6de8130"
+        ],
+        "finished": false,
+        "interventions": {
+          "total": 1,
+          "stop_message": 1,
+          "toolcall_text_resumes": 0,
+          "error_resumes": 0
+        }
+      },
+      "agent_finished": 1791372086.586159,
+      "conditions": {
+        "samples": 117,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 1.35,
+        "swap_max_gb": 1.35,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 33.52360770574216,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": 35.70500564575195,
+        "server_footprint_peak_gb": 35.70500564575195,
+        "gpu": {
+          "samples": 117,
+          "busy_mean_pct": 89.1,
+          "sclk_min_busy_mhz": 2687,
+          "sclk_max_mhz": 2900,
+          "power_mean_w": 123.3,
+          "power_max_w": 159.0,
+          "temp_max_c": 85.0,
+          "gtt_max_gb": 33.35,
+          "throttled_samples": 0
+        }
+      },
+      "containment": {
+        "enabled": true,
+        "units": [
+          "spec-bench-v2-q36fork-b-r1-s05-1",
+          "spec-bench-v2-q36fork-b-r1-s05-2"
+        ],
+        "memory_max_gb": 47.9,
+        "memory_peak_gb": null,
+        "left_at_story_end": 0,
+        "reaped": []
+      },
+      "agent_commits": 0,
+      "provenance": {
+        "harness_commit": "0b4a70acb",
+        "harness_dirty": null,
+        "harness_release": "harness-v2026.10.05.2",
+        "pack_version": "vidi-v2.0-pre2",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 1,
+            "seconds": 0.9,
+            "tail": "npm ERR! code ERESOLVE\nnpm ERR! ERESOLVE could not resolve\nnpm ERR! \nnpm ERR! While resolving: @cloudflare/vitest-pool-workers@0.5.41\nnpm ERR! Found: vitest@3.2.7\nnpm ERR! node_modules/vitest\nnpm ERR!   dev vitest@\"^3.0.0\" from the root project\nnpm ERR! \nnpm ERR! Could not resolve dependency:\nnpm ERR! peer vitest@\"2.0.x - 2.1.x\" from @cloudflare/vitest-pool-workers@0.5.41\nnpm ERR! node_modules/@cloudflare/vitest-pool-workers\nnpm ERR!   dev @cloudflare/vitest-pool-workers@\"^0.5.34\" from the root project\nnpm ERR! \nnpm ERR! Conflicting peer dependency: vitest@2.1.9\nnpm ERR! node_modules/vitest\nnpm ERR!   peer vitest@\"2.0.x - 2.1.x\" from @cloudflare/vitest-pool-workers@0.5.41\nnpm ERR!   node_modules/@cloudflare/vitest-pool-workers\nnpm ERR!     dev @cloudflare/vitest-pool-workers@\"^0.5.34\" from the root project\nnpm ERR! \nnpm ERR! Fix the upstream dependency conflict, or retry\nnpm ERR! this command with --force or --legacy-peer-deps\nnpm ERR! to accept an incorrect (and potentially broken) dependency resolution.\nnpm ERR! \nnpm ERR! \nnpm ERR! For a full report see:\nnpm ERR! ~/.npm/_logs/2026-10-07T11_21_26_834Z-eresolve-report.txt\n\nnpm ERR! A complete log of this run can be found in:\nnpm ERR!     ~/.npm/_logs/2026-10-07T11_21_26_834Z-debug-0.log\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 2,
+            "seconds": 1.7,
+            "tail": "\n> vidi6@0.0.1 build\n> tsc --noEmit && vite build\n\ntests/component/BoardPage.test.tsx(28,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/BoardPage.test.tsx(34,3): error TS2304: Cannot find name 'afterEach'.\ntests/component/BoardPage.test.tsx(42,13): error TS2304: Cannot find name 'BoardPage'.\ntests/component/BoardPage.test.tsx(55,13): error TS2304: Cannot find name 'BoardPage'.\ntests/component/BoardPage.test.tsx(83,13): error TS2304: Cannot find name 'BoardPage'.\ntests/component/HomePage.test.tsx(23,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/HomePage.test.tsx(29,3): error TS2304: Cannot find name 'afterEach'.\ntests/component/SharePanel.test.tsx(15,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/SharePanel.test.tsx(33,3): error TS2304: Cannot find name 'afterEach'.\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 2,
+            "seconds": 1.7,
+            "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit\n\ntests/component/BoardPage.test.tsx(28,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/BoardPage.test.tsx(34,3): error TS2304: Cannot find name 'afterEach'.\ntests/component/BoardPage.test.tsx(42,13): error TS2304: Cannot find name 'BoardPage'.\ntests/component/BoardPage.test.tsx(55,13): error TS2304: Cannot find name 'BoardPage'.\ntests/component/BoardPage.test.tsx(83,13): error TS2304: Cannot find name 'BoardPage'.\ntests/component/HomePage.test.tsx(23,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/HomePage.test.tsx(29,3): error TS2304: Cannot find name 'afterEach'.\ntests/component/SharePanel.test.tsx(15,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/SharePanel.test.tsx(33,3): error TS2304: Cannot find name 'afterEach'.\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 3.4,
+            "tail": "\n> vidi6@0.0.1 test:unit\n> npx vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/1408609b90/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m38 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m25 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 35\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 238\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2203\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-01: chunkBytes and joinChunks\u001b[2m > \u001b[22mjoinChunks + chunkBytes are inverses at every boundary \u001b[33m 2151\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m7 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m120 passed\u001b[39m\u001b[22m\u001b[90m (120)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:21:31\n\u001b[2m   Duration \u001b[22m 2.59s\u001b[2m (transform 254ms, setup 0ms, collect 442ms, tests 2.51s, environment 1ms, prepare 487ms)\u001b[22m\n\n",
+            "passed": 120,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 1,
+            "seconds": 1.6,
+            "tail": "component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 33\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 71\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 82\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 77\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[31m3 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m19 passed\u001b[39m\u001b[22m\u001b[90m (19)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:21:34\n\u001b[2m   Duration \u001b[22m 778ms\u001b[2m (transform 230ms, setup 232ms, collect 414ms, tests 263ms, environment 1.45s, prepare 475ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mBoardViewport\u001b[2m > \u001b[22m\u001b[2mTC-13: drag moves world layer transform\u001b[2m > \u001b[22m\u001b[2mviewport element exists with correct aria-label\n\u001b[22m\u001b[39mUnknown event handler property `onGestureStart`. It will be ignored.\nUnknown event handler property `onGestureChange`. It will be ignored.\n\n\n\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m\u001b[1m\u001b[41m Failed Suites 3 \u001b[49m\u001b[22m\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m\n\n\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardPage.test.tsx\u001b[2m [ tests/component/BoardPage.test.tsx ]\u001b[22m\n\u001b[31m\u001b[1mReferenceError\u001b[22m: beforeEach is not defined\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/component/BoardPage.test.tsx:\u001b[2m28:3\u001b[22m\u001b[39m\n    \u001b[90m 26| \u001b[39m\n    \u001b[90m 27| \u001b[39m\u001b[34mdescribe\u001b[39m(\u001b[32m'BoardPage'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n    \u001b[90m 28| \u001b[39m  \u001b[34mbeforeEach\u001b[39m(() \u001b[33m=>\u001b[39m {\n    \u001b[90m   | \u001b[39m  \u001b[31m^\u001b[39m\n    \u001b[90m 29| \u001b[39m    \u001b[34mcleanup\u001b[39m()\u001b[33m;\u001b[39m\n    \u001b[90m 30| \u001b[39m    vi\u001b[33m.\u001b[39m\u001b[34mclearAllMocks\u001b[39m()\u001b[33m;\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[1/3]\u23af\u001b[22m\u001b[39m\n\n\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/HomePage.test.tsx\u001b[2m [ tests/component/HomePage.test.tsx ]\u001b[22m\n\u001b[31m\u001b[1mError\u001b[22m: [vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m src/client/pages/HomePage.tsx:\u001b[2m7:1\u001b[22m\u001b[39m\n    \u001b[90m  5| \u001b[39m\u001b[35mimport\u001b[39m { useState\u001b[33m,\u001b[39m useCallback } \u001b[35mfrom\u001b[39m \u001b[32m'react'\u001b[39m\u001b[33m;\u001b[39m\n    \u001b[90m  6| \u001b[39m\u001b[35mimport\u001b[39m type { \u001b[33mReactNode\u001b[39m } \u001b[35mfrom\u001b[39m \u001b[32m'react'\u001b[39m\u001b[33m;\u001b[39m\n    \u001b[90m  7| \u001b[39m\u001b[35mimport\u001b[39m { navigate\u001b[33m,\u001b[39m useRoute } \u001b[35mfrom\u001b[39m \u001b[32m'../router'\u001b[39m\u001b[33m;\u001b[39m\n    \u001b[90m   | \u001b[39m\u001b[31m^\u001b[39m\n    \u001b[90m  8| \u001b[39m\u001b[35mimport\u001b[39m { createBoardRequest } \u001b[35mfrom\u001b[39m \u001b[32m'../api'\u001b[39m\u001b[33m;\u001b[39m\n    \u001b[90m  9| \u001b[39m\u001b[35mimport\u001b[39m type { \u001b[33mCreateResponse\u001b[39m } \u001b[35mfrom\u001b[39m \u001b[32m'../api'\u001b[39m\u001b[33m;\u001b[39m\n\n\u001b[31m\u001b[1mCaused by: ReferenceError\u001b[22m: Cannot access 'navigateMock' before initialization\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/component/HomePage.test.tsx:\u001b[2m17:13\u001b[22m\u001b[39m\n\u001b[90m \u001b[2m\u276f\u001b[22m src/client/pages/HomePage.tsx:\u001b[2m7:1\u001b[22m\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[2/3]\u23af\u001b[22m\u001b[39m\n\n\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/SharePanel.test.tsx\u001b[2m [ tests/component/SharePanel.test.tsx ]\u001b[22m\n\u001b[31m\u001b[1mReferenceError\u001b[22m: beforeEach is not defined\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/component/SharePanel.test.tsx:\u001b[2m15:3\u001b[22m\u001b[39m\n    \u001b[90m 13| \u001b[39m  \u001b[35mconst\u001b[39m expectedLink \u001b[33m=\u001b[39m \u001b[32m`http://localhost/b/\u001b[39m\u001b[36m${\u001b[39mboardId\u001b[36m}\u001b[39m\u001b[32m`\u001b[39m\u001b[33m;\u001b[39m\n    \u001b[90m 14| \u001b[39m\n    \u001b[90m 15| \u001b[39m  \u001b[34mbeforeEach\u001b[39m(() \u001b[33m=>\u001b[39m {\n    \u001b[90m   | \u001b[39m  \u001b[31m^\u001b[39m\n    \u001b[90m 16| \u001b[39m    \u001b[34mcleanup\u001b[39m()\u001b[33m;\u001b[39m\n    \u001b[90m 17| \u001b[39m    vi\u001b[33m.\u001b[39m\u001b[34mclearAllMocks\u001b[39m()\u001b[33m;\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[3/3]\u23af\u001b[22m\u001b[39m\n\n",
+            "passed": 19,
+            "failed": 3
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 1,
+            "seconds": 16.9,
+            "tail": "C-10: onDocumentUpdate calls store.append before broadcast\n\u001b[31m\u001b[1mError\u001b[22m: ENOENT: no such file or directory, open '/w/workspace/src/worker/board-room.ts'\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/integration/board-store.test.ts:\u001b[2m90:22\u001b[22m\u001b[39m\n    \u001b[90m 88| \u001b[39m    it('TC-04 to TC-10: onDocumentUpdate calls store.append before bro\u2026\n    \u001b[90m 89| \u001b[39m      \u001b[35mconst\u001b[39m fs \u001b[33m=\u001b[39m \u001b[35mawait\u001b[39m \u001b[35mimport\u001b[39m(\u001b[32m'node:fs'\u001b[39m)\u001b[33m;\u001b[39m\n    \u001b[90m 90| \u001b[39m      const src = fs.readFileSync('/w/workspace/src/worker/board-room.\u2026\n    \u001b[90m   | \u001b[39m                     \u001b[31m^\u001b[39m\n    \u001b[90m 91| \u001b[39m      // Verify the doc.on('update') handler exists and calls tryAppen\u2026\n    \u001b[90m 92| \u001b[39m      \u001b[34mexpect\u001b[39m(src)\u001b[33m.\u001b[39m\u001b[34mtoContain\u001b[39m(\u001b[32m\"this.doc.on('update'\"\u001b[39m)\u001b[33m;\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[3/6]\u23af\u001b[22m\u001b[39m\n\n\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/board-store.test.ts\u001b[2m > \u001b[22mBoardStore \u2014 Schema & integration checks\u001b[2m > \u001b[22mPersistence wiring in BoardRoom\u001b[2m > \u001b[22mStorage failure triggers CLOSE_STORAGE_FAILURE close on all sockets\n\u001b[31m\u001b[1mError\u001b[22m: ENOENT: no such file or directory, open '/w/workspace/src/worker/board-room.ts'\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/integration/board-store.test.ts:\u001b[2m98:22\u001b[22m\u001b[39m\n    \u001b[90m 96| \u001b[39m    it('Storage failure triggers CLOSE_STORAGE_FAILURE close on all so\u2026\n    \u001b[90m 97| \u001b[39m      \u001b[35mconst\u001b[39m fs \u001b[33m=\u001b[39m \u001b[35mawait\u001b[39m \u001b[35mimport\u001b[39m(\u001b[32m'node:fs'\u001b[39m)\u001b[33m;\u001b[39m\n    \u001b[90m 98| \u001b[39m      const src = fs.readFileSync('/w/workspace/src/worker/board-room.\u2026\n    \u001b[90m   | \u001b[39m                     \u001b[31m^\u001b[39m\n    \u001b[90m 99| \u001b[39m      \u001b[34mexpect\u001b[39m(src)\u001b[33m.\u001b[39m\u001b[34mtoContain\u001b[39m(\u001b[32m'CLOSE_STORAGE_FAILURE'\u001b[39m)\u001b[33m;\u001b[39m\n    \u001b[90m100| \u001b[39m      \u001b[34mexpect\u001b[39m(src)\u001b[33m.\u001b[39m\u001b[34mtoContain\u001b[39m(\u001b[32m'sockets.clear()'\u001b[39m)\u001b[33m;\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[4/6]\u23af\u001b[22m\u001b[39m\n\n\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/board-store.test.ts\u001b[2m > \u001b[22mBoardStore \u2014 Schema & integration checks\u001b[2m > \u001b[22mPersistence wiring in BoardRoom\u001b[2m > \u001b[22mLoadFailed state closes connections with CLOSE_BOARD_LOAD_FAILED\n\u001b[31m\u001b[1mError\u001b[22m: ENOENT: no such file or directory, open '/w/workspace/src/worker/board-room.ts'\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/integration/board-store.test.ts:\u001b[2m105:22\u001b[22m\u001b[39m\n    \u001b[90m103| \u001b[39m    it('LoadFailed state closes connections with CLOSE_BOARD_LOAD_FAIL\u2026\n    \u001b[90m104| \u001b[39m      \u001b[35mconst\u001b[39m fs \u001b[33m=\u001b[39m \u001b[35mawait\u001b[39m \u001b[35mimport\u001b[39m(\u001b[32m'node:fs'\u001b[39m)\u001b[33m;\u001b[39m\n    \u001b[90m105| \u001b[39m      const src = fs.readFileSync('/w/workspace/src/worker/board-room.\u2026\n    \u001b[90m   | \u001b[39m                     \u001b[31m^\u001b[39m\n    \u001b[90m106| \u001b[39m      \u001b[34mexpect\u001b[39m(src)\u001b[33m.\u001b[39m\u001b[34mtoContain\u001b[39m(\u001b[32m'CLOSE_BOARD_LOAD_FAILED'\u001b[39m)\u001b[33m;\u001b[39m\n    \u001b[90m107| \u001b[39m    })\u001b[33m;\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[5/6]\u23af\u001b[22m\u001b[39m\n\n\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/board-store.test.ts\u001b[2m > \u001b[22mBoardStore \u2014 Schema & integration checks\u001b[2m > \u001b[22mPersistence wiring in BoardRoom\u001b[2m > \u001b[22mTC-25: Snapshot chunking uses SNAPSHOT_CHUNK_BYTES config value\n\u001b[31m\u001b[1mError\u001b[22m: ENOENT: no such file or directory, open '/w/workspace/src/worker/board-store-do.ts'\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/integration/board-store.test.ts:\u001b[2m111:22\u001b[22m\u001b[39m\n    \u001b[90m109| \u001b[39m    it('TC-25: Snapshot chunking uses SNAPSHOT_CHUNK_BYTES config valu\u2026\n    \u001b[90m110| \u001b[39m      \u001b[35mconst\u001b[39m fs \u001b[33m=\u001b[39m \u001b[35mawait\u001b[39m \u001b[35mimport\u001b[39m(\u001b[32m'node:fs'\u001b[39m)\u001b[33m;\u001b[39m\n    \u001b[90m111| \u001b[39m      const src = fs.readFileSync('/w/workspace/src/worker/board-store\u2026\n    \u001b[90m   | \u001b[39m                     \u001b[31m^\u001b[39m\n    \u001b[90m112| \u001b[39m      \u001b[34mexpect\u001b[39m(src)\u001b[33m.\u001b[39m\u001b[34mtoContain\u001b[39m(\u001b[32m'SNAPSHOT_CHUNK_BYTES'\u001b[39m)\u001b[33m;\u001b[39m\n    \u001b[90m113| \u001b[39m    })\u001b[33m;\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[6/6]\u23af\u001b[22m\u001b[39m\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 2,
+            "seconds": 2.1,
+            "tail": "\n> vidi6@0.0.1 test:e2e\n> npm run build:test && playwright test --project=chromium\n\n\n> vidi6@0.0.1 build:test\n> tsc --noEmit && vite build --mode test\n\ntests/component/BoardPage.test.tsx(28,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/BoardPage.test.tsx(34,3): error TS2304: Cannot find name 'afterEach'.\ntests/component/BoardPage.test.tsx(42,13): error TS2304: Cannot find name 'BoardPage'.\ntests/component/BoardPage.test.tsx(55,13): error TS2304: Cannot find name 'BoardPage'.\ntests/component/BoardPage.test.tsx(83,13): error TS2304: Cannot find name 'BoardPage'.\ntests/component/HomePage.test.tsx(23,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/HomePage.test.tsx(29,3): error TS2304: Cannot find name 'afterEach'.\ntests/component/SharePanel.test.tsx(15,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/SharePanel.test.tsx(33,3): error TS2304: Cannot find name 'afterEach'.\n",
+            "passed": null,
+            "failed": null
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 2,
+        "runner_exit": 1,
+        "passed": 1,
+        "total": 36,
+        "on_partial": {
+          "passed": 1,
+          "total": 36
+        },
+        "by_story": {
+          "01": {
+            "passed": 0,
+            "total": 10,
+            "on_partial_total": 10,
+            "on_partial_passed": 0
+          },
+          "02": {
+            "passed": 0,
+            "total": 10,
+            "on_partial_total": 10,
+            "on_partial_passed": 0
+          },
+          "03": {
+            "passed": 0,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 0
+          },
+          "04": {
+            "passed": 0,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 0
+          },
+          "05": {
+            "passed": 1,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 1
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "ffa55f59aa6e2ac80b7fc89313de2383ac87912b",
+      "requests": {},
+      "time_split": {
+        "wall_s": 3527.4,
+        "model": {
+          "source": "client-stream",
+          "requests": 182,
+          "prefill_s": 2298.1,
+          "prefill_tokens": 3133680,
+          "prefill_tok_s": 1363.6,
+          "decode_s": 912.4,
+          "decode_tokens": 76398,
+          "decode_tok_s": 83.7,
+          "cached_tokens": 8427821,
+          "draft_acceptance": 0.767,
+          "mean_accepted_len": null
+        },
+        "tools_s": 259.2,
+        "tools_by_kind": {
+          "unit": 97.7,
+          "bash": 93.8,
+          "build": 67.5,
+          "edit": 0.1,
+          "write": 0.0,
+          "e2e": 0.0,
+          "read": 0.0
+        },
+        "compaction_s": 49.0,
+        "compactions": 1,
+        "between_sessions_s": 0.3,
+        "other_s": 8.3,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        }
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 182,
+        "tool_calls": 198,
+        "thinking_visible": true,
+        "thinking_chars": 64652,
+        "thinking_median": 102,
+        "thinking_median_before": 101,
+        "thinking_median_after": 102,
+        "largest_thinking": {
+          "chars": 7709,
+          "call": 93,
+          "at_s": 1385.8
+        },
+        "text_chars": 3917,
+        "tool_arg_chars": 202938,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 2362,
+        "context_end": 62346,
+        "largest_context_jump": {
+          "tokens": 11004,
+          "call": 2
+        },
+        "tools_by_name": {
+          "bash": 106,
+          "edit": 47,
+          "write": 26,
+          "read": 19
+        },
+        "tool_errors": 11,
+        "longest_tool": {
+          "seconds": 21.6,
+          "name": "bash",
+          "gist": "cd /w/workspace && npm run test:component 2>&1 | grep -A20 \"FAIL\""
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 63,
+        "lines": 7381
+      },
+      "finished": 1791372343.7933962,
+      "status": "PARTIAL",
+      "ended_by": "operator",
+      "partial_base": [
+        1,
+        2
+      ],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board id unit test first: link-code format and uniqueness (TC-04)",
+          "type": "test:unit",
+          "implements": [
+            "share.board_api"
+          ],
+          "tcs": [
+            "TC-04"
+          ],
+          "status": "written",
+          "found": 1,
+          "total": 1
+        },
+        {
+          "n": 2,
+          "title": "Implement board API: POST /api/boards, GET existence, 404 for unknown rooms",
+          "type": "implementation",
+          "implements": [
+            "share.board_api"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Integration tests for board API against real Worker, RPC and SQLite (TC-05 to TC-10, TC-12, TC-14, TC-15, TC-32)",
+          "type": "test:integration",
+          "implements": [
+            "share.board_api"
+          ],
+          "tcs": [
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-12",
+            "TC-14",
+            "TC-15",
+            "TC-32"
+          ],
+          "status": "written",
+          "found": 10,
+          "total": 10
+        },
+        {
+          "n": 4,
+          "title": "Implement router, API client, Home, Board (existence check with retry) and Board not found pages",
+          "type": "implementation",
+          "implements": [
+            "share.pages"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement Share panel with copy link and manual-copy fallback",
+          "type": "implementation",
+          "implements": [
+            "share.share_panel"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Component tests for pages and Share panel (TC-16, TC-17, TC-19 to TC-25)",
+          "type": "test:ui-component",
+          "implements": [
+            "share.pages",
+            "share.share_panel"
+          ],
+          "tcs": [
+            "TC-16",
+            "TC-17",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25"
+          ],
+          "status": "written",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 7,
+          "title": "E2E share workflows: create-share-join, bad link, flaky service, clipboard blocked, legacy board (TC-26 to TC-29, TC-31)",
+          "type": "test:e2e",
+          "implements": [
+            "share.board_api",
+            "share.pages",
+            "share.share_panel"
+          ],
+          "tcs": [
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-31"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 5
+        }
+      ],
+      "end_reason": "stop-message-exhausted",
+      "tasks_claimed": {
+        "file": "read",
+        "tasks": {
+          "1": "done",
+          "2": "done",
+          "3": "done",
+          "4": "done",
+          "5": "done",
+          "6": "todo",
+          "7": "todo"
+        }
+      },
+      "stub_markers": [],
+      "partial_heldout_changes": {
+        "1": {
+          "fixed": 0,
+          "regressed": 6
+        },
+        "2": {
+          "fixed": 0,
+          "regressed": 2
+        }
+      },
+      "skip": {
+        "story": 5,
+        "reason": "story cap: the stop message was sent and the story was still not finished (one message per story)",
+        "by": "harness (stop message already sent)",
+        "at": 1791372086.5327148
+      },
+      "verdict": {
+        "verdict": "red",
+        "gate_green": false,
+        "unverified_tasks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "unverified_implementation_tasks": [
+          2,
+          4,
+          5
+        ],
+        "heldout": {
+          "passed": 1,
+          "total": 5,
+          "on_partial_total": 5,
+          "on_partial_passed": 1
+        },
+        "heldout_floor": 0.0,
+        "heldout_ok": true
       }
     }
   },
@@ -4372,6 +4923,551 @@
           }
         }
       ]
+    },
+    {
+      "id": 5,
+      "title": "Share a board with others using a link",
+      "status": "PARTIAL",
+      "ended_by": "operator",
+      "started_at": 1791368559.2062244,
+      "ended_at": 1791372086.586159,
+      "agent_minutes": 58.8,
+      "calls": 182,
+      "output_tokens": 76398,
+      "compactions": 1,
+      "last_commit_at": null,
+      "accept": {
+        "passed": 1,
+        "total": 5,
+        "on_partial_total": 5,
+        "on_partial_passed": 1
+      },
+      "partial_base": [
+        1,
+        2
+      ],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board id unit test first: link-code format and uniqueness (TC-04)",
+          "type": "test:unit",
+          "implements": [
+            "share.board_api"
+          ],
+          "tcs": [
+            "TC-04"
+          ],
+          "status": "written",
+          "found": 1,
+          "total": 1
+        },
+        {
+          "n": 2,
+          "title": "Implement board API: POST /api/boards, GET existence, 404 for unknown rooms",
+          "type": "implementation",
+          "implements": [
+            "share.board_api"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Integration tests for board API against real Worker, RPC and SQLite (TC-05 to TC-10, TC-12, TC-14, TC-15, TC-32)",
+          "type": "test:integration",
+          "implements": [
+            "share.board_api"
+          ],
+          "tcs": [
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-12",
+            "TC-14",
+            "TC-15",
+            "TC-32"
+          ],
+          "status": "written",
+          "found": 10,
+          "total": 10
+        },
+        {
+          "n": 4,
+          "title": "Implement router, API client, Home, Board (existence check with retry) and Board not found pages",
+          "type": "implementation",
+          "implements": [
+            "share.pages"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement Share panel with copy link and manual-copy fallback",
+          "type": "implementation",
+          "implements": [
+            "share.share_panel"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Component tests for pages and Share panel (TC-16, TC-17, TC-19 to TC-25)",
+          "type": "test:ui-component",
+          "implements": [
+            "share.pages",
+            "share.share_panel"
+          ],
+          "tcs": [
+            "TC-16",
+            "TC-17",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25"
+          ],
+          "status": "written",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 7,
+          "title": "E2E share workflows: create-share-join, bad link, flaky service, clipboard blocked, legacy board (TC-26 to TC-29, TC-31)",
+          "type": "test:e2e",
+          "implements": [
+            "share.board_api",
+            "share.pages",
+            "share.share_panel"
+          ],
+          "tcs": [
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-31"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 5
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 19.2,
+          "calls": 73,
+          "output_tokens": 80492,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 55.7,
+          "calls": 253,
+          "output_tokens": 163331,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 81.4,
+          "calls": 353,
+          "output_tokens": 216982,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 86.6,
+          "calls": 329,
+          "output_tokens": 234557,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 98.1,
+          "calls": 295,
+          "output_tokens": 252576,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 100.6,
+          "calls": 346,
+          "output_tokens": 211556,
+          "accept": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 63.4,
+          "calls": 201,
+          "output_tokens": 155103,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 90.6,
+          "calls": 287,
+          "output_tokens": 182095,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 45.1,
+          "calls": 203,
+          "output_tokens": 108007,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi v2-strata0139-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 210.9,
+          "calls": 279,
+          "output_tokens": 189188,
+          "accept": {
+            "passed": 2,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 2
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 218.6,
+          "calls": 296,
+          "output_tokens": 169443,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 64.9,
+          "calls": 197,
+          "output_tokens": 125418,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 61.6,
+          "calls": 199,
+          "output_tokens": 120332,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 80.4,
+          "calls": 207,
+          "output_tokens": 154781,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 41.2,
+          "calls": 278,
+          "output_tokens": 78715,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 32.4,
+          "calls": 207,
+          "output_tokens": 66026,
+          "accept": {
+            "passed": 0,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 48.1,
+          "calls": 149,
+          "output_tokens": 94979,
+          "accept": {
+            "passed": 3,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 39.2,
+          "calls": 201,
+          "output_tokens": 69766,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 32.2,
+          "calls": 136,
+          "output_tokens": 60713,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 54.2,
+          "calls": 253,
+          "output_tokens": 91564,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 16.2,
+          "calls": 111,
+          "output_tokens": 48628,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 35.4,
+          "calls": 133,
+          "output_tokens": 100106,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 70.8,
+          "calls": 240,
+          "output_tokens": 165699,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 30.6,
+          "calls": 127,
+          "output_tokens": 60562,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 113.6,
+          "calls": 206,
+          "output_tokens": 145063,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 97.7,
+          "calls": 397,
+          "output_tokens": 251593,
+          "accept": {
+            "passed": 0,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 87.1,
+          "calls": 275,
+          "output_tokens": 175796,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 127.9,
+          "calls": 599,
+          "output_tokens": 306036,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 22.1,
+          "calls": 171,
+          "output_tokens": 91619,
+          "accept": {
+            "passed": 2,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 14.2,
+          "calls": 104,
+          "output_tokens": 61057,
+          "accept": {
+            "passed": 1,
+            "total": 5
+          }
+        }
+      ],
+      "reason": "story cap: the stop message was sent and the story was still not finished (one message per story)",
+      "by": "harness (stop message already sent)",
+      "requested_at": 1791372086.5327148,
+      "verdict": "red",
+      "health": {
+        "verdict": "red",
+        "gate_green": false,
+        "unverified_tasks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "unverified_implementation_tasks": [
+          2,
+          4,
+          5
+        ],
+        "heldout": {
+          "passed": 1,
+          "total": 5,
+          "on_partial_total": 5,
+          "on_partial_passed": 1
+        },
+        "heldout_floor": 0.0,
+        "heldout_ok": true
+      }
     }
   ]
 }

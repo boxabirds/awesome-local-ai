@@ -1,43 +1,68 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { BoardViewport } from './canvas/BoardViewport';
-import { useBoardDoc } from './board/useBoardDoc';
-import { useSelection } from './board/useSelection';
-import { Toolbar } from './board/Toolbar';
-import { StickyNote } from './objects/StickyNote';
-import { ConnectionStatus } from './sync/ConnectionStatus';
+/**
+ * Board root — shared Y.Doc + WebSocket connection for a board id.
+ * Story 5 — share a board with others using a link.
+ *
+ * This is a simplified version that reuses useBoardDoc from the main app.
+ */
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import * as Y from 'yjs';
+import type { ReactNode } from 'react';
+import { snapshot, initDoc } from '@/shared/board-model';
+import { connectBoard } from '../sync/connectBoard';
+import type { ConnectionState } from '../sync/connectBoard';
 import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR } from '@/shared/config';
 import { createSticky, deleteObject as deleteObj } from '@/shared/board-model';
 import type { StickySnapshot } from '@/shared/board-model';
-import type { ReactNode } from 'react';
-import { useRoute, navigate } from './router';
-import { HomePage } from './pages/HomePage';
-import { NotFoundPage } from './pages/NotFoundPage';
-import { SharePanel } from './share/SharePanel';
+import { BoardViewport } from '../canvas/BoardViewport';
+import { Toolbar } from './Toolbar';
+import { StickyNote } from '../objects/StickyNote';
+import { ConnectionStatus } from '../sync/ConnectionStatus';
+import { useSelection } from './useSelection';
 
-/**
- * Main app — routes to HomePage, BoardPage, or NotFoundPage based on URL.
- * Story 5: removed the "/" → random-id redirect from story 3.
- */
-export function App(): ReactNode {
-  const route = useRoute();
+let docRef: Y.Doc | null = null;
 
-  // ── Home page ────────────────────────────────────────────────────
+interface BoardRootProps {
+  boardId: string;
+}
 
-  if (route.name === 'home') {
-    return <HomePage />;
-  }
-
-  // ── Not found page ───────────────────────────────────────────────
-
-  if (route.name === 'not_found') {
-    return <NotFoundPage onCreateBoard={() => navigate('/')} />;
-  }
-
-  // ── Board page ───────────────────────────────────────────────────
-
-  const boardId = route.id;
-  const { doc, snap, connectionState } = useBoardDoc(boardId);
+export function BoardRoot(props: BoardRootProps): ReactNode {
+  const boardId = props.boardId;
+  const [snap, setSnap] = useState(() => Object.freeze(snapshot(new Y.Doc())));
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  const connectRef = useRef<{ destroy(): void } | null>(null);
+  const cameraRef = useRef({ x: 0, y: 0, zoom: 1 });
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+
+  // Lazy-create shared doc singleton per board
+  if (!docRef) {
+    docRef = new Y.Doc();
+    initDoc(docRef);
+    setSnap(Object.freeze(snapshot(docRef)));
+  }
+
+  // Subscribe to deep changes on the objects map
+  useEffect(() => {
+    const objectsMap = docRef!.getMap('objects');
+    const handler = () => {
+      setSnap(Object.freeze(snapshot(docRef!)));
+    };
+    objectsMap.observeDeep(handler);
+    return () => {
+      objectsMap.unobserveDeep(handler);
+    };
+  }, []);
+
+  // Attach WebSocket provider when boardId is given
+  useEffect(() => {
+    connectRef.current = connectBoard(docRef!, boardId, (state) => {
+      setConnectionState(state);
+    });
+
+    return () => {
+      connectRef.current?.destroy();
+      connectRef.current = null;
+    };
+  }, [boardId]);
 
   // Disable editing when persistence is broken
   const canEdit =
@@ -46,23 +71,18 @@ export function App(): ReactNode {
     connectionState === 'reconnecting' ||
     connectionState === 'confirmed';
 
-  // Ref to hold camera for toolbar positioning
-  const cameraRef = useRef({ x: 0, y: 0, zoom: 1 });
-
-  // Create sticky note at top-left world position and auto-select + edit it
   const handleCreateStickyAt = useCallback(
     (worldX: number, worldY: number) => {
       if (!canEdit) return;
-      const id = createSticky(doc, { x: worldX, y: worldY }, DEFAULT_STICKY_COLOR);
+      const id = createSticky(docRef!, { x: worldX, y: worldY }, DEFAULT_STICKY_COLOR);
       if (id) {
         select(id);
         startEdit(id);
       }
     },
-    [doc, select, startEdit, canEdit],
+    [select, startEdit, canEdit],
   );
 
-  // Double-click on empty board space → create note centred there
   const handleDblClickEmpty = useCallback(
     (worldX: number, worldY: number) => {
       handleCreateStickyAt(worldX, worldY);
@@ -70,12 +90,10 @@ export function App(): ReactNode {
     [handleCreateStickyAt],
   );
 
-  // Click on empty board space → clear selection
   const handleClickEmpty = useCallback(() => {
     select(null);
   }, [select]);
 
-  // Keyboard handler for Enter / Delete / Backspace
   const handleWindowKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const tag = (document.activeElement?.tagName || '').toLowerCase();
@@ -89,12 +107,12 @@ export function App(): ReactNode {
 
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingId && canEdit) {
         e.preventDefault();
-        deleteObj(doc, selectedId);
+        deleteObj(docRef!, selectedId);
         endEdit('unselected');
         return;
       }
     },
-    [selectedId, editingId, startEdit, endEdit, doc],
+    [selectedId, editingId, startEdit, endEdit, select],
   );
 
   useEffect(() => {
@@ -111,7 +129,7 @@ export function App(): ReactNode {
         <StickyNote
           key={s.id}
           note={s}
-          doc={doc}
+          doc={docRef!}
           zoom={cameraRef.current.zoom}
           selected={selectedId === s.id}
           editing={editingId === s.id}
@@ -120,7 +138,7 @@ export function App(): ReactNode {
           onEndEdit={endEdit}
         />
       ));
-  }, [snap, doc, selectedId, editingId, select, startEdit, endEdit, cameraRef.current.zoom]);
+  }, [snap, selectedId, editingId, select, startEdit, endEdit, cameraRef.current.zoom]);
 
   return (
     <>
@@ -130,14 +148,11 @@ export function App(): ReactNode {
           const cam = cameraRef.current;
           const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
           const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
-          // Screen centre in world coords:
-          //   screenToWorld(cam, {vw/2, vh/2}) = {vw/2/cam.zoom + cam.x, vh/2/cam.zoom + cam.y}
           const wpX = vw / cam.zoom + cam.x - STICKY_SIZE_WORLD / 2;
           const wpY = vh / cam.zoom + cam.y - STICKY_SIZE_WORLD / 2;
           handleCreateStickyAt(wpX, wpY);
         }}
       />
-      <SharePanel boardId={boardId} />
       <BoardViewport
         onCameraChange={(cam) => {
           cameraRef.current = cam;

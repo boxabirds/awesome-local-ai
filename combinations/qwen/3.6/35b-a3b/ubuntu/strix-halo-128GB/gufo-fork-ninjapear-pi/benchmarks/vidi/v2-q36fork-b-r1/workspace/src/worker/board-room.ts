@@ -1,6 +1,7 @@
 /**
  * BoardRoom Durable Object — persistent Y.Doc room with SQLite storage.
  * Story 4 — persistence.
+ * Story 5 — board creation, existence checking, RPC initialize/exists.
  *
  * Every Yjs update is stored before broadcasting. On wake the document is
  * reloaded from snapshot + log rows. Damaged snapshots trigger LoadFailed.
@@ -26,6 +27,14 @@ import { LOAD_RETRY_MIN_INTERVAL_MS } from '@/shared/config';
 const MSG_SYNC = 0;
 const MSG_AWARENESS = 1;
 const LOAD_ORIGIN = 'load-origin';
+
+// Story 5: table creation SQL (duplicated from board-store-do for direct access)
+const STORE_CREATE_TABLES_SQL = `
+CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS updates (seq INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB NOT NULL, bytes INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS snapshot_chunks (idx INTEGER PRIMARY KEY, data BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS quarantined_updates (seq INTEGER PRIMARY KEY, data BLOB NOT NULL, error TEXT NOT NULL, quarantined_at INTEGER NOT NULL);
+`;
 
 // ── Environment & types ──────────────────────────────────────────────
 
@@ -55,12 +64,64 @@ function makeSyncFrame(update: Uint8Array): Uint8Array {
  * change to SQlite-backed Durable Object storage.
  */
 export class BoardRoom extends DurableObject<Env> {
+  private readonly STORY5_CREATED_AT_KEY = '_story5_created_at';
+
   private doc!: Y.Doc;
   private store!: BoardStore;
   private sockets: Set<RoomSocket> = new Set();
   private state: RoomState = 'ready';
   private failedAt: number = 0;
   private _ctx!: DurableObjectState;
+
+  // ── Story 5: initialize + exists RPC ─────────────────────────────
+
+  /**
+   * Initialize a brand-new board: create tables, set created_at.
+   * Returns 'created' if newly initialised, 'exists' if already initialised.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    // Ensure tables exist (idempotent)
+    this._ctx.storage.transactionSync(() => {
+      this._ctx.storage.sql.exec(STORE_CREATE_TABLES_SQL);
+    });
+    const row = this._ctx.storage.sql.exec(
+      "SELECT value FROM storage_meta WHERE key = ?",
+      this.STORY5_CREATED_AT_KEY,
+    ).next();
+    // row.done === false means row found; done === true means no row
+    if (row.done || !(row.value as unknown as Record<string, string>)?.value) {
+      this._ctx.storage.sql.exec(
+        "INSERT INTO storage_meta (key, value) VALUES (?, ?)",
+        this.STORY5_CREATED_AT_KEY,
+        String(Date.now()),
+      );
+      return 'created';
+    }
+    return 'exists';
+  }
+
+  /**
+   * Read-only existence check: does this board have created_at, or legacy data?
+   */
+  async exists(): Promise<boolean> {
+    try {
+      // Check created_at first (initialized boards)
+      const row = this._ctx.storage.sql.exec(
+        "SELECT value FROM storage_meta WHERE key = ?",
+        this.STORY5_CREATED_AT_KEY,
+      ).next();
+      // row.done === false means row found; done === true means no row
+      if (!row.done && (row.value as unknown as Record<string, string>)?.value) {
+        return true;
+      }
+      // Legacy boards: any rows in updates or snapshot_chunks
+      const ur = this._ctx.storage.sql.exec('SELECT COUNT(*) as c FROM updates').next();
+      if (!ur.done && ((ur.value as unknown as Record<string, number>)?.c ?? 0) > 0) return true;
+      const scr = this._ctx.storage.sql.exec('SELECT COUNT(*) as c FROM snapshot_chunks').next();
+      if (!scr.done && ((scr.value as unknown as Record<string, number>)?.c ?? 0) > 0) return true;
+    } catch { /* tables don't exist — board is truly unknown */ }
+    return false;
+  }
 
   // ── Lifecycle ────────────────────────────────────────────────────
 
@@ -72,7 +133,6 @@ export class BoardRoom extends DurableObject<Env> {
     ctx.blockConcurrencyWhile(async () => {
       this.doc = new Y.Doc();
       this.store = new BoardStore(ctx.storage);
-      this.store.migrate();
 
       const result = this.store.load(this.doc);
       if (!result.ok) {
@@ -143,6 +203,14 @@ export class BoardRoom extends DurableObject<Env> {
     // Only WebSocket upgrades are valid
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Upgrade Required', { status: 426 });
+    }
+
+    // Story 5: reject unknown boards with 404 before accepting
+    // For fresh DO instances (_ctx.storage has no tables), exists() returns false quickly.
+    // For existing boards, existence is confirmed via stored data.
+    const existsResult = await this.exists();
+    if (!existsResult) {
+      return new Response('Not Found: board does not exist', { status: 404 });
     }
 
     switch (this.state) {
