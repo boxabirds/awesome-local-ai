@@ -1,0 +1,11 @@
+{
+  "name": "vidi6",
+  "compatibility_date": "2025-01-01",
+  "assets": {
+    "directory": "dist/client"
+  },
+  "main": "src/worker/index.ts",
+  "observability": {
+    "enabled": false
+  }
+}
