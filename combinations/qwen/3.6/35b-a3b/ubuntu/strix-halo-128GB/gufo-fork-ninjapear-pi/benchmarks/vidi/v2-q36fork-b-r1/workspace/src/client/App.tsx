@@ -1,16 +1,39 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR } from '@/shared/config';
 import { createSticky, deleteObject as deleteObj } from '@/shared/board-model';
+import { isValidBoardId, newBoardId } from '@/shared/board-id';
 import type { StickySnapshot } from '@/shared/board-model';
 import type { ReactNode } from 'react';
 
+/**
+ * Parse the board id from the current URL pathname.
+ * /b/<boardId> → board id string or null
+ */
+function parseBoardId(pathname: string): string | null {
+  const match = /^\/b\/([A-Za-z0-9_-]{22})$/.exec(pathname);
+  return match ? match[1] : null;
+}
+
 export function App(): ReactNode {
-  const { doc, snap } = useBoardDoc();
+  // Simple client-side router: read board id from /b/:id, redirect / to new board
+  const [pathname] = useState(() => window.location.pathname);
+  const boardId = parseBoardId(pathname);
+
+  // Redirect "/" (home) to a new board
+  useEffect(() => {
+    if (pathname === '/' && typeof window !== 'undefined') {
+      const newId = newBoardId();
+      history.replaceState(null, '', `/b/${newId}`);
+    }
+  }, [pathname]);
+
+  const { doc, snap, connectionState } = useBoardDoc(boardId || undefined);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   // Ref to hold camera for toolbar positioning
   const cameraRef = useRef({ x: 0, y: 0, zoom: 1 });
@@ -89,6 +112,7 @@ export function App(): ReactNode {
 
   return (
     <>
+      <ConnectionStatus state={connectionState} />
       <Toolbar
         onCreateSticky={() => {
           const cam = cameraRef.current;

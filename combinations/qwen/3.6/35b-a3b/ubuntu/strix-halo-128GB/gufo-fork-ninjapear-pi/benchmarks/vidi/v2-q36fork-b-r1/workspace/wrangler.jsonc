@@ -2,10 +2,21 @@
   "$schema": "./node_modules/wrangler/schema.json",
   "name": "vidi6",
   "main": "src/worker/index.ts",
+  "durable_objects": {
+    "bindings": [
+      { "name": "BOARD_ROOM", "class_name": "BoardRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }
+  ],
   "assets": {
-    "directory": "dist/client"
+    "directory": "dist/client",
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS"
   },
   "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": false
   }

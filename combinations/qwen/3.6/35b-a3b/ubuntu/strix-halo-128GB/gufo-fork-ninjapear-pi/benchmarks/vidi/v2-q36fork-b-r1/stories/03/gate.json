@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 1,
+      "seconds": 1.2,
+      "tail": "npm ERR! code ERESOLVE\nnpm ERR! ERESOLVE could not resolve\nnpm ERR! \nnpm ERR! While resolving: @cloudflare/vitest-pool-workers@0.5.41\nnpm ERR! Found: vitest@3.2.7\nnpm ERR! node_modules/vitest\nnpm ERR!   dev vitest@\"^3.0.0\" from the root project\nnpm ERR! \nnpm ERR! Could not resolve dependency:\nnpm ERR! peer vitest@\"2.0.x - 2.1.x\" from @cloudflare/vitest-pool-workers@0.5.41\nnpm ERR! node_modules/@cloudflare/vitest-pool-workers\nnpm ERR!   dev @cloudflare/vitest-pool-workers@\"^0.5.34\" from the root project\nnpm ERR! \nnpm ERR! Conflicting peer dependency: vitest@2.1.9\nnpm ERR! node_modules/vitest\nnpm ERR!   peer vitest@\"2.0.x - 2.1.x\" from @cloudflare/vitest-pool-workers@0.5.41\nnpm ERR!   node_modules/@cloudflare/vitest-pool-workers\nnpm ERR!     dev @cloudflare/vitest-pool-workers@\"^0.5.34\" from the root project\nnpm ERR! \nnpm ERR! Fix the upstream dependency conflict, or retry\nnpm ERR! this command with --force or --legacy-peer-deps\nnpm ERR! to accept an incorrect (and potentially broken) dependency resolution.\nnpm ERR! \nnpm ERR! \nnpm ERR! For a full report see:\nnpm ERR! ~/.npm/_logs/2026-10-07T07_57_10_584Z-eresolve-report.txt\n\nnpm ERR! A complete log of this run can be found in:\nnpm ERR!     ~/.npm/_logs/2026-10-07T07_57_10_584Z-debug-0.log\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 2.8,
+      "tail": "\n> vidi6@0.0.1 build\n> tsc --noEmit && vite build\n\n\u001b[36mvite v7.3.7 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 88 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                \u001b[39m\u001b[1m\u001b[2m  0.46 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.32 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-D7lh96gv.js  \u001b[39m\u001b[1m\u001b[2m332.79 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 103.88 kB\u001b[22m\n\u001b[32m\u2713 built in 1.26s\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.4,
+      "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 1.1,
+      "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/1408609b90/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 15\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m25 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 22\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 131\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m63 passed\u001b[39m\u001b[22m\u001b[90m (63)\u001b[39m\n\u001b[2m   Start at \u001b[22m 07:57:16\n\u001b[2m   Duration \u001b[22m 509ms\u001b[2m (transform 134ms, setup 0ms, collect 249ms, tests 181ms, environment 1ms, prepare 305ms)\u001b[22m\n\n",
+      "passed": 63,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.3,
+      "tail": "\n> vidi6@0.0.1 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/1408609b90/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 28\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 60\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 70\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 79\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m17 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m\n\u001b[2m   Start at \u001b[22m 07:57:17\n\u001b[2m   Duration \u001b[22m 700ms\u001b[2m (transform 115ms, setup 110ms, collect 290ms, tests 237ms, environment 790ms, prepare 243ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mBoardViewport\u001b[2m > \u001b[22m\u001b[2mTC-13: drag moves world layer transform\u001b[2m > \u001b[22m\u001b[2mviewport element exists with correct aria-label\n\u001b[22m\u001b[39mUnknown event handler property `onGestureStart`. It will be ignored.\nUnknown event handler property `onGestureChange`. It will be ignored.\n\n",
+      "passed": 17,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 1,
+      "seconds": 4.5,
+      "tail": "\n> vidi6@0.0.1 test:e2e\n> npm run build:test && playwright test --project=chromium\n\n\n> vidi6@0.0.1 build:test\n> tsc --noEmit && vite build --mode test\n\n\u001b[36mvite v7.3.7 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 88 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                \u001b[39m\u001b[1m\u001b[2m  0.46 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.32 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-DFeohCIH.js  \u001b[39m\u001b[1m\u001b[2m332.95 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 103.95 kB\u001b[22m\n\u001b[32m\u2713 built in 1.26s\u001b[39m\n[WebServer] \n[WebServer]  \u26c5\ufe0f wrangler 3.114.17 (update available 4.148.0)\n[WebServer] ----------------------------------------------------------\n[WebServer] \n[WebServer] Your Worker and resources are simulated locally via Miniflare. For more information, see: https://developers.cloudflare.com/workers/testing/local-development.\n[WebServer] \n[WebServer] Your worker has access to the following bindings:\n[WebServer] - Durable Objects:\n[WebServer]   - BOARD_ROOM: BoardRoom\n[WebServer] [wrangler:inf] Ready on http://127.0.0.1:22208\n[WebServer] \u2394 Starting local server...\n\nReferenceError: test is not defined\n\n   at live-collaboration.spec.ts:12\n\n  10 | const eventualTimeout = E2E_EVENTUAL_TIMEOUT_MS;\n  11 |\n> 12 | test.describe('Live collaboration', () => {\n     | ^\n  13 |   let contextA: import('@playwright/test').BrowserContext;\n  14 |   let contextB: import('@playwright/test').BrowserContext;\n  15 |   let pageA: import('@playwright/test').Page;\n    at ~/.w/1408609b90/workspace/tests/e2e/live-collaboration.spec.ts:12:1\n\n\n[WebServer] \u25b2 [WARNING] The version of Wrangler you are using is now out-of-date.\n[WebServer] \n[WebServer]   Please update to the latest version to prevent critical errors.\n[WebServer]   Run `npm install --save-dev wrangler@4` to update to the latest version.\n[WebServer]   After installation, run Wrangler with `npx wrangler`.\n[WebServer] \n[WebServer] \n",
+      "passed": null,
+      "failed": null
+    }
+  },
+  "all_green": false
+}

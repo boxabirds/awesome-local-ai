@@ -28,6 +28,14 @@ export default defineProject({
           setupFiles: ['tests/component/setup.ts'],
         },
       },
+      {
+        extends: true,
+        test: {
+          name: 'integration',
+          environment: 'node',
+          include: ['tests/integration/**/*.test.ts'],
+        },
+      },
     ],
   },
 })
