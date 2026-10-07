@@ -226,6 +226,49 @@ describe("storyJudgeReady", () => {
   });
 });
 
+describe("a story's memory snapshot (memory_start)", () => {
+  // What the model server held as the story began (memory_snapshot.py in the harness). The shapes are real: gufo's and
+  // llama.cpp's own, from the live runs on 7 Oct 2026. An engine says only what it says, so what it does not say is
+  // null; and a total the harness could not read is null too and never 0, because 0 is what a containerised engine
+  // used to read, and a zero looks like an empty server.
+  const GUFO = { at: 1790000001.5, resident_mib: 35580.3, model_bytes: 22388168960, engine: "gufo",
+    prompt_cache: { retained_mib: 32464.9, capacity_mib: 32768.0, skipped_for_capacity: 1746, last_snapshot_mib: 1467.1 },
+    extras: { gpu_device_used_mib: 35285 } };
+  const LLAMACPP = { at: 1790000002.5, resident_mib: 100485.4, model_bytes: 85652396192, engine: "llama.cpp",
+    prompt_cache: { evictions: 33, evicted_mib: 141272.9, last_evicted_mib: 5784.8, checkpoints_erased: 88 } };
+
+  it("gufo: what its cache holds against what it may hold", () => {
+    expect(storyEntry("1", { memory_start: GUFO }).memory).toEqual({
+      at: 1790000001.5, residentMib: 35580.3, modelBytes: 22388168960, engine: "gufo",
+      cache: { retainedMib: 32464.9, capacityMib: 32768, skippedForCapacity: 1746, evictions: null, evictedMib: null },
+    });
+  });
+
+  it("llama.cpp: evictions, and no capacity or retained size because it prints neither", () => {
+    expect(storyEntry("1", { memory_start: LLAMACPP }).memory).toEqual({
+      at: 1790000002.5, residentMib: 100485.4, modelBytes: 85652396192, engine: "llama.cpp",
+      cache: { retainedMib: null, capacityMib: null, skippedForCapacity: null, evictions: 33, evictedMib: 141272.9 },
+    });
+  });
+
+  it("a story recorded before the snapshot existed has none: null, which the page shows as nothing", () => {
+    expect(storyEntry("1", {}).memory).toBeNull();
+    expect(storyEntry("1", { memory_start: null as never }).memory).toBeNull();
+    expect(storyEntry("1", { memory_start: "x" as never }).memory).toBeNull();
+  });
+
+  it("a total that could not be read is null, never 0", () => {
+    const m = storyEntry("1", { memory_start: { at: 1, resident_mib: null, model_bytes: null } }).memory!;
+    expect(m.residentMib).toBeNull();
+    expect(m.modelBytes).toBeNull();
+    expect(m.cache).toBeNull();
+  });
+
+  it("it reaches the page: publicStory keeps it", () => {
+    expect(publicStory(storyEntry("1", { memory_start: GUFO })).memory?.engine).toBe("gufo");
+  });
+});
+
 describe("judgeReady", () => {
   const run = { state: "started", rescores: [] as string[], hasBundle: false };
   it("a run can be judged once finished, re-scored under the current suite, and with its workspace history", () => {

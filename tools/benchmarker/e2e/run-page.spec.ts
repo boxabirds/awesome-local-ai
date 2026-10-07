@@ -732,3 +732,54 @@ test.describe("links and keyboard", () => {
     await expect(page.getByRole("tooltip")).toContainText("timed the model");
   });
 });
+
+
+// ---------------------------------------------------------------------------------------------------------------
+// Memory: what the model server held as each story began. Asserted from the fixture's RECORDS, not patched into the
+// page's state, so the chain from a record to the page is exercised end to end (the first test of the expert-cache
+// fact was injected and could not have noticed the server dropping the field).
+test.describe("memory", () => {
+  const mem = (page: Page) => section(page, "memory");
+
+  test("a run whose stories carry no snapshot has no memory section at all: nothing is guessed", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5");
+    await expect(mem(page)).toHaveCount(0);
+  });
+
+  test("llama.cpp: the weights, the peak and median total, and per story the total and the evictions so far", async ({ page }) => {
+    await open(page, SWIFT, "v2-r6");
+    await expect(mem(page).locator('[data-stat="memoryWeights"] .stat-value')).toHaveText("79.8 GiB");
+    await expect(mem(page).locator('[data-stat="memoryPeak"] .stat-value')).toHaveText("98.1 GiB");
+    await expect(mem(page).locator('[data-stat="memoryMedian"] .stat-value')).toHaveText("95.9 GiB");
+    const row = (id: string) => mem(page).locator(`tr[data-story="${id}"]`);
+    await expect(row("1").locator("td.resident")).toHaveText("93.8 GiB");
+    await expect(row("1").locator("td.cache")).toHaveText("12 evictions, 40.2 GiB");
+    await expect(row("2").locator("td.resident")).toHaveText("98.1 GiB");
+    await expect(row("2").locator("td.cache")).toHaveText("33 evictions, 138.0 GiB");
+  });
+
+  test("gufo: what its cache holds of what it may hold, and the snapshots it skipped", async ({ page }) => {
+    await open(page, GUFO, "canvas-gufo-r3");
+    await expect(mem(page).locator('tr[data-story="1"] td.cache')).toHaveText("31.7 of 32.0 GiB (99%), 1,746 skipped");
+    await expect(mem(page).locator('tr[data-story="1"] td.resident')).toHaveText("34.7 GiB");
+    await expect(mem(page).locator('[data-stat="memoryWeights"] .stat-value')).toHaveText("20.9 GiB");   // 22,388,168,960 bytes = 20.8506 GiB
+  });
+
+  test("a figure that was not read is '—', never 0, and what the engine did say is still shown", async ({ page }) => {
+    await open(page, SWIFT, "v2-r4");
+    const row = (id: string) => mem(page).locator(`tr[data-story="${id}"]`);
+    await expect(row("1").locator("td.resident .missing")).toHaveText("—");
+    await expect(row("1").locator("td.cache")).toHaveText("0 evictions, 0.0 GiB");     // zero evictions was said: shown
+    await expect(row("2").locator("td.resident")).toHaveText("88.0 GiB");
+    await expect(row("2").locator("td.cache .missing")).toHaveText("—");               // this engine said nothing: not shown
+    await expect(mem(page).locator('[data-stat="memoryWeights"] .missing')).toHaveText("—");
+    await expect(mem(page).locator('[data-stat="memoryPeak"] .stat-value')).toHaveText("88.0 GiB");
+    await expect(mem(page)).not.toContainText(/\b0\.0 GiB\b(?!,)/);                    // no resident figure of 0.0
+  });
+
+  test("it sits right after the stories, and the order of the rest is unchanged", async ({ page }) => {
+    await open(page, SWIFT, "v2-r6");
+    const order = await page.locator('[data-page="run"] > [data-section]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.section));
+    expect(order.slice(0, 3)).toEqual(["header", "stories", "memory"]);
+  });
+});

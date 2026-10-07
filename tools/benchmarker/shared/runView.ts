@@ -1,7 +1,7 @@
 // What the run and story-run pages show, worked out from the state: pure functions, so every rule (what counts
 // as the score of record, when a story run differs from the others, why a number is missing) is tested once
 // here and the components only lay it out.
-import type { ConversationProfile, Intervention, Row, RunStatus, Score, Story, StorySquare, TimeSplit, Usage } from "./types.ts";
+import type { ConversationProfile, Intervention, PromptCacheFigures, Row, RunStatus, Score, Story, StoryMemory, StorySquare, TimeSplit, Usage } from "./types.ts";
 import { GLOSSARY, type TermId } from "./glossary.ts";
 import { scoreOf } from "./stats.ts";
 import { runOrder } from "./runGroups.ts";
@@ -803,5 +803,74 @@ export function interventionTip(list: Intervention[]): string {
     `${interventionWhen(g)} · ${g.story === null ? "the run" : `story ${g.story}`}: ${g.text}${g.count > 1 ? ` (${g.count} times)` : ""}`);
   const more = groups.length - MAX_TIP_INTERVENTIONS;
   return [`Interventions (${groups.length}):`, ...lines, ...(more > 0 ? [`… and ${more} more on the run page`] : [])].join("\n");
+}
+
+// ---------- memory: what the model server held as each story began ----------
+
+const MIB_PER_GIB = 1024;
+const BYTES_PER_GIB = 1024 ** 3;
+const ONE_DECIMAL = 10;
+
+export interface MemoryRow {
+  id: string;
+  /** The server's total resident memory as this story began, in GiB; null where it could not be read (never 0). */
+  residentGib: number | null;
+  /** What this engine said of its prompt cache, as text; null when it said nothing. */
+  cache: string | null;
+}
+
+export interface RunMemory {
+  rows: MemoryRow[];
+  /** The weights' exact size in GiB, from the snapshots; null when no snapshot has it. */
+  weightsGib: number | null;
+  peakGib: number | null;
+  medianGib: number | null;
+  /** Which kind of cache account the rows carry, because the two are not the same measurement: gufo's is what the
+   * cache holds against what it may hold, llama.cpp's is evictions since the server started. null when none says. */
+  cacheKind: "held" | "evictions" | null;
+}
+
+const oneDecimal = (n: number) => Math.round(n * ONE_DECIMAL) / ONE_DECIMAL;
+const grouped = (n: number) => Math.round(n).toLocaleString("en-GB");
+const gib = (mib: number) => oneDecimal(mib / MIB_PER_GIB).toFixed(1);
+
+/** One engine's cache account as a line of text, or null when it gave none. */
+function cacheText(c: PromptCacheFigures | null): { text: string; kind: "held" | "evictions" } | null {
+  if (!c) return null;
+  if (c.retainedMib !== null && c.capacityMib !== null && c.capacityMib > 0) {
+    const pct = Math.round((c.retainedMib / c.capacityMib) * PERCENT);
+    const skipped = c.skippedForCapacity ? `, ${grouped(c.skippedForCapacity)} skipped` : "";
+    return { text: `${gib(c.retainedMib)} of ${gib(c.capacityMib)} GiB (${pct}%)${skipped}`, kind: "held" };
+  }
+  if (c.evictions !== null) {
+    const size = c.evictedMib !== null ? `, ${gib(c.evictedMib)} GiB` : "";
+    return { text: `${grouped(c.evictions)} ${c.evictions === 1 ? "eviction" : "evictions"}${size}`, kind: "evictions" };
+  }
+  return null;
+}
+
+/** What the model server held at the start of each story that recorded it, or null when none did. Measurements
+ * only: a story with no snapshot is left out rather than shown as zeros, an engine says only what it says, and a
+ * total that could not be read has no figure and is ignored by the peak and median. */
+export function runMemory(run: Pick<Row, "stories">): RunMemory | null {
+  const withMemory = run.stories
+    .filter((s): s is Story & { memory: StoryMemory } => s.memory != null)
+    .toSorted((a, b) => Number(a.id) - Number(b.id));
+  if (withMemory.length === 0) return null;
+  const rows: MemoryRow[] = withMemory.map((s) => ({
+    id: s.id,
+    residentGib: s.memory.residentMib !== null ? oneDecimal(s.memory.residentMib / MIB_PER_GIB) : null,
+    cache: cacheText(s.memory.cache)?.text ?? null,
+  }));
+  const totals = withMemory.map((s) => s.memory.residentMib).filter((v): v is number => v !== null).map((v) => v / MIB_PER_GIB);
+  const bytes = withMemory.map((s) => s.memory.modelBytes).find((v) => v !== null) ?? null;
+  const kind = withMemory.map((s) => cacheText(s.memory.cache)?.kind).find((k) => k !== undefined) ?? null;
+  return {
+    rows,
+    weightsGib: bytes !== null ? oneDecimal(bytes / BYTES_PER_GIB) : null,
+    peakGib: totals.length ? oneDecimal(Math.max(...totals)) : null,
+    medianGib: totals.length ? oneDecimal(median(totals)!) : null,
+    cacheKind: kind,
+  };
 }
 

@@ -5,7 +5,7 @@
 // (Row), which carries none of that: invalid runs are left out, a split that failed its check is sent as none, and a
 // job's failure reason stays here. server/faults.ts reads the full shape for GET /api/faults.
 import { collapsedStoryIds } from "../shared/collapse.ts";
-import type { ConversationProfile, Intervention, JobRef, Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, TimeSplit, Usage, Score, Story } from "../shared/types.ts";
+import type { ConversationProfile, Intervention, JobRef, Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, TimeSplit, Usage, Score, Story, StoryMemory, PromptCacheFigures } from "../shared/types.ts";
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
 export const RECENT_S = 24 * 3600;
@@ -574,8 +574,24 @@ function credentialsRedactedOf(raw: unknown): CredentialsRedacted | null {
   return { count, names: Array.isArray(names) ? names.map(String) : [] };
 }
 
+/** The record's `memory_start` as the page keeps it: every figure a number or null. A record from before the snapshot
+ * existed, or one that is not an object, has none. */
+function memoryOf(raw: unknown): StoryMemory | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+  const m = raw as Record<string, unknown>;
+  const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const c = typeof m.prompt_cache === "object" && m.prompt_cache !== null ? (m.prompt_cache as Record<string, unknown>) : null;
+  const cache: PromptCacheFigures | null = c && {
+    retainedMib: num(c.retained_mib), capacityMib: num(c.capacity_mib), skippedForCapacity: num(c.skipped_for_capacity),
+    evictions: num(c.evictions), evictedMib: num(c.evicted_mib),
+  };
+  const anyCache = cache && Object.values(cache).some((v) => v !== null);
+  return { at: num(m.at), residentMib: num(m.resident_mib), modelBytes: num(m.model_bytes),
+           engine: typeof m.engine === "string" ? m.engine : null, cache: anyCache ? cache : null };
+}
+
 export function storyEntry(
-  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; not_comparable?: unknown } & RawUsage,
+  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; not_comparable?: unknown; memory_start?: unknown } & RawUsage,
 ): RecordStory {
   const skipped = skippedOutputOf(raw.skipped_output);
   const redacted = credentialsRedactedOf(raw.record?.credentials_redacted);
@@ -591,6 +607,7 @@ export function storyEntry(
     ownTotal: own.total ?? null,
     byStory: acc.by_story ? normaliseByStory(acc.by_story) : null,
     usage: usageOf(raw),
+    memory: memoryOf(raw.memory_start),
     conversation: conversationOf(raw.conversation),
     notComparable: notComparableOf(raw.not_comparable),
     ...(Array.isArray(raw.harness_faults) && raw.harness_faults.length ? { harnessFaults: raw.harness_faults } : {}),

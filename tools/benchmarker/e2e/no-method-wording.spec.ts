@@ -6,6 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 // page of each kind, in the visible text and in every hover.
 
 const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
+const GUFO = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi";
 const VK = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi";
 const OPUS = "reference/opus-5.5";
 const enc = encodeURIComponent;
@@ -18,6 +19,9 @@ const PAGES: [string, string][] = [
   ["combination (cloud model)", `#/vidi/c/${enc(OPUS)}`],
   ["finished run", runHref(SWIFT, "v2-r5")],
   ["running run", runHref(SWIFT, "v2-r1")],
+  ["run with memory (llama.cpp)", runHref(SWIFT, "v2-r6")],
+  ["run with memory (gufo)", runHref(GUFO, "canvas-gufo-r3")],
+  ["run with memory not read", runHref(SWIFT, "v2-r4")],
   ["run with no score", runHref(VK, "v2-r1")],
   ["story", "#/vidi/s/3"],
   ["story (another)", "#/vidi/s/2"],
