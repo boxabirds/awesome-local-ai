@@ -28,6 +28,12 @@ export interface BoardTestApi {
   dropConnection(): void;
   /** Reconnect after `dropConnection()`. */
   resumeConnection(): void;
+  /**
+   * Fill the live board with `count` distinct, text-bearing notes in one document
+   * transaction (browser tests only): a fast way to reach a realistic 25-note or
+   * large board that then syncs to the room and is stored like any real edit.
+   */
+  seedBoard(count: number): void;
 }
 
 declare global {

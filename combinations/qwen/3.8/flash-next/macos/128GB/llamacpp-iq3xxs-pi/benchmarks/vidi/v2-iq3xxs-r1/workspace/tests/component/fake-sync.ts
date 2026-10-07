@@ -2,6 +2,7 @@ import type { ConnectOptions, ProviderLike } from '../../src/client/sync/connect
 
 type StatusHandler = (state: { status: string }) => void;
 type SyncHandler = (synced: boolean) => void;
+type CloseHandler = (event: { code: number } | null, provider: unknown) => void;
 
 /**
  * A `WebsocketProvider` stand-in (design "Fixtures": *a fake provider event
@@ -12,21 +13,26 @@ type SyncHandler = (synced: boolean) => void;
 export class FakeProvider implements ProviderLike {
   private statusHandlers: StatusHandler[] = [];
   private syncHandlers: SyncHandler[] = [];
+  private closeHandlers: CloseHandler[] = [];
 
   destroyed = false;
   disconnected = false;
 
   on(event: 'status', handler: StatusHandler): void;
   on(event: 'sync', handler: SyncHandler): void;
-  on(event: 'status' | 'sync', handler: StatusHandler | SyncHandler): void {
+  on(event: 'connection-close', handler: CloseHandler): void;
+  on(event: 'status' | 'sync' | 'connection-close', handler: StatusHandler | SyncHandler | CloseHandler): void {
     if (event === 'status') this.statusHandlers.push(handler as StatusHandler);
-    else this.syncHandlers.push(handler as SyncHandler);
+    else if (event === 'sync') this.syncHandlers.push(handler as SyncHandler);
+    else this.closeHandlers.push(handler as CloseHandler);
   }
 
   off(event: 'status', handler: StatusHandler): void;
   off(event: 'sync', handler: SyncHandler): void;
-  off(event: 'status' | 'sync', handler: StatusHandler | SyncHandler): void {
-    const list = event === 'status' ? this.statusHandlers : this.syncHandlers;
+  off(event: 'connection-close', handler: CloseHandler): void;
+  off(event: 'status' | 'sync' | 'connection-close', handler: StatusHandler | SyncHandler | CloseHandler): void {
+    const list =
+      event === 'status' ? this.statusHandlers : event === 'sync' ? this.syncHandlers : this.closeHandlers;
     const at = list.indexOf(handler as never);
     if (at >= 0) list.splice(at, 1);
   }
@@ -39,6 +45,15 @@ export class FakeProvider implements ProviderLike {
   /** Whether the document is in sync with the room over this connection. */
   emitSync(synced: boolean): void {
     for (const handler of [...this.syncHandlers]) handler(synced);
+  }
+
+  /**
+   * The socket closed with `code` (or `null` when we closed it ourselves) — the
+   * event `y-websocket` emits on every close, and the close-code mapping in
+   * `connectBoard` reads it to tell a load failure (4500) from a plain drop.
+   */
+  emitConnectionClose(code: number | null): void {
+    for (const handler of [...this.closeHandlers]) handler(code === null ? null : { code }, this);
   }
 
   disconnect(): void {

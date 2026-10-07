@@ -4,12 +4,14 @@ import { useNativeStopPropagation } from './useNativeStopPropagation';
 export interface ToolbarProps {
   /** Create a sticky note in the centre of the visible board area. */
   onCreateSticky(): void;
+  /** False disables creation while the board cannot be edited (e.g. it failed to load). */
+  disabled?: boolean;
 }
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
 /** Left-side vertical board toolbar. The Sticky note button is always available. */
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   useNativeStopPropagation(ref);
 
@@ -21,7 +23,9 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
         data-testid="create-sticky"
         aria-label="Sticky note"
         title={STICKY_BUTTON_TOOLTIP}
-        onClick={onCreateSticky}
+        disabled={disabled}
+        aria-disabled={disabled}
+        onClick={disabled ? undefined : onCreateSticky}
       >
         <span className="tool-icon" aria-hidden="true">
           {'\u{1F4CC}'}

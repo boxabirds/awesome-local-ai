@@ -13,3 +13,7 @@ test-results/
 playwright-report/
 .wrangler
 *.log
+
+# story 4 e2e-persist scratch
+.persist-state/
+.logs/

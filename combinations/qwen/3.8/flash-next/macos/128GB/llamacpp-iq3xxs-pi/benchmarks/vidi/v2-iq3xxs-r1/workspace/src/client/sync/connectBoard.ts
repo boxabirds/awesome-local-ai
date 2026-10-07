@@ -4,6 +4,7 @@ import {
   CONNECTED_CONFIRMATION_MS,
   RECONNECT_MAX_BACKOFF_MS,
 } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
 /**
  * What the user is told about this board connection (PRD conn.badge).
@@ -14,8 +15,28 @@ import {
  *   under way after one had synced — the board is still editable
  * - `confirmed`   just re-synced after a reconnection; the badge says so for
  *   `CONNECTED_CONFIRMATION_MS` before it disappears again
+ * - `load_failed` the room closed the connection with `CLOSE_BOARD_LOAD_FAILED`
+ *   (4500): the saved board could not be read, so it is not shown and the board is
+ *   not editable while the client keeps retrying (PRD persist.load_failure)
  */
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
+
+/**
+ * Whether the board accepts edits in this connection state. Every state except
+ * `load_failed` keeps the board editable — even `reconnecting`, where offline
+ * changes are held in the document and sent on the next connection. `load_failed`
+ * is the one state that locks the board, because there is no board on screen to
+ * edit (it refused to load), and editing it would only produce changes that cannot
+ * be saved (PRD persist.load_failure).
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 /**
  * The part of `WebsocketProvider` this module uses, as an interface, so tests can
@@ -25,8 +46,16 @@ export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'con
 export interface ProviderLike {
   on(event: 'status', handler: (state: { status: string }) => void): void;
   on(event: 'sync', handler: (synced: boolean) => void): void;
+  on(
+    event: 'connection-close',
+    handler: (event: { code: number } | null, provider: unknown) => void,
+  ): void;
   off(event: 'status', handler: (state: { status: string }) => void): void;
   off(event: 'sync', handler: (synced: boolean) => void): void;
+  off(
+    event: 'connection-close',
+    handler: (event: { code: number } | null, provider: unknown) => void,
+  ): void;
   destroy(): void;
   disconnect?(): void;
   connect?(): void;
@@ -100,6 +129,7 @@ export function connectBoard(
 
   let current: ConnectionState = 'connecting';
   let everSynced = false;
+  let loadFailed = false;
   let cancelConfirmation: (() => void) | null = null;
 
   const publish = (next: ConnectionState): void => {
@@ -114,7 +144,27 @@ export function connectBoard(
     }
   };
 
+  const onConnectionClose = (event: { code: number } | null): void => {
+    // A close we asked for ourselves (event null) is not a message from the room.
+    if (!event) return;
+    if (event.code === CLOSE_BOARD_LOAD_FAILED) {
+      // The board could not be read: show the load-failure message and hold it up
+      // while the provider keeps retrying (design: LoadFailed -> LoadFailed).
+      clearConfirmation();
+      loadFailed = true;
+      publish('load_failed');
+      return;
+    }
+    // Any other close code (1011 storage failure, 1003 rejected data, a network
+    // drop) is a connection that has to be replaced, not a board that failed to
+    // load — the board stays readable and editable (design TC-28).
+    loadFailed = false;
+    clearConfirmation();
+    if (everSynced) publish('reconnecting');
+  };
+
   const onStatus = ({ status }: { status: string }): void => {
+    if (loadFailed) return; // the load-failure message stays while it is retried
     if (status === 'disconnected') {
       // A connection that had synced went away: the board is now local-only
       // (PRD conn.badge), and edits made while offline stay in the document.
@@ -132,10 +182,14 @@ export function connectBoard(
 
   const onSync = (synced: boolean): void => {
     if (!synced) {
+      if (loadFailed) return; // still failing to load: keep the load-failure message
       clearConfirmation();
       if (everSynced) publish('reconnecting');
       return;
     }
+    // A successful sync means the board loaded and connected: whatever failure the
+    // badge was reporting (including a load failure that has now recovered) is over.
+    loadFailed = false;
     if (!everSynced) {
       // The first sync of a fresh page: the board is live, no badge needed.
       everSynced = true;
@@ -153,6 +207,7 @@ export function connectBoard(
 
   provider.on('status', onStatus);
   provider.on('sync', onSync);
+  provider.on('connection-close', onConnectionClose);
 
   return {
     provider,
@@ -163,6 +218,7 @@ export function connectBoard(
       clearConfirmation();
       provider.off('status', onStatus);
       provider.off('sync', onSync);
+      provider.off('connection-close', onConnectionClose);
       try {
         provider.disconnect?.();
         provider.destroy();

@@ -15,6 +15,21 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code used for any frame the room cannot understand (RFC 6455 §7.4). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/**
+ * Close code a room uses when it could not *load* the saved board: the client
+ * shows "This board couldn't be loaded. Retrying…" and disables editing while it
+ * keeps retrying (PRD persist.load_failure).
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/**
+ * Close code a room uses when it could not *store* a change (a storage failure).
+ * The board itself is readable, so the client shows "Reconnecting…" and keeps
+ * editing; the change is re-sent from the open page on the next connection
+ * (PRD persist.save_failure). 1011 is the RFC 6455 "unexpected error" code.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }
   | { kind: 'awareness'; payload: Uint8Array }

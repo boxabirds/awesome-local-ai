@@ -28,6 +28,8 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** False while the board cannot be edited (it failed to load): the note inert. */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -55,6 +57,7 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  editable = true,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -65,8 +68,8 @@ export function StickyNote({
   const [fit, setFit] = useState<FontFit>({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
 
   // Latest props for the native listeners (attached once per note).
-  const live = useRef({ note, zoom, editing, onSelect, onStartEdit });
-  live.current = { note, zoom, editing, onSelect, onStartEdit };
+  const live = useRef({ note, zoom, editing, editable, onSelect, onStartEdit });
+  live.current = { note, zoom, editing, editable, onSelect, onStartEdit };
 
   // ---------------------------------------------------------------- font fit
   // Measured on mount and whenever the text changes; zoom scales the whole note
@@ -126,6 +129,7 @@ export function StickyNote({
       target instanceof Element && target.closest(selector) !== null;
 
     const onPointerDown = (event: PointerEvent): void => {
+      if (live.current.editable === false) return; // a board that failed to load is not draggable
       if (event.button !== 0) return;
       // Never steal clicks from the editor or the note's own toolbar.
       if (inside(event.target, '.sticky-note-input')) return;
@@ -183,6 +187,7 @@ export function StickyNote({
     const onCancel = (event: PointerEvent): void => finish(event, false);
 
     const onDoubleClick = (event: MouseEvent): void => {
+      if (live.current.editable === false) return; // no editing a board that failed to load
       // Never create a second note under an existing one (sticky.edit_start).
       event.stopPropagation();
       event.preventDefault();
@@ -276,8 +281,11 @@ export function StickyNote({
         >
           <NoteToolbar
             color={note.color}
-            onColor={(next: StickyColor) => setStickyColor(doc, note.id, next)}
-            onDelete={() => deleteObject(doc, note.id)}
+            disabled={!editable}
+            onColor={(next: StickyColor) => editable && setStickyColor(doc, note.id, next)}
+            onDelete={() => {
+              if (editable) deleteObject(doc, note.id);
+            }}
           />
         </div>
       ) : null}

@@ -13,7 +13,8 @@
     "test:component": "vitest run --project component",
     "test:e2e": "playwright test --grep-invert @nightly",
     "test:integration": "npm run build && vitest run --project integration",
-    "test:e2e:nightly": "npm run build:test && playwright test --project nightly"
+    "test:e2e:nightly": "npm run build:test && playwright test --project nightly",
+    "test:e2e:persist": "npm run build:test && playwright test -c playwright.persist.config.ts"
   },
   "dependencies": {
     "lib0": "^0.2.119",

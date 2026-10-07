@@ -345,3 +345,10 @@ body {
   color: #1e6b2e;
   border-color: #9fd4a8;
 }
+/* A board that failed to load is reported in red: this is not a transient warning,
+   the board is not there, and editing is off until it loads (PRD persist.load_failure). */
+.connection-status--load_failed {
+  background: #fbe9e7;
+  color: #b3261e; /* red */
+  border-color: #e0a09a;
+}

@@ -14,21 +14,26 @@ export interface ConnectionStatusProps {
  * input is swallowed, and no modal appears (PRD conn.badge "the board stays
  * editable while the badge is up").
  */
+const LABELS: Record<Exclude<ConnectionState, 'connected'>, string> = {
+  connecting: 'Connecting…',
+  reconnecting: 'Reconnecting…',
+  confirmed: 'Connected',
+  // The board refused to load: say so plainly, in red, and keep saying it while the
+  // client keeps retrying (PRD persist.load_failure).
+  load_failed: 'This board couldn\'t be loaded. Retrying…',
+};
+
 export function ConnectionStatus({ state }: ConnectionStatusProps) {
   if (state === 'connected') return null;
 
-  const label =
-    state === 'connecting'
-      ? 'Connecting…'
-      : state === 'reconnecting'
-        ? 'Reconnecting…'
-        : 'Connected';
+  const label = LABELS[state];
 
   return (
     <div
       className={`connection-status connection-status--${state}`}
       data-testid="connection-status"
       data-state={state}
+      data-red={state === 'load_failed' ? 'true' : undefined}
       // `role="status"` is a polite live region: a screen reader announces the
       // change without interrupting what the person is doing.
       role="status"

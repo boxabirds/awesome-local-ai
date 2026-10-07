@@ -277,3 +277,80 @@ the final `getSnapshot()` of every screen. Spots for new notes must sit further 
 - Firefox/WebKit still cannot launch here (see story 1 note). `VIDI6_BROWSERS` defaults to
   `chromium`; `VIDI6_BROWSERS=chromium,firefox,webkit` restores the full matrix, including the
   `nightly-firefox` / `nightly-webkit` projects.
+
+## Story 4 — Return to a board and find everything as it was left
+
+### Storage layout (BoardStore)
+`updates` is an append-only log of every Yjs update (one BLOB row each), `snapshot_chunks`
+holds a `Y.encodeStateAsUpdate` of the document split into `SNAPSHOT_CHUNK_BYTES` rows, and
+`storage_meta.snapshot_through_seq` records the log `seq` the snapshot already covers, so a
+later load replays only `seq > through`. A damaged *log row* is quarantined and skipped
+(the rest of the board loads, TC-09/TC-09-style partial damage); a damaged *snapshot* is
+fatal — `load` returns `{ok:false, reason:'snapshot-unreadable'}` and deletes/quarantines
+nothing, so a retry sees the same bytes (TC-10). Compaction writes the new snapshot and only
+then trims log rows `seq <= through`; if it throws mid-way the whole thing is in one
+`this.exec` transaction so it rolls back (TC-11).
+
+### load_failed vs storage_failed, and the close codes
+`failLoad` maps **any** load failure (unreadable snapshot *or* a SQL read error) to
+`status:'load-failed'` + close `4500`, throttled to one reload per `LOAD_RETRY_MIN_INTERVAL_MS`
+(TC-26). `4500` is deliberately *outside* y-websocket's permanent range (4400–4499), so the
+provider keeps retrying on its own and a repaired board recovers with no reload (TC-24).
+`1011 storage-failed` is reserved for a **write** (append) failure while connected — a board we
+cannot write must not keep being served — and simply reloads on the next connection. `1003`
+closes only the one socket that sent an undecodable update; the room and other sockets carry on.
+
+### Client side
+`canEdit(state)` is false **only** for `load_failed`; every other state (`connecting`,
+`connected`, `reconnecting`, `confirmed`) keeps the board editable, so a reconnection never
+locks the board (TC-28). `App` passes `editable` down to `StickyNote`/`NoteToolbar`, which make
+drag, double-click-to-edit, colour and delete inert while locked, so "editing it would only
+produce changes that cannot be saved" cannot happen (TC-23).
+
+### E2E persistence (TC-19, TC-20, TC-21) and the wrangler harness
+These live in their own Playwright project (`playwright.persist.config.ts`,
+`npm run test:e2e:persist`) because they drive `wrangler dev --persist-to <dir>` themselves and
+must kill it and start another one over the same on-disk SQLite — that *is* "the Worker
+restarted". They use their own ports 25240/25241 (still inside the allowed 25232–25247) and run
+serially. `seedBoard(n)` on the test hook fills a board through the normal create path so it
+syncs and is stored like any real edit. TC-19 asserts the reopened board is byte-identical;
+TC-20 proves the store-before-broadcast guarantee by leaving within a second of the note
+appearing; TC-21 logs load timings (budget never asserted).
+
+**Large-board caveat (the one thing not proven end-to-end in a browser here).** TC-21 seeds the
+full `PERSIST_TESTED_NOTES` (2000) board, restarts, and proves it loads back out of storage —
+measured ~18 ms server-side — but it does **not** drive all 2000 notes back *through the browser*.
+Past a few hundred notes the client, running on the same CPU as the server it must sync with,
+cannot finish applying + rendering 2000 note components inside its sync window, so it never
+settles ("Reconnecting…" forever, snapshot 0); this is a client-render limit, not a storage one,
+and virtualisation is out of scope for this story. So TC-21 runs the full reopen-restore cycle
+in the browser at a renderable size (200 notes) and proves the full 2000-note size survives a
+restart server-side via the load hook. Everything storage-related about a 2000-note board is
+covered; the 2000-note *render* within `BOARD_LOAD_BUDGET_MS` is not asserted.
+
+### Test-only storage damage hooks (TC-24) and the warm-room trap
+`src/worker/index.ts` registers `/__test/boards/:id/{corrupt-snapshot,repair-snapshot,board-summary}`
+only when `env.TEST_HOOKS === '1'`, which only the e2e-persist wrangler sets (`--var
+TEST_HOOKS:1`); the production config never sets it, so those paths fall through to the SPA. The
+hooks are RPC methods on `BoardRoom` that drive the same SQLite: `corrupt-snapshot` folds the
+board into a real snapshot through the same chunking code, then overwrites chunk 0 with random
+bytes (a deterministic scramble was not enough — Yjs tolerates it; only genuinely malformed bytes
+make `load` return `snapshot-unreadable`). A client that opens such a board gets the honest red
+load failure with editing locked, never an empty board.
+
+**Why TC-24 restarts the Worker mid-scenario:** a board whose last socket closed keeps its
+in-memory `Y.Doc` (it hibernates, it does not drop the doc), so a soft disconnect/reconnect or a
+page reload lets a *warm* room serve its in-memory copy and skip the damaged snapshot entirely —
+the client even re-pushes its notes into the log. Only a fresh Worker process forces a re-read of
+the damaged snapshot, so TC-24 corrupts, restarts, and lets a fresh client discover the damage.
+Recovery (repair, then auto-retry past the throttle) is then proven on that same never-reloaded
+page, guarded by a `window` marker that could not survive a reload.
+
+### Verification (this machine, story 4 final state)
+- `npm run typecheck` ✓. `npm run build` ✓ (prod) and `build:test` ✓ (test-mode client for e2e).
+- `npm run test:unit` → 110 passed. `npm run test:component` → 49 passed (added load-failure
+  badge/lock/close-code tests). `npm run test:integration` → 45 passed (added 10 BoardStore +
+  8 persistent-room persistence tests).
+- `npm run test:e2e` → 25 passed (story 2/3 unchanged; new gated worker routes are inert without
+  `TEST_HOOKS`). `npm run test:e2e:persist` → 4 passed (TC-19/20/21/24) against real process
+  restarts; run several times clean, no flakes.

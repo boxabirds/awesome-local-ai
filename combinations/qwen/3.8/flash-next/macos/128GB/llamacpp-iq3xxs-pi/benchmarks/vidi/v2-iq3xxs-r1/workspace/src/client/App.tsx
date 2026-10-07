@@ -19,9 +19,9 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
-import type { ConnectOptions, ProviderLike } from './sync/connectBoard';
+import { canEdit, type ConnectOptions, type ProviderLike } from './sync/connectBoard';
 import { newBoardId } from '../shared/board-id';
-import { createSticky, deleteObject, snapshot } from '../shared/board-model';
+import { createSticky, deleteObject, getStickyText, snapshot } from '../shared/board-model';
 
 function ZoomControlsConnector() {
   const { camera, zoomStep, reset } = useBoardCamera();
@@ -74,6 +74,11 @@ function Board({ boardId, sync, provider, connect }: BoardProps) {
   const { camera, viewport } = useBoardCamera();
   const { select, startEdit, endEdit, selectedId, editingId } = selection;
 
+  // A board that failed to load is not editable: there is nothing on screen to
+  // change, and a change to a board that refused to load could never be saved. Every
+  // other connection state — even "Reconnecting…" — keeps the board editable.
+  const editable = canEdit(connectionState);
+
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
 
@@ -89,11 +94,12 @@ function Board({ boardId, sync, provider, connect }: BoardProps) {
   /** Create a note centred on a screen-space point, and start typing it. */
   const createAtScreenPoint = useCallback(
     (point: Point) => {
+      if (!editable) return; // a board that failed to load cannot be added to
       const world = screenToWorld(camera, point);
       const id = createSticky(doc, world);
       if (id) startEdit(id); // yellow, on top, editing active
     },
-    [camera, doc, startEdit],
+    [camera, doc, editable, startEdit],
   );
 
   const onCreateSticky = useCallback(
@@ -105,6 +111,7 @@ function Board({ boardId, sync, provider, connect }: BoardProps) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (!editable) return; // a board that failed to load is not editable (TC-23)
       // While a note is being edited (or any text field has focus) the keys
       // belong to the text: Backspace and Delete must never remove the note.
       if (isTextEntry(event.target) || selectionRef.current.editingId) return;
@@ -121,7 +128,7 @@ function Board({ boardId, sync, provider, connect }: BoardProps) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, select, startEdit]);
+  }, [doc, editable, select, startEdit]);
 
   // --------------------------------------------------- test-only inspection
   useEffect(() => {
@@ -139,6 +146,17 @@ function Board({ boardId, sync, provider, connect }: BoardProps) {
       // for a real close (and a real reconnect) through the same provider.
       dropConnection: () => connectionRef.current?.dropConnection(),
       resumeConnection: () => connectionRef.current?.resumeConnection(),
+      // Fill the board with `count` distinct notes so a browser test can reach a
+      // realistic board quickly; it flows through the normal create path, so it
+      // syncs to the room and is stored exactly like a hand-made note.
+      seedBoard: (count: number) => {
+        doc.transact(() => {
+          for (let i = 0; i < count; i++) {
+            const id = createSticky(doc, { x: (i % 50) * 230, y: Math.floor(i / 50) * 230 });
+            if (id) getStickyText(doc, id)?.insert(0, `note ${i + 1} of ${count}`);
+          }
+        });
+      },
     });
     return () =>
       unpatchTestHook([
@@ -148,6 +166,7 @@ function Board({ boardId, sync, provider, connect }: BoardProps) {
         'getConnectionState',
         'dropConnection',
         'resumeConnection',
+        'seedBoard',
       ]);
   }, [doc, connectionState]);
 
@@ -167,6 +186,7 @@ function Board({ boardId, sync, provider, connect }: BoardProps) {
             note={note}
             doc={doc}
             zoom={camera.zoom}
+            editable={editable}
             selected={selectedId === note.id}
             editing={editingId === note.id}
             onSelect={onSelect}
@@ -175,7 +195,7 @@ function Board({ boardId, sync, provider, connect }: BoardProps) {
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={onCreateSticky} />
+      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
       <ConnectionStatus state={connectionState} />
     </>
   );

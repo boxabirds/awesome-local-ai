@@ -57,3 +57,23 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
  * share one machine (see design "Timing in tests").
  */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+// --- Story 4: saving boards -------------------------------------------------
+
+/** Compact the update log into a snapshot when this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ...or when the log's stored bytes reach this. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/**
+ * Snapshot chunk size. Keeps every stored row well under the SQLite-backed
+ * Durable Object per-row size limit.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A LoadFailed room retries its load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** Board size the PRD persist.large_board tests (and guarantees up to). */
+export const PERSIST_TESTED_NOTES = 2000;
+/** PRD persist.large_board: budget for showing a saved board after navigation. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Versions the Durable Object storage tables (not the Yjs document schema). */
+export const STORAGE_SCHEMA_VERSION = 1;

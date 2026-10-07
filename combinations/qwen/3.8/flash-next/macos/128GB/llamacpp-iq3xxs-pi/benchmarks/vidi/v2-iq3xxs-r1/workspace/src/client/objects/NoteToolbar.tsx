@@ -4,6 +4,8 @@ import { useNativeStopPropagation } from '../board/useNativeStopPropagation';
 
 export interface NoteToolbarProps {
   readonly color: StickyColor;
+  /** Disables every button while the board cannot be edited (it failed to load). */
+  disabled?: boolean;
   onColor(color: StickyColor): void;
   onDelete(): void;
 }
@@ -25,7 +27,7 @@ const COLOR_NAMES = Object.keys(STICKY_COLORS) as StickyColor[];
  * button. It is hidden while dragging or editing, and clicks on it never clear
  * the selection or pan the board.
  */
-export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps) {
+export function NoteToolbar({ color, disabled = false, onColor, onDelete }: NoteToolbarProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   useNativeStopPropagation(ref);
 
@@ -43,6 +45,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps) {
             aria-label={label}
             aria-pressed={color === name}
             title={label}
+            disabled={disabled}
             style={{ background: STICKY_COLORS[name] }}
             onClick={() => onColor(name)}
           />
@@ -55,6 +58,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps) {
         data-testid="delete-note"
         aria-label="Delete note"
         title="Delete note"
+        disabled={disabled}
         onClick={onDelete}
       >
         {'\u{1F5D1}'}
