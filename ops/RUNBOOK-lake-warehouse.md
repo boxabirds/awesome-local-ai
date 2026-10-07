@@ -25,10 +25,31 @@ Rebuild or repair:
 dbench ingest --db  ~/expts/awesome-local-ai-bench-private/state/insights/conversations.db \
               --repo ~/expts/awesome-local-ai \
               --store ~/expts/awesome-local-ai-bench-private/state/collected
-dbench ingest --schema      # print the schema
+dbench ingest --schema --db /dev/null --repo /tmp --store /tmp   # print the schema (clap insists on the other three)
 ```
 
 Ingest reads records from the repo's `origin/main`, never the working copy.
+
+## Before a change to the warehouse: back it up, prove the migration on a copy
+
+The warehouse is a gigabyte and the collector writes to it continuously, so a schema or ingest change is made like this,
+and was for the `memory` table on 7 Oct 2026:
+
+1. **Back up with SQLite's online backup, not `cp`.** `sqlite3 conversations.db ".backup 'DEST'"` is a consistent
+   snapshot while the collector is writing; a plain copy of a WAL-mode file taken mid-write can be torn. Check
+   `pragma integrity_check` on the BACKUP, record checksums and baseline row counts, and keep the old `dbench` binary
+   beside it. Make it read-only. Backups live in `state/backups/<date>-<why>/` (git-ignored, so a `reset --hard` cannot
+   touch them), each with a `MANIFEST.txt` carrying the rollback steps.
+2. **Read a backup with `sqlite3 'file:PATH?mode=ro&immutable=1'`.** Opening a WAL-mode database normally creates
+   `-shm` and `-wal` files beside it, which is a backup changing because you looked at it.
+3. **Prove the migration on a copy** of the real database: run the new binary's `ingest --db <copy>`, then check
+   integrity, that the new table exists, and that no table or row count shrank against the baseline.
+4. **Install the binary as a separate file and rename it into place**, signed (`codesign -s - --force`): the running
+   services keep the old file. Overwriting a running macOS binary in place gets it killed (exit 137).
+5. **Restart only the collector** (`launchctl kickstart -k gui/$(id -u)/com.awesome-local-ai.dbench-collect`), wait
+   for its first pass, and repeat the checks on the live file.
+
+The backup of 7 Oct 2026 is `state/backups/20261007-before-memory-table/`: 360 stories, 41 runs, 87,434 calls.
 
 ## The tables, and what a row is
 
