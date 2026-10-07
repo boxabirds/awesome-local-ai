@@ -30,6 +30,16 @@ we already know.
 
 Facts come from the project's own pages or our own measurements, with links; anything not yet checked says so.
 
+## A licence is a fact, not a gate
+
+Record what a candidate's weights are licensed under, then assess the candidate on its merits. **Do not gate a
+candidate on its licence and do not ask the owner to clear one.** Benchmarking a model and publishing its scores
+is treated as fair use whatever the licence says about commercial use; if a rights holder objects, the material
+comes down. The owner, 7 Oct 2026, on ThinkingCap's PolyForm Small Business terms: "I'm treating a benchmark as
+fair use. If they chase me, I take it down, simple as that."
+
+This covers benchmarking and publishing results. It is not permission to redistribute weights.
+
 ## Review
 
 At each review, re-read every note that is not adopted or eliminated: follow its "recheck when", update
