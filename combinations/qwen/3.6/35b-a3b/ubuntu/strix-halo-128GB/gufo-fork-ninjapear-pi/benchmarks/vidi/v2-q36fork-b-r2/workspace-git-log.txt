@@ -1,3 +1,43 @@
+commit cf046f408dd40c9e1604fa92e9153f0a961d6f2f
+vidi-agent  Wed Oct 7 23:10:48 2026 +0000
+
+    harness: snapshot after story 5 (uncommitted agent work)
+
+
+ NOTES.md                              |  27 ++
+ PROGRESS.md                           |  10 +-
+ index.html                            |   1 +
+ package-lock.json                     | 804 ++++++++++++++++++++++------------
+ package.json                          |   6 +-
+ src/client/App.tsx                    | 271 ++----------
+ src/client/api.ts                     |  53 +++
+ src/client/board/BoardApp.tsx         | 216 +++++++++
+ src/client/pages/BoardPage.tsx        | 152 +++++++
+ src/client/pages/HomePage.tsx         |  73 +++
+ src/client/pages/NotFoundPage.tsx     |  56 +++
+ src/client/pages/state.ts             |  57 +++
+ src/client/router.ts                  |  45 ++
+ src/client/share/SharePanel.tsx       | 133 ++++++
+ src/shared/config.ts                  |   5 +
+ src/worker/board-room.ts              | 183 ++++++--
+ src/worker/board-store.ts             |  43 +-
+ src/worker/create-board.ts            |  38 ++
+ src/worker/index.ts                   | 120 ++++-
+ tests/component/share-panel.test.tsx  | 270 ++++++++++++
+ tests/integration/board-store.test.ts | 344 ---------------
+ tests/unit/boards.test.ts             |  57 +++
+ vitest.component.config.ts            |  10 +
+ vitest.config.ts                      |  37 +-
+ wrangler.jsonc                        |   2 +-
+ 25 files changed, 2083 insertions(+), 930 deletions(-)
+commit 96dd8ac17349b295b8542e00261f54d148016683
+vidi-agent  Wed Oct 7 22:13:34 2026 +0000
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit e7dfbda17b0917f96effd1377f618137233b0541
 vidi-agent  Wed Oct 7 22:13:23 2026 +0000
 
