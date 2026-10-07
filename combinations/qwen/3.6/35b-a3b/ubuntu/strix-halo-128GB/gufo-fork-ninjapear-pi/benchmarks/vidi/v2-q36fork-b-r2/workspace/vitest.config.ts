@@ -18,6 +18,19 @@ export default defineConfig({
           globals: true,
         },
       },
+      {
+        test: {
+          name: 'integration',
+          environment: 'miniflare',
+          include: ['tests/integration/**/*.test.ts'],
+          // Use the @cloudflare/vitest-pool-workers plugin
+          poolOptions: {
+            workersMiniflare: {
+              wrangler: { config: './wrangler.jsonc' },
+            },
+          },
+        },
+      },
     ],
   },
 });

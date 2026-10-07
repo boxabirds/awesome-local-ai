@@ -10,13 +10,32 @@ import { NoteToolbar } from './objects/NoteToolbar';
 import type { Size, Camera } from './canvas/camera';
 import { screenToWorld } from './canvas/camera';
 import { createSticky, setStickyColor, deleteObject } from '../shared/board-model';
+import { moveObject, bringToFront } from '../shared/board-model';
 import { STICKY_SIZE_WORLD } from '../shared/config';
 import { useVidi6TestHook } from './testHooks';
+import { newBoardId } from '../shared/board-id';
 
-export default function App(): React.JSX.Element {
+// Redirect `/` to a newly generated board
+function redirectNewBoard(): boolean {
+  if (window.location.pathname === '/') {
+    window.location.replace(`/b/${newBoardId()}`);
+    return true;
+  }
+  return false;
+}
+
+// Extract boardId from pathname like /b/<boardId>
+function getBoardIdFromPath(): string {
+  const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]+)$/);
+  if (match) return match[1];
+  // Default to a new board if no valid id found
+  return newBoardId();
+}
+
+/** The actual board UI, parameterised by boardId */
+function BoardApp({ boardId }: { boardId: string }): React.JSX.Element {
   const [viewportSize, setViewportSize] = React.useState<Size>({ width: 1280, height: 800 });
 
-  // ResizeObserver for viewport size changes
   const rootRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     const el = rootRef.current;
@@ -33,9 +52,9 @@ export default function App(): React.JSX.Element {
     return () => ro.disconnect();
   }, []);
 
-  const { doc, snapshots } = useBoardDoc();
+  const { doc, snapshots, connectionState, ConnectionStatus } = useBoardDoc(boardId);
   const hook = useCamera(viewportSize);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const { selectedId, editingId, select, startEdit, endEdit } = useSelection(doc);
 
   // Test hook: window.__vidi6.setCamera() → updates the camera state
   useVidi6TestHook(hook.setRawCamera);
@@ -106,7 +125,6 @@ export default function App(): React.JSX.Element {
   // Window-level keyboard shortcuts (Enter/Delete/Backspace)
   React.useEffect(() => {
     const handleWindowKeyDown = (e: KeyboardEvent) => {
-      // Ignore if inside an input element
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'TEXTAREA' || tag === 'INPUT') return;
 
@@ -153,6 +171,8 @@ export default function App(): React.JSX.Element {
 
   return (
     <div ref={rootRef} style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+      {/* Connection status badge — top centre */}
+      <ConnectionStatus state={connectionState} />
       <Toolbar onCreateSticky={() => handleCreateStickyAtWorld(screenToWorld(hook.camera, {
         x: viewportSize.width / 2,
         y: viewportSize.height / 2,
@@ -175,9 +195,8 @@ export default function App(): React.JSX.Element {
       {selectedId && !editingId && (() => {
         const note = snapshots.find((s) => s.id === selectedId);
         if (!note) return null;
-        // Position in screen space above the note center
-        const cx = (note.x + STICKY_SIZE_WORLD / 2);
-        const cy = (note.y - 40);
+        const cx = note.x + STICKY_SIZE_WORLD / 2;
+        const cy = note.y - 40;
         const screenX = (cx - hook.camera.x) * hook.camera.zoom;
         const screenY = (cy - hook.camera.y) * hook.camera.zoom;
         return (
@@ -212,5 +231,12 @@ export default function App(): React.JSX.Element {
   );
 }
 
-// Re-export board-model functions
-import { moveObject, bringToFront } from '../shared/board-model';
+/** Root App — reads boardId from URL path and renders the board */
+export default function App(): React.JSX.Element {
+  if (redirectNewBoard()) {
+    return <div />;
+  }
+
+  const boardId = getBoardIdFromPath();
+  return <BoardApp boardId={boardId} />;
+}

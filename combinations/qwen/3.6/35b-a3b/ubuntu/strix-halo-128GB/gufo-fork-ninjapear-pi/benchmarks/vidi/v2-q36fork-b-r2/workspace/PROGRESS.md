@@ -1,48 +1,17 @@
-# Story 2: Capture ideas on sticky notes and rearrange them
+# Story 3: See other people's edits appear live on the same board
 
 Your progress on this story's tasks. Keep the Status column up to date as you work.
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Write board model unit tests first against a real Y.Doc (TC-01 to TC-12, TC-39) | done |
-| 2 | Implement Yjs board model and useBoardDoc snapshot hook | done |
-| 3 | Write sticky text logic unit tests first (TC-13 to TC-17) | done |
-| 4 | Implement sticky text editing: start/end editing, minimal Y.Text diff, length limit, auto-fit font | done |
-| 5 | Implement sticky note interaction: select, drag to move, double-click create, keyboard delete | done |
-| 6 | Implement toolbars: Sticky note button, colour swatches and delete button | done |
-| 7 | Component tests for sticky interaction, text editor and toolbars | done |
-| 8 | E2E sticky note workflows (create, move at zoom, recolour, delete, long text) | done |
+| 1 | Write board id and protocol decode unit tests first (TC-01 to TC-03) | done |
+| 2 | Implement Worker entry: /api/rooms/:boardId routing to BoardRoom, static assets fallback | todo |
+| 3 | Implement BoardRoom Durable Object: Yjs sync relay, awareness relay, malformed-message handling | todo |
+| 4 | Implement client connection: y-websocket provider, /b/:boardId route, connection status badge | todo |
+| 5 | Integration tests for Worker routing in workerd (TC-04 to TC-06, TC-13, TC-17) | todo |
+| 6 | Integration tests for BoardRoom merging, broadcast and error handling (TC-07 to TC-12, TC-14 to TC-16, TC-18, TC-31) | todo |
+| 7 | Component tests for connection status badge (TC-19 to TC-21) | todo |
+| 8 | E2E live collaboration with multiple browser contexts (TC-22 to TC-28) | todo |
+| 9 | Nightly e2e: idle connection stability and capacity soak with latency report (TC-29, TC-30) | todo |
 
 Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
-
-## Summary
-
-All tasks for Story 2 are complete. 
-
-### Files Added/Modified
-
-**New files:**
-- `src/shared/board-model.ts` — Yjs schema, immutable snapshot export, typed mutations
-- `src/client/board/useBoardDoc.ts` — Singleton Y.Doc + snapshot subscription
-- `src/client/board/useSelection.ts` — Local selection/editing state
-- `src/client/objects/StickyNote.tsx` — Draggable sticky note with font auto-fit
-- `src/client/objects/StickyTextEditor.tsx` — IME-aware textarea editor
-- `src/client/objects/NoteToolbar.tsx` — Colour swatches + delete
-- `src/client/board/Toolbar.tsx` — Left sidebar sticky-note button
-- `tests/unit/board-model.test.ts` — 16 board-model unit tests
-- `tests/unit/sticky-text.test.ts` — 12 sticky-text unit tests
-- `tests/component/StickyNote.test.tsx` — Drag/select interaction component tests
-- `tests/component/StickyTextEditor.test.tsx` — Text editing component tests
-- `tests/component/Toolbars.test.tsx` — Toolbar accessibility and behaviour tests
-
-**Modified files:**
-- `src/shared/config.ts` — Added sticky note settings constants
-- `src/client/canvas/BoardViewport.tsx` — Touch/mouse pan, wheel/gesture zoom, double-click createSticky event, sticky layer rendering
-- `src/client/App.tsx` — Integration wiring: board state, selection flow, keyboard shortcuts (Enter/Tab/Delete/Ctrl +/-/0)
-
-### Test Results
-
-- **Unit tests**: 51 tests — all passing
-- **Component tests**: 38 tests — all passing
-- **Build**: clean (no TypeScript errors)
-- **Total coverage**: All task TC-codes verified (TC-01 through TC-39)

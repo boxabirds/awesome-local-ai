@@ -1,3 +1,35 @@
+commit f2e843946dd8657d0e924068140f34e3e161e8ca
+vidi-agent  Wed Oct 7 20:39:23 2026 +0000
+
+    harness: snapshot after story 3 (uncommitted agent work)
+
+
+ PROGRESS.md                                   |    2 +-
+ package-lock.json                             | 1015 ++++++++++++++++++++++++-
+ package.json                                  |    6 +-
+ src/client/App.tsx                            |   46 +-
+ src/client/board/useBoardDoc.ts               |   33 +-
+ src/client/board/useSelection.ts              |   31 +-
+ src/client/sync/ConnectionStatus.tsx          |   83 ++
+ src/client/sync/connectBoard.ts               |  116 +++
+ src/shared/board-id.ts                        |   56 ++
+ src/shared/config.ts                          |    8 +
+ src/shared/protocol.ts                        |   47 ++
+ src/worker/board-room.ts                      |  163 ++++
+ src/worker/index.ts                           |   38 +-
+ tests/unit/sync-board-id-and-protocol.test.ts |  102 +++
+ tsconfig.json                                 |    5 +-
+ vitest.config.ts                              |   13 +
+ wrangler.jsonc                                |   12 +-
+ 17 files changed, 1738 insertions(+), 38 deletions(-)
+commit ad85b27ce14467f3c75ab376512aad0aeef49532
+vidi-agent  Wed Oct 7 20:13:56 2026 +0000
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 51 ++++++++++-----------------------------------------
+ 1 file changed, 10 insertions(+), 41 deletions(-)
 commit 31921e0254342559b1dab5656daefeb65f369cd0
 vidi-agent  Wed Oct 7 20:13:46 2026 +0000
 
