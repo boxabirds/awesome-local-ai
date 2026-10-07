@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import type { Camera, Point } from '@/client/canvas/camera';
-import type { Handle } from '@/client/objects/registry';
+import type { Handle, HandlesMode, ObjectTypeSpec } from '@/client/objects/registry';
 import type { ObjectSnapshot } from '@/shared/board-model';
 import { unionRects } from '@/shared/geometry';
 import { HANDLE_SIZE_PX } from '@/shared/config';
 import { worldToScreen } from '@/client/canvas/camera';
+import { getObjectType } from '@/client/objects/registry';
 
 const HANDLE_NAMES: Record<Handle, string> = {
   n: 'Resize top',
@@ -22,6 +23,36 @@ interface SelectionOverlayProps {
   snapshot: readonly ObjectSnapshot[];
   camera: Camera;
   onHandlePointerDown(e: PointerEvent, h: Handle): void;
+}
+
+/**
+ * Determine which handles to show.
+ * - If exactly one object is selected and its spec has handles='horizontal' → only e/w.
+ * - Otherwise → all 8 handles.
+ */
+function getHandlesForSelection(
+  ids: ReadonlySet<string>,
+  snapshot: readonly ObjectSnapshot[],
+): Handle[] {
+  const selectedObjs = snapshot.filter((s) => ids.has(s.id));
+  if (selectedObjs.length === 0) return [];
+
+  // Check if every selected object has handles='horizontal'
+  let allHorizontal = true;
+  for (const obj of selectedObjs) {
+    const spec = getObjectType(obj.type);
+    const handles = spec?.handles ?? 'all';
+    if (handles !== 'horizontal') {
+      allHorizontal = false;
+      break;
+    }
+  }
+
+  if (allHorizontal && selectedObjs.length >= 1) {
+    return ['e', 'w'];
+  }
+
+  return ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
 }
 
 /**
@@ -70,8 +101,8 @@ export function SelectionOverlay({
     );
   }
 
-  // 8 resize handles
-  const handles: Handle[] = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+  // Determine which handles to show based on selected types
+  const handles = getHandlesForSelection(ids, snapshot);
   const handleElements = handles.map((h) => {
     const pos = handlePosition(h, bx, by, bw, bh);
     const size = HANDLE_SIZE_PX;

@@ -1,3 +1,5 @@
+
+
 import type { ComponentType } from 'react';
 import { STICKY_SIZE_WORLD, STICKY_MIN_SIZE_WORLD } from '@/shared/config';
 
@@ -20,6 +22,9 @@ export interface Point {
   y: number;
 }
 
+/** Which resize handles a type shows when selected alone. */
+export type HandlesMode = 'all' | 'horizontal';
+
 /** Specification for a board object type in the registry. */
 export interface ObjectTypeSpec {
   Component: ComponentType<ObjectProps>;
@@ -27,6 +32,7 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  handles?: HandlesMode; // default 'all'
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -116,3 +122,19 @@ export function stickyHitTest(obj: ObjectSnapshot, wp: Point): boolean {
     wp.y <= obj.y + h
   );
 }
+
+/**
+ * Hit-test a point against a text object using simple bounds.
+ */
+export function textHitTest(obj: ObjectSnapshot, wp: Point): boolean {
+  const w = (obj.width as number) ?? 100;
+  const h = (obj.height as number) ?? 26;
+  return (
+    wp.x >= obj.x &&
+    wp.y >= obj.y &&
+    wp.x <= obj.x + w &&
+    wp.y <= obj.y + h
+  );
+}
+
+

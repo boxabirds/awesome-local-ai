@@ -216,6 +216,9 @@ export function BoardRoot(props: BoardRootProps): ReactNode {
         canRedo={undoState.canRedo}
         undo={undoState.undo}
         redo={undoState.redo}
+        tool={'select'}
+        setTool={() => {}}
+        canEdit={canEdit}
       />
       <BoardViewport
         onCameraChange={(cam) => {

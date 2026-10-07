@@ -17,6 +17,10 @@ interface BoardViewportProps {
   onCameraChange?(cam: Camera): void;
   onDblClickEmpty(x: number, y: number): void;
   onClickEmpty(): void;
+  // Story 9: click-to-create text when Text tool active
+  onClickBoard?(screenX: number, screenY: number): void;
+  // Story 9 text tool
+  tool?: 'select' | 'text';
   // Story 7 selection props
   selectedIds?: ReadonlySet<string>;
   onSelect(ids: string[]): void;
@@ -29,6 +33,8 @@ export function BoardViewport({
   onCameraChange, 
   onDblClickEmpty, 
   onClickEmpty,
+  onClickBoard,
+  tool,
   selectedIds,
   onSelect = () => {},
   isEditing,
@@ -70,6 +76,7 @@ export function BoardViewport({
   // Track pointer capture state for cursor styling
   const isCapturingRef = useRef(false);
   const pointerOnChildRef = useRef(false);
+  const lastPointerCoordsRef = useRef<{ x: number; y: number } | null>(null);
 
   // ResizeObserver — viewport size from the element itself
   useEffect(() => {
@@ -109,6 +116,7 @@ export function BoardViewport({
       e.currentTarget.setPointerCapture(e.pointerId);
       isCapturingRef.current = true;
       pointerOnChildRef.current = false;
+      lastPointerCoordsRef.current = { x: e.clientX, y: e.clientY };
       
       // Shift+drag → marquee selection; plain drag → pan
       if (e.shiftKey && !isEditing) {
@@ -146,16 +154,23 @@ export function BoardViewport({
       return;
     }
     
+    isCapturingRef.current = false;
+    pointerOnChildRef.current = false;
+    
     // If marquee was active, finish it
     if (marquee.active) {
       marquee.end();
     } else {
-      isCapturingRef.current = false;
       endPan();
-      onClickEmpty();
+      
+      // When Text tool is active, create text on empty space click
+      if (tool === 'text' && onClickBoard && lastPointerCoordsRef.current) {
+        onClickBoard(lastPointerCoordsRef.current.x, lastPointerCoordsRef.current.y);
+      } else if (tool !== 'text') {
+        onClickEmpty();
+      }
     }
-    pointerOnChildRef.current = false;
-  }, [endPan, onClickEmpty, marquee.active, marquee.end]);
+  }, [endPan, onClickEmpty, onClickBoard, marquee.active, marquee.end, tool]);
 
   // Listen for Escape key to cancel marquee
   useEffect(() => {
@@ -250,7 +265,7 @@ export function BoardViewport({
   const spacing = GRID_SPACING_WORLD * camera.zoom;
   const bgPosX = (-camera.x * camera.zoom) % spacing;
   const bgPosY = (-camera.y * camera.zoom) % spacing;
-  const cursorStyle = isCapturingRef.current ? 'grabbing' : 'default';
+  const cursorStyle = isCapturingRef.current ? 'grabbing' : (tool === 'text' ? 'text' : 'default');
 
   // Origin marker position
   const markerSize = DEFAULT_ORIGIN_MARKER_SIZE;

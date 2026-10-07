@@ -4,6 +4,7 @@ import { moveObjects, deleteObjects, allObjectIds } from '@/shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '@/shared/config';
 import type { ObjectSnapshot } from '@/client/objects/registry';
 import type { UndoController } from '@/client/board/undo';
+import type { Tool } from './useTool';
 
 interface UseBoardKeysOptions {
   doc: Y.Doc;
@@ -13,6 +14,10 @@ interface UseBoardKeysOptions {
   isEditing: boolean;
   setMany(ids: string[], additive: boolean): void;
   clear(): void;
+  tool: Tool;
+  setTool(t: Tool): void;
+  /** Shortcut to create a sticky at view centre (N key). */
+  onCreateStickyCenter?(): void;
   /** Optional undo controller for undo/redo shortcuts. */
   undoController?: UndoController | null;
 }
@@ -29,6 +34,9 @@ export function useBoardKeys({
   isEditing,
   setMany,
   clear: clearSelection,
+  tool,
+  setTool,
+  onCreateStickyCenter,
   undoController,
 }: UseBoardKeysOptions): void {
   const handleKeyDown = useCallback(
@@ -49,6 +57,39 @@ export function useBoardKeys({
         return;
       }
 
+      // Escape → Select tool
+      if (e.key === 'Escape') {
+        if (tool !== 'select') {
+          setTool('select');
+        }
+        return;
+      }
+
+      // V → Select tool
+      if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        setTool('select');
+        return;
+      }
+
+      // T → Text tool (only if canEdit)
+      if (e.key === 't' || e.key === 'T') {
+        if (canEdit) {
+          e.preventDefault();
+          setTool('text');
+        }
+        return;
+      }
+
+      // N → Create sticky at view centre
+      if (e.key === 'n' || e.key === 'N') {
+        if (canEdit && onCreateStickyCenter) {
+          e.preventDefault();
+          onCreateStickyCenter();
+        }
+        return;
+      }
+
       // Ctrl/Cmd + A → select all objects
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
@@ -57,8 +98,8 @@ export function useBoardKeys({
         return;
       }
 
-      // Escape → clear selection
-      if (e.key === 'Escape') {
+      // Escape → clear selection (only when in Select tool and nothing selected)
+      if (e.key === 'Escape' && tool === 'select' && selectedIds.size > 0) {
         clearSelection();
         return;
       }
@@ -125,7 +166,7 @@ export function useBoardKeys({
         return;
       }
     },
-    [doc, selectedIds, snapshot, canEdit, isEditing, setMany, clearSelection, undoController],
+    [doc, selectedIds, snapshot, canEdit, isEditing, tool, setTool, setMany, clearSelection, onCreateStickyCenter, undoController],
   );
 
   useEffect(() => {

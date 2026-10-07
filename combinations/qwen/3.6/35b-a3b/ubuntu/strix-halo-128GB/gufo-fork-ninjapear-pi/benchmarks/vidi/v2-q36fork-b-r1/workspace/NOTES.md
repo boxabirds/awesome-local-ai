@@ -136,4 +136,51 @@ Task 4 required integrating the undo controller into BoardRoot/App lifecycle. Im
 | Component tests | 9 | UndoBoundaries.test.tsx, UndoButtons.test.tsx | TC-14–TC-21 |
 | E2E tests | 0 | Not yet implemented | TC-22–TC-24 |
 
-**Pre-existing test failures:** Stories 1, 2, and 5 have incomplete tasks logged in PROGRESS.md that cause known component test failures in HomePage, BoardPage, and SharePanel. These are unrelated to story 8's implementation.
+**Pre-existing test failures:** Stories 1, 2, and 5 have incomplete tasks logged in PROGRESS.md that cause known component test failures in HomePage, BoardPage, and SharePanel. These were fixed within this story's gap-fill effort.
+
+---
+
+## Story 9 Notes — Write Free Text Anywhere on the Board
+
+### Gap-fill: vi.mock hoisting issues (Stories 5, 6, 7 pre-existing)
+
+The initial scaffolding had `vi.mock()` calls at module scope with variables defined in `beforeEach`. Since vitest hoists `vi.mock` above all imports, referencing a variable declared later caused `ReferenceError: Cannot access 'X' before initialization`. Fixed by:
+- **HomePage**: Used mutable object pattern (`const mocks = { navigate, createBoardRequest }`) + factory functions that read from the object each call, plus dynamic import pattern with `vi.resetModules()` + `vi.doMock()` for isolation between tests.
+- **BoardPage**: Used similar pattern with resolve callbacks indexed into arrays.
+- **SharePanel**: Kept Object.defineProperty approach which works correctly since it executes during beforeEach rather than being hoisted.
+
+### Gap-fill: useTextBoxSync hook re-render mechanism
+
+The original implementation used `useEffect` with no dependency array and `pendingRef` for triggering writes. This didn't work in React Testing Library because ref changes don't trigger re-renders. Fixed by using a counter state (`tick`) incremented by `remeasureAfterLocalChange()` which triggers a re-render that causes the effect to run.
+
+### Feature Implementation
+
+| Module | Changes |
+|--------|--------|
+| `src/shared/objects/text.ts` | `createText`, `setTextSize`, `setTextWidthFixed`, `setTextBox`, `getTextContent`, `isEmptyText`, `deleteIfEmpty` |
+| `src/shared/text-edit.ts` | `clampToLimit`, `applyTextDiff` extracted shared logic |
+| `src/client/objects/textLayout.ts` | `layoutText` (greedy word-wrap), `createCanvasMeasurer` (OffscreenCanvas fallback) |
+| `src/client/objects/useTextBoxSync.ts` | Measures text after local changes, writes box only when dimensions differ |
+| `src/client/objects/TextEditor.tsx` | Generalized text editor configurable by maxChars, width mode, composition event handling |
+| `src/client/objects/StickyTextEditor.tsx` | Thin wrapper around TextEditor retaining original sticky styling |
+| `src/client/objects/TextToolbar.tsx` | S/M/L/XL size buttons + Delete button |
+| `src/client/objects/TextObject.tsx` | Renders unstyled text at world coordinates, supports inline editing via TextEditor |
+| `src/client/board/useTool.ts` | Reactive tool state ('select' or 'text'), reverts to select if canEdit=false |
+| `src/client/board/useBoardKeys.ts` | V/T/N/Escape key routing for tool switching and object creation |
+| `src/client/board/Toolbar.tsx` | Select/V and Text/T tool buttons with aria-pressed states and disabled-by-canEdit |
+| `src/client/canvas/SelectionOverlay.tsx` | Dynamic handle calculation — horizontal-only handles when all selected objects declare `handles: 'horizontal'` |
+| `src/client/board/SelectionBar.tsx` | Detects single text selection, renders TextToolbar |
+| `src/client/objects/registry.tsx` | Added `HandlesMode` type, `textHitTest`, STICKY_SIZE_WORLD import |
+| `src/client/App.tsx` | Full refactor: registers 'sticky' and 'text' types, wires useTool/useBoardKeys/undo, creates objects on click/dbl-click, renders conditional components by snapshot type, remeasure target propagation |
+
+### Test Results
+
+```
+Unit:    194 passed (15 files)
+Component: 71 passed (13 files)
+Build:   ✓ tsc --noEmit && vite build
+```
+
+### Excluded Features
+- Story 6 (sticky color picker) — explicitly excluded per PRD
+- Stories 13–17 (shapes, tools, collaboration polish) — explicitly excluded

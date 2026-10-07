@@ -2,28 +2,59 @@ import { type ReactNode } from 'react';
 import { deleteObjects } from '@/shared/board-model';
 import type { ObjectSnapshot } from '@/client/objects/registry';
 import { NoteToolbar } from '@/client/objects/NoteToolbar';
-import type { StickyColor } from '@/shared/config';
+import { TextToolbar } from '@/client/objects/TextToolbar';
+import type { StickyColor, TextSize } from '@/shared/config';
 
 interface SelectionBarProps {
   ids: ReadonlySet<string>;
   snapshot: readonly ObjectSnapshot[];
   onDelete(): void;
+  onSizeChange?(id: string, size: TextSize): void;
+  onTextDelete?(): void; // called when deleting a single text
+  onTextEndEdit?(): void; // called when ending edit of a single text
 }
 
 /**
  * Selection bar shown above the selection.
  * - When 2+ objects selected: "N selected" + Delete button with aria-label="Delete selection".
- * - When exactly 1 sticky note selected: NoteToolbar instead of bar (story 2 behaviour retained).
+ * - When exactly 1 sticky note selected: NoteToolbar shown via StickyNote component.
+ * - When exactly 1 text object selected: TextToolbar shown here.
  * Uses aria-live="polite" to announce count changes to screen readers.
  */
-export function SelectionBar({ ids, snapshot, onDelete }: SelectionBarProps): ReactNode {
+export function SelectionBar({ ids, snapshot, onDelete, onSizeChange, onTextDelete, onTextEndEdit }: SelectionBarProps): ReactNode {
   if (ids.size === 0) return null;
 
-  // Single sticky → show NoteToolbar (handled by StickyNote component internally)
+  // Single text object → show TextToolbar
   if (ids.size === 1) {
+    const obj = snapshot.find((s) => s.id && s.type === 'text');
+    if (obj) {
+      const sizeKey = ((obj.size as string) ?? 'M') as TextSize;
+      return (
+        <div
+          style={{
+            position: 'fixed',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            top: '16px',
+            zIndex: 100,
+          }}
+        >
+          <TextToolbar
+            size={sizeKey}
+            onSize={(s) => onSizeChange?.(obj.id, s)}
+            onDelete={() => {
+              onTextDelete?.();
+              onDelete();
+            }}
+          />
+        </div>
+      );
+    }
+    // Single sticky → handled by StickyNote's own toolbar
     return null;
   }
 
+  // Multiple → standard selection bar
   return (
     <div
       data-testid="selection-bar"

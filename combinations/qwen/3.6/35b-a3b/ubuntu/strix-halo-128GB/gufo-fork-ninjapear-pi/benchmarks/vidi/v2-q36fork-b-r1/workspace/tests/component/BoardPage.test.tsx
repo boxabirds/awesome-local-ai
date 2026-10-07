@@ -2,7 +2,7 @@
  * Task 6: Component tests for BoardPage (TC-19, TC-20, TC-21).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, act } from '@testing-library/react';
 import { BoardPage } from '@/client/pages/BoardPage';
 import type { CheckResponse } from '@/client/api';
 
@@ -48,18 +48,22 @@ describe('BoardPage', () => {
 
   // ---- TC-20: not_found → Opening board… then Board not found ----
   it('TC-20: valid id with exists=false → "Opening board…" then NotFoundPage with New board button', async () => {
-    const resultPromise = new Promise<{ kind: 'not_found' }>(resolve => {
-      setTimeout(() => resolve({ kind: 'not_found' }), 0);
+    let resolveCheck: ((v: { kind: 'not_found' }) => void) | null = null;
+    const checkPromise = new Promise<{ kind: 'not_found' }>((resolve) => {
+      resolveCheck = resolve;
     });
-    mockImpl = (_id: string) => resultPromise;
+    mockImpl = (_id: string) => checkPromise;
 
     render(<BoardPage id="abc123def456ghi789jklm" />);
 
     // Initial state: checking
     expect(screen.getByText(/Opening board/)).toBeTruthy();
 
-    // Resolve the promise via fake timer
-    await vi.runAllTimersAsync();
+    // Resolve the check response
+    resolveCheck!({ kind: 'not_found' });
+
+    // Flush promises so setState triggers re-render
+    await act(async () => {});
 
     // After result: not found
     expect(screen.queryByText(/Opening board/)).toBeNull();
@@ -73,32 +77,49 @@ describe('BoardPage', () => {
   // ---- TC-21: unreachable twice then exists → retry with backoff ----
   it('TC-21: unreachable→unreachable→exists → retry after BASE_MS, then 2×BASE_MS; 3 calls total', async () => {
     let callCount = 0;
+    const resolvers: Array<((result: CheckResponse) => void)> = [];
+
     mockImpl = (_id: string) => {
       callCount++;
-      if (callCount <= 2) {
-        return new Promise(r => setTimeout(() => r({ kind: 'unreachable' as const }), 0));
-      }
-      return new Promise(r => setTimeout(() => r({ kind: 'exists' as const }), 0));
+      return new Promise<CheckResponse>((resolve) => {
+        resolvers.push(resolve);
+      });
     };
 
     render(<BoardPage id="abc123def456ghi789jklm" />);
 
-    // Initial check fires immediately (sync promise chain + setTimeout(0))
-    await vi.advanceTimersByTimeAsync(1);
+    // First check fires immediately via useEffect — resolve it
+    resolvers[0]!({ kind: 'unreachable' });
+
+    // Flush promises so setState(unreachable) re-renders
+    await act(async () => {});
 
     expect(callCount).toBe(1);
     expect(screen.getByText(/Couldn't reach vidi6/)).toBeTruthy();
 
-    // BOARD_CHECK_RETRY_BASE_MS = 1000 → second call fires
-    await vi.advanceTimersByTimeAsync(1000);
+    // BOARD_CHECK_RETRY_BASE_MS = 1000ms for attempt 0 → schedule second call
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
 
     expect(callCount).toBe(2);
+
+    // Resolve second as unreachable
+    resolvers[1]!({ kind: 'unreachable' });
+    await act(async () => {});
+
     expect(screen.getByText(/Couldn't reach vidi6/)).toBeTruthy();
 
-    // 2×BOARD_CHECK_RETRY_BASE_MS = 1000 → third call fires and returns exists
-    await vi.advanceTimersByTimeAsync(1000);
+    // 2×BOARD_CHECK_RETRY_BASE_MS = 2000ms for attempt 1 → schedule third call
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
 
     expect(callCount).toBe(3);
+
+    // Resolve third as exists → shows board
+    resolvers[2]!({ kind: 'exists' });
+    await act(async () => {});
 
     // Should now show the board (from mocked BoardRoot)
     expect(screen.getByTestId('board-root')).toBeTruthy();
