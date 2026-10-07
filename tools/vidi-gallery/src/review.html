@@ -35,6 +35,8 @@ details > summary { cursor:pointer; color:var(--muted); font-size:12px; text-tra
 .bhead { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .bhead .name { font-weight:600; } .bhead .status { font-size:12px; color:var(--muted); }
 .bhead .status.running { color:var(--pass); } .bhead .status.failed { color:var(--fail); }
+/* The few lines a failed build said: the judge's evidence for a verdict on the build itself. */
+.builderr { margin:4px 0 6px 22px; padding:6px 8px; font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--muted); background:rgba(127,127,127,.08); border-left:3px solid var(--fail); white-space:pre-wrap; overflow-wrap:anywhere; }
 .bsum { font-size:12px; color:var(--muted); margin-left:auto; }
 .prow { display:grid; grid-template-columns:52px minmax(0,1fr) auto; gap:6px; align-items:center; padding:3px 4px; border-radius:6px; cursor:pointer; }
 .prow:hover { background:var(--chip); } .prow.on { background:var(--sel); outline:1px solid var(--accent); }
@@ -183,7 +185,7 @@ function statusText(key) {
   if (st.state === "ready") return ["ready", "running"];
   if (st.state === "queued") return ["queued to build", ""];
   if (st.state === "preparing") return [st.step || "preparing…", ""];
-  if (st.state === "failed") return ["failed: " + (st.error || "").slice(0, 80), "failed"];
+  if (st.state === "failed") return [describeBuildFailure(st.error).headline, "failed"];
   return [st.state, ""];
 }
 
@@ -199,13 +201,17 @@ function renderBuilds() {
         <span class="t" title="${esc(p.title)}">${esc(shortTitle(p.title))}</span>
         <span class="mark ${esc(view.markClass)}">${esc(view.mark)}</span></div>`;
     }).join("");
-    const noPaths = !ps.length ? `<div class="small muted">no recorded paths (${esc(pathsCache[`${sid}:${b.key}`]?.state || "loading")}); verdict on the build itself:
+    // A build that did not prepare: what it said, as a few lines under the build, and nothing to play.
+    const failed = status[b.key]?.state === "failed" ? describeBuildFailure(status[b.key].error) : null;
+    const buildErr = failed && failed.errors.length
+      ? `<pre class="builderr">${failed.errors.map(esc).join("\n")}${failed.more ? `\n… and ${failed.more} more` : ""}</pre>` : "";
+    const noPaths = !ps.length ? `<div class="small muted">${failed ? "nothing to play: this build did not prepare" : `no recorded paths (${esc(pathsCache[`${sid}:${b.key}`]?.state || "loading")})`}; verdict on the build itself:
         ${["pass", "fail", "skip"].map(v => `<button data-bv="${v}" data-key="${b.key}" class="${review(sid, b.key)?.verdict === v ? "on" : ""}">${v}</button>`).join(" ")}</div>` : "";
     return `<div class="build">
       <div class="bhead"><span class="muted small">${i + 1}</span><span class="name">${esc(b.label)}</span>
         <button data-open="${b.key}">${status[b.key]?.state === "running" ? "Go to tab" : "Open"}</button>
         <span class="status ${cls}">${esc(st)}</span><span class="bsum">${esc(buildSummary(sid, b.key))}</span></div>
-      ${rows}${noPaths}</div>`;
+      ${buildErr}${rows}${noPaths}</div>`;
   }).join("");
   document.querySelectorAll("[data-open]").forEach(b => b.onclick = e => { e.stopPropagation(); openTab(+b.dataset.open); });
   document.querySelectorAll(".prow").forEach(r => r.onclick = () => select(+r.dataset.key, +r.dataset.idx));

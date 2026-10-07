@@ -241,5 +241,33 @@ const KEYS = [
   ["?", "show / hide these keys (Esc closes)"],
 ];
 
+// ---------- a build that did not prepare ----------
+// The gallery's server says "<command> failed: <the end of its output>", behind a "failed:" of its own. The page
+// used to show it as "failed: " + the first 80 characters, which is a doubled prefix and the npm banner, with the
+// compiler errors -- the part a judge can use -- cut off. This turns it into a headline and the few lines worth
+// reading, and says how many more there were.
+
+const BUILD_ERROR_LINES = 6;
+const TYPE_ERROR = /^(.+?)\((\d+),(\d+)\): error (TS\d+): (.*)$/;
+
+function describeBuildFailure(raw) {
+  const text = String(raw ?? "").replace(/^(\s*failed:\s*)+/i, "").trim();
+  const step = /^(npm [^\n]*?) failed:\s*([\s\S]*)$/.exec(text);
+  const body = step ? step[2] : text;
+  const lines = body.split("\n").map(l => l.trimEnd()).filter(l => l.trim() && !l.startsWith(">"));
+  const kind = !step ? null : /^npm (ci|install)\b/.test(step[1]) ? "install" : /\brun build\b/.test(step[1]) ? "build" : null;
+
+  const typeErrors = lines.map(l => TYPE_ERROR.exec(l)).filter(Boolean)
+    .map(([, file, line, col, code, what]) => `${file}:${line}:${col}  ${what} (${code})`);
+  if (typeErrors.length) {
+    const n = typeErrors.length;
+    return { headline: `${kind ?? "build"} failed: ${n} type error${n === 1 ? "" : "s"}`,
+             errors: typeErrors.slice(0, BUILD_ERROR_LINES), more: Math.max(0, n - BUILD_ERROR_LINES) };
+  }
+  const shown = lines.map(l => l.replace(/^npm error /, ""));
+  return { headline: kind ? `${kind} failed` : "could not be prepared",
+           errors: shown.slice(0, BUILD_ERROR_LINES), more: Math.max(0, shown.length - BUILD_ERROR_LINES) };
+}
+
 if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, nextFrame, keyAction, scrubStep, placeToHash, placeFromHash, PANES, SCRUB, FINE_SCRUB,
-  answered, ownOf, pathView, stepMark, bulkTargets, KEYS };
+  answered, ownOf, pathView, stepMark, bulkTargets, KEYS, describeBuildFailure };

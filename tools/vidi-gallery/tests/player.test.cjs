@@ -2,7 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert");
 const { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, keyAction, nextFrame, scrubStep, placeToHash, placeFromHash, SCRUB, FINE_SCRUB,
-  answered, ownOf, pathView, stepMark, bulkTargets, KEYS } = require("../src/player.js");
+  answered, ownOf, pathView, stepMark, bulkTargets, KEYS, describeBuildFailure } = require("../src/player.js");
 
 test("the frame shown at t is the last one at or before t, for each page separately", () => {
   const p1 = [[10, "a"], [20, "b"], [30, "c"]], p2 = [[25, "x"]];
@@ -305,4 +305,64 @@ test("the keys sheet says what a verdict and the whole-story keys mean with the 
   assert.match(bulk, /overwrites earlier verdicts/);
   assert.match(bulk, /results then show/);
   assert.match(sheet["Hidden"], /automated result.*hidden until you give your own/);
+});
+
+// ---------- a build that did not prepare ----------
+// The review page showed "failed: failed: npm run build failed: > vidi6@0.0.1 build > tsc --noEmit && vite build":
+// the server's error already starts with "failed:", and the page cut it at 80 characters, which keeps the npm
+// banner and throws away the compiler errors -- the only part a judge can use. These are the shapes the
+// gallery's own `run` helper produces ("<command> failed: <tail of its output>"). The first is the real text
+// from v2-q36fork-b-r1, story 1, as the live gallery returned it.
+
+const REAL_TSC = "failed: npm run build failed: \n> vidi6@0.0.1 build\n> tsc --noEmit && vite build\n\n" +
+  "tests/e2e/navigation.spec.ts(231,25): error TS2339: Property 'style' does not exist on type 'Element'.\n" +
+  "tests/e2e/navigation.spec.ts(232,24): error TS2339: Property 'style' does not exist on type 'Element'.\n" +
+  "tests/e2e/navigation.spec.ts(244,21): error TS2552: Cannot find name 'originPos'. Did you mean 'origin'?\n" +
+  "tests/e2e/navigation.spec.ts(245,21): error TS2552: Cannot find name 'originPos'. Did you mean 'origin'?\n";
+
+test("a failed type check says how many errors, not the npm banner", () => {
+  const d = describeBuildFailure(REAL_TSC);
+  assert.strictEqual(d.headline, "build failed: 4 type errors");
+  assert.strictEqual(d.errors.length, 4);
+  assert.strictEqual(d.more, 0);
+  const shown = d.headline + "\n" + d.errors.join("\n");
+  assert.ok(!/failed: failed|vidi6@|tsc --noEmit|> /.test(shown), shown);   // no doubled prefix, no banner
+});
+
+test("each type error reads as file:line:column and what is wrong, with its code last", () => {
+  const [first, , third] = describeBuildFailure(REAL_TSC).errors;
+  assert.strictEqual(first, "tests/e2e/navigation.spec.ts:231:25  Property 'style' does not exist on type 'Element'. (TS2339)");
+  assert.strictEqual(third, "tests/e2e/navigation.spec.ts:244:21  Cannot find name 'originPos'. Did you mean 'origin'? (TS2552)");
+});
+
+test("one error is '1 type error', and a long list is cut to a few with the rest counted", () => {
+  const one = "failed: npm run build failed: \n> x\n> check\n\na.ts(1,2): error TS1: bad\n";
+  assert.strictEqual(describeBuildFailure(one).headline, "build failed: 1 type error");
+  const many = "failed: npm run build failed: \n" + Array.from({ length: 10 }, (_, i) => `a.ts(${i + 1},1): error TS1: bad`).join("\n");
+  const d = describeBuildFailure(many);
+  assert.strictEqual(d.headline, "build failed: 10 type errors");
+  assert.strictEqual(d.errors.length, 6);
+  assert.strictEqual(d.more, 4);
+});
+
+test("a failed install is an install, and npm's own prefix is dropped from its lines", () => {
+  const d = describeBuildFailure("failed: npm ci --ignore-scripts --no-audit --no-fund failed: npm error code ERESOLVE\nnpm error Could not resolve dependency\n");
+  assert.strictEqual(d.headline, "install failed");
+  assert.deepStrictEqual(d.errors, ["code ERESOLVE", "Could not resolve dependency"]);
+});
+
+test("a build that failed without a type error shows what it said, minus the banner", () => {
+  const d = describeBuildFailure("failed: npm run build failed: \n> app@1 build\n> vite build\n\nerror during build:\nCould not resolve ./missing from src/main.ts\n");
+  assert.strictEqual(d.headline, "build failed");
+  assert.deepStrictEqual(d.errors, ["error during build:", "Could not resolve ./missing from src/main.ts"]);
+});
+
+test("something that is not a build step is passed through, never lost", () => {
+  const d = describeBuildFailure("failed: the checkout of abc123 found no such revision");
+  assert.strictEqual(d.headline, "could not be prepared");
+  assert.deepStrictEqual(d.errors, ["the checkout of abc123 found no such revision"]);
+});
+
+test("nothing to go on is still a sentence", () => {
+  for (const none of [undefined, null, "", "failed:"]) assert.strictEqual(describeBuildFailure(none).headline, "could not be prepared");
 });
