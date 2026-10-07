@@ -1,1 +1,2 @@
 2026-10-07T06:21:15Z 11: interrupted a tool call silent for 600s (killed processes under the workspace)
+- 2026-10-07T08:03:05Z story 12: ended by the operator (harness (stop message already sent)) after 40.7 agent-min, 172 calls: story cap: the stop message was sent and the story was still not finished (one message per story). Recorded PARTIAL. Verdict red: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9] (implementation: [3, 5, 6, 7]), held-out 0/5 (floor 0.6). The run continued with the next story.
