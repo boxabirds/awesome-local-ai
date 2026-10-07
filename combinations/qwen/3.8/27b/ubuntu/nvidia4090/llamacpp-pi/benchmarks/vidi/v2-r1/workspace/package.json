@@ -15,7 +15,8 @@
     "test:e2e": "playwright test",
     "test:e2e:nightly": "playwright test --project nightly",
     "test:e2e:persist": "playwright test --config playwright.persistence.config.ts",
-    "test:e2e:share": "playwright test --config playwright.share.config.ts"
+    "test:e2e:share": "playwright test --config playwright.share.config.ts",
+    "test:e2e:selection": "playwright test --config playwright.selection.config.ts"
   },
   "dependencies": {
     "lib0": "^0.2.119",

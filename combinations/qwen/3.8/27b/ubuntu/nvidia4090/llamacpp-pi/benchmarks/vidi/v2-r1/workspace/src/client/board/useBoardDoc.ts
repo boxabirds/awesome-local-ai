@@ -1,26 +1,26 @@
-// useBoardDoc (story 2 + 3): owns the Y.Doc, attaches a network provider when
-// boardId is provided, and exposes an immutable snapshot of all sticky notes
-// via useSyncExternalStore.
+// useBoardDoc (story 2 + 3, generic objects from story 7): owns the Y.Doc,
+// attaches a network provider when boardId is provided, and exposes an
+// immutable snapshot of all known objects via useSyncExternalStore.
 
 import * as Y from 'yjs';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   initDoc,
-  snapshot,
-  type StickySnapshot,
+  objectsSnapshot,
+  type ObjectSnapshot,
 } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 interface BoardStore {
   readonly doc: Y.Doc;
   listeners: Set<() => void>;
-  current: readonly StickySnapshot[];
+  current: readonly ObjectSnapshot[];
   dirty: boolean;
 }
 
 export interface BoardDoc {
   readonly doc: Y.Doc;
-  readonly objects: readonly StickySnapshot[];
+  readonly objects: readonly ObjectSnapshot[];
   readonly connectionState: ConnectionState;
 }
 
@@ -32,7 +32,7 @@ export function useBoardDoc(boardId?: string): BoardDoc {
     ref.current = {
       doc,
       listeners: new Set(),
-      current: snapshot(doc),
+      current: objectsSnapshot(doc),
       dirty: false,
     };
   }
@@ -92,7 +92,7 @@ export function useBoardDoc(boardId?: string): BoardDoc {
   );
   const getSnapshot = useCallback(() => {
     if (store.dirty) {
-      store.current = snapshot(store.doc);
+      store.current = objectsSnapshot(store.doc);
       store.dirty = false;
     }
     return store.current;

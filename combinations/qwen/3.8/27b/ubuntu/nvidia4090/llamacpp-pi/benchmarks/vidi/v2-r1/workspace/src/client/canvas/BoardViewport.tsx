@@ -28,6 +28,16 @@ export interface BoardViewportProps {
   onCreateStickyAt(screen: Point): void;
   /** A click (press + release without meaningful movement) on empty space. */
   onEmptyClick(): void;
+  /**
+   * Story 7: a Shift+pointerdown on empty space starts the marquee instead
+   * of a pan. Screen points, same conventions as the pan callbacks.
+   */
+  marquee?: {
+    begin(screen: Point): void;
+    move(screen: Point): void;
+    end(): void;
+    cancel(): void;
+  };
   children?: React.ReactNode;
 }
 
@@ -46,17 +56,19 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     onReset,
     onCreateStickyAt,
     onEmptyClick,
+    marquee,
     children,
   } = props;
 
   const viewportRef = useRef<HTMLDivElement>(null);
-  const panIdRef = useRef<number | null>(null);
+  /** The active empty-space gesture: a pan (plain drag) or a marquee (Shift). */
+  const activeRef = useRef<{ id: number; mode: 'pan' | 'marquee' } | null>(null);
   const panStartRef = useRef<Point | null>(null);
   const lastScaleRef = useRef(1);
 
   // Keep the latest callbacks in a ref so native listeners attach once.
-  const cbRef = useRef({ onBeginPan, onPanMove, onEndPan, onWheel, onZoomStep, onReset, onCreateStickyAt, onEmptyClick });
-  cbRef.current = { onBeginPan, onPanMove, onEndPan, onWheel, onZoomStep, onReset, onCreateStickyAt, onEmptyClick };
+  const cbRef = useRef({ onBeginPan, onPanMove, onEndPan, onWheel, onZoomStep, onReset, onCreateStickyAt, onEmptyClick, marquee });
+  cbRef.current = { onBeginPan, onPanMove, onEndPan, onWheel, onZoomStep, onReset, onCreateStickyAt, onEmptyClick, marquee };
 
   const toLocal = (clientX: number, clientY: number): Point => {
     const el = viewportRef.current;
@@ -140,7 +152,8 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   }, []);
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // Drag to pan only starts on empty board space; objects stop propagation.
+    // Drag to pan (or marquee) only starts on empty board space; objects stop
+    // propagation.
     if (e.target !== viewportRef.current) return;
     e.preventDefault();
     const el = viewportRef.current;
@@ -151,19 +164,34 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         // Ignore: capture is best-effort (jsdom, older browsers).
       }
     }
-    panIdRef.current = e.pointerId;
-    panStartRef.current = toLocal(e.clientX, e.clientY);
-    cbRef.current.onBeginPan(panStartRef.current);
+    const start = toLocal(e.clientX, e.clientY);
+    const m = cbRef.current.marquee;
+    if (e.shiftKey && m) {
+      // Story 7: Shift+drag on empty space is the selection rectangle; the
+      // story 1 pan path is unchanged without Shift.
+      activeRef.current = { id: e.pointerId, mode: 'marquee' };
+      m.begin(start);
+      return;
+    }
+    activeRef.current = { id: e.pointerId, mode: 'pan' };
+    panStartRef.current = start;
+    cbRef.current.onBeginPan(start);
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (panIdRef.current !== e.pointerId) return;
+    const active = activeRef.current;
+    if (!active || active.id !== e.pointerId) return;
+    if (active.mode === 'marquee') {
+      cbRef.current.marquee?.move(toLocal(e.clientX, e.clientY));
+      return;
+    }
     cbRef.current.onPanMove(toLocal(e.clientX, e.clientY));
   };
 
-  const finishPan = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (panIdRef.current !== e.pointerId) return;
-    panIdRef.current = null;
+  const finishActive = (e: React.PointerEvent<HTMLDivElement>, cancelled: boolean) => {
+    const active = activeRef.current;
+    if (!active || active.id !== e.pointerId) return;
+    activeRef.current = null;
     const start = panStartRef.current;
     panStartRef.current = null;
     const el = viewportRef.current;
@@ -173,6 +201,11 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       } catch {
         // Ignore.
       }
+    }
+    if (active.mode === 'marquee') {
+      if (cancelled) cbRef.current.marquee?.cancel();
+      else cbRef.current.marquee?.end();
+      return;
     }
     cbRef.current.onEndPan();
     if (start) {
@@ -207,9 +240,9 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={finishPan}
-      onPointerCancel={finishPan}
-      onLostPointerCapture={finishPan}
+      onPointerUp={(e) => finishActive(e, false)}
+      onPointerCancel={(e) => finishActive(e, true)}
+      onLostPointerCapture={(e) => finishActive(e, true)}
       onDoubleClick={onDoubleClick}
     >
       <div

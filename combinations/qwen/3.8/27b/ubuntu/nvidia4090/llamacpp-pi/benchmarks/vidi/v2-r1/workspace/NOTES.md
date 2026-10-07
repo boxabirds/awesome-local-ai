@@ -145,3 +145,72 @@ gaps were already closed in stories 2–4).
 - **Fake-timer component tests** (`TC-21`, `TC-22`) wrap
   `vi.advanceTimersByTimeAsync` in `act(async () => …)`; RTL's `findBy*`
   must not be used while timers are faked.
+
+# Story 7 — Notes
+
+## Story 1 gaps filled
+
+None. Pan/zoom (story 1) was already working: the marquee and transform
+input both build on `useCamera`'s existing drag handling, and the
+Ctrl/Cmd+A keyboard shortcut path was added next to the existing
+Ctrl/Cmd +/-/0 zoom shortcuts in `useCamera`/`BoardViewport`.
+
+## Key design decisions
+
+- **One generic path for every type.** Selection, move, resize and delete
+  live in `useSelection` / `useTransformGesture` / `useBoardKeys` + the
+  group functions in `board-model.ts`; the per-type surface is the
+  `ObjectTypeSpec` in `registry.tsx` (`Component`, `resizable`,
+  `aspectLocked`, `minSize`, `editableText`, `hitTest`). `StickyNote`
+  keeps story 2's rendering but delegates pointerdown to the board and
+  renders explicit `width`/`height` (falling back to `STICKY_SIZE_WORLD`).
+- **`selectionReducer` `edit` does not require the id to be present.**
+  A freshly created note is edited in the same tick in which it enters the
+  document (before any snapshot render), so the reducer accepts the id and
+  the snapshot effect's `prune` reconciles later (drops it if it was
+  deleted). Making `edit` snapshot-validated forced a deferred
+  start-edit (pending ref + effect) that added a render cycle; the
+  deferred focus then lost the race against `keyboard.type` in e2e
+  (story 2 TC-32 went flaky ~50%). Restoring the synchronous `startEdit`
+  made it pass 5/5 and the full main e2e suite twice in a row.
+- **`resizeRect` anchors at the opposite edge/corner of the handle**, and
+  the aspect lock keeps the ratio of the *current* box (not the start box)
+  so repeated frames stay consistent; `clampScale` computes one uniform
+  scale from all selected rects + per-type min sizes, and `scaleWithin`
+  maps each child from its start rect into the resized bounding box.
+- **Move/nudge writes are absolute** (`moveObjects` sets `x`/`y`), so
+  concurrent editors converge on the last writer's absolute position
+  (TC-36). `bringObjectsToFront` runs once at gesture start so the DOM
+  order/CSS z-index split from story 2 never moves the dragged element
+  mid-capture.
+- **Handles are screen-space.** `SelectionOverlay` computes the bounding
+  box from `unionRects` in world units but sizes the 8 handles by
+  `HANDLE_SIZE_PX / zoom` world units, so they stay a constant size on
+  screen at any zoom (e2e asserts the 16px box at 200% zoom).
+- **The marquee is additive** (`setMany(ids, true)`) per design, so a
+  Shift+drag grows the current selection; empty results leave the
+  selection unchanged. pointercancel/Esc cancel with no change.
+- **Selection is local UI state** — never written to the Y.Doc; only the
+  object transforms are shared.
+
+## Test notes
+
+- **Test-only `testbox` type** (`tests/fixtures/testbox.tsx`):
+  resizable, not aspect-locked, `minSize` 10. Registered at module import
+  of the test file only; proves the generic path (edge handle changes one
+  axis, no ratio lock) that stickies can't show.
+- **Component harness for gestures** (`tests/component/harness-gesture.tsx`)
+  renders a real `BoardViewport`-shaped world layer with pointer-captured
+  synthetic `PointerEvent`s (jsdom polyfill) so `useTransformGesture` / marquee
+  are tested through their real pointer handlers, not re-implemented logic.
+- **E2E runs against two servers.** The main Playwright config (dev +
+  vite-plugin-board-sync WS relay) covers TC-32/33/34 in chromium; the new
+  `playwright.selection.config.ts` (script `test:e2e:selection`) runs the
+  wrangler-based TC-35/TC-36, matching the story 5 share-spec pattern.
+  The main config's `testIgnore` excludes `selection-collab.spec.ts` so a
+  plain `npm run test:e2e` never needs wrangler.
+- **Firefox/WebKit skipped for TC-32.** `tasks.md` asks for TC-32 in all
+  three browsers, but only Chromium is installed in this environment
+  (`npx playwright install --dry-run` shows firefox/webkit absent); the
+  harness constraint is Chromium-only. All TC-32/33/34/35/36 cases pass in
+  chromium.

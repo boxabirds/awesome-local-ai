@@ -26,17 +26,26 @@ import { ZoomControls } from '../canvas/ZoomControls';
 import { NavigationHint } from '../canvas/NavigationHint';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
+import { useBoardKeys } from '../board/useBoardKeys';
+import { useTransformGesture } from '../board/useTransformGesture';
+import { useMarquee, MarqueeRect } from '../board/Marquee';
+import { SelectionBar } from '../board/SelectionBar';
+import { SelectionOverlay } from '../board/SelectionOverlay';
 import { Toolbar } from '../board/Toolbar';
-import { StickyNote } from '../objects/StickyNote';
+import { getObjectType } from '../objects/registry';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import {
   createSticky,
   deleteObject,
+  deleteObjects,
   getStickyText,
+  objectBounds,
+  objectsSnapshot,
   setStickyColor,
   snapshot,
+  type ObjectSnapshot,
 } from '../../shared/board-model';
-import { STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from '../../shared/config';
+import { STICKY_COLORS, type StickyColor } from '../../shared/config';
 import { isValidBoardId } from '../../shared/board-id';
 import { isTestMode, type Vidi6TestHooks } from '../testHooks';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -124,11 +133,12 @@ export function BoardPage(props: { id: string }): JSX.Element {
   }
 }
 
-/** The stories 1–4 board, mounted only once the board is known to exist. */
+/** The stories 1–7 board, mounted only once the board is known to exist. */
 function Board(props: { boardId: string }): JSX.Element {
   const boardId = props.boardId;
   const { doc, objects, connectionState } = useBoardDoc(boardId);
-  const selection = useSelection();
+  const selection = useSelection(objects);
+  const editable = canEdit(connectionState);
   const rootRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>(() => ({
     width: window.innerWidth,
@@ -157,53 +167,40 @@ function Board(props: { boardId: string }): JSX.Element {
 
   const cam = useCamera(size);
 
-  // If a selected/edited/dragged note disappears from the document, clear the
-  // stale local state (also ends interactions when a note is deleted
-  // mid-drag or mid-edit).
-  useEffect(() => {
-    const ids = new Set(objects.map((n) => n.id));
-    if (selection.selectedId && !ids.has(selection.selectedId)) selection.select(null);
-    if (selection.editingId && !ids.has(selection.editingId)) selection.endEdit('unselected');
-    if (selection.draggingId && !ids.has(selection.draggingId)) selection.setDragging(null);
-  }, [objects, selection]);
+  // Story 7: the generic transform gesture (group move + bounding-box resize)
+  // and the selection keyboard commands.
+  const gesture = useTransformGesture({
+    doc,
+    camera: cam.camera,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+  });
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+
+  // Shift+drag marquee: on release, the fully-inside ids join the selection.
+  const marquee = useMarquee(cam.camera, objects, (ids) => selection.setMany(ids, true));
 
   const createStickyAt = useCallback(
     (screen: Point) => {
-      if (!canEdit(connectionState)) return; // story 4: edit lock
+      if (!editable) return; // story 4: edit lock
       const world = screenToWorld(cam.camera, screen);
       const id = createSticky(doc, world);
       if (id) {
-        // The new note is selected and starts editing immediately, so typed
-        // characters go straight into it.
-        selection.select(id);
+        // The new note is selected and starts editing immediately (the
+        // 'edit' action accepts ids that are not in the snapshot yet), so
+        // typed characters go straight into it.
         selection.startEdit(id);
       }
     },
-    [cam.camera, doc, selection, connectionState],
+    [cam.camera, doc, editable, selection],
   );
 
-  // Keyboard: Enter starts editing the selected note; Delete/Backspace delete
-  // the selected note. Both are ignored while text is being edited (the keys
-  // then go to the textarea) or while focus is in any input.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (isEditableTarget(e.target)) return;
-      if (!canEdit(connectionState)) return; // story 4: edit lock
-      if (e.key === 'Enter') {
-        if (selection.selectedId && !selection.editingId) {
-          e.preventDefault();
-          selection.startEdit(selection.selectedId);
-        }
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selection.selectedId && !selection.editingId) {
-          e.preventDefault();
-          if (deleteObject(doc, selection.selectedId)) selection.select(null);
-        }
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [doc, selection, connectionState]);
+  const deleteSelection = useCallback(() => {
+    if (!editable || selection.ids.size === 0) return;
+    deleteObjects(doc, [...selection.ids]);
+    selection.clear();
+  }, [doc, selection, editable]);
 
   // Test hooks (test mode only).
   useEffect(() => {
@@ -221,6 +218,21 @@ function Board(props: { boardId: string }): JSX.Element {
           text: n.text,
           z: n.z,
         })),
+      getObjects: () =>
+        objectsSnapshot(doc).map((o) => {
+          const b = objectBounds(o);
+          return {
+            id: o.id,
+            type: o.type,
+            x: o.x,
+            y: o.y,
+            width: b.width,
+            height: b.height,
+            color: o.color,
+            text: o.text,
+            z: o.z,
+          };
+        }),
       getConnectionState: () => connectionState,
       createNote: () => {
         createStickyAt({ x: size.width / 2, y: size.height / 2 });
@@ -241,11 +253,25 @@ function Board(props: { boardId: string }): JSX.Element {
     };
   }, [doc, cam.camera, cam.setCamera, connectionState, size, createStickyAt]);
 
-  const selectedNote = objects.find((n) => n.id === selection.selectedId) ?? null;
+  // Objects of a known type render through their registry component, in a
+  // stable DOM order (by id); visual stacking comes from each object's CSS
+  // z-index. Reordering the DOM when z changes would move the element of an
+  // in-flight drag and break its pointer capture, so DOM order never follows z.
+  const objectsById = [...objects].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+  // With exactly one sticky selected, the story 2 NoteToolbar (colours +
+  // delete) replaces the multi-selection bar (sel.bar).
+  const selectedObjects = objects.filter((o) => selection.ids.has(o.id));
+  const singleSticky: ObjectSnapshot | null =
+    selectedObjects.length === 1 && selectedObjects[0].type === 'sticky'
+      ? selectedObjects[0]
+      : null;
   const noteToolbarVisible =
-    selectedNote !== null &&
-    selection.editingId !== selectedNote.id &&
-    selection.draggingId !== selectedNote.id;
+    singleSticky !== null && selection.editingId !== singleSticky.id;
+  const singleStickyColor: StickyColor =
+    typeof singleSticky?.color === 'string' && singleSticky.color in STICKY_COLORS
+      ? (singleSticky.color as StickyColor)
+      : ('yellow' as StickyColor);
 
   return (
     <div ref={rootRef} className="board-root" data-testid="board-root">
@@ -260,56 +286,73 @@ function Board(props: { boardId: string }): JSX.Element {
         onZoomStep={cam.zoomStep}
         onReset={cam.reset}
         onCreateStickyAt={createStickyAt}
-        onEmptyClick={() => selection.select(null)}
+        onEmptyClick={() => selection.clear()}
+        marquee={marquee}
       >
-        {/* Notes render in a stable DOM order (by id); visual stacking comes
-            from each note's CSS z-index. Reordering the DOM when z changes
-            would move the element of an in-flight drag and break its pointer
-            capture, so DOM order must never follow z. */}
-        {[...objects].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={cam.camera.zoom}
-            selected={selection.selectedId === note.id}
-            editing={selection.editingId === note.id}
-            disabled={!canEdit(connectionState)}
-            onSelect={selection.select}
-            onStartEdit={selection.startEdit}
-            onEndEdit={selection.endEdit}
-            onDragChange={(dragging) => selection.setDragging(dragging ? note.id : null)}
-          />
-        ))}
+        {objectsById.map((obj) => {
+          const spec = getObjectType(obj.type);
+          if (!spec) return null; // unknown type: in the doc, not on screen
+          const Component = spec.Component;
+          return (
+            <Component
+              key={obj.id}
+              obj={obj}
+              doc={doc}
+              zoom={cam.camera.zoom}
+              selected={selection.ids.has(obj.id)}
+              editing={selection.editingId === obj.id}
+              canEdit={editable}
+              onPointerDown={gesture.onObjectPointerDown}
+              onStartEdit={(id: string) => {
+                if (editable) selection.startEdit(id); // story 4: edit lock
+              }}
+              onEndEdit={(next) => {
+                // 'selected' keeps the selection (Escape); 'unselected' clears
+                // it (click outside — the editor's outside-pointerdown).
+                if (next === 'unselected') selection.clear();
+                else selection.endEdit();
+              }}
+            />
+          );
+        })}
       </BoardViewport>
 
+      <MarqueeRect rect={marquee.rect} camera={cam.camera} />
+      <SelectionOverlay
+        ids={selection.ids}
+        snapshot={objects}
+        camera={cam.camera}
+        onHandlePointerDown={gesture.onHandlePointerDown}
+      />
+      <SelectionBar ids={selection.ids} snapshot={objects} onDelete={deleteSelection} />
+
       <Toolbar
-        disabled={!canEdit(connectionState)}
+        disabled={!editable}
         onCreateSticky={() => createStickyAt({ x: size.width / 2, y: size.height / 2 })}
       />
 
-      {noteToolbarVisible && selectedNote && (
+      {noteToolbarVisible && singleSticky && (
         <div
           className="note-toolbar-anchor"
           style={{
             left: worldToScreen(cam.camera, {
-              x: selectedNote.x + STICKY_SIZE_WORLD / 2,
-              y: selectedNote.y,
+              x: singleSticky.x + objectBounds(singleSticky).width / 2,
+              y: singleSticky.y,
             }).x,
             top:
-              worldToScreen(cam.camera, { x: selectedNote.x, y: selectedNote.y }).y -
+              worldToScreen(cam.camera, { x: singleSticky.x, y: singleSticky.y }).y -
               NOTE_TOOLBAR_GAP_PX,
           }}
         >
           <NoteToolbar
-            color={selectedNote.color}
+            color={singleStickyColor}
             onColor={(c) => {
-              if (!canEdit(connectionState)) return; // story 4: edit lock
-              setStickyColor(doc, selectedNote.id, c);
+              if (!editable) return; // story 4: edit lock
+              setStickyColor(doc, singleSticky.id, c);
             }}
             onDelete={() => {
-              if (!canEdit(connectionState)) return; // story 4: edit lock
-              if (deleteObject(doc, selectedNote.id)) selection.select(null);
+              if (!editable) return; // story 4: edit lock
+              if (deleteObject(doc, singleSticky.id)) selection.clear();
             }}
           />
         </div>

@@ -25,6 +25,7 @@ import {
   STICKY_SIZE_WORLD,
   type StickyColor,
 } from './config';
+import { rectContains, type Point, type Rect } from './geometry';
 
 /** Transaction origin for all local mutations (used by story 8 undo and
  *  by story 3 to avoid echo). */
@@ -41,10 +42,50 @@ export interface StickySnapshot {
   createdAt: number;
 }
 
+/**
+ * Generic snapshot of one board object of a known type (story 7).
+ *
+ * `width`/`height` are persisted fields written by the first group resize;
+ * objects created before story 7 (or by other tools) omit them, and readers
+ * fall back to the type's default size (STICKY_SIZE_WORLD for stickies — see
+ * `objectBounds`).
+ */
+export interface ObjectSnapshot {
+  id: string;
+  type: string;
+  /** Top-left, world units. */
+  x: number;
+  y: number;
+  /** Stacking; higher is on top. */
+  z: number;
+  width?: number;
+  height?: number;
+  color?: string;
+  text: string;
+  createdAt?: number;
+}
+
 const META_KEY = 'meta';
 const OBJECTS_KEY = 'objects';
 const SCHEMA_VERSION = 1;
 const STICKY_TYPE = 'sticky';
+
+/**
+ * Object types this client can render and operate on (story 7 registry).
+ * Seeded with the story 2 type; the client-side registry adds more at import
+ * time. Unknown types stay in the document but are invisible to selection,
+ * rendering and group operations (forward compatibility for stories 9–12).
+ */
+const knownObjectTypes: Set<string> = new Set([STICKY_TYPE]);
+
+/** Register an object type as known (called by the client registry). */
+export function registerKnownObjectType(type: string): void {
+  knownObjectTypes.add(type);
+}
+
+export function isKnownObjectType(type: string): boolean {
+  return knownObjectTypes.has(type);
+}
 
 function objects(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap(OBJECTS_KEY);
@@ -103,38 +144,18 @@ export function createSticky(
 }
 
 /** Move an object's top-left to world (x, y). False for stale ids or
- *  non-finite coordinates (no transaction). */
+ *  non-finite coordinates (no transaction). Thin wrapper over `moveObjects`. */
 export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolean {
-  if (!isValidCoord(x) || !isValidCoord(y)) return false;
-  const obj = objects(doc).get(id);
-  if (!obj) return false;
-  if (obj.get('x') === x && obj.get('y') === y) return false;
-  doc.transact(() => {
-    obj.set('x', x);
-    obj.set('y', y);
-  }, LOCAL_ORIGIN);
-  return true;
+  return moveObjects(doc, new Map([[id, { x, y }]])) > 0;
 }
 
 /**
  * Raise `id` above every other object. False when the note is already
  * topmost (or the id is stale) — a pointless update (no transaction).
+ * Thin wrapper over `bringObjectsToFront`.
  */
 export function bringToFront(doc: Y.Doc, id: string): boolean {
-  const map = objects(doc);
-  const obj = map.get(id);
-  if (!obj) return false;
-  let maxZ = -Infinity;
-  map.forEach((o) => {
-    const z = o.get('z');
-    if (typeof z === 'number' && z > maxZ) maxZ = z;
-  });
-  const z = obj.get('z');
-  if (typeof z === 'number' && z >= maxZ) return false;
-  doc.transact(() => {
-    obj.set('z', maxZ + 1);
-  }, LOCAL_ORIGIN);
-  return true;
+  return bringObjectsToFront(doc, [id]) > 0;
 }
 
 /** Change a note's colour. Unknown colours and stale ids return false with
@@ -150,14 +171,10 @@ export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
   return true;
 }
 
-/** Remove an object. False for stale ids (no transaction). */
+/** Remove an object. False for stale ids (no transaction).
+ *  Thin wrapper over `deleteObjects`. */
 export function deleteObject(doc: Y.Doc, id: string): boolean {
-  const map = objects(doc);
-  if (!map.has(id)) return false;
-  doc.transact(() => {
-    map.delete(id);
-  }, LOCAL_ORIGIN);
-  return true;
+  return deleteObjects(doc, [id]) > 0;
 }
 
 /** The Y.Text of a sticky note, if it exists. */
@@ -202,6 +219,198 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
   });
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return Object.freeze(out);
+}
+
+/**
+ * Immutable snapshot of every object of a *known* type, sorted by (z, id)
+ * (story 7). Unknown types are skipped, so remote objects from later stories
+ * can never break selection, rendering or group operations. Well-formedness:
+ * finite x/y/z; width/height/color/createdAt are read only when present and
+ * finite, so pre-story-7 stickies keep working without them.
+ */
+export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const out: ObjectSnapshot[] = [];
+  objects(doc).forEach((obj, id) => {
+    const type = obj.get('type');
+    if (typeof type !== 'string' || !knownObjectTypes.has(type)) return;
+    const x = obj.get('x');
+    const y = obj.get('y');
+    const z = obj.get('z');
+    if (!isValidCoord(x) || !isValidCoord(y) || !isValidCoord(z)) return;
+    const width = obj.get('width');
+    const height = obj.get('height');
+    const color = obj.get('color');
+    const createdAt = obj.get('createdAt');
+    const snap: ObjectSnapshot = {
+      id,
+      type,
+      x,
+      y,
+      z,
+      text: obj.get('text') instanceof Y.Text ? (obj.get('text') as Y.Text).toString() : '',
+    };
+    if (isValidCoord(width)) snap.width = width;
+    if (isValidCoord(height)) snap.height = height;
+    if (typeof color === 'string') snap.color = color;
+    if (typeof createdAt === 'number') snap.createdAt = createdAt;
+    out.push(Object.freeze(snap));
+  });
+  out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return Object.freeze(out);
+}
+
+/**
+ * Bounds of one object in world units. Objects without persisted width and
+ * height use the default sticky size (story 7: "width/height read with a
+ * STICKY_SIZE_WORLD fallback").
+ */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  return {
+    x: obj.x,
+    y: obj.y,
+    width: obj.width ?? STICKY_SIZE_WORLD,
+    height: obj.height ?? STICKY_SIZE_WORLD,
+  };
+}
+
+/** Ids of every object in the snapshot (all known, well-formed objects). */
+export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
+  return snapshot.map((obj) => obj.id);
+}
+
+/**
+ * Ids of the objects whose bounds lie *fully* inside `rect` (the marquee's
+ * containment rule): an object only partly inside, or merely touching the
+ * rectangle from outside, is not selected.
+ */
+export function objectsInRect(snapshot: readonly ObjectSnapshot[], rect: Rect): string[] {
+  return snapshot
+    .filter((obj) => rectContains(rect, objectBounds(obj)))
+    .map((obj) => obj.id);
+}
+
+/**
+ * Move many objects' top-left corners in one LOCAL_ORIGIN transaction.
+ * Missing ids are skipped; any non-finite coordinate refuses the whole call
+ * (0 applied, no transaction). Returns the number of objects changed.
+ */
+export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): number {
+  if (positions.size === 0) return 0;
+  for (const p of positions.values()) {
+    if (!isValidCoord(p.x) || !isValidCoord(p.y)) return 0;
+  }
+  const map = objects(doc);
+  let changed = 0;
+  doc.transact(() => {
+    positions.forEach((p, id) => {
+      const obj = map.get(id);
+      if (!obj) return; // missing (deleted remotely) → skipped
+      if (obj.get('x') === p.x && obj.get('y') === p.y) return;
+      obj.set('x', p.x);
+      obj.set('y', p.y);
+      changed += 1;
+    });
+  }, LOCAL_ORIGIN);
+  return changed;
+}
+
+/**
+ * Resize and reposition many objects in one LOCAL_ORIGIN transaction, writing
+ * explicit `width`/`height` (the first resize materialises both fields).
+ * Missing ids are skipped; any non-finite value refuses the whole call
+ * (0 applied, no transaction). Returns the number of objects changed.
+ */
+export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): number {
+  if (rects.size === 0) return 0;
+  for (const r of rects.values()) {
+    if (
+      !isValidCoord(r.x) ||
+      !isValidCoord(r.y) ||
+      !isValidCoord(r.width) ||
+      !isValidCoord(r.height)
+    ) {
+      return 0;
+    }
+  }
+  const map = objects(doc);
+  let changed = 0;
+  doc.transact(() => {
+    rects.forEach((r, id) => {
+      const obj = map.get(id);
+      if (!obj) return; // missing (deleted remotely) → skipped
+      if (
+        obj.get('x') === r.x &&
+        obj.get('y') === r.y &&
+        obj.get('width') === r.width &&
+        obj.get('height') === r.height
+      ) {
+        return;
+      }
+      obj.set('x', r.x);
+      obj.set('y', r.y);
+      obj.set('width', r.width);
+      obj.set('height', r.height);
+      changed += 1;
+    });
+  }, LOCAL_ORIGIN);
+  return changed;
+}
+
+/**
+ * Raise every id in `ids` above all unselected objects in one transaction,
+ * preserving the selected objects' relative stacking order (they are ranked
+ * by their current (z, id) order and re-assigned z = maxUnselectedZ + rank,
+ * but never lowered). Returns the number of objects whose z changed (0 when
+ * the selection is already topmost).
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const map = objects(doc);
+  const selected: { id: string; z: number }[] = [];
+  let maxUnselectedZ = 0;
+  map.forEach((obj, id) => {
+    const rawZ = obj.get('z');
+    const z = typeof rawZ === 'number' && Number.isFinite(rawZ) ? rawZ : 0;
+    if (ids.includes(id)) {
+      selected.push({ id, z });
+    } else if (z > maxUnselectedZ) {
+      maxUnselectedZ = z;
+    }
+  });
+  if (selected.length === 0) return 0;
+  selected.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const targets = new Map<string, number>();
+  let changed = 0;
+  selected.forEach((s, i) => {
+    const target = maxUnselectedZ + i + 1;
+    if (target > s.z) {
+      targets.set(s.id, target);
+      changed += 1;
+    }
+  });
+  if (changed === 0) return 0;
+  doc.transact(() => {
+    targets.forEach((z, id) => {
+      const obj = map.get(id);
+      if (obj) obj.set('z', z);
+    });
+  }, LOCAL_ORIGIN);
+  return changed;
+}
+
+/**
+ * Delete every existing id in `ids` in one LOCAL_ORIGIN transaction.
+ * Missing ids are skipped. Returns the number of objects deleted.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const map = objects(doc);
+  const existing = ids.filter((id) => map.has(id));
+  if (existing.length === 0) return 0;
+  doc.transact(() => {
+    for (const id of existing) map.delete(id);
+  }, LOCAL_ORIGIN);
+  return existing.length;
 }
 
 function randomId(): string {

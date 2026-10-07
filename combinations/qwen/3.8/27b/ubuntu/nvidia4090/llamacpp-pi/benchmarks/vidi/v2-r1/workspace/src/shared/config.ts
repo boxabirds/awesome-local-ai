@@ -90,6 +90,34 @@ export const BUDGET_RECOVERY_MS = 5000;
 /** Version of the Durable Object storage schema (storage_meta row). */
 export const STORAGE_SCHEMA_VERSION = 1;
 
+// --- Multi-selection and transform gestures (story 7) -----------------------
+
+/**
+ * Square size (screen px) of the eight bounding-box resize handles.
+ */
+export const HANDLE_SIZE_PX = 8;
+/**
+ * Minimum side length (world units) of a sticky note; group resize clamps
+ * at this (design section "Group resize" / PRD "Group resize with handles").
+ */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/**
+ * Hard ceiling (world units) for any object's width or height: the group
+ * scale is clamped so no object ever exceeds it (design section "Group
+ * resize"; PRD "One consistent behaviour").
+ */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/**
+ * Arrow-key nudge step (world units) - independent of zoom (PRD
+ * "Arrow-key nudge"; design constants NUDGE_STEP_WORLD / NUDGE_LARGE_STEP).
+ */
+export const NUDGE_STEP_WORLD = 1;
+/**
+ * Shift+arrow nudge step (world units).
+ */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
+
 // --- Board sharing (story 5) -----------------------------------------------
 
 /** PRD share.create: a new board must open within this time (ms) on a typical

@@ -15,6 +15,19 @@ export interface Vidi6NoteInfo {
   z: number;
 }
 
+/** Story 7: a known object with resolved (fallback-applied) bounds. */
+export interface Vidi6ObjectInfo {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color?: string;
+  text: string;
+  z: number;
+}
+
 export interface Vidi6TestHooks {
   /** The in-memory board document. */
   readonly doc: Y.Doc;
@@ -22,6 +35,8 @@ export interface Vidi6TestHooks {
   setCamera(cam: Camera): void;
   /** Current notes (id, world top-left, colour, text, stacking z). */
   getNotes(): Vidi6NoteInfo[];
+  /** Current known objects (story 7), with width/height resolved. */
+  getObjects(): Vidi6ObjectInfo[];
   /** Current connection state. */
   getConnectionState(): string;
   /** Create a note at the center of the viewport. */

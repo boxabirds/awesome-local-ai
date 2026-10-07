@@ -146,5 +146,36 @@ export function snapshotsEqual(a: readonly StickySnapshot[], b: readonly StickyS
   return true;
 }
 
+/** A world point (centre of a note). */
+export interface BoardCenter {
+  x: number;
+  y: number;
+}
+
+/**
+ * Story 7 e2e fixture ("20-note retro board"): two overlapping-stacking
+ * clusters of ten notes each — a 5 × 2 grid with 260-unit horizontal spacing
+ * (60-unit gutters: no horizontal overlap) and 120-unit vertical spacing
+ * (80-unit vertical overlap), centred on (0, 0) and (900, 600).
+ *
+ * `a[i]` is cluster A, row-major (top row left→right, then bottom row);
+ * `b[i]` likewise for cluster B. Texts are deterministic realistic phrases.
+ */
+export function selectionBoardFixture(seed = 11): { a: { center: BoardCenter; text: string }[]; b: { center: BoardCenter; text: string }[] } {
+  const rng = mulberry32(seed);
+  const grid = (cx: number, cy: number) => {
+    const cols = [-260 * 2, -260, 0, 260, 260 * 2];
+    const rows = [-60, 60];
+    const out: BoardCenter[] = [];
+    for (const row of rows) {
+      for (const col of cols) out.push({ x: cx + col, y: cy + row });
+    }
+    return out;
+  };
+  const mk = (centers: BoardCenter[]) =>
+    centers.map((center) => ({ center, text: phrase(rng, 10, 60) }));
+  return { a: mk(grid(0, 0)), b: mk(grid(900, 600)) };
+}
+
 /** The snapshot of a doc (imported here so tests need one import path). */
 export { snapshot };

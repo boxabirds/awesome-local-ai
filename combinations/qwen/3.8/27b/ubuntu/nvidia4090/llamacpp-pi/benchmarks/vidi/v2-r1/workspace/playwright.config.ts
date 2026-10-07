@@ -20,8 +20,16 @@ export default defineConfig({
       use: { browserName: 'chromium' },
       // persistence/broken-board specs run their own wrangler process under
       // playwright.persistence.config.ts; share.spec.ts likewise runs under
-      // playwright.share.config.ts (no shared webServer).
-      testIgnore: ['nightly.spec.ts', 'persistence.spec.ts', 'broken-board.spec.ts', 'share.spec.ts'],
+      // playwright.share.config.ts; selection-collab.spec.ts (multi-context
+      // collaboration) runs under playwright.selection.config.ts (no shared
+      // webServer).
+      testIgnore: [
+        'nightly.spec.ts',
+        'persistence.spec.ts',
+        'broken-board.spec.ts',
+        'share.spec.ts',
+        'selection-collab.spec.ts',
+      ],
     },
     {
       name: 'nightly',

@@ -29,6 +29,11 @@ export interface StickyTextEditorProps {
   ytext: Y.Text;
   /** The font size found in display mode; the editor re-measures on mount. */
   fontPx: number;
+  /**
+   * Height (world units) of the region the text must fit into. Defaults to
+   * the standard sticky size (story 7: resized notes pass their own).
+   */
+  textBox?: number;
   onEnd(next: 'selected' | 'unselected'): void;
   /** Reports the editor's measured fit (font size + overflow flag). */
   onFitChange?(fit: TextFit): void;
@@ -36,6 +41,7 @@ export interface StickyTextEditorProps {
 
 export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
   const { ytext, fontPx, onEnd, onFitChange } = props;
+  const box = props.textBox ?? NOTE_TEXT_BOX;
   const taRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const [value, setValue] = useState(() => ytext.toString());
@@ -57,14 +63,15 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     ta.setSelectionRange(len, len);
   }, []);
 
-  // Font fit: binary search on the real layout, on mount and on text change.
+  // Font fit: binary search on the real layout, on mount, on text change and
+  // when the fit box changes (resized notes, story 7).
   useLayoutEffect(() => {
     const ta = taRef.current;
     if (!ta) return;
-    const next = fitFontSize(ta, NOTE_TEXT_BOX);
+    const next = fitFontSize(ta, box);
     setFit((f) => (f.fontPx === next.fontPx && f.overflow === next.overflow ? f : next));
     onFitChangeRef.current?.(next);
-  }, [value]);
+  }, [value, box]);
 
   // A pointerdown anywhere outside the textarea ends editing (unselected).
   // Capture phase so this runs before other handlers (e.g. pressing another
