@@ -66,6 +66,13 @@ class Probe:
         self.name, self.half, self.body, self.check, self.timeout = name, half, body, check, timeout
 
 
+# Several of these models default to thinking ON, and then spend a small token budget reasoning and return empty
+# content with finish_reason "length" -- which reads as "the engine is broken" when the model is working fine.
+# lib/smoke.sh warns about exactly this. A probe that wants a short exact answer turns thinking off the way
+# lib/gufo.sh's own smoke check does; the rest get a budget big enough to think AND answer.
+NO_THINKING = {"chat_template_kwargs": {"enable_thinking": False}}
+
+
 def ask(base_url: str, body: dict, timeout: int) -> dict:
     req = urllib.request.Request(
         base_url.rstrip("/") + "/chat/completions",
@@ -78,6 +85,16 @@ def ask(base_url: str, body: dict, timeout: int) -> dict:
 
 def message(resp: dict) -> dict:
     return (resp.get("choices") or [{}])[0].get("message") or {}
+
+
+def ran_out_thinking(resp: dict) -> str | None:
+    """The distinctive failure of a thinking-by-default model on too small a budget: all reasoning, no answer."""
+    choice = (resp.get("choices") or [{}])[0]
+    m = choice.get("message") or {}
+    reasoning = m.get("reasoning_content") or m.get("reasoning") or ""
+    if not (m.get("content") or "").strip() and reasoning and choice.get("finish_reason") == "length":
+        return f"spent its whole token budget thinking and never answered ({len(reasoning)} characters of reasoning)"
+    return None
 
 
 def text_of(resp: dict) -> str:
@@ -94,6 +111,9 @@ def tool_calls_of(resp: dict) -> list:
 
 def says_exactly(want: str):
     def check(resp):
+        spent = ran_out_thinking(resp)
+        if spent:
+            return False, spent
         got = text_of(resp)
         return got == want, repr(got)
     return check
@@ -122,6 +142,9 @@ def tool_call_keeps_newlines(resp):
 
 
 def keeps_literal(resp):
+    spent = ran_out_thinking(resp)
+    if spent:
+        return False, spent
     got = text_of(resp)
     return MANDATED_LITERAL in got, f"{MANDATED_LITERAL!r} {'present' if MANDATED_LITERAL in got else 'ABSENT'} in {got[:200]!r}"
 
@@ -137,6 +160,9 @@ def code_runs_and_answers(expected: str):
                 block = parts[1]
                 if block.startswith("python"):
                     block = block[len("python"):]
+        spent = ran_out_thinking(resp)
+        if spent:
+            return False, spent
         with tempfile.TemporaryDirectory() as d:
             f = Path(d) / "probe.py"
             f.write_text(block)
@@ -162,37 +188,39 @@ def probes(model: str) -> list[Probe]:
     return [
         # ---- plumbing ----
         Probe("generates at all", "PLUMBING",
-              {"model": model, "messages": [msg("user", "Reply with exactly: OK")], "max_tokens": 64},
+              {"model": model, "messages": [msg("user", "Reply with exactly: OK")], "max_tokens": 256, **NO_THINKING},
               says_exactly("OK")),
         Probe("returns a structured tool call", "PLUMBING",
-              {"model": model, "tools": [TOOL], "max_tokens": 512,
+              {"model": model, "tools": [TOOL], "max_tokens": 2048,
                "messages": [msg("user", "Create a file notes.txt containing the single word hello. Use the tool.")]},
               returns_tool_call),
         Probe("a tool call whose arguments contain raw newlines", "PLUMBING",
-              {"model": model, "tools": [TOOL], "max_tokens": 512,
+              {"model": model, "tools": [TOOL], "max_tokens": 2048,
                "messages": [msg("user", "Use the tool to write a file poem.txt whose contents are exactly three "
                                         "lines: 'one', 'two', 'three', each on its own line.")]},
               tool_call_keeps_newlines),
         Probe(f"admits a ~{LONG_PROMPT_TOKENS // 1000}k-token prompt", "PLUMBING",
-              {"model": model, "max_tokens": 64,
+              {"model": model, "max_tokens": 256, **NO_THINKING,
                "messages": [msg("user", filler + "\n\nIgnore the text above. Reply with exactly: READ")]},
               says_exactly("READ"), LONG_TIMEOUT_S),
         # ---- basic capability ----
+        # Thinking stays ON here: this is the shape the pack's agent actually runs in, and a budget big enough to
+        # reason and then answer is part of what is being checked.
         Probe("writes code that runs and gives the right answer", "BASIC",
-              {"model": model, "max_tokens": 1024,
+              {"model": model, "max_tokens": 4096,
                "messages": [msg("user", "Write a complete Python program that prints the 10th Fibonacci number "
                                         "(with fib(1)=1, fib(2)=1). Print only the number. Reply with the code "
                                         "in one ```python block and nothing else.")]},
-              code_runs_and_answers("55")),
+              code_runs_and_answers("55"), LONG_TIMEOUT_S),
         Probe("keeps a mandated literal unchanged (FM-2)", "BASIC",
-              {"model": model, "max_tokens": 512,
+              {"model": model, "max_tokens": 4096,
                "messages": [msg("user", 'The specification REQUIRES this exact attribute on the element, '
                                         'character for character: aria-label="Sticky note". '
                                         "Write the single-line JSX for a <div> carrying that attribute and "
                                         "nothing else. Reply with the line only.")]},
-              keeps_literal),
+              keeps_literal, LONG_TIMEOUT_S),
         Probe("keeps context across turns", "BASIC",
-              {"model": model, "max_tokens": 64,
+              {"model": model, "max_tokens": 256, **NO_THINKING,
                "messages": [msg("user", "My favourite number is 41."), msg("assistant", "Noted."),
                             msg("user", "Add one to my favourite number. Reply with the number only.")]},
               says_exactly("42")),
@@ -238,6 +266,10 @@ def self_test() -> int:
             m["tool_calls"] = [{"function": {"name": "write_file", "arguments": json.dumps(tool)}}]
         return {"choices": [{"message": m}]}
 
+    def thought(reasoning):
+        """A thinking model that used its whole budget reasoning: empty content, finish_reason "length"."""
+        return {"choices": [{"message": {"content": "", "reasoning_content": reasoning}, "finish_reason": "length"}]}
+
     cases = [
         ("exact match", says_exactly("OK"), resp("OK"), True),
         ("exact match, trailing space", says_exactly("OK"), resp("OK  "), True),
@@ -251,6 +283,8 @@ def self_test() -> int:
         ("code runs", code_runs_and_answers("55"), resp("```python\nprint(55)\n```"), True),
         ("code wrong answer", code_runs_and_answers("55"), resp("```python\nprint(54)\n```"), False),
         ("code does not run", code_runs_and_answers("55"), resp("```python\nprint(\n```"), False),
+        # The trap that made the first run of this probe report a working stack as broken.
+        ("all budget spent thinking", says_exactly("OK"), thought("Here is a thinking process: ..."), False),
     ]
     bad = 0
     for name, check, r, want in cases:

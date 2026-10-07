@@ -1,0 +1,24 @@
+Qwen3.6-35B-A3B at Q6dense, served by NinjaPear's fork of gufo, built from source on this machine.
+
+THE MODEL
+  40 layers (30 Gated DeltaNet, 10 full attention), 256 experts with 8 routed plus one shared, about 3B
+  active parameters, and a native one-layer MTP block. Text only. Native context 262144.
+
+THE QUANT
+  "Q6dense" does not mean the model is dense -- it is a mixture of experts and the routing is retained. The
+  suffix names which weights got Q6: the dense trunk (attention, DeltaNet, shared expert, output head) at
+  Q6_K, the routed experts as in Unsloth UD-Q4_K_XL, and the token embeddings and the MTP block's dense
+  weights at Q8_0.
+
+SPECULATION
+  MTP uses the draft block in the same GGUF. There is no sidecar and --mtp-model is rejected. Drop
+  --speculative for plain autoregressive decoding; greedy MTP output equals it token for token.
+
+THINKING
+  The template defaults to thinking ON and has NO reasoning-effort control, so REASONING_EFFORT must stay
+  "default". A small token budget with thinking on is spent entirely on reasoning and returns empty content:
+  set THINKING=0, or allow enough tokens to think AND answer.
+
+THE ENGINE
+  Built from source: the fork publishes no image. It reports "gufo version development (unknown)", so the
+  install records the commit it was built from and the launcher refuses a binary built from any other.

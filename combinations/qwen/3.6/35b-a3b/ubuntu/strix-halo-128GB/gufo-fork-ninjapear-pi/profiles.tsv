@@ -1,0 +1,11 @@
+# name|ctx|sessions|draft_tokens|prefill_chunk|need_mib|basis|summary
+#
+# need_mib is the GPU memory the engine reported at load, MEASURED on the Strix Halo box on 7 Oct 2026 from
+# its own line:  [loader] event=load_completed ... context_tokens=131072 ... gpu_device_used_mib=35285
+# of gpu_device_total_mib=122880. Weights are about 22.5 GiB by the model card; the rest is the snapshot
+# cache, which the engine configured at capacity_bytes=34359738368 for two sessions.
+#
+# Native context is 262144 (the fork's own model page); 131072 is what this pack needs and what was measured.
+# YaRN extension is unsupported and not needed. draft_tokens is the engine's own cap (1-7); the draft length
+# adapts to acceptance, and 49 of 68 drafted tokens were accepted on the first probe.
+coding|131072|2|7|512|35285|MEASURED-2026-10-07|default; 128k, two sessions (the probed settings)
