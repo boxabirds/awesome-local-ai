@@ -1,3 +1,40 @@
+commit ffa55f59aa6e2ac80b7fc89313de2383ac87912b
+vidi-agent  Wed Oct 7 11:25:43 2026 +0000
+
+    harness: snapshot after story 5 (uncommitted agent work)
+
+
+ PROGRESS.md                         |  17 ++-
+ index.html                          |   8 +-
+ src/client/App.tsx                  |  45 ++++----
+ src/client/api.ts                   |  51 +++++++++
+ src/client/board/BoardRoot.tsx      | 167 +++++++++++++++++++++++++++
+ src/client/pages/BoardPage.tsx      | 114 +++++++++++++++++++
+ src/client/pages/HomePage.tsx       |  83 ++++++++++++++
+ src/client/pages/NotFoundPage.tsx   |  73 ++++++++++++
+ src/client/pages/state.ts           |  51 +++++++++
+ src/client/router.ts                |  45 ++++++++
+ src/client/share/SharePanel.tsx     | 202 +++++++++++++++++++++++++++++++++
+ src/shared/config.ts                |   5 +
+ src/worker/board-room.ts            |  70 +++++++++++-
+ src/worker/board-store-do.ts        |  48 +++++++-
+ src/worker/create-board.ts          |  46 ++++++++
+ src/worker/index.ts                 |  97 +++++++++++++++-
+ tests/component/BoardPage.test.tsx  | 105 +++++++++++++++++
+ tests/component/HomePage.test.tsx   |  95 ++++++++++++++++
+ tests/component/SharePanel.test.tsx | 140 +++++++++++++++++++++++
+ tests/integration/board-api.test.ts | 217 ++++++++++++++++++++++++++++++++++++
+ tests/unit/board-id.test.ts         |  39 ++++++-
+ wrangler.jsonc                      |   2 +-
+ 22 files changed, 1682 insertions(+), 38 deletions(-)
+commit dec8aa4fedfedde3eb1ae438febfea8aa214c606
+vidi-agent  Wed Oct 7 10:22:39 2026 +0000
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 45 +++++++++++++--------------------------------
+ 1 file changed, 13 insertions(+), 32 deletions(-)
 commit c3a085c9421b9591d545cff9032a4b0fa19f40af
 agent  Wed Oct 7 10:17:15 2026 +0000
 
