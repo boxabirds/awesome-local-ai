@@ -1193,3 +1193,155 @@ body {
 .board-viewport[data-tool='connector'] {
   cursor: crosshair;
 }
+
+/* ------------------------------------------------------------ pen and stroke */
+
+/* The pen is the one drawing tool that is also a cursor: what the pointer is doing is
+   drawing, all the way to the tip, so the crosshair is the right promise and the objects
+   underneath are wrong to answer it. The surface is the same sheet the shape and connector
+   tools press on - `.tool-surface` takes the pointer away from everything below it, which
+   is what makes a stroke drawn across somebody's note leave that note where it was. */
+.board-viewport[data-tool='pen'] {
+  cursor: crosshair;
+}
+
+/* The line as it is drawn. The path is in screen pixels, so this element needs no
+   transform and knows nothing about the zoom; `overflow: visible` is what lets a stroke
+   that wanders outside the viewport's box on the way in still be seen. It is deaf to the
+   pointer: the surface underneath is what the hand is talking to. */
+.pen-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.pen-preview-path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The pen held up to the paper: a ring the size the ink will be, so the width chosen in
+   the option bar is visible at the hand before any of it reaches the board. It is drawn at
+   the pointer and not at the board's scale, and it is decoration, so it takes nothing. */
+.pen-cursor {
+  fill: none;
+  pointer-events: none;
+}
+
+/* The pen's option bar: the ink and the width, chosen before the stroke exists and kept
+   after it, because they are the pen's settings and not any drawing's. It belongs to the
+   tool rather than to the board, so it floats over the board's own toolbar - at the top,
+   where the hand that holds the mouse is not. */
+.pen-options {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+}
+
+.pen-options-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* A swatch is its colour, the way a shape's swatch is its colour: the ink comes from the
+   same palette the model validates a name against, so what is shown is what gets stored. */
+.pen-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 50%;
+  background: var(--pen-ink, transparent);
+  cursor: pointer;
+}
+
+.pen-swatch[aria-pressed='true'] {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 0 2px rgb(25 118 210 / 25%);
+}
+
+/* The widths are named rather than drawn, because a dot that is two board units wide is
+   two pixels on the screen at 100% and would be a secret rather than a label. */
+.pen-width {
+  padding: 3px 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pen-width[aria-pressed='true'] {
+  border-color: var(--ui-accent);
+  color: var(--ui-text);
+  background: rgb(25 118 210 / 8%);
+}
+
+.pen-swatch:focus-visible,
+.pen-width:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+}
+
+/* A drawing on the board. The box is the trail plus the pen's own width, and it is bigger
+   than the drawing wherever the line curves back inside itself - which is most drawings.
+   So the box is deaf to the pointer, and only the invisible line drawn over the path
+   answers a press: a click inside a loop reaches the note inside the loop, which is what a
+   loop is for. The same arrangement as `.connector-object`; `strokeIsAt` is the arithmetic
+   behind it, and the component keeps this rule and that one agreeing. */
+.stroke-object {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* The ink is drawn to the edge of the box and half of a round cap hangs over it, which is
+   what the padding in the stored box is for; `overflow: visible` is the same courtesy to
+   the caps that hang over anyway, so a stroke is never clipped by its own bounds. */
+.stroke-object-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.stroke-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* The only part of a drawing a pointer can reach: transparent, and as wide as the click
+   tolerance measured in board units, which is why the component divides by the zoom and
+   this rule does not mention a width at all. */
+.stroke-hit {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: stroke;
+  cursor: move;
+}
+
+/* The line is being held: the same answer the shape gives, put on the only part of a
+   drawing a pointer can hold in the first place. */
+.stroke-object[data-dragging='true'] .stroke-hit {
+  cursor: grabbing;
+}

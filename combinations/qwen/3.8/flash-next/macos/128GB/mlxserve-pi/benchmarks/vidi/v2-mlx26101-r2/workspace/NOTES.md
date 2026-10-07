@@ -761,3 +761,97 @@ compare rather than assume agree.
   full-board comparison on every page - gets 300 s. `expectSameBoard` needed no change for
   text objects: it compares `ObjectSnapshot`s, and `text`/`size`/`widthMode` came along as
   part of the snapshot this story added.
+
+## Story 11: a pen, and the difference between where the mouse went and where the ink is
+
+A stroke is the first board object whose *shape* is stored, and most of what this story had
+to learn is about the three places that shape exists in: the trail of points the pointer
+left, the box the model stores around it, and the curve the browser actually paints. Those
+three are not the same geometry, and a test that assumes they are is a test that fails for
+the wrong reason.
+
+- **Where the ink is is where it is *painted*, and a stored point is often not on it.**
+  `smoothPath` draws a quadratic through the midpoints of the trail, which rounds corners:
+  a zigzag whose stored peak is 30 units above its neighbours has its painted line pass
+  about 22 units above them, some seven screen pixels away from the point that made it -
+  further than `STROKE_HIT_TOLERANCE_PX`, so a test that clicks "at point 4 of the stroke"
+  by reading `points[8]` and converting through the camera clicks on empty board and
+  blames the hit test. `strokePointOnScreen` therefore asks the browser where its own line
+  is: `getPointAtLength(fraction * getTotalLength())` on the rendered path, mapped to the
+  window by `getScreenCTM()`. It is exact for a curve, it costs the test nothing, and it
+  measures the thing the requirement is about.
+- **A fixture that measures the board must not contain a hand.** The loops in
+  `tests/e2e/helpers/stroke.ts` wobble by 6 % of the radius with a wavelength of about
+  three points, which is what a hand does - and which a smoothing curve is entitled to
+  round away, so the painted box comes out a few pixels inside the dragged one at any zoom.
+  `loopPath` grew a `wander` argument for exactly this: `wander = 0` for the test that
+  compares ink with mouse at 200 %, wobble left in for the ones that only need a drawing
+  that looks drawn. A zigzag is fine for "did it survive a resize" and useless for "is the
+  ink where the mouse went".
+- **Padding lives in the stored box, so nothing downstream has to know about it.** A
+  stroke's `x`/`y`/`width`/`height` are the trail's extremes grown by half a pen, which is
+  what lets story 7 move, marquee, restack, resize, delete and undo a drawing with the code
+  it already had; `objectBounds` has no special case, and `StrokeObject` positions itself
+  with the four stored numbers. The trail is stored *relative to that grown box* and
+  `baseWidth`/`baseHeight` remember the size it was drawn at, so a resize is two numbers
+  and `scaledPoints` is the whole of `pen.resize`. The one cost is that every test that
+  compares a box with a mouse has to remember which of the two boxes it is holding: the
+  stored one is bigger than the ink by half a pen on all four sides.
+- **The simplifier's tolerance is a screen distance, and that is one function.**
+  `simplifyToleranceAt(zoom)` in `simplify.ts` is `STROKE_SIMPLIFY_TOLERANCE_PX / zoom`, and
+  the reason it is a function rather than a division in three places is that a tolerance
+  divided by the zoom in one call site and not in another is a pen that draws a different
+  line at 400 % depending on which gesture ended it. The unit test says why: at 200 % the
+  tolerance is half a board unit, so the same drag keeps four times the points and looks
+  the same at both zooms.
+- **The pen is the first tool that stays in the hand.** The other three drawing tools call
+  `onCreated` - select the new object, go back to Select - and the pen calls nothing,
+  because a person who has drawn one line is drawing several (`pen.stay_active`). It is the
+  reason the tool has no `onCreated` prop at all rather than an unused one, and the reason
+  the ink and the width are `usePenOptions` session state beside the tool and the
+  selection: not in the document (a colleague choosing red changes nothing here) and not in
+  local storage either (the PRD asks for defaults on every load, and a pen left down
+  yesterday was not chosen for today's meeting).
+- **The pen's layer is *inside* the viewport, and the other tools' surfaces are beside it.**
+  `BoardViewport` grew an `overlay` prop rendered after `.board-world`, and its
+  `handlePointerDown` refuses to pan or marquee whenever an overlay is up - the same answer
+  the tool surfaces give, given where the pan would start rather than wherever a tool
+  remembers to cooperate. A sibling element would catch the strokes and lose the wheel,
+  because the wheel is listened for on the viewport element and only a child bubbles to it;
+  `pen.navigation` ("the board still pans and zooms while the pen is up") is the
+  requirement that decides the DOM.
+- **jsdom has no coalesced events and no geometry, so the story is split by that line.**
+  Component tests fake `getCoalescedEvents()` on a native `PointerEvent` and the fake returns
+  `{clientX, clientY}` - the properties the tool reads - because jsdom implements neither
+  `PointerEvent.getCoalescedEvents` nor the `Point` interface. jsdom also does no painting,
+  which is why `pen.smooth` at the *pixel* level and `pen.select` at the *pixel* level are
+  e2e, and the component file settles for "how many points does the preview path hold" and
+  "does a press on the hit path reach the gesture handler". The preview is scheduled on one
+  `requestAnimationFrame` per frame with a *token* rather than a handle: jsdom's
+  `cancelAnimationFrame` is a no-op and a browser may deliver a frame that was cancelled a
+  moment ago, so the callback asks whether it is still the one that was asked for.
+- **Timing that only shows up in the browser:** `page.mouse.move` is a round trip of some
+  70 ms here, so a 116-point loop takes eight seconds of wall clock and the golden path -
+  three contexts, two drawings, a resize, a delete, and `measureChange` polling on three
+  screens - needs `test.setTimeout(150_000)`. It is not a slow test; it is a minute of mouse
+  events, which is what the story is.
+- **A killed e2e run leaves a server behind, and the next run does not say so.** The suite's
+  `webServer` starts `wrangler dev` on `AGENT_PORT_FIRST + 4` (24216 here) with
+  `reuseExistingServer`, and this sandbox cannot signal a `wrangler dev` - `pkill`/`pgrep`
+  answer "Cannot get process list", and the port map above already has 24210/24211 and
+  24216/24217 held that way. Interrupt a run (a timeout, a Ctrl-C) and its server keeps the
+  port; the next run's `wrangler dev` moves to a free port of its own, while `tests/e2e/target.ts`
+  still points the pages at 24216 - so the pages talk to the *orphan*, which is serving the
+  build that was current when it was started. The failure is not a connection refused: it is
+  every test of every later file failing in about five seconds on `zoom-label` never
+  appearing, because the orphan's build is not the build under test. The same collapse comes
+  from running story 9's TC-24 in the same invocation as other files: it calls
+  `startWrangler({ port: PORT })` - the *suite's own port* - and takes it whenever the suite's
+  server is not sitting on it, which is what it is asked to do and what its own comment
+  (24214/24215) does not say; then it `stop()`s that server on its way out, and every test
+  after it has nothing to talk to. The log line to look for is `[e2e] starting wrangler dev on
+  http://127.0.0.1:24216` in a run whose own server had already moved elsewhere.
+  Both are avoided by giving the run a port pair of its own -
+  `E2E_PORT=24220 E2E_INSPECTOR_PORT=24221 npx playwright test ...` - which is how story 11's
+  tests were verified: 22 pen tests on both Chromium projects, plus 165 tests over the ten
+  other spec files, with 24216 held by an orphan that nothing in this story started.

@@ -403,3 +403,125 @@ export const LINK_COPIED_MS = 2000;
  * reconnect already uses: one retry ceiling for the whole app.
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+/* ---------------------------------------------------------------- pen (story 11) */
+
+/**
+ * The Pen tool's inks (`src/shared/objects/stroke.ts`, PRD "Sketch freehand with a
+ * pen": "colour: six colors").
+ *
+ * They are *ink* names, not paper names: the sticky palette above is what a note is
+ * made of, this is what a drawn line is made of, and the two have nothing to do with
+ * each other beyond both being colours. A stroke stores the name and the hex is
+ * looked up when it is drawn, which is what keeps one red the same red on every
+ * screen - and lets the set of reds change without a migration.
+ */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+/** One of the inks. */
+export type PenColor = keyof typeof PEN_COLORS;
+
+/** The six, in the order the option buttons show them - black first, as the PRD lists. */
+export const PEN_COLOR_LIST: readonly PenColor[] = Object.keys(PEN_COLORS) as PenColor[];
+
+/** What each ink is called in the interface, next to its swatch. */
+export const PEN_COLOR_NAMES: Record<PenColor, string> = {
+  black: 'Black',
+  blue: 'Blue',
+  red: 'Red',
+  green: 'Green',
+  orange: 'Orange',
+  purple: 'Purple',
+};
+
+/** Whether a value is one of the inks. */
+export const isPenColor = (value: unknown): value is PenColor =>
+  typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_COLORS, value);
+
+/** The ink a stroke is drawn with when nobody chose one (`pen.options`). */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+
+/**
+ * The three pen widths, in world units (`pen.options`: thin 2, medium 4, thick 8).
+ *
+ * They are widths of the *ink*, so they belong to the stroke rather than to its box:
+ * resizing a stroke in proportion makes the line longer and keeps the pen that drew
+ * it the same size (`pen.resize`: "thickness unchanged"), which is why the client
+ * scales the points and never this number.
+ */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+/** One of the three pen widths. */
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** The three, thin to thick. */
+export const PEN_THICKNESS_LIST: readonly PenThickness[] = Object.keys(
+  PEN_THICKNESS_WORLD,
+) as PenThickness[];
+
+/** What each width is called in the interface. */
+export const PEN_THICKNESS_NAMES: Record<PenThickness, string> = {
+  thin: 'Thin',
+  medium: 'Medium',
+  thick: 'Thick',
+};
+
+/** Whether a value is one of the three pen widths. */
+export const isPenThickness = (value: unknown): value is PenThickness =>
+  typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_THICKNESS_WORLD, value);
+
+/** The width a stroke is drawn with when nobody chose one (`pen.options`). */
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/**
+ * How far a raw point may stray from the line it is simplified into, in *screen*
+ * pixels (`pen.smooth`).
+ *
+ * A screen pixel, not a board unit: a pointer leaves a dozen points per centimetre
+ * and most of them say nothing the neighbours have not already said, but how much
+ * can be spared depends on how big a centimetre looks on this person's screen. The
+ * tool divides it by the zoom, so the same stroke drawn at 400% keeps four times as
+ * many points - and looks the same at every zoom, which is what "faithful" means
+ * here.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * How many raw points one stroke may hold (`pen.long_stroke`).
+ *
+ * Five thousand is about a minute of drawing at 80 points a second. The limit is not
+ * a performance finding - a simplified stroke of five hundred points draws in no
+ * time - it is a ceiling on how big one field of one document can grow from one
+ * gesture, because everything about the board travels whole: an uncapped drag would
+ * be an uncapped document. A drag past it commits what it has and starts a new stroke
+ * from the same point, so the line on the board is unbroken and nothing is thrown
+ * away.
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/**
+ * How near a drawn line a click has to land to be a click *on* it, in screen pixels
+ * (`pen.select`).
+ *
+ * Six is the width of a fingertip's aim and the same number an arrow already uses,
+ * so the two things you draw on the board are equally easy to catch. It is a screen
+ * measurement on purpose: a stroke that became easy to select at 400% and impossible
+ * at 40% would be two different tools.
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/**
+ * The smallest a stroke's box may be dragged to, in world units (`pen.resize`).
+ *
+ * It is smaller than a shape's minimum because a stroke's box is not a box the
+ * person drew: it is the room the line happens to occupy, and a straight line drawn
+ * on the board is as flat as the hand that drew it was steady.
+ */
+export const STROKE_MIN_SIZE_WORLD = 4;

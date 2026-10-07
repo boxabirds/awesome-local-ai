@@ -9,6 +9,7 @@ import { objectBounds } from '../../src/shared/board-model.js';
 import type { TextSnapshot } from '../../src/shared/objects/text.js';
 import type { ShapeSnap } from '../../src/shared/objects/shape.js';
 import type { ConnectorSnap } from '../../src/shared/objects/connector.js';
+import type { StrokeSnap } from '../../src/shared/objects/stroke.js';
 import { resolveEndpoints } from '../../src/shared/geometry/connector-geometry.js';
 import type { Rect } from '../../src/shared/geometry.js';
 import type { TextSize } from '../../src/shared/config.js';
@@ -416,17 +417,17 @@ export function selectToolButton(): HTMLElement {
 }
 
 /** Which tool the toolbar says is active, by its button's `aria-pressed`. */
-export function pressedTool(): 'select' | 'text' | 'shape' | 'connector' | 'neither' {
-  const isPressed = (tool: 'select' | 'text' | 'shape' | 'connector'): boolean =>
+export function pressedTool(): 'select' | 'text' | 'shape' | 'connector' | 'pen' | 'neither' {
+  const isPressed = (tool: 'select' | 'text' | 'shape' | 'connector' | 'pen'): boolean =>
     document.querySelector<HTMLElement>(`[data-testid="${tool}-tool-button"]`)?.getAttribute('aria-pressed') ===
     'true';
-  const active = (['select', 'text', 'shape', 'connector'] as const).filter(isPressed);
+  const active = (['select', 'text', 'shape', 'connector', 'pen'] as const).filter(isPressed);
   if (active.length > 1) throw new Error(`${active.length} tools are pressed at once`);
   return active[0] ?? 'neither';
 }
 
-/** Press the Text tool button (or Select's). */
-export function clickTool(tool: 'select' | 'text' | 'shape' | 'connector'): void {
+/** Press a tool button (Select, Text, Shape, Connector or Pen). */
+export function clickTool(tool: 'select' | 'text' | 'shape' | 'connector' | 'pen'): void {
   const button = document.querySelector<HTMLElement>(`[data-testid="${tool}-tool-button"]`);
   if (!button) throw new Error(`the toolbar has no ${tool} tool button`);
   fireEvent.click(button);
@@ -500,7 +501,8 @@ export function selectedObjectIds(): string[] {
     '[data-testid="sticky-note"][data-selected="true"], ' +
       '[data-testid="text-object"][data-selected="true"], ' +
       '[data-testid="shape-object"][data-selected="true"], ' +
-      '[data-testid="connector-object"][data-selected="true"]',
+      '[data-testid="connector-object"][data-selected="true"], ' +
+      '[data-testid="stroke-object"][data-selected="true"]',
   );
   return Array.from(selected).map((element) => element.dataset.objectId ?? element.dataset.noteId ?? '');
 }
@@ -839,7 +841,7 @@ export function clickShapeKind(kind: string): void {
 }
 
 /** The tool layer of one drawing tool, which is what its pointer events go to. */
-export function toolSurface(tool: 'shape' | 'connector'): HTMLElement {
+export function toolSurface(tool: 'shape' | 'connector' | 'pen'): HTMLElement {
   const surface = document.querySelector<HTMLElement>(`[data-testid="${tool}-tool-surface"]`);
   if (!surface) throw new Error(`the board renders no ${tool} tool layer`);
   return surface;
@@ -853,8 +855,13 @@ export function connectorSurface(): HTMLElement {
   return toolSurface('connector');
 }
 
+/** The pen's own screen: the layer the pointer belongs to while the pen is up. */
+export function penSurface(): HTMLElement {
+  return toolSurface('pen');
+}
+
 /** The tool layer is there only while its tool is the active one. */
-export function toolSurfaceExists(tool: 'shape' | 'connector'): boolean {
+export function toolSurfaceExists(tool: 'shape' | 'connector' | 'pen'): boolean {
   return document.querySelector(`[data-testid="${tool}-tool-surface"]`) !== null;
 }
 
@@ -872,7 +879,12 @@ export interface DragOptions {
  * the frame queue, and the release is the moment the tool writes - so a test that
  * wants to see the preview looks between the moves, not after this returns.
  */
-export function dragOnTool(tool: 'shape' | 'connector', from: Point, to: Point, options: DragOptions = {}): void {
+export function dragOnTool(
+  tool: 'shape' | 'connector' | 'pen',
+  from: Point,
+  to: Point,
+  options: DragOptions = {},
+): void {
   const { shift = false, steps = 4, shiftFrom = null } = options;
   const element = toolSurface(tool);
   const held = (step: number): boolean => shift || (shiftFrom !== null && step >= shiftFrom);
@@ -1200,4 +1212,266 @@ export function connectorHitElement(index = 0): SVGElement {
 export function connectorScreenEnds(index = 0): { from: Point; to: Point } {
   const ends = connectorEnds(index);
   return { from: screenOf(ends.from), to: screenOf(ends.to) };
+}
+
+/* ------------------------------------------------------------- story 11: the pen */
+
+export function penToolButton(): HTMLElement {
+  return toolbarButton('pen-tool-button');
+}
+
+/** The pen's option bar, which is on the screen only while the pen is the tool. */
+export function penToolbarElement(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-testid="pen-toolbar"]');
+}
+
+/** The six inks, in the order the toolbar lists them. */
+export function penColorButtons(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-testid="pen-color-button"]'));
+}
+
+/** One ink, by its name (`black`, `blue`, ...). */
+export function penColorButton(color: string): HTMLElement {
+  const button = penColorButtons().find((candidate) => candidate.getAttribute('data-color') === color);
+  if (!button) throw error(`the pen toolbar has no ${color} ink`, color);
+  return button;
+}
+
+/** The three widths, in the order the toolbar lists them. */
+export function penThicknessButtons(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-testid="pen-thickness-button"]'));
+}
+
+/** One width, by its name (`thin`, `medium`, `thick`). */
+export function penThicknessButton(thickness: string): HTMLElement {
+  const button = penThicknessButtons().find(
+    (candidate) => candidate.getAttribute('data-thickness') === thickness,
+  );
+  if (!button) throw error(`the pen toolbar has no ${thickness} width`, thickness);
+  return button;
+}
+
+function error(message: string, wanted: string): Error {
+  return new Error(`${message} (asked for "${wanted}")`);
+}
+
+/** Which ink the pen toolbar says is chosen, or `null` when the bar is not on screen. */
+export function pressedPenColor(): string | null {
+  return pressedPenOption('pen-color-button', 'data-color');
+}
+
+/** Which width the pen toolbar says is chosen. */
+export function pressedPenThickness(): string | null {
+  return pressedPenOption('pen-thickness-button', 'data-thickness');
+}
+
+function pressedPenOption(testId: string, attribute: string): string | null {
+  const buttons = Array.from(document.querySelectorAll<HTMLElement>(`[data-testid="${testId}"]`));
+  const pressed = buttons.find((button) => button.getAttribute('aria-pressed') === 'true');
+  return pressed?.getAttribute(attribute) ?? null;
+}
+
+/** Choose the ink the next stroke is drawn with. */
+export function clickPenColor(color: string): void {
+  fireEvent.click(penColorButton(color));
+  settle();
+}
+
+/** Choose the pen the next stroke is drawn with. */
+export function clickPenThickness(thickness: string): void {
+  fireEvent.click(penThicknessButton(thickness));
+  settle();
+}
+
+/**
+ * The line the pen is drawing, and only while it is drawing: the preview lives in
+ * this tab's screen and is never in the document, so this element is the whole of
+ * what a colleague does *not* see (`pen.share`).
+ */
+export function penPreview(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-testid="pen-preview"]');
+}
+
+/** How many raw points the preview is holding. */
+export function penPreviewPoints(): number {
+  const preview = penPreview();
+  if (preview === null) return 0;
+  return Number(preview.getAttribute('data-points') ?? '0');
+}
+
+/** The ring that says where the pen is. */
+export function penCursor(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-testid="pen-cursor"]');
+}
+
+/**
+ * A drag along a line someone actually drew: press, walk the points in order, release
+ * at the last one. `dragOnTool` walks a straight line between two points, which is the
+ * shape of a rectangle and not the shape of a sketch - a stroke needs the turns.
+ */
+export function dragPenThrough(
+  points: readonly Point[],
+  options: { steps?: number } = {},
+): void {
+  if (points.length === 0) throw new Error('a stroke of no points is not a drag');
+  const { steps = 1 } = options;
+  const element = toolSurface('pen');
+  fireEvent.pointerDown(element, {
+    pointerId: POINTER_ID,
+    pointerType: 'mouse',
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    clientX: points[0].x,
+    clientY: points[0].y,
+  });
+  settle();
+  for (let index = 1; index < points.length; index += 1) {
+    for (let step = 1; step <= steps; step += 1) {
+      const previous = points[index - 1];
+      const next = points[index];
+      const t = step / steps;
+      fireEvent.pointerMove(element, {
+        pointerId: POINTER_ID,
+        pointerType: 'mouse',
+        buttons: 1,
+        clientX: previous.x + (next.x - previous.x) * t,
+        clientY: previous.y + (next.y - previous.y) * t,
+      });
+      settle();
+    }
+  }
+  const last = points[points.length - 1];
+  fireEvent.pointerUp(element, {
+    pointerId: POINTER_ID,
+    pointerType: 'mouse',
+    isPrimary: true,
+    button: 0,
+    buttons: 0,
+    clientX: last.x,
+    clientY: last.y,
+  });
+  settle();
+}
+
+/**
+ * A drag whose samples arrive the way a fast pointer delivers them: one `pointermove`
+ * per frame, each carrying the points the browser merged away inside it. This is how a
+ * test reaches five thousand points without dispatching five thousand events - and it
+ * is the honest way, because a 120 Hz pointer really does arrive like this.
+ */
+export function coalescedDragOnPen(
+  from: Point,
+  to: Point,
+  samplesPerEvent: number,
+  events: number,
+): void {
+  const element = toolSurface('pen');
+  const total = samplesPerEvent * events;
+  const sample = (index: number): Point => ({
+    x: from.x + ((to.x - from.x) * index) / total,
+    y: from.y + ((to.y - from.y) * index) / total,
+  });
+  fireEvent.pointerDown(element, {
+    pointerId: POINTER_ID,
+    pointerType: 'mouse',
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    clientX: from.x,
+    clientY: from.y,
+  });
+  settle();
+  for (let event = 0; event < events; event += 1) {
+    const at = sample((event + 1) * samplesPerEvent);
+    const move = new PointerEvent('pointermove', {
+      bubbles: true,
+      cancelable: true,
+      clientX: at.x,
+      clientY: at.y,
+      pointerId: POINTER_ID,
+      pointerType: 'mouse',
+      isPrimary: true,
+      buttons: 1,
+    });
+    // The samples the browser merged into this one, the last of them the event's own
+    // point - which is what a browser puts there, and what the tool counts. A coalesced
+    // event is a pointer event, so it carries `clientX`/`clientY` like its parent.
+    const first = event * samplesPerEvent + 1;
+    Object.defineProperty(move, 'getCoalescedEvents', {
+      configurable: true,
+      writable: true,
+      value: () =>
+        Array.from({ length: samplesPerEvent }, (_unused, index) => {
+          const at = sample(first + index);
+          return { clientX: at.x, clientY: at.y };
+        }),
+    });
+    fireEvent(element, move);
+    settle();
+  }
+  const last = sample(total);
+  fireEvent.pointerUp(element, {
+    pointerId: POINTER_ID,
+    pointerType: 'mouse',
+    isPrimary: true,
+    button: 0,
+    buttons: 0,
+    clientX: last.x,
+    clientY: last.y,
+  });
+  settle();
+}
+
+export function strokeElements(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-testid="stroke-object"]'));
+}
+
+/** The nth stroke as drawn (0 is the bottom-most). */
+export function strokeElement(index = 0): HTMLElement {
+  const elements = strokeElements();
+  const element = elements[index];
+  if (!element) throw new Error(`no stroke rendered at position ${index} of ${elements.length}`);
+  return element;
+}
+
+/** Every stroke in the document, in drawing order. */
+export function strokes(): readonly StrokeSnap[] {
+  return docNotes().filter((object): object is StrokeSnap => object.type === 'stroke');
+}
+
+export function strokeData(index = 0): StrokeSnap {
+  const list = strokes();
+  const stroke = list[index];
+  if (!stroke) throw new Error(`the board has no stroke at position ${index} of ${list.length}`);
+  return stroke;
+}
+
+export function strokeId(index = 0): string {
+  return strokeData(index).id;
+}
+
+/** The invisible line a click on a stroke answers to. */
+export function strokeHitElement(index = 0): SVGElement {
+  const elements = Array.from(document.querySelectorAll<SVGElement>('[data-testid="stroke-hit"]'));
+  const element = elements[index];
+  if (!element) throw new Error(`no stroke drawn at position ${index} to click`);
+  return element;
+}
+
+/** The ink itself, which is what a click is measured against. */
+export function strokeLineElement(index = 0): SVGElement {
+  const elements = Array.from(document.querySelectorAll<SVGElement>('[data-testid="stroke-line"]'));
+  const element = elements[index];
+  if (!element) throw new Error(`no stroke drawn at position ${index} to look at`);
+  return element;
+}
+
+/** The centre of a stroke's box, on the screen. */
+export function strokeScreenCentre(index = 0): Point {
+  const stroke = strokeData(index);
+  return screenOf({
+    x: stroke.x + (stroke.width ?? 0) / 2,
+    y: stroke.y + (stroke.height ?? 0) / 2,
+  });
 }

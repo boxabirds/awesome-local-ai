@@ -65,6 +65,20 @@ export interface BoardViewportProps {
   /** The Text tool's click placed a text object: switch back to Select, edit it. */
   onTextCreated?(id: string): void;
   /**
+   * A tool layer drawn over the board, inside this surface
+   * (`src/client/tools/PenTool.tsx`, story 11).
+   *
+   * *Inside*, and not beside it, for one reason with two halves. A tool that owns the
+   * pointer must be the thing the browser reaches first - a stroke drawn across
+   * somebody's note must not be a drag of that note (`pen.navigation`) - and it must
+   * still be under the board area for the wheel, because a board that stops panning
+   * and zooming while a drawing tool is up is a board that has stopped working, not a
+   * board in a mode. A layer outside this element would catch the strokes and lose the
+   * panning; this one does neither, since the wheel is listened for on this element and
+   * anything inside it bubbles here.
+   */
+  overlay?: ReactNode;
+  /**
    * Whose id is written on a new object as its creator. This build has no
    * identities yet - nobody on the board knows who the person behind it is, and
    * story 14 is the story that finds out - so a board passes nothing and a text
@@ -98,6 +112,7 @@ export function BoardViewport({
   tool,
   onTextCreated,
   identityId,
+  overlay,
 }: BoardViewportProps): JSX.Element {
   const {
     camera,
@@ -189,6 +204,11 @@ export function BoardViewport({
     if (event.button !== PRIMARY_BUTTON) return;
     // Touch-screen navigation is out of scope for the board (see PRD).
     if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
+    // A tool layer is up, so the pointer belongs to it: no pan and no marquee, whatever
+    // the layer is over. The layer stops the event itself as well - this is the same
+    // answer given where the pan would begin, rather than a rule that holds only while
+    // some other file remembers to cooperate.
+    if (overlay !== undefined && overlay !== null) return;
     // Text mode took its press above; this is the same question asked again because a
     // press on the board surface itself is handled by both handlers on this element.
     if (tool === 'text') return;
@@ -434,6 +454,8 @@ export function BoardViewport({
         {marquee?.rect ? <MarqueeRect rect={marquee.rect} camera={camera} /> : null}
         {children}
       </div>
+      {/* The tool layer, above the world and inside the surface: see `overlay`. */}
+      {overlay ?? null}
     </div>
   );
 }

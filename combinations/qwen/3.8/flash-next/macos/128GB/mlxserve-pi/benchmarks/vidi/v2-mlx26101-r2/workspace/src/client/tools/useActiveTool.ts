@@ -10,10 +10,10 @@ import type { UseSelectionResult } from '../board/useSelection.js';
  * shortcuts are already assigned by the PRD, and a story that adds a tool later
  * must not have to move a letter that a person's left hand already knows - so the
  * keys are declared here in full, and only the ones with a tool behind them do
- * anything today. The letters that have no tool yet (`N`, `P`, `I`, `C`) are
- * recognised and ignored: `N` in particular keeps doing what it has done since
- * story 2 - making a note where the view is - which is a creation rather than a
- * mode, and story 2's own handler owns it.
+ * anything today. The letters that have no tool yet (`N`, `I`, `C`) are recognised
+ * and ignored: `N` in particular keeps doing what it has done since story 2 - making
+ * a note where the view is - which is a creation rather than a mode, and story 2's
+ * own handler owns it. Story 11 filled in `P`.
  */
 export type ToolId =
   | 'select'
@@ -40,8 +40,14 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 /**
  * The tools this build can actually be put into. A letter that names any other
  * tool is a shortcut this build does not have yet.
+ *
+ * The Pen is the fourth drawing tool and the first that stays in the hand: the other
+ * three call `toolCreated` and go back to Select when they have made their one thing,
+ * and the pen does not, because a person who draws one line is drawing several
+ * (`pen.stay_active`). Being in the list is the whole of what entering it means here -
+ * the pen keeps its own state and its own gestures, like the other two drawing tools.
  */
-export const AVAILABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+export const AVAILABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
 /** Whether a tool can be entered at all in this build. */
 export const isAvailableTool = (tool: ToolId): boolean => AVAILABLE_TOOLS.includes(tool);

@@ -174,6 +174,27 @@ export function Toolbar({
             </span>
             <span className="board-toolbar-label">Connector (L)</span>
           </button>
+          {/* Story 11's pen. The icon is the only drawing on the board that is not
+              described by its own button's shape: a squiggle, because a squiggle is
+              what the tool is for. It is greyed out with everything else that writes,
+              and - unlike the three tools above it - it does not leave after it has
+              drawn one thing: a person holding a pen is sketching, and sketching is
+              several lines (`pen.stay_active`). */}
+          <button
+            type="button"
+            className="board-toolbar-button"
+            data-testid="pen-tool-button"
+            aria-label="Pen (P)"
+            title="Sketch freehand (P)"
+            aria-pressed={tool === 'pen' ? 'true' : 'false'}
+            disabled={!canEdit}
+            onClick={() => onTool('pen')}
+          >
+            <span className="board-toolbar-icon" aria-hidden="true">
+              &#12316;
+            </span>
+            <span className="board-toolbar-label">Pen (P)</span>
+          </button>
         </>
       ) : null}
       <button

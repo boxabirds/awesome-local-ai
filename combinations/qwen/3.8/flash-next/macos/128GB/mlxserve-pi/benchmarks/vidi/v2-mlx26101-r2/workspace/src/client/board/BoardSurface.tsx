@@ -17,6 +17,9 @@ import { Toolbar } from './Toolbar.js';
 import { useActiveTool } from '../tools/useActiveTool.js';
 import { ShapeTool } from '../tools/ShapeTool.js';
 import { ConnectorTool } from '../tools/ConnectorTool.js';
+import { PenTool } from '../tools/PenTool.js';
+import { PenToolbar } from '../tools/PenToolbar.js';
+import { usePenOptions } from '../tools/usePenOptions.js';
 import { useBoardDoc } from './useBoardDoc.js';
 import type { BoardConnector } from './useBoardDoc.js';
 import { useSelection } from './useSelection.js';
@@ -113,6 +116,14 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
    * `toolCreated`, which is what puts a freshly drawn thing in the selection.
    */
   const tools = useActiveTool(selection, editable);
+
+  /**
+   * Which ink and which pen this tab's pen draws with (`pen.options`). Session state
+   * beside the tool and the selection - not in the document, so a colleague choosing red
+   * changes nothing here, and not in local storage either, so the pen that is picked up
+   * is the pen that was picked up now rather than the one left down yesterday.
+   */
+  const pen = usePenOptions();
 
   // The tab says which board it is holding. This starts to matter the day boards have
   // links: a board gets shared, somebody ends up with three of them open, and a tab that
@@ -345,6 +356,22 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
             // so the note the user is typing into is never lost by a stray click.
             if (selection.editingId === null) selection.clear();
           }}
+          // The pen's own screen, over the board and inside the surface: it must be the
+          // first thing a pointer reaches and still leave the wheel to the board
+          // (`pen.navigation`). The other drawing tools stand beside the surface; this
+          // one cannot, and the difference is whether scrolling still works while the
+          // tool is up.
+          overlay={
+            editable && tools.tool === 'pen' ? (
+              <PenTool
+                doc={doc}
+                camera={api.camera}
+                color={pen.color}
+                thickness={pen.thickness}
+                undo={undoHistory}
+              />
+            ) : undefined
+          }
         >
           {stackOrder.map((note) => {
             // Draw each object through its type; a type this build cannot draw is
@@ -392,6 +419,19 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
             snapshot={notes}
             undo={undoHistory}
             onCreated={tools.toolCreated}
+          />
+        ) : null}
+        {/* The pen's options, and the only toolbar in this app that is not the toolbar:
+            six inks and three widths, shown while the pen is the tool and at no other
+            time (`pen.options`). Choosing one changes what the *next* stroke is drawn
+            with and reaches no further - there is no selection in this bar, and nothing
+            here can find a stroke that is already on the board. */}
+        {editable && tools.tool === 'pen' ? (
+          <PenToolbar
+            color={pen.color}
+            thickness={pen.thickness}
+            onColor={pen.setColor}
+            onThickness={pen.setThickness}
           />
         ) : null}
         {/* Screen-space selection chrome: an outline per selected object plus

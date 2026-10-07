@@ -131,15 +131,18 @@ describe('tools.active_tool: a tool that made something is finished', () => {
   });
 
   it('TC-22f has no letters for tools this build has not got, and spends them on nothing', () => {
-    // The pen, image and comment tools are story 11, 12 and 16. Their letters are
-    // reserved and must not put the board in a mode whose tool does not exist.
-    for (const key of ['p', 'i', 'c']) {
+    // Story 11 spent `p`: the pen is a tool now, and its letter is the pen's letter.
+    keydown('p');
+    expect(pressedTool()).toBe('pen');
+    // The image and comment tools are story 12 and story 16. Their letters are reserved
+    // and must not put the board in a mode whose tool does not exist.
+    for (const key of ['i', 'c']) {
       keydown(key);
-      expect(pressedTool()).toBe('select');
+      expect(pressedTool()).toBe('pen');
     }
     // `n` is a note, which is a creation and not a mode.
     keydown('n');
-    expect(pressedTool()).toBe('select');
+    expect(pressedTool()).toBe('pen');
     expect(docNotes().filter((object) => object.type === 'sticky')).toHaveLength(1);
   });
 

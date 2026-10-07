@@ -8,10 +8,11 @@ import {
   type ObjectSnapshot,
   type Rect,
 } from '../../shared/board-model.js';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config.js';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from '../../shared/config.js';
 import { TEXT_TYPE } from '../../shared/objects/text.js';
 import { SHAPE_TYPE } from '../../shared/objects/shape.js';
 import { CONNECTOR_TYPE, type ConnectorSnap } from '../../shared/objects/connector.js';
+import { STROKE_TYPE, strokeIsAt, type StrokeSnap } from '../../shared/objects/stroke.js';
 import { resolveEndpoints } from '../../shared/geometry/connector-geometry.js';
 import { distanceToPolyline } from '../../shared/geometry/polyline.js';
 import type { Camera } from '../canvas/camera.js';
@@ -22,6 +23,7 @@ import StickyNote from './StickyNote.js';
 import TextObject, { resizeTextObject } from './TextObject.js';
 import ShapeObject from './ShapeObject.js';
 import ConnectorObject from './ConnectorObject.js';
+import StrokeObject from './StrokeObject.js';
 
 /**
  * The object type registry (story 7, `src/client/objects/registry.tsx`).
@@ -244,6 +246,36 @@ registerObjectType(CONNECTOR_TYPE, {
   editableText: false,
   hitTest: connectorHitTest,
 });
+
+// Story 11's strokes. Resizable, and the one type whose proportions are locked: the
+// selection may drag a corner and the trail inside is scaled by the same factor on both
+// axes (`pen.resize`), because a drawing that was squashed on the way in is not the same
+// drawing. Nothing to type into, and found by how near its *line* a point is rather than
+// by its box - see `strokeIsAt`, and the note on `connectorHitTest` above about why the
+// zoom is passed to a hit test at all.
+registerObjectType(STROKE_TYPE, {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: strokeHitTest,
+});
+
+/**
+ * How near a drawn line a point has to be to be a click on it (`pen.select`):
+ * `STROKE_HIT_TOLERANCE_PX` *screen* pixels divided by the zoom to get board units, and
+ * never less than half the ink - so a thick line is as easy to catch close up as a thin
+ * one is far off, and a click in the middle of a loop is a click on whatever the loop was
+ * drawn around.
+ */
+export function strokeHitTest(
+  object: ObjectSnapshot,
+  point: { x: number; y: number },
+  zoom = 1,
+): boolean {
+  return strokeIsAt(object as StrokeSnap, point, zoom);
+}
 
 export { isKnownObjectType };
 export type { Camera };
