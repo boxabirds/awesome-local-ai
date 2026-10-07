@@ -99,3 +99,17 @@ watch the cache-skip warning at longer contexts).
 **Update, 7 Oct 2026.** Across the five 0.5.0 runs, decode is 12 to 18% slower than the build before it at every
 prompt size, with 36% more draft tokens proposed and 6.1 points lower acceptance. Reported upstream as https://github.com/gufo-org/gufo/issues/475.
 Write-up: https://github.com/boxabirds/awesome-local-ai/blob/main/docs/reports/strategic-insights/2026-10-07-gufo-0.5.0-decodes-slower.md
+
+**Update, 7 Oct 2026 (later).** The maintainers answered on that issue: they say the slowdown is expected, because the
+server's default sampling changed from greedy to the model labs' suggested settings (their pull request
+https://github.com/gufo-org/gufo/pull/282, merged 28 Sep, between our two builds), and greedy sampling gives higher
+speculative acceptance. We pass explicit sampling flags to both builds, so whether that applies to us is an open
+question that has been put to them: did the older build apply those flags to requests that omitted sampling fields?
+If it did not, our five `v2-r` gufo runs were greedy and the five `v2-gufo05` runs are not, which is a confound across
+the whole series on quality as well as speed. Details and what was checked in their code:
+https://github.com/boxabirds/awesome-local-ai/blob/main/docs/reports/strategic-insights/2026-10-07-gufo-0.5.0-decodes-slower.md
+
+**A newer release exists.** v0.9.0 was published on 7 Oct 2026; our pin, 0.5.0, is from 2 Oct. They recommend moving,
+for prompt-processing and tool-calling improvements. A move starts a new series and cannot be mixed with the 0.5.0
+runs, and the Qwen3.6 fork is built on 0.5.0 and could not follow without rebasing. Not decided.
+
