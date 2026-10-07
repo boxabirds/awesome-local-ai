@@ -1,0 +1,321 @@
+:root {
+  --vidi6-bg: #fafafa;
+  --vidi6-fg: #1f2933;
+  --vidi6-muted: #666666;
+  --vidi6-surface: #ffffff;
+  --vidi6-border: #d0d0d0;
+  --vidi6-focus: #2563eb;
+  --vidi6-hint-bg: rgba(255, 255, 255, 0.9);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--vidi6-bg);
+  color: var(--vidi6-fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* ---- Board viewport ---- */
+
+.board-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--vidi6-bg);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-viewport[data-panning="true"] {
+  cursor: grabbing;
+}
+
+.board-grid {
+  position: absolute;
+  inset: 0;
+  /* background-image / -size / -position are set inline from the camera */
+}
+
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.origin-marker {
+  position: absolute;
+  pointer-events: none;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: "";
+  position: absolute;
+  background: var(--vidi6-muted);
+}
+
+.origin-marker::before {
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  transform: translateX(-50%);
+}
+
+.origin-marker::after {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+/* ---- Zoom controls ---- */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 10px;
+  font-size: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.zoom-controls button {
+  font: inherit;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 8px;
+  background: var(--vidi6-surface);
+  color: var(--vidi6-fg);
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #f1f4f8;
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible,
+.board-viewport:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
+}
+
+.zoom-controls .zoom-label {
+  min-width: 56px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- First-use navigation hint ---- */
+
+.nav-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  background: var(--vidi6-hint-bg);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 999px;
+  color: var(--vidi6-muted);
+  font-size: 16px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ---- Board toolbar (story 2) ---- */
+
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 10px;
+  font-size: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.board-toolbar-button {
+  font: inherit;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 8px;
+  background: var(--vidi6-surface);
+  color: var(--vidi6-fg);
+  cursor: pointer;
+}
+
+.board-toolbar-button:hover {
+  background: #f1f4f8;
+}
+
+.board-toolbar-button:focus-visible,
+.sticky-note:focus-visible,
+.note-toolbar button:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
+}
+
+/* ---- Sticky notes (story 2) ---- */
+
+.sticky-note {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+  cursor: grab;
+}
+
+.sticky-note[data-editing="true"] {
+  cursor: text;
+}
+
+.sticky-note-body {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.sticky-text {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #1f2933;
+  font-family: inherit;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.sticky-text-editing {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  resize: none;
+  outline: none;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Hidden twin of the text used only to measure how large the font can be. */
+.sticky-measure {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+  overflow: hidden;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Bottom fade shown when the text no longer fits at the smallest size. */
+.note-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(31, 41, 51, 0), rgba(31, 41, 51, 0.22));
+}
+
+.sticky-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.75);
+  color: #1f2933;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* ---- Note toolbar (story 2) ---- */
+
+.note-toolbar-anchor {
+  position: fixed;
+  z-index: 10;
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.note-color-swatch,
+.note-delete-button {
+  font: inherit;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.note-color-swatch[aria-pressed="true"] {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 1px;
+}
+
+.note-delete-button {
+  background: var(--vidi6-surface);
+  color: var(--vidi6-fg);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.note-delete-button:hover {
+  background: #fdecec;
+}
