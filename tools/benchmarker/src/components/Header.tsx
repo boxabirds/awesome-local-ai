@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { State } from "../../shared/types.ts";
 import { ago } from "../format.ts";
+import { overviewHref } from "../../shared/routes.ts";
 import { useHeightVar } from "../useHeightVar.ts";
 import { SearchBox } from "./SearchBox.tsx";
 import { utc } from "./run/bits.tsx";
@@ -28,7 +29,7 @@ export function Header({ state, serverNow, pack, scope, children }: Props) {
   const bar = useHeightVar<HTMLElement>("--header-h");
   return (
     <header ref={bar}>
-      <h1>Benchmarker</h1>
+      <h1><a className="home-link" href={overviewHref()}>Benchmarker</a></h1>
       {scope}
       {/* The figures are only as current as the feed: when it has stopped refreshing, the line says so and is marked,
           which is a fact about the data and not a fault to explain. */}

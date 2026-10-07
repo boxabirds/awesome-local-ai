@@ -32,6 +32,24 @@ test.beforeEach(async ({ request }) => {
 });
 
 test.describe("A. the sections have addresses, and the tabs are links to them", () => {
+  // The name in the top left is the way home, as it is on most sites. It had been plain text, so from a story's
+  // conversation the only way back to the overview was the Runs tab or the trail. It stays the page's one h1.
+  test("the app's name in the top bar is a link to the overview, from wherever you are", async ({ page }) => {
+    await page.goto(`/${CONVERSATION}`);
+    await expect(page$(page, "conversation")).toBeVisible();
+    const name = page.getByRole("banner").getByRole("heading", { level: 1 }).getByRole("link", { name: "Benchmarker" });
+    await expect(name).toHaveAttribute("href", "#/");
+    await name.click();
+    await expect(page$(page, "overview")).toBeVisible();
+    await expect(page).toHaveURL(/#\/$/);
+  });
+
+  test("...and it is still the one top-level heading, so nothing that reads headings loses it", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Benchmarker");
+  });
+
   test("each tab opens its address: #/ is runs, machines, setup, and the pack's stories index", async ({ page }) => {
     await page.goto("/");
     await expect(tab(page, "Runs")).toHaveAttribute("href", "#/");
