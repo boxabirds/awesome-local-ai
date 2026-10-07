@@ -1,8 +1,8 @@
-# Story 3 Notes — Gap Fills from Stories 1 & 2
+# Gap Fills & Notes — Stories 1–4
 
-This file documents gaps found in earlier stories that were filled during Story 3 implementation.
+## Story 3 Notes (see below for Story 4)
 
-## Gap-fill: Yjs provider abstraction (`y-websocket` → `WebsocketProvider`)
+### Gap-fill: Yjs provider abstraction (`y-websocket` → `WebsocketProvider`)
 
 **Story 1-2 status:** The initial scaffolding included `yjs` and React but no WebSocket transport layer. There was no client-side mechanism to connect a Y.Doc to a shared state.
 
@@ -12,57 +12,84 @@ This file documents gaps found in earlier stories that were filled during Story 
 type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
 ```
 
-The `connectBoard` function:
-- Creates a new `Y.Doc()` and attaches a `WebsocketProvider` connecting to `ws://host/api/rooms/${boardId}`.
-- On `'sync'` event: transitions state to `'confirmed'`.
-- On `'connecting'`/`'connect'`/`'authenticated'`: transitions to `'connected'`.
-- On `'destroy'`: if state is `'connected'`, stays connected; otherwise transitions to `'reconnecting'`.
-- Exposes `useEffect` cleanup to destroy the provider on unmount.
-- No retries beyond what `WebsocketProvider` does natively.
+### Gap-fill: BoardRoot component for `/b/:id` route
 
-**Verification:** Unit tests verify type signatures. E2E tests (TC-22–TC-27) verify real connections.
+**Fill:** Created `src/client/board/BoardRoot.tsx` which parses params, validates board id, renders BoardViewport with useBoardDoc hook, provides undo/redo via KeyboardHandler, handles sticky CRUD.
 
-## Gap-fill: BoardRoot component for `/b/:id` route
+### Gap-fill: Sticky note creation via `createSticky` helper
 
-**Story 1-2 status:** The `App.tsx` had a basic router handling only root `/` and `*`. There was no board-detail view component.
+**Fill:** Implemented `createSticky(doc, options)` in `src/shared/board-model.ts`.
 
-**Fill:** Created `src/client/board/BoardRoot.tsx` which:
-- Parses `params.id` from the `/b/:id` route.
-- Validates the board ID using `isValidBoardId()`.
-- Renders `BoardViewport` with `useBoardDoc(boardId)` hook.
-- Provides undo/redo via `KeyboardHandler`.
-- Handles sticky CRUD: double-click creates, drag moves text edits.
+### Gap-fill: ConnectionStatus badge component
 
-Also updated `App.tsx` to redirect root `/` to a fresh board (`newBoardId()`).
+**Fill:** Created `src/client/sync/ConnectionStatus.tsx` with connecting/reconnecting/confirmed states.
 
-## Gap-fill: Sticky note creation via `createSticky` helper
+### Gap-fill: Yjs awareness handling
 
-**Story 1-2 status:** The `StickyNote` component existed but there was no `createSticky` model function to generate notes from the application layer. Double-clicking would select a note but not create one.
+**Fill:** BoardRoom sends awareness updates, processes incoming payloads, broadcasts to other sockets.
 
-**Fill:** Implemented `createSticky(doc, options)` in `src/shared/board-model.ts`:
-```typescript
-export function createSticky(doc: Y.Doc, options?: { x?: number; y?: number }): string | undefined {
-  const id = generateId();
-  objectsMap.set(id, noteData);
-  return id;
-}
-```
+---
 
-Where `options` defaults to `{ x: 0, y: 0 }` when not specified. This is called from `BoardViewport`'s `handleDblClick`.
+## Story 4 Notes — Persistence Implementation
 
-## Gap-fill: ConnectionStatus badge component
+### Storage Architecture
 
-**Story 1-2 status:** No visual feedback for connection state. Users would see frozen boards with no indication of reconnecting states.
+**BoardStore** (`src/worker/board-store-do.ts`): Full class implementing SQLite-backed persistence with four tables:
+- `storage_meta`: key-value store for schema_version (stored as string value)
+- `updates`: append-only log (seq PK AUTOINCREMENT, data BLOB, bytes INTEGER)
+- `snapshot_chunks`: chunked binary snapshot storage (idx INTEGER, data BLOB) with configurable SNAPSHOT_CHUNK_BYTES (~64 KB)
+- `quarantined_updates`: damaged rows moved here during load failure recovery
 
-**Fill:** Created `src/client/sync/ConnectionStatus.tsx`:
-- Shows "Connecting…" badge while provider connects (green).
-- Shows amber "Reconnecting…" badge when disconnected.
-- Shows green "Connected" badge briefly after reconnection before hiding.
-- Badge uses fixed position, z-index 9999, never blocks editing.
-- Follows config values from `src/shared/config.ts` (`CONNECTED_CONFIRMATION_MS`).
+**BoardStore pure functions** (`src/worker/board-store.ts`): Portable helpers extracted for testing without DO runtime:
+- `chunkBytes(totalBytes: number): number[]` — splits into ~64KB chunks
+- `joinChunks(chunks: Uint8Array[]): Uint8Array` — reassembles
+- `shouldCompact(doc: Y.Doc, updateCount: number): boolean` — checks COMPACTION_UPDATE_COUNT threshold
 
-## Gap-fill: Yjs awareness handling
+### Document Load Strategy
 
-**Story 1-2 status:** No awareness protocol support. Other users' cursors/editors weren't tracked.
+BoardRoom constructor uses `ctx.blockConcurrencyWhile(async () => { ... })` to synchronously load the document before accepting any connections:
+1. Create new Y.Doc
+2. Load snapshot by joining chunks (respects SNAPSHOT_CHUNK_BYTES)
+3. Apply quarantined-safe log rows sequentially
+4. Damaged rows go to quarantined_updates table
+5. If load fails completely → transition to 'load-failed' state
 
-**Fill:** BoardRoom sends awareness updates to all peers on socket open, processes incoming awareness payloads, and broadcasts to other sockets. Client uses `WebsocketProvider`'s built-in awareness integration. See `src/worker/board-room.ts` lines 64–68 and client side through `WebsocketProvider`.
+### Write Path (Append-before-Broadcast)
+
+The `doc.on('update')` handler in BoardRoom fires whenever any change is applied:
+1. Call `store.append(update)` — throws on SQLite failure
+2. On success: call `compactIfNeeded(doc)` (best-effort, never throws)
+3. Build sync frame and broadcast to all sockets except origin
+4. On failure → set 'storage-failed', close ALL sockets with CLOSE_STORAGE_FAILURE (1011), discard in-memory doc
+
+### Close Codes
+
+- `CLOSE_BOARD_LOAD_FAILED = 4500` — server couldn't reconstruct document from storage
+- `CLOSE_STORAGE_FAILURE = 1011` — write operations can no longer persist to disk
+
+Both trigger `connection-close` event on y-websocket Provider, which maps to 'load-failed' or 'storage-failed' connection state respectively.
+
+### Client Side Changes
+
+**connectBoard.ts**: Extended ConnectionState type with 'load-failed' and 'storage-failed'. Listens on 'connection-close' event to check close codes.
+
+**ConnectionStatus.tsx**: Shows red "Loading failed" and red "Storage failure" badges. Both use '#d63031' color (red).
+
+**App.tsx**: Added `canEdit` gate — editing disabled when state is NOT one of: connected, connecting, reconnecting, confirmed. Blocks createSticky, deleteObj, Enter (start edit), Delete/Backspace (delete note).
+
+### Test Configuration
+
+Split vitest into three projects via workspace config:
+- `vitest.unit.config.ts` — node environment, 116 tests
+- `vitest.component.config.ts` — jsdom + React, 19 tests  
+- `vitest.integration.config.ts` — import verification, 32 tests
+
+Total: 167 tests pass.
+
+### Known Limitations
+
+1. **vitest-pool-workers incompatibility**: Cannot test Durable Objects directly with real Cloudflare Workers VM because vitest 3.x is incompatible with @cloudflare/vitest-pool-workers (which requires vitest 2.x). All DO-related behavior verified through e2e tests against wrangler dev and code inspection in integration tests.
+
+2. **Recovery after storage-failed**: Currently discards in-memory document entirely. Next connection attempt triggers fresh reload from storage which may succeed if storage is restored. No automatic retry beyond what the client's reconnect logic does.
+
+3. **Load retry backoff**: `_handleLoadFailed` retries once after LOAD_RETRY_MIN_INTERVAL_MS. Before that interval expires, returns 4500 immediately. Future improvement: exponential backoff between retries.

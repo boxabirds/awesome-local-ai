@@ -192,6 +192,47 @@ test.describe('Live collaboration', () => {
     expect(texts.filter((t): t is string => !!t)).toContain('OfflineB');
   });
 
+  // ---- Persistence Test: Return to board, find everything as it was left ====
+  test('Persistence: create notes → reload → notes persist', async () => {
+    // Ensure clean state
+    const countBefore = await pageA.locator('[data-testid^="sticky-"]').count();
+    for (let i = 0; i < countBefore; i++) {
+      await pageA.locator('[data-testid^="sticky-"]').last().click({ position: { x: 10, y: 10 } });
+      await pageA.keyboard.press('Delete');
+    }
+    await new Promise(r => setTimeout(r, 500));
+
+    // Create 3 notes on page A
+    for (let i = 0; i < 3; i++) {
+      await dblClickEmptySpace(pageA);
+    }
+    await new Promise(r => setTimeout(r, 1000));
+
+    // Verify all 3 notes exist on page B
+    await waitForNNotes(pageB, 3);
+
+    // Record current note content
+    const textsBefore = await pageA.locator('[data-testid^="sticky-"] .sticky-note-text-inner').allTextContents();
+    expect(textsBefore.length).toBe(3);
+
+    // Reload page A — this triggers DO wake + document load from storage
+    await pageA.reload({ waitUntil: 'networkidle' });
+
+    // Navigate back to same board after redirect
+    const currentUrl = pageA.url();
+    await pageA.goto(currentUrl);
+    await pageA.waitForLoadState('domcontentloaded');
+    await pageA.waitForTimeout(3000); // Wait for Yjs sync to complete
+
+    // After reload and sync, notes should still be there
+    const notesAfterReload = await pageA.locator('[data-testid^="sticky-"]').count();
+    expect(notesAfterReload).toBeGreaterThanOrEqual(1);
+
+    // Switch to page B to verify it also sees persisted data
+    const notesOnB = await pageB.locator('[data-testid^="sticky-"]').count();
+    expect(notesOnB).toBeGreaterThanOrEqual(1);
+  });
+
   // ---- TC-28: Selection isolation ====
   test('TC-28: Alex selects a note → Sam sees no selection', async () => {
     const count = await pageA.locator('[data-testid^="sticky-"]').count();

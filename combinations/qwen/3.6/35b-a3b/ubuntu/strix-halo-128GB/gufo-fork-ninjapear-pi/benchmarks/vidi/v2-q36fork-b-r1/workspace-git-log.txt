@@ -1,3 +1,41 @@
+commit c3a085c9421b9591d545cff9032a4b0fa19f40af
+agent  Wed Oct 7 10:17:15 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                  | 111 +++++---
+ PROGRESS.md                               |  45 +++-
+ package.json                              |   7 +-
+ src/client/App.tsx                        |  14 +-
+ src/client/sync/ConnectionStatus.tsx      |  56 +++-
+ src/client/sync/connectBoard.ts           |  49 +++-
+ src/shared/config.ts                      |   9 +
+ src/shared/protocol.ts                    |   4 +
+ src/worker/board-room.ts                  | 430 +++++++++++++++++++++---------
+ src/worker/board-store-do.ts              | 242 +++++++++++++++++
+ src/worker/board-store.ts                 |  52 ++++
+ src/worker/index.ts                       |  20 ++
+ src/worker/room-state.ts                  |  80 ++++++
+ tests/component/ConnectionStatus.test.tsx |  27 +-
+ tests/e2e/live-collaboration.spec.ts      |  41 +++
+ tests/fixtures/boards.ts                  |  71 +++++
+ tests/integration/board-store.test.ts     | 115 ++++++++
+ tests/unit/board-store-chunks.test.ts     | 104 ++++++++
+ tests/unit/room-state.test.ts             | 128 +++++++++
+ vitest.component.config.ts                |  18 ++
+ vitest.config.ts                          |  46 +---
+ vitest.integration.config.ts              |  14 +
+ vitest.unit.config.ts                     |  17 ++
+ 23 files changed, 1453 insertions(+), 247 deletions(-)
+commit 528873bf88205f63b690b02a8a139bd3c9dfa7b2
+vidi-agent  Wed Oct 7 08:00:29 2026 +0000
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 29 +++++++++++++----------------
+ 1 file changed, 13 insertions(+), 16 deletions(-)
 commit d73055790d4e2196dfcf0b1ae063743a239a98ab
 agent  Wed Oct 7 07:56:37 2026 +0000
 

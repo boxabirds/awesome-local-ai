@@ -1,5 +1,5 @@
 /**
- * Task 7: Component tests for ConnectionStatus badge (TC-19 to TC-21).
+ * Task 7 & Story 4: Component tests for ConnectionStatus badge (TC-19 to TC-21 + load/storage errors).
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
@@ -78,5 +78,30 @@ describe('ConnectionStatus component', () => {
       // Badge should not block pointer events
       expect(badge!.getAttribute('style')?.includes('pointer-events')).toBeFalsy();
     }
+  });
+
+  // ---- Story 4: persistence error states ====
+
+  it('load-failed state shows red "Loading failed" badge', () => {
+    const { rerender } = render(<ConnectionStatus state={'load-failed' as ConnectionState} />);
+    const badge = screen.getByRole('status');
+    expect(badge.textContent).toBe('Loading failed');
+    expect(badge).toHaveAttribute('aria-label', 'Connection status: Loading failed');
+    expect(badge).toHaveStyle({ color: '#d63031' });
+
+    // Hidden when back to normal
+    rerender(<ConnectionStatus state={'connected' as ConnectionState} />);
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('storage-failed state shows red "Storage failure" badge', () => {
+    const { rerender } = render(<ConnectionStatus state={'storage-failed' as ConnectionState} />);
+    const badge = screen.getByRole('status');
+    expect(badge.textContent).toBe('Storage failure');
+    expect(badge).toHaveAttribute('aria-label', 'Connection status: Storage failure');
+    expect(badge).toHaveStyle({ color: '#d63031' });
+
+    rerender(<ConnectionStatus state={'connected' as ConnectionState} />);
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });

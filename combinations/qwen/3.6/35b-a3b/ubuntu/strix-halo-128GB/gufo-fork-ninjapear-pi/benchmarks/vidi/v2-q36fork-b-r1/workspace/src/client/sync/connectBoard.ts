@@ -1,6 +1,7 @@
 /**
  * Client-side connection helper.
  * Story 3 — live collaboration.
+ * Story 4 — persistence states (load-failed, storage-failed).
  *
  * Creates a y-websocket WebsocketProvider connecting to the BoardRoom
  * and maps provider status events to ConnectionState values used by
@@ -10,8 +11,18 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import type { WebsocketProvider as WSPType } from 'y-websocket';
 import { RECONNECT_MAX_BACKOFF_MS, CONNECTED_CONFIRMATION_MS } from '@/shared/config';
+import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from '@/shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load-failed'
+  | 'storage-failed';
+
+const LOAD_OK_CODES = new Set([0, 1000, 1001]); // Normal closure codes
+const RECOVERABLE_ERRORS = new Set([1006, 1012, 1013]); // Abnormal / server restart
 
 /**
  * Connect a Y.Doc to a board via WebSocket.
@@ -32,22 +43,20 @@ export function connectBoard(
     doc,
     {
       maxBackoffTime: RECONNECT_MAX_BACKOFF_MS,
-      disableBc: true, // No BroadcastChannel so same-browser tabs must go through the server
+      disableBc: true,
     },
   );
 
-  // Track state machine
   let currentState: ConnectionState = 'connecting';
   let confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
   function setState(state: ConnectionState): void {
     if (state === currentState) return;
-    currentState = state;
-    // Clear any pending confirmation timer when transitioning away from confirmed
-    if (state !== 'confirmed' && confirmTimer !== null) {
+    if (confirmTimer !== null) {
       clearTimeout(confirmTimer);
       confirmTimer = null;
     }
+    currentState = state;
     onState(state);
   }
 
@@ -58,11 +67,9 @@ export function connectBoard(
         setState('connecting');
         break;
       case 'connected':
-        // First sync completed → connected
         if (currentState === 'connecting') {
           setState('connected');
         } else if (currentState === 'reconnecting') {
-          // Reconnected after outage → show "Connected" briefly
           setState('confirmed');
           confirmTimer = setTimeout(() => {
             setState('connected');
@@ -71,7 +78,6 @@ export function connectBoard(
         }
         break;
       case 'disconnected':
-        // Was connected but socket closed → reconnecting
         if (currentState === 'connected' || currentState === 'confirmed') {
           setState('reconnecting');
         }
@@ -79,9 +85,28 @@ export function connectBoard(
     }
   });
 
-  // "sync" event fires when the client sends/receives a sync message
-  provider.on('sync', () => {
-    // After connected state, the first "sync" after "connected" means initial sync complete
+  // Handle WebSocket close codes for persistence error states
+  provider.on('connection-close', (event: CloseEvent | null) => {
+    if (!event) return;
+    const code = event.code;
+    const reason = event.reason ?? '';
+
+    // Load failed: server couldn't reconstruct document from storage
+    if (code === CLOSE_BOARD_LOAD_FAILED || reason.includes('Loading failed')) {
+      setState('load-failed');
+      return;
+    }
+
+    // Storage failure: write operations can no longer be persisted
+    if (code === CLOSE_STORAGE_FAILURE || reason.includes('Storage failure')) {
+      setState('storage-failed');
+      return;
+    }
+
+    // Recoverable errors → stay in reconnecting (provider auto-reconnects)
+    if (!LOAD_OK_CODES.has(code) && RECOVERABLE_ERRORS.has(code)) {
+      // Don't change state — provider handles reconnection
+    }
   });
 
   return {

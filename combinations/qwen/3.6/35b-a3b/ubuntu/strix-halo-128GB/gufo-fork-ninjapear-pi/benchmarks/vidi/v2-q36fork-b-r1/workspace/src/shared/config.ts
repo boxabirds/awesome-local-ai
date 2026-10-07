@@ -32,3 +32,12 @@ export const RECONNECT_MAX_BACKOFF_MS = 10_000;
 export const CONNECTED_CONFIRMATION_MS = 2000;
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+// Story 4 — persistence settings
+export const COMPACTION_UPDATE_COUNT = 500;         // compact when this many log rows exist
+export const COMPACTION_BYTES = 4 * 1024 * 1024;    // or when log bytes reach this
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;     // keeps every row well under per-row size limit
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;     // LoadFailed room retries load at most this often
+export const PERSIST_TESTED_NOTES = 2000;           // PRD persist.large_board
+export const BOARD_LOAD_BUDGET_MS = 3000;           // PRD persist.large_board
+export const STORAGE_SCHEMA_VERSION = 1;

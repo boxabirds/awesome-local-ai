@@ -1,12 +1,15 @@
 /**
  * Connection status badge.
  * Story 3 — live collaboration.
+ * Story 4 — persistence error states (load-failed, storage-failed).
  *
  * Displays connection state at the top centre of the board:
  * - "Connecting…" during initial load (amber text)
  * - hidden when fully connected
  * - amber "Reconnecting…" while disconnected
  * - green "Connected" briefly after reconnection, then hides
+ * - red "Loading failed" when document can't be reconstructed
+ * - red "Storage failure" when writes can't persist
  */
 import { useState, useEffect } from 'react';
 import { CONNECTED_CONFIRMATION_MS } from '@/shared/config';
@@ -31,7 +34,6 @@ export function ConnectionStatus({ state }: ConnectionStatusProps): React.ReactE
 
   // Always show confirmed state even after the effect cleanup runs
   if (showConfirmed && state !== 'connected') {
-    // Show green "Connected" during confirmation period
     return (
       <div
         role="status"
@@ -58,6 +60,56 @@ export function ConnectionStatus({ state }: ConnectionStatusProps): React.ReactE
   }
 
   switch (state) {
+    case 'load-failed':
+      return (
+        <div
+          role="status"
+          aria-label="Connection status: Loading failed"
+          style={{
+            position: 'fixed',
+            top: '12px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            fontSize: '13px',
+            fontWeight: 600,
+            color: '#d63031',
+            backgroundColor: 'rgba(255,255,255,0.92)',
+            padding: '4px 14px',
+            borderRadius: '12px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {'Loading failed'}
+        </div>
+      );
+
+    case 'storage-failed':
+      return (
+        <div
+          role="status"
+          aria-label="Connection status: Storage failure"
+          style={{
+            position: 'fixed',
+            top: '12px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            fontSize: '13px',
+            fontWeight: 600,
+            color: '#d63031',
+            backgroundColor: 'rgba(255,255,255,0.92)',
+            padding: '4px 14px',
+            borderRadius: '12px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {'Storage failure'}
+        </div>
+      );
+
     case 'connecting':
       return (
         <div
@@ -109,7 +161,6 @@ export function ConnectionStatus({ state }: ConnectionStatusProps): React.ReactE
       );
 
     case 'confirmed':
-      // During this short window show green "Connected" before transition to connected
       return (
         <div
           role="status"
@@ -136,7 +187,6 @@ export function ConnectionStatus({ state }: ConnectionStatusProps): React.ReactE
 
     case 'connected':
     default:
-      // Hidden when fully connected normally
       return null;
   }
 }

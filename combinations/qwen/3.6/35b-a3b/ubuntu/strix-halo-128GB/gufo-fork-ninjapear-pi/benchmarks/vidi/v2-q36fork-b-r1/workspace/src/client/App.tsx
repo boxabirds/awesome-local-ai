@@ -35,19 +35,27 @@ export function App(): ReactNode {
 
   const { doc, snap, connectionState } = useBoardDoc(boardId || undefined);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+
+  // Disable editing when persistence is broken
+  const canEdit =
+    connectionState === 'connected' ||
+    connectionState === 'connecting' ||
+    connectionState === 'reconnecting' ||
+    connectionState === 'confirmed';
   // Ref to hold camera for toolbar positioning
   const cameraRef = useRef({ x: 0, y: 0, zoom: 1 });
 
   // Create sticky note at top-left world position and auto-select + edit it
   const handleCreateStickyAt = useCallback(
     (worldX: number, worldY: number) => {
+      if (!canEdit) return;
       const id = createSticky(doc, { x: worldX, y: worldY }, DEFAULT_STICKY_COLOR);
       if (id) {
         select(id);
         startEdit(id);
       }
     },
-    [doc, select, startEdit],
+    [doc, select, startEdit, canEdit],
   );
 
   // Double-click on empty board space → create note centred there
@@ -69,13 +77,13 @@ export function App(): ReactNode {
       const tag = (document.activeElement?.tagName || '').toLowerCase();
       if (tag === 'textarea' || tag === 'input') return;
 
-      if (e.key === 'Enter' && selectedId && !editingId) {
+      if (e.key === 'Enter' && selectedId && !editingId && canEdit) {
         e.preventDefault();
         startEdit(selectedId);
         return;
       }
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingId) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingId && canEdit) {
         e.preventDefault();
         deleteObj(doc, selectedId);
         endEdit('unselected');

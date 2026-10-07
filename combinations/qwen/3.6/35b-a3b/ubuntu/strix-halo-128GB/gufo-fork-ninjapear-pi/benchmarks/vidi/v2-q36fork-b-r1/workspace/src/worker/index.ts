@@ -47,6 +47,26 @@ export default {
       return room.fetch(request);
     }
 
+    // Route __test/* → BoardRoom with a synthetic board id
+    if (url.pathname.startsWith('/__test/store/') || url.pathname.startsWith('/api/storage/')) {
+      let storageId: string | null = null;
+      if (url.pathname.startsWith('/__test/store/')) {
+        const parts = url.pathname.split('/');
+        storageId = parts[3];
+      } else if (url.pathname.startsWith('/api/storage/')) {
+        // Alias: /api/storage/{boardId}/__test/store/{alias}/{action}
+        const parts = url.pathname.split('/');
+        if (parts.length >= 6) {
+          storageId = parts[3]; // Use the boardId as DO instance key
+        }
+      }
+      if (storageId) {
+        const room = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(storageId));
+        const rewritten = new Request(`http://localhost${url.pathname}`, request);
+        return room.fetch(rewritten);
+      }
+    }
+
     // All other paths → static assets
     return env.ASSETS.fetch(request);
   },

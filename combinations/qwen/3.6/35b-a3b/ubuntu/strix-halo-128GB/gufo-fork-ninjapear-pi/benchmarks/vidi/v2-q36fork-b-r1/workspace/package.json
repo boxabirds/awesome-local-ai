@@ -8,9 +8,10 @@
     "build": "tsc --noEmit && vite build",
     "build:test": "tsc --noEmit && vite build --mode test",
     "typecheck": "tsc --noEmit",
-    "test:unit": "vitest run --project unit",
-    "test:component": "vitest run --project component",
-    "test:e2e": "npm run build:test && playwright test"
+    "test:unit": "npx vitest run --project unit",
+    "test:component": "npx vitest run --project component",
+    "test:e2e": "npm run build:test && playwright test",
+    "test:integration": "npx vitest run --project integration"
   },
   "dependencies": {
     "@testing-library/dom": "^10.4.2",
