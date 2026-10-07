@@ -1,0 +1,131 @@
+:root {
+  --fg: #1a1a1a;
+  --muted: #5f6368;
+  --panel-bg: #ffffff;
+  --panel-border: #d0d0d0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--fg);
+  overflow: hidden;
+}
+
+/* Full-window board area with the dot grid as its background. */
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-repeat: repeat;
+  touch-action: none;
+}
+
+/* Transformed world layer; children live in world coordinates. */
+.board-world {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+
+/* Crosshair at world (0,0): a 0x0 point so its bounding box is the exact
+   projected origin, used as the e2e pixel target. */
+.origin-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+.origin-marker::before,
+.origin-marker::after {
+  content: '';
+  position: absolute;
+  background: rgba(217, 72, 15, 0.75);
+}
+.origin-marker::before {
+  left: -12px;
+  top: -1px;
+  width: 24px;
+  height: 2px;
+}
+.origin-marker::after {
+  left: -1px;
+  top: -12px;
+  width: 2px;
+  height: 24px;
+}
+
+/* Zoom controls: fixed bottom-right (outside the transformed world layer). */
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  font: 14px/1 system-ui, sans-serif;
+}
+.zoom-controls .zoom-button {
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+  line-height: 1;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: #f7f7f7;
+  cursor: pointer;
+}
+.zoom-controls .zoom-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.zoom-controls .zoom-label {
+  min-width: 48px;
+  text-align: center;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.zoom-controls .zoom-reset {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: #f7f7f7;
+  cursor: pointer;
+}
+.zoom-controls button:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 1px;
+}
+
+/* First-use navigation hint: fixed bottom-centre. */
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  color: #3c4043;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  font: 13px/1.2 system-ui, sans-serif;
+  pointer-events: none;
+}
