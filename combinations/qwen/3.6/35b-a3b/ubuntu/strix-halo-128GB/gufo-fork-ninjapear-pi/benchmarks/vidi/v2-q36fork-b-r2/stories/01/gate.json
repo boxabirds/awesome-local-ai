@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.1,
+      "tail": "\nadded 238 packages, and audited 239 packages in 2s\n\n40 packages are looking for funding\n  run `npm fund` for details\n\n10 vulnerabilities (3 moderate, 5 high, 2 critical)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm WARN deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm WARN deprecated rollup-plugin-inject@3.0.2: This package has been deprecated and is no longer maintained. Please use @rollup/plugin-inject.\nnpm WARN deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 1.8,
+      "tail": "\n> vidi6@0.0.1 build\n> npm run build:client && npm run build:worker\n\n\n> vidi6@0.0.1 build:client\n> vite build\n\n\u001b[36mvite v7.3.7 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 36 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                \u001b[39m\u001b[1m\u001b[2m  0.49 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.34 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-DI6vkqX2.js  \u001b[39m\u001b[1m\u001b[2m231.14 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 72.21 kB\u001b[22m\n\u001b[32m\u2713 built in 925ms\u001b[39m\n\n> vidi6@0.0.1 build:worker\n> echo 'Worker build placeholder'\n\nWorker build placeholder\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.1,
+      "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 1.0,
+      "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/85c667547c/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 19\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m23 passed\u001b[39m\u001b[22m\u001b[90m (23)\u001b[39m\n\u001b[2m   Start at \u001b[22m 19:38:07\n\u001b[2m   Duration \u001b[22m 377ms\u001b[2m (transform 58ms, setup 0ms, collect 52ms, tests 19ms, environment 0ms, prepare 61ms)\u001b[22m\n\n",
+      "passed": 23,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.3,
+      "tail": "\n> vidi6@0.0.1 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/85c667547c/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 27\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 95\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 130\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m20 passed\u001b[39m\u001b[22m\u001b[90m (20)\u001b[39m\n\u001b[2m   Start at \u001b[22m 19:38:08\n\u001b[2m   Duration \u001b[22m 734ms\u001b[2m (transform 82ms, setup 0ms, collect 266ms, tests 253ms, environment 589ms, prepare 166ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mTC-14: pointer cancel mid-drag\u001b[2m > \u001b[22m\u001b[2mcamera frozen at cancel; later moves ignored\n\u001b[22m\u001b[39mAn update to BoardViewport inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n",
+      "passed": 20,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 9.2,
+      "tail": "\n> vidi6@0.0.1 test:e2e\n> npm run build && playwright test --project=chromium\n\n\n> vidi6@0.0.1 build\n> npm run build:client && npm run build:worker\n\n\n> vidi6@0.0.1 build:client\n> vite build\n\n\u001b[36mvite v7.3.7 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 36 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                \u001b[39m\u001b[1m\u001b[2m  0.49 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.34 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-DI6vkqX2.js  \u001b[39m\u001b[1m\u001b[2m231.14 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 72.21 kB\u001b[22m\n\u001b[32m\u2713 built in 889ms\u001b[39m\n\n> vidi6@0.0.1 build:worker\n> echo 'Worker build placeholder'\n\nWorker build placeholder\n[WebServer] \n[WebServer]  \u26c5\ufe0f wrangler 3.114.17 (update available 4.148.0)\n[WebServer] ----------------------------------------------------------\n[WebServer] \n[WebServer] No bindings found.\n[WebServer] \u2394 Starting local server...\n[WebServer] [wrangler:inf] Ready on http://0.0.0.0:27360\n[WebServer] [wrangler:inf] - http://127.0.0.1:27360\n[WebServer] [wrangler:inf] - http://192.168.4.35:27360\n[WebServer] [wrangler:inf] - http://100.97.95.90:27360\n\nRunning 6 tests using 1 worker\n\n[WebServer] [wrangler:inf] GET / 200 OK (6ms)\n[WebServer] [wrangler:inf] GET /assets/index-DI6vkqX2.js 200 OK (2ms)\n  \u2713  1 [chromium] \u203a tests/e2e/navigation.spec.ts:12:3 \u203a Story 1 \u2014 Pan and zoom around an infinite board \u203a TC-31: initial page renders dot grid at 100% (435ms)\n[WebServer] [wrangler:inf] GET / 200 OK (3ms)\n[WebServer] [wrangler:inf] GET /assets/index-DI6vkqX2.js 200 OK (2ms)\n  \u2713  2 [chromium] \u203a tests/e2e/navigation.spec.ts:27:3 \u203a Story 1 \u2014 Pan and zoom around an infinite board \u203a TC-32: pointer drag pans the board (443ms)\n[WebServer] [wrangler:inf] GET / 200 OK (3ms)\n[WebServer] [wrangler:inf] GET /assets/index-DI6vkqX2.js 200 OK (3ms)\n  \u2713  3 [chromium] \u203a tests/e2e/navigation.spec.ts:46:3 \u203a Story 1 \u2014 Pan and zoom around an infinite board \u203a TC-33: mousewheel zooms in/out (636ms)\n[WebServer] [wrangler:inf] GET / 200 OK (2ms)\n[WebServer] [wrangler:inf] GET /assets/index-DI6vkqX2.js 200 OK (3ms)\n  \u2713  4 [chromium] \u203a tests/e2e/navigation.spec.ts:64:3 \u203a Story 1 \u2014 Pan and zoom around an infinite board \u203a TC-34: keyboard shortcuts control zoom (801ms)\n[WebServer] [wrangler:inf] GET / 200 OK (3ms)\n[WebServer] [wrangler:inf] GET /assets/index-DI6vkqX2.js 200 OK (2ms)\n  \u2713  5 [chromium] \u203a tests/e2e/navigation.spec.ts:83:3 \u203a Story 1 \u2014 Pan and zoom around an infinite board \u203a TC-35: navigation hint disappears after first pan (642ms)\n[WebServer] [wrangler:inf] GET / 200 OK (3ms)\n[WebServer] [wrangler:inf] GET /assets/index-DI6vkqX2.js 200 OK (3ms)\n  \u2713  6 [chromium] \u203a tests/e2e/navigation.spec.ts:104:3 \u203a Story 1 \u2014 Pan and zoom around an infinite board \u203a TC-36: dot grid overlay is rendered at initial zoom (393ms)\n\n  6 passed (6.9s)\n[WebServer] \u25b2 [WARNING] The version of Wrangler you are using is now out-of-date.\n[WebServer] \n[WebServer]   Please update to the latest version to prevent critical errors.\n[WebServer]   Run `npm install --save-dev wrangler@4` to update to the latest version.\n[WebServer]   After installation, run Wrangler with `npx wrangler`.\n[WebServer] \n[WebServer] \n",
+      "passed": 6,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
