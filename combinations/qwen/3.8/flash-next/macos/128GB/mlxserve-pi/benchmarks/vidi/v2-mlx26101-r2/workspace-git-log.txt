@@ -1,3 +1,75 @@
+commit 69d71bc1b62792c432002b517733f50541311a57
+agent  Wed Oct 7 03:50:08 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ PROGRESS.md                               |  18 +-
+ src/client/board/BoardSurface.tsx         |  96 +++-
+ src/client/board/Toolbar.tsx              |  92 +++-
+ src/client/board/useBoardDoc.ts           |   8 +
+ src/client/board/useBoardKeys.ts          |  42 +-
+ src/client/board/useTool.ts               |  58 ---
+ src/client/canvas/BoardViewport.tsx       |   8 +-
+ src/client/canvas/testHooks.ts            |  20 +
+ src/client/objects/ConnectorObject.tsx    | 276 ++++++++++++
+ src/client/objects/SelectionBar.tsx       |  37 +-
+ src/client/objects/ShapeObject.tsx        | 213 +++++++++
+ src/client/objects/ShapeToolbar.tsx       | 108 +++++
+ src/client/objects/registry.tsx           |  82 +++-
+ src/client/styles.css                     | 295 ++++++++++++
+ src/client/tools/ConnectorTool.tsx        | 246 ++++++++++
+ src/client/tools/ShapeTool.tsx            | 204 +++++++++
+ src/client/tools/objectAtPoint.ts         |  34 ++
+ src/client/tools/useActiveTool.ts         | 152 +++++++
+ src/shared/config.ts                      |   8 +
+ src/shared/geometry/connector-geometry.ts |  14 +
+ src/shared/objects/shape.ts               |   8 +
+ tests/component/Connector.test.tsx        | 362 +++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 316 +++++++++++++
+ tests/component/helpers.tsx               | 435 +++++++++++++++++-
+ tests/component/useActiveTool.test.tsx    | 181 ++++++++
+ tests/e2e/helpers/shapes.ts               | 394 ++++++++++++++++
+ tests/e2e/shapes-connectors.spec.ts       | 717 ++++++++++++++++++++++++++++++
+ tests/fixtures/checkout-flow.ts           | 140 ++++++
+ tsconfig.worker.json                      |   8 +-
+ 29 files changed, 4428 insertions(+), 144 deletions(-)
+commit bca786302843e14bc200501a5da185555f601287
+agent  Wed Oct 7 02:32:46 2026 +0000
+
+    story 10 (tasks 9-10): connector model, geometry, detach-on-delete + unit tests
+
+
+ src/shared/board-model.ts                 |  91 +++----
+ src/shared/geometry/connector-geometry.ts |  88 ++++++-
+ src/shared/geometry/polyline.ts           |  20 +-
+ src/shared/object-registry.ts             |  98 ++++++++
+ src/shared/objects/connector.ts           | 380 +++++++++++++++++++++++++++---
+ src/shared/objects/shape.ts               |  15 +-
+ tests/unit/connector-model.test.ts        |   3 +-
+ 7 files changed, 578 insertions(+), 117 deletions(-)
+commit 6136b4676f9a03b3dd1e679f285e10a39352386f
+agent  Wed Oct 7 02:26:21 2026 +0000
+
+    story 10 (tasks 7-8): shape model and its unit tests
+
+
+ src/shared/config.ts                      |  98 +++++++
+ src/shared/geometry/connector-geometry.ts |  71 +++++
+ src/shared/geometry/polyline.ts           |  28 ++
+ src/shared/objects/connector.ts           | 101 +++++++
+ src/shared/objects/shape.ts               | 307 ++++++++++++++++++++
+ tests/unit/connector-model.test.ts        | 464 ++++++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 295 +++++++++++++++++++
+ 7 files changed, 1364 insertions(+)
+commit 36992ac2ff0d84a6532c1c22c60a1c436c0f8450
+vidi-agent  Wed Oct 7 03:11:48 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 5333c3d0904e7d5deda7d4acf1a528f74e029229
 agent  Wed Oct 7 02:06:33 2026 +0000
 
