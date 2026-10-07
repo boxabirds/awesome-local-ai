@@ -15,6 +15,14 @@
  * is real. `tests/e2e/test-routes.spec.ts` starts a server without the variable and asks
  * all five routes of it, which is how a production build is verified not to have them.
  *
+ * Story 12 adds the two routes an image needs (`assets.api`): a `POST
+ * /api/boards/:boardId/assets` that puts a file in R2 and a `GET /api/assets/:boardId/
+ * :assetId` that gives it back. They are in this Worker and not in the board's Durable
+ * Object because they have nothing to do with the document: an upload is an ordinary
+ * HTTP request to a bucket, made by whoever happens to be holding the file, and it is
+ * not an update, not replayed to anybody and not part of anybody's history. Both decide
+ * what a file is by reading the file, and both are in `src/worker/assets.ts`.
+ *
  * Boards stay separate because `idFromName(boardId)` gives every board its own
  * object, which holds only that board's document and broadcasts only to its own
  * sockets. Nobody is ever counted or turned away: the simultaneous-editor
@@ -24,6 +32,7 @@
 import { isValidBoardId } from '../shared/board-id.js';
 import { BoardRoom } from './board-room.js';
 import { createBoard } from './create-board.js';
+import { handleServe, handleUpload, boardIdOfUploadPath, isAssetPath, keyFromAssetPath } from './assets.js';
 import { testHookOf } from './test-hooks.js';
 
 export interface Env {
@@ -31,6 +40,15 @@ export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client, served for every path that is not a room. */
   ASSETS: Fetcher;
+  /**
+   * The board's images, keyed `{boardId}/{assetId}` (`assets.api`).
+   *
+   * Not public-readable, on purpose: the only way to a stored file is the `GET` route
+   * below, which is what makes "this origin only ever serves PNG, JPEG, GIF and WebP"
+   * a property of the deployment rather than a setting somebody has to remember.
+   */
+  ASSETS_BUCKET: R2Bucket;
+
   /**
    * `"1"` in the e2e wrangler environment only. It turns the routes in
    * `test-hooks.ts` on; it is never set in `wrangler.jsonc`, so a deployment built
@@ -117,7 +135,34 @@ export default {
       return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(hook.boardId)).fetch(request);
     }
 
-    if (isBoardsPath(pathname)) return handleBoards(request, env, pathname);
+    if (isBoardsPath(pathname)) {
+      // An upload is a POST to a board's `assets` collection. It is recognised before
+      // the board routes because `handleBoards` reads the whole rest of the path as a
+      // board id, and `<id>/assets` is not one - so a route this Worker does have would
+      // have answered 404, which is the answer for a board that was never made.
+      const uploadFor = boardIdOfUploadPath(pathname);
+      if (uploadFor !== null) return handleUpload(request, env, uploadFor);
+      return handleBoards(request, env, pathname);
+    }
+
+    // One image, by the address the document holds. The key is checked by shape before
+    // the bucket is touched, so a path that names no image costs no lookup - and is not
+    // answered by the app page, which is what handing it to the assets binding would do.
+    // Everything under `/api/assets` stays in this Worker's namespace: an unknown path
+    // there is a 404 about an image, in JSON, like every other answer this API gives.
+    if (isAssetPath(pathname)) {
+      // The key is checked by shape before the bucket is touched, so a path that names no
+      // image costs no lookup - and is not answered by the app page, which is what handing
+      // it to the assets binding would do. Everything under `/api/assets` stays in this
+      // Worker's namespace: an unknown path there is a 404 about an image, in JSON, like
+      // every other answer this API gives.
+      const key = keyFromAssetPath(pathname);
+      if (key === null) return json({ error: 'not_found' }, 404);
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return json({ error: 'method_not_allowed' }, 405);
+      }
+      return handleServe(env, key);
+    }
 
     if (!isRoomPath(pathname)) {
       // The board page, the SPA fallback for `/b/<id>` and every asset.

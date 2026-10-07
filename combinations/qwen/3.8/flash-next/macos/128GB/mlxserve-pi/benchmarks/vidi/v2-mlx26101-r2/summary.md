@@ -18,8 +18,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | 6/6 | 0 | 0 | 57/57 |
 | 10 | 7/8 | 0 | 0 | 64/65 |
 | 11 | 5/5 | 1 | 0 | 68/70 |
+| 12 | 0/5 | 0 | 0 | 68/75 |
 
-**New work** 64/66, **regressions** 1, **repairs** 1, **cumulative** 68/70.
+**New work** 64/71, **regressions** 1, **repairs** 1, **cumulative** 68/75.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -33,8 +34,13 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | Write free text anywhere on the board | DONE | 89.4 | None | None | None | — | — | green | 57/57 |  | 0 / 0 | 5 | — | throttled 88%, server peak 94 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 98.9 | None | None | None | — | — | green | 64/65 |  | 0 / 0 | 6 | — | throttled 86%, server peak 95 GB |
 | 11 | Sketch freehand with a pen | DONE | 191.2 | None | None | None | — | — | green | 68/70 |  | 0 / 0 | 7 | — | throttled 46%, server peak 95 GB |
+| 12 | Drop images onto the board | PARTIAL (red) | 40.7 | None | None | None | — | — | red | 68/75 |  | 0 / 1 | 3 | — | throttled 96%, server peak 95 GB |
 
-**Totals:** 10 stories, 1131 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 10/10, final acceptance 68/70, stalled 0, partial 0, 44026 lines in src+tests.
+**Totals:** 11 stories, 1172 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 10/11, final acceptance 68/75, stalled 0, partial 1, 46842 lines in src+tests.
+
+### Stories ended early (PARTIAL) and what was built on them
+
+- **Story 12 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9] (implementation: [3, 5, 6, 7]), held-out 0/5 (floor 0.6).
 
 ## How it happened
 
@@ -52,6 +58,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 9 | 1 by the agent, + harness snapshot | 5350 / 301 | `text.ts` (408), `textLayout.ts` (277), `TextEditor.tsx` (271), `TextObject.tsx` (220), `StickyTextEditor.tsx` (208), `styles.css` (137), +17 more |
 | 10 | 3 by the agent | 6370 / 261 | `connector.ts` (481), `shape.ts` (330), `styles.css` (295), `ConnectorObject.tsx` (276), `ConnectorTool.tsx` (246), `ShapeObject.tsx` (213), +20 more |
 | 11 | 1 by the agent | 5744 / 26 | `stroke.ts` (423), `PenTool.tsx` (378), `simplify.ts` (203), `styles.css` (152), `StrokeObject.tsx` (151), `config.ts` (122), +9 more |
+| 12 | harness snapshot (agent left work uncommitted) | 2832 / 4 | `image.ts` (502), `assets.ts` (267), `validateFiles.ts` (120), `config.ts` (108), `image-format.ts` (108), `index.ts` (47), +1 more |
 
 ### Earlier stories broken or fixed
 

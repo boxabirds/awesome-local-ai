@@ -525,3 +525,111 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
  * on the board is as flat as the hand that drew it was steady.
  */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+/* ----------------------------------------------------------- images (story 12) */
+
+/**
+ * The file types a person may add to the board (`image.types`).
+ *
+ * Four names, and they are only the *client's* first guess: the browser rejects a
+ * file whose own reported type is not one of these before it uploads anything, but
+ * the server decides from the bytes (`sniffImageType`), because a file's name and
+ * its `Content-Type` are both written by the machine that sent them.
+ */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** Whether a MIME type is one of the four (`image.types`). */
+export const isAcceptedImageType = (type: unknown): boolean =>
+  typeof type === 'string' && (IMAGE_ACCEPTED_TYPES as readonly string[]).includes(type);
+
+/**
+ * The largest file that may be added, in bytes (`image.size_limit`).
+ *
+ * Ten megabytes, counted as 10 * 1024 * 1024 because that is the number a person
+ * reads as "10 MB" on a file's properties, and it is the same number the server
+ * measures `Content-Length` and the body against. The client refuses before any
+ * byte is sent; the server refuses again, because the client can be a curl.
+ */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * How many files one drop, paste or pick may add (`image.count_limit`).
+ *
+ * Twenty, and the limit is on the *action* rather than on the board: past it the
+ * first twenty are added and the rest are refused with a message, because quietly
+ * dropping half of somebody's batch is worse than making them drag twice.
+ */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/**
+ * The longest side an added image is placed at, at most, in board units
+ * (`image.placement_size`).
+ *
+ * One natural pixel is one board unit, so a screenshot arrives at its own size -
+ * until it is bigger than the board's own view, which is what this number is: a
+ * 4032 x 3024 photo placed at 4032 units is a photo that fills four screens and
+ * pushes the moodboard off it. Both sides are divided by the same factor, so the
+ * picture keeps its proportions, and an image smaller than this is never enlarged.
+ */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/**
+ * The smallest either side of an image may be dragged to, in board units
+ * (`image.aspect_resize`).
+ *
+ * Sixteen, which is what a resize handle is (8 px) doubled: an image smaller than
+ * the handle that resizes it cannot be grabbed again, and a 4032-pixel photo
+ * dragged to a sliver is a picture nobody can get back.
+ */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/**
+ * The space between images laid out in a row, in board units
+ * (`image.drop` / `image.pick`).
+ *
+ * The same 24 the dot grid is spaced by, so a batch dropped on the board lands on
+ * the grid rather than in a heap at one point.
+ */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/**
+ * How long an `uploading` image may stay `uploading` before everyone is told it
+ * did not finish (`image.unfinished`).
+ *
+ * Five minutes is longer than any upload this board can produce - ten megabytes on
+ * a real connection is seconds - so an image still claiming to upload after that is
+ * not uploading: the tab that held the file was closed or reloaded, and the object
+ * it left behind will never be updated by anyone. Without this the board keeps a
+ * permanent "Uploading…" that nobody can explain and nobody can remove.
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/**
+ * How often the board re-renders while an image is uploading, in milliseconds.
+ *
+ * `IMAGE_UPLOAD_STALE_MS` is a fact about time, and a board that only re-renders on
+ * an event would show "Uploading…" forever on a screen that receives nothing. Half
+ * a minute is often enough that the change appears "by itself" and rare enough that
+ * a board with no uploading images pays nothing (the interval is only running while
+ * one exists).
+ */
+export const IMAGE_STALE_TICK_MS = 30_000;
+
+/**
+ * How long a served asset may be cached, in seconds.
+ *
+ * A year, and `immutable`: an asset key is never reused and never changed, so a
+ * cached copy is never stale, and the board's images are the one thing on this site
+ * that a browser may keep without asking.
+ */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/**
+ * How many bytes of a file decide what it is (`image.types`, server side).
+ *
+ * Twelve, because that is what the longest signature needs: a WebP is `RIFF`, four
+ * ignored bytes and `WEBP`. The signature is read out of the body only - never out
+ * of a file name or a `Content-Type` - which is what makes a PDF renamed `.png` and
+ * an SVG answered for what they are.
+ */
+export const IMAGE_SNIFF_BYTES = 12;

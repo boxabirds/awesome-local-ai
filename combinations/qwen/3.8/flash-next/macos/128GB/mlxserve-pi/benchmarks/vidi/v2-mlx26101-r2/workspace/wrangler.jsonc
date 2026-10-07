@@ -22,6 +22,18 @@
       }
     ]
   },
+  // Story 12: the images people drop on a board. Keyed `{boardId}/{assetId}`, and the
+  // only reader is the Worker - there is no public bucket domain, so every byte that
+  // leaves here leaves through `GET /api/assets/...`, which is what lets the Worker's
+  // own checks (signature, size, key shape) be the product's checks rather than a
+  // suggestion. Local development and the tests get a bucket of their own from this
+  // entry; `wrangler r2 bucket create vidi6-assets` is what a real deployment needs.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   // SQLite-backed from the start, so story 4 (boards that outlive the last
   // person) adds storage without a class migration.
   "migrations": [
