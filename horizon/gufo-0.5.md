@@ -95,3 +95,7 @@ the pre-upgrade `v2-r*`/`replay-*` runs already recorded without flagging the en
 
 **Last checked:** 2 Oct 2026. **Recheck when:** the full recorded series is submitted (flag the engine version;
 watch the cache-skip warning at longer contexts).
+
+**Update, 7 Oct 2026.** Across the five 0.5.0 runs, decode is 12 to 18% slower than the build before it at every
+prompt size, with 36% more draft tokens proposed and 6.1 points lower acceptance. Reported upstream as https://github.com/gufo-org/gufo/issues/475.
+Write-up: https://github.com/boxabirds/awesome-local-ai/blob/main/docs/reports/strategic-insights/2026-10-07-gufo-0.5.0-decodes-slower.md
