@@ -1,7 +1,7 @@
 {
   "version": "vidi-v2.0-pre2",
   "pack_ref": "vidi-v2.0-pre2",
-  "at": "2026-10-03T21:13:20Z",
+  "at": "2026-10-07T08:03:23Z",
   "bundle": "workspace.bundle",
   "outside_workspace": {
     "ok": true,
@@ -12,33 +12,39 @@
     "repaired": [],
     "left": {},
     "accounting_version": 4,
-    "harness_commit": "b0fd99246"
+    "harness_commit": "0b4a70acb"
   },
   "guard": {
-    "story": 3,
-    "record": "26/27",
-    "live": "26/27",
+    "story": 12,
+    "record": "69/75",
+    "live": "68/75",
     "live_version": "vidi-v2.0-pre2+88a5c4002",
     "comparable": false,
     "threshold": 3,
     "difference": null,
-    "failures": 1,
+    "failures": 6,
     "one_signature": false,
     "live_same_signature": null,
     "flagged": null
   },
-  "score": "26/27",
+  "score": "69/75",
   "rescore": "done",
   "reason": "",
   "reason_kind": "scored",
   "needs_person": false,
   "retries_exhausted": false,
-  "attempts": 1,
+  "attempts": 2,
   "max_attempts": 5,
-  "last_attempt_at": "2026-10-03T21:13:20Z",
+  "last_attempt_at": "2026-10-07T08:03:23Z",
   "history": [
     {
       "at": "2026-10-03T21:13:20Z",
+      "rescore": "done",
+      "reason_kind": "scored",
+      "reason": ""
+    },
+    {
+      "at": "2026-10-07T08:03:23Z",
       "rescore": "done",
       "reason_kind": "scored",
       "reason": ""

@@ -1,15 +1,15 @@
 {
   "pack_version": "vidi-v2.0-pre2",
   "suite_commit": "e100d47daa13",
-  "harness_commit": "0b4a70acb",
+  "harness_commit": "b0fd99246",
   "host": "Apple M5 Max 128GB",
   "held_out_workers": 9,
   "host_limits": {
     "cores": 18,
     "memory_gb": 128.0,
-    "free_gb": 121.6
+    "free_gb": 120.3
   },
-  "finished_at": "2026-10-07T08:09:30Z",
+  "finished_at": "2026-10-03T21:16:09Z",
   "environment": {
     "node": "v24.19.0",
     "npm": "11.17.0",
@@ -25,19 +25,19 @@
   },
   "results": [
     {
-      "story": 12,
-      "passed": 69,
-      "total": 75,
+      "story": 3,
+      "passed": 26,
+      "total": 27,
       "fallbacks": 0,
       "scores": [
-        69,
-        69,
-        69
+        26,
+        26,
+        26
       ],
       "flaky": 0,
       "flaky_failing": 0,
       "flaky_passing": 0,
-      "passing_sampled": 14,
+      "passing_sampled": 6,
       "harness_fault": null,
       "build_exit": 0,
       "environment": {
@@ -50,8 +50,8 @@
         "workers": 9,
         "install_command": "npm ci --no-audit --no-fund"
       },
-      "seconds": 363,
-      "commit": "f6d115629cd3d9ffbd50f019b489386cf6da829b"
+      "seconds": 167,
+      "commit": "70785db030ce4ee7dee03c736b76515611b7951c"
     }
   ]
 }
