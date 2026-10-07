@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   BoardCameraProvider,
   BoardViewport,
@@ -13,9 +13,10 @@ import {
   zoomPercent,
   type Point,
 } from '../canvas/camera';
-import { patchTestHook, unpatchTestHook, type SeedNote } from '../canvas/testHooks';
+import { patchTestHook, unpatchTestHook, type SeedNote, type SeedText } from '../canvas/testHooks';
 import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
+import { useTool } from './useTool';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
 import { useUndo, useUndoController } from './useUndo';
@@ -24,6 +25,8 @@ import { SelectionOverlay } from './SelectionOverlay';
 import { SelectionBar } from './SelectionBar';
 import { Toolbar } from './Toolbar';
 import { StickyNote } from '../objects/StickyNote';
+import { TextObject } from '../objects/TextObject';
+import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit, type ConnectOptions, type ProviderLike } from '../sync/connectBoard';
 import { SharePanel } from '../share/SharePanel';
@@ -35,7 +38,18 @@ import {
   snapshot,
   deleteObjects,
   type ObjectSnapshot,
+  type StickySnapshot,
 } from '../../shared/board-model';
+import {
+  createText,
+  getTextContent,
+  setTextSize,
+  setTextWidthFixed,
+  textSnapshots,
+  type TextSnapshot,
+} from '../../shared/objects/text';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
+import { sharedMeasurer } from '../objects/textLayout';
 import { STICKY_SIZE_WORLD } from '../../shared/config';
 
 function ZoomControlsConnector() {
@@ -55,6 +69,16 @@ function ZoomControlsConnector() {
 function NavigationHintConnector() {
   const { hasNavigated } = useBoardCamera();
   return <NavigationHint visible={!hasNavigated} />;
+}
+
+/**
+ * This tab's id, recorded as the author of what it creates (PRD text.create).
+ * Story 6 replaces it with the board's shared identity; nothing else reads it.
+ */
+function useClientId(): string {
+  const ref = useRef<string | null>(null);
+  if (ref.current === null) ref.current = crypto.randomUUID();
+  return ref.current;
 }
 
 export interface BoardProps {
@@ -79,7 +103,7 @@ export function Board(props: BoardProps) {
 }
 
 function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
-  const { doc, notes, connection, connectionState } = useBoardDoc(boardId, {
+  const { doc, notes, texts, connection, connectionState } = useBoardDoc(boardId, {
     sync,
     provider,
     connect,
@@ -88,6 +112,23 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
   connectionRef.current = connection;
   const { camera, viewport } = useBoardCamera();
   const editable = canEdit(connectionState);
+  const clientId = useClientId();
+  // Which tool this tab is in (story 9). It is per tab: two people on one board
+  // are never in each other's tool.
+  const tool = useTool(editable);
+
+  // Every object on the board in one paint order, so a text and a note interleave by
+  // `z` and one selection/marquee/gesture path sees one state (PRD text.consistent).
+  const objects = useMemo(
+    () =>
+      [
+        ...(notes as readonly (StickySnapshot | TextSnapshot)[]),
+        ...(texts as readonly (StickySnapshot | TextSnapshot)[]),
+      ].sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    [notes, texts],
+  );
+  /** The same objects, seen as the generic kind the selection machinery works with. */
+  const objectSnapshots = objects as unknown as readonly ObjectSnapshot[];
 
   // This tab's undo history for this board: it holds nothing but what this person
   // did here, and it goes away with the board (PRD undo.own, undo.session_only).
@@ -95,7 +136,7 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
   const undoControls = useUndo(undo, editable);
 
   // Selection now takes the snapshot so it can prune deleted ids
-  const selection = useSelection(notes as unknown as readonly ObjectSnapshot[]);
+  const selection = useSelection(objectSnapshots);
   const { ids: selectedIds, editingId, click, setMany, clear, startEdit, endEdit } = selection;
 
   // Transform gesture: group move and resize
@@ -103,8 +144,11 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
     doc,
     camera,
     selection,
-    snapshot: notes as unknown as readonly ObjectSnapshot[],
+    snapshot: objectSnapshots,
     canEdit: editable,
+    // A text dragged by a side handle is measured here too, so its new height lands
+    // in the same gesture (and the same undo step) as its new width.
+    measure: sharedMeasurer(),
     // One gesture, one undo step: the window is closed when the drag begins and
     // again when it ends (or is cancelled), so its frames merge with each other and
     // never with the change before or after it (PRD undo.steps).
@@ -115,20 +159,11 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
   // Marquee selection
   const marquee = useMarquee(
     camera,
-    notes as unknown as readonly ObjectSnapshot[],
+    objectSnapshots,
     useCallback((ids: string[]) => setMany(ids, true), [setMany]),
   );
 
-  // Keyboard commands
-  useBoardKeys({
-    doc,
-    selection,
-    snapshot: notes as unknown as readonly ObjectSnapshot[],
-    canEdit: editable,
-    undo,
-  });
-
-  // Enter to edit a single selected sticky (kept from story 2)
+  // Enter edits the single selected object — a note since story 2, a text since story 9
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Enter') return;
@@ -139,8 +174,8 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
       if (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
       if (selectedIds.size === 1) {
         const id = [...selectedIds][0];
-        const note = notes.find((n) => n.id === id);
-        if (note && note.type === 'sticky') {
+        const object = objects.find((o) => o.id === id);
+        if (object && getObjectType(object.type)?.editableText) {
           event.preventDefault();
           startEdit(id);
         }
@@ -148,7 +183,7 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [editable, selectedIds, notes, startEdit]);
+  }, [editable, selectedIds, objects, startEdit]);
 
   /** Create a note centred on a screen-space point, and start typing it. */
   const createAtScreenPoint = useCallback(
@@ -168,10 +203,47 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
     [camera, doc, editable, clear, startEdit, undo],
   );
 
+  /**
+   * Put a text with its top-left where the Text tool was clicked (PRD text.create),
+   * then type straight into it. The tool goes back to Select after one text, so
+   * clicking twice in a row does not make two, and moving things afterwards needs
+   * no mode change (PRD text.tool).
+   */
+  const createTextAtScreenPoint = useCallback(
+    (point: Point) => {
+      if (!editable) return;
+      const world = screenToWorld(camera, point);
+      // Creating one text is one undo step, and the typing that follows is not part
+      // of it (PRD undo.steps).
+      undo.boundary();
+      const id = createText(doc, world, clientId);
+      undo.boundary();
+      if (!id) return;
+      clear();
+      startEdit(id);
+      // One text per click: the tool goes back to Select, so the next click moves.
+      tool.setTool('select');
+    },
+    [camera, doc, clientId, editable, clear, startEdit, tool, undo],
+  );
+
   const onCreateSticky = useCallback(
     () => createAtScreenPoint({ x: viewport.width / 2, y: viewport.height / 2 }),
     [createAtScreenPoint, viewport],
   );
+
+  // Keyboard commands: story 9's tool shortcuts, story 2's N (now a real shortcut) and
+  // the delete/undo/selection keys. It is wired after the create actions because N runs
+  // exactly the toolbar's Sticky note button.
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objectSnapshots,
+    canEdit: editable,
+    undo,
+    tool,
+    onCreateSticky,
+  });
 
   // --------------------------------------------------- test-only inspection
   useEffect(() => {
@@ -179,6 +251,7 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
     patchTestHook({
       getDoc: () => doc,
       getSnapshot: () => snapshot(doc),
+      getTexts: () => textSnapshots(doc),
       getSelection: (): { selectedId: string | null; editingId: string | null; selectedIds?: string[] } => {
         const ids = [...selectedIds];
         const base: { selectedId: string | null; editingId: string | null; selectedIds?: string[] } = {
@@ -219,6 +292,23 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
         });
         return ids;
       },
+      seedTexts: (specs: readonly SeedText[]) => {
+        const ids: string[] = [];
+        // Seeded like seedNotes: as if the board had been saved with them on it.
+        doc.transact(() => {
+          for (const spec of specs) {
+            const id = createText(doc, { x: spec.x, y: spec.y }, spec.createdBy ?? clientId);
+            if (!id) continue;
+            if (spec.text) getTextContent(doc, id)?.insert(0, spec.text);
+            if (spec.size) setTextSize(doc, id, spec.size);
+            if (spec.width != null) setTextWidthFixed(doc, id, spec.width);
+            // The box this client would have written when it made them.
+            remeasureTextBox(doc, id, sharedMeasurer());
+            ids.push(id);
+          }
+        });
+        return ids;
+      },
       undo: () => undo.undo(),
       redo: () => undo.redo(),
       canUndo: () => undo.canUndo(),
@@ -234,12 +324,14 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
         'resumeConnection',
         'seedBoard',
         'seedNotes',
+        'seedTexts',
+        'getTexts',
         'undo',
         'redo',
         'canUndo',
         'canRedo',
       ]);
-  }, [doc, connectionState, selectedIds, editingId, undo]);
+  }, [doc, connectionState, selectedIds, editingId, undo, clientId]);
 
   const onSelect = useCallback((id: string) => click(id), [click]);
   const onStartEdit = useCallback((id: string) => startEdit(id), [startEdit]);
@@ -247,6 +339,34 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
     if (next === 'unselected') clear();
     else endEdit();
   }, [clear, endEdit]);
+
+  // A text object talks to the same selection/edit/delete paths a note uses; only
+  // its props are shaped differently (PRD text.consistent).
+  const onEditChange = useCallback(
+    (id: string | null) => {
+      if (id === null) endEdit();
+      else startEdit(id);
+    },
+    [endEdit, startEdit],
+  );
+  const onSelectChange = useCallback(
+    (id: string | null) => {
+      if (id === null) clear();
+      else click(id);
+    },
+    [clear, click],
+  );
+  const onDeleteObject = useCallback(
+    (id: string) => {
+      if (!editable) return;
+      // One delete, whatever kind of object it was, is one undo step (PRD undo.steps).
+      undo.boundary();
+      deleteObjects(doc, [id]);
+      undo.boundary();
+      clear();
+    },
+    [doc, editable, undo, clear],
+  );
 
   const onDeleteSelection = useCallback(() => {
     if (!editable) return;
@@ -268,37 +388,63 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
   return (
     <div data-testid="board" data-board-id={boardId}>
       <BoardViewport
+        tool={tool.tool}
         onCreateStickyAt={createAtScreenPoint}
+        onCreateTextAt={createTextAtScreenPoint}
         onEmptyClick={onEmptyClick}
         onMarqueeBegin={marquee.begin}
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
         onMarqueeCancel={marquee.cancel}
       >
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={camera.zoom}
-            editable={editable}
-            selected={selectedIds.has(note.id)}
-            editing={editingId === note.id}
-            dragging={transformGesture.draggingIds.has(note.id)}
-            onSelect={onSelect}
-            onStartEdit={onStartEdit}
-            onEndEdit={onEndEdit}
-            onObjectPointerDown={transformGesture.onObjectPointerDown}
-            undo={undo}
-          />
-        ))}
+        {objects.map((object) =>
+          object.type === 'text' ? (
+            <TextObject
+              key={object.id}
+              doc={doc}
+              id={object.id}
+              size={object.size}
+              x={object.x}
+              y={object.y}
+              width={object.width}
+              height={object.height}
+              widthMode={object.widthMode}
+              createdBy={object.createdBy}
+              zoom={camera.zoom}
+              editable={editable}
+              selected={selectedIds.has(object.id)}
+              editing={editingId === object.id}
+              onEditChange={onEditChange}
+              onSelectionChange={onSelectChange}
+              onObjectPointerDown={transformGesture.onObjectPointerDown}
+              onDelete={onDeleteObject}
+              undo={undo}
+            />
+          ) : (
+            <StickyNote
+              key={object.id}
+              note={object}
+              doc={doc}
+              zoom={camera.zoom}
+              editable={editable}
+              selected={selectedIds.has(object.id)}
+              editing={editingId === object.id}
+              dragging={transformGesture.draggingIds.has(object.id)}
+              onSelect={onSelect}
+              onStartEdit={onStartEdit}
+              onEndEdit={onEndEdit}
+              onObjectPointerDown={transformGesture.onObjectPointerDown}
+              undo={undo}
+            />
+          ),
+        )}
       </BoardViewport>
 
       {/* Selection overlay: bounding box + handles */}
       {selectedIds.size > 0 && (
         <SelectionOverlay
           ids={selectedIds}
-          snapshot={notes as unknown as readonly ObjectSnapshot[]}
+          snapshot={objectSnapshots}
           camera={camera}
           onHandlePointerDown={onHandlePointerDown}
         />
@@ -308,13 +454,14 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
       <MarqueeRect rect={marquee.rect} camera={camera} />
 
       {/* Selection bar (>= 2 selected) */}
-      <SelectionBar
-        ids={selectedIds}
-        snapshot={notes as unknown as readonly ObjectSnapshot[]}
-        onDelete={onDeleteSelection}
-      />
+      <SelectionBar ids={selectedIds} snapshot={objectSnapshots} onDelete={onDeleteSelection} />
 
-      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoControls} />
+      <Toolbar
+        onCreateSticky={onCreateSticky}
+        disabled={!editable}
+        undo={undoControls}
+        tool={tool}
+      />
       <ConnectionStatus state={connectionState} />
       <SharePanel boardId={boardId} />
     </div>

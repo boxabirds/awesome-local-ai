@@ -2,9 +2,12 @@ import { useMemo } from 'react';
 import { HANDLE_SIZE_PX } from '../../shared/config';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { unionRects, type Handle } from '../../shared/geometry';
+import { getObjectType } from '../objects/registry';
 import type { Camera } from '../canvas/camera';
 
 const HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+/** For a selection whose objects only ever change width (story 9: free text). */
+const HORIZONTAL_HANDLES: Handle[] = ['e', 'w'];
 
 const HANDLE_LABELS: Record<Handle, string> = {
   nw: 'Resize top-left',
@@ -37,6 +40,14 @@ export function SelectionOverlay({ ids, snapshot, camera, onHandlePointerDown }:
   const boundingBox = useMemo(() => {
     const rects = selectedObjects.map(objectBounds);
     return unionRects(rects);
+  }, [selectedObjects]);
+
+  // A text object's height follows its content, so it is resized by its sides only.
+  // One sticky note (or anything else with a height of its own) in the selection
+  // brings the corners and top/bottom handles back (PRD text.consistent).
+  const handles = useMemo(() => {
+    const kinds = new Set(selectedObjects.map((o) => getObjectType(o.type)?.handles ?? 'all'));
+    return kinds.size === 1 && kinds.has('horizontal') ? HORIZONTAL_HANDLES : HANDLES;
   }, [selectedObjects]);
 
   if (!boundingBox || selectedObjects.length === 0) return null;
@@ -75,8 +86,8 @@ export function SelectionOverlay({ ids, snapshot, camera, onHandlePointerDown }:
           pointerEvents: 'none',
         }}
       />
-      {/* 8 handles */}
-      {HANDLES.map((h) => {
+      {/* Resize handles for what is selected */}
+      {handles.map((h) => {
         const pos = handlePosition(h, screenW, screenH);
         return (
           <button

@@ -113,3 +113,36 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;   // typing pause that ends a burst
 /** Steps one person's history keeps; the oldest step is dropped beyond it (PRD undo.limit). */
 export const UNDO_MAX_STEPS = 200;
+
+// --- Story 9: free text -----------------------------------------------------
+
+/** Widest an automatic-width text box gets; longer lines wrap (PRD text.auto_width). */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Narrowest a fixed-width text box can be dragged to (PRD text.fixed_width). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Hard limit on characters stored in one text object. */
+export const TEXT_MAX_CHARS = 5000;
+/** The four text sizes, in board units (= CSS px at 100% zoom). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Size a new text object starts at (PRD text.create). */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/**
+ * Accessible name of each size button, letter included so size is not carried by
+ * the glyph alone (WCAG 1.1.1 in the Text toolbar).
+ */
+export const TEXT_SIZE_LABELS: Record<TextSize, string> = {
+  S: 'Small (S)',
+  M: 'Medium (M)',
+  L: 'Large (L)',
+  XL: 'Extra large (XL)',
+};
+/** Line height multiple; height is always lines × size × this (PRD text.height). */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** The board's standard sans-serif, so text stays crisp at every zoom. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/**
+ * Average glyph width as a fraction of the font size, used only when there is no
+ * canvas to measure with (jsdom, worker): an estimate beats no layout at all.
+ */
+export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.5;

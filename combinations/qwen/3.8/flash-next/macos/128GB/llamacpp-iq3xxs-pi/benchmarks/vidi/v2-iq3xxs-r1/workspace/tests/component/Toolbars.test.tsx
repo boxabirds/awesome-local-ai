@@ -66,8 +66,9 @@ describe('toolbars (sticky.interaction)', () => {
   it('TC-28 creates a note in the centre of the board and starts editing it', async () => {
     render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     const button = screen.getByTestId('create-sticky');
-    expect(button.getAttribute('aria-label')).toBe('Sticky note');
-    expect(button.getAttribute('title')).toBe('Sticky note – or double-click the board');
+    // Story 9 puts the letter on the button, because N is now a real shortcut.
+    expect(button.getAttribute('aria-label')).toBe('Sticky note (N)');
+    expect(button.getAttribute('title')).toBe('Sticky note (N) – or double-click the board');
 
     await clickElement(button);
 

@@ -3,6 +3,8 @@ import type { Camera } from './camera';
 import type { ConnectionState } from '../sync/connectBoard';
 import type { StickyColor } from '../../shared/config';
 import type { StickySnapshot } from '../../shared/board-model';
+import type { TextSnapshot } from '../../shared/objects/text';
+import type { TextSize } from '../../shared/config';
 
 /** A note a browser-test fixture asks for (world position, colour, text, size). */
 export interface SeedNote {
@@ -12,6 +14,22 @@ export interface SeedNote {
   text?: string;
   width?: number;
   height?: number;
+}
+
+/**
+ * A text a browser-test fixture asks for: top-left position (PRD text.create),
+ * content, size and an optional fixed width (as if a side handle had been dragged).
+ * The box is measured from the content, exactly as it would be if the text had been
+ * typed, so its numbers are the ones the layout produces.
+ */
+export interface SeedText {
+  x: number;
+  y: number;
+  text?: string;
+  size?: TextSize;
+  /** Below TEXT_MIN_WIDTH_WORLD the width is raised to the minimum, as in the app. */
+  width?: number;
+  createdBy?: string;
 }
 
 export interface BoardSelectionState {
@@ -31,6 +49,8 @@ export interface BoardTestApi {
   getCamera(): Camera;
   /** Live sticky note snapshot in paint order (story 2). */
   getSnapshot(): readonly StickySnapshot[];
+  /** Live free text snapshot in paint order (story 9), for e2e assertions. */
+  getTexts(): readonly TextSnapshot[];
   /** The in-memory document, so tests can drive the model directly. */
   getDoc(): Y.Doc;
   /** Local selection / editing ids (story 2). */
@@ -54,6 +74,11 @@ export interface BoardTestApi {
    * whoever happens to create them.
    */
   seedNotes(specs: readonly SeedNote[]): string[];
+  /**
+   * The same fixture for free text (story 9): created as if the board had been saved
+   * with it on it, each box measured from its content, ids returned in order.
+   */
+  seedTexts(specs: readonly SeedText[]): string[];
   /**
    * This tab's own undo history (story 8): step once back or once forward and report
    * whether either is available. The same history the buttons and shortcuts drive, so

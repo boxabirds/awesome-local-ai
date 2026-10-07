@@ -1,9 +1,10 @@
 import type { ComponentType } from 'react';
 import type { ObjectSnapshot, WorldPoint } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { rectContains } from '../../shared/geometry';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /**
  * Per-type knobs the generic selection/move/resize/delete machinery needs.
@@ -16,6 +17,13 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  /**
+   * Which resize handles this type offers (story 9). `'all'` is the 8-way box
+   * stories 2–7 know; `'horizontal'` is for objects whose height always follows
+   * their content — text rewraps, it does not stretch. SelectionOverlay reads this
+   * instead of testing a type name, so adding a type stays a registration.
+   */
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: WorldPoint): boolean;
 }
 
@@ -64,5 +72,26 @@ function registerSticky() {
   });
 }
 
+// Register free text inline for the same reason, and because the selection machinery
+// asks for its spec the same way it asks for a note's.
+function registerText() {
+  if (registry.has('text')) return;
+  registry.set('text', {
+    Component: TextObject as unknown as ComponentType<ObjectProps>,
+    resizable: true,
+    // A text object's height comes from its content, and its width does not follow
+    // its top-left being dragged: nothing here keeps a ratio (PRD text.fixed_width).
+    aspectLocked: false,
+    minSize: TEXT_MIN_WIDTH_WORLD,
+    editableText: true,
+    handles: 'horizontal',
+    hitTest(obj: ObjectSnapshot, worldPoint: WorldPoint): boolean {
+      const bounds = objectBounds(obj);
+      return rectContains(bounds, { x: worldPoint.x, y: worldPoint.y, width: 0, height: 0 });
+    },
+  });
+}
+
 // Auto-register at module load
 registerSticky();
+registerText();

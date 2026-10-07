@@ -10,13 +10,22 @@ import {
   type WorldPoint,
 } from '../../shared/board-model';
 import type { Selection } from './useSelection';
+import type { ToolState } from './useTool';
 import { undoStepFor, type UndoController } from './undo';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
   selection: Selection;
+  /** Every object on the board, of every type (story 9 includes text). */
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /**
+   * The active tool (story 9): V returns to Select, T switches to the Text tool, and
+   * Escape — which already drops the selection — leaves the tool at Select as well.
+   */
+  tool?: ToolState;
+  /** N: exactly what the toolbar's Sticky note button does (story 2 behaviour). */
+  onCreateSticky?(): void;
   /**
    * This tab's undo history (story 8). The shortcuts step through it, and every
    * command here opens and closes a step of its own so a delete or a nudge never
@@ -49,6 +58,26 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       if (isTextEntry(event.target)) return;
 
       const undo = optsRef.current.undo;
+      const tool = optsRef.current.tool;
+      const plain = !event.ctrlKey && !event.metaKey && !event.altKey;
+
+      // V, T, N: the board's letter shortcuts (story 9 adds two of the three).
+      // They are only for the board, which is why Ctrl+V and Cmd+V stay paste.
+      if (plain && (event.key === 'v' || event.key === 'V')) {
+        tool?.setTool('select');
+        return;
+      }
+      if (plain && (event.key === 't' || event.key === 'T')) {
+        // A board that cannot be edited has no Text tool to switch to (TC-15).
+        if (canEdit) tool?.setTool('text');
+        return;
+      }
+      if (plain && (event.key === 'n' || event.key === 'N')) {
+        if (!canEdit) return;
+        event.preventDefault();
+        optsRef.current.onCreateSticky?.();
+        return;
+      }
 
       // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y: step through my own changes.
       // While a sticky is being edited the editor answers these itself, and a
@@ -70,9 +99,10 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
 
-      // Escape: clear selection
+      // Escape: clear selection, and leave any tool that is not Select (story 9).
       if (event.key === 'Escape') {
         selection.clear();
+        tool?.setTool('select');
         return;
       }
 

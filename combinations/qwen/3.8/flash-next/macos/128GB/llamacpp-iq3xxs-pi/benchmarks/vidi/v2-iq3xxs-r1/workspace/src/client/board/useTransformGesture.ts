@@ -18,6 +18,9 @@ import {
   type Handle,
   type Point,
 } from '../../shared/geometry';
+import { setTextWidthFixed } from '../../shared/objects/text';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
+import { sharedMeasurer, type Measurer } from '../objects/textLayout';
 import type { Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
 import type { Selection } from './useSelection';
@@ -30,6 +33,8 @@ export interface TransformGestureOptions {
   canEdit: boolean;
   onGestureStart?(): void;
   onGestureEnd?(): void;
+  /** How a text object's new width is measured while it is dragged (tests inject). */
+  measure?: Measurer;
 }
 
 interface GestureState {
@@ -123,11 +128,21 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       finalBox.y = g.boundingBox.y + g.boundingBox.height * (1 - clamped.y);
 
     const resizeMap = new Map<string, Rect>();
+    // Text is not stretched: a side handle fixes its width and its height follows the
+    // lines the text now takes (PRD text.fixed_width). In a mixed selection its width
+    // scales with the rest and its font size is left alone (PRD text.consistent).
+    const textWidths = new Map<string, number>();
+    const moves = new Map<string, WorldPoint>();
     for (const [id, rect] of g.startRects) {
       const scaled = scaleWithin(rect, g.boundingBox, finalBox);
-      // Enforce aspect lock for sticky notes
       const obj = snapshot.find((o) => o.id === id);
       const typeSpec = obj ? getObjectType(obj.type) : undefined;
+      if (typeSpec?.handles === 'horizontal') {
+        textWidths.set(id, Math.max(scaled.width, typeSpec.minSize));
+        if (Math.abs(scaled.x - rect.x) > 1e-9) moves.set(id, { x: scaled.x, y: rect.y });
+        continue;
+      }
+      // Enforce aspect lock for sticky notes
       if (typeSpec?.aspectLocked) {
         const size = Math.max(scaled.width, scaled.height);
         scaled.width = size;
@@ -135,7 +150,15 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       }
       resizeMap.set(id, scaled);
     }
-    resizeObjects(doc, resizeMap);
+    if (resizeMap.size > 0) resizeObjects(doc, resizeMap);
+    if (textWidths.size > 0) {
+      const measure = optsRef.current.measure ?? sharedMeasurer();
+      for (const [id, width] of textWidths) {
+        setTextWidthFixed(doc, id, width);
+        remeasureTextBox(doc, id, measure);
+      }
+    }
+    if (moves.size > 0) moveObjects(doc, moves);
   }, []);
 
   const scheduleFrame = useCallback(() => {

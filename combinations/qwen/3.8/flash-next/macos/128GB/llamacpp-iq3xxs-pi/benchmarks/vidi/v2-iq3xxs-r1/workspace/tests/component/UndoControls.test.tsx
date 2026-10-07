@@ -5,7 +5,7 @@ import { REDO_BUTTON_TOOLTIP, UNDO_BUTTON_TOOLTIP } from '../../src/client/board
 import { CLOSE_BOARD_LOAD_FAILED } from '../../src/shared/protocol';
 import { NUDGE_STEP_WORLD } from '../../src/shared/config';
 import type { SeedNote } from '../../src/client/canvas/testHooks';
-import { TEST_BOARD_ID, dispatchKey, flushFrame } from './util';
+import { TEST_BOARD_ID, dispatchKey, flushFrame, flushUntil } from './util';
 import { clickElement, clickWithPointer, getSnapshot, hook, noteEl } from './stickyUtil';
 import { FakeClock, FakeProvider } from './fake-sync';
 
@@ -85,12 +85,14 @@ describe('undo.buttons — the toolbar says what is available', () => {
     expect(redoButton().disabled).toBe(true);
 
     act(() => expect(hook().undo()).toBe(true));
-    await flushFrame();
+    await flushUntil(() => undoButton().disabled && !redoButton().disabled);
     expect(undoButton().disabled).toBe(true);
     expect(redoButton().disabled).toBe(false);
 
     clickElement(redoButton());
-    await flushFrame();
+    // The redo is a board-level change: wait for the frame that commits it, then check
+    // the number we expected, not merely that something moved.
+    await flushUntil(() => noteX(id) !== 100);
     expect(noteX(id)).toBeCloseTo(100 + NUDGE_STEP_WORLD, 6);
     expect(redoButton().disabled).toBe(true);
   });

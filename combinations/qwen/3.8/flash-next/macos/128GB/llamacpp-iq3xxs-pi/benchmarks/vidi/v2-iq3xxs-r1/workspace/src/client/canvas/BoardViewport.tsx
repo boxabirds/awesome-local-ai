@@ -96,6 +96,18 @@ interface GestureLike {
 export interface BoardViewportProps {
   children?: ReactNode;
   /**
+   * The active tool (story 9). While the Text tool is active the pointer is a text
+   * caret, empty space is not panned and Shift+drag does not make a marquee, so a
+   * click can be used to put the text where it was clicked instead.
+   */
+  tool?: 'select' | 'text';
+  /**
+   * A click while the Text tool is active, reported as a screen-space point: the
+   * board creates a text object with its top-left at that point (story 9). Unlike
+   * the sticky note gesture this also happens on top of other objects.
+   */
+  onCreateTextAt?(point: Point): void;
+  /**
    * Double-click on empty board space, reported as a screen-space point relative
    * to the viewport (story 2 creates a sticky note centred on it).
    */
@@ -112,7 +124,17 @@ export interface BoardViewportProps {
   onMarqueeCancel?(): void;
 }
 
-export function BoardViewport({ children, onCreateStickyAt, onEmptyClick, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel }: BoardViewportProps) {
+export function BoardViewport({
+  children,
+  tool = 'select',
+  onCreateTextAt,
+  onCreateStickyAt,
+  onEmptyClick,
+  onMarqueeBegin,
+  onMarqueeMove,
+  onMarqueeEnd,
+  onMarqueeCancel,
+}: BoardViewportProps) {
   const { camera, viewportRef, beginPan, panMove, endPan, wheel, zoomAtPoint, zoomStep, reset } =
     useBoardCamera();
   const [panning, setPanning] = useState(false);
@@ -133,6 +155,13 @@ export function BoardViewport({ children, onCreateStickyAt, onEmptyClick, onMarq
   marqueeCancelRef.current = onMarqueeCancel;
   const pressRef = useRef<{ x: number; y: number; isClick: boolean } | null>(null);
   const marqueeActiveRef = useRef(false);
+  // Latest tool, so a tool change does not reattach every input listener.
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  const createTextRef = useRef(onCreateTextAt);
+  createTextRef.current = onCreateTextAt;
+  /** The Text tool's press, which must not pan the board nor select an object. */
+  const textPressRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -143,8 +172,33 @@ export function BoardViewport({ children, onCreateStickyAt, onEmptyClick, onMarq
       return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
 
+    // --- Text tool (story 9) ------------------------------------------------
+    // Capture phase and stopped, because an object under the pointer would
+    // otherwise take the press for a selection or a drag of its own.
+    const onPointerDownCapture = (e: PointerEvent) => {
+      if (toolRef.current !== 'text' || e.button !== 0) return;
+      textPressRef.current = { pointerId: e.pointerId, ...toPoint(e) };
+      e.stopPropagation();
+    };
+    const onPointerUpCapture = (e: PointerEvent) => {
+      const press = textPressRef.current;
+      if (!press || press.pointerId !== e.pointerId) return;
+      textPressRef.current = null;
+      e.stopPropagation();
+      if (toolRef.current !== 'text') return;
+      const p = toPoint(e);
+      // A drag in the Text tool means nothing; only a click puts text on the board.
+      if (Math.hypot(p.x - press.x, p.y - press.y) >= DRAG_THRESHOLD_PX) return;
+      createTextRef.current?.(p);
+    };
+    const onPointerCancelCapture = (e: PointerEvent) => {
+      if (textPressRef.current?.pointerId === e.pointerId) textPressRef.current = null;
+    };
+
     // --- Pointer drag (pan) -------------------------------------------------
     const onPointerDown = (e: PointerEvent) => {
+      // A press the Text tool already claimed does not pan or marquee.
+      if (textPressRef.current) return;
       // Only start on empty space (the viewport/grid itself), never board objects.
       if (e.target !== el) return;
       if (e.button !== 0) return;
@@ -206,6 +260,8 @@ export function BoardViewport({ children, onCreateStickyAt, onEmptyClick, onMarq
     const onDoubleClick = (e: MouseEvent) => {
       // Empty board space only; a note stops the event before it gets here.
       if (e.target !== el) return;
+      // In the Text tool a second click means a second text, not a sticky note.
+      if (toolRef.current === 'text') return;
       e.preventDefault();
       createStickyRef.current?.(toPoint(e));
     };
@@ -256,6 +312,9 @@ export function BoardViewport({ children, onCreateStickyAt, onEmptyClick, onMarq
     };
 
     el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('pointerdown', onPointerDownCapture, true);
+    el.addEventListener('pointerup', onPointerUpCapture, true);
+    el.addEventListener('pointercancel', onPointerCancelCapture, true);
     el.addEventListener('pointermove', onPointerMove);
     el.addEventListener('pointerup', finishPan);
     el.addEventListener('pointercancel', onPointerCancel);
@@ -268,6 +327,9 @@ export function BoardViewport({ children, onCreateStickyAt, onEmptyClick, onMarq
     window.addEventListener('keydown', onKeyDown);
     return () => {
       el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointerdown', onPointerDownCapture, true);
+      el.removeEventListener('pointerup', onPointerUpCapture, true);
+      el.removeEventListener('pointercancel', onPointerCancelCapture, true);
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', finishPan);
       el.removeEventListener('pointercancel', onPointerCancel);
@@ -292,11 +354,12 @@ export function BoardViewport({ children, onCreateStickyAt, onEmptyClick, onMarq
       className="board-viewport"
       data-testid="board-viewport"
       data-panning={panning}
+      data-tool={tool}
       style={{
         backgroundImage: `radial-gradient(circle, ${DOT_COLOR} 1px, transparent 1px)`,
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${bgX}px ${bgY}px`,
-        cursor: panning ? 'grabbing' : 'grab',
+        cursor: tool === 'text' ? 'text' : panning ? 'grabbing' : 'grab',
       }}
     >
       <div

@@ -17,6 +17,21 @@ export function getCamera(): Camera {
   return api.getCamera();
 }
 
+/**
+ * Flush frames until `settled` holds (then stop). One frame is normally enough for a
+ * board-level change — an undo, a redo, a remote delete — to reach React state, but on a
+ * machine running every test file at once it can take a second one, and a test that reads
+ * the board right after the click would then see the frame that has not been committed
+ * yet. Asserting after this is still asserting the change happened: the caller asserts
+ * the value it expected.
+ */
+export async function flushUntil(settled: () => boolean, frames = 60): Promise<void> {
+  for (let i = 0; i < frames; i++) {
+    if (settled()) return;
+    await flushFrame();
+  }
+}
+
 /** Advance the coalesced requestAnimationFrame commit so React state catches up. */
 export async function flushFrame(): Promise<void> {
   await act(async () => {
@@ -34,7 +49,13 @@ export async function flushFrame(): Promise<void> {
 export function dispatchPointer(
   el: Element,
   type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel' | 'lostpointercapture',
-  opts: { button?: number; pointerId?: number; clientX?: number; clientY?: number } = {},
+  opts: {
+    button?: number;
+    pointerId?: number;
+    clientX?: number;
+    clientY?: number;
+    shiftKey?: boolean;
+  } = {},
 ): Event {
   const event = new Event(type, { bubbles: true, cancelable: true });
   Object.assign(event, {
@@ -43,6 +64,7 @@ export function dispatchPointer(
     pointerId: opts.pointerId ?? 1,
     clientX: opts.clientX ?? 0,
     clientY: opts.clientY ?? 0,
+    shiftKey: opts.shiftKey ?? false,
   });
   act(() => {
     el.dispatchEvent(event);

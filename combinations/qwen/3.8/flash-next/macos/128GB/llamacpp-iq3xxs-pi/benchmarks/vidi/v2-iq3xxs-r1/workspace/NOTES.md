@@ -499,3 +499,71 @@ the closing bracket.
 - In `tests/e2e/undo.spec.ts` the seeding screen has extra history of its own (it created
   the fixture notes), so "this person has run out of steps" is only asserted for the
   screens that joined.
+
+## Story 9 — free text: measuring, painting and syncing a box
+
+### A box rounded down wraps its own line
+The automatic width of a text is *the measured width of its longest line*, and the browser
+wraps at exactly that stored width. Rounding the box with `Math.round(x*100)/100` can make
+it a hair narrower than the glyphs it holds, and the browser then breaks the line: a
+sentence that fits appears on two rows, with a height nobody asked for. The automatic width
+is therefore rounded **up** (`Math.ceil(x*100)/100`); a width a person dragged to is still
+stored exactly as dragged. jsdom cannot find this: its measurer is a character-count
+estimate, which lands on round numbers, and only real fonts in a real browser wrap.
+
+### Asking a canvas for a measurement is a side effect in a test environment
+`document.createElement('canvas').getContext('2d')` is undefined in jsdom, so a measurer
+falls back to an estimate — fine, but *when* it is asked matters. Building the canvas
+measurer when a board mounts makes every unrelated test pay for it (and print warnings);
+`sharedMeasurer()` in `textLayout.ts` builds it on the first actual measurement, so files
+that never measure never ask.
+
+### Two boards on one page
+React 19 + RTL 16 can leave the previous test's board mounted while its effects are torn
+down, so a `screen.getByTestId(...)` query or the `window.__vidi6` hook can belong to the
+older board. In async component tests (the ones that `await` a frame) mount with a flushed
+frame before and after `render` — a local `freshBoard()` in `TextObject.test.tsx` — and
+assert on the fixture that this test created.
+
+### Pressing keys in jsdom
+`userEvent.keyboard` does not reliably reach React's synthetic `onKeyDown` when it is not
+awaited, and even when it is, the frame it lands in is not the frame the assertion runs in.
+Dispatching a `KeyboardEvent` on the focused element inside `act` (`pressKey` in
+`tests/component/textUtil.ts`) is deterministic, and it is also how the *board* shortcut
+tests in earlier stories worked.
+
+### One frame is not always enough, under load
+`flushFrame()` advances one `requestAnimationFrame`, which is normally where a
+board-level change (an undo, a redo) shows up in React state. When 33 test files run in
+parallel it can take a second one, and reading the board in that frame fails
+intermittently. `flushUntil(predicate)` in `tests/component/util.ts` flushes until the
+board says what the test expects and then lets the test assert the value it wanted; the
+story 8 redo assertion that this showed up in uses it now.
+
+### Concurrent typing converges; it does not order itself
+Two screens typing into one `Y.Text` end up with identical documents (verified in the
+browser: both screens show the same string after every pair of keystrokes). What is *not*
+deterministic is the order the characters land in, because each caret sits where its owner
+left it. So the test asserts the two screens agree and that the sorted characters of both
+equal the sorted characters that were typed — never a fixed merged string.
+
+### Reading the board immediately after the other screen typed
+The last keystroke of a remote screen can still be in flight. `textById(a)` and
+`textById(b)` read two documents that are *eventually* equal; an equality assertion right
+after the final key is a race. Poll for agreement (`expect.poll`) rather than sleeping.
+
+### Fixture arithmetic
+`'a ' + 'b '.repeat(2)` repeats one fragment, not the fixture, and the assertion that the
+fixture is long enough then fails for a reason that has nothing to do with the board. Build
+fixtures with an array and `join`, and keep the length check on the thing that was typed.
+
+### E2E serves a build, and reuses a server
+`playwright.config.ts` builds `dist/client` and hands it to `wrangler dev`, with
+`reuseExistingServer: !CI`. After changing client code, the server already listening on
+25232 keeps serving the *old* build: kill it (`lsof -ti tcp:25232 | xargs kill`) before the
+next run, or the suite tests yesterday's code and passes.
+
+### A string I typed for a test was the wrong length
+`page.keyboard.type(LONG_SENTENCE)` was fine; `LONG_SENTENCE` was 254 characters because of
+operator precedence, and the test failed on "this fixture is over 300 characters". Compute
+fixture lengths, don't eyeball them.

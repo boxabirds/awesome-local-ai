@@ -13,6 +13,7 @@ import {
   OBJECTS_MAP,
   type StickySnapshot,
 } from '../../shared/board-model';
+import { textSnapshots, type TextSnapshot } from '../../shared/objects/text';
 import {
   connectBoard,
   type BoardConnection,
@@ -21,10 +22,18 @@ import {
   type ProviderLike,
 } from '../sync/connectBoard';
 
+/** Everything the board renders, read in one pass so one render sees one state. */
+interface BoardObjects {
+  readonly notes: readonly StickySnapshot[];
+  readonly texts: readonly TextSnapshot[];
+}
+
 export interface BoardDoc {
   readonly doc: Y.Doc;
   /** Sticky notes in paint order; a new array only when the document changed. */
   readonly notes: readonly StickySnapshot[];
+  /** Free text objects in paint order (story 9), same read-your-write guarantee. */
+  readonly texts: readonly TextSnapshot[];
   /** This board's connection, or null when the board is offline-by-construction. */
   readonly connection: BoardConnection | null;
   readonly connectionState: ConnectionState;
@@ -95,13 +104,14 @@ export function useBoardDoc(
   // previous array is kept while nothing changed (the contract useSyncExternalStore
   // requires for getSnapshot).
   const cache = useMemo(() => {
-    let current: readonly StickySnapshot[] = snapshot(doc);
+    const read = (): BoardObjects => ({ notes: snapshot(doc), texts: textSnapshots(doc) });
+    let current: BoardObjects = read();
     return {
-      read(): readonly StickySnapshot[] {
+      read(): BoardObjects {
         return current;
       },
       refresh(): void {
-        current = snapshot(doc);
+        current = read();
       },
     };
   }, [doc]);
@@ -118,11 +128,17 @@ export function useBoardDoc(
     [subscribe, cache],
   );
 
-  const notes = useSyncExternalStore(
+  const objects = useSyncExternalStore(
     subscribeAndRefresh,
     getSnapshot,
     getSnapshot,
   );
 
-  return { doc, notes, connection, connectionState };
+  return {
+    doc,
+    notes: objects.notes,
+    texts: objects.texts,
+    connection,
+    connectionState,
+  };
 }
