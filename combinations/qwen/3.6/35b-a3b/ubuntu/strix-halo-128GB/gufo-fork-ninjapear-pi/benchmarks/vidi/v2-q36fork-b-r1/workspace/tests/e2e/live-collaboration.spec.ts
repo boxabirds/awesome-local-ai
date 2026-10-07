@@ -1,11 +1,9 @@
 /**
  * Task 8: E2E live collaboration with multiple browser contexts (TC-22 to TC-28).
  */
-import { chromium, expect } from '@playwright/test';
+import { test, expect, chromium } from '@playwright/test';
 import { openTwoParticipants, waitForFirstNote, waitForNNotes, dblClickEmptySpace } from './helpers/participants';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '@/shared/config';
-
-declare const test: typeof import('@playwright/test').test;
 
 const eventualTimeout = E2E_EVENTUAL_TIMEOUT_MS;
 

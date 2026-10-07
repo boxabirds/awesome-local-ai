@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useCamera } from './useCamera';
 import { screenToWorld, Camera, Point } from './camera';
+import type { ToolId } from '@/client/tools/useActiveTool';
 import { GRID_SPACING_WORLD, DEFAULT_ORIGIN_MARKER_SIZE, STICKY_SIZE_WORLD } from '../../shared/config';
 import { ZoomControls } from './ZoomControls';
 import { NavigationHint } from './NavigationHint';
@@ -19,8 +20,8 @@ interface BoardViewportProps {
   onClickEmpty(): void;
   // Story 9: click-to-create text when Text tool active
   onClickBoard?(screenX: number, screenY: number): void;
-  // Story 9 text tool
-  tool?: 'select' | 'text';
+  // Story 9+10-12 tool types (text, shape, connector)
+  tool?: ToolId;
   // Story 7 selection props
   selectedIds?: ReadonlySet<string>;
   onSelect(ids: string[]): void;

@@ -286,6 +286,8 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
   return changed;
 }
 
+import { detachConnectorsTo } from '@/shared/objects/connector';
+
 /** Delete multiple objects. Returns count deleted. */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
@@ -294,6 +296,9 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   let deleted = 0;
 
   doc.transact(() => {
+    // Detach connectors attached to deleted objects
+    detachConnectorsTo(doc, ids);
+
     for (const id of ids) {
       if ((objects as any).has(id)) {
         objects.delete(id);
@@ -307,31 +312,101 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
 
 // ---- Read helpers for rendering ----
 
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+/** Get all object snapshots from the document. */
+export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects = getObjectsMap(doc) as Y.Map<any>;
-  const result: StickySnapshot[] = [];
+  const result: ObjectSnapshot[] = [];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (objects as any).forEach((raw: any, key: string) => {
     if (!raw || typeof raw.get !== 'function') return;
     const inner = raw;
     const type = getField(inner, 'type');
-    if (type !== 'sticky') return;
 
-    result.push({
-      id: key,
-      type: 'sticky' as const,
-      x: Number(getField(inner, 'x')) ?? 0,
-      y: Number(getField(inner, 'y')) ?? 0,
-      color: (getField(inner, 'color') as StickyColor) ?? DEFAULT_STICKY_COLOR,
-      text: (() => {
+    switch (type) {
+      case 'sticky': {
         const t = getField(inner, 'text');
-        if (t instanceof Y.Text) return t.toString();
-        return String(t ?? '');
-      })(),
-      z: Number(getField(inner, 'z')) ?? 0,
-      createdAt: Number(getField(inner, 'createdAt')) ?? 0,
-    });
+        result.push({
+          id: key,
+          type: 'sticky',
+          x: Number(getField(inner, 'x')) ?? 0,
+          y: Number(getField(inner, 'y')) ?? 0,
+          width: (getField(inner, 'width') as number) ?? STICKY_SIZE_WORLD,
+          height: (getField(inner, 'height') as number) ?? STICKY_SIZE_WORLD,
+          color: (getField(inner, 'color') as StickyColor) ?? DEFAULT_STICKY_COLOR,
+          text: (() => {
+            if (t instanceof Y.Text) return t.toString();
+            return String(t ?? '');
+          })(),
+          z: Number(getField(inner, 'z')) ?? 0,
+          createdAt: Number(getField(inner, 'createdAt')) ?? 0,
+        });
+        break;
+      }
+      case 'shape': {
+        // Skip if missing required x/y
+        if (!inner.has('x') || !inner.has('y')) return;
+        const labelVal = getField(inner, 'label');
+        result.push({
+          id: key,
+          type: 'shape',
+          kind: (getField(inner, 'kind') as string) ?? 'rect',
+          fill: (getField(inner, 'fill') as string) ?? 'white',
+          stroke: (getField(inner, 'stroke') as string) ?? 'dark',
+          label: (() => {
+            if (labelVal instanceof Y.Text) return labelVal.toString();
+            return String(labelVal ?? '');
+          })(),
+          x: Number(getField(inner, 'x')) ?? 0,
+          y: Number(getField(inner, 'y')) ?? 0,
+          width: Number(getField(inner, 'width')) ?? STICKY_SIZE_WORLD,
+          height: Number(getField(inner, 'height')) ?? STICKY_SIZE_WORLD,
+          z: Number(getField(inner, 'z')) ?? 0,
+          createdBy: (getField(inner, 'createdBy') as string) ?? '',
+          createdAt: Number(getField(inner, 'createdAt')) ?? 0,
+        });
+        break;
+      }
+      case 'connector': {
+        result.push({
+          id: key,
+          type: 'connector',
+          x: Number(getField(inner, 'x')) ?? 0,
+          y: Number(getField(inner, 'y')) ?? 0,
+          width: Number(getField(inner, 'width')) ?? 0,
+          height: Number(getField(inner, 'height')) ?? 0,
+          from: (getField(inner, 'from') as Record<string, unknown>) ?? { kind: 'free', x: 0, y: 0 },
+          to: (getField(inner, 'to') as Record<string, unknown>) ?? { kind: 'free', x: 0, y: 0 },
+          z: Number(getField(inner, 'z')) ?? 0,
+          createdBy: (getField(inner, 'createdBy') as string) ?? '',
+          createdAt: Number(getField(inner, 'createdAt')) ?? 0,
+        });
+        break;
+      }
+      case 'text': {
+        // Skip if missing required x/y
+        if (!inner.has('x') || !inner.has('y')) return;
+        const contentVal = getField(inner, 'content');
+        result.push({
+          id: key,
+          type: 'text',
+          x: Number(getField(inner, 'x')) ?? 0,
+          y: Number(getField(inner, 'y')) ?? 0,
+          width: Number(getField(inner, 'width')) ?? 100,
+          height: Number(getField(inner, 'height')) ?? 26,
+          size: (getField(inner, 'size') as string) ?? 'M',
+          widthMode: (getField(inner, 'widthMode') as string) ?? 'auto',
+          content: (() => {
+            if (contentVal instanceof Y.Text) return contentVal.toString();
+            return String(contentVal ?? '');
+          })(),
+          z: Number(getField(inner, 'z')) ?? 0,
+          createdBy: (getField(inner, 'createdBy') as string) ?? '',
+          createdAt: Number(getField(inner, 'createdAt')) ?? 0,
+        });
+        break;
+      }
+    }
   });
 
   result.sort((a, b) => {

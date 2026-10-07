@@ -1,7 +1,7 @@
 
 
 import type { ComponentType } from 'react';
-import { STICKY_SIZE_WORLD, STICKY_MIN_SIZE_WORLD } from '@/shared/config';
+import { STICKY_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, SHAPE_LABEL_MAX_CHARS, SHAPE_MIN_SIZE_WORLD } from '@/shared/config';
 
 /** Generic object snapshot — any registered type's shape. */
 export interface ObjectSnapshot {
@@ -14,6 +14,10 @@ export interface ObjectSnapshot {
   z: number;
   [key: string]: unknown;
 }
+
+/** Re-export for compatibility with connector UI. */
+export type ObjectSnap = ObjectSnapshot;
+export type Endpoint = Record<string, unknown>;
 
 export type Handle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 
@@ -33,7 +37,7 @@ export interface ObjectTypeSpec {
   minSize: number;
   editableText: boolean;
   handles?: HandlesMode; // default 'all'
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 export interface ObjectProps {
@@ -112,7 +116,7 @@ export function selectedMinSizes(
 /**
  * Hit-test a point against a sticky note using simple bounds.
  */
-export function stickyHitTest(obj: ObjectSnapshot, wp: Point): boolean {
+export function stickyHitTest(obj: ObjectSnapshot, wp: Point, _zoom?: number): boolean {
   const w = (obj.width as number) ?? STICKY_SIZE_WORLD;
   const h = (obj.height as number) ?? STICKY_SIZE_WORLD;
   return (

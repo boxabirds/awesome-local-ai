@@ -7,16 +7,24 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { TextObject } from './objects/TextObject';
+import { ShapeObject } from './objects/ShapeObject';
+import { ShapeToolbar } from './objects/ShapeToolbar';
+import { ConnectorObject } from './objects/ConnectorObject';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { MarqueeRect } from './board/Marquee';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
+import { useActiveTool } from './tools/useActiveTool';
 import { useTool } from './board/useTool';
-import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR, TEXT_SIZES, DEFAULT_TEXT_SIZE } from '@/shared/config';
+import { SHAPE_LABEL_MAX_CHARS, STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR, TEXT_SIZES, DEFAULT_TEXT_SIZE } from '@/shared/config';
 import { createSticky, deleteObjects as deleteObj, snapshot, initDoc, moveObjects } from '@/shared/board-model';
 import { createText, setTextWidthFixed, setTextSize, getTextContent, isEmptyText, setTextBox } from '@/shared/objects/text';
+import { setShapeStyle, getShapeLabel } from '@/shared/objects/shape';
+import type { FillColor, StrokeColor } from '@/shared/objects/shape';
 import { layoutText, createCanvasMeasurer } from '@/client/objects/textLayout';
 import type { StickySnapshot, ObjectSnapshot } from '@/shared/board-model';
 import type { Handle, ObjectTypeSpec } from '@/client/objects/registry';
@@ -56,7 +64,16 @@ export function App(): ReactNode {
     connectionState === 'confirmed';
 
   // ---- Tool mode ----
-  const { tool, setTool } = useTool(canEdit);
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated: onToolCreated } = useActiveTool({ canEdit });
+
+  /** Called when a shape or connector is created — select it and switch to Select. */
+  const handleToolCreated = useCallback(
+    (id: string) => {
+      click(id);
+      onToolCreated(id);
+    },
+    [click, onToolCreated],
+  );
 
   // ---- Camera ref ----
   const cameraRef = useRef({ x: 0, y: 0, zoom: 1 });
@@ -105,6 +122,23 @@ export function App(): ReactNode {
       editableText: true,
       handles: 'horizontal',
       hitTest: textHitTest,
+    });
+    registerObjectType('shape', {
+      Component: ShapeObject as any,
+      resizable: true,
+      aspectLocked: false,
+      minSize: SHAPE_LABEL_MAX_CHARS > 0 ? 20 : 20,
+      editableText: true,
+      hitTest: (obj: ObjectSnapshot, wp: { x: number; y: number }) =>
+        wp.x >= obj.x && wp.y >= obj.y && wp.x <= (obj.x + (obj.width ?? 100)) && wp.y <= (obj.y + (obj.height ?? 100)),
+    });
+    registerObjectType('connector', {
+      Component: ConnectorObject as any,
+      resizable: false,
+      aspectLocked: false,
+      minSize: 0,
+      editableText: false,
+      hitTest: () => true, // handled specially in BoardViewport
     });
   }, [doc]);
 
@@ -313,6 +347,44 @@ export function App(): ReactNode {
             undoController={undoControllerRef.current}
           />,
         );
+      } else if (s.type === 'shape') {
+        const isSelected = ids.has(s.id);
+        results.push(
+          <ShapeObject
+            key={s.id}
+            shape={s as any}
+            doc={doc}
+            zoom={cameraRef.current.zoom}
+            selected={isSelected}
+            editing={editingId === s.id}
+            onSelect={(id) => click(id)}
+            onStartEdit={startEdit}
+            onEndEdit={() => endEdit()}
+            onObjectPointerDown={gesture.onObjectPointerDown as any}
+          />,
+        );
+      } else if (s.type === 'connector') {
+        // Build rects map for connector resolution
+        const rectsMap = new Map<string, { x: number; y: number; width: number; height: number }>();
+        for (const snap of snaps) {
+          rectsMap.set(snap.id, { x: snap.x, y: snap.y, width: snap.width ?? 100, height: snap.height ?? 100 });
+        }
+        const isSelected = ids.has(s.id);
+        results.push(
+          <ConnectorObject
+            key={s.id}
+            connector={s as any}
+            rects={rectsMap}
+            doc={doc}
+            zoom={cameraRef.current.zoom}
+            selected={isSelected}
+            editing={editingId === s.id}
+            onSelect={(id) => click(id)}
+            onStartEdit={() => {}}
+            onEndEdit={() => {}}
+            onObjectPointerDown={(_e: React.PointerEvent, _id: string) => { /* handled via gesture */ }}
+          />,
+        );
       }
     }
 
@@ -342,8 +414,28 @@ export function App(): ReactNode {
         tool={tool}
         setTool={setTool}
         canEdit={canEdit}
+        shapeKind={shapeKind}
+        setShapeKind={setShapeKind}
       />
       <SharePanel boardId={boardId} />
+      {/* Shape toolbar — shown when exactly one shape is selected */}
+      {(() => {
+        const singleId = ids.size === 1 ? [...ids][0] : null;
+        const shape = singleId ? allSnapshots.find(s => s.id === singleId && s.type === 'shape') : null;
+        if (!shape) return null;
+        return (
+          <ShapeToolbar
+            fill={'white'}
+            stroke={'dark'}
+            onFill={(c) => {
+              setShapeStyle(doc, shape.id!, { fill: c });
+            }}
+            onStroke={(c) => {
+              setShapeStyle(doc, shape.id!, { stroke: c });
+            }}
+          />
+        );
+      })()}
       <SelectionBar
         ids={ids}
         snapshot={allSnapshots}
@@ -364,6 +456,29 @@ export function App(): ReactNode {
         isEditing={editingId !== null}
         snapshot={snaps}
       >
+        {/* Shape and Connector tools render overlays in world layer */}
+        {(tool === 'shape' || tool === 'connector') && (
+          <g
+            data-layer="tools"
+            style={{ transformOrigin: '0 0', transform: `scale(${cameraRef.current.zoom}) translate(${-cameraRef.current.x}px, ${-cameraRef.current.y}px)` }}
+          >
+            {tool === 'shape' && (
+              <ShapeTool
+                kind={shapeKind}
+                camera={cameraRef.current}
+                doc={doc}
+                onCreated={handleToolCreated}
+              />
+            )}
+            {tool === 'connector' && (
+              <ConnectorTool
+                camera={cameraRef.current}
+                snapshot={snaps}
+                onCreated={handleToolCreated}
+              />
+            )}
+          </g>
+        )}
         {renderedObjects}
         <SelectionOverlay
           ids={ids}

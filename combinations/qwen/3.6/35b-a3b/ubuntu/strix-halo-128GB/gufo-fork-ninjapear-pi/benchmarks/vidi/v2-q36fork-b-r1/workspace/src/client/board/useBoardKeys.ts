@@ -4,7 +4,7 @@ import { moveObjects, deleteObjects, allObjectIds } from '@/shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '@/shared/config';
 import type { ObjectSnapshot } from '@/client/objects/registry';
 import type { UndoController } from '@/client/board/undo';
-import type { Tool } from './useTool';
+import type { ToolId } from '@/client/tools/useActiveTool';
 
 interface UseBoardKeysOptions {
   doc: Y.Doc;
@@ -14,8 +14,8 @@ interface UseBoardKeysOptions {
   isEditing: boolean;
   setMany(ids: string[], additive: boolean): void;
   clear(): void;
-  tool: Tool;
-  setTool(t: Tool): void;
+  tool: ToolId;
+  setTool(t: ToolId): void;
   /** Shortcut to create a sticky at view centre (N key). */
   onCreateStickyCenter?(): void;
   /** Optional undo controller for undo/redo shortcuts. */
@@ -86,6 +86,24 @@ export function useBoardKeys({
         if (canEdit && onCreateStickyCenter) {
           e.preventDefault();
           onCreateStickyCenter();
+        }
+        return;
+      }
+
+      // S → Shape tool
+      if (e.key === 's' || e.key === 'S') {
+        if (canEdit) {
+          e.preventDefault();
+          setTool('shape');
+        }
+        return;
+      }
+
+      // L → Connector tool
+      if (e.key === 'l' || e.key === 'L') {
+        if (canEdit) {
+          e.preventDefault();
+          setTool('connector');
         }
         return;
       }

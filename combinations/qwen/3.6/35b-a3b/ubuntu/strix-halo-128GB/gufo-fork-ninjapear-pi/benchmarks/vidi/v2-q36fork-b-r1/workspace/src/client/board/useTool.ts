@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Tool as ToolType } from '@/client/board/useTool';
+import type { ToolId } from '@/client/tools/useActiveTool';
 
-/** Active tool types. Stories 10-12 extend this union. */
-export type Tool = 'select' | 'text';
+/** Active tool types — extends from useActiveTool in story 10+. */
+export type Tool = ToolId;
 
 interface UseToolReturn {
   tool: Tool;

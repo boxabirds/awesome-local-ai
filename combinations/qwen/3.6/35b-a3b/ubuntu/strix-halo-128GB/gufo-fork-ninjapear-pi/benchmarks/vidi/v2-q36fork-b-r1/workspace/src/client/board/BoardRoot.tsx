@@ -15,6 +15,8 @@ import type { StickySnapshot, ObjectSnapshot } from '@/shared/board-model';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { Toolbar } from './Toolbar';
 import { StickyNote } from '../objects/StickyNote';
+import type { ShapeKind } from '@/shared/objects/shape';
+import type { ToolId } from '@/client/tools/useActiveTool';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { useSelection } from './useSelection';
 import { createUndo } from './undo';
@@ -216,8 +218,10 @@ export function BoardRoot(props: BoardRootProps): ReactNode {
         canRedo={undoState.canRedo}
         undo={undoState.undo}
         redo={undoState.redo}
-        tool={'select'}
+        tool={'select' as ToolId}
         setTool={() => {}}
+        shapeKind={'rect' as ShapeKind}
+        setShapeKind={() => {}}
         canEdit={canEdit}
       />
       <BoardViewport
