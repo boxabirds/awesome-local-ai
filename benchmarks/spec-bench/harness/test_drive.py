@@ -219,7 +219,7 @@ def test_condition_sampler_records_every_tick_as_a_json_line(monkeypatch, tmp_pa
     monkeypatch.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
     monkeypatch.setattr(drive, "swap_used_gb", lambda: 1.25)
     monkeypatch.setattr(drive, "mem_free_pct", lambda: 42.0)
-    monkeypatch.setattr(drive, "server_footprint_gb", lambda port: (58.2, 60.0))
+    monkeypatch.setattr(drive, "server_footprint_gb", lambda port, pid=None: (58.2, 60.0))
     monkeypatch.setattr(drive.hostenv, "gpu_sample", lambda: {"busy_pct": 97.0, "sclk_mhz": 2500})
     out = tmp_path / "stories" / "03" / drive.CONDITIONS_FILE
     out.parent.mkdir(parents=True)

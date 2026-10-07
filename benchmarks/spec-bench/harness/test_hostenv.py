@@ -191,3 +191,48 @@ def test_host_desc_on_this_machine_names_hardware_not_the_hostname():
     import socket
     desc = hostenv.host_desc()
     assert desc and socket.gethostname().split(".")[0].lower() not in desc.lower()
+
+
+# ---------- the model server's footprint when the engine runs in a container ----------
+# Every gufo run recorded footprint 0.0 GB -- 2,381 readings on v2-gufo05-r4 alone -- while mlx-serve recorded
+# 87 GB correctly. The cause: server_footprint_gb finds the process by lsof on the LISTENING PORT, and for a
+# containerised engine the host listener is podman's port shim (rootlessport / conmon / slirp4netns), not the
+# engine. It measured the shim. A figure of zero for a model holding 88 GB is worse than no figure: it is a
+# plausible-looking number that is wrong, and it is the figure that decides what fits on a machine.
+
+def test_a_container_port_shim_is_recognised_as_not_the_engine():
+    for cmd in ("/usr/bin/rootlessport", "conmon --api-version 1 -c abc", "slirp4netns --config-net",
+                "/usr/libexec/podman/rootlessport", "podman"):
+        assert hostenv.is_container_shim(cmd), cmd
+
+
+def test_a_real_engine_process_is_not_a_shim():
+    for cmd in ("/usr/bin/llama-server --port 18010", "gufo serve --host 0.0.0.0 llm --model x.gguf",
+                "python -m mlx_lm.server", "/home/j/.local/share/x/engine/gufo serve"):
+        assert not hostenv.is_container_shim(cmd), cmd
+
+
+# When the listener is a shim, the engine still runs on the host (podman rootless shares the PID namespace), so
+# it can be found by name. The largest match wins: a model server is the biggest thing on the machine by far,
+# and a stray `tail -f` whose arguments mention llama-server is not.
+
+ENGINE_PROCS = [
+    (101, 2_048, "/usr/libexec/podman/rootlessport"),
+    (102, 1_024, "conmon --api-version 1 -c deadbeef"),
+    (103, 92_000_000, "gufo serve --host 0.0.0.0 --port 8080 llm --model /models/x.gguf"),
+    (104, 8_192, "tail -f /var/log/llama-server.log"),
+    (105, 4_096, "grep gufo serve"),
+]
+
+
+def test_the_engine_is_the_largest_process_that_looks_like_one():
+    assert hostenv.pick_engine_pid(ENGINE_PROCS) == 103
+
+
+def test_no_engine_among_them_is_none_not_a_guess():
+    assert hostenv.pick_engine_pid([p for p in ENGINE_PROCS if p[0] in (101, 102, 104)]) is None
+
+
+def test_two_engines_takes_the_larger_so_a_dying_one_does_not_win():
+    procs = ENGINE_PROCS + [(106, 50_000_000, "/usr/bin/llama-server --port 18010")]
+    assert hostenv.pick_engine_pid(procs) == 103

@@ -206,6 +206,52 @@ def linux_swap_used_gb() -> float:
     return swap_used_gb_from_meminfo(parse_meminfo(Path("/proc/meminfo").read_text()))
 
 
+# A containerised engine does not own the host's listening socket: podman puts a port shim there instead, so
+# finding the server "by its port" finds the shim. Measuring the shim gave every gufo run a footprint of 0.0 GB
+# while it held about 88 GB -- a plausible-looking number that was wrong, and it is the figure that decides what
+# fits on a machine. These are the shims podman uses; the engine itself is never one of them.
+CONTAINER_SHIMS = ("rootlessport", "conmon", "slirp4netns", "pasta", "podman", "docker-proxy", "containerd-shim")
+
+
+def is_container_shim(command: str) -> bool:
+    """Is this command podman's (or docker's) plumbing rather than a model server?
+
+    Matched on the executable's own name, not anywhere in the line: an engine whose model path merely contains
+    the word "podman" is not a shim, and `gufo serve` run from inside a container is the engine.
+    """
+    first = (command or "").strip().split()[0] if (command or "").strip() else ""
+    exe = first.rsplit("/", 1)[-1]
+    return exe in CONTAINER_SHIMS
+
+
+# The process shapes each engine we run presents, as the launchers' coexistence guard knows them. Matched on
+# the whole command line, because the distinguishing part is often an argument ("gufo serve", "mtplx serve").
+ENGINE_PATTERNS = ("llama-server", "mtplx.server", "mtplx serve", "mlx-serve", "mlx_lm.server",
+                   "gufo serve", "gufo-runtime", "tensorfold serve", "engine/strata", "--engine strata")
+# A shell watching a log, or a grep, can mention an engine. A model server holds tens of gigabytes, so the real
+# one is orders of magnitude larger; this floor keeps a mention from ever being mistaken for it.
+ENGINE_MIN_RSS_KB = 1024 * 1024          # 1 GiB
+
+
+def pick_engine_pid(procs: "list[tuple[int, int, str]]") -> int | None:
+    """The pid of the model server among (pid, rss_kb, command) rows, or None.
+
+    The largest process that looks like an engine and is over the floor. Largest, because during a restart two
+    may exist and the live one is the one holding the weights; None rather than a guess, because a wrong pid
+    gives a plausible figure and this number decides what fits on a machine.
+    """
+    best = None
+    for pid, rss_kb, command in procs:
+        line = command or ""
+        if is_container_shim(line) or rss_kb < ENGINE_MIN_RSS_KB:
+            continue
+        if not any(pat in line for pat in ENGINE_PATTERNS):
+            continue
+        if best is None or rss_kb > best[1]:
+            best = (pid, rss_kb)
+    return best[0] if best else None
+
+
 def linux_process_gb(pid: int) -> tuple[float | None, float | None]:
     try:
         return parse_proc_status_gb(Path(f"/proc/{pid}/status").read_text())
