@@ -1,3 +1,41 @@
+commit bd4bafbc8f1ec714307e8d9a1771d59c6f499edd
+agent  Wed Oct 7 19:16:37 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ PROGRESS.md                             |  24 +--
+ src/client/board/Board.tsx              | 237 +++++++++++++----------
+ src/client/board/Marquee.tsx            | 105 +++++++++++
+ src/client/board/SelectionBar.tsx       |  56 ++++++
+ src/client/board/SelectionOverlay.tsx   | 135 +++++++++++++
+ src/client/board/useBoardKeys.ts        | 101 ++++++++++
+ src/client/board/useSelection.ts        | 135 ++++++++++---
+ src/client/board/useTransformGesture.ts | 325 ++++++++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  53 +++++-
+ src/client/canvas/testHooks.ts          |   2 +
+ src/client/objects/StickyNote.tsx       | 171 ++++-------------
+ src/client/objects/registry.tsx         |  68 +++++++
+ src/shared/board-model.ts               | 178 +++++++++++++++++
+ src/shared/config.ts                    |  13 ++
+ src/shared/geometry.ts                  | 163 ++++++++++++++++
+ tests/component/story7.test.tsx         | 233 +++++++++++++++++++++++
+ tests/component/util.ts                 |   2 +
+ tests/e2e/helpers/selection.ts          | 141 ++++++++++++++
+ tests/e2e/selection.spec.ts             | 290 ++++++++++++++++++++++++++++
+ tests/unit/board-model-group.test.ts    | 224 ++++++++++++++++++++++
+ tests/unit/geometry.test.ts             | 162 ++++++++++++++++
+ tests/unit/registry.test.ts             |  66 +++++++
+ tests/unit/selection.test.ts            |  88 +++++++++
+ 23 files changed, 2692 insertions(+), 280 deletions(-)
+commit 89a94337403a22d3adcc1dc5c066514eb398f02d
+vidi-agent  Wed Oct 7 19:32:37 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit 3a16c2de61c21eced18627f408c1f701d6abe0d2
 agent  Wed Oct 7 18:29:16 2026 +0000
 
