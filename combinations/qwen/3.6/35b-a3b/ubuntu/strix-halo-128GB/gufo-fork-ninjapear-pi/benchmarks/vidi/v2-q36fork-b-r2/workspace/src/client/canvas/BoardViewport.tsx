@@ -1,21 +1,32 @@
 import * as React from 'react';
 import type { Point, Size } from './camera';
 import { GRID_SPACING_WORLD, LINE_TO_PIXELS, PAGE_TO_PIXELS } from '../../shared/config';
-
-export interface UseCameraReturn {
-  camera: { x: number; y: number; zoom: number };
-  hasNavigated: boolean;
-  beginPan(p: Point): void;
-  panMove(dX: number, dY: number): void;
-  endPan(): void;
-  wheel(deltaX: number, deltaY: number, ctrlOrMeta: boolean, point: Point): void;
-  gestureZoom(scale: number, point: Point): void;
-}
+import { screenToWorld } from './camera';
+import type { StickySnapshot } from '../../shared/board-model';
+import type { Doc as YDoc } from 'yjs';
+import { StickyNote } from '../objects/StickyNote';
 
 interface BoardViewportProps {
   camera: { x: number; y: number; zoom: number };
-  useCameraHook: UseCameraReturn;
+  useCameraHook: {
+    beginPan(p: Point): void;
+    panMove(dX: number, dY: number): void;
+    endPan(): void;
+    wheel(deltaX: number, deltaY: number, ctrlOrMeta: boolean, point: Point): void;
+    gestureZoom(scale: number, point: Point): void;
+  };
   children?: React.ReactNode;
+  // Sticky note props (from story 2)
+  snapshosts?: readonly StickySnapshot[];
+  doc?: YDoc;
+  selectedId?: string | null;
+  editingId?: string | null;
+  onSelect?: (id: string) => void;
+  onStartEdit?: (id: string) => void;
+  onEndEdit?: (next: 'selected' | 'unselected') => void;
+  onMove?: (id: string, x: number, y: number) => boolean;
+  onBringToFront?: (id: string) => boolean;
+  onDelete?: (id: string) => void;
 }
 
 /**
@@ -93,49 +104,56 @@ function OriginMarker() {
 }
 
 export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
-  const { camera, useCameraHook, children } = props;
+  const { camera, useCameraHook, children, snapshosts } = props;
   const [isPanning, setIsPanning] = React.useState(false);
   const lastPosRef = React.useRef<Point | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const { beginPan, panMove, endPan, wheel, gestureZoom } = useCameraHook;
 
+  // Check if pointerdown target is a sticky note or empty board
+  const isStickyNoteTarget = React.useCallback((target: EventTarget | null): boolean => {
+    if (!target) return false;
+    const el = target as HTMLElement;
+    return el.closest('.sticky-note') !== null || el.closest('.note-toolbar') !== null;
+  }, []);
+
   // Pointer events for drag-to-pan
   const handlePointerDown = React.useCallback(
     (e: React.PointerEvent) => {
-      // Only start panning on empty space (the viewport/grid itself)
-      // The target should be the viewport or its direct children (grid)
-      // Stop propagation if it's something interactive (future objects)
       if (e.pointerType === 'touch') {
-        return; // Out of scope: no touch support in story 1
+        return;
       }
-      // Only left mouse button or pen
       if (e.button !== 0 && e.pointerType !== 'pen') return;
-      
+
+      // If clicking on a sticky note or toolbar, let those components handle it
+      if (isStickyNoteTarget(e.target)) {
+        return;
+      }
+
       setIsPanning(true);
       beginPan({ x: e.clientX, y: e.clientY });
       lastPosRef.current = { x: e.clientX, y: e.clientY };
-      
-      // Set pointer capture so we continue receiving move events even outside the element
-      const el = containerRef.current;
-      if (el) {
-        try {
+
+      try {
+        const el = containerRef.current;
+        if (el) {
           el.setPointerCapture(e.pointerId);
-        } catch {
-          // Already captured or error – ignore
         }
+      } catch {
+        // ignore
       }
     },
-    [beginPan],
+    [beginPan, isStickyNoteTarget],
   );
 
   const handlePointerMove = React.useCallback(
     (e: React.PointerEvent) => {
       if (!isPanning || !lastPosRef.current) return;
-      
+
       const dx = e.clientX - lastPosRef.current.x;
       const dy = e.clientY - lastPosRef.current.y;
       lastPosRef.current = { x: e.clientX, y: e.clientY };
-      
+
       panMove(dx, dy);
     },
     [isPanning, panMove],
@@ -157,7 +175,34 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
     lastPosRef.current = null;
   }, [isPanning, endPan]);
 
-  // Wheel handler — attach with passive: false via ref effect
+  // Click on empty board → deselect (stop propagation handled by sticky notes)
+  const handlePointerClick = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (isStickyNoteTarget(e.target)) return;
+      // Empty click on board
+    },
+    [isStickyNoteTarget],
+  );
+
+  // Double-click on empty board space → create sticky note
+  const handleDoubleClick = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (isStickyNoteTarget(e.target)) return;
+
+      // Create a note centred on the click point
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const screenPt: Point = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+      const worldPt = screenToWorld(camera, screenPt);
+      // Call createSticky from the parent via window event or callback
+      window.dispatchEvent(new CustomEvent('vidi6:createSticky', { detail: worldPt }));
+    },
+    [camera, isStickyNoteTarget],
+  );
+
+  // Wheel handler
   React.useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -165,27 +210,23 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       const ctrlOrMeta = e.ctrlKey || e.metaKey;
-      
-      // Convert deltaMode to pixels
+
       let deltaX = e.deltaX;
       let deltaY = e.deltaY;
       if (e.deltaMode === 1) {
-        // LINE mode
         deltaX *= LINE_TO_PIXELS;
         deltaY *= LINE_TO_PIXELS;
       } else if (e.deltaMode === 2) {
-        // PAGE mode
         deltaX *= PAGE_TO_PIXELS;
         deltaY *= PAGE_TO_PIXELS;
       }
-      
-      // Get point relative to viewport
+
       const rect = el.getBoundingClientRect();
       const point: Point = {
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
       };
-      
+
       wheel(deltaX, deltaY, ctrlOrMeta, point);
     };
 
@@ -193,7 +234,7 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
     return () => el.removeEventListener('wheel', handleWheel);
   }, [wheel]);
 
-  // Safari gesture events (only available on WebKit)
+  // Safari gesture events
   React.useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -206,11 +247,16 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
       (e as GestureEvent).preventDefault();
       const ge = e as GestureEvent;
       if (!Number.isFinite(ge.scale)) return;
-      const rect = el.getBoundingClientRect();
       const cx = rect.width / 2;
       const cy = rect.height / 2;
       gestureZoom(ge.scale, { x: cx, y: cy });
     };
+
+    let rect: DOMRectReadOnly;
+    const updateRect = () => {
+      rect = el.getBoundingClientRect();
+    };
+    updateRect();
 
     el.addEventListener('gesturestart', handleGestureStart as EventListener);
     el.addEventListener('gesturechange', handleGestureChange as EventListener);
@@ -233,11 +279,30 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
         onPointerUp={handlePointerUp}
         onPointerCancel={handleLostPointerCapture}
         onLostPointerCapture={handleLostPointerCapture}
+        onClick={handlePointerClick}
+        onDoubleClick={handleDoubleClick}
         role="application"
         aria-label="Infinite whiteboard canvas"
       >
         <div className="world-layer" style={{ transform: worldTransform }}>
           <OriginMarker />
+          {/* Render sticky notes from snapshots */}
+          {snapshosts?.map((note) => (
+            <StickyNote
+              key={note.id}
+              note={note}
+              doc={props.doc!}
+              zoom={camera.zoom}
+              selected={props.selectedId === note.id}
+              editing={props.editingId === note.id}
+              camera={camera}
+              onSelect={props.onSelect!}
+              onStartEdit={props.onStartEdit!}
+              onEndEdit={props.onEndEdit!}
+              onMove={props.onMove}
+              onBringToFront={props.onBringToFront}
+            />
+          ))}
           {children}
         </div>
       </div>

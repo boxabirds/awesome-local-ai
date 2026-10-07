@@ -19,3 +19,17 @@ export const PAGE_TO_PIXELS = 400;
 
 // Navigation hint text
 export const NAV_HINT_TEXT = 'Drag to move around · Ctrl/Cmd + scroll or pinch to zoom';
+
+// Sticky note settings
+export const STICKY_SIZE_WORLD = 200;
+export const STICKY_TEXT_MAX_CHARS = 1000;
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+export const STICKY_FONT_MAX_PX = 24;
+export const STICKY_FONT_MIN_PX = 10;
+export const DRAG_THRESHOLD_PX = 3;
+export const STICKY_COLORS = {
+  yellow: '#FFF59D', orange: '#FFCC80', green: '#C5E1A5',
+  blue: '#90CAF9', pink: '#F48FB1', violet: '#CE93D8',
+} as const;
+export type StickyColor = keyof typeof STICKY_COLORS;
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';

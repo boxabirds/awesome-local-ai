@@ -9,14 +9,20 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | Story | New work | Regressions | Repairs | Cumulative |
 |---|---|---|---|---|
 | 1 | 6/6 | 0 | 0 | 6/6 |
+| 2 | 2/10 | 0 | 0 | 8/20 |
 
-**New work** 6/6, **regressions** 0, **repairs** 0, **cumulative** 6/6.
+**New work** 8/16, **regressions** 0, **repairs** 0, **cumulative** 8/20.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 41.7 | None | None | None | — | — | green | 6/6 |  | 0 / 1 | 1 | — | throttled 0%, server peak 35 GB |
+| 2 | Capture ideas on sticky notes and rearrange them | PARTIAL (amber) | 33.2 | None | None | None | — | — | green | 8/20 |  | 0 / 1 | 1 | — | throttled 0%, server peak 35 GB |
 
-**Totals:** 1 stories, 42 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/1, final acceptance 6/6, stalled 0, partial 0, 1845 lines in src+tests.
+**Totals:** 2 stories, 75 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 8/20, stalled 0, partial 1, 3886 lines in src+tests.
+
+### Stories ended early (PARTIAL) and what was built on them
+
+- **Story 2 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **amber**: gate green, tasks not verified [4, 5, 6, 7, 8] (implementation: [4, 5, 6]), held-out 2/10 (floor 0.0).
 
 ## How it happened
 
@@ -25,6 +31,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | Story | Commits | + / − lines | Most-changed source files (lines; tests and lockfiles left out) |
 |---|---|---|---|
 | 1 | 2 by the agent | 6594 / 64 | `BoardViewport.tsx` (354), `camera.ts` (174), `useCamera.ts` (167), `ZoomControls.tsx` (106), `App.tsx` (78), `playwright.config.ts` (42), +15 more |
+| 2 | 1 by the agent, + harness snapshot | 2172 / 52 | `board-model.ts` (362), `StickyNote.tsx` (301), `App.tsx` (146), `BoardViewport.tsx` (141), `StickyTextEditor.tsx` (93), `NoteToolbar.tsx` (85), +6 more |
 
 ### Earlier stories broken or fixed
 
