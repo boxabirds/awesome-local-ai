@@ -102,9 +102,17 @@ export interface BoardViewportProps {
   onCreateStickyAt?(point: Point): void;
   /** A press on empty board space that did not turn into a pan (clears selection). */
   onEmptyClick?(): void;
+  /** Shift+drag started on empty space (story 7 marquee). */
+  onMarqueeBegin?(screen: Point): void;
+  /** Shift+drag pointer move. */
+  onMarqueeMove?(screen: Point): void;
+  /** Shift+drag ended (pointerup). */
+  onMarqueeEnd?(): void;
+  /** Shift+drag cancelled (pointercancel). */
+  onMarqueeCancel?(): void;
 }
 
-export function BoardViewport({ children, onCreateStickyAt, onEmptyClick }: BoardViewportProps) {
+export function BoardViewport({ children, onCreateStickyAt, onEmptyClick, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel }: BoardViewportProps) {
   const { camera, viewportRef, beginPan, panMove, endPan, wheel, zoomAtPoint, zoomStep, reset } =
     useBoardCamera();
   const [panning, setPanning] = useState(false);
@@ -115,7 +123,16 @@ export function BoardViewport({ children, onCreateStickyAt, onEmptyClick }: Boar
   createStickyRef.current = onCreateStickyAt;
   const emptyClickRef = useRef(onEmptyClick);
   emptyClickRef.current = onEmptyClick;
+  const marqueeBeginRef = useRef(onMarqueeBegin);
+  marqueeBeginRef.current = onMarqueeBegin;
+  const marqueeMoveRef = useRef(onMarqueeMove);
+  marqueeMoveRef.current = onMarqueeMove;
+  const marqueeEndRef = useRef(onMarqueeEnd);
+  marqueeEndRef.current = onMarqueeEnd;
+  const marqueeCancelRef = useRef(onMarqueeCancel);
+  marqueeCancelRef.current = onMarqueeCancel;
   const pressRef = useRef<{ x: number; y: number; isClick: boolean } | null>(null);
+  const marqueeActiveRef = useRef(false);
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -133,14 +150,24 @@ export function BoardViewport({ children, onCreateStickyAt, onEmptyClick }: Boar
       if (e.button !== 0) return;
       activePointerRef.current = e.pointerId;
       el.setPointerCapture?.(e.pointerId);
-      setPanning(true);
       const p = toPoint(e);
+      // Shift+drag on empty space = marquee (story 7)
+      if (e.shiftKey && marqueeBeginRef.current) {
+        marqueeActiveRef.current = true;
+        marqueeBeginRef.current(p);
+        return;
+      }
+      setPanning(true);
       pressRef.current = { x: p.x, y: p.y, isClick: true };
       beginPan(p);
     };
     const onPointerMove = (e: PointerEvent) => {
       if (activePointerRef.current !== e.pointerId) return;
       const p = toPoint(e);
+      if (marqueeActiveRef.current) {
+        marqueeMoveRef.current?.(p);
+        return;
+      }
       const press = pressRef.current;
       if (press && Math.hypot(p.x - press.x, p.y - press.y) >= DRAG_THRESHOLD_PX) {
         press.isClick = false; // a pan is not a click on empty space
@@ -151,12 +178,30 @@ export function BoardViewport({ children, onCreateStickyAt, onEmptyClick }: Boar
       if (activePointerRef.current !== e.pointerId) return;
       activePointerRef.current = null;
       el.releasePointerCapture?.(e.pointerId);
+      if (marqueeActiveRef.current) {
+        marqueeActiveRef.current = false;
+        marqueeEndRef.current?.();
+        return;
+      }
       const press = pressRef.current;
       pressRef.current = null;
       endPan();
       setPanning(false);
       // Clicking empty board space clears the selection (sticky.select).
       if (press?.isClick) emptyClickRef.current?.();
+    };
+    const onPointerCancel = (e: PointerEvent) => {
+      if (activePointerRef.current !== e.pointerId) return;
+      activePointerRef.current = null;
+      el.releasePointerCapture?.(e.pointerId);
+      if (marqueeActiveRef.current) {
+        marqueeActiveRef.current = false;
+        marqueeCancelRef.current?.();
+        return;
+      }
+      pressRef.current = null;
+      endPan();
+      setPanning(false);
     };
     const onDoubleClick = (e: MouseEvent) => {
       // Empty board space only; a note stops the event before it gets here.
@@ -213,7 +258,7 @@ export function BoardViewport({ children, onCreateStickyAt, onEmptyClick }: Boar
     el.addEventListener('pointerdown', onPointerDown);
     el.addEventListener('pointermove', onPointerMove);
     el.addEventListener('pointerup', finishPan);
-    el.addEventListener('pointercancel', finishPan);
+    el.addEventListener('pointercancel', onPointerCancel);
     el.addEventListener('lostpointercapture', finishPan);
     el.addEventListener('dblclick', onDoubleClick);
     el.addEventListener('wheel', onWheel, { passive: false });
@@ -225,7 +270,7 @@ export function BoardViewport({ children, onCreateStickyAt, onEmptyClick }: Boar
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', finishPan);
-      el.removeEventListener('pointercancel', finishPan);
+      el.removeEventListener('pointercancel', onPointerCancel);
       el.removeEventListener('lostpointercapture', finishPan);
       el.removeEventListener('dblclick', onDoubleClick);
       el.removeEventListener('wheel', onWheel);

@@ -16,6 +16,11 @@ import {
 import { patchTestHook, unpatchTestHook } from '../canvas/testHooks';
 import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
+import { useTransformGesture } from './useTransformGesture';
+import { useBoardKeys } from './useBoardKeys';
+import { useMarquee, MarqueeRect } from './Marquee';
+import { SelectionOverlay } from './SelectionOverlay';
+import { SelectionBar } from './SelectionBar';
 import { Toolbar } from './Toolbar';
 import { StickyNote } from '../objects/StickyNote';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -23,9 +28,10 @@ import { canEdit, type ConnectOptions, type ProviderLike } from '../sync/connect
 import { SharePanel } from '../share/SharePanel';
 import {
   createSticky,
-  deleteObject,
   getStickyText,
   snapshot,
+  deleteObjects,
+  type ObjectSnapshot,
 } from '../../shared/board-model';
 
 function ZoomControlsConnector() {
@@ -47,37 +53,16 @@ function NavigationHintConnector() {
   return <NavigationHint visible={!hasNavigated} />;
 }
 
-/** True when the keyboard belongs to a text field, not to the board. */
-function isTextEntry(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-}
-
 export interface BoardProps {
-  /**
-   * Which board to join. Required: from story 5 on this is always an address the
-   * server handed out (`api.ts`), never one the client made up — that is what makes
-   * a shared link the only way in.
-   */
   readonly boardId: string;
-  /** Component tests render a board with no network at all. */
   readonly sync?: boolean;
-  /** Fake provider / clock for the connection status component tests. */
   readonly provider?: ProviderLike;
-  /** Connection seams (fake clock / provider) used by those same tests. */
   readonly connect?: ConnectOptions;
 }
 
 /**
- * The board: the document, the local selection, the object layer inside the
- * transformed world, the toolbars outside it, the connection status, the share panel
- * and the board-level keyboard.
- *
- * It used to sit inside `App` and get its id from the URL by making one up if the
- * URL had none (story 3). Now `App` routes and `BoardPage` checks, so the id arrives
- * already existing. `sync={false}` and the provider seams remain for the component
- * tests, which render a board with no network; nothing in the app passes them.
+ * The board: document, selection, objects, toolbars, connection status, share panel,
+ * keyboard, transform gestures and marquee selection.
  */
 export function Board(props: BoardProps) {
   return (
@@ -89,7 +74,6 @@ export function Board(props: BoardProps) {
   );
 }
 
-/** Everything below needs the camera context, so it lives under the provider. */
 function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
   const { doc, notes, connection, connectionState } = useBoardDoc(boardId, {
     sync,
@@ -98,36 +82,71 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
   });
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
-  const selection = useSelection();
   const { camera, viewport } = useBoardCamera();
-  const { select, startEdit, endEdit, selectedId, editingId } = selection;
-
-  // A board that failed to load is not editable: there is nothing on screen to
-  // change, and a change to a board that refused to load could never be saved. Every
-  // other connection state — even "Reconnecting…" — keeps the board editable.
   const editable = canEdit(connectionState);
 
-  const selectionRef = useRef(selection);
-  selectionRef.current = selection;
+  // Selection now takes the snapshot so it can prune deleted ids
+  const selection = useSelection(notes as unknown as readonly ObjectSnapshot[]);
+  const { ids: selectedIds, editingId, click, setMany, clear, startEdit, endEdit } = selection;
 
-  // A note that is gone — deleted here, or deleted on another screen and removed
-  // from the document by the sync — cannot stay selected or stay open for editing:
-  // its toolbar and its editor disappear with it (PRD live.delete_during_edit).
+  // Transform gesture: group move and resize
+  const transformGesture = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: notes as unknown as readonly ObjectSnapshot[],
+    canEdit: editable,
+  });
+
+  // Marquee selection
+  const marquee = useMarquee(
+    camera,
+    notes as unknown as readonly ObjectSnapshot[],
+    useCallback((ids: string[]) => setMany(ids, true), [setMany]),
+  );
+
+  // Keyboard commands
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: notes as unknown as readonly ObjectSnapshot[],
+    canEdit: editable,
+  });
+
+  // Enter to edit a single selected sticky (kept from story 2)
   useEffect(() => {
-    const { selectedId: selected, editingId: editing } = selectionRef.current;
-    if (selected !== null && !notes.some((n) => n.id === selected)) select(null);
-    if (editing !== null && !notes.some((n) => n.id === editing)) select(null);
-  }, [notes, selectedId, editingId, select]);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter') return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (!editable) return;
+      if (selection.editingId) return;
+      const target = event.target as HTMLElement;
+      if (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      if (selectedIds.size === 1) {
+        const id = [...selectedIds][0];
+        const note = notes.find((n) => n.id === id);
+        if (note && note.type === 'sticky') {
+          event.preventDefault();
+          startEdit(id);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [editable, selectedIds, notes, startEdit]);
 
   /** Create a note centred on a screen-space point, and start typing it. */
   const createAtScreenPoint = useCallback(
     (point: Point) => {
-      if (!editable) return; // a board that failed to load cannot be added to
+      if (!editable) return;
       const world = screenToWorld(camera, point);
       const id = createSticky(doc, world);
-      if (id) startEdit(id); // yellow, on top, editing active
+      if (id) {
+        clear();
+        startEdit(id);
+      }
     },
-    [camera, doc, editable, startEdit],
+    [camera, doc, editable, clear, startEdit],
   );
 
   const onCreateSticky = useCallback(
@@ -135,48 +154,24 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
     [createAtScreenPoint, viewport],
   );
 
-  // ------------------------------------------------------------- keyboard
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (!editable) return; // a board that failed to load is not editable (TC-23)
-      // While a note is being edited (or any text field has focus) the keys
-      // belong to the text: Backspace and Delete must never remove the note.
-      if (isTextEntry(event.target) || selectionRef.current.editingId) return;
-      const id = selectionRef.current.selectedId;
-      if (!id) return;
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        startEdit(id);
-      } else if (event.key === 'Delete' || event.key === 'Backspace') {
-        event.preventDefault();
-        deleteObject(doc, id);
-        select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, editable, select, startEdit]);
-
   // --------------------------------------------------- test-only inspection
   useEffect(() => {
     if (import.meta.env.MODE !== 'test') return;
     patchTestHook({
       getDoc: () => doc,
       getSnapshot: () => snapshot(doc),
-      getSelection: () => ({
-        selectedId: selectionRef.current.selectedId,
-        editingId: selectionRef.current.editingId,
-      }),
-      // Nightly TC-29 reads this: the badge text is the UI, this is the state.
+      getSelection: (): { selectedId: string | null; editingId: string | null; selectedIds?: string[] } => {
+        const ids = [...selectedIds];
+        const base: { selectedId: string | null; editingId: string | null; selectedIds?: string[] } = {
+          selectedId: ids.length === 1 ? ids[0] : null,
+          editingId: editingId,
+        };
+        if (ids.length > 1) base.selectedIds = ids;
+        return base;
+      },
       getConnectionState: () => connectionState,
-      // The browser tests cannot unplug a socket from the outside, so they ask
-      // for a real close (and a real reconnect) through the same provider.
       dropConnection: () => connectionRef.current?.dropConnection(),
       resumeConnection: () => connectionRef.current?.resumeConnection(),
-      // Fill the board with `count` distinct notes so a browser test can reach a
-      // realistic board quickly; it flows through the normal create path, so it
-      // syncs to the room and is stored exactly like a hand-made note.
       seedBoard: (count: number) => {
         doc.transact(() => {
           for (let i = 0; i < count; i++) {
@@ -196,33 +191,79 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
         'resumeConnection',
         'seedBoard',
       ]);
-  }, [doc, connectionState]);
+  }, [doc, connectionState, selectedIds, editingId]);
 
-  const onSelect = useCallback((id: string) => select(id), [select]);
+  const onSelect = useCallback((id: string) => click(id), [click]);
   const onStartEdit = useCallback((id: string) => startEdit(id), [startEdit]);
-  const onEndEdit = useCallback((next: 'selected' | 'unselected') => endEdit(next), [endEdit]);
+  const onEndEdit = useCallback((next: 'selected' | 'unselected') => {
+    if (next === 'unselected') clear();
+    else endEdit();
+  }, [clear, endEdit]);
+
+  const onDeleteSelection = useCallback(() => {
+    if (!editable) return;
+    deleteObjects(doc, [...selectedIds]);
+    clear();
+  }, [doc, selectedIds, clear, editable]);
+
+  // Selection overlay handles
+  const onHandlePointerDown = transformGesture.onHandlePointerDown;
+
+  // Empty click clears selection (only when not editing)
+  const onEmptyClick = useCallback(() => {
+    clear();
+  }, [clear]);
 
   return (
     <div data-testid="board" data-board-id={boardId}>
-        <BoardViewport onCreateStickyAt={createAtScreenPoint} onEmptyClick={() => select(null)}>
-          {notes.map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={doc}
-              zoom={camera.zoom}
-              editable={editable}
-              selected={selectedId === note.id}
-              editing={editingId === note.id}
-              onSelect={onSelect}
-              onStartEdit={onStartEdit}
-              onEndEdit={onEndEdit}
-            />
-          ))}
-        </BoardViewport>
-        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
-        <ConnectionStatus state={connectionState} />
-      {/* The board's own address is shareable, so the panel that shows it lives here. */}
+      <BoardViewport
+        onCreateStickyAt={createAtScreenPoint}
+        onEmptyClick={onEmptyClick}
+        onMarqueeBegin={marquee.begin}
+        onMarqueeMove={marquee.move}
+        onMarqueeEnd={marquee.end}
+        onMarqueeCancel={marquee.cancel}
+      >
+        {notes.map((note) => (
+          <StickyNote
+            key={note.id}
+            note={note}
+            doc={doc}
+            zoom={camera.zoom}
+            editable={editable}
+            selected={selectedIds.has(note.id)}
+            editing={editingId === note.id}
+            dragging={transformGesture.draggingIds.has(note.id)}
+            onSelect={onSelect}
+            onStartEdit={onStartEdit}
+            onEndEdit={onEndEdit}
+            onObjectPointerDown={transformGesture.onObjectPointerDown}
+          />
+        ))}
+      </BoardViewport>
+
+      {/* Selection overlay: bounding box + handles */}
+      {selectedIds.size > 0 && (
+        <SelectionOverlay
+          ids={selectedIds}
+          snapshot={notes as unknown as readonly ObjectSnapshot[]}
+          camera={camera}
+          onHandlePointerDown={onHandlePointerDown}
+        />
+      )}
+
+      {/* Marquee rectangle (screen space) */}
+      <MarqueeRect rect={marquee.rect} camera={camera} />
+
+      {/* Selection bar (>= 2 selected) */}
+      <SelectionBar
+        ids={selectedIds}
+        snapshot={notes as unknown as readonly ObjectSnapshot[]}
+        onDelete={onDeleteSelection}
+      />
+
+      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
+      <ConnectionStatus state={connectionState} />
       <SharePanel boardId={boardId} />
     </div>
   );

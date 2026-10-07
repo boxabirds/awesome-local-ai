@@ -6,6 +6,8 @@ import type { StickySnapshot } from '../../shared/board-model';
 export interface BoardSelectionState {
   selectedId: string | null;
   editingId: string | null;
+  /** All selected ids (story 7 multi-select). */
+  selectedIds?: string[];
 }
 
 /**

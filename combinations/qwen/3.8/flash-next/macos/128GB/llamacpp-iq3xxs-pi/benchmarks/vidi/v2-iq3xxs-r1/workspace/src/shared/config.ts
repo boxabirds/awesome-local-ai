@@ -89,3 +89,16 @@ export const LINK_COPIED_MS = 2000;
  * every failed check, capped at `RECONNECT_MAX_BACKOFF_MS` (story 3).
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Story 7: multi-select, transform ---------------------------------------
+
+/** Resize handle size in screen pixels (constant at any zoom). */
+export const HANDLE_SIZE_PX = 8;
+/** Smallest sticky note side in world units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Largest any object side can be in world units (global maximum). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** Arrow-key nudge step in world units. */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift+arrow nudge step in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;

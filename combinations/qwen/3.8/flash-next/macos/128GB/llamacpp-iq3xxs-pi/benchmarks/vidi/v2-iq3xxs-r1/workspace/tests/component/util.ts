@@ -100,11 +100,13 @@ export function dispatchKey(opts: {
   key: string;
   ctrlKey?: boolean;
   metaKey?: boolean;
+  shiftKey?: boolean;
 }): boolean {
   const event = new KeyboardEvent('keydown', {
     key: opts.key,
     ctrlKey: opts.ctrlKey ?? false,
     metaKey: opts.metaKey ?? false,
+    shiftKey: opts.shiftKey ?? false,
     bubbles: true,
     cancelable: true,
   });
