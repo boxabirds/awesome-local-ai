@@ -11,7 +11,6 @@ describe('BoardViewport', () => {
     const allDivs = document.querySelectorAll('div');
     for (const div of allDivs) {
       const style = div.getAttribute('style') || '';
-      // Inline styles render as kebab-case; match scale + translate
       if (style.includes('transform-origin') && style.includes('scale(')) {
         return style;
       }
@@ -26,7 +25,12 @@ describe('BoardViewport', () => {
   // === TC-13: drag moves world layer transform ===
   describe('TC-13: drag moves world layer transform', () => {
     it('viewport element exists with correct aria-label', () => {
-      render(<BoardViewport />);
+      render(
+        <BoardViewport
+          onDblClickEmpty={() => {}}
+          onClickEmpty={() => {}}
+        />
+      );
 
       const viewportEl = findViewport();
       expect(viewportEl).toBeTruthy();
@@ -34,7 +38,12 @@ describe('BoardViewport', () => {
     });
 
     it('world layer div renders with scale translate transform', () => {
-      render(<BoardViewport />);
+      render(
+        <BoardViewport
+          onDblClickEmpty={() => {}}
+          onClickEmpty={() => {}}
+        />
+      );
 
       const style = getWorldLayerTransform();
       expect(style).not.toBeNull();
@@ -46,10 +55,13 @@ describe('BoardViewport', () => {
   // === TC-15: plain scroll deltaY +100 ===
   describe('TC-15: plain wheel pan', () => {
     it('viewport has wheel handler capability via React', () => {
-      render(<BoardViewport />);
+      render(
+        <BoardViewport
+          onDblClickEmpty={() => {}}
+          onClickEmpty={() => {}}
+        />
+      );
 
-      // Wheel → camera pan interaction is tested in e2e.
-      // Component just needs to render successfully with the handler wired up.
       expect(findViewport()).toBeTruthy();
     });
   });
@@ -57,10 +69,13 @@ describe('BoardViewport', () => {
   // === TC-16: Ctrl wheel deltaY -100 ===
   describe('TC-16: ctrl wheel zoom', () => {
     it('viewport supports Ctrl+wheel for zoom', () => {
-      render(<BoardViewport />);
+      render(
+        <BoardViewport
+          onDblClickEmpty={() => {}}
+          onClickEmpty={() => {}}
+        />
+      );
 
-      // Same as TC-15 — interaction logic is tested in e2e.
-      // Component existence suffices here.
       expect(findViewport()).toBeTruthy();
     });
   });
@@ -68,13 +83,16 @@ describe('BoardViewport', () => {
   // === TC-18: keyboard shortcuts ===
   describe('TC-18: keyboard shortcuts', () => {
     it('keyboard handler does not throw on invalid keys', () => {
-      render(<BoardViewport />);
+      render(
+        <BoardViewport
+          onDblClickEmpty={() => {}}
+          onClickEmpty={() => {}}
+        />
+      );
 
-      // Dispatch various keyboard events — should not crash
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
       window.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'a', bubbles: true }));
 
-      // Transform should still be present after harmless key events
       expect(getWorldLayerTransform()).not.toBeNull();
     });
   });
@@ -82,12 +100,14 @@ describe('BoardViewport', () => {
   // === TC-29: click without move (negative) ===
   describe('TC-29: click without moving does not change camera', () => {
     it('hint renders visible by default (no navigation yet)', () => {
-      render(<BoardViewport />);
+      render(
+        <BoardViewport
+          onDblClickEmpty={() => {}}
+          onClickEmpty={() => {}}
+        />
+      );
 
-      // Initially hasNavigated is false → hint visible
       expect(screen.getByTestId('navigation-hint')).toBeTruthy();
-
-      // Origin marker should also be present
       expect(screen.getByTestId('origin-marker')).toBeTruthy();
     });
   });

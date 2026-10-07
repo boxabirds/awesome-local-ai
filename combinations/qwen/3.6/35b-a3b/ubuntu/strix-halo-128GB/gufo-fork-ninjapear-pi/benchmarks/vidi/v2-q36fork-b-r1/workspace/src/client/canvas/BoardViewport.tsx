@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useCamera } from './useCamera';
-import { Camera, Point } from './camera';
-import { GRID_SPACING_WORLD, DEFAULT_ORIGIN_MARKER_SIZE } from '../../shared/config';
+import { screenToWorld, Camera, Point } from './camera';
+import { GRID_SPACING_WORLD, DEFAULT_ORIGIN_MARKER_SIZE, STICKY_SIZE_WORLD } from '../../shared/config';
 import { ZoomControls } from './ZoomControls';
 import { NavigationHint } from './NavigationHint';
 import { zoomPercent, canZoomIn, canZoomOut } from './camera';
@@ -12,9 +12,12 @@ const PAGE_TO_PIXEL = 50;
 
 interface BoardViewportProps {
   children?: ReactNode;
+  onCameraChange?(cam: Camera): void;
+  onDblClickEmpty(x: number, y: number): void;
+  onClickEmpty(): void;
 }
 
-export function BoardViewport({ children }: BoardViewportProps): ReactNode {
+export function BoardViewport({ children, onCameraChange, onDblClickEmpty, onClickEmpty }: BoardViewportProps): ReactNode {
   // --- Viewport size ---
   const viewportRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ width: number; height: number }>({
@@ -35,6 +38,13 @@ export function BoardViewport({ children }: BoardViewportProps): ReactNode {
     reset,
   } = useCamera(size);
 
+  // Notify parent of camera changes
+  useEffect(() => {
+    if (onCameraChange) {
+      onCameraChange(camera);
+    }
+  }, [camera, onCameraChange]);
+
   // Refs for keyboard handler access (so handlers always see latest callbacks)
   const zoomStepRef = useRef(zoomStep);
   const resetRef = useRef(reset);
@@ -43,6 +53,9 @@ export function BoardViewport({ children }: BoardViewportProps): ReactNode {
 
   // Track pointer capture state for cursor styling
   const isCapturingRef = useRef(false);
+
+  // Track if current pointer interaction started on a child element (note) vs empty space
+  const pointerOnChildRef = useRef(false);
 
   // ResizeObserver — viewport size from the element itself
   useEffect(() => {
@@ -62,8 +75,15 @@ export function BoardViewport({ children }: BoardViewportProps): ReactNode {
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (!(e.target instanceof HTMLElement)) return;
+      // Check if target is in the world layer (contains sticky notes etc.)
+      const worldLayer = e.currentTarget.querySelector('[style*="transform-origin"]');
+      if (worldLayer && worldLayer.contains(e.target as Node)) {
+        pointerOnChildRef.current = true;
+        return;
+      }
       e.currentTarget.setPointerCapture(e.pointerId);
       isCapturingRef.current = true;
+      pointerOnChildRef.current = false;
       beginPan({ x: e.clientX, y: e.clientY });
     },
     [beginPan],
@@ -71,18 +91,39 @@ export function BoardViewport({ children }: BoardViewportProps): ReactNode {
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!isCapturingRef.current) return;
+      if (!isCapturingRef.current || pointerOnChildRef.current) return;
       panMove({ x: e.clientX, y: e.clientY });
     },
     [panMove],
   );
 
   const handlePointerUpOrCancel = useCallback(() => {
+    if (!isCapturingRef.current || pointerOnChildRef.current) {
+      isCapturingRef.current = false;
+      pointerOnChildRef.current = false;
+      endPan();
+      return;
+    }
     isCapturingRef.current = false;
     endPan();
-  }, [endPan]);
+    onClickEmpty();
+  }, [endPan, onClickEmpty]);
 
-  // --- Wheel (captured phase to ensure it fires before React's passive listener) ---
+  // --- Double click on empty space → create sticky ---
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!(e.target instanceof HTMLElement)) return;
+      const worldLayer = e.currentTarget.querySelector('[style*="transform-origin"]');
+      if (worldLayer && worldLayer.contains(e.target as Node)) {
+        return; // Double-clicked on a note
+      }
+      const wp = screenToWorld(camera, { x: e.clientX, y: e.clientY });
+      onDblClickEmpty(wp.x - STICKY_SIZE_WORLD / 2, wp.y - STICKY_SIZE_WORLD / 2);
+    },
+    [camera, onDblClickEmpty],
+  );
+
+  // --- Wheel (captured phase) ---
   const handleWheelCapture = useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault();
@@ -90,7 +131,6 @@ export function BoardViewport({ children }: BoardViewportProps): ReactNode {
       let dx = e.deltaX;
       let dy = e.deltaY;
 
-      // Convert LINE/PAGE deltaMode to pixels
       if (e.deltaMode === 1) {
         dx *= LINE_TO_PIXEL;
         dy *= PAGE_TO_PIXEL;
@@ -111,7 +151,6 @@ export function BoardViewport({ children }: BoardViewportProps): ReactNode {
   }, []);
 
   const handleGestureChange = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (e: any) => {
       e.preventDefault();
       const factor = e.scale;
@@ -178,10 +217,15 @@ export function BoardViewport({ children }: BoardViewportProps): ReactNode {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUpOrCancel}
         onPointerCancel={handlePointerUpOrCancel}
-        onLostPointerCapture={handlePointerUpOrCancel}
+        onLostPointerCapture={() => {
+          isCapturingRef.current = false;
+          pointerOnChildRef.current = false;
+          endPan();
+        }}
         onGotPointerCapture={() => {
           isCapturingRef.current = true;
         }}
+        onDoubleClick={handleDoubleClick}
         onGestureStart={handleGestureStart}
         onGestureChange={handleGestureChange}
         aria-label="Infinite board"

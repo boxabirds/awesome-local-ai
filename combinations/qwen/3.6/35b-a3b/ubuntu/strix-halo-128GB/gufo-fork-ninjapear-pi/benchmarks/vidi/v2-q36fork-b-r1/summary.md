@@ -9,18 +9,22 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | Story | New work | Regressions | Repairs | Cumulative |
 |---|---|---|---|---|
 | 1 | 6/6 | 0 | 0 | 6/6 |
+| 2 | 2/10 | 0 | 0 | 11/20 |
 
-**New work** 6/6, **regressions** 0, **repairs** 0, **cumulative** 6/6.
+**New work** 8/16, **regressions** 0, **repairs** 0, **cumulative** 11/20.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | PARTIAL (red) | 44.7 | None | None | None | — | — | red | 6/6 |  | 0 / 1 | 2 | — | throttled 0%, server peak 35 GB |
+| 2 | Capture ideas on sticky notes and rearrange them | PARTIAL (red), on partial 1 | 14.1 | None | None | None | — | — | red | 11/20 |  | 0 / 1 | 0 | — | throttled 0%, server peak 35 GB |
 
-**Totals:** 1 stories, 45 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/1, final acceptance 6/6, stalled 0, partial 1, 1769 lines in src+tests.
+**Totals:** 2 stories, 59 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/2, final acceptance 11/20, stalled 0, partial 2, 3204 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 1 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7] (implementation: [2, 3, 4, 5]), held-out 6/6 (floor 0.833).
+- **Story 2 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8] (implementation: [2, 4, 5, 6]), held-out 2/10 (floor 0.0).
+- Story 2, built on partial 1: held-out tests on the partial base 11/20; partial story's tests fixed 3, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -29,6 +33,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | Story | Commits | + / − lines | Most-changed source files (lines; tests and lockfiles left out) |
 |---|---|---|---|
 | 1 | harness snapshot (agent left work uncommitted) | 6291 / 7 | `BoardViewport.tsx` (238), `useCamera.ts` (183), `camera.ts` (169), `ZoomControls.tsx` (86), `package.json` (34), `vitest.config.ts` (33), +16 more |
+| 2 | harness snapshot (agent left work uncommitted) | 1514 / 32 | `StickyNote.tsx` (277), `board-model.ts` (180), `StickyTextEditor.tsx` (145), `App.tsx` (111), `StickyText.ts` (91), `NoteToolbar.tsx` (80), +7 more |
 
 ### Earlier stories broken or fixed
 

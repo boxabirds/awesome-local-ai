@@ -1,3 +1,36 @@
+commit 9089427120a013e4a5bf526d99eb622d7aef8fee
+vidi-agent  Wed Oct 7 07:23:45 2026 +0000
+
+    harness: snapshot after story 2 (uncommitted agent work)
+
+
+ package-lock.json                       |  48 +++++-
+ package.json                            |   3 +-
+ src/client/App.tsx                      | 111 ++++++++++++-
+ src/client/board/Toolbar.tsx            |  51 ++++++
+ src/client/board/useBoardDoc.ts         |  33 ++++
+ src/client/board/useSelection.ts        |  39 +++++
+ src/client/canvas/BoardViewport.tsx     |  62 +++++--
+ src/client/canvas/cameraContext.ts      |  15 ++
+ src/client/objects/NoteToolbar.tsx      |  80 +++++++++
+ src/client/objects/StickyNote.tsx       | 277 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts        |  91 +++++++++++
+ src/client/objects/StickyTextEditor.tsx | 145 +++++++++++++++++
+ src/shared/board-model.ts               | 180 +++++++++++++++++++++
+ src/shared/config.ts                    |  18 +++
+ tests/component/BoardViewport.test.tsx  |  52 ++++--
+ tests/e2e/navigation.spec.ts            |  18 ++-
+ tests/unit/board-model.test.ts          | 220 +++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts          | 103 ++++++++++++
+ 18 files changed, 1514 insertions(+), 32 deletions(-)
+commit 4edaf8cfc51fc053871c6baa143ba23e4f3a9e97
+vidi-agent  Wed Oct 7 07:06:37 2026 +0000
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit 18541b984fd68cd6caf1df76c89dc182a18f1bc3
 vidi-agent  Wed Oct 7 07:06:22 2026 +0000
 

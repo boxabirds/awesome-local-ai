@@ -228,8 +228,8 @@ test.describe('Workflow 2: Limits and recovery', () => {
         vpW: vp?.getBoundingClientRect().width || 0,
         vpH: vp?.getBoundingClientRect().height || 0,
         vpRect: vp?.getBoundingClientRect() ? JSON.stringify(vp.getBoundingClientRect()) : 'none',
-        origLeft: orig?.style.left || 'N/A',
-        origTop: orig?.style.top || 'N/A',
+        origLeft: (orig as HTMLElement)?.style.left || 'N/A',
+        origTop: (orig as HTMLElement)?.style.top || 'N/A',
         origRect: orig?.getBoundingClientRect() ? JSON.stringify(orig.getBoundingClientRect()) : 'none',
       };
     });
@@ -241,8 +241,18 @@ test.describe('Workflow 2: Limits and recovery', () => {
       return { x: rect.width / 2, y: rect.height / 2 };
     });
 
-    expect(Math.abs(originPos.x - viewportCenter.x)).toBeLessThanOrEqual(1);
-    expect(Math.abs(originPos.y - viewportCenter.y)).toBeLessThanOrEqual(1);
+    // Origin should be at centre after reset — verify via evaluate
+    const originAtCentre = await page.evaluate(() => {
+      const vp = document.querySelector('[aria-label="Infinite board"]');
+      const orig = document.querySelector('[data-testid="origin-marker"]');
+      if (!vp || !orig) return false;
+      const vpRect = vp.getBoundingClientRect();
+      const origRect = orig.getBoundingClientRect();
+      const dx = Math.abs(origRect.left - vpRect.left - vpRect.width / 2);
+      const dy = Math.abs(origRect.top - vpRect.top - vpRect.height / 2);
+      return dx <= 1 && dy <= 1;
+    });
+    expect(originAtCentre).toBe(true);
   });
 });
 
