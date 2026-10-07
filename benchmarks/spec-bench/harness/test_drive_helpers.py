@@ -1438,6 +1438,12 @@ def test_clearing_the_cache_makes_it_look_again(monkeypatch):
     assert drive.engine_pid(8080) == 400
 
 
+def test_process_rows_keeps_only_well_formed_lines(monkeypatch):
+    ps_output = "  12  3400 /usr/bin/llama-server --port 1\n  PID RSS COMMAND\n  13  notanumber cmd\n  14\n  15  5 x y z\n"
+    monkeypatch.setattr(drive.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout=ps_output))
+    assert drive.process_rows() == [(12, 3400, "/usr/bin/llama-server --port 1"), (15, 5, "x y z")]
+
+
 # ---------- the memory snapshot at a story's start ----------
 
 def test_the_memory_snapshot_joins_the_total_the_weights_and_the_engine_s_log(monkeypatch, tmp_path):
