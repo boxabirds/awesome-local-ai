@@ -5,18 +5,21 @@ import { SHAPE_KINDS, type ShapeKind } from "../../shared/config";
 
 /**
  * Left-side board toolbar: the Select and Text tools (story 9), the Shape and
- * Connector tools (story 10), the Sticky note tool, and story 8's Undo and Redo.
+ * Connector tools (story 10), the Pen (story 11), the Sticky note tool, and story
+ * 8's Undo and Redo.
  *
  * Every tool button says its key in its accessible name — "Select (V)", "Text
- * (T)", "Shape (S)", "Connector (L)", "Sticky note (N)" — so the shortcuts are
- * findable without reading a help page. The Sticky note button's tooltip spells
+ * (T)", "Shape (S)", "Connector (L)", "Pen (P)", "Sticky note (N)" — so the
+ * shortcuts are findable without reading a help page. The Sticky note button's
+ * tooltip spells
  * out the alternative (double-click the board). Clicking it creates a note in the
  * middle of the visible board area, wherever the board has been panned.
  *
  * Shape and Connector are *modes*: clicking one arms the board for that gesture
  * rather than making something on its own. While the Shape tool is armed its three
  * kinds are offered beside it, because which kind the next drawn shape is comes
- * from that choice and not from the drag.
+ * from that choice and not from the drag. The Pen is a mode as well; its colour and
+ * thickness are offered in `PenToolbar`, beside this toolbar.
  */
 export interface ToolbarProps {
   onCreateSticky(): void;
@@ -122,6 +125,19 @@ export function Toolbar({ onCreateSticky, undo, canEdit = true, tool, shapeKind 
       >
         <span className="tool-glyph" aria-hidden="true" />
         <span className="tool-label">Connector</span>
+      </button>
+      <button
+        type="button"
+        className="tool-button"
+        data-testid="tool-pen"
+        aria-label="Pen (P)"
+        title="Pen (P)"
+        aria-pressed={active === "pen"}
+        disabled={!canEdit}
+        onClick={() => tool?.setTool("pen")}
+      >
+        <span className="tool-glyph" aria-hidden="true" />
+        <span className="tool-label">Pen</span>
       </button>
       <button
         type="button"

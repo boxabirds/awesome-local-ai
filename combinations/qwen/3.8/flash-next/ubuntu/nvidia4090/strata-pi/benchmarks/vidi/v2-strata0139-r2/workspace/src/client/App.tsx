@@ -14,6 +14,9 @@ import { useBoardKeys } from "./board/useBoardKeys";
 import { useActiveTool } from "./tools/useActiveTool";
 import { ShapeTool } from "./tools/ShapeTool";
 import { ConnectorTool } from "./tools/ConnectorTool";
+import { PenTool } from "./tools/PenTool";
+import { PenToolbar } from "./tools/PenToolbar";
+import { usePenOptions } from "./tools/usePenOptions";
 import { UndoControllerContext, useUndo, useUndoHistory } from "./board/useUndo";
 import { SelectionOverlay } from "./board/SelectionOverlay";
 import { SelectionBar } from "./board/SelectionBar";
@@ -27,7 +30,6 @@ import { createText, setTextSize } from "../shared/objects/text";
 import { connectorLine, type ConnectorSnap } from "../shared/objects/connector";
 import { distanceToPolyline } from "../shared/geometry/connector-geometry";
 import { CONNECTOR_HIT_TOLERANCE_PX, type TextSize } from "../shared/config";
-
 /**
  * The board: camera (story 1), objects (story 2), the live room (story 3), the
  * board link (story 5) — and story 7's selection: selecting many objects at once
@@ -56,6 +58,13 @@ export interface AppProps {
   canEdit?: boolean;
 }
 
+/** A stable id for this tab, for `createdBy` until story 14 gives identities. */
+function tabIdentity(): string {
+  const cryptoApi = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (cryptoApi && typeof cryptoApi.randomUUID === "function") return cryptoApi.randomUUID();
+  return `tab-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}) {
   const viewportSize = useWindowSize();
   const board = useCamera(viewportSize);
@@ -79,6 +88,14 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
     canEdit,
     select: useCallback((id: string) => selection.click(id), [selection]),
   });
+  // Story 11: the pen's colour and thickness — this tab's choice, never board
+  // content, so it is not synced and not undoable.
+  const pen = usePenOptions();
+  // Who drew something. Story 14 is where a person gets an identity; until then a
+  // stroke records the tab that drew it, which is all this build can honestly say.
+  const identityRef = useRef<string | null>(null);
+  if (identityRef.current === null) identityRef.current = tabIdentity();
+  const identityId = identityRef.current;
   // Story 8: one history for this board document, and it belongs to this tab.
   const undo = useUndoHistory(doc);
   const undoState = useUndo(undo, canEdit);
@@ -161,19 +178,28 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
   });
 
   /**
-   * A press and release on what looks like empty board space. An arrow is the one
-   * thing there that is not empty: it is thin, so a click close enough to its
-   * line selects it (`connector.select`) even inside the box derived from its
-   * ends, and a click farther away than `CONNECTOR_HIT_TOLERANCE_PX` clears the
-   * selection as it always has.
+   * A press and release on what looks like empty board space. Two things there are
+   * not empty: an arrow, and a stroke's line. Both are thin, so a click close
+   * enough to either selects it (`connector.select`, `pen.select`) even inside a box
+   * that is mostly empty space, and a click farther away clears the selection as it
+   * always has.
    */
   const emptyBoardClick = useCallback(
     (point: CameraPoint) => {
       const cameraNow = cameraRef.current;
       const world = screenToWorld(cameraNow, point);
-      const tolerance = CONNECTOR_HIT_TOLERANCE_PX / (cameraNow.zoom > 0 ? cameraNow.zoom : 1);
+      const zoom = cameraNow.zoom > 0 ? cameraNow.zoom : 1;
+      const tolerance = CONNECTOR_HIT_TOLERANCE_PX / zoom;
       for (let index = visible.length - 1; index >= 0; index -= 1) {
         const object = visible[index];
+        if (object.type === "stroke") {
+          // The registry is what knows how a stroke is hit; the board only asks.
+          if (getObjectType("stroke")?.hitTest(object, world, zoom) === true) {
+            selection.click(object.id);
+            return;
+          }
+          continue;
+        }
         if (object.type !== "connector" || object.from === undefined || object.to === undefined) continue;
         const line = connectorLine(object as ConnectorSnap, visible);
         if (distanceToPolyline([line.from, line.to], world, tolerance) <= tolerance) {
@@ -267,6 +293,19 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
                 onCreated={tool.toolCreated}
               />
             ) : null}
+            {/* Story 11: the pen draws its own preview in screen space, and keeps
+                drawing after a stroke — the tool is not left behind. */}
+            {tool.tool === "pen" ? (
+              <PenTool
+                camera={camera}
+                color={pen.color}
+                thickness={pen.thickness}
+                doc={doc}
+                identityId={identityId}
+                canEdit={canEdit}
+                onGestureBoundary={undo.boundary}
+              />
+            ) : null}
           </>
         }
       >
@@ -297,6 +336,10 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
         shapeKind={tool.shapeKind}
         onShapeKind={tool.setShapeKind}
       />
+      {/* The pen's own options, beside the toolbar while the pen is armed. */}
+      {tool.tool === "pen" ? (
+        <PenToolbar color={pen.color} thickness={pen.thickness} onColor={pen.setColor} onThickness={pen.setThickness} />
+      ) : null}
       <ZoomControls
         zoomPercent={board.zoomPercent}
         canZoomIn={board.canZoomIn}

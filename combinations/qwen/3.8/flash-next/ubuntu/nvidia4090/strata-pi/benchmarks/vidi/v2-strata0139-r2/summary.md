@@ -19,8 +19,9 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 | 8 | 1/7 | 0 | 0 | 10/51 | 0 |
 | 9 | 5/6 | 0 | 0 | 15/57 | 1 |
 | 10 | 6/8 | 0 | 0 | 21/65 | 1 |
+| 11 | 4/5 | 0 | 0 | 25/70 | 1 |
 
-**New work** 21/61, **regressions** 0, **repairs** 0, **cumulative** 21/65.
+**New work** 25/66, **regressions** 0, **repairs** 0, **cumulative** 25/70.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -33,8 +34,9 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 | 8 | Undo and redo my own changes without undoing anyone else's | PARTIAL (amber), on partial 3, 4, 7 | 240.0 | None | None | None | — | — | green | 10/51 |  | 0 / 0 | 4 | — | throttled 0%, server peak 0 GB |
 | 9 | Write free text anywhere on the board | PARTIAL (amber), on partial 3, 4, 7, 8 | 240.0 | None | None | None | — | — | green | 15/57 |  | 0 / 0 | 4 | — | throttled 0%, server peak 0 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | PARTIAL (amber), on partial 3, 4, 7, 8, 9 | 240.0 | None | None | None | — | — | green | 21/65 |  | 0 / 0 | 5 | — | throttled 0%, server peak 0 GB |
+| 11 | Sketch freehand with a pen | DONE, on partial 3, 4, 7, 8, 9, 10 | 208.0 | None | None | None | — | — | red | 25/70 |  | 0 / 0 | 4 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 9 stories, 1795 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 6/9, final acceptance 21/65, stalled 0, partial 6, 30983 lines in src+tests.
+**Totals:** 10 stories, 2003 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 6/10, final acceptance 25/70, stalled 0, partial 6, 34186 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -50,6 +52,7 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 - Story 9, built on partial 3, 4, 7, 8: held-out tests on the partial base 9/37; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - **Story 10 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **amber**: gate green, tasks not verified [7, 8, 9, 10, 11, 12, 13, 14, 15] (implementation: [8, 10, 11, 12, 13]), held-out 6/8 (floor 0.625).
 - Story 10, built on partial 3, 4, 7, 8, 9: held-out tests on the partial base 15/45; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- Story 11, built on partial 3, 4, 7, 8, 9, 10: held-out tests on the partial base 19/50; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -66,6 +69,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 8 | harness snapshot (agent left work uncommitted) | 2301 / 28 | `undo.ts` (166), `NOTES.md` (142), `useUndo.ts` (140), `UndoButtons.tsx` (50), `useBoardKeys.ts` (45), `StickyTextEditor.tsx` (35), +10 more |
 | 9 | 1 by the agent, + harness snapshot | 3754 / 323 | `TextEditor.tsx` (280), `StickyTextEditor.tsx` (236), `textLayout.ts` (210), `text.ts` (194), `text-edit.ts` (161), `TextObject.tsx` (156), +17 more |
 | 10 | harness snapshot (agent left work uncommitted) | 4922 / 50 | `connector.ts` (383), `ConnectorTool.tsx` (280), `shape.ts` (233), `styles.css` (215), `ShapeObject.tsx` (211), `connector-geometry.ts` (180), +15 more |
+| 11 | 1 by the agent | 3369 / 46 | `PenTool.tsx` (314), `stroke.ts` (225), `simplify.ts` (173), `StrokeObject.tsx` (138), `NOTES.md` (120), `styles.css` (99), +12 more |
 
 ### Earlier stories broken or fixed
 

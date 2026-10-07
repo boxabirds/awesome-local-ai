@@ -531,3 +531,123 @@ with this cap, and was not with it.
 Nothing in story 8 is blocked on this machine. The WebKit gap recorded under story 1
 still applies (its browser build is present, `libavif` is not, and there is no root),
 so TC-22 to TC-24 run in Chromium and Firefox.
+
+## Story 11 — Sketch freehand with a pen
+
+### Deviations from the design document
+
+- **No new `src/shared/geometry/polyline.ts`.** The design names a polyline helper for
+  the hit test; `distanceToPolyline` already exists in
+  `src/shared/geometry/connector-geometry.ts` (story 10) and does exactly the required
+  point-to-segment distance, so it is imported rather than duplicated. TC-07 exercises
+  it on `scaledPoints` of a stroke, which is where the behaviour actually matters.
+- **`simplify` is iterative, not recursive.** Ramer–Douglas–Peucker is written with an
+  explicit stack of spans. On the near-straight 5 010-point fixture a recursive version
+  would recurse ~5 000 frames deep, and the fixture is a legitimate input, not a stress
+  case. Behaviour is the same: first and last points are kept and every dropped point
+  is within `tolerance` of the result.
+- **`StrokeSnap.points` is a flat `number[]`** (`[x0, y0, x1, y1, …]`), stored relative
+  to the box origin so that `scaledPoints` can express a resize as a scale of the box.
+  Anything reading coordinates goes through `scaledPoints(stroke)`, which returns board
+  (world) units. That is why `points.length === 2` means "one point" in TC-04.
+- **`splitPoints` shares its join point.** Part 2 *starts with* part 1's last point
+  rather than continuing after it, so a split stroke reads as a continuous line. With
+  `STROKE_MAX_POINTS = 5000`, 10 raw points split 4/4/4 (TC-03 asserts 5 000 → 1 part,
+  5 001 → 2 parts with `parts[1][0] === parts[0][3999]`-style overlap).
+- **The bbox padding is `max(thickness / 2, STROKE_MIN_SIZE_WORLD / 2)`,** not plain
+  `thickness / 2`. A thin dot is 2 units wide otherwise and would then be *below* the
+  resize minimum, so the story 7 handles could not resize it at all.
+- **`ObjectSnapshot.color` was widened to `StickyColor | PenColor`** instead of adding a
+  second colour field. `StrokeSnap extends ObjectSnapshot { color: PenColor }` is then
+  expressible without renaming anything; `readColor` stays sticky-only and strokes are
+  validated by `isPenColorName`.
+- **`ObjectTypeSpec.hitTest` gained an optional third argument (`zoom`).** The stroke's
+  tolerance is `STROKE_HIT_TOLERANCE_PX` in *screen* pixels, so it needs the zoom; every
+  existing object ignores the parameter.
+
+### Gap filled in shared code: a press on an SVG part of an object started nothing
+
+`useTransformGesture`'s `elementOf(event)` required `event.currentTarget instanceof
+HTMLElement`. A stroke hands its press over from the **SVG hit path**, so
+`startGesture` returned `null` for every press on a stroke: the object got *selected*
+(that part lives in `onObjectPointerDown`, not in the gesture) but never moved or
+resized, and no pointermove listener was ever attached. E2E TC-20 is what caught it.
+
+`Gesture.el`, `elementOf`, `capturePointer` and `releasePointerCapture` now take
+`Element`. `setPointerCapture`, `addEventListener("pointermove" | "pointerup" | …)` and
+`releasePointerCapture` are all `Element` behaviour, so nothing else in the gesture code
+needed to change. There is a component regression test for exactly this
+(`stroke.object > a press on the hit path moves the stroke`); it was confirmed red with
+`instanceof HTMLElement` restored and green with the fix.
+
+### Pen tool behaviour that is not obvious from the design
+
+- The pen claims the press on `document` in the **capture** phase and calls
+  `stopPropagation()`. That is what stops `BoardViewport` from panning and an object's
+  own press handler from starting a drag, without either site needing a `tool === "pen"`
+  special case. (`BoardViewport.startPan` also refuses early when the tool is `pen`, and
+  `[data-testid="stroke-object"]` was added to `isBoardSpace`'s exclusion list.)
+- A click is a dot, a scribble in place is a stroke: `travelled` is the **maximum
+  displacement from the press point**, not the length of the path walked. With path
+  length, an in-place scribble under the drag threshold would silently become a dot.
+- `getCoalescedEvents()` is used when present. Without it a fast drag on a 60 Hz display
+  loses most of the shape the pen actually drew.
+- At `STROKE_MAX_POINTS` the part is committed and the new part **starts at the last
+  point of the committed part**. A split landing exactly on the release can therefore
+  leave a one-point tail; `finish()` drops that tail rather than committing a duplicate
+  dot at the end of the line (`Drawing.committed` distinguishes "never moved" from "a
+  split already landed").
+- Undo boundaries are opened before and after each `createStroke` (`onGestureBoundary`),
+  so a long stroke that was split into three objects is still one undo step per commit,
+  and a multi-part drag never merges into a neighbour's step.
+- The pen stays armed after a commit: nothing calls `setTool`, TC-09 and TC-13 both pin
+  this.
+
+### E2E lessons that cost time
+
+- **DOM order is not z order.** `page.getByTestId("stroke-object").last()` is *not* the
+  stroke just drawn. `tests/e2e/helpers/pen.ts` therefore has `newStrokeSince(page,
+  beforeIds)`, which returns the one id that was not on screen before the gesture.
+- **A grab point for a move must be far from all eight handles.** A press on the stroke
+  line that happens to lie near a box edge or corner hits the *selection handle* and
+  resizes instead of moving. `pathStart()` (the first `M` of the rendered path) is
+  reliable for a *hit-test click* but sits at an extreme of the box; the loop fixture
+  point at one eighth of the arc is more than 90 board units from every handle and is
+  used for the move in TC-20.
+- **A resize scales every point about the box origin** (`scaledPoints`), so "the far end
+  moved" is the wrong assertion: every recorded point moves outward in proportion, and
+  TC-20 asserts `after[i] = x + (before[i] - x) * scale`.
+- TC-17's "changes on consecutive animation frames" is measured *inside the page*: a
+  `requestAnimationFrame` sampler stores the preview path's `d` each frame, and the test
+  asserts the number of consecutive-frame changes over a replayed ~400-point drag.
+
+### Test counts
+
+- `npm run test:unit` 312 (19 files) — `tests/unit/stroke.test.ts` adds 20.
+- `npm run test:component` 280 (24 files) — `PenTool.test.tsx` 15,
+  `StrokeObject.test.tsx` 9.
+- `npm run test:integration` 63, unchanged.
+- `npx playwright test tests/e2e/pen.spec.ts` 8 passed (4 workflows × Chromium +
+  Firefox), no latency budget failure: `pen.stroke → Sam` measured 2–3 ms against
+  `LIVE_UPDATE_LATENCY_BUDGET_MS` (1000), logged and not asserted.
+- Full `npx playwright test`: 120 passed, 1 skipped (WebKit), 1 failed — see below.
+
+### Red e2e test that was already red before story 11
+
+`tests/e2e/shapes.spec.ts` "TC-24 … a click at 200% is the standard size, and a label
+that wraps stays centred through a resize" fails in **Firefox** deterministically, in
+isolation as well as in a full run (`resized.width` is 20 instead of more than
+`labelled.width + 100`). It was verified to be **pre-existing**: with every story 11
+change stashed (`git stash -u`) and only story 10's committed tree present, the same
+test fails in Firefox in the same way. It is not a story 11 test and no story 11 change
+touches shape resize; it is left failing rather than papered over.
+
+In some full-suite runs `undo.spec.ts` TC-24 (Chromium) and `text.spec.ts` TC-31
+(Chromium) also failed, and both pass when their spec is run alone — the load-related
+pointer flakiness already recorded under story 7's notes.
+
+### Blocked
+
+Only the WebKit half of "TC-17 also in firefox and webkit" (task 6): WebKit's browser
+build is present but unusable on this machine (missing `libavif`, no root, `apt`
+non-functional — see story 1). TC-17 runs in Chromium and Firefox.

@@ -127,11 +127,11 @@ export function boardKeyCommand(
       return state.tool !== undefined && state.tool !== "text" ? { type: "tool", tool: "text" } : null;
     }
     if (event.key === "n" || event.key === "N") return { type: "createSticky" };
-    // Story 10's tool keys: S arms the Shape tool, L the Connector tool. Leaving
-    // either one is Escape or V. The other keys in the shortcut table belong to
-    // tools this board does not have yet.
+    // Story 10's tool keys: S arms the Shape tool, L the Connector tool. Story 11
+    // adds P for the Pen. Leaving any of them is Escape or V. The other keys in the
+    // shortcut table belong to tools this board does not have yet.
     const toolShortcut = toolForShortcut(event.key);
-    if (toolShortcut === "shape" || toolShortcut === "connector") {
+    if (toolShortcut === "shape" || toolShortcut === "connector" || toolShortcut === "pen") {
       if (state.tool === undefined) return null;
       return state.tool !== toolShortcut ? { type: "tool", tool: toolShortcut } : null;
     }

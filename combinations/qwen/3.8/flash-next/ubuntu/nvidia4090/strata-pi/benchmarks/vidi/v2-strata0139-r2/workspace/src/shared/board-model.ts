@@ -1,17 +1,24 @@
 import * as Y from "yjs";
 import {
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
   DEFAULT_SHAPE_FILL,
   DEFAULT_STICKY_COLOR,
   DEFAULT_SHAPE_STROKE,
   MAX_OBJECT_SIZE_WORLD,
+  PEN_COLORS,
+  PEN_THICKNESS_WORLD,
   SHAPE_FILL_COLORS,
   SHAPE_MIN_SIZE_WORLD,
   SHAPE_STROKE_COLORS,
   STICKY_COLORS,
   STICKY_MIN_SIZE_WORLD,
   STICKY_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_SIZES,
   type FillColor,
+  type PenColor,
+  type PenThickness,
   type ShapeKind,
   type StrokeColor,
   type StickyColor,
@@ -93,8 +100,8 @@ export interface ObjectSnapshot {
   /** Stacking order; a higher z draws on top. */
   readonly z: number;
   readonly createdAt: number;
-  /** Sticky notes only. */
-  readonly color?: StickyColor;
+  /** Sticky notes (`sticky.color`) and strokes (`stroke.model`, story 11). */
+  readonly color?: StickyColor | PenColor;
   /** Sticky notes and text objects. */
   readonly text?: string;
   /** Text objects only (`text.size`, one of `TEXT_SIZES`). */
@@ -117,6 +124,16 @@ export interface ObjectSnapshot {
    */
   readonly from?: Endpoint;
   readonly to?: Endpoint;
+  /**
+   * Strokes only (story 11): the drawn path, flattened `[x, y, …]` in object
+   * coordinates, and the box size it was drawn into (`baseWidth`, `baseHeight`)
+   * that `scaledPoints` scales it by. See `src/shared/objects/stroke.ts`.
+   */
+  readonly points?: readonly number[];
+  readonly baseWidth?: number;
+  readonly baseHeight?: number;
+  /** Strokes only (story 11): one of `PEN_THICKNESS_WORLD`. */
+  readonly thickness?: PenThickness;
   /** Set by the type's create function when the caller had an identity. */
   readonly createdBy?: string;
 }
@@ -523,10 +540,31 @@ function objectEntry(doc: Y.Doc, id: string): Y.Map<unknown> | undefined {
 }
 
 /** The smallest side a type may have, as far as the model itself knows. */
+/** A stroke's flattened path, or null when it does not read as one. */
+function readPointList(value: unknown): number[] | null {
+  if (!Array.isArray(value) || value.length < 2 || value.length % 2 !== 0) return null;
+  const points: number[] = [];
+  for (const entry of value) {
+    if (!isFiniteNumber(entry)) return null;
+    points.push(entry);
+  }
+  return points;
+}
+
+function isPenColorName(value: unknown): value is PenColor {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(PEN_COLORS, value);
+}
+
+function isPenThicknessName(value: unknown): value is PenThickness {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(PEN_THICKNESS_WORLD, value);
+}
+
 function modelMinSize(type: unknown): number {
   if (type === "sticky") return STICKY_MIN_SIZE_WORLD;
   // `shape.model`: a shape may not be resized below its minimum either.
   if (type === "shape") return SHAPE_MIN_SIZE_WORLD;
+  // `pen.resize`: a stroke keeps a drawable box, so it has a minimum too.
+  if (type === "stroke") return STROKE_MIN_SIZE_WORLD;
   return 1;
 }
 
@@ -588,6 +626,23 @@ function asObject(id: string, value: unknown): ObjectSnapshot | undefined {
   const to = readEndpoint(value.get("to"));
   if (type === "connector" && (from === undefined || to === undefined)) return undefined;
 
+  // `stroke.model` (story 11): the path has to read, or there is nothing to
+  // draw; the colours always resolve to a name this build knows.
+  const strokePoints = type === "stroke" ? readPointList(value.get("points")) : null;
+  if (type === "stroke" && strokePoints === null) return undefined;
+  const stroke =
+    strokePoints === null
+      ? undefined
+      : {
+          points: strokePoints,
+          baseWidth: isFiniteNumber(value.get("baseWidth")) ? (value.get("baseWidth") as number) : 0,
+          baseHeight: isFiniteNumber(value.get("baseHeight")) ? (value.get("baseHeight") as number) : 0,
+          color: isPenColorName(value.get("color")) ? (value.get("color") as PenColor) : DEFAULT_PEN_COLOR,
+          thickness: isPenThicknessName(value.get("thickness"))
+            ? (value.get("thickness") as PenThickness)
+            : DEFAULT_PEN_THICKNESS,
+        };
+
   return {
     id,
     type,
@@ -609,6 +664,7 @@ function asObject(id: string, value: unknown): ObjectSnapshot | undefined {
         }
       : {}),
     ...(shape ?? {}),
+    ...(stroke ?? {}),
     ...(from !== undefined ? { from } : {}),
     ...(to !== undefined ? { to } : {}),
     ...(typeof createdBy === "string" && createdBy.length > 0 ? { createdBy } : {}),

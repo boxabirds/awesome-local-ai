@@ -861,3 +861,102 @@ body {
   height: 0;
   width: 18px;
 }
+
+/* ---- Freehand pen (story 11) ---- */
+
+/* While the Pen is armed the pointer says "draw here". */
+.board-viewport[data-tool="pen"] {
+  cursor: crosshair;
+}
+
+/* The pen's colour and thickness, beside the board toolbar. */
+.pen-toolbar {
+  position: fixed;
+  left: 132px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.pen-swatches {
+  display: grid;
+  grid-template-columns: repeat(3, 28px);
+  gap: 6px;
+}
+
+.pen-swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(31, 41, 51, 0.35);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.pen-swatch[aria-pressed="true"] {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
+}
+
+.pen-thicknesses {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pen-thickness {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 8px;
+  background: var(--vidi6-surface);
+  color: var(--vidi6-fg);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pen-thickness[aria-pressed="true"] {
+  border-color: var(--vidi6-focus);
+  background: #eaf1fe;
+}
+
+.pen-thickness-glyph {
+  display: block;
+  width: 22px;
+  border-radius: 2px;
+  background: var(--vidi6-fg);
+}
+
+.pen-swatch:focus-visible,
+.pen-thickness:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
+}
+
+/* The stroke being drawn, and the round cursor: screen-space layers that are never
+   a hit target, so a press during a drag is always the drag's. */
+.pen-overlay {
+  pointer-events: none;
+}
+
+/* A drawn stroke: its box is the drawing's bounding box, but only the line itself
+   answers a press (see objects/StrokeObject). */
+.stroke-object {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.stroke-hit {
+  cursor: pointer;
+}

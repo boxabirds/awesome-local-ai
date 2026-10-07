@@ -1,4 +1,4 @@
-import type { ComponentType, HTMLAttributes, PointerEvent as ReactPointerEvent } from "react";
+import type { ComponentType, HTMLAttributes } from "react";
 import type * as Y from "yjs";
 import type { ObjectSnapshot } from "../../shared/board-model";
 import { objectBounds } from "../../shared/board-model";
@@ -8,11 +8,14 @@ import { StickyNote } from "./StickyNote";
 import { TextObject } from "./TextObject";
 import { TEXT_MIN_WIDTH_WORLD } from "../../shared/config";
 import { setTextWidthFixed } from "../../shared/objects/text";
-import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD } from "../../shared/config";
+import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from "../../shared/config";
 import { ShapeObject } from "./ShapeObject";
 import { ConnectorObject } from "./ConnectorObject";
+import { StrokeObject } from "./StrokeObject";
 import { connectorLine, type ConnectorSnap } from "../../shared/objects/connector";
+import { scaledPoints, strokeThicknessWorld, type StrokeSnap } from "../../shared/objects/stroke";
 import { distanceToPolyline } from "../../shared/geometry/connector-geometry";
+import type { PointerLike } from "../board/useTransformGesture";
 
 /**
  * The object type registry (`sel.all_types`).
@@ -40,7 +43,7 @@ export interface ObjectProps {
    * which is what gives every type the same select / select-many / move
    * behaviour.
    */
-  onObjectPointerDown(event: ReactPointerEvent<HTMLDivElement>, id: string): void;
+  onObjectPointerDown(event: PointerLike, id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: "selected" | "unselected"): void;
   /** Extra attributes the board renderer wants on the object's root element. */
@@ -70,8 +73,13 @@ export interface ObjectTypeSpec {
    * schema and its height is measured, not dragged.
    */
   resizeWidth?(doc: Y.Doc, id: string, width: number): boolean;
-  /** Is `worldPoint` on this object? (Board coordinates.) */
-  hitTest(object: ObjectSnapshot, worldPoint: Point): boolean;
+  /** Is `worldPoint` on this object? (Board coordinates.)
+   *
+   * `zoom` (screen pixels per board unit) is given so a type whose hit shape is a
+   * *line* can keep its target the same number of screen pixels at any zoom
+   * (`pen.select`); a type hit by its box ignores it.
+   */
+  hitTest(object: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -162,5 +170,27 @@ registerObjectType("connector", {
     return (
       distanceToPolyline([line.from, line.to], worldPoint, CONNECTOR_HIT_TOLERANCE_PX) <= CONNECTOR_HIT_TOLERANCE_PX
     );
+  },
+});
+
+// Story 11: a stroke is an ordinary resizable object — its own box, the generic
+// handles, the generic move — with two differences. Its hit shape is its **line**,
+// not its box, because the box of a diagonal scribble is mostly empty space; and
+// its proportions are locked, because stretching a drawing out of shape is not what
+// resizing a drawing means (`pen.resize`).
+registerObjectType("stroke", {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest(object, worldPoint, zoom) {
+    if (!worldPoint) return false;
+    const stroke = object as StrokeSnap;
+    const scale = Number.isFinite(zoom) && zoom !== undefined && zoom > 0 ? zoom : 1;
+    // Half the line's own thickness, but never a target narrower than the click
+    // tolerance in screen pixels: the thicker of the two, in board units.
+    const tolerance = Math.max(strokeThicknessWorld(stroke) / 2, STROKE_HIT_TOLERANCE_PX / scale);
+    return distanceToPolyline(scaledPoints(stroke), worldPoint, tolerance) <= tolerance;
   },
 });

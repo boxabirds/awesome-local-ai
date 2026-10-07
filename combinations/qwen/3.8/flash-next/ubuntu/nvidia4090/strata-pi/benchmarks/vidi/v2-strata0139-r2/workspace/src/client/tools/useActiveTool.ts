@@ -18,11 +18,11 @@ import {
  * so the tool can only ever be what one place says it is.
  *
  * `pen`, `image` and `comment` are in the type and in the shortcut table because
- * the story 10 design lists them — they are stories 11 and 12's tools, and this
- * story's board does nothing with them. A tool that is not Select never survives
- * creating its object: `toolCreated(id)` selects what was made and hands the
- * board back to Select, which is what makes moving things afterwards a click on
- * the object rather than a fight with the tool that made it.
+ * the story 10 design lists them — `pen` is story 11's tool, which stays armed
+ * after it has drawn, and `image` and `comment` are still to come. Every other tool
+ * is not survived by creating its object: `toolCreated(id)` selects what was made
+ * and hands the board back to Select, which is what makes moving things afterwards a
+ * click on the object rather than a fight with the tool that made it.
  */
 
 export type ToolId = "select" | "sticky" | "text" | "shape" | "connector" | "pen" | "image" | "comment";
@@ -68,7 +68,7 @@ export interface ActiveToolApi {
 }
 
 /** Tools this board has a tool component for; the rest are accepted and ignored. */
-const AVAILABLE_TOOLS: readonly ToolId[] = ["select", "sticky", "text", "shape", "connector"];
+const AVAILABLE_TOOLS: readonly ToolId[] = ["select", "sticky", "text", "shape", "connector", "pen"];
 
 export function useActiveTool(options: ActiveToolOptions = {}): ActiveToolApi {
   const { canEdit = true, select } = options;

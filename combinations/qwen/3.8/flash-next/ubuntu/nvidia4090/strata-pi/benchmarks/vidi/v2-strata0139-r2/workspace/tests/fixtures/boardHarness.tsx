@@ -13,6 +13,9 @@ import { useBoardKeys } from "../../src/client/board/useBoardKeys";
 import { useActiveTool } from "../../src/client/tools/useActiveTool";
 import { ShapeTool } from "../../src/client/tools/ShapeTool";
 import { ConnectorTool } from "../../src/client/tools/ConnectorTool";
+import { PenTool } from "../../src/client/tools/PenTool";
+import { PenToolbar } from "../../src/client/tools/PenToolbar";
+import { usePenOptions } from "../../src/client/tools/usePenOptions";
 import { SelectionOverlay } from "../../src/client/board/SelectionOverlay";
 import { SelectionBar } from "../../src/client/board/SelectionBar";
 import { UndoControllerContext, useUndoHistory } from "../../src/client/board/useUndo";
@@ -23,7 +26,6 @@ import { createText } from "../../src/shared/objects/text";
 import { connectorLine, type ConnectorSnap } from "../../src/shared/objects/connector";
 import { distanceToPolyline } from "../../src/shared/geometry/connector-geometry";
 import { CONNECTOR_HIT_TOLERANCE_PX } from "../../src/shared/config";
-
 /**
  * The board the component tests mount.
  *
@@ -84,6 +86,8 @@ export function BoardHarness({
   const selection = useSelection(visible);
   // Story 9: the same tool state the real board has — story 10's tools included.
   const tool = useActiveTool({ canEdit, select: (id) => selection.click(id) });
+  // Story 11: the pen's colour and thickness, exactly as the real board keeps them.
+  const pen = usePenOptions();
   const createTextAtScreenPoint = useCallback(
     (point: { x: number; y: number }) => {
       if (!canEdit) return;
@@ -146,12 +150,23 @@ export function BoardHarness({
     [selection.ids, visible],
   );
 
-  /** Empty board space, except near an arrow's line, which selects it. */
+  /**
+   * Empty board space, except near an arrow's line or a stroke's line, which selects
+   * it (`connector.select`, `pen.select`).
+   */
   const emptyBoardClick = (point: { x: number; y: number }): void => {
     const world = screenToWorld(camera, point);
-    const tolerance = CONNECTOR_HIT_TOLERANCE_PX / (camera.zoom > 0 ? camera.zoom : 1);
+    const zoom = camera.zoom > 0 ? camera.zoom : 1;
+    const tolerance = CONNECTOR_HIT_TOLERANCE_PX / zoom;
     for (let index = visible.length - 1; index >= 0; index -= 1) {
       const object = visible[index];
+      if (object.type === "stroke") {
+        if (getObjectType("stroke")?.hitTest(object, world, zoom) === true) {
+          selection.click(object.id);
+          return;
+        }
+        continue;
+      }
       if (object.type !== "connector" || object.from === undefined || object.to === undefined) continue;
       const line = connectorLine(object as ConnectorSnap, visible);
       if (distanceToPolyline([line.from, line.to], world, tolerance) <= tolerance) {
@@ -215,6 +230,16 @@ export function BoardHarness({
                 onCreated={tool.toolCreated}
               />
             ) : null}
+            {tool.tool === "pen" ? (
+              <PenTool
+                camera={camera}
+                color={pen.color}
+                thickness={pen.thickness}
+                doc={doc}
+                canEdit={canEdit}
+                onGestureBoundary={controller.boundary}
+              />
+            ) : null}
           </>
         }
       >
@@ -237,6 +262,9 @@ export function BoardHarness({
         })}
         <MarqueeRect rect={marquee.rect} />
       </BoardViewport>
+      {tool.tool === "pen" ? (
+        <PenToolbar color={pen.color} thickness={pen.thickness} onColor={pen.setColor} onThickness={pen.setThickness} />
+      ) : null}
     </CameraApiContext.Provider>
     </UndoControllerContext.Provider>
   );

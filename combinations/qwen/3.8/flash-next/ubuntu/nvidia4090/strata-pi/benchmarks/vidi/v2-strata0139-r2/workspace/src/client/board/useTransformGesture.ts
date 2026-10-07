@@ -78,7 +78,12 @@ type Kind = "move" | "resize";
 interface Gesture {
   kind: Kind;
   pointerId: number;
-  el: HTMLElement;
+  /**
+   * The element the gesture's moves and release are listened to. An object may hand
+   * the press over from an SVG part of itself (a stroke's hit path), so this is any
+   * `Element`, not only an `HTMLDivElement`.
+   */
+  el: Element;
   handle: Handle;
   aspectLocked: boolean;
   /** The object that was pressed, which a click (no movement) selects alone. */
@@ -467,15 +472,20 @@ function applyResize(
   if (moves.size > 0) moveObjects(doc, moves);
 }
 
-function elementOf(event: PointerLike): HTMLElement | null {
+/**
+ * The element a gesture belongs to: the one the press was handled on. SVG elements
+ * count — `setPointerCapture` and the pointer events are `Element` behaviour, and a
+ * stroke's hit path is an SVG path.
+ */
+function elementOf(event: PointerLike): Element | null {
   const target = event.currentTarget ?? event.target;
-  return target instanceof HTMLElement ? target : null;
+  return target instanceof Element ? target : null;
 }
 
-function capturePointer(el: HTMLElement, pointerId: number): void {
+function capturePointer(el: Element, pointerId: number): void {
   el.setPointerCapture?.(pointerId);
 }
 
-function releasePointerCapture(el: HTMLElement, pointerId: number): void {
+function releasePointerCapture(el: Element, pointerId: number): void {
   el.releasePointerCapture?.(pointerId);
 }

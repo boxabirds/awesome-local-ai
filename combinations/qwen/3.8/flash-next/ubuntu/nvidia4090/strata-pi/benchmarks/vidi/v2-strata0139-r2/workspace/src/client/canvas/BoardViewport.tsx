@@ -53,9 +53,10 @@ export interface BoardViewportProps {
     /**
      * Story 9: the board's active tool. While `text` is active the next press on
      * the board writes text there instead of panning, marquee-ing or selecting.
-     * Story 10 adds `shape` and `connector`, whose tools take the pointer
-     * themselves; for those three the viewport neither writes text nor creates a
-     * sticky note.
+     * Story 9 adds `text`; story 10 adds `shape` and `connector`, whose tools take
+     * the pointer themselves; story 11 adds `pen`, which does the same. For those
+     * four the viewport neither writes text nor creates a sticky note, and while the
+     * Pen is armed a drag on the board never pans it either.
      */
   tool?: Tool;
   /** Story 9: where the Text tool's click lands, as a screen point. */
@@ -257,7 +258,7 @@ export function BoardViewport({
     return (
       viewport.contains(target) &&
       target.closest(
-        "[data-testid='sticky-note'], [data-testid='text-object'], [data-testid='shape-object'], [data-testid='connector-object'], [data-testid='note-toolbar'], [data-testid='text-toolbar'], [data-testid='shape-toolbar'], textarea, button",
+        "[data-testid='sticky-note'], [data-testid='text-object'], [data-testid='shape-object'], [data-testid='connector-object'], [data-testid='stroke-object'], [data-testid='note-toolbar'], [data-testid='text-toolbar'], [data-testid='shape-toolbar'], textarea, button",
       ) === null
     );
   };
@@ -270,6 +271,11 @@ export function BoardViewport({
     // propagation and be dragged instead.
     if (!isBoardSpace(target)) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    // While the Pen is armed the board is being drawn on, not moved (`pen.press`).
+    // The Pen tool normally takes the press before it gets here; this is the board
+    // agreeing that a pen drag is never a pan.
+    if (toolRef.current === "pen") return;
 
     // Shift + drag on empty board space draws the selection rectangle instead of
     // panning, and clears nothing on release.

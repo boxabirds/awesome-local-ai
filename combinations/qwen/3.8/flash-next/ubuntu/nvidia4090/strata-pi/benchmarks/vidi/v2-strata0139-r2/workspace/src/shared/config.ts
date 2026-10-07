@@ -187,6 +187,53 @@ export const CONNECTOR_DOT_RADIUS_PX = 4;
 /** Diameter of a selected arrow's end handle, in screen pixels (`connector.reattach`). */
 export const CONNECTOR_HANDLE_SIZE_PX = 10;
 
+// ---- Freehand pen (story 11) -------------------------------------------
+
+/** The six pen colours. */
+export const PEN_COLORS = {
+  black: "#212121",
+  blue: "#1E88E5",
+  red: "#E53935",
+  green: "#43A047",
+  orange: "#FB8C00",
+  purple: "#8E24AA",
+} as const;
+export type PenColor = keyof typeof PEN_COLORS;
+/** The pen colours, in the order the toolbar shows them. */
+export const PEN_COLOR_NAMES: readonly PenColor[] = [
+  "black",
+  "blue",
+  "red",
+  "green",
+  "orange",
+  "purple",
+];
+/** Line thickness in board units, so a stroke scales with zoom like everything else. */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+/** The three thicknesses, in the order the toolbar shows them. */
+export const PEN_THICKNESS_NAMES: readonly PenThickness[] = ["thin", "medium", "thick"];
+/** Accessible names of the thickness buttons (`aria-label="Thin|Medium|Thick"`). */
+export const PEN_THICKNESS_LABELS: Record<PenThickness, string> = {
+  thin: "Thin",
+  medium: "Medium",
+  thick: "Thick",
+};
+export const DEFAULT_PEN_COLOR: PenColor = "black";
+export const DEFAULT_PEN_THICKNESS: PenThickness = "medium";
+/**
+ * How far a finished stroke may sit from the path that was drawn, in **screen**
+ * pixels at the zoom used while drawing (`pen.smooth`). The simplification
+ * tolerance is this divided by the zoom, so it is one screen pixel at any zoom.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/** One stroke records at most this many pointer points; longer strokes are split (`pen.long_stroke`). */
+export const STROKE_MAX_POINTS = 5_000;
+/** How close to a stroke's line a click must be to select it, in screen pixels (`pen.select`). */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** The smallest side a stroke may be resized to, in board units. */
+export const STROKE_MIN_SIZE_WORLD = 4;
+
 // ---- Undo and redo (story 8) -------------------------------------------
 
 /**
