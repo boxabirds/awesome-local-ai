@@ -101,7 +101,7 @@ export const runFinalize = (blobs: Map<string, string>, dir: string): RawFinaliz
 export const isKnownGood = (metrics: { known_good?: unknown } | null): boolean =>
   typeof metrics?.known_good === "object" && metrics.known_good !== null;
 
-type RawStory = { title?: string; status?: string; accept?: { passed?: number; total?: number } | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; not_comparable?: unknown } & RawUsage;
+type RawStory = { title?: string; status?: string; accept?: { passed?: number; total?: number } | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; not_comparable?: unknown; memory_start?: unknown } & RawUsage;
 
 /** Every pushed run record, and each pack's current version (bench.json pack_ref). */
 export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; suites: Record<string, string> }> {

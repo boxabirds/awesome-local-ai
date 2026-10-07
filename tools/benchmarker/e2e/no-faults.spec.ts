@@ -7,6 +7,7 @@ import type { State } from "../shared/types.ts";
 // available. The faults themselves, over the same fixture, are server/faults.test.ts's.
 
 const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
+const GUFO = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi";
 const OPUS = "reference/opus-5.5";
 const VK = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi";
 const enc = encodeURIComponent;
@@ -28,6 +29,9 @@ const PAGES: [string, string][] = [
   ["run (cancelled then done)", runHref(SWIFT, "v2-r5")],
   ["run (no score: re-score failed, needs a person)", runHref(VK, "v2-r1")],
   ["run (cloud model)", runHref(OPUS, "run-9")],
+  ["run (memory: llama.cpp evictions)", runHref(SWIFT, "v2-r6")],
+  ["run (memory: gufo cache)", runHref(GUFO, "canvas-gufo-r3")],
+  ["run (memory: figures not read)", runHref(SWIFT, "v2-r4")],
   ["story run (the failed check)", `${runHref(SWIFT, "v2-r1")}/s/1`],
   ["story run (passing check)", `${runHref(SWIFT, "v2-r5")}/s/2`],
   ["story run (no accounting)", `${runHref(OPUS, "run-9")}/s/1`],

@@ -238,6 +238,19 @@
         "version": null
        }
       }
+     },
+     "memory": {
+      "at": 1790000001.0,
+      "residentMib": 35580.3,
+      "modelBytes": 22388168960,
+      "engine": "gufo",
+      "cache": {
+       "retainedMib": 32464.9,
+       "capacityMib": 32768.0,
+       "skippedForCapacity": 1746,
+       "evictions": null,
+       "evictedMib": null
+      }
      }
     }
    ],
@@ -621,6 +634,19 @@
        "gist": "npx playwright test"
       },
       "signals": []
+     },
+     "memory": {
+      "at": 1790000001.0,
+      "residentMib": null,
+      "modelBytes": null,
+      "engine": "llama.cpp",
+      "cache": {
+       "retainedMib": null,
+       "capacityMib": null,
+       "skippedForCapacity": null,
+       "evictions": 0,
+       "evictedMib": 0.0
+      }
      }
     },
     {
@@ -701,6 +727,13 @@
        "gist": "npm run test:unit"
       },
       "signals": []
+     },
+     "memory": {
+      "at": 1790003601.0,
+      "residentMib": 90112.0,
+      "modelBytes": null,
+      "engine": null,
+      "cache": null
      }
     }
    ],
@@ -822,6 +855,19 @@
       "signals": [
        "hung-command"
       ]
+     },
+     "memory": {
+      "at": 1790000001.0,
+      "residentMib": 96000.0,
+      "modelBytes": 85652396192,
+      "engine": "llama.cpp",
+      "cache": {
+       "retainedMib": null,
+       "capacityMib": null,
+       "skippedForCapacity": null,
+       "evictions": 12,
+       "evictedMib": 41200.0
+      }
      }
     },
     {
@@ -902,6 +948,19 @@
        "gist": "npm run test:unit"
       },
       "signals": []
+     },
+     "memory": {
+      "at": 1790003601.0,
+      "residentMib": 100485.4,
+      "modelBytes": 85652396192,
+      "engine": "llama.cpp",
+      "cache": {
+       "retainedMib": null,
+       "capacityMib": null,
+       "skippedForCapacity": null,
+       "evictions": 33,
+       "evictedMib": 141272.9
+      }
      }
     }
    ],

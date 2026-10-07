@@ -5,6 +5,7 @@ import type { Route } from "../../shared/routes.ts";
 import { Breadcrumb } from "../components/EntityLinks.tsx";
 import { RunHeader } from "../components/run/RunHeader.tsx";
 import { RunStories } from "../components/run/RunStories.tsx";
+import { RunMemory } from "../components/run/RunMemory.tsx";
 import { Ran } from "../components/run/HeldOutAndJobs.tsx";
 import { CompareRuns, RelatedRuns } from "../components/run/CompareAndRelated.tsx";
 import { InterventionList, INTERVENTIONS_SECTION } from "../components/RunMarks.tsx";
@@ -39,6 +40,7 @@ export function RunPage({ route, run, state, params }: { route: Route; run: Row;
       <Breadcrumb route={route} names={{ combination: run.label }} />
       <RunHeader run={run} state={state} />
       <RunStories run={run} rows={state.rows} judgeUrl={state.judgeUrl} />
+      <RunMemory run={run} />
       <Ran run={run} />
       <Interventions run={run} />
       {/* Keyed by run: moving to another run's page starts its comparison afresh. */}

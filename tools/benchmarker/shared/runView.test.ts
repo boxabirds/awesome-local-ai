@@ -8,7 +8,7 @@ import {
   runTimeBars, runTotals, scopeIds, scoreOfRecord, segmentTip, signedPercent, splitParts, squareTip, statusView, storyResults,
   storyRunState, storyTitle, toolKinds, whyMissing, whyRunMissing, againstAbsent,
   groupInterventions, interventionsOf, interventionText, interventionTip, INTERVENTION_OTHER, MAX_TIP_INTERVENTIONS,
-  againstFlagTip, typicalRun, whatDiffered, BELOW_CAVEAT, HELD_OUT_CAVEAT,
+  againstFlagTip, typicalRun, whatDiffered, BELOW_CAVEAT, HELD_OUT_CAVEAT, runMemory,
 } from "./runView.ts";
 import { classifyMechanism } from "./combinationView.ts";
 import { GLOSSARY } from "./glossary.ts";
@@ -1177,5 +1177,85 @@ describe("where an intervened mark leads", () => {
     expect(interventionStory(run)).toBe("2");
     expect(interventionStory({ interventions: [{ at: 1, story: null, text: "x" }] })).toBeNull();
     expect(interventionStory({ interventions: [] })).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// runMemory: what the model server held as each story began. Measurements only: an engine says only what it says, so
+// what it does not say is not shown, and a total that could not be read is not a zero.
+
+describe("runMemory: what the server held as each story began", () => {
+  const GIB = 1024 ** 3;
+  const gufo = (residentMib: number | null, retainedMib: number, capacityMib: number, skipped: number | null) => ({
+    at: 1, residentMib, modelBytes: 22388168960, engine: "gufo",
+    cache: { retainedMib, capacityMib, skippedForCapacity: skipped, evictions: null, evictedMib: null },
+  });
+  const llama = (residentMib: number | null, evictions: number, evictedMib: number | null) => ({
+    at: 1, residentMib, modelBytes: 85652396192, engine: "llama.cpp",
+    cache: { retainedMib: null, capacityMib: null, skippedForCapacity: null, evictions, evictedMib },
+  });
+
+  it("a run whose stories carry no snapshot has no memory view at all: nothing is guessed", () => {
+    expect(runMemory({ stories: [story("1"), story("2", { memory: null })] })).toBeNull();
+    expect(runMemory({ stories: [] })).toBeNull();
+  });
+
+  it("one row per story that has a snapshot, in story order, in GiB to one decimal", () => {
+    const v = runMemory({ stories: [story("2", { memory: gufo(36000, 32000, 32768, 5) }), story("1", { memory: gufo(35580.3, 100, 32768, 0) })] })!;
+    expect(v.rows.map((r) => r.id)).toEqual(["1", "2"]);
+    expect(v.rows[0].residentGib).toBe(34.7);
+    expect(v.rows[1].residentGib).toBe(35.2);
+  });
+
+  it("a story without a snapshot among stories that have one is left out, not shown as zeros", () => {
+    const v = runMemory({ stories: [story("1", { memory: gufo(35000, 1, 32768, 0) }), story("2"), story("3", { memory: gufo(36000, 2, 32768, 0) })] })!;
+    expect(v.rows.map((r) => r.id)).toEqual(["1", "3"]);
+  });
+
+  it("the weights are the exact size in GiB", () => {
+    expect(runMemory({ stories: [story("1", { memory: gufo(35000, 1, 32768, 0) })] })!.weightsGib).toBe(Math.round((22388168960 / GIB) * 10) / 10);
+  });
+
+  it("peak and median of the totals across the stories", () => {
+    const m = (gib: number) => gufo(gib * 1024, 1, 32768, 0);
+    const v = runMemory({ stories: [story("1", { memory: m(90) }), story("2", { memory: m(100) }), story("3", { memory: m(98) })] })!;
+    expect(v.peakGib).toBe(100);
+    expect(v.medianGib).toBe(98);
+  });
+
+  it("a story whose total could not be read has no total of its own, and the peak and median ignore it", () => {
+    const v = runMemory({ stories: [story("1", { memory: gufo(null, 1, 32768, 0) }), story("2", { memory: gufo(50 * 1024, 1, 32768, 0) })] })!;
+    expect(v.rows[0].residentGib).toBeNull();
+    expect(v.peakGib).toBe(50);
+  });
+
+  it("when no total could be read in any story there is no peak or median: never 0", () => {
+    const v = runMemory({ stories: [story("1", { memory: gufo(null, 1, 32768, 0) })] })!;
+    expect(v.peakGib).toBeNull();
+    expect(v.medianGib).toBeNull();
+  });
+
+  it("gufo's cache reads as what it holds of what it may hold, and how many snapshots it skipped", () => {
+    const v = runMemory({ stories: [story("1", { memory: gufo(35000, 32464.9, 32768, 1746) })] })!;
+    expect(v.rows[0].cache).toBe("31.7 of 32.0 GiB (99%), 1,746 skipped");
+    expect(v.cacheKind).toBe("held");
+  });
+
+  it("gufo's cache with nothing skipped says no more than what it holds", () => {
+    expect(runMemory({ stories: [story("1", { memory: gufo(35000, 1024, 32768, 0) })] })!.rows[0].cache).toBe("1.0 of 32.0 GiB (3%)");
+  });
+
+  it("llama.cpp's cache reads as its evictions and their size; one is singular", () => {
+    const v = runMemory({ stories: [story("1", { memory: llama(100000, 33, 141272.9) }), story("2", { memory: llama(100000, 1, 4096) })] })!;
+    expect(v.rows[0].cache).toBe("33 evictions, 138.0 GiB");
+    expect(v.rows[1].cache).toBe("1 eviction, 4.0 GiB");
+    expect(v.cacheKind).toBe("evictions");
+  });
+
+  it("an engine that said nothing about its cache has no cache text and no kind", () => {
+    const v = runMemory({ stories: [story("1", { memory: { at: 1, residentMib: 5000, modelBytes: null, engine: null, cache: null } })] })!;
+    expect(v.rows[0].cache).toBeNull();
+    expect(v.cacheKind).toBeNull();
+    expect(v.weightsGib).toBeNull();
   });
 });

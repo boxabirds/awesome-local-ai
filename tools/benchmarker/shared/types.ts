@@ -112,7 +112,34 @@ export interface Intervention {
 }
 
 /** One finished story of a run. */
+/** What the model server held as a story began (the record's `memory_start`, from the harness's memory_snapshot.py).
+ * Every figure is nullable because an engine says only what it says: gufo reports what its prompt cache holds against
+ * what it may hold, llama.cpp reports how often it has evicted entries since the server started, and neither reports
+ * the other's. What is not offered is null, and a total that could not be read is null too, never 0. */
+export interface StoryMemory {
+  at: number | null;
+  /** The server process's total resident memory when the story began. */
+  residentMib: number | null;
+  /** The exact size of the weights the install names, every shard and the draft head. */
+  modelBytes: number | null;
+  engine: string | null;
+  cache: PromptCacheFigures | null;
+}
+
+export interface PromptCacheFigures {
+  /** gufo: what the cache holds, against what it may hold. */
+  retainedMib: number | null;
+  capacityMib: number | null;
+  /** gufo: snapshots skipped for lack of room. */
+  skippedForCapacity: number | null;
+  /** llama.cpp: entries evicted since the server STARTED (so cumulative over the run, and reset by a restart), and their size. */
+  evictions: number | null;
+  evictedMib: number | null;
+}
+
 export interface Story {
+  /** What the model server held as this story began; null for a story recorded before the snapshot existed. */
+  memory?: StoryMemory | null;
   /** This story can be judged: it has a record of its own and the run has its workspace history. Weaker than the
    * run's judgeReady on purpose -- a finished story of a running run is judgeable, and the review page rebuilds
    * the workspace story by story. */
