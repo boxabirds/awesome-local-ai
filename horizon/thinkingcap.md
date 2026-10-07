@@ -1,6 +1,8 @@
 # ThinkingCap-Qwen3.8-27B
 
-**Status:** gated (5 Oct 2026) — three checks below, and it has nothing to be read against yet.
+**Status:** gated (7 Oct 2026) — on the engine check and a baseline. The licence question is **settled**: see
+check 1. The base dense 27B's five runs are queued on the RTX 4090 machine, which closes the real gate when
+they land.
 **Kind:** a fine-tune of a model we already run, not a new engine or setting.
 **Where it could run:** the RTX 4090 machine on Ubuntu, llama.cpp + pi, against
 `qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi`.
@@ -32,10 +34,13 @@ The card's numbers are BottleCap's own, on their benchmarks. Nothing here is our
 
 ## Checks before a run
 
-1. **Licence.** The weights are under *PolyForm Small Business 1.0.0 + BottleCap personal-use grant* (the
-   upstream Qwen material stays Apache-2.0), with commercial use by arrangement with BottleCap. This repository
-   is public and the owner's work is a business, so whether benchmarking it and publishing the result is
-   permitted has to be settled before a run, not after. **Not yet checked — the owner's call.**
+1. ~~**Licence.**~~ **Settled, 7 Oct 2026.** The weights are under *PolyForm Small Business 1.0.0 + BottleCap
+   personal-use grant* (the upstream Qwen material stays Apache-2.0), with commercial use by arrangement. The
+   owner's decision: benchmarking is treated as fair use, and the remedy for a complaint is to take it down —
+   "I'm treating a benchmark as fair use. If they chase me, I take it down, simple as that." This is a general
+   rule now, not a judgement about this model (see the horizon README): **do not gate a candidate on its
+   weights' licence.** Record the licence as a fact and assess the candidate on its merits. It covers
+   benchmarking and publishing scores, not redistributing weights.
 2. **The engine loads it.** The GGUF card says it "Requires a llama.cpp build with MTP support for this
    architecture (v0.4.1 or newer)", which is not llama.cpp's own version scheme; what build that means, and
    whether ours is it, is unchecked. A file that will not load is a ten-minute check, not a story.
