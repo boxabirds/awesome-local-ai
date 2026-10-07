@@ -1,3 +1,56 @@
+commit 18a36f3c6dac379c4dd4d11808aa22c6778a0623
+agent  Wed Oct 7 15:09:15 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ .gitignore                                |    6 +
+ NOTES.md                                  |   67 +
+ PROGRESS.md                               |   16 +-
+ index.html                                |   12 +
+ package-lock.json                         | 3212 +++++++++++++++++++++++++++++
+ package.json                              |   35 +
+ playwright.config.ts                      |   23 +
+ src/client/App.tsx                        |  216 ++
+ src/client/board/Toolbar.tsx              |   42 +
+ src/client/board/useBoardDoc.ts           |   87 +
+ src/client/board/useSelection.ts          |   53 +
+ src/client/canvas/BoardViewport.tsx       |  224 ++
+ src/client/canvas/NavigationHint.tsx      |   18 +
+ src/client/canvas/ZoomControls.tsx        |   48 +
+ src/client/canvas/camera.ts               |  104 +
+ src/client/canvas/useCamera.ts            |  126 ++
+ src/client/main.tsx                       |   12 +
+ src/client/objects/NoteToolbar.tsx        |   67 +
+ src/client/objects/StickyNote.tsx         |  228 ++
+ src/client/objects/StickyText.ts          |  114 +
+ src/client/objects/StickyTextEditor.tsx   |  155 ++
+ src/client/styles.css                     |  308 +++
+ src/client/testHooks.ts                   |   35 +
+ src/shared/board-model.ts                 |  213 ++
+ src/shared/config.ts                      |   56 +
+ tests/component/StickyNote.test.tsx       |  163 ++
+ tests/component/StickyTextEditor.test.tsx |  175 ++
+ tests/component/Toolbars.test.tsx         |   75 +
+ tests/component/helpers.tsx               |   86 +
+ tests/e2e/global-setup.ts                 |   57 +
+ tests/e2e/sticky-notes.spec.ts            |  160 ++
+ tests/fixtures/texts.ts                   |   34 +
+ tests/setup/component.ts                  |   52 +
+ tests/unit/board-model.test.ts            |  293 +++
+ tests/unit/sticky-text.test.ts            |  155 ++
+ tsconfig.json                             |   24 +
+ vite.config.ts                            |   13 +
+ vitest.config.ts                          |   26 +
+ 38 files changed, 6782 insertions(+), 8 deletions(-)
+commit e13b2c9f7af0a44f0d5ef7f4f6789b8a7936cf34
+vidi-agent  Wed Oct 7 13:39:06 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
 commit c77ace79ce1361280f5a3d2a8082f32dc4a1a2c4
 vidi-agent  Wed Oct 7 13:23:15 2026 +0100
 

@@ -1,0 +1,308 @@
+/* vidi6 board styles */
+
+:root {
+  --dot-color: #c9cfd8;
+  --selection-blue: #1a73e8;
+  --ui-bg: #ffffff;
+  --ui-border: #d0d5dd;
+  --ui-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+  --note-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  --note-padding: 12px; /* must match NOTE_PADDING_PX */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  overflow: hidden;
+  background: #f7f8fa;
+}
+
+/* --- Board viewport ------------------------------------------------------ */
+
+.board-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  background-image: radial-gradient(circle, var(--dot-color) 1px, transparent 1.5px);
+  touch-action: none;
+}
+
+.board-viewport:active {
+  cursor: grabbing;
+}
+
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.board-origin-marker {
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--dot-color), var(--dot-color)) center / 100% 2px no-repeat,
+    linear-gradient(var(--dot-color), var(--dot-color)) center / 2px 100% no-repeat;
+}
+
+/* --- Sticky notes --------------------------------------------------------- */
+
+.sticky-note {
+  position: absolute;
+  overflow: hidden;
+  box-shadow: var(--note-shadow);
+  pointer-events: auto;
+  outline: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.sticky-note--selected,
+.sticky-note:focus-visible {
+  outline: 2px solid var(--selection-blue);
+  outline-offset: 2px;
+}
+
+.sticky-note__text {
+  position: absolute;
+  left: var(--note-padding);
+  right: var(--note-padding);
+  top: var(--note-padding);
+  bottom: var(--note-padding);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+  text-align: center;
+}
+
+.sticky-note__editor {
+  position: absolute;
+  left: var(--note-padding);
+  right: var(--note-padding);
+  top: var(--note-padding);
+  bottom: var(--note-padding);
+}
+
+.sticky-note__textarea {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-align: center;
+  font-family: inherit;
+  line-height: 1.2;
+  color: #1f2937;
+  cursor: text;
+}
+
+.sticky-note__text {
+  line-height: 1.2;
+  color: #1f2937;
+}
+
+/* Bottom fade shown when the text overflows at the minimum font size. */
+.sticky-note__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40px;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0));
+}
+
+/* Character counter (only within STICKY_COUNTER_THRESHOLD_CHARS of the limit). */
+.sticky-note__counter {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-size: 9px;
+  line-height: 1.2;
+  color: rgba(0, 0, 0, 0.55);
+  background: rgba(255, 255, 255, 0.65);
+  padding: 0 3px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+/* --- Left toolbar ---------------------------------------------------------- */
+
+.toolbar {
+  position: fixed;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 6px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  box-shadow: var(--ui-shadow);
+  z-index: 10;
+}
+
+.toolbar__sticky,
+.note-toolbar__swatch,
+.note-toolbar__delete,
+.zoom-controls__button {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.toolbar__sticky {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+
+.toolbar__sticky:hover,
+.note-toolbar__swatch:hover,
+.note-toolbar__delete:hover,
+.zoom-controls__button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.toolbar__sticky:focus-visible,
+.note-toolbar__swatch:focus-visible,
+.note-toolbar__delete:focus-visible,
+.zoom-controls__button:focus-visible {
+  outline: 2px solid var(--selection-blue);
+  outline-offset: 1px;
+}
+
+/* --- Note toolbar (screen space, above the selected note) ------------------ */
+
+.note-toolbar-anchor {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  z-index: 11;
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 7px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 9px;
+  box-shadow: var(--ui-shadow);
+}
+
+.note-toolbar__swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.note-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--selection-blue);
+  outline-offset: 1px;
+}
+
+.note-toolbar__delete {
+  width: 24px;
+  height: 24px;
+  margin-left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: #b42318;
+}
+
+/* --- Zoom controls ---------------------------------------------------------- */
+
+.zoom-controls {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  box-shadow: var(--ui-shadow);
+  z-index: 10;
+}
+
+.zoom-controls__button {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 15px;
+  color: #344054;
+}
+
+.zoom-controls__button:disabled {
+  color: #98a2b3;
+  cursor: default;
+}
+
+.zoom-controls__label {
+  min-width: 48px;
+  text-align: center;
+  font-size: 13px;
+  color: #344054;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- First-use hint ----------------------------------------------------------- */
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  background: rgba(31, 41, 55, 0.85);
+  color: #ffffff;
+  font-size: 13px;
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 9;
+}
