@@ -1,3 +1,49 @@
+commit 76ac3da2c3101c9a796547ea299373fa41293a2b
+agent  Wed Oct 7 16:01:42 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ PROGRESS.md | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+commit 44db9a59600ae3d0cd4050e93ad1354acece9d40
+agent  Wed Oct 7 15:59:50 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ PROGRESS.md                               |  10 +-
+ src/client/App.tsx                        | 119 +++++++++++++-
+ src/client/board/BoardRoot.tsx            |   6 +-
+ src/client/board/Toolbar.tsx              | 118 ++++++++++++--
+ src/client/board/useBoardKeys.ts          |  24 ++-
+ src/client/board/useTool.ts               |   6 +-
+ src/client/canvas/BoardViewport.tsx       |   5 +-
+ src/client/objects/ConnectorObject.tsx    | 135 ++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 128 +++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  97 +++++++++++
+ src/client/objects/registry.tsx           |  10 +-
+ src/client/tools/ConnectorTool.tsx        | 178 ++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 146 +++++++++++++++++
+ src/client/tools/useActiveTool.ts         |  99 ++++++++++++
+ src/shared/board-model.ts                 | 109 +++++++++++--
+ src/shared/config.ts                      |  33 ++++
+ src/shared/geometry/connector-geometry.ts | 146 +++++++++++++++++
+ src/shared/geometry/polyline.ts           |   2 +
+ src/shared/objects/connector.ts           | 194 ++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 213 ++++++++++++++++++++++++
+ tests/e2e/live-collaboration.spec.ts      |   4 +-
+ tests/unit/connector-model.test.ts        | 261 ++++++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 177 ++++++++++++++++++++
+ 23 files changed, 2164 insertions(+), 56 deletions(-)
+commit f222b4ff01c7a8c39700a5c7420f071f60ba4eb4
+vidi-agent  Wed Oct 7 14:59:18 2026 +0000
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 42 ++++++++++++++----------------------------
+ 1 file changed, 14 insertions(+), 28 deletions(-)
 commit 4d0c653198cb4cc19e32ed1c55026dc2bf6a916e
 agent  Wed Oct 7 14:50:42 2026 +0000
 
