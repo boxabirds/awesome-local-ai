@@ -97,10 +97,13 @@ test.describe("a card per machine", () => {
     for (const s of states) expect(s.state === "result" ? s.fill : s.border > 0, JSON.stringify(s)).toBe(true);
   });
 
-  test("the queue's length is measured from finished runs of its stacks, with the basis on hover; or says no estimate yet", async ({ page }) => {
-    const text = await card(page, "node-a").locator(".card-drain").innerText();
-    expect(text).toMatch(/about \d+ h of work|no estimate yet/);
-    await expect(card(page, "node-a").locator(".card-drain")).toHaveAttribute("data-tip", /median .* over \d+ finished runs|No finished run/);
+  // The estimate is gone. It could only speak about stacks that had already been run and scored, so it was
+  // blank for every stack anyone wanted an estimate for, and it floored a run that outlasted its own median at
+  // "about 0 h of work" while a story was still to go. The owner: "estimation isn't that important right now --
+  // just remove it from the ui."
+  test("no card estimates how long its queue will take", async ({ page }) => {
+    await expect(card(page, "node-a").locator(".card-drain")).toHaveCount(0);
+    await expect(page.locator('[data-page="overview"]')).not.toContainText(/h of work|no estimate yet/);
   });
 
   test("an idle machine has no strip and no series bar", async ({ page }) => {

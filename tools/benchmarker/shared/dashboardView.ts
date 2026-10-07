@@ -10,64 +10,18 @@ import { SILENT_MINUTES, type NowLine } from "./overviewView.ts";
 import { runOrder } from "./runGroups.ts";
 
 const SECONDS_PER_MINUTE = 60;
-const SECONDS_PER_HOUR = 3600;
 const MINUTES_PER_HOUR = 60;
 
 /** A story is slow when it took this many times the median of the same story in the stack's other runs ... */
 export const SLOW_RATIO = 2;
 /** ... of at least this many runs ... */
 export const SLOW_MIN_RUNS = 3;
-/** A queue that will run dry within this many hours is worth saying; a longer one is on the machine's card. */
-export const QUEUE_SHORT_HOURS = 24;
-
 /** ... and it has taken at least this long: a two-minute story at twice its median is not news. */
 export const SLOW_MIN_MINUTES = 20;
 
-// ---------- how long a run takes ----------
+// ---------- comparing a run with the other runs of its stack ----------
 
-const agentSeconds = (r: Pick<Row, "stories">) => r.stories.reduce((t, s) => t + (s.usage?.agentSeconds ?? 0), 0);
 const sameStack = (a: Row, pack: string, family: string, stack: string) => a.pack === pack && a.family === family && a.stack === stack;
-
-export interface RunDuration { median: number; n: number; min: number; max: number }
-
-/** The agent time of the complete runs of a stack (its finished runs with every story recorded and a score of record):
- * the median, how many runs that is, and the lowest and highest. Null when there is none. */
-export function medianRunSeconds(rows: Row[], pack: string, family: string, stack: string): RunDuration | null {
-  const secs = rows.filter((r) => sameStack(r, pack, family, stack) && isComplete(r)).map(agentSeconds);
-  const m = median(secs);
-  return m === null ? null : { median: m, n: secs.length, min: Math.min(...secs), max: Math.max(...secs) };
-}
-
-export interface QueueDrain {
-  /** Seconds of work still to do on the machine: the running run's remainder and a median run for each queued one. */
-  seconds: number;
-  /** Queued or running runs of a stack with no finished run: not in `seconds`, and not guessed. */
-  unknown: number;
-  basis: { stack: string; n: number; median: number }[];
-}
-
-/** How long the machine's work will take, from the measured run times of the stacks it holds. */
-export function queueDrain(machine: string, rows: Row[], _now: number): QueueDrain {
-  const mine = rows.filter((r) => r.node === machine && r.live);
-  const basis = new Map<string, { stack: string; n: number; median: number }>();
-  let seconds = 0, unknown = 0;
-  const durationOf = (r: Row) => {
-    const d = medianRunSeconds(rows, r.pack, r.family, r.stack);
-    if (d) basis.set(r.stack, { stack: r.stack, n: d.n, median: d.median });
-    return d;
-  };
-  for (const r of mine.filter((x) => x.live!.status === "running")) {
-    const d = durationOf(r);
-    if (!d) { unknown += 1; continue; }
-    const elapsed = agentSeconds(r) + (r.live!.agentMinutes ?? 0) * SECONDS_PER_MINUTE;
-    seconds += Math.max(0, d.median - elapsed);
-  }
-  for (const r of mine.filter((x) => x.live!.status === "queued")) {
-    const d = durationOf(r);
-    if (d) seconds += d.median; else unknown += 1;
-  }
-  return { seconds, unknown, basis: [...basis.values()] };
-}
 
 // ---------- a series: the runs of one stack made together ----------
 
@@ -197,7 +151,7 @@ export function slowStories(rows: Row[]): SlowStory[] {
 
 // ---------- observations ----------
 
-export type ObservationKind = "unreachable" | "silent" | "idle" | "slow" | "queue";
+export type ObservationKind = "unreachable" | "silent" | "idle" | "slow";
 export interface Observation {
   kind: ObservationKind;
   machine: string;
@@ -205,7 +159,7 @@ export interface Observation {
   /** What the observation links to: the run's story page when it is about one, else the machine. */
   run?: { pack: string; stack: string; runId: string; story?: string };
 }
-const KIND_ORDER: ObservationKind[] = ["unreachable", "silent", "idle", "slow", "queue"];
+const KIND_ORDER: ObservationKind[] = ["unreachable", "silent", "idle", "slow"];
 
 /** "2h00m" or "30 min": a duration as a person reads it. */
 export function span(seconds: number): string {
@@ -231,13 +185,6 @@ export function observations(lines: NowLine[], rows: Row[], now: number): Observ
     const s = mine[0];
     out.push({ kind: "slow", machine: s.machine, run: { pack: s.pack, stack: s.stack, runId: s.runId, story: s.story },
       text: `${s.runId} story ${s.story}: ${span(s.seconds)}, ${s.ratio.toFixed(1)} times the ${span(s.medianSeconds)} median of ${s.n} runs${mine.length > 1 ? `; ${mine.length - 1} more ${mine.length === 2 ? "story" : "stories"} this slow` : ""}` });
-  }
-  for (const l of lines.filter((x) => x.queued > 0)) {
-    const d = queueDrain(l.machine, rows, now);
-    if (!d.basis.length || d.seconds > QUEUE_SHORT_HOURS * SECONDS_PER_HOUR) continue;
-    const n = Math.min(...d.basis.map((b) => b.n));
-    out.push({ kind: "queue", machine: l.machine,
-      text: `${l.machine}: ${l.queued} queued, about ${Math.round(d.seconds / SECONDS_PER_HOUR)} h of work (median of ${n} finished runs)${d.unknown ? `, and ${d.unknown} with no estimate yet` : ""}` });
   }
   return out.toSorted((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.machine.localeCompare(b.machine, undefined, { numeric: true }));
 }

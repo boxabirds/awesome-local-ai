@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { QUEUE_SHORT_HOURS, SLOW_MIN_MINUTES, SLOW_MIN_RUNS, SLOW_RATIO, medianRunSeconds, observations, queueDrain, scorePlot, seriesOf, slowStories, utilisation } from "./dashboardView.ts";
+import { SLOW_MIN_MINUTES, SLOW_MIN_RUNS, SLOW_RATIO, observations, scorePlot, seriesOf, slowStories, utilisation } from "./dashboardView.ts";
 import { SILENT_MINUTES, type NowLine } from "./overviewView.ts";
 import type { JobRef, Row, RunStatus } from "./types.ts";
 
@@ -28,44 +28,6 @@ const run = (o: Opts): Row => {
 };
 
 const finished = (id: string, total: number, o: Partial<Opts> = {}) => run({ id, storySecs: [total / 3, total / 3, total / 3], ...o });
-
-describe("how long a run of a stack takes, measured", () => {
-  it("the median agent time of its complete runs, with how many and the lowest and highest", () => {
-    const rs = [finished("r1", 6 * HOUR), finished("r2", 8 * HOUR), finished("r3", 10 * HOUR)];
-    expect(medianRunSeconds(rs, "p", "p-v2", STACK_A)).toEqual({ median: 8 * HOUR, n: 3, min: 6 * HOUR, max: 10 * HOUR });
-  });
-  it("leaves out runs that did not finish, partial reruns, and other stacks; none: null", () => {
-    const rs = [finished("r1", 6 * HOUR), run({ id: "r2", status: "cancelled", storySecs: [100] }), finished("r3", HOUR, { knownGood: true }), finished("r4", 20 * HOUR, { stack: STACK_B })];
-    expect(medianRunSeconds(rs, "p", "p-v2", STACK_A)?.n).toBe(1);
-    expect(medianRunSeconds(rs, "p", "p-v2", "none")).toBeNull();
-  });
-});
-
-describe("how long a machine's queue will take", () => {
-  const done = [finished("d1", 8 * HOUR), finished("d2", 8 * HOUR), finished("d3", 8 * HOUR)];
-  it("the running run's remainder plus a median run for every queued one, with the basis", () => {
-    const running = run({ id: "r1", status: "running", storySecs: [2 * HOUR] });
-    const q = [run({ id: "r2", status: "queued", position: 2 }), run({ id: "r3", status: "queued", position: 3 })];
-    const d = queueDrain("m1", [...done, running, ...q], 0);
-    expect(d.seconds).toBe(6 * HOUR + 2 * 8 * HOUR);
-    expect(d.unknown).toBe(0);
-    expect(d.basis).toEqual([{ stack: STACK_A, n: 3, median: 8 * HOUR }]);
-  });
-  it("never below zero: a run past its median adds nothing to the remainder", () => {
-    const running = run({ id: "r1", status: "running", storySecs: [12 * HOUR] });
-    expect(queueDrain("m1", [...done, running], 0).seconds).toBe(0);
-  });
-  it("a queued run on a stack with no finished run is counted as unknown, never guessed", () => {
-    const q = [run({ id: "r2", status: "queued", stack: STACK_B })];
-    const d = queueDrain("m1", [...done, ...q], 0);
-    expect(d.seconds).toBe(0);
-    expect(d.unknown).toBe(1);
-  });
-  it("only this machine's queue", () => {
-    const q = [run({ id: "r2", status: "queued", machine: "m2" })];
-    expect(queueDrain("m1", [...done, ...q], 0)).toEqual({ seconds: 0, unknown: 0, basis: [] });
-  });
-});
 
 describe("a series of runs of one stack", () => {
   it("runs named <prefix>-rN of one stack are one series: done, running, queued; cancelled and partial reruns are not in it", () => {
@@ -135,19 +97,6 @@ describe("observations: facts about the work, in the order a person could act on
     const o = observations([line({ machine: "a", state: "unreachable" })], rs, 0);
     expect(o[0]).toMatchObject({ kind: "unreachable", text: "a: not reachable" });
   });
-  it("a queue that will run dry within QUEUE_SHORT_HOURS is one, with its measured length and basis", () => {
-    const done = [finished("d1", 8 * HOUR), finished("d2", 8 * HOUR), finished("d3", 8 * HOUR)];
-    const q = [run({ id: "q1", status: "queued", machine: "a" }), run({ id: "q2", status: "queued", machine: "a" })];
-    const o = observations([line({ machine: "a", queued: 2 })], [...done, ...q], 0);
-    expect(o.find((x) => x.kind === "queue")?.text).toBe("a: 2 queued, about 16 h of work (median of 3 finished runs)");
-  });
-  it("a longer queue is not news, and neither is one with no estimate (the machine's card says so)", () => {
-    const done = [finished("d1", 8 * HOUR), finished("d2", 8 * HOUR), finished("d3", 8 * HOUR)];
-    const long = Array.from({ length: QUEUE_SHORT_HOURS / 8 + 1 }, (_, i) => run({ id: `q${i}`, status: "queued", machine: "a" }));
-    expect(observations([line({ machine: "a", queued: long.length })], [...done, ...long], 0)).toEqual([]);
-    const none = [run({ id: "q1", status: "queued", machine: "a" })];
-    expect(observations([line({ machine: "a", queued: 1 })], none, 0)).toEqual([]);
-  });
   it("a slow story is one, with its time, the median and how many runs it is over", () => {
     const others = [1, 2, 3].map((i) => finished(`d${i}`, 3 * 1800));
     const cur = run({ id: "cur", status: "running", storySecs: [1800, 4 * 1800], machine: "a", minutes: 5 });
@@ -168,12 +117,13 @@ describe("observations: facts about the work, in the order a person could act on
     const slow = observations([line({ machine: "a" })], [...others, cur], 0).find((x) => x.kind === "slow");
     expect(slow?.text).toBe("cur story 2: 2h30m, 5.0 times the 30 min median of 3 runs; 1 more story this slow");
   });
-  it("ordered: unreachable, silent, idle, slow, queue", () => {
-    const others = [1, 2, 3].map((i) => finished(`d${i}`, 8 * HOUR));
+  it("ordered: unreachable, silent, idle, slow", () => {
+    // 30-minute stories, so cur's second story at 2 h is four times the median and really is slow: the point of
+    // this test is the ORDER, which needs every kind to actually fire.
+    const others = [1, 2, 3].map((i) => finished(`d${i}`, 3 * 1800));
     const cur = run({ id: "cur", status: "running", storySecs: [1800, 4 * 1800], machine: "d", minutes: 5 });
-    const q = run({ id: "q1", status: "queued", machine: "e" });
-    const lines = [line({ machine: "e", queued: 1 }), line({ machine: "d" }), line({ machine: "c", state: "idle" }), line({ machine: "b", silent: 60 }), line({ machine: "a", state: "unreachable" })];
-    expect(observations(lines, [...others, cur, q], 0).map((x) => x.kind)).toEqual(["unreachable", "silent", "idle", "queue"]);
+    const lines = [line({ machine: "d" }), line({ machine: "c", state: "idle" }), line({ machine: "b", silent: 60 }), line({ machine: "a", state: "unreachable" })];
+    expect(observations(lines, [...others, cur], 0).map((x) => x.kind)).toEqual(["unreachable", "silent", "idle", "slow"]);
   });
   it("nothing to say: none", () => expect(observations([line({ machine: "a" })], rs, 0)).toEqual([]));
 });
