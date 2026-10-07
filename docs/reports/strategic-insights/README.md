@@ -30,6 +30,7 @@ re-derived, and so a wrong one can be found and corrected rather than quietly in
 
 | Note | Claim | Status |
 |---|---|---|
+| [gufo 0.5.0 decodes slower](2026-10-07-gufo-0.5.0-decodes-slower.md) | 0.5.0 is no slower than the build before it, per its release notes | **Refuted** |
 | [Truncated stories do not cascade](2026-10-06-truncated-stories-do-not-cascade.md) | Cutting a story short at the time cap guarantees the next story fails | **Refuted** (corrected 6 Oct) |
 
 ## When one of these turns out to be wrong
