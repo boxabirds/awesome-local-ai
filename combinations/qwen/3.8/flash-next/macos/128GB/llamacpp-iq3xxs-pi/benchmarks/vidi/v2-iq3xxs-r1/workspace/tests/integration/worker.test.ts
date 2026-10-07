@@ -19,12 +19,12 @@ const boardRoom = () => (env as unknown as Env).BOARD_ROOM;
 
 describe('board route (TC-04)', () => {
   for (const badId of ['bad!id', '..%2F..%2Fx', 'a'.repeat(21), 'a'.repeat(23), 'KWobTWj7bGzX9Hx3YQ+']) {
-    it(`refuses "${badId}" with 400 and creates no room`, async () => {
+    it(`refuses "${badId}" with 404 and creates no room`, async () => {
       const idFromName = vi.spyOn(boardRoom(), 'idFromName');
       const response = await SELF.fetch(`http://worker/api/rooms/${badId}`, {
         headers: { Upgrade: 'websocket' },
       });
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(404);
       expect(socketOf(response)).toBeNull();
       expect(idFromName).not.toHaveBeenCalled(); // the room never exists
       idFromName.mockRestore();
@@ -32,6 +32,7 @@ describe('board route (TC-04)', () => {
   }
 
   it('keeps near-miss paths away from the room handler', async () => {
+    // Never created: these paths must not reach the room handler at all.
     const boardId = RoomClient.newBoardId();
     const nearMisses = [
       `/api/rooms/${boardId}/`,
@@ -57,7 +58,7 @@ describe('board route (TC-04)', () => {
 
 describe('room path without a websocket upgrade (TC-05)', () => {
   it('answers 426 and leaves the sockets it already has alone', async () => {
-    const boardId = RoomClient.newBoardId();
+    const boardId = await RoomClient.createBoard();
     const editor = await RoomClient.connect(boardId, 'editor');
     const watcher = await RoomClient.connect(boardId, 'watcher');
 
@@ -88,7 +89,7 @@ describe('static fallback (TC-06)', () => {
 
 describe('over-capacity joiners (TC-13)', () => {
   it(`upgrades ${MAX_CONCURRENT_EDITORS + 1} sockets and relays for all of them`, async () => {
-    const boardId = RoomClient.newBoardId();
+    const boardId = await RoomClient.createBoard();
     const clients: RoomClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS + 1; i++) {
       // The 6th socket is not refused: nothing counts participants (PRD
@@ -109,8 +110,8 @@ describe('over-capacity joiners (TC-13)', () => {
 
 describe('board isolation (TC-17)', () => {
   it('never carries a change from one board to another', async () => {
-    const board1 = RoomClient.newBoardId();
-    const board2 = RoomClient.newBoardId();
+    const board1 = await RoomClient.createBoard();
+    const board2 = await RoomClient.createBoard();
     const first = await RoomClient.connect(board1, 'on-board-1');
     const firstWatcher = await RoomClient.connect(board1, 'watcher-on-1');
     const second = await RoomClient.connect(board2, 'on-board-2');

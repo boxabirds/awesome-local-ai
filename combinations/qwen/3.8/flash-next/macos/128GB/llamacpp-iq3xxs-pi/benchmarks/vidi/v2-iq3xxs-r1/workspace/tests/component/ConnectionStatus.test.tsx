@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 import { newBoardId } from '../../src/shared/board-id';
 import type { ConnectOptions } from '../../src/client/sync/connectBoard';
@@ -25,7 +25,7 @@ function renderConnectedBoard(): {
   const clock = new FakeClock();
   const connect: ConnectOptions = { after: clock.after };
 
-  render(<App boardId={newBoardId()} sync connect={connect} provider={provider} />);
+  render(<Board boardId={newBoardId()} sync connect={connect} provider={provider} />);
 
   const goToConnected = (): void => {
     act(() => {
@@ -159,7 +159,7 @@ describe('second disconnection during the confirmation (TC-21)', () => {
     const provider = new FakeProvider();
     const clock = new FakeClock();
     const first = render(
-      <App
+      <Board
         boardId={newBoardId()}
         sync
         connect={{ after: clock.after }}

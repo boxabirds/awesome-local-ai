@@ -61,7 +61,10 @@ export default defineConfig({
   // e2e assertions across all three engines.
   projects: [...boardProjects, ...nightlyProjects],
   webServer: {
-    command: `npm run build:test && npx --no-install wrangler dev --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT}`,
+    // `TEST_HOOKS=1` is what lets a test drive a board into another shape (a board as
+    // it was stored before story 5, TC-31) through `/__test/...`. It is set for the
+    // test and persist environments only, never in a production config.
+    command: `npm run build:test && npx --no-install wrangler dev --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT} --var TEST_HOOKS:1`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

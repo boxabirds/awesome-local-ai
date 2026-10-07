@@ -3,6 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      A board's link is its only access control, so the address itself is a secret.
+      Never leak it as a Referer (or a `cross-origin-referrer`) to anything the board
+      page touches (PRD share privacy constraint; integration TC-32).
+    -->
+    <meta name="referrer" content="no-referrer" />
     <title>vidi6</title>
   </head>
   <body>

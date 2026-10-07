@@ -1,12 +1,11 @@
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import { ensureBoardPath } from './board/boardRoute';
 import './index.css';
 
-// The URL is the board (PRD live.board_url): `/` becomes `/b/<new id>` before the
-// first render, so nothing downstream has to handle a board-less location.
-const boardId = ensureBoardPath();
-
+// Nothing is done to the address before the first render. Until story 4 the app put a
+// board address in the bar if it did not have one; that made a first visit a board,
+// and story 5 needs a first visit that is the home page. Whatever the address is, the
+// router renders the page it asks for (see `App`).
 const container = document.getElementById('root');
 if (!container) throw new Error('#root not found');
-createRoot(container).render(<App boardId={boardId} />);
+createRoot(container).render(<App />);

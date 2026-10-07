@@ -1,6 +1,14 @@
 import { act } from '@testing-library/react';
+import { newBoardId } from '../../src/shared/board-id';
 import type { Camera, Point } from '../../src/client/canvas/camera';
 import type { BoardTestApi } from '../../src/client/canvas/testHooks';
+
+/**
+ * The address a component-test board reports. It is never created over the API and
+ * never joined — `sync={false}` renders a board with no network at all — but from
+ * story 5 on every board has an address, so every test board has one too (TC-18).
+ */
+export const TEST_BOARD_ID = newBoardId();
 
 /** Read the live camera via the test-only hook (updated synchronously). */
 export function getCamera(): Camera {

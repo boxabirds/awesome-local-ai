@@ -40,7 +40,13 @@ export class BoardRoom extends DurableObject<Env> {
   private readonly store: BoardStore;
   private doc: Y.Doc | undefined;
   /** Coarse lifecycle status; `room-state.ts` holds the full transition table. */
-  private status: 'loading' | 'ready' | 'load-failed' | 'storage-failed' | 'hibernated' = 'loading';
+  private status:
+    | 'unknown' // nothing stored at this id: it was never created (story 5)
+    | 'loading'
+    | 'ready'
+    | 'load-failed'
+    | 'storage-failed'
+    | 'hibernated' = 'unknown';
   private loadFailedAt = 0;
 
   /** Board id for logs: the deterministic id the namespace derived from the slug. */
@@ -56,8 +62,47 @@ export class BoardRoom extends DurableObject<Env> {
     });
   }
 
+  // ------------------------------------------------------- board existence (RPC)
+  //
+  // Story 5 makes a board's existence an explicit fact instead of a side effect of
+  // someone connecting. Both methods are callable over Durable Object RPC from the
+  // Worker (`POST /api/boards`, `GET /api/boards/:id`), and neither is reached for a
+  // malformed id — the Worker validates the address first (TC-07).
+
+  /**
+   * Create this board: build the tables and stamp `created_at` once. `created` the
+   * first time, `exists` for every call afterwards, so a board can never be
+   * re-initialised over real work (TC-15). Called by `createBoard()` only.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    const stamped = this.store.markCreatedAt(Date.now());
+    if (!stamped) return 'exists';
+    // The board is now real; from here it behaves like any existing (possibly
+    // still-empty) board, whose document is loaded when the first socket arrives.
+    if (this.status === 'unknown') this.status = 'hibernated';
+    return 'created';
+  }
+
+  /**
+   * Read-only answer to "does this board exist?" (PRD share.open_link, share.not_found).
+   * It never creates a table, so a person poking at made-up links leaves nothing behind.
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   /** WebSocket upgrade only; everything else is refused without closing anything. */
   async fetch(request: Request): Promise<Response> {
+    // A board that does not exist is not served, and not created on the way (PRD
+    // share.not_found): connecting to a mistyped or truncated link gets 404 instead of
+    // an empty board that quietly saves under the wrong address.
+    if (!this.store.existsReadOnly()) {
+      return new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('expected a websocket connection', { status: 426 });
     }
@@ -162,9 +207,19 @@ export class BoardRoom extends DurableObject<Env> {
     if (this.status === 'ready') this.status = 'hibernated';
   }
 
-  /** First load in the constructor: migrate, then read the log/snapshot into a doc. */
+  /**
+   * First load in the constructor, and only for a board that exists: reading a
+   * never-created board's storage must leave it empty (PRD share.not_found), so this
+   * asks `existsReadOnly()` first and creates nothing itself.
+   */
   private bootstrap(): void {
-    this.store.migrate();
+    if (!this.store.existsReadOnly()) {
+      this.status = 'unknown';
+      return;
+    }
+    // `hibernated` and `unknown` are the only states a cold object can start in here;
+    // `loadIntoFreshDoc` moves it to `ready` or `load-failed`.
+    this.status = 'hibernated';
     const result = this.loadIntoFreshDoc();
     if (!result.ok && result.code === CLOSE_BOARD_LOAD_FAILED) this.loadFailedAt = Date.now();
   }
@@ -178,7 +233,8 @@ export class BoardRoom extends DurableObject<Env> {
     const doc = this.makeDoc();
     let result: LoadResult;
     try {
-      this.store.migrate();
+      // No `migrate()` here: `load()` reads the tables that exist (and reports an
+      // empty board when they do not), and the first `append()` creates them.
       result = this.store.load(doc);
     } catch (error) {
       // Reading storage itself blew up: refuse to serve, and tell the client 1011.
@@ -278,6 +334,28 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   // ------------------------------------------------------------------- test hooks
+
+  /**
+   * Test-only (PRD share.legacy_boards, e2e TC-31): put real Yjs updates in this
+   * board's log **without** `created_at`, which is exactly what a board created
+   * before story 5 looked like. Reached only through the `TEST_HOOKS` route.
+   */
+  async testSeedLegacy(updates: string[]): Promise<{ rows: number }> {
+    this.store.migrate();
+    let rows = 0;
+    for (const update of updates) {
+      const bytes = base64ToBytes(update);
+      const buffer = new ArrayBuffer(bytes.byteLength);
+      new Uint8Array(buffer).set(bytes);
+      this.ctx.storage.sql.exec(
+        'INSERT INTO updates (data, bytes) VALUES (?, ?)',
+        buffer,
+        bytes.byteLength,
+      );
+      rows += 1;
+    }
+    return { rows };
+  }
   // Reached only through the `/__test/boards/:id/...` routes, which are registered
   // only when `env.TEST_HOOKS === '1'` (never in production). They exist so an e2e
   // test can put a *real, compacted* board into a damaged state and then repair it,

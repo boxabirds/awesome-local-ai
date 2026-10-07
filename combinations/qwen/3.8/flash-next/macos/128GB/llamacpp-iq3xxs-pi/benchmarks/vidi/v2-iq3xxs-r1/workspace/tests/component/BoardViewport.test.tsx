@@ -1,18 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
 import { ZOOM_STEP_FACTOR } from '../../src/shared/config';
 import {
-  getCamera,
-  flushFrame,
-  dispatchPointer,
-  dispatchWheel,
+  TEST_BOARD_ID,
   dispatchGesture,
   dispatchKey,
+  dispatchPointer,
+  dispatchWheel,
+  flushFrame,
+  getCamera,
 } from './util';
 
 function setup() {
-  render(<App sync={false} />);
+  render(<Board boardId={TEST_BOARD_ID} sync={false} />);
   const viewport = screen.getByTestId('board-viewport');
   const world = screen.getByTestId('board-world');
   const controls = screen.getByTestId('zoom-controls');

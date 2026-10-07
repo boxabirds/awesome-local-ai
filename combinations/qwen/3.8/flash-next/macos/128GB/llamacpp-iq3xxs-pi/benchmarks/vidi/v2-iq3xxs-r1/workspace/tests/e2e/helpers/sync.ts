@@ -77,12 +77,29 @@ async function waitForBoard(page: Page): Promise<void> {
   );
 }
 
-/** Navigate to `/`, which becomes `/b/<id>`, and wait for the app. */
+/**
+ * Open a board of this screen's own: the home page is where a board starts now, so
+ * this clicks `New board` and waits for the board the server named.
+ */
 export async function gotoNewBoard(page: Page): Promise<string> {
   await page.addInitScript(INSTRUMENT_NETWORK);
   await page.goto('/', { timeout: BOOT_TIMEOUT_MS });
+  await page.getByTestId('new-board-button').click();
   await waitForBoard(page);
   return boardId(page);
+}
+
+/**
+ * Ask the running Worker for a board over the same `POST /api/boards` the home page
+ * uses, and return its id. For a test that needs the id *before* it opens anything
+ * (a second screen that only ever uses the link, or an address that must not exist).
+ */
+export async function createBoard(page: Page): Promise<string> {
+  return page.evaluate(async () => {
+    const response = await fetch('/api/boards', { method: 'POST' });
+    if (response.status !== 201) throw new Error(`create failed: ${response.status}`);
+    return ((await response.json()) as { id: string }).id;
+  });
 }
 
 /**
@@ -109,6 +126,10 @@ export async function openScreen(origin: Page, pathOrUrl: string): Promise<Page>
   const page = await browser.newContext().then((context) => context.newPage());
   await page.addInitScript(INSTRUMENT_NETWORK);
   await page.goto(target, { timeout: BOOT_TIMEOUT_MS });
+  // `/` is the home page now, so a caller asking for it means "another board of mine".
+  if (target === new URL('/', origin.url()).toString()) {
+    await page.getByTestId('new-board-button').click();
+  }
   await waitForBoard(page);
   return page;
 }

@@ -21,9 +21,11 @@ import { RoomClient, waitForConvergence } from './ws-client';
  */
 
 /** Two clients that have exchanged everything they have. */
-async function pair(boardId = RoomClient.newBoardId()): Promise<[RoomClient, RoomClient]> {
-  const a = await RoomClient.connect(boardId, 'A');
-  const b = await RoomClient.connect(boardId, 'B');
+async function pair(boardId?: string): Promise<[RoomClient, RoomClient]> {
+  // Story 5: a room only exists once its board was created through the API.
+  const id = boardId ?? (await RoomClient.createBoard());
+  const a = await RoomClient.connect(id, 'A');
+  const b = await RoomClient.connect(id, 'B');
   await a.waitForSync();
   await b.waitForSync();
   await waitForConvergence([a, b]);
@@ -151,7 +153,7 @@ describe('concurrent edits merge (TC-09, TC-10, TC-11)', () => {
 
 describe('many clients, many ops (TC-12, TC-14)', () => {
   it('TC-12: every client ends with an identical snapshot after 200 random ops each', async () => {
-    const boardId = RoomClient.newBoardId();
+    const boardId = await RoomClient.createBoard();
     const clients: RoomClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) {
       clients.push(await RoomClient.connect(boardId, `r${i}`));
@@ -178,7 +180,7 @@ describe('many clients, many ops (TC-12, TC-14)', () => {
   });
 
   it('TC-14: a client that joins late receives the whole board', async () => {
-    const boardId = RoomClient.newBoardId();
+    const boardId = await RoomClient.createBoard();
     const [a, b] = await pair(boardId);
     for (let i = 0; i < 10; i++) {
       createSticky(a.doc, { x: i * STICKY_SIZE_WORLD, y: 0 });
@@ -217,7 +219,7 @@ describe('malformed and idle traffic (TC-15, TC-16)', () => {
 
   for (const [what, send] of Object.entries(badFrames)) {
     it(`TC-15: ${what} closes only that socket`, async () => {
-      const boardId = RoomClient.newBoardId();
+      const boardId = await RoomClient.createBoard();
       const [offender, other] = await pair(boardId);
       const witness = await RoomClient.connect(boardId, 'C');
       await witness.waitForSync();
@@ -282,7 +284,7 @@ describe('sockets come and go (TC-18, TC-31)', () => {
     b.disconnect();
     // A fresh room instance under a fresh id, which is what the runtime hands out
     // after a restart: no document, no sockets, and the same route.
-    const restarted = RoomClient.newBoardId();
+    const restarted = await RoomClient.createBoard();
     await a.reconnect(restarted);
     await a.waitForSync();
     await a.waitFor(() => a.notes.length === 3, 'A kept its board across the restart');
@@ -305,7 +307,7 @@ describe('sockets come and go (TC-18, TC-31)', () => {
   });
 
   it('TC-31: a socket that vanished mid-flight cannot break the room', async () => {
-    const boardId = RoomClient.newBoardId();
+    const boardId = await RoomClient.createBoard();
     const [a, b] = await pair(boardId);
     const witness = await RoomClient.connect(boardId, 'C');
     await witness.waitForSync();

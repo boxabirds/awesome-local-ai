@@ -17,6 +17,20 @@ export async function gotoBoardUrl(page: Page, url: string, boardId: string): Pr
   });
 }
 
+/**
+ * Create a board over the running Worker's real API (story 5) and return its id.
+ * A board these tests open has to exist server-side first: the Board page now asks
+ * "is this board here?" before it paints anything, and a board that was never
+ * created is answered with `Board not found`.
+ */
+export async function createBoard(baseUrl: string): Promise<string> {
+  const res = await fetch(`${baseUrl}/api/boards`, { method: 'POST' });
+  if (res.status !== 201) throw new Error(`creating a board failed: ${res.status}`);
+  const body = (await res.json()) as { id?: string };
+  if (!body.id) throw new Error('the server did not return a board id');
+  return body.id;
+}
+
 /** Fill the live board with `count` notes through the test hook, then wait for them. */
 export async function seedBoard(page: Page, count: number): Promise<void> {
   await page.evaluate((n) => (window as any).__vidi6.seedBoard(n), count);

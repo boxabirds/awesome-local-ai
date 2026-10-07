@@ -128,7 +128,7 @@ function repairChunkZero(boardId: string): Promise<void> {
 // =========================================================== TC-12: store before broadcast
 describe('TC-12 the change is stored before it is broadcast', () => {
   it('the updates row exists when B sees the note, and a fresh doc reloads it', async () => {
-    const boardId = RoomClient.newBoardId();
+    const boardId = await RoomClient.createBoard();
     const [a, b] = await Promise.all([RoomClient.connect(boardId, 'A'), RoomClient.connect(boardId, 'B')]);
     await a.waitForSync();
     await b.waitForSync();
@@ -156,7 +156,7 @@ describe('TC-12 the change is stored before it is broadcast', () => {
 // =========================================================== TC-13: reopen after everyone leaves
 describe('TC-13 a fresh room over the same storage reloads the board', () => {
   it('after all clients leave, a new client sees the identical 25-note board', async () => {
-    const boardId = RoomClient.newBoardId();
+    const boardId = await RoomClient.createBoard();
     const retro = retroBoard();
     const a = await RoomClient.connect(boardId, 'A');
     await a.waitForSync();
@@ -181,7 +181,7 @@ describe('TC-13 a fresh room over the same storage reloads the board', () => {
 // =========================================================== TC-14: SQL error on write
 describe('TC-14 a write SQLite refuses is not broadcast, then recovers on reconnect', () => {
   it('closes A and B with 1011, keeps the change out of B, then stores it on retry', async () => {
-    const boardId = RoomClient.newBoardId();
+    const boardId = await RoomClient.createBoard();
     const [a, b] = await Promise.all([RoomClient.connect(boardId, 'A'), RoomClient.connect(boardId, 'B')]);
     await a.waitForSync();
     await b.waitForSync();
@@ -229,7 +229,7 @@ describe('TC-14 a write SQLite refuses is not broadcast, then recovers on reconn
 // =========================================================== TC-15: damaged snapshot
 describe('TC-15 a damaged snapshot refuses to serve an empty board', () => {
   it('closes a newcomer with 4500 and stores nothing from it', async () => {
-    const boardId = RoomClient.newBoardId();
+    const boardId = await RoomClient.createBoard();
     const retro = retroBoard();
     const seed = await RoomClient.connect(boardId, 'seed');
     await seed.waitForSync();
@@ -261,7 +261,7 @@ describe('TC-16 a load-failed room retries only after the interval, then syncs',
   it(
     'rejects twice within the interval, then loads the repaired board',
     async () => {
-      const boardId = RoomClient.newBoardId();
+      const boardId = await RoomClient.createBoard();
       const retro = retroBoard();
       const seed = await RoomClient.connect(boardId, 'seed');
       await seed.waitForSync();
@@ -305,7 +305,7 @@ describe('TC-16 a load-failed room retries only after the interval, then syncs',
 // =========================================================== TC-17: garbage update
 describe('TC-17 a garbage update is rejected without storing it', () => {
   it('closes the offending socket with 1003 and stores nothing new', async () => {
-    const boardId = RoomClient.newBoardId();
+    const boardId = await RoomClient.createBoard();
     const a = await RoomClient.connect(boardId, 'A');
     await a.waitForSync();
     const rowsBefore = await rows(boardId);
@@ -328,7 +328,7 @@ describe('TC-17 a garbage update is rejected without storing it', () => {
 // =========================================================== TC-18: hibernation path
 describe('TC-18 after a wake, broadcasts reach sockets accepted before it', () => {
   it('a reloaded document still feeds the sockets that were already open', async () => {
-    const boardId = RoomClient.newBoardId();
+    const boardId = await RoomClient.createBoard();
     const [a, b] = await Promise.all([RoomClient.connect(boardId, 'B'), RoomClient.connect(boardId, 'B2')]);
     await a.waitForSync();
     await b.waitForSync();
@@ -353,7 +353,7 @@ describe('TC-18 after a wake, broadcasts reach sockets accepted before it', () =
 // =========================================================== TC-26: SQL error on read
 describe('TC-26 a SQL read failure closes a newcomer with 4500', () => {
   it('load reports the failure and the room refuses to serve an empty board', async () => {
-    const boardId = RoomClient.newBoardId();
+    const boardId = await RoomClient.createBoard();
     const a = await RoomClient.connect(boardId, 'A');
     await a.waitForSync();
     createSticky(a.doc, { x: 1, y: 1 });

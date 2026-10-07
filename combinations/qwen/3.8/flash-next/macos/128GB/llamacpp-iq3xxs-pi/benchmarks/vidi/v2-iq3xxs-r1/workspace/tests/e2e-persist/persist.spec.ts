@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { PERSIST_TESTED_NOTES } from '../../src/shared/config';
-import { newBoardId } from '../../src/shared/board-id';
 import { WranglerDev } from './helpers/wrangler-process';
 import {
   boardSignature,
   corruptSnapshot,
+  createBoard,
   gotoBoardUrl,
   liveNoteIds,
   repairSnapshot,
@@ -27,10 +27,10 @@ import {
 test.describe.configure({ mode: 'single-threaded' });
 
 test('TC-19 · overnight return: a fresh process serves the identical board', async ({ browser }) => {
-  const boardId = newBoardId();
   const dev = new WranglerDev('.persist-state/tc19');
   dev.clearState();
   await dev.start();
+  const boardId = await createBoard(dev.url);
   try {
     // One browser makes the board and leaves once the notes are on screen.
     const ctx = await browser.newContext();
@@ -67,10 +67,10 @@ test('TC-19 · overnight return: a fresh process serves the identical board', as
 });
 
 test('TC-20 · leave immediately: a note that appeared was already stored', async ({ browser }) => {
-  const boardId = newBoardId();
   const dev = new WranglerDev('.persist-state/tc20');
   dev.clearState();
   await dev.start();
+  const boardId = await createBoard(dev.url);
   try {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
@@ -116,10 +116,10 @@ test('TC-20 · leave immediately: a note that appeared was already stored', asyn
 const LARGE_BOARD_RENDERABLE_NOTES = 200;
 
 test('TC-21 · large board survives a restart and opens within budget', async ({ browser }) => {
-  const boardId = newBoardId();
   const dev = new WranglerDev('.persist-state/tc21');
   dev.clearState();
   await dev.start();
+  const boardId = await createBoard(dev.url);
   try {
     // ---- Phase A: the reopen-restore cycle at a size the browser can render -----
     const seedStart = Date.now();
@@ -162,7 +162,7 @@ test('TC-21 · large board survives a restart and opens within budget', async ({
     // to load, and the hook would throw — so this proves the whole tested board is
     // durable. It is not driven back through the browser because this machine cannot
     // render that many notes while also serving them (see NOTES.md).
-    const bigBoard = newBoardId();
+    const bigBoard = await createBoard(dev.url);
     const ctxBig = await browser.newContext();
     const pageBig = await ctxBig.newPage();
     await gotoBoardUrl(pageBig, dev.url, bigBoard);

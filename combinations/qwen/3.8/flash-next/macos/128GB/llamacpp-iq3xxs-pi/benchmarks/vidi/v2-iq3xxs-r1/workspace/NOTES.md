@@ -354,3 +354,101 @@ page, guarded by a `window` marker that could not survive a reload.
 - `npm run test:e2e` → 25 passed (story 2/3 unchanged; new gated worker routes are inert without
   `TEST_HOOKS`). `npm run test:e2e:persist` → 4 passed (TC-19/20/21/24) against real process
   restarts; run several times clean, no flakes.
+
+---
+
+## Story 5 — Share a board with others using a link
+
+### Existence is a storage fact, not a flag we hope was written
+`BoardStore.existsReadOnly()` reads, in order: `sqlite_master` for the board's own tables
+(no tables → the board cannot exist, and *nothing is created* while finding that out), then
+`created_at` in `storage_meta`, then the presence of any row in `updates` /
+`snapshot_chunks`. The second test is what makes **legacy boards** (stored before this
+story) count as existing, and it is why `migrate()` no longer runs from `bootstrap()` or
+`loadIntoFreshDoc()`: if a probe created tables, every mistyped link would leave storage
+behind (TC-09 asserts the table list stays empty after probing). `migrate()` now runs from
+`initialize()` (creation) and lazily once before the first `append()` — a board is
+created by its first write, never by someone asking whether it exists.
+
+### 404 before the socket is accepted
+`BoardRoom.fetch()` asks `exists()` **before** `acceptWebSocket`, so a websocket upgrade to
+an unknown board is answered 404 and never becomes a room. A room that exists but is asleep
+is woken for the check and then serves; the check itself reads two indexed queries, not the
+board's content — "does this board exist" must never hand back a stranger's notes.
+Malformed ids are rejected by shape in `index.ts` (never reaching `idFromName`), and the
+room route now answers **404** where story 3 answered 400: the difference matters because
+the client turns 404 into the Board not found page.
+
+### No page creates a board id
+`newBoardId()` is imported by the Worker, the fixtures and the tests — never by `src/client`
+(TC-18 asserts that every address a home→board→share run uses carries the id that came back
+in the one `POST /api/boards`). `Board` takes `boardId: string` as a required prop; story 3's
+`boardRoute.ts` (`/` → random id) is deleted, and `main.tsx` no longer rewrites the URL.
+That is why every e2e helper that wanted "a board of my own" (`gotoBoard`, `gotoNewBoard`,
+`openScreen(page, '/')`) now clicks `New board` instead of being handed one.
+
+### Two-second confirmation, and what the button "says"
+The copied state resets when the panel closes: a panel that remembered "Link copied" would
+be making a claim about a copy that person did not just do. In the DOM the confirmation is
+`<span aria-hidden="true">✓</span> Link copied`, so the *accessible name* is exactly
+`Link copied` while `textContent` is not — component tests assert
+`getByRole('button', { name })` (what a screen reader hears) and check the tick separately.
+
+### Clipboard: two doors, and both have to be closed to test the fallback
+`copyToClipboard` tries `navigator.clipboard.writeText`, and on any failure falls back to
+selecting the input and `document.execCommand('copy')`. In jsdom the second door does not
+exist (TC-23/TC-24 get the manual message). In a real browser `execCommand('copy')` on a
+selected input **succeeds**, so an e2e that only rejects `writeText` legitimately ends up
+with the link copied — to test the manual path for real, an init script must refuse *both*
+(`writeText` rejects and `document.execCommand` returns false). The stub keeps a real
+`readText`, which is what lets TC-29 finish by pressing the person's own copy shortcut and
+reading the link back out of the browser.
+
+Reading the clipboard in e2e needs `context.grantPermissions(['clipboard-read',
+'clipboard-write'])`, and the copy + read must happen on the focused page.
+
+### Probing a link: `/b/...` always answers 200
+`not_found_handling: single-page-application` means `GET /b/<anything>` returns the app
+shell with 200. Only `/api/boards/:id` can say whether a *board* is there, so the e2e
+"nothing was created by visiting this link" check (`probeBoard`) goes to the API path.
+
+### e2e details found the hard way
+- `boardLink(window.location.origin, boardId)` builds the panel's address rather than
+  reading `window.location.href`, so a stray query or hash on the page cannot leak into a
+  shared link. TC-26 asserts panel text === clipboard text === address bar anyway.
+- `page.evaluate(() => fetch('/api/boards'))` fails with "Failed to parse URL" when the page
+  is still `about:blank`; server-side fixtures use Playwright's `request` fixture (it knows
+  `baseURL`) instead of a page.
+- The unreachable board page shows the PRD message *and* a `Retrying in Ns.` line, so an
+  exact-text assertion on the container fails; assert the `role=status` child for the copy
+  and `.page-note` for the countdown.
+- `page.route('**/api/boards/*', abort)` + `unroute` gives a service that comes back on its
+  own; a `window.__tc28` marker set before the retry proves the board appeared in the *same*
+  document, i.e. without a reload.
+- TC-26's click-to-board number is **logged** against `CREATE_BUDGET_MS`, never asserted
+  (design: a shared machine that takes longer is not a broken board). This run: ~190-260 ms.
+
+### Test hooks: the base e2e project now needs `--var TEST_HOOKS:1`
+`seed-legacy` (in `src/worker/test-hooks.ts`) exists so TC-31 can open a board that was
+never created through the API. `playwright.config.ts` therefore starts `wrangler dev` with
+`--var TEST_HOOKS:1` like the persist project already did; the production config never sets
+it, so `/__test/...` falls through to the SPA there. `seedLegacyBoard()` deliberately does
+**not** call `POST /api/boards` first: it hands the hook an id and lets the room write update
+rows with no `created_at`, which is the exact shape the existence check must forgive.
+
+### Verification (this machine, story 5 final state)
+- `npm run typecheck` ✓ (src + all test dirs). `npm run build` ✓ and `npm run build:test` ✓.
+- `npm run test:unit` → 115 passed (adds `create-board` unit tests + TC-04 id strength).
+- `npm run test:component` → 64 passed (story 5 adds `pages.test.tsx` 9 and
+  `share-panel.test.tsx` 6, plus the migration of every story 2/3 component test from
+  `<App>` to `<Board boardId>`).
+- `npm run test:integration` → 60 passed in workerd (`board-api.test.ts` adds TC-05…TC-10,
+  TC-12, TC-14, TC-15, TC-32; story 3's routing/room tests were re-pointed at the new API).
+- `npx playwright test --grep-invert @nightly` → 30 passed (story 1/2/3 suites still green
+  after the helper changes, plus the 5 new share tests). `npm run test:e2e:persist` → 4
+  passed (now creating their boards over the API). `npm run test:e2e:nightly` → 2 passed.
+- TC-27/TC-29 in Firefox and WebKit: **still not runnable here** — the cached Firefox and
+  WebKit binaries abort on launch on this host (`SIGABRT` / exit 134), exactly as recorded
+  for stories 1-4. Re-checked this story: `VIDI6_BROWSERS=chromium,firefox,webkit` gives a
+  green chromium run and two launch failures, so those two cases are blocked by the
+  environment, not by anything in the code.

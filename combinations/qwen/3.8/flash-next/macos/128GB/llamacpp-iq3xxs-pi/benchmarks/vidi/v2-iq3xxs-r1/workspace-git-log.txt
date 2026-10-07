@@ -1,3 +1,87 @@
+commit 3a16c2de61c21eced18627f408c1f701d6abe0d2
+agent  Wed Oct 7 18:29:16 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                               |  98 ++++++++++++++
+ PROGRESS.md                            |   2 +-
+ playwright.config.ts                   |   5 +-
+ tests/e2e-persist/broken-board.spec.ts |   6 +-
+ tests/e2e-persist/helpers/persist.ts   |  14 ++
+ tests/e2e-persist/persist.spec.ts      |  10 +-
+ tests/e2e/helpers/board.ts             |  14 +-
+ tests/e2e/helpers/share.ts             | 135 +++++++++++++++++++
+ tests/e2e/helpers/sync.ts              |  23 +++-
+ tests/e2e/share.spec.ts                | 229 +++++++++++++++++++++++++++++++++
+ 10 files changed, 525 insertions(+), 11 deletions(-)
+commit c04d0394758fd967317661252283a9093568877e
+agent  Wed Oct 7 17:57:10 2026 +0000
+
+    story 5: router + Home/Board/NotFound pages, api client, Share panel; component tests TC-16..TC-25 (board moved out of App into board/Board.tsx)
+
+
+ PROGRESS.md                               |  12 +-
+ src/client/App.tsx                        | 250 +++---------------------
+ src/client/api.ts                         |  51 +++++
+ src/client/board/Board.tsx                | 229 ++++++++++++++++++++++
+ src/client/board/boardRoute.ts            |  39 ----
+ src/client/index.css                      | 166 ++++++++++++++++
+ src/client/main.tsx                       |  11 +-
+ src/client/pages/BoardPage.tsx            |  84 +++++++++
+ src/client/pages/HomePage.tsx             |  93 +++++++++
+ src/client/pages/NotFoundPage.tsx         |  38 ++++
+ src/client/pages/state.ts                 |  78 ++++++++
+ src/client/router.ts                      |  89 +++++++++
+ src/client/share/SharePanel.tsx           | 206 ++++++++++++++++++++
+ tests/component/BoardViewport.test.tsx    |  13 +-
+ tests/component/ConnectionStatus.test.tsx |   6 +-
+ tests/component/StickyNote.test.tsx       |  40 ++--
+ tests/component/StickyTextEditor.test.tsx |  17 +-
+ tests/component/Toolbars.test.tsx         |  13 +-
+ tests/component/load-failure.test.tsx     |   4 +-
+ tests/component/pages.test.tsx            | 303 ++++++++++++++++++++++++++++++
+ tests/component/share-panel.test.tsx      | 221 ++++++++++++++++++++++
+ tests/component/util.ts                   |   8 +
+ tests/unit/board-route.test.ts            |  73 +++----
+ 23 files changed, 1693 insertions(+), 351 deletions(-)
+commit f879cf77dce565fdb0f26f59e389090c521754d4
+agent  Wed Oct 7 17:22:13 2026 +0000
+
+    story 5: board API (POST /api/boards, GET existence, 404 unknown rooms), test-hooks module, no-referrer meta; integration TC-05..TC-10,TC-12,TC-14,TC-15,TC-32
+
+
+ PROGRESS.md                                      |   4 +-
+ index.html                                       |   6 +
+ src/worker/board-room.ts                         |  86 +++++++-
+ src/worker/board-store.ts                        |  73 +++++++
+ src/worker/create-board.ts                       |  50 +++++
+ src/worker/index.ts                              |  90 ++++----
+ src/worker/test-hooks.ts                         |  58 ++++++
+ tests/integration/board-api.test.ts              | 251 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |  16 +-
+ tests/integration/board-room.test.ts             |  18 +-
+ tests/integration/worker.test.ts                 |  13 +-
+ tests/integration/ws-client.ts                   |  22 +-
+ 12 files changed, 621 insertions(+), 66 deletions(-)
+commit d3e194efccc5e6bc15e203714604393fe7109638
+agent  Wed Oct 7 17:10:21 2026 +0000
+
+    story 5: board id unit test TC-04 (link code strength) + named settings
+
+
+ PROGRESS.md                     |   2 +-
+ src/shared/config.ts            |  12 +++++
+ tests/unit/create-board.test.ts | 105 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 118 insertions(+), 1 deletion(-)
+commit 587a1f2d57871b56400bcde6e38dfaac15216df4
+vidi-agent  Wed Oct 7 17:59:42 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit a49f35ad3b3947730bbf91d3fa45a574129f73c2
 agent  Wed Oct 7 16:56:22 2026 +0000
 

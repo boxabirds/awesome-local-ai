@@ -5,9 +5,21 @@ export interface Box {
   y: number;
 }
 
-/** Navigate to the board and wait until the app + test hook are ready. */
+/**
+ * Open a board the way a person does: home page, `New board`, and wait until the
+ * app and its test hook are ready. Story 5 made the home page the only place a
+ * board starts, so every test that wants a board of its own comes through here.
+ */
 export async function gotoBoard(page: Page): Promise<void> {
   await page.goto('/');
+  await page.getByTestId('new-board-button').click();
+  await page.waitForSelector('[data-testid="board-viewport"]');
+  await page.waitForFunction(() => typeof (window as any).__vidi6 !== 'undefined');
+}
+
+/** Open an existing board at its exact address (no home page, no new id). */
+export async function gotoBoardUrl(page: Page, boardId: string): Promise<void> {
+  await page.goto(`/b/${boardId}`);
   await page.waitForSelector('[data-testid="board-viewport"]');
   await page.waitForFunction(() => typeof (window as any).__vidi6 !== 'undefined');
 }

@@ -5,7 +5,7 @@ import * as Y from 'yjs';
 import * as awarenessProtocol from 'y-protocols/awareness';
 import * as syncProtocol from 'y-protocols/sync';
 import { initDoc, snapshot, type StickySnapshot } from '../../src/shared/board-model';
-import { newBoardId } from '../../src/shared/board-id';
+import { isValidBoardId, newBoardId } from '../../src/shared/board-id';
 import { MESSAGE_AWARENESS, MESSAGE_QUERY_AWARENESS, MESSAGE_SYNC } from '../../src/shared/protocol';
 
 /**
@@ -84,9 +84,27 @@ export class RoomClient {
     await this.waitFor(() => this.synced, 'initial sync (SyncStep2)', timeoutMs);
   }
 
-  /** A fresh board id, never a hand-written string (design "Fixtures"). */
+  /**
+   * A fresh, never-created board id — for the cases where a link is *supposed* to
+   * point at nothing. Never a hand-written string (design "Fixtures").
+   */
   static newBoardId(): string {
     return newBoardId();
+  }
+
+  /**
+   * Create a board over the real API (story 5) and return its address. From story 5
+   * on, connecting no longer creates a board, so every test that talks to a room
+   * starts one this way — through the Worker route, not a private shortcut.
+   */
+  static async createBoard(): Promise<string> {
+    const response = await SELF.fetch('http://worker/api/boards', { method: 'POST' });
+    if (response.status !== 201) {
+      throw new Error(`POST /api/boards failed: ${response.status} ${await response.text()}`);
+    }
+    const body = (await response.json()) as { id: string };
+    if (!isValidBoardId(body.id)) throw new Error(`POST /api/boards returned ${body.id}`);
+    return body.id;
   }
 
   /** Open the websocket through the real Worker route. */

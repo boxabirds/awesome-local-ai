@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
-import { newBoardId } from '../../src/shared/board-id';
 import { WranglerDev } from './helpers/wrangler-process';
 import {
   corruptSnapshot,
+  createBoard,
   gotoBoardUrl,
   liveNoteIds,
   repairSnapshot,
@@ -28,10 +28,12 @@ import {
 test.describe.configure({ mode: 'single-threaded' });
 
 test('TC-24 · a damaged board fails honestly, then recovers with no reload', async ({ browser }) => {
-  const boardId = newBoardId();
   const dev = new WranglerDev('.persist-state/tc24');
   dev.clearState();
   await dev.start();
+  // The board is created over the API, so the page that opens its address is told
+  // "yes, this board exists" instead of "Board not found" (story 5).
+  const boardId = await createBoard(dev.url);
   try {
     // Make a real 25-note board, then damage its stored snapshot.
     const ctx0 = await browser.newContext();

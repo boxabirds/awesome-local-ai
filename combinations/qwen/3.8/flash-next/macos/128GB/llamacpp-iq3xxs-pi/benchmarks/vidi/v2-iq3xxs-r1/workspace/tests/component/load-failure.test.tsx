@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type * as Y from 'yjs';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
 import { createSticky } from '../../src/shared/board-model';
 import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE, CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
 import { newBoardId } from '../../src/shared/board-id';
@@ -21,7 +21,7 @@ function renderBoard(): { provider: FakeProvider; clock: FakeClock } {
   const provider = new FakeProvider();
   const clock = new FakeClock();
   const connect: ConnectOptions = { after: clock.after };
-  render(<App boardId={newBoardId()} sync connect={connect} provider={provider} />);
+  render(<Board boardId={newBoardId()} sync connect={connect} provider={provider} />);
   return { provider, clock };
 }
 

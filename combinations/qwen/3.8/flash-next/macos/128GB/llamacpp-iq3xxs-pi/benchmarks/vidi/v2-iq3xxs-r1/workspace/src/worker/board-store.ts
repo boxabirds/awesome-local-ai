@@ -66,6 +66,16 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 
 const META_SCHEMA_VERSION = 'storage_schema_version';
 const META_SNAPSHOT_THROUGH_SEQ = 'snapshot_through_seq';
+/**
+ * Written once, by `BoardRoom.initialize()` (story 5). Its presence is how a board
+ * says "I was created deliberately"; its absence is not "unknown", because boards
+ * made before story 5 never wrote it — those are recognised by having data (PRD
+ * share.legacy_boards).
+ */
+export const META_CREATED_AT = 'created_at';
+
+/** Every table `migrate()` creates; a board with none of them was never created. */
+const TABLE_NAMES = ['storage_meta', 'updates', 'snapshot_chunks', 'quarantined_updates'];
 
 /**
  * A board's whole history in one Durable Object's SQLite database.
@@ -92,6 +102,8 @@ export class BoardStore {
   /** `updates` row count and byte total, tracked in memory after load (no COUNT(*) per write). */
   private rows = 0;
   private bytes = 0;
+  /** Set once `migrate()` has run here, so `append()` knows it need not run it again. */
+  private migrated = false;
 
   constructor(storage: DurableObjectStorage, boardId = 'board') {
     this.storage = storage;
@@ -112,6 +124,7 @@ export class BoardStore {
    * (TC-25) so it opens as a genuinely empty board, not a half-built one.
    */
   migrate(): void {
+    this.migrated = true;
     this.transaction(() => {
       this.exec(
         'CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
@@ -137,6 +150,10 @@ export class BoardStore {
    */
   append(update: Uint8Array): void {
     const size = update.byteLength;
+    // A board created before story 5 (or one whose `initialize()` never ran) has no
+    // tables of its own yet. `migrate()` is idempotent, and this is the only place a
+    // write happens, so existence checks stay write-free.
+    if (!this.migrated) this.migrate();
     // transactionSync throws if SQLite rejects the statement, leaving the counters
     // untouched so they stay the truth about the table.
     this.transaction(() => {
@@ -158,6 +175,16 @@ export class BoardStore {
   load(doc: Y.Doc): LoadResult {
     const started = Date.now();
     try {
+      // No tables at all: nothing has ever been stored for this board, so it loads as
+      // an empty one. Nothing is created here — checking a link must leave no storage
+      // behind (PRD share.not_found), and only `initialize()` or a first `append()`
+      // may build the tables.
+      if (!this.tablesExist()) {
+        this.rows = 0;
+        this.bytes = 0;
+        this.log('info', 'load_succeeded', { durationMs: 0, logRows: 0, quarantined: 0, fresh: true });
+        return { ok: true, quarantined: 0 };
+      }
       const snapshotBytes = this.readSnapshotBytes();
       if (snapshotBytes.length > 0) {
         try {
@@ -207,6 +234,8 @@ export class BoardStore {
    */
   compactIfNeeded(doc: Y.Doc): boolean {
     if (!shouldCompact(this.rows, this.bytes)) return false;
+    if (!this.migrated) this.migrate(); // same lazy rule as `append`
+
     const started = Date.now();
     this.log('info', 'compaction_started', { rows: this.rows, bytes: this.bytes });
 
@@ -250,7 +279,51 @@ export class BoardStore {
     return true;
   }
 
+  // ------------------------------------------------------------------ existence
+
+  /**
+   * Does a board exist at this id? Read-only, and the single place the question is
+   * asked (PRD share.not_found, share.legacy_boards).
+   *
+   * A board exists if its storage says so (`created_at`, written once by
+   * `initialize()`) **or** — for boards created before story 5 shipped — if anything
+   * was ever stored in it: one log row or one snapshot chunk. It queries
+   * `sqlite_master` first, so probing a link nobody created costs one indexed read
+   * and, above all, writes nothing.
+   */
+  existsReadOnly(): boolean {
+    if (!this.tablesExist()) return false;
+    if (this.getMeta(META_CREATED_AT) !== undefined) return true;
+    const row = this.exec<{ c: number }>(
+      'SELECT (SELECT COUNT(*) FROM updates) + (SELECT COUNT(*) FROM snapshot_chunks) AS c',
+    ).one();
+    return row.c > 0;
+  }
+
+  /** When this board was created (epoch ms), or undefined if it never was. */
+  createdAt(): number | undefined {
+    const raw = this.getMeta(META_CREATED_AT);
+    return raw === undefined ? undefined : Number(raw);
+  }
+
+  /** Stamp `created_at` if absent. Returns false when it was already there. */
+  markCreatedAt(at: number): boolean {
+    if (this.getMeta(META_CREATED_AT) !== undefined) return false;
+    this.setMeta(META_CREATED_AT, String(at));
+    return true;
+  }
+
   // ------------------------------------------------------------------ internals
+
+  /** True when every table `migrate()` creates is present. Creates nothing. */
+  private tablesExist(): boolean {
+    const placeholders = TABLE_NAMES.map(() => '?').join(', ');
+    const row = this.exec<{ c: number }>(
+      `SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`,
+      ...TABLE_NAMES,
+    ).one();
+    return row.c === TABLE_NAMES.length;
+  }
 
   private readSnapshotBytes(): Uint8Array {
     const chunks = this.exec<{ idx: number; data: ArrayBuffer }>(

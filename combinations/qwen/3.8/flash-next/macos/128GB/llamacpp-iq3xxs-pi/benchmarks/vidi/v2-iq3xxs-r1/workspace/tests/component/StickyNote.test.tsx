@@ -1,10 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
 import { STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX, DRAG_THRESHOLD_PX } from '../../src/shared/config';
 import { fitFontSize, fitTextFontSize, STICKY_TEXT_BOX_WORLD } from '../../src/client/objects/StickyText';
 import { proseOfLength } from '../fixtures/texts';
-import { dispatchKey, dispatchPointer, flushFrame, getCamera } from './util';
+import {
+  TEST_BOARD_ID,
+  dispatchKey,
+  dispatchPointer,
+  flushFrame,
+  getCamera,
+} from './util';
 import {
   clickCreateSticky,
   clickElement,
@@ -38,7 +44,7 @@ async function twoUnselectedNotes(a: string, b: string): Promise<void> {
 describe('StickyNote (sticky.interaction)', () => {
   // TC-18: press + release without movement selects the note.
   it('TC-18 selects a note on press and release, showing outline and toolbar', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     const note = await createUnselectedNote();
     expect(getSelection().selectedId).toBeNull();
     expect(screen.queryByTestId('note-toolbar')).toBeNull();
@@ -56,7 +62,7 @@ describe('StickyNote (sticky.interaction)', () => {
 
   // TC-19: movement below DRAG_THRESHOLD_PX selects but never moves (boundary 2px).
   it('TC-19 keeps a sub-threshold press as a selection and never moves the note', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     const note = await createUnselectedNote();
     const el = noteEl();
 
@@ -83,7 +89,7 @@ describe('StickyNote (sticky.interaction)', () => {
 
   // TC-20: movement at the threshold drags, and the board camera never moves.
   it('TC-20 drags at exactly DRAG_THRESHOLD_PX without panning the board', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     const note = await createUnselectedNote();
     const cameraBefore = getCamera();
     const el = noteEl();
@@ -115,7 +121,7 @@ describe('StickyNote (sticky.interaction)', () => {
 
   // TC-21: a cancelled drag keeps the last applied position and stays selected.
   it('TC-21 keeps the last applied position when the drag is cancelled', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     const note = await createUnselectedNote();
     const el = noteEl();
 
@@ -138,7 +144,7 @@ describe('StickyNote (sticky.interaction)', () => {
 
   // TC-22: clicking empty board space clears the selection and the toolbar.
   it('TC-22 clears the selection when empty board space is clicked', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     await createUnselectedNote();
     clickWithPointer(noteEl(), AT);
     expect(getSelection().selectedId).not.toBeNull();
@@ -153,7 +159,7 @@ describe('StickyNote (sticky.interaction)', () => {
 
   // TC-25 (Delete): only the selected note is removed by the keyboard.
   it('TC-25 deletes the selected note with Delete', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     await twoUnselectedNotes('first', 'second');
 
     clickWithPointer(noteEls()[1]!, AT); // the later note
@@ -167,7 +173,7 @@ describe('StickyNote (sticky.interaction)', () => {
 
   // TC-25 (Backspace): same behaviour, separate run.
   it('TC-25 deletes the selected note with Backspace', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     await twoUnselectedNotes('first', 'second');
 
     clickWithPointer(noteEls()[0]!, AT); // the earlier note
@@ -180,7 +186,7 @@ describe('StickyNote (sticky.interaction)', () => {
 
   // TC-35 (negative): a double-click on a note edits it, never creates another.
   it('TC-35 double-clicking a note edits it instead of creating a new note', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     const note = await createUnselectedNote();
     expect(getSnapshot()).toHaveLength(1);
 
@@ -193,7 +199,7 @@ describe('StickyNote (sticky.interaction)', () => {
 
   // TC-36 (negative): Enter without a selection creates and edits nothing.
   it('TC-36 ignores Enter when nothing is selected', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     dispatchKey({ key: 'Enter' });
     expect(getSnapshot()).toHaveLength(0);
     expect(screen.queryByTestId('sticky-note-input')).toBeNull();
@@ -207,7 +213,7 @@ describe('StickyNote (sticky.interaction)', () => {
 
   // TC-37 (error path): the note vanishes mid-drag / mid-edit.
   it('TC-37 ends a drag silently when the note is deleted underneath it', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     const note = await createUnselectedNote();
     const el = noteEl();
 
@@ -229,7 +235,7 @@ describe('StickyNote (sticky.interaction)', () => {
   });
 
   it('TC-37 ends editing silently when the note is deleted underneath it', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     await clickCreateSticky();
     await typeText('abc');
     const id = getSnapshot()[0]!.id;
@@ -244,7 +250,7 @@ describe('StickyNote (sticky.interaction)', () => {
 
   // The board's own double-click creates a note; a toolbar click keeps focus sane.
   it('creates a note on double-click of empty board space and starts editing', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     dispatchDblClick(viewportEl(), { x: 400, y: 300 });
 
     const created = getSnapshot();
@@ -263,7 +269,7 @@ describe('StickyNote (sticky.interaction)', () => {
   // layout at all, so the note's height is stubbed with a deterministic fake
   // wrap; the browser (TC-33) covers real font metrics.
   it('fits the text by measuring the note in the document', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     await clickCreateSticky();
     const inner = screen.getByTestId('sticky-text-inner');
     // an empty note keeps the maximum size
@@ -296,7 +302,7 @@ describe('StickyNote (sticky.interaction)', () => {
   });
 
   it('drags the bottom note of an overlapping pair and raises it above the other', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     const bottom = await createUnselectedNote('First');
     const top = await createUnselectedNote('Second');
     // both were created at the view centre, so they overlap exactly
@@ -315,7 +321,7 @@ describe('StickyNote (sticky.interaction)', () => {
   });
 
   it('keeps the selection when a toolbar button is clicked', async () => {
-    render(<App sync={false} />);
+    render(<Board boardId={TEST_BOARD_ID} sync={false} />);
     const note = await createUnselectedNote();
     clickWithPointer(noteEl(), AT);
 

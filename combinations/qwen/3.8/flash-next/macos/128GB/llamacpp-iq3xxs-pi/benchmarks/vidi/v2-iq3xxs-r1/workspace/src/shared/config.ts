@@ -77,3 +77,15 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Versions the Durable Object storage tables (not the Yjs document schema). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Story 5: sharing a board by link ---------------------------------------
+
+/** PRD share.create: budget from clicking New board to the empty board on screen. */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the Share panel's "Link copied" confirmation stays up. */
+export const LINK_COPIED_MS = 2000;
+/**
+ * PRD share.unreachable: first wait before re-checking a board link. It doubles on
+ * every failed check, capped at `RECONNECT_MAX_BACKOFF_MS` (story 3).
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
