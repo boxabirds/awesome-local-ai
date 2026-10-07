@@ -119,13 +119,26 @@ row="$(profile_row "$PROFILE")" || {
   exit 1; }
 IFS='|' read -r _ D_CTX D_SESSIONS D_DRAFT D_PREFILL_CHUNK D_NEED D_BASIS _ <<< "$row"
 
-# This model's template has NO reasoning-effort control (the fork's own model page). Refuse an effort rather
-# than pass a flag the engine would reject after a long load, or silently ignore.
+# Reasoning effort. The harness sets REASONING_EFFORT=low for every run, so a combination whose model has no
+# effort control has to IGNORE that rather than refuse: refusing costs the run, ignoring costs a line in the
+# log. On 7 Oct 2026 refusing killed all five runs of v2-q36fork before any story began.
+#
+# A combination declares what it supports in REASONING_EFFORTS. When that is "default" alone the model has no
+# control at all, so any value is ignored, loudly, and no flag is passed. When it lists real levels an unknown
+# one is still refused, because there the value changes the run and a typo would be benchmarked.
 THINKING="${THINKING:-1}"
 REASONING_EFFORT="${REASONING_EFFORT:-${REASONING_EFFORT_DEFAULT:-default}}"
-if [[ "$REASONING_EFFORT" != "default" ]]; then
-  echo "${SERVER_CMD}: REASONING_EFFORT='$REASONING_EFFORT' -- this model's template has no reasoning-effort" >&2
-  echo "         control, so there is nothing to set. Use REASONING_EFFORT=default." >&2
+EFFORTS="${REASONING_EFFORTS:-default}"
+if [[ "${EFFORTS// }" == "default" ]]; then
+  if [[ "$REASONING_EFFORT" != "default" ]]; then
+    echo "${SERVER_CMD}: ignoring REASONING_EFFORT='$REASONING_EFFORT': this model's template has no" >&2
+    echo "         reasoning-effort control, so there is nothing to set and no flag is passed." >&2
+    REASONING_EFFORT="default"
+  fi
+elif [[ "$THINKING" != "0" && "$REASONING_EFFORT" != "default" ]] \
+     && [[ " $EFFORTS " != *" $REASONING_EFFORT "* ]]; then
+  echo "${SERVER_CMD}: REASONING_EFFORT='$REASONING_EFFORT' is not supported by this model's template." >&2
+  echo "         Supported: ${EFFORTS} ('default' = the template's own)." >&2
   exit 1
 fi
 
