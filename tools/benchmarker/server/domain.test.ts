@@ -178,8 +178,32 @@ describe("stories", () => {
     ]);
     expect(merged).toEqual([
       recorded[0],
-      { id: "2", title: "Sticky", status: "DONE", passed: null, total: null, ownPassed: 9, ownTotal: 10 },
+      { id: "2", title: "Sticky", status: "DONE", passed: null, total: null, ownPassed: 9, ownTotal: 10, usage: null },
     ]);
+  });
+
+  // A story dbench has finished but git has not published yet showed "no usage recorded for this story" on the
+  // run page, with a held-out score beside it -- while dbench held its agent time, calls and output tokens all
+  // along (v2-iq3xxs-r1 story 4, 7 Oct 2026: 172.3 min, 254 calls, 211,844 tokens). The merge simply did not
+  // carry them. What dbench knows is less than the record's (no time split, no token breakdown), so only the
+  // figures it actually has are filled and the rest stay null rather than zero.
+  it("...with the usage dbench already has, so a finished story is not blank until git catches up", () => {
+    const [merged] = mergeStories([], [
+      { id: "4", status: "DONE", passed: 4, total: 4, title: "Return", agent_minutes: 172.3, calls: 254, output_tokens: 211844 },
+    ]);
+    expect(merged.usage).toMatchObject({ agentSeconds: 172.3 * 60, calls: 254, outTokens: 211844 });
+    expect(merged.usage!.split).toBeNull();        // the time split is the record's, and it has not arrived
+    expect(merged.usage!.inTokens).toBeNull();
+  });
+
+  it("a live story with no figures yet has no usage, rather than a row of zeroes", () => {
+    const [merged] = mergeStories([], [{ id: "4", status: "DONE", passed: 4, total: 4, title: "Return" }]);
+    expect(merged.usage).toBeNull();
+  });
+
+  it("agent time on its own is not a usage row: it would fill one column and say nothing about the rest", () => {
+    const [merged] = mergeStories([], [{ id: "4", status: "DONE", passed: 4, total: 4, agent_minutes: 12 }]);
+    expect(merged.usage).toBeNull();
   });
 });
 

@@ -9,6 +9,8 @@ import type { ConversationProfile, Intervention, JobRef, Live, Machine, QueuePla
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
 export const RECENT_S = 24 * 3600;
+/** dbench reports a story's agent time in minutes; the record keeps seconds. */
+const SECONDS_PER_MINUTE = 60;
 
 // ---------- dbench's JSON (snake_case, as `dbench status --json` prints it) ----------
 
@@ -600,6 +602,27 @@ export function storyEntry(
 /** The record's finished stories, plus any dbench already reports finished that the fetched record
  * doesn't have yet (git is read once a minute, dbench every few seconds). dbench's figure is the
  * story's own tests; the whole-suite figure arrives with the record. */
+/** What dbench knows of a story's usage, in the record's shape. Less than the record carries -- there is no time
+ * split and no token breakdown -- so everything it cannot say stays null rather than zero, and a story it has no
+ * figures for has no usage at all. Without this a finished story that git had not published yet read "no usage
+ * recorded" while dbench held its agent time, calls and output tokens (v2-iq3xxs-r1 story 4, 7 Oct 2026). */
+function liveUsage(s: DbenchStory): RecordUsage | null {
+  // Agent time alone is not a usage row: it would fill one column and leave the rest as "—" with nothing said
+  // about why. The row is about what the work cost -- tokens and calls -- so those decide whether there is one.
+  if (s.output_tokens == null && s.calls == null) return null;
+  const seconds = s.agent_minutes != null ? s.agent_minutes * SECONDS_PER_MINUTE : null;
+  return {
+    outTokens: s.output_tokens ?? null, inTokens: null, cacheRead: null, readTokens: null,
+    calls: s.calls ?? null, agentSeconds: seconds,
+    tokS: s.output_tokens != null && seconds ? s.output_tokens / seconds : null,
+    decodeTokens: null, decodeSeconds: null, decodeTokS: null,
+    prefillTokens: null, prefillSeconds: null, prefillTokS: null,
+    draftAcceptance: null, compactions: null, nudges: null,
+    split: null,
+  };
+}
+
+
 export function mergeStories(recorded: Story[], live: DbenchStory[] | undefined): Story[] {
   const have = new Set(recorded.map((s) => s.id));
   const extra = (live ?? [])
@@ -607,6 +630,7 @@ export function mergeStories(recorded: Story[], live: DbenchStory[] | undefined)
     .map((s) => ({
       id: String(s.id), title: s.title ?? "", status: s.status ?? "",
       passed: null, total: null, ownPassed: s.passed ?? null, ownTotal: s.total ?? null,
+      usage: liveUsage(s),
     }));
   return [...recorded, ...extra];
 }
