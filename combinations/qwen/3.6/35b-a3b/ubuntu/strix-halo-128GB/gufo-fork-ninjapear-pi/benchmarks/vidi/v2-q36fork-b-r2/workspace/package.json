@@ -9,8 +9,8 @@
     "build:worker": "echo 'Worker build placeholder'",
     "typecheck": "tsc --noEmit",
     "dev": "wrangler dev",
-    "test:unit": "vitest run --project unit",
-    "test:component": "vitest run --project component",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:component": "vitest run --config vitest.component.config.ts",
     "test:e2e": "npm run build && playwright test"
   },
   "dependencies": {
@@ -34,7 +34,7 @@
     "jsdom": "^25.0.1",
     "miniflare": "^3.20250108.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0",
+    "vitest": "^2.1.9",
     "wrangler": "^3.99.0"
   }
 }

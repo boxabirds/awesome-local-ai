@@ -42,6 +42,11 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS;
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+// Board sharing settings (story 5)
+export const CREATE_BUDGET_MS = 2000;             // PRD share.create
+export const LINK_COPIED_MS = 2000;
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;    // backoff doubles up to RECONNECT_MAX_BACKOFF_MS
+
 // Persistence settings (story 4)
 export const COMPACTION_UPDATE_COUNT = 500;
 export const COMPACTION_BYTES = 4 * 1024 * 1024;

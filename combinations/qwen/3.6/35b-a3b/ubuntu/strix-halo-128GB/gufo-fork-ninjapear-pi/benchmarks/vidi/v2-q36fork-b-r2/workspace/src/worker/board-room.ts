@@ -43,6 +43,7 @@ export class BoardRoom extends DurableObject {
   private _state: RoomStateInternal = 'loading';
   private _loadFailedAt: number = 0;
   private _store: BoardStore | null = null;
+  private _initialized: boolean = false;
   private _stateObj!: DurableObjectState;
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -51,37 +52,78 @@ export class BoardRoom extends DurableObject {
     super(ctx as any, _env as any);
     this._stateObj = ctx;
 
-    // Start loading inside blockConcurrencyWhile so no incoming messages arrive before load
-    this._stateObj.blockConcurrencyWhile(async () => {
-      this._store = new BoardStore(this._stateObj.storage);
-      this._store.migrate();
+    // Lazily load on first access — do NOT migrate here
+    // This ensures probing unknown links writes nothing
+  }
 
-      try {
-        this._doc = new Y.Doc();
-        Y.applyUpdate(this._doc, new Uint8Array(0), LOAD_ORIGIN);
+  /** Lazily ensure doc+store are initialized. Returns true if the board was successfully loaded. */
+  private async _ensureDoc(): Promise<boolean> {
+    if (this._initialized) return this._doc !== null;
 
-        const result = this._store.load(this._doc);
+    this._store = new BoardStore(this._stateObj.storage);
 
-        if (result.ok) {
-          this._setState('load-ok');
-          if (result.quarantined > 0) {
-            console.error({ msg: 'board-room.quarantined-on-load', quarantined: result.quarantined });
-          }
-        } else {
-          this._setState('load-error');
+    try {
+      this._doc = new Y.Doc();
+      Y.applyUpdate(this._doc, new Uint8Array(0), LOAD_ORIGIN);
+
+      const result = this._store.load(this._doc);
+
+      if (result.ok) {
+        this._setState('load-ok');
+        if (result.quarantined > 0) {
+          console.error({ msg: 'board-room.quarantined-on-load', quarantined: result.quarantined });
         }
-      } catch (_e: unknown) {
-        console.error({ msg: 'board-room.sql-error-during-init', error: _e });
-        this._setState('sql-error');
+      } else {
+        this._setState('load-error');
+        return false;
       }
+    } catch (_e: unknown) {
+      console.error({ msg: 'board-room.sql-error-during-init', error: _e });
+      this._setState('sql-error');
+      return false;
+    }
 
-      // Observe doc updates for auto-persist + broadcast
-      if (this._doc && this._state === 'ready') {
-        this._doc.on('update', (update: Uint8Array, origin: unknown) => {
-          this._onDocUpdate(update, origin);
-        });
-      }
-    });
+    this._initialized = true;
+
+    // Observe doc updates for auto-persist + broadcast
+    if (this._doc && this._state === 'ready') {
+      this._doc.on('update', (update: Uint8Array, origin: unknown) => {
+        this._onDocUpdate(update, origin);
+      });
+    }
+
+    return this._doc !== null;
+  }
+
+  /** Migrate storage and set created_at if absent. Called by RPC or first append. */
+  private async _migrate(): Promise<void> {
+    if (!this._store) {
+      this._store = new BoardStore(this._stateObj.storage);
+    }
+    if (!this._initialized) {
+      await this._ensureDoc();
+    }
+    // Run migration and set created_at
+    this._store.migrate();
+    if (!this._created()) {
+      this._stateObj.storage.transactionSync(() => {
+        this._stateObj.storage.sql.exec(
+          "INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)",
+          [String(Date.now())],
+        );
+      });
+    }
+  }
+
+  private _created(): boolean {
+    try {
+      const rows = this._store!.storage.sql.exec<{ value: string }>(
+        "SELECT value FROM storage_meta WHERE key = 'created_at'",
+      ).toArray();
+      return rows.length > 0;
+    } catch {
+      return false;
+    }
   }
 
   private _setState(event: string, extra?: unknown): void {
@@ -93,10 +135,66 @@ export class BoardRoom extends DurableObject {
     return this._doc;
   }
 
+  // ---------------------------------------------------------------------------
+  // RPC methods — callable from Worker via env.BOARD_ROOM.get(id).method()
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Initialize a board: run migrate + set created_at.
+   * Returns 'created' if new, 'exists' if already initialized.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    // Ensure store/doc exist for the migration to work
+    await this._ensureDoc();
+
+    // Check if already initialized
+    if (this._created()) {
+      return 'exists';
+    }
+
+    // Run migration and set created_at
+    this._store!.migrate();
+    this._stateObj.storage.transactionSync(() => {
+      this._stateObj.storage.sql.exec(
+        "INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)",
+        [String(Date.now())],
+      );
+    });
+    this._initialized = true;
+
+    // Now set ready state and set up update listener
+    this._setState('load-ok');
+    if (this._state === 'ready' && this._doc) {
+      this._doc.on('update', (update: Uint8Array, origin: unknown) => {
+        this._onDocUpdate(update, origin);
+      });
+    }
+
+    return 'created';
+  }
+
+  /**
+   * Read-only existence check. Never writes storage.
+   * A board exists if it has created_at or any legacy data.
+   */
+  exists(): boolean {
+    if (!this._store) {
+      this._store = new BoardStore(this._stateObj.storage);
+    }
+    return this._store.existsReadOnly();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Persistence
+  // ---------------------------------------------------------------------------
+
   /** Persist then broadcast an update from the document */
   private _onDocUpdate(update: Uint8Array, origin: unknown): void {
     if (origin === LOAD_ORIGIN) return;
     if (this._state !== 'ready') return;
+
+    // Ensure store exists (lazy migration for legacy boards)
+    this._ensureStorage();
 
     try {
       this._store!.append(update);
@@ -131,6 +229,33 @@ export class BoardRoom extends DurableObject {
     this._store!.compactIfNeeded(this.doc);
   }
 
+  /** Lazy migrate before first append (for legacy boards without created_at). */
+  private _ensureStorage(): void {
+    if (!this._initialized || !this._store) {
+      this._store = new BoardStore(this._stateObj.storage);
+    }
+    if (!this._initialized) {
+      // Run migrate for legacy boards
+      this._store.migrate();
+      this._initialized = true;
+      // If doc doesn't exist yet, load it
+      if (!this._doc) {
+        this._doc = new Y.Doc();
+        Y.applyUpdate(this._doc, new Uint8Array(0), LOAD_ORIGIN);
+        this._store.load(this._doc);
+        if (this._state === 'ready') {
+          this._doc.on('update', (update: Uint8Array, origin: unknown) => {
+            this._onDocUpdate(update, origin);
+          });
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // WebSocket handling
+  // ---------------------------------------------------------------------------
+
   private sendSyncStep1(ws: WebSocket): void {
     const enc = createEncoder();
     writeVarUint(enc, MESSAGE_SYNC);
@@ -138,7 +263,13 @@ export class BoardRoom extends DurableObject {
     ws.send(toUint8Array(enc).buffer as ArrayBuffer);
   }
 
-  async fetch(_request: Request): Promise<Response> {
+  async fetch(request: Request): Promise<Response> {
+    // Check board existence before accepting WebSocket
+    const exists = this.exists();
+    if (!exists) {
+      return new Response('Not Found — board does not exist', { status: 404 });
+    }
+
     const pair = new WebSocketPair();
     const serverWs: WebSocket = pair[0];
     const clientWs: WebSocket = pair[1];

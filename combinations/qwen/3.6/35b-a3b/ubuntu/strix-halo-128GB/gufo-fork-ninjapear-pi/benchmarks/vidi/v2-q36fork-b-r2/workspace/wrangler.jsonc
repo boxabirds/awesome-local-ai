@@ -1,6 +1,6 @@
 {
   "name": "vidi6",
-  "compatibility_date": "2025-01-01",
+  "compatibility_date": "2025-01-15",
   "assets": {
     "directory": "dist/client",
     "not_found_handling": "single-page-application",

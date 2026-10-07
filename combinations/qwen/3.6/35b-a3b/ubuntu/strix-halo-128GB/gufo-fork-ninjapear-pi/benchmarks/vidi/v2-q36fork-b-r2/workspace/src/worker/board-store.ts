@@ -81,7 +81,7 @@ type UpdateRow = { seq: number; data: ArrayBuffer; bytes: number };
 type ChunkRow = { idx: number; data: ArrayBuffer };
 
 export class BoardStore {
-  private readonly storage: DurableObjectStorage;
+  public readonly storage: DurableObjectStorage;
 
   // In-memory counters to avoid COUNT(*) on every write
   private _updateCount = 0;
@@ -89,6 +89,47 @@ export class BoardStore {
 
   constructor(storage: DurableObjectStorage) {
     this.storage = storage;
+  }
+
+  /**
+   * Read-only existence check. Never creates tables.
+   * A board exists if:
+   *   - storage_meta has a `created_at` key, OR
+   *   - any row exists in `updates` or `snapshot_chunks` (legacy boards).
+   */
+  existsReadOnly(): boolean {
+    // Check tables exist first
+    const tables = this.storage.sql.exec<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table'",
+    ).toArray();
+    const tableNames = new Set(tables.map(r => r.name));
+    if (!tableNames.has('storage_meta')) return false;
+
+    // Check for initialized-at metadata
+    const metaRows = this.storage.sql.exec<MetaRow>(
+      "SELECT value FROM storage_meta WHERE key = 'created_at'",
+    ).toArray();
+    if (metaRows.length > 0) return true;
+
+    // Check legacy data (any row in updates or snapshot_chunks)
+    try {
+      if (tableNames.has('updates')) {
+        const upd = this.storage.sql.exec<{ n: number }>(
+          'SELECT COUNT(*) as n FROM updates',
+        ).toArray();
+        if (upd.length > 0 && upd[0].n > 0) return true;
+      }
+      if (tableNames.has('snapshot_chunks')) {
+        const snap = this.storage.sql.exec<{ n: number }>(
+          'SELECT COUNT(*) as n FROM snapshot_chunks',
+        ).toArray();
+        if (snap.length > 0 && snap[0].n > 0) return true;
+      }
+    } catch {
+      // Tables may exist but be empty; fall through
+    }
+
+    return false;
   }
 
   /** Create tables and set schema version if absent. Writes no update rows. */
