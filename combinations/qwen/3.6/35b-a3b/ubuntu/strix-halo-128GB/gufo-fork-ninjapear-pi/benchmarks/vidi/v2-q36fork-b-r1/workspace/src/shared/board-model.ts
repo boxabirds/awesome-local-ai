@@ -4,21 +4,43 @@ import {
   STICKY_TEXT_MAX_CHARS,
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
+  MAX_OBJECT_SIZE_WORLD,
 } from './config';
 import type { StickyColor } from './config';
 
 export const LOCAL_ORIGIN = 'local-origin';
+
+export { STICKY_SIZE_WORLD };
+
+// ---- Snapshot types ----
 
 export interface StickySnapshot {
   id: string;
   type: 'sticky';
   x: number;
   y: number;
+  width?: number;
+  height?: number;
   color: StickyColor;
   text: string;
   z: number;
   createdAt: number;
+  [key: string]: unknown;
 }
+
+/** Generic object snapshot — the shape stored in Y.Doc. */
+export interface ObjectSnapshot {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  z: number;
+  [key: string]: unknown;
+}
+
+// ---- Helpers ----
 
 /** Initialise the document meta if absent. */
 export function initDoc(doc: Y.Doc): void {
@@ -58,6 +80,20 @@ function getMaxZ(objects: unknown): number {
   return max;
 }
 
+/** Get the bounding rect of an object. Falls back to STICKY_SIZE_WORLD if no width/height. */
+export function objectBounds(obj: Record<string, unknown>): { x: number; y: number; width: number; height: number } {
+  const w = (obj.width as number) ?? STICKY_SIZE_WORLD;
+  const h = (obj.height as number) ?? STICKY_SIZE_WORLD;
+  return {
+    x: (obj.x as number) ?? 0,
+    y: (obj.y as number) ?? 0,
+    width: w,
+    height: h,
+  };
+}
+
+// ---- Create / single-object ops (retained for compatibility) ----
+
 export function createSticky(
   doc: Y.Doc,
   at: { x: number; y: number },
@@ -86,31 +122,12 @@ export function createSticky(
 }
 
 export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolean {
-  if (!isFinite(x) || !isFinite(y)) return false;
-  const objects = getObjectsMap(doc) as Y.Map<any>;
-  const inner = objects.get(id);
-  if (!inner || typeof inner.get !== 'function') return false;
-
-  doc.transact(() => {
-    setField(inner, 'x', x);
-    setField(inner, 'y', y);
-  }, LOCAL_ORIGIN);
-  return true;
+  return moveObjects(doc, new Map([[id, { x, y }]])) > 0;
 }
 
 export function bringToFront(doc: Y.Doc, id: string): boolean {
-  const objects = getObjectsMap(doc) as Y.Map<any>;
-  const inner = objects.get(id);
-  if (!inner || typeof inner.get !== 'function') return false;
-
-  const currentZ = getField(inner, 'z') ?? 0;
-  const maxZ = getMaxZ(objects);
-  if (currentZ === maxZ) return false;
-
-  doc.transact(() => {
-    setField(inner, 'z', maxZ + 1);
-  }, LOCAL_ORIGIN);
-  return true;
+  const result = bringObjectsToFront(doc, [id]);
+  return result > 0;
 }
 
 export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
@@ -126,13 +143,7 @@ export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
 }
 
 export function deleteObject(doc: Y.Doc, id: string): boolean {
-  const objects = getObjectsMap(doc) as Y.Map<any>;
-  if (!(objects as any).has(id)) return false;
-
-  doc.transact(() => {
-    objects.delete(id);
-  }, LOCAL_ORIGIN);
-  return true;
+  return deleteObjects(doc, [id]) > 0;
 }
 
 export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
@@ -143,6 +154,158 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   if (textVal instanceof Y.Text) return textVal;
   return undefined;
 }
+
+// ---- Group operations ----
+
+/** Filter objects whose entire bounding box lies inside `rect`. */
+export function objectsInRect(snapshot: readonly ObjectSnapshot[], rect: { x: number; y: number; width: number; height: number }): string[] {
+  const result: string[] = [];
+  for (const obj of snapshot) {
+    const b = objectBounds(obj);
+    if (
+      obj.id &&
+      b.x >= rect.x &&
+      b.y >= rect.y &&
+      b.x + b.width <= rect.x + rect.width &&
+      b.y + b.height <= rect.y + rect.height
+    ) {
+      result.push(obj.id);
+    }
+  }
+  return result;
+}
+
+/** Return all object ids from the snapshot. Filters out unregistered types if `knownTypes` is provided. */
+export function allObjectIds(snapshot: readonly ObjectSnapshot[], knownTypes?: ReadonlySet<string>): string[] {
+  if (!knownTypes) {
+    // No filtering — return all ids
+    return snapshot.map(o => o.id).filter(Boolean) as string[];
+  }
+  return snapshot
+    .filter(o => knownTypes.has(o.type))
+    .map(o => o.id)
+    .filter(Boolean) as string[];
+}
+
+/**
+ * Move multiple objects atomically. Each entry maps id → {x, y}.
+ * Returns count of successfully moved objects.
+ * Non-finite coordinates are rejected (return 0). Empty map → 0. Missing ids skipped.
+ */
+export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, { x: number; y: number }>): number {
+  if (positions.size === 0) return 0;
+
+  const objects = getObjectsMap(doc) as Y.Map<any>;
+  let moved = 0;
+
+  doc.transact(() => {
+    for (const [id, pos] of positions) {
+      if (!isFinite(pos.x) || !isFinite(pos.y)) continue;
+      const inner = objects.get(id);
+      if (!inner || typeof inner.get !== 'function') continue;
+      setField(inner, 'x', pos.x);
+      setField(inner, 'y', pos.y);
+      moved++;
+    }
+  }, LOCAL_ORIGIN);
+
+  return moved;
+}
+
+/**
+ * Resize multiple objects atomically. Each entry maps id → {x, y, width, height}.
+ * Returns count of successfully resized objects.
+ * Writes width/height fields, turning implicit-size stickies explicit.
+ */
+export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, { x: number; y: number; width: number; height: number }>): number {
+  if (rects.size === 0) return 0;
+
+  const objects = getObjectsMap(doc) as Y.Map<any>;
+  let resized = 0;
+
+  doc.transact(() => {
+    for (const [id, r] of rects) {
+      if (!isFinite(r.x) || !isFinite(r.y) || !isFinite(r.width) || !isFinite(r.height)) continue;
+      if (r.width < 0 || r.height < 0) continue;
+      const inner = objects.get(id);
+      if (!inner || typeof inner.get !== 'function') continue;
+      setField(inner, 'x', r.x);
+      setField(inner, 'y', r.y);
+      setField(inner, 'width', r.width);
+      setField(inner, 'height', r.height);
+      resized++;
+    }
+  }, LOCAL_ORIGIN);
+
+  return resized;
+}
+
+/**
+ * Bring selected objects to front. Sets their z to above all unselected objects
+ * while preserving relative ordering among selected ones.
+ * Returns count changed.
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+
+  const objects = getObjectsMap(doc) as Y.Map<any>;
+  const existingZ = new Map<string, number>();
+
+  (objects as any).forEach((inner: any, key: string) => {
+    if (typeof inner?.get === 'function') {
+      existingZ.set(key, Number(getField(inner, 'z')) ?? 0);
+    }
+  });
+
+  // Find the highest z among unselected objects
+  let maxUnselectedZ = 0;
+  for (const [id, z] of existingZ) {
+    if (!ids.includes(id) && z > maxUnselectedZ) {
+      maxUnselectedZ = z;
+    }
+  }
+
+  // Sort selected ids to preserve their relative order
+  const sortedIds = [...ids].sort((a, b) => (existingZ.get(a) ?? 0) - (existingZ.get(b) ?? 0));
+
+  let changed = 0;
+  doc.transact(() => {
+    for (let i = 0; i < sortedIds.length; i++) {
+      const id = sortedIds[i];
+      const newZ = maxUnselectedZ + 1 + i;
+      const inner = objects.get(id);
+      if (!inner || typeof inner.get !== 'function') continue;
+      const currentZ = getField(inner, 'z');
+      if (currentZ !== newZ) {
+        setField(inner, 'z', newZ);
+        changed++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+
+  return changed;
+}
+
+/** Delete multiple objects. Returns count deleted. */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+
+  const objects = getObjectsMap(doc) as Y.Map<any>;
+  let deleted = 0;
+
+  doc.transact(() => {
+    for (const id of ids) {
+      if ((objects as any).has(id)) {
+        objects.delete(id);
+        deleted++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+
+  return deleted;
+}
+
+// ---- Read helpers for rendering ----
 
 export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
   const objects = getObjectsMap(doc) as Y.Map<any>;

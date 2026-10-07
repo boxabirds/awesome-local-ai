@@ -14,6 +14,13 @@ export const STICKY_COUNTER_THRESHOLD_CHARS = 50; // counter shows when remainin
 export const STICKY_FONT_MAX_PX = 24;
 export const STICKY_FONT_MIN_PX = 10;
 export const DRAG_THRESHOLD_PX = 3;
+
+// Story 7 — selection / transform settings
+export const HANDLE_SIZE_PX = 8;
+export const STICKY_MIN_SIZE_WORLD = 50;
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+export const NUDGE_STEP_WORLD = 1;
+export const NUDGE_LARGE_STEP_WORLD = 10;
 export const STICKY_COLORS = {
   yellow: '#FFF59D',
   orange: '#FFCC80',

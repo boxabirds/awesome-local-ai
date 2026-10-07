@@ -1,8 +1,9 @@
 /**
  * Task 6: Component tests for BoardPage (TC-19, TC-20, TC-21).
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
+import { BoardPage } from '@/client/pages/BoardPage';
 import type { CheckResponse } from '@/client/api';
 
 // Mock api.ts — boardId parameter captured in closure

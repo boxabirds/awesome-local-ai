@@ -1,3 +1,45 @@
+commit a3118b770e8c04f17c1fc391a034cfe89130e939
+vidi-agent  Wed Oct 7 12:46:33 2026 +0000
+
+    harness: snapshot after story 7 (uncommitted agent work)
+
+
+ PROGRESS.md                                |  27 +--
+ src/client/App.tsx                         | 157 +++++++++------
+ src/client/board/BoardRoot.tsx             |  62 ++++--
+ src/client/board/Marquee.tsx               | 118 +++++++++++
+ src/client/board/SelectionBar.tsx          |  81 ++++++++
+ src/client/board/SelectionHelpers.ts       |  21 ++
+ src/client/board/SelectionOverlay.tsx      | 179 +++++++++++++++++
+ src/client/board/useBoardKeys.ts           |  96 +++++++++
+ src/client/board/useSelection.ts           | 144 +++++++++++---
+ src/client/board/useTransformGesture.ts    | 304 +++++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx        | 100 ++++++++--
+ src/client/objects/StickyNote.tsx          | 144 ++++----------
+ src/client/objects/registry.tsx            | 118 +++++++++++
+ src/shared/board-model.ts                  | 215 +++++++++++++++++---
+ src/shared/config.ts                       |   7 +
+ src/shared/geometry.ts                     | 176 +++++++++++++++++
+ tests/component/BoardPage.test.tsx         |   3 +-
+ tests/component/BoardViewport.test.tsx     |   6 +
+ tests/component/HomePage.test.tsx          |   2 +-
+ tests/component/SharePanel.test.tsx        |   2 +-
+ tests/component/story7-components.test.tsx | 150 ++++++++++++++
+ tests/e2e/selection-e2e.spec.ts            | 113 +++++++++++
+ tests/fixtures/testbox.ts                  |  28 +++
+ tests/unit/board-model-group.test.ts       | 214 ++++++++++++++++++++
+ tests/unit/geometry.test.ts                | 188 ++++++++++++++++++
+ tests/unit/registry.test.ts                |  94 +++++++++
+ tests/unit/selection-reducer.test.ts       |  70 +++++++
+ 27 files changed, 2545 insertions(+), 274 deletions(-)
+commit 89f2f49901016b2f44b4df9cfa701a23f0ea2168
+vidi-agent  Wed Oct 7 11:25:54 2026 +0000
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)
 commit ffa55f59aa6e2ac80b7fc89313de2383ac87912b
 vidi-agent  Wed Oct 7 11:25:43 2026 +0000
 

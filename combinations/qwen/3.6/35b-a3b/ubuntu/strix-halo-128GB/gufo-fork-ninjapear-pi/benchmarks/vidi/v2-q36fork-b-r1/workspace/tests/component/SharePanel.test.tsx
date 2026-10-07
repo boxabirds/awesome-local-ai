@@ -1,7 +1,7 @@
 /**
  * Task 6: Component tests for SharePanel (TC-22 to TC-25).
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { SharePanel } from '@/client/share/SharePanel';
 import { LINK_COPIED_MS } from '@/shared/config';

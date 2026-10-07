@@ -11,6 +11,7 @@ import {
   STICKY_SIZE_WORLD,
   STICKY_COLORS,
   DEFAULT_STICKY_COLOR,
+  STICKY_MIN_SIZE_WORLD,
   type StickyColor,
   DRAG_THRESHOLD_PX,
   STICKY_FONT_MAX_PX,
@@ -18,19 +19,21 @@ import {
 } from '@/shared/config';
 import { fitFontSize } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
-import { moveObject, bringToFront, deleteObject, setStickyColor } from '@/shared/board-model';
-import type { StickySnapshot } from '@/shared/board-model';
+import { getStickyText, setStickyColor as setStickyColorModel, deleteObject as deleteObjModel } from '@/shared/board-model';
+import type { ObjectSnapshot } from './registry';
 import { NoteToolbar } from './NoteToolbar';
 
 interface StickyNoteProps {
-  note: StickySnapshot;
+  note: ObjectSnapshot;
   doc: Y.Doc;
   zoom: number;
   selected: boolean;
   editing: boolean;
+  isSelectedOnly: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  onObjectPointerDown(e: PointerEvent, id: string): void;
 }
 
 export function StickyNote({
@@ -39,38 +42,27 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  isSelectedOnly,
   onSelect,
   onStartEdit,
   onEndEdit,
+  onObjectPointerDown,
 }: StickyNoteProps): ReactNode {
   const containerRef = useRef<HTMLDivElement>(null);
-  // Interaction state (local, not in Y.Doc)
   const [pointerState, setPointerState] = useState<'up' | 'pressed' | 'dragging'>('up');
-  const pressPointRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartWorldRef = useRef<{ x: number; y: number } | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const movedRef = useRef(false);
   const broughtToFrontRef = useRef(false);
+
+  // Compute dimensions
+  const width = (note.width as number) ?? STICKY_SIZE_WORLD;
+  const height = (note.height as number) ?? STICKY_SIZE_WORLD;
 
   // Compute font size based on content
   const [fontPx, setFontPx] = useState(STICKY_FONT_MAX_PX);
   const overflowRef = useRef(false);
 
   // Get Y.Text reference for the note
-  const getYText = useCallback((): Y.Text | undefined => {
-    try {
-      const objectsMap = doc.getMap('objects');
-      const noteMap = objectsMap.get(note.id);
-      if (!noteMap || !(noteMap instanceof Y.Map)) return undefined;
-      const val = noteMap.get('text');
-      if (val instanceof Y.Text) return val;
-      return undefined;
-    } catch {
-      return undefined;
-    }
-  }, [doc, note.id]);
-
-  const ytext = getYText();
+  const ytext = getStickyText(doc, note.id);
 
   // Compute font size when editing or on mount
   useEffect(() => {
@@ -78,95 +70,29 @@ export function StickyNote({
     const el = containerRef.current.querySelector('.sticky-note-text-inner') as HTMLElement;
     if (!el || !ytext) return;
 
-    // Set initial text content for measurement
     el.textContent = ytext.toString() || '\u00A0';
     el.style.fontSize = `${STICKY_FONT_MAX_PX}px`;
     el.style.padding = '8px';
 
-    const result = fitFontSize(el, STICKY_SIZE_WORLD);
+    const result = fitFontSize(el, Math.min(width, height));
     setFontPx(result.fontPx);
     overflowRef.current = result.overflow;
-  }, [note.text, editing, note.id, ytext]);
+  }, [note.text, editing, note.id, ytext, width, height]);
 
+  // Pointer handlers delegated to gesture system
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       e.stopPropagation();
       e.preventDefault();
       setPointerState('pressed');
-      pressPointRef.current = { x: e.clientX, y: e.clientY };
       dragStartWorldRef.current = { x: note.x, y: note.y };
-      movedRef.current = false;
       broughtToFrontRef.current = false;
 
-      const target = e.currentTarget as HTMLElement;
-      try {
-        target.setPointerCapture(e.pointerId);
-      } catch (_err) {
-        // Already captured — ignore
-      }
+      // Call the external gesture handler which manages dragging/resizing
+      onObjectPointerDown(e.nativeEvent, note.id);
     },
-    [note.x, note.y],
+    [note.id, note.x, note.y, onObjectPointerDown],
   );
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (pointerState === 'up') return;
-      if (!pressPointRef.current || !dragStartWorldRef.current) return;
-
-      const dx = e.clientX - pressPointRef.current.x;
-      const dy = e.clientY - pressPointRef.current.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist >= DRAG_THRESHOLD_PX && pointerState === 'pressed') {
-        setPointerState('dragging');
-        if (!broughtToFrontRef.current) {
-          broughtToFrontRef.current = true;
-          bringToFront(doc, note.id);
-        }
-        movedRef.current = true;
-      }
-
-      if (pointerState === 'dragging' && movedRef.current) {
-        // Convert screen delta to world delta and update position
-        const worldDx = dx / zoom;
-        const worldDy = dy / zoom;
-        const curX = dragStartWorldRef.current!.x;
-        const curY = dragStartWorldRef.current!.y;
-        moveObject(doc, note.id, curX + worldDx, curY + worldDy);
-        dragStartWorldRef.current = { x: curX + worldDx, y: curY + worldDy };
-      }
-    },
-    [pointerState, doc, note.id, zoom],
-  );
-
-  const handlePointerUpOrCancel = useCallback(() => {
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-
-    if (movedRef.current) {
-      setPointerState('up');
-      onSelect(note.id);
-    } else if (pointerState === 'pressed') {
-      setPointerState('up');
-      onSelect(note.id);
-    } else {
-      setPointerState('up');
-    }
-
-    pressPointRef.current = null;
-    dragStartWorldRef.current = null;
-  }, [movedRef.current, pointerState, note.id, onSelect]);
-
-  const handleLostPointerCapture = useCallback(() => {
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    setPointerState('up');
-    pressPointRef.current = null;
-  }, []);
 
   const handleDblClick = useCallback(
     (e: React.MouseEvent) => {
@@ -176,14 +102,21 @@ export function StickyNote({
     [note.id, onStartEdit],
   );
 
+  // Handle losing pointer capture
+  const handleLostPointerCapture = useCallback(() => {
+    setPointerState('up');
+  }, []);
+
+  // Delete handler for single-note toolbar
   const handleDelete = useCallback(() => {
-    deleteObject(doc, note.id);
+    deleteObjModel(doc, note.id);
     onEndEdit('unselected');
   }, [doc, note.id, onEndEdit]);
 
+  // Colour change handler for single-note toolbar
   const handleColorChange = useCallback(
     (color: StickyColor) => {
-      setStickyColor(doc, note.id, color);
+      setStickyColorModel(doc, note.id, color);
     },
     [doc, note.id],
   );
@@ -192,9 +125,9 @@ export function StickyNote({
     position: 'absolute',
     left: 0,
     top: 0,
-    width: STICKY_SIZE_WORLD,
-    height: STICKY_SIZE_WORLD,
-    backgroundColor: STICKY_COLORS[note.color],
+    width: width,
+    height: height,
+    backgroundColor: note.color ? STICKY_COLORS[note.color as StickyColor] : STICKY_COLORS.yellow,
     borderRadius: '4px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
     transform: `translate(${note.x}px, ${note.y}px)`,
@@ -218,16 +151,13 @@ export function StickyNote({
       style={style}
       tabIndex={0}
       onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUpOrCancel}
-      onPointerCancel={handlePointerUpOrCancel}
       onLostPointerCapture={handleLostPointerCapture}
       onDoubleClick={handleDblClick}
     >
-      {/* Note toolbar – shown above the note when selected and not dragging/editing */}
-      {!editing && pointerState !== 'dragging' && selected && (
+      {/* Single-note toolbar — shown above the note when exactly one is selected */}
+      {!editing && pointerState !== 'dragging' && selected && isSelectedOnly && (
         <NoteToolbar
-          color={note.color}
+          color={(note.color as StickyColor) ?? 'yellow'}
           onColor={handleColorChange}
           onDelete={handleDelete}
         />
@@ -255,8 +185,8 @@ export function StickyNote({
             color: '#000',
           }}
         >
-          {note.text}
-          {overflowRef.current && note.text.length > 0 && (
+          {(typeof note.text === 'string' ? note.text : String(note.text ?? ''))}
+          {overflowRef.current && typeof note.text === 'string' && note.text!.length > 0 && (
             <div
               className="sticky-note-fade"
               style={{
@@ -265,7 +195,7 @@ export function StickyNote({
                 left: 0,
                 right: 0,
                 height: '30px',
-                background: `linear-gradient(transparent, ${STICKY_COLORS[note.color]})`,
+                background: `linear-gradient(transparent, ${(note.color as StickyColor) ? STICKY_COLORS[(note.color as StickyColor)] : STICKY_COLORS.yellow})`,
                 pointerEvents: 'none',
               }}
             />

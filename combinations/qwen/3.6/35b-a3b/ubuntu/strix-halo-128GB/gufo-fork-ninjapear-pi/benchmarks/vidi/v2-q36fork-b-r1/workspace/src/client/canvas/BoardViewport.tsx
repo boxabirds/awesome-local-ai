@@ -5,6 +5,8 @@ import { GRID_SPACING_WORLD, DEFAULT_ORIGIN_MARKER_SIZE, STICKY_SIZE_WORLD } fro
 import { ZoomControls } from './ZoomControls';
 import { NavigationHint } from './NavigationHint';
 import { zoomPercent, canZoomIn, canZoomOut } from './camera';
+import type { ObjectSnapshot } from '@/client/objects/registry';
+import { MarqueeRect, useMarquee } from '@/client/board/Marquee';
 
 // LINE/PAGE scroll conversion constants (used for deltaMode)
 const LINE_TO_PIXEL = 3;
@@ -15,9 +17,23 @@ interface BoardViewportProps {
   onCameraChange?(cam: Camera): void;
   onDblClickEmpty(x: number, y: number): void;
   onClickEmpty(): void;
+  // Story 7 selection props
+  selectedIds?: ReadonlySet<string>;
+  onSelect(ids: string[]): void;
+  isEditing?: boolean;
+  snapshot?: readonly ObjectSnapshot[];
 }
 
-export function BoardViewport({ children, onCameraChange, onDblClickEmpty, onClickEmpty }: BoardViewportProps): ReactNode {
+export function BoardViewport({ 
+  children, 
+  onCameraChange, 
+  onDblClickEmpty, 
+  onClickEmpty,
+  selectedIds,
+  onSelect = () => {},
+  isEditing,
+  snapshot,
+}: BoardViewportProps): ReactNode {
   // --- Viewport size ---
   const viewportRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ width: number; height: number }>({
@@ -38,14 +54,14 @@ export function BoardViewport({ children, onCameraChange, onDblClickEmpty, onCli
     reset,
   } = useCamera(size);
 
-  // Notify parent of camera changes
+  // --- Camera changes ---
   useEffect(() => {
     if (onCameraChange) {
       onCameraChange(camera);
     }
   }, [camera, onCameraChange]);
 
-  // Refs for keyboard handler access (so handlers always see latest callbacks)
+  // Refs for keyboard handler access
   const zoomStepRef = useRef(zoomStep);
   const resetRef = useRef(reset);
   zoomStepRef.current = zoomStep;
@@ -53,8 +69,6 @@ export function BoardViewport({ children, onCameraChange, onDblClickEmpty, onCli
 
   // Track pointer capture state for cursor styling
   const isCapturingRef = useRef(false);
-
-  // Track if current pointer interaction started on a child element (note) vs empty space
   const pointerOnChildRef = useRef(false);
 
   // ResizeObserver — viewport size from the element itself
@@ -71,49 +85,94 @@ export function BoardViewport({ children, onCameraChange, onDblClickEmpty, onCli
     return () => ro.disconnect();
   }, []);
 
-  // --- Pointer drag ---
+  // Story 7: Marquee hook
+  const marquee = useMarquee(
+    camera,
+    snapshot ?? [],
+    onSelect,
+  );
+
+  // --- Pointer drag + marquee start ---
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (!(e.target instanceof HTMLElement)) return;
       // Check if target is in the world layer (contains sticky notes etc.)
-      const worldLayer = e.currentTarget.querySelector('[style*="transform-origin"]');
-      if (worldLayer && worldLayer.contains(e.target as Node)) {
+      const worldLayer = e.currentTarget.querySelector('[data-layer="world"]') as HTMLElement | null;
+      const isWorldContent = worldLayer && worldLayer.contains(e.target as Node);
+      
+      if (isWorldContent) {
         pointerOnChildRef.current = true;
         return;
       }
+      
+      // Empty board space
       e.currentTarget.setPointerCapture(e.pointerId);
       isCapturingRef.current = true;
       pointerOnChildRef.current = false;
-      beginPan({ x: e.clientX, y: e.clientY });
+      
+      // Shift+drag → marquee selection; plain drag → pan
+      if (e.shiftKey && !isEditing) {
+        // Start marquee
+        const point: Point = { x: e.clientX, y: e.clientY };
+        marquee.begin(point);
+        // Don't call beginPan
+      } else {
+        // Start pan
+        beginPan({ x: e.clientX, y: e.clientY });
+      }
     },
-    [beginPan],
+    [beginPan, isEditing, marquee],
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
+      // If marquee is active, move it
+      if (marquee.active) {
+        const point: Point = { x: e.clientX, y: e.clientY };
+        marquee.move(point);
+        return;
+      }
+      
       if (!isCapturingRef.current || pointerOnChildRef.current) return;
       panMove({ x: e.clientX, y: e.clientY });
     },
-    [panMove],
+    [isCapturingRef, panMove, marquee.active, marquee.move],
   );
 
   const handlePointerUpOrCancel = useCallback(() => {
-    if (!isCapturingRef.current || pointerOnChildRef.current) {
+    if (!isCapturingRef.current) {
       isCapturingRef.current = false;
       pointerOnChildRef.current = false;
-      endPan();
       return;
     }
-    isCapturingRef.current = false;
-    endPan();
-    onClickEmpty();
-  }, [endPan, onClickEmpty]);
+    
+    // If marquee was active, finish it
+    if (marquee.active) {
+      marquee.end();
+    } else {
+      isCapturingRef.current = false;
+      endPan();
+      onClickEmpty();
+    }
+    pointerOnChildRef.current = false;
+  }, [endPan, onClickEmpty, marquee.active, marquee.end]);
+
+  // Listen for Escape key to cancel marquee
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && marquee.active) {
+        marquee.cancel();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [marquee]);
 
   // --- Double click on empty space → create sticky ---
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
       if (!(e.target instanceof HTMLElement)) return;
-      const worldLayer = e.currentTarget.querySelector('[style*="transform-origin"]');
+      const worldLayer = e.currentTarget.querySelector('[data-layer="world"]') as HTMLElement | null;
       if (worldLayer && worldLayer.contains(e.target as Node)) {
         return; // Double-clicked on a note
       }
@@ -221,6 +280,7 @@ export function BoardViewport({ children, onCameraChange, onDblClickEmpty, onCli
           isCapturingRef.current = false;
           pointerOnChildRef.current = false;
           endPan();
+          if (marquee.active) marquee.cancel();
         }}
         onGotPointerCapture={() => {
           isCapturingRef.current = true;
@@ -232,6 +292,7 @@ export function BoardViewport({ children, onCameraChange, onDblClickEmpty, onCli
       >
         {/* World layer */}
         <div
+          data-layer="world"
           style={{
             position: 'absolute',
             transformOrigin: '0 0',
@@ -259,6 +320,9 @@ export function BoardViewport({ children, onCameraChange, onDblClickEmpty, onCli
               <line x1={markerSize / 2} y1={2} x2={markerSize / 2} y2={markerSize - 2} stroke="#e03131" strokeWidth={0.5} />
             </svg>
           </div>
+
+          {/* Marquee rectangle (drawn in world layer) */}
+          <MarqueeRect rect={marquee.rect} camera={camera} />
 
           {/* User-rendered children (later stories add content here) */}
           {children}

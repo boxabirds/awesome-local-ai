@@ -1,7 +1,7 @@
 /**
  * Task 6: Component tests for HomePage (TC-16, TC-17).
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { HomePage } from '@/client/pages/HomePage';
 

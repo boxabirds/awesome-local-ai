@@ -29,6 +29,7 @@ describe('BoardViewport', () => {
         <BoardViewport
           onDblClickEmpty={() => {}}
           onClickEmpty={() => {}}
+          onSelect={() => {}}
         />
       );
 
@@ -42,6 +43,7 @@ describe('BoardViewport', () => {
         <BoardViewport
           onDblClickEmpty={() => {}}
           onClickEmpty={() => {}}
+          onSelect={() => {}}
         />
       );
 
@@ -59,6 +61,7 @@ describe('BoardViewport', () => {
         <BoardViewport
           onDblClickEmpty={() => {}}
           onClickEmpty={() => {}}
+          onSelect={() => {}}
         />
       );
 
@@ -73,6 +76,7 @@ describe('BoardViewport', () => {
         <BoardViewport
           onDblClickEmpty={() => {}}
           onClickEmpty={() => {}}
+          onSelect={() => {}}
         />
       );
 
@@ -87,6 +91,7 @@ describe('BoardViewport', () => {
         <BoardViewport
           onDblClickEmpty={() => {}}
           onClickEmpty={() => {}}
+          onSelect={() => {}}
         />
       );
 
@@ -104,6 +109,7 @@ describe('BoardViewport', () => {
         <BoardViewport
           onDblClickEmpty={() => {}}
           onClickEmpty={() => {}}
+          onSelect={() => {}}
         />
       );
 

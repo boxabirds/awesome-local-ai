@@ -12,12 +12,13 @@ import { connectBoard } from '../sync/connectBoard';
 import type { ConnectionState } from '../sync/connectBoard';
 import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR } from '@/shared/config';
 import { createSticky, deleteObject as deleteObj } from '@/shared/board-model';
-import type { StickySnapshot } from '@/shared/board-model';
+import type { StickySnapshot, ObjectSnapshot } from '@/shared/board-model';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { Toolbar } from './Toolbar';
 import { StickyNote } from '../objects/StickyNote';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { useSelection } from './useSelection';
+import type { Handle } from '@/client/objects/registry';
 
 let docRef: Y.Doc | null = null;
 
@@ -31,7 +32,9 @@ export function BoardRoot(props: BoardRootProps): ReactNode {
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const connectRef = useRef<{ destroy(): void } | null>(null);
   const cameraRef = useRef({ x: 0, y: 0, zoom: 1 });
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const snaps = snap as readonly ObjectSnapshot[];
+  const { ids, editingId, click, toggle, setMany, clear: clearSelection, startEdit, endEdit } = useSelection(snaps);
+  const selectedId = ids.size === 1 ? [...ids][0] : null;
 
   // Lazy-create shared doc singleton per board
   if (!docRef) {
@@ -76,11 +79,11 @@ export function BoardRoot(props: BoardRootProps): ReactNode {
       if (!canEdit) return;
       const id = createSticky(docRef!, { x: worldX, y: worldY }, DEFAULT_STICKY_COLOR);
       if (id) {
-        select(id);
+        click(id);
         startEdit(id);
       }
     },
-    [select, startEdit, canEdit],
+    [click, startEdit, canEdit],
   );
 
   const handleDblClickEmpty = useCallback(
@@ -91,28 +94,37 @@ export function BoardRoot(props: BoardRootProps): ReactNode {
   );
 
   const handleClickEmpty = useCallback(() => {
-    select(null);
-  }, [select]);
+    clearSelection();
+  }, [clearSelection]);
 
   const handleWindowKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const tag = (document.activeElement?.tagName || '').toLowerCase();
       if (tag === 'textarea' || tag === 'input') return;
 
-      if (e.key === 'Enter' && selectedId && !editingId && canEdit) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
-        startEdit(selectedId);
+        setMany(snaps.map(s => s.id), false);
         return;
       }
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingId && canEdit) {
-        e.preventDefault();
-        deleteObj(docRef!, selectedId);
-        endEdit('unselected');
+      if (e.key === 'Escape') {
+        clearSelection();
         return;
       }
+
+      // Delete / Backspace → delete selection
+      if ((e.key === 'Delete' || e.key === 'Backspace') && ids.size > 0 && canEdit) {
+        e.preventDefault();
+        for (const id of ids) {
+          deleteObj(docRef!, id);
+        }
+        clearSelection();
+        return;
+      }
+    
     },
-    [selectedId, editingId, startEdit, endEdit, select],
+    [ids, selectedId, startEdit, endEdit, clearSelection, click, setMany, canEdit],
   );
 
   useEffect(() => {
@@ -122,23 +134,27 @@ export function BoardRoot(props: BoardRootProps): ReactNode {
 
   // Render note components sorted by z/id
   const notes = useMemo(() => {
-    const snaps = snap as StickySnapshot[];
-    return snaps
-      .filter((s): s is StickySnapshot & { type: 'sticky' } => s.type === 'sticky')
-      .map((s) => (
+    const stickySnaps = snaps.filter((s): s is StickySnapshot & { type: 'sticky' } => s.type === 'sticky');
+    return stickySnaps.map((s) => {
+      const isSelected = ids.has(s.id);
+      const isSelectedOnly = isSelected && ids.size === 1;
+      return (
         <StickyNote
           key={s.id}
           note={s}
           doc={docRef!}
           zoom={cameraRef.current.zoom}
-          selected={selectedId === s.id}
+          selected={isSelected}
           editing={editingId === s.id}
-          onSelect={(id) => select(id)}
+          isSelectedOnly={isSelectedOnly}
+          onSelect={(id) => click(id)}
           onStartEdit={startEdit}
-          onEndEdit={endEdit}
+          onEndEdit={() => endEdit()}
+          onObjectPointerDown={(_e, _id) => { /* handled via gesture system in story 7 */ }}
         />
-      ));
-  }, [snap, selectedId, editingId, select, startEdit, endEdit, cameraRef.current.zoom]);
+      );
+    });
+  }, [snaps, ids, editingId, click, startEdit, endEdit, cameraRef.current.zoom]);
 
   return (
     <>
@@ -159,6 +175,10 @@ export function BoardRoot(props: BoardRootProps): ReactNode {
         }}
         onDblClickEmpty={handleDblClickEmpty}
         onClickEmpty={handleClickEmpty}
+        selectedIds={ids}
+        onSelect={(idsList) => setMany(idsList, true)}
+        isEditing={editingId !== null}
+        snapshot={snaps}
       >
         {notes}
       </BoardViewport>
