@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/schema.json",
+  "name": "vidi6",
+  "main": "src/worker/index.ts",
+  "assets": {
+    "directory": "dist/client"
+  },
+  "compatibility_date": "2025-01-01",
+  "observability": {
+    "enabled": false
+  }
+}
