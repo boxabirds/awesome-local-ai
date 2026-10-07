@@ -10,7 +10,7 @@ import {
   type Size,
   type ZoomDirection,
 } from './camera';
-import { installTestHook, uninstallTestHook } from './testHooks';
+import { patchTestHook, unpatchTestHook } from './testHooks';
 
 /** Normalised wheel/pinch input already converted to CSS pixels. */
 export interface WheelInput {
@@ -131,7 +131,7 @@ export function useCamera(viewport: Size): UseCamera {
   // Test-only hook (excluded from production builds by MODE check).
   useEffect(() => {
     if (import.meta.env.MODE !== 'test') return;
-    installTestHook({
+    patchTestHook({
       getCamera: () => liveRef.current,
       setCamera: (c: Camera) => {
         liveRef.current = c;
@@ -143,7 +143,7 @@ export function useCamera(viewport: Size): UseCamera {
         setCameraState(c);
       },
     });
-    return () => uninstallTestHook();
+    return () => unpatchTestHook(['getCamera', 'setCamera']);
   }, []);
 
   return { camera, hasNavigated, beginPan, panMove, endPan, wheel, zoomAtPoint, zoomStep, reset };

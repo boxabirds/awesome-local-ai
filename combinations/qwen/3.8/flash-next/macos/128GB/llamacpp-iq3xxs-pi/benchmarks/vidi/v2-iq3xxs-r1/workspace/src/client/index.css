@@ -129,3 +129,189 @@ body {
   font: 13px/1.2 system-ui, sans-serif;
   pointer-events: none;
 }
+
+/* ------------------------------------------------------------------ *
+ * Story 2: sticky notes                                              *
+ * ------------------------------------------------------------------ */
+
+/* Left-side vertical board toolbar (screen space, never scaled by zoom). */
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  font: 13px/1.2 system-ui, sans-serif;
+}
+.board-toolbar .tool-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: #f7f7f7;
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+}
+.board-toolbar .tool-button:hover {
+  background: #efefef;
+}
+.board-toolbar .tool-button:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 1px;
+}
+.board-toolbar .tool-icon {
+  font-size: 15px;
+}
+
+/* A sticky note lives in the transformed world layer, so its box is in world
+   units and its font sizes are board units (they scale with zoom). */
+.sticky-note {
+  position: absolute;
+  pointer-events: auto;
+  border-radius: 2px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+  color: #1a1a1a;
+  cursor: grab;
+  /* Selection is drawn as an outline so it costs no layout. */
+  outline: 0 solid transparent;
+}
+.sticky-note[data-selected="true"] {
+  outline: 2px solid #1a73e8;
+  outline-offset: 1px;
+}
+.sticky-note[data-dragging="true"] {
+  cursor: grabbing;
+}
+.sticky-note:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 1px;
+}
+
+/* Text layer: centred, clipped to the note, with a fade when overflowing.
+   The clip lives here (not on the note) so the toolbar above the note is not
+   clipped away. */
+.sticky-text {
+  position: absolute;
+  inset: 0;
+  padding: 16px; /* mirrors STICKY_TEXT_PADDING_WORLD */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+.sticky-text-inner {
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.35;
+}
+/* Text no longer fits at the minimum size: clip and fade the bottom edge. */
+.sticky-text.sticky-text-overflow {
+  align-items: flex-start;
+}
+.sticky-text-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 32px;
+  pointer-events: none;
+}
+
+/* The editor keeps the same font size, padding and centring as the display. */
+.sticky-note-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  border: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  line-height: 1.35;
+  text-align: center;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+}
+.sticky-note-counter {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font: 12px/1 system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+/* Floating toolbar for the selected note. Anchored to the note but scaled by
+   1/zoom, so it keeps a constant screen size at any zoom level. */
+.note-toolbar-anchor {
+  position: absolute;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.note-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
+  pointer-events: auto;
+}
+.note-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.note-swatch[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1a73e8;
+}
+.note-toolbar .note-swatch:focus-visible,
+.note-toolbar .note-delete:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 1px;
+}
+.note-toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--panel-border);
+}
+.note-delete {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: #f7f7f7;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}

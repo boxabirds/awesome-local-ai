@@ -12,3 +12,24 @@ export const WHEEL_ZOOM_SENSITIVITY = 0.01; // zoom factor = exp(-deltaY * sensi
 export const GRID_SPACING_WORLD = 24;
 /** Extent (world units) that must be pannable in any direction without an edge. */
 export const UNBOUNDED_PAN_TESTED_EXTENT = 1_000_000;
+
+// --- Story 2: sticky notes ---------------------------------------------------
+
+/** Sticky note size in world units (square). */
+export const STICKY_SIZE_WORLD = 200;
+/** Hard limit on characters stored in one sticky note. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+/** The character counter appears when remaining characters <= this. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50; // counter shows when remaining <= this
+/** Largest note font size (board units = CSS px at 100% zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+/** Smallest note font size; below this the text overflows and is clipped. */
+export const STICKY_FONT_MIN_PX = 10;
+/** Pointer movement (screen px) that turns a press into a drag. */
+export const DRAG_THRESHOLD_PX = 3;
+export const STICKY_COLORS = {
+  yellow: '#FFF59D', orange: '#FFCC80', green: '#C5E1A5',
+  blue: '#90CAF9', pink: '#F48FB1', violet: '#CE93D8',
+} as const;
+export type StickyColor = keyof typeof STICKY_COLORS;
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';

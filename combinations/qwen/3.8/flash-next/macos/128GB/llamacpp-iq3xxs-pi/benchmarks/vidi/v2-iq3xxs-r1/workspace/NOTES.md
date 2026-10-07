@@ -110,3 +110,82 @@ a hook-less bundle, making every e2e time out waiting for `window.__vidi6`. Make
 sure the allocated ports (25232/25233) are free (”lsof -nP -iTCP:<port>
 -sTCP:LISTEN -t -> kill -9”) and run e2e against a freshly built **test** bundle.
 With that, `playwright test --project=chromium` is green (7/7).
+
+---
+
+## Story 2: Capture ideas on sticky notes and rearrange them
+
+### Real-browser bug found by e2e: window-level drag tracking (no pointer capture)
+`StickyNote` originally called `el.setPointerCapture(pointerId)` on `pointerdown`
+and handled `pointermove`/`pointerup`/`lostpointercapture` on the note element.
+Every jsdom test passed, but in Chromium **no note ever moved**: at drag start
+`bringToFront` re-orders the notes array, React re-parents the note's DOM element,
+and re-parenting *drops the pointer capture* → `lostpointercapture` fired → the
+`pointercancel` handler ended the drag before the first `requestAnimationFrame`
+move was applied. Now `pointerdown` attaches `pointermove`/`pointerup`/
+`pointercancel` on `window` (removed in `finish`/effect cleanup) and no capture is
+taken. This is also more correct in general: the pointer can leave the note while
+dragging. Regression coverage: component test "drags the bottom note of an
+overlapping pair and raises it above the other" plus e2e TC-32.
+
+### `NoteToolbar` keeps a constant screen size inside the world layer
+The design says the note toolbar is rendered above the selected note in screen
+space and must not scale with zoom. It is rendered as a child of the note
+(world-space coordinates) inside a `.note-toolbar-anchor` with
+`transform: scale(1/zoom)` and `transform-origin: 0 0`, so it sticks to the note's
+top-centre while its buttons stay pixel-constant (asserted in e2e: swatch width is
+identical at 100% and 200% while the note doubles).
+
+### Font fit: pure search + element wrapper
+`fitTextFontSize(text, measure, boxPx)` is the pure, unit-testable search (a
+monotone height oracle is passed in); `fitFontSize(el, boxPx)` keeps the design's
+contract signature, measures through a hidden clone of the element and writes
+`el.style.fontSize`. jsdom has no layout, so the fit is covered (a) in unit tests
+with a stub measure, (b) in component tests via the same stub, and (c) for real in
+e2e TC-33 (`getComputedStyle` font-size, `scrollHeight` vs container height,
+`overflow` class and the bottom fade element). Zoom never changes which size fits
+(the whole note scales), so the fit is memoised on `note.text` only.
+
+### Sticky note creation point
+`createSticky(doc, {x, y})` takes the **centre** and stores the top-left
+(`x - STICKY_SIZE_WORLD/2`), which is what makes "centred on the double-click
+point" and "created in the centre of the current view" both fall out of
+`screenToWorld(viewport, size, camera)`.
+
+### Selection lifecycle
+`select(id)` also clears `editingId`; `startEdit(id)` sets both. When the selected
+note disappears from the snapshot (deleted by another client — TC-37), an effect in
+`App` clears the selection, so no dangling selection/toolbar can survive. A
+deletion during a drag ends the drag silently because `moveObject` returns false
+for an unknown id.
+
+### Test-hook additions (test mode only)
+`window.__vidi6` gained `getSnapshot`, `getSelection`, `getDoc` (model-level
+deletion for TC-37) on top of story 1's `getCamera`/`setCamera`. `getDoc` exposes
+the live `Y.Doc` so tests can act as a second client without any UI.
+
+### e2e helpers worth knowing
+- `setZoom` / `panFar` drive the camera through the hook; because the React
+  re-render is asynchronous, both end with `waitForRender`, which polls until the
+  world layer's `DOMMatrix` matches the camera in the model. Without it, screen-box
+  measurements taken right after a camera change are stale (this caused two
+  misleading failures before it was added).
+- `noteAtPoint` uses `document.elementFromPoint` + `closest('[data-note-id]')`, so
+  "drawn above the note it overlaps" (TC-32) is asserted by real paint order, not
+  by DOM order.
+- `STICKY_COLORS` is a `Record<StickyColor, string>`, so tests enumerate colours
+  with `Object.keys(STICKY_COLORS)`.
+- The overflow counter renders as `"<length>/1000"` (e.g. `995/1000`) only while
+  within `STICKY_COUNTER_THRESHOLD_CHARS` (50) of the limit.
+- The fade gradient uses 8-digit hex (`${color}00` → `${color}`) to go from
+  transparent to the note colour without knowing the colour's alpha.
+
+### Verification (this machine)
+- `npm run build` ✓, `npm run typecheck` ✓ (covers src + all test dirs).
+- `npm run test:unit` → 49 passed (camera 13 from story 1; board model 17;
+  sticky text 19 incl. the font-fit search).
+- `npm run test:component` → 39 passed (story 1: 14; story 2: 25 — StickyNote 15,
+  StickyTextEditor 5, Toolbars 5).
+- `npx playwright test --project=chromium` → 14 passed (story 1: 7, story 2: 7).
+  The `firefox` and `webkit` projects are still configured but abort on launch on
+  this host, exactly as recorded for story 1; story 2 adds no new engine issues.

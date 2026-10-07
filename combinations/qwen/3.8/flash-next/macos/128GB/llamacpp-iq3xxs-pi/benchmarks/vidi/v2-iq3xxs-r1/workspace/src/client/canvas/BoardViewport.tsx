@@ -8,7 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
-import { GRID_SPACING_WORLD } from '../../shared/config';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import { type Point, type Size } from './camera';
 import { useCamera, type UseCamera } from './useCamera';
 
@@ -93,12 +93,29 @@ interface GestureLike {
 // identically in the browser and in tests.
 // ---------------------------------------------------------------------------
 
-export function BoardViewport({ children }: { children?: ReactNode }) {
+export interface BoardViewportProps {
+  children?: ReactNode;
+  /**
+   * Double-click on empty board space, reported as a screen-space point relative
+   * to the viewport (story 2 creates a sticky note centred on it).
+   */
+  onCreateStickyAt?(point: Point): void;
+  /** A press on empty board space that did not turn into a pan (clears selection). */
+  onEmptyClick?(): void;
+}
+
+export function BoardViewport({ children, onCreateStickyAt, onEmptyClick }: BoardViewportProps) {
   const { camera, viewportRef, beginPan, panMove, endPan, wheel, zoomAtPoint, zoomStep, reset } =
     useBoardCamera();
   const [panning, setPanning] = useState(false);
   const activePointerRef = useRef<number | null>(null);
   const gestureScaleRef = useRef(1);
+  // Latest callbacks, so the input effect keeps a stable dependency list.
+  const createStickyRef = useRef(onCreateStickyAt);
+  createStickyRef.current = onCreateStickyAt;
+  const emptyClickRef = useRef(onEmptyClick);
+  emptyClickRef.current = onEmptyClick;
+  const pressRef = useRef<{ x: number; y: number; isClick: boolean } | null>(null);
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -117,18 +134,35 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
       activePointerRef.current = e.pointerId;
       el.setPointerCapture?.(e.pointerId);
       setPanning(true);
-      beginPan(toPoint(e));
+      const p = toPoint(e);
+      pressRef.current = { x: p.x, y: p.y, isClick: true };
+      beginPan(p);
     };
     const onPointerMove = (e: PointerEvent) => {
       if (activePointerRef.current !== e.pointerId) return;
-      panMove(toPoint(e));
+      const p = toPoint(e);
+      const press = pressRef.current;
+      if (press && Math.hypot(p.x - press.x, p.y - press.y) >= DRAG_THRESHOLD_PX) {
+        press.isClick = false; // a pan is not a click on empty space
+      }
+      panMove(p);
     };
     const finishPan = (e: PointerEvent) => {
       if (activePointerRef.current !== e.pointerId) return;
       activePointerRef.current = null;
       el.releasePointerCapture?.(e.pointerId);
+      const press = pressRef.current;
+      pressRef.current = null;
       endPan();
       setPanning(false);
+      // Clicking empty board space clears the selection (sticky.select).
+      if (press?.isClick) emptyClickRef.current?.();
+    };
+    const onDoubleClick = (e: MouseEvent) => {
+      // Empty board space only; a note stops the event before it gets here.
+      if (e.target !== el) return;
+      e.preventDefault();
+      createStickyRef.current?.(toPoint(e));
     };
 
     // --- Wheel / Safari gesture --------------------------------------------
@@ -181,6 +215,7 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
     el.addEventListener('pointerup', finishPan);
     el.addEventListener('pointercancel', finishPan);
     el.addEventListener('lostpointercapture', finishPan);
+    el.addEventListener('dblclick', onDoubleClick);
     el.addEventListener('wheel', onWheel, { passive: false });
     el.addEventListener('gesturestart', onGestureStart as EventListener);
     el.addEventListener('gesturechange', onGestureChange as EventListener);
@@ -192,6 +227,7 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
       el.removeEventListener('pointerup', finishPan);
       el.removeEventListener('pointercancel', finishPan);
       el.removeEventListener('lostpointercapture', finishPan);
+      el.removeEventListener('dblclick', onDoubleClick);
       el.removeEventListener('wheel', onWheel);
       el.removeEventListener('gesturestart', onGestureStart as EventListener);
       el.removeEventListener('gesturechange', onGestureChange as EventListener);
