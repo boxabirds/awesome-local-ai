@@ -189,3 +189,91 @@ the live `Y.Doc` so tests can act as a second client without any UI.
 - `npx playwright test --project=chromium` → 14 passed (story 1: 7, story 2: 7).
   The `firefox` and `webkit` projects are still configured but abort on launch on
   this host, exactly as recorded for story 1; story 2 adds no new engine issues.
+
+---
+
+## Story 3: See other people's edits appear live on the same board
+
+### Where the room lives, and how to reach it
+- The Worker route is `/api/rooms/:boardId`; `src/worker/index.ts` answers `426 Upgrade Required`
+  when the id is valid but there is no `Upgrade: websocket`, `400` for a malformed id, and falls
+  through to the assets binding otherwise.
+- `y-websocket` builds its URL as `serverUrl + '/' + roomname + '?...'`, so `connectBoard` passes
+  `serverUrl = ws(s)://<host>/api/rooms` and the board id as the room name. Nothing else in the
+  client hardcodes the path.
+- In a Durable Object response the client half of the pair is `response.webSocket` (there is no
+  `webSocketPair`); the caller must call `ws.accept()` before reading or sending.
+- `vite.base` must stay `'/'`. With `'./'` a deep link like `/b/<id>` resolves `./assets/x.js` to
+  `/b/assets/x.js`, which hits the SPA fallback and dies as "Failed to load module script … MIME
+  type text/html".
+
+### Test infra gotchas (both cost real time before they were understood)
+- **A reused `wrangler dev` can serve a stale asset manifest.** After a rebuild the old process
+  still answers `/assets/index-<old>.js` from the SPA fallback, and the browser fails the module
+  load. The orphan server on 25232 cannot be killed from this sandbox, so the Playwright config
+  reads `VIDI6_PORT` / `VIDI6_INSPECTOR_PORT` (defaults 25232 / 25233, both inside the allowed
+  range). A reliable local run is therefore e.g.
+  `VIDI6_PORT=25244 VIDI6_INSPECTOR_PORT=25245 npx playwright test --project nightly` (avoiding
+  25234, which is the vite dev server's own port), where
+  Playwright starts its own server and builds first.
+- `tests/e2e/helpers/sync.ts` waits for the board with an explicit 15 s `BOOT_TIMEOUT_MS`. Without
+  it a broken bundle/server burns the whole test budget in default-timeout waits and the failure
+  message is a mystery; with it the run fails where it should.
+- `vitest-pool-workers` needs `isolatedStorage: false`, so integration tests isolate with *unique
+  board ids* rather than fresh storage.
+
+### Forcing a real disconnect
+`context.setOffline(true)` does not close an already-open WebSocket, so it cannot stand in for a
+dropped connection. The connection exposes test seams `dropConnection()` / `resumeConnection()`
+(which call `provider.disconnect()` / `connect()` — y-websocket keeps `shouldConnect=false` after
+`disconnect()`, so it really stays down) and `getConnectionState()`, patched into `window.__vidi6`
+in test mode only.
+
+### Awareness
+The room relays awareness and ignores echoes (a stale clock is dropped by
+`applyAwarenessUpdate`), and the periodic awareness renewal is what keeps `wsLastMessageReceived`
+fresh — nightly TC-29 asserts the room keeps talking to an idle screen (received frame count
+grows while nothing is typed).
+
+`provider.awareness.getStates()` is **empty** on every client, because nothing in the app sets a
+local awareness field. So "who is still in this room" is not observable from a client, and a
+`getPeerCount()` test hook would always report 0; it was removed again. The nightly teardown check
+instead watches the screen that survives the others closing: same number of sockets as before, no
+badge, still `connected`, and its next edit still reaches the room.
+
+### Caret behaviour under concurrent typing
+`applyRemoteDelta` shifts the local caret for remote inserts and deletes
+(`shiftForInsert` / `shiftForDelete`); the boundary case is "an insert at exactly the caret keeps
+the caret *before* the inserted text". Pure remote inserts never move the caret backwards, which is
+what the e2e caret check asserts after placing the caret with a **click**.
+
+Worth knowing: while both screens were typing, a remote *replace* (the other editor's textarea
+flush diffing out a delete followed by an insert on the far side of the caret) was observed to
+leave the caret a few characters earlier than the user had put it, once in a while. Not chased; a
+candidate for a follow-up if caret fidelity during heavy shared editing becomes a story.
+
+### Nightly project
+`npm run test:e2e:nightly` builds in test mode and runs `--project nightly` (specs tagged
+`@nightly` under `tests/e2e-nightly/`); `npm run test:e2e` greps them out. The nightly project has
+a 10 minute per-test timeout because a 45 s idle window and a 60 s soak are the tests themselves.
+TC-30 runs `MAX_CONCURRENT_EDITORS` (5) screens for 60 s of seeded random UI edits (create, type,
+move, recolour, delete; seed printed in the report), measures the delay of every create/type change
+to the slowest other screen, and prints p50/p95/max against `LIVE_UPDATE_LATENCY_BUDGET_MS` —
+reported, never asserted. Convergence *is* asserted: per measured change, and again by comparing
+the final `getSnapshot()` of every screen. Spots for new notes must sit further apart than
+`STICKY_SIZE_WORLD` (200) or the double-click opens an existing note instead of creating one.
+
+### Verification (this machine, story 3 final state)
+- `npm run typecheck` ✓ (src + all test dirs, incl. `tests/e2e-nightly`).
+- `npm run test:unit` → 71 passed (board model 17, camera 13, sticky text 19 + `applyRemoteDelta`,
+  board id, protocol, board route).
+- `npm run test:component` → 45 passed (story 2's 39 + ConnectionStatus 6).
+- `npm run test:integration` → 27 passed in workerd (10 Worker routing, 17 BoardRoom); 10
+  consecutive clean runs while writing them, no flakes.
+- `npm run test:e2e` → 25 passed (story 2's 14 + story 3's 11) against a freshly built server.
+- `npm run test:e2e:nightly` → 2 passed in ~1:55: TC-29 idle (stayed `connected:0` for 45 s, edit
+  after the quiet landed in 18 ms), TC-30 soak (83 ops, 49 measured changes, p50 26 ms /
+  p95 98 ms / max 200 ms, all converged).
+- Firefox/WebKit still cannot launch here (see story 1 note). `VIDI6_BROWSERS` defaults to
+  `chromium`; `VIDI6_BROWSERS=chromium,firefox,webkit` restores the full matrix, including the
+  `nightly-firefox` / `nightly-webkit` projects.

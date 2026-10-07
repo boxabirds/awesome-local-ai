@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BoardCameraProvider,
   BoardViewport,
@@ -18,6 +18,9 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectOptions, ProviderLike } from './sync/connectBoard';
+import { newBoardId } from '../shared/board-id';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
 
 function ZoomControlsConnector() {
@@ -50,8 +53,23 @@ function isTextEntry(target: EventTarget | null): boolean {
  * The board: the document, the local selection, the object layer inside the
  * transformed world, the toolbars outside it, and the board-level keyboard.
  */
-function Board() {
-  const { doc, notes } = useBoardDoc();
+interface BoardProps {
+  readonly boardId: string;
+  /** Component tests render a board with no network at all. */
+  readonly sync: boolean;
+  /** Fake provider / clock for the connection status component tests. */
+  readonly provider?: ProviderLike;
+  readonly connect?: ConnectOptions;
+}
+
+function Board({ boardId, sync, provider, connect }: BoardProps) {
+  const { doc, notes, connection, connectionState } = useBoardDoc(boardId, {
+    sync,
+    provider,
+    connect,
+  });
+  const connectionRef = useRef(connection);
+  connectionRef.current = connection;
   const selection = useSelection();
   const { camera, viewport } = useBoardCamera();
   const { select, startEdit, endEdit, selectedId, editingId } = selection;
@@ -59,12 +77,14 @@ function Board() {
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
 
-  // A note that is gone (deleted here or, later, by somebody else) cannot stay
-  // selected, and its toolbar must disappear with it.
+  // A note that is gone — deleted here, or deleted on another screen and removed
+  // from the document by the sync — cannot stay selected or stay open for editing:
+  // its toolbar and its editor disappear with it (PRD live.delete_during_edit).
   useEffect(() => {
-    if (!selectedId) return;
-    if (!notes.some((n) => n.id === selectedId)) select(null);
-  }, [notes, selectedId, select]);
+    const { selectedId: selected, editingId: editing } = selectionRef.current;
+    if (selected !== null && !notes.some((n) => n.id === selected)) select(null);
+    if (editing !== null && !notes.some((n) => n.id === editing)) select(null);
+  }, [notes, selectedId, editingId, select]);
 
   /** Create a note centred on a screen-space point, and start typing it. */
   const createAtScreenPoint = useCallback(
@@ -113,9 +133,23 @@ function Board() {
         selectedId: selectionRef.current.selectedId,
         editingId: selectionRef.current.editingId,
       }),
+      // Nightly TC-29 reads this: the badge text is the UI, this is the state.
+      getConnectionState: () => connectionState,
+      // The browser tests cannot unplug a socket from the outside, so they ask
+      // for a real close (and a real reconnect) through the same provider.
+      dropConnection: () => connectionRef.current?.dropConnection(),
+      resumeConnection: () => connectionRef.current?.resumeConnection(),
     });
-    return () => unpatchTestHook(['getDoc', 'getSnapshot', 'getSelection']);
-  }, [doc]);
+    return () =>
+      unpatchTestHook([
+        'getDoc',
+        'getSnapshot',
+        'getSelection',
+        'getConnectionState',
+        'dropConnection',
+        'resumeConnection',
+      ]);
+  }, [doc, connectionState]);
 
   const onSelect = useCallback((id: string) => select(id), [select]);
   const onStartEdit = useCallback((id: string) => startEdit(id), [startEdit]);
@@ -142,14 +176,34 @@ function Board() {
         ))}
       </BoardViewport>
       <Toolbar onCreateSticky={onCreateSticky} />
+      <ConnectionStatus state={connectionState} />
     </>
   );
 }
 
-export function App() {
+export interface AppProps {
+  /**
+   * Which board to join. `main.tsx` passes the id from the URL; component tests
+   * pass their own. Omit it and a fresh one is made for you.
+   */
+  boardId?: string;
+  /**
+   * Connect to the room. False renders the board with no network at all, which is
+   * what the jsdom component tests want: they test the board, not the socket.
+   */
+  sync?: boolean;
+  /** Provider override for the connection status tests (TC-19..TC-21). */
+  provider?: ProviderLike;
+  /** Connection seams (fake clock / provider) used by those same tests. */
+  connect?: ConnectOptions;
+}
+
+export function App({ boardId, sync = true, provider, connect }: AppProps = {}) {
+  // Stable for the lifetime of this page: leaving a board means navigating.
+  const [resolvedBoardId] = useState(() => boardId ?? newBoardId());
   return (
     <BoardCameraProvider>
-      <Board />
+      <Board boardId={resolvedBoardId} sync={sync} provider={provider} connect={connect} />
       <ZoomControlsConnector />
       <NavigationHintConnector />
     </BoardCameraProvider>

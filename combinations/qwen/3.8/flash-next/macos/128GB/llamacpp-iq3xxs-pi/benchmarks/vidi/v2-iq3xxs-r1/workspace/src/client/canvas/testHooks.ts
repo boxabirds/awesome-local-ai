@@ -1,5 +1,6 @@
 import type * as Y from 'yjs';
 import type { Camera } from './camera';
+import type { ConnectionState } from '../sync/connectBoard';
 import type { StickySnapshot } from '../../shared/board-model';
 
 export interface BoardSelectionState {
@@ -21,6 +22,12 @@ export interface BoardTestApi {
   getDoc(): Y.Doc;
   /** Local selection / editing ids (story 2). */
   getSelection(): BoardSelectionState;
+  /** Connection state behind the badge (story 3, nightly TC-29). */
+  getConnectionState(): ConnectionState;
+  /** Close the board's socket without leaving the board (browser tests). */
+  dropConnection(): void;
+  /** Reconnect after `dropConnection()`. */
+  resumeConnection(): void;
 }
 
 declare global {

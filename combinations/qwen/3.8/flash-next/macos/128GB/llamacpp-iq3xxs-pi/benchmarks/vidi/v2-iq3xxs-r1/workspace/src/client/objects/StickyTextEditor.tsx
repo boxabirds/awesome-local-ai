@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type * as Y from 'yjs';
+import * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import { applyRemoteDelta, applyTextDiff, clampToLimit, counterVisible } from './StickyText';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -55,6 +55,29 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     const end = el.value.length;
     el.setSelectionRange(end, end);
   }, []);
+
+  // Somebody else typed in this note while we are typing in it: their change is
+  // applied to what we are holding, and the caret stays where we left it (PRD
+  // live.concurrent_text). Updates from our own keystrokes are ignored — the
+  // textarea is already ahead of the document there. Changes arriving mid-
+  // composition are left to the next flush, which diffs rather than replaces.
+  useEffect(() => {
+    const onText = (event: Y.YTextEvent, transaction: Y.Transaction): void => {
+      if (transaction.origin === LOCAL_ORIGIN) return;
+      const el = ref.current;
+      if (!el || composingRef.current) return;
+      const next = applyRemoteDelta(
+        el.value,
+        { start: el.selectionStart ?? 0, end: el.selectionEnd ?? 0 },
+        event.delta,
+      );
+      el.value = next.value;
+      el.setSelectionRange(next.selection.start, next.selection.end);
+      setLength((prev) => (prev === next.value.length ? prev : next.value.length));
+    };
+    ytext.observe(onText);
+    return () => ytext.unobserve(onText);
+  }, [ytext]);
 
   // A pointerdown anywhere outside this note ends editing without losing text.
   useEffect(() => {

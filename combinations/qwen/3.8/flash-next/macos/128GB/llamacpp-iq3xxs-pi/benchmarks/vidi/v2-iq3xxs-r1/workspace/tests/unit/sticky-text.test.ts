@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import * as Y from 'yjs';
 import {
+  applyRemoteDelta,
   applyTextDiff,
   clampToLimit,
   counterVisible,
   fitTextFontSize,
+  type DeltaOp,
   STICKY_TEXT_BOX_WORLD,
   type MeasureFont,
 } from '../../src/client/objects/StickyText';
@@ -252,6 +254,68 @@ describe('font fit (the fit behind TC-33)', () => {
     expect(fitTextFontSize('   \n  ', wrapMeasure('   \n  '))).toEqual({
       fontPx: STICKY_FONT_MAX_PX,
       overflow: false,
+    });
+  });
+});
+
+describe('remote changes while editing (TC-23 caret rule)', () => {
+  it('moves the caret along with text somebody else inserts before it', () => {
+    // `retain: 6` is "hello ", then they typed "there " before our caret at 11.
+    expect(
+      applyRemoteDelta('hello world', { start: 11, end: 11 }, [
+        { retain: 6 },
+        { insert: 'there ' },
+      ]),
+    ).toEqual({ value: 'hello there world', selection: { start: 17, end: 17 } });
+  });
+
+  it('leaves the caret where it is when they type after it', () => {
+    expect(
+      applyRemoteDelta('hello world', { start: 5, end: 5 }, [
+        { retain: 11 },
+        { insert: '!!!' },
+      ]),
+    ).toEqual({ value: 'hello world!!!', selection: { start: 5, end: 5 } });
+  });
+
+  it('pulls the caret back over text they deleted, and stops at the hole', () => {
+    // They deleted " world" (6..11); our caret was at 11 -> now at the hole.
+    expect(
+      applyRemoteDelta('hello world', { start: 11, end: 11 }, [
+        { retain: 6 },
+        { delete: 5 },
+      ]),
+    ).toEqual({ value: 'hello ', selection: { start: 6, end: 6 } });
+    // Our caret was in the middle of what they deleted -> lands at its start.
+    expect(
+      applyRemoteDelta('hello world', { start: 8, end: 8 }, [{ retain: 6 }, { delete: 5 }]),
+    ).toEqual({ value: 'hello ', selection: { start: 6, end: 6 } });
+    // Our caret was before it: nothing moves.
+    expect(
+      applyRemoteDelta('hello world', { start: 3, end: 3 }, [{ retain: 6 }, { delete: 5 }]),
+    ).toEqual({ value: 'hello ', selection: { start: 3, end: 3 } });
+  });
+
+  it('applies a real Y.Text delta without touching our own text', () => {
+    const doc = new Y.Doc();
+    const ytext = doc.getText('note');
+    ytext.insert(0, 'quarterly review');
+    // The delta is read from a real observer rather than hand-written, so this
+    // test breaks if Yjs ever changes the shape we are applying.
+    let delta: DeltaOp[] = [];
+    const observer = (event: Y.YTextEvent): void => {
+      delta = event.delta as DeltaOp[];
+    };
+    ytext.observe(observer);
+    ytext.insert(0, 'Q: ');
+    ytext.unobserve(observer);
+
+    // Yjs trims trailing retains: an op list stops at the last change, and
+    // everything after it is unchanged.
+    expect(delta).toEqual([{ insert: 'Q: ' }]);
+    expect(applyRemoteDelta('quarterly review', { start: 4, end: 4 }, delta)).toEqual({
+      value: 'Q: quarterly review',
+      selection: { start: 7, end: 7 },
     });
   });
 });

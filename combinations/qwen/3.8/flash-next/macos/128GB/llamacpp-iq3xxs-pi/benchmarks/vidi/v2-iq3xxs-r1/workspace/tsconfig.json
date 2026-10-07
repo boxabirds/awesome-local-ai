@@ -5,7 +5,9 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["node","vite/client"],
+    // "/experimental" is the DOM-compatible variant of the Workers types, so the
+    // client (DOM) and the Worker (cloudflare:workers) typecheck in one program.
+    "types": ["node", "vite/client", "@cloudflare/workers-types/experimental"],
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,
@@ -21,9 +23,11 @@
   "include": [
     "src",
     "tests/unit",
+    "tests/integration",
     "tests/fixtures",
     "tests/component",
     "tests/e2e",
+    "tests/e2e-nightly",
     "vite.config.ts",
     "vitest.config.ts",
     "playwright.config.ts"

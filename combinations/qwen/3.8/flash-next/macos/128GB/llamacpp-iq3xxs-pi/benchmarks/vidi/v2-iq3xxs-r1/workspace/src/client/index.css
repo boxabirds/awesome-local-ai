@@ -315,3 +315,33 @@ body {
   line-height: 1;
   cursor: pointer;
 }
+
+/* --- Connection badge (story 3, PRD conn.badge) ----------------------------
+   Fixed top-centre in screen space. A board that is in sync renders nothing at
+   all, so this never sits in front of an exercise; `pointer-events: none` keeps
+   it from ever stealing a click from the board underneath. */
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: #fff7e6;
+  color: #8a5a00;
+  font: 500 13px/1.4 system-ui, -apple-system, sans-serif;
+  pointer-events: none;
+}
+.connection-status--reconnecting {
+  background: #fdf1dc;
+  color: #8a5a00;
+  border-color: #e0b978;
+}
+/* The reconnection confirmation is green and briefly replaces the warning. */
+.connection-status--confirmed {
+  background: #e8f5e9;
+  color: #1e6b2e;
+  border-color: #9fd4a8;
+}

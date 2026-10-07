@@ -8,6 +8,7 @@ test-results
 .DS_Store
 
 # local run artifacts
+.cache/
 test-results/
 playwright-report/
 .wrangler

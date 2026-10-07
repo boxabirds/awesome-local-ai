@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import * as Y from 'yjs';
 import {
   initDoc,
@@ -6,25 +13,73 @@ import {
   OBJECTS_MAP,
   type StickySnapshot,
 } from '../../shared/board-model';
+import {
+  connectBoard,
+  type BoardConnection,
+  type ConnectOptions,
+  type ConnectionState,
+  type ProviderLike,
+} from '../sync/connectBoard';
 
 export interface BoardDoc {
   readonly doc: Y.Doc;
   /** Sticky notes in paint order; a new array only when the document changed. */
   readonly notes: readonly StickySnapshot[];
+  /** This board's connection, or null when the board is offline-by-construction. */
+  readonly connection: BoardConnection | null;
+  readonly connectionState: ConnectionState;
+}
+
+export interface UseBoardDocOptions {
+  /** Attach the network provider (off in component tests). Default true. */
+  sync?: boolean;
+  /** Provider override used by the connection status component tests. */
+  provider?: ProviderLike;
+  /** Connection seams (fake clock / provider) for the badge tests. */
+  connect?: ConnectOptions;
 }
 
 /**
- * Owns this page's `Y.Doc` (in memory only in story 2; story 3 attaches a
- * network provider to the same document, story 4 persists it) and exposes an
- * immutable snapshot of it to React through `useSyncExternalStore`, so renders
- * are driven by `observeDeep` rather than by component state.
+ * Owns this page's `Y.Doc` for one board: `initDoc` for the shape, the network
+ * provider for live collaboration (story 3), and an immutable snapshot exposed to
+ * React through `useSyncExternalStore`, so renders are driven by `observeDeep` —
+ * whether the change came from this keyboard or from another screen.
+ *
+ * `boardId` is the address of the board: changing it leaves one room and joins
+ * another, destroying the old connection on the way.
  */
-export function useBoardDoc(): BoardDoc {
+export function useBoardDoc(
+  boardId: string,
+  { sync = true, provider, connect }: UseBoardDocOptions = {},
+): BoardDoc {
   const doc = useMemo(() => {
     const next = new Y.Doc();
     initDoc(next);
     return next;
   }, []);
+
+  const [connectionState, setConnectionState] = useState<ConnectionState>(
+    sync ? 'connecting' : 'connected',
+  );
+  const [connection, setConnection] = useState<BoardConnection | null>(null);
+
+  // The seams are read through a ref: passing a fresh options object on every
+  // render must not reconnect the board.
+  const seamsRef = useRef(connect);
+  seamsRef.current = connect;
+
+  useEffect(() => {
+    if (!sync) return;
+    const next = connectBoard(doc, boardId, setConnectionState, {
+      ...seamsRef.current,
+      provider,
+    });
+    setConnection(next);
+    return () => {
+      setConnection(null);
+      next.destroy();
+    };
+  }, [doc, boardId, sync, provider]);
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
@@ -69,5 +124,5 @@ export function useBoardDoc(): BoardDoc {
     getSnapshot,
   );
 
-  return { doc, notes };
+  return { doc, notes, connection, connectionState };
 }

@@ -12,7 +12,7 @@ import {
 } from './util';
 
 function setup() {
-  render(<App />);
+  render(<App sync={false} />);
   const viewport = screen.getByTestId('board-viewport');
   const world = screen.getByTestId('board-world');
   const controls = screen.getByTestId('zoom-controls');

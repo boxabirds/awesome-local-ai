@@ -25,7 +25,7 @@ function selectNote(): void {
 describe('toolbars (sticky.interaction)', () => {
   // TC-27: the colour swatches recolour the selected note without moving it.
   it('TC-27 recolours the selected note through the Pink swatch', async () => {
-    render(<App />);
+    render(<App sync={false} />);
     const note = await createUnselectedNote(); // default colour yellow
     expect(note.color).toBe('yellow');
     selectNote();
@@ -48,7 +48,7 @@ describe('toolbars (sticky.interaction)', () => {
   });
 
   it('offers exactly the six note colours as accessible swatches', async () => {
-    render(<App />);
+    render(<App sync={false} />);
     await clickCreateSticky();
     await press('{Escape}');
 
@@ -63,7 +63,7 @@ describe('toolbars (sticky.interaction)', () => {
 
   // TC-28: the toolbar button creates a note in the centre, ready to type.
   it('TC-28 creates a note in the centre of the board and starts editing it', async () => {
-    render(<App />);
+    render(<App sync={false} />);
     const button = screen.getByTestId('create-sticky');
     expect(button.getAttribute('aria-label')).toBe('Sticky note');
     expect(button.getAttribute('title')).toBe('Sticky note – or double-click the board');
@@ -90,7 +90,7 @@ describe('toolbars (sticky.interaction)', () => {
 
   // TC-29: the bin button removes the note and its toolbar.
   it('TC-29 removes the note and its toolbar with the delete button', async () => {
-    render(<App />);
+    render(<App sync={false} />);
     await createUnselectedNote();
     selectNote();
 
@@ -103,7 +103,7 @@ describe('toolbars (sticky.interaction)', () => {
   });
 
   it('shows the toolbar only while the note is selected and not edited', async () => {
-    render(<App />);
+    render(<App sync={false} />);
     await clickCreateSticky();
     expect(screen.queryByTestId('note-toolbar')).toBeNull(); // editing: no toolbar
     expect(screen.getByTestId('sticky-note-input')).not.toBeNull();

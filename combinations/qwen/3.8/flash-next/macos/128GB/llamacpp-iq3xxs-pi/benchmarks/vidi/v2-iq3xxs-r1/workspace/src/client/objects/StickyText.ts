@@ -107,6 +107,68 @@ export function applyTextDiff(
   else run();
 }
 
+/**
+ * A remote change to a text we are currently typing in (story 3). `delta` is the
+ * `Y.Text` delta of the transaction; local selections are UTF-16 ranges into the
+ * *previous* text, which is what the delta is relative to as well.
+ */
+export interface TextSelection {
+  readonly start: number;
+  readonly end: number;
+}
+
+export interface RemoteTextChange {
+  readonly value: string;
+  readonly selection: TextSelection;
+}
+
+/** One operation of a `Y.Text` delta (embeds are treated as zero-width). */
+export type DeltaOp = { retain?: number; insert?: string | unknown; delete?: number };
+
+/** A boundary when text is inserted at `pos` (a boundary at `pos` stays behind). */
+const shiftForInsert = (boundary: number, pos: number, length: number): number =>
+  boundary > pos ? boundary + length : boundary;
+
+/** A boundary when [pos, until) is deleted (one inside the hole lands at its start). */
+const shiftForDelete = (boundary: number, pos: number, until: number): number =>
+  boundary <= pos ? boundary : boundary < until ? pos : boundary - (until - pos);
+
+/**
+ * Apply somebody else's change to the textarea we are typing in, keeping the
+ * caret where the person left it (PRD live.concurrent_text): text inserted before
+ * the caret pushes it along, text deleted before it pulls it back, and a caret
+ * inside deleted text lands at the start of the hole. The local caret is never
+ * jumped to the end of the note, and the local text is never lost — which is the
+ * same reason the local write is a minimal diff rather than a replace.
+ */
+export function applyRemoteDelta(
+  value: string,
+  selection: TextSelection,
+  delta: readonly DeltaOp[],
+): RemoteTextChange {
+  let { start, end } = selection;
+  let out = '';
+  let pos = 0;
+  for (const op of delta) {
+    if (typeof op.retain === 'number') {
+      out += value.slice(pos, pos + op.retain);
+      pos += op.retain;
+    } else if ('insert' in op) {
+      const text = typeof op.insert === 'string' ? op.insert : '';
+      start = shiftForInsert(start, pos, text.length);
+      end = shiftForInsert(end, pos, text.length);
+      out += text;
+    } else if (typeof op.delete === 'number') {
+      const until = pos + op.delete;
+      start = shiftForDelete(start, pos, until);
+      end = shiftForDelete(end, pos, until);
+      pos = until;
+    }
+  }
+  out += value.slice(pos);
+  return { value: out, selection: { start, end } };
+}
+
 export interface FontFit {
   fontPx: number;
   overflow: boolean;

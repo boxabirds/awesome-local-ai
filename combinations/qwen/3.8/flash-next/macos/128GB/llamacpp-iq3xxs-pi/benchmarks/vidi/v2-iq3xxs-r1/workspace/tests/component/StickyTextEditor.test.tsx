@@ -32,7 +32,7 @@ function displayedText(): string {
 describe('StickyTextEditor (sticky.interaction)', () => {
   // TC-23: Enter starts editing with the caret at the end of the text.
   it('TC-23 starts editing on Enter with focus and the caret at the end', async () => {
-    render(<App />);
+    render(<App sync={false} />);
     const note = await createUnselectedNote(); // text: 'Faster onboarding'
     clickWithPointer(noteEl(), AT);
     expect(screen.queryByTestId('sticky-note-input')).toBeNull();
@@ -50,7 +50,7 @@ describe('StickyTextEditor (sticky.interaction)', () => {
 
   // TC-24: Escape ends editing, keeps the selection, and keeps every character.
   it('TC-24 ends editing on Escape, keeps the selection and the text', async () => {
-    render(<App />);
+    render(<App sync={false} />);
     const note = await createUnselectedNote();
     clickWithPointer(noteEl(), AT);
     dispatchKey({ key: 'Enter' });
@@ -70,7 +70,7 @@ describe('StickyTextEditor (sticky.interaction)', () => {
 
   // TC-26: Backspace inside the editor edits text, it never deletes the note.
   it('TC-26 keeps Backspace inside the editor as text editing', async () => {
-    render(<App />);
+    render(<App sync={false} />);
     await clickCreateSticky();
     await typeText('ab');
     expect(getSnapshot()[0]!.text).toBe('ab');
@@ -90,7 +90,7 @@ describe('StickyTextEditor (sticky.interaction)', () => {
 
   // TC-38: a click outside commits the text and unmounts the editor.
   it('TC-38 commits the text and unmounts the editor when the click is outside', async () => {
-    render(<App />);
+    render(<App sync={false} />);
     await clickCreateSticky();
     await typeText('abc');
     const id = getSnapshot()[0]!.id;
@@ -108,7 +108,7 @@ describe('StickyTextEditor (sticky.interaction)', () => {
   });
 
   it('shows the character counter only near the limit and reports the real length', async () => {
-    render(<App />);
+    render(<App sync={false} />);
     await clickCreateSticky();
     expect(screen.queryByTestId('sticky-text-counter')).toBeNull();
 
