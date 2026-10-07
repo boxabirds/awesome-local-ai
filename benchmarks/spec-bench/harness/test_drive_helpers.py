@@ -904,6 +904,8 @@ def test_a_port_nothing_listens_on_has_no_server_pid(monkeypatch):
 
 
 def test_the_server_s_footprint_is_unknown_without_a_port_or_a_listener(monkeypatch):
+    drive.reset_engine_pid_cache()
+    monkeypatch.setattr(drive, "process_rows", lambda: [])     # nothing that looks like an engine either
     monkeypatch.setattr(drive, "server_pid", never)
     assert drive.server_footprint_gb(None) == (None, None)
     monkeypatch.setattr(drive, "server_pid", lambda port: None)
@@ -912,16 +914,20 @@ def test_the_server_s_footprint_is_unknown_without_a_port_or_a_listener(monkeypa
 
 
 def test_the_server_s_footprint_on_linux_is_hostenv_s(monkeypatch):
+    drive.reset_engine_pid_cache()
     monkeypatch.setattr(drive, "IS_MAC", False)
     monkeypatch.setattr(drive, "server_pid", lambda port: 77)
+    monkeypatch.setattr(drive, "process_rows", lambda: [(77, 90_000_000, "/usr/bin/llama-server --port 18010")])
     monkeypatch.setattr(hostenv, "linux_process_gb", lambda pid: (pid / 10, pid / 5))
     fake_run(monkeypatch, never)
     assert drive.server_footprint_gb(18010) == (7.7, 15.4)
 
 
 def test_the_server_s_footprint_on_macos_is_read_from_footprint(monkeypatch):
+    drive.reset_engine_pid_cache()
     monkeypatch.setattr(drive, "IS_MAC", True)
     monkeypatch.setattr(drive, "server_pid", lambda port: 77)
+    monkeypatch.setattr(drive, "process_rows", lambda: [(77, 90_000_000, "/usr/bin/llama-server --port 18010")])
     calls = fake_run(monkeypatch, lambda cmd, **k: done("  phys_footprint: 90 GB\n  phys_footprint_peak: 2048 MB\n"))
     assert drive.server_footprint_gb(18010) == (90.0, 2.0)
     assert [c for c, _ in calls] == [["footprint", "-p", "77"]]
@@ -1373,3 +1379,60 @@ def test_the_agent_s_own_commits_carry_a_name_that_says_nothing_and_the_harness_
                                         "GIT_COMMITTER_NAME": "agent", "GIT_COMMITTER_EMAIL": "agent@localhost.invalid"}
     assert drive.GIT_IDENTITY["GIT_AUTHOR_NAME"] == "vidi-agent"
     assert "vidi" not in " ".join(drive.AGENT_GIT_IDENTITY.values())
+
+
+# ---------- the footprint of a containerised engine ----------
+
+def test_the_engine_is_measured_not_the_container_port_shim(monkeypatch):
+    drive.reset_engine_pid_cache()
+    """The listener on the port is podman's shim; the engine is the big process beside it."""
+    monkeypatch.setattr(drive, "server_pid", lambda port: 101)
+    monkeypatch.setattr(drive, "process_rows", lambda: [
+        (101, 2048, "/usr/libexec/podman/rootlessport"),
+        (103, 92_000_000, "gufo serve --host 0.0.0.0 llm --model /models/x.gguf"),
+    ])
+    assert drive.engine_pid(8080) == 103
+
+
+def test_a_plain_engine_on_the_port_is_used_as_it_is(monkeypatch):
+    drive.reset_engine_pid_cache()
+    monkeypatch.setattr(drive, "server_pid", lambda port: 200)
+    monkeypatch.setattr(drive, "process_rows", lambda: [(200, 90_000_000, "/usr/bin/llama-server --port 18010")])
+    assert drive.engine_pid(18010) == 200
+
+
+def test_no_listener_still_finds_the_engine_by_name(monkeypatch):
+    drive.reset_engine_pid_cache()
+    monkeypatch.setattr(drive, "server_pid", lambda port: None)
+    monkeypatch.setattr(drive, "process_rows", lambda: [(300, 88_000_000, "gufo serve llm --model x.gguf")])
+    assert drive.engine_pid(8080) == 300
+
+
+def test_nothing_that_looks_like_an_engine_is_none(monkeypatch):
+    drive.reset_engine_pid_cache()
+    monkeypatch.setattr(drive, "server_pid", lambda port: 101)
+    monkeypatch.setattr(drive, "process_rows", lambda: [(101, 2048, "conmon --api-version 1")])
+    assert drive.engine_pid(8080) is None
+
+
+def test_the_pid_is_looked_up_once_and_kept(monkeypatch):
+    """Finding the engine lists the process table. The condition sampler polls in a loop, and doing it per tick
+    slowed the loop enough that it recorded the FIRST low memory reading instead of the lowest."""
+    drive.reset_engine_pid_cache()
+    looks = []
+    monkeypatch.setattr(drive, "server_pid", lambda port: None)
+    monkeypatch.setattr(drive, "process_rows",
+                        lambda: looks.append(1) or [(300, 88_000_000, "gufo serve llm --model x.gguf")])
+    for _ in range(25):
+        assert drive.engine_pid(8080) == 300
+    assert len(looks) == 1
+
+
+def test_clearing_the_cache_makes_it_look_again(monkeypatch):
+    drive.reset_engine_pid_cache()
+    monkeypatch.setattr(drive, "server_pid", lambda port: None)
+    monkeypatch.setattr(drive, "process_rows", lambda: [(300, 88_000_000, "gufo serve llm --model x.gguf")])
+    assert drive.engine_pid(8080) == 300
+    drive.reset_engine_pid_cache()
+    monkeypatch.setattr(drive, "process_rows", lambda: [(400, 88_000_000, "/usr/bin/llama-server --port 1")])
+    assert drive.engine_pid(8080) == 400

@@ -1629,8 +1629,54 @@ def server_pid(port: int) -> int | None:
     return int(out[0]) if out else None
 
 
-def server_footprint_gb(port: int | None) -> tuple[float | None, float | None]:
+def process_rows() -> list[tuple[int, int, str]]:
+    """(pid, rss_kb, command) for every process. The same `ps` works on macOS and Linux."""
+    out = subprocess.run(["ps", "-axo", "pid=,rss=,command="], capture_output=True, text=True).stdout
+    rows = []
+    for line in out.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) == 3 and parts[0].isdigit() and parts[1].isdigit():
+            rows.append((int(parts[0]), int(parts[1]), parts[2]))
+    return rows
+
+
+ENGINE_PID_TTL_S = 60
+_engine_pid_cache: dict[int | None, tuple[float, int | None]] = {}
+
+
+def reset_engine_pid_cache() -> None:
+    """Forget the resolved pid. Called when a story starts, so each one resolves its own engine."""
+    _engine_pid_cache.clear()
+
+
+def engine_pid(port: int | None) -> int | None:
+    """The model server's pid: the process on its port, unless that is a container's port shim.
+
+    A containerised engine does not own the host socket -- podman puts rootlessport or conmon there -- so
+    measuring "the process on the port" measured the shim, and every gufo run recorded a footprint of 0.0 GB
+    while it held about 88 GB. When the listener is a shim, or there is no listener we can see, the engine is
+    found by name instead (podman rootless leaves it visible on the host).
+
+    Listing the process table is not free, so a caller that asks repeatedly should resolve once and keep the
+    pid (ConditionSampler does): a pid lookup per tick slowed the sampling loop enough to change what it
+    recorded.
+    """
+    cached = _engine_pid_cache.get(port)
+    if cached and time.monotonic() - cached[0] < ENGINE_PID_TTL_S:
+        return cached[1]
+    rows = process_rows()
     pid = server_pid(port) if port else None
+    found = None
+    if pid and not hostenv.is_container_shim({r[0]: r[2] for r in rows}.get(pid, "")):
+        found = pid
+    else:
+        found = hostenv.pick_engine_pid(rows)
+    _engine_pid_cache[port] = (time.monotonic(), found)
+    return found
+
+
+def server_footprint_gb(port: int | None) -> tuple[float | None, float | None]:
+    pid = engine_pid(port)
     if not pid:
         return None, None
     if not IS_MAC:
