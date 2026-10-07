@@ -10,7 +10,9 @@ import { TextObject } from './objects/TextObject';
 import { ShapeObject } from './objects/ShapeObject';
 import { ShapeToolbar } from './objects/ShapeToolbar';
 import { ConnectorObject } from './objects/ConnectorObject';
+import { PenToolbar } from './tools/PenToolbar';
 import { ShapeTool } from './tools/ShapeTool';
+import { PenTool } from './tools/PenTool';
 import { ConnectorTool } from './tools/ConnectorTool';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { SelectionOverlay } from './board/SelectionOverlay';
@@ -19,6 +21,7 @@ import { MarqueeRect } from './board/Marquee';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useActiveTool } from './tools/useActiveTool';
+import { usePenOptions } from './tools/usePenOptions';
 import { useTool } from './board/useTool';
 import { SHAPE_LABEL_MAX_CHARS, STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR, TEXT_SIZES, DEFAULT_TEXT_SIZE } from '@/shared/config';
 import { createSticky, deleteObjects as deleteObj, snapshot, initDoc, moveObjects } from '@/shared/board-model';
@@ -65,6 +68,12 @@ export function App(): ReactNode {
 
   // ---- Tool mode ----
   const { tool, shapeKind, setTool, setShapeKind, toolCreated: onToolCreated } = useActiveTool({ canEdit });
+
+  // ---- Identity (per session) ----
+  const identityId = useMemo(() => crypto.randomUUID(), []);
+
+  // ---- Pen options ----
+  const penOptions = usePenOptions();
 
   /** Called when a shape or connector is created — select it and switch to Select. */
   const handleToolCreated = useCallback(
@@ -436,6 +445,12 @@ export function App(): ReactNode {
           />
         );
       })()}
+      <PenToolbar
+        color={penOptions.color}
+        thickness={penOptions.thickness}
+        onColor={penOptions.setColor}
+        onThickness={penOptions.setThickness}
+      />
       <SelectionBar
         ids={ids}
         snapshot={allSnapshots}
@@ -457,11 +472,28 @@ export function App(): ReactNode {
         snapshot={snaps}
       >
         {/* Shape and Connector tools render overlays in world layer */}
-        {(tool === 'shape' || tool === 'connector') && (
-          <g
-            data-layer="tools"
-            style={{ transformOrigin: '0 0', transform: `scale(${cameraRef.current.zoom}) translate(${-cameraRef.current.x}px, ${-cameraRef.current.y}px)` }}
-          >
+        {/* Tool overlays */}
+        <g
+          data-layer="tools"
+          style={{ transformOrigin: '0 0', transform: `scale(${cameraRef.current.zoom}) translate(${-cameraRef.current.x}px, ${-cameraRef.current.y}px)` }}
+        >
+          {tool === 'pen' && (
+            <PenTool
+                camera={cameraRef.current}
+                color={penOptions.color}
+                thickness={penOptions.thickness}
+                doc={doc}
+                identityId={identityId}
+                zoom={cameraRef.current.zoom}
+                onCreated={() => {
+                  undoControllerRef.current?.boundary();
+                  const allSnaps = snap as unknown as readonly ObjectSnapshot[];
+                  const lastObj = allSnaps[allSnaps.length - 1];
+                  if (lastObj) click(lastObj.id);
+                  setTool('select');
+                }}
+              />
+            )}
             {tool === 'shape' && (
               <ShapeTool
                 kind={shapeKind}
@@ -470,7 +502,7 @@ export function App(): ReactNode {
                 onCreated={handleToolCreated}
               />
             )}
-            {tool === 'connector' && (
+            {tool === "connector" && (
               <ConnectorTool
                 camera={cameraRef.current}
                 snapshot={snaps}
@@ -478,7 +510,6 @@ export function App(): ReactNode {
               />
             )}
           </g>
-        )}
         {renderedObjects}
         <SelectionOverlay
           ids={ids}

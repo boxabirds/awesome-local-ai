@@ -165,6 +165,19 @@ export function Toolbar({ onCreateSticky, canUndo, canRedo, undo, redo, tool, se
       >
         ➜
       </button>
+
+      {/* Pen button */}
+      <button
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        title="Pen – P"
+        onClick={() => setTool('pen')}
+        disabled={!canEdit}
+        style={{ ...baseBtnStyle, backgroundColor: tool === 'pen' ? '#2979ff' : '#f5f5f5', color: tool === 'pen' ? '#fff' : '#333', opacity: canEdit ? 1 : 0.5 }}
+        data-testid="pen-tool-btn"
+      >
+        ✏️
+      </button>
     </div>
   );
 }
