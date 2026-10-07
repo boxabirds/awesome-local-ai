@@ -234,6 +234,33 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
 /** The smallest side a stroke may be resized to, in board units. */
 export const STROKE_MIN_SIZE_WORLD = 4;
 
+// ---- Images (story 12) ---------------------------------------------------
+
+/** The four raster types a board accepts (`image.types`). SVG is deliberately absent. */
+export const IMAGE_ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"] as const;
+/** Largest file a board accepts, in bytes (`image.size_limit`). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** How many images one drop, paste or pick may add (`image.count_limit`). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/** An added image is scaled down so its longest side is at most this many board units (`image.placement_size`). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** Smallest side an image may be resized to, in board units (`image.aspect_resize`). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** Space between two images placed in a row, in board units (`image.drop`). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/** How long an upload may stay `uploading` before everyone is told it did not finish (`image.unfinished`). */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/** `Cache-Control: max-age` for a stored asset; keys never change, so it is immutable (`assets.api`). */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** How many leading bytes of an upload the type sniffing looks at (`assets.api`). */
+export const IMAGE_SNIFF_BYTES = 12;
+/** R2 binding name for stored board images. */
+export const ASSETS_BUCKET_BINDING = "ASSETS_BUCKET";
+/** How long a toast stays on screen before it dismisses itself. */
+export const TOAST_DISMISS_MS = 5_000;
+/** How often the board re-renders while an image is uploading, so `image.unfinished` appears on its own. */
+export const IMAGE_UPLOAD_CLOCK_MS = 30_000;
+
 // ---- Undo and redo (story 8) -------------------------------------------
 
 /**

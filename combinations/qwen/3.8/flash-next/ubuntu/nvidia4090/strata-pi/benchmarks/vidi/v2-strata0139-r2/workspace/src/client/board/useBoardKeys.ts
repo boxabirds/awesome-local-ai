@@ -24,7 +24,8 @@ import type { UndoController } from "./undo";
  * Ctrl/Cmd+Z to undo this tab's last step, Ctrl/Cmd+Shift+Z (and Ctrl+Y) to redo
  * it, with a step boundary around every keyboard change. Story 9 adds the tool
  * keys: V and T switch between Select and Text, Escape leaves the Text tool, and
- * N creates a sticky note (the same thing the toolbar button does).
+ * N creates a sticky note (the same thing the toolbar button does). Story 12 adds
+ * I, which means the same as the toolbar's Image button.
  *
  * Story 8's shortcuts are refused exactly where the design says: while focus is
  * in an ordinary field (the share-link input, a note's own text editor, which
@@ -128,10 +129,17 @@ export function boardKeyCommand(
     }
     if (event.key === "n" || event.key === "N") return { type: "createSticky" };
     // Story 10's tool keys: S arms the Shape tool, L the Connector tool. Story 11
-    // adds P for the Pen. Leaving any of them is Escape or V. The other keys in the
-    // shortcut table belong to tools this board does not have yet.
+    // adds P for the Pen. Story 12 adds I, which means the same as the toolbar's
+    // Image button: it opens the file picker (App wires `tool: image` to
+    // `useImageInsert.openPicker`). Leaving any of them is Escape or V. The other
+    // keys in the shortcut table belong to tools this board does not have yet.
     const toolShortcut = toolForShortcut(event.key);
-    if (toolShortcut === "shape" || toolShortcut === "connector" || toolShortcut === "pen") {
+    if (
+      toolShortcut === "shape" ||
+      toolShortcut === "connector" ||
+      toolShortcut === "pen" ||
+      toolShortcut === "image"
+    ) {
       if (state.tool === undefined) return null;
       return state.tool !== toolShortcut ? { type: "tool", tool: toolShortcut } : null;
     }

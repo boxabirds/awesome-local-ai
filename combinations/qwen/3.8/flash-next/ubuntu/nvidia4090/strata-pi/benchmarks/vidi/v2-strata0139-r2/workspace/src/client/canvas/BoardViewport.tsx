@@ -4,6 +4,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -61,6 +62,17 @@ export interface BoardViewportProps {
   tool?: Tool;
   /** Story 9: where the Text tool's click lands, as a screen point. */
   onTextCreate?(point: Point): void;
+  /**
+   * Story 12 (`image.drop`): a drag of **files** over the board. The viewport only
+   * reports them — deciding what a drop means is `useImageInsert`'s job — but it
+   * reports them here and not on the window, because dropping an image belongs to
+   * the board area, not to the toolbar or the share panel.
+   */
+  onFilesDragEnter?(event: ReactDragEvent<HTMLDivElement>): void;
+  /** A drag over is where a drop is allowed to happen, so it has to be accepted here. */
+  onFilesDragOver?(event: ReactDragEvent<HTMLDivElement>): void;
+  onFilesDragLeave?(event: ReactDragEvent<HTMLDivElement>): void;
+  onFilesDrop?(event: ReactDragEvent<HTMLDivElement>): void;
 }
 
 /** Safari trackpad pinch, which Firefox/Chromium deliver as a Ctrl+wheel. */
@@ -78,6 +90,10 @@ export function BoardViewport({
   overlay,
   tool = "select",
   onTextCreate,
+  onFilesDragEnter,
+  onFilesDragOver,
+  onFilesDragLeave,
+  onFilesDrop,
 }: BoardViewportProps) {
   const provided = useContext(CameraApiContext);
   const windowSize = useWindowSize();
@@ -374,6 +390,10 @@ export function BoardViewport({
       onPointerCancel={(event) => finishPan(event, false)}
       onLostPointerCapture={(event) => finishPan(event, false)}
       onDoubleClick={onDoubleClick}
+      onDragEnter={onFilesDragEnter}
+      onDragOver={onFilesDragOver}
+      onDragLeave={onFilesDragLeave}
+      onDrop={onFilesDrop}
     >
       <div ref={gridRef} className="board-grid" data-testid="board-grid" style={grid} />
       <div

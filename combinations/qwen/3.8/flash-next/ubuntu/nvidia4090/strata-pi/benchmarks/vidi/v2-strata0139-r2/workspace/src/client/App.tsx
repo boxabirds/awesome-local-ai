@@ -1,4 +1,4 @@
-import { createElement, useCallback, useMemo, useRef } from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { BoardViewport, CameraApiContext } from "./canvas/BoardViewport";
 import { NavigationHint } from "./canvas/NavigationHint";
@@ -25,11 +25,16 @@ import { getObjectType, registeredObjectTypes } from "./objects/registry";
 import { ConnectionStatus } from "./sync/ConnectionStatus";
 import { SharePanel } from "./pages/SharePanel";
 import { useConnectionTestHook } from "./sync/testHook";
+import { isTestMode, type Vidi6TestApi } from "./canvas/testHooks";
+import { useImageInsert } from "./images/useImageInsert";
+import { DropHighlight } from "./images/DropHighlight";
+import { ImageContextProvider, type ImageContextValue } from "./objects/ImageObject";
+import { ToastHost } from "./ui/Toast";
 import { createSticky, deleteObjects } from "../shared/board-model";
 import { createText, setTextSize } from "../shared/objects/text";
 import { connectorLine, type ConnectorSnap } from "../shared/objects/connector";
 import { distanceToPolyline } from "../shared/geometry/connector-geometry";
-import { CONNECTOR_HIT_TOLERANCE_PX, type TextSize } from "../shared/config";
+import { CONNECTOR_HIT_TOLERANCE_PX, IMAGE_UPLOAD_CLOCK_MS, type TextSize } from "../shared/config";
 /**
  * The board: camera (story 1), objects (story 2), the live room (story 3), the
  * board link (story 5) — and story 7's selection: selecting many objects at once
@@ -118,6 +123,90 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
     selectableTypes,
   );
   useConnectionTestHook(connectionState);
+
+  /**
+   * Story 12 (`image.insert`): drop, paste and the file picker all end up here.
+   * The hook owns the placeholders it created, the uploads they started, the
+   * progress they report and the files Retry needs.
+   */
+  const insert = useImageInsert({
+    doc,
+    boardId: boardId ?? "",
+    camera,
+    connection: connectionState,
+    identityId,
+    canEdit,
+    viewportSize: { width: viewportSize.width, height: viewportSize.height },
+  });
+  const insertRef = useRef(insert);
+  insertRef.current = insert;
+
+  /** `image.pick`: the Image tool is not a mode the board waits in. */
+  const activeTool = tool.tool;
+  const setTool = tool.setTool;
+  const pickerOpenedRef = useRef(false);
+  useEffect(() => {
+    if (activeTool !== "image") {
+      pickerOpenedRef.current = false;
+      return;
+    }
+    // One arming is one picker. `StrictMode` runs the same effect twice on mount,
+    // and a second file dialog behind the first is worse than no dialog at all.
+    if (pickerOpenedRef.current) return;
+    pickerOpenedRef.current = true;
+    insertRef.current.openPicker();
+    // Whatever the picker answers, the board is back in Select (`tools.active_tool`).
+    setTool("select");
+  }, [activeTool, setTool]);
+
+  /** Remove is the one control a placeholder always has (`image.upload_failure`). */
+  const removeImage = useCallback(
+    (id: string) => {
+      if (!canEdit) return;
+      undo.boundary();
+      deleteObjects(doc, [id]);
+      undo.boundary();
+      if (selection.ids.has(id)) selection.click(id);
+    },
+    [canEdit, doc, selection, undo],
+  );
+
+  /**
+   * The board's shared clock: while any image is `uploading`, the board re-renders
+   * every `IMAGE_UPLOAD_CLOCK_MS` so an abandoned upload becomes "Image upload
+   * didn't finish" on its own, with nobody having to look at it (`image.unfinished`).
+   */
+  const [uploadClock, setUploadClock] = useState(() => Date.now());
+  // The dependency is a boolean, not the object list: an effect that re-ran on
+  // every render would set state on every render, and a board with an uploading
+  // image would re-render forever.
+  const anyUploading = visible.some((object) => object.type === "image" && object.status === "uploading");
+  useEffect(() => {
+    if (!anyUploading) return;
+    const timer = setInterval(() => setUploadClock(Date.now()), IMAGE_UPLOAD_CLOCK_MS);
+    return () => clearInterval(timer);
+  }, [anyUploading]);
+
+  const imageContext = useMemo<ImageContextValue>(
+    () => ({
+      identityId,
+      progress: insert.progress,
+      canRetry: insert.canRetry,
+      onRetry: (id: string) => insertRef.current.retry(id),
+      onRemove: removeImage,
+      now: uploadClock,
+    }),
+    [identityId, insert.progress, insert.canRetry, removeImage, uploadClock],
+  );
+
+  // Which identity this screen writes as (test builds only): the same id the
+  // placeholder's `uploaderId` is compared against.
+  useEffect(() => {
+    if (!isTestMode()) return;
+    const api = (window.__vidi6 ?? {}) as Vidi6TestApi;
+    api.identityId = identityId;
+    window.__vidi6 = api;
+  }, [identityId]);
 
   const cameraRef = useRef<Camera>(camera);
   cameraRef.current = camera;
@@ -238,12 +327,17 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
   return (
     <UndoControllerContext.Provider value={undo}>
     <CameraApiContext.Provider value={board}>
+      <ImageContextProvider value={imageContext}>
       <BoardViewport
         onCreateAtPoint={createAtScreenPoint}
         onEmptyClick={emptyBoardClick}
         marquee={marquee}
         tool={tool.tool}
         onTextCreate={createTextAtScreenPoint}
+        onFilesDragEnter={insert.onDragEnter}
+        onFilesDragOver={insert.onDragOver}
+        onFilesDragLeave={insert.onDragLeave}
+        onFilesDrop={insert.onDrop}
         overlay={
           <>
             <SelectionOverlay
@@ -306,6 +400,8 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
                 onGestureBoundary={undo.boundary}
               />
             ) : null}
+            {/* Story 12 (`image.drop`): the board saying "drop them here". */}
+            <DropHighlight active={insert.dropActive} />
           </>
         }
       >
@@ -327,6 +423,7 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
         })}
         <MarqueeRect rect={marquee.rect} />
       </BoardViewport>
+      </ImageContextProvider>
 
       <Toolbar
         onCreateSticky={createAtViewportCentre}
@@ -352,6 +449,8 @@ export function App({ doc: providedDoc, boardId, canEdit = true }: AppProps = {}
       <ConnectionStatus state={connectionState} />
       {/* Story 5: a board you are on is a board you can send somebody. */}
       {boardId !== undefined && <SharePanel boardId={boardId} />}
+      {/* Story 12: the one place a refused file says why (`image.insert`). */}
+      <ToastHost />
     </CameraApiContext.Provider>
     </UndoControllerContext.Provider>
   );

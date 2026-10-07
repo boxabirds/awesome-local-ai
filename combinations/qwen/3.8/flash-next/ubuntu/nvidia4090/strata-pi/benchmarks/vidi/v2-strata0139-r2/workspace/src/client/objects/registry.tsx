@@ -8,10 +8,11 @@ import { StickyNote } from "./StickyNote";
 import { TextObject } from "./TextObject";
 import { TEXT_MIN_WIDTH_WORLD } from "../../shared/config";
 import { setTextWidthFixed } from "../../shared/objects/text";
-import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from "../../shared/config";
+import { CONNECTOR_HIT_TOLERANCE_PX, IMAGE_MIN_SIZE_WORLD, SHAPE_MIN_SIZE_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from "../../shared/config";
 import { ShapeObject } from "./ShapeObject";
 import { ConnectorObject } from "./ConnectorObject";
 import { StrokeObject } from "./StrokeObject";
+import { ImageBoardObject } from "./ImageObject";
 import { connectorLine, type ConnectorSnap } from "../../shared/objects/connector";
 import { scaledPoints, strokeThicknessWorld, type StrokeSnap } from "../../shared/objects/stroke";
 import { distanceToPolyline } from "../../shared/geometry/connector-geometry";
@@ -193,4 +194,17 @@ registerObjectType("stroke", {
     const tolerance = Math.max(strokeThicknessWorld(stroke) / 2, STROKE_HIT_TOLERANCE_PX / scale);
     return distanceToPolyline(scaledPoints(stroke), worldPoint, tolerance) <= tolerance;
   },
+});
+
+// Story 12: an image is an ordinary resizable object whose proportions are locked
+// (`image.aspect_resize`: stretching a photo out of shape is not resizing it), with
+// a minimum side like every other type, and hit by its box — the box *is* the
+// picture. Everything else about it is the generic selection, move and delete.
+registerObjectType("image", {
+  Component: ImageBoardObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: hitTestBounds,
 });

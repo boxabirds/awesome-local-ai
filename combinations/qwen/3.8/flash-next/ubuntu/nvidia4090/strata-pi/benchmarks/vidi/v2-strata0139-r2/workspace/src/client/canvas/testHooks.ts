@@ -16,6 +16,8 @@ export interface Vidi6TestApi {
   setCamera(camera: { x: number; y: number; zoom: number }): void;
   /** Live connection state, added by the sync layer (story 3). */
   connectionState?: ConnectionState;
+  /** The identity this screen writes as — the id an image placeholder's `uploaderId` is compared against (story 12). */
+  identityId?: string;
 }
 
 declare global {

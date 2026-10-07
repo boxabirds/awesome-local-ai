@@ -960,3 +960,186 @@ body {
 .stroke-hit {
   cursor: pointer;
 }
+
+/* ---- Story 12: images on the board ---- */
+
+/* The object the gestures move and resize. Its box is the picture's box, so a
+   placeholder is the same size and in the same place as the image that replaces
+   it (`image.uploading`). */
+.image-object {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.image-ready,
+.image-uploading,
+.image-uploading-other,
+.image-failed,
+.image-unfinished,
+.image-unavailable {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+/* The picture itself: it fills the box it was placed with, and never crops or
+   stretches (`image.aspect_resize` keeps the box's ratio the image's own). */
+.image-content {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.image-ready {
+  background: var(--vidi6-surface);
+}
+
+/* Placeholders: a grey box of the final size, with what is known about it. */
+.image-uploading,
+.image-uploading-other,
+.image-unfinished,
+.image-unavailable {
+  background: #e6e9ed;
+  border: 1px dashed #b3b9c2;
+  color: var(--vidi6-muted);
+}
+
+/* A failed upload is the one state that says something went wrong. */
+.image-failed {
+  background: var(--vidi6-surface);
+  border: 2px solid #b3261e;
+  color: #7f1d1d;
+}
+
+.image-icon {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+
+.image-status-text {
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  padding: 0 8px;
+}
+
+.image-progress {
+  display: block;
+  width: min(70%, 220px);
+  height: 6px;
+  border-radius: 3px;
+  background: #cdd2d9;
+  overflow: hidden;
+}
+
+.image-progress-bar {
+  display: block;
+  height: 100%;
+  background: var(--vidi6-focus);
+}
+
+.image-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* The board's objects are pressed through the board's own hit test, but the two
+   controls a failed placeholder offers are real buttons. */
+.image-action {
+  pointer-events: auto;
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 6px;
+  background: var(--vidi6-surface);
+  color: var(--vidi6-fg);
+  cursor: pointer;
+}
+
+.image-action:hover {
+  border-color: var(--vidi6-fg);
+}
+
+.image-action:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
+}
+
+/* `image.drop`: the board saying "drop them here", between dragenter and
+   dragleave or drop. No pointer events: the drop it advertises is the board's. */
+.drop-highlight {
+  position: fixed;
+  inset: 12px;
+  border: 3px dashed var(--vidi6-selection);
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.06);
+  pointer-events: none;
+  z-index: 55;
+}
+
+/* The picker is opened by clicking this, so it is off-screen rather than absent:
+   a `display: none` input is a thing some browsers will not open. */
+.image-file-input {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+/* `image.insert`: the short message at the bottom of the screen for a file that
+   was refused, announced politely (`role="status"`, `aria-live="polite"`). */
+.toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  max-width: min(92vw, 460px);
+  padding: 10px 12px 10px 14px;
+  border-radius: 8px;
+  background: #1f2933;
+  color: #ffffff;
+  font-size: 13px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
+}
+
+.toast-dismiss {
+  pointer-events: auto;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.toast-dismiss:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
+}

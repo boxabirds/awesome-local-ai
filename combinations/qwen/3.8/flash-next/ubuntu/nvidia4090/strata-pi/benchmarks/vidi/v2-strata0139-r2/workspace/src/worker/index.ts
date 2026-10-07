@@ -26,6 +26,7 @@
  */
 
 import { isValidBoardId } from "../shared/board-id";
+import { ASSET_SERVE_PREFIX, ASSET_UPLOAD_SUFFIX, handleServe, handleUpload } from "./assets";
 import { BoardRoom } from "./board-room";
 import { createBoard } from "./create-board";
 import { handleTestHook, TEST_HOOKS_PREFIX } from "./test-hooks";
@@ -33,6 +34,8 @@ import { handleTestHook, TEST_HOOKS_PREFIX } from "./test-hooks";
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** Story 12 (`assets.api`): where a board's images are stored. */
+  ASSETS_BUCKET: R2Bucket;
   /**
    * Set to "1" only by the e2e servers (`npm run serve:e2e`,
    * `npm run test:e2e:persistence`). It enables `src/worker/test-hooks.ts`; a
@@ -58,7 +61,17 @@ export default {
     if (pathname === BOARDS_PATH) return handleCreateBoard(request, env);
 
     if (pathname.startsWith(`${BOARDS_PATH}/`)) {
-      return handleCheckBoard(request, env, pathname.slice(BOARDS_PATH.length + 1));
+      const rest = pathname.slice(BOARDS_PATH.length + 1);
+      // `POST /api/boards/:boardId/assets` (`assets.api`) is checked before the
+      // board-existence route, which would otherwise read it as an id.
+      if (rest.endsWith(ASSET_UPLOAD_SUFFIX)) {
+        return handleBoardAssetUpload(request, env, rest.slice(0, rest.length - ASSET_UPLOAD_SUFFIX.length));
+      }
+      return handleCheckBoard(request, env, rest);
+    }
+
+    if (pathname.startsWith(ASSET_SERVE_PREFIX)) {
+      return handleServe(request, env, pathname.slice(ASSET_SERVE_PREFIX.length));
     }
 
     if (pathname.startsWith(ROOM_PREFIX)) {
@@ -94,6 +107,23 @@ async function handleCheckBoard(request: Request, env: Env, rawId: string): Prom
   const exists = await env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).exists();
   if (!exists) return notFound();
   return json({ id: boardId }, 200);
+}
+
+/**
+ * `POST /api/boards/:boardId/assets` (`assets.api`).
+ *
+ * The id is checked first — malformed, or valid but not a board, is a 404
+ * before a byte is written (TC-11) — and only then does `handleUpload` read the
+ * body.
+ */
+async function handleBoardAssetUpload(request: Request, env: Env, rawId: string): Promise<Response> {
+  const boardId = decodeBoardId(rawId);
+  if (boardId === null || !isValidBoardId(boardId)) return notFound();
+
+  const exists = await env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).exists();
+  if (!exists) return notFound();
+
+  return handleUpload(request, env, boardId);
 }
 
 /** `/api/rooms/:boardId` — the live board's WebSocket endpoint. */

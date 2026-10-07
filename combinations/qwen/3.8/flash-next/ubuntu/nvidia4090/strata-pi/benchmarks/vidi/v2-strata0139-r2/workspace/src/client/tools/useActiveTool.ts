@@ -19,7 +19,9 @@ import {
  *
  * `pen`, `image` and `comment` are in the type and in the shortcut table because
  * the story 10 design lists them — `pen` is story 11's tool, which stays armed
- * after it has drawn, and `image` and `comment` are still to come. Every other tool
+ * after it has drawn, and `image` (story 12) and `comment` are actions rather than
+ * modes: arming `image` opens the file picker and hands the board straight back to
+ * Select. Every other tool
  * is not survived by creating its object: `toolCreated(id)` selects what was made
  * and hands the board back to Select, which is what makes moving things afterwards a
  * click on the object rather than a fight with the tool that made it.
@@ -68,7 +70,7 @@ export interface ActiveToolApi {
 }
 
 /** Tools this board has a tool component for; the rest are accepted and ignored. */
-const AVAILABLE_TOOLS: readonly ToolId[] = ["select", "sticky", "text", "shape", "connector", "pen"];
+const AVAILABLE_TOOLS: readonly ToolId[] = ["select", "sticky", "text", "shape", "connector", "pen", "image"];
 
 export function useActiveTool(options: ActiveToolOptions = {}): ActiveToolApi {
   const { canEdit = true, select } = options;

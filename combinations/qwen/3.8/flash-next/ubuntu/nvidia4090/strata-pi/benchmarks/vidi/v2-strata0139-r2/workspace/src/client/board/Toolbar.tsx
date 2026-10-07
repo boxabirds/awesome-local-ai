@@ -5,11 +5,11 @@ import { SHAPE_KINDS, type ShapeKind } from "../../shared/config";
 
 /**
  * Left-side board toolbar: the Select and Text tools (story 9), the Shape and
- * Connector tools (story 10), the Pen (story 11), the Sticky note tool, and story
- * 8's Undo and Redo.
+ * Connector tools (story 10), the Pen (story 11), the Image button (story 12), the
+ * Sticky note tool, and story 8's Undo and Redo.
  *
  * Every tool button says its key in its accessible name — "Select (V)", "Text
- * (T)", "Shape (S)", "Connector (L)", "Pen (P)", "Sticky note (N)" — so the
+ * (T)", "Shape (S)", "Connector (L)", "Pen (P)", "Image (I)", "Sticky note (N)" — so the
  * shortcuts are findable without reading a help page. The Sticky note button's
  * tooltip spells
  * out the alternative (double-click the board). Clicking it creates a note in the
@@ -138,6 +138,22 @@ export function Toolbar({ onCreateSticky, undo, canEdit = true, tool, shapeKind 
       >
         <span className="tool-glyph" aria-hidden="true" />
         <span className="tool-label">Pen</span>
+      </button>
+      {/* Story 12 (`image.pick`): the Image button is not a mode the board waits
+          in — it opens the system file picker, and the tool goes straight back to
+          Select once the picker is closed (App wires that). */}
+      <button
+        type="button"
+        className="tool-button"
+        data-testid="tool-image"
+        aria-label="Image (I)"
+        title={`Image (I) \u2013 drop, paste or choose files`}
+        aria-pressed={active === "image"}
+        disabled={!canEdit}
+        onClick={() => tool?.setTool("image")}
+      >
+        <span className="tool-glyph" aria-hidden="true" />
+        <span className="tool-label">Image</span>
       </button>
       <button
         type="button"

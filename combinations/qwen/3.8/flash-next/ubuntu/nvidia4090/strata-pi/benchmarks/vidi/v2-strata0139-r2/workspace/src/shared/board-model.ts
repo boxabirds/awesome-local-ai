@@ -5,6 +5,7 @@ import {
   DEFAULT_SHAPE_FILL,
   DEFAULT_STICKY_COLOR,
   DEFAULT_SHAPE_STROKE,
+  IMAGE_MIN_SIZE_WORLD,
   MAX_OBJECT_SIZE_WORLD,
   PEN_COLORS,
   PEN_THICKNESS_WORLD,
@@ -134,6 +135,19 @@ export interface ObjectSnapshot {
   readonly baseHeight?: number;
   /** Strokes only (story 11): one of `PEN_THICKNESS_WORLD`. */
   readonly thickness?: PenThickness;
+  /**
+   * Images only (story 12, `image.model`): where the file is stored (`null`
+   * until it is), what it was stored as, the file's own pixel size, and the
+   * upload state a renderer shows. `ImageSnap` in `objects/image.ts` is this
+   * object with those fields required.
+   */
+  readonly assetKey?: string | null;
+  readonly contentType?: string;
+  readonly naturalWidth?: number;
+  readonly naturalHeight?: number;
+  readonly status?: "uploading" | "ready" | "failed";
+  readonly uploadStartedAt?: number;
+  readonly uploaderId?: string;
   /** Set by the type's create function when the caller had an identity. */
   readonly createdBy?: string;
 }
@@ -565,6 +579,8 @@ function modelMinSize(type: unknown): number {
   if (type === "shape") return SHAPE_MIN_SIZE_WORLD;
   // `pen.resize`: a stroke keeps a drawable box, so it has a minimum too.
   if (type === "stroke") return STROKE_MIN_SIZE_WORLD;
+  // `image.aspect_resize`: an image never gets smaller than its minimum side.
+  if (type === "image") return IMAGE_MIN_SIZE_WORLD;
   return 1;
 }
 
@@ -643,6 +659,13 @@ function asObject(id: string, value: unknown): ObjectSnapshot | undefined {
             : DEFAULT_PEN_THICKNESS,
         };
 
+  // `image.model` (story 12): an image without a box cannot be drawn, so it is
+  // not reported at all; its upload state is read with defaults, so an image
+  // written by a newer client still renders as "still uploading" rather than as
+  // nothing.
+  const image = type === "image" ? readImage(value, width as number, height as number, createdAt) : undefined;
+  if (type === "image" && image === undefined) return undefined;
+
   return {
     id,
     type,
@@ -665,6 +688,7 @@ function asObject(id: string, value: unknown): ObjectSnapshot | undefined {
       : {}),
     ...(shape ?? {}),
     ...(stroke ?? {}),
+    ...(image ?? {}),
     ...(from !== undefined ? { from } : {}),
     ...(to !== undefined ? { to } : {}),
     ...(typeof createdBy === "string" && createdBy.length > 0 ? { createdBy } : {}),
@@ -676,6 +700,44 @@ function asObject(id: string, value: unknown): ObjectSnapshot | undefined {
 /** A shape kind this build knows (`shape.model`). */
 function isShapeKind(value: unknown): boolean {
   return value === "rect" || value === "ellipse" || value === "diamond";
+}
+
+/**
+ * `image.model` (story 12): the image fields of a Y.Map, with defaults. Returns
+ * undefined when the object has no usable box, which is the model's way of
+ * saying "there is nothing to draw".
+ */
+function readImage(
+  value: Y.Map<unknown>,
+  width: unknown,
+  height: unknown,
+  createdAt: unknown,
+): Partial<ObjectSnapshot> | undefined {
+  if (!isFiniteNumber(width) || width <= 0 || !isFiniteNumber(height) || height <= 0) return undefined;
+
+  const assetKey = value.get("assetKey");
+  const contentType = value.get("contentType");
+  const naturalWidth = value.get("naturalWidth");
+  const naturalHeight = value.get("naturalHeight");
+  const status = value.get("status");
+  const uploadStartedAt = value.get("uploadStartedAt");
+  const uploaderId = value.get("uploaderId");
+
+  return {
+    width,
+    height,
+    assetKey: typeof assetKey === "string" && assetKey.length > 0 ? assetKey : null,
+    contentType: typeof contentType === "string" && contentType.length > 0 ? contentType : "image/png",
+    naturalWidth: isFiniteNumber(naturalWidth) && naturalWidth > 0 ? naturalWidth : width,
+    naturalHeight: isFiniteNumber(naturalHeight) && naturalHeight > 0 ? naturalHeight : height,
+    status: status === "ready" || status === "failed" ? status : "uploading",
+    uploadStartedAt: isFiniteNumber(uploadStartedAt)
+      ? uploadStartedAt
+      : isFiniteNumber(createdAt)
+        ? createdAt
+        : 0,
+    uploaderId: typeof uploaderId === "string" ? uploaderId : "",
+  };
 }
 
 /**
