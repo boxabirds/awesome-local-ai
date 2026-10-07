@@ -1,3 +1,81 @@
+commit 384f0074110aea9b517b5117c444c7e552caf3ea
+agent  Wed Oct 7 23:19:44 2026 +0000
+
+    story 9: e2e TC-26..TC-31 (long annotation, side-handle wrap, heading golden path, concurrent typing, everyone creates, abandoned text); PROGRESS/NOTES
+
+
+ NOTES.md                  |  68 +++++++++
+ PROGRESS.md               |  46 +++++-
+ tests/e2e/helpers/text.ts | 160 +++++++++++++++++++++
+ tests/e2e/text.spec.ts    | 351 ++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 624 insertions(+), 1 deletion(-)
+commit 77a2c35ecb2f189544fb195ee0cd784d371654bb
+agent  Wed Oct 7 23:19:44 2026 +0000
+
+    story 9: round an automatic text width up (a box narrower than its line wrapped it); flushUntil for board commits in component tests
+
+
+ src/client/objects/textLayout.ts      | 11 ++++++++---
+ tests/component/UndoControls.test.tsx |  8 +++++---
+ tests/component/util.ts               | 15 +++++++++++++++
+ 3 files changed, 28 insertions(+), 6 deletions(-)
+commit f6f7477d15bbe60c8274d73a0cfbe152cf57acc8
+agent  Wed Oct 7 22:47:57 2026 +0000
+
+    story 9: text layout/box sync, Text tool + shortcuts, TextObject/TextEditor/TextToolbar, horizontal-only handles; component TC-12..TC-25 green
+
+
+ PROGRESS.md                             | 213 ++++++++++++++++++++++++--
+ src/client/board/Board.tsx              | 235 +++++++++++++++++++++++------
+ src/client/board/SelectionOverlay.tsx   |  15 +-
+ src/client/board/TextToolbar.tsx        |  75 ++++++++++
+ src/client/board/Toolbar.tsx            |  51 ++++++-
+ src/client/board/useBoardDoc.ts         |  26 +++-
+ src/client/board/useBoardKeys.ts        |  32 +++-
+ src/client/board/useTool.ts             |  38 +++++
+ src/client/board/useTransformGesture.ts |  27 +++-
+ src/client/canvas/BoardViewport.tsx     |  67 ++++++++-
+ src/client/canvas/testHooks.ts          |  25 ++++
+ src/client/index.css                    | 138 +++++++++++++++++
+ src/client/objects/StickyText.ts        | 174 ++++------------------
+ src/client/objects/StickyTextEditor.tsx | 171 ++++-----------------
+ src/client/objects/TextEditor.tsx       | 204 +++++++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 219 +++++++++++++++++++++++++++
+ src/client/objects/registry.tsx         |  31 +++-
+ src/client/objects/textLayout.ts        | 183 +++++++++++++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  58 ++++++++
+ src/shared/config.ts                    |  10 ++
+ src/shared/objects/text.ts              | 248 ++++++++++++++++++++++++++-----
+ src/shared/text-edit.ts                 | 158 ++++++++++++++++++--
+ tests/component/TextBoxSync.test.tsx    | 213 ++++++++++++++++++++++++++
+ tests/component/TextObject.test.tsx     | 256 ++++++++++++++++++++++++++++++++
+ tests/component/TextTool.test.tsx       | 142 ++++++++++++++++++
+ tests/component/Toolbars.test.tsx       |   5 +-
+ tests/component/textUtil.ts             | 128 ++++++++++++++++
+ tests/component/util.ts                 |   9 +-
+ tests/unit/text-layout.test.ts          | 163 ++++++++++++++++++++
+ tests/unit/text-model.test.ts           |   8 +-
+ 30 files changed, 2907 insertions(+), 415 deletions(-)
+commit c9d65edd0cb668b69c43c53fabffd5a847f57f9b
+agent  Wed Oct 7 21:08:55 2026 +0000
+
+    story 9: text model unit tests first (TC-01..TC-06), stubs + TEXT_* settings
+
+
+ PROGRESS.md                   |   4 +-
+ src/shared/config.ts          |  23 ++++
+ src/shared/objects/text.ts    |  62 ++++++++++
+ src/shared/text-edit.ts       |  24 ++++
+ tests/unit/text-model.test.ts | 262 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 373 insertions(+), 2 deletions(-)
+commit c8d4084e87acf4a5f867e94cff14f75c5e208da2
+vidi-agent  Wed Oct 7 21:51:08 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 85 ++++++++-----------------------------------------------------
+ 1 file changed, 11 insertions(+), 74 deletions(-)
 commit 4d59898bfc9e76b177cb4a85546d28a3744c705b
 agent  Wed Oct 7 20:47:47 2026 +0000
 
