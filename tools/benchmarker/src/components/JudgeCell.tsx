@@ -3,11 +3,13 @@ import type { Row, Story } from "../../shared/types.ts";
 interface Props { row: Row; url: string }
 
 /** The review page opened on this run (the gallery matches it by setup and run), and on one story when given
- * one: the review page preselects it, with the run's other finished stories there too. */
+ * one: the review page preselects it, with the run's other finished stories there too.
+ *
+ * The app reads the run from the QUERY and the story from the HASH ("#story=2": placeFromHash in its player.js),
+ * so the story goes after the "#". Put in the query it is never read and the link opens at the first story. */
 export function judgeLink(url: string, row: Pick<Row, "stack" | "runId">, story?: string): string {
-  const params = new URLSearchParams({ setup: row.stack, run: row.runId });
-  if (story) params.set("story", story);
-  return `${url}?${params}`;
+  const query = new URLSearchParams({ setup: row.stack, run: row.runId });
+  return `${url}?${query}${story ? `#story=${encodeURIComponent(story)}` : ""}`;
 }
 
 /** The way to judging, once the run can be judged (Row.judgeReady); nothing before. */

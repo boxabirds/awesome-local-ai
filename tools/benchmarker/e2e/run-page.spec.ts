@@ -216,8 +216,12 @@ test.describe("header: judge, record and summary", () => {
   test("each recorded story has its own Judge link, which preselects that story", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
     const row = section(page, "stories").locator('tr[data-story="2"]');
+    // The review app reads the RUN from the query string and the STORY from the hash (placeFromHash in its
+    // player.js: "#story=2"). The first version of this link put the story in the query, which the app never
+    // reads, so every per-story link opened at the first story; the test asserted the string that had been
+    // written and could not notice.
     await expect(row.getByRole("link", { name: "Judge" })).toHaveAttribute(
-      "href", `http://127.0.0.1:7800/review?setup=${enc(SWIFT)}&run=v2-r5&story=2`);
+      "href", `http://127.0.0.1:7800/review?setup=${enc(SWIFT)}&run=v2-r5#story=2`);
   });
 
   test("a story with no record of its own has no Judge link: there is nothing to judge yet", async ({ page }) => {
