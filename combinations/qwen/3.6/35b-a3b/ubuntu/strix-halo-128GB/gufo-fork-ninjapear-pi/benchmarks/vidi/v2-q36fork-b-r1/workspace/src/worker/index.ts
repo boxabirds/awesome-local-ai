@@ -1,22 +1,27 @@
 /**
  * Cloudflare Worker entry point.
  * Story 5 — board creation API, existence check, 404 for unknown boards.
+ * Story 12 — image asset upload and serving via R2.
  *
  * Routes:
  * - POST /api/boards → create a new board
  * - GET /api/boards/:id → existence check
  * - PUT /api/boards → 405
+ * - POST /api/boards/:boardId/assets → upload an image (Story 12)
+ * - GET /api/assets/:boardId/:assetId → serve a stored image (Story 12)
  * - /api/rooms/:boardId → BoardRoom Durable Object (WebSocket upgrade)
  * - Everything else → static assets (SPA fallback)
  */
 import { isValidBoardId, newBoardId } from '@/shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
+import { handleUpload, handleServe } from './assets';
 
 /** Worker environment bindings defined in wrangler.jsonc */
 export interface WorkerEnv {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
 }
 
 export { BoardRoom };
@@ -111,9 +116,20 @@ export default {
       return handleBoardsCollection(url, request, env);
     }
 
-    const boardsMatch = /^\/api\/boards\/(.+)$/.exec(url.pathname);
-    if (boardsMatch) {
-      return handleBoardById(boardsMatch[1], url, request, env);
+    // ── Story 12: /api/boards/:boardId/assets POST ───────────────
+    const assetsPostMatch = /^\/api\/boards\/([^/]+)\/assets$/.exec(url.pathname);
+    if (assetsPostMatch && request.method === 'POST') {
+      const boardId = assetsPostMatch[1];
+      return handleUpload(request, env as unknown as import('./assets').AssetsEnv, boardId);
+    }
+
+    // ── Story 12: /api/assets/:boardId/:assetId GET ──────────────
+    const assetsGetMatch = /^\/api\/assets\/([^/]+)\/([^/]+)$/.exec(url.pathname);
+    if (assetsGetMatch) {
+      const boardId = assetsGetMatch[1];
+      const assetId = assetsGetMatch[2];
+      const key = `${boardId}/${assetId}`;
+      return handleServe(env as unknown as import('./assets').AssetsEnv, key);
     }
 
     // Route WebSocket upgrades for rooms

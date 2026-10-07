@@ -7,6 +7,7 @@ import { UndoButtons } from './UndoButtons';
 
 interface ToolbarProps extends UseUndoResult {
   onCreateSticky(): void;
+  onImagePicker?(): void;
   tool: ToolId;
   setTool(t: ToolId): void;
   canEdit: boolean;
@@ -14,7 +15,7 @@ interface ToolbarProps extends UseUndoResult {
   setShapeKind(k: ShapeKind): void;
 }
 
-export function Toolbar({ onCreateSticky, canUndo, canRedo, undo, redo, tool, setTool, canEdit, shapeKind, setShapeKind }: ToolbarProps): ReactNode {
+export function Toolbar({ onCreateSticky, onImagePicker, canUndo, canRedo, undo, redo, tool, setTool, canEdit, shapeKind, setShapeKind }: ToolbarProps): ReactNode {
   const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
 
   const containerStyle: CSSProperties = {
@@ -178,6 +179,21 @@ export function Toolbar({ onCreateSticky, canUndo, canRedo, undo, redo, tool, se
       >
         ✏️
       </button>
+
+      {/* Image button */}
+      {onImagePicker && (
+        <button
+          aria-label="Image (I)"
+          aria-pressed={tool === 'image'}
+          title="Image – or drop files on the board"
+          onClick={onImagePicker}
+          disabled={!canEdit}
+          style={{ ...baseBtnStyle, backgroundColor: tool === 'image' ? '#2979ff' : '#f5f5f5', color: tool === 'image' ? '#fff' : '#333', opacity: canEdit ? 1 : 0.5 }}
+          data-testid="image-tool-btn"
+        >
+          🖼
+        </button>
+      )}
     </div>
   );
 }

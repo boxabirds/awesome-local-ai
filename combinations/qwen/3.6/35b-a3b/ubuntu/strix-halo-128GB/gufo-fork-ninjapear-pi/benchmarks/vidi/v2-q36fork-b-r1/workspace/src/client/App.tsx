@@ -23,7 +23,7 @@ import { useBoardKeys } from './board/useBoardKeys';
 import { useActiveTool } from './tools/useActiveTool';
 import { usePenOptions } from './tools/usePenOptions';
 import { useTool } from './board/useTool';
-import { SHAPE_LABEL_MAX_CHARS, STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR, TEXT_SIZES, DEFAULT_TEXT_SIZE } from '@/shared/config';
+import { SHAPE_LABEL_MAX_CHARS, STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR, TEXT_SIZES, DEFAULT_TEXT_SIZE, IMAGE_MIN_SIZE_WORLD } from '@/shared/config';
 import { createSticky, deleteObjects as deleteObj, snapshot, initDoc, moveObjects } from '@/shared/board-model';
 import { createText, setTextWidthFixed, setTextSize, getTextContent, isEmptyText, setTextBox } from '@/shared/objects/text';
 import { setShapeStyle, getShapeLabel } from '@/shared/objects/shape';
@@ -39,6 +39,10 @@ import { SharePanel } from './share/SharePanel';
 import { createUndo } from './board/undo';
 import { useUndo } from './board/useUndo';
 import { useTextBoxSync } from '@/client/objects/useTextBoxSync';
+import { ImageObject, getGlobalTick } from './objects/ImageObject';
+import { useImageInsert } from './images/useImageInsert';
+import { showToast } from './ui/Toast';
+import { Toast } from './ui/Toast';
 
 let docRef: Y.Doc | null = null;
 
@@ -106,6 +110,30 @@ export function App(): ReactNode {
 
   const undoState = useUndo(undoControllerRef.current, canEdit);
 
+  // ---- Image insert hook (Story 12) ----
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera: cameraRef.current,
+    connection: connectionState,
+    identityId,
+  });
+
+  const handleOpenImagePicker = useCallback(() => {
+    if (!canEdit) return;
+    setTool('select'); // return to select after picker
+    imageInsert.openPicker();
+  }, [canEdit, imageInsert, setTool]);
+
+  // ---- Paste handler for images (Story 12) ----
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      imageInsert.onPaste(e);
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [imageInsert]);
+
   // ---- Register object types (once per board lifecycle) ----
   const stickyCompRef = useRef<any>(null);
   const registeredRef = useRef(false);
@@ -148,6 +176,19 @@ export function App(): ReactNode {
       minSize: 0,
       editableText: false,
       hitTest: () => true, // handled specially in BoardViewport
+    });
+    registerObjectType('image', {
+      Component: ImageObject as any,
+      resizable: true,
+      aspectLocked: true,
+      minSize: IMAGE_MIN_SIZE_WORLD,
+      editableText: false,
+      hitTest: (obj: ObjectSnapshot, wp: { x: number; y: number }) => {
+        const w = (obj.width as number) ?? 100;
+        const h = (obj.height as number) ?? 100;
+        return wp.x >= obj.x && wp.y >= obj.y &&
+          wp.x <= obj.x + w && wp.y <= obj.y + h;
+      },
     });
   }, [doc]);
 
@@ -394,11 +435,31 @@ export function App(): ReactNode {
             onObjectPointerDown={(_e: React.PointerEvent, _id: string) => { /* handled via gesture */ }}
           />,
         );
+      } else if (s.type === 'image') {
+        const progress = imageInsert.progress.get(s.id);
+        results.push(
+          <ImageObject
+            key={s.id}
+            image={s as any}
+            isUploader={s.uploaderId === identityId}
+            progress={progress}
+            canRetry={imageInsert.canRetry(s.id)}
+            now={Date.now()}
+            onRetry={() => {
+              undoControllerRef.current?.boundary();
+              imageInsert.retry(s.id);
+            }}
+            onRemove={() => {
+              undoControllerRef.current?.boundary();
+              deleteObj(doc, [s.id]);
+            }}
+          />,
+        );
       }
     }
 
     return results;
-  }, [snaps, ids, editingId, click, startEdit, endEdit, gesture, cameraRef.current.zoom, doc, handleRemeasure]);
+  }, [snaps, ids, editingId, click, startEdit, endEdit, gesture, cameraRef.current.zoom, doc, handleRemeasure, imageInsert.progress, identityId, imageInsert.retry, imageInsert.canRetry]);
 
   // ---- Build a list of all object snapshots for overlay ----
   const allSnapshots: readonly ObjectSnapshot[] = snaps;
@@ -416,6 +477,7 @@ export function App(): ReactNode {
           const wpY = vh / cam.zoom + cam.y - STICKY_SIZE_WORLD / 2;
           handleCreateStickyAt(wpX, wpY);
         }}
+        onImagePicker={handleOpenImagePicker}
         canUndo={undoState.canUndo}
         canRedo={undoState.canRedo}
         undo={undoState.undo}
@@ -470,6 +532,8 @@ export function App(): ReactNode {
         onSelect={(idsList) => setMany(idsList, true)}
         isEditing={editingId !== null}
         snapshot={snaps}
+        onDragOver={imageInsert.onDragOver}
+        onDrop={imageInsert.onDrop}
       >
         {/* Shape and Connector tools render overlays in world layer */}
         {/* Tool overlays */}
@@ -520,6 +584,7 @@ export function App(): ReactNode {
           }}
         />
       </BoardViewport>
+      <Toast />
     </>
   );
 }

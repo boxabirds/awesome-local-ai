@@ -27,6 +27,9 @@ interface BoardViewportProps {
   onSelect(ids: string[]): void;
   isEditing?: boolean;
   snapshot?: readonly ObjectSnapshot[];
+  // Story 12: image drop handlers
+  onDragOver?(e: DragEvent): void;
+  onDrop?(e: DragEvent): void;
 }
 
 export function BoardViewport({ 
@@ -40,6 +43,8 @@ export function BoardViewport({
   onSelect = () => {},
   isEditing,
   snapshot,
+  onDragOver,
+  onDrop,
 }: BoardViewportProps): ReactNode {
   // --- Viewport size ---
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -304,6 +309,9 @@ export function BoardViewport({
         onDoubleClick={handleDoubleClick}
         onGestureStart={handleGestureStart}
         onGestureChange={handleGestureChange}
+        // Story 12: image drop handlers
+        onDragOver={(e) => { e.preventDefault(); onDragOver?.(e as unknown as DragEvent); }}
+        onDrop={(e) => { e.preventDefault(); onDrop?.(e as unknown as DragEvent); }}
         aria-label="Infinite board"
       >
         {/* World layer */}
