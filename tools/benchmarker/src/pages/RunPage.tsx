@@ -38,7 +38,7 @@ export function RunPage({ route, run, state, params }: { route: Route; run: Row;
     <div className="page run-page" data-page="run">
       <Breadcrumb route={route} names={{ combination: run.label }} />
       <RunHeader run={run} state={state} />
-      <RunStories run={run} rows={state.rows} />
+      <RunStories run={run} rows={state.rows} judgeUrl={state.judgeUrl} />
       <Ran run={run} />
       <Interventions run={run} />
       {/* Keyed by run: moving to another run's page starts its comparison afresh. */}

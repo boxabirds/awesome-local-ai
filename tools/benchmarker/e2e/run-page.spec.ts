@@ -209,6 +209,24 @@ test.describe("header: judge, record and summary", () => {
     await expect(l.getByRole("link", { name: "summary" })).toHaveAttribute("href", `${WEB}/blob/main/combinations/${SWIFT}/benchmarks/vidi/v2-r5/summary.md`);
   });
 
+  // Judging is per story: the review page rebuilds the workspace story by story, and a judgement is about what
+  // one story produced. The story link preselects that story in the run's judger; the other finished stories are
+  // there too. A finished story of a RUNNING run is judgeable -- the run-level gate wanted the whole run
+  // finished and re-scored, so on 7 Oct 2026 none of the finished stories of three runs in flight could be.
+  test("each recorded story has its own Judge link, which preselects that story", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5");
+    const row = section(page, "stories").locator('tr[data-story="2"]');
+    await expect(row.getByRole("link", { name: "Judge" })).toHaveAttribute(
+      "href", `http://127.0.0.1:7800/review?setup=${enc(SWIFT)}&run=v2-r5&story=2`);
+  });
+
+  test("a story with no record of its own has no Judge link: there is nothing to judge yet", async ({ page }) => {
+    await open(page, SWIFT, "v2-r1");          // running, its later stories not recorded
+    const rows = section(page, "stories").locator("tr[data-story]");
+    const judged = rows.locator('a[href*="/review?"]');
+    expect(await judged.count()).toBeLessThan(await rows.count());
+  });
+
   test("not ready: no Judge link and nothing said of why; a running run has a record but no summary", async ({ page }) => {
     await open(page, SWIFT, "v2-r1");
     const l = section(page, "header").locator('[data-section="links"]');

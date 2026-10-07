@@ -637,6 +637,17 @@ export function mergeStories(recorded: Story[], live: DbenchStory[] | undefined)
 
 // ---------- judge ----------
 
+/** A story can be judged once it has a record of its own and the run has its workspace history.
+ *
+ * Deliberately weaker than judgeReady: judging is per story, and the review page rebuilds the workspace story by
+ * story from workspace.bundle, so a finished story of a RUNNING run is judgeable. The run-level gate wanted the
+ * whole run finished and re-scored, which on 7 Oct 2026 meant none of the finished stories of the three runs in
+ * flight could be judged. A re-score is about the run's score of record and has no bearing on judging one story.
+ */
+export function storyJudgeReady(run: { hasBundle: boolean }, story: { status: string }): boolean {
+  return run.hasBundle && (story.status === "DONE" || story.status === "PARTIAL");
+}
+
 /** A run can be judged once it is finished, re-scored under the current suite, and has its workspace history
  * (workspace.bundle, which the review page rebuilds each story from). */
 export function judgeReady(run: { state: string; rescores: string[]; hasBundle: boolean }, job: DbenchJob | null, suite: string): boolean {
@@ -727,7 +738,11 @@ export function buildFullRows(
     const recorded = r.stories.map(publicStory);
     const merged = job ? mergeStories(recorded, job.progress?.stories) : recorded;
     const collapsed = collapsedStoryIds(merged);
-    const stories = merged.map((st) => (collapsed.has(st.id) ? { ...st, collapsed: true } : st));
+    // judgeReady per story: the page cannot work it out, because hasBundle is in `record`, which publicRow strips.
+    const stories = merged.map((st) => ({
+      ...(collapsed.has(st.id) ? { ...st, collapsed: true } : st),
+      judgeReady: storyJudgeReady({ hasBundle: r.hasBundle }, st),
+    }));
     const { invalid, sandbox, finalize, rescoreFaults, hasBundle, rescored: _rescored, rescoreLast: _last, stories: _stories, ...plain } = r;
     return {
       ...plain,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
-  mergeStories, judgeReady, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, finalScore, rescoreFault, runUsage, RECENT_S, type DbenchJob,
+  mergeStories, judgeReady, storyJudgeReady, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, finalScore, rescoreFault, runUsage, RECENT_S, type DbenchJob,
   jobsByRun, jobReason, buildRows, buildFullRows, parseFinalize, publicStory, type FullRow, type RecordStory,
 } from "./domain.ts";
 import type { Row } from "../shared/types.ts";
@@ -204,6 +204,25 @@ describe("stories", () => {
   it("agent time on its own is not a usage row: it would fill one column and say nothing about the rest", () => {
     const [merged] = mergeStories([], [{ id: "4", status: "DONE", passed: 4, total: 4, agent_minutes: 12 }]);
     expect(merged.usage).toBeNull();
+  });
+});
+
+describe("storyJudgeReady", () => {
+  // Judging is per story by nature: the review page rebuilds the workspace story by story from workspace.bundle,
+  // and a judgement is about what one story produced. The run-level gate wanted the WHOLE run finished and
+  // re-scored, so a finished story of a running run could not be judged -- which on 7 Oct 2026 was every story
+  // of the three runs in flight. A story needs only its own record and the bundle.
+  const bundled = { hasBundle: true };
+  it("a recorded story of a running run can be judged", () => {
+    expect(storyJudgeReady(bundled, { id: "2", status: "DONE" })).toBe(true);
+    expect(storyJudgeReady(bundled, { id: "2", status: "PARTIAL" })).toBe(true);
+  });
+  it("a story still running or not started cannot: there is nothing to judge yet", () => {
+    expect(storyJudgeReady(bundled, { id: "5", status: "running" })).toBe(false);
+    expect(storyJudgeReady(bundled, { id: "7", status: "" })).toBe(false);
+  });
+  it("without the workspace history nothing can be judged: the review page rebuilds from it", () => {
+    expect(storyJudgeReady({ hasBundle: false }, { id: "2", status: "DONE" })).toBe(false);
   });
 });
 
