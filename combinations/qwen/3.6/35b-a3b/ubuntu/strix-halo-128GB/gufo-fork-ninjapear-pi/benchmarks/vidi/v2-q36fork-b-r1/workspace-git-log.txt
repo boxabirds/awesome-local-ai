@@ -1,3 +1,38 @@
+commit e1b0fa55abfdc427ec769a352047900d524ce384
+vidi-agent  Wed Oct 7 17:41:50 2026 +0000
+
+    harness: snapshot after story 11 (uncommitted agent work)
+
+
+ src/client/objects/StrokeObject.tsx | 65 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 65 insertions(+)
+commit db49ce2f9c216c00141c4c2c8e48c32600513d15
+agent  Wed Oct 7 17:21:13 2026 +0000
+
+    Story 11: Stroke model, geometry tests (TC-01 to TC-08), and Pen tool infrastructure
+
+
+ PROGRESS.md                       |   6 +-
+ src/client/App.tsx                |  45 ++++++--
+ src/client/board/Toolbar.tsx      |  13 +++
+ src/client/tools/PenTool.tsx      | 187 +++++++++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx   |  81 ++++++++++++++
+ src/client/tools/usePenOptions.ts |  20 ++++
+ src/shared/config.ts              |  22 ++++
+ src/shared/geometry/simplify.ts   | 124 +++++++++++++++++++++
+ src/shared/geometry/types.ts      |   5 +
+ src/shared/objects/stroke.ts      | 224 ++++++++++++++++++++++++++++++++++++++
+ tests/fixtures/pen-paths.ts       |  52 +++++++++
+ tests/unit/stroke.test.ts         | 219 +++++++++++++++++++++++++++++++++++++
+ 12 files changed, 988 insertions(+), 10 deletions(-)
+commit e9e821c345d8e52be496dfaff8220549b9fec8a1
+vidi-agent  Wed Oct 7 16:16:11 2026 +0000
+
+    harness: PROGRESS.md for story 11
+
+
+ PROGRESS.md | 21 ++++++++-------------
+ 1 file changed, 8 insertions(+), 13 deletions(-)
 commit 76ac3da2c3101c9a796547ea299373fa41293a2b
 agent  Wed Oct 7 16:01:42 2026 +0000
 
