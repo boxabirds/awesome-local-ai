@@ -1,0 +1,347 @@
+:root {
+  --vidi6-bg: #fafafa;
+  --vidi6-fg: #1f2933;
+  --vidi6-muted: #666666;
+  --vidi6-surface: #ffffff;
+  --vidi6-border: #d0d0d0;
+  --vidi6-focus: #2563eb;
+  --vidi6-hint-bg: rgba(255, 255, 255, 0.9);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--vidi6-bg);
+  color: var(--vidi6-fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* ---- Board viewport ---- */
+
+.board-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--vidi6-bg);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-viewport[data-panning="true"] {
+  cursor: grabbing;
+}
+
+.board-grid {
+  position: absolute;
+  inset: 0;
+  /* background-image / -size / -position are set inline from the camera */
+}
+
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.origin-marker {
+  position: absolute;
+  pointer-events: none;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: "";
+  position: absolute;
+  background: var(--vidi6-muted);
+}
+
+.origin-marker::before {
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  transform: translateX(-50%);
+}
+
+.origin-marker::after {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+/* ---- Zoom controls ---- */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 10px;
+  font-size: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.zoom-controls button {
+  font: inherit;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 8px;
+  background: var(--vidi6-surface);
+  color: var(--vidi6-fg);
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #f1f4f8;
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible,
+.board-viewport:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
+}
+
+.zoom-controls .zoom-label {
+  min-width: 56px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- First-use navigation hint ---- */
+
+.nav-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  background: var(--vidi6-hint-bg);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 999px;
+  color: var(--vidi6-muted);
+  font-size: 16px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ---- Board toolbar (story 2) ---- */
+
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 10px;
+  font-size: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  z-index: 2;
+}
+
+.board-tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 64px;
+  padding: 8px 10px;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 8px;
+  background: var(--vidi6-surface);
+  color: var(--vidi6-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.board-tool:hover {
+  background: #f1f4f8;
+}
+
+.board-tool:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 2px;
+}
+
+.board-tool-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.board-tool-label {
+  font-size: 13px;
+}
+
+/* ---- Sticky notes (story 2) ---- */
+
+.sticky-note {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+  color: #1f2933;
+  cursor: default;
+  /* The note toolbar sits above the note box, so the note itself must not
+     clip; the text area clips instead (see .sticky-body / .sticky-text). */
+  overflow: visible;
+}
+
+.sticky-note[data-selected="true"] {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 0;
+}
+
+.sticky-note[data-dragging="true"] {
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.28);
+}
+
+.sticky-body {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 12px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.sticky-text {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  line-height: 1.35;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.sticky-textarea {
+  resize: none;
+  outline: none;
+  cursor: text;
+}
+
+/* Bottom fade shown when even the smallest font can not fit the text. */
+.sticky-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.85));
+}
+
+.sticky-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(31, 41, 51, 0.65);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* ---- Note toolbar (story 2) ---- */
+
+.note-toolbar-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--vidi6-surface);
+  border: 1px solid var(--vidi6-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  white-space: nowrap;
+}
+
+.note-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.35);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.note-swatch[aria-pressed="true"] {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 1px;
+}
+
+.note-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--vidi6-border);
+  border-radius: 4px;
+  background: var(--vidi6-surface);
+  color: var(--vidi6-fg);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.note-delete:hover {
+  background: #f1f4f8;
+}
+
+.note-swatch:focus-visible,
+.note-delete:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+  outline-offset: 1px;
+}
+
+.sticky-note:focus-visible {
+  outline: 2px solid var(--vidi6-focus);
+}
