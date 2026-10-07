@@ -5,12 +5,14 @@ import type { JSX } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /** Disable the Sticky note button (story 4: board load failed). */
+  disabled?: boolean;
 }
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
 export function Toolbar(props: ToolbarProps): JSX.Element {
-  const { onCreateSticky } = props;
+  const { onCreateSticky, disabled = false } = props;
   return (
     <div
       className="toolbar"
@@ -24,6 +26,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         className="toolbar__sticky"
         aria-label="Sticky note"
         title={STICKY_BUTTON_TOOLTIP}
+        disabled={disabled}
         onClick={onCreateSticky}
       >
         <svg

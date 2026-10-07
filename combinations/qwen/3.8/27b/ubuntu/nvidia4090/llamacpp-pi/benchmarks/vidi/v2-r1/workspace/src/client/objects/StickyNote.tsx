@@ -35,6 +35,11 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * Story 4 edit lock: while true the note can still be selected, but drag
+   * (bringToFront/moveObject) and entering edit mode are no-ops.
+   */
+  disabled?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -52,7 +57,7 @@ interface PressStart {
 }
 
 export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit, onDragChange } = props;
+  const { note, doc, zoom, selected, editing, disabled = false, onSelect, onStartEdit, onEndEdit, onDragChange } = props;
 
   const [fit, setFit] = useState<TextFit>({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
   const displayRef = useRef<HTMLDivElement>(null);
@@ -125,6 +130,8 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const start = startRef.current;
     if (!start || start.pointerId !== e.pointerId) return;
+    // Edit lock: a press can end in selection, but never in a drag.
+    if (disabled) return;
     const dx = e.clientX - start.screenX;
     const dy = e.clientY - start.screenY;
     if (phaseRef.current === 'pressed' && Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
@@ -167,7 +174,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   };
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (editing) return;
+    if (editing || disabled) return;
     e.stopPropagation();
     onStartEdit(note.id);
   };

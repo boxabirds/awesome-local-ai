@@ -41,10 +41,12 @@ function getObjectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
 
 /**
  * Create a WebSocket client that connects to a board room via SELF.fetch.
- * The client sends its local doc updates to the server and applies remote updates.
+ * The client sends its local doc updates to the server and applies remote
+ * updates. Pass `existingDoc` to reconnect with a doc that already holds
+ * (unsent) changes, as a real client would after a server-initiated close.
  */
-export async function createWsClient(boardId: string): Promise<WsClient> {
-  const doc = new Y.Doc();
+export async function createWsClient(boardId: string, existingDoc?: Y.Doc): Promise<WsClient> {
+  const doc = existingDoc ?? new Y.Doc();
 
   const receivedUpdates: Uint8Array[] = [];
   const receivedAwareness: Uint8Array[] = [];
@@ -92,7 +94,10 @@ export async function createWsClient(boardId: string): Promise<WsClient> {
     const type = decoding.readVarUint(dec);
 
     if (type === MESSAGE_SYNC) {
+      // Respond in the same frame format as y-websocket: the MESSAGE_SYNC
+      // prefix, then the sync sub-message written by readSyncMessage.
       const resEnc = encoding.createEncoder();
+      encoding.writeVarUint(resEnc, MESSAGE_SYNC);
       const msgType = sync.readSyncMessage(dec, resEnc, doc, 'remote');
 
       if (msgType === 2) {
@@ -101,7 +106,10 @@ export async function createWsClient(boardId: string): Promise<WsClient> {
         receivedUpdates.push(bytes.slice(updateStart));
       }
 
-      if (encoding.length(resEnc) > 0) {
+      // Only send when readSyncMessage appended a real sub-message beyond the
+      // MESSAGE_SYNC prefix (matches y-websocket's `length > 1` guard); a bare
+      // prefix frame is not a valid sync message.
+      if (encoding.length(resEnc) > 1) {
         ws.send(encoding.toUint8Array(resEnc));
       }
 

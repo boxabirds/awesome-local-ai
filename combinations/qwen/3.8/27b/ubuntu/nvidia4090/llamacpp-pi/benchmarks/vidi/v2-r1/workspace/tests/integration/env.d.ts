@@ -1,2 +1,12 @@
 // Type declarations for the cloudflare:test module used in integration tests.
 /// <reference types="@cloudflare/vitest-pool-workers" />
+
+import type { BoardRoom } from '../../src/worker/board-room';
+
+declare module 'cloudflare:test' {
+  interface ProvidedEnv {
+    BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
+    ASSETS: Fetcher;
+    TEST_HOOKS?: string;
+  }
+}

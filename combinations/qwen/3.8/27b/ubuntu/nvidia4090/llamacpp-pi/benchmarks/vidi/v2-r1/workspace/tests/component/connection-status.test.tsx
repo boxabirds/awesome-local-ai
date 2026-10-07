@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import type { ConnectionState } from '../../src/client/sync/connectBoard';
+import { canEdit } from '../../src/client/App';
 
 describe('ConnectionStatus badge', () => {
   it('TC-19: connecting state shows "Connecting…" with role=status', () => {
@@ -43,13 +44,18 @@ describe('ConnectionStatus badge', () => {
     }
   });
 
-  it('TC-21: board editing is never blocked by connection state (no lockout)', () => {
-    // The component only renders a badge; it never wraps the board in a
-    // disabled/pointer-events:none container. Verify the badge has no
-    // interactive semantics that would block events.
+  it('TC-21: editing is blocked only by load_failed (story 4 contract)', () => {
+    // Every non-load_failed state keeps the board editable: unsaved changes
+    // are re-sent on reconnection. Only a board that cannot be loaded locks
+    // the edit handlers.
+    for (const s of ['connecting', 'connected', 'reconnecting', 'confirmed'] as const) {
+      expect(canEdit(s)).toBe(true);
+    }
+    expect(canEdit('load_failed')).toBe(false);
+    // The badge itself never carries interactive semantics that could block
+    // events.
     render(<ConnectionStatus state="reconnecting" />);
     const badge = screen.getByRole('status');
-    // Badge should not be a button, link, or have tabindex
     expect(badge.tagName).toBe('DIV');
     expect(badge).not.toHaveAttribute('tabindex');
     expect(badge).not.toHaveAttribute('aria-disabled');

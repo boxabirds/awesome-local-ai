@@ -69,3 +69,23 @@ export const CONNECTED_CONFIRMATION_MS = 2000;
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
 /** Functional wait in e2e (all stories); latency is logged, not asserted. */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+// --- Board persistence (story 4) -------------------------------------------
+
+/** Compact the update log once it holds this many rows. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ...or once the log's bytes reach this. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/** Split snapshots into chunks of at most this many bytes, so every row stays
+ *  far below the platform per-row size limit of SQLite-backed Durable Objects. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A LoadFailed room retries loading at most this often (per new connection). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** PRD persist.large_board: size of the board we test opening. */
+export const PERSIST_TESTED_NOTES = 2000;
+/** PRD persist.large_board: open-time target for a board of that size (ms). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** PRD persist.broken_board: repair → recovered target (ms); logged, not asserted. */
+export const BUDGET_RECOVERY_MS = 5000;
+/** Version of the Durable Object storage schema (storage_meta row). */
+export const STORAGE_SCHEMA_VERSION = 1;

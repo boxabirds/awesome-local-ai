@@ -19,11 +19,22 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
-import { createSticky, deleteObject, setStickyColor, snapshot } from '../shared/board-model';
-import { STICKY_SIZE_WORLD } from '../shared/config';
+import { createSticky, deleteObject, getStickyText, setStickyColor, snapshot } from '../shared/board-model';
+import { STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from '../shared/config';
 import { isTestMode, type Vidi6TestHooks } from './testHooks';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { newBoardId } from '../shared/board-id';
+
+/**
+ * Story 4 edit gate: editing is disabled only while the board's storage
+ * could not be loaded. While `reconnecting` (e.g. after a storage failure
+ * close 1011) the board stays editable — unsaved changes are re-sent on
+ * reconnection.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 /** Gap (screen px) between the note top edge and the note toolbar. */
 const NOTE_TOOLBAR_GAP_PX = 8;
@@ -79,6 +90,7 @@ export function App(): JSX.Element {
 
   const createStickyAt = useCallback(
     (screen: Point) => {
+      if (!canEdit(connectionState)) return; // story 4: edit lock
       const world = screenToWorld(cam.camera, screen);
       const id = createSticky(doc, world);
       if (id) {
@@ -88,7 +100,7 @@ export function App(): JSX.Element {
         selection.startEdit(id);
       }
     },
-    [cam.camera, doc, selection],
+    [cam.camera, doc, selection, connectionState],
   );
 
   // Keyboard: Enter starts editing the selected note; Delete/Backspace delete
@@ -97,6 +109,7 @@ export function App(): JSX.Element {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
+      if (!canEdit(connectionState)) return; // story 4: edit lock
       if (e.key === 'Enter') {
         if (selection.selectedId && !selection.editingId) {
           e.preventDefault();
@@ -111,7 +124,7 @@ export function App(): JSX.Element {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [doc, selection]);
+  }, [doc, selection, connectionState]);
 
   // Test hooks (test mode only).
   useEffect(() => {
@@ -132,6 +145,15 @@ export function App(): JSX.Element {
       getConnectionState: () => connectionState,
       createNote: () => {
         createStickyAt({ x: size.width / 2, y: size.height / 2 });
+      },
+      createNoteAt: (x, y, color, text) => {
+        const stickyColor: StickyColor | undefined =
+          Object.keys(STICKY_COLORS).includes(color) ? (color as StickyColor) : undefined;
+        const id = createSticky(doc, { x, y }, stickyColor);
+        if (id !== null && text !== undefined && text !== '') {
+          getStickyText(doc, id)?.insert(0, text);
+        }
+        return id;
       },
     };
     window.__vidi6 = hooks;
@@ -173,6 +195,7 @@ export function App(): JSX.Element {
             zoom={cam.camera.zoom}
             selected={selection.selectedId === note.id}
             editing={selection.editingId === note.id}
+            disabled={!canEdit(connectionState)}
             onSelect={selection.select}
             onStartEdit={selection.startEdit}
             onEndEdit={selection.endEdit}
@@ -182,6 +205,7 @@ export function App(): JSX.Element {
       </BoardViewport>
 
       <Toolbar
+        disabled={!canEdit(connectionState)}
         onCreateSticky={() => createStickyAt({ x: size.width / 2, y: size.height / 2 })}
       />
 
@@ -201,9 +225,11 @@ export function App(): JSX.Element {
           <NoteToolbar
             color={selectedNote.color}
             onColor={(c) => {
+              if (!canEdit(connectionState)) return; // story 4: edit lock
               setStickyColor(doc, selectedNote.id, c);
             }}
             onDelete={() => {
+              if (!canEdit(connectionState)) return; // story 4: edit lock
               if (deleteObject(doc, selectedNote.id)) selection.select(null);
             }}
           />

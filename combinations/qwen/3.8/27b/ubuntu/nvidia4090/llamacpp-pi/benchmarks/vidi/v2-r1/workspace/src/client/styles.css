@@ -336,3 +336,9 @@ body {
   border-color: #22c55e;
   color: #166534;
 }
+
+.connection-badge--load-failed {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #b91c1c;
+}

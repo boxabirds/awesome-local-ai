@@ -26,6 +26,11 @@ export interface Vidi6TestHooks {
   getConnectionState(): string;
   /** Create a note at the center of the viewport. */
   createNote(): void;
+  /**
+   * Create a note centred at world (x, y) with a colour and text, returning
+   * its id (null on failure). For deterministic board seeding in e2e.
+   */
+  createNoteAt(x: number, y: number, color: string, text: string): string | null;
 }
 
 declare global {

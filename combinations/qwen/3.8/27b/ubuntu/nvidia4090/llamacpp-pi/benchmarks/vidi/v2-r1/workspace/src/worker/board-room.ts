@@ -1,157 +1,296 @@
-// BoardRoom Durable Object (story 3): holds the board's Y.Doc in memory and
-// relays Yjs sync and awareness messages over WebSockets.
+// BoardRoom Durable Object (story 4): persistent, hibernating board room.
 //
-// Design: non-hibernating WebSockets (server.accept()) because the doc is
-// memory-only in this story. An open, accepted socket keeps the object alive.
-// Story 4 will switch to hibernation once the doc can be reloaded from storage.
+// The board's Y.Doc is reloaded from the BoardStore (SQLite) on every
+// construction (first connection or wake from hibernation), every applied
+// update is appended to the store before it is broadcast, and sockets are
+// hibernating (ctx.acceptWebSocket) so an idle board costs no compute.
+//
+// Lifecycle: see room-state.ts (nextRoomState). State transitions the room
+// performs itself: loading → ready | load-failed (constructor and reloads),
+// ready → compacting → ready, ready → storage-failed, storage-failed/load-failed
+// → loading (new connection). 'hibernate' is the runtime's state: an idle
+// object reconstructs and re-enters 'loading' on the next event.
+//
+// Test hooks (corrupt/repair/seed/compact under /__test/) are handled in
+// fetch and only reachable through routes the worker registers when
+// env.TEST_HOOKS === '1' (never set in production config).
 
 import { DurableObject } from 'cloudflare:workers';
 import * as Y from 'yjs';
 import * as sync from 'y-protocols/sync';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
-import { decodeMessage, CLOSE_UNSUPPORTED_DATA, MESSAGE_SYNC, MESSAGE_AWARENESS } from '../shared/protocol';
+import {
+  CLOSE_BOARD_LOAD_FAILED,
+  CLOSE_STORAGE_FAILURE,
+  CLOSE_UNSUPPORTED_DATA,
+  MESSAGE_AWARENESS,
+  MESSAGE_SYNC,
+  decodeMessage,
+} from '../shared/protocol';
+import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config';
+import { BoardStore, LOAD_ORIGIN } from './board-store';
+import { nextRoomState, type RoomState } from './room-state';
+import { handleTestHook, isTestHookPath } from './test-hooks';
+import type { Env } from './index';
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export class BoardRoom extends DurableObject {
-  private sockets: Set<WebSocket> = new Set();
+  /** Public for tests: failure injection wraps methods on the store (TC-14, TC-26). */
+  store: BoardStore;
   private doc: Y.Doc | null = null;
+  private state: RoomState = 'loading';
+  private lastLoadAttemptAt = 0;
+
+  constructor(ctx: DurableObjectState, _env: Env) {
+    super(ctx, _env);
+    this.store = new BoardStore(ctx.storage);
+    console.log({ event: 'board_room.constructed' });
+    // Load synchronously before any event runs: fetch and webSocketMessage
+    // only observe 'ready' or 'load-failed'.
+    void ctx.blockConcurrencyWhile(() => this.runLoad());
+  }
 
   async fetch(req: Request): Promise<Response> {
-    const pairs = new WebSocketPair();
-    const [client, server] = Object.values(pairs);
-
-    // Accept the server-side socket (non-hibernating)
-    server.accept();
-
-    // Create the doc lazily
-    if (!this.doc) {
-      this.doc = new Y.Doc();
+    const url = new URL(req.url);
+    if (isTestHookPath(url)) {
+      if (url.pathname === '/__test/reload') {
+        // Test hook: force a reload from storage. Deterministic alternative
+        // to waiting for a hibernation wake, so load-path tests (quarantine,
+        // broken boards) do not depend on idle timing.
+        this.state = 'loading';
+        await this.runLoad();
+        const state: RoomState = this.state as RoomState;
+        return new Response(JSON.stringify({ state }), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      const response = await handleTestHook(req, url, this.ctx.storage, this.store, this.doc);
+      if (response !== null) return response;
     }
 
-    this.sockets.add(server);
+    const pairs = new WebSocketPair();
+    const [client, server] = Object.values(pairs);
+    const response = new Response(null, { status: 101, webSocket: client });
 
-    // Send initial SyncStep1 so the client can complete the sync handshake
+    if (this.state === 'load-failed' || this.state === 'storage-failed') {
+      // A new connection is the room's chance to try loading again. A
+      // load-failed room honours LOAD_RETRY_MIN_INTERVAL_MS; a storage-failed
+      // room retries immediately (its failure was on the write path).
+      const elapsed = Date.now() - this.lastLoadAttemptAt >= LOAD_RETRY_MIN_INTERVAL_MS;
+      const next = nextRoomState(this.state, { type: 'connection', retryIntervalElapsed: elapsed });
+      if (next === 'loading') {
+        this.state = next;
+        await this.runLoad();
+      }
+      // runLoad() may have transitioned to 'ready'; TS cannot see through
+      // the call, so read the state without the stale narrowing.
+      const state: RoomState = this.state as RoomState;
+      if (state !== 'ready') {
+        // Honest failure: accept, then close with the load-failed code.
+        this.ctx.acceptWebSocket(server);
+        server.close(CLOSE_BOARD_LOAD_FAILED, 'board load failed');
+        return response;
+      }
+    }
+
+    this.ctx.acceptWebSocket(server);
     this.sendSyncStep1(server);
+    return response;
+  }
 
-    // Handle incoming messages
-    server.onmessage = (event) => {
-      this.handleMessage(server, event.data);
-    };
+  webSocketMessage(ws: WebSocket, msg: string | ArrayBuffer): void {
+    if (this.state === 'load-failed') {
+      ws.close(CLOSE_BOARD_LOAD_FAILED, 'board load failed');
+      return;
+    }
+    if (this.state === 'storage-failed') {
+      ws.close(CLOSE_STORAGE_FAILURE, 'storage failure');
+      return;
+    }
+    const doc = this.doc;
+    if (doc === null || this.state !== 'ready') return; // loading: cannot happen (blockConcurrencyWhile)
 
-    // Remove socket on close/error
-    server.onclose = () => {
-      this.sockets.delete(server);
-    };
-    server.onerror = () => {
-      this.sockets.delete(server);
-    };
+    if (typeof msg === 'string') {
+      ws.close(CLOSE_UNSUPPORTED_DATA);
+      return;
+    }
 
-    return new Response(null, { status: 101, webSocket: client });
+    const decoded = decodeMessage(msg);
+    if (decoded.kind === 'invalid') {
+      ws.close(CLOSE_UNSUPPORTED_DATA);
+      return;
+    }
+    if (decoded.kind === 'query-awareness') {
+      return;
+    }
+    if (decoded.kind === 'awareness') {
+      this.relayAwareness(decoded.payload);
+      return;
+    }
+
+    this.handleSyncMessage(ws, doc, decoded.payload);
+  }
+
+  webSocketClose(_ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): void {
+    // Hibernating sockets are tracked by the runtime; getWebSockets() is the
+    // source of truth, so there is nothing to clean up.
+  }
+
+  webSocketError(ws: WebSocket, error: unknown): void {
+    console.error({ event: 'board_room.socket_error', error: errorMessage(error) });
+    ws.close(CLOSE_UNSUPPORTED_DATA);
+  }
+
+  // --- internals -----------------------------------------------------------
+
+  private async runLoad(): Promise<void> {
+    this.store.migrate();
+    const fresh = new Y.Doc();
+    const result = this.store.load(fresh);
+    this.lastLoadAttemptAt = Date.now();
+    if (result.ok) {
+      fresh.on('update', (update: Uint8Array, origin: unknown) => {
+        this.handleDocUpdate(update, origin);
+      });
+      this.doc = fresh;
+      this.state = nextRoomState(this.state, { type: 'loaded', quarantined: result.quarantined });
+    } else {
+      this.doc = null;
+      fresh.destroy();
+      this.state = nextRoomState(this.state, { type: 'load-failed', reason: result.reason });
+    }
+  }
+
+  /** A doc update was applied: store it, then broadcast, then maybe compact.
+   * Updates replayed from storage (LOAD_ORIGIN) are neither stored nor sent. */
+  private handleDocUpdate(update: Uint8Array, origin: unknown): void {
+    if (origin === LOAD_ORIGIN) return;
+    const doc = this.doc;
+    if (doc === null) return;
+    if (this.state !== 'ready' && this.state !== 'compacting') return; // defensive
+
+    try {
+      this.store.append(update); // throws on SQL failure
+    } catch (error) {
+      this.onStorageFailure(error);
+      return;
+    }
+    this.state = nextRoomState(this.state, { type: 'update-stored' });
+
+    this.broadcastUpdate(update, origin);
+
+    if (this.store.compactionDue()) {
+      this.state = nextRoomState(this.state, { type: 'compact' });
+      const compacted = this.store.compactIfNeeded(doc);
+      this.state = nextRoomState(this.state, { type: 'compact-done', rolledBack: !compacted });
+    }
+  }
+
+  /** Insert threw: discard the doc, close every socket with 1011. The next
+   * connection reloads from storage and clients re-send their unsaved changes
+   * through the story 3 handshake. */
+  private onStorageFailure(error: unknown): void {
+    console.error({ event: 'board_room.storage_failed', error: errorMessage(error) });
+    this.state = nextRoomState(this.state, { type: 'storage-error' });
+    const doc = this.doc;
+    this.doc = null;
+    doc?.destroy();
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        ws.close(CLOSE_STORAGE_FAILURE, 'storage failure');
+      } catch {
+        // already closing
+      }
+    }
+  }
+
+  /** Sync sub-frames from a client. Applies happen with origin `ws`, so the
+   * update handler skips echoing the sender. Garbage that Yjs rejects closes
+   * this socket with 1003 and is never stored (validated on a scratch doc
+   * first, because a truncated multi-item update can integrate partially). */
+  private handleSyncMessage(ws: WebSocket, doc: Y.Doc, payload: Uint8Array): void {
+    try {
+      const decoder = decoding.createDecoder(payload);
+      const subType = decoding.readVarUint(decoder);
+      if (subType === sync.messageYjsSyncStep1) {
+        const stateVector = decoding.readVarUint8Array(decoder);
+        if (Y.encodeStateAsUpdate(doc, stateVector).length > 0) {
+          const enc = encoding.createEncoder();
+          encoding.writeVarUint(enc, MESSAGE_SYNC);
+          sync.writeSyncStep2(enc, doc, stateVector);
+          ws.send(encoding.toUint8Array(enc));
+        }
+      } else if (subType === sync.messageYjsSyncStep2 || subType === sync.messageYjsUpdate) {
+        const update = decoding.readVarUint8Array(decoder);
+        if (update.length > 0) {
+          this.assertValidUpdate(update);
+          Y.applyUpdate(doc, update, ws);
+        }
+      } else {
+        throw new Error('unknown sync sub-type');
+      }
+    } catch {
+      ws.close(CLOSE_UNSUPPORTED_DATA);
+    }
+  }
+
+  /** Apply `update` to a scratch doc; throws when Yjs rejects it. */
+  private assertValidUpdate(update: Uint8Array): void {
+    const scratch = new Y.Doc();
+    try {
+      Y.applyUpdate(scratch, update);
+    } finally {
+      scratch.destroy();
+    }
   }
 
   private sendSyncStep1(ws: WebSocket): void {
-    if (!this.doc) return;
+    const doc = this.doc;
+    if (doc === null) return;
     const enc = encoding.createEncoder();
     encoding.writeVarUint(enc, MESSAGE_SYNC);
-    sync.writeSyncStep1(enc, this.doc);
-    ws.send(encoding.toUint8Array(enc));
+    sync.writeSyncStep1(enc, doc);
+    try {
+      ws.send(encoding.toUint8Array(enc));
+    } catch {
+      // already closing
+    }
   }
 
-  private broadcastUpdate(update: Uint8Array, except: WebSocket): void {
+  /** Relay an awareness frame verbatim to every open socket, including the
+   * sender (story 3 behaviour; also what keeps the object awake while
+   * people are present). */
+  private relayAwareness(payload: Uint8Array): void {
+    const enc = encoding.createEncoder();
+    encoding.writeVarUint(enc, MESSAGE_AWARENESS);
+    encoding.writeUint8Array(enc, payload);
+    const bytes = encoding.toUint8Array(enc);
+    for (const ws of this.ctx.getWebSockets()) {
+      if (ws.readyState !== WebSocket.OPEN) continue;
+      try {
+        ws.send(bytes);
+      } catch {
+        // closing; the runtime drops it from getWebSockets()
+      }
+    }
+  }
+
+  private broadcastUpdate(update: Uint8Array, except: unknown): void {
     const enc = encoding.createEncoder();
     encoding.writeVarUint(enc, MESSAGE_SYNC);
     sync.writeUpdate(enc, update);
     const bytes = encoding.toUint8Array(enc);
-
-    for (const ws of this.sockets) {
+    for (const ws of this.ctx.getWebSockets()) {
       if (ws === except) continue;
       if (ws.readyState !== WebSocket.OPEN) continue;
       try {
         ws.send(bytes);
       } catch {
-        this.sockets.delete(ws);
-      }
-    }
-  }
-
-  private handleMessage(ws: WebSocket, data: ArrayBuffer | string): void {
-    if (!this.doc) return;
-
-    const decoded = decodeMessage(data);
-
-    // Invalid frames: close this socket only
-    if (decoded.kind === 'invalid') {
-      ws.close(CLOSE_UNSUPPORTED_DATA);
-      return;
-    }
-
-    // Query awareness: ignore (no stored awareness in this story)
-    if (decoded.kind === 'query-awareness') {
-      return;
-    }
-
-    // Awareness: relay verbatim to all open sockets including sender
-    if (decoded.kind === 'awareness') {
-      const enc = encoding.createEncoder();
-      encoding.writeVarUint(enc, MESSAGE_AWARENESS);
-      encoding.writeUint8Array(enc, decoded.payload);
-      const bytes = encoding.toUint8Array(enc);
-
-      for (const s of this.sockets) {
-        if (s.readyState !== WebSocket.OPEN) continue;
-        try {
-          s.send(bytes);
-        } catch {
-          this.sockets.delete(s);
-        }
-      }
-      return;
-    }
-
-    // Sync message
-    if (decoded.kind === 'sync') {
-      try {
-        const decoder = decoding.createDecoder(decoded.payload);
-        const responseEncoder = encoding.createEncoder();
-
-        // Read the sub-message type to determine what we're dealing with
-        const subType = decoding.readVarUint(decoder);
-
-        if (subType === 2) {
-          // messageYjsUpdate: raw update bytes follow
-          const update = decoding.readVarUint8Array(decoder);
-
-          // Apply to doc
-          Y.applyUpdate(this.doc, update, ws);
-
-          // Broadcast to all other sockets
-          this.broadcastUpdate(update, ws);
-        } else if (subType === 1) {
-          // messageYjsSyncStep2: update bytes that fill in missing parts
-          const update = decoding.readVarUint8Array(decoder);
-
-          if (update.length > 0) {
-            Y.applyUpdate(this.doc, update, ws);
-            this.broadcastUpdate(update, ws);
-          }
-        } else if (subType === 0) {
-          // messageYjsSyncStep1: state vector from client
-          const stateVector = decoding.readVarUint8Array(decoder);
-          const update = Y.encodeStateAsUpdate(this.doc, stateVector);
-
-          if (update.length > 0) {
-            // Send SyncStep2 response to this client only
-            const enc = encoding.createEncoder();
-            encoding.writeVarUint(enc, MESSAGE_SYNC);
-            sync.writeSyncStep2(enc, this.doc, stateVector);
-            ws.send(encoding.toUint8Array(enc));
-          }
-        }
-
-        // If readSyncMessage generated a response (for SyncStep1), send it
-        // (handled above for subType 0)
-      } catch (e) {
-        ws.close(CLOSE_UNSUPPORTED_DATA);
+        // closing; the runtime drops it from getWebSockets()
       }
     }
   }
