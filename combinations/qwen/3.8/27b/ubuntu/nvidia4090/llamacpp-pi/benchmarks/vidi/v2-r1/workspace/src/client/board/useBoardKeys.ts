@@ -30,12 +30,15 @@ import {
 import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
+import type { UndoController } from './undo';
 
 interface KeysOpts {
   doc: Y.Doc;
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** The per-board undo controller (story 8, undo.shortcuts). */
+  undo?: UndoController;
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -50,7 +53,7 @@ export function useBoardKeys(opts: KeysOpts): void {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, undo } = optsRef.current;
       // While editing, the keys go to the editor (e.g. Backspace deletes a
       // character, never the selection).
       if (selection.editingId !== null) return;
@@ -72,6 +75,22 @@ export function useBoardKeys(opts: KeysOpts): void {
       // Mutating commands need the edit lock to be open.
       if (!canEdit) return;
 
+      // Ctrl/Cmd+Z undoes; Ctrl/Cmd+Shift+Z or Ctrl+Y redoes (undo.shortcuts).
+      // preventDefault stops the browser's own undo. While editing, focus is
+      // in the textarea and the early returns above already skipped us (the
+      // editor handles its own Ctrl+Z).
+      if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+        const key = e.key.toLowerCase();
+        const isRedo = (key === 'z' && e.shiftKey) || (key === 'y' && !e.shiftKey);
+        const isUndo = key === 'z' && !e.shiftKey;
+        if (isUndo || isRedo) {
+          e.preventDefault();
+          if (isUndo) undo?.undo();
+          else undo?.redo();
+          return;
+        }
+      }
+
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         if (selection.ids.size === 0) return; // no selection → nothing happens
         e.preventDefault();
@@ -84,14 +103,20 @@ export function useBoardKeys(opts: KeysOpts): void {
           if (!obj) continue; // pruned (deleted remotely) → skipped
           positions.set(id, { x: obj.x + dx, y: obj.y + dy });
         }
+        // Story 8: each nudge press is one undo step.
+        undo?.boundary();
         moveObjects(doc, positions);
+        undo?.boundary();
         return;
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selection.ids.size === 0) return; // no selection → nothing happens
         e.preventDefault();
+        // Story 8: one delete (of any number of objects) is one undo step.
+        undo?.boundary();
         deleteObjects(doc, [...selection.ids]);
+        undo?.boundary();
         selection.clear();
         return;
       }

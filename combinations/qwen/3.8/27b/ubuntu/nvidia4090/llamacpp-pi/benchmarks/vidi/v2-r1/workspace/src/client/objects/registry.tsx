@@ -13,6 +13,7 @@ import {
 } from '../../shared/board-model';
 import { pointInRect, type Point } from '../../shared/geometry';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 
 /**
@@ -52,6 +53,12 @@ export interface ObjectProps {
    * `'unselected'` clears the selection (click outside).
    */
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /**
+   * Story 8: the per-board undo controller. Optional so existing harnesses
+   * (and future non-undo features) keep working; objects with editable text
+   * use it for typing boundaries and in-editor undo/redo.
+   */
+  undo?: UndoController;
 }
 
 /**

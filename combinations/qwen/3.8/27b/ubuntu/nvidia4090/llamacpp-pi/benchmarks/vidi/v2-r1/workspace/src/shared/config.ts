@@ -129,3 +129,16 @@ export const LINK_COPIED_MS = 2000;
  *  service cannot be reached; doubles per attempt, capped at
  *  RECONNECT_MAX_BACKOFF_MS (story 3). */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Undo / redo (story 8) -------------------------------------------------
+
+/**
+ * undo.boundaries: local changes made within this gap (ms) merge into one
+ * undo step (e.g. a typing burst, or the frames of one drag gesture).
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/**
+ * undo.limit: at most this many undo steps are kept per session; the
+ * oldest steps are dropped when the limit is exceeded.
+ */
+export const UNDO_MAX_STEPS = 200;

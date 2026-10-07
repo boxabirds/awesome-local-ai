@@ -7,12 +7,14 @@ export interface ToolbarProps {
   onCreateSticky(): void;
   /** Disable the Sticky note button (story 4: board load failed). */
   disabled?: boolean;
+  /** Rendered below the tools (story 8: the Undo/Redo buttons). */
+  extra?: JSX.Element;
 }
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
 export function Toolbar(props: ToolbarProps): JSX.Element {
-  const { onCreateSticky, disabled = false } = props;
+  const { onCreateSticky, disabled = false, extra } = props;
   return (
     <div
       className="toolbar"
@@ -40,6 +42,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           <path d="M10 3v8h7" fill="#e8d873" stroke="#b5a642" strokeWidth="0.75" />
         </svg>
       </button>
+      {extra}
     </div>
   );
 }

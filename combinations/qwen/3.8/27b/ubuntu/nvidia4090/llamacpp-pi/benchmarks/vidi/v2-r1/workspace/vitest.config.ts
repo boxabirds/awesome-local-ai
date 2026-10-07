@@ -9,6 +9,14 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['tests/unit/**/*.test.ts'],
+          server: {
+            deps: {
+              // yjs (and lib0) must be inlined so tests can vi.mock
+              // 'lib0/time' — the Yjs capture-timeout clock. Externalized
+              // CJS bypasses the mock module graph.
+              inline: ['yjs', /lib0\//],
+            },
+          },
         },
       }),
       defineProject({

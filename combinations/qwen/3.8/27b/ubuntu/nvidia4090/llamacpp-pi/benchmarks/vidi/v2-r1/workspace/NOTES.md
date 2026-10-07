@@ -214,3 +214,70 @@ Ctrl/Cmd +/-/0 zoom shortcuts in `useCamera`/`BoardViewport`.
   (`npx playwright install --dry-run` shows firefox/webkit absent); the
   harness constraint is Chromium-only. All TC-32/33/34/35/36 cases pass in
   chromium.
+
+# Story 8 — Notes
+
+## Key design decisions
+
+- **yjs 13.6.33's UndoManager exposes no `undoDepth`/`redoDepth`**, so the
+  `UNDO_MAX_STEPS` trim (undo.limit) is manual: on `stack-item-added`, drop
+  oldest entries while the stack is longer than the limit. Guarded by
+  `!manager.undoing` so a trim never races an in-flight inverse.
+- **Dead steps are detected before the pop, then discarded.** yjs's own
+  `undo()` auto-pops the *next* stack item when the current inverse has no
+  effect — that cascade both breaks "one press = one meaningful step" and
+  could run across steps whose targets a colleague deleted. The controller
+  instead peeks at the top item, decides whether its inverse would have an
+  effect (mirror of yjs's `undoItem`/`redoItem` rejection paths, plus a
+  read-only walk of the DeleteSets), and if not, removes the item from the
+  stack *without* applying it (`popNoEffect`). Discarding (not re-inserting
+  the un-inverted item) is deliberate: re-insertion ping-pongs the stack.
+  `meta.removed.size > 0` always counts as an effect (a restore of
+  top-level entries has no right-chain conflict); `meta.touched.size === 0`
+  is treated as an effect defensively.
+- **`walkDeleted` (custom, read-only) replaces `Y.iterateDeletedStructs`.**
+  yjs's walker *splits* items — a mutation of the struct arrays that is only
+  valid inside a committed transaction (it relies on `transaction._mergeStructs`).
+  The controller needs the same ranges for a pure read, so it walks each
+  client's struct array directly, yielding structs overlapping each deleted
+  range without splitting.
+- **`createNoteAt` is boundary-bounded** (one creation = one undo step, as
+  through the UI), so e2e TC-22's "drain the history" loop presses 12 times
+  (1 redo'd delete step + 8 creation steps, with margin for no-op presses).
+
+## Test notes
+
+- **`lib0/time`'s `getUnixTime` is `Date.now` captured at import time**, so
+  `vi.useFakeTimers()` cannot reach it. The boundary unit tests
+  (`tests/unit/undo-boundaries.test.ts`) mock the module itself:
+  `vi.mock('lib0/time')` with a `vi.hoisted` controllable clock, and the
+  *unit* vitest project inlines `yjs` and `/lib0\//` (`server.deps.inline`)
+  so the mock applies to yjs's internal `require('lib0/time')`.
+- **E2E assertions about a remote page must poll.** A local undo only
+  reaches other contexts after worker propagation; TC-23 originally asserted
+  on Raj's page immediately after Mia's Ctrl+Z and lost that race (flaky
+  "B still present"). All cross-context checks now use `expect.poll`.
+- **The marquee uses the fully-inside rule** (`objectsInRect` →
+  `rectContains`), so TC-22's box must fully cover the largest seeded note
+  (world −460..475 × −160..195 → screen 140,180 → 1160,640, viewport
+  1280×800).
+- **Every e2e test closes its browser contexts in `finally`.** A mid-test
+  failure otherwise leaks contexts whose pages keep reconnecting to the
+  *next* test's wrangler (all wranglers share port 28433), which pollutes
+  the next test with 404s and "Reconnecting" states and can make its keys
+  land while `canEdit` is false.
+- **TC-24 inserts a 700 ms pause between the move loop and the typing
+  loop** (> `UNDO_CAPTURE_TIMEOUT_MS` = 500) so each editor's move and
+  typing remain separate undo steps; the intermediate assertion (typings
+  reverted, moves intact) depends on that.
+- **`useUndo`** builds its snapshot as a short primitive string
+  (`useSyncExternalStore` requires a stable `getSnapshot`) and ref-caches
+  the API object keyed by that snapshot.
+- **The editor owns its own undo/redo shortcuts** (Ctrl/Cmd+Z,
+  Ctrl/Cmd+Shift+Z, Ctrl+Y) with `preventDefault`, routed through the board
+  controller, so the textarea's native undo history never diverges from
+  Y.Text; after a shortcut it re-syncs the textarea from Y.Text.
+- **E2E config** `playwright.undo.config.ts` (script `test:e2e:undo`):
+  chromium only, one worker, 240 s timeout, each test starts its own
+  wrangler on 28433. The main config's `testIgnore` excludes
+  `undo.spec.ts` so a plain `npm run test:e2e` never needs wrangler.

@@ -29,6 +29,7 @@ export default defineConfig({
         'broken-board.spec.ts',
         'share.spec.ts',
         'selection-collab.spec.ts',
+        'undo.spec.ts',
       ],
     },
     {

@@ -37,10 +37,22 @@ export interface StickyTextEditorProps {
   onEnd(next: 'selected' | 'unselected'): void;
   /** Reports the editor's measured fit (font size + overflow flag). */
   onFitChange?(fit: TextFit): void;
+  /**
+   * Story 8 (undo.boundaries): called when editing starts and ends, so a
+   * typing session is one undo step separate from surrounding actions.
+   */
+  onBoundary?(): void;
+  /**
+   * Story 8 (undo.shortcuts): called for Ctrl/Cmd+Z (redo=false) and
+   * Ctrl/Cmd+Shift+Z / Ctrl+Y (redo=true) inside the textarea. The editor
+   * preventDefaults them so the browser's native textarea undo never
+   * diverges from Y.Text.
+   */
+  onUndoShortcut?(redo: boolean): void;
 }
 
 export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
-  const { ytext, fontPx, onEnd, onFitChange } = props;
+  const { ytext, fontPx, onEnd, onFitChange, onBoundary, onUndoShortcut } = props;
   const box = props.textBox ?? NOTE_TEXT_BOX;
   const taRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
@@ -53,14 +65,24 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
   onFitChangeRef.current = onFitChange;
   const ytextRef = useRef(ytext);
   ytextRef.current = ytext;
+  const onBoundaryRef = useRef(onBoundary);
+  onBoundaryRef.current = onBoundary;
+  const onUndoShortcutRef = useRef(onUndoShortcut);
+  onUndoShortcutRef.current = onUndoShortcut;
 
   // Edit start: focus the textarea with the caret at the end of the text.
+  // Story 8: a boundary before and after the session keeps the typing burst
+  // a separate undo step from the action that opened (or follows) it.
   useEffect(() => {
     const ta = taRef.current;
     if (!ta) return;
+    onBoundaryRef.current?.();
     const len = ta.value.length;
     ta.focus();
     ta.setSelectionRange(len, len);
+    return () => {
+      onBoundaryRef.current?.();
+    };
   }, []);
 
   // Font fit: binary search on the real layout, on mount, on text change and
@@ -112,6 +134,30 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Story 8 (undo.shortcuts): the editor's own undo/redo goes through the
+    // board controller so it never diverges from Y.Text (the browser's
+    // native textarea undo would).
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      const key = e.key.toLowerCase();
+      const isRedo = (key === 'z' && e.shiftKey) || (key === 'y' && !e.shiftKey);
+      const isUndo = key === 'z' && !e.shiftKey;
+      if (isUndo || isRedo) {
+        e.preventDefault();
+        onUndoShortcutRef.current?.(isRedo);
+        // The shortcut may have changed the text in Y.Text; re-sync the
+        // textarea so its (already committed) value never resurrects the
+        // undone text on blur.
+        const ta = e.currentTarget;
+        const next = ytextRef.current.toString();
+        if (next !== ta.value) {
+          ta.value = next;
+          setValue(next);
+          const len = next.length;
+          ta.setSelectionRange(len, len);
+        }
+        return;
+      }
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();

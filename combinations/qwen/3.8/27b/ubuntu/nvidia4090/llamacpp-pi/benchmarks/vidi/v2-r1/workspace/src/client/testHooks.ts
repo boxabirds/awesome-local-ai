@@ -46,6 +46,16 @@ export interface Vidi6TestHooks {
    * its id (null on failure). For deterministic board seeding in e2e.
    */
   createNoteAt(x: number, y: number, color: string, text: string): string | null;
+  /** Story 8: undo one of this tab's steps. false on an empty stack. */
+  undo(): boolean;
+  /** Story 8: redo one of this tab's steps. false on an empty stack. */
+  redo(): boolean;
+  /** Story 8: start a new undo step (end the current capture interval). */
+  boundary(): void;
+  /** Story 8: whether undo() would consume a step. */
+  canUndo(): boolean;
+  /** Story 8: whether redo() would consume a step. */
+  canRedo(): boolean;
 }
 
 declare global {

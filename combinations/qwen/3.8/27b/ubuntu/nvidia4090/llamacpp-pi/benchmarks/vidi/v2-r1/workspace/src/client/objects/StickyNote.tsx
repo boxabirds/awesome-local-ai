@@ -30,6 +30,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
     onPointerDown,
     onStartEdit,
     onEndEdit,
+    undo,
   } = props;
 
   const width = obj.width ?? STICKY_SIZE_WORLD;
@@ -112,6 +113,11 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
           textBox={textBox}
           onEnd={onEndEdit}
           onFitChange={setFit}
+          // Story 8: the typing session is one undo step, separate from the
+          // action that opened it, and in-editor Ctrl/Cmd+Z goes through the
+          // board controller (never the textarea's native undo).
+          onBoundary={undo ? () => undo.boundary() : undefined}
+          onUndoShortcut={undo ? (redo: boolean) => (redo ? undo.redo() : undo.undo()) : undefined}
         />
       ) : (
         <div ref={displayRef} className="sticky-note__text" style={{ fontSize: fit.fontPx }}>

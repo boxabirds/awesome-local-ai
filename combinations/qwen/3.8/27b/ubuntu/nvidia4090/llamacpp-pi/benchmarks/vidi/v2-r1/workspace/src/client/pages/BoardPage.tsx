@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type JSX,
@@ -28,6 +29,9 @@ import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
 import { useBoardKeys } from '../board/useBoardKeys';
 import { useTransformGesture } from '../board/useTransformGesture';
+import { createUndo } from '../board/undo';
+import { useUndo } from '../board/useUndo';
+import { UndoButtons } from '../board/UndoButtons';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
@@ -167,16 +171,29 @@ function Board(props: { boardId: string }): JSX.Element {
 
   const cam = useCamera(size);
 
+  // Story 8: one undo controller per board doc (undo.history); it is
+  // destroyed when the board unmounts, so a fresh board (or reload) starts
+  // with empty history (undo.session_only).
+  const undo = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => {
+    return () => undo.destroy();
+  }, [undo]);
+  const undoApi = useUndo(undo, editable);
+
   // Story 7: the generic transform gesture (group move + bounding-box resize)
-  // and the selection keyboard commands.
+  // and the selection keyboard commands. Story 8: the gesture's start and
+  // end are undo boundaries, so all of a drag's frame writes merge into one
+  // step and never bleed into the surrounding actions (undo.boundaries).
   const gesture = useTransformGesture({
     doc,
     camera: cam.camera,
     selection,
     snapshot: objects,
     canEdit: editable,
+    onGestureStart: () => undo.boundary(),
+    onGestureEnd: () => undo.boundary(),
   });
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo });
 
   // Shift+drag marquee: on release, the fully-inside ids join the selection.
   const marquee = useMarquee(cam.camera, objects, (ids) => selection.setMany(ids, true));
@@ -185,7 +202,11 @@ function Board(props: { boardId: string }): JSX.Element {
     (screen: Point) => {
       if (!editable) return; // story 4: edit lock
       const world = screenToWorld(cam.camera, screen);
+      // Story 8: one creation is one undo step, separate from whatever
+      // happened before (and after) it (undo.boundaries).
+      undo.boundary();
       const id = createSticky(doc, world);
+      undo.boundary();
       if (id) {
         // The new note is selected and starts editing immediately (the
         // 'edit' action accepts ids that are not in the snapshot yet), so
@@ -193,14 +214,17 @@ function Board(props: { boardId: string }): JSX.Element {
         selection.startEdit(id);
       }
     },
-    [cam.camera, doc, editable, selection],
+    [cam.camera, doc, editable, selection, undo],
   );
 
   const deleteSelection = useCallback(() => {
     if (!editable || selection.ids.size === 0) return;
+    // Story 8: one delete (of any number of objects) is one undo step.
+    undo.boundary();
     deleteObjects(doc, [...selection.ids]);
+    undo.boundary();
     selection.clear();
-  }, [doc, selection, editable]);
+  }, [doc, selection, editable, undo]);
 
   // Test hooks (test mode only).
   useEffect(() => {
@@ -240,18 +264,26 @@ function Board(props: { boardId: string }): JSX.Element {
       createNoteAt: (x, y, color, text) => {
         const stickyColor: StickyColor | undefined =
           Object.keys(STICKY_COLORS).includes(color) ? (color as StickyColor) : undefined;
+        // Story 8: one creation is one undo step (as through the UI).
+        undo.boundary();
         const id = createSticky(doc, { x, y }, stickyColor);
         if (id !== null && text !== undefined && text !== '') {
           getStickyText(doc, id)?.insert(0, text);
         }
+        undo.boundary();
         return id;
       },
+      undo: () => undo.undo(),
+      redo: () => undo.redo(),
+      boundary: () => undo.boundary(),
+      canUndo: () => undo.canUndo(),
+      canRedo: () => undo.canRedo(),
     };
     window.__vidi6 = hooks;
     return () => {
       delete window.__vidi6;
     };
-  }, [doc, cam.camera, cam.setCamera, connectionState, size, createStickyAt]);
+  }, [doc, cam.camera, cam.setCamera, connectionState, size, createStickyAt, undo]);
 
   // Objects of a known type render through their registry component, in a
   // stable DOM order (by id); visual stacking comes from each object's CSS
@@ -312,6 +344,7 @@ function Board(props: { boardId: string }): JSX.Element {
                 if (next === 'unselected') selection.clear();
                 else selection.endEdit();
               }}
+              undo={undo}
             />
           );
         })}
@@ -329,6 +362,7 @@ function Board(props: { boardId: string }): JSX.Element {
       <Toolbar
         disabled={!editable}
         onCreateSticky={() => createStickyAt({ x: size.width / 2, y: size.height / 2 })}
+        extra={<UndoButtons undo={undoApi} />}
       />
 
       {noteToolbarVisible && singleSticky && (
@@ -348,11 +382,17 @@ function Board(props: { boardId: string }): JSX.Element {
             color={singleStickyColor}
             onColor={(c) => {
               if (!editable) return; // story 4: edit lock
+              // Story 8: one colour change is one undo step.
+              undo.boundary();
               setStickyColor(doc, singleSticky.id, c);
+              undo.boundary();
             }}
             onDelete={() => {
               if (!editable) return; // story 4: edit lock
+              // Story 8: one delete is one undo step.
+              undo.boundary();
               if (deleteObject(doc, singleSticky.id)) selection.clear();
+              undo.boundary();
             }}
           />
         </div>

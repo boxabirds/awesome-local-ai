@@ -206,9 +206,45 @@ body {
 .toolbar__sticky:focus-visible,
 .note-toolbar__swatch:focus-visible,
 .note-toolbar__delete:focus-visible,
-.zoom-controls__button:focus-visible {
+.zoom-controls__button:focus-visible,
+.toolbar__undo-button:focus-visible {
   outline: 2px solid var(--selection-blue);
   outline-offset: 1px;
+}
+
+/* --- Undo / Redo buttons (story 8, below the tools) ------------------------ */
+
+.toolbar__undo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--ui-border);
+}
+
+.toolbar__undo-button {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #3c4043;
+}
+
+.toolbar__undo-button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.toolbar__undo-button:disabled {
+  cursor: default;
+  opacity: 0.35;
 }
 
 /* --- Note toolbar (screen space, above the selected note) ------------------ */
