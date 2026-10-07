@@ -36,6 +36,16 @@ function prose(length: number): string {
 /** A 1,000 character paragraph: the longest text a note may hold. */
 export const PROSE_1000 = prose(1000);
 
+/**
+ * A 300 character annotation (design "Fixtures"): the longest sentence a person is
+ * likely to type into a text object without meaning to. It is long enough that no
+ * text object can hold it on one automatic line - the box reaches
+ * TEXT_MAX_AUTO_WIDTH_WORLD and the words go over into several lines - and it is
+ * prose with spaces in it, so where the lines break is the browser's business and
+ * not an artefact of a repeated character.
+ */
+export const ANNOTATION_300 = prose(300);
+
 /** 1,050 characters: more than the limit, so pasting it must be clamped. */
 export const PROSE_1050 = prose(1050);
 

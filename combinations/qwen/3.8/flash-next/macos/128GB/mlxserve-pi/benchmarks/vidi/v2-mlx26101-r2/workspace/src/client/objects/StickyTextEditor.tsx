@@ -1,12 +1,20 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+/**
+ * The sticky note's text editor (story 2, design anchor `sticky.edit`).
+ *
+ * Story 9 moved the editing rules into `TextEditor.tsx` - a text object needs
+ * exactly the same behaviour, with a different character limit - and this is what
+ * is left: the sticky note's settings handed to that editor. The names story 2's
+ * tests and `StickyNote.tsx` use are unchanged.
+ */
+
 import type { JSX } from 'react';
 
 import * as Y from 'yjs';
 
-import { LOCAL_ORIGIN } from '../../shared/board-model.js';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config.js';
 import type { UndoController } from '../board/undo.js';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText.js';
+import { counterVisible } from './StickyText.js';
+import { TextEditor } from './TextEditor.js';
 
 /** How the editor finds the note it belongs to (for "clicked outside the note"). */
 export const STICKY_NOTE_ATTRIBUTE = 'data-sticky-note';
@@ -18,15 +26,7 @@ export interface StickyTextEditorProps {
   fontPx: number;
   /** Escape (still selected) or a click outside (nothing selected). */
   onEnd(next: 'selected' | 'unselected'): void;
-  /**
-   * This tab's own undo history (story 8). Typing in a note is the one place
-   * where the browser would otherwise undo something the board has never heard
-   * of: a native Ctrl/Cmd+Z rewinds the textarea on its own, and the textarea is
-   * uncontrolled, so the document and what the person sees would part company.
-   * The editor therefore takes the shortcut itself and asks the board's history -
-   * which writes the shared text, and the observer below redraws this textarea
-   * from it, which is how the caret ends up where the text says it should.
-   */
+  /** This tab's own undo history (story 8); see `TextEditor`'s prop of the same name. */
   undo?: UndoController;
 }
 
@@ -34,177 +34,23 @@ export interface StickyTextEditorProps {
 export const STICKY_EDITOR_LABEL = 'Sticky note text';
 
 /**
- * The note's text editor: an uncontrolled textarea whose content is written
- * into the shared `Y.Text` as it is typed.
- *
- * Every `input` event is applied immediately (as a minimal diff), so finishing
- * editing performs no write at all and can never lose text - Escape, a click
- * outside, or the note disappearing mid-edit all keep what the user typed
- * (sticky.edit_end). IME composition is left to the browser and applied once,
- * on `compositionend`, so composing a character cannot duplicate it.
+ * A note's editor at the note's settings: 1,000 characters, a box the note itself
+ * decides (so no width is passed), the "n/1000" counter near the limit, and no
+ * remeasuring - a note's box never follows its text.
  */
 export function StickyTextEditor({ ytext, fontPx, onEnd, undo }: StickyTextEditorProps): JSX.Element {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const composingRef = useRef(false);
-  const onEndRef = useRef(onEnd);
-  onEndRef.current = onEnd;
-  const ytextRef = useRef(ytext);
-  ytextRef.current = ytext;
-  const undoRef = useRef(undo);
-  undoRef.current = undo;
-
-  const [length, setLength] = useState<number>(() => ytext.toString().length);
-
-  /** Clamp the textarea's own value and write it into the shared text. */
-  const commit = useCallback(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const kept = clampToLimit(el.value);
-    if (kept !== el.value) {
-      // Characters beyond the limit are dropped and the caret stays at the end
-      // of the text that was kept (sticky.text_limit).
-      const caret = Math.min(kept.length, el.selectionStart);
-      el.value = kept;
-      el.setSelectionRange(caret, caret);
-    }
-    applyTextDiff(ytextRef.current, el.value, LOCAL_ORIGIN);
-    setLength((previous) => (previous === el.value.length ? previous : el.value.length));
-  }, []);
-
-  const handleInput = useCallback(() => {
-    // During IME composition the textarea holds the in-progress text; the real
-    // characters arrive with compositionend.
-    if (composingRef.current) return;
-    commit();
-  }, [commit]);
-
-  const handleCompositionEnd = useCallback(() => {
-    composingRef.current = false;
-    commit();
-  }, [commit]);
-
-  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Escape') {
-      // Escape ends editing and keeps the note selected; the text is already in
-      // the document, so there is nothing else to do.
-      event.preventDefault();
-      onEndRef.current('selected');
-    }
-    // Enter is left alone: the textarea inserts a new line (PRD behaviour).
-    //
-    // Ctrl/Cmd+Z and its redo counterparts belong to the board's history here,
-    // not to the textarea. Typing is the one place where undo steps are made by
-    // keystrokes rather than by gestures, and the rule is the same as everywhere
-    // else on the board: a pause of half a second or more ends a step
-    // (`undo.typing`) - the manager's capture window, which this editor opens and
-    // closes at its own start and end.
-    const mod = event.metaKey || event.ctrlKey;
-    if (mod && !event.altKey && event.key.toLowerCase() === 'z') {
-      event.preventDefault();
-      if (event.shiftKey) undoRef.current?.redo();
-      else undoRef.current?.undo();
-    } else if (
-      event.ctrlKey &&
-      !event.metaKey &&
-      !event.shiftKey &&
-      event.key.toLowerCase() === 'y'
-    ) {
-      event.preventDefault();
-      undoRef.current?.redo();
-    }
-  }, []);
-
-  // Put the caret at the end of the existing text as soon as the editor is
-  // mounted (sticky.edit_start: "the cursor at the end of its text"), and focus
-  // so the very next keystroke lands in the note - which is what makes a
-  // double-click-then-type flow work without another click.
-  //
-  // The same two moments close and open the undo capture window: starting to edit
-  // is the start of a step, and stopping - by Escape, by a click outside, by the
-  // note vanishing mid-edit - is its end. Leaving the end of it to the timeout
-  // alone would let a note that was dragged and then typed into come back as one
-  // step that un-moves the note and takes the text with it.
-  useLayoutEffect(() => {
-    undoRef.current?.boundary();
-    const el = textareaRef.current;
-    if (!el) return () => undoRef.current?.boundary();
-    el.focus();
-    const end = el.value.length;
-    el.setSelectionRange(end, end);
-    return () => undoRef.current?.boundary();
-  }, []);
-
-  // A pointerdown anywhere outside the note ends editing and clears the
-  // selection (sticky.edit_end). Capture phase, because the board and the other
-  // notes stop pointer propagation.
-  useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
-      const el = textareaRef.current;
-      const note = el?.closest(`[${STICKY_NOTE_ATTRIBUTE}]`);
-      const target = event.target as Node | null;
-      if (!note || !target) return;
-      if (note.contains(target)) return;
-      onEndRef.current('unselected');
-    };
-    document.addEventListener('pointerdown', onPointerDown, true);
-    return () => document.removeEventListener('pointerdown', onPointerDown, true);
-  }, []);
-
-  // Somebody else's change (story 3) arrives in the shared text: show it, unless
-  // it is the change we have just written ourselves.
-  useEffect(() => {
-    const observer = (event: Y.YTextEvent) => {
-      if (event.transaction.origin === LOCAL_ORIGIN) return;
-      const el = textareaRef.current;
-      if (!el) return;
-      const next = ytextRef.current.toString();
-      if (el.value === next) return;
-      // A caret that was at the end of the text stays at the end. Two people
-      // typing into the same note both add to the end, each in their own order;
-      // leaving the caret where it was would drop the next keystroke *between*
-      // the characters this person has already typed and scramble the word
-      // (story 3: two people typing into one note).
-      const caretWasAtEnd = el.selectionStart >= el.value.length;
-      const caret = caretWasAtEnd
-        ? next.length
-        : Math.min(next.length, el.selectionStart);
-      el.value = next;
-      el.setSelectionRange(caret, caret);
-      setLength(next.length);
-    };
-    ytextRef.current.observe(observer);
-    return () => ytextRef.current.unobserve(observer);
-  }, []);
-
-  const showCounter = counterVisible(length);
-
   return (
-    <>
-      <textarea
-        ref={textareaRef}
-        className="sticky-editor"
-        data-testid="sticky-editor"
-        aria-label={STICKY_EDITOR_LABEL}
-        defaultValue={ytext.toString()}
-        style={{ fontSize: `${fontPx}px` }}
-        spellCheck={false}
-        autoComplete="off"
-        onInput={handleInput}
-        onCompositionStart={() => {
-          composingRef.current = true;
-        }}
-        onCompositionEnd={handleCompositionEnd}
-        onKeyDown={handleKeyDown}
-        // Ending editing writes nothing extra; this only picks up a value the
-        // browser changed without an input event we could see.
-        onBlur={commit}
-        onPointerDown={(event) => event.stopPropagation()}
-      />
-      {showCounter ? (
-        <span className="sticky-counter" data-testid="sticky-counter" data-remaining={STICKY_TEXT_MAX_CHARS - length}>
-          {`${length}/${STICKY_TEXT_MAX_CHARS}`}
-        </span>
-      ) : null}
-    </>
+    <TextEditor
+      ytext={ytext}
+      maxChars={STICKY_TEXT_MAX_CHARS}
+      fontPx={fontPx}
+      onEnd={onEnd}
+      undo={undo}
+      label={STICKY_EDITOR_LABEL}
+      testId="sticky-editor"
+      className="sticky-editor"
+      ownerAttribute={STICKY_NOTE_ATTRIBUTE}
+      showCounter={counterVisible}
+    />
   );
 }

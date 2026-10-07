@@ -21,7 +21,7 @@ import {
   type Handle,
 } from '../../shared/geometry.js';
 import type { Camera } from '../canvas/camera.js';
-import { getObjectType } from '../objects/registry.js';
+import { getObjectType, type ObjectTypeSpec } from '../objects/registry.js';
 import type { UseSelectionResult } from './useSelection.js';
 
 /**
@@ -76,6 +76,12 @@ interface Active {
   /** The rectangles and per-object minimum sizes for the group clamp. */
   rects: Rect[];
   minSizes: number[];
+  /**
+   * The objects of this gesture that do not take a rectangle as drawn, by id
+   * (story 9: a text object's height is a measurement, not something a pointer
+   * can drag). Everything else is written by `resizeObjects` as one group.
+   */
+  resizeTo: Map<string, NonNullable<ObjectTypeSpec['resizeTo']>>;
   started: boolean;
   /** The exact window listeners, so the gesture can detach itself on unmount. */
   onMove: (event: PointerEvent) => void;
@@ -162,11 +168,24 @@ export function useTransformGesture({
       const scale = clampScale(requested, g.rects, g.minSizes, MAX_OBJECT_SIZE_WORLD);
       const target = scaleRectFrom(g.startBox, g.handle, scale);
       const rects = new Map<string, Rect>();
+      // One object being resized on its own is the only case in which a handle
+      // means "this wide"; scaled with others, it means "this much wider".
+      const sole = g.ids.length === 1;
       for (const id of g.ids) {
         const rect = g.startRects.get(id);
-        if (rect) rects.set(id, scaleWithin(rect, g.startBox, target));
+        if (!rect) continue;
+        const laid = scaleWithin(rect, g.startBox, target);
+        const own = g.resizeTo.get(id);
+        if (own) {
+          // Its own type decides what to keep of that rectangle. A text object
+          // takes the width and measures the height, so a group resize still moves
+          // it into place without touching how big its letters are.
+          own(doc, id, laid, sole);
+          continue;
+        }
+        rects.set(id, laid);
       }
-      resizeObjects(doc, rects);
+      if (rects.size > 0) resizeObjects(doc, rects);
     },
     [doc],
   );
@@ -234,13 +253,16 @@ export function useTransformGesture({
       const startRects = new Map<string, Rect>();
       const rects: Rect[] = [];
       const minSizes: number[] = [];
+      const resizeTo = new Map<string, NonNullable<ObjectTypeSpec['resizeTo']>>();
       for (const id of ids) {
         const object = byId.get(id);
         if (!object) continue;
         const rect = objectBounds(object);
         startRects.set(id, rect);
         rects.push(rect);
-        minSizes.push(getObjectType(object.type)?.minSize ?? 0);
+        const spec = getObjectType(object.type);
+        minSizes.push(spec?.minSize ?? 0);
+        if (spec?.resizeTo) resizeTo.set(id, spec.resizeTo);
       }
       const startBox = unionRects(rects);
       if (!startBox) return;
@@ -259,6 +281,7 @@ export function useTransformGesture({
         startBoxArea: startBox.width * startBox.height,
         rects,
         minSizes,
+        resizeTo,
         started: false,
         onMove: handleMove,
         onUp: handleUp,

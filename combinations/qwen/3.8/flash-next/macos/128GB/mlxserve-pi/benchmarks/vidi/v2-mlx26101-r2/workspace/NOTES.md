@@ -645,3 +645,119 @@ like an oversight the next time something breaks.
   are added to the two tsconfigs in the same shape story 7 left: TC-03 needs the real
   `LOAD_ORIGIN`, which only exists in the Worker's storage module, so `peer.ts` imports a
   Worker module and the main program must not see it.
+
+## Story 9: free text, and the box a piece of text needs
+
+A text object is the first board object with no dimensions of its own: its width is
+either a measurement or a request, and its height is a measurement always. Most of what
+this story had to learn is about keeping those two statements true in the browser, and
+about the fact that the board's own claim ("this box is 600 × 78") and the browser's
+claim ("these words drew on five lines") are two different facts that a test has to
+compare rather than assume agree.
+
+- **The Text tool takes the pointer in the capture phase, and that is not an
+  optimisation.** A browser finishes *every* drag with a `click` at the point the
+  pointer was let go. The first version of the tool let a press reach the note under it
+  (the viewport only refused to pan), so dragging a note while the Text tool was up
+  moved the note and then wrote a stray text object where the drag ended. A press in
+  Text mode is now recorded and stopped on its way down, which makes the rule
+  sayable in one sentence: while the tool is up, a click writes and nothing else
+  happens. Rearranging the board is what the other tool is for.
+- **The double-click guard carries a time, not a flag.** Text mode switches itself back
+  to Select as it places an object, so the double-click that follows a Text-mode click
+  arrives in Select mode and cannot be recognised by asking what the tool *is*; and a
+  boolean that is never cleared eats the next double-click too, minutes later, so a
+  person who clicked once and then wanted a note got nothing. `DOUBLE_CLICK_WINDOW_MS`
+  (500 ms, in `config.ts`) is how the board knows two clicks are still one gesture.
+- **An empty text object is not board content, and undo does not bring it back wrong -
+  but it does bring something back.** Placing an object and then typing nothing leaves a
+  box with no words in it; the editor removes it when it closes (`deleteIfEmpty`), with
+  no undo boundary on either side, deliberately: `Y.UndoManager` merges the create, the
+  empty edit and the removal into one step whose content is the object *as it was at the
+  moment it was deleted*, which is empty - so an Undo of that gesture reinserts an empty
+  object rather than nothing. The story's acceptance is about what the board *looks like*
+  afterwards (TC-31: nothing drawn, a marquee over the spot selects nothing) and does not
+  speak of undoing an abandoned object, so no test claims anything about it. What *is*
+  tested, in a component test and in e2e TC-28, is the case a person actually does: a
+  text object with words in it, deleted, and brought back whole - a whole `Y.Map` is one
+  step, so words, size and measured box all return.
+- **Who measures is a rule about origins, not about components.** The box is rewritten
+  whenever the text or the size changed *locally* (`LOCAL_ORIGIN`), and never because a
+  colleague's change arrived; otherwise two people typing into the same object would
+  write two different measurements of the same characters on every keystroke, and the
+  board would flicker between them. `useTextBoxSync` keeps its remeasurers in a
+  `WeakMap` keyed on the `Y.Doc` (a board's, not a component's, because the object that
+  changed may not be the one on screen) and TC-12/TC-13 are written against the origin
+  rather than the DOM, because "did my screen just measure it" has no visual answer.
+- **Real font metrics exist in the browser and nowhere else in this repo's test
+  projects.** jsdom's `HTMLCanvasElement.getContext` returns null (it prints *Not
+  implemented: HTMLCanvasElement's getContext*), so `createCanvasMeasurer` falls back to
+  `estimateWidth` - a ratio of the font size - and every component test therefore
+  exercises the layout through an injected fake measurer or through the estimate. That is
+  why TC-26 to TC-28 are e2e: they are the only place where the width that gets stored
+  came from a real font, and where the wrapping the layout predicts can be compared with
+  the wrapping the browser drew (`Range.getClientRects()` on the text node gives one rect
+  per line box). A helper that counts drawn lines refuses to answer while the object is
+  being edited, because a textarea keeps its line boxes where the DOM cannot see them:
+  it throws rather than reporting zero, which would pass a `toBeGreaterThanOrEqual(1)`
+  style assertion in the reader's head and mean nothing.
+- **The height of a text object is written by the measurement, so the registry needed a
+  second kind of resize.** `resizable: true` was never quite true for text: two handles,
+  and only a width to drag. `handles: 'horizontal'` is asked of *every* object in the
+  selection and the reduced pair is drawn only when all the resizable types agree, which
+  is what keeps `text.mixed_handles` honest - text next to a note is a group, a group has
+  corners, and the text inside it is scaled along with the rest rather than rewrapped.
+  `resizeTo(doc, id, rect, sole)` is the write half: `sole` is the only case in which a
+  handle drag means "this wide" rather than "this much bigger than it was", and the
+  gesture still moves and scales everything that has no opinion of its own in one
+  `resizeObjects` call, so a group resize stays one transaction.
+- **The text of a text object is a `Y.Text`, so two people typing into one object is the
+  story 3 problem again** - and the same answer holds: `applyTextDiff` is a prefix/suffix
+  diff, the merge interleaves, and "every character survives" is a claim about the count
+  of each character, not about the resulting string. e2e TC-29 asserts per-character
+  counts plus convergence, and a length that is the sum of the three contributions.
+- **`getNotes()` returns every object, which story 9 quietly changed.** It was never
+  called that in the helpers: it always returned whatever is in the `objects` map, and
+  until now that map only ever held notes. Text objects went in without a single change
+  to stories 7 or 8 - selection, marquee, move, group resize, z-order, undo all work
+  because they were written against `ObjectSnapshot` and a registry - and the e2e
+  helpers are what showed it: `docNotes()` had to grow a type filter, and
+  `docObjects()`/`docTexts()` are the honest versions.
+- **`board-model` does not import the text module.** A text snapshot has to carry `size`,
+  `widthMode` and the text itself, and `objectSnapshot()` is where snapshots are built -
+  so it asks a per-type reader registry (`registerObjectSnapshotReader`) that
+  `shared/objects/text.ts` fills at module scope, instead of importing it and asking
+  `board-model` to depend on a type it must not know about. `TextSnapshot.createdBy` is
+  optional on the text snapshot only: the `ObjectSnapshot` base has no such field, and
+  inventing one there would be story 14's decision made early. For the same reason
+  `BoardViewport` takes an `identityId` that nobody passes - this build has no idea who
+  the person behind the pointer is, and a text object is created without attribution
+  rather than with an invented name.
+- **Two things in the interface are worded slightly differently from the design.** The
+  Sticky note button's visible label is now "Sticky note (N)", because story 9 put a
+  shortcut on that button and the label is where a person looks for a key; the accessible
+  name is still exactly "Sticky note" and the tooltip is the design's own sentence, so no
+  existing test was re-worded to accommodate this story - only a component test that
+  quotes the new label was added. And `src/client/objects/textLayout.ts` is the design's
+  `textMeasurement.ts` under the name story 9's own task list names it (its unit test is
+  `tests/unit/text-layout.test.ts` rather than the design's `measureText.test.ts`), plus
+  one file the design does not name at all: `TextEditor.tsx`, which is `StickyTextEditor`
+  generalised to any `Y.Text` - the sticky editor stayed as a thin wrapper over it so
+  story 2's tests still drive the code they always drove, and a text object gets an
+  editor without a second copy of the caret-keeping rules.
+- **Component tests of *received* changes need `act()` around the peer's transaction**,
+  which is the React 19 note from story 2 arriving in a new guise: `peer.transact()` on
+  its own leaves the store notification queued on the scheduler, so a test that reads the
+  DOM afterwards sees the board as it was before the change. `tests/component/peer.ts` is
+  new (shared by this story's files) and its `asPeer()` is the version that renders;
+  a test that only reads the document can keep using the bare `peer.transact()`.
+- **One selection rule cost a test day, and it is story 7's, correctly.** Clicking an
+  object that is already selected keeps the whole selection (it is the press that starts a
+  group move, not the press that selects). A test that wants to select one object out of a
+  group must therefore click empty board space first; TC-21 does, and says so.
+- **Timing that only shows up in the browser:** a Playwright drag costs on the order of a
+  second of wall clock, so e2e TC-27 does its three drags inside a five-second test and
+  TC-30 - `MAX_CONCURRENT_EDITORS` contexts each pressing T, clicking and typing, then a
+  full-board comparison on every page - gets 300 s. `expectSameBoard` needed no change for
+  text objects: it compares `ObjectSnapshot`s, and `text`/`size`/`widthMode` came along as
+  part of the snapshot this story added.

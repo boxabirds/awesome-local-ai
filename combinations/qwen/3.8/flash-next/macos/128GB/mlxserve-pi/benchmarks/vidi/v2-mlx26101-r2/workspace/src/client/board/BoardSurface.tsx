@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import type { JSX } from 'react';
 
 import { Toolbar } from './Toolbar.js';
+import { useTool } from './useTool.js';
 import { useBoardDoc } from './useBoardDoc.js';
 import type { BoardConnector } from './useBoardDoc.js';
 import { useSelection } from './useSelection.js';
@@ -36,7 +37,10 @@ import { canEdit } from '../sync/connectBoard.js';
 import SelectionBar from '../objects/SelectionBar.js';
 import SelectionOverlay from '../objects/SelectionOverlay.js';
 import { getObjectType } from '../objects/registry.js';
+import { remeasureTextBox } from '../objects/useTextBoxSync.js';
 import { createSticky, deleteObjects } from '../../shared/board-model.js';
+import { setTextSize, TEXT_TYPE, type TextSnapshot } from '../../shared/objects/text.js';
+import type { TextSize } from '../../shared/config.js';
 
 /**
  * Focus guard: a keyboard shortcut must not fire while the user is typing. Kept
@@ -97,6 +101,13 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
    */
   const undoHistory = useUndoController(doc);
   const undo = useUndo(undoHistory, editable);
+
+  /**
+   * Which tool the pointer is set to (story 9). Local to this tab like the
+   * selection is, and pulled back to Select by itself the moment the board stops
+   * taking edits - the same `editable` that greys the button out.
+   */
+  const tools = useTool(editable);
 
   // The tab says which board it is holding. This starts to matter the day boards have
   // links: a board gets shared, somebody ends up with three of them open, and a tab that
@@ -159,9 +170,30 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
   const marquee = useMarquee(api.camera, notes, addToSelection);
 
   // The shortcuts that act on the whole selection (select-all, deselect, nudge,
-  // delete, Enter-to-edit). `N` to create stays below, because it makes a note
-  // rather than touching the selection.
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo: undoHistory });
+  // delete, Enter-to-edit) and the tool keys (V, T). `N` to create a note stays
+  // below, because it makes a note rather than touching the selection.
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+    undo: undoHistory,
+    tool: tools.tool,
+    onTool: tools.setTool,
+  });
+
+  /**
+   * The Text tool's click: the object is on the board, so the tool has answered its
+   * one question and goes back to Select, and the new text is opened for typing -
+   * which is the whole point of the tool, a cursor exactly where it was clicked.
+   */
+  const textCreated = useCallback(
+    (id: string) => {
+      tools.setTool('select');
+      selection.startEdit(id);
+    },
+    [selection, tools],
+  );
 
   /** Delete every selected object in one action, then clear the selection. */
   const deleteSelection = useCallback(() => {
@@ -172,6 +204,36 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
     undoHistory.boundary();
     selection.clear();
   }, [doc, selection, undoHistory]);
+
+  /**
+   * The one selected object, when it is a text object: the selection bar then shows
+   * that object's toolbar instead of a count of one. Everything else - nothing, a
+   * note, a group - gets the bar it always got.
+   */
+  const soleText = useMemo<TextSnapshot | null>(() => {
+    if (selection.ids.size !== 1) return null;
+    const [id] = [...selection.ids];
+    const object = notes.find((candidate) => candidate.id === id);
+    return object !== undefined && object.type === TEXT_TYPE ? (object as TextSnapshot) : null;
+  }, [notes, selection.ids]);
+
+  /**
+   * A click on a size button: the size, and the box the text needs at that size, are
+   * one action. The measurement belongs between the two boundaries rather than after
+   * them - a history entry that changed the letters without changing the space they
+   * take would come back as text in a box of the wrong size.
+   */
+  const changeTextSize = useCallback(
+    (size: TextSize) => {
+      if (!editable || selection.ids.size !== 1) return;
+      const [id] = [...selection.ids];
+      undoHistory.boundary();
+      setTextSize(doc, id, size);
+      remeasureTextBox(doc, id);
+      undoHistory.boundary();
+    },
+    [doc, editable, selection.ids, undoHistory],
+  );
 
   /**
    * The notes in a stable order, which is *not* the drawing order: they are drawn
@@ -214,11 +276,19 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
   return (
     <div className="app" data-testid="app">
       <CameraProvider value={context}>
-        <Toolbar onCreateSticky={createInMiddleOfView} canEdit={editable} undo={undo} />
+        <Toolbar
+          onCreateSticky={createInMiddleOfView}
+          tool={tools.tool}
+          onTool={tools.setTool}
+          canEdit={editable}
+          undo={undo}
+        />
         <BoardViewport
           doc={doc}
           canEdit={editable}
           marquee={marquee}
+          tool={tools.tool}
+          onTextCreated={textCreated}
           onStickyCreated={(id) => {
             selection.startEdit(id);
           }}
@@ -260,7 +330,12 @@ export function BoardSurface({ boardId, connect }: { boardId: string; connect?: 
           ids={selection.ids}
           onHandlePointerDown={transform.onHandlePointerDown}
         />
-        <SelectionBar count={selection.ids.size} onDelete={deleteSelection} />
+        <SelectionBar
+          count={selection.ids.size}
+          onDelete={deleteSelection}
+          textSize={soleText?.size ?? null}
+          onTextSize={changeTextSize}
+        />
       </CameraProvider>
       <ZoomControls
         zoomPercent={context.zoomPercent}

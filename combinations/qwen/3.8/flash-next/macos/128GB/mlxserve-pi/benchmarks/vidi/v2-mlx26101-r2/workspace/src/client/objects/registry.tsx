@@ -6,13 +6,16 @@ import {
   objectBounds,
   registerBoardObjectType,
   type ObjectSnapshot,
+  type Rect,
 } from '../../shared/board-model.js';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config.js';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config.js';
+import { TEXT_TYPE } from '../../shared/objects/text.js';
 import type { Camera } from '../canvas/camera.js';
 import type { TransformGesture } from '../board/useTransformGesture.js';
 import type { UndoController } from '../board/undo.js';
 import type { UseSelectionResult } from '../board/useSelection.js';
 import StickyNote from './StickyNote.js';
+import TextObject, { resizeTextObject } from './TextObject.js';
 
 /**
  * The object type registry (story 7, `src/client/objects/registry.tsx`).
@@ -79,7 +82,34 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** Whether a point (world units) is inside it; the default hit test. */
   hitTest?(object: ObjectSnapshot, point: { x: number; y: number }): boolean;
+  /**
+   * Which of the eight handles this type is resized by. `'all'` (the default, and
+   * what a shape that keeps its proportions is drawn with) shows the whole set;
+   * `'horizontal'` shows only the two side handles, for a type whose height is not
+   * its own to keep - a piece of text is as tall as the lines it needs at the width
+   * it has, so dragging a corner and getting a stretched height would be a lie
+   * about what the box contains.
+   *
+   * The selection asks this of *every* object in it and only shows the smaller set
+   * when all of them agree; a text next to a note is resized as a group, by the
+   * full set (`text.mixed_handles`).
+   */
+  handles?: HandleSet;
+  /**
+   * Write one handle drag to one object of this type, for a type where the
+   * rectangle the pointer described is not simply the object's new rectangle. The
+   * default is `resizeObjects`: width and height, as drawn. A text object instead
+   * adopts the width - or ignores it, if its width is still its own - and takes its
+   * height from the measurement of the lines that width produces.
+   *
+   * `sole` is whether this object is the whole selection: the only way a drag can
+   * mean "this wide" rather than "scaled along with the others".
+   */
+  resizeTo?(doc: Y.Doc, id: string, rect: Rect, sole: boolean): boolean;
 }
+
+/** Which handles a type is resized by. */
+export type HandleSet = 'all' | 'horizontal';
 
 const registry = new Map<string, ObjectTypeSpec>();
 
@@ -127,6 +157,20 @@ registerObjectType('sticky', {
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
   hitTest: squareHitTest,
+});
+
+// Story 9's text. Resizable, never aspect-locked (its height is a measurement, not
+// a proportion), editable, and resizable only sideways. `minSize` is the narrowest
+// column of text a handle may drag it into.
+registerObjectType(TEXT_TYPE, {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+  hitTest: squareHitTest,
+  resizeTo: resizeTextObject,
 });
 
 export { isKnownObjectType };

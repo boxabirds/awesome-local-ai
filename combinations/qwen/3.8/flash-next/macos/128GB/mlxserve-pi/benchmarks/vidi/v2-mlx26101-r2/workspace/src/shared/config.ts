@@ -51,6 +51,15 @@ export const STICKY_TEXT_PADDING_WORLD = 12;
  */
 export const DRAG_THRESHOLD_PX = 3;
 
+/**
+ * How long a second click may arrive after a first one and still be the same
+ * gesture (screen milliseconds). The board needs the number itself, not only the
+ * browser: a click that placed a text object must not also be the first half of a
+ * double-click that creates a note, and the pairing expires - a double-click half a
+ * minute later is a new intention, not the old one arriving late.
+ */
+export const DOUBLE_CLICK_WINDOW_MS = 500;
+
 /* ------------------------------------------------------- selection (story 7) */
 
 /**
@@ -101,6 +110,72 @@ export const STICKY_COLOR_NAMES = Object.keys(STICKY_COLORS) as StickyColor[];
 /** Is `value` one of the six colour names? Unknown names are rejected. */
 export const isStickyColor = (value: unknown): value is StickyColor =>
   typeof value === 'string' && Object.prototype.hasOwnProperty.call(STICKY_COLORS, value);
+
+/* ------------------------------------------------------------------ free text (story 9) */
+
+/**
+ * The widest a text object with *automatic* width may get, in world units. The
+ * box widens with the longest line until it reaches this, and a line longer than
+ * this wraps (`text.auto_width`).
+ */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/**
+ * The narrowest a text object may be, in world units: what dragging a side
+ * handle inwards stops at, and the clamp of `setTextWidthFixed`.
+ */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Hard limit on the characters a text object may hold (`text.limit`). */
+export const TEXT_MAX_CHARS = 5000;
+
+/**
+ * The four sizes, in board units of font size, so a heading can be made to look
+ * more important than a detail (`text.size`). The keys are what the document
+ * stores and what the text toolbar shows.
+ */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** The size of newly created text (`text.create`: "a size M text object"). */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Every size name in `TEXT_SIZES`, small to large (for the text toolbar). */
+export const TEXT_SIZE_NAMES = Object.keys(TEXT_SIZES) as TextSize[];
+
+/** Is `value` one of the four size names? An unknown key is rejected. */
+export const isTextSize = (value: unknown): value is TextSize =>
+  typeof value === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, value);
+
+/**
+ * Line height as a multiple of the font size. The height of a text object is
+ * always `lines x font size x TEXT_LINE_HEIGHT` (`text.height`), which is why it
+ * is a setting rather than something the CSS happens to say.
+ */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** The font text is drawn and measured with (`Readability`: the board's sans-serif). */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/**
+ * The slack added to an automatic width beyond the measured longest line, in
+ * world units. Without it a glyph whose advance is measured tight sits exactly on
+ * the edge of the box and the caret at the end of the line looks cut off; a line
+ * that had to wrap makes the box {@link TEXT_MAX_AUTO_WIDTH_WORLD} wide whatever
+ * this is.
+ */
+export const TEXT_AUTO_WIDTH_PADDING_WORLD = 8;
+
+/**
+ * How wide an average character is, as a fraction of the font size, for the one
+ * case where no text measurement is possible at all: no canvas (a server-side
+ * create, a headless test environment). The greedy wrapping, and so the height,
+ * is computed from the estimate too, so a box made from an estimate is the right
+ * shape even when it is not the right size (`text.layout`: "measurer unavailable
+ * -> estimate, never throws").
+ */
+export const TEXT_GLYPH_WIDTH_RATIO = 0.5;
 
 /* ------------------------------------------------------------------- undo (story 8) */
 

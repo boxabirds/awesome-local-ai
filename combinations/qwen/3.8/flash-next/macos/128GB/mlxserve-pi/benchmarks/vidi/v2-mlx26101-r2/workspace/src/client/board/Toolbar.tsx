@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 
 import type { UndoButtonsProps } from './UndoButtons.js';
 import { UndoButtons } from './UndoButtons.js';
+import type { Tool } from './useTool.js';
 
 /** Exact tooltip of the Sticky note button (PRD "Structure"). */
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note \u2013 or double-click the board';
@@ -16,6 +17,16 @@ export const BOARD_LOCKED_TOOLTIP = 'Sticky note \u2013 this board could not be 
 export interface ToolbarProps {
   /** Create a sticky note in the middle of what the user is looking at. */
   onCreateSticky(): void;
+  /**
+   * The active tool, and the way to change it (story 9). Both optional, and the
+   * two tool buttons are drawn only when they are given: a board that was built
+   * before there were tools - and there is one, story 2's component test - draws
+   * the toolbar it always drew rather than a Select button it cannot press.
+   */
+  tool?: Tool;
+  /** Make a tool the active one ('Select' and 'Text' buttons, and the shortcuts).
+   * Omitted together with `tool` by a board with no tools. */
+  onTool?: (tool: Tool) => void;
   /**
    * False while the board will not accept new content (a board the room could not
    * load - see `canEdit`). The button is then shown disabled rather than hidden:
@@ -36,7 +47,7 @@ export interface ToolbarProps {
  * The left-side vertical toolbar. Story 2 contributes the Sticky note button;
  * later stories add their tools here.
  */
-export function Toolbar({ onCreateSticky, canEdit = true, undo }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, tool, onTool, canEdit = true, undo }: ToolbarProps): JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -50,6 +61,45 @@ export function Toolbar({ onCreateSticky, canEdit = true, undo }: ToolbarProps):
       onDoubleClick={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
     >
+      {onTool ? (
+        <>
+          {/* The two tools of this build, as a pressed/unpressed pair. `tool` is
+              this tab's own pointer mode - it is not board content, and a
+              colleague changing theirs changes nothing here - so `aria-pressed`
+              is what says which one the person is in. The Text tool is greyed out
+              with everything else that writes, because a click in Text mode puts
+              an object on the board. */}
+          <button
+            type="button"
+            className="board-toolbar-button"
+            data-testid="select-tool-button"
+            aria-label="Select (V)"
+            title="Select, move and resize (V)"
+            aria-pressed={tool === 'select' ? 'true' : 'false'}
+            onClick={() => onTool('select')}
+          >
+            <span className="board-toolbar-icon" aria-hidden="true">
+              &#8598;
+            </span>
+            <span className="board-toolbar-label">Select</span>
+          </button>
+          <button
+            type="button"
+            className="board-toolbar-button"
+            data-testid="text-tool-button"
+            aria-label="Text (T)"
+            title="Write text anywhere on the board (T)"
+            aria-pressed={tool === 'text' ? 'true' : 'false'}
+            disabled={!canEdit}
+            onClick={() => onTool('text')}
+          >
+            <span className="board-toolbar-icon" aria-hidden="true">
+              T
+            </span>
+            <span className="board-toolbar-label">Text</span>
+          </button>
+        </>
+      ) : null}
       <button
         type="button"
         className="board-toolbar-button"
@@ -62,7 +112,11 @@ export function Toolbar({ onCreateSticky, canEdit = true, undo }: ToolbarProps):
         <span className="board-toolbar-icon" aria-hidden="true">
           &#9635;
         </span>
-        <span className="board-toolbar-label">Sticky note</span>
+        {/* The shortcut in the label, because this is the button whose key is not
+            on it: the story added `N` to the board and the label is where a
+            person looks for it. The accessible name stays "Sticky note" - the
+            tooltip carries the same sentence. */}
+        <span className="board-toolbar-label">Sticky note (N)</span>
       </button>
       {undo ? <UndoButtons {...undo} /> : null}
     </div>

@@ -69,6 +69,14 @@ const HANDLE_CURSORS: Record<Handle, string> = {
   w: 'ew-resize',
 };
 
+/**
+ * The two side handles, and the whole set for anything else. A type that says its
+ * handles are `'horizontal'` has a height that is not its own to keep - a piece of
+ * text is as tall as the lines it needs at the width it has - so offering a top or
+ * bottom handle would promise a drag that the object refuses to do.
+ */
+const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
+
 /** The world rectangle a screen-space box covers, in board-surface coordinates. */
 interface ScreenRect {
   left: number;
@@ -103,8 +111,16 @@ export default function SelectionOverlay({
   if (!box) return null;
 
   // The handles are the *selection's*, so they show when any selected object's
-  // type can be resized - not "is this a sticky".
+  // type can be resized at all - not "is this a sticky".
   const showHandles = selected.some((object) => getObjectType(object.type)?.resizable === true);
+  // And they are the selection's as a whole, so the reduced set appears only when
+  // every resizable type in it wants it. Text alone is dragged sideways; text
+  // together with a note is a group, and a group has corners (`text.mixed_handles`).
+  const resizable = selected.filter((object) => getObjectType(object.type)?.resizable === true);
+  const sideways =
+    resizable.length > 0 &&
+    resizable.every((object) => getObjectType(object.type)?.handles === 'horizontal');
+  const handles = sideways ? HORIZONTAL_HANDLES : HANDLES;
 
   const screenBox = toScreenRect(camera, box);
   const half = HANDLE_SIZE_PX / 2;
@@ -130,7 +146,7 @@ export default function SelectionOverlay({
       })}
 
       {showHandles
-        ? HANDLES.map((handle) => {
+        ? handles.map((handle) => {
             const anchor = HANDLE_ANCHORS[handle];
             const left = screenBox.left + anchor.fx * screenBox.width - half;
             const top = screenBox.top + anchor.fy * screenBox.height - half;

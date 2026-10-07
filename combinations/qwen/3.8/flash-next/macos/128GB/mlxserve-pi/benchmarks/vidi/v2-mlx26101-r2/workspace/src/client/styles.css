@@ -15,6 +15,13 @@
      room answered and would not open the board. Two different facts, so they may
      not share a colour - and the board is only locked for the second. */
   --connection-error: #b3261e;
+  /* Text objects (story 9). These two are the CSS half of TEXT_LINE_HEIGHT and
+     TEXT_FONT_FAMILY in `src/shared/config.ts`: the height that gets stored for a
+     text object is counted with those numbers, so the box and the words inside it
+     would disagree the moment the CSS drifted - the font size is passed in from the
+     same table, the line height and the face are here. */
+  --text-line-height: 1.3;
+  --text-font-family: Inter, system-ui, sans-serif;
   color: var(--ui-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-size: 14px;
@@ -760,4 +767,134 @@ body {
   border: 1px dashed var(--ui-accent);
   background: rgb(74 144 226 / 12%);
   pointer-events: none;
+}
+
+/* ------------------------------------------------------------ text objects */
+
+/* A text object is the board's writing: no fill, no border, no shadow, no corner
+   to grab. It is positioned and sized in world units like every object, and its
+   font size is a board unit too, so zooming grows the writing with the board
+   rather than re-flowing it. */
+.text-object {
+  position: absolute;
+  background: transparent;
+  font-family: var(--text-font-family);
+  font-size: 20px; /* TEXT_SIZES.M; the component writes the object's own size */
+  line-height: var(--text-line-height);
+  color: var(--ui-text);
+  /* The two rules the stored height was counted with. A text object's box is a
+     measurement of its lines, so the wrapping the browser does and the wrapping
+     `layoutText` counted have to be the same wrapping: break at a space, and break
+     a word that has no space to break at. */
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  cursor: grab;
+  touch-action: none;
+}
+
+.text-object[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.text-object[data-selected='true'],
+.text-object:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+.text-object-content {
+  position: absolute;
+  inset: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  /* The text is the object: the pointer over its words is over the object. */
+  pointer-events: auto;
+}
+
+/* The editor covers the object's box exactly - the width is set inline to the
+   stored width, so the lines typed are the lines that were measured. */
+.text-editor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  font-family: inherit;
+  line-height: inherit;
+  color: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* Text mode: the pointer is about to write, not grab. Every object under that
+   cursor says so too, because clicking a note in Text mode puts text on top of it
+   rather than selecting it. */
+.board-viewport[data-text-tool='true'] {
+  cursor: text;
+}
+
+.board-viewport[data-text-tool='true'] .sticky-note,
+.board-viewport[data-text-tool='true'] .text-object {
+  cursor: text;
+}
+
+/* The text toolbar, in the selection bar. Each button is drawn at the size it
+   asks for, which is the only way a size button can show what it means; the four
+   names are the four entries of TEXT_SIZES. */
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.text-toolbar-size {
+  min-width: 26px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-muted);
+  font-family: var(--text-font-family);
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.text-toolbar-size:hover {
+  background: #f0f2f5;
+}
+
+.text-toolbar-size[aria-pressed='true'] {
+  color: var(--ui-text);
+  border-color: var(--ui-accent);
+}
+
+.text-toolbar-size:focus-visible,
+.text-toolbar .selection-delete:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+}
+
+.text-toolbar-size[data-size='S'] {
+  font-size: 12px;
+}
+
+.text-toolbar-size[data-size='M'] {
+  font-size: 15px;
+}
+
+.text-toolbar-size[data-size='L'] {
+  font-size: 19px;
+}
+
+.text-toolbar-size[data-size='XL'] {
+  font-size: 24px;
 }

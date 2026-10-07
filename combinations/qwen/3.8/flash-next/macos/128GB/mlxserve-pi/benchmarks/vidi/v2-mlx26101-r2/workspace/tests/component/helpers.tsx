@@ -5,6 +5,9 @@ import * as Y from 'yjs';
 import { BoardSurface } from '../../src/client/board/BoardSurface.js';
 import { newBoardId } from '../../src/shared/board-id.js';
 import type { ObjectSnapshot, StickySnapshot } from '../../src/shared/board-model.js';
+import { objectBounds } from '../../src/shared/board-model.js';
+import type { TextSnapshot } from '../../src/shared/objects/text.js';
+import type { TextSize } from '../../src/shared/config.js';
 import type { Camera, Point } from '../../src/client/canvas/camera.js';
 import { worldToScreen, zoomAt } from '../../src/client/canvas/camera.js';
 import { STICKY_SIZE_WORLD } from '../../src/shared/config.js';
@@ -359,6 +362,18 @@ export function clickBoard(point: Point = { x: 40, y: 700 }): void {
 }
 
 /**
+ * The same click, on a chosen element instead of the board surface: what a click
+ * on an object is, bubbles and all. The board's own click handler sees it, which is
+ * how a click on a note can still be a click that means "write here".
+ */
+export function clickAt(point: Point, element: Element): void {
+  pointerDown(point, element);
+  pointerUp(point, element);
+  fireEvent.click(element, { clientX: point.x, clientY: point.y });
+  settle();
+}
+
+/**
  * Type into the open editor. The editor is uncontrolled and reads the textarea's
  * own value, so this is what a keystroke does: the browser changes the value,
  * then fires `input`.
@@ -378,6 +393,201 @@ export function typeMore(value: string): void {
 /** Text as the open editor holds it. */
 export function editorValue(): string {
   return editor().value;
+}
+
+/* ------------------------------------------------------------- text objects */
+
+/** The Text tool's button in the left toolbar. */
+export function textToolButton(): HTMLElement {
+  const button = document.querySelector<HTMLElement>('[data-testid="text-tool-button"]');
+  if (!button) throw new Error('the toolbar has no Text tool button');
+  return button;
+}
+
+/** The Select tool's button in the left toolbar. */
+export function selectToolButton(): HTMLElement {
+  const button = document.querySelector<HTMLElement>('[data-testid="select-tool-button"]');
+  if (!button) throw new Error('the toolbar has no Select tool button');
+  return button;
+}
+
+/** Which tool the toolbar says is active, by its button's `aria-pressed`. */
+export function pressedTool(): 'select' | 'text' | 'neither' {
+  const select = selectToolButton().getAttribute('aria-pressed') === 'true';
+  const text = textToolButton().getAttribute('aria-pressed') === 'true';
+  if (select && text) throw new Error('two tools are pressed at once');
+  if (select) return 'select';
+  if (text) return 'text';
+  return 'neither';
+}
+
+/** Press the Text tool button (or Select's). */
+export function clickTool(tool: 'select' | 'text'): void {
+  fireEvent.click(tool === 'text' ? textToolButton() : selectToolButton());
+  settle();
+}
+
+export function textElements(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-testid="text-object"]'));
+}
+
+/** The nth text object as drawn (0 is the bottom-most). */
+export function textElement(index = 0): HTMLElement {
+  const elements = textElements();
+  const element = elements[index];
+  if (!element) throw new Error(`no text rendered at position ${index} of ${elements.length}`);
+  return element;
+}
+
+/** The nth text object as the document holds it. */
+export function textData(index = 0): TextSnapshot {
+  const texts = docNotes().filter((object): object is TextSnapshot => object.type === 'text');
+  const text = texts[index];
+  if (!text) throw new Error(`no text object in the document at position ${index}`);
+  return text;
+}
+
+export function textId(index = 0): string {
+  return textData(index).id;
+}
+
+/**
+ * The text object's box as the board draws it (the same fallbacks as the canvas),
+ * with the two fields that decide how big its words are and how wide it is allowed
+ * to get: a test that asserts a box usually also has to say what shape it was in.
+ */
+export function textBox(index = 0): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  size: TextSize;
+  widthMode: 'auto' | 'fixed';
+} {
+  const text = textData(index);
+  return { ...objectBounds(text), size: text.size, widthMode: text.widthMode };
+}
+
+/** The text as the board draws it (not while editing: then the editor holds it). */
+export function renderedText(index = 0): string {
+  const element = textElement(index).querySelector<HTMLElement>('[data-testid="text-content"]');
+  if (!element) throw new Error('the text object renders no text');
+  return element.textContent ?? '';
+}
+
+/** The open text editor. */
+export function textEditor(): HTMLTextAreaElement {
+  const element = document.querySelector<HTMLTextAreaElement>('[data-testid="text-editor"]');
+  if (!element) throw new Error('no text object is being edited');
+  return element;
+}
+
+/** Whether a text object's editor is open. */
+export function editingTextId(): string | null {
+  const editing = textElements().find((element) => element.dataset.editing === 'true');
+  return editing?.dataset.objectId ?? null;
+}
+
+/** The id the board holds selected, whether it is a note or a text object. */
+export function selectedObjectIds(): string[] {
+  const selected = document.querySelectorAll<HTMLElement>(
+    '[data-testid="sticky-note"][data-selected="true"], [data-testid="text-object"][data-selected="true"]',
+  );
+  return Array.from(selected).map((element) => element.dataset.objectId ?? element.dataset.noteId ?? '');
+}
+
+/** Type into the open text object editor. */
+export function typeTextValue(value: string): void {
+  const element = textEditor();
+  element.value = value;
+  fireEvent.input(element, { target: { value } });
+  settle();
+}
+
+/** Add characters at the end of the text object being edited, as typing them would. */
+export function typeTextMore(value: string): void {
+  typeTextValue(textEditor().value + value);
+}
+
+/** The text toolbar (the selection bar's text mode). */
+export function textToolbarElement(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-testid="text-toolbar"]');
+}
+
+/** A size button of the text toolbar. */
+export function textSizeButton(size: string): HTMLElement {
+  const button = document.querySelector<HTMLElement>(
+    `[data-testid="text-size-button"][data-size="${size}"]`,
+  );
+  if (!button) throw new Error(`the text toolbar has no ${size} button`);
+  return button;
+}
+
+/** Which size the text toolbar says is pressed. */
+export function pressedTextSize(): string | null {
+  const pressed = document.querySelector<HTMLElement>(
+    '[data-testid="text-size-button"][aria-pressed="true"]',
+  );
+  return pressed?.dataset.size ?? null;
+}
+
+/** The handles the selection overlay offers, in the order it draws them. */
+export function handleSides(): string[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-testid="resize-handle"]')).map(
+    (element) => element.dataset.handle ?? '',
+  );
+}
+
+/** The resize handle on one side of the selection. */
+export function handleElement(side: string): HTMLElement {
+  const element = document.querySelector<HTMLElement>(
+    `[data-testid="resize-handle"][data-handle="${side}"]`,
+  );
+  if (!element) throw new Error(`the selection offers no ${side} handle`);
+  return element;
+}
+
+/**
+ * Drag a selection handle: press on it, move in `steps` equal steps, release.
+ * The overlay draws its handles in screen pixels, so the points are screen points
+ * and the gesture turns them into world units by the zoom it is given.
+ */
+export function dragHandle(
+  side: string,
+  from: Point,
+  to: Point,
+  steps = 4,
+): void {
+  const element = handleElement(side);
+  fireEvent.pointerDown(element, {
+    pointerId: POINTER_ID,
+    pointerType: 'mouse',
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    clientX: from.x,
+    clientY: from.y,
+  });
+  settle();
+  for (let step = 1; step <= steps; step += 1) {
+    const t = step / steps;
+    fireEvent.pointerMove(element, {
+      pointerId: POINTER_ID,
+      pointerType: 'mouse',
+      buttons: 1,
+      clientX: from.x + (to.x - from.x) * t,
+      clientY: from.y + (to.y - from.y) * t,
+    });
+    settle();
+  }
+  fireEvent.pointerUp(element, {
+    pointerId: POINTER_ID,
+    pointerType: 'mouse',
+    button: 0,
+    clientX: to.x,
+    clientY: to.y,
+  });
+  settle();
 }
 
 /**

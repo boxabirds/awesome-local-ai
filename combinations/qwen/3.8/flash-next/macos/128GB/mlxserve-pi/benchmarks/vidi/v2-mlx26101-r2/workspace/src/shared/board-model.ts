@@ -78,6 +78,33 @@ export function isKnownObjectType(type: unknown): type is string {
   return typeof type === 'string' && boardObjectTypes.has(type);
 }
 
+/**
+ * Turns one object map into the snapshot its own type needs. Story 9's text
+ * objects register one so their extra fields (`size`, `widthMode`) reach the
+ * client through {@link objectSnapshot} instead of every renderer having to know
+ * how to read a text object; a type without a reader gets the generic
+ * {@link readObjectSnapshot}, which is enough to draw and to move.
+ *
+ * The reader lives with the type, so a story 9-12 module can add a type without
+ * board-model having to import it (which it must not: the room imports board-model
+ * and nothing of the client's).
+ */
+export type ObjectSnapshotReader = (id: string, map: Y.Map<unknown>) => ObjectSnapshot | undefined;
+
+const objectSnapshotReaders = new Map<string, ObjectSnapshotReader>();
+
+/** Give a type its own snapshot reader; see {@link ObjectSnapshotReader}. */
+export function registerObjectSnapshotReader(type: string, reader: ObjectSnapshotReader): void {
+  if (typeof type === 'string' && type.length > 0 && typeof reader === 'function') {
+    objectSnapshotReaders.set(type, reader);
+  }
+}
+
+/** The reader a type registered, if any. */
+export function objectSnapshotReader(type: unknown): ObjectSnapshotReader | undefined {
+  return typeof type === 'string' ? objectSnapshotReaders.get(type) : undefined;
+}
+
 /** Field names inside one object map. */
 export const OBJECT_FIELDS = {
   type: 'type',
@@ -544,7 +571,7 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       return;
     }
     if (isKnownObjectType(type)) {
-      const object = readObjectSnapshot(id, map);
+      const object = objectSnapshotReader(type)?.(id, map) ?? readObjectSnapshot(id, map);
       if (object) objects.push(object);
     }
   });
