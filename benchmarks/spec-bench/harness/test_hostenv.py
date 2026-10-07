@@ -208,7 +208,7 @@ def test_a_container_port_shim_is_recognised_as_not_the_engine():
 
 def test_a_real_engine_process_is_not_a_shim():
     for cmd in ("/usr/bin/llama-server --port 18010", "gufo serve --host 0.0.0.0 llm --model x.gguf",
-                "python -m mlx_lm.server", "/home/j/.local/share/x/engine/gufo serve"):
+                "python -m mlx_lm.server", "~/.local/share/x/engine/gufo serve"):
         assert not hostenv.is_container_shim(cmd), cmd
 
 
