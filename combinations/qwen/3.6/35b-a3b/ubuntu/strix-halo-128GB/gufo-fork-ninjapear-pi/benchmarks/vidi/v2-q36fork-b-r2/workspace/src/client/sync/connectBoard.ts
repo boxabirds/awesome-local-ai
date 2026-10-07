@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
-import type { ObservableV2 } from 'yjs';
+
 import { RECONNECT_MAX_BACKOFF_MS, CONNECTED_CONFIRMATION_MS } from '../../shared/config';
 
 export type ConnectionState =

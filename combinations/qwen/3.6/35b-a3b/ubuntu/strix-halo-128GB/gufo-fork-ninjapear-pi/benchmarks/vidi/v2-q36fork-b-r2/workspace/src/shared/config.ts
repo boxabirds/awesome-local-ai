@@ -41,3 +41,12 @@ export const STICKY_COLORS = {
 } as const;
 export type StickyColor = keyof typeof STICKY_COLORS;
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// Persistence settings (story 4)
+export const COMPACTION_UPDATE_COUNT = 500;
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+export const PERSIST_TESTED_NOTES = 2000;
+export const BOARD_LOAD_BUDGET_MS = 3000;
+export const STORAGE_SCHEMA_VERSION = 1;

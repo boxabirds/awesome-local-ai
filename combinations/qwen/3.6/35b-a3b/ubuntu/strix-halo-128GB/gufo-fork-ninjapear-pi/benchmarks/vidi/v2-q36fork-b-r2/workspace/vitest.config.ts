@@ -21,12 +21,16 @@ export default defineConfig({
       {
         test: {
           name: 'integration',
-          environment: 'miniflare',
+          // Workers pool provides its own runtime environment; don't set environment.
           include: ['tests/integration/**/*.test.ts'],
           // Use the @cloudflare/vitest-pool-workers plugin
+          pool: '@cloudflare/vitest-pool-workers',
           poolOptions: {
-            workersMiniflare: {
+            workers: {
               wrangler: { config: './wrangler.jsonc' },
+              miniflare: {
+                compatibilityFlags: ['nodejs_compat', 'export_commonjs_default'],
+              },
             },
           },
         },
