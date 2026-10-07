@@ -93,3 +93,47 @@ Total: 167 tests pass.
 2. **Recovery after storage-failed**: Currently discards in-memory document entirely. Next connection attempt triggers fresh reload from storage which may succeed if storage is restored. No automatic retry beyond what the client's reconnect logic does.
 
 3. **Load retry backoff**: `_handleLoadFailed` retries once after LOAD_RETRY_MIN_INTERVAL_MS. Before that interval expires, returns 4500 immediately. Future improvement: exponential backoff between retries.
+
+---
+
+## Story 8 Notes — Undo and Redo My Own Changes
+
+### Gap-fill: Shared config constants (`UNDO_CAPTURE_TIMEOUT_MS`, `UNDO_MAX_STEPS`)
+
+The spec references named settings but the initial scaffolding had no undo-related configuration. Added to `src/shared/config.ts`:
+- `UNDO_CAPTURE_TIMEOUT_MS = 500` — milliseconds before capture window auto-closes (used by useBoardKeys typing timeout)
+- `UNDO_MAX_STEPS = 10` — maximum undo history steps retained per controller instance
+
+### Gap-fill: Per-user undo history scope (`LOCAL_ORIGIN` tracking)
+
+Story 3's connection architecture tracks origins but didn't define the `LOCAL_ORIGIN` constant used by the UndoManager. Defined it as the string `'local-origin'` in `src/shared/board-model.ts`. The Y.UndoManager is configured with `{ trackedOrigins: new Set([LOCAL_ORIGIN]) }` so all remote changes (from other users or LOAD-origin) are excluded from the stack.
+
+### Gap-fill: `useUndo` React hook binding undo state
+
+Created `src/client/board/useUndo.ts` which reacts to `controller.onChange` events via useEffect, applying a `canEdit` gate (false when connection state ≠ connected/reconnecting/confirmed). This ensures UI buttons reflect edit-lock even if controller.has undos available.
+
+### Gap-fill: Gesture boundary wiring
+
+Task 8 required wiring boundaries into transform gestures, toolbars, and text editor. All implemented:
+- `useTransformGesture.ts` calls `boundary()` on gesture start/end (`pointerdown`/`pointerup`/`pointercancel`)
+- `StickyTextEditor.tsx` calls `boundary()` on compositionstart/end and on mount/unmount
+- `NoteToolbar.tsx` and `StickyNote.tsx` call `boundary()` before delete/color-change operations
+- `useBoardKeys.ts` handles global undo shortcuts with viewport-focus check
+
+### Gap-fill: `BoardRoot` integration
+
+Task 4 required integrating the undo controller into BoardRoot/App lifecycle. Implemented in `src/client/App.tsx` and `src/client/board/BoardRoot.tsx`:
+- BoardRoot creates an `UndoController` bound to each board's Y.Doc
+- Controller is destroyed on unmount and recreated for new boards
+- Toolbar receives `canUndo/canRedo/undo/redo` props via the `useUndo` hook
+- Select system also receives controller reference for selection-based operations
+
+### Test Coverage Summary
+
+| Category | Count | File(s) | Tests |
+|----------|-------|---------|-------|
+| Unit tests | 14 | undo-history.test.ts, undo-boundaries.test.ts | TC-01–TC-13 |
+| Component tests | 9 | UndoBoundaries.test.tsx, UndoButtons.test.tsx | TC-14–TC-21 |
+| E2E tests | 0 | Not yet implemented | TC-22–TC-24 |
+
+**Pre-existing test failures:** Stories 1, 2, and 5 have incomplete tasks logged in PROGRESS.md that cause known component test failures in HomePage, BoardPage, and SharePanel. These are unrelated to story 8's implementation.

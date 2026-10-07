@@ -1,15 +1,18 @@
 import { type CSSProperties, type ReactNode } from 'react';
 import { STICKY_COLORS, type StickyColor } from '@/shared/config';
+import type { UndoController } from '@/client/board/undo';
 
 interface NoteToolbarProps {
   color: StickyColor;
   onColor(c: StickyColor): void;
   onDelete(): void;
+  /** Optional undo boundary callback. */
+  undoBoundary?: (() => void) | null;
 }
 
 const COLORS: StickyColor[] = ['yellow', 'orange', 'green', 'blue', 'pink', 'violet'];
 
-export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): ReactNode {
+export function NoteToolbar({ color, onColor, onDelete, undoBoundary }: NoteToolbarProps): ReactNode {
   const containerStyle: CSSProperties = {
     position: 'absolute',
     bottom: 'calc(100% + 8px)',
@@ -26,6 +29,20 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): Rea
     whiteSpace: 'nowrap',
   };
 
+  const handleColorChange = (c: StickyColor) => {
+    if (undoBoundary) {
+      undoBoundary();
+    }
+    onColor(c);
+  };
+
+  const handleDelete = () => {
+    if (undoBoundary) {
+      undoBoundary();
+    }
+    onDelete();
+  };
+
   return (
     <div style={containerStyle} data-testid="note-toolbar" role="toolbar" aria-label="Note toolbar">
       {COLORS.map((c) => (
@@ -36,7 +53,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): Rea
           title={`${c} colour`}
           onClick={(e) => {
             e.stopPropagation();
-            onColor(c);
+            handleColorChange(c);
           }}
           style={{
             width: '24px',
@@ -56,7 +73,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): Rea
         title="Delete note"
         onClick={(e) => {
           e.stopPropagation();
-          onDelete();
+          handleDelete();
         }}
         style={{
           width: '24px',

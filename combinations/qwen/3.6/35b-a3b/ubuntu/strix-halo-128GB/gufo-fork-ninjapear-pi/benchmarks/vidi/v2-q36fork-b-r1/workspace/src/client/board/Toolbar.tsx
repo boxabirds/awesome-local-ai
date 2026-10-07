@@ -1,10 +1,12 @@
 import { type CSSProperties, type ReactNode } from 'react';
+import type { UseUndoResult } from './useUndo';
+import { UndoButtons } from './UndoButtons';
 
-interface ToolbarProps {
+interface ToolbarProps extends UseUndoResult {
   onCreateSticky(): void;
 }
 
-export function Toolbar({ onCreateSticky }: ToolbarProps): ReactNode {
+export function Toolbar({ onCreateSticky, canUndo, canRedo, undo, redo }: ToolbarProps): ReactNode {
   const containerStyle: CSSProperties = {
     position: 'fixed',
     left: '12px',
@@ -22,6 +24,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): ReactNode {
 
   return (
     <div style={containerStyle} data-testid="toolbar">
+      <UndoButtons canUndo={canUndo} canRedo={canRedo} undo={undo} redo={redo} />
       <button
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"

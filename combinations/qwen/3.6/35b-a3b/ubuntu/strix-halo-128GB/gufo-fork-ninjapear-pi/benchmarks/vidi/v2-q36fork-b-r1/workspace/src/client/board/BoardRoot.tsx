@@ -1,8 +1,7 @@
 /**
  * Board root — shared Y.Doc + WebSocket connection for a board id.
  * Story 5 — share a board with others using a link.
- *
- * This is a simplified version that reuses useBoardDoc from the main app.
+ * Story 8 — undo/redo integration.
  */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import * as Y from 'yjs';
@@ -18,6 +17,8 @@ import { Toolbar } from './Toolbar';
 import { StickyNote } from '../objects/StickyNote';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { useSelection } from './useSelection';
+import { createUndo } from './undo';
+import { useUndo } from './useUndo';
 import type { Handle } from '@/client/objects/registry';
 
 let docRef: Y.Doc | null = null;
@@ -74,9 +75,29 @@ export function BoardRoot(props: BoardRootProps): ReactNode {
     connectionState === 'reconnecting' ||
     connectionState === 'confirmed';
 
+  // Create per-board UndoController
+  const undoControllerRef = useRef<ReturnType<typeof createUndo> | null>(null);
+  const prevBoardIdRef = useRef<string | undefined>(boardId);
+
+  useEffect(() => {
+    if (boardId !== prevBoardIdRef.current && undoControllerRef.current) {
+      undoControllerRef.current.destroy();
+      undoControllerRef.current = null;
+    }
+    prevBoardIdRef.current = boardId;
+
+    if (!undoControllerRef.current && docRef) {
+      const objectsMap = docRef.getMap('objects');
+      undoControllerRef.current = createUndo(docRef);
+    }
+  }, [docRef, boardId]);
+
+  const undoState = useUndo(undoControllerRef.current, canEdit);
+
   const handleCreateStickyAt = useCallback(
     (worldX: number, worldY: number) => {
       if (!canEdit) return;
+      undoControllerRef.current?.boundary();
       const id = createSticky(docRef!, { x: worldX, y: worldY }, DEFAULT_STICKY_COLOR);
       if (id) {
         click(id);
@@ -122,9 +143,31 @@ export function BoardRoot(props: BoardRootProps): ReactNode {
         clearSelection();
         return;
       }
-    
+
+      // Undo shortcut
+      if (undoControllerRef.current && ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey)) {
+        if (!canEdit) return;
+        e.preventDefault();
+        if (undoControllerRef.current.canUndo()) {
+          undoControllerRef.current.undo();
+        }
+        return;
+      }
+
+      // Redo shortcuts
+      if (undoControllerRef.current && (
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Z') ||
+        ((e.ctrlKey || e.metaKey) && e.key === 'y')
+      )) {
+        if (!canEdit) return;
+        e.preventDefault();
+        if (undoControllerRef.current.canRedo()) {
+          undoControllerRef.current.redo();
+        }
+        return;
+      }
     },
-    [ids, selectedId, startEdit, endEdit, clearSelection, click, setMany, canEdit],
+    [ids, selectedId, startEdit, endEdit, clearSelection, click, setMany, canEdit, snaps],
   );
 
   useEffect(() => {
@@ -151,6 +194,7 @@ export function BoardRoot(props: BoardRootProps): ReactNode {
           onStartEdit={startEdit}
           onEndEdit={() => endEdit()}
           onObjectPointerDown={(_e, _id) => { /* handled via gesture system in story 7 */ }}
+          undoController={undoControllerRef.current}
         />
       );
     });
@@ -168,6 +212,10 @@ export function BoardRoot(props: BoardRootProps): ReactNode {
           const wpY = vh / cam.zoom + cam.y - STICKY_SIZE_WORLD / 2;
           handleCreateStickyAt(wpX, wpY);
         }}
+        canUndo={undoState.canUndo}
+        canRedo={undoState.canRedo}
+        undo={undoState.undo}
+        redo={undoState.redo}
       />
       <BoardViewport
         onCameraChange={(cam) => {

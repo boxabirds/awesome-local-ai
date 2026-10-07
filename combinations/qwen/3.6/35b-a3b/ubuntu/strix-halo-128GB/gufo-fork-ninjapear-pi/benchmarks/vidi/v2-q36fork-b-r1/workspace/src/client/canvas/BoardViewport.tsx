@@ -256,7 +256,7 @@ export function BoardViewport({
   const markerSize = DEFAULT_ORIGIN_MARKER_SIZE;
 
   return (
-    <div style={{ position: 'absolute', inset: 0 }}>
+    <div data-testid="board-viewport" style={{ position: 'absolute', inset: 0 }}>
       {/* Board canvas */}
       <div
         ref={viewportRef}

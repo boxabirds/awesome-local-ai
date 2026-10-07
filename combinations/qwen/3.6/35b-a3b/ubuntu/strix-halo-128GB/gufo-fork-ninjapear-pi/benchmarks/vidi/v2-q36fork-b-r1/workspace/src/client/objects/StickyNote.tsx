@@ -22,6 +22,7 @@ import { StickyTextEditor } from './StickyTextEditor';
 import { getStickyText, setStickyColor as setStickyColorModel, deleteObject as deleteObjModel } from '@/shared/board-model';
 import type { ObjectSnapshot } from './registry';
 import { NoteToolbar } from './NoteToolbar';
+import type { UndoController } from '@/client/board/undo';
 
 interface StickyNoteProps {
   note: ObjectSnapshot;
@@ -34,6 +35,8 @@ interface StickyNoteProps {
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
   onObjectPointerDown(e: PointerEvent, id: string): void;
+  /** Optional undo controller for per-user undo history. */
+  undoController?: UndoController | null;
 }
 
 export function StickyNote({
@@ -47,6 +50,7 @@ export function StickyNote({
   onStartEdit,
   onEndEdit,
   onObjectPointerDown,
+  undoController,
 }: StickyNoteProps): ReactNode {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pointerState, setPointerState] = useState<'up' | 'pressed' | 'dragging'>('up');
@@ -107,18 +111,20 @@ export function StickyNote({
     setPointerState('up');
   }, []);
 
-  // Delete handler for single-note toolbar
+  // Delete handler for single-note toolbar (calls boundary first)
   const handleDelete = useCallback(() => {
+    undoController?.boundary();
     deleteObjModel(doc, note.id);
     onEndEdit('unselected');
-  }, [doc, note.id, onEndEdit]);
+  }, [doc, note.id, onEndEdit, undoController]);
 
-  // Colour change handler for single-note toolbar
+  // Colour change handler for single-note toolbar (calls boundary first)
   const handleColorChange = useCallback(
     (color: StickyColor) => {
+      undoController?.boundary();
       setStickyColorModel(doc, note.id, color);
     },
-    [doc, note.id],
+    [doc, note.id, undoController],
   );
 
   const style: CSSProperties = {
@@ -160,6 +166,7 @@ export function StickyNote({
           color={(note.color as StickyColor) ?? 'yellow'}
           onColor={handleColorChange}
           onDelete={handleDelete}
+          undoBoundary={undoController?.boundary ?? null}
         />
       )}
       {editing && ytext ? (
@@ -168,6 +175,7 @@ export function StickyNote({
           fontPx={fontPx}
           onEnd={(next) => onEndEdit(next)}
           overflow={overflowRef.current}
+          undoController={undoController}
         />
       ) : (
         <div

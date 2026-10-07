@@ -3,12 +3,15 @@ import * as Y from 'yjs';
 import { clampToLimit, applyTextDiff, counterVisible } from './StickyText';
 import { STICKY_TEXT_MAX_CHARS } from '@/shared/config';
 import { LOCAL_ORIGIN } from '@/shared/board-model';
+import type { UndoController } from '@/client/board/undo';
 
 interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
   onEnd(next: 'selected' | 'unselected'): void;
   overflow?: boolean;
+  /** Optional undo controller for per-user undo history. */
+  undoController?: UndoController | null;
 }
 
 export function StickyTextEditor({
@@ -16,11 +19,12 @@ export function StickyTextEditor({
   fontPx,
   onEnd,
   overflow = false,
+  undoController,
 }: StickyTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposingRef = useRef(false);
 
-  // On mount: set value, focus, caret at end
+  // On mount: set value, focus, caret at end, call boundary() to start a fresh step
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -28,7 +32,9 @@ export function StickyTextEditor({
     el.value = text;
     el.focus();
     el.setSelectionRange(text.length, text.length);
-  }, [ytext]);
+    // Start a new undo step boundary on edit begin
+    undoController?.boundary();
+  }, [ytext, undoController]);
 
   const handleInput = useCallback(() => {
     if (isComposingRef.current) return;
@@ -73,12 +79,34 @@ export function StickyTextEditor({
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        // End editing — call boundary() before ending to close the typing step
+        undoController?.boundary();
         onEnd('selected');
         return;
       }
+
+      // Handle undo shortcuts inside the editor with preventDefault
+      // so native textarea undo doesn't diverge from Y.Text
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey && undoController) {
+        e.preventDefault();
+        undoController.undo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Z' && undoController) {
+        e.preventDefault();
+        undoController.redo();
+        return;
+      }
+      // Ctrl+Y as redo shortcut
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y' && undoController) {
+        e.preventDefault();
+        undoController.redo();
+        return;
+      }
+
       // Enter inserts newline — default textarea behaviour handles this
     },
-    [onEnd],
+    [onEnd, undoController],
   );
 
   const handleBlur = useCallback(() => {
@@ -88,7 +116,9 @@ export function StickyTextEditor({
     if (!el) return;
     const next = clampToLimit(el.value);
     applyTextDiff(ytext, next, LOCAL_ORIGIN);
-  }, [ytext]);
+    // Call boundary on blur to close the editing session
+    undoController?.boundary();
+  }, [ytext, undoController]);
 
   const remaining = STICKY_TEXT_MAX_CHARS - ytext.toString().length;
   const showCounter = counterVisible(ytext.toString().length);

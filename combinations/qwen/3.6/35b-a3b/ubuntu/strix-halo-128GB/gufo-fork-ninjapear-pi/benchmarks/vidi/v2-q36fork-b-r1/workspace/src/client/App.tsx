@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
+import * as Y from 'yjs';
 import { BoardViewport } from './canvas/BoardViewport';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
@@ -19,6 +20,8 @@ import { useRoute, navigate } from './router';
 import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { SharePanel } from './share/SharePanel';
+import { createUndo } from './board/undo';
+import { useUndo } from './board/useUndo';
 
 /** Main app — routes to HomePage, BoardPage, or NotFoundPage based on URL. */
 export function App(): ReactNode {
@@ -47,17 +50,43 @@ export function App(): ReactNode {
   // Camera ref for toolbar positioning
   const cameraRef = useRef({ x: 0, y: 0, zoom: 1 });
 
+  // Create per-board UndoController
+  const undoControllerRef = useRef<ReturnType<typeof createUndo> | null>(null);
+  const prevBoardIdRef = useRef<string | undefined>(boardId);
+
+  // Track if it's the first render for this board
+  useEffect(() => {
+    if (boardId !== prevBoardIdRef.current && undoControllerRef.current) {
+      // Board changed — destroy old controller
+      undoControllerRef.current.destroy();
+      undoControllerRef.current = null;
+    }
+    prevBoardIdRef.current = boardId;
+
+    // Create new controller only once per board
+    if (!undoControllerRef.current && doc) {
+      // Need objects map ready before creating undo manager
+      const objectsMap = doc.getMap('objects');
+      undoControllerRef.current = createUndo(doc);
+    }
+  }, [doc, boardId]);
+
+  // Use the undo hook
+  const undoState = useUndo(undoControllerRef.current, canEdit);
+
   // Create sticky note at top-left world position and auto-select + edit it
   const handleCreateStickyAt = useCallback(
     (worldX: number, worldY: number) => {
       if (!canEdit) return;
+      // Boundary before creating a new sticky
+      undoControllerRef.current?.boundary();
       const id = createSticky(doc, { x: worldX, y: worldY }, DEFAULT_STICKY_COLOR);
       if (id) {
         click(id);
         startEdit(id);
       }
     },
-    [doc, click, startEdit, canEdit],
+    [doc, click, startEdit, canEdit, undoControllerRef],
   );
 
   const handleDblClickEmpty = useCallback(
@@ -71,7 +100,15 @@ export function App(): ReactNode {
     clearSelection();
   }, [clearSelection]);
 
-  // Keyboard commands
+  // Delete selection bar handler (calls boundary before delete)
+  const handleDeleteSelection = useCallback(() => {
+    if (ids.size === 0) return;
+    undoControllerRef.current?.boundary();
+    deleteObj(doc, Array.from(ids));
+    clearSelection();
+  }, [doc, ids, clearSelection, undoControllerRef]);
+
+  // Keyboard commands with undo boundary integration
   useBoardKeys({
     doc,
     selectedIds: ids,
@@ -80,9 +117,10 @@ export function App(): ReactNode {
     isEditing: editingId !== null,
     setMany,
     clear: clearSelection,
+    undoController: undoControllerRef.current,
   });
 
-  // Transform gesture (group move & resize handles)
+  // Transform gesture (group move & resize handles) with undo boundaries
   const gesture = useTransformGesture({
     doc,
     camera: cameraRef.current,
@@ -90,8 +128,14 @@ export function App(): ReactNode {
     snapshot: snaps,
     canEdit,
     isEditing: editingId !== null,
-    onGestureStart: () => {},
-    onGestureEnd: () => {},
+    onGestureStart: () => {
+      // Start of a drag — close any current typing step
+      undoControllerRef.current?.boundary();
+    },
+    onGestureEnd: () => {
+      // End of a drag — boundary closes the capture window so frame-by-frame moves merge into one step
+      undoControllerRef.current?.boundary();
+    },
   });
 
   // Render note components sorted by z/id
@@ -115,26 +159,11 @@ export function App(): ReactNode {
             onStartEdit={startEdit}
             onEndEdit={() => endEdit()}
             onObjectPointerDown={gesture.onObjectPointerDown as any}
+            undoController={undoControllerRef.current}
           />
         );
       });
   }, [snap, doc, ids, editingId, click, startEdit, endEdit, gesture.onObjectPointerDown, cameraRef.current.zoom]);
-
-  // Group move handler
-  const onObjectDragMove = useCallback(
-    (e: PointerEvent) => {
-      if (!ids.size) return;
-      // Move all selected objects together
-    },
-    [ids],
-  );
-
-  // Delete selection bar handler
-  const handleDeleteSelection = useCallback(() => {
-    if (ids.size === 0) return;
-    deleteObj(doc, Array.from(ids));
-    clearSelection();
-  }, [doc, ids, clearSelection]);
 
   return (
     <>
@@ -148,6 +177,10 @@ export function App(): ReactNode {
           const wpY = vh / cam.zoom + cam.y - STICKY_SIZE_WORLD / 2;
           handleCreateStickyAt(wpX, wpY);
         }}
+        canUndo={undoState.canUndo}
+        canRedo={undoState.canRedo}
+        undo={undoState.undo}
+        redo={undoState.redo}
       />
       <SharePanel boardId={boardId} />
       <SelectionBar

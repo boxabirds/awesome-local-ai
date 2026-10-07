@@ -53,3 +53,7 @@ export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;     // LoadFailed room retries l
 export const PERSIST_TESTED_NOTES = 2000;           // PRD persist.large_board
 export const BOARD_LOAD_BUDGET_MS = 3000;           // PRD persist.large_board
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// Story 8 — undo/redo settings
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;    // typing pause that ends a burst
+export const UNDO_MAX_STEPS = 200;             // max history length

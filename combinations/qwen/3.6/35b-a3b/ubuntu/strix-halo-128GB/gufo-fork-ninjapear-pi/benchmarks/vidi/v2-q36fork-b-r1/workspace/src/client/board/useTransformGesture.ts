@@ -211,6 +211,9 @@ export function useTransformGesture({
       if (Math.sqrt(dx * dx + dy * dy) >= DRAG_THRESHOLD_PX) {
         window.removeEventListener('mousemove', handleGlobalPointerMove);
         
+        // Call onGestureStart when actual movement begins
+        onGestureStart?.();
+        
         const startRects = new Map<string, Point>();
         if (gestureState.objectId === '__group__') {
           // Collect all selected objects
@@ -236,7 +239,7 @@ export function useTransformGesture({
     
     window.addEventListener('mousemove', handleGlobalPointerMove);
     return () => window.removeEventListener('mousemove', handleGlobalPointerMove);
-  }, [gestureState, selectedIds, snapshot, camera]);
+  }, [gestureState, selectedIds, snapshot, camera, onGestureStart]);
 
   // Track current pointer position for resize
   useEffect(() => {
@@ -267,6 +270,9 @@ export function useTransformGesture({
       
       if (!canEdit) return;
       
+      // Call onGestureStart for resize too
+      onGestureStart?.();
+      
       // Compute bounding box at gesture start
       const rects = Array.from(snapshot).filter(s => selectedIds.has(s.id)).map(getBBox);
       const bbox = unionRects(rects);
@@ -283,8 +289,6 @@ export function useTransformGesture({
         bbox,
         camera,
       });
-      
-      onGestureStart?.();
       
       const vp = viewportRef.current;
       if (vp) {
