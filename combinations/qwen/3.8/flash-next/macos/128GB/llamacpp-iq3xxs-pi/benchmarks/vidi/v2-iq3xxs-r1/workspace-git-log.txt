@@ -1,3 +1,73 @@
+commit 4d59898bfc9e76b177cb4a85546d28a3744c705b
+agent  Wed Oct 7 20:47:47 2026 +0000
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ PROGRESS.md | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+commit f2367f34e9439e4ee13068abcdebc1373bbcf00f
+agent  Wed Oct 7 20:47:05 2026 +0000
+
+    story 8: e2e TC-22..TC-24 (undo while colleagues work) + undo controls/shortcuts tests; PROGRESS/NOTES
+
+
+ NOTES.md               |  47 ++++++++
+ PROGRESS.md            |  42 ++++++++
+ tests/e2e/undo.spec.ts | 286 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 375 insertions(+)
+commit 93cb2cf09287180cbb0b382fb6a45a740a3f0857
+agent  Wed Oct 7 20:30:29 2026 +0000
+
+    story 8: wire the controller into the board (gestures, edits, toolbar actions, shortcuts, buttons); component TC-14..TC-17 green
+
+
+ PROGRESS.md                             |  23 ++++
+ src/client/board/Board.tsx              |  62 ++++++++-
+ src/client/board/Toolbar.tsx            |   6 +-
+ src/client/board/UndoButtons.tsx        |  52 ++++++++
+ src/client/board/undo.ts                |  23 ++++
+ src/client/board/useBoardKeys.ts        |  27 +++-
+ src/client/board/useUndo.ts             |  69 ++++++++++
+ src/client/canvas/testHooks.ts          |  29 ++++-
+ src/client/index.css                    |  10 ++
+ src/client/objects/StickyNote.tsx       |  21 ++-
+ src/client/objects/StickyTextEditor.tsx |  28 +++-
+ tests/component/UndoBoundaries.test.tsx | 220 ++++++++++++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   | 189 +++++++++++++++++++++++++++
+ 13 files changed, 748 insertions(+), 11 deletions(-)
+commit 715db50d099f01e74ade151716318fe916eeba20
+agent  Wed Oct 7 20:04:31 2026 +0000
+
+    story 8: per-user undo history controller over Y.UndoManager (undo.ts); unit TC-01..TC-13 green
+
+
+ src/client/board/undo.ts           | 95 ++++++++++++++++++++++++++++++++------
+ tests/unit/undo-boundaries.test.ts | 44 +++++++++++++-----
+ tests/unit/undo-history.test.ts    |  8 ++--
+ 3 files changed, 120 insertions(+), 27 deletions(-)
+commit 9e86cc53424822e0a4fcb184aae9d31cba233083
+agent  Wed Oct 7 19:46:44 2026 +0000
+
+    story 8: undo history + typing-burst unit tests first (TC-01..TC-13), controller stubbed
+
+
+ PROGRESS.md                        |   6 +-
+ src/client/board/undo.ts           |  46 ++++++
+ src/shared/config.ts               |  11 ++
+ tests/unit/peer.ts                 |  71 +++++++++
+ tests/unit/undo-boundaries.test.ts |  99 ++++++++++++
+ tests/unit/undo-fixture.ts         | 121 +++++++++++++++
+ tests/unit/undo-history.test.ts    | 303 +++++++++++++++++++++++++++++++++++++
+ 7 files changed, 654 insertions(+), 3 deletions(-)
+commit 48006bc7d612d935af83832113d304568370f32e
+vidi-agent  Wed Oct 7 20:19:38 2026 +0100
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 commit bd4bafbc8f1ec714307e8d9a1771d59c6f499edd
 agent  Wed Oct 7 19:16:37 2026 +0000
 

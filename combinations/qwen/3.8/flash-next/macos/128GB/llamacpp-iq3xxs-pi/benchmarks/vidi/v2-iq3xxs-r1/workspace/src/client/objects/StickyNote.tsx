@@ -15,6 +15,7 @@ import {
 import { fitFontSize, STICKY_TEXT_BOX_WORLD, STICKY_TEXT_PADDING_WORLD, type FontFit } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 import { NoteToolbar } from './NoteToolbar';
+import type { UndoController } from '../board/undo';
 
 export interface StickyNoteProps {
   note: StickySnapshot;
@@ -32,6 +33,12 @@ export interface StickyNoteProps {
   onEndEdit(next: 'selected' | 'unselected'): void;
   /** Story 7: delegated pointerdown for transform gesture. */
   onObjectPointerDown?(e: PointerEvent, id: string): void;
+  /**
+   * This tab's undo history (story 8): one colour change or one delete from this
+   * note's toolbar is one step of its own, and typing in the note is stepped by the
+   * same history (PRD undo.steps, undo.typing).
+   */
+  undo?: UndoController;
 }
 
 /**
@@ -51,6 +58,7 @@ export function StickyNote({
   onStartEdit,
   onEndEdit,
   onObjectPointerDown,
+  undo,
 }: StickyNoteProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
@@ -162,6 +170,7 @@ export function StickyNote({
           ytext={ytext}
           fontPx={fit.fontPx}
           onEnd={(next) => onEndEdit(next)}
+          undo={undo}
         />
       ) : null}
 
@@ -177,9 +186,17 @@ export function StickyNote({
           <NoteToolbar
             color={note.color}
             disabled={!editable}
-            onColor={(next: StickyColor) => editable && setStickyColor(doc, note.id, next)}
+            onColor={(next: StickyColor) => {
+              if (!editable) return;
+              undo?.boundary();
+              setStickyColor(doc, note.id, next);
+              undo?.boundary();
+            }}
             onDelete={() => {
-              if (editable) deleteObject(doc, note.id);
+              if (!editable) return;
+              undo?.boundary();
+              deleteObject(doc, note.id);
+              undo?.boundary();
             }}
           />
         </div>

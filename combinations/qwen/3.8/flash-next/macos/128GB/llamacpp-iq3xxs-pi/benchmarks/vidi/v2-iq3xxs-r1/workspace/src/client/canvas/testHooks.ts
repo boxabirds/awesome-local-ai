@@ -1,7 +1,18 @@
 import type * as Y from 'yjs';
 import type { Camera } from './camera';
 import type { ConnectionState } from '../sync/connectBoard';
+import type { StickyColor } from '../../shared/config';
 import type { StickySnapshot } from '../../shared/board-model';
+
+/** A note a browser-test fixture asks for (world position, colour, text, size). */
+export interface SeedNote {
+  x: number;
+  y: number;
+  color?: StickyColor;
+  text?: string;
+  width?: number;
+  height?: number;
+}
 
 export interface BoardSelectionState {
   selectedId: string | null;
@@ -31,11 +42,27 @@ export interface BoardTestApi {
   /** Reconnect after `dropConnection()`. */
   resumeConnection(): void;
   /**
-   * Fill the live board with `count` distinct, text-bearing notes in one document
+   * Fill the board with `count` distinct, text-bearing notes in one document
    * transaction (browser tests only): a fast way to reach a realistic 25-note or
    * large board that then syncs to the room and is stored like any real edit.
    */
   seedBoard(count: number): void;
+  /**
+   * Write the given notes as one transaction that is *not* this tab's own work — the
+   * way a board that was already saved arrives — and return their ids in the order
+   * they were given (browser tests). Story 8 needs fixtures that are not undoable by
+   * whoever happens to create them.
+   */
+  seedNotes(specs: readonly SeedNote[]): string[];
+  /**
+   * This tab's own undo history (story 8): step once back or once forward and report
+   * whether either is available. The same history the buttons and shortcuts drive, so
+   * a browser test can ask what the user could have undone.
+   */
+  undo(): boolean;
+  redo(): boolean;
+  canUndo(): boolean;
+  canRedo(): boolean;
 }
 
 declare global {

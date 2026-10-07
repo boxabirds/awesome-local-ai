@@ -1,17 +1,20 @@
 import { useRef } from 'react';
 import { useNativeStopPropagation } from './useNativeStopPropagation';
+import { UndoButtons, type UndoButtonsProps } from './UndoButtons';
 
 export interface ToolbarProps {
   /** Create a sticky note in the centre of the visible board area. */
   onCreateSticky(): void;
   /** False disables creation while the board cannot be edited (e.g. it failed to load). */
   disabled?: boolean;
+  /** This tab's undo/redo state and actions (story 8); absent on boards without a history. */
+  undo?: UndoButtonsProps;
 }
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
 /** Left-side vertical board toolbar. The Sticky note button is always available. */
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled = false, undo }: ToolbarProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   useNativeStopPropagation(ref);
 
@@ -32,6 +35,7 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
         </span>
         Sticky note
       </button>
+      {undo ? <UndoButtons {...undo} /> : null}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { applyRemoteDelta, applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import { undoStepFor, type UndoController } from '../board/undo';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -10,6 +11,13 @@ export interface StickyTextEditorProps {
   fontPx: number;
   /** Escape keeps the selection, a click outside drops it. */
   onEnd(next: 'selected' | 'unselected'): void;
+  /**
+   * This tab's undo history (story 8). Editing it is one step — the boundary is
+   * closed when the caret arrives and when it leaves — and Ctrl/Cmd+Z typed inside
+   * the textarea steps that history instead of the textarea's own undo, which would
+   * quietly disagree with what the shared text holds.
+   */
+  undo?: UndoController;
 }
 
 /** The note element the editor is nested in (used for "click outside"). */
@@ -27,7 +35,7 @@ export const NOTE_SELECTOR = '[data-note-root]';
  * - Enter: inserts a new line (the textarea default)
  * - Backspace/Delete: edit characters, they never reach the note-deleting handler
  */
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
+export function StickyTextEditor({ ytext, fontPx, onEnd, undo }: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
   const onEndRef = useRef(onEnd);
@@ -46,6 +54,13 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     applyTextDiff(ytext, el.value, LOCAL_ORIGIN);
     setLength((prev) => (prev === el.value.length ? prev : el.value.length));
   };
+
+  // One edit is one undo step: whatever was typed before the caret arrived stays in
+  // its own step, and so does whatever comes after this note is left (PRD undo.typing).
+  useEffect(() => {
+    undo?.boundary();
+    return () => undo?.boundary();
+  }, [undo]);
 
   // Cursor at the end of the existing text (sticky.edit_start).
   useEffect(() => {
@@ -120,6 +135,17 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
             event.preventDefault();
             flush();
             onEndRef.current('selected');
+            return;
+          }
+          const step = undo ? undoStepFor(event) : null;
+          if (step) {
+            // The browser's own textarea undo would rewrite the box without ever
+            // touching the shared text, so it is taken away here instead of being
+            // followed and then corrected (PRD undo.typing, undo.shortcuts).
+            event.preventDefault();
+            flush();
+            if (step === 'undo') undo?.undo();
+            else undo?.redo();
           }
         }}
       />

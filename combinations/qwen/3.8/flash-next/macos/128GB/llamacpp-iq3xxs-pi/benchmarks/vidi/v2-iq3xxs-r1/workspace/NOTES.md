@@ -452,3 +452,50 @@ rows with no `created_at`, which is the exact shape the existence check must for
   for stories 1-4. Re-checked this story: `VIDI6_BROWSERS=chromium,firefox,webkit` gives a
   green chromium run and two launch failures, so those two cases are blocked by the
   environment, not by anything in the code.
+
+## Story 8 — per-person undo over `Y.UndoManager` (yjs v13)
+
+### What `Y.UndoManager` actually does (all of it verified against the installed version)
+- `trackedOrigins: new Set([LOCAL_ORIGIN])` captures a transaction only when its origin
+  is that exact value. Remote updates (provider origin) and story 4's load transaction
+  therefore never enter the stacks — that one option is the whole of "my history only".
+- **Nested transactions inherit the outer origin.** `doc.transact(fn)` inside a
+  transaction whose origin is `LOCAL_ORIGIN` is captured too, whatever origin the inner
+  call asks for. Fixtures that must be invisible to undo are written with
+  `doc.transact(fn)` and *no* origin (null is not in `trackedOrigins`).
+- `captureTimeout` merges consecutive *tracked* transactions into the last stack item.
+  It is the **only** merging mechanism in v13 (v3's content-based merging of adjacent
+  inserts does not exist here), which is why step boundaries are explicit: `stopCapturing()`
+  sets `lastChange = 0`, so the next tracked transaction opens a new item even 1 ms later.
+- Events are `stack-item-added` / `stack-item-popped` / `stack-cleared` /
+  `stack-item-updated`; the stacks are readable (`m.undoStack`, `m.redoStack`) which is
+  how `undo.limit` trims `undoStack[0]` on add.
+- **`undo()` keeps popping until it finds an item with an effect.** When my move targets a
+  note somebody else deleted, that item is consumed *and the item below it is reversed in
+  the same call* (TC-07, TC-23). It never throws and never resurrects the note, but a
+  test must not assume "one Ctrl+Z = one stack item" across a ghost step.
+- Pan/zoom and selection live in local React state, not in the document, so they cannot
+  enter the history at all — PRD "does not undo navigation or selection" comes for free.
+
+### Fake timers and lib0
+`lib0/time.js` does `export const getUnixTime = Date.now`, taking the function **by value**
+when the module is evaluated. `vi.useFakeTimers()` after yjs has been imported changes
+nothing for the capture timeout. The capture-timeout unit tests therefore install the fake
+clock first and load yjs afterwards with `await import('yjs')` (+ `toFake: ['Date']`).
+
+### user-event keyboard syntax
+Holding a modifier while a key is pressed is `'{Control>}z{/Control}'`. `'{Control>z/}'`
+is a parse error ("Expected repeat modifier") — `>` must be followed by a repeat count or
+the closing bracket.
+
+### Design file list vs. this codebase
+- `src/client/App.tsx` is only the router here; the controller is created with the board
+  document in `Board.tsx` and destroyed on unmount/board change — same lifetime the design
+  asks for.
+- `src/client/board/useTransformGesture.ts` is *not* modified: it already calls
+  `onGestureStart`/`onGestureEnd` (story 7), and `Board.tsx` passes `undo.boundary` for
+  both (pointercancel included). The hook is where the design wanted the call; the
+  callback was already in its right place, so the wiring is one line in the caller.
+- In `tests/e2e/undo.spec.ts` the seeding screen has extra history of its own (it created
+  the fixture notes), so "this person has run out of steps" is only asserted for the
+  screens that joined.

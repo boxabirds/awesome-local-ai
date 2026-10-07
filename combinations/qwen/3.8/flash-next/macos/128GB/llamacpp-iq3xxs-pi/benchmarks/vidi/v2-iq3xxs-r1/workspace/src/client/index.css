@@ -168,6 +168,16 @@ body {
   outline: 2px solid #1a73e8;
   outline-offset: 1px;
 }
+/* A tool that has nothing to do (Undo and Redo with an empty history) is visibly
+   dark, not just unclickable (PRD undo.buttons). */
+.board-toolbar .tool-button:disabled {
+  color: #9aa0a6;
+  background: #f1f1f1;
+  cursor: default;
+}
+.board-toolbar .tool-button:disabled:hover {
+  background: #f1f1f1;
+}
 .board-toolbar .tool-icon {
   font-size: 15px;
 }
