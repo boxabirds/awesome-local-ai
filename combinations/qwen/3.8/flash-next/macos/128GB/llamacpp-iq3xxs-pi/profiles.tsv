@@ -17,7 +17,16 @@
 #   vision    131072   1      on      ~101,400 MiB
 #   agents    393216   3      off     ~111,000 MiB   (-c is shared: 3 x 128k)
 #   max       262144   1      off     ~104,200 MiB
-coding|131072|f16|0|1|512|100500|default; 128k, one agent -- ESTIMATE, not measured
+#
+# The coding profile's need_mib is MEASURED: 98,333 MiB resident (three samples, steady) for the server process
+# at ctx 131072 with one slot, taken from v2-iq3xxs-r1 on the M5 Max on 7 Oct 2026 while it was serving story 4.
+# Rounded up to 98,400. Weights are about 78,200 MiB of that (10.9 MB + 49.57 GB + 32.38 GB of IQ3_XXS shards),
+# so roughly 20 GiB is the KV cache at 128k, the Q8_0 draft head and engine overhead. This build prints no
+# per-component figures, so that split is arithmetic, not measurement.
+#
+# The other profiles are still ESTIMATES inherited from the 4-bit sibling and are wrong until measured: they
+# claim MORE than this 3-bit pack needs at the same context. Do not quote them.
+coding|131072|f16|0|1|512|98400|MEASURED-2026-10-07; 128k, one agent
 vision|131072|f16|1|1|512|101400|128k plus image input -- ESTIMATE; qwen4exp vision upstream unverified
 agents|393216|f16|0|3|512|111000|3 slots x 128k: an agent plus background calls; MTP gains shrink with concurrency -- ESTIMATE
 max|262144|f16|0|1|512|104200|the model's native context -- ESTIMATE
