@@ -289,6 +289,53 @@ pub struct ConditionRow {
     pub gpu_throttle: Option<String>,
 }
 
+/// What the model server was holding when a story began, from the record's `memory_start`. Every figure is optional:
+/// an engine says only what it says, and what it does not say is NULL, never 0.
+#[derive(Debug, Clone, Default)]
+pub struct MemoryRow {
+    pub at: Option<f64>,
+    pub resident_mib: Option<f64>,
+    pub model_bytes: Option<i64>,
+    pub engine: Option<String>,
+    pub cache_retained_mib: Option<f64>,
+    pub cache_capacity_mib: Option<f64>,
+    pub cache_skipped_for_capacity: Option<i64>,
+    pub cache_last_snapshot_mib: Option<f64>,
+    pub cache_evictions: Option<i64>,
+    pub cache_evicted_mib: Option<f64>,
+    pub cache_last_evicted_mib: Option<f64>,
+    pub cache_checkpoints_erased: Option<i64>,
+    pub extras_json: Option<String>,
+}
+
+/// The story's snapshot, or None when the record has none (a story recorded before it existed): no snapshot is not
+/// a reading of zero, so there is no row.
+pub fn memory(rec: &Value) -> Option<MemoryRow> {
+    let m = rec.get("memory_start")?;
+    if !m.is_object() {
+        return None;
+    }
+    let f = |v: &Value, k: &str| v.get(k).and_then(Value::as_f64);
+    let i = |v: &Value, k: &str| v.get(k).and_then(Value::as_i64);
+    let cache = m.get("prompt_cache").filter(|c| c.is_object()).cloned().unwrap_or(Value::Null);
+    let extras = m.get("extras").filter(|e| e.as_object().is_some_and(|o| !o.is_empty())).map(|e| e.to_string());
+    Some(MemoryRow {
+        at: f(m, "t").or_else(|| f(m, "at")),
+        resident_mib: f(m, "resident_mib"),
+        model_bytes: i(m, "model_bytes"),
+        engine: m.get("engine").and_then(Value::as_str).map(String::from),
+        cache_retained_mib: f(&cache, "retained_mib"),
+        cache_capacity_mib: f(&cache, "capacity_mib"),
+        cache_skipped_for_capacity: i(&cache, "skipped_for_capacity"),
+        cache_last_snapshot_mib: f(&cache, "last_snapshot_mib"),
+        cache_evictions: i(&cache, "evictions"),
+        cache_evicted_mib: f(&cache, "evicted_mib"),
+        cache_last_evicted_mib: f(&cache, "last_evicted_mib"),
+        cache_checkpoints_erased: i(&cache, "checkpoints_erased"),
+        extras_json: extras,
+    })
+}
+
 fn condition_of(v: &Value, sk: Option<i64>) -> Option<ConditionRow> {
     let at = v.get("t").and_then(Value::as_f64)?;
     let gpu = v.get("gpu").and_then(Value::as_object);
@@ -502,6 +549,7 @@ pub fn ingest_story(db: &mut db::Db, parts: &RunParts, inp: &StoryInputs, now: f
     let timed = join_call_timing(&rows, &timing);
     let conds = conditions(inp.conditions_text.as_deref(), &inp.rec, sk);
     db.replace_conditions(&inp.run_dir, sk, &conds)?;
+    db.replace_memory(&inp.run_dir, sk, memory(&inp.rec).as_ref())?;
     let stream = stream_events(&rows, &timing, &timed, &[], &conds);
     let events_written = if inp.complete {
         db.replace_events(sk, &stream)?;

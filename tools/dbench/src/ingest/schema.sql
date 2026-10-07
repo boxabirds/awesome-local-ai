@@ -95,6 +95,21 @@ create table if not exists conditions(
 );
 create index if not exists cd_sk on conditions(sk, at);
 
+-- What the model server was holding when a story began: one row per story, from the record's `memory_start`
+-- (benchmarks/spec-bench/harness/memory_snapshot.py). The engines offer different things about themselves, so
+-- anything an engine does not say is NULL and never 0: a gufo run has a cache capacity, a llama.cpp run has
+-- evictions, and neither has the other's. A total that could not be read is NULL too, because 0 is what a
+-- containerised engine read for 2,381 readings before the port shim was recognised. `extras_json` carries what only
+-- one engine volunteers (gufo's GPU use and the host's free memory), named as that engine named it.
+create table if not exists memory(
+  sk integer primary key, run_id text, at real,
+  resident_mib real, model_bytes integer, engine text,
+  cache_retained_mib real, cache_capacity_mib real, cache_skipped_for_capacity integer, cache_last_snapshot_mib real,
+  cache_evictions integer, cache_evicted_mib real, cache_last_evicted_mib real, cache_checkpoints_erased integer,
+  extras_json text
+);
+create index if not exists mem_run on memory(run_id, at);
+
 -- What each story run was ingested from, and how far.
 create table if not exists collection(
   sk integer primary key, node text, collected_at real, complete integer,

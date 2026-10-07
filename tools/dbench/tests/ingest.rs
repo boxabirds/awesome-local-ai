@@ -825,3 +825,88 @@ fn a_reference_run_in_the_lake_is_not_a_candidate_either() {
     assert_eq!(candidates(&src, &lake).unwrap(), BTreeSet::from([format!("{kept}/stories/01")]));
     std::fs::remove_dir_all(&root).unwrap();
 }
+
+// ---------- what the model server was holding when a story began ----------
+// The harness records a snapshot at each story's start (memory_snapshot.py), in the story's record as
+// `memory_start`. The footprint that decides what fits on a machine was in the warehouse only as a 30-second total
+// and showed 0.0 for every containerised engine; this is the breakdown each engine offers, as columns a query can
+// use. What an engine does not say is NULL, never 0: a gufo run has a cache capacity, a llama.cpp run has evictions,
+// and neither has the other's.
+
+fn memory_rec(snapshot: Value) -> Value {
+    json!({"title": "One", "status": "DONE", "started": 1790000000.0, "agent_finished": 1790000122.0, "memory_start": snapshot})
+}
+
+#[test]
+fn a_storys_memory_snapshot_is_written_to_the_memory_table() {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let text = fixture("accounting__pi-nudged");
+    let snap = json!({
+        "at": 1790000001.5, "resident_mib": 35580.3, "model_bytes": 22388168960u64, "engine": "gufo",
+        "prompt_cache": {"retained_mib": 32464.9, "capacity_mib": 32768.0, "skipped_for_capacity": 1746, "last_snapshot_mib": 1467.1},
+        "extras": {"gpu_device_used_mib": 35285, "gpu_device_total_mib": 122880, "host_available_mib": 50964, "engine_rss_mib": 38088}
+    });
+    let inp = story_inputs(&format!("{RUN}/stories/01"), &text, memory_rec(snap), true);
+    let out = ingest::ingest_story(&mut db, &parts, &inp, 1_790_001_000.0).unwrap();
+
+    let row: (f64, f64, i64, String, f64, f64, i64, String) = db.conn.query_row(
+        "select at, resident_mib, model_bytes, engine, cache_retained_mib, cache_capacity_mib, cache_skipped_for_capacity, run_id
+         from memory where sk = ?1", [out.sk],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?))).unwrap();
+    assert_eq!(row, (1790000001.5, 35580.3, 22388168960, "gufo".into(), 32464.9, 32768.0, 1746, RUN.into()));
+    let extras: String = db.conn.query_row("select extras_json from memory where sk = ?1", [out.sk], |r| r.get(0)).unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&extras).unwrap()["gpu_device_used_mib"], 35285);
+}
+
+#[test]
+fn what_an_engine_does_not_say_is_null_not_zero() {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let text = fixture("accounting__pi-nudged");
+    // llama.cpp: evictions, and no capacity or retained size, because it prints neither.
+    let snap = json!({"at": 1.0, "resident_mib": 100485.4, "model_bytes": 85652396192u64, "engine": "llama.cpp",
+                      "prompt_cache": {"evictions": 33, "evicted_mib": 141272.9, "last_evicted_mib": 5784.8, "checkpoints_erased": 88}});
+    let inp = story_inputs(&format!("{RUN}/stories/01"), &text, memory_rec(snap), true);
+    let out = ingest::ingest_story(&mut db, &parts, &inp, 1_790_001_000.0).unwrap();
+    let (evictions, evicted, retained, capacity): (i64, f64, Option<f64>, Option<f64>) = db.conn.query_row(
+        "select cache_evictions, cache_evicted_mib, cache_retained_mib, cache_capacity_mib from memory where sk = ?1", [out.sk],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))).unwrap();
+    assert_eq!((evictions, evicted), (33, 141272.9));
+    assert_eq!((retained, capacity), (None, None), "not offered by llama.cpp: unknown, never 0");
+}
+
+#[test]
+fn a_total_that_could_not_be_read_is_null_so_it_cannot_be_mistaken_for_an_empty_server() {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let text = fixture("accounting__pi-nudged");
+    let snap = json!({"at": 1.0, "resident_mib": null, "model_bytes": null});
+    let out = ingest::ingest_story(&mut db, &parts, &story_inputs(&format!("{RUN}/stories/01"), &text, memory_rec(snap), true), 1_790_001_000.0).unwrap();
+    let (resident, model): (Option<f64>, Option<i64>) = db.conn.query_row(
+        "select resident_mib, model_bytes from memory where sk = ?1", [out.sk], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+    assert_eq!((resident, model), (None, None));
+}
+
+#[test]
+fn a_story_recorded_before_the_snapshot_existed_has_no_memory_row_and_ingests_as_before() {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let text = fixture("accounting__pi-nudged");
+    let rec = json!({"title": "One", "status": "DONE", "started": 1790000000.0, "agent_finished": 1790000122.0});
+    let out = ingest::ingest_story(&mut db, &parts, &story_inputs(&format!("{RUN}/stories/01"), &text, rec, true), 1_790_001_000.0).unwrap();
+    let n: i64 = db.conn.query_row("select count(*) from memory where sk = ?1", [out.sk], |r| r.get(0)).unwrap();
+    assert_eq!(n, 0, "no snapshot recorded, no row: absence is not a reading of zero");
+}
+
+#[test]
+fn re_ingesting_a_story_replaces_its_snapshot_rather_than_doubling_it() {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let text = fixture("accounting__pi-nudged");
+    let inp = story_inputs(&format!("{RUN}/stories/01"), &text, memory_rec(json!({"at": 1.0, "resident_mib": 10.0})), true);
+    let out = ingest::ingest_story(&mut db, &parts, &inp, 1_790_001_000.0).unwrap();
+    ingest::ingest_story(&mut db, &parts, &inp, 1_790_002_000.0).unwrap();
+    let n: i64 = db.conn.query_row("select count(*) from memory where sk = ?1", [out.sk], |r| r.get(0)).unwrap();
+    assert_eq!(n, 1);
+}

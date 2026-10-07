@@ -1436,3 +1436,34 @@ def test_clearing_the_cache_makes_it_look_again(monkeypatch):
     drive.reset_engine_pid_cache()
     monkeypatch.setattr(drive, "process_rows", lambda: [(400, 88_000_000, "/usr/bin/llama-server --port 1")])
     assert drive.engine_pid(8080) == 400
+
+
+# ---------- the memory snapshot at a story's start ----------
+
+def test_the_memory_snapshot_joins_the_total_the_weights_and_the_engine_s_log(monkeypatch, tmp_path):
+    drive.reset_engine_pid_cache()
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "server.log").write_text("0.0 W srv  alloc:  - making room for prompt cache entry, removing oldest entry (size = 4096.0 MiB)\n")
+    root = tmp_path / "install"
+    (root / "models").mkdir(parents=True)
+    (root / "models/m.gguf").write_bytes(b"w" * 2048)
+    env = root / "install.env"
+    env.write_text('MODEL_SUBDIR="models"\nMODEL_FILE="m.gguf"\n')
+    monkeypatch.setattr(drive, "server_footprint_gb", lambda port: (90.0, 95.0))
+    snap = drive.memory_at_story_start(run, 18010, env)
+    assert snap["resident_mib"] == 90.0 * 1024
+    assert snap["model_bytes"] == 2048
+    assert snap["prompt_cache"]["evictions"] == 1 and snap["prompt_cache"]["evicted_mib"] == 4096.0
+
+
+def test_without_an_install_manifest_the_snapshot_still_has_the_total_and_the_weights_are_unknown(monkeypatch, tmp_path):
+    monkeypatch.setattr(drive, "server_footprint_gb", lambda port: (12.0, 13.0))
+    snap = drive.memory_at_story_start(tmp_path, 18010, None)
+    assert snap["resident_mib"] == 12.0 * 1024 and snap["model_bytes"] is None
+
+
+def test_a_server_whose_total_cannot_be_read_gives_none_not_zero(monkeypatch, tmp_path):
+    monkeypatch.setattr(drive, "server_footprint_gb", lambda port: (None, None))
+    assert drive.memory_at_story_start(tmp_path, 18010, None)["resident_mib"] is None
+    assert drive.memory_at_story_start(tmp_path, None, None)["resident_mib"] is None       # no port to ask about

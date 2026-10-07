@@ -342,6 +342,28 @@ impl Db {
         Ok(())
     }
 
+    /// A story's memory snapshot, replacing any it had: ingesting a story again must not double it, and a story
+    /// whose record no longer has one (or never did) ends up with no row, because no snapshot is not a zero.
+    pub fn replace_memory(&mut self, run_id: &str, sk: i64, row: Option<&super::MemoryRow>) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        tx.execute("delete from memory where sk = ?1", params![sk])?;
+        if let Some(m) = row {
+            tx.execute(
+                "insert into memory(sk, run_id, at, resident_mib, model_bytes, engine,
+                    cache_retained_mib, cache_capacity_mib, cache_skipped_for_capacity, cache_last_snapshot_mib,
+                    cache_evictions, cache_evicted_mib, cache_last_evicted_mib, cache_checkpoints_erased, extras_json)
+                 values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                params![
+                    sk, run_id, m.at, m.resident_mib, m.model_bytes, m.engine,
+                    m.cache_retained_mib, m.cache_capacity_mib, m.cache_skipped_for_capacity, m.cache_last_snapshot_mib,
+                    m.cache_evictions, m.cache_evicted_mib, m.cache_last_evicted_mib, m.cache_checkpoints_erased, m.extras_json
+                ],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn set_collection(&self, sk: i64, c: &Collection) -> Result<()> {
         self.conn.execute(
             "insert or replace into collection(sk, node, collected_at, complete, events_source, events_path, events_bytes, events_consumed,

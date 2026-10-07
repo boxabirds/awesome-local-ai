@@ -34,6 +34,7 @@ from collections import deque
 from pathlib import Path
 
 import attempts
+import memory_snapshot
 import engine_settings
 import machine_fit
 import containment
@@ -1684,6 +1685,19 @@ def server_footprint_gb(port: int | None) -> tuple[float | None, float | None]:
     return parse_footprint_gb(subprocess.run(["footprint", "-p", str(pid)], capture_output=True, text=True).stdout)
 
 
+def memory_at_story_start(run: Path, port: int | None, install_env: Path | None) -> dict:
+    """What the model server is holding as a story starts, from what the engine itself says (memory_snapshot.py).
+
+    The total comes from the same lookup the condition sampler uses, so a containerised engine is measured and not
+    its port shim. The weights are resolved from the install's manifest, which the launchers read the same way; with
+    no manifest they are unknown, not zero. The engine's own account comes from the run's server.log.
+    """
+    resident_gb = server_footprint_gb(port)[0] if port else None
+    env = memory_snapshot.read_manifest(install_env) if install_env else {}
+    weights = memory_snapshot.weights_from_manifest(env, Path.home(), root=install_env.parent) if env else []
+    return memory_snapshot.take(resident_gb, run / "server.log", weights, time.time())
+
+
 def swap_used_gb() -> float:
     if not IS_MAC:
         return hostenv.linux_swap_used_gb()
@@ -2090,6 +2104,8 @@ def main() -> None:
     ap.add_argument("--compact-at", type=int, help="tokens of context at which the agent compacts (pi only)")
     ap.add_argument("--client-thinking", choices=PI_THINKING_LEVELS,
                     help="reasoning effort the agent sends with each request, for servers that can't apply one (pi only)")
+    ap.add_argument("--install-env", type=Path,
+                    help="the install's manifest (install.env): where the weights are, for the memory snapshot at each story")
     ap.add_argument("--no-condition-wait", action="store_true",
                     help="don't wait for AC power and nominal thermals before each story (cloud models)")
     ap.add_argument("--only", help="comma list of story ids to run (smoke tests)")
@@ -2247,7 +2263,11 @@ def main() -> None:
         else:
             print(f"[story {sid}] {title} — agent starting", flush=True)
             rec = {"title": title, "conditions_start": wait_for_conditions(wait=not a.no_condition_wait), "started": time.time(),
-                   "engine_settings": engine_settings.for_story(run)}   # the settings of the server this story ran on
+                   "engine_settings": engine_settings.for_story(run),   # the settings of the server this story ran on
+                   # What it was holding as the story began. A step the story does not depend on: a fault is recorded
+                   # with the story and the story carries on.
+                   "memory_start": derived("memory snapshot", lambda: memory_at_story_start(
+                       run, urlparse(a.base_url).port, a.install_env), run=run)}
             # After a harness restart the story began earlier: its live clock counts the whole story, like its
             # call and token counts, and so does the record (record_attempts).
             live["started_at"] = (first_event_time(events) if prior else None) or rec["started"]
