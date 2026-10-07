@@ -4,7 +4,7 @@
 // yardstick, not a stack under test) has a card only while it is working, and is named in a line underneath when not.
 import type { Row } from "../../../shared/types.ts";
 import type { NowLine } from "../../../shared/overviewView.ts";
-import { queueDrain, seriesOf, span } from "../../../shared/dashboardView.ts";
+import { seriesOf, span } from "../../../shared/dashboardView.ts";
 import { storyResults } from "../../../shared/runView.ts";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { machineHref, storyRunHref } from "../../../shared/routes.ts";
@@ -53,7 +53,6 @@ export function MachineCards({ lines, rows, now }: { lines: NowLine[]; rows: Row
             const run = l.run?.pack ? rows.find((r) => r.pack === l.run!.pack && r.stack === l.run!.stack && r.runId === l.run!.runId) ?? null : null;
             const s = run ? series.find((x) => x.stack === run.stack && x.runs.some((r) => r.runId === run.runId)) : null;
             const place = s && run ? s.runs.findIndex((r) => r.runId === run.runId) + 1 : 0;
-            const drain = l.queued > 0 ? queueDrain(l.machine, rows, now) : null;
             return (
               <article key={l.machine} className="machine-card" data-machine={l.machine} data-state={l.state}>
                 <div className="card-head">
@@ -62,11 +61,6 @@ export function MachineCards({ lines, rows, now }: { lines: NowLine[]; rows: Row
                 </div>
                 <div className="card-queue">
                   <a className="entity" href={machineHref(l.machine)}><QueueCount line={l} /></a>
-                  {drain ? (
-                    <span className="small card-drain" data-tip={drain.basis.map((b) => `${b.stack}: median ${span(b.median)} over ${b.n} finished runs`).join("\n") || "No finished run of this stack to measure from."}>
-                      {drain.basis.length ? ` · about ${Math.round(drain.seconds / 3600)} h of work${drain.unknown ? `, ${drain.unknown} with no estimate yet` : ""}` : " · no estimate yet"}
-                    </span>
-                  ) : null}
                 </div>
                 {run && l.run?.pack ? (
                   <section className="card-level" data-level="run" aria-label="Run">
