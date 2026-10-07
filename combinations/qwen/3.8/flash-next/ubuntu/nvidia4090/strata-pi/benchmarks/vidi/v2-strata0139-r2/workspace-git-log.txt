@@ -1,3 +1,44 @@
+commit 496dc0906caeff201446463bf6ae672b1b4fe128
+agent  Wed Oct 7 03:27:51 2026 +0100
+
+    story 11: Sketch freehand with a pen
+
+
+ NOTES.md                                | 120 ++++++++++
+ PROGRESS.md                             |  12 +-
+ src/client/App.tsx                      |  57 ++++-
+ src/client/board/Toolbar.tsx            |  24 +-
+ src/client/board/useBoardKeys.ts        |   8 +-
+ src/client/board/useTransformGesture.ts |  20 +-
+ src/client/canvas/BoardViewport.tsx     |  14 +-
+ src/client/objects/StrokeObject.tsx     | 138 +++++++++++
+ src/client/objects/registry.tsx         |  40 +++-
+ src/client/styles.css                   |  99 ++++++++
+ src/client/tools/PenTool.tsx            | 314 +++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx         |  84 +++++++
+ src/client/tools/useActiveTool.ts       |  12 +-
+ src/client/tools/usePenOptions.ts       |  45 ++++
+ src/shared/board-model.ts               |  60 ++++-
+ src/shared/config.ts                    |  47 ++++
+ src/shared/geometry/simplify.ts         | 173 ++++++++++++++
+ src/shared/objects/stroke.ts            | 225 ++++++++++++++++++
+ tests/component/PenTool.test.tsx        | 374 +++++++++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx   | 257 ++++++++++++++++++++
+ tests/component/penFixture.ts           | 125 ++++++++++
+ tests/e2e/helpers/pen.ts                | 279 ++++++++++++++++++++++
+ tests/e2e/pen.spec.ts                   | 360 ++++++++++++++++++++++++++++
+ tests/fixtures/boardHarness.tsx         |  34 ++-
+ tests/fixtures/pen-paths.ts             |  94 ++++++++
+ tests/unit/stroke.test.ts               | 400 ++++++++++++++++++++++++++++++++
+ 26 files changed, 3369 insertions(+), 46 deletions(-)
+commit 086773afda78beaa7e0533ac3970bce6dd3228d8
+vidi-agent  Wed Oct 7 00:00:41 2026 +0100
+
+    harness: PROGRESS.md for story 11
+
+
+ PROGRESS.md | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
 commit 020b01b9113035aa636a399be73b9fb6caa68bee
 vidi-agent  Wed Oct 7 00:00:29 2026 +0100
 
