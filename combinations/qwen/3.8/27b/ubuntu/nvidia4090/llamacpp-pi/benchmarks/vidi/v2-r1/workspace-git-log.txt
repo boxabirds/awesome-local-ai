@@ -1,3 +1,50 @@
+commit 5f4d35e6bca0e9a17fe86b66515c01de8cb30881
+agent  Wed Oct 7 16:42:40 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ PROGRESS.md                                |   35 +-
+ package-lock.json                          | 6669 ++++++++++++++++++++--------
+ package.json                               |   14 +-
+ playwright.config.ts                       |   14 +-
+ src/client/App.tsx                         |   30 +-
+ src/client/board/useBoardDoc.ts            |   60 +-
+ src/client/styles.css                      |   30 +
+ src/client/sync/ConnectionStatus.tsx       |   39 +
+ src/client/sync/connectBoard.ts            |  100 +
+ src/client/testHooks.ts                    |    4 +
+ src/shared/board-id.ts                     |   34 +
+ src/shared/config.ts                       |   15 +
+ src/shared/protocol.ts                     |   54 +
+ src/worker/board-room.ts                   |  158 +
+ src/worker/index.ts                        |   43 +
+ tests/component/connection-status.test.tsx |   57 +
+ tests/e2e/collaboration.spec.ts            |  245 +
+ tests/e2e/global-setup.ts                  |   59 +-
+ tests/e2e/nightly.spec.ts                  |  134 +
+ tests/e2e/participants.ts                  |  116 +
+ tests/e2e/sync-client.ts                   |  199 +
+ tests/integration/board-room.test.ts       |  437 ++
+ tests/integration/env.d.ts                 |    2 +
+ tests/integration/worker.test.ts           |  116 +
+ tests/integration/ws-client.ts             |  160 +
+ tests/unit/board-id.test.ts                |   62 +
+ tests/unit/protocol.test.ts                |   72 +
+ tsconfig.json                              |    2 +-
+ vite-plugin-board-sync.ts                  |  182 +
+ vite.config.ts                             |    9 +-
+ vitest.config.ts                           |   16 +
+ wrangler.jsonc                             |   25 +
+ 32 files changed, 7300 insertions(+), 1892 deletions(-)
+commit 4a622afcd80722d18bc4785ca8aed9e942e15293
+vidi-agent  Wed Oct 7 15:10:25 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit 18a36f3c6dac379c4dd4d11808aa22c6778a0623
 agent  Wed Oct 7 15:09:15 2026 +0100
 

@@ -306,3 +306,33 @@ body {
   pointer-events: none;
   z-index: 9;
 }
+
+/* --- Connection status badge (story 3) ------------------------------------ */
+
+.connection-badge {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 20px;
+  font-size: 13px;
+  color: #344054;
+  box-shadow: var(--ui-shadow);
+  z-index: 100;
+  pointer-events: none;
+}
+
+.connection-badge--reconnecting {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.connection-badge--connected {
+  background: #f0fdf4;
+  border-color: #22c55e;
+  color: #166534;
+}

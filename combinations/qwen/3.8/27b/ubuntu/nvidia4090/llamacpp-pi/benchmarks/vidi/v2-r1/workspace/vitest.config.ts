@@ -1,4 +1,5 @@
 import { defineConfig, defineProject } from 'vitest/config';
+import { defineWorkersProject } from '@cloudflare/vitest-pool-workers/config';
 
 export default defineConfig({
   test: {
@@ -19,6 +20,21 @@ export default defineConfig({
           },
           include: ['tests/component/**/*.test.tsx'],
           setupFiles: ['tests/setup/component.ts'],
+        },
+      }),
+      defineWorkersProject({
+        test: {
+          name: 'integration',
+          include: ['tests/integration/**/*.test.ts'],
+          pool: '@cloudflare/vitest-pool-workers',
+          testTimeout: 30000,
+          poolOptions: {
+            workers: {
+              wrangler: { configPath: 'wrangler.jsonc' },
+              main: 'src/worker/index.ts',
+              isolatedStorage: false,
+            },
+          },
         },
       }),
     ],

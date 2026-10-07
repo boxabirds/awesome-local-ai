@@ -22,6 +22,8 @@ import { NoteToolbar } from './objects/NoteToolbar';
 import { createSticky, deleteObject, setStickyColor, snapshot } from '../shared/board-model';
 import { STICKY_SIZE_WORLD } from '../shared/config';
 import { isTestMode, type Vidi6TestHooks } from './testHooks';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { newBoardId } from '../shared/board-id';
 
 /** Gap (screen px) between the note top edge and the note toolbar. */
 const NOTE_TOOLBAR_GAP_PX = 8;
@@ -33,7 +35,9 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export function App(): JSX.Element {
-  const { doc, objects } = useBoardDoc();
+  // Route: /b/:boardId or / (redirect to /b/<newBoardId()>)
+  const boardId = useBoardId();
+  const { doc, objects, connectionState } = useBoardDoc(boardId);
   const selection = useSelection();
   const rootRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>(() => ({
@@ -125,12 +129,16 @@ export function App(): JSX.Element {
           text: n.text,
           z: n.z,
         })),
+      getConnectionState: () => connectionState,
+      createNote: () => {
+        createStickyAt({ x: size.width / 2, y: size.height / 2 });
+      },
     };
     window.__vidi6 = hooks;
     return () => {
       delete window.__vidi6;
     };
-  }, [doc, cam.camera, cam.setCamera]);
+  }, [doc, cam.camera, cam.setCamera, connectionState, size, createStickyAt]);
 
   const selectedNote = objects.find((n) => n.id === selection.selectedId) ?? null;
   const noteToolbarVisible =
@@ -140,6 +148,7 @@ export function App(): JSX.Element {
 
   return (
     <div ref={rootRef} className="board-root" data-testid="board-root">
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={cam.camera}
         size={size}
@@ -213,4 +222,21 @@ export function App(): JSX.Element {
       <NavigationHint visible={!cam.hasNavigated} />
     </div>
   );
+}
+
+/**
+ * Reads the board id from the URL path. If at `/`, redirects to `/b/<newBoardId()>`.
+ * If at `/b/:boardId`, returns the boardId.
+ */
+function useBoardId(): string | undefined {
+  const path = window.location.pathname;
+  if (path === '/' || path === '') {
+    // Redirect to a new board
+    const id = newBoardId();
+    window.history.replaceState(null, '', `/b/${id}`);
+    return id;
+  }
+  const match = path.match(/^\/b\/([^/]+)$/);
+  if (match) return match[1];
+  return undefined;
 }

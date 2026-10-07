@@ -1,22 +1,15 @@
-// useBoardDoc (story 2): owns the Y.Doc and exposes an immutable snapshot of
-// all sticky notes via useSyncExternalStore. Story 3 will attach a network
-// provider to the same document; story 4 will persist it.
-//
-// Design: a `dirty` flag is set whenever the `objects` map changes (via
-// observeDeep). getSnapshot recomputes the frozen snapshot only when dirty,
-// otherwise it returns the cached array — satisfying useSyncExternalStore's
-// requirement that getSnapshot return a stable reference until the store
-// actually changes. Subscribing marks the store dirty once so that any change
-// that landed before the observer was attached (e.g. a very fast interaction
-// that beats the mount effect) is picked up on the next render.
+// useBoardDoc (story 2 + 3): owns the Y.Doc, attaches a network provider when
+// boardId is provided, and exposes an immutable snapshot of all sticky notes
+// via useSyncExternalStore.
 
 import * as Y from 'yjs';
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   initDoc,
   snapshot,
   type StickySnapshot,
 } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 interface BoardStore {
   readonly doc: Y.Doc;
@@ -28,12 +21,13 @@ interface BoardStore {
 export interface BoardDoc {
   readonly doc: Y.Doc;
   readonly objects: readonly StickySnapshot[];
+  readonly connectionState: ConnectionState;
 }
 
-export function useBoardDoc(existing?: Y.Doc): BoardDoc {
+export function useBoardDoc(boardId?: string): BoardDoc {
   const ref = useRef<BoardStore | null>(null);
   if (ref.current === null) {
-    const doc = existing ?? new Y.Doc();
+    const doc = new Y.Doc();
     initDoc(doc);
     ref.current = {
       doc,
@@ -44,20 +38,42 @@ export function useBoardDoc(existing?: Y.Doc): BoardDoc {
   }
   const store = ref.current;
 
+  // Connection state: use a ref + useSyncExternalStore for stable identity
+  const connStateRef = useRef<ConnectionState>('connecting');
+  const connListeners = useRef<Set<() => void>>(new Set());
+
+  const subscribeConn = useCallback((cb: () => void) => {
+    connListeners.current.add(cb);
+    return () => { connListeners.current.delete(cb); };
+  }, []);
+  const getConnSnapshot = useCallback(() => connStateRef.current, []);
+
+  // Attach network provider when boardId is available
+  const boardIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!boardId) return;
+    if (boardIdRef.current === boardId) return;
+
+    boardIdRef.current = boardId;
+    const conn = connectBoard(store.doc, boardId, (s) => {
+      if (connStateRef.current === s) return;
+      connStateRef.current = s;
+      connListeners.current.forEach((l) => l());
+    });
+    return () => {
+      conn.destroy();
+    };
+  }, [boardId, store.doc]);
+
+  // observeDeep for document changes
   useEffect(() => {
     const s = ref.current;
     if (!s) return;
     const objects = s.doc.getMap('objects');
-    // Any mutation that happened before this observer was attached is missed
-    // by observeDeep, so mark the store dirty to force a recompute on the
-    // next getSnapshot (and notify so a render is scheduled to pick it up).
     const markDirty = () => {
       s.dirty = true;
       s.listeners.forEach((l) => l());
     };
-    // Any mutation that happened before this observer was attached is missed
-    // by observeDeep, so mark the store dirty to force a recompute on the
-    // next getSnapshot (and notify so a render is scheduled to pick it up).
     markDirty();
     objects.observeDeep(markDirty);
     return () => {
@@ -83,5 +99,7 @@ export function useBoardDoc(existing?: Y.Doc): BoardDoc {
   }, [store]);
 
   const objects = useSyncExternalStore(subscribe, getSnapshot);
-  return { doc: store.doc, objects };
+  const connectionState = useSyncExternalStore(subscribeConn, getConnSnapshot);
+
+  return { doc: store.doc, objects, connectionState };
 }

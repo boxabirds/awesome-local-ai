@@ -12,7 +12,7 @@
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true,
     "noUncheckedSideEffectImports": true,
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node", "@cloudflare/workers-types"]
   },
   "include": [
     "src",

@@ -22,6 +22,10 @@ export interface Vidi6TestHooks {
   setCamera(cam: Camera): void;
   /** Current notes (id, world top-left, colour, text, stacking z). */
   getNotes(): Vidi6NoteInfo[];
+  /** Current connection state. */
+  getConnectionState(): string;
+  /** Create a note at the center of the viewport. */
+  createNote(): void;
 }
 
 declare global {
