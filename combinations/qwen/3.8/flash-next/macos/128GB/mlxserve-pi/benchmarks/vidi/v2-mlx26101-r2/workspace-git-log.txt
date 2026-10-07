@@ -1,3 +1,58 @@
+commit 5333c3d0904e7d5deda7d4acf1a528f74e029229
+agent  Wed Oct 7 02:06:33 2026 +0000
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                | 116 ++++++
+ src/client/board/BoardSurface.tsx       |  85 +++-
+ src/client/board/Toolbar.tsx            |  58 ++-
+ src/client/board/useBoardKeys.ts        |  47 ++-
+ src/client/board/useTool.ts             |  58 +++
+ src/client/board/useTransformGesture.ts |  31 +-
+ src/client/canvas/BoardViewport.tsx     | 119 +++++-
+ src/client/objects/SelectionBar.tsx     |  50 ++-
+ src/client/objects/SelectionOverlay.tsx |  20 +-
+ src/client/objects/StickyText.ts        |  90 +----
+ src/client/objects/StickyTextEditor.tsx | 208 ++--------
+ src/client/objects/TextEditor.tsx       | 271 +++++++++++++
+ src/client/objects/TextObject.tsx       | 220 +++++++++++
+ src/client/objects/TextToolbar.tsx      |  76 ++++
+ src/client/objects/registry.tsx         |  46 ++-
+ src/client/objects/textLayout.ts        | 277 +++++++++++++
+ src/client/objects/useTextBoxSync.ts    | 124 ++++++
+ src/client/styles.css                   | 137 +++++++
+ src/shared/board-model.ts               |  29 +-
+ src/shared/config.ts                    |  75 ++++
+ src/shared/objects/text.ts              | 408 +++++++++++++++++++
+ src/shared/text-edit.ts                 | 101 +++++
+ tests/component/TextBoxSync.test.tsx    | 294 ++++++++++++++
+ tests/component/TextObject.test.tsx     | 676 ++++++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx           | 427 ++++++++++++++++++++
+ tests/component/helpers.tsx             | 210 ++++++++++
+ tests/component/peer.ts                 | 102 +++++
+ tests/e2e/helpers/text.ts               | 302 ++++++++++++++
+ tests/e2e/text.spec.ts                  | 444 +++++++++++++++++++++
+ tests/fixtures/texts.ts                 |  10 +
+ tests/unit/text-layout.test.ts          | 225 +++++++++++
+ tests/unit/text-model.test.ts           | 295 ++++++++++++++
+ 32 files changed, 5340 insertions(+), 291 deletions(-)
+commit ae3934e32b3ebe1825c6bc34d1ea849dd4323ef6
+agent  Wed Oct 7 02:06:02 2026 +0000
+
+    harness: PROGRESS.md for story 9 (all tasks done)
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
+commit aac04ef3abb1eae495319dad59f97c0c9232553d
+vidi-agent  Wed Oct 7 01:37:36 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 commit 5fbfee460acd47c57ba291f08038c83fc920654a
 agent  Wed Oct 7 00:31:57 2026 +0000
 
