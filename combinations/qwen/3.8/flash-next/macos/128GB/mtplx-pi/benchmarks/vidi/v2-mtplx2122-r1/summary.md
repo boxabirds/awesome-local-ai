@@ -16,8 +16,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 7 | 0/8 | 0 | 0 | 0/44 |
 | 8 | 0/7 | 0 | 0 | 0/51 |
 | 9 | 0/6 | 0 | 0 | 0/57 |
+| 10 | 0/8 | 0 | 0 | 0/65 |
 
-**New work** 9/53, **regressions** 28, **repairs** 19, **cumulative** 0/57.
+**New work** 9/61, **regressions** 28, **repairs** 19, **cumulative** 0/65.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -29,18 +30,19 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 7 | Select, move, resize and delete several objects at once | DONE | 10.8 | 33 | 1559200 | 33096 | 1.9 | 85.2 | red | 0/44 |  | 3 / 0 (ended in error) | 0 | 91415 | throttled 70%, server peak 102 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 15.3 | 71 | 5452217 | 48636 | 1.2 | 70.5 | red | 0/51 |  | 3 / 0 (ended in error) | 0 | 113992 | throttled 78%, server peak 102 GB |
 | 9 | Write free text anywhere on the board | DONE | 21.6 | 78 | 3822007 | 81323 | 1.2 | 79.6 | red | 0/57 |  | 3 / 0 (ended in error) | 1 | 114906 | throttled 85%, server peak 102 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 15.6 | 37 | 2538470 | 55681 | 1.2 | 72.4 | red | 0/65 |  | 3 / 0 (ended in error) | 0 | 108639 | throttled 81%, server peak 102 GB |
 
-**Totals:** 8 stories, 367 agent-minutes, 1249 requests, 82,075,593 prompt / 1,222,491 completion tokens, gate green 4/8, final acceptance 0/57, stalled 0, partial 0, 13672 lines in src+tests.
+**Totals:** 9 stories, 383 agent-minutes, 1286 requests, 84,614,063 prompt / 1,278,172 completion tokens, gate green 4/9, final acceptance 0/65, stalled 0, partial 0, 15783 lines in src+tests.
 
 ### Decode tok/s by context (server log, all stories)
 
 | Context | Requests | Decode tok/s (request-weighted median of per-story medians) |
 |---|---|---|
-| 0-16k | 66 | 83.2 |
-| 16-32k | 120 | 84.7 |
-| 32-64k | 427 | 73.8 |
-| 64-100k | 438 | 67.6 |
-| 100-+k | 198 | 70.3 |
+| 0-16k | 72 | 83.2 |
+| 16-32k | 123 | 84.7 |
+| 32-64k | 436 | 73.8 |
+| 64-100k | 453 | 67.6 |
+| 100-+k | 202 | 70.3 |
 
 ## How it happened
 
@@ -56,6 +58,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | — | 0 / 0 | — |
 | 8 | 1 by the agent | 661 / 0 | `undo.ts` (126), `config.ts` (7), `vitest.workspace.ts` (4) |
 | 9 | harness snapshot (agent left work uncommitted) | 1808 / 196 | `App.tsx` (409), `TextObject.tsx` (379), `text.ts` (224), `textLayout.ts` (116), `TextToolbar.tsx` (81), `BoardViewport.tsx` (77), +9 more |
+| 10 | harness snapshot (agent left work uncommitted) | 2113 / 2 | `ShapeObject.tsx` (388), `connector.ts` (283), `shape.ts` (210), `ShapeTool.tsx` (148), `useActiveTool.ts` (140), `ConnectorObject.tsx` (138), +6 more |
 
 ### Earlier stories broken or fixed
 
