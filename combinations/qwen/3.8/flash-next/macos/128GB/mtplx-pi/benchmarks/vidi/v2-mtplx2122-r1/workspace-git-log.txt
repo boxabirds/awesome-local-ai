@@ -1,3 +1,26 @@
+commit 658a669635a8f2855d4db1d864129aeacec315c1
+vidi-agent  Thu Oct 8 15:35:11 2026 +0100
+
+    harness: snapshot after story 5 (uncommitted agent work)
+
+
+ .scratch/rpc-spike.mjs          |  57 ++++++++++++
+ src/shared/config.ts            |  14 +++
+ src/worker/board-room.ts        |  63 ++++++++++++-
+ src/worker/board-store.ts       | 113 ++++++++++++++++++++++-
+ src/worker/create-board.ts      |  74 +++++++++++++++
+ src/worker/index.ts             | 108 +++++++++++++++++++---
+ src/worker/test-hooks.ts        |  61 +++++++++++++
+ tests/unit/create-board.test.ts | 194 ++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 668 insertions(+), 16 deletions(-)
+commit 600e868fe9c0ea01a621c6416d1f3c59573312f2
+vidi-agent  Thu Oct 8 14:59:59 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit d5d200ad983ffa264d10427bb7f5cfa70ff85aca
 vidi-agent  Thu Oct 8 14:59:45 2026 +0100
 
