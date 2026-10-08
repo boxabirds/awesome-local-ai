@@ -11,6 +11,7 @@
     "dev": "wrangler dev",
     "test:unit": "vitest run --config vitest.config.ts",
     "test:component": "vitest run --config vitest.component.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "npm run build && playwright test"
   },
   "dependencies": {

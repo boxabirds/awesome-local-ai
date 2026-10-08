@@ -1,7 +1,8 @@
+import { handleUpload, handleServe } from './assets';
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { createBoard } from './create-board';
 export { BoardRoom } from './board-room';
-export { isValidBoardId, newBoardId };
+export { isValidBoardId, newBoardId, handleUpload, handleServe };
 
 const BOARD_ROOM = 'BOARD_ROOM' as unknown as string;
 
@@ -9,6 +10,8 @@ const BOARD_ROOM = 'BOARD_ROOM' as unknown as string;
 type RuntimeEnv = {
   BOARD_ROOM: RoomNamespace;
   ASSETS?: { fetch(request: Request): Promise<Response> };
+  ASSETS_BUCKET?: R2Bucket;
+  BOARD_ROOM_CLASS_NAME?: RoomNamespace;
 };
 
 interface RoomNamespace {
@@ -31,6 +34,29 @@ export default {
     const url = new URL(request.url);
 
     // ---------- Board API routes ----------
+
+    // POST /api/boards/:id/assets — upload image asset
+    const assetsMatch = url.pathname.match(/^\/api\/boards\/(.+)\/assets$/);
+    if (assetsMatch && request.method === 'POST') {
+      const boardId = decodeURIComponent(assetsMatch[1]);
+      const result = await handleUpload(request, {
+        BOARD_ROOM: env.BOARD_ROOM,
+        ASSETS_BUCKET: env.ASSETS_BUCKET as any,
+      }, boardId);
+      return result;
+    }
+
+    // GET /api/assets/:boardId/:assetId — serve image asset
+    const assetServeMatch = url.pathname.match(/^\/api\/assets\/(.+)\/(.+)$/);
+    if (assetServeMatch && request.method === 'GET') {
+      const [_, boardId, assetId] = assetServeMatch;
+      const key = `${boardId}/${assetId}`;
+      const result = await handleServe(request, {
+        BOARD_ROOM: env.BOARD_ROOM,
+        ASSETS_BUCKET: env.ASSETS_BUCKET as any,
+      }, key);
+      return result;
+    }
 
     // POST /api/boards — create a new board
     if (url.pathname === '/api/boards') {
