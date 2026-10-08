@@ -1,3 +1,57 @@
+commit 97bde231bc8cebad17f2ab4e2f8d3dcb41c877e1
+agent  Thu Oct 8 01:34:21 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                |  92 +++++++
+ PROGRESS.md                             |  20 +-
+ package.json                            |   3 +-
+ playwright.config.ts                    |   7 +-
+ playwright.text.config.ts               |  34 +++
+ src/client/board/SelectionOverlay.tsx   |   7 +-
+ src/client/board/Toolbar.tsx            |  53 +++-
+ src/client/board/useTool.ts             |  82 ++++++
+ src/client/board/useTransformGesture.ts |  43 ++-
+ src/client/canvas/BoardViewport.tsx     |  25 +-
+ src/client/client-id.ts                 |  44 ++++
+ src/client/objects/StickyText.ts        |  60 +----
+ src/client/objects/StickyTextEditor.tsx | 158 +++--------
+ src/client/objects/TextEditor.tsx       | 263 +++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 129 +++++++++
+ src/client/objects/TextToolbar.tsx      |  61 +++++
+ src/client/objects/caret-delta.ts       |  42 +++
+ src/client/objects/registry.tsx         |  25 +-
+ src/client/objects/textLayout.ts        | 121 +++++++++
+ src/client/objects/useTextBoxSync.ts    |  95 +++++++
+ src/client/pages/BoardPage.tsx          |  77 ++++++
+ src/client/styles.css                   |  73 ++++++
+ src/client/testHooks.ts                 |   4 +
+ src/shared/board-model.ts               |  28 +-
+ src/shared/config.ts                    |  58 +++++
+ src/shared/objects/text.ts              | 167 ++++++++++++
+ src/shared/text-edit.ts                 |  57 ++++
+ tests/component/TextBoxSync.test.tsx    | 133 ++++++++++
+ tests/component/TextObject.test.tsx     | 241 +++++++++++++++++
+ tests/component/Tool.test.tsx           | 169 ++++++++++++
+ tests/component/Toolbars.test.tsx       |   2 +-
+ tests/component/harness-undo.tsx        |   2 +
+ tests/component/load-failure.test.tsx   |   2 +-
+ tests/e2e/broken-board.spec.ts          |   4 +-
+ tests/e2e/sticky-notes.spec.ts          |   2 +-
+ tests/e2e/text.spec.ts                  | 447 ++++++++++++++++++++++++++++++++
+ tests/unit/caret-delta.test.ts          |  58 +++++
+ tests/unit/text-layout.test.ts          |  97 +++++++
+ tests/unit/text-model.test.ts           | 193 ++++++++++++++
+ 39 files changed, 2978 insertions(+), 200 deletions(-)
+commit 0a670b28d7547c3d717c13c2a6b3cf44a0d1e7c3
+vidi-agent  Thu Oct 8 00:07:05 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 commit 602af9d21f27a507bc72287ea095d7df7b5b5eec
 agent  Thu Oct 8 00:01:16 2026 +0100
 
