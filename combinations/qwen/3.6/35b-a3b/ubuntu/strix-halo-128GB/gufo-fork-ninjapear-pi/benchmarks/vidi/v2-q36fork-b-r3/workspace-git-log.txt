@@ -1,3 +1,56 @@
+commit a38c7d0b6ed5aea1858d22f43ece3a719ef9a726
+vidi-agent  Thu Oct 8 16:52:34 2026 +0000
+
+    harness: snapshot after story 10 (uncommitted agent work)
+
+
+ src/client/objects/ShapeObject.tsx |   7 +-
+ tests/component/story-10.test.tsx  | 360 +++++++++++++++++++++++++++++++++++++
+ tests/e2e/shapes.e2e.ts            | 191 ++++++++++++++++++++
+ 3 files changed, 555 insertions(+), 3 deletions(-)
+commit dc7fe6f60fc086201da402484c24c79814b595d8
+agent  Thu Oct 8 16:17:01 2026 +0000
+
+    Story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ PROGRESS.md                               |  16 +-
+ src/client/board/Marquee.tsx              |   2 +-
+ src/client/board/SelectionBar.tsx         | 245 ++++++++++++++--------
+ src/client/board/SelectionOverlay.tsx     |   2 +-
+ src/client/board/Toolbar.tsx              | 129 +++++-------
+ src/client/board/useBoardDoc.ts           |   4 +-
+ src/client/board/useBoardKeys.ts          |  27 ++-
+ src/client/board/useSelection.ts          |   4 +-
+ src/client/board/useTool.ts               |  15 +-
+ src/client/board/useTransformGesture.ts   |   4 +-
+ src/client/canvas/BoardViewport.tsx       |  12 +-
+ src/client/objects/ConnectorObject.tsx    |  72 +++++++
+ src/client/objects/ShapeObject.tsx        |  97 +++++++++
+ src/client/pages/BoardPage.tsx            |  64 +++++-
+ src/client/tools/ConnectorTool.tsx        |  82 ++++++++
+ src/client/tools/ShapeTool.tsx            | 103 ++++++++++
+ src/client/tools/ShapeToolbar.tsx         |  34 ++++
+ src/client/tools/useActiveTool.ts         | 114 +++++++++++
+ src/shared/board-model.ts                 | 204 ++++++++++++++++---
+ src/shared/config.ts                      |  33 +++
+ src/shared/geometry/connector-geometry.ts |  90 +++++++++
+ src/shared/geometry/polyline.ts           |  38 ++++
+ src/shared/objects/connector.ts           | 239 ++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 229 +++++++++++++++++++++
+ tests/unit/board-model.test.ts            |  29 ++-
+ tests/unit/connector-model.test.ts        | 325 ++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts               |   8 +-
+ tests/unit/shape-model.test.ts            | 260 ++++++++++++++++++++++++
+ 28 files changed, 2242 insertions(+), 239 deletions(-)
+commit ccca7218a7f1ae1d5aac059004fcf46ff0f8b1da
+vidi-agent  Thu Oct 8 15:23:22 2026 +0000
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)
 commit bcaec59fcb3e1ea05240c489cf0f4b6e6ba9725b
 agent  Thu Oct 8 15:05:29 2026 +0000
 
