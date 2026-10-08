@@ -200,3 +200,86 @@ export const TEXT_INITIAL_WIDTH_WORLD = TEXT_MIN_WIDTH_WORLD;
  * estimate's height).
  */
 export const TEXT_INITIAL_HEIGHT_WORLD = TEXT_SIZES[DEFAULT_TEXT_SIZE] * TEXT_LINE_HEIGHT;
+
+// --- Shapes and connectors (story 10) ---------------------------------------
+
+/** The three shape kinds (shape.create_drag / shape.create_click). */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+/** Accessible names for the kind menu and announcements. */
+export const SHAPE_LABELS: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+
+/**
+ * shape.create_click: a click (or a drag below SHAPE_MIN_SIZE_WORLD in
+ * either direction) drops a SHAPE_DEFAULT_SIZE_WORLD square centred on the
+ * click point.
+ */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/**
+ * shape.create_click boundary: a drag kept as drawn needs at least this
+ * width AND height in world units; smaller drags become clicks.
+ */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** shape.label: maximum characters of a shape's label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** shape.ui: the shape border width in world units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** The Shape tool's dashed drag-preview border colour (screen space). */
+export const SHAPE_STROKE_COLOR_PREVIEW = '#263238';
+
+/**
+ * shape.style: the fill palette. 'none' is a transparent fill; keys are the
+ * colour names stored in the document schema.
+ */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** shape.style: the outline palette. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** The style of newly created shapes (shape.model). */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+// --- Connectors (story 10) ----------------------------------------------------
+
+/**
+ * connector.no_accidental: a drag that moved less than this (world units)
+ * creates nothing.
+ */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/**
+ * connector.select: a click within this distance (SCREEN pixels, divided by
+ * the zoom to get board units) of the line selects the arrow.
+ */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** The arrow line width in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** The arrowhead size in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** The side-dot radius in screen pixels (connector.hover_points). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+/** The arrow line and arrowhead colour. */
+export const CONNECTOR_STROKE_COLOR = '#263238';

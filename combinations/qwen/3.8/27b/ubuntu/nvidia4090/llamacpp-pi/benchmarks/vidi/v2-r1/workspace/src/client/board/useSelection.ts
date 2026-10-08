@@ -26,6 +26,7 @@ export type SelectionAction =
   | { type: 'click'; id: string }
   | { type: 'toggle'; id: string }
   | { type: 'setMany'; ids: string[]; additive: boolean }
+  | { type: 'selectOnly'; id: string }
   | { type: 'clear' }
   | { type: 'prune'; presentIds: ReadonlySet<string> }
   | { type: 'edit'; id: string | null };
@@ -54,6 +55,14 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
       if (next.has(action.id)) next.delete(action.id);
       else next.add(action.id);
       return { ...state, ids: next };
+    }
+    case 'selectOnly': {
+      // Like `click`, but it does NOT require the id to be present yet: a
+      // tool-created object is selected in the same tick it enters the
+      // document (tools.return_to_select). `prune` drops it if it never
+      // materialises.
+      if (state.ids.size === 1 && state.ids.has(action.id)) return state;
+      return { ...state, ids: new Set([action.id]) };
     }
     case 'setMany': {
       const valid = action.ids.filter((id) => state.present.has(id));
@@ -124,6 +133,8 @@ export interface SelectionApi {
   toggle(id: string): void;
   /** Replace the selection, or add to it when `additive` (marquee, select all). */
   setMany(ids: string[], additive: boolean): void;
+  /** Make `id` the only selection (no presence check; for tool-created ids). */
+  selectOnly(id: string): void;
   /** Clear the selection and end editing (empty-space click, Escape). */
   clear(): void;
   /** Start editing `id` (also selects it). */
@@ -165,6 +176,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): SelectionApi 
     [],
   );
   const clear = useCallback(() => dispatch({ type: 'clear' }), []);
+  const selectOnly = useCallback((id: string) => dispatch({ type: 'selectOnly', id }), []);
   const startEdit = useCallback((id: string) => dispatch({ type: 'edit', id }), []);
   const endEdit = useCallback(() => dispatch({ type: 'edit', id: null }), []);
 
@@ -174,6 +186,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): SelectionApi 
     click,
     toggle,
     setMany,
+    selectOnly,
     clear,
     startEdit,
     endEdit,

@@ -259,6 +259,11 @@ describe('group operations (story 7)', () => {
     shape.set('z', 1);
     shape.set('width', 40);
     shape.set('height', 30);
+    // Story 10: a shape snapshot needs the full shape schema to be visible.
+    shape.set('kind', 'rect');
+    shape.set('fill', 'white');
+    shape.set('stroke', 'dark');
+    shape.set('label', new Y.Text());
     doc.transact(() => {
       map.set('shape-1', shape);
     });

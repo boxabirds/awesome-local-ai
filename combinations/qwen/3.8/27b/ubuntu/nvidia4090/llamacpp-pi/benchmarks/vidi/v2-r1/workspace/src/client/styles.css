@@ -681,3 +681,138 @@ body {
   border: 1px solid var(--selection-blue);
   pointer-events: none;
 }
+
+/* --- Shapes (story 10, shape.ui) ------------------------------------------ */
+
+.shape-object {
+  position: absolute;
+  pointer-events: auto;
+  outline: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.shape-object--selected,
+.shape-object:focus-visible {
+  outline: 2px solid var(--selection-blue);
+  outline-offset: 2px;
+}
+
+/* The rendered label fills the shape and centres its (wrapped) text. */
+.shape-object__label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: normal;
+  pointer-events: none;
+}
+
+/* The in-place label editor fills the shape; short text stays centred. */
+.shape-object .text-object__editor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.shape-object .text-object__editor .text-object__textarea {
+  text-align: center;
+}
+
+/* The shape style toolbar (fill + outline swatches). */
+.shape-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  box-shadow: var(--ui-shadow);
+}
+
+.shape-toolbar__group {
+  display: flex;
+  gap: 4px;
+}
+
+.shape-toolbar__swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+}
+
+.shape-toolbar__swatch--outline {
+  background: #ffffff;
+  border: 3px solid currentColor;
+}
+
+/* 'no fill' shows a diagonal strike. */
+.shape-toolbar__swatch--none {
+  background-image: linear-gradient(
+    135deg,
+    transparent 46%,
+    #d93025 46%,
+    #d93025 54%,
+    transparent 54%
+  );
+}
+
+.shape-toolbar__swatch--active {
+  outline: 2px solid var(--selection-blue);
+  outline-offset: 1px;
+}
+
+/* The Shape kind menu, shown next to the left toolbar while the Shape tool
+   is active. */
+.shape-kind-menu {
+  position: fixed;
+  left: 72px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  box-shadow: var(--ui-shadow);
+  z-index: 1900;
+}
+
+.shape-kind-menu__item {
+  border: none;
+  background: none;
+  padding: 4px 10px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  color: #1f2937;
+}
+
+.shape-kind-menu__item:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.shape-kind-menu__item[aria-checked='true'] {
+  background: rgba(66, 133, 244, 0.14);
+  font-weight: 600;
+}
+
+/* --- Connectors (story 10, connector.ui) ---------------------------------- */
+
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+  outline: none;
+}

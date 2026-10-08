@@ -82,6 +82,7 @@ const emptySelection: SelectionApi = {
   click: () => {},
   toggle: () => {},
   setMany: () => {},
+  selectOnly: () => {},
   clear: () => {},
   startEdit: () => {},
   endEdit: () => {},
@@ -102,7 +103,9 @@ export function UndoHarness(props: { fake: FakeUndo; canEdit: boolean }): JSX.El
     <div>
       <Toolbar
         tool="select"
+        shapeKind="rect"
         onSelectTool={() => undefined}
+        onSelectShapeKind={() => undefined}
         onCreateSticky={() => {}}
         disabled={!props.canEdit}
         extra={<UndoButtons undo={api} />}

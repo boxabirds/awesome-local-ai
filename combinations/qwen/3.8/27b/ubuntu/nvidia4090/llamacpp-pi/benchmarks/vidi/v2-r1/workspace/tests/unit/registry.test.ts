@@ -30,12 +30,12 @@ describe('object type registry (story 7)', () => {
       text: '',
     };
     const bounds = objectBounds(obj);
-    expect(spec!.hitTest(obj, { x: bounds.x + 1, y: bounds.y + 1 })).toBe(true);
-    expect(spec!.hitTest(obj, { x: bounds.x + bounds.width - 1, y: bounds.y + bounds.height - 1 })).toBe(
-      true,
-    );
-    expect(spec!.hitTest(obj, { x: bounds.x + bounds.width + 1, y: bounds.y + 1 })).toBe(false);
-    expect(spec!.hitTest(obj, { x: bounds.x + 1, y: bounds.y - 1 })).toBe(false);
+    expect(spec!.hitTest(obj, { x: bounds.x + 1, y: bounds.y + 1 }, 1)).toBe(true);
+    expect(
+      spec!.hitTest(obj, { x: bounds.x + bounds.width - 1, y: bounds.y + bounds.height - 1 }, 1),
+    ).toBe(true);
+    expect(spec!.hitTest(obj, { x: bounds.x + bounds.width + 1, y: bounds.y + 1 }, 1)).toBe(false);
+    expect(spec!.hitTest(obj, { x: bounds.x + 1, y: bounds.y - 1 }, 1)).toBe(false);
   });
 
   it('TC-12: getObjectType("unknown") is undefined', () => {

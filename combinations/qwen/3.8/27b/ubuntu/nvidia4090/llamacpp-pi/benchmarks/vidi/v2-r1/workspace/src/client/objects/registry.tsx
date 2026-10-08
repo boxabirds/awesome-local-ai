@@ -12,10 +12,20 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { pointInRect, type Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import type { UndoController } from '../board/undo';
+import type { Camera } from '../canvas/camera';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
+import type { Rect } from '../../shared/geometry';
 
 /**
  * The minimal pointer-event shape the object components and the transform
@@ -60,6 +70,13 @@ export interface ObjectProps {
    * use it for typing boundaries and in-editor undo/redo.
    */
   undo?: UndoController;
+  // --- Story 10 additions (optional; only shape/connector use them) --------
+  /** The camera (the connector's handle drags convert client → world). */
+  camera?: Camera;
+  /** World boxes of every object (the connector resolves its endpoints). */
+  rects?: ReadonlyMap<string, Rect>;
+  /** The full snapshot (the connector hit-tests drop targets). */
+  snapshot?: readonly ObjectSnapshot[];
 }
 
 /**
@@ -80,7 +97,12 @@ export interface ObjectTypeSpec {
    * fixed width; never a height handle. Default 'all' (eight handles).
    */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Whether a world point hits this object. `zoom` lets a type use
+   * screen-pixel tolerances (the connector's 6px line tolerance,
+   * connector.select).
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom: number): boolean;
 }
 
 const specs = new Map<string, ObjectTypeSpec>();
@@ -100,6 +122,24 @@ export function registerObjectType(type: string, spec: ObjectTypeSpec): void {
 /** The spec for `type`, or undefined for types this build does not know. */
 export function getObjectType(type: string): ObjectTypeSpec | undefined {
   return specs.get(type);
+}
+
+/**
+ * The topmost (highest z) object at world point `p`, hit-tested with the
+ * type's own hitTest at the given zoom, or null. The snapshot must be
+ * (z, id)-sorted ascending (objectsSnapshot's order).
+ */
+export function objectAtPoint(
+  snapshot: readonly ObjectSnapshot[],
+  p: Point,
+  zoom: number,
+): ObjectSnapshot | null {
+  for (let i = snapshot.length - 1; i >= 0; i -= 1) {
+    const o = snapshot[i]!;
+    const spec = specs.get(o.type);
+    if (spec !== undefined && spec.hitTest(o, p, zoom)) return o;
+  }
+  return null;
 }
 
 // --- Sticky notes (story 2, moved onto the generic machinery) ---------------
@@ -127,4 +167,36 @@ registerObjectType('text', {
   // handles that change its height (the height follows the wrapped text).
   handles: 'horizontal',
   hitTest: (obj, p) => pointInRect(objectBounds(obj), p),
+});
+
+// --- Shapes (story 10, shape.ui) --------------------------------------------
+
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  handles: 'all',
+  hitTest: (obj, p) => pointInRect(objectBounds(obj), p),
+});
+
+// --- Connectors (story 10, connector.ui) -------------------------------------
+
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false, // arrows have no resize; their ends move via handles
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  // A click within CONNECTOR_HIT_TOLERANCE_PX of the line selects the arrow
+  // (screen pixels, so the tolerance divides the zoom); anywhere else — even
+  // inside the bounding box — misses (connector.select).
+  hitTest: (obj, p, zoom) => {
+    if (obj.fromPoint === undefined || obj.toPoint === undefined) return false;
+    return (
+      distanceToPolyline([obj.fromPoint, obj.toPoint], p) <=
+      CONNECTOR_HIT_TOLERANCE_PX / zoom
+    );
+  },
 });

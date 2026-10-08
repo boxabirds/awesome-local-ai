@@ -21,12 +21,25 @@
 import * as Y from 'yjs';
 import {
   DEFAULT_STICKY_COLOR,
+  SHAPE_FILL_COLORS,
+  SHAPE_KINDS,
+  SHAPE_STROKE_COLORS,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   TEXT_SIZES,
+  type FillColor,
+  type ShapeKind,
   type StickyColor,
+  type StrokeColor,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import {
+  detachConnectorsTo,
+  endpointToMap,
+  parseEndpoint,
+  type Endpoint,
+} from './objects/connector';
 
 /** Transaction origin for all local mutations (used by story 8 undo and
  *  by story 3 to avoid echo). */
@@ -66,6 +79,22 @@ export interface ObjectSnapshot {
   size?: string;
   /** 'auto' | 'fixed' (story 9 text objects only). */
   widthMode?: 'auto' | 'fixed';
+  /** Story 10: shape-specific fields (present on type 'shape' objects). */
+  kind?: ShapeKind;
+  fill?: FillColor;
+  stroke?: StrokeColor;
+  /** The shape's label text (same value as `text`). */
+  label?: string;
+  /**
+   * Story 10: connector endpoints (present on type 'connector' objects).
+   * `x`/`y`/`width`/`height` of a connector snapshot are the bounding box
+   * of the RESOLVED endpoints (derived, never persisted).
+   */
+  from?: Endpoint;
+  to?: Endpoint;
+  /** The resolved endpoint points (derived with `from`/`to`). */
+  fromPoint?: Point;
+  toPoint?: Point;
   text: string;
   createdAt?: number;
 }
@@ -249,7 +278,7 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
  * finite, so pre-story-7 stickies keep working without them.
  */
 export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
-  const out: ObjectSnapshot[] = [];
+  const pending: { snap: ObjectSnapshot; connector: boolean }[] = [];
   objects(doc).forEach((obj, id) => {
     const type = obj.get('type');
     if (typeof type !== 'string' || !knownObjectTypes.has(type)) return;
@@ -279,10 +308,65 @@ export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (typeof size === 'string' && size in TEXT_SIZES) snap.size = size;
     const widthMode = obj.get('widthMode');
     if (widthMode === 'auto' || widthMode === 'fixed') snap.widthMode = widthMode;
-    out.push(Object.freeze(snap));
+    // Story 10: shape-specific fields; malformed shapes are skipped entirely.
+    if (type === 'shape') {
+      const kind = obj.get('kind');
+      const fill = obj.get('fill');
+      const stroke = obj.get('stroke');
+      const label = obj.get('label');
+      if (
+        snap.width === undefined ||
+        snap.height === undefined ||
+        typeof kind !== 'string' ||
+        !(SHAPE_KINDS as readonly string[]).includes(kind) ||
+        typeof fill !== 'string' ||
+        !(fill in SHAPE_FILL_COLORS) ||
+        typeof stroke !== 'string' ||
+        !(stroke in SHAPE_STROKE_COLORS) ||
+        !(label instanceof Y.Text)
+      ) {
+        return;
+      }
+      snap.kind = kind as ShapeKind;
+      snap.fill = fill as FillColor;
+      snap.stroke = stroke as StrokeColor;
+      const labelText = label.toString();
+      snap.text = labelText;
+      snap.label = labelText;
+    } else if (type === 'connector') {
+      const from = parseEndpoint(obj.get('from'));
+      const to = parseEndpoint(obj.get('to'));
+      if (!from || !to) return; // malformed connector: invisible
+      snap.from = from;
+      snap.to = to;
+      pending.push({ snap, connector: true });
+      return; // bbox derived in the second pass
+    }
+    pending.push({ snap, connector: false });
   });
+  // Second pass: a connector's bounds are the bounding box of its RESOLVED
+  // endpoints, which need the boxes of every other object (attached
+  // endpoints follow their target's live bounds).
+  if (pending.some((p) => p.connector)) {
+    const rects = new Map<string, Rect>();
+    for (const { snap } of pending) rects.set(snap.id, objectBounds(snap));
+    for (const { snap } of pending) {
+      if (snap.type !== 'connector' || !snap.from || !snap.to) continue;
+      const pts = resolveEndpoints({ from: snap.from, to: snap.to }, rects);
+      const bb = connectorBBox(pts.from, pts.to);
+      snap.x = bb.x;
+      snap.y = bb.y;
+      snap.width = bb.width;
+      snap.height = bb.height;
+      // The resolved points back the zoom-aware line hit test (connector.
+      // select) and are rendered by the object.
+      snap.fromPoint = pts.from;
+      snap.toPoint = pts.to;
+    }
+  }
+  const out = pending.map((p) => p.snap);
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return Object.freeze(out);
+  return Object.freeze(out.map((s) => Object.freeze(s)));
 }
 
 /**
@@ -331,6 +415,13 @@ export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): 
     positions.forEach((p, id) => {
       const obj = map.get(id);
       if (!obj) return; // missing (deleted remotely) → skipped
+      // Connectors store no box of their own: both endpoints are translated
+      // by the pointer delta relative to the arrow's current bbox, so an
+      // arrow moves exactly like any other object.
+      if (obj.get('type') === 'connector') {
+        if (moveConnector(doc, obj, p)) changed += 1;
+        return;
+      }
       if (obj.get('x') === p.x && obj.get('y') === p.y) return;
       obj.set('x', p.x);
       obj.set('y', p.y);
@@ -364,6 +455,12 @@ export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): num
     rects.forEach((r, id) => {
       const obj = map.get(id);
       if (!obj) return; // missing (deleted remotely) → skipped
+      // A connector's "resize" is a translation (arrows have no scale):
+      // both endpoints move by the delta of the arrow's current bbox.
+      if (obj.get('type') === 'connector') {
+        if (moveConnector(doc, obj, { x: r.x, y: r.y })) changed += 1;
+        return;
+      }
       if (
         obj.get('x') === r.x &&
         obj.get('y') === r.y &&
@@ -434,6 +531,11 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const existing = ids.filter((id) => map.has(id));
   if (existing.length === 0) return 0;
   doc.transact(() => {
+    // Re-home connectors pointing at the deleted objects FIRST (same
+    // transaction): the endpoint becomes a free point at the object's
+    // current anchor, so arrows neither dangle nor vanish (connector.
+    // delete_rehome).
+    detachConnectorsTo(doc, existing);
     for (const id of existing) map.delete(id);
   }, LOCAL_ORIGIN);
   return existing.length;
@@ -445,4 +547,71 @@ function randomId(): string {
     return crypto.randomUUID();
   }
   return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+/** Public id generator (the shape/connector models create their own ids). */
+export function newObjectId(): string {
+  return randomId();
+}
+
+/**
+ * World-unit rects of every non-connector object with a readable position
+ * (width/height fall back to STICKY_SIZE_WORLD, as in `objectBounds`).
+ * Connectors are skipped: an endpoint attached to an arrow uses its stored
+ * fallback. Malformed objects are skipped too.
+ */
+export function objectRectsMap(doc: Y.Doc): ReadonlyMap<string, Rect> {
+  const rects = new Map<string, Rect>();
+  objects(doc).forEach((obj, id) => {
+    if (obj.get('type') === 'connector') return;
+    const x = obj.get('x');
+    const y = obj.get('y');
+    if (!isValidCoord(x) || !isValidCoord(y)) return;
+    const width = obj.get('width');
+    const height = obj.get('height');
+    rects.set(id, {
+      x: x as number,
+      y: y as number,
+      width: isValidCoord(width) ? (width as number) : STICKY_SIZE_WORLD,
+      height: isValidCoord(height) ? (height as number) : STICKY_SIZE_WORLD,
+    });
+  });
+  return rects;
+}
+
+/** Translate an endpoint by (dx, dy), keeping its kind/attachment. */
+function translateEndpoint(e: Endpoint, dx: number, dy: number): Endpoint {
+  return e.kind === 'free'
+    ? { kind: 'free', x: e.x + dx, y: e.y + dy }
+    : {
+        kind: 'attached',
+        objectId: e.objectId,
+        fallback: { x: e.fallback.x + dx, y: e.fallback.y + dy },
+      };
+}
+
+/**
+ * A connector's current bounding box from its stored endpoints (0x0 when
+ * malformed). Moving/resizing a connector translates both endpoints by the
+ * pointer delta relative to this box.
+ */
+function connectorBBoxOf(doc: Y.Doc, obj: Y.Map<unknown>): Rect {
+  const from = parseEndpoint(obj.get('from'));
+  const to = parseEndpoint(obj.get('to'));
+  if (!from || !to) return { x: 0, y: 0, width: 0, height: 0 };
+  const pts = resolveEndpoints({ from, to }, objectRectsMap(doc));
+  return connectorBBox(pts.from, pts.to);
+}
+
+function moveConnector(doc: Y.Doc, obj: Y.Map<unknown>, target: Point): boolean {
+  const from = parseEndpoint(obj.get('from'));
+  const to = parseEndpoint(obj.get('to'));
+  if (!from || !to) return false;
+  const bb = connectorBBoxOf(doc, obj);
+  const dx = target.x - bb.x;
+  const dy = target.y - bb.y;
+  if (dx === 0 && dy === 0) return false;
+  obj.set('from', endpointToMap(translateEndpoint(from, dx, dy)));
+  obj.set('to', endpointToMap(translateEndpoint(to, dx, dy)));
+  return true;
 }

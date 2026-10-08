@@ -33,6 +33,8 @@ export default defineConfig({
         'selection-collab.spec.ts',
         'undo.spec.ts',
         'text.spec.ts',
+        'shapes.spec.ts',
+        'connectors.spec.ts',
       ],
     },
     {

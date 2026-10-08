@@ -373,3 +373,100 @@ Ctrl/Cmd +/-/0 zoom shortcuts in `useCamera`/`BoardViewport`.
   `aria-label` "Sticky note (N)"** (the Toolbar now shows the N shortcut);
   `sticky-notes.spec.ts`, `load-failure.test.tsx`, `Toolbars.test.tsx` and
   `broken-board.spec.ts` were updated to match.
+
+# Story 10 — Notes
+
+## Key design decisions
+
+- **New model + geometry modules (pure, shared).** `src/shared/objects/shape.ts`
+  (create by drag / click / Shift-square, style validation clamped to the
+  palette, label via a `Y.Text`), `src/shared/objects/connector.ts`
+  (endpoints, `setConnectorEndpoint`, `detachConnectorsTo`), and
+  `src/shared/geometry/connector-geometry.ts` (`nearestSide`, `sideAnchor`,
+  `resolveEndpoints`, `endpointAnchor`) + `src/shared/geometry/polyline.ts`
+  (point-segment distance for the hit test). All are framework-free so the
+  same code runs in unit tests, the client, and (for assertions) the e2e page.
+- **Two-pass `objectsSnapshot`.** Pass 1 collects object rects; pass 2 derives
+  each connector's bbox and resolved `fromPoint`/`toPoint` from the current
+  rects so the arrow always sits on the midpoint of the nearest side of the
+  object it is attached to (connector.follow). `ObjectSnapshot` gained
+  `kind/fill/stroke/label` (shapes) and `from/to/fromPoint/toPoint`
+  (connectors).
+- **Delete detaches, never deletes, arrows.** `deleteObjects` calls
+  `detachConvertersTo` (→ `detachConnectorsTo`) *before* removing the object:
+  any attached endpoint becomes a **free** endpoint at the object's current
+  side anchor (computed from the live rect, not the stored fallback). The
+  arrow itself is always kept. This is what makes TC-26 (delete B → free end
+  where B's side was, both screens) and TC-27 (delete race) hold.
+- **Re-attach drag reads live state (TC-27).** The end-handle drag registers
+  window `pointermove`/`pointerup` listeners **once** on pointerdown, but a
+  remote delete can land while the pointer is held. If `finish` read the
+  pointerdown-time snapshot it would re-attach to an already-deleted object.
+  `ConnectorObject` keeps `latestSnapshot/Camera/Rects/Obj` refs (updated every
+  render) and reads them at release, so a deleted target resolves to
+  `objectAtPoint → null` and the end detaches to a **free** point at the
+  release location, with no console error.
+- **Active tool hook.** `src/client/tools/useActiveTool.ts` replaces the story 9
+  `useTool` hook (deleted). It owns the tool + shape-kind state, the V/T/N/S/L
+  shortcuts, and returns to Select after a shape/connector is created (Escape
+  also returns from shape/connector). Shape/connector tools mount/unmount from
+  `BoardPage` on tool change; unmount drops an unfinished drag (no create).
+- **Connector hit test is zoom-aware.** The registry `hitTest` gained a third
+  `zoom` argument (screen-pixel tolerances: `CONNECTOR_HIT_TOLERANCE_PX /
+  zoom`). Existing sticky/text object types stay 2-arg (compatible).
+  `objectAtPoint(snapshot, point, zoom)` is used by the tools and the
+  re-attach release.
+- **`selectOnly` action.** `useSelection` gained `selectOnly(id)` (no presence
+  check) so a tool-created object becomes the sole selection in the same tick
+  it enters the doc, before any collaborative sync.
+
+## Test notes
+
+- **Unit (test-first).** `shape-model.test.ts` (TC-01..06),
+  `connector-model.test.ts` (TC-07..14, TC-29 detach), `geometry.test.ts`
+  (nearestSide/sideAnchor/resolve/endpoint + polyline distance),
+  `registry.test.ts` (3-arg hitTest, objectAtPoint).
+- **Component.** `useActiveTool.test.tsx` (TC-22), `ShapeTool.test.tsx`
+  (TC-15/16/17/28), `Connector.test.tsx` (TC-18..21). TC-20 (hit-test
+  boundary) calls `getObjectType('connector').hitTest(snap, point, zoom)`
+  directly because jsdom cannot do SVG geometry hit-testing.
+- **E2E (`playwright.shapes.config.ts`, script `test:e2e:shapes`).** Chromium +
+  firefox, one worker, no parallelism, 240 s timeout, **no shared webServer** —
+  each test starts/stops its own `wrangler dev` on `WRANGLER_PORT` (so the fixed
+  port never collides). The main `playwright.config.ts` `testIgnore` now also
+  lists `shapes.spec.ts` and `connectors.spec.ts`, so a plain `npm run
+  test:e2e` never needs wrangler.
+  - **TC-23** (real drag at 100% → 200×120 at the dragged rect, ±1 world unit)
+    runs in **chromium and firefox**. **TC-24** (200% diamond click → 160×160
+    centred; long label wraps and stays centred after a handle resize) and the
+    collaborative connector tests **TC-25..27** are **chromium-only**.
+  - **Seeding** goes through the in-page `__vidi6` hooks (`seedCheckoutFlow`
+    → `createShape`/`setShapeLabel`/`createConnector`), which call the real
+    model functions in the page's own Y.Doc, so both collaborators start from
+    the same board. The hooks only exist in `--mode test` builds; `openBoard`
+    now `waitForFunction` on `window.__vidi6` so `page.evaluate` never races the
+    install.
+  - **Camera is local per client** (not in the shared doc), so every
+    pointer-driven test pins it to the origin first (`setCamera({x:0,y:0,
+    zoom:1})`) so world == screen.
+  - **TC-25 delivery time is logged, not asserted.** The time from Dana's
+    action to Sam's screen reflecting it (attach, and side-switch after B is
+    dragged past A) is measured and logged against
+    `LIVE_UPDATE_LATENCY_BUDGET_MS` via `console.log` + a test annotation. It is
+    deliberately **not** asserted, per the task.
+  - **TC-27 race is forced deterministically.** Rather than a websocket route
+    delay (Playwright `route` cannot delay WS *frames*, only the handshake),
+    Dana grabs the `to` handle, drags it over B and **holds** the pointer there
+    while Sam deletes B; the test waits for the delete to reach Dana, then Dana
+    releases. The release reads the latest snapshot → target is gone → the end
+    detaches to a free point. Asserts the arrow is visible with a free end and
+    **no** `pageerror`/console errors.
+
+## Environment
+
+- **WebKit unavailable.** The Playwright webkit build is present but fails to
+  launch: it needs the system library `libavif13`, which is absent, there is no
+  root/sudo to install it, and the apt mirror is unreachable. `TC-23` therefore
+  runs in **chromium + firefox** only; the "and webkit" part of the TC-23
+  requirement cannot be satisfied on this host. Chromium + firefox cover the
+  multi-engine intent (different rendering/pointer engines).

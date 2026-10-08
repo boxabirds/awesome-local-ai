@@ -36,8 +36,12 @@ import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { Toolbar } from '../board/Toolbar';
-import { useTool } from '../board/useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
 import { getObjectType } from '../objects/registry';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
+import { createShape, getShapeLabel, setShapeStyle } from '../../shared/objects/shape';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
 import {
@@ -52,7 +56,18 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { createText, setTextSize } from '../../shared/objects/text';
-import { TEXT_SIZES, type TextSize } from '../../shared/config';
+import { createConnector, parseEndpoint } from '../../shared/objects/connector';
+import {
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
+  SHAPE_FILL_COLORS,
+  SHAPE_LABEL_MAX_CHARS,
+  SHAPE_STROKE_COLORS,
+  TEXT_SIZES,
+  type TextSize,
+  type FillColor,
+  type StrokeColor,
+} from '../../shared/config';
 import { getClientId } from '../client-id';
 import { STICKY_COLORS, type StickyColor } from '../../shared/config';
 import { isValidBoardId } from '../../shared/board-id';
@@ -176,10 +191,20 @@ function Board(props: { boardId: string }): JSX.Element {
 
   const cam = useCamera(size);
 
-  // Story 9 (tool.shortcuts): the active tool (Select / Text) and the
-  // V / T / N / Escape shortcuts. N creates a sticky at the view centre,
-  // the same action as the toolbar's Sticky note (N) button.
-  const { tool, setTool } = useTool(editable, {
+  // Story 9 (tool.shortcuts) + story 10 (tools.active_tool): the active
+  // tool (Select / Text / Shape / Connector) and the single-letter
+  // shortcuts. N creates a sticky at the view centre, the same action as
+  // the toolbar's Sticky note (N) button.
+  const {
+    tool,
+    shapeKind,
+    setTool,
+    setShapeKind,
+    toolCreated,
+  } = useActiveTool({
+    canEdit: editable,
+    isEditing: () => selection.editingId !== null,
+    onSelect: (id) => selection.selectOnly(id),
     onCreateStickyAtCenter: () => createStickyAt({ x: size.width / 2, y: size.height / 2 }),
   });
 
@@ -209,6 +234,13 @@ function Board(props: { boardId: string }): JSX.Element {
 
   // Shift+drag marquee: on release, the fully-inside ids join the selection.
   const marquee = useMarquee(cam.camera, objects, (ids) => selection.setMany(ids, true));
+
+  // Story 10: the world boxes of every object, for the connectors'
+  // endpoint resolution (connector.follow).
+  const rects = useMemo(
+    () => new Map(objects.map((o) => [o.id, objectBounds(o)] as const)),
+    [objects],
+  );
 
   const createStickyAt = useCallback(
     (screen: Point) => {
@@ -276,6 +308,13 @@ function Board(props: { boardId: string }): JSX.Element {
       getObjects: () =>
         objectsSnapshot(doc).map((o) => {
           const b = objectBounds(o);
+          const ep = (e: unknown) => {
+            const p = parseEndpoint(e);
+            if (p === null) return undefined;
+            return p.kind === 'free'
+              ? { kind: 'free' as const, x: p.x, y: p.y }
+              : { kind: 'attached' as const, objectId: p.objectId };
+          };
           return {
             id: o.id,
             type: o.type,
@@ -288,6 +327,14 @@ function Board(props: { boardId: string }): JSX.Element {
             z: o.z,
             size: o.size,
             widthMode: o.widthMode,
+            kind: o.kind,
+            fill: o.fill,
+            stroke: o.stroke,
+            label: o.label,
+            fromPoint: o.fromPoint,
+            toPoint: o.toPoint,
+            from: o.from !== undefined ? ep(o.from) : undefined,
+            to: o.to !== undefined ? ep(o.to) : undefined,
           };
         }),
       getConnectionState: () => connectionState,
@@ -303,6 +350,38 @@ function Board(props: { boardId: string }): JSX.Element {
         if (id !== null && text !== undefined && text !== '') {
           getStickyText(doc, id)?.insert(0, text);
         }
+        undo.boundary();
+        return id;
+      },
+      createShape: (a) => {
+        undo.boundary();
+        const id = createShape(doc, a, 'seed');
+        undo.boundary();
+        return id;
+      },
+      setShapeLabel: (id, text) => {
+        const t = getShapeLabel(doc, id);
+        if (t === undefined) return;
+        t.delete(0, t.length);
+        t.insert(0, text.slice(0, SHAPE_LABEL_MAX_CHARS));
+      },
+      createConnector: (from, to) => {
+        // Attached endpoints store a fallback point (their target's centre) so
+        // a deleted target leaves a free end at a sensible spot.
+        const byId = new Map(objectsSnapshot(doc).map((o) => [o.id, o]));
+        const ep = (e: { kind: 'free'; x: number; y: number } | { kind: 'attached'; objectId: string }) => {
+          if (e.kind === 'free') return { kind: 'free' as const, x: e.x, y: e.y };
+          const target = byId.get(e.objectId);
+          const fallback = target
+            ? {
+                x: target.x + objectBounds(target).width / 2,
+                y: target.y + objectBounds(target).height / 2,
+              }
+            : { x: 0, y: 0 };
+          return { kind: 'attached' as const, objectId: e.objectId, fallback };
+        };
+        undo.boundary();
+        const id = createConnector(doc, ep(from), ep(to), 'seed');
         undo.boundary();
         return id;
       },
@@ -347,6 +426,26 @@ function Board(props: { boardId: string }): JSX.Element {
       ? (singleSticky.color as StickyColor)
       : ('yellow' as StickyColor);
 
+  // With exactly one shape selected (and not being edited), the story 10
+  // ShapeToolbar (fill + outline swatches) replaces the multi-selection bar
+  // (shape.style).
+  const singleShape: ObjectSnapshot | null =
+    selectedObjects.length === 1 && selectedObjects[0].type === 'shape'
+      ? selectedObjects[0]
+      : null;
+  const shapeToolbarVisible =
+    singleShape !== null &&
+    editable &&
+    selection.editingId !== singleShape.id;
+  const singleShapeFill: FillColor =
+    typeof singleShape?.fill === 'string' && singleShape.fill in SHAPE_FILL_COLORS
+      ? (singleShape.fill as FillColor)
+      : DEFAULT_SHAPE_FILL;
+  const singleShapeStroke: StrokeColor =
+    typeof singleShape?.stroke === 'string' && singleShape.stroke in SHAPE_STROKE_COLORS
+      ? (singleShape.stroke as StrokeColor)
+      : DEFAULT_SHAPE_STROKE;
+
   return (
     <div ref={rootRef} className="board-root" data-testid="board-root">
       <ConnectionStatus state={connectionState} />
@@ -388,6 +487,9 @@ function Board(props: { boardId: string }): JSX.Element {
                 else selection.endEdit();
               }}
               undo={undo}
+              camera={cam.camera}
+              rects={rects}
+              snapshot={objects}
             />
           );
         })}
@@ -404,11 +506,37 @@ function Board(props: { boardId: string }): JSX.Element {
 
       <Toolbar
         tool={tool}
+        shapeKind={shapeKind}
         onSelectTool={setTool}
+        onSelectShapeKind={setShapeKind}
         disabled={!editable}
         onCreateSticky={() => createStickyAt({ x: size.width / 2, y: size.height / 2 })}
         extra={<UndoButtons undo={undoApi} />}
       />
+
+      {/* Story 10: the shape and connector tools are mounted only while
+          active; unmounting drops any unfinished drag without creating
+          anything (tools.return_to_select). */}
+      {tool === 'shape' && editable && (
+        <ShapeTool
+          kind={shapeKind}
+          camera={cam.camera}
+          doc={doc}
+          canEdit={editable}
+          undo={undo}
+          onCreated={toolCreated}
+        />
+      )}
+      {tool === 'connector' && editable && (
+        <ConnectorTool
+          camera={cam.camera}
+          snapshot={objects}
+          doc={doc}
+          canEdit={editable}
+          undo={undo}
+          onCreated={toolCreated}
+        />
+      )}
 
       {noteToolbarVisible && singleSticky && (
         <div
@@ -471,6 +599,41 @@ function Board(props: { boardId: string }): JSX.Element {
               undo.boundary();
             }}
             onDelete={deleteSelection}
+          />
+        </div>
+      )}
+
+      {shapeToolbarVisible && singleShape && (
+        <div
+          className="note-toolbar-anchor"
+          style={{
+            left: worldToScreen(cam.camera, {
+              x: singleShape.x + objectBounds(singleShape).width / 2,
+              y: singleShape.y,
+            }).x,
+            top:
+              worldToScreen(cam.camera, { x: singleShape.x, y: singleShape.y }).y -
+              NOTE_TOOLBAR_GAP_PX,
+          }}
+        >
+          <ShapeToolbar
+            fill={singleShapeFill}
+            stroke={singleShapeStroke}
+            onFill={(c) => {
+              if (!editable) return; // story 4: edit lock
+              // Story 8: one colour change is one undo step. Only the fill
+              // key is written, so the label, size, position and selection
+              // are unchanged (shape.style).
+              undo.boundary();
+              setShapeStyle(doc, singleShape.id, { fill: c });
+              undo.boundary();
+            }}
+            onStroke={(c) => {
+              if (!editable) return; // story 4: edit lock
+              undo.boundary();
+              setShapeStyle(doc, singleShape.id, { stroke: c });
+              undo.boundary();
+            }}
           />
         </div>
       )}

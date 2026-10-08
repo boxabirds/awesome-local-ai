@@ -30,6 +30,21 @@ export interface Vidi6ObjectInfo {
   size?: string;
   /** 'auto' | 'fixed' (text objects only, story 9). */
   widthMode?: 'auto' | 'fixed';
+  // --- Story 10 (shapes and connectors) ------------------------------------
+  /** Shape kind (shape objects only). */
+  kind?: 'rect' | 'ellipse' | 'diamond';
+  /** Fill colour name (shape objects only). */
+  fill?: string;
+  /** Outline colour name (shape objects only). */
+  stroke?: string;
+  /** The label text (shape objects only). */
+  label?: string;
+  /** Resolved endpoint points (connector objects only). */
+  fromPoint?: { x: number; y: number };
+  toPoint?: { x: number; y: number };
+  /** Endpoint kinds (connector objects only); attached drops the fallback. */
+  from?: { kind: 'free'; x: number; y: number } | { kind: 'attached'; objectId: string };
+  to?: { kind: 'free'; x: number; y: number } | { kind: 'attached'; objectId: string };
 }
 
 export interface Vidi6TestHooks {
@@ -60,6 +75,20 @@ export interface Vidi6TestHooks {
   canUndo(): boolean;
   /** Story 8: whether redo() would consume a step. */
   canRedo(): boolean;
+  /** Story 10: create a shape at a world point (or covering a rect). */
+  createShape(a: {
+    kind: 'rect' | 'ellipse' | 'diamond';
+    rect: { x: number; y: number; width: number; height: number } | null;
+    at: { x: number; y: number };
+    square?: boolean;
+  }): string | null;
+  /** Story 10: set a shape's label text. */
+  setShapeLabel(id: string, text: string): void;
+  /** Story 10: create a connector between two endpoints. */
+  createConnector(
+    from: { kind: 'free'; x: number; y: number } | { kind: 'attached'; objectId: string },
+    to: { kind: 'free'; x: number; y: number } | { kind: 'attached'; objectId: string },
+  ): string | null;
 }
 
 declare global {
