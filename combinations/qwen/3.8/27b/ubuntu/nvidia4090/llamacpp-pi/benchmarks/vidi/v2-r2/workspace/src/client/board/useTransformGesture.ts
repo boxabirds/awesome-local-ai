@@ -4,9 +4,11 @@
  *
  * - `onObjectPointerDown(e, id)`: an unselected id is clicked (selected)
  *   first; a shift-click toggles. Pressed until DRAG_THRESHOLD_PX screen
- *   movement; then the start positions of all selected objects are recorded,
- *   `onGestureStart` fires and the selection is brought to front. Each rAF
- *   frame writes absolute positions (start + delta/zoom) with moveObjects.
+ *   movement; then `onGestureStart` fires (story 8: the undo boundary closes
+ *   the previous capture window before any gesture change), the start
+ *   positions of all selected objects are recorded and the selection is
+ *   brought to front. Each rAF frame writes absolute positions (start +
+ *   delta/zoom) with moveObjects.
  * - `onHandlePointerDown(e, handle)`: skipped when no selected type is
  *   resizable. Aspect lock when any selected type is aspect-locked or Shift
  *   is held. resizeRect on the bounding box, clampScale against per-type
@@ -150,6 +152,10 @@ export function useTransformGesture(opts: Options): {
           return; // still a plain press
         }
         g.activated = true;
+        // The start hook fires BEFORE any gesture change (story 8): undo
+        // passes boundary() here so the z-order bump and every move/resize
+        // frame of one drag merge into a single undo step.
+        onGestureStartRef.current?.();
         if (g.kind === 'move') {
           // The selection may have changed (remotely) between pointerdown and
           // activation; only objects still selected move.
@@ -167,7 +173,6 @@ export function useTransformGesture(opts: Options): {
             bringObjectsToFront(doc, ids);
           }
         }
-        onGestureStartRef.current?.();
       }
       if (g.kind === 'move') {
         if (g.ids === null || g.ids.length === 0 || g.startPositions === null) {

@@ -27,7 +27,7 @@ const TEXT_FAMILY =
  * ObjectProps (sel.all_types).
  */
 export function StickyNote(props: ObjectProps): JSX.Element {
-  const { doc, obj, selected, editingId, onPointerDown, onEdit, onEndEdit } = props;
+  const { doc, obj, selected, editingId, onPointerDown, onEdit, onEndEdit, onTextBoundary, onTextUndo } = props;
   const note = obj as StickySnapshot;
   const editing = editingId === obj.id;
   const width = note.width ?? STICKY_SIZE_WORLD;
@@ -107,7 +107,13 @@ export function StickyNote(props: ObjectProps): JSX.Element {
       }}
     >
       {editing && ytext !== null ? (
-        <StickyTextEditor ytext={ytext} fontPx={STICKY_FONT_MAX_PX} onEnd={onEndEdit} />
+        <StickyTextEditor
+          ytext={ytext}
+          fontPx={STICKY_FONT_MAX_PX}
+          onEnd={onEndEdit}
+          onBoundary={onTextBoundary}
+          onUndo={onTextUndo}
+        />
       ) : (
         <>
           <div

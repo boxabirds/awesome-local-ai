@@ -14,6 +14,12 @@
  * - Delete/Backspace: delete the whole selection, then clear.
  * - Enter: story 2's edit-start for a single selected sticky (or any
  *   registered type with editableText).
+ *
+ * Story 8 (undo.controls): Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z (or
+ * Ctrl+Y) redoes this tab's own steps; both preventDefault. They are ignored
+ * while a sticky is being edited (the editor handles its own undo) and when
+ * the board can't be edited; every mutating key is wrapped in undo
+ * boundaries so each command is one undo step.
  */
 import { useEffect } from 'react';
 import * as Y from 'yjs';
@@ -26,6 +32,7 @@ import {
 } from '../../shared/board-model';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
+import type { UndoController } from './undo';
 import type { useSelection } from './useSelection';
 
 type Selection = ReturnType<typeof useSelection>;
@@ -35,10 +42,12 @@ interface Options {
   selection: Selection;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** This tab's undo controller (story 8). */
+  undo: UndoController;
 }
 
 export function useBoardKeys(opts: Options): void {
-  const { doc, selection, snapshot, canEdit } = opts;
+  const { doc, selection, snapshot, canEdit, undo } = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
@@ -68,7 +77,25 @@ export function useBoardKeys(opts: Options): void {
       }
 
       if (!canEdit) {
-        return; // load_failed: the board can never be mutated
+        return; // load_failed: the board can never be mutated (nor undone)
+      }
+
+      // Undo / redo (story 8): work with or without a selection; the editor
+      // handles these keys itself while a sticky is being edited (checked
+      // above).
+      if (ctrl && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          undo.redo();
+        } else {
+          undo.undo();
+        }
+        return;
+      }
+      if (ctrl && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        undo.redo();
+        return;
       }
 
       const ids = [...selection.ids];
@@ -78,8 +105,11 @@ export function useBoardKeys(opts: Options): void {
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
+        // One undo step per delete command (undo.boundaries).
+        undo.boundary();
         if (deleteObjects(doc, ids) > 0) {
           selection.clear();
+          undo.boundary();
         }
         return;
       }
@@ -98,7 +128,10 @@ export function useBoardKeys(opts: Options): void {
             positions.set(obj.id, { x: obj.x + dx, y: obj.y + dy });
           }
         }
+        // One undo step per nudge (undo.boundaries).
+        undo.boundary();
         moveObjects(doc, positions);
+        undo.boundary();
         return;
       }
 
@@ -115,5 +148,5 @@ export function useBoardKeys(opts: Options): void {
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [doc, selection, snapshot, canEdit]);
+  }, [doc, selection, snapshot, canEdit, undo]);
 }

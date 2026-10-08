@@ -163,3 +163,15 @@ export const LINK_COPIED_MS = 2000;
  * RECONNECT_MAX_BACKOFF_MS.
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Undo / redo (story 8) ---------------------------------------------------
+
+/**
+ * Pause between text inputs, in ms, that ends a typing burst: typing that
+ * continues without a pause of at least this length is one undo step
+ * (undo.typing). Same value Yjs uses as its default capture timeout.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/** Most recent undo steps kept per person; the oldest steps are dropped (undo.limit). */
+export const UNDO_MAX_STEPS = 200;

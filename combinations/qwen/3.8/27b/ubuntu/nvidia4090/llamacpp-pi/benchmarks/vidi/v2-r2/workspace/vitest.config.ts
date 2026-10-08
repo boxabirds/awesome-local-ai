@@ -12,6 +12,9 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['tests/unit/**/*.test.ts'],
+          // Inline yjs/lib0 through vite so vi.mock('lib0/time') can intercept
+          // the clock yjs's UndoManager uses (story 8 capture-timeout tests).
+          server: { deps: { inline: ['yjs', 'lib0'] } },
         },
       },
       {

@@ -1,5 +1,7 @@
 import { type JSX } from 'react';
 import { STICKY_COLORS } from '../../shared/config';
+import { UndoButtons } from './UndoButtons';
+import type { UndoActions } from './useUndo';
 
 export interface ToolbarProps {
   /** Create a sticky note at the viewport centre. */
@@ -9,16 +11,19 @@ export interface ToolbarProps {
    * disabled, so a load-failed board can never create a note.
    */
   disabled?: boolean;
+  /** Undo / Redo state and actions for this tab (story 8, undo.controls). */
+  undo: UndoActions;
 }
 
 /**
- * Fixed left toolbar with the Sticky note button (story 2).
+ * Fixed left toolbar with the Sticky note button (story 2) and the Undo /
+ * Redo buttons (story 8).
  *
  * It is rendered in screen space (outside the board's transformed world
  * layer) and stops pointer/double-click propagation so a press on it never
  * pans the board or creates a note.
  */
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, disabled = false, undo }: ToolbarProps): JSX.Element {
   return (
     <div
       data-testid="sticky-toolbar"
@@ -71,6 +76,7 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX
           }}
         />
       </button>
+      <UndoButtons {...undo} />
     </div>
   );
 }

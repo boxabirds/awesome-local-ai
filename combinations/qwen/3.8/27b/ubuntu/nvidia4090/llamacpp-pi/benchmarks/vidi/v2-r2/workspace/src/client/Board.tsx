@@ -11,7 +11,7 @@
  * written to the Y.Doc.
  */
 
-import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import * as Y from 'yjs';
 import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
@@ -38,6 +38,8 @@ import {
 import { STICKY_SIZE_WORLD, type StickyColor } from '../shared/config';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { createUndo } from './board/undo';
+import { useUndo } from './board/useUndo';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { useBoardKeys } from './board/useBoardKeys';
@@ -148,6 +150,14 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
   const { doc, objects, connectionState, dropSocket, resumeSocket } = useBoardDoc(boardId);
   const editable = canEdit(connectionState);
 
+  // --- undo / redo (story 8) -------------------------------------------------
+  // One controller per board doc, created with the doc and destroyed on
+  // board change / unmount: history is session-only (undo.session_only) and
+  // holds only this tab's LOCAL_ORIGIN steps (undo.own).
+  const undo = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => () => undo.destroy(), [undo]);
+  const undoActions = useUndo(undo, editable);
+
   // Test-only: expose the doc for the component tests.
   if (onDocReady !== undefined) {
     onDocReady(doc);
@@ -188,6 +198,12 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
     selection,
     snapshot: objects,
     canEdit: editable,
+    // Every drag (z-order bump + move/resize frames) is one undo step
+    // (undo.boundaries): boundary before the first change and at the end
+    // (pointerup and pointercancel alike — the hook fires once per
+    // activated gesture).
+    onGestureStart: undo.boundary,
+    onGestureEnd: undo.boundary,
   });
 
   // --- marquee (story 7) -------------------------------------------------------
@@ -197,8 +213,8 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
     }
   });
 
-  // --- keyboard commands (story 7) ---------------------------------------------
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  // --- keyboard commands (story 7 + 8) -----------------------------------------
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo });
 
   // Test-only hooks (no-ops and tree-shaken in production builds).
   const objectsRef = useRef(objects);
@@ -223,14 +239,18 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
       if (!editable) {
         return; // load_failed: editing is locked out (persist.client_status)
       }
+      // One undo step per create (undo.boundaries); the editor's own mount
+      // boundary keeps later typing out of the create step.
+      undo.boundary();
       const id = createSticky(doc, screenToWorld(cameraController.camera, p));
+      undo.boundary();
       if (id !== '') {
         // Select + start editing the new note immediately.
         selection.click(id);
         selection.startEdit(id);
       }
     },
-    [doc, cameraController.camera, selection, editable],
+    [doc, cameraController.camera, selection, editable, undo],
   );
 
   const createAtCentre = useCallback((): void => {
@@ -245,10 +265,13 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
     if (ids.length === 0) {
       return;
     }
+    // One undo step per delete (undo.boundaries).
+    undo.boundary();
     if (deleteObjects(doc, ids) > 0) {
       selection.clear();
+      undo.boundary();
     }
-  }, [doc, selection, editable]);
+  }, [doc, selection, editable, undo]);
 
   const recolorSelection = useCallback(
     (c: StickyColor): void => {
@@ -257,10 +280,13 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
       }
       const id = selection.ids.values().next().value;
       if (id !== undefined && getStickyText(doc, id) !== undefined) {
+        // One undo step per recolour (undo.boundaries).
+        undo.boundary();
         setStickyColor(doc, id, c);
+        undo.boundary();
       }
     },
-    [doc, selection, editable],
+    [doc, selection, editable, undo],
   );
 
   const ordered = renderOrder(objects);
@@ -331,11 +357,13 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
                 onPointerDown={gesture.onObjectPointerDown}
                 onEdit={handleEdit}
                 onEndEdit={handleEndEdit}
+                onTextBoundary={undo.boundary}
+                onTextUndo={undo.undo}
               />
             );
           })}
         </BoardViewport>
-        <Toolbar onCreateSticky={createAtCentre} disabled={!editable} />
+        <Toolbar onCreateSticky={createAtCentre} disabled={!editable} undo={undoActions} />
         <ConnectionStatus state={connectionState} />
         {chromeVisible && selectedSticky !== undefined && (
           <div

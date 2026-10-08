@@ -394,3 +394,94 @@ _(Story 2 decisions are at the bottom of this file.)_
   values are centres − 100 for stickies. MAIN_CAM `{x:-1280,y:-800,zoom:0.5}`
   gives screen = world×0.5 + (640, 400); a 150px screen drag is 300 world at
   that zoom.
+
+# Story 8: Undo and redo my own changes without undoing anyone else's — decisions
+
+## Architecture
+
+- **Controller (`src/client/board/undo.ts`).** `createUndo(doc, opts?)` wraps
+  a `Y.UndoManager` over the board's `objects` map with
+  `trackedOrigins = { LOCAL_ORIGIN, <the manager itself> }`: only this
+  client's own transactions are captured (peers' changes arrive under
+  provider/remote origins and are invisible to the local history), and the
+  manager's own inverse transactions are never re-captured. Y.UndoManager's
+  capture algorithm gives "one burst of transactions = one step": a new
+  tracked transaction joins the open step while the gap since the previous
+  one is strictly `< UNDO_CAPTURE_TIMEOUT_MS` (500 ms) — a gap of *exactly*
+  500 ms starts a new step (undo.timeout TC-12/TC-13).
+- **`boundary()` = `stopCapturing()`.** Closes the open capture window
+  (Yjs sets the last-change marker to 0, so the next tracked transaction
+  starts a new step) and pops any trailing empty step. The app calls it
+  before/after every discrete action (create, delete, recolor, each nudge)
+  and at gesture/edit boundaries, so step separation is deterministic
+  regardless of wall-clock gaps between actions; the timeout only merges
+  transactions *inside* one action.
+- **`undo()`/`redo()` = `popStackItem()` loops.** Yjs keeps popping until a
+  popped item actually performs a change (an inverse that no-ops — e.g.
+  restoring a position the object never had, because a peer already changed
+  it — pops and skips) or the stack is empty; returns whether anything
+  changed (undo.empty/undo.gone: TC-07/TC-11).
+- **Trimming to `UNDO_MAX_STEPS` (100).** On `stack-item-added` (type
+  'undo') while over the limit, drop the oldest steps from the front.
+- **Controller placement: `Board.tsx`, not `App.tsx`.** The design says
+  App, but the doc is owned by `useBoardDoc`, which `Board` calls — the
+  controller needs the doc, so it is created there
+  (`useMemo(() => createUndo(doc), [doc])` + destroy on cleanup).
+- **Step boundaries wired in:** `useTransformGesture` fires
+  `onGestureStart` **before** `bringObjectsToFront` (story-7 order changed:
+  the z-change and every move frame are one step) and `onGestureEnd` on
+  up/cancel; `StickyTextEditor` calls `onBoundary` on mount and on unmount
+  (unmount covers every end path: Escape, outside click, note deleted
+  mid-edit); `useBoardKeys` wraps Delete/nudge; `Board` wraps create /
+  delete-selection / recolor-selection.
+- **Editor owns Ctrl+Z while editing** (`StickyTextEditor` preventDefault +
+  `onUndo`), and `useBoardKeys` returns early when `editingId !== null` —
+  so board-level Ctrl+Z never double-fires with the editor's.
+- **Shortcuts/buttons (undo.controls).** Ctrl/Cmd+Z undo; Ctrl/Cmd+Shift+Z
+  and Ctrl+Y redo; all `preventDefault`; ignored when `canEdit` is false
+  (load_failed), when a sticky is being edited, or when focus is in a
+  text/textarea/contentEditable. Buttons (`UndoButtons.tsx`, in `Toolbar`)
+  carry `aria-label` Undo/Redo, `data-testid` undo-button/redo-button, and
+  are `disabled` + `aria-disabled` when the relevant stack is empty or
+  `!canEdit`.
+- **`useUndo(controller, canEdit)`** subscribes to `controller.onChange`
+  (stack-item-added / -popped / stack-cleared) with a `useReducer`
+  force-update and returns `{canUndo, canRedo, undo, redo}` computed fresh
+  each render.
+
+## Environment / test quirks
+
+- **Yjs binds the clock at module load.** `yjs/undo` gets
+  `getUnixTime` from `lib0/time`, which captures `Date.now` when the module
+  first loads — `vi.useFakeTimers()` therefore cannot control the clock
+  Y.UndoManager sees (the real `Date.now` runs underneath). TC-12/TC-13
+  instead mock `lib0/time` with a hoisted controllable clock
+  (`vi.hoisted(() => ({ now: T0 }))` + `vi.mock('lib0/time', ...)`
+  preserving the other exports) and advance it with `clock.now += ms`.
+- **Vitest must inline `yjs`/`lib0` for the unit project**
+  (`server.deps.inline`): externalised (CJS) packages bypass vite's module
+  graph, so `vi.mock('lib0/time')` would not intercept the import inside
+  the yjs bundle.
+- **Component tests stay deterministic on the real clock.** The component
+  project does not inline yjs, so its UndoManager times on real
+  `Date.now`; gestures/type-bursts run in a few real ms (well under 500 ms)
+  and every user action is bracketed by boundaries, so step separation is
+  independent of timer fakes.
+- **E2E `sameBoard` must wait for real convergence.** A wait on the note
+  *count* alone is a no-op after recolours/undoes (the count never
+  changes), so consistency asserts poll an actual final state (e.g. the
+  restored x of the dragged note plus the peer's new colour) before
+  comparing boards — otherwise the peer's async propagation races the read
+  (observed flake in TC-22 when run after the full suite).
+- **Undoing a move whose target vanished is safe.** The inverse transaction
+  writes only ids that still exist; a note deleted by a peer mid-history
+  is silently skipped (no exception, no resurrection — TC-07/TC-23).
+
+## Story 8 test counts
+
+- Unit: 126 (112 existing + 14 new: 11 undo.history TC-01..TC-11 +
+  3 undo.timeout/boundaries TC-12/TC-13 + empty-boundary no-op)
+- Component: 82 (74 existing + 8 new: 4 boundaries TC-14..TC-17 +
+  4 controls TC-18..TC-21)
+- Integration: 45 (unchanged)
+- E2E (Chromium): 36 (33 existing + 3 new: TC-22..TC-24)

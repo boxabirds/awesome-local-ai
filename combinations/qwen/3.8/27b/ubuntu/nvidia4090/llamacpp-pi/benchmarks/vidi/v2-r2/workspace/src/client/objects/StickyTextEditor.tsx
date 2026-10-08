@@ -26,6 +26,14 @@ export interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
   onEnd: (next: 'selected' | 'unselected') => void;
+  /**
+   * Close the undo capture window (story 8): called when editing starts and
+   * ends, so the typing burst is its own undo step and never merges with
+   * the action before or after the edit.
+   */
+  onBoundary?(): void;
+  /** Ctrl/Cmd+Z inside the editor: undo this tab's last step (story 8). */
+  onUndo?(): void;
 }
 
 /**
@@ -40,8 +48,26 @@ export interface StickyTextEditorProps {
  *   onEnd('unselected'). A blurred editor defensively flushes its diff.
  * - The length counter appears only within 50 characters of the limit.
  */
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
+export function StickyTextEditor({
+  ytext,
+  fontPx,
+  onEnd,
+  onBoundary,
+  onUndo,
+}: StickyTextEditorProps): JSX.Element {
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // Undo boundaries (story 8, undo.boundaries): one on edit start (mount) and
+  // one on edit end (unmount — covers Escape, outside click and the note
+  // disappearing), so the whole edit is one capture window.
+  const onBoundaryRef = useRef(onBoundary);
+  onBoundaryRef.current = onBoundary;
+  useEffect(() => {
+    onBoundaryRef.current?.();
+    return () => {
+      onBoundaryRef.current?.();
+    };
+  }, []);
   const composingRef = useRef(false);
   // The merged Y.Text content the textarea currently represents. The observe
   // handler keeps this in lockstep with ytext so a local commit always diffs
@@ -155,6 +181,16 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    // Ctrl/Cmd+Z (story 8): undo this tab's last step and suppress the
+    // browser's native textarea undo so it never diverges from the Y.Text;
+    // the Y.Text change flows back into the textarea through the observe
+    // handler. Ctrl/Cmd+Shift+Z (redo) is left to the board shortcut once
+    // editing ends.
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      onUndo?.();
+      return;
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       // Consume this Escape: end editing but keep the note selected

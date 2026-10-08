@@ -47,6 +47,13 @@ export interface ObjectProps {
   onEdit(id: string): void;
   /** End text editing: 'selected' (Escape) or 'unselected' (outside press). */
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /**
+   * Close the undo capture window when text editing starts/ends (story 8,
+   * undo.boundaries); optional so types without editable text need not care.
+   */
+  onTextBoundary?(): void;
+  /** Ctrl/Cmd+Z inside the text editor: undo this tab's last step (story 8). */
+  onTextUndo?(): void;
 }
 
 /** One registered object type. */
