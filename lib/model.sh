@@ -4,7 +4,8 @@
 # Two shapes of backend exist, so this file dispatches rather than assuming:
 #
 #   * Single files from the Hub (llama.cpp): a combination declares
-#     MODEL_ASSETS, one "repo|filename|role|approx-size" record per line. Roles
+#     MODEL_ASSETS, one "repo|filename|role|approx-size" record per line, and may pin them with MODEL_REVISION (the Hub
+#     commit) and MODEL_SHA256 (sha256sum lines, verified after the fetch). Roles
 #     are free-form except for `model`, which is required; `mmproj` and `mtp`
 #     are recognised by the runtime. A missing optional asset degrades (no
 #     vision / no speculative decoding) rather than failing the install.
@@ -50,7 +51,9 @@ _model_fetch_hf_files() {
       fi
       info "Downloading ${file} from ${repo} (${size})..."
       # Resumes automatically from any .incomplete blob left by an earlier run.
-      if ! hf download "$repo" --include "$file" --local-dir "$MODEL_DIR"; then
+      # MODEL_REVISION (optional) pins the Hub commit, so the bytes are the ones the combination was written against.
+      local pin=(); [[ -n "${MODEL_REVISION:-}" ]] && pin=(--revision "$MODEL_REVISION")
+      if ! hf download "$repo" ${pin[@]+"${pin[@]}"} --include "$file" --local-dir "$MODEL_DIR"; then
         if [[ "$role" == "model" ]]; then
           err "Failed to download the model weights (${file} from ${repo}).
        Re-run this installer to resume; partial data is kept."
@@ -68,6 +71,9 @@ _model_fetch_hf_files() {
   done <<< "$MODEL_ASSETS"
 
   [[ -n "$MODEL_GGUF" && -f "$MODEL_GGUF" ]] || err "Could not locate the model weights after download."
+  # MODEL_SHA256 (optional), one "<sha256>  <file>" line per file, is checked whether the file was just fetched or already
+  # there. A combination that does not declare it is not hash-checked and prints nothing about it.
+  [[ -n "${MODEL_SHA256// }" ]] && hf_verify_sha256 "$MODEL_DIR"
   MODEL_ARTIFACT="$MODEL_GGUF"
 
   ok "Model  : $MODEL_GGUF ($(human_size "$MODEL_GGUF"))"
