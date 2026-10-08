@@ -25,7 +25,7 @@ shapes DSH sends; they were captured for the NadirClaw harness research, not for
 ## If it goes ahead
 
 Same discipline as [gufo with OpenCode](gufo-opencode.md): one variable at a time. The engine stays pinned by digest (gufo
-0.5.0 on tritus), the model, sampling and context stay as in `gufo-pi`, and only the client changes. Its checks are the same:
+0.5.0 on the Strix Halo box), the model, sampling and context stay as in `gufo-pi`, and only the client changes. Its checks are the same:
 the capability probe through the client's own request path, a look at what it sends, then the ten-minute smoke rule.
 
 **Last checked:** 8 Oct 2026, from our captured traces only.

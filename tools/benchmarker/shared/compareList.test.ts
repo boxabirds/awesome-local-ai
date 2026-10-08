@@ -6,7 +6,7 @@ import { compareToken, comparableRuns, matchRuns, parseCompareList, resolveCompa
 
 const SUITE = "vidi-v2.0-pre2";
 const row = (stack: string, runId: string, over: Partial<Row> = {}): Row => ({
-  pack: "vidi", stack, runId, suite: SUITE, label: stack.split("/").slice(-1)[0], machine: "tritus", state: "finished",
+  pack: "vidi", stack, runId, suite: SUITE, label: stack.split("/").slice(-1)[0], machine: "node-a", state: "finished",
   stories: [{ id: "1" } as Row["stories"][number]], status: "finished" as Row["status"], ...over,
 } as Row);
 
@@ -66,15 +66,15 @@ describe("resolveCompareList: the runs a list names, in its order, and the names
 });
 
 describe("matchRuns: a search finds a run by any part of what identifies it", () => {
-  const all = [row(GUFO, "v2-r1"), row(GUFO, "v2-gufo05-r3"), row(MLX, "v2-mlx26101-r3", { machine: "quintus", label: "3.8/flash-next mlxserve" })];
+  const all = [row(GUFO, "v2-r1"), row(GUFO, "v2-gufo05-r3"), row(MLX, "v2-mlx26101-r3", { machine: "node-b", label: "3.8/flash-next mlxserve" })];
   it("matches on run id, label, combination and machine, ignoring case", () => {
     expect(matchRuns(all, "mlx26101").map((r) => r.runId)).toEqual(["v2-mlx26101-r3"]);
-    expect(matchRuns(all, "QUINTUS").map((r) => r.runId)).toEqual(["v2-mlx26101-r3"]);
+    expect(matchRuns(all, "NODE-B").map((r) => r.runId)).toEqual(["v2-mlx26101-r3"]);
     expect(matchRuns(all, "strix").map((r) => r.runId)).toEqual(["v2-r1", "v2-gufo05-r3"]);
   });
   it("needs every word of the search to match, in any order", () => {
     expect(matchRuns(all, "r3 gufo").map((r) => r.runId)).toEqual(["v2-gufo05-r3"]);
-    expect(matchRuns(all, "r3 mlx quintus").map((r) => r.runId)).toEqual(["v2-mlx26101-r3"]);
+    expect(matchRuns(all, "r3 mlx node-b").map((r) => r.runId)).toEqual(["v2-mlx26101-r3"]);
     expect(matchRuns(all, "r3 nothing")).toEqual([]);
   });
   it("an empty search offers everything, and runs already chosen are left out", () => {

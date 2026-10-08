@@ -38,7 +38,7 @@ Every figure is the author's, on one test set or one machine. The card itself sa
 
 - **Size.** 8.35 GB leaves most of a 24 GB card for the KV cache. The 27B profile's carried-over bound for the KV cache is about
   0.027 MiB per token at q4_0 (a bound, not a measurement); on that figure a 24 GB card would not be limited by memory below the
-  model's own maximum context, which is the limit Swift hit near 200k on gruntus. Unmeasured.
+  model's own maximum context, which is the limit Swift hit near 200k on the 4090. Unmeasured.
 - **A speed claim on a card we can hold.** The 4090 runs Swift 1.5 at about 81 tok/s decode and this would be a smaller model on the
   same engine.
 - **Tool calling is what it was tuned for**, and tool-call failures are where our stacks lose whole stories.
@@ -46,7 +46,7 @@ Every figure is the author's, on one test set or one machine. The card itself sa
 ## Why to be careful
 
 1. **Two bits is untested here.** The owner's hypothesis was that 4-bit is a floor below which a model is not good enough; the only
-   lower-bit test so far does not support it. The 3-bit llama.cpp arm of Flash-Next (`v2-iq3xxs-r1`, one run, on quintus) scored
+   lower-bit test so far does not support it. The 3-bit llama.cpp arm of Flash-Next (`v2-iq3xxs-r1`, one run, on the M5 Max) scored
    **68/75** (score of record), against 69, 70, 72 and 72 for ddalcu's 4/8-bit mlx-serve runs and a median of 66 for Swift 1.5. One run, a
    different engine and a different quantisation family, so it neither confirms nor refutes the hypothesis for 2 bits. What the
    card's own table does show is where the loss is: reasoning and maths (AIME 2025 79 against 97, MuSR 68 against 80), not tool calling.

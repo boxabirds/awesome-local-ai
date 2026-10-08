@@ -81,7 +81,7 @@ card of the 4070 class** unless told otherwise.
 ## Also on Apple silicon
 
 The model's card documents `uzu`, Mirai Labs' own prebuilt runtime, on macOS 26.4 or later with 24 GB or more ("fastest on M5"; 52
-tok/s decoding code on an M5 Pro, by the card). That would put the same model on quintus through a different engine. Not checked.
+tok/s decoding code on an M5 Pro, by the card). That would put the same model on the M5 Max through a different engine. Not checked.
 
 **Licence:** MIT for the serve; Apache 2.0 for the model and the GGUF (facts, not gates).
 **Last checked:** 8 Oct 2026, from the README and the Hugging Face metadata, not from running it.
