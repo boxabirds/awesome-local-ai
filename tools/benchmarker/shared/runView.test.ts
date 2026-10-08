@@ -8,7 +8,7 @@ import {
   runTimeBars, runTotals, scopeIds, scoreOfRecord, segmentTip, signedPercent, splitParts, squareTip, statusView, storyResults,
   storyRunState, storyTitle, toolKinds, whyMissing, whyRunMissing, againstAbsent,
   groupInterventions, interventionsOf, interventionText, interventionTip, INTERVENTION_OTHER, MAX_TIP_INTERVENTIONS,
-  againstFlagTip, typicalRun, whatDiffered, BELOW_CAVEAT, HELD_OUT_CAVEAT, runMemory, compareMany,
+  againstFlagTip, typicalRun, whatDiffered, BELOW_CAVEAT, HELD_OUT_CAVEAT, runMemory, compareMany, compareBlocks,
 } from "./runView.ts";
 import { classifyMechanism } from "./combinationView.ts";
 import { GLOSSARY } from "./glossary.ts";
@@ -1279,5 +1279,42 @@ describe("compareMany: one run beside several, story by story", () => {
   });
   it("with no other run it is just this run's stories", () => {
     expect(compareMany(mine, []).map((r) => [r.id, r.inA, r.inOthers])).toEqual([["1", true, []], ["2", true, []]]);
+  });
+});
+
+describe("compareBlocks: one block per story, a line per run, this run first", () => {
+  const run = (runId: string, stories: Story[]) => ({ runId, stack: "s", pack: "vidi", stories }) as unknown as Row;
+  const withSplit = (id: string, wall: number, over: Partial<Story> = {}) =>
+    story(id, { usage: usage({ split: split({ wall }), agentSeconds: wall, decodeTokS: 50 }), ...over });
+  const mine = run("v2-r1", [withSplit("1", 900), withSplit("2", 5400)]);
+  const near = run("v2-r2", [withSplit("1", 1000), withSplit("2", 5400)]);
+  const far = run("v2-r3", [withSplit("2", 300), withSplit("3", 600)]);
+
+  it("has a block for every story any run recorded, with a line for this run and each chosen run, in the order given", () => {
+    const blocks = compareBlocks(mine, [near, far]);
+    expect(blocks.map((b) => b.id)).toEqual(["1", "2", "3"]);
+    expect(blocks[1].lines.map((l) => l.run.runId)).toEqual(["v2-r1", "v2-r2", "v2-r3"]);
+    expect(blocks[0].lines.map((l) => l.story?.id ?? null)).toEqual(["1", "1", null]);     // far has no story 1
+    expect(blocks[2].lines.map((l) => l.story?.id ?? null)).toEqual([null, null, "3"]);
+  });
+  it("this run's line has no differences; the others' are the differences compareRuns gives", () => {
+    const [b1] = compareBlocks(mine, [near]);
+    expect(b1.lines[0].diffs).toBeNull();
+    const pair = compareRuns(mine, near).find((r) => r.id === "1")!.cells.find((c) => c.key === "minutes")!;
+    expect(b1.lines[1].diffs!.minutes).toEqual({ rel: pair.rel, flagged: pair.flagged });
+  });
+  it("the runs' bars in a story share one scale: the longest wall time among them", () => {
+    const blocks = compareBlocks(mine, [near, far]);
+    expect(blocks.map((b) => b.scaleSeconds)).toEqual([1000, 5400, 600]);
+  });
+  it("a story whose runs have no time split still has a scale", () => {
+    const bare = run("v2-r1", [story("1", { usage: null })]);
+    expect(compareBlocks(bare, [])[0].scaleSeconds).toBeGreaterThan(0);
+  });
+  it("generated tok/s (output tokens over the time generating) is one of the measures compared", () => {
+    expect(COMPARE_MEASURES.map((m) => m.key)).toContain("decodeTokS");
+    const m = COMPARE_MEASURES.find((m) => m.key === "decodeTokS")!;
+    expect(m.value(withSplit("1", 900))).toBe(50);
+    expect(m.value(story("1", { usage: null }))).toBeNull();
   });
 });

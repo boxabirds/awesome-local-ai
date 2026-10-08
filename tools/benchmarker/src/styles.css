@@ -255,3 +255,12 @@ table.combos td .amount { display: block; font-size: 11px; white-space: nowrap; 
 .compare-remember { align-self: center; }
 .pair-other + .pair-other { margin-top: 0.15rem; }
 .pair-tag { opacity: 0.7; }
+
+/* The comparison as lines: a block per story, a line per run, this run's line first. */
+.compare-lines tbody + tbody > tr:first-child > * { border-top: 2px solid var(--line, #8886); }
+.compare-lines tbody th.story-cell { vertical-align: top; text-align: left; min-width: 12rem; max-width: 18rem; }
+.compare-lines .run-cell { white-space: nowrap; }
+.compare-lines tr[data-this-run="true"] .run-cell { font-weight: 600; }
+.compare-lines .bar-cell { min-width: 14rem; width: 22%; }
+.compare-lines .line-value { white-space: nowrap; }
+.compare-lines .diff { font-size: 0.8em; }

@@ -103,10 +103,10 @@ test.describe("pages that would have compared it: the other runs are compared wi
     await page.goto(`${runHref(MARKED_RUN)}?compare=v2-r4`);
     const compare = page.locator('[data-page="run"] [data-section="compare"]');
     const marked = compare.locator(`tr[data-story="${MARKED_STORY}"]`);
-    await expect(marked.locator('td[data-measure="minutes"] .pair-a')).toHaveText("1h20m");
-    await expect(marked.locator('td[data-measure="minutes"] .pair-b')).toHaveText("16 min");
+    await expect(compare.locator(`tr[data-story="${MARKED_STORY}"][data-this-run="true"] td[data-measure="minutes"] .line-value`)).toHaveText("1h20m");
+    await expect(compare.locator(`tr[data-story="${MARKED_STORY}"][data-run="v2-r4"] td[data-measure="minutes"] .line-value`)).toHaveText("16 min");
     await expect(marked.locator(".diff")).toHaveCount(0);
-    await expect(compare.locator('tr[data-story="1"] td[data-measure="minutes"] .diff')).toHaveCount(1);
+    await expect(compare.locator('tr[data-story="1"][data-run="v2-r4"] td[data-measure="minutes"] .diff')).toHaveCount(1);
     await expect(page.locator("body")).not.toContainText(SAYS_SO);
   });
 });
