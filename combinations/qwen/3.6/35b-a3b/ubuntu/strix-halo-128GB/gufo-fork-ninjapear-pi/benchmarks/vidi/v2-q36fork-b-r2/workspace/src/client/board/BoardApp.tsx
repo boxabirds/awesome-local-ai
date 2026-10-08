@@ -2,7 +2,7 @@ import * as React from 'react';
 import * as Y from 'yjs';
 import { screenToWorld } from '../canvas/camera';
 import { useCamera } from '../canvas/useCamera';
-import { createSticky, setStickyColor, deleteObject, moveObject, bringToFront } from '../../shared/board-model';
+import { createSticky } from '../../shared/board-model';
 import { STICKY_SIZE_WORLD } from '../../shared/config';
 import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
@@ -11,16 +11,16 @@ import { ZoomControls } from '../canvas/ZoomControls';
 import { NavigationHint } from '../canvas/NavigationHint';
 import { Toolbar } from './Toolbar';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { SelectionBar } from './SelectionBar';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { useVidi6TestHook } from '../testHooks';
+import { useTransformGesture } from './useTransformGesture';
+import { useBoardKeys } from './useBoardKeys';
 
-/** Props for the BoardApp — parameterises which board to connect to. */
 export interface BoardAppProps {
-  /** The board ID (22-char base64url string). */
   boardId: string;
 }
 
-/** Full board application for a single board. */
 export function BoardApp(props: BoardAppProps): React.JSX.Element {
   const [viewportSize, setViewportSize] = React.useState<{ width: number; height: number }>({
     width: window.innerWidth || 1280,
@@ -44,15 +44,35 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
   }, []);
 
   // ---- Connect to durable object ----
-  const { doc, snapshots, connectionState, ConnectionStatus: CS } = useBoardDoc(
+  const { doc, snapshots, connectionState, canEdit, ConnectionStatus: CS } = useBoardDoc(
     props.boardId,
   );
 
   const hook = useCamera(viewportSize);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection(doc);
+  const selection = useSelection(snapshots, doc);
 
   // Hook into camera state for e2e test assertions
   useVidi6TestHook(hook.setRawCamera);
+
+  // ---- Gesture hooks ----
+  const gesture = useTransformGesture({
+    doc: doc!,
+    camera: hook.camera,
+    selection,
+    snapshot: snapshots,
+    canEdit: !!canEdit,
+    onGestureStart: undefined,
+    onGestureEnd: undefined,
+  });
+
+  // Keyboard handler
+  useBoardKeys({
+    doc: doc!,
+    selection,
+    snapshot: snapshots,
+    canEdit: !!canEdit,
+    editingId: selection.editingId,
+  });
 
   // ------------------------------------------------------------------
   // Handlers
@@ -61,12 +81,11 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
   const handleCreateStickyAtWorld = React.useCallback(
     (worldPoint: { x: number; y: number }) => {
       const id = createSticky(doc, worldPoint);
-      if (id) startEdit(id);
+      if (id) selection.startEdit(id);
     },
-    [doc, startEdit],
+    [doc],
   );
 
-  // Listen for window-level create-sticky event (emitted by toolbar)
   React.useEffect(() => {
     const handler = (e: Event) => {
       const pt = (e as CustomEvent).detail as { x: number; y: number };
@@ -76,57 +95,52 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
     return () => window.removeEventListener('vidi6:createSticky', handler);
   }, [handleCreateStickyAtWorld]);
 
+  // Handle additive selection from marquee
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      const ids = (e as CustomEvent).detail as string[];
+      if (ids.length > 0) {
+        selection.setMany(ids, true);
+      }
+    };
+    window.addEventListener('vidi6:addSelection', handler);
+    return () => window.removeEventListener('vidi6:addSelection', handler);
+  }, [selection]);
+
+  // Handle clear selection from empty click
+  React.useEffect(() => {
+    const handler = () => {
+      selection.clear();
+    };
+    window.addEventListener('vidi6:clearSelection', handler);
+    return () => window.removeEventListener('vidi6:clearSelection', handler);
+  }, [selection]);
+
   const handleSelect = React.useCallback(
     (id: string) => {
-      if (editingId === id) return;
-      select(id);
+      if (selection.editingId === id) return;
+      selection.click(id);
     },
-    [editingId, select],
+    [selection.editingId],
   );
 
   const handleSetColor = React.useCallback(
-    (color: string) => {
-      if (selectedId && editingId !== selectedId) {
-        setStickyColor(doc, selectedId, color);
-      }
-    },
-    [doc, selectedId, editingId],
+    (_color: string) => {},
+    [],
   );
 
-  const handleDelete = React.useCallback(
-    (id: string) => {
-      deleteObject(doc, id);
-      if (selectedId === id) select(null);
-    },
-    [doc, selectedId, select],
-  );
-
-  const handleMove = React.useCallback(
-    (id: string, wx: number, wy: number): boolean => moveObject(doc, id, wx, wy),
-    [doc],
-  );
-
-  const handleBringToFront = React.useCallback(
-    (id: string): boolean => bringToFront(doc, id),
-    [doc],
-  );
-
-  // Window-level keyboard shortcuts
-  React.useEffect(() => {
-    const handleWindowKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'TEXTAREA' || tag === 'INPUT') return;
-      if (e.key === 'Enter' && selectedId && !editingId) {
-        e.preventDefault();
-        startEdit(selectedId);
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingId) {
-        e.preventDefault();
-        handleDelete(selectedId);
-      }
-    };
-    window.addEventListener('keydown', handleWindowKeyDown);
-    return () => window.removeEventListener('keydown', handleWindowKeyDown);
-  }, [selectedId, editingId, startEdit, handleDelete]);
+  const handleDeleteSelection = React.useCallback(() => {
+    if (doc && selection.ids.size > 0) {
+      const idsToDelete = [...selection.ids];
+      selection.clear();
+      // Delete in a microtask to avoid re-entrant state issues
+      Promise.resolve().then(() => {
+        import('../../shared/board-model').then(({ deleteObjects }) => {
+          deleteObjects(doc, idsToDelete);
+        });
+      });
+    }
+  }, [doc, selection.ids, selection]);
 
   // Ctrl/Cmd zoom shortcuts
   React.useEffect(() => {
@@ -149,6 +163,14 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
       {/* Connection status badge */}
       <CS state={connectionState} />
 
+      {/* Selection bar */}
+      <SelectionBar
+        ids={selection.ids}
+        snapshot={snapshots}
+        doc={doc}
+        onDelete={handleDeleteSelection}
+      />
+
       {/* Toolbar (top-left) */}
       <Toolbar onCreateSticky={() => handleCreateStickyAtWorld(screenToWorld(hook.camera, {
         x: viewportSize.width / 2,
@@ -161,19 +183,21 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
         useCameraHook={hook}
         snapshosts={snapshots}
         doc={doc}
-        selectedId={selectedId}
-        editingId={editingId}
+        selectedIds={selection.ids}
+        editingId={selection.editingId}
         onSelect={handleSelect}
-        onStartEdit={startEdit}
-        onEndEdit={endEdit}
-        onMove={handleMove}
-        onBringToFront={handleBringToFront}
-        onDelete={handleDelete}
+        onStartEdit={selection.startEdit}
+        onEndEdit={selection.endEdit}
+        onMove={undefined}
+        onBringToFront={undefined}
+        onDelete={undefined}
+        onObjectPointerDown={gesture.onObjectPointerDown}
+        onHandlePointerDown={gesture.onHandlePointerDown}
       />
 
-      {/* Note toolbar (appears near selected sticky) */}
-      {selectedId && !editingId && (() => {
-        const note = snapshots.find((s) => s.id === selectedId);
+      {/* Note toolbar (appears near selected sticky — single note only) */}
+      {selection.ids.size === 1 && !selection.editingId && (() => {
+        const note = snapshots.find((s) => s.id === [...selection.ids][0]);
         if (!note) return null;
         const cx = note.x + STICKY_SIZE_WORLD / 2;
         const cy = note.y - 40;
@@ -193,7 +217,15 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
             <NoteToolbar
               color={note.color as any}
               onColor={handleSetColor}
-              onDelete={() => handleDelete(note.id)}
+              onDelete={() => {
+                if (doc) {
+                  const id = note.id;
+                  selection.clear();
+                  import('../../shared/board-model').then(({ deleteObject: delObj }) => {
+                    delObj(doc, id);
+                  });
+                }
+              }}
             />
           </div>
         );
@@ -212,5 +244,3 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
     </div>
   );
 }
-
-

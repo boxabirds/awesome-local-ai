@@ -2,9 +2,12 @@ import * as React from 'react';
 import type { Point, Size } from './camera';
 import { GRID_SPACING_WORLD, LINE_TO_PIXELS, PAGE_TO_PIXELS } from '../../shared/config';
 import { screenToWorld } from './camera';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot } from '../../shared/board-model';
 import type { Doc as YDoc } from 'yjs';
 import { StickyNote } from '../objects/StickyNote';
+import type { Handle } from '../../shared/geometry';
+import { MarqueeRect, useMarquee } from '../board/Marquee';
+import { SelectionOverlay } from '../board/SelectionOverlay';
 
 interface BoardViewportProps {
   camera: { x: number; y: number; zoom: number };
@@ -16,10 +19,10 @@ interface BoardViewportProps {
     gestureZoom(scale: number, point: Point): void;
   };
   children?: React.ReactNode;
-  // Sticky note props (from story 2)
-  snapshosts?: readonly StickySnapshot[];
+  snapshosts?: readonly ObjectSnapshot[];
   doc?: YDoc;
-  selectedId?: string | null;
+  // Selection props (story 7)
+  selectedIds?: ReadonlySet<string>;
   editingId?: string | null;
   onSelect?: (id: string) => void;
   onStartEdit?: (id: string) => void;
@@ -27,15 +30,16 @@ interface BoardViewportProps {
   onMove?: (id: string, x: number, y: number) => boolean;
   onBringToFront?: (id: string) => boolean;
   onDelete?: (id: string) => void;
+  // Gesture hooks (story 7)
+  onObjectPointerDown?: (e: PointerEvent, id: string) => void;
+  onHandlePointerDown?: (e: PointerEvent, handle: Handle) => void;
 }
 
 /**
  * DotGridBackground – creates a repeating dot pattern overlay
- * that moves with the camera via background-size and background-position.
  */
 function DotGridBackground({ camera }: { camera: { x: number; y: number; zoom: number } }) {
   const spacing = GRID_SPACING_WORLD * camera.zoom;
-  // Position so the grid appears attached to the board
   const posXM = (-camera.x * camera.zoom) % spacing;
   const posYM = (-camera.y * camera.zoom) % spacing;
 
@@ -91,6 +95,9 @@ function DotGridBackground({ camera }: { camera: { x: number; y: number; zoom: n
         .viewport.panning {
           cursor: grabbing;
         }
+        .selection-handle {
+          position: absolute;
+        }
       `}</style>
       <div className="dot-grid" aria-hidden="true" />
     </>
@@ -104,165 +111,210 @@ function OriginMarker() {
 }
 
 export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
-  const { camera, useCameraHook, children, snapshosts } = props;
+  const { 
+    camera, 
+    useCameraHook, 
+    children, 
+    snapshosts, 
+    selectedIds, 
+    onObjectPointerDown, 
+    onHandlePointerDown,
+  } = props;
+  
   const [isPanning, setIsPanning] = React.useState(false);
   const lastPosRef = React.useRef<Point | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const { beginPan, panMove, endPan, wheel, gestureZoom } = useCameraHook;
 
-  // Check if pointerdown target is a sticky note or empty board
-  const isStickyNoteTarget = React.useCallback((target: EventTarget | null): boolean => {
+  // --- Story 7: Marquee for Shift+drag selection ---
+  const handleMarqueeSelect = React.useCallback((ids: string[]) => {
+    if (ids.length > 0 && props.onSelect) {
+      window.dispatchEvent(new CustomEvent('vidi6:addSelection', { detail: ids }));
+    }
+  }, [props.onSelect]);
+
+  const marquee = useMarquee({ camera, snapshot: snapshosts ?? [], onSelect: handleMarqueeSelect });
+
+  const wasDraggingMarquee = React.useRef(false);
+
+  const isStickyTarget = React.useCallback((target: EventTarget | null): boolean => {
     if (!target) return false;
     const el = target as HTMLElement;
-    return el.closest('.sticky-note') !== null || el.closest('.note-toolbar') !== null;
+    return (
+      el.closest('.sticky-note') !== null ||
+      el.closest('.note-toolbar') !== null ||
+      el.closest('.selection-handle') !== null ||
+      el.getAttribute('data-object-id') !== null
+    );
   }, []);
 
-  // Pointer events for drag-to-pan
+  const getContainerOffset = () => {
+    const el = containerRef.current;
+    if (!el) return { x: 0, y: 0 };
+    return { x: el.getBoundingClientRect().left, y: el.getBoundingClientRect().top };
+  };
+
+  // Pointer down handler
   const handlePointerDown = React.useCallback(
     (e: React.PointerEvent) => {
-      if (e.pointerType === 'touch') {
-        return;
-      }
+      if (e.pointerType === 'touch') return;
       if (e.button !== 0 && e.pointerType !== 'pen') return;
+      if (isStickyTarget(e.target)) return;
 
-      // If clicking on a sticky note or toolbar, let those components handle it
-      if (isStickyNoteTarget(e.target)) {
+      const offset = getContainerOffset();
+      const screenPt = { x: e.clientX - offset.x, y: e.clientY - offset.y };
+
+      if (e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        wasDraggingMarquee.current = true;
+        marquee.begin(screenPt);
+        try {
+          if (containerRef.current) containerRef.current.setPointerCapture(e.pointerId);
+        } catch { /* ignore */ }
         return;
       }
 
       setIsPanning(true);
       beginPan({ x: e.clientX, y: e.clientY });
       lastPosRef.current = { x: e.clientX, y: e.clientY };
-
       try {
-        const el = containerRef.current;
-        if (el) {
-          el.setPointerCapture(e.pointerId);
-        }
-      } catch {
-        // ignore
-      }
+        if (containerRef.current) containerRef.current.setPointerCapture(e.pointerId);
+      } catch { /* ignore */ }
     },
-    [beginPan, isStickyNoteTarget],
+    [beginPan, isStickyTarget, marquee],
   );
 
+  // Pointer move handler
   const handlePointerMove = React.useCallback(
     (e: React.PointerEvent) => {
+      if (wasDraggingMarquee.current) {
+        const offset = getContainerOffset();
+        const screenPt = { x: e.clientX - offset.x, y: e.clientY - offset.y };
+        marquee.move(screenPt);
+        return;
+      }
       if (!isPanning || !lastPosRef.current) return;
-
       const dx = e.clientX - lastPosRef.current.x;
       const dy = e.clientY - lastPosRef.current.y;
       lastPosRef.current = { x: e.clientX, y: e.clientY };
-
       panMove(dx, dy);
     },
-    [isPanning, panMove],
+    [isPanning, panMove, marquee],
   );
 
   const handlePointerUp = React.useCallback(() => {
+    if (wasDraggingMarquee.current) {
+      wasDraggingMarquee.current = false;
+      marquee.end();
+      setIsPanning(false);
+      return;
+    }
     if (isPanning) {
       setIsPanning(false);
       endPan();
     }
     lastPosRef.current = null;
-  }, [isPanning, endPan]);
+  }, [isPanning, endPan, marquee]);
 
   const handleLostPointerCapture = React.useCallback(() => {
-    if (isPanning) {
+    if (wasDraggingMarquee.current) {
+      wasDraggingMarquee.current = false;
+      marquee.cancel();
+    } else if (isPanning) {
       setIsPanning(false);
       endPan();
     }
     lastPosRef.current = null;
-  }, [isPanning, endPan]);
+  }, [isPanning, endPan, marquee]);
 
-  // Click on empty board → deselect (stop propagation handled by sticky notes)
-  const handlePointerClick = React.useCallback(
+  // Click on empty board → clear selection
+  const handleClick = React.useCallback(
     (e: React.MouseEvent) => {
-      if (isStickyNoteTarget(e.target)) return;
-      // Empty click on board
+      if (isStickyTarget(e.target)) return;
+      if (!wasDraggingMarquee.current) {
+        window.dispatchEvent(new CustomEvent('vidi6:clearSelection'));
+      }
     },
-    [isStickyNoteTarget],
+    [isStickyTarget],
   );
 
-  // Double-click on empty board space → create sticky note
+  // Double-click on empty board → create sticky note
   const handleDoubleClick = React.useCallback(
     (e: React.MouseEvent) => {
-      if (isStickyNoteTarget(e.target)) return;
-
-      // Create a note centred on the click point
+      if (isStickyTarget(e.target)) return;
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const screenPt: Point = {
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
       };
       const worldPt = screenToWorld(camera, screenPt);
-      // Call createSticky from the parent via window event or callback
       window.dispatchEvent(new CustomEvent('vidi6:createSticky', { detail: worldPt }));
     },
-    [camera, isStickyNoteTarget],
+    [camera, isStickyTarget],
   );
 
   // Wheel handler
   React.useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       const ctrlOrMeta = e.ctrlKey || e.metaKey;
-
       let deltaX = e.deltaX;
       let deltaY = e.deltaY;
-      if (e.deltaMode === 1) {
-        deltaX *= LINE_TO_PIXELS;
-        deltaY *= LINE_TO_PIXELS;
-      } else if (e.deltaMode === 2) {
-        deltaX *= PAGE_TO_PIXELS;
-        deltaY *= PAGE_TO_PIXELS;
-      }
-
+      if (e.deltaMode === 1) { deltaX *= LINE_TO_PIXELS; deltaY *= LINE_TO_PIXELS; }
+      else if (e.deltaMode === 2) { deltaX *= PAGE_TO_PIXELS; deltaY *= PAGE_TO_PIXELS; }
       const rect = el.getBoundingClientRect();
-      const point: Point = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      };
-
+      const point: Point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       wheel(deltaX, deltaY, ctrlOrMeta, point);
     };
-
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
   }, [wheel]);
 
-  // Safari gesture events
+  // Escape key cancels marquee
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && marquee.rect) {
+        wasDraggingMarquee.current = false;
+        marquee.cancel();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [marquee]);
+
+  // Safari gesture events (pinch zoom)
   React.useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
+    let centerX = 0;
+    let centerY = 0;
+
     const handleGestureStart = (e: Event) => {
-      (e as GestureEvent).preventDefault();
+      e.preventDefault();
+      const touches = (e as any).touches;
+      if (touches && touches.length >= 2) {
+        centerX = (touches[0].clientX + touches[1].clientX) / 2;
+        centerY = (touches[0].clientY + touches[1].clientY) / 2;
+      }
     };
 
     const handleGestureChange = (e: Event) => {
-      (e as GestureEvent).preventDefault();
-      const ge = e as GestureEvent;
-      if (!Number.isFinite(ge.scale)) return;
-      const cx = rect.width / 2;
-      const cy = rect.height / 2;
-      gestureZoom(ge.scale, { x: cx, y: cy });
+      e.preventDefault();
+      const ge = e as unknown as GestureEvent;
+      const rect = el.getBoundingClientRect();
+      const point: Point = { x: centerX - rect.left, y: centerY - rect.top };
+      gestureZoom(ge.scale, point);
     };
 
-    let rect: DOMRectReadOnly;
-    const updateRect = () => {
-      rect = el.getBoundingClientRect();
-    };
-    updateRect();
-
-    el.addEventListener('gesturestart', handleGestureStart as EventListener);
-    el.addEventListener('gesturechange', handleGestureChange as EventListener);
+    el.addEventListener('gesturestart', handleGestureStart);
+    el.addEventListener('gesturechange', handleGestureChange);
     return () => {
-      el.removeEventListener('gesturestart', handleGestureStart as EventListener);
-      el.removeEventListener('gesturechange', handleGestureChange as EventListener);
+      el.removeEventListener('gesturestart', handleGestureStart);
+      el.removeEventListener('gesturechange', handleGestureChange);
     };
   }, [gestureZoom]);
 
@@ -271,6 +323,31 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
   return (
     <>
       <DotGridBackground camera={camera} />
+      
+      {/* World-layer (transformed) — contains sticky notes */}
+      <div className="world-layer" style={{ transform: worldTransform }}>
+        <OriginMarker />
+        {snapshosts?.map((note) => (
+          <StickyNote
+            key={note.id}
+            note={note}
+            doc={props.doc}
+            zoom={camera.zoom}
+            selected={!!selectedIds?.has(note.id)}
+            editing={props.editingId === note.id}
+            camera={camera}
+            onSelect={props.onSelect}
+            onStartEdit={props.onStartEdit}
+            onEndEdit={props.onEndEdit || (() => {})}
+            onMove={props.onMove}
+            onBringToFront={props.onBringToFront}
+            onObjectPointerDown={onObjectPointerDown}
+          />
+        ))}
+        {children}
+      </div>
+
+      {/* Screen-space overlay layer — viewport-level */}
       <div
         ref={containerRef}
         className={`viewport${isPanning ? ' panning' : ''}`}
@@ -279,32 +356,23 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
         onPointerUp={handlePointerUp}
         onPointerCancel={handleLostPointerCapture}
         onLostPointerCapture={handleLostPointerCapture}
-        onClick={handlePointerClick}
+        onClick={handleClick}
         onDoubleClick={handleDoubleClick}
         role="application"
         aria-label="Infinite whiteboard canvas"
       >
-        <div className="world-layer" style={{ transform: worldTransform }}>
-          <OriginMarker />
-          {/* Render sticky notes from snapshots */}
-          {snapshosts?.map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={props.doc!}
-              zoom={camera.zoom}
-              selected={props.selectedId === note.id}
-              editing={props.editingId === note.id}
-              camera={camera}
-              onSelect={props.onSelect!}
-              onStartEdit={props.onStartEdit!}
-              onEndEdit={props.onEndEdit!}
-              onMove={props.onMove}
-              onBringToFront={props.onBringToFront}
-            />
-          ))}
-          {children}
-        </div>
+        {/* Marquee rectangle (screen-space overlay) */}
+        <MarqueeRect rect={marquee.rect || null} camera={camera} />
+        
+        {/* Selection overlay (screen-space positioning via worldToScreen) */}
+        {selectedIds && selectedIds.size > 0 && (
+          <SelectionOverlay
+            ids={selectedIds}
+            snapshot={snapshosts ?? []}
+            camera={camera}
+            onHandlePointerDown={onHandlePointerDown!}
+          />
+        )}
       </div>
     </>
   );

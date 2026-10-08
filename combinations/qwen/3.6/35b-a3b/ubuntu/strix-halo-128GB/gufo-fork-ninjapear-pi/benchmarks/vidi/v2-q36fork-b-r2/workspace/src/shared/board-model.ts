@@ -2,23 +2,32 @@ import * as Y from 'yjs';
 import {
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
   DEFAULT_STICKY_COLOR,
   STICKY_TEXT_MAX_CHARS,
   STICKY_COUNTER_THRESHOLD_CHARS,
   STICKY_FONT_MAX_PX,
   STICKY_FONT_MIN_PX,
 } from './config';
+import { getObjectType } from '../client/objects/registry';
+import { objectBounds, normalizeRect as normRect } from './geometry';
+import type { Rect } from './geometry';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('localOrigin');
 
-export interface StickySnapshot {
+export interface ObjectSnapshot {
   id: string;
-  type: 'sticky';
+  type: string;
   x: number;
   y: number;
+  z: number;
+  [key: string]: any;
+}
+
+export interface StickySnapshot extends ObjectSnapshot {
+  type: 'sticky';
   color: string;
   text: string;
-  z: number;
   createdAt: number;
 }
 
@@ -224,6 +233,171 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
   });
 
   return Object.freeze(result);
+}
+
+// --- Generic group operations (story 7) ---
+
+
+/** Return ids of objects fully contained within a rectangle. */
+export function objectsInRect(
+  snapshots: readonly ObjectSnapshot[],
+  rect: Rect,
+): string[] {
+  return snapshots
+    .filter((s) => {
+      const bounds = objectBounds(s);
+      // Must be fully inside; not merely touching from outside
+      if (bounds.width <= 0 || bounds.height <= 0) return false;
+      return (
+        bounds.x >= rect.x &&
+        bounds.y >= rect.y &&
+        bounds.x + bounds.width <= rect.x + rect.width &&
+        bounds.y + bounds.height <= rect.y + rect.height
+      );
+    })
+    .map((s) => s.id);
+}
+
+/** Return all registered object ids (excludes unknown types). */
+export function allObjectIds(snapshots: readonly ObjectSnapshot[]): string[] {
+  return snapshots.filter((s) => getObjectType(s.type)).map((s) => s.id);
+}
+
+/** Move multiple objects atomically. Returns count changed. */
+export function moveObjects(
+  doc: Y.Doc,
+  positions: ReadonlyMap<string, { x: number; y: number }>,
+): number {
+  // Validate: reject non-finite values or empty list
+  if (positions.size === 0) return 0;
+  for (const [id, pos] of positions) {
+    if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) {
+      return 0; // reject entire transaction
+    }
+  }
+
+  const objects = getObjects(doc);
+  let count = 0;
+  try {
+    doc.transact(() => {
+      for (const [id, pos] of positions) {
+        const noteMap = objects.get(id);
+        if (!noteMap) continue; // skip missing ids
+        noteMap.set('x', pos.x);
+        noteMap.set('y', pos.y);
+        count++;
+      }
+    }, LOCAL_ORIGIN);
+  } catch {
+    return 0;
+  }
+  return count;
+}
+
+/** Resize multiple objects by writing new width/height+position. Returns count changed. */
+export function resizeObjects(
+  doc: Y.Doc,
+  rects: ReadonlyMap<string, Rect>,
+): number {
+  if (rects.size === 0) return 0;
+  for (const [id, r] of rects) {
+    if (
+      !Number.isFinite(r.x) ||
+      !Number.isFinite(r.y) ||
+      !Number.isFinite(r.width) ||
+      !Number.isFinite(r.height)
+    ) {
+      return 0; // reject non-finite
+    }
+  }
+
+  const objects = getObjects(doc);
+  let count = 0;
+  try {
+    doc.transact(() => {
+      for (const [id, r] of rects) {
+        const noteMap = objects.get(id);
+        if (!noteMap) continue; // skip missing ids
+        noteMap.set('x', r.x);
+        noteMap.set('y', r.y);
+        noteMap.set('width', r.width);
+        noteMap.set('height', r.height);
+        count++;
+      }
+    }, LOCAL_ORIGIN);
+  } catch {
+    return 0;
+  }
+  return count;
+}
+
+/** Raise selected objects above unselected ones. Preserves relative order among selected.
+ * Returns count changed.
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const objects = getObjects(doc);
+  const idSet = new Set(ids);
+  
+  // Find max z among unselected objects
+  let maxUnselectedZ = 0;
+  let selectedMaxRank = 0;
+  
+  // First pass: determine max unselected z and max current selected rank
+  for (const [objectId, value] of objects) {
+    const z = value.get('z') as number;
+    if (!idSet.has(objectId)) {
+      if (typeof z === 'number' && z > maxUnselectedZ) {
+        maxUnselectedZ = z;
+      }
+    } else {
+      if (typeof z === 'number' && z > selectedMaxRank) {
+        selectedMaxRank = z;
+      }
+    }
+  }
+  
+  // Reassign z: use increasing ranks from maxUnselectedZ+1 for each selected id in sorted order
+  const sortedSelected = [...ids].sort();
+  try {
+    doc.transact(() => {
+      for (let i = 0; i < sortedSelected.length; i++) {
+        const noteMap = objects.get(sortedSelected[i]);
+        if (!noteMap) continue;
+        noteMap.set('z', maxUnselectedZ + 1 + i);
+      }
+    }, LOCAL_ORIGIN);
+  } catch {
+    return 0;
+  }
+  return sortedSelected.length;
+}
+
+/** Delete multiple objects. Returns count deleted. */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const objects = getObjects(doc);
+  let count = 0;
+  try {
+    doc.transact(() => {
+      for (const id of ids) {
+        if (objects.has(id)) {
+          objects.delete(id);
+          count++;
+        }
+      }
+    }, LOCAL_ORIGIN);
+  } catch {
+    return 0;
+  }
+  return count;
+}
+
+// --- Single-object wrappers (backward compat for story 2) ---
+
+export function bringToFrontSingle(doc: Y.Doc, id: string): boolean {
+  const result = bringObjectsToFront(doc, [id]);
+  return result > 0;
 }
 
 // --- Sticky text utilities ---

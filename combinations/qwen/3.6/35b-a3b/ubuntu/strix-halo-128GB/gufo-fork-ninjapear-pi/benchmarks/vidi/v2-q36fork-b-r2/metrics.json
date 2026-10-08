@@ -2816,6 +2816,614 @@
         },
         "heldout_floor": 0.0,
         "heldout_ok": true
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2/server.log"
+        ],
+        "private": {
+          "copied": 49,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "2b3f27f34"
+      }
+    },
+    "7": {
+      "title": "Select, move, resize and delete several objects at once",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "unmonitored"
+      },
+      "started": 1791414658.680405,
+      "engine_settings": {
+        "server_started_at": "2026-10-07T18:56:14Z",
+        "engine": "gufo-fork-ninjapear",
+        "engine_version": "gufo version development (unknown)",
+        "thinking_mode": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "thinking_budget": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "context_size": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "kv_cache_type": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "speculative": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "temperature": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "top_p": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "top_k": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "min_p": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "quantisation": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "reasoning_effort": {
+          "requested": "low",
+          "engine": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+          },
+          "client": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "effective": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+          },
+          "matches_request": null
+        },
+        "gaps": [
+          "reasoning effort: 'low' requested, neither the engine nor the client applies one",
+          "context: 131072 requested, not on the engine's command line"
+        ]
+      },
+      "agent": {
+        "seconds": 4227.4,
+        "steps": 222,
+        "tool_calls": 238,
+        "compactions": 1,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 4064619,
+          "output": 79139,
+          "reasoning": 0,
+          "cache_read": 11300649,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a118a2-6794-724d-a2d2-03cafc3979f5"
+        ],
+        "finished": true,
+        "interventions": {
+          "total": 0,
+          "stop_message": 0,
+          "toolcall_text_resumes": 0,
+          "error_resumes": 0
+        }
+      },
+      "agent_finished": 1791418886.1248195,
+      "conditions": {
+        "samples": 140,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 1.15,
+        "swap_max_gb": 1.15,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 41.426290160764495,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": 34.086997985839844,
+        "server_footprint_peak_gb": 35.47218704223633,
+        "gpu": {
+          "samples": 140,
+          "busy_mean_pct": 93.1,
+          "sclk_min_busy_mhz": 2802,
+          "sclk_max_mhz": 2900,
+          "power_mean_w": 125.9,
+          "power_max_w": 150.1,
+          "temp_max_c": 84.0,
+          "gtt_max_gb": 33.35,
+          "throttled_samples": 0
+        }
+      },
+      "containment": {
+        "enabled": true,
+        "units": [
+          "spec-bench-v2-q36fork-b-r2-s07-1"
+        ],
+        "memory_max_gb": 48.3,
+        "memory_peak_gb": null,
+        "left_at_story_end": 0,
+        "reaped": []
+      },
+      "agent_commits": 1,
+      "provenance": {
+        "harness_commit": "0b4a70acb",
+        "harness_dirty": null,
+        "harness_release": "harness-v2026.10.05.2",
+        "pack_version": "vidi-v2.0-pre2",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 3.3,
+            "tail": "\nadded 276 packages, and audited 277 packages in 3s\n\n49 packages are looking for funding\n  run `npm fund` for details\n\n16 vulnerabilities (4 moderate, 9 high, 3 critical)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm WARN deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm WARN deprecated rollup-plugin-inject@3.0.2: This package has been deprecated and is no longer maintained. Please use @rollup/plugin-inject.\nnpm WARN deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead\nnpm WARN deprecated @cloudflare/vitest-pool-workers@0.5.41: @cloudflare/vitest-pool-workers has been renamed to @cloudflare/vitest-plugin. This package will not receive future updates.\nnpm WARN deprecated wrangler@3.100.0: Downgrade to 3.99.0\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 2.1,
+            "tail": "\n> vidi6@0.0.1 build\n> npm run build:client && npm run build:worker\n\n\n> vidi6@0.0.1 build:client\n> vite build\n\n\u001b[36mvite v5.4.21 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 109 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                \u001b[39m\u001b[1m\u001b[2m  0.55 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.35 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-BzFnSGbC.js  \u001b[39m\u001b[1m\u001b[2m356.33 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 110.38 kB\u001b[22m\n\u001b[32m\u2713 built in 1.32s\u001b[39m\n\n> vidi6@0.0.1 build:worker\n> echo 'Worker build placeholder'\n\nWorker build placeholder\n\u001b[1m\u001b[33m[plugin:vite:reporter]\u001b[39m\u001b[22m \u001b[33m[plugin vite:reporter] \n(!) ~/.w/85c667547c/workspace/src/shared/board-model.ts is dynamically imported by ~/.w/85c667547c/workspace/src/client/board/BoardApp.tsx, ~/.w/85c667547c/workspace/src/client/board/BoardApp.tsx but also statically imported by ~/.w/85c667547c/workspace/src/client/board/BoardApp.tsx, ~/.w/85c667547c/workspace/src/client/board/Marquee.tsx, ~/.w/85c667547c/workspace/src/client/board/useBoardDoc.ts, ~/.w/85c667547c/workspace/src/client/board/useBoardKeys.ts, ~/.w/85c667547c/workspace/src/client/board/useTransformGesture.ts, ~/.w/85c667547c/workspace/src/client/objects/StickyNote.tsx, dynamic import will not move module into another chunk.\n\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 2,
+            "seconds": 1.5,
+            "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit\n\ntests/component/share-panel.test.tsx(27,26): error TS2322: Type '\"board\"' is not assignable to type '\"home\"'.\ntests/component/share-panel.test.tsx(48,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/share-panel.test.tsx(56,18): error TS2339: Property 'value' does not exist on type 'HTMLElement'.\ntests/component/share-panel.test.tsx(87,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/share-panel.test.tsx(94,43): error TS2339: Property 'toBeInTheDocument' does not exist on type 'Assertion<HTMLElement>'.\ntests/component/share-panel.test.tsx(110,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/share-panel.test.tsx(133,47): error TS2339: Property 'toBeInTheDocument' does not exist on type 'Assertion<HTMLElement>'.\ntests/component/share-panel.test.tsx(142,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/share-panel.test.tsx(192,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/share-panel.test.tsx(201,18): error TS2339: Property 'value' does not exist on type 'HTMLElement'.\ntests/component/share-panel.test.tsx(209,18): error TS2339: Property 'value' does not exist on type 'HTMLElement'.\ntests/component/share-panel.test.tsx(218,3): error TS2304: Cannot find name 'beforeEach'.\ntests/component/share-panel.test.tsx(237,47): error TS2339: Property 'toBeInTheDocument' does not exist on type 'Assertion<HTMLElement>'.\ntests/component/share-panel.test.tsx(246,3): error TS2304: Cannot find name 'beforeEach'.\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 5.0,
+            "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --config vitest.config.ts\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m~/.w/85c667547c/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m tests/unit/selection.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 26\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m tests/unit/geometry.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 38\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 14\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m tests/unit/sync-board-id-and-protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 155\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m tests/unit/boards.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 194\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 4132\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-01: chunkBytes & joinChunks round-trip\u001b[2m > \u001b[22m524288 bytes \u2192 1 chunk \u001b[33m729\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-01: chunkBytes & joinChunks round-trip\u001b[2m > \u001b[22mjoinChunks round-trips byte-identically for all cases above \u001b[33m3398\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m10 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m134 passed\u001b[39m\u001b[22m\u001b[90m (134)\u001b[39m\n\u001b[2m   Start at \u001b[22m 00:21:33\n\u001b[2m   Duration \u001b[22m 4.58s\u001b[2m (transform 383ms, setup 0ms, collect 740ms, tests 4.58s, environment 2ms, prepare 602ms)\u001b[22m\n\n",
+            "passed": 134,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 1,
+            "seconds": 1.3,
+            "tail": "ument\u001b[39m\n\u001b[31m   \u001b[31m\u00d7\u001b[31m TC-22: SharePanel copy notification\u001b[2m > \u001b[22mshows success feedback immediately after copy\u001b[90m 6\u001b[2mms\u001b[22m\u001b[31m\u001b[39m\n\u001b[31m     \u2192 Invalid Chai property: toBeInTheDocument\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 65\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 145\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 101\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m3 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m48 passed\u001b[39m\u001b[22m\u001b[90m (51)\u001b[39m\n\u001b[2m   Start at \u001b[22m 00:21:38\n\u001b[2m   Duration \u001b[22m 850ms\u001b[2m (transform 255ms, setup 0ms, collect 888ms, tests 568ms, environment 1.55s, prepare 456ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mTC-14: pointer cancel mid-drag\u001b[2m > \u001b[22m\u001b[2mcamera frozen at cancel; later moves ignored\n\u001b[22m\u001b[39mAn update to BoardViewport inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[1m\u001b[7m Failed Tests 3 \u001b[27m\u001b[22m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m\n\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m\u001b[34m|component|\u001b[39m  tests/component/share-panel.test.tsx\u001b[2m > \u001b[22mTC-17: SharePanel copy button\u001b[2m > \u001b[22mshows \"Copy link\" text initially\n\u001b[31m\u001b[1mError\u001b[22m: Invalid Chai property: toBeInTheDocument\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/component/share-panel.test.tsx:\u001b[2m94:41\u001b[22m\u001b[39m\n    \u001b[90m 92| \u001b[39m    \u001b[34mrender\u001b[39m(\u001b[33m<\u001b[39m\u001b[33mSharePanel\u001b[39m \u001b[33mboardLink\u001b[39m\u001b[33m=\u001b[39m\u001b[32m\"https://example.com/b/abc123\"\u001b[39m \u001b[33monClos\u001b[39m\u2026\n    \u001b[90m 93| \u001b[39m    \n    \u001b[90m 94| \u001b[39m    \u001b[34mexpect\u001b[39m(screen\u001b[33m.\u001b[39m\u001b[34mgetByText\u001b[39m(\u001b[32m'Copy link'\u001b[39m))\u001b[33m.\u001b[39m\u001b[34mtoBeInTheDocument\u001b[39m()\u001b[33m;\u001b[39m\n    \u001b[90m   | \u001b[39m                                        \u001b[31m^\u001b[39m\n    \u001b[90m 95| \u001b[39m  })\u001b[33m;\u001b[39m\n    \u001b[90m 96| \u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[1/3]\u23af\u001b[22m\u001b[39m\n\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m\u001b[34m|component|\u001b[39m  tests/component/share-panel.test.tsx\u001b[2m > \u001b[22mTC-19: SharePanel copy via clipboard API\u001b[2m > \u001b[22mcopies link text via clipboard.writeText\n\u001b[31m\u001b[1mError\u001b[22m: Invalid Chai property: toBeInTheDocument\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/component/share-panel.test.tsx:\u001b[2m133:45\u001b[22m\u001b[39m\n    \u001b[90m131| \u001b[39m    \n    \u001b[90m132| \u001b[39m    \u001b[90m// Should show \"\u2713 Link copied\" feedback\u001b[39m\n    \u001b[90m133| \u001b[39m    \u001b[34mexpect\u001b[39m(screen\u001b[33m.\u001b[39m\u001b[34mgetByText\u001b[39m(\u001b[32m'\u2713 Link copied'\u001b[39m))\u001b[33m.\u001b[39m\u001b[34mtoBeInTheDocument\u001b[39m()\u001b[33m;\u001b[39m\n    \u001b[90m   | \u001b[39m                                            \u001b[31m^\u001b[39m\n    \u001b[90m134| \u001b[39m  })\u001b[33m;\u001b[39m\n    \u001b[90m135| \u001b[39m})\u001b[33m;\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[2/3]\u23af\u001b[22m\u001b[39m\n\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m\u001b[34m|component|\u001b[39m  tests/component/share-panel.test.tsx\u001b[2m > \u001b[22mTC-22: SharePanel copy notification\u001b[2m > \u001b[22mshows success feedback immediately after copy\n\u001b[31m\u001b[1mError\u001b[22m: Invalid Chai property: toBeInTheDocument\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/component/share-panel.test.tsx:\u001b[2m237:45\u001b[22m\u001b[39m\n    \u001b[90m235| \u001b[39m    \n    \u001b[90m236| \u001b[39m    \u001b[90m// Text changes to indicate success\u001b[39m\n    \u001b[90m237| \u001b[39m    \u001b[34mexpect\u001b[39m(screen\u001b[33m.\u001b[39m\u001b[34mgetByText\u001b[39m(\u001b[32m'\u2713 Link copied'\u001b[39m))\u001b[33m.\u001b[39m\u001b[34mtoBeInTheDocument\u001b[39m()\u001b[33m;\u001b[39m\n    \u001b[90m   | \u001b[39m                                            \u001b[31m^\u001b[39m\n    \u001b[90m238| \u001b[39m  })\u001b[33m;\u001b[39m\n    \u001b[90m239| \u001b[39m})\u001b[33m;\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[3/3]\u23af\u001b[22m\u001b[39m\n\n",
+            "passed": 48,
+            "failed": 3
+          },
+          "test:integration": {
+            "exit": "missing"
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 4.5,
+            "tail": "\n> vidi6@0.0.1 test:e2e\n> npm run build && playwright test --project=chromium\n\n\n> vidi6@0.0.1 build\n> npm run build:client && npm run build:worker\n\n\n> vidi6@0.0.1 build:client\n> vite build\n\n\u001b[36mvite v5.4.21 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 109 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                \u001b[39m\u001b[1m\u001b[2m  0.55 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.35 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-BzFnSGbC.js  \u001b[39m\u001b[1m\u001b[2m356.33 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 110.38 kB\u001b[22m\n\u001b[32m\u2713 built in 1.28s\u001b[39m\n\n> vidi6@0.0.1 build:worker\n> echo 'Worker build placeholder'\n\nWorker build placeholder\n[WebServer] \n[WebServer]  \u26c5\ufe0f wrangler 3.114.17 (update available 4.148.0)\n[WebServer] ----------------------------------------------------------\n[WebServer] \n[WebServer] Your Worker and resources are simulated locally via Miniflare. For more information, see: https://developers.cloudflare.com/workers/testing/local-development.\n[WebServer] \n[WebServer] Your worker has access to the following bindings:\n[WebServer] - Durable Objects:\n[WebServer]   - BOARD_ROOM: BoardRoom\n[WebServer] \u2394 Starting local server...\n[WebServer] [wrangler:inf] Ready on http://0.0.0.0:27360\n[WebServer] [wrangler:inf] - http://127.0.0.1:27360\n[WebServer] [wrangler:inf] - http://192.168.4.35:27360\n[WebServer] [wrangler:inf] - http://100.97.95.90:27360\n[WebServer] \n[WebServer] If you think this is a bug then please create an issue at https://github.com/cloudflare/workers-sdk/issues/new/choose\n[WebServer] Note that there is a newer version of Wrangler available (4.148.0). Consider checking whether upgrading resolves this error.\n[WebServer] ? Would you like to report this error to Cloudflare? Wrangler's output and the error details will be shared with the Wrangler team to help us diagnose and fix the issue.\n[WebServer] \ud83e\udd16 Using fallback value in non-interactive context: no\nError: Process from config.webServer was not able to start. Exit code: 1\n\n\u001b[1m\u001b[33m[plugin:vite:reporter]\u001b[39m\u001b[22m \u001b[33m[plugin vite:reporter] \n(!) ~/.w/85c667547c/workspace/src/shared/board-model.ts is dynamically imported by ~/.w/85c667547c/workspace/src/client/board/BoardApp.tsx, ~/.w/85c667547c/workspace/src/client/board/BoardApp.tsx but also statically imported by ~/.w/85c667547c/workspace/src/client/board/BoardApp.tsx, ~/.w/85c667547c/workspace/src/client/board/Marquee.tsx, ~/.w/85c667547c/workspace/src/client/board/useBoardDoc.ts, ~/.w/85c667547c/workspace/src/client/board/useBoardKeys.ts, ~/.w/85c667547c/workspace/src/client/board/useTransformGesture.ts, ~/.w/85c667547c/workspace/src/client/objects/StickyNote.tsx, dynamic import will not move module into another chunk.\n\u001b[39m\n[WebServer] \u25b2 [WARNING] The version of Wrangler you are using is now out-of-date.\n[WebServer] \n[WebServer]   Please update to the latest version to prevent critical errors.\n[WebServer]   Run `npm install --save-dev wrangler@4` to update to the latest version.\n[WebServer]   After installation, run Wrangler with `npx wrangler`.\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] service core:user:vidi6: Uncaught ReferenceError: DurableObject is not defined\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR]   at index.js:8966:17\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] The Workers runtime failed to start. There is likely additional logging output above.\n[WebServer] \n[WebServer] \n[WebServer] \ud83e\udeb5  Logs were written to \"~/.config/.wrangler/logs/wrangler-2026-10-08_00-21-42_646.log\"\n",
+            "passed": null,
+            "failed": null
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 0,
+        "total": 44,
+        "on_partial": {
+          "passed": 0,
+          "total": 38
+        },
+        "by_story": {
+          "01": {
+            "passed": 0,
+            "total": 10,
+            "on_partial_total": 4,
+            "on_partial_passed": 0
+          },
+          "02": {
+            "passed": 0,
+            "total": 10,
+            "on_partial_total": 10,
+            "on_partial_passed": 0
+          },
+          "03": {
+            "passed": 0,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 0
+          },
+          "04": {
+            "passed": 0,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 0
+          },
+          "05": {
+            "passed": 0,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 0
+          },
+          "07": {
+            "passed": 0,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 0
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "f3260bc0ca57674432ffd3547c3a4817a888283f",
+      "requests": {},
+      "time_split": {
+        "wall_s": 4227.4,
+        "model": {
+          "source": "client-stream",
+          "requests": 222,
+          "prefill_s": 3167.9,
+          "prefill_tokens": 4064619,
+          "prefill_tok_s": 1283.1,
+          "decode_s": 908.3,
+          "decode_tokens": 79139,
+          "decode_tok_s": 87.1,
+          "cached_tokens": 11300649,
+          "draft_acceptance": 0.785,
+          "mean_accepted_len": null
+        },
+        "tools_s": 72.7,
+        "tools_by_kind": {
+          "unit": 42.4,
+          "build": 20.8,
+          "e2e": 8.4,
+          "bash": 0.9,
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
+        },
+        "compaction_s": 67.8,
+        "compactions": 1,
+        "between_sessions_s": 0.0,
+        "other_s": 10.8,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        }
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 222,
+        "tool_calls": 238,
+        "thinking_visible": true,
+        "thinking_chars": 44079,
+        "thinking_median": 95,
+        "thinking_median_before": 97,
+        "thinking_median_after": 85,
+        "largest_thinking": {
+          "chars": 5592,
+          "call": 175,
+          "at_s": 3514.1
+        },
+        "text_chars": 2443,
+        "tool_arg_chars": 222129,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 2607,
+        "context_end": 70833,
+        "largest_context_jump": {
+          "tokens": 13902,
+          "call": 9
+        },
+        "tools_by_name": {
+          "read": 42,
+          "bash": 134,
+          "edit": 33,
+          "write": 29
+        },
+        "tool_errors": 16,
+        "longest_tool": {
+          "seconds": 5.1,
+          "name": "bash",
+          "gist": "cd /w/workspace && npm run test:unit 2>&1 | tail -15"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 62,
+        "lines": 8372
+      },
+      "finished": 1791418957.641829,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "tasks": [
+        {
+          "n": 2,
+          "title": "Implement geometry and generic group operations in board-model",
+          "type": "implementation",
+          "implements": [
+            "sel.geometry_ops"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "E2E: colleague deletes one of my selected notes (TC-35)",
+          "type": "test:e2e",
+          "implements": [
+            "sel.interaction"
+          ],
+          "tcs": [
+            "TC-35"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 1
+        },
+        {
+          "n": 6,
+          "title": "Write geometry and group-operation unit tests first (TC-01 to TC-10)",
+          "type": "test:unit",
+          "implements": [
+            "sel.geometry_ops"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10"
+          ],
+          "status": "verified",
+          "found": 10,
+          "total": 10
+        },
+        {
+          "n": 7,
+          "title": "Write registry unit tests first (TC-11, TC-12, duplicate registration)",
+          "type": "test:unit",
+          "implements": [
+            "sel.registry"
+          ],
+          "tcs": [
+            "TC-11",
+            "TC-12"
+          ],
+          "status": "verified",
+          "found": 2,
+          "total": 2
+        },
+        {
+          "n": 8,
+          "title": "Implement object type registry and register sticky notes",
+          "type": "implementation",
+          "implements": [
+            "sel.registry"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Write selection reducer unit tests first (TC-13 to TC-15)",
+          "type": "test:unit",
+          "implements": [
+            "sel.interaction"
+          ],
+          "tcs": [
+            "TC-13",
+            "TC-14",
+            "TC-15"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 10,
+          "title": "Implement multi-selection state, outlines and selection bar",
+          "type": "implementation",
+          "implements": [
+            "sel.interaction"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Implement Shift+drag marquee selection",
+          "type": "implementation",
+          "implements": [
+            "sel.marquee_ui"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Implement generic transform gesture: group move and bounding-box resize handles",
+          "type": "implementation",
+          "implements": [
+            "sel.transform"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 13,
+          "title": "Implement selection keyboard commands: select all, clear, nudge, delete",
+          "type": "implementation",
+          "implements": [
+            "sel.keyboard"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 14,
+          "title": "Component tests: selection bar, marquee, transform gesture and keyboard (TC-16 to TC-31)",
+          "type": "test:ui-component",
+          "implements": [
+            "sel.interaction",
+            "sel.marquee_ui",
+            "sel.transform",
+            "sel.keyboard"
+          ],
+          "tcs": [
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-30",
+            "TC-31"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 16
+        },
+        {
+          "n": 15,
+          "title": "E2E: reorganise a cluster and full-capacity reorganisation (TC-32, TC-33, TC-34, TC-36)",
+          "type": "test:e2e",
+          "implements": [
+            "sel.marquee_ui",
+            "sel.transform",
+            "sel.keyboard"
+          ],
+          "tcs": [
+            "TC-32",
+            "TC-33",
+            "TC-34",
+            "TC-36"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 4
+        }
+      ],
+      "end_reason": "agent-finished",
+      "tasks_claimed": {
+        "file": "read",
+        "tasks": {
+          "2": "done",
+          "5": "blocked",
+          "6": "done",
+          "7": "done",
+          "8": "done",
+          "9": "done",
+          "10": "done",
+          "11": "done",
+          "12": "done",
+          "13": "done",
+          "14": "done",
+          "15": "blocked"
+        }
+      },
+      "stub_markers": [],
+      "partial_heldout_changes": {
+        "2": {
+          "fixed": 0,
+          "regressed": 2
+        },
+        "3": {
+          "fixed": 0,
+          "regressed": 0
+        },
+        "4": {
+          "fixed": 0,
+          "regressed": 0
+        },
+        "5": {
+          "fixed": 0,
+          "regressed": 0
+        }
       }
     }
   },
@@ -5812,6 +6420,638 @@
         "heldout_floor": 0.0,
         "heldout_ok": true
       }
+    },
+    {
+      "id": 7,
+      "title": "Select, move, resize and delete several objects at once",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1791414658.680405,
+      "ended_at": 1791418886.1248195,
+      "agent_minutes": 70.5,
+      "calls": 222,
+      "output_tokens": 79139,
+      "compactions": 1,
+      "last_commit_at": 1791418829.0,
+      "accept": {
+        "passed": 0,
+        "total": 8,
+        "on_partial_total": 8,
+        "on_partial_passed": 0
+      },
+      "partial_base": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "tasks": [
+        {
+          "n": 2,
+          "title": "Implement geometry and generic group operations in board-model",
+          "type": "implementation",
+          "implements": [
+            "sel.geometry_ops"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "E2E: colleague deletes one of my selected notes (TC-35)",
+          "type": "test:e2e",
+          "implements": [
+            "sel.interaction"
+          ],
+          "tcs": [
+            "TC-35"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 1
+        },
+        {
+          "n": 6,
+          "title": "Write geometry and group-operation unit tests first (TC-01 to TC-10)",
+          "type": "test:unit",
+          "implements": [
+            "sel.geometry_ops"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10"
+          ],
+          "status": "verified",
+          "found": 10,
+          "total": 10
+        },
+        {
+          "n": 7,
+          "title": "Write registry unit tests first (TC-11, TC-12, duplicate registration)",
+          "type": "test:unit",
+          "implements": [
+            "sel.registry"
+          ],
+          "tcs": [
+            "TC-11",
+            "TC-12"
+          ],
+          "status": "verified",
+          "found": 2,
+          "total": 2
+        },
+        {
+          "n": 8,
+          "title": "Implement object type registry and register sticky notes",
+          "type": "implementation",
+          "implements": [
+            "sel.registry"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Write selection reducer unit tests first (TC-13 to TC-15)",
+          "type": "test:unit",
+          "implements": [
+            "sel.interaction"
+          ],
+          "tcs": [
+            "TC-13",
+            "TC-14",
+            "TC-15"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 10,
+          "title": "Implement multi-selection state, outlines and selection bar",
+          "type": "implementation",
+          "implements": [
+            "sel.interaction"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Implement Shift+drag marquee selection",
+          "type": "implementation",
+          "implements": [
+            "sel.marquee_ui"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Implement generic transform gesture: group move and bounding-box resize handles",
+          "type": "implementation",
+          "implements": [
+            "sel.transform"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 13,
+          "title": "Implement selection keyboard commands: select all, clear, nudge, delete",
+          "type": "implementation",
+          "implements": [
+            "sel.keyboard"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 14,
+          "title": "Component tests: selection bar, marquee, transform gesture and keyboard (TC-16 to TC-31)",
+          "type": "test:ui-component",
+          "implements": [
+            "sel.interaction",
+            "sel.marquee_ui",
+            "sel.transform",
+            "sel.keyboard"
+          ],
+          "tcs": [
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-30",
+            "TC-31"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 16
+        },
+        {
+          "n": 15,
+          "title": "E2E: reorganise a cluster and full-capacity reorganisation (TC-32, TC-33, TC-34, TC-36)",
+          "type": "test:e2e",
+          "implements": [
+            "sel.marquee_ui",
+            "sel.transform",
+            "sel.keyboard"
+          ],
+          "tcs": [
+            "TC-32",
+            "TC-33",
+            "TC-34",
+            "TC-36"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 4
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 23.3,
+          "calls": 61,
+          "output_tokens": 113901,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi v2-q36fork-b-r1",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 75.4,
+          "calls": 206,
+          "output_tokens": 76218,
+          "accept": {
+            "passed": 0,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 127.8,
+          "calls": 307,
+          "output_tokens": 327927,
+          "accept": {
+            "passed": 8,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-iq3xxs-pi v2-iq3xxs-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 44.1,
+          "calls": 164,
+          "output_tokens": 75715,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 64.4,
+          "calls": 256,
+          "output_tokens": 183254,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 102.9,
+          "calls": 351,
+          "output_tokens": 277111,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 130.4,
+          "calls": 393,
+          "output_tokens": 373042,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r4",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 138.6,
+          "calls": 448,
+          "output_tokens": 369243,
+          "accept": {
+            "passed": 8,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 193.1,
+          "calls": 534,
+          "output_tokens": 462446,
+          "accept": {
+            "passed": 8,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 133.0,
+          "calls": 320,
+          "output_tokens": 310010,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 136.1,
+          "calls": 348,
+          "output_tokens": 303877,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 50.9,
+          "calls": 171,
+          "output_tokens": 135106,
+          "accept": {
+            "passed": 7,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi v2-strata0139-r2",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 240.0,
+          "calls": 299,
+          "output_tokens": 235378,
+          "accept": {
+            "passed": 0,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 112.1,
+          "calls": 297,
+          "output_tokens": 225954,
+          "accept": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 115.7,
+          "calls": 267,
+          "output_tokens": 224280,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 108.9,
+          "calls": 241,
+          "output_tokens": 214531,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 110.5,
+          "calls": 232,
+          "output_tokens": 226258,
+          "accept": {
+            "passed": 7,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 49.3,
+          "calls": 229,
+          "output_tokens": 113689,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 28.5,
+          "calls": 120,
+          "output_tokens": 69618,
+          "accept": {
+            "passed": 0,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 48.8,
+          "calls": 210,
+          "output_tokens": 106385,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 50.0,
+          "calls": 199,
+          "output_tokens": 108469,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 29.7,
+          "calls": 116,
+          "output_tokens": 64929,
+          "accept": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 37.4,
+          "calls": 147,
+          "output_tokens": 89246,
+          "accept": {
+            "passed": 6,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 49.3,
+          "calls": 149,
+          "output_tokens": 151956,
+          "accept": {
+            "passed": 6,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 72.2,
+          "calls": 228,
+          "output_tokens": 164147,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 33.3,
+          "calls": 136,
+          "output_tokens": 125498,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 24.8,
+          "calls": 128,
+          "output_tokens": 93295,
+          "accept": {
+            "passed": 3,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 34.5,
+          "calls": 186,
+          "output_tokens": 107316,
+          "accept": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 63.0,
+          "calls": 247,
+          "output_tokens": 218058,
+          "accept": {
+            "passed": 0,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 62.9,
+          "calls": 236,
+          "output_tokens": 208892,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 163.3,
+          "calls": 490,
+          "output_tokens": 386848,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 48.7,
+          "calls": 208,
+          "output_tokens": 122411,
+          "accept": {
+            "passed": 0,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 16.1,
+          "calls": 99,
+          "output_tokens": 73996,
+          "accept": {
+            "passed": 0,
+            "total": 8
+          }
+        }
+      ]
     }
   ]
 }

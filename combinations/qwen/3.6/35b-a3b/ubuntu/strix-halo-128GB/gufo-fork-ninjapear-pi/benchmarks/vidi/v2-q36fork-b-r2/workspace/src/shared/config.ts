@@ -28,6 +28,13 @@ export const CONNECTED_CONFIRMATION_MS = 2000;        // green badge duration af
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;        // PRD live.catch_up verification outage
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;        // functional wait in e2e across stories
 
+// Handle and selection settings
+export const HANDLE_SIZE_PX = 8;
+export const STICKY_MIN_SIZE_WORLD = 50;
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+export const NUDGE_STEP_WORLD = 1;
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 // Sticky note settings
 export const STICKY_SIZE_WORLD = 200;
 export const STICKY_TEXT_MAX_CHARS = 1000;

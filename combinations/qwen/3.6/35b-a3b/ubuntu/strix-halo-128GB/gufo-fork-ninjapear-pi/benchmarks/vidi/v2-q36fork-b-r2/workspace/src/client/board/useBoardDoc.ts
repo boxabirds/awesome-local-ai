@@ -6,10 +6,11 @@ import { ConnectionStatus } from '../sync/ConnectionStatus';
 
 let _doc: Y.Doc | null = null;
 
-export function useBoardDoc(boardId: string): {
+export function useBoardDoc(boardId: string, opts?: { canEdit?: boolean }): {
   doc: Y.Doc;
-  snapshots: readonly import('../../shared/board-model').StickySnapshot[];
+  snapshots: readonly import('../../shared/board-model').ObjectSnapshot[];
   connectionState: ConnectionState;
+  canEdit: boolean;
   ConnectionStatus: typeof ConnectionStatus;
 } {
   // Singleton doc (per page load) — in future stories this may be per-board
@@ -20,6 +21,9 @@ export function useBoardDoc(boardId: string): {
 
   const [snapshots, setSnapshots] = React.useState(() => snapshot(_doc!));
   const [connectionState, setConnectionState] = React.useState<ConnectionState>('connecting');
+
+  // If no explicit canEdit override, default to true after connection established
+  const explicitCanEdit = opts?.canEdit;
 
   // Track current boardId to destroy provider on change
   const prevBoardId = React.useRef<string>(boardId);
@@ -49,10 +53,13 @@ export function useBoardDoc(boardId: string): {
     };
   }, [boardId]);
 
+  const canEdit = explicitCanEdit !== undefined ? explicitCanEdit : connectionState === 'connected';
+
   return {
     doc: _doc!,
     snapshots,
     connectionState,
+    canEdit,
     ConnectionStatus,
   };
 }
