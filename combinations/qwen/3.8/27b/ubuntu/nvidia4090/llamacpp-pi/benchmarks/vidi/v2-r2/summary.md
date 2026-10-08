@@ -13,8 +13,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 3 | 6/7 | 0 | 0 | 24/27 |
 | 4 | 4/4 | 0 | 0 | 28/31 |
 | 5 | 5/5 | 0 | 0 | 33/36 |
+| 7 | 8/8 | 0 | 0 | 41/44 |
 
-**New work** 29/32, **regressions** 0, **repairs** 0, **cumulative** 33/36.
+**New work** 37/40, **regressions** 0, **repairs** 0, **cumulative** 41/44.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -23,8 +24,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 3 | See other people's edits appear live on the same board | DONE | 170.4 | None | None | None | — | — | red | 24/27 |  | 0 / 0 | 6 | — | throttled 0%, server peak 17 GB |
 | 4 | Return to a board and find everything as it was left | DONE | 181.1 | None | None | None | — | — | red | 28/31 |  | 1 / 0 | 8 | — | throttled 0%, server peak 17 GB |
 | 5 | Share a board with others using a link | DONE | 38.5 | None | None | None | — | — | red | 33/36 |  | 0 / 0 | 2 | — | throttled 0%, server peak 17 GB |
+| 7 | Select, move, resize and delete several objects at once | DONE | 182.9 | None | None | None | — | — | red | 41/44 |  | 0 / 1 | 9 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 5 stories, 475 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/5, final acceptance 33/36, stalled 0, partial 0, 12605 lines in src+tests.
+**Totals:** 6 stories, 658 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/6, final acceptance 41/44, stalled 0, partial 0, 15912 lines in src+tests.
 
 ## How it happened
 
@@ -37,6 +39,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 3 | 1 by the agent | 4565 / 48 | `connectBoard.ts` (177), `board-room.ts` (168), `protocol.ts` (72), `App.tsx` (62), `StickyTextEditor.tsx` (59), `testHooks.ts` (58), +14 more |
 | 4 | 10 by the agent | 3569 / 160 | `board-room.ts` (375), `board-store.ts` (294), `NOTES.md` (221), `test-hooks.ts` (101), `room-state.ts` (89), `storage-chunks.ts` (71), +12 more |
 | 5 | 1 by the agent | 2087 / 362 | `App.tsx` (314), `Board.tsx` (270), `SharePanel.tsx` (242), `BoardPage.tsx` (112), `HomePage.tsx` (104), `index.ts` (81), +11 more |
+| 7 | 1 by the agent | 4038 / 613 | `board-model.ts` (419), `useTransformGesture.ts` (396), `Board.tsx` (264), `StickyNote.tsx` (249), `geometry.ts` (236), `useSelection.ts` (160), +13 more |
 
 ### Earlier stories broken or fixed
 
