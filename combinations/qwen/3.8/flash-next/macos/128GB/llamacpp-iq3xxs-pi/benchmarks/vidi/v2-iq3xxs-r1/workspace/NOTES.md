@@ -737,3 +737,122 @@ npm run test:e2e -- pen.spec.ts` fails before a board loads — both cached bina
 launch (`exitCode=134`), exactly as recorded for stories 1–10. Chromium is what this
 machine can prove; nothing in the pen code is engine-specific (pointer events with
 `getCoalescedEvents`, `touch-action: none`, an SVG path with round caps — all standard).
+
+## Story 12 — put images on the board by dropping, pasting or picking
+
+### Two origins, so an add is one undo step
+An image arrives as two writes minutes apart: the placeholder (`createImagePlaceholders`,
+`LOCAL_ORIGIN`) and the `ready` update when storage answers. Both go into the same Y.Doc, so
+if both used the tracked origin a person who dropped three images would have to press Cmd+Z
+six times (PRD `undo.steps`). `UPLOAD_ORIGIN` is a `unique symbol` that the story 8
+`UndoManager` is *not* constructed with, and every status change — `markImageReady`,
+`markImageFailed`, `markImageRetrying`, and the quiet `abandonImagePlaceholders` that takes
+back a placeholder a 413/415 refused — goes out under it. Consequence worth knowing before
+writing a test: an undone image that is redone comes back *with* its `ready` state, because
+Yjs undoes items, not field values, and the untracked item was never invisible to redo. It
+is not a bug the client can fix by reading, and PRD does not ask it to be.
+
+### Binary fixtures are generated, and generated twice
+`tests/fixtures/images/make-fixtures.mjs` writes the nine files the suite needs (PNG at two
+sizes, GIF, a truncated PNG, a PDF, a PDF named `photo.png`, an SVG, and JPEG/WebP rendered
+through headless Chromium, since nothing else on the box encodes WebP), and *also* emits
+`embedded.ts`: the same bytes, base64'd, as a module. The second copy is not laziness — the
+integration pool runs the real Worker inside workerd, where this checkout is not a
+filesystem and `readFileSync` on a fixture path is denied, so an integration test can only
+be handed bytes by import. `tests/unit/fixtures.test.ts` re-sniffs every header and compares
+the two copies byte for byte, so the copies cannot drift. Two of the fixtures are padded at
+read time (`paddedJpeg`) rather than stored, because `IMAGE_MAX_BYTES` and
+`IMAGE_MAX_BYTES + 1` as files would be 20 MB of committed zeros.
+
+### `object.writeHttpMetadataHeaders()` does not exist in the runtime it will run in
+`src/worker/assets.ts` serves an R2 object with headers set one by one, not through
+`writeHttpMetadataHeaders`. That method is in the published types, is *not* implemented in
+the workerd build Miniflare runs, and the integration tests — which are the only place a
+stored object is ever read back — failed on it immediately. Setting them by hand is also what
+the story wants anyway: only the sniffed type is ever written into an object, so only the
+sniffed type should ever come out of it, with `nosniff`, a `default-src 'none'` CSP, and
+immutable cache (a key is written once and never points at other bytes).
+
+### The body's size is settled while it arrives, not after
+`Content-Length` is a claim, not authority, and a body that declares nothing (chunked) would
+otherwise be buffered whole before the size is checked. `readBody` reads the request's
+`ReadableStream` in chunks, counts as it goes, and `cancel()`s the moment the count passes
+`IMAGE_MAX_BYTES`. The integration test for it enqueues the *same* 1 MiB `Uint8Array` eleven
+times — the Worker counts bytes that arrived, and saying so needs no 10 MB allocation in the
+test.
+
+### A `ready` image's key is input from anybody holding the link
+A board document has no auth beyond the link, so the `assetKey` a peer writes into it is
+untrusted text by the time `<img>` is built from it. `ImageObject` only makes a URL out of a
+key `isAssetKey` accepts. This is not theoretical: `encodeURIComponent` does *not* escape
+`.`, so `/api/assets/<board>/../../anything` is normalised by the browser into a request on
+our own origin. Fake keys in the component tests are now built by `fakeAssetKey`, which
+produces the real 22-character shape — a test that asserts "the picture appeared" against a
+key shape the renderer would refuse is describing something it never checked.
+
+### The aspect-locked minimum is `Math.max`, not `Math.min`
+Story 11's `useTransformGesture` clamps a resize so the box stays above the registry's
+`minSize`, and multiplied by `Math.min(min / width, min / height)` — correct only for a 1:1
+object, which was everything in the codebase until now. Story 12 registers the first
+non-square aspect-locked object (a 120×90 image), and TC-27 measured a wide image ending at
+16×12 with `IMAGE_MIN_SIZE_WORLD = 16`: the short axis was quietly under the floor. It is
+`Math.max` now, so both axes reach the minimum. When a story adds the first object that
+exercises a forgotten branch of the geometry, fix the branch and say so here.
+
+### The rail grew by one button and covered story 10's test point
+Story 10 left a note in this file ("the top-left corner of the board belongs to the toolbar",
+x 16..149). The Image button made the rail taller, and story 10's TC-26 — which drags shape B
+to world x −600 — parked the *whole* of B's box behind it, so `clickShape`'s centre click hit
+`BUTTON.tool-button`. The app is not wrong (the rail is an overlay, the board pans, and a
+person picks at an edge of a shape they can see), so the test was changed, not the layout:
+`clickShapeVisible` asks `elementFromPoint` which points of the box really answer and clicks
+one, and throws if the shape is fully covered. Any future test that parks an object near the
+origin's left should reach for it instead of computing a screen point.
+
+### Progress is why `uploadImage` is an XHR, and why it never throws
+`fetch` cannot report upload progress at any price; the fraction in the placeholder comes
+from `XMLHttpRequestUpload.onprogress`. Like the rest of `src/client/api.ts` the function
+resolves a *result* (`{kind:'ok'} | {kind:'failed', status?}`) for every ending including
+`abort()`, because each ending is a state on the board ("Upload failed", Retry) rather than
+an exception in a component. `retry` needs the file's bytes, which live in the tab that
+picked the file — hence `canRetry` (does *this* tab hold them) sitting next to `uploaderId`
+(is this my image), and why every other screen reads the same object as "Image unavailable".
+
+### "Didn't finish" is a fact about time, so the board owns a clock
+Nothing arrives to turn `uploading` into `image upload didn't finish`, so something must
+re-render: `useUploadClock(images)` returns `Date.now()` at render and re-reads it every
+`IMAGE_CLOCK_TICK_MS` *only while* an image is inside the stale window — `ticking` is derived
+from the snaps, so the board is not kept awake by an image that has already been given up on.
+Component tests do not fake timers for this: `createOneImagePlaceholder(doc, uploaderId,
+startedAt)` writes the timestamp in the past, which is both cheaper and the same object a
+reload would produce.
+
+### HTML5 drop, paste and the picker, in Playwright
+`dragAndDrop` with files does not exist; a drop is built in the page (`dispatchEvent` with a
+`DataTransfer` whose `File`s were reassembled from base64 carried into the page). Fixture
+bytes never touch the disk for the picker either: `page.waitForEvent('filechooser')` then
+`setFiles({ name, mimeType, buffer }[])`. Paste in a browser is a synthetic
+`ClipboardEvent` on `window`; in jsdom a `ClipboardEvent`'s `clipboardData` is read-only and
+cannot be given one, so the component tests dispatch a plain `Event('paste')` with
+`clipboardData` assigned onto it — that is all the handler ever reads. Two route facts cost
+an hour each: uploads go to `POST /api/boards/:id/assets` while images are *served* from
+`GET /api/assets/:key`, so a pattern that matches one does not match the other — and
+`route.abort()` must be limited to `method === 'POST'` or the served pictures disappear too
+and TC-28 fails for the wrong reason. To watch a placeholder from a second screen, delay the
+upload with `route.fallback()` after a `setTimeout`: it still reaches real storage.
+
+### jsdom gaps the component tests fill, and one Chromium disagreement
+jsdom has `Blob` and `File` but no `Blob.prototype.arrayBuffer` (polyfilled in
+`tests/component/setup.ts` through `FileReader`), and no image decoder at all, so
+`installImageBitmapStub` answers from `FIXTURE_DIMENSIONS` and rejects only for the fixture
+that is genuinely undecodable. That fixture is the story's whole justification for decoding
+on the client: Chromium's `<img>` happily displays `corrupt.png` at 1440×900 while
+`createImageBitmap` rejects it, so "would the browser draw it" is not the question — "would
+the browser *decode* it" is, and the client asks that before uploading.
+
+### Firefox and WebKit: still not available on this machine
+`tasks.md` asks for the picker case (TC-26) in Firefox and WebKit too. Both cached binaries
+still abort on launch (`exitCode=134`), as recorded for stories 1–11. The Chromium-only parts
+here are the synthetic `ClipboardEvent` with files and `dispatchEvent`-built drops — neither
+is engine-specific in the *product* (a real drop, a real Cmd+V, a real `<input type=file>`),
+only in how a test fakes them.

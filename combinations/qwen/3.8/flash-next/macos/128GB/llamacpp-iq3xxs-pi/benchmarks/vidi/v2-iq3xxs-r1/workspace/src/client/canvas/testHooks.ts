@@ -7,6 +7,7 @@ import type { TextSnapshot } from '../../shared/objects/text';
 import type { ShapeSnap } from '../../shared/objects/shape';
 import type { ConnectorSnap } from '../../shared/objects/connector';
 import type { StrokeSnap } from '../../shared/objects/stroke';
+import type { ImageSnap } from '../../shared/objects/image';
 import type {
   ShapeKind,
   TextSize,
@@ -114,6 +115,16 @@ export interface BoardTestApi {
   getConnectors(): readonly ConnectorSnap[];
   /** Live stroke snapshot in paint order (story 11), points as they were drawn. */
   getStrokes(): readonly StrokeSnap[];
+  /**
+   * Live image snapshot in paint order (story 12), placeholders included: a browser test
+   * asks this whether an image arrived, failed or is still said to be uploading.
+   */
+  getImages(): readonly ImageSnap[];
+  /**
+   * Upload progress this tab is seeing, per object id (story 12). Only the tab that
+   * picked the file has any, which is itself the thing a test may be checking.
+   */
+  uploadProgress(): { id: string; fraction: number }[];
   /** The in-memory document, so tests can drive the model directly. */
   getDoc(): Y.Doc;
   /** Local selection / editing ids (story 2). */

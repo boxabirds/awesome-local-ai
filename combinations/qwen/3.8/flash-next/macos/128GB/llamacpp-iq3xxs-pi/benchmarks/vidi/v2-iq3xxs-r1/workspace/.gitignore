@@ -17,3 +17,6 @@ playwright-report/
 # story 4 e2e-persist scratch
 .persist-state/
 .logs/
+
+# scratch for probes run by hand while working
+.tmp/

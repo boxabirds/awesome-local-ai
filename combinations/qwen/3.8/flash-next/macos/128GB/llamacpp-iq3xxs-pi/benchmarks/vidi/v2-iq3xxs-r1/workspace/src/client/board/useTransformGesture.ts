@@ -152,10 +152,14 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         const dh = Math.abs(scaled.height - rect.height);
         if (dw >= dh) scaled.height = scaled.width / aspect;
         else scaled.width = scaled.height * aspect;
-        // The lock must not squeeze an object below its own minimum side.
+        /* The lock must not squeeze an object below its own minimum side — and because
+           the ratio is fixed, one axis is always the binding one: the factor is the
+           larger of the two, so the *shorter* side reaches the minimum and the longer
+           one stays above it. Taking the smaller factor would leave a wide object (a
+           120x90 picture at min 16 became 16x12) quietly under the floor. */
         const min = typeSpec.minSize > 0 ? typeSpec.minSize : 0;
         if (min > 0 && (scaled.width < min || scaled.height < min)) {
-          const grow = Math.min(min / scaled.width, min / scaled.height);
+          const grow = Math.max(min / scaled.width, min / scaled.height);
           scaled.width *= grow;
           scaled.height *= grow;
         }

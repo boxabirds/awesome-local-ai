@@ -320,3 +320,37 @@ export function collectErrors(page: Page): string[] {
   page.on('pageerror', (error) => errors.push(String(error)));
   return errors;
 }
+
+/**
+ * Click the part of a shape that this screen can actually see.
+ *
+ * The tool rail is an overlay over the left of the board, and a shape parked far left
+ * can end up behind it (story 10 dragged one to world x -600, which lands under the rail
+ * now that the rail carries an Image button too). A person in that situation picks at an
+ * edge of the shape, or pans first; this does the picking, and proves the point it chose
+ * was really the shape and not the overlay over it.
+ */
+export async function clickShapeVisible(page: Page, id: string): Promise<void> {
+  const box = await shapeBox(page, id);
+  const fractions = [0.5, 0.85, 0.15, 0.98, 0.02];
+  const points: Box[] = [];
+  for (const fy of fractions) {
+    for (const fx of fractions) {
+      const x = box.x + fx * box.width;
+      const y = box.y + fy * box.height;
+      if (x >= 0 && y >= 0 && x <= 1280 && y <= 800) points.push({ x, y });
+    }
+  }
+  if (points.length === 0) throw new Error(`shape ${id} is not on this screen at all`);
+  const visible = await page.evaluate(
+    ({ shapeId, points }) =>
+      points.map(
+        (point) =>
+          document.elementFromPoint(point.x, point.y)?.closest(`[data-shape-id="${shapeId}"]`) != null,
+      ),
+    { shapeId: id, points },
+  );
+  const index = visible.findIndex((hit) => hit);
+  if (index < 0) throw new Error(`shape ${id} is fully covered on this screen`);
+  await page.mouse.click(points[index]!.x, points[index]!.y);
+}

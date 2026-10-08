@@ -34,6 +34,7 @@ import {
   waitForConnectors,
   waitForShapes,
   worldToScreen,
+  clickShapeVisible,
 } from './helpers/shapes';
 
 /**
@@ -248,7 +249,9 @@ test.describe('shapes and arrows on the board (TC-23 to TC-27)', () => {
       await waitForArrowEnds(sam, arrow, { from: { x: -300, y: 10 }, to: { x: -500, y: 10 } });
 
       // Sam deletes B. The arrow stays: its end is loose where B's side used to be.
-      await clickShape(sam, b);
+      // B now sits partly behind the tool rail, so this is a click on the part of it
+      // that is actually visible (see `clickShapeVisible`).
+      await clickShapeVisible(sam, b);
       await pressDelete(sam);
       for (const screen of [dana, sam]) {
         await expect

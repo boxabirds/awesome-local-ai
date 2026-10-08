@@ -1,15 +1,18 @@
 import { isValidBoardId } from '../shared/board-id';
 import { createBoard } from './create-board';
 import { routeTestHook } from './test-hooks';
+import { handleServe, handleUpload } from './assets';
 import type { BoardRoom } from './board-room';
 
 /**
  * Bindings configured in `wrangler.jsonc`: the room namespace (one Durable
- * Object per board) and the built client.
+ * Object per board), the built client, and the bucket that holds board images.
  */
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** Stored images, one object per upload (`assets.ts`). */
+  ASSETS_BUCKET: R2Bucket;
   /** `'1'` turns on the `/__test/boards/...` damage routes. Absent in production. */
   TEST_HOOKS?: string;
 }
@@ -20,6 +23,17 @@ const ROOM_PATH = /^\/api\/rooms\/([^/]+)$/;
 const BOARDS_PATH = '/api/boards';
 /** `GET /api/boards/:boardId` — does this board exist? */
 const BOARD_PATH = /^\/api\/boards\/([^/]+)$/;
+/** `POST /api/boards/:boardId/assets` — upload one image to one board (story 12). */
+const ASSET_UPLOAD_PATH = /^\/api\/boards\/([^/]+)\/assets$/;
+/**
+ * `GET /api/assets/:boardId/:assetId` — one stored image (story 12).
+ *
+ * The whole rest of the path is the key, rather than two captured segments: a key
+ * that is not exactly `<board id>/<asset id>` — including one with an extra segment —
+ * has to reach `ASSET_KEY_PATTERN` and be refused there, instead of falling through
+ * to the static assets and answering 200 with the board page.
+ */
+const ASSET_PATH = /^\/api\/assets\/(.+)$/;
 
 /** The JSON bodies these routes send. */
 function json(body: unknown, status: number): Response {
@@ -95,6 +109,49 @@ async function routeBoards(request: Request, env: Env): Promise<Response | null>
 }
 
 /**
+ * The asset API (story 12, `assets.api`): images are uploaded to a board that exists
+ * and served back by an unguessable key. See `assets.ts` for both handlers.
+ *
+ * A board id that is malformed, and a board nobody created, both answer `404`; a body
+ * over `IMAGE_MAX_BYTES` answers `413`; bytes that are not one of the four accepted
+ * image formats answer `415`; a bucket that fails answers `500`. Nothing is stored on
+ * any of those paths.
+ */
+async function routeAssets(request: Request, env: Env): Promise<Response | null> {
+  const pathname = new URL(request.url).pathname;
+
+  const upload = ASSET_UPLOAD_PATH.exec(pathname);
+  if (upload) {
+    if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+    const boardId = decodeSegment(upload[1]!);
+    if (boardId === null) return json({ error: 'not_found' }, 404);
+    return handleUpload(request, env, boardId);
+  }
+
+  const serve = ASSET_PATH.exec(pathname);
+  if (!serve) return null;
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return json({ error: 'method_not_allowed' }, 405);
+  }
+  const key = decodeSegment(serve[1]!);
+  if (key === null) return json({ error: 'not_found' }, 404);
+  return handleServe(env, key);
+}
+
+/**
+ * Percent-decoded path text, or `null` when it could not be decoded at all.
+ * A malformed escape (`%zz`) is a request that cannot name a real board or key, so it
+ * gets the same answer as any other unknown one.
+ */
+function decodeSegment(text: string): string | null {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Requests that are not the room or the board API are static assets, so `/`,
  * `/b/<id>` and every other client route fall through to the SPA fallback
  * configured in `wrangler.jsonc`.
@@ -104,6 +161,7 @@ export default {
     return (
       (await routeRoom(request, env)) ??
       (await routeBoards(request, env)) ??
+      (await routeAssets(request, env)) ??
       (await routeTestHook(request, env)) ??
       env.ASSETS.fetch(request)
     );

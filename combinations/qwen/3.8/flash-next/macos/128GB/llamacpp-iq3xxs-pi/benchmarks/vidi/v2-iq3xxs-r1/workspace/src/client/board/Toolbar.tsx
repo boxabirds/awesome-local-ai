@@ -22,6 +22,12 @@ export interface ToolbarProps {
    * shape kind menu sits for the Shape tool (PRD pen.options).
    */
   penOptions?: ReactNode;
+  /**
+   * The Image button (PRD image.pick): it opens the file picker and leaves the board in
+   * Select. It is not a mode — picking files is one action, and there is no such thing
+   * as still being in the Image tool afterwards — so it has no `aria-pressed`.
+   */
+  onImage?(): void;
 }
 
 export const STICKY_BUTTON_LABEL = 'Sticky note (N)';
@@ -31,12 +37,20 @@ export const TEXT_BUTTON_LABEL = 'Text (T)';
 export const SHAPE_BUTTON_LABEL = 'Shape (S)';
 export const CONNECTOR_BUTTON_LABEL = 'Connector (L)';
 export const PEN_BUTTON_LABEL = 'Pen (P)';
+export const IMAGE_BUTTON_LABEL = 'Image (I)';
 
 /**
  * Left-side vertical board toolbar: the tool the board is in, then the things a
  * person can put on the board. The Sticky note button is always available.
  */
-export function Toolbar({ onCreateSticky, disabled = false, undo, tool, penOptions }: ToolbarProps) {
+export function Toolbar({
+  onCreateSticky,
+  disabled = false,
+  undo,
+  tool,
+  penOptions,
+  onImage,
+}: ToolbarProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   useNativeStopPropagation(ref);
   const isText = tool?.tool === 'text';
@@ -151,6 +165,24 @@ export function Toolbar({ onCreateSticky, disabled = false, undo, tool, penOptio
         Pen
       </button>
       {penOptions}
+      {/* Images are the one thing on this toolbar that does not put the board into a
+          tool: the button opens the file picker, and the board stays in Select (PRD
+          image.pick). Disabled with every other way of changing the board. */}
+      <button
+        type="button"
+        className="tool-button"
+        data-testid="tool-image"
+        aria-label={IMAGE_BUTTON_LABEL}
+        title={`${IMAGE_BUTTON_LABEL} – add a PNG, JPEG, GIF or WebP from this device`}
+        disabled={disabled}
+        aria-disabled={disabled}
+        onClick={disabled ? undefined : onImage}
+      >
+        <span className="tool-icon" aria-hidden="true">
+          {'\u{1F5BC}'}
+        </span>
+        Image
+      </button>
       <button
         type="button"
         className="tool-button"

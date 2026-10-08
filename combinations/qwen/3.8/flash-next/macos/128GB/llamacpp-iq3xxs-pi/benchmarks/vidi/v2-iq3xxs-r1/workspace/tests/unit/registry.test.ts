@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { getObjectType, registerObjectType } from '../../src/client/objects/registry';
-import { SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD } from '../../src/shared/config';
+import {
+  IMAGE_MIN_SIZE_WORLD,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+} from '../../src/shared/config';
 import type { ObjectSnapshot } from '../../src/shared/board-model';
 
 describe('registry', () => {
@@ -29,10 +33,11 @@ describe('registry', () => {
   it('TC-12: unknown type returns undefined', () => {
     expect(getObjectType('unknown')).toBeUndefined();
     expect(getObjectType('')).toBeUndefined();
-    // 'shape' and 'connector' were story 7's example of an unregistered type; story 10
-    // registered them, so the example is a type no story has reached yet (story 12's
-    // image), which is what this test has always meant.
-    expect(getObjectType('image')).toBeUndefined();
+    // 'shape' and 'connector' were story 7's example of an unregistered type, and story
+    // 10 registered them; 'image' was story 11's, and story 12 registered that too. So
+    // the example is now a type no story has reached, which is what this test has always
+    // meant — a board that has never heard of a type has no idea how to select it.
+    expect(getObjectType('widget')).toBeUndefined();
   });
 
   // Story 10: shapes and connectors register with the knobs the generic selection
@@ -68,6 +73,32 @@ describe('registry', () => {
     expect(connector!.hitTest(arrow, { x: 50, y: 10 }, 1)).toBe(false);
     expect(connector!.hitTest(arrow, { x: 50, y: 0.5 }, 10)).toBe(true);
     expect(connector!.hitTest(arrow, { x: 50, y: 1 }, 10)).toBe(false);
+  });
+
+  // Story 12: images register with the knobs the generic selection machinery needs, and
+  // the ones that make a picture behave like a picture.
+  it('story 12: image spec is a proportional box with no text to edit', () => {
+    const spec = getObjectType('image');
+    expect(spec).toBeDefined();
+    expect(spec!.resizable).toBe(true);
+    // A squashed photograph is not a thing a person means to do (PRD image.aspect_resize).
+    expect(spec!.aspectLocked).toBe(true);
+    expect(spec!.minSize).toBe(IMAGE_MIN_SIZE_WORLD);
+    expect(spec!.editableText).toBe(false);
+
+    const image: ObjectSnapshot = {
+      id: 'i1',
+      type: 'image',
+      x: 40,
+      y: 60,
+      z: 3,
+      width: 200,
+      height: 100,
+    };
+    // The whole box is the object — placeholder included, because the grey box is what a
+    // person is aiming at when they mean the image that has not arrived.
+    expect(spec!.hitTest(image, { x: 240, y: 160 })).toBe(true);
+    expect(spec!.hitTest(image, { x: 241, y: 161 })).toBe(false);
   });
 
   // Duplicate registration throws

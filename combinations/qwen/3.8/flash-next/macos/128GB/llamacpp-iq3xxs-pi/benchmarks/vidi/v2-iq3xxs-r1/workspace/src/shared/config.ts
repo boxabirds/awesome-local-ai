@@ -241,3 +241,28 @@ export const PEN_COLOR_LABELS: Record<PenColor, string> = {
   orange: 'Orange',
   purple: 'Purple',
 };
+
+// --- Story 12: images --------------------------------------------------------
+
+/**
+ * The only image formats the app adds (PRD image.types). A file is judged by its
+ * bytes, never by its name, and `sniffImageType` returns one of exactly these
+ * strings — SVG is deliberately absent, because an SVG can carry a script.
+ */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+/** Largest file that can be added, in bytes (PRD image.size_limit): 10 MB. */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** Files in one drop, paste or pick (PRD image.count_limit); the rest are skipped. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/** Longest side an added image is placed at, in board units (PRD image.placement_size). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** Smallest any side of an image can be resized to, in board units (PRD image.aspect_resize). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** Space between images placed in a row, in board units (PRD image.drop). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/** How long an image may sit in `uploading` before it is called unfinished (PRD image.unfinished). */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/** How long a stored image may be cached for (PRD share.unguessable: keys never change). */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** Bytes of a new file the server reads to decide what it is (magic bytes only). */
+export const IMAGE_SNIFF_BYTES = 12;

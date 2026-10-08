@@ -17,6 +17,7 @@ import { textSnapshots, type TextSnapshot } from '../../shared/objects/text';
 import { shapeSnapshots, type ShapeSnap } from '../../shared/objects/shape';
 import { connectorSnapshots, type ConnectorSnap } from '../../shared/objects/connector';
 import { strokeSnapshots, type StrokeSnap } from '../../shared/objects/stroke';
+import { imageSnapshots, type ImageSnap } from '../../shared/objects/image';
 import {
   connectBoard,
   type BoardConnection,
@@ -32,6 +33,7 @@ interface BoardObjects {
   readonly shapes: readonly ShapeSnap[];
   readonly connectors: readonly ConnectorSnap[];
   readonly strokes: readonly StrokeSnap[];
+  readonly images: readonly ImageSnap[];
 }
 
 export interface BoardDoc {
@@ -50,6 +52,11 @@ export interface BoardDoc {
   readonly connectors: readonly ConnectorSnap[];
   /** Drawn strokes in paint order (story 11), points as they were drawn. */
   readonly strokes: readonly StrokeSnap[];
+  /**
+   * Images in paint order (story 12) — placeholders included, because an upload that is
+   * in progress is already an object on the board, and everyone sees it.
+   */
+  readonly images: readonly ImageSnap[];
   /** This board's connection, or null when the board is offline-by-construction. */
   readonly connection: BoardConnection | null;
   readonly connectionState: ConnectionState;
@@ -128,6 +135,7 @@ export function useBoardDoc(
       // of the objects it points at, in the same pass, so nothing can disagree.
       connectors: connectorSnapshots(doc),
       strokes: strokeSnapshots(doc),
+      images: imageSnapshots(doc),
     });
     let current: BoardObjects = read();
     return {
@@ -165,6 +173,7 @@ export function useBoardDoc(
     shapes: objects.shapes,
     connectors: objects.connectors,
     strokes: objects.strokes,
+    images: objects.images,
     connection,
     connectionState,
   };

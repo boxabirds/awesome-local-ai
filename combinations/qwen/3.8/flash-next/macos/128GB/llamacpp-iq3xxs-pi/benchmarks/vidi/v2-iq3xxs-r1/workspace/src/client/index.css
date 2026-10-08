@@ -968,3 +968,137 @@ body {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* ------------------------------------------------------------- images (story 12)
+   An image lives in the world layer like everything else: its box is in board units, so
+   a placeholder is the same size as the picture that replaces it and a board does not
+   jump when an upload lands (PRD image.uploading). */
+.image-object {
+  position: absolute;
+  pointer-events: auto;
+  cursor: grab;
+  background: #ffffff;
+  border-radius: 2px;
+  outline: 0 solid transparent;
+}
+.image-object:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 1px;
+}
+.image-picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  /* The picture is a thing to look at, not a thing to drag around the browser: a drag
+     of it would leave the board and hand the file to whatever is under the pointer. */
+  user-drag: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+/* What stands in for the bytes: the same box, visibly a box, saying how it went.
+   Font sizes are board units, so the words stay the size of the object when zoomed. */
+.image-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px dashed #bdc1c6;
+  border-radius: inherit;
+  background: #f1f3f4;
+  color: var(--muted);
+  text-align: center;
+}
+.image-status {
+  margin: 0;
+  font-size: 14px;
+  /* A long word must not push the buttons out of a small box. */
+  overflow-wrap: anywhere;
+}
+.image-progress {
+  width: 70%;
+  height: 6px;
+  border-radius: 3px;
+  background: #dadce0;
+  overflow: hidden;
+}
+.image-progress-bar {
+  height: 100%;
+  background: #1a73e8;
+}
+.image-controls {
+  display: flex;
+  gap: 6px;
+}
+.image-button {
+  font: inherit;
+  font-size: 13px;
+  padding: 3px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--panel-bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+.image-button:hover {
+  background: #f0f0f0;
+}
+.image-button:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 1px;
+}
+
+/* Files are in the air over the board: the whole board answers that it would take them
+   (PRD image.drop). It never takes a pointer event, so it cannot swallow the drop. */
+.drop-highlight {
+  position: fixed;
+  inset: 12px;
+  z-index: 60;
+  border: 3px dashed #1a73e8;
+  border-radius: 12px;
+  background: rgba(26, 115, 232, 0.06);
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 24px;
+}
+.drop-highlight-label {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #1a73e8;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+/* Status messages about what was added and what was refused, bottom-centre, polite:
+   `role="status"` says read it when you are comfortable, not right now. */
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  /* A message is something you read, not something you click, and it must not stand
+     between a pointer and the board. */
+  pointer-events: none;
+}
+.toast {
+  margin: 0;
+  max-width: min(80vw, 480px);
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #202124;
+  color: #ffffff;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+}

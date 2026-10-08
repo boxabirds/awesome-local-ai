@@ -3,6 +3,7 @@ import type { ObjectSnapshot, WorldPoint } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
@@ -19,6 +20,7 @@ import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
+import { ImageObject } from './ImageObject';
 
 /**
  * Per-type knobs the generic selection/move/resize/delete machinery needs.
@@ -173,9 +175,32 @@ function registerStroke(): void {
   });
 }
 
+// Images (story 12) are the simplest box on the board: they have no text to edit and
+// no shape of their own, so the bounding box is the object.
+function registerImage(): void {
+  if (registry.has('image')) return;
+  registry.set('image', {
+    Component: ImageObject as unknown as ComponentType<ObjectProps>,
+    resizable: true,
+    // An image is always resized in proportion: a squashed photograph is not a thing a
+    // person means to do, and Shift has nothing else to mean here (PRD image.aspect_resize).
+    aspectLocked: true,
+    // A picture can be shrunk to a thumbnail, but not below a box whose status text and
+    // buttons could still be found (IMAGE_MIN_SIZE_WORLD, PRD image.aspect_resize).
+    minSize: IMAGE_MIN_SIZE_WORLD,
+    editableText: false,
+    hitTest(obj: ObjectSnapshot, worldPoint: WorldPoint): boolean {
+      // The whole box, placeholder included: a person aiming at the grey box means the
+      // image that is coming.
+      return rectContains(objectBounds(obj), { x: worldPoint.x, y: worldPoint.y, width: 0, height: 0 });
+    },
+  });
+}
+
 // Auto-register at module load
 registerSticky();
 registerText();
 registerShape();
 registerConnector();
+registerImage();
 registerStroke();

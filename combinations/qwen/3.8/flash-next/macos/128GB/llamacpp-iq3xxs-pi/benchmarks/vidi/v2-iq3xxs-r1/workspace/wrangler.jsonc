@@ -23,5 +23,14 @@
       "tag": "v1",
       "new_sqlite_classes": ["BoardRoom"]
     }
+  ],
+  // Story 12: board images. One bucket for every board, because an object's key
+  // already carries the board it belongs to (`<boardId>/<assetId>`) and a key is only
+  // ever read back whole.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
   ]
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BoardCameraProvider,
   BoardViewport,
@@ -43,6 +43,7 @@ import { TextObject } from '../objects/TextObject';
 import { ShapeObject } from '../objects/ShapeObject';
 import { ConnectorObject } from '../objects/ConnectorObject';
 import { StrokeObject } from '../objects/StrokeObject';
+import { ImageObject } from '../objects/ImageObject';
 import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit, type ConnectOptions, type ProviderLike } from '../sync/connectBoard';
@@ -91,6 +92,10 @@ import {
   SHAPE_DEFAULT_SIZE_WORLD,
   STICKY_SIZE_WORLD,
 } from '../../shared/config';
+import { imageSnapshots, type ImageSnap } from '../../shared/objects/image';
+import { carriesFiles, useImageInsert, useUploadClock } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { ToastHost, clearToasts } from '../ui/Toast';
 
 function ZoomControlsConnector() {
   const { camera, zoomStep, reset } = useBoardCamera();
@@ -143,8 +148,17 @@ export function Board(props: BoardProps) {
 }
 
 function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
-  const { doc, notes, texts, shapes, connectors, strokes, connection, connectionState } =
-    useBoardDoc(boardId, { sync, provider, connect });
+  const {
+    doc,
+    notes,
+    texts,
+    shapes,
+    connectors,
+    strokes,
+    images,
+    connection,
+    connectionState,
+  } = useBoardDoc(boardId, { sync, provider, connect });
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
   const { camera, viewport } = useBoardCamera();
@@ -159,12 +173,19 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
   const objects = useMemo(
     () =>
       [
-        ...(notes as readonly (StickySnapshot | TextSnapshot | ShapeSnap | StrokeSnap)[]),
+        ...(notes as readonly (
+          | StickySnapshot
+          | TextSnapshot
+          | ShapeSnap
+          | StrokeSnap
+          | ImageSnap
+        )[]),
         ...texts,
         ...shapes,
         ...strokes,
+        ...images,
       ].sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
-    [notes, texts, shapes, strokes],
+    [notes, texts, shapes, strokes, images],
   );
   /** Connectors paint below everything with a box: an arrow points at things, it does
    *  not cover them. */
@@ -217,6 +238,81 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
     onGestureStart: undo.boundary,
     onGestureEnd: undo.boundary,
   });
+
+  /* ----------------------------------------------------------- images (story 12)
+     Adding images has three doors — a drop, a paste, and the Image button's picker —
+     and one path behind them, which `useImageInsert` owns: what may not be added is
+     refused out loud, what may is placed as one undo step and uploaded from there. The
+     board keeps only the highlight, because whether *this* element has files dragged
+     over it is a fact about the board's own drag events (PRD image.drop). */
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    connection: connectionState,
+    identityId: clientId,
+    undo,
+  });
+  // Read through a ref by the listeners and shortcuts below, which are attached once and
+  // must not answer from the hook of the render that attached them.
+  const imageInsertRef = useRef(imageInsert);
+  imageInsertRef.current = imageInsert;
+  // A clock, so an upload that a reload abandoned is called what it is instead of
+  // claiming to be in progress forever (PRD image.unfinished).
+  const uploadClock = useUploadClock(images);
+  // Whether what is being dragged over the board carries files, and therefore whether
+  // there is anything this board could add. The board element is the only thing that can
+  // answer that, and only while the drag is over it.
+  const [fileDragOver, setFileDragOver] = useState(false);
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = boardRef.current;
+    if (!el) return;
+    // Native listeners rather than React's props: the `paste` a clipboard produces does
+    // not reach a plain div as a React event, and a `drop` has to be answered on its way
+    // in — an unanswered drop is the browser navigating to the file.
+    let depth = 0;
+    const onDragEnter = (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      depth += 1;
+      setFileDragOver(true);
+    };
+    const onDragLeave = () => {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) setFileDragOver(false);
+    };
+    // A drag that ends somewhere else never entered `drop`: the highlight has to go.
+    const onDragEnd = () => {
+      depth = 0;
+      setFileDragOver(false);
+    };
+    const onDragOver = (event: DragEvent) => imageInsertRef.current.onDragOver(event);
+    const onDrop = (event: DragEvent) => {
+      depth = 0;
+      setFileDragOver(false);
+      imageInsertRef.current.onDrop(event);
+    };
+    // Paste is listened for on the window: what matters is that the board has focus, and
+    // a paste that belongs to a text field is refused by the hook (PRD image.paste).
+    const onPaste = (event: ClipboardEvent) => imageInsertRef.current.onPaste(event);
+    el.addEventListener('dragenter', onDragEnter);
+    el.addEventListener('dragover', onDragOver);
+    el.addEventListener('dragleave', onDragLeave);
+    el.addEventListener('dragend', onDragEnd);
+    el.addEventListener('drop', onDrop);
+    window.addEventListener('paste', onPaste);
+    return () => {
+      el.removeEventListener('dragenter', onDragEnter);
+      el.removeEventListener('dragover', onDragOver);
+      el.removeEventListener('dragleave', onDragLeave);
+      el.removeEventListener('dragend', onDragEnd);
+      el.removeEventListener('drop', onDrop);
+      window.removeEventListener('paste', onPaste);
+    };
+  }, []);
+  // A toast is about something that happened on *this* board, so it goes when the board
+  // does: a message about a refused drop must not be waiting on the next screen.
+  useEffect(() => () => clearToasts(), []);
 
   // Marquee selection
   const marquee = useMarquee(
@@ -318,6 +414,7 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
     undo,
     tool,
     onCreateSticky,
+    onImageTool: () => imageInsertRef.current.openPicker(),
   });
 
   // --------------------------------------------------- test-only inspection
@@ -330,6 +427,9 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
       getShapes: () => shapeSnapshots(doc),
       getConnectors: () => connectorSnapshots(doc),
       getStrokes: () => strokeSnapshots(doc),
+      getImages: () => imageSnapshots(doc),
+      uploadProgress: () =>
+        [...imageInsertRef.current.progress].map(([id, fraction]) => ({ id, fraction })),
       getSelection: (): { selectedId: string | null; editingId: string | null; selectedIds?: string[] } => {
         const ids = [...selectedIds];
         const base: { selectedId: string | null; editingId: string | null; selectedIds?: string[] } = {
@@ -492,6 +592,8 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
         'getShapes',
         'getConnectors',
         'getStrokes',
+        'getImages',
+        'uploadProgress',
         'undo',
         'redo',
         'canUndo',
@@ -552,7 +654,7 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
   }, [clear]);
 
   return (
-    <div data-testid="board" data-board-id={boardId}>
+    <div ref={boardRef} data-testid="board" data-board-id={boardId}>
       <BoardViewport
         tool={tool.tool}
         onCreateStickyAt={createAtScreenPoint}
@@ -639,6 +741,20 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
               onObjectPointerDown={transformGesture.onObjectPointerDown}
               onSelect={onSelect}
             />
+          ) : object.type === 'image' ? (
+            <ImageObject
+              key={object.id}
+              image={object}
+              selected={selectedIds.has(object.id)}
+              isUploader={object.uploaderId === clientId}
+              progress={imageInsert.progress.get(object.id)}
+              canRetry={imageInsert.canRetry(object.id)}
+              now={uploadClock}
+              onRetry={() => imageInsert.retry(object.id)}
+              onRemove={editable ? () => onDeleteObject(object.id) : undefined}
+              onObjectPointerDown={transformGesture.onObjectPointerDown}
+              onSelect={onSelect}
+            />
           ) : (
             <StickyNote
               key={object.id}
@@ -704,6 +820,7 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
         disabled={!editable}
         undo={undoControls}
         tool={tool}
+        onImage={() => imageInsert.openPicker()}
         penOptions={
           tool.tool === 'pen' ? (
             <PenToolbar
@@ -717,6 +834,13 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
       />
       <ConnectionStatus state={connectionState} />
       <SharePanel boardId={boardId} />
+
+      {/* While files are in the air over the board, the board says it would take them
+          (PRD image.drop). */}
+      {fileDragOver ? <DropHighlight /> : null}
+      {/* The status messages a refusal or an offline attempt produces, bottom-centre
+          (PRD image.types, image.size_limit, image.count_limit, image.offline). */}
+      <ToastHost />
     </div>
   );
 }

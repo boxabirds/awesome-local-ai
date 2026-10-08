@@ -28,6 +28,12 @@ export interface BoardKeysOptions {
   /** N: exactly what the toolbar's Sticky note button does (story 2 behaviour). */
   onCreateSticky?(): void;
   /**
+   * I: exactly what the toolbar's Image button does — open the file picker
+   * (PRD image.pick). Like N it is an action rather than a tool the board could be left
+   * in, and it is unavailable on a board that cannot be edited.
+   */
+  onImageTool?(): void;
+  /**
    * This tab's undo history (story 8). The shortcuts step through it, and every
    * command here opens and closes a step of its own so a delete or a nudge never
    * merges with the change before or after it.
@@ -73,6 +79,14 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         if (!canEdit) return;
         event.preventDefault();
         optsRef.current.onCreateSticky?.();
+        return;
+      }
+      if (letter === 'i') {
+        // There is no image *tool* to be in, so this is not in the shortcut table: it
+        // opens the picker, exactly like the button (PRD image.pick).
+        if (!canEdit) return;
+        event.preventDefault();
+        optsRef.current.onImageTool?.();
         return;
       }
       if (toolId) {
