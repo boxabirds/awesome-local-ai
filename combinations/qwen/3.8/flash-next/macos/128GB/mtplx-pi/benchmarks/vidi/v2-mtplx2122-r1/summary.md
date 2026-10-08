@@ -18,8 +18,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | 0/6 | 0 | 0 | 0/57 |
 | 10 | 0/8 | 0 | 0 | 0/65 |
 | 11 | 0/5 | 0 | 0 | 0/70 |
+| 12 | 0/5 | 0 | 0 | 0/75 |
 
-**New work** 9/66, **regressions** 28, **repairs** 19, **cumulative** 0/70.
+**New work** 9/71, **regressions** 28, **repairs** 19, **cumulative** 0/75.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -33,15 +34,16 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | Write free text anywhere on the board | DONE | 21.6 | 78 | 3822007 | 81323 | 1.2 | 79.6 | red | 0/57 |  | 3 / 0 (ended in error) | 1 | 114906 | throttled 85%, server peak 102 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 15.6 | 37 | 2538470 | 55681 | 1.2 | 72.4 | red | 0/65 |  | 3 / 0 (ended in error) | 0 | 108639 | throttled 81%, server peak 102 GB |
 | 11 | Sketch freehand with a pen | DONE | 2.2 | 30 | 712255 | 4822 | 1.6 | 79.8 | red | 0/70 |  | 3 / 0 (ended in error) | 0 | 42388 | throttled 0%, server peak 102 GB |
+| 12 | Drop images onto the board | DONE | 1.1 | 11 | 251458 | 952 | 2.5 | 82.5 | red | 0/75 |  | 3 / 0 (ended in error) | 0 | 26556 | throttled 0%, server peak 102 GB |
 
-**Totals:** 10 stories, 385 agent-minutes, 1316 requests, 85,326,318 prompt / 1,282,994 completion tokens, gate green 4/10, final acceptance 0/70, stalled 0, partial 0, 15783 lines in src+tests.
+**Totals:** 11 stories, 386 agent-minutes, 1327 requests, 85,577,776 prompt / 1,283,946 completion tokens, gate green 4/11, final acceptance 0/75, stalled 0, partial 0, 15783 lines in src+tests.
 
 ### Decode tok/s by context (server log, all stories)
 
 | Context | Requests | Decode tok/s (request-weighted median of per-story medians) |
 |---|---|---|
-| 0-16k | 85 | 85.6 |
-| 16-32k | 133 | 84.7 |
+| 0-16k | 92 | 83.2 |
+| 16-32k | 137 | 84.7 |
 | 32-64k | 443 | 73.8 |
 | 64-100k | 453 | 67.6 |
 | 100-+k | 202 | 70.3 |
@@ -62,6 +64,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 9 | harness snapshot (agent left work uncommitted) | 1808 / 196 | `App.tsx` (409), `TextObject.tsx` (379), `text.ts` (224), `textLayout.ts` (116), `TextToolbar.tsx` (81), `BoardViewport.tsx` (77), +9 more |
 | 10 | harness snapshot (agent left work uncommitted) | 2113 / 2 | `ShapeObject.tsx` (388), `connector.ts` (283), `shape.ts` (210), `ShapeTool.tsx` (148), `useActiveTool.ts` (140), `ConnectorObject.tsx` (138), +6 more |
 | 11 | — | 0 / 0 | — |
+| 12 | — | 0 / 0 | — |
 
 ### Earlier stories broken or fixed
 
