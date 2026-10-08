@@ -26,8 +26,19 @@ assert_fails "no --base-url"       bash -c "cd '$REPO_ROOT' && uv run '$PROBE'"
 
 echo
 echo "the other probes' judging is sound too"
-for tool in long-context memory-growth session-replay; do
+for tool in long-context memory-growth session-replay mtp-acceptance; do
   assert_ok "$tool self-test passes"  bash -c "cd '$REPO_ROOT' && uv run '$REPO_ROOT/tools/engine-probe/$tool.py' --self-test"
 done
+
+echo
+echo "the 27B smoke script parses, names all five checks, and in a dry run starts nothing"
+SMOKE="$REPO_ROOT/tools/engine-probe/smoke-27b.sh"
+assert_ok "it parses"                      bash -n "$SMOKE"
+PLAN="$(bash "$SMOKE" ./install-x.sh x-server alias --dry-run 2>&1)"
+for word in install serve capability mtp long; do
+  assert_eq "the plan names the $word check"  "1" "$(grep -c -E "^   [1-5] $word " <<<"$PLAN")"
+done
+assert_eq "a dry run says nothing was run"  "1" "$(grep -c 'dry run: nothing was run' <<<"$PLAN")"
+assert_fails "without arguments it refuses"  bash "$SMOKE"
 
 finish
