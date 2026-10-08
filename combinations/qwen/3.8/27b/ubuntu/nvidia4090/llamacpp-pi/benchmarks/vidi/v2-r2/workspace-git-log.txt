@@ -1,3 +1,71 @@
+commit 3f530300199f76210236f1844bed7a1c2cc67e32
+agent  Thu Oct 8 06:38:47 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  58 ++++++
+ PROGRESS.md                               |  10 +-
+ src/client/App.tsx                        | 125 ++++++++++++-
+ src/client/board/Toolbar.tsx              |  70 ++++++++
+ src/client/board/useSelection.ts          |  36 ++++
+ src/client/board/useStickyKeyboard.ts     |  52 ++++++
+ src/client/canvas/BoardViewport.tsx       |  39 +++-
+ src/client/canvas/testHooks.ts            |  26 ++-
+ src/client/objects/NoteToolbar.tsx        | 102 +++++++++++
+ src/client/objects/StickyNote.tsx         | 284 ++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          | 104 ++++++++++-
+ src/client/objects/StickyTextEditor.tsx   | 194 ++++++++++++++++++++
+ src/shared/board-model.ts                 |  14 ++
+ tests/component/StickyNote.test.tsx       | 186 +++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 100 +++++++++++
+ tests/component/Toolbars.test.tsx         |  67 +++++++
+ tests/component/harness.tsx               | 160 +++++++++++++++--
+ tests/e2e/sticky-notes.spec.ts            | 210 ++++++++++++++++++++++
+ tests/fixtures/texts.ts                   |  36 ++++
+ tests/unit/sticky-text.test.ts            |  46 +++--
+ 20 files changed, 1865 insertions(+), 54 deletions(-)
+commit 555d38ad34de76e0c72ab25d8f49a5de6060f07a
+agent  Thu Oct 8 06:05:29 2026 +0100
+
+    story 2 task 3: sticky text logic unit tests (red phase)
+
+
+ PROGRESS.md                      |   4 +-
+ src/client/objects/StickyText.ts |  48 +++++++++
+ tests/unit/sticky-text.test.ts   | 222 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 272 insertions(+), 2 deletions(-)
+commit 47d8eedd0c6b747fe6d3b771cf992a52375d56df
+agent  Thu Oct 8 06:03:23 2026 +0100
+
+    story 2 task 2: Yjs board model and useBoardDoc snapshot hook
+
+
+ PROGRESS.md                     |   4 +-
+ src/client/board/useBoardDoc.ts |  62 +++++++++++
+ src/shared/board-model.ts       | 238 ++++++++++++++++++++++++++++++++++------
+ 3 files changed, 271 insertions(+), 33 deletions(-)
+commit 8a00efae5db176587d38342bcf8b464fac739d6a
+agent  Thu Oct 8 06:01:35 2026 +0100
+
+    story 2 task 1: board model unit tests against a real Y.Doc (red phase)
+
+
+ PROGRESS.md                    |   4 +-
+ package-lock.json              |  51 ++++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  85 +++++++++++
+ src/shared/config.ts           |  48 +++++++
+ tests/unit/board-model.test.ts | 320 +++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 507 insertions(+), 4 deletions(-)
+commit 5e0e087e52929c6fda1dc6e35b38e6c775a34a12
+vidi-agent  Thu Oct 8 05:50:45 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
 commit 857892e76f88bafb3d7d090c57453bbb616f8407
 agent  Thu Oct 8 05:49:57 2026 +0100
 
