@@ -73,7 +73,7 @@ _model_fetch_hf_files() {
   [[ -n "$MODEL_GGUF" && -f "$MODEL_GGUF" ]] || err "Could not locate the model weights after download."
   # MODEL_SHA256 (optional), one "<sha256>  <file>" line per file, is checked whether the file was just fetched or already
   # there. A combination that does not declare it is not hash-checked and prints nothing about it.
-  [[ -n "${MODEL_SHA256// }" ]] && hf_verify_sha256 "$MODEL_DIR"
+  [[ -n "${MODEL_SHA256:-}" ]] && hf_verify_sha256 "$MODEL_DIR"
   MODEL_ARTIFACT="$MODEL_GGUF"
 
   ok "Model  : $MODEL_GGUF ($(human_size "$MODEL_GGUF"))"

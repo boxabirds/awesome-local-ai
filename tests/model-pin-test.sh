@@ -2,7 +2,9 @@
 # A llama.cpp combination may pin its weights: MODEL_REVISION (the Hub commit) and MODEL_SHA256 ("<sha256>  <file>" lines).
 #
 # Added for the Underdog Saluki combination: two uploads a day old, so the file the series runs must be the exact bytes the
-# card names, not whatever the repository holds on the day of the install. Combinations that declare neither behave exactly
+# card names, not whatever the repository holds on the day of the install. The installers run under `set -euo pipefail`, so the
+# fetch is tested under it: on 8 Oct 2026 an unset MODEL_SHA256 aborted every llama.cpp install that declared no pin, and a test that
+# did not set -u had passed. Combinations that declare neither behave exactly
 # as before: no --revision is passed, no hash is checked, and nothing new is printed.
 set -uo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,7 +38,7 @@ fetch() { # <extra env assignments...>
   local dir="$WORK/models"; rm -rf "$dir"; : > "$WORK/calls"
   env HF_CALLS="$WORK/calls" PATH="$WORK/bin:$PATH" MODEL_DIR="$dir" MODEL_DISPLAY_NAME="Test model" \
       MODEL_ASSETS="owner/repo|m.gguf|model|1 B" LOG_FILE="$LOG_FILE" "$@" \
-      bash -c ". '$REPO_ROOT/lib/common.sh'; . '$REPO_ROOT/lib/hf.sh'; . '$REPO_ROOT/lib/model.sh'; _model_fetch_hf_files" > "$WORK/out" 2>&1
+      bash -c "set -euo pipefail; . '$REPO_ROOT/lib/common.sh'; . '$REPO_ROOT/lib/hf.sh'; . '$REPO_ROOT/lib/model.sh'; _model_fetch_hf_files" > "$WORK/out" 2>&1
   echo $? > "$WORK/rc"
 }
 
@@ -67,7 +69,7 @@ mkdir -p "$WORK/models"; printf 'weights' > "$WORK/models/m.gguf"
 : > "$WORK/calls"
 env HF_CALLS="$WORK/calls" PATH="$WORK/bin:$PATH" MODEL_DIR="$WORK/models" MODEL_DISPLAY_NAME="Test model" MODEL_ASSETS="owner/repo|m.gguf|model|1 B" \
     MODEL_SHA256="$(printf 'e%.0s' $(seq 1 64))  m.gguf" LOG_FILE="$LOG_FILE" \
-    bash -c ". '$REPO_ROOT/lib/common.sh'; . '$REPO_ROOT/lib/hf.sh'; . '$REPO_ROOT/lib/model.sh'; _model_fetch_hf_files" > "$WORK/out" 2>&1
+    bash -c "set -euo pipefail; . '$REPO_ROOT/lib/common.sh'; . '$REPO_ROOT/lib/hf.sh'; . '$REPO_ROOT/lib/model.sh'; _model_fetch_hf_files" > "$WORK/out" 2>&1
 assert_eq "a present file with the wrong hash refuses" "1" "$?"
 assert_eq "without downloading again"              "0" "$(wc -l < "$WORK/calls" | tr -d ' ')"
 
