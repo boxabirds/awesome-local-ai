@@ -1121,16 +1121,27 @@ def story_finished(reply_text: str, story_id: int, ws: Path) -> bool:
 
 
 def final_reply_text(events_path: Path) -> str:
-    """The text of the session's last assistant message ("" if there is none or no events file)."""
+    """The text of the session's last assistant message ("" if there is none or no events file). pi and Claude Code
+    write a model message per event; OpenCode writes `text` events whose parts carry a messageID, and the reply is all
+    the text parts of the last message that has any."""
     last = ""
+    opencode_id, opencode_text = None, ""
     try:
         lines = events_path.read_text(errors="replace").splitlines()
     except OSError:
         return ""
     for line in lines:
         try:
-            message = json.loads(line).get("message")
+            event = json.loads(line)
+            message = event.get("message")
         except (ValueError, AttributeError):
+            continue
+        part = event.get("part")
+        if event.get("type") == "text" and isinstance(part, dict) and isinstance(part.get("text"), str):
+            if part.get("messageID") != opencode_id:
+                opencode_id, opencode_text = part.get("messageID"), ""
+            opencode_text += part["text"]
+            last = opencode_text
             continue
         # Not every event's message is a model message: Claude Code's record of a refused tool call has a string.
         if not isinstance(message, dict) or message.get("role") != "assistant" or not isinstance(message.get("content"), list):

@@ -139,3 +139,13 @@ A smoke run is a check that finishes in ten minutes or less: the engine starts, 
 For an engine or client version change, the check before a series is the short one (the installer's own smoke test, or a few requests against the server). Then queue the series and watch its first story; a problem shows there as soon as it would in a separate story, and the machine's time is not spent twice.
 
 Why: on 2 October 2026 an unrecorded "smoke" story for mlx-serve 26.10.1 ran for an hour on the M5 Max before the five-run series it was holding up. The owner had not asked for it: "it's not necessary to do a smoke run when it takes as long as a normal run! that's not smoke!"
+
+## Every coding agent has its own parser, and the smoke test proves it
+
+A combination names a coding agent (pi, OpenCode, Claude Code, and any other we add, such as a DeepSeek harness). Each agent writes its own event stream, in its own shape, and everything the harness decides from a session (the final reply, the `STORY n DONE <hash>` line, tool calls, tokens, errors, the conversation profile) is read from that stream. There is no generic parser. Before a combination with a given agent is queued:
+
+- **A parser exists for that agent**, in the harness's client adapter, for every reader of the stream: the final reply (`drive.final_reply_text`), the scan of steps, tokens and errors (`scan`), and ingestion into the conversation database. A reader that handles only one agent's shape returns nothing for another's, and nothing is not an error: it looks like an agent that never finished.
+- **The smoke test runs the real agent and checks the parser's output**, not only that the agent ran: the harness's own reader must find the agent's final reply and its DONE line in the stream the agent really wrote, and the scan must count its steps and tokens. A smoke that checks only the file the agent wrote cannot see a missing parser.
+- **A new agent adds a recorded-stream test first**: a real stream from the agent, kept as a fixture, with the reply, the DONE line and the token counts it must yield.
+
+Why: on 8 October 2026 the gufo-opencode series started with an OpenCode smoke that passed (the file was written), but `final_reply_text` knew only pi's and Claude Code's event shape. Story 1 finished with `STORY 1 DONE <hash>`, a clean tree and held-out 6/6, and was recorded PARTIAL after a stop message, 30 minutes in. The conversation profile was empty for the same reason. Every story of the series would have been the same, and the first hour was lost.
