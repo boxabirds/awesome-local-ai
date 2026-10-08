@@ -58,7 +58,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [TurboQuant](turboquant.md) | candidate | RTX 4090 (Ubuntu) | llama.cpp fork: turbo KV cache (no re-quant) and Config I TQ4_1S weights (re-quant; merge with Unsloth Dynamic 3.0 to test) |
 | [Strata](strata.md) | gated | RTX 4090 | Flash-Next (125B MoE) on one 4090 by offloading experts to RAM; engine checks passed at 131k context, harness backend next |
 | [Surface Laptop Ultra (RTX Spark)](surface-laptop-ultra.md) | open question | none we own | which combination per memory tier on a 300 GB/s Blackwell Arm laptop; 128 GB is Flash-Next 4-bit, and the 64 GB tier asks the question our Strata arm is already answering |
-| [gufo with OpenCode](gufo-opencode.md) | candidate | Strix Halo | same gufo 0.5.0 image, model and sampling as `gufo-pi`; only the client changes (pi to OpenCode); adapter exists |
+| [gufo with OpenCode](gufo-opencode.md) | built | Strix Halo | same gufo 0.5.0 image, model and sampling as `gufo-pi`; only the client changes (pi to OpenCode); adapter exists |
 | [DSH (DeepSeek Harness)](dsh.md) | open question | Strix Halo | another client on a pinned engine; no adapter yet, and unknown whether it drives a non-DeepSeek model; read from our captured traces only |
 | [Project Maya](project-maya.md) | candidate | RTX 4090 (Ubuntu) | GLM-5.3-Flash (321B MoE) on one or two NVIDIA cards, built on Strata; a new model family, two days old; measured only on two V100s, no single-card figure, no prefix cache mentioned |
 | [Strata on a small card](strata-small-card.md) | open question | none we own | does the floor for a useful coding agent drop to a 12 GB card with 64 GB RAM? The quality half is answered by the 4090 Strata runs, which use the same IQ3_XXS pack |
