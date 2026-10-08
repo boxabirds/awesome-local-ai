@@ -1,3 +1,71 @@
+commit 2fd52533cabf5c11d24d67045347c596057ab325
+agent  Thu Oct 8 18:57:56 2026 +0000
+
+    story 12: Drop images onto the board
+
+
+ PROGRESS.md                             |  13 +-
+ generate-fixtures.mjs                   | 405 ++++++++++++++++++++++++++++++++
+ src/client/board/Toolbar.tsx            |  46 +++-
+ src/client/board/useTool.ts             |   3 +-
+ src/client/images/DropHighlight.tsx     |  81 +++++++
+ src/client/images/uploadImage.ts        |  71 ++++++
+ src/client/images/useImageInsert.ts     | 404 +++++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts      |  57 +++++
+ src/client/objects/ImageObject.tsx      | 286 ++++++++++++++++++++++
+ src/client/objects/index.ts             |  22 ++
+ src/client/pages/BoardPage.tsx          | 353 ++++++++++++++++++++++++++++
+ src/client/ui/Toast.tsx                 |  83 +++++++
+ src/shared/config.ts                    |  11 +
+ src/shared/image-format.ts              |  79 +++++++
+ src/shared/objects/image.ts             | 264 +++++++++++++++++++++
+ src/worker/assets.ts                    | 106 +++++++++
+ src/worker/index.ts                     |  16 +-
+ tests/fixtures/images/animated.gif      | Bin 0 -> 420 bytes
+ tests/fixtures/images/corrupt.png       | Bin 0 -> 69 bytes
+ tests/fixtures/images/corrupt_trunc.png | Bin 0 -> 34 bytes
+ tests/fixtures/images/exact_max.jpg     | Bin 0 -> 10485760 bytes
+ tests/fixtures/images/image.webp        | Bin 0 -> 46 bytes
+ tests/fixtures/images/over_max.jpg      | Bin 0 -> 10485761 bytes
+ tests/fixtures/images/photo.jpg         | Bin 0 -> 285 bytes
+ tests/fixtures/images/renamed.pdf       |   1 +
+ tests/fixtures/images/screenshot.png    | Bin 0 -> 5929 bytes
+ tests/fixtures/images/script.svg        |   1 +
+ tests/fixtures/images/small_0.png       | Bin 0 -> 328 bytes
+ tests/fixtures/images/small_1.png       | Bin 0 -> 328 bytes
+ tests/fixtures/images/small_10.png      | Bin 0 -> 232 bytes
+ tests/fixtures/images/small_11.png      | Bin 0 -> 232 bytes
+ tests/fixtures/images/small_12.png      | Bin 0 -> 233 bytes
+ tests/fixtures/images/small_13.png      | Bin 0 -> 232 bytes
+ tests/fixtures/images/small_14.png      | Bin 0 -> 233 bytes
+ tests/fixtures/images/small_15.png      | Bin 0 -> 232 bytes
+ tests/fixtures/images/small_16.png      | Bin 0 -> 232 bytes
+ tests/fixtures/images/small_17.png      | Bin 0 -> 233 bytes
+ tests/fixtures/images/small_18.png      | Bin 0 -> 233 bytes
+ tests/fixtures/images/small_19.png      | Bin 0 -> 233 bytes
+ tests/fixtures/images/small_2.png       | Bin 0 -> 328 bytes
+ tests/fixtures/images/small_20.png      | Bin 0 -> 232 bytes
+ tests/fixtures/images/small_3.png       | Bin 0 -> 233 bytes
+ tests/fixtures/images/small_4.png       | Bin 0 -> 233 bytes
+ tests/fixtures/images/small_5.png       | Bin 0 -> 232 bytes
+ tests/fixtures/images/small_6.png       | Bin 0 -> 232 bytes
+ tests/fixtures/images/small_7.png       | Bin 0 -> 232 bytes
+ tests/fixtures/images/small_8.png       | Bin 0 -> 232 bytes
+ tests/fixtures/images/small_9.png       | Bin 0 -> 232 bytes
+ tests/integration/assets.test.ts        | 225 ++++++++++++++++++
+ tests/unit/image-format.test.ts         |  95 ++++++++
+ tests/unit/image-model.test.ts          | 274 +++++++++++++++++++++
+ tests/unit/validate-files.test.ts       |  55 +++++
+ wrangler.jsonc                          |   6 +
+ 53 files changed, 2948 insertions(+), 9 deletions(-)
+commit f672c08da1dd3817b549dc85f7ccca2f71423b13
+vidi-agent  Thu Oct 8 18:09:00 2026 +0000
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
 commit 060e5c531fc6be71e9678ec17e817202a6e759b0
 agent  Thu Oct 8 17:40:16 2026 +0000
 
