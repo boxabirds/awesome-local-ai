@@ -1,3 +1,55 @@
+commit b1d75303c5f65a777dfb2e750c530cf582c1332d
+agent  Thu Oct 8 13:02:36 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ .gitignore                                |    3 +
+ package-lock.json                         | 1264 ++++++++++++++++++++++++++++-
+ package.json                              |   13 +-
+ playwright.config.ts                      |   45 +-
+ playwright.nightly.config.ts              |   51 ++
+ src/client/App.tsx                        |   55 +-
+ src/client/board/useBoardDoc.ts           |   33 +-
+ src/client/main.tsx                       |   32 +-
+ src/client/sync/ConnectionStatus.tsx      |   64 ++
+ src/client/sync/connectBoard.ts           |  128 +++
+ src/shared/board-id.ts                    |   45 +
+ src/shared/config.ts                      |   15 +
+ src/shared/protocol.ts                    |  122 +++
+ src/worker/board-room.ts                  |  197 +++++
+ src/worker/index.ts                       |   78 ++
+ src/worker/workers-env.d.ts               |   70 ++
+ tests/component/ConnectionStatus.test.tsx |  225 +++++
+ tests/e2e-nightly/capacity-soak.spec.ts   |  204 +++++
+ tests/e2e-nightly/idle-connection.spec.ts |  113 +++
+ tests/e2e/helpers/browser-detection.ts    |   35 +
+ tests/e2e/helpers/browsers.ts             |   29 +
+ tests/e2e/helpers/participants.ts         |  268 ++++++
+ tests/e2e/live-collaboration.spec.ts      |  445 ++++++++++
+ tests/integration/board-room.test.ts      |  469 +++++++++++
+ tests/integration/random-ops.ts           |  146 ++++
+ tests/integration/vitest.config.ts        |   36 +
+ tests/integration/worker-routing.test.ts  |  168 ++++
+ tests/integration/ws-client.ts            |  277 +++++++
+ tests/live/harness.ts                     |  341 ++++++++
+ tests/live/live-nightly.test.ts           |  156 ++++
+ tests/live/live-sync.test.ts              |  332 ++++++++
+ tests/live/vitest.config.ts               |   22 +
+ tests/unit/board-id.test.ts               |   69 ++
+ tests/unit/protocol.test.ts               |  147 ++++
+ tools/build-e2e-worker.mjs                |   30 +
+ tools/e2e-server.mjs                      |   85 ++
+ wrangler.jsonc                            |   28 +-
+ 37 files changed, 5797 insertions(+), 43 deletions(-)
+commit ae2b40bba0da4e8fef73bd313213eb7a23d6d9ae
+vidi-agent  Thu Oct 8 12:09:05 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)
 commit 68a46920d470cdc9f8e05f3dcc6fa8561b908c73
 agent  Thu Oct 8 11:05:48 2026 +0000
 
