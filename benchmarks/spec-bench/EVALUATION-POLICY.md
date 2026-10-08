@@ -63,7 +63,7 @@ A run's score of record is its final commit re-scored after the run (`finalize.p
 
 ## How many runs per stack
 
-15. **Five runs per stack, unless three already settle it.** A stack's series is five runs. It may stop at three when the
+16. **Five runs per stack, unless three already settle it.** A stack's series is five runs. It may stop at three when the
     spread of the three scores of record is narrow enough that two more would not change where the stack sits against the
     others. A series that has not finished its third run is never cut short on this ground, and a spread measured on fewer
     than three finished runs is not evidence. Stop the queued runs, not the one that is running, and record the reason where
