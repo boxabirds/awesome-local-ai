@@ -8,6 +8,7 @@ import { StickyNote } from '../objects/StickyNote';
 import type { Handle } from '../../shared/geometry';
 import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { SelectionOverlay } from '../board/SelectionOverlay';
+import type { Tool } from '../board/useTool';
 
 interface BoardViewportProps {
   camera: { x: number; y: number; zoom: number };
@@ -36,6 +37,8 @@ interface BoardViewportProps {
   // Story 8: undo controller callbacks
   undo?: () => void;
   redo?: () => void;
+  // Story 9: Text tool
+  activeTool?: Tool;
 }
 
 /**
@@ -124,6 +127,7 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
     onHandlePointerDown,
     undo,
     redo,
+    activeTool,
   } = props;
   
   const [isPanning, setIsPanning] = React.useState(false);
@@ -147,6 +151,7 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
     const el = target as HTMLElement;
     return (
       el.closest('.sticky-note') !== null ||
+      el.closest('.text-object') !== null ||
       el.closest('.note-toolbar') !== null ||
       el.closest('.selection-handle') !== null ||
       el.getAttribute('data-object-id') !== null
@@ -164,6 +169,9 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
     (e: React.PointerEvent) => {
       if (e.pointerType === 'touch') return;
       if (e.button !== 0 && e.pointerType !== 'pen') return;
+      
+      // In text tool mode, don't start panning — let click pass through to handle text creation
+      if (activeTool === 'text') return;
       if (isStickyTarget(e.target)) return;
 
       const offset = getContainerOffset();
@@ -187,7 +195,7 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
         if (containerRef.current) containerRef.current.setPointerCapture(e.pointerId);
       } catch { /* ignore */ }
     },
-    [beginPan, isStickyTarget, marquee],
+    [beginPan, isStickyTarget, marquee, activeTool],
   );
 
   // Pointer move handler
@@ -233,15 +241,26 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
     lastPosRef.current = null;
   }, [isPanning, endPan, marquee]);
 
-  // Click on empty board → clear selection
+  // Click on empty board → clear selection or create text (text tool mode)
   const handleClick = React.useCallback(
     (e: React.MouseEvent) => {
       if (isStickyTarget(e.target)) return;
-      if (!wasDraggingMarquee.current) {
+      if (wasDraggingMarquee.current) return;
+      
+      if (activeTool === 'text') {
+        // Create text at world position
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const screenPt: Point = {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+        };
+        const worldPt = screenToWorld(camera, screenPt);
+        window.dispatchEvent(new CustomEvent('vidi6:createText', { detail: worldPt }));
+      } else {
         window.dispatchEvent(new CustomEvent('vidi6:clearSelection'));
       }
     },
-    [isStickyTarget],
+    [isStickyTarget, activeTool, camera],
   );
 
   // Double-click on empty board → create sticky note
@@ -325,32 +344,43 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
 
   const worldTransform = `scale(${camera.zoom}) translate(${-camera.x}px, ${-camera.y}px)`;
 
+  // Determine cursor style
+  const viewportCursor = activeTool === 'text' ? 'text' : isPanning ? 'grabbing' : 'grab';
+
   return (
     <>
       <DotGridBackground camera={camera} />
       
-      {/* World-layer (transformed) — contains sticky notes */}
+      {/* World-layer (transformed) — contains sticky notes and text objects */}
       <div className="world-layer" style={{ transform: worldTransform }}>
         <OriginMarker />
-        {snapshosts?.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={props.doc}
-            zoom={camera.zoom}
-            selected={!!selectedIds?.has(note.id)}
-            editing={props.editingId === note.id}
-            camera={camera}
-            onSelect={props.onSelect}
-            onStartEdit={props.onStartEdit}
-            onEndEdit={props.onEndEdit || (() => {})}
-            onMove={props.onMove}
-            undo={props.undo}
-            redo={props.redo}
-            onBringToFront={props.onBringToFront}
-            onObjectPointerDown={onObjectPointerDown}
-          />
-        ))}
+        {snapshosts?.map((obj) => {
+          // Render based on type
+          if (obj.type === 'sticky') {
+            return (
+              <StickyNote
+                key={obj.id}
+                obj={obj}
+                doc={props.doc}
+                zoom={camera.zoom}
+                selected={!!selectedIds?.has(obj.id)}
+                editing={props.editingId === obj.id}
+                camera={camera}
+                onSelect={props.onSelect}
+                onStartEdit={props.onStartEdit}
+                onEndEdit={props.onEndEdit || (() => {})}
+                onMove={props.onMove}
+                undo={props.undo}
+                redo={props.redo}
+                onBringToFront={props.onBringToFront}
+                onObjectPointerDown={onObjectPointerDown}
+              />
+            );
+          }
+          // For other types (including text), render via their registered component
+          // We'll rely on the parent to pass them via children or direct rendering
+          return null;
+        })}
         {children}
       </div>
 
@@ -358,6 +388,7 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
       <div
         ref={containerRef}
         className={`viewport${isPanning ? ' panning' : ''}`}
+        style={{ cursor: viewportCursor }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

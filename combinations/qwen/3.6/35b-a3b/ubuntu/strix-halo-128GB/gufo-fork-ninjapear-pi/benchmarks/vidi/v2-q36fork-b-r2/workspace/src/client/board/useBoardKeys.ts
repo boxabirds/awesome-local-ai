@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { Doc } from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
+import type { Tool } from './useTool';
 import {
   moveObjects,
   deleteObjects,
@@ -22,26 +23,29 @@ interface UseBoardKeysOptions {
   redo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  // Story 9: tool mode
+  activeTool?: Tool;
+  onToolChange?(tool: Tool): void;
 }
 
 export function useBoardKeys(opts: UseBoardKeysOptions): void {
-  const { doc, selection, snapshot, canEdit, editingId, undo, redo, canUndo, canRedo } = opts;
+  const { doc, selection, snapshot, canEdit, editingId, undo, redo, canUndo, canRedo, activeTool, onToolChange } = opts;
 
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       // Ignore if focus is in an input/textarea or editing text
       const tag = (e.target as HTMLElement)?.tagName;
       const contentEditable = (e.target as HTMLElement)?.getAttribute('contenteditable');
+      const tagNameUpper = tag?.toUpperCase();
       
-      // If a sticky is being edited, the editor handles Ctrl+Z/Z themselves — ignore here.
+      // If a sticky is being edited, the editor handles Ctrl+Z/Y themselves — ignore here.
       if (editingId) return;
-      // Also ignore if focus is inside any input-like element (not only during editingId)
-      // This covers share-link inputs etc.
-      if ((tag === 'INPUT' || tag === 'TEXTAREA' || contentEditable === 'true') && !((e.ctrlKey || e.metaKey))) {
+      // Also ignore if focus is inside any input-like element
+      if ((tagNameUpper === 'INPUT' || tagNameUpper === 'TEXTAREA' || contentEditable === 'true') && !((e.ctrlKey || e.metaKey))) {
         return;
       }
 
-      // Undo / Redo via keyboard shortcuts — handled only on board (non-input) focus
+      // Undo / Redo via keyboard shortcuts
       if ((e.ctrlKey || e.metaKey)) {
         const isUndo = e.key === 'z' && !e.shiftKey;
         const isRedoShiftZ = e.key === 'Z' || (e.key === 'z' && e.shiftKey);
@@ -57,6 +61,36 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
           redo();
           return;
         }
+        return; // Don't let other keys through when ctrl/meta is held
+      }
+
+      // Story 9: Tool shortcuts — only when NOT in an input context
+      // T → Text tool (only if canEdit and tool is not already text)
+      if (e.key === 't' && onToolChange) {
+        e.preventDefault();
+        if (canEdit) {
+          onToolChange('text');
+        }
+        return;
+      }
+
+      // V → Select tool
+      if (e.key === 'v') {
+        e.preventDefault();
+        if (onToolChange) {
+          onToolChange('select');
+        }
+        selection.clear();
+        return;
+      }
+
+      // Escape → Select tool + clear selection
+      if (e.key === 'Escape') {
+        if (onToolChange) {
+          onToolChange('select');
+        }
+        selection.clear();
+        return;
       }
 
       // Ctrl/Cmd + A: select all
@@ -64,12 +98,6 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
         e.preventDefault();
         const ids = allObjectIds(snapshot);
         selection.setMany(ids, false);
-        return;
-      }
-
-      // Escape: clear selection
-      if (e.key === 'Escape') {
-        selection.clear();
         return;
       }
 
@@ -119,5 +147,5 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selection, snapshot, canEdit, editingId, undo, redo, canUndo, canRedo]);
+  }, [doc, selection, snapshot, canEdit, editingId, undo, redo, canUndo, canRedo, activeTool, onToolChange]);
 }

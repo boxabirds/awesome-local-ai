@@ -45,7 +45,7 @@ describe('sticky.toolbar component tests', () => {
 
       render(<Toolbar onCreateSticky={onCreateSticky} />);
 
-      const stickyBtn = document.querySelector('[aria-label="Sticky note"]');
+      const stickyBtn = document.querySelector('[aria-label="Sticky note (N)"]');
       expect(stickyBtn).toBeTruthy();
       fireEvent.click(stickyBtn!);
 
@@ -54,7 +54,7 @@ describe('sticky.toolbar component tests', () => {
 
     it('button has correct tooltip text', () => {
       render(<Toolbar onCreateSticky={() => {}} />);
-      const stickyBtn = document.querySelector('[aria-label="Sticky note"]');
+      const stickyBtn = document.querySelector('[aria-label="Sticky note (N)"]');
       expect(stickyBtn?.getAttribute('title')).toBe(
         'Sticky note – or double-click the board',
       );

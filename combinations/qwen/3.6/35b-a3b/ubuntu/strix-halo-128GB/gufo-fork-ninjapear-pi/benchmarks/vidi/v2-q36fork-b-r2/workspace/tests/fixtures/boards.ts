@@ -230,6 +230,17 @@ export function createSingleNoteUpdate(x: number, y: number): Uint8Array {
   return Y.encodeStateAsUpdate(doc);
 }
 
+/** Create a minimal Playwright board URL for E2E tests. Returns board id. */
+export async function createBoard(page: import('@playwright/test').Page) {
+  const res = await page.goto('http://localhost:' + (process.env.E2E_PORT || 27360));
+  // Click "New board" to create
+  await page.locator('[aria-label="New board"]').click();
+  const url = page.url();
+  const match = url.match(/\/b\/([a-f0-9-]+)/);
+  if (!match) throw new Error('Could not extract board ID from URL');
+  return { id: match[1] };
+}
+
 /** Return the raw update bytes for a board with `count` notes. */
 export function getBoardUpdateBytes(count: number): Uint8Array {
   const doc = createBoardWith25Notes();

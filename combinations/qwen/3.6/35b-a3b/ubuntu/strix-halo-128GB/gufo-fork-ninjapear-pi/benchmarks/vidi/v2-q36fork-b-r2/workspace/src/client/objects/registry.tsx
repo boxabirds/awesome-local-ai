@@ -15,6 +15,7 @@ export interface ObjectTypeSpec<T = any> {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 

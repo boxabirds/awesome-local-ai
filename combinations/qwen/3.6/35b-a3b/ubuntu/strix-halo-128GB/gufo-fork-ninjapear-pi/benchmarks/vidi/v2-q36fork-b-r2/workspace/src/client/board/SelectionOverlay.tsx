@@ -5,6 +5,7 @@ import { worldToScreen, screenToWorld } from '../canvas/camera';
 import { unionRects } from '../../shared/geometry';
 import { HANDLE_SIZE_PX } from '../../shared/config';
 import type { ObjectSnapshot } from '../../shared/board-model';
+import { getObjectType } from '../objects/registry';
 
 export interface SelectionOverlayProps {
   ids: ReadonlySet<string>;
@@ -13,7 +14,14 @@ export interface SelectionOverlayProps {
   onHandlePointerDown: (e: PointerEvent, handle: Handle) => void;
 }
 
-const HANDLE_MAP: [Handle, number, number][] = [
+// For horizontal-only objects (text), only show e/w handles
+const HORIZONTAL_HANDLES: [Handle, number, number][] = [
+  ['w', -1, 0],
+  ['e', 1, 0],
+];
+
+// All handles for mixed/all resizable selections
+const ALL_HANDLES: [Handle, number, number][] = [
   ['nw', -1, -1], ['n', 0, -1], ['ne', 1, -1],
   ['w', -1, 0], ['e', 1, 0],
   ['sw', -1, 1], ['s', 0, 1], ['se', 1, 1],
@@ -35,6 +43,14 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
   
   if (ids.size === 0) return null;
   
+  // Check if ALL selected objects have horizontal handles
+  const allHorizontal = [...ids].every((id) => {
+    const obj = snapshot.find((s) => s.id === id);
+    if (!obj) return false;
+    const spec = getObjectType(obj.type);
+    return spec?.handles === 'horizontal';
+  });
+  
   // Compute bounding box from selected objects
   const selectedObjs = snapshot.filter((s) => ids.has(s.id));
   const rects = selectedObjs.map((s) => ({ x: s.x, y: s.y, width: s.width ?? 200, height: s.height ?? 200 }));
@@ -43,6 +59,8 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
 
   const bbScreen = worldToScreen(camera, { x: bb.x, y: bb.y });
   const bbScreenRight = worldToScreen(camera, { x: bb.x + bb.width, y: bb.y + bb.height });
+
+  const handles = allHorizontal ? HORIZONTAL_HANDLES : ALL_HANDLES;
 
   return (
     <>
@@ -87,8 +105,8 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
         aria-hidden="true"
       />
       
-      {/* Resize handles */}
-      {HANDLE_MAP.map(([handle, dx, dy]) => {
+      {/* Resize handles — only those appropriate for selection type */}
+      {handles.map(([handle, dx, dy]) => {
         const cx = bbScreen.x + (bbScreenRight.x - bbScreen.x) * (dx / 2 + 0.5);
         const cy = bbScreen.y + (bbScreenRight.y - bbScreen.y) * (dy / 2 + 0.5);
         return (
@@ -106,10 +124,9 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
               backgroundColor: '#fff',
               border: `1.5px solid #4a9eff`,
               borderRadius: '1px',
-              cursor: `${handle === 'n' || handle === 's' ? 'ns-resize' : handle === 'e' || handle === 'w' ? 'ew-resize' : `${handle}-resize`}`,
+              cursor: `${handle === 'e' || handle === 'w' ? 'ew-resize' : 'pointer'}`,
               zIndex: 52,
               transform: 'translate(-50%, -50%)',
-              transition: 'transform 0.1s',
             }}
             onPointerDown={(e) => {
               e.stopPropagation();

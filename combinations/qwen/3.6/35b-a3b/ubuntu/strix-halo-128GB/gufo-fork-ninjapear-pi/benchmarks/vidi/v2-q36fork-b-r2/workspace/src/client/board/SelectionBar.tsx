@@ -1,7 +1,8 @@
 import * as React from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { NoteToolbar } from '../objects/NoteToolbar';
-import { STICKY_SIZE_WORLD } from '../../shared/config';
+import { TextToolbar } from '../objects/TextToolbar';
+import { STICKY_SIZE_WORLD, TEXT_SIZES } from '../../shared/config';
 import { deleteObjects, allObjectIds } from '../../shared/board-model';
 import type { Doc } from 'yjs';
 
@@ -17,12 +18,11 @@ export function SelectionBar(props: SelectionBarProps): React.JSX.Element | null
   
   if (ids.size === 0) return null;
 
-  // Single sticky note → show NoteToolbar instead of bar
+  // Single sticky note → don't render toolbar here (rendered near the note in BoardApp)
   if (ids.size === 1) {
     const id = [...ids][0];
     const note = snapshot.find((s) => s.id === id);
-    if (!note || note.type !== 'sticky') return null;
-    // Don't render toolbar here — it's rendered in BoardApp for single selection
+    if (!note) return null;
     return null;
   }
 

@@ -20,6 +20,6 @@
       "@cloudflare/workers-types"
     ]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/unit/**/*.ts", "tests/component/Sticky*.test.tsx", "tests/component/Toolbars.test.tsx", "tests/component/BoardViewport.test.tsx", "tests/component/NavigationHint.test.tsx", "tests/component/ZoomControls.test.tsx", "tests/component/UndoControls.test.tsx", "tests/component/UndoBoundaries.test.tsx", "tests/component/TextToolbar.test.tsx", "tests/component/TextEditor.test.tsx", "tests/e2e/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

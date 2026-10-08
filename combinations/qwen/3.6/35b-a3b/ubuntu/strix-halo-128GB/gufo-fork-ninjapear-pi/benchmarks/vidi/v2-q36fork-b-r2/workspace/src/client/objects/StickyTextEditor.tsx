@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { TextEditor } from './TextEditor';
 
 interface StickyTextEditorProps {
   value: string;
@@ -11,6 +12,7 @@ interface StickyTextEditorProps {
   redo?: () => void;
 }
 
+/** @deprecated Legacy wrapper — use <TextEditor /> directly with a Y.Text instance. */
 export function StickyTextEditor(props: StickyTextEditorProps): React.JSX.Element {
   const { value, fontPx, overflow, onChange, onEnd, undo, redo } = props;
 
