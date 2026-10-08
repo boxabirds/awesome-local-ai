@@ -1,10 +1,69 @@
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 
-// Unmount the previous test's tree after each test (no vitest globals).
+type ProviderStatus = 'connecting' | 'connected' | 'disconnected';
+
+/** A fake y-websocket provider a test can drive (see ConnectionStatus tests). */
+export interface MockWebsocketProvider {
+  emitStatus(status: ProviderStatus): void;
+  emitSync(sync: boolean): void;
+  destroyed: boolean;
+}
+
+// Every provider instance created during component tests, in creation
+// order; the latest one belongs to the most recently rendered board.
+// (vi.hoisted consts cannot be exported directly, hence the alias.)
+const hoistedMock = vi.hoisted(
+  () => ({ providers: [] as { emitStatus(s: string): void; emitSync(s: boolean): void; destroyed: boolean }[] }),
+);
+export const mockProviders: MockWebsocketProvider[] = hoistedMock.providers;
+
+// Unmount the previous test's tree and forget its providers.
 afterEach(() => {
   cleanup();
+  mockProviders.length = 0;
 });
+
+// Component tests never talk to a real room: replace the y-websocket
+// provider with a fake that records itself in `mockProviders` so tests
+// can drive status/sync events deterministically (the badge's state
+// mapping is also tested standalone, see ConnectionStatus.test.tsx).
+vi.mock('y-websocket', () => ({
+  WebsocketProvider: class {
+    private statusHandlers: ((event: { status: ProviderStatus }) => void)[] = [];
+    private syncHandlers: ((sync: boolean) => void)[] = [];
+    destroyed = false;
+
+    constructor(..._args: unknown[]) {
+      // The instance itself is the drive handle (see MockWebsocketProvider).
+      mockProviders.push(this as unknown as MockWebsocketProvider);
+    }
+
+    on(event: 'status' | 'sync', handler: unknown): void {
+      if (event === 'status') {
+        this.statusHandlers.push(handler as never);
+      } else {
+        this.syncHandlers.push(handler as never);
+      }
+    }
+
+    destroy(): void {
+      this.destroyed = true;
+    }
+
+    emitStatus(status: ProviderStatus): void {
+      for (const h of this.statusHandlers) {
+        h({ status });
+      }
+    }
+
+    emitSync(sync: boolean): void {
+      for (const h of this.syncHandlers) {
+        h(sync);
+      }
+    }
+  },
+}));
 
 // jsdom does not implement PointerEvent; provide a minimal one over
 // MouseEvent so Testing Library's pointer events carry clientX/Y/button.

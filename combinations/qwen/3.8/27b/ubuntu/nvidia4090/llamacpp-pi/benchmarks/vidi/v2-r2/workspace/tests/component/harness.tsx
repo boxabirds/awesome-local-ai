@@ -13,6 +13,7 @@ import {
   type Size,
 } from '../../src/client/canvas/camera';
 import { CameraContext, useCamera } from '../../src/client/canvas/useCamera';
+import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { createSticky, deleteObject, renderOrder, setStickyColor } from '../../src/shared/board-model';
 import { STICKY_SIZE_WORLD } from '../../src/shared/config';
 import { useBoardDoc } from '../../src/client/board/useBoardDoc';
@@ -28,6 +29,8 @@ export const TEST_VIEWPORT: Size = { width: 1280, height: 800 };
 export interface BoardHarnessOptions {
   withHint?: boolean;
   withControls?: boolean;
+  /** Render the ConnectionStatus badge wired to the mocked provider. */
+  withStatusBadge?: boolean;
 }
 
 export interface BoardHarnessResult extends RenderResult {
@@ -102,7 +105,9 @@ export function renderStickyBoard(options: BoardHarnessOptions = {}): StickyBoar
 
   function StickyBoardHarness() {
     const controller = useCamera(TEST_VIEWPORT);
-    const { doc, objects } = useBoardDoc();
+    // The y-websocket provider is mocked in tests/component/setup.ts, so
+    // this boardId never reaches the network.
+    const { doc, objects, connectionState } = useBoardDoc('harness-board');
     docInstance = doc;
     const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
     const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -155,6 +160,7 @@ export function renderStickyBoard(options: BoardHarnessOptions = {}): StickyBoar
           ))}
         </BoardViewport>
         <Toolbar onCreateSticky={() => createAt({ x: TEST_VIEWPORT.width / 2, y: TEST_VIEWPORT.height / 2 })} />
+        {options.withStatusBadge === true && <ConnectionStatus state={connectionState} />}
         {noteToolbarVisible && selectedNote !== undefined && (
           <div
             style={{

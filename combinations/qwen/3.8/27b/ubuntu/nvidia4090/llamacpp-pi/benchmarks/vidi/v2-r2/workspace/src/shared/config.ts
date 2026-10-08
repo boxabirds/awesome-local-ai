@@ -85,3 +85,26 @@ export const STICKY_SELECTION_OUTLINE = '#1a73e8';
 
 /** Padding inside a note around its text, in board units. */
 export const STICKY_TEXT_PADDING = 12;
+
+// --- Live collaboration (story 3) ------------------------------------------
+
+/**
+ * Soft capacity: the number of simultaneous editors the product is designed
+ * and tested for. Never enforced — a further person is never turned away.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/** Latency budget for a change to reach every other screen (PRD live.propagate). */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Passed to the y-websocket provider as `maxBackoffTime` (ms). */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays up after a reconnection (ms). */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** Outage duration used by the catch-up verification (PRD live.catch_up, ms). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/** Generous functional wait for e2e assertions; latency is logged, not asserted (ms). */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;

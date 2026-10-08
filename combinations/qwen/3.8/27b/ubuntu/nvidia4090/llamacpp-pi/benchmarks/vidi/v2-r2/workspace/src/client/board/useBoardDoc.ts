@@ -1,16 +1,27 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
+import type { BoardConnection } from '../sync/connectBoard';
 
 /**
- * Owns the in-memory Y.Doc for the board and exposes an immutable snapshot
- * of all objects via useSyncExternalStore.
+ * Owns the in-memory Y.Doc for a board, attaches the network provider
+ * (story 3), and exposes an immutable snapshot of all objects plus the
+ * mapped connection state via useSyncExternalStore / useState.
  *
- * Story 3 will attach a network provider to the same document and story 4
- * will persist it; the snapshot path does not change. The snapshot is
- * memoised per document revision and recomputed on objects.observeDeep.
+ * Remote updates arrive through the provider as document updates; the same
+ * objects.observeDeep re-render path covers local and remote changes. The
+ * snapshot is memoised per document revision.
  */
-export function useBoardDoc(): { doc: Y.Doc; objects: readonly StickySnapshot[] } {
+export function useBoardDoc(boardId: string): {
+  doc: Y.Doc;
+  objects: readonly StickySnapshot[];
+  connectionState: ConnectionState;
+  /** Closes the live socket (test-only, wired to window.__vidi6). */
+  dropSocket: () => void;
+  /** Reconnects after a dropped socket (test-only, wired to window.__vidi6). */
+  resumeSocket: () => void;
+} {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     const doc = new Y.Doc();
@@ -58,5 +69,27 @@ export function useBoardDoc(): { doc: Y.Doc; objects: readonly StickySnapshot[] 
 
   const objects = useSyncExternalStore(subscribe, getSnapshot);
 
-  return { doc, objects };
+  // Connection state for the badge. The setter is stable, so the provider
+  // is (re)created only when the doc or boardId changes; destroy() on
+  // unmount or board change.
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  const connectionRef = useRef<BoardConnection | null>(null);
+  useEffect(() => {
+    const connection = connectBoard(doc, boardId, setConnectionState);
+    connectionRef.current = connection;
+    return () => {
+      connectionRef.current = null;
+      connection.destroy();
+    };
+  }, [doc, boardId]);
+
+  const dropSocket = useCallback((): void => {
+    connectionRef.current?.dropSocket();
+  }, []);
+
+  const resumeSocket = useCallback((): void => {
+    connectionRef.current?.resumeSocket();
+  }, []);
+
+  return { doc, objects, connectionState, dropSocket, resumeSocket };
 }

@@ -14,5 +14,9 @@
     "useDefineForClassFields": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
+  // Worker code is typechecked separately with Cloudflare Workers types
+  // (see tsconfig.worker.json): mixing the two global type sets in one
+  // program conflicts (Request/Response/WebSocket are declared twice).
+  "exclude": ["src/worker", "tests/integration"]
 }

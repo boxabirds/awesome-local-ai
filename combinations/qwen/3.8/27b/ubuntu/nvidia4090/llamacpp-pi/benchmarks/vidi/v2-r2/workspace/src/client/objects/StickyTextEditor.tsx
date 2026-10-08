@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type JSX } from 'react';
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import {
@@ -6,7 +6,13 @@ import {
   STICKY_TEXT_MAX_CHARS,
   STICKY_TEXT_PADDING,
 } from '../../shared/config';
-import { applyTextDiff, clampToLimit, counterVisible, fitFontSize } from './StickyText';
+import {
+  adjustCaretForMerge,
+  applyTextDiff,
+  clampToLimit,
+  counterVisible,
+  fitFontSize,
+} from './StickyText';
 
 /**
  * The full inner box the text may occupy, in board units
@@ -37,8 +43,26 @@ export interface StickyTextEditorProps {
 export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
+  // The merged Y.Text content the textarea currently represents. The observe
+  // handler keeps this in lockstep with ytext so a local commit always diffs
+  // against up-to-date content and never deletes a concurrent remote edit.
+  const lastMergedRef = useRef('');
   const [fit, setFit] = useState<{ fontPx: number; overflow: boolean }>({ fontPx, overflow: false });
   const [length, setLength] = useState(0);
+
+  // Reflect a merged Y.Text value into the textarea: replace the value, keep
+  // the caret stable across the change, and re-fit / re-count.
+  const syncFromMerged = useCallback((merged: string): void => {
+    const ta = taRef.current;
+    if (ta !== null) {
+      const caret = adjustCaretForMerge(lastMergedRef.current, merged, ta.selectionStart);
+      ta.value = merged;
+      ta.setSelectionRange(caret, caret);
+      setFit(fitFontSize(ta, TEXT_BOX));
+    }
+    lastMergedRef.current = merged;
+    setLength(merged.length);
+  }, []);
 
   // Take over the current text, focus, and put the caret at the end.
   useEffect(() => {
@@ -46,13 +70,38 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     if (ta === null) {
       return;
     }
-    ta.value = ytext.toString();
+    lastMergedRef.current = ytext.toString();
+    ta.value = lastMergedRef.current;
     setLength(ta.value.length);
     ta.focus();
     const len = ta.value.length;
     ta.setSelectionRange(len, len);
     setFit(fitFontSize(ta, TEXT_BOX));
   }, [ytext]);
+
+  // Merge every Y.Text change (local or remote) into the textarea so
+  // concurrent edits appear in the box being edited and the caret stays put.
+  // Yjs fires this synchronously when a change is applied, so it always runs
+  // before the next local input is committed.
+  useEffect(() => {
+    const onChange = (): void => {
+      const merged = ytext.toString();
+      if (merged === lastMergedRef.current) {
+        return; // our own commit: already reflected in the textarea
+      }
+      if (composingRef.current) {
+        // Don't clobber an in-progress IME composition; it is re-synced on
+        // compositionend. Track the merged content for the next caret calc.
+        lastMergedRef.current = merged;
+        return;
+      }
+      syncFromMerged(merged);
+    };
+    ytext.observe(onChange);
+    return () => {
+      ytext.unobserve(onChange);
+    };
+  }, [ytext, syncFromMerged]);
 
   // pointerdown anywhere outside THIS note ends editing (unselected).
   useEffect(() => {
@@ -76,6 +125,9 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   const commit = (value: string): void => {
     const kept = clampToLimit(value);
     setLength(kept.length);
+    // Mark the value as already reflected so the observe handler skips our own
+    // commit (the native caret is left exactly where the user put it).
+    lastMergedRef.current = kept;
     applyTextDiff(ytext, kept, LOCAL_ORIGIN);
     const ta = taRef.current;
     if (ta !== null) {
@@ -116,6 +168,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     // is deleted elsewhere), sync the last local value into the Y.Text.
     const ta = taRef.current;
     if (ta !== null && !composingRef.current && ta.value !== ytext.toString()) {
+      lastMergedRef.current = clampToLimit(ta.value);
       applyTextDiff(ytext, clampToLimit(ta.value), LOCAL_ORIGIN);
     }
   };

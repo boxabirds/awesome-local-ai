@@ -43,9 +43,16 @@ if (working && working !== process.env.PLAYWRIGHT_BROWSERS_PATH) {
   process.env.PLAYWRIGHT_BROWSERS_PATH = working;
 }
 
+// --nightly selects the nightly Playwright project (long-running e2e) instead
+// of the default chromium project. Extra args (test file filters, -g, etc.)
+// are passed through; --project goes LAST so it does not swallow positional
+// file filters (playwright treats --project as a multi-value option).
+const args = process.argv.slice(2);
+const nightly = args.includes('--nightly');
+
 const status = spawnSync(
   'npx',
-  ['playwright', 'test', '--project', 'chromium', ...process.argv.slice(2)],
+  ['playwright', 'test', ...args.filter((a) => a !== '--nightly'), '--project', nightly ? 'nightly' : 'chromium'],
   { stdio: 'inherit', env: process.env },
 );
 process.exit(status.status ?? 1);

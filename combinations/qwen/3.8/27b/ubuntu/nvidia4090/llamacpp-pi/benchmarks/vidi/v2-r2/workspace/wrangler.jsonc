@@ -2,11 +2,30 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
   "compatibility_date": "2025-06-01",
-  // Assets only until story 3: wrangler dev serves dist/client directly.
-  // Story 3 adds the Worker `main` and the `ASSETS` binding.
+  // The Worker routes /api/rooms/:boardId to BoardRoom and everything else
+  // to the static assets (SPAs: /b/<boardId> falls back to index.html).
+  "main": "src/worker/index.ts",
   "assets": {
-    "directory": "./dist/client"
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
   },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  // SQLite-backed from the start: story 4 (persistence) needs no class
+  // migration, only storage usage.
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ],
   "dev": {
     // Keep `wrangler dev` (and any inspector port) inside the agent port
     // range even when run manually; the e2e webServer passes --port anyway.

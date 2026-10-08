@@ -23,10 +23,29 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${WRANGLER_DEV_PORT}`,
     viewport: { width: 1280, height: 800 },
   },
+  // Nightly specs (45 s idle + 60 s capacity soak) run in their own project
+  // (test:e2e:nightly) so every-commit e2e stays fast.
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
-    { name: 'firefox', use: { browserName: 'firefox' } },
-    { name: 'webkit', use: { browserName: 'webkit' } },
+    {
+      name: 'chromium',
+      testMatch: /^(?!.*nightly).*\.spec\.ts$/,
+      use: { browserName: 'chromium' },
+    },
+    {
+      name: 'firefox',
+      testMatch: /^(?!.*nightly).*\.spec\.ts$/,
+      use: { browserName: 'firefox' },
+    },
+    {
+      name: 'webkit',
+      testMatch: /^(?!.*nightly).*\.spec\.ts$/,
+      use: { browserName: 'webkit' },
+    },
+    {
+      name: 'nightly',
+      testMatch: /nightly.*\.spec\.ts$/,
+      use: { browserName: 'chromium' },
+    },
   ],
   webServer: {
     // Serve the same static assets path the production Worker will serve:

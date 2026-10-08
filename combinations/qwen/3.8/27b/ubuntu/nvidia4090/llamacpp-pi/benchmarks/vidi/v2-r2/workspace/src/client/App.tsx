@@ -11,7 +11,9 @@ import {
   zoomPercent,
   type Point,
 } from './canvas/camera';
-import { installVidi6TestHooks } from './canvas/testHooks';
+import { installVidi6TestHooks, updateVidi6ConnectionState } from './canvas/testHooks';
+import { newBoardId, isValidBoardId } from '../shared/board-id';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import {
   createSticky,
   deleteObject,
@@ -32,6 +34,16 @@ const BOARD_BACKGROUND = '#f8f8f6';
 /** Origin marker (small crosshair at world 0,0): a stable e2e pixel target. */
 const ORIGIN_MARKER_HALF_PX = 6;
 const ORIGIN_MARKER_COLOR = '#8f8f86';
+
+/**
+ * The board id from `/b/:boardId`, or null when the path is not a board
+ * address. In story 3 a board is reached purely by its address; story 5
+ * replaces the client-side fallback with server-side board creation.
+ */
+function boardIdFromLocation(): string | null {
+  const match = window.location.pathname.match(/^\/b\/([^/]+)$/);
+  return match !== null ? decodeURIComponent(match[1] ?? '') : null;
+}
 
 /**
  * Small crosshair at the board's starting point (world 0,0), rendered in
@@ -75,7 +87,34 @@ function OriginMarker(): JSX.Element {
   );
 }
 
+/**
+ * Resolves the board id for this tab: a valid `/b/<id>` path is used as-is;
+ * anything else (`/` or an invalid id) redirects to a fresh board. The
+ * redirect is a hard `location.replace` so the address bar shows the board
+ * the tab is actually working on.
+ */
+function useBoardId(): string | null {
+  const [boardId] = useState<string | null>(() => {
+    const fromPath = boardIdFromLocation();
+    if (fromPath !== null && isValidBoardId(fromPath)) {
+      return fromPath;
+    }
+    window.location.replace(`/b/${newBoardId()}`);
+    return null;
+  });
+  return boardId;
+}
+
 export function App(): JSX.Element {
+  const boardId = useBoardId();
+  if (boardId === null) {
+    // Redirecting to /b/<newBoardId()>; the page reloads.
+    return <></>;
+  }
+  return <Board boardId={boardId} />;
+}
+
+function Board({ boardId }: { boardId: string }): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState(() => ({
     width: window.innerWidth || 1,
@@ -107,7 +146,7 @@ export function App(): JSX.Element {
   }, []);
 
   const cameraController = useCamera(viewport);
-  const { doc, objects } = useBoardDoc();
+  const { doc, objects, connectionState, dropSocket, resumeSocket } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -142,13 +181,19 @@ export function App(): JSX.Element {
   // Test-only hooks (no-ops and tree-shaken in production builds).
   const objectsRef = useRef<readonly StickySnapshot[]>(objects);
   objectsRef.current = objects;
-  const getObject = useCallback(
-    (id: string): StickySnapshot | undefined => objectsRef.current.find((o) => o.id === id),
-    [],
-  );
   useEffect(() => {
-    installVidi6TestHooks(cameraController.setCamera, getObject);
-  }, [cameraController.setCamera, getObject]);
+    installVidi6TestHooks(
+      cameraController.setCamera,
+      () => objectsRef.current,
+      dropSocket,
+      resumeSocket,
+    );
+  }, [cameraController.setCamera, dropSocket, resumeSocket]);
+
+  // Keep the test hook's live connection state current (no-op in production).
+  useEffect(() => {
+    updateVidi6ConnectionState(connectionState);
+  }, [connectionState]);
 
   const selectedNote =
     selectedId !== null ? objects.find((o) => o.id === selectedId) : undefined;
@@ -184,6 +229,7 @@ export function App(): JSX.Element {
           ))}
         </BoardViewport>
         <Toolbar onCreateSticky={createAtCentre} />
+        <ConnectionStatus state={connectionState} />
         {noteToolbarVisible && selectedNote !== undefined && (
           <div
             style={{

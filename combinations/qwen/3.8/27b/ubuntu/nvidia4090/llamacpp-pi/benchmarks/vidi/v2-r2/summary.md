@@ -10,15 +10,17 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 |---|---|---|---|---|
 | 1 | 6/6 | 0 | 0 | 6/6 |
 | 2 | 8/10 | 0 | 0 | 18/20 |
+| 3 | 6/7 | 0 | 0 | 24/27 |
 
-**New work** 14/16, **regressions** 0, **repairs** 0, **cumulative** 18/20.
+**New work** 20/23, **regressions** 0, **repairs** 0, **cumulative** 24/27.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 36.9 | None | None | None | — | — | red | 6/6 |  | 0 / 0 | 1 | — | throttled 0%, server peak 17 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 48.3 | None | None | None | — | — | red | 18/20 |  | 0 / 0 | 2 | — | throttled 0%, server peak 17 GB |
+| 3 | See other people's edits appear live on the same board | DONE | 170.4 | None | None | None | — | — | red | 24/27 |  | 0 / 0 | 6 | — | throttled 0%, server peak 17 GB |
 
-**Totals:** 2 stories, 85 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/2, final acceptance 18/20, stalled 0, partial 0, 4612 lines in src+tests.
+**Totals:** 3 stories, 256 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/3, final acceptance 24/27, stalled 0, partial 0, 7656 lines in src+tests.
 
 ## How it happened
 
@@ -28,6 +30,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 2 by the agent | 6838 / 37 | `useCamera.ts` (241), `BoardViewport.tsx` (227), `camera.ts` (160), `App.tsx` (137), `ZoomControls.tsx` (94), `NOTES.md` (63), +16 more |
 | 2 | 4 by the agent | 2915 / 93 | `board-model.ts` (337), `StickyNote.tsx` (284), `StickyTextEditor.tsx` (194), `StickyText.ts` (152), `App.tsx` (125), `NoteToolbar.tsx` (102), +10 more |
+| 3 | 1 by the agent | 4565 / 48 | `connectBoard.ts` (177), `board-room.ts` (168), `protocol.ts` (72), `App.tsx` (62), `StickyTextEditor.tsx` (59), `testHooks.ts` (58), +14 more |
 
 ### Earlier stories broken or fixed
 

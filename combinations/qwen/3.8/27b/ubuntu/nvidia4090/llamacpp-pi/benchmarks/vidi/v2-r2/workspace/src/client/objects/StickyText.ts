@@ -98,6 +98,43 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
 }
 
 /**
+ * Re-positions a caret (index into `oldStr`) after `oldStr` becomes `newStr`
+ * via the minimal common-prefix/suffix change. This is what keeps the local
+ * editing caret stable while a concurrent remote edit is merged into the
+ * textarea (story 3): an insertion at or before the caret pushes the caret
+ * forward, a deletion before it pulls the caret back, and a caret that lands
+ * inside the deleted region is placed just after the inserted text.
+ */
+export function adjustCaretForMerge(oldStr: string, newStr: string, caret: number): number {
+  const minLen = Math.min(oldStr.length, newStr.length);
+
+  let prefix = 0;
+  while (prefix < minLen && oldStr.charCodeAt(prefix) === newStr.charCodeAt(prefix)) {
+    prefix++;
+  }
+  let suffix = 0;
+  while (
+    suffix < minLen - prefix &&
+    oldStr.charCodeAt(oldStr.length - 1 - suffix) === newStr.charCodeAt(newStr.length - 1 - suffix)
+  ) {
+    suffix++;
+  }
+
+  const deleteStart = prefix;
+  const deleteEnd = oldStr.length - suffix;
+  const insertLen = newStr.length - prefix - suffix;
+  const deleteLen = deleteEnd - deleteStart;
+
+  if (caret < deleteStart) {
+    return caret; // change is after the caret
+  }
+  if (caret >= deleteEnd) {
+    return caret + insertLen - deleteLen; // change is before the caret
+  }
+  return deleteStart + insertLen; // caret was inside the deleted region
+}
+
+/**
  * True when the counter should be visible: STICKY_COUNTER_THRESHOLD_CHARS or
  * fewer characters remain until STICKY_TEXT_MAX_CHARS.
  */
