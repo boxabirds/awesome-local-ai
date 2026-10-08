@@ -1,3 +1,35 @@
+commit 8a37e6595dbe730c140794131fadfc9847e2bac1
+vidi-agent  Thu Oct 8 16:49:38 2026 +0100
+
+    harness: snapshot after story 9 (uncommitted agent work)
+
+
+ PROGRESS.md                          |   6 +-
+ src/client/App.tsx                   | 409 +++++++++++++++++++++++++++--------
+ src/client/board/Toolbar.tsx         |  70 +++++-
+ src/client/board/useBoardDoc.ts      |  33 ++-
+ src/client/board/useTool.ts          |  49 +++++
+ src/client/canvas/BoardViewport.tsx  |  77 ++++---
+ src/client/objects/StickyText.ts     |  45 +---
+ src/client/objects/TextObject.tsx    | 379 ++++++++++++++++++++++++++++++++
+ src/client/objects/TextToolbar.tsx   |  81 +++++++
+ src/client/objects/textLayout.ts     | 116 ++++++++++
+ src/client/objects/useTextBoxSync.ts |  64 ++++++
+ src/shared/board-model.ts            |   8 +-
+ src/shared/config.ts                 |  10 +
+ src/shared/objects/text.ts           | 224 +++++++++++++++++++
+ src/shared/text-edit.ts              |  44 ++++
+ tests/unit/text-layout.test.ts       | 165 ++++++++++++++
+ tests/unit/text-model.test.ts        | 224 +++++++++++++++++++
+ 17 files changed, 1808 insertions(+), 196 deletions(-)
+commit 3718a292bad8b1273a31fcf76c72e917d4dd7d49
+vidi-agent  Thu Oct 8 16:18:42 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 commit 49195c3c41c5b7064422ec0cad452917def682d2
 agent  Thu Oct 8 15:09:53 2026 +0000
 
