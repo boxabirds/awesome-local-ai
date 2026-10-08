@@ -7,11 +7,14 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
+import { handleServe, handleUpload } from './assets';
 import { TEST_HOOK_OPS } from './test-hooks';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** Story 12: stored images (assets.api). */
+  ASSETS_BUCKET: R2Bucket;
   /** Set only in test environments (e2e wrangler config), never in production. */
   TEST_HOOKS?: string;
 }
@@ -19,6 +22,7 @@ export interface Env {
 const ROOMS_PREFIX = '/api/rooms/';
 const BOARDS_PATH = '/api/boards';
 const BOARDS_PREFIX = BOARDS_PATH + '/';
+const ASSETS_PREFIX = '/api/assets/';
 const TEST_PREFIX = '/__test/boards/';
 
 function json(status: number, body: Record<string, unknown>): Response {
@@ -52,6 +56,21 @@ export default {
       const result = await createBoard(env);
       if (result.ok) return json(201, { id: result.id });
       return json(500, { error: result.reason });
+    }
+
+    // Story 12: image upload, POST /api/boards/:id/assets (assets.api).
+    // Checked before the generic /api/boards/ prefix route below.
+    if (req.method === 'POST' && url.pathname.startsWith(BOARDS_PREFIX) && url.pathname.endsWith('/assets')) {
+      const boardId = url.pathname.slice(BOARDS_PREFIX.length, -'/assets'.length);
+      return handleUpload(req, env, boardId);
+    }
+
+    // Story 12: immutable image serving, GET /api/assets/:boardId/:assetId.
+    if (url.pathname.startsWith(ASSETS_PREFIX)) {
+      if (req.method !== 'GET') return json(405, { error: 'method_not_allowed' });
+      // The key is '<boardId>/<assetId>' and may contain no further '/'.
+      const key = url.pathname.slice(ASSETS_PREFIX.length);
+      return handleServe(env, key);
     }
 
     // Board existence: GET /api/boards/:id → 200 {"id"} / 404 (share.not_found).

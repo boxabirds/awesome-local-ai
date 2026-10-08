@@ -7,6 +7,8 @@ declare module 'cloudflare:test' {
   interface ProvidedEnv {
     BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
     ASSETS: Fetcher;
+    /** Story 12: stored images (assets.api). */
+    ASSETS_BUCKET: R2Bucket;
     TEST_HOOKS?: string;
   }
 }

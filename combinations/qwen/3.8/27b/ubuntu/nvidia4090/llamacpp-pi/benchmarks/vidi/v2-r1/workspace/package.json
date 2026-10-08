@@ -20,7 +20,8 @@
     "test:e2e:undo": "playwright test --config playwright.undo.config.ts",
     "test:e2e:pen": "playwright test --config playwright.pen.config.ts",
     "test:e2e:shapes": "playwright test --config playwright.shapes.config.ts",
-    "test:e2e:text": "playwright test --config playwright.text.config.ts"
+    "test:e2e:text": "playwright test --config playwright.text.config.ts",
+    "test:e2e:images": "playwright test --config playwright.images.config.ts"
   },
   "dependencies": {
     "lib0": "^0.2.119",

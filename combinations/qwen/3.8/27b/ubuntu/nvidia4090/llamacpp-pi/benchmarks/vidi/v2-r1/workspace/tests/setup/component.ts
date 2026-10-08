@@ -5,6 +5,7 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { FIXTURE_DIMENSIONS } from '../fixtures/images';
 
 // The api module is mocked for every component test. The defaults (board
 // exists; creation succeeds with a fixed id) keep the existing App-rendering
@@ -59,4 +60,21 @@ class ResizeObserverPolyfill {
 }
 if (typeof win.ResizeObserver !== 'function') {
   win.ResizeObserver = ResizeObserverPolyfill;
+}
+
+// createImageBitmap (story 12, image.insert): jsdom has no image decoder
+// (and its File has no arrayBuffer()), so the stub reads the dimensions
+// that fileFromBytes stashed on complete-PNG fixtures (FIXTURE_DIMENSIONS);
+// anything without them is rejected, mirroring a browser decode failure
+// (the "disguised PDF" and corrupt cases map to the type message).
+if (typeof win.createImageBitmap !== 'function') {
+  win.createImageBitmap = async (source: File): Promise<unknown> => {
+    const dims = (source as unknown as Record<symbol, unknown>)[FIXTURE_DIMENSIONS] as
+      | { width: number; height: number }
+      | undefined;
+    if (dims === undefined) {
+      throw new Error('createImageBitmap: undecodable image (jsdom stub)');
+    }
+    return { width: dims.width, height: dims.height, close: () => undefined };
+  };
 }

@@ -20,6 +20,8 @@ export interface ToolbarProps {
   onSelectTool(t: ToolId): void;
   onSelectShapeKind(k: ShapeKind): void;
   onCreateSticky(): void;
+  /** Story 12: open the image file picker (the Image button / I key). */
+  onOpenImage(): void;
   /** Disable the tool buttons (story 4: board load failed). */
   disabled?: boolean;
   /** Rendered below the tools (story 8: the Undo/Redo buttons). */
@@ -37,6 +39,7 @@ export function Toolbar(
     onSelectTool,
     onSelectShapeKind,
     onCreateSticky,
+    onOpenImage,
     disabled = false,
     extra,
   } = props;
@@ -163,6 +166,21 @@ export function Toolbar(
               strokeLinejoin="round"
             />
             <path d="M13.4 4l2.6 2.6" stroke="#263238" strokeWidth="1.25" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="toolbar__tool"
+          aria-label="Image (I)"
+          title="Image (I) — drop, paste or pick image files"
+          data-testid="image-button"
+          disabled={disabled}
+          onClick={onOpenImage}
+        >
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <rect x="3" y="4" width="14" height="12" rx="1.5" fill="#C8E6C9" stroke="#263238" strokeWidth="1.25" />
+            <circle cx="7.5" cy="8" r="1.4" fill="#263238" />
+            <path d="M4 14l4-4 3 3 2.5-2.5L16 15" stroke="#263238" strokeWidth="1.25" />
           </svg>
         </button>
         {extra}

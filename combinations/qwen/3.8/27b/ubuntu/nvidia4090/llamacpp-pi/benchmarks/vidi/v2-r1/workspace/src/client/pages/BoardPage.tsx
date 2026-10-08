@@ -44,6 +44,9 @@ import { PenToolbar } from '../tools/PenToolbar';
 import { usePenOptions } from '../tools/usePenOptions';
 import { getObjectType } from '../objects/registry';
 import { ShapeToolbar } from '../objects/ShapeToolbar';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { Toast } from '../ui/Toast';
 import { createShape, getShapeLabel, setShapeStyle } from '../../shared/objects/shape';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
@@ -72,7 +75,11 @@ import {
   type StrokeColor,
 } from '../../shared/config';
 import { getClientId } from '../client-id';
-import { STICKY_COLORS, type StickyColor } from '../../shared/config';
+import {
+  IMAGE_ACCEPTED_TYPES,
+  STICKY_COLORS,
+  type StickyColor,
+} from '../../shared/config';
 import { isValidBoardId } from '../../shared/board-id';
 import { isTestMode, type Vidi6TestHooks } from '../testHooks';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -194,6 +201,58 @@ function Board(props: { boardId: string }): JSX.Element {
 
   const cam = useCamera(size);
 
+  // Story 12 (image.insert): image drop / paste / picker, upload progress
+  // and retry. The identity is this tab's anonymous client id.
+  const identityId = useMemo(() => getClientId(), []);
+  const images = useImageInsert({
+    doc,
+    boardId,
+    camera: cam.camera,
+    connection: connectionState,
+    identityId,
+  });
+
+  // The `now` the image display states are derived from: re-rendered every
+  // 30 s while any image is uploading so an abandoned upload becomes
+  // "unfinished" without further activity (image.unfinished).
+  const [now, setNow] = useState<number>(() => Date.now());
+  const anyImageUploading = useMemo(
+    () => objects.some((o) => o.type === 'image' && o.status === 'uploading'),
+    [objects],
+  );
+  useEffect(() => {
+    if (!anyImageUploading) return;
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, [anyImageUploading]);
+
+  // Story 12 (image.drop): the drop highlight while image files are dragged
+  // over the board. dragenter/dragleave nest, so track a depth.
+  const [dropActive, setDropActive] = useState(false);
+  const dragDepth = useRef(0);
+  const dragHasFiles = (e: DragEvent): boolean =>
+    e.dataTransfer !== null && Array.from(e.dataTransfer.types).includes('Files');
+  const onRootDragEnter = (e: React.DragEvent): void => {
+    if (!dragHasFiles(e.nativeEvent)) return;
+    dragDepth.current += 1;
+    setDropActive(true);
+  };
+  const onRootDragOver = (e: React.DragEvent): void => {
+    if (!dragHasFiles(e.nativeEvent)) return;
+    images.onDragOver(e.nativeEvent);
+  };
+  const onRootDragLeave = (e: React.DragEvent): void => {
+    if (!dragHasFiles(e.nativeEvent)) return;
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDropActive(false);
+  };
+  const onRootDrop = (e: React.DragEvent): void => {
+    if (!dragHasFiles(e.nativeEvent)) return;
+    dragDepth.current = 0;
+    setDropActive(false);
+    images.onDrop(e.nativeEvent);
+  };
+
   // Story 9 (tool.shortcuts) + story 10 (tools.active_tool): the active
   // tool (Select / Text / Shape / Connector) and the single-letter
   // shortcuts. N creates a sticky at the view centre, the same action as
@@ -209,6 +268,9 @@ function Board(props: { boardId: string }): JSX.Element {
     isEditing: () => selection.editingId !== null,
     onSelect: (id) => selection.selectOnly(id),
     onCreateStickyAtCenter: () => createStickyAt({ x: size.width / 2, y: size.height / 2 }),
+    // Story 12 (image.pick): the I key and the Image button open the file
+    // picker; it is an action, not a tool change.
+    onOpenImagePicker: () => images.openPicker(),
   });
 
   // Story 11 (pen.options): the pen's session-only colour/thickness choice;
@@ -223,6 +285,19 @@ function Board(props: { boardId: string }): JSX.Element {
     return () => undo.destroy();
   }, [undo]);
   const undoApi = useUndo(undo, editable);
+
+  // Story 12: Remove on a failed / unfinished image (one undo step), and
+  // drop the in-memory file so Retry no longer offers it.
+  const removeImage = useCallback(
+    (imageId: string) => {
+      if (!editable) return;
+      undo.boundary();
+      deleteObject(doc, imageId);
+      undo.boundary();
+      images.forget(imageId);
+    },
+    [doc, editable, images, undo],
+  );
 
   // Story 7: the generic transform gesture (group move + bounding-box resize)
   // and the selection keyboard commands. Story 8: the gesture's start and
@@ -458,7 +533,15 @@ function Board(props: { boardId: string }): JSX.Element {
       : DEFAULT_SHAPE_STROKE;
 
   return (
-    <div ref={rootRef} className="board-root" data-testid="board-root">
+    <div
+      ref={rootRef}
+      className="board-root"
+      data-testid="board-root"
+      onDragEnter={onRootDragEnter}
+      onDragOver={onRootDragOver}
+      onDragLeave={onRootDragLeave}
+      onDrop={onRootDrop}
+    >
       <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={cam.camera}
@@ -501,6 +584,20 @@ function Board(props: { boardId: string }): JSX.Element {
               camera={cam.camera}
               rects={rects}
               snapshot={objects}
+              imageCtx={
+                obj.type === 'image'
+                  ? {
+                      isUploader: obj.uploaderId === identityId,
+                      progress: images.progress.get(obj.id),
+                      canRetry: images.canRetry(obj.id),
+                      now,
+                      onRetry: (imageId: string) => {
+                        if (editable) images.retry(imageId);
+                      },
+                      onRemove: (imageId: string) => removeImage(imageId),
+                    }
+                  : undefined
+              }
             />
           );
         })}
@@ -522,8 +619,27 @@ function Board(props: { boardId: string }): JSX.Element {
         onSelectShapeKind={setShapeKind}
         disabled={!editable}
         onCreateSticky={() => createStickyAt({ x: size.width / 2, y: size.height / 2 })}
+        onOpenImage={() => images.openPicker()}
         extra={<UndoButtons undo={undoApi} />}
       />
+
+      {/* Story 12: the file picker input (hidden; opened by the Image
+          button / I key) and the toast stack for rejection messages. */}
+      <input
+        ref={images.pickerInputRef}
+        type="file"
+        accept={IMAGE_ACCEPTED_TYPES.join(',')}
+        multiple
+        data-testid="image-picker"
+        style={{ display: 'none' }}
+        onChange={(e) => images.onPickerChange(e)}
+      />
+      <div className="toast-stack" data-testid="toast-stack">
+        {images.toasts.map((message) => (
+          <Toast key={message} message={message} />
+        ))}
+      </div>
+      <DropHighlight visible={dropActive} />
 
       {/* Story 10: the shape and connector tools are mounted only while
           active; unmounting drops any unfinished drag without creating

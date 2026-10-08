@@ -332,3 +332,30 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
  * aspect-locked resize clamps at this.
  */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// --- Images (story 12) ------------------------------------------------------
+
+/** The raster image types the product accepts (by MIME type). */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+/** image.size_limit: files larger than this are refused. */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** image.count_limit: at most this many images per drop/paste/pick. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/**
+ * image.placement_size: natural pixels map 1:1 to board units, scaled down
+ * proportionally so the longest side is at most this.
+ */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** image.aspect_resize: no side of an image may shrink below this. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** image.drop: gap between two images in a row, in board units. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/** image.unfinished: an upload still 'uploading' after this is unfinished. */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/**
+ * assets.api: immutable caching of served assets (keys are unguessable and
+ * never change; 365 days).
+ */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** assets.api: magic-byte sniffing reads the first bytes of the body. */
+export const IMAGE_SNIFF_BYTES = 12;

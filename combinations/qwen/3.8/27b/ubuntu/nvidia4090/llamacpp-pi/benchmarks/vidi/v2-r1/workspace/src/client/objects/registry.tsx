@@ -29,8 +29,11 @@ import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
+import { ImageObject } from './ImageObject';
 import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
+import type { ImageSnap } from '../../shared/objects/image';
 import type { Rect } from '../../shared/geometry';
+import { IMAGE_MIN_SIZE_WORLD } from '../../shared/config';
 
 /**
  * The minimal pointer-event shape the object components and the transform
@@ -82,6 +85,25 @@ export interface ObjectProps {
   rects?: ReadonlyMap<string, Rect>;
   /** The full snapshot (the connector hit-tests drop targets). */
   snapshot?: readonly ObjectSnapshot[];
+  // --- Story 12 additions (optional; only image uses them) -----------------
+  /**
+   * Per-client image context: whether this client is the uploader, the
+   * upload progress, and the Retry/Remove actions (image.render).
+   */
+  imageCtx?: ImageCtx;
+}
+
+/**
+ * The image-specific context the board passes to the image component
+ * (story 12, image.render): uploader-ness, progress and the actions.
+ */
+export interface ImageCtx {
+  readonly isUploader: boolean;
+  readonly progress?: number;
+  readonly canRetry: boolean;
+  readonly now: number;
+  onRetry(id: string): void;
+  onRemove(id: string): void;
 }
 
 /**
@@ -204,6 +226,35 @@ registerObjectType('connector', {
       CONNECTOR_HIT_TOLERANCE_PX / zoom
     );
   },
+});
+
+// --- Images (story 12, image.render) ----------------------------------------
+
+registerObjectType('image', {
+  Component: (p: ObjectProps) => {
+    const ctx = p.imageCtx;
+    if (ctx === undefined) return null; // the board must provide image context
+    return (
+      <ImageObject
+        image={p.obj as unknown as ImageSnap}
+        isUploader={ctx.isUploader}
+        progress={ctx.progress}
+        canRetry={ctx.canRetry}
+        now={ctx.now}
+        onRetry={() => ctx.onRetry(p.obj.id)}
+        onRemove={() => ctx.onRemove(p.obj.id)}
+        selected={p.selected}
+        zoom={p.zoom}
+        canEdit={p.canEdit}
+        onPointerDown={p.onPointerDown}
+      />
+    );
+  },
+  resizable: true,
+  aspectLocked: true, // images always keep their proportions (image.resize)
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, p) => pointInRect(objectBounds(obj), p),
 });
 
 // --- Strokes (story 11, pen.select / pen.resize) ----------------------------

@@ -548,3 +548,81 @@ Ctrl/Cmd +/-/0 zoom shortcuts in `useCamera`/`BoardViewport`.
   stroke's stored array (validated: non-empty, finite, even-length).
   `tests/e2e/shape-helpers.ts`'s `ObjectInfo` gained the same optional
   fields (no impact on the story-10 specs).
+
+# Story 12 — Notes
+
+## Environment
+
+- **WebKit is unavailable on this host** (missing system library
+  `libavif13`, no root to install it). The e2e matrix is chromium +
+  firefox: TC-25 (drop → placeholders → ready on two screens) runs in both;
+  TC-26 to TC-28 are chromium-only (skipped in firefox via `chromiumOnly()`,
+  the story-10/11 pattern).
+- **jsdom's `File` has no `arrayBuffer()`.** The `createImageBitmap` stub in
+  `tests/setup/component.ts` therefore cannot read the file's bytes; instead
+  `fileFromBytes` (tests/fixtures/images) stashes the decoded dimensions of
+  complete-PNG fixtures on the File under a non-enumerable
+  `FIXTURE_DIMENSIONS` symbol, which the stub reads. Files without the
+  symbol (disguised PDFs, corrupt PNGs, JPEGs) are rejected, mirroring a
+  browser decode failure — which is what maps them to the type message.
+- **A dropped `img onError` is per-instance state** (TC-23): the
+  "Image unavailable" box appears on the same mounted component after
+  `fireEvent.error(img)`; re-mounting resets it.
+
+## Bugs found while wiring the e2e matrix
+
+- **The pure-JS PNG encoder wrote stored-deflate block headers in the wrong
+  endianness.** `zlibStored` reused the PNG-order (big-endian) `u16` for the
+  block's LEN/NLEN, but deflate requires little-endian there. Most sizes
+  failed in the browser ("The source image could not be decoded") while a
+  few (width 300) happened to survive Skia's tolerance — TC-25 initially
+  produced one image plus a spurious type toast instead of three. Fixed with
+  a little-endian `u16le` for the block headers only (IHDR/chunk lengths and
+  CRCs stay big-endian). Verified against a byte-for-byte Python reference
+  (PIL-decodable) and in-browser decoding of every fixture size.
+- **`route.fulfill` must not forward raw response headers** (e.g.
+  `transfer-encoding`) — TC-25's upload-delay helper re-fulfils with
+  `status` + `contentType` + body only, or the XHR errors and every upload
+  fails instantly.
+- **`wrangler.e2e.jsonc` was missing the R2 binding**, so
+  `env.ASSETS_BUCKET` was `undefined` in the e2e wrangler dev process and
+  every upload returned 500. Added (R2 is emulated locally by `wrangler
+  dev`); `handleUpload` still degrades to 500 when the binding is absent.
+
+## Gap filled from story 11
+
+- **The main e2e config never ignored `pen.spec.ts`**, so the multi-context
+  pen tests (TC-18, TC-20) ran against the vite in-memory relay — where
+  they cannot pass (the spec creates its board on its own wrangler).
+  Reproduced on the story-11 baseline commit. Following the config's
+  existing convention, `pen.spec.ts` (and the new `images.spec.ts`) are now
+  in the main config's `testIgnore`; both keep running under their own
+  wrangler configs (`test:e2e:pen`, `test:e2e:images`).
+
+## Key decisions
+
+- **JPEG fixtures are a JFIF header plus deterministic padding.** Nothing in
+  the product decodes a JPEG: the server sniffs magic bytes only, the client
+  rejects over-limit files before decoding, and a decode failure maps to the
+  type message — so a decodable body would add nothing.
+- **E2E drops are synthetic `DragEvent`s carrying a constructible
+  `DataTransfer` of in-page-constructed Files** (`tests/e2e/drop-files.ts`);
+  Playwright cannot drag OS files, but the client path (drop → validate →
+  `createImageBitmap` decode → placeholders → XHR upload → ready) is the
+  real one, byte for byte.
+- **TC-25 delays the upload responses ~2.5 s** (route → `route.fetch()` →
+  timed `route.fulfill`) so the uploading states are observable on both
+  screens; the drop-to-visible time on Sam is logged against
+  `LIVE_UPDATE_LATENCY_BUDGET_MS` (reported, not asserted — shared
+  machine).
+- **Component tests TC-17/18/29 mock `uploadImage`** (progress emission,
+  resolution, rejection); the jsdom `createImageBitmap` stub supplies the
+  dimensions. The window paste listener's editable-target guard is tested
+  with a real focused `<textarea>` (TC-18).
+- **`ObjectSnapshot` already types the image fields** (`assetKey`,
+  `contentType`, `naturalWidth/Height`, `status`, `uploadStartedAt`,
+  `uploaderId`) added in task 5, so `BoardPage`'s wiring is cast-free.
+- **`useImageInsert` keeps the accepted `File` per object id in memory**
+  (Retry re-sends the same bytes) and aborts every in-flight XHR on
+  unmount; toasts dedupe identical messages and auto-dismiss after
+  `TOAST_VISIBLE_MS`.

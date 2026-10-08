@@ -107,6 +107,22 @@ export interface ObjectSnapshot {
   baseHeight?: number;
   /** thin | medium | thick */
   thickness?: PenThickness;
+  /**
+   * Story 12: image-specific fields (present on type 'image' objects).
+   */
+  /** R2 key '<boardId>/<assetId>'; null until the upload completes. */
+  assetKey?: string | null;
+  /** Sniffed image MIME type. */
+  contentType?: string;
+  /** Decoded natural size in pixels. */
+  naturalWidth?: number;
+  naturalHeight?: number;
+  /** 'uploading' | 'ready' | 'failed' (as stored, never 'unfinished'). */
+  status?: 'uploading' | 'ready' | 'failed';
+  /** Epoch ms when the current upload attempt started. */
+  uploadStartedAt?: number;
+  /** The client id that started the upload. */
+  uploaderId?: string;
   text: string;
   createdAt?: number;
 }
@@ -378,6 +394,36 @@ export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       snap.to = to;
       pending.push({ snap, connector: true });
       return; // bbox derived in the second pass
+    } else if (type === 'image') {
+      // Story 12: image-specific fields; malformed images are skipped
+      // entirely, like malformed shapes and strokes.
+      const assetKey = obj.get('assetKey');
+      const contentType = obj.get('contentType');
+      const naturalWidth = obj.get('naturalWidth');
+      const naturalHeight = obj.get('naturalHeight');
+      const status = obj.get('status');
+      const uploadStartedAt = obj.get('uploadStartedAt');
+      const uploaderId = obj.get('uploaderId');
+      if (
+        snap.width === undefined ||
+        snap.height === undefined ||
+        (assetKey !== null && typeof assetKey !== 'string') ||
+        typeof contentType !== 'string' ||
+        typeof naturalWidth !== 'number' || !Number.isFinite(naturalWidth) ||
+        typeof naturalHeight !== 'number' || !Number.isFinite(naturalHeight) ||
+        (status !== 'uploading' && status !== 'ready' && status !== 'failed') ||
+        typeof uploadStartedAt !== 'number' || !Number.isFinite(uploadStartedAt) ||
+        typeof uploaderId !== 'string'
+      ) {
+        return;
+      }
+      snap.assetKey = assetKey;
+      snap.contentType = contentType;
+      snap.naturalWidth = naturalWidth;
+      snap.naturalHeight = naturalHeight;
+      snap.status = status;
+      snap.uploadStartedAt = uploadStartedAt;
+      snap.uploaderId = uploaderId;
     }
     pending.push({ snap, connector: false });
   });

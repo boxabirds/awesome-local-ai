@@ -39,13 +39,14 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
   c: 'comment',
 };
 
-/** The tools this build renders a gesture/UI for (stories 12, 17 unbuilt). */
+/** The tools this build renders a gesture/UI for (story 17 unbuilt). */
 const IMPLEMENTED_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>([
   'select',
   'text',
   'shape',
   'connector',
   'pen',
+  'image',
 ]);
 
 export interface ActiveToolApi {
@@ -66,6 +67,11 @@ export interface UseActiveToolOptions {
   onSelect(id: string): void;
   /** The 'n' shortcut (story 9): create a sticky at the board centre. */
   onCreateStickyAtCenter?(): void;
+  /**
+   * The 'i' shortcut / Image button (story 12): open the file picker. An
+   * action, not a tool change — the active tool stays as it was.
+   */
+  onOpenImagePicker?(): void;
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -125,6 +131,12 @@ export function useActiveTool(opts: UseActiveToolOptions): ActiveToolApi {
       if (t === undefined) return; // unknown shortcut: ignored
       if (t === 'sticky') {
         if (optsRef.current.canEdit) optsRef.current.onCreateStickyAtCenter?.();
+        return;
+      }
+      if (t === 'image') {
+        // image.pick: the Image tool opens the picker; it is an action, so
+        // the active tool is unchanged.
+        if (optsRef.current.canEdit) optsRef.current.onOpenImagePicker?.();
         return;
       }
       if (!IMPLEMENTED_TOOLS.has(t)) return;
