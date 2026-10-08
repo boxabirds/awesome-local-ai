@@ -1,3 +1,35 @@
+commit 32612e051766850c28f264d74151a75bcc37484f
+vidi-agent  Thu Oct 8 14:18:15 2026 +0000
+
+    harness: snapshot after story 8 (uncommitted agent work)
+
+
+ PROGRESS.md                              |  11 +-
+ src/client/board/SelectionBar.tsx        |   8 +-
+ src/client/board/Toolbar.tsx             |  21 +-
+ src/client/board/UndoButtons.tsx         |  69 ++++
+ src/client/board/undo.ts                 | 111 +++++++
+ src/client/board/useBoardKeys.ts         |  36 +-
+ src/client/board/useTransformGesture.ts  |  14 +-
+ src/client/board/useUndo.ts              |  48 +++
+ src/client/objects/NoteToolbar.tsx       |   5 +-
+ src/client/objects/StickyNote.tsx        | 112 ++++---
+ src/client/objects/StickyTextEditor.tsx  |  33 +-
+ src/client/pages/BoardPage.tsx           |  85 ++++-
+ src/shared/board-model.ts                |  17 +-
+ src/shared/config.ts                     |   4 +
+ tests/component/Toolbars.test.tsx        |  15 +-
+ tests/component/undo-boundaries.test.tsx | 147 +++++++++
+ tests/unit/undo-history.test.ts          | 544 +++++++++++++++++++++++++++++++
+ 17 files changed, 1190 insertions(+), 90 deletions(-)
+commit 62e01a57773afbf7c016b6c60e99b2ea0c5b24aa
+vidi-agent  Thu Oct 8 13:01:26 2026 +0000
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 49 +++++++++++--------------------------------------
+ 1 file changed, 11 insertions(+), 38 deletions(-)
 commit 6a6405bc101c462843f39843e01971b270f8dc86
 agent  Thu Oct 8 12:45:38 2026 +0000
 
