@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  DRAG_THRESHOLD_PX,
   GRID_SPACING_WORLD,
   WHEEL_LINE_DELTA_PX,
   WHEEL_ZOOM_SENSITIVITY,
@@ -33,7 +34,16 @@ const GRID_DOT_RADIUS_PX = 1;
  *
  * Children render in world coordinates inside the world layer.
  */
-export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
+interface BoardViewportProps {
+  children?: ReactNode;
+  /** Double-click on empty board space: create an object at this point. */
+  onDoubleClickEmpty?: (p: Point) => void;
+  /** Single click (no drag) on empty board space: clear the selection. */
+  onEmptyClick?: () => void;
+}
+
+export function BoardViewport(props: BoardViewportProps): JSX.Element {
+  const { onDoubleClickEmpty, onEmptyClick } = props;
   const controller = useContext(CameraContext);
   if (controller === null) {
     throw new Error('BoardViewport must be rendered inside a CameraContext provider');
@@ -41,6 +51,7 @@ export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
   const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset } = controller;
 
   const viewportRef = useRef<HTMLDivElement>(null);
+  const panStartLocalRef = useRef<Point | null>(null);
   const [isPanning, setIsPanning] = useState(false);
 
   const toLocalPoint = (clientX: number, clientY: number): Point => {
@@ -164,6 +175,7 @@ export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
       el.setPointerCapture(e.pointerId);
     }
     beginPan(toLocalPoint(e.clientX, e.clientY));
+    panStartLocalRef.current = toLocalPoint(e.clientX, e.clientY);
     setIsPanning(true);
   };
 
@@ -174,6 +186,28 @@ export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
   const endDrag = (): void => {
     endPan();
     setIsPanning(false);
+  };
+
+  const onPointerUp = (e: ReactPointerEvent): void => {
+    endDrag();
+    // A click on empty space (pointer did not travel) clears the selection.
+    const down = panStartLocalRef.current;
+    panStartLocalRef.current = null;
+    if (down !== null && e.target === viewportRef.current) {
+      const up = toLocalPoint(e.clientX, e.clientY);
+      if (Math.hypot(up.x - down.x, up.y - down.y) < DRAG_THRESHOLD_PX) {
+        onEmptyClick?.();
+      }
+    }
+  };
+
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>): void => {
+    // Only a double-click on empty board space creates an object; double-clicks
+    // on a note (or the toolbars) are handled by their own elements.
+    if (e.target !== viewportRef.current) {
+      return;
+    }
+    onDoubleClickEmpty?.(toLocalPoint(e.clientX, e.clientY));
   };
 
   // --- Rendering -------------------------------------------------------------
@@ -194,9 +228,10 @@ export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
       data-testid="board-viewport"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
+      onPointerUp={onPointerUp}
       onPointerCancel={endDrag}
       onLostPointerCapture={endDrag}
+      onDoubleClick={onDoubleClick}
       style={{
         position: 'absolute',
         inset: 0,

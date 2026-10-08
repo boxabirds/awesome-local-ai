@@ -1,5 +1,9 @@
 # Story 1: decisions and environment notes
 
+_(Story 2 decisions are at the bottom of this file.)_
+
+# Story 2: Capture ideas on sticky notes — decisions
+
 ## Environment
 
 - **E2E runs on Chromium only.** The sandbox pre-installs only the
@@ -61,3 +65,57 @@
   `createEvent` and dispatch it with `fireEvent`.
 - **RTL auto-cleanup needs vitest globals** (off here), so `cleanup` runs
   in an explicit `afterEach`.
+
+## Story 2 implementation decisions
+
+- **Stable DOM render order — the drag-capture bug.** Rendering notes in
+  snapshot (z, id) order means `bringToFront` mid-drag re-sorts the list
+  and React reorders the DOM (remove + reinsert). In Chromium, moving a
+  node that holds `setPointerCapture` releases the capture and fires
+  `lostpointercapture`, killing the drag after its first move. Fix: the
+  board renders notes in a **stable `(createdAt, id)` order**
+  (`renderOrder` in `board-model.ts`); stacking is expressed purely by
+  CSS `z-index: note.z`, which can change without touching DOM order.
+  `snapshot()` still returns (z, id) order for the model and tests.
+- **Unit-test Y.Text must be doc-bound.** `applyTextDiff` operates through
+  `ytext.doc.transact`; a standalone `new Y.Text()` has no doc. The unit
+  tests use a `makeYText(initial)` helper (`new Y.Doc()` +
+  `doc.getText('text')`) so every level tests the real Y.Doc, and
+  `applyTextDiff` keeps a null-doc guard (applies directly without a
+  transact) as a defensive fallback.
+- **Yjs delta shape.** The observed delta uses separate `{ delete: n }`
+  chunks (not `{ retain: n, delete: true }`) and omits the unchanged
+  trailing suffix; the test summarizer handles both forms.
+- **Editor "outside" detection.** The textarea finds its own note root
+  via `ta.closest('[data-sticky-note]')`; a pointerdown whose target is
+  inside the own note (padding, swatches) stays in editing, while a click
+  on any other note or the board ends editing as *unselected* (design
+  sticky.edit_outside).
+- **`finishDrag(flush)` semantics.** A clean `pointerup` cancels the
+  pending rAF and flushes it, so the grabbed point ends exactly under the
+  pointer (TC-31/TC-32). `pointercancel`/`lostpointercapture` do **not**
+  flush — the note stays where it was last displayed (TC-37). The rAF is
+  also cancelled in the unmount cleanup so a deleted note never leaves a
+  stale drag id or a pending frame.
+- **Drag math is origin-based.** The pending world position is
+  `pointerdown origin + (pointer - origin) / zoom`, recomputed every move
+  and applied at most once per rAF; it stays exact even if the camera
+  zooms mid-drag because both terms use the live zoom.
+- **E2E model hook.** `window.__vidi6.getObject(id)` returns
+  `{x, y, z, color, text}` in test builds (absent from production), so
+  e2e tests assert on the model (exact world deltas, z-order, colour,
+  length-clamped text) rather than pixel-guessing.
+- **TC-32 overlap geometry.** At 200% zoom the two notes' creation points
+  are chosen so the second dblclick lands *outside* the first note's box
+  (otherwise it edits instead of creating) while the boxes still overlap;
+  the drag grabs the bottom note at a point not covered by the top one.
+- **`longParagraph()`** produces exactly 1,000 characters of English prose
+  (repeated sentence pool, sliced to length) so the auto-fit test crosses
+  the 1,000-char limit and exercises the clamp + counter + fade.
+
+## Story 2 test counts
+
+- Unit: 40 (16 board-model + 11 sticky-text + 13 camera)
+- Component: 32 (9 StickyNote + 4 StickyTextEditor + 3 Toolbars + 9
+  BoardViewport + 5 ZoomControls + 2 NavigationHint + ...)
+- E2E (Chromium): 11 (7 story-1 navigation + 4 story-2 sticky notes)

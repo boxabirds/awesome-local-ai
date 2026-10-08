@@ -1,10 +1,31 @@
-import { useEffect, useRef, useState, type JSX } from 'react';
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
 import { CameraContext, useCamera } from './canvas/useCamera';
-import { canZoomIn, canZoomOut, zoomPercent } from './canvas/camera';
+import {
+  canZoomIn,
+  canZoomOut,
+  screenToWorld,
+  worldToScreen,
+  zoomPercent,
+  type Point,
+} from './canvas/camera';
 import { installVidi6TestHooks } from './canvas/testHooks';
+import {
+  createSticky,
+  deleteObject,
+  renderOrder,
+  setStickyColor,
+  type StickySnapshot,
+} from '../shared/board-model';
+import { STICKY_SIZE_WORLD, type StickyColor } from '../shared/config';
+import { useBoardDoc } from './board/useBoardDoc';
+import { useSelection } from './board/useSelection';
+import { useStickyKeyboard } from './board/useStickyKeyboard';
+import { Toolbar } from './board/Toolbar';
+import { StickyNote } from './objects/StickyNote';
+import { NoteToolbar } from './objects/NoteToolbar';
 
 /** Board background colour (the dot grid is drawn on top). */
 const BOARD_BACKGROUND = '#f8f8f6';
@@ -86,11 +107,55 @@ export function App(): JSX.Element {
   }, []);
 
   const cameraController = useCamera(viewport);
+  const { doc, objects } = useBoardDoc();
+  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  // Test-only hook (no-op and tree-shaken in production builds).
+  useStickyKeyboard({ doc, selectedId, editingId, select, startEdit });
+
+  // If the selected / editing note disappears (deleted elsewhere), clear the
+  // stale local state so nothing points at a ghost (TC-37).
   useEffect(() => {
-    installVidi6TestHooks(cameraController.setCamera);
-  }, [cameraController.setCamera]);
+    if (selectedId !== null && !objects.some((o) => o.id === selectedId)) {
+      select(null);
+    }
+    if (editingId !== null && !objects.some((o) => o.id === editingId)) {
+      endEdit('unselected');
+    }
+  }, [objects, selectedId, editingId, select, endEdit]);
+
+  /** Create a sticky note centred on a viewport-local point and start editing it. */
+  const createAt = useCallback(
+    (p: Point): void => {
+      const id = createSticky(doc, screenToWorld(cameraController.camera, p));
+      if (id !== '') {
+        startEdit(id);
+      }
+    },
+    [doc, cameraController.camera, startEdit],
+  );
+
+  const createAtCentre = useCallback((): void => {
+    createAt({ x: viewport.width / 2, y: viewport.height / 2 });
+  }, [createAt, viewport]);
+
+  // Test-only hooks (no-ops and tree-shaken in production builds).
+  const objectsRef = useRef<readonly StickySnapshot[]>(objects);
+  objectsRef.current = objects;
+  const getObject = useCallback(
+    (id: string): StickySnapshot | undefined => objectsRef.current.find((o) => o.id === id),
+    [],
+  );
+  useEffect(() => {
+    installVidi6TestHooks(cameraController.setCamera, getObject);
+  }, [cameraController.setCamera, getObject]);
+
+  const selectedNote =
+    selectedId !== null ? objects.find((o) => o.id === selectedId) : undefined;
+  const noteToolbarVisible =
+    selectedNote !== undefined &&
+    editingId !== selectedNote.id &&
+    draggingId !== selectedNote.id;
 
   return (
     <CameraContext.Provider value={cameraController}>
@@ -99,9 +164,57 @@ export function App(): JSX.Element {
         data-testid="app-root"
         style={{ position: 'fixed', inset: 0, background: BOARD_BACKGROUND }}
       >
-        <BoardViewport>
+        <BoardViewport onDoubleClickEmpty={createAt} onEmptyClick={() => select(null)}>
           <OriginMarker />
+          {/* Stable DOM order (renderOrder): a DOM move would release pointer
+              capture and kill an in-flight drag; stacking is CSS z-index. */}
+          {renderOrder(objects).map((note) => (
+            <StickyNote
+              key={note.id}
+              note={note}
+              doc={doc}
+              zoom={cameraController.camera.zoom}
+              selected={selectedId === note.id}
+              editing={editingId === note.id}
+              onSelect={select}
+              onStartEdit={startEdit}
+              onEndEdit={endEdit}
+              onDraggingChange={setDraggingId}
+            />
+          ))}
         </BoardViewport>
+        <Toolbar onCreateSticky={createAtCentre} />
+        {noteToolbarVisible && selectedNote !== undefined && (
+          <div
+            style={{
+              position: 'fixed',
+              left:
+                worldToScreen(cameraController.camera, {
+                  x: selectedNote.x,
+                  y: selectedNote.y,
+                }).x + (STICKY_SIZE_WORLD * cameraController.camera.zoom) / 2,
+              top:
+                worldToScreen(cameraController.camera, {
+                  x: selectedNote.x,
+                  y: selectedNote.y,
+                }).y - 10,
+              transform: 'translate(-50%, -100%)',
+              zIndex: 3000,
+            }}
+          >
+            <NoteToolbar
+              color={selectedNote.color}
+              onColor={(c: StickyColor) => {
+                setStickyColor(doc, selectedNote.id, c);
+              }}
+              onDelete={() => {
+                if (deleteObject(doc, selectedNote.id)) {
+                  select(null);
+                }
+              }}
+            />
+          </div>
+        )}
         <ZoomControls
           zoomPercent={zoomPercent(cameraController.camera)}
           canZoomIn={canZoomIn(cameraController.camera)}
