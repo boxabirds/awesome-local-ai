@@ -1,3 +1,53 @@
+commit 0d45f8cfbf40f4859ed5d2b3db10f155a0c0da87
+agent  Thu Oct 8 13:41:08 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ PROGRESS.md                                      |   8 +-
+ index.html                                       |   2 +
+ src/client/App.tsx                               | 314 ++---------------------
+ src/client/Board.tsx                             | 270 +++++++++++++++++++
+ src/client/api.ts                                |  61 +++++
+ src/client/pages/BoardPage.tsx                   | 112 ++++++++
+ src/client/pages/HomePage.tsx                    | 104 ++++++++
+ src/client/pages/NotFoundPage.tsx                |  70 +++++
+ src/client/pages/state.ts                        |  58 +++++
+ src/client/router.ts                             |  52 ++++
+ src/client/share/SharePanel.tsx                  | 242 +++++++++++++++++
+ src/shared/config.ts                             |  15 ++
+ src/worker/board-room.ts                         |  68 ++++-
+ src/worker/board-store.ts                        |  65 +++++
+ src/worker/create-board.ts                       |  31 +++
+ src/worker/index.ts                              |  81 +++++-
+ src/worker/test-hooks.ts                         |   6 +-
+ tests/component/ConnectionStatus.test.tsx        |   2 +-
+ tests/component/SharePanel.test.tsx              | 124 +++++++++
+ tests/component/harness.tsx                      |   2 +-
+ tests/component/pages.test.tsx                   | 164 ++++++++++++
+ tests/e2e/broken-board.spec.ts                   |   6 +-
+ tests/e2e/helpers/participants.ts                |  33 ++-
+ tests/e2e/live-collaboration.spec.ts             |  17 +-
+ tests/e2e/navigation.spec.ts                     |   4 +-
+ tests/e2e/nightly.spec.ts                        |   7 +-
+ tests/e2e/persistence.spec.ts                    |   8 +-
+ tests/e2e/share.spec.ts                          | 125 +++++++++
+ tests/e2e/sticky-notes.spec.ts                   |   4 +-
+ tests/integration/board-api.test.ts              | 265 +++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |   2 +
+ tests/integration/board-room.test.ts             |   3 +-
+ tests/integration/fixtures/ws-client.ts          |  10 +-
+ tests/integration/worker.test.ts                 |  52 ++--
+ tests/unit/create-board.test.ts                  |  62 +++++
+ 35 files changed, 2087 insertions(+), 362 deletions(-)
+commit 1027913b772c248576ee3047a154755b6ed0833b
+vidi-agent  Thu Oct 8 13:02:55 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit 52c4e6a16420e0afa4c8d3ccb0af0899a38638d2
 agent  Thu Oct 8 13:00:28 2026 +0100
 
