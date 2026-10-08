@@ -1,3 +1,43 @@
+commit 6a6405bc101c462843f39843e01971b270f8dc86
+agent  Thu Oct 8 12:45:38 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                   |  78 +++--
+ PROGRESS.md                                |  51 +++-
+ src/client/board/Marquee.tsx               | 118 ++++++++
+ src/client/board/SelectionBar.tsx          | 153 ++++++++++
+ src/client/board/SelectionOverlay.tsx      | 121 ++++++++
+ src/client/board/useBoardKeys.ts           |  83 ++++++
+ src/client/board/useSelection.ts           | 159 ++++++++---
+ src/client/board/useTransformGesture.ts    | 252 ++++++++++++++++
+ src/client/canvas/BoardViewport.tsx        |  46 ++-
+ src/client/objects/StickyNote.tsx          | 164 +++--------
+ src/client/objects/index.ts                |  45 ++-
+ src/client/objects/registry.tsx            |  37 +++
+ src/client/pages/BoardPage.tsx             | 174 ++++++-----
+ src/shared/board-model.ts                  | 173 +++++++++++
+ src/shared/config.ts                       |   7 +
+ src/shared/geometry.ts                     | 171 +++++++++++
+ tests/component/selection-bar.test.tsx     |  58 ++++
+ tests/component/selection-overlay.test.tsx |  70 +++++
+ tests/component/setup.ts                   |   2 +
+ tests/component/use-selection.test.tsx     | 140 +++++++++
+ tests/e2e/selection.e2e.ts                 | 180 ++++++++++++
+ tests/fixtures/testbox.tsx                 |  50 ++++
+ tests/unit/geometry.test.ts                | 443 +++++++++++++++++++++++++++++
+ tests/unit/registry.test.ts                |  75 +++++
+ tests/unit/selection.test.ts               | 119 ++++++++
+ 25 files changed, 2688 insertions(+), 281 deletions(-)
+commit 0c733429dfa212f15e491ecac74777e83c6cf7ac
+vidi-agent  Thu Oct 8 12:07:27 2026 +0000
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 42 +++++++++++++++---------------------------
+ 1 file changed, 15 insertions(+), 27 deletions(-)
 commit 4b6e8635fd50c21b4deaefe6bd24002b9c6dff4e
 agent  Thu Oct 8 11:54:14 2026 +0000
 
