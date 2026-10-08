@@ -1457,6 +1457,7 @@ def test_the_memory_snapshot_joins_the_total_the_weights_and_the_engine_s_log(mo
     env = root / "install.env"
     env.write_text('MODEL_SUBDIR="models"\nMODEL_FILE="m.gguf"\n')
     monkeypatch.setattr(drive, "server_footprint_gb", lambda port: (90.0, 95.0))
+    monkeypatch.setattr(drive, "server_process_detail", lambda port: (None, None))
     snap = drive.memory_at_story_start(run, 18010, env)
     assert snap["resident_mib"] == 90.0 * 1024
     assert snap["model_bytes"] == 2048
@@ -1465,11 +1466,49 @@ def test_the_memory_snapshot_joins_the_total_the_weights_and_the_engine_s_log(mo
 
 def test_without_an_install_manifest_the_snapshot_still_has_the_total_and_the_weights_are_unknown(monkeypatch, tmp_path):
     monkeypatch.setattr(drive, "server_footprint_gb", lambda port: (12.0, 13.0))
+    monkeypatch.setattr(drive, "server_process_detail", lambda port: (None, None))
     snap = drive.memory_at_story_start(tmp_path, 18010, None)
     assert snap["resident_mib"] == 12.0 * 1024 and snap["model_bytes"] is None
 
 
 def test_a_server_whose_total_cannot_be_read_gives_none_not_zero(monkeypatch, tmp_path):
     monkeypatch.setattr(drive, "server_footprint_gb", lambda port: (None, None))
+    monkeypatch.setattr(drive, "server_process_detail", lambda port: (None, None))
     assert drive.memory_at_story_start(tmp_path, 18010, None)["resident_mib"] is None
     assert drive.memory_at_story_start(tmp_path, None, None)["resident_mib"] is None       # no port to ask about
+
+
+# ---- the server's memory detail: macOS footprint categories, Linux anonymous/file split ----------------------------
+
+def test_the_server_detail_is_the_footprint_table_on_a_mac(monkeypatch):
+    monkeypatch.setattr(drive, "IS_MAC", True)
+    monkeypatch.setattr(drive, "engine_pid", lambda port: 4242)
+    seen = []
+    def run(cmd, **kw):
+        seen.append(cmd)
+        return SimpleNamespace(stdout="  61 MB  0 B  0 B  3  IOAccelerator\n")
+    monkeypatch.setattr(drive.subprocess, "run", run)
+    assert drive.server_process_detail(8011) == ("  61 MB  0 B  0 B  3  IOAccelerator\n", None)
+    assert seen == [["footprint", "-p", "4242"]]
+
+
+def test_the_server_detail_is_the_anonymous_and_file_split_on_linux(monkeypatch):
+    monkeypatch.setattr(drive, "IS_MAC", False)
+    monkeypatch.setattr(drive, "engine_pid", lambda port: 4242)
+    monkeypatch.setattr(drive.hostenv, "linux_process_split", lambda pid: {"anon_mib": 1.0, "file_mib": 2.0} if pid == 4242 else None)
+    assert drive.server_process_detail(8011) == (None, {"anon_mib": 1.0, "file_mib": 2.0})
+
+
+def test_the_server_detail_is_nothing_when_there_is_no_port_or_no_server(monkeypatch):
+    monkeypatch.setattr(drive, "engine_pid", lambda port: None)
+    assert drive.server_process_detail(None) == (None, None)       # no port to ask about
+    assert drive.server_process_detail(8011) == (None, None)       # nothing listening
+
+
+def test_the_story_start_snapshot_carries_the_detail_it_was_given(monkeypatch, tmp_path):
+    monkeypatch.setattr(drive, "server_footprint_gb", lambda port: (90.0, 95.0))
+    monkeypatch.setattr(drive, "server_process_detail", lambda port: ("  56 MB  0 B  0 B  1  IOAccelerator\n", None))
+    snap = drive.memory_at_story_start(tmp_path, 18010, None)
+    assert snap["footprint_categories_mib"] == {"IOAccelerator": 56.0}
+    monkeypatch.setattr(drive, "server_process_detail", lambda port: (None, {"anon_mib": 5.0, "file_mib": 6.0}))
+    assert drive.memory_at_story_start(tmp_path, 18010, None)["process_split_mib"] == {"anon_mib": 5.0, "file_mib": 6.0}

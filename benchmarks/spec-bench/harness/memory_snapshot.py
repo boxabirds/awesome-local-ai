@@ -17,6 +17,9 @@ What each engine offers, as found on 7 Oct 2026 (the tests carry real lines):
               that keeps evicting multi-gigabyte entries is thrashing, which is the thing worth knowing.
   gufo        a [cache] line with what the snapshot cache holds against its capacity, the GPU's use at load, and on
               every request the process's RSS and the host's free memory.
+  MTPLX       a `memory guard` line each time its guard acts, with what the engine counts as active, what macOS says
+              the process holds, and the gap between them. On 8 Oct 2026 that gap grew from a median 6.4 GiB to 12.4 GiB
+              over a run while the active figure stayed flat.
 
 More can be added per engine as they are found, including by upstream changes: the engines are open source.
 """
@@ -48,6 +51,22 @@ _HOST_FREE = re.compile(r"host_available_mib=(\d+)")
 _RSS = re.compile(r"\brss_mib=(\d+)")
 _SKIPPED_FOR_CAPACITY = "reason=byte_capacity"
 
+# MTPLX, from its server log: `[mtplx] memory guard {"action": ..., "active_bytes": ...}` (JSON, one object per line).
+_MTPLX_GUARD = "memory guard {"
+_MTPLX_ACTION = re.compile(r'"action": "([a-z_]+)"')
+_MTPLX_FIELDS = (("active_bytes", "guard_active_mib"), ("phys_footprint_bytes", "guard_footprint_mib"),
+                 ("host_overhang_bytes", "guard_host_overhang_mib"), ("limit_bytes", "guard_limit_mib"),
+                 ("bank_bytes_after", "guard_bank_after_mib"))
+_MTPLX_FIELD_RES = {name: re.compile(rf'"{name}": (\d+)') for name, _ in _MTPLX_FIELDS}
+_MTPLX_ADMISSION_SHED = "prefill_admission_shed"
+_MTPLX_SYSTEM_ABORT = "prefill_system_abort"
+
+# `footprint -p`: one row per category, "<dirty> <clean> <reclaimable> <regions> <category>", sizes with a unit.
+_FOOTPRINT_UNITS_MIB = {"B": 1 / BYTES_PER_MIB, "KB": 1 / 1024, "MB": 1.0, "GB": 1024.0, "TB": 1024.0 ** 2}
+_SIZE = r"[\d.]+\s*(?:B|KB|MB|GB|TB)"
+_FOOTPRINT_ROW = re.compile(rf"^\s*([\d.]+)\s*(B|KB|MB|GB|TB)\s+{_SIZE}\s+{_SIZE}\s+\d+\s+(.+?)\s*$")
+_FOOTPRINT_TOTAL = "TOTAL"
+
 
 def _mib(nbytes: int) -> float:
     return round(nbytes / BYTES_PER_MIB, 1)
@@ -69,7 +88,16 @@ def parse_engine_log(lines: Iterable[str]) -> dict:
     llamacpp = gufo = False
     seen: dict = {}
     skipped = 0
+    guard: dict = {}
+    guard_counts = {"sheds": 0, "aborts": 0}
     for line in lines:
+        if _MTPLX_GUARD in line and "[mtplx]" in line:
+            for name, _ in _MTPLX_FIELDS:
+                _last(_MTPLX_FIELD_RES[name], line, guard, name)
+            action = _MTPLX_ACTION.search(line)
+            guard_counts["sheds"] += bool(action and action.group(1) == _MTPLX_ADMISSION_SHED)
+            guard_counts["aborts"] += bool(action and action.group(1) == _MTPLX_SYSTEM_ABORT)
+            guard["seen"] = True
         if not llamacpp and any(s in line for s in _LLAMACPP_SIGNATURE):
             llamacpp = True
         if not gufo and any(s in line for s in _GUFO_SIGNATURE):
@@ -90,6 +118,12 @@ def parse_engine_log(lines: Iterable[str]) -> dict:
                              (_HOST_FREE, "host_free"), (_RSS, "rss")):
             _last(pattern, line, seen, key)
 
+    # A guard entry is MTPLX speaking about its memory; its plan line alone ("engine budget 90.0G") is not a reading.
+    if guard.get("seen"):
+        extras = {dst: _mib(guard[src]) for src, dst in _MTPLX_FIELDS if src in guard}
+        extras["guard_admission_sheds"] = guard_counts["sheds"]
+        extras["guard_system_aborts"] = guard_counts["aborts"]
+        return {"engine": "mtplx", "extras": extras}
     # gufo's log carries [cache]/[loader]/[http]; llama.cpp's carries "srv". A log with neither is not one we know.
     if gufo and ("retained_bytes" in seen or "gpu_used" in seen or "rss" in seen):
         cache: dict = {}
@@ -112,6 +146,24 @@ def parse_engine_log(lines: Iterable[str]) -> dict:
                                  "last_evicted_mib": round(last_evicted, 1) if last_evicted is not None else None,
                                  "checkpoints_erased": checkpoints}}
     return {}
+
+
+def parse_footprint_categories(text: str) -> dict[str, float]:
+    """macOS `footprint -p <pid>`: the DIRTY memory of each category in MiB, leaving out categories that hold none.
+
+    Dirty is what the process holds that is not a clean copy of a file: its heap (MALLOC_*), its GPU buffers
+    (IOAccelerator) and its anonymous mappings (VM_ALLOCATE). The categories are what tell a growing heap from a
+    growing GPU pool. {} when the text is not a footprint table.
+    """
+    out: dict[str, float] = {}
+    for line in text.splitlines():
+        m = _FOOTPRINT_ROW.match(line)
+        if not m or m.group(3) == _FOOTPRINT_TOTAL:
+            continue
+        dirty = float(m.group(1)) * _FOOTPRINT_UNITS_MIB[m.group(2)]
+        if dirty > 0:
+            out[m.group(3)] = round(dirty, 1)
+    return out
 
 
 def _files_under(p: Path) -> list[Path]:
@@ -205,11 +257,21 @@ def weights_from_manifest(env: dict, home: Path, environ: dict | None = None, ro
     return [main] + [h for h in (find(r) for r in extras) if h is not None]
 
 
-def take(resident_gb: float | None, server_log: Path, weights: Iterable[Path], at: float) -> dict:
-    """A snapshot: when, the server's total resident memory, the weights' exact size, and the engine's own account."""
+def take(resident_gb: float | None, server_log: Path, weights: Iterable[Path], at: float,
+         footprint_text: str | None = None, process_split: dict | None = None) -> dict:
+    """A snapshot: when, the server's total resident memory, the weights' exact size, and the engine's own account.
+
+    Optionally also how the process's memory divides: by category on macOS (the footprint table) or into anonymous and
+    file-backed on Linux. Each is present only when it was read."""
     snap: dict = {"at": at,
                   "resident_mib": round(resident_gb * MIB_PER_GIB, 1) if resident_gb is not None else None,
                   "model_bytes": weights_bytes(weights)}
+    if footprint_text:
+        categories = parse_footprint_categories(footprint_text)
+        if categories:
+            snap["footprint_categories_mib"] = categories
+    if process_split:
+        snap["process_split_mib"] = process_split
     try:
         with open(server_log, errors="replace") as f:
             snap.update(parse_engine_log(f))

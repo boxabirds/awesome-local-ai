@@ -134,6 +134,23 @@ def parse_proc_status_gb(status: str) -> tuple[float | None, float | None]:
     return grab("VmRSS"), grab("VmHWM")
 
 
+def parse_proc_status_split_mib(status: str) -> dict | None:
+    """{anon_mib, file_mib}: a Linux process's resident memory split into anonymous (heap, GPU-mapped, copies) and
+    file-backed (mapped weights, the page cache it touches). None when the kernel did not report both."""
+    def grab(key):
+        m = re.search(rf"^{key}:\s+(\d+)\s*kB", status, re.M)
+        return round(int(m.group(1)) / 1024, 1) if m else None
+    anon, file = grab("RssAnon"), grab("RssFile")
+    return {"anon_mib": anon, "file_mib": file} if anon is not None and file is not None else None
+
+
+def linux_process_split(pid: int) -> dict | None:
+    try:
+        return parse_proc_status_split_mib(Path(f"/proc/{pid}/status").read_text())
+    except OSError:
+        return None
+
+
 def mem_free_pct() -> float | None:
     if IS_MAC:
         return parse_memory_pressure_free_pct(_out(["memory_pressure", "-Q"]))

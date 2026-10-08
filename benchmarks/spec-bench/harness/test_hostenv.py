@@ -236,3 +236,22 @@ def test_no_engine_among_them_is_none_not_a_guess():
 def test_two_engines_takes_the_larger_so_a_dying_one_does_not_win():
     procs = ENGINE_PROCS + [(106, 50_000_000, "/usr/bin/llama-server --port 18010")]
     assert hostenv.pick_engine_pid(procs) == 103
+
+
+PROC_STATUS = """\
+Name:\tgufo
+VmPeak:\t129000000 kB
+VmRSS:\t118000000 kB
+RssAnon:\t91000000 kB
+RssFile:\t27000000 kB
+RssShmem:\t       0 kB
+VmHWM:\t119000000 kB
+"""
+
+
+def test_a_linux_process_resident_memory_is_split_into_anonymous_and_file_backed_mib():
+    assert hostenv.parse_proc_status_split_mib(PROC_STATUS) == {"anon_mib": round(91000000 / 1024, 1), "file_mib": round(27000000 / 1024, 1)}
+
+
+def test_a_status_without_the_split_gives_nothing_not_zeros():
+    assert hostenv.parse_proc_status_split_mib("Name:\tx\nVmRSS:\t10 kB\n") is None
