@@ -1192,6 +1192,17 @@
           "pushed": true
         },
         "commit": "d73cedf97"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 121
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -2850,6 +2861,17 @@
           "pushed": true
         },
         "commit": "e0e2aeac9"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 190
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "3": {
@@ -4865,6 +4887,17 @@
           "pushed": true
         },
         "commit": "38fbc8123"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 321
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "4": {
@@ -6961,6 +6994,17 @@
         "commit": "7130f9860",
         "unpushed": true,
         "error": "remote: Internal Server Error        \nremote: Request ID F22D:1854FE:1D1E:3B92:6AC67A7B        \nremote: Time 2026-10-07T16:59:42Z\nTo github.com:boxabirds/awesome-local-ai.git\n ! [remote rejected]     HEAD -> main (Internal Server Error)\nerror: failed to push some refs to 'github.com:boxabirds/awesome-local-ai.git'\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 274
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "5": {
@@ -8457,6 +8501,17 @@
           "pushed": true
         },
         "commit": "300fc22f6"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 208
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "7": {
@@ -9480,6 +9535,17 @@
           "pushed": true
         },
         "commit": "a69710d6b"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 173
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "8": {
@@ -10994,6 +11060,17 @@
           "pushed": true
         },
         "commit": "fe572886a"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 179
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "9": {
@@ -13287,6 +13364,17 @@
           "pushed": true
         },
         "commit": "e5f5560f7"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 376
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "10": {
@@ -15436,6 +15524,17 @@
           "pushed": true
         },
         "commit": "882f62b93"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 308
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "11": {
@@ -16711,6 +16810,17 @@
           "pushed": true
         },
         "commit": "df7fa5acf"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 190
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "12": {
@@ -19469,6 +19579,30 @@
       "tasks_claimed": {
         "file": "unparseable",
         "tasks": {}
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/llamacpp-iq3xxs-pi/benchmarks/vidi/v2-iq3xxs-r1/server.log"
+        ],
+        "private": {
+          "copied": 34,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "607585891"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 464
+        },
+        "truncated": false,
+        "reaches": []
       }
     }
   },
