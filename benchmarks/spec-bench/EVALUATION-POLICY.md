@@ -60,3 +60,14 @@ A run's score of record is its final commit re-scored after the run (`finalize.p
 13. **A score of record that disagrees with the run's own live score is checked before it is recorded.** Where the live scoring of the final commit ran under the same suite version, a re-score more than 3 tests away from it, or one that ran a different number of tests, is flagged and not recorded. So is a re-score whose every failure shares one error, across two or more stories and at least five failures, unless the live scoring of the same code failed the same way. Both scoring faults of 30 Sep 2026 differed from their live scores by 63 tests; on the v2 records, live and record agree to within one test.
 14. **Flakiness is measured both ways.** Every checkpoint is scored three times: the failing tests, and a seeded sample of the passing ones (a fifth, at least five), are rerun, and each rerun test takes its majority result. The record reports how many tests changed result, split into those that failed first and those that passed first, with the number of passing tests sampled.
 15. **The scoring environment is recorded with every result:** Node and npm, the suite's Playwright and Chromium, the OS, the number of held-out workers, and the install command.
+
+## How many runs per stack
+
+15. **Five runs per stack, unless three already settle it.** A stack's series is five runs. It may stop at three when the
+    spread of the three scores of record is narrow enough that two more would not change where the stack sits against the
+    others. A series that has not finished its third run is never cut short on this ground, and a spread measured on fewer
+    than three finished runs is not evidence. Stop the queued runs, not the one that is running, and record the reason where
+    the stack is described, with the scores of record it rests on. Re-open the series if the third run's score falls outside
+    the first two's range by enough to change that comparison. A narrow spread near the floor shows the result is stable, not
+    why it is there; say so. (The owner, 8 Oct 2026, on the gufo fork of Qwen3.6-35B-A3B, whose first two runs scored 1 and 0 out
+    of 75: "n=5 is when variance for n=3 is wide; it's not.")
