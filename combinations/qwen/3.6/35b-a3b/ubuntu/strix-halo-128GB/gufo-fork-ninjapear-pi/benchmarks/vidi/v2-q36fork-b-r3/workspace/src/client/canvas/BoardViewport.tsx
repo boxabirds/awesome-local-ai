@@ -1,6 +1,7 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import type { Point } from './camera';
+import type { Camera, Point } from './camera';
+import { screenToWorld } from './camera';
 import { LINE_DELTA, PAGE_DELTA } from '@shared/config';
 
 // Safari gesture event type
@@ -12,6 +13,8 @@ declare global {
 
 export interface BoardViewportProps {
   children?: ReactNode;
+  /** The current camera state */
+  camera: Camera;
   /** Called with pointer delta when panning */
   onPanMove(dx: number, dy: number): void;
   /** Called for wheel events */
@@ -22,13 +25,58 @@ export interface BoardViewportProps {
   onKeyDownZoom?(action: 'zoomIn' | 'zoomOut' | 'reset'): void;
   /** Grid background styles (set by parent from camera) */
   style?: CSSProperties;
+  /** Called when double-clicking empty board space with world coords */
+  onCreateSticky?(worldPoint: { x: number; y: number }): string | void;
+  /** Called when clicking empty board space (clear selection) */
+  onClearSelection?(): void;
 }
 
 export function BoardViewport(props: BoardViewportProps) {
-  const { children, onPanMove, onWheel, onEndPan, onKeyDownZoom, style = {} } = props;
+  const {
+    children,
+    camera,
+    onPanMove,
+    onWheel,
+    onEndPan,
+    onKeyDownZoom,
+    style = {},
+    onCreateSticky,
+    onClearSelection,
+  } = props;
   const ref = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const lastPosRef = useRef<Point | null>(null);
+  const worldLayerRef = useRef<HTMLDivElement>(null);
+
+  // ── World transform string ───────────────────────────────────────────
+  const worldTransform = `translate(${camera.x * camera.zoom}px, ${camera.y * camera.zoom}px) scale(${camera.zoom})`;
+
+  // ── Double-click on empty board → create note ────────────────────────
+  const handleDblClickEmpty = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if ((e.target as HTMLElement).closest('[data-sticky-id]')) {
+        return;
+      }
+      if (!onCreateSticky) return;
+      const wp = screenToWorld(camera, { x: e.clientX, y: e.clientY });
+      onCreateSticky(wp);
+    },
+    [camera, onCreateSticky],
+  );
+
+  // ── Click on empty board → clear selection ──────────────────────────
+  const handleClickEmpty = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if ((e.target as HTMLElement).closest('[data-sticky-id]')) {
+        return;
+      }
+      if ((e.target as HTMLElement).closest('[class*="toolbar"]')) {
+        return;
+      }
+      onClearSelection?.();
+    },
+    [onClearSelection],
+  );
 
   // ── Pointer drag ────────────────────────────────────────────────────
   const handlePointerDown = useCallback(
@@ -68,7 +116,7 @@ export function BoardViewport(props: BoardViewportProps) {
     const el = ref.current;
     if (!el) return;
 
-const onWheelHandler = (e: WheelEvent) => {
+    const onWheelHandler = (e: WheelEvent) => {
       e.preventDefault();
       const deltaMode = e.deltaMode;
       const dx =
@@ -78,32 +126,28 @@ const onWheelHandler = (e: WheelEvent) => {
       onWheel(dx, dy, !!e.ctrlKey || !!e.metaKey, { x: e.clientX, y: e.clientY });
     };
 
-el.addEventListener('wheel', onWheelHandler, { passive: false });
+    el.addEventListener('wheel', onWheelHandler, { passive: false });
     return () => el.removeEventListener('wheel', onWheelHandler);
   }, [onWheel]);
 
-// ── Keyboard shortcuts ──────────────────────────────────────────────
+  // ── Keyboard shortcuts ──────────────────────────────────────────────
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
       if (e.key === '=' || e.key === '+') {
         e.preventDefault();
-        props.onKeyDownZoom?.('zoomIn');
+        onKeyDownZoom?.('zoomIn');
       } else if (e.key === '-') {
         e.preventDefault();
-        props.onKeyDownZoom?.('zoomOut');
+        onKeyDownZoom?.('zoomOut');
       } else if (e.key === '0') {
         e.preventDefault();
-        props.onKeyDownZoom?.('reset');
+        onKeyDownZoom?.('reset');
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [props.onKeyDownZoom]);
-
-  // ── Computed styles ─────────────────────────────────────────────────
-  // These are computed via CSS custom properties passed as inline styles
-  // The actual camera values come from the parent component
+  }, [onKeyDownZoom]);
 
   return (
     <div
@@ -120,8 +164,10 @@ el.addEventListener('wheel', onWheelHandler, { passive: false });
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onLostPointerCapture={handleLostPointerCapture}
+      onClick={handleClickEmpty}
+      onDoubleClickCapture={handleDblClickEmpty}
     >
-{/* Dot grid background */}
+      {/* Dot grid background */}
       <div
         style={{
           position: 'absolute',
@@ -133,8 +179,9 @@ el.addEventListener('wheel', onWheelHandler, { passive: false });
       />
       {/* World layer */}
       <div
+        ref={worldLayerRef}
         style={{
-          transform: 'var(--world-transform)',
+          transform: worldTransform,
           transformOrigin: '0 0',
           position: 'relative',
           width: 0,

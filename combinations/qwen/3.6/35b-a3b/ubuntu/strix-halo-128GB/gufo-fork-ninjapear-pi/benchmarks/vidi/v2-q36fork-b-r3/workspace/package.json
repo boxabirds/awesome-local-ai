@@ -7,13 +7,14 @@
     "build": "tsc && vite build",
     "dev": "wrangler dev",
     "typecheck": "tsc --noEmit",
-"test:unit": "vitest run --config vitest.config.ts",
+    "test:unit": "vitest run --config vitest.config.ts",
     "test:component": "vitest run --config vitest.component.config.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.7.0",

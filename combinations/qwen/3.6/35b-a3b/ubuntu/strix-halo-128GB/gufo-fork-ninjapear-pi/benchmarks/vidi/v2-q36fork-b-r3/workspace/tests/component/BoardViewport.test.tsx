@@ -19,6 +19,7 @@ function renderComponent(overrides?: Partial<{
   return {
     ...render(
       <BoardViewport
+        camera={{ x: 0, y: 0, zoom: 1 }}
         onPanMove={onPanMove}
         onWheel={onWheel}
         onEndPan={onEndPan}
