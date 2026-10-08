@@ -8,7 +8,7 @@ import {
   runTimeBars, runTotals, scopeIds, scoreOfRecord, segmentTip, signedPercent, splitParts, squareTip, statusView, storyResults,
   storyRunState, storyTitle, toolKinds, whyMissing, whyRunMissing, againstAbsent,
   groupInterventions, interventionsOf, interventionText, interventionTip, INTERVENTION_OTHER, MAX_TIP_INTERVENTIONS,
-  againstFlagTip, typicalRun, whatDiffered, BELOW_CAVEAT, HELD_OUT_CAVEAT, runMemory,
+  againstFlagTip, typicalRun, whatDiffered, BELOW_CAVEAT, HELD_OUT_CAVEAT, runMemory, compareMany,
 } from "./runView.ts";
 import { classifyMechanism } from "./combinationView.ts";
 import { GLOSSARY } from "./glossary.ts";
@@ -1257,5 +1257,27 @@ describe("runMemory: what the server held as each story began", () => {
     expect(v.rows[0].cache).toBeNull();
     expect(v.cacheKind).toBeNull();
     expect(v.weightsGib).toBeNull();
+  });
+});
+
+describe("compareMany: one run beside several, story by story", () => {
+  const mine = { stories: [story("1"), story("2", { usage: usage({ calls: 100 }) })] };
+  const near = { stories: [story("1"), story("2", { usage: usage({ calls: 105 }) })] };
+  const far = { stories: [story("2", { usage: usage({ calls: 200 }) }), story("3")] };
+
+  it("has every story any of the runs recorded, in order, saying which run recorded it", () => {
+    const rows = compareMany(mine, [near, far]);
+    expect(rows.map((r) => [r.id, r.inA, r.inOthers])).toEqual([["1", true, [true, false]], ["2", true, [true, true]], ["3", false, [false, true]]]);
+  });
+  it("gives each other run the difference compareRuns gives it, in the order the runs were given", () => {
+    const rows = compareMany(mine, [near, far]);
+    const calls = rows[1].cells.find((c) => c.key === "calls")!;
+    expect(calls.a).toBe(100);
+    expect(calls.others.map((o) => [o.b, o.flagged])).toEqual([[105, false], [200, true]]);
+    const pair = compareRuns(mine, far).find((r) => r.id === "2")!.cells.find((c) => c.key === "calls")!;
+    expect(calls.others[1].rel).toBe(pair.rel);
+  });
+  it("with no other run it is just this run's stories", () => {
+    expect(compareMany(mine, []).map((r) => [r.id, r.inA, r.inOthers])).toEqual([["1", true, []], ["2", true, []]]);
   });
 });

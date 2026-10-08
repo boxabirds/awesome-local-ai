@@ -140,6 +140,15 @@ is still complete. Everything else is hidden under Complete runs: running, queue
 cancelled and unknown runs, finished runs waiting for their score or missing a story's record, and
 partial reruns. One function decides it: `isComplete` in `shared/stats.ts`.
 
+**Comparing a run with others.** A run page's *Compare with other runs* section takes any number of runs: type in the search box
+(run id, model, engine, machine or status; every word must match) and pick a run, or use the arrow keys and Enter. Runs of this
+combination come first, then other combinations'; only runs in the same pack and suite with a story recorded are offered, because a
+story id means the same story only within one suite. Each chosen run is a chip with a remove button, and each table cell shows this
+run's figure with one line per chosen run and its difference from this run's. The list is in the address
+(`?compare=v2-r4,<combination>|v2-r1`; a run of this combination is its bare id), so a link or a reload keeps it, and it is
+remembered in this browser (local storage) so the next run page starts with it, unless *remember these runs* is switched off. With
+nothing in the address or remembered, the page starts with one other run of its combination.
+
 Wherever runs are compared, they are in one order: **In progress**, **Queued**, **Finished**, then **Did not
 finish** (failed, stopped, cancelled). Each is a section under its own heading, with its count, that folds away;
 the runs that did not finish start folded. The choice is per page kind (the combination pages, the story pages,

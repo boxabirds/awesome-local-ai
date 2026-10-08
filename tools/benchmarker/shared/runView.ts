@@ -355,6 +355,28 @@ export function compareRuns(a: Pick<Row, "stories">, b: Pick<Row, "stories">): C
   });
 }
 
+export interface CompareManyCell { key: MeasureKey; a: number | null; others: { b: number | null; rel: number | null; flagged: boolean }[] }
+export interface CompareManyRow { id: string; title: string; inA: boolean; inOthers: boolean[]; cells: CompareManyCell[] }
+
+/** One run beside several, story by story: every story any of them recorded, and for each measure this run's figure with
+ * each other run's figure and its difference from this run's (compareRuns's, so the two never disagree). */
+export function compareMany(a: Pick<Row, "stories">, others: Pick<Row, "stories">[]): CompareManyRow[] {
+  const pairs = others.map((b) => compareRuns(a, b));
+  const ids = [...new Set([...a.stories.map((s) => s.id), ...others.flatMap((b) => b.stories.map((s) => s.id))])]
+    .toSorted((x, y) => Number(x) - Number(y));
+  return ids.map((id) => {
+    const sa = a.stories.find((s) => s.id === id);
+    // A run that has neither story has no row for it in its own pair; that is 'not recorded', with nothing to compare.
+    const rows = pairs.map((p) => p.find((r) => r.id === id) ?? { id, title: "", inA: false, inB: false, cells: [] as CompareRow["cells"] });
+    const title = sa?.title || rows.find((r) => r.title)?.title || "";
+    const cells = COMPARE_MEASURES.map(({ key, value }) => ({
+      key, a: sa ? value(sa) : null,
+      others: rows.map((r) => { const c = r.cells.find((c) => c.key === key); return { b: c?.b ?? null, rel: c?.rel ?? null, flagged: c?.flagged ?? false }; }),
+    }));
+    return { id, title, inA: !!sa, inOthers: rows.map((r) => r.inB), cells };
+  });
+}
+
 /** The other runs of the run's combination in its pack, in run order: in progress, queued, finished, the rest ("v2-r2" before "v2-r10"). */
 export function otherRuns(run: Pick<Row, "pack" | "stack" | "runId">, rows: Row[]): Row[] {
   return runOrder(rows.filter((r) => r.pack === run.pack && r.stack === run.stack && r.runId !== run.runId));

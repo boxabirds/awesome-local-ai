@@ -76,8 +76,11 @@ test("a run page lists the combination's other runs in the same sections; the co
   await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5`);
   const related = page.locator('[data-page="run"]');
   await expect(related.locator(".run-group-list h3")).toHaveText([/In progress\s*1/, /Queued\s*2/, /Finished\s*\d+/]);
-  const labels = await page.locator("#compare-with optgroup").evaluateAll((gs) => gs.map((g) => (g as HTMLOptGroupElement).label));
-  expect(labels).toEqual(["In progress", "Queued", "Finished"]);
+  // The picker offers this combination's runs in the same order, so the sections are runs of one kind together.
+  await page.locator('[data-section="compare"]').getByRole("combobox", { name: "Add a run" }).focus();
+  const statuses = await page.locator(`[data-section="compare"] [role="option"][data-stack="${SWIFT}"]`).evaluateAll((os) => os.map((o) => o.getAttribute("data-status")));
+  expect(statuses.length).toBeGreaterThan(0);            // only runs with a story recorded can be compared, so in-progress and queued ones with none are not offered
+  expect(statuses.join(",")).toBe([...statuses].sort((a, b) => ["running", "queued", "finished"].indexOf(a!) - ["running", "queued", "finished"].indexOf(b!)).join(","));
 });
 
 test("a page with only one kind of run has no headings to fold", async ({ page }) => {

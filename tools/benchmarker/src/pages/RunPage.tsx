@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { Row, State } from "../../shared/types.ts";
 import { interventionCount, otherRuns } from "../../shared/runView.ts";
 import type { Route } from "../../shared/routes.ts";
+import { comparableRuns } from "../../shared/compareList.ts";
 import { Breadcrumb } from "../components/EntityLinks.tsx";
 import { RunHeader } from "../components/run/RunHeader.tsx";
 import { RunStories } from "../components/run/RunStories.tsx";
@@ -44,7 +45,7 @@ export function RunPage({ route, run, state, params }: { route: Route; run: Row;
       <Ran run={run} />
       <Interventions run={run} />
       {/* Keyed by run: moving to another run's page starts its comparison afresh. */}
-      <CompareRuns key={`${run.stack}|${run.runId}`} run={run} others={others} params={params} />
+      <CompareRuns key={`${run.stack}|${run.runId}`} run={run} candidates={comparableRuns(run, state.rows)} params={params} />
       <RelatedRuns run={run} others={others} />
     </div>
   );
