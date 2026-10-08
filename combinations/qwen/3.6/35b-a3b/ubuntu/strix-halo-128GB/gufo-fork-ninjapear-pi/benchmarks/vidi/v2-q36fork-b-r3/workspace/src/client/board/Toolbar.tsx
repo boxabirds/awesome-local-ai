@@ -1,7 +1,7 @@
 import React from 'react';
 import { UndoButtons } from './UndoButtons';
 
-type ToolName = 'select' | 'sticky' | 'text' | 'shape' | 'connector' | 'pen';
+type ToolName = 'select' | 'sticky' | 'text' | 'shape' | 'connector' | 'pen' | 'image';
 
 interface ToolbarProps {
   onCreateSticky(): void;
@@ -12,6 +12,7 @@ interface ToolbarProps {
   canRedo: boolean;
   onUndo(): void;
   onRedo(): void;
+  onOpenImagePicker?(): void;
 }
 
 const TOOL_INFO: Record<ToolName, { label: string; shortcut: string; emoji?: string }> = {
@@ -21,6 +22,7 @@ const TOOL_INFO: Record<ToolName, { label: string; shortcut: string; emoji?: str
   shape: { label: 'Shape', shortcut: 'S' },
   connector: { label: 'Connector', shortcut: 'L' },
   pen: { label: 'Pen', shortcut: 'P', emoji: '✏️' },
+  image: { label: 'Image', shortcut: 'I', emoji: '🖼️' },
 };
 
 export function Toolbar({
@@ -28,6 +30,7 @@ export function Toolbar({
   disabled = false,
   selectedTool,
   onToolChange,
+  onOpenImagePicker,
   canUndo,
   canRedo,
   onUndo,
@@ -46,10 +49,47 @@ export function Toolbar({
         zIndex: 100,
       }}
     >
-      {(['select', 'sticky', 'text', 'shape', 'connector', 'pen'] as ToolName[]).map((toolKey) => {
+      {(['select', 'sticky', 'text', 'shape', 'connector', 'pen', 'image'] as ToolName[]).map((toolKey) => {
         const info = TOOL_INFO[toolKey];
         const isActive = selectedTool === toolKey;
-        // For sticky button, create sticky AND switch to Select (legacy behaviour)
+
+        if (toolKey === 'image') {
+          // Image button opens picker directly, doesn't change tool state
+          const handleClick = () => {
+            if (!disabled) {
+              onOpenImagePicker?.();
+            }
+          };
+          return (
+            <button
+              key={toolKey}
+              aria-label={`${info.label} (${info.shortcut})`}
+              title={info.label + ' – or press ' + info.shortcut}
+              aria-pressed={isActive}
+              disabled={disabled}
+              onClick={handleClick}
+              style={{
+                width: 40,
+                height: 40,
+                border: isActive ? '2px solid #2196F3' : 'none',
+                borderRadius: 8,
+                background: disabled ? '#eee' : (isActive ? '#e3f2fd' : '#fff'),
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                fontSize: 20,
+                fontWeight: isActive ? 700 : 400,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: disabled ? '#999' : (isActive ? '#1565c0' : '#333'),
+                opacity: disabled ? 0.6 : 1,
+              }}
+            >
+              {info.emoji || info.shortcut}
+            </button>
+          );
+        }
+
         const handleClick = () => {
           if (!disabled) {
             if (toolKey === 'sticky') {

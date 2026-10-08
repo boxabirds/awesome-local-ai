@@ -14,6 +14,7 @@ import { TextObject } from '../objects/TextObject';
 import { ShapeObject } from '../objects/ShapeObject';
 import { ConnectorObject } from '../objects/ConnectorObject';
 import { StrokeObject } from '../objects/StrokeObject';
+import { ImageObject } from '../objects/ImageObject';
 import { PenTool } from '../tools/PenTool';
 import { PenToolbar } from '../tools/PenToolbar';
 import { usePenOptions } from '../tools/usePenOptions';
@@ -43,6 +44,9 @@ import type { Handle } from '@shared/geometry';
 import { objectBounds } from '@shared/board-model';
 import { getObjectType } from '../objects/registry';
 import type { ShapeKind } from '@shared/objects/shape';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { showToast, Toast } from '../ui/Toast';
 
 // Re-export camera and notes for e2e
 declare global {
@@ -228,6 +232,29 @@ function BoardContent({ boardId }: { boardId: string }) {
     boundaryRef.current = boundary;
   }, [boundary]);
 
+  // ─── Story 12: Image insert hook ────────────────────────────────
+  const [toasts, setToasts] = useState<string[]>([]);
+  const toastQueue = useRef<string[]>([]);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    setToasts((prev) => [...prev.slice(-4), msg]);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      setToasts([]);
+    }, 4000);
+  }, []);
+
+  const imageInsert = useImageInsert({
+    doc: board.doc,
+    boardId,
+    camera,
+    connection: globalConnState,
+    identityId,
+    viewSize: { width: viewportSize.width, height: viewportSize.height },
+    toast: showToast,
+  });
+
   useBoardKeys({
     doc: board.doc,
     selection,
@@ -369,11 +396,13 @@ function BoardContent({ boardId }: { boardId: string }) {
           setTool(t);
           selection.clear();
         }}
+        onOpenImagePicker={() => imageInsert.openPicker()}
         canUndo={canUndo}
         canRedo={canRedo}
         onUndo={undo}
         onRedo={redo}
       />
+
       {/* Story 11: Pen toolbar - visible only when Pen tool is active */}
       {tool === 'pen' && (
         <PenToolbar
@@ -484,6 +513,8 @@ function BoardContent({ boardId }: { boardId: string }) {
               selected={selection.ids.has(c.id)}
             />
           ))}
+        {/* Render images */}
+        {renderImageObjects(board.doc, board.snapshot, imageInsert, identityId)}
         {selection.ids.size > 0 && (
           <SelectionOverlay
             ids={selection.ids}
@@ -524,6 +555,10 @@ function BoardContent({ boardId }: { boardId: string }) {
       />
       <ConnectionStatus state={getState()} />
       <NavigationHint visible={!hasNavigated} />
+      {/* Story 12: Image drop highlight overlay */}
+      <DropHighlight enabled={canEdit} />
+      {/* Story 12: Image toast messages */}
+      <Toast visible={toasts.length > 0} />
     </>
   );
 }
@@ -590,4 +625,322 @@ function renderTextObjects(
   } catch {
     return null;
   }
+}
+
+/** Image data for rendering in BoardPage */
+type ImageObjectProps = {
+  id: string;
+  type: 'image';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  assetKey: string | null;
+  contentType: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  status: 'uploading' | 'ready' | 'failed';
+  uploadStartedAt: number;
+  uploaderId: string;
+  z: number;
+  createdAt: number;
+};
+
+/** Helper to render image objects from Y.Doc */
+function renderImageObjects(
+  doc: Y.Doc | null,
+  snapshot: readonly ObjectSnap[],
+  imageInsert: ReturnType<typeof useImageInsert>,
+  identityId: string,
+) {
+  if (!doc) return null;
+  try {
+    const objectsMap = (doc as any).getMap('objects');
+    const images: ImageObjectProps[] = [];
+
+    for (const [id, val] of objectsMap) {
+      if (!(val instanceof Y.Map)) continue;
+      const dm = val as any;
+      if (String(dm.get('type') ?? '') !== 'image') continue;
+
+      const imgStatus = String(dm.get('status') ?? '');
+      const assetKey = dm.has('assetKey') ? dm.get('assetKey') : null;
+      const uploadStartedAt = Number(dm.get('uploadStartedAt') ?? 0);
+
+      images.push({
+        id,
+        type: 'image' as const,
+        x: Number(dm.get('x') ?? 0),
+        y: Number(dm.get('y') ?? 0),
+        width: Number(dm.get('width') ?? 200),
+        height: Number(dm.get('height') ?? 150),
+        assetKey,
+        contentType: dm.has('contentType') ? String(dm.get('contentType')) : 'image/png',
+        naturalWidth: Number(dm.get('naturalWidth') ?? 200),
+        naturalHeight: Number(dm.get('naturalHeight') ?? 150),
+        status: imgStatus as ImageObjectProps['status'],
+        uploadStartedAt,
+        uploaderId: dm.has('uploaderId') ? String(dm.get('uploaderId')) : '',
+        z: Number(dm.get('z') ?? 0),
+        createdAt: Number(dm.get('createdAt') ?? 0),
+      });
+    }
+
+    // Sort by z-index
+    images.sort((a, b) => a.z - b.z);
+
+    const now = Date.now();
+    return images.map((img) => {
+      const progress = imageInsert.progress.get(img.id);
+      const isUploader = img.uploaderId === identityId;
+      return (
+        <div
+          key={img.id}
+          style={{ position: 'absolute' }}
+          data-image-id={img.id}
+        >
+          {renderSingleImageObject(
+            doc,
+            {
+              id: img.id,
+              type: 'image' as const,
+              x: img.x,
+              y: img.y,
+              width: img.width,
+              height: img.height,
+              assetKey: img.assetKey,
+              contentType: img.contentType,
+              naturalWidth: img.naturalWidth,
+              naturalHeight: img.naturalHeight,
+              status: img.status,
+              uploadStartedAt: img.uploadStartedAt,
+              uploaderId: img.uploaderId,
+              z: img.z,
+              createdAt: img.createdAt,
+            },
+            progress,
+            isUploader,
+            imageInsert.canRetry(img.id),
+            now,
+          )}
+        </div>
+      );
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Render a single image object inline */
+function renderSingleImageObject(
+  doc: Y.Doc | null,
+  img: ImageObjectProps,
+  progress: number | undefined,
+  isUploader: boolean,
+  canRetry: boolean,
+  now: number,
+) {
+  const IMAGE_UPLOAD_STALE_MS = 30_000;
+  const displayStatus:
+    | 'uploading'
+    | 'ready'
+    | 'failed'
+    | 'unfinished' = (() => {
+    if (img.status === 'ready') return 'ready';
+    if (img.status === 'failed') return 'failed';
+    if (now - img.uploadStartedAt >= IMAGE_UPLOAD_STALE_MS) return 'unfinished';
+    return 'uploading';
+  })();
+
+  // Unfinished state
+  if (displayStatus === 'unfinished') {
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          left: img.x,
+          top: img.y,
+          width: img.width,
+          height: img.height,
+          background: '#f5f5f5',
+          border: '1px solid #ddd',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+        }}
+      >
+        <span style={{ fontSize: 12, color: '#999' }}>Image upload didn't finish</span>
+        <button
+          onClick={() => deleteObjects(doc!, [img.id])}
+          style={{
+            padding: '4px 12px',
+            fontSize: 12,
+            background: '#fff',
+            border: '1px solid #ccc',
+            borderRadius: 4,
+            cursor: 'pointer',
+          }}
+        >
+          Remove
+        </button>
+      </div>
+    );
+  }
+
+  if (displayStatus === 'failed') {
+    if (isUploader) {
+      return (
+        <div
+          style={{
+            position: 'absolute',
+            left: img.x,
+            top: img.y,
+            width: img.width,
+            height: img.height,
+            background: '#ffebee',
+            border: '2px solid #f44336',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 12, color: '#c62828', fontWeight: 500 }}>Upload failed</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {canRetry && (
+              <button
+                onClick={() => showToast('Retrying...')}
+                style={{
+                  padding: '4px 12px',
+                  fontSize: 12,
+                  background: '#2196F3',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                Retry
+              </button>
+            )}
+            <button
+              onClick={() => deleteObjects(doc!, [img.id])}
+              style={{
+                padding: '4px 12px',
+                fontSize: 12,
+                background: '#fff',
+                border: '1px solid #ccc',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          left: img.x,
+          top: img.y,
+          width: img.width,
+          height: img.height,
+          background: '#f5f5f5',
+          border: '1px solid #ddd',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+        }}
+      >
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <line x1="9" y1="9" x2="15" y2="15" />
+          <line x1="15" y1="9" x2="9" y2="15" />
+        </svg>
+        <span style={{ fontSize: 11, color: '#999' }}>Image unavailable</span>
+      </div>
+    );
+  }
+
+  if (displayStatus === 'uploading') {
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          left: img.x,
+          top: img.y,
+          width: img.width,
+          height: img.height,
+          background: '#e0e0e0',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <span style={{ fontSize: 12, color: '#666' }}>
+          {isUploader && progress !== undefined ? `${progress}%` : 'Uploading…'}
+        </span>
+        {isUploader && progress !== undefined && (
+          <div
+            style={{
+              width: '80%',
+              height: 6,
+              background: '#ccc',
+              borderRadius: 3,
+              overflow: 'hidden',
+              marginTop: 4,
+            }}
+          >
+            <div
+              style={{
+                width: `${progress}%`,
+                height: '100%',
+                background: '#2196F3',
+                borderRadius: 3,
+                transition: 'width 0.2s',
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Ready state
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: img.x,
+        top: img.y,
+        width: img.width,
+        height: img.height,
+        overflow: 'hidden',
+        cursor: 'default',
+      }}
+    >
+      <img
+        src={`/api/assets/${img.assetKey}`}
+        alt="Image"
+        draggable={false}
+        decoding="async"
+        loading="lazy"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'contain',
+          display: 'block',
+        }}
+      />
+    </div>
+  );
 }

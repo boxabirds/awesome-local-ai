@@ -16,8 +16,10 @@ export { StrokeObject };
 import type { ObjectTypeSpec } from './registry';
 import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD } from '@shared/config';
 import { TEXT_MIN_WIDTH_WORLD } from '@shared/config';
+import { IMAGE_MIN_SIZE_WORLD } from '@shared/config';
 import type { StickySnapshot, ObjectSnap } from '@shared/board-model';
 import type { TextSnapshot as TextSnapshotType } from '@shared/objects/text';
+import type { ImageSnapshot } from '@shared/objects/image';
 import type { Point } from '../canvas/camera';
 import { objectBounds } from '@shared/board-model';
 
@@ -65,6 +67,26 @@ import { distanceToPolyline } from '@shared/geometry/polyline';
 import { STROKE_HIT_TOLERANCE_PX, PEN_THICKNESS_WORLD, STROKE_MIN_SIZE_WORLD } from '@shared/config';
 import type { StrokeSnapshot } from '@shared/board-model';
 import { scaledPoints } from '@shared/objects/stroke';
+
+// Register 'image' as a known object type (side effect on import)
+import { ImageObject } from './ImageObject';
+
+registerObjectType('image', {
+  Component: ImageObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest(obj: ObjectSnap, pt: Point): boolean {
+    const b = objectBounds(obj);
+    return (
+      pt.x >= b.x &&
+      pt.y >= b.y &&
+      pt.x <= b.x + b.width &&
+      pt.y <= b.y + b.height
+    );
+  },
+});
 
 registerObjectType('stroke', {
   Component: StrokeObject,

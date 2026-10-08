@@ -6,7 +6,8 @@ export type Tool =
   | 'text'
   | 'shape'
   | 'connector'
-  | 'pen';
+  | 'pen'
+  | 'image';
 
 interface UseToolReturn {
   tool: Tool;

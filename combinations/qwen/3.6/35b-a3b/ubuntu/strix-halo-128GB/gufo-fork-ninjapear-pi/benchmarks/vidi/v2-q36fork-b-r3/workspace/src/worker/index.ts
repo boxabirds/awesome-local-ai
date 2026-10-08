@@ -1,12 +1,14 @@
-/** Worker entry point for stories 3–5 — persistent boards, creation & sharing */
+/** Worker entry point for stories 3–5, 12 — persistent boards, creation, sharing & image assets */
 
 import { isValidBoardId } from '@shared/board-id';
 import { createBoard } from './create-board';
+import { handleUpload, handleServe } from './assets';
 export { BoardRoom } from './board-room';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
 }
 
 // Serve static assets helper
@@ -86,6 +88,18 @@ export default {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+
+    // ── Asset API: POST /api/boards/:id/assets — upload image to R2 ──
+    const matchAssetPost = url.pathname.match(/^\/api\/boards\/([^\/]+)\/assets$/);
+    if (matchAssetPost && request.method === 'POST') {
+      return await handleUpload(request, env, decodeURIComponent(matchAssetPost[1]));
+    }
+
+    // ── Asset API: GET /api/assets/:boardId/:assetId — serve stored image ──
+    const matchAssetGet = url.pathname.match(/^\/api\/assets\/([^\/]+\/[^\/]+)$/);
+    if (matchAssetGet) {
+      return await handleServe(env, decodeURIComponent(matchAssetGet[1]));
     }
 
     // ── Route /api/rooms/* to the BoardRoom ────────────────────────
