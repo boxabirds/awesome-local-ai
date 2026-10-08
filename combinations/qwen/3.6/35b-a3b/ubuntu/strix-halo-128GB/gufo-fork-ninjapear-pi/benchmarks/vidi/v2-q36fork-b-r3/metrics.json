@@ -1010,6 +1010,577 @@
           "7": "done",
           "8": "done"
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "private": {
+          "copied": 35,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "2c951b0f1"
+      }
+    },
+    "3": {
+      "title": "See other people's edits appear live on the same board",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "unmonitored"
+      },
+      "started": 1791442994.5250163,
+      "engine_settings": {
+        "server_started_at": "2026-10-08T05:36:46Z",
+        "engine": "gufo-fork-ninjapear",
+        "engine_version": "gufo version development (unknown)",
+        "thinking_mode": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "thinking_budget": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "context_size": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "kv_cache_type": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "speculative": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "temperature": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "top_p": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "top_k": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "min_p": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "quantisation": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+        },
+        "reasoning_effort": {
+          "requested": "low",
+          "engine": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+          },
+          "client": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "effective": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "no settings parser for backend 'gufo-fork-ninjapear' yet; its command line is in identity"
+          },
+          "matches_request": null
+        },
+        "gaps": [
+          "reasoning effort: 'low' requested, neither the engine nor the client applies one",
+          "context: 131072 requested, not on the engine's command line"
+        ]
+      },
+      "memory_start": {
+        "at": 1791442994.5576746,
+        "resident_mib": 33476.1,
+        "model_bytes": 22388168960,
+        "engine": "gufo",
+        "prompt_cache": {
+          "retained_mib": 30349.8,
+          "capacity_mib": 32768.0,
+          "skipped_for_capacity": 127,
+          "last_snapshot_mib": 4837.3
+        },
+        "extras": {
+          "gpu_device_used_mib": 35285,
+          "gpu_device_total_mib": 122880,
+          "host_available_mib": 55538,
+          "engine_rss_mib": 33476
+        }
+      },
+      "agent": {
+        "seconds": 5297.5,
+        "steps": 299,
+        "tool_calls": 315,
+        "compactions": 1,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 4736190,
+          "output": 91819,
+          "reasoning": 0,
+          "cache_read": 14084295,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 1,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": true,
+        "ended_in_error": false,
+        "sessions": [
+          "01a11a52-c6a6-7439-8db3-c2c725230fe8",
+          "01a11a52-c6a6-7439-8db3-c2c725230fe8"
+        ],
+        "finished": false,
+        "interventions": {
+          "total": 1,
+          "stop_message": 1,
+          "toolcall_text_resumes": 0,
+          "error_resumes": 0
+        }
+      },
+      "agent_finished": 1791448292.2216704,
+      "conditions": {
+        "samples": 176,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 1.14,
+        "swap_max_gb": 1.14,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 39.80939867887328,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": 35.03261947631836,
+        "server_footprint_peak_gb": 35.05098342895508,
+        "gpu": {
+          "samples": 176,
+          "busy_mean_pct": 88.9,
+          "sclk_min_busy_mhz": 2775,
+          "sclk_max_mhz": 2900,
+          "power_mean_w": 122.1,
+          "power_max_w": 156.0,
+          "temp_max_c": 83.0,
+          "gtt_max_gb": 33.35,
+          "throttled_samples": 0
+        }
+      },
+      "containment": {
+        "enabled": true,
+        "units": [
+          "spec-bench-v2-q36fork-b-r3-s03-1",
+          "spec-bench-v2-q36fork-b-r3-s03-2"
+        ],
+        "memory_max_gb": 50.7,
+        "memory_peak_gb": null,
+        "left_at_story_end": 0,
+        "reaped": []
+      },
+      "agent_commits": 0,
+      "provenance": {
+        "harness_commit": "051e7c6ec",
+        "harness_dirty": null,
+        "harness_release": "harness-v2026.10.08.1",
+        "pack_version": "vidi-v2.0-pre2",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 1,
+            "seconds": 1.6,
+            "tail": "npm ERR! code ERESOLVE\nnpm ERR! ERESOLVE could not resolve\nnpm ERR! \nnpm ERR! While resolving: @cloudflare/vitest-plugin@1.3.7\nnpm ERR! Found: vitest@2.1.9\nnpm ERR! node_modules/vitest\nnpm ERR!   dev vitest@\"^2.1.0\" from the root project\nnpm ERR!   peerOptional vitest@\">= 0.32\" from @testing-library/jest-dom@7.0.1\nnpm ERR!   node_modules/@testing-library/jest-dom\nnpm ERR!     dev @testing-library/jest-dom@\"^7.0.1\" from the root project\nnpm ERR! \nnpm ERR! Could not resolve dependency:\nnpm ERR! peer vitest@\"^4.1.0\" from @cloudflare/vitest-plugin@1.3.7\nnpm ERR! node_modules/@cloudflare/vitest-plugin\nnpm ERR!   @cloudflare/vitest-plugin@\"^1.3.7\" from the root project\nnpm ERR! \nnpm ERR! Conflicting peer dependency: vitest@4.1.11\nnpm ERR! node_modules/vitest\nnpm ERR!   peer vitest@\"^4.1.0\" from @cloudflare/vitest-plugin@1.3.7\nnpm ERR!   node_modules/@cloudflare/vitest-plugin\nnpm ERR!     @cloudflare/vitest-plugin@\"^1.3.7\" from the root project\nnpm ERR! \nnpm ERR! Fix the upstream dependency conflict, or retry\nnpm ERR! this command with --force or --legacy-peer-deps\nnpm ERR! to accept an incorrect (and potentially broken) dependency resolution.\nnpm ERR! \nnpm ERR! \nnpm ERR! For a full report see:\nnpm ERR! ~/.npm/_logs/2026-10-08T08_31_32_474Z-eresolve-report.txt\n\nnpm ERR! A complete log of this run can be found in:\nnpm ERR!     ~/.npm/_logs/2026-10-08T08_31_32_474Z-debug-0.log\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 2,
+            "seconds": 1.4,
+            "tail": "\n> vidi6@0.1.0 build\n> tsc && vite build\n\nsrc/worker/board-room.ts(52,9): error TS2416: Property 'fetch' in type 'BoardRoom' is not assignable to the same property in base type 'DurableObject'.\n  Type '(request: Request<unknown, CfProperties<unknown>>) => Promise<Response | undefined>' is not assignable to type '(request: Request<unknown, CfProperties<unknown>>) => Response | Promise<Response>'.\n    Type 'Promise<Response | undefined>' is not assignable to type 'Response | Promise<Response>'.\n      Type 'Promise<Response | undefined>' is not assignable to type 'Promise<Response>'.\n        Type 'Response | undefined' is not assignable to type 'Response'.\n          Type 'undefined' is not assignable to type 'Response'.\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 2,
+            "seconds": 1.4,
+            "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\nsrc/worker/board-room.ts(52,9): error TS2416: Property 'fetch' in type 'BoardRoom' is not assignable to the same property in base type 'DurableObject'.\n  Type '(request: Request<unknown, CfProperties<unknown>>) => Promise<Response | undefined>' is not assignable to type '(request: Request<unknown, CfProperties<unknown>>) => Response | Promise<Response>'.\n    Type 'Promise<Response | undefined>' is not assignable to type 'Response | Promise<Response>'.\n      Type 'Promise<Response | undefined>' is not assignable to type 'Promise<Response>'.\n        Type 'Response | undefined' is not assignable to type 'Response'.\n          Type 'undefined' is not assignable to type 'Response'.\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --config vitest.config.ts\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m~/.w/94022fc229/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 24\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 27\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 77\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m68 passed\u001b[39m\u001b[22m\u001b[90m (68)\u001b[39m\n\u001b[2m   Start at \u001b[22m 08:31:37\n\u001b[2m   Duration \u001b[22m 497ms\u001b[2m (transform 135ms, setup 0ms, collect 256ms, tests 139ms, environment 1ms, prepare 265ms)\u001b[22m\n\n",
+            "passed": 68,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 1.2,
+            "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --config vitest.component.config.ts\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m~/.w/94022fc229/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 29\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 53\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 73\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 77\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 73\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 103\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m7 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m43 passed\u001b[39m\u001b[22m\u001b[90m (43)\u001b[39m\n\u001b[2m   Start at \u001b[22m 08:31:38\n\u001b[2m   Duration \u001b[22m 763ms\u001b[2m (transform 138ms, setup 31ms, collect 567ms, tests 415ms, environment 1.54s, prepare 422ms)\u001b[22m\n\n",
+            "passed": 43,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 1,
+            "seconds": 8.9,
+            "tail": "e: 500\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[32m|integration|\u001b[39m tests/integration/worker.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 8078\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m Worker routing (TC-04 to TC-06)\u001b[2m > \u001b[22mTC-04: invalid board id returns 400 \u001b[33m1515\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m Worker routing (TC-04 to TC-06)\u001b[2m > \u001b[22mTC-05: valid id without Upgrade header returns 426 \u001b[33m1516\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m Worker routing (TC-04 to TC-06)\u001b[2m > \u001b[22mTC-06: GET /b/<valid-board-id> returns 200 \u001b[33m1513\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[31m2 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m6 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (9)\u001b[39m\n\u001b[2m   Start at \u001b[22m 08:31:39\n\u001b[2m   Duration \u001b[22m 8.39s\u001b[2m (transform 106ms, setup 0ms, collect 157ms, tests 12.68s, environment 1ms, prepare 199ms)\u001b[22m\n\n\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u001b[1m\u001b[7m Failed Suites 1 \u001b[27m\u001b[22m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m\n\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m\u001b[32m|integration|\u001b[39m  tests/integration/_ws-helpers.ts\u001b[2m [ tests/integration/_ws-helpers.ts ]\u001b[22m\n\u001b[31m\u001b[1mError\u001b[22m: No test suite found in file ~/.w/94022fc229/workspace/tests/integration/_ws-helpers.ts\u001b[39m\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[1/7]\u23af\u001b[22m\u001b[39m\n\n\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[1m\u001b[7m Failed Tests 6 \u001b[27m\u001b[22m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m\n\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m\u001b[32m|integration|\u001b[39m  tests/integration/board-room.test.ts\u001b[2m > \u001b[22mBoardRoom merging and broadcast (TC-07 to TC-13)\u001b[2m > \u001b[22mTC-07: A creates sticky; B sees it after sync\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m\u001b[32m|integration|\u001b[39m  tests/integration/board-room.test.ts\u001b[2m > \u001b[22mBoardRoom merging and broadcast (TC-07 to TC-13)\u001b[2m > \u001b[22mTC-14: late joiner C receives prior state\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m\u001b[32m|integration|\u001b[39m  tests/integration/board-room.test.ts\u001b[2m > \u001b[22mBoardRoom merging and broadcast (TC-07 to TC-13)\u001b[2m > \u001b[22mTC-31: malformed binary sent to valid room returns gracefully\n\u001b[31m\u001b[1mError\u001b[22m: Unexpected server response: 500\u001b[39m\n\u001b[90m \u001b[2m\u276f\u001b[22m ClientRequest.<anonymous> node_modules/ws/lib/websocket.js:\u001b[2m930:7\u001b[22m\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[2/7]\u23af\u001b[22m\u001b[39m\n\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m\u001b[32m|integration|\u001b[39m  tests/integration/board-room.test.ts\u001b[2m > \u001b[22mBoardRoom merging and broadcast (TC-07 to TC-13)\u001b[2m > \u001b[22mTC-13: 6 participants can connect (MAX=5 + 1)\n\u001b[31m\u001b[1mError\u001b[22m: WebSocket is not open: readyState 0 (CONNECTING)\u001b[39m\n\u001b[90m \u001b[2m\u276f\u001b[22m WebSocket.send node_modules/ws/lib/websocket.js:\u001b[2m457:13\u001b[22m\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/integration/board-room.test.ts:\u001b[2m174:12\u001b[22m\u001b[39m\n    \u001b[90m172| \u001b[39m        encoding\u001b[33m.\u001b[39m\u001b[34mwriteVarUint\u001b[39m(enc\u001b[33m,\u001b[39m \u001b[34m0\u001b[39m)\u001b[33m;\u001b[39m\n    \u001b[90m173| \u001b[39m        encoding\u001b[33m.\u001b[39m\u001b[34mwriteVarUint8Array\u001b[39m(enc\u001b[33m,\u001b[39m \u001b[35mnew\u001b[39m \u001b[33mUint8Array\u001b[39m(\u001b[34m0\u001b[39m))\u001b[33m;\u001b[39m\n    \u001b[90m174| \u001b[39m        ws\u001b[33m.\u001b[39m\u001b[34msend\u001b[39m(\u001b[33mBuffer\u001b[39m\u001b[33m.\u001b[39m\u001b[35mfrom\u001b[39m(encoding\u001b[33m.\u001b[39m\u001b[34mtoUint8Array\u001b[39m(enc)))\u001b[33m;\u001b[39m\n    \u001b[90m   | \u001b[39m           \u001b[31m^\u001b[39m\n    \u001b[90m175| \u001b[39m      })\u001b[33m;\u001b[39m\n    \u001b[90m176| \u001b[39m      clients\u001b[33m.\u001b[39m\u001b[34mpush\u001b[39m(ws)\u001b[33m;\u001b[39m\n\u001b[90m \u001b[2m\u276f\u001b[22m tests/integration/board-room.test.ts:\u001b[2m166:13\u001b[22m\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[3/7]\u23af\u001b[22m\u001b[39m\n\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m\u001b[32m|integration|\u001b[39m  tests/integration/board-room.test.ts\u001b[2m > \u001b[22mBoardRoom merging and broadcast (TC-07 to TC-13)\u001b[2m > \u001b[22mTC-16: awareness message relayed from A to B\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m\u001b[32m|integration|\u001b[39m  tests/integration/board-room.test.ts\u001b[2m > \u001b[22mBoardRoom merging and broadcast (TC-07 to TC-13)\u001b[2m > \u001b[22mTC-18: all sockets close then fresh client sees old changes\n\u001b[31m\u001b[1mError\u001b[22m: Unexpected server response: 500\u001b[39m\n\u001b[90m \u001b[2m\u276f\u001b[22m ClientRequest.<anonymous> node_modules/ws/lib/websocket.js:\u001b[2m930:7\u001b[22m\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[4/7]\u23af\u001b[22m\u001b[39m\n\n",
+            "passed": 3,
+            "failed": 6
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 2.2,
+            "tail": "\n> vidi6@0.1.0 test:e2e\n> playwright test --project=chromium\n\n[WebServer] \n[WebServer] > vidi6@0.1.0 build\n[WebServer] > tsc && vite build\n[WebServer] \n[WebServer] src/worker/board-room.ts(52,9): error TS2416: Property 'fetch' in type 'BoardRoom' is not assignable to the same property in base type 'DurableObject'.\n[WebServer]   Type '(request: Request<unknown, CfProperties<unknown>>) => Promise<Response | undefined>' is not assignable to type '(request: Request<unknown, CfProperties<unknown>>) => Response | Promise<Response>'.\n[WebServer]     Type 'Promise<Response | undefined>' is not assignable to type 'Response | Promise<Response>'.\n[WebServer]       Type 'Promise<Response | undefined>' is not assignable to type 'Promise<Response>'.\n[WebServer]         Type 'Response | undefined' is not assignable to type 'Response'.\n[WebServer]           Type 'undefined' is not assignable to type 'Response'.\n\nError: Process from config.webServer was not able to start. Exit code: 2\n\n\n",
+            "passed": null,
+            "failed": null
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 2,
+        "runner_exit": 1,
+        "passed": 0,
+        "total": 27,
+        "on_partial": {
+          "passed": 0,
+          "total": 7
+        },
+        "by_story": {
+          "01": {
+            "passed": 0,
+            "total": 10
+          },
+          "02": {
+            "passed": 0,
+            "total": 10
+          },
+          "03": {
+            "passed": 0,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 0
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "41171308e03206b873ceee86b49bedaf1b41af60",
+      "requests": {},
+      "time_split": {
+        "wall_s": 5297.7,
+        "model": {
+          "source": "client-stream",
+          "requests": 299,
+          "prefill_s": 3685.5,
+          "prefill_tokens": 4736190,
+          "prefill_tok_s": 1285.1,
+          "decode_s": 1095.4,
+          "decode_tokens": 91819,
+          "decode_tok_s": 83.8,
+          "cached_tokens": 14084295,
+          "draft_acceptance": 0.755,
+          "mean_accepted_len": null
+        },
+        "tools_s": 388.3,
+        "tools_by_kind": {
+          "unit": 231.0,
+          "bash": 117.4,
+          "build": 39.7,
+          "edit": 0.1,
+          "write": 0.1,
+          "read": 0.1,
+          "e2e": 0.0
+        },
+        "compaction_s": 115.3,
+        "compactions": 1,
+        "between_sessions_s": 0.3,
+        "other_s": 12.9,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        }
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 299,
+        "tool_calls": 315,
+        "thinking_visible": true,
+        "thinking_chars": 89902,
+        "thinking_median": 102,
+        "thinking_median_before": 83,
+        "thinking_median_after": 111,
+        "largest_thinking": {
+          "chars": 4623,
+          "call": 91,
+          "at_s": 498.2
+        },
+        "text_chars": 965,
+        "tool_arg_chars": 223622,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 2150,
+        "context_end": 71657,
+        "largest_context_jump": {
+          "tokens": 13720,
+          "call": 2
+        },
+        "tools_by_name": {
+          "read": 33,
+          "bash": 175,
+          "edit": 47,
+          "write": 60
+        },
+        "tool_errors": 19,
+        "longest_tool": {
+          "seconds": 61.9,
+          "name": "bash",
+          "gist": "cd /w/workspace && npm run test:integration 2>&1 | tail -40"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 41,
+        "lines": 5027
+      },
+      "finished": 1791448751.1748617,
+      "status": "PARTIAL",
+      "ended_by": "operator",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board id and protocol decode unit tests first (TC-01 to TC-03)",
+          "type": "test:unit",
+          "implements": [
+            "sync.worker_entry",
+            "sync.room"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03"
+          ],
+          "status": "written",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 2,
+          "title": "Implement Worker entry: /api/rooms/:boardId routing to BoardRoom, static assets fallback",
+          "type": "implementation",
+          "implements": [
+            "sync.worker_entry"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement BoardRoom Durable Object: Yjs sync relay, awareness relay, malformed-message handling",
+          "type": "implementation",
+          "implements": [
+            "sync.room"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement client connection: y-websocket provider, /b/:boardId route, connection status badge",
+          "type": "implementation",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Integration tests for Worker routing in workerd (TC-04 to TC-06, TC-13, TC-17)",
+          "type": "test:integration",
+          "implements": [
+            "sync.worker_entry"
+          ],
+          "tcs": [
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-13",
+            "TC-17"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 5
+        },
+        {
+          "n": 6,
+          "title": "Integration tests for BoardRoom merging, broadcast and error handling (TC-07 to TC-12, TC-14 to TC-16, TC-18, TC-31)",
+          "type": "test:integration",
+          "implements": [
+            "sync.room"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-18",
+            "TC-31"
+          ],
+          "status": "written",
+          "found": 10,
+          "total": 11
+        },
+        {
+          "n": 7,
+          "title": "Component tests for connection status badge (TC-19 to TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "written",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 8,
+          "title": "E2E live collaboration with multiple browser contexts (TC-22 to TC-28)",
+          "type": "test:e2e",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 7
+        },
+        {
+          "n": 9,
+          "title": "Nightly e2e: idle connection stability and capacity soak with latency report (TC-29, TC-30)",
+          "type": "test:e2e",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-29",
+            "TC-30"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 2
+        }
+      ],
+      "end_reason": "stop-message-exhausted",
+      "tasks_claimed": {
+        "file": "read",
+        "tasks": {
+          "1": "todo",
+          "2": "todo",
+          "3": "todo",
+          "4": "todo",
+          "5": "todo",
+          "6": "todo",
+          "7": "todo",
+          "8": "todo",
+          "9": "todo"
+        }
+      },
+      "skip": {
+        "story": 3,
+        "reason": "story cap: the stop message was sent and the story was still not finished (one message per story)",
+        "by": "harness (stop message already sent)",
+        "at": 1791448292.1805804
+      },
+      "verdict": {
+        "verdict": "red",
+        "gate_green": false,
+        "unverified_tasks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "unverified_implementation_tasks": [
+          2,
+          3,
+          4
+        ],
+        "heldout": {
+          "passed": 0,
+          "total": 7,
+          "on_partial_total": 7,
+          "on_partial_passed": 0
+        },
+        "heldout_floor": 0.571,
+        "heldout_ok": false
       }
     }
   },
@@ -2204,6 +2775,640 @@
           }
         }
       ]
+    },
+    {
+      "id": 3,
+      "title": "See other people's edits appear live on the same board",
+      "status": "PARTIAL",
+      "ended_by": "operator",
+      "started_at": 1791442994.5250163,
+      "ended_at": 1791448292.2216704,
+      "agent_minutes": 88.3,
+      "calls": 299,
+      "output_tokens": 91819,
+      "compactions": 1,
+      "last_commit_at": null,
+      "accept": {
+        "passed": 0,
+        "total": 7,
+        "on_partial_total": 7,
+        "on_partial_passed": 0
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board id and protocol decode unit tests first (TC-01 to TC-03)",
+          "type": "test:unit",
+          "implements": [
+            "sync.worker_entry",
+            "sync.room"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03"
+          ],
+          "status": "written",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 2,
+          "title": "Implement Worker entry: /api/rooms/:boardId routing to BoardRoom, static assets fallback",
+          "type": "implementation",
+          "implements": [
+            "sync.worker_entry"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement BoardRoom Durable Object: Yjs sync relay, awareness relay, malformed-message handling",
+          "type": "implementation",
+          "implements": [
+            "sync.room"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement client connection: y-websocket provider, /b/:boardId route, connection status badge",
+          "type": "implementation",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Integration tests for Worker routing in workerd (TC-04 to TC-06, TC-13, TC-17)",
+          "type": "test:integration",
+          "implements": [
+            "sync.worker_entry"
+          ],
+          "tcs": [
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-13",
+            "TC-17"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 5
+        },
+        {
+          "n": 6,
+          "title": "Integration tests for BoardRoom merging, broadcast and error handling (TC-07 to TC-12, TC-14 to TC-16, TC-18, TC-31)",
+          "type": "test:integration",
+          "implements": [
+            "sync.room"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-18",
+            "TC-31"
+          ],
+          "status": "written",
+          "found": 10,
+          "total": 11
+        },
+        {
+          "n": 7,
+          "title": "Component tests for connection status badge (TC-19 to TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "written",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 8,
+          "title": "E2E live collaboration with multiple browser contexts (TC-22 to TC-28)",
+          "type": "test:e2e",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 7
+        },
+        {
+          "n": 9,
+          "title": "Nightly e2e: idle connection stability and capacity soak with latency report (TC-29, TC-30)",
+          "type": "test:e2e",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-29",
+            "TC-30"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 2
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 22.1,
+          "calls": 62,
+          "output_tokens": 94890,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi v2-q36fork-b-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 33.2,
+          "calls": 179,
+          "output_tokens": 63920,
+          "accept": {
+            "passed": 0,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi v2-q36fork-b-r2",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 13.1,
+          "calls": 80,
+          "output_tokens": 28786,
+          "accept": {
+            "passed": 0,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 92.3,
+          "calls": 399,
+          "output_tokens": 203950,
+          "accept": {
+            "passed": 5,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-iq3xxs-pi v2-iq3xxs-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 169.3,
+          "calls": 323,
+          "output_tokens": 220440,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 103.4,
+          "calls": 416,
+          "output_tokens": 270978,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 151.5,
+          "calls": 440,
+          "output_tokens": 337466,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 194.1,
+          "calls": 459,
+          "output_tokens": 365761,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 139.7,
+          "calls": 455,
+          "output_tokens": 362101,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r5",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 240.0,
+          "calls": 530,
+          "output_tokens": 456377,
+          "accept": {
+            "passed": 7,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 161.9,
+          "calls": 438,
+          "output_tokens": 336341,
+          "accept": {
+            "passed": 4,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 104.2,
+          "calls": 285,
+          "output_tokens": 221555,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 168.9,
+          "calls": 406,
+          "output_tokens": 378704,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 122.4,
+          "calls": 331,
+          "output_tokens": 271949,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi v2-strata0139-r2",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 240.0,
+          "calls": 310,
+          "output_tokens": 234333,
+          "accept": {
+            "passed": 0,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 168.1,
+          "calls": 387,
+          "output_tokens": 219269,
+          "accept": {
+            "passed": 4,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 175.8,
+          "calls": 410,
+          "output_tokens": 282260,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 160.1,
+          "calls": 347,
+          "output_tokens": 222323,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 160.6,
+          "calls": 409,
+          "output_tokens": 266479,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 194.2,
+          "calls": 520,
+          "output_tokens": 337984,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 44.8,
+          "calls": 209,
+          "output_tokens": 94730,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 37.6,
+          "calls": 239,
+          "output_tokens": 79788,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 38.6,
+          "calls": 195,
+          "output_tokens": 70642,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 39.2,
+          "calls": 247,
+          "output_tokens": 83080,
+          "accept": {
+            "passed": 4,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 113.9,
+          "calls": 377,
+          "output_tokens": 214364,
+          "accept": {
+            "passed": 4,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 106.1,
+          "calls": 244,
+          "output_tokens": 220392,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 126.2,
+          "calls": 496,
+          "output_tokens": 305589,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 48.1,
+          "calls": 263,
+          "output_tokens": 125211,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 50.0,
+          "calls": 286,
+          "output_tokens": 154583,
+          "accept": {
+            "passed": 0,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r5",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 237.0,
+          "calls": 406,
+          "output_tokens": 267695,
+          "accept": {
+            "passed": 6,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 33.0,
+          "calls": 192,
+          "output_tokens": 130339,
+          "accept": {
+            "passed": 0,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 33.0,
+          "calls": 185,
+          "output_tokens": 100260,
+          "accept": {
+            "passed": 1,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 20.4,
+          "calls": 196,
+          "output_tokens": 87697,
+          "accept": {
+            "passed": 0,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 56.2,
+          "calls": 232,
+          "output_tokens": 140509,
+          "accept": {
+            "passed": 0,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 23.4,
+          "calls": 173,
+          "output_tokens": 90819,
+          "accept": {
+            "passed": 0,
+            "total": 7
+          }
+        }
+      ],
+      "reason": "story cap: the stop message was sent and the story was still not finished (one message per story)",
+      "by": "harness (stop message already sent)",
+      "requested_at": 1791448292.1805804,
+      "verdict": "red",
+      "health": {
+        "verdict": "red",
+        "gate_green": false,
+        "unverified_tasks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "unverified_implementation_tasks": [
+          2,
+          3,
+          4
+        ],
+        "heldout": {
+          "passed": 0,
+          "total": 7,
+          "on_partial_total": 7,
+          "on_partial_passed": 0
+        },
+        "heldout_floor": 0.571,
+        "heldout_ok": false
+      }
     }
   ]
 }
