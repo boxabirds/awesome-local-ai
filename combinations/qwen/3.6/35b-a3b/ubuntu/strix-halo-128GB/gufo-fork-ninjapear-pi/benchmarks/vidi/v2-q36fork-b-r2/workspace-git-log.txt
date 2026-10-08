@@ -1,3 +1,34 @@
+commit 5327d733c20b491f023be07f75e756c0e844e2fd
+agent  Thu Oct 8 04:42:03 2026 +0000
+
+    story 12: Drop images onto the board
+
+
+ PROGRESS.md                        |  11 +-
+ package.json                       |   1 +
+ src/client/images/uploadImage.ts   |  73 +++++++++
+ src/client/images/validateFiles.ts |  48 ++++++
+ src/shared/config.ts               |  11 ++
+ src/shared/image-format.ts         |  72 +++++++++
+ src/shared/objects/image.ts        | 242 +++++++++++++++++++++++++++++
+ src/worker/assets.ts               | 116 ++++++++++++++
+ src/worker/index.ts                |  28 +++-
+ tests/fixtures/images/generate.ts  | 192 +++++++++++++++++++++++
+ tests/integration/assets.test.ts   | 305 +++++++++++++++++++++++++++++++++++++
+ tests/unit/image-format.test.ts    |  89 +++++++++++
+ tests/unit/image-model.test.ts     | 254 ++++++++++++++++++++++++++++++
+ tests/unit/validate-files.test.ts  | 113 ++++++++++++++
+ vitest.integration.config.ts       |  13 ++
+ wrangler.jsonc                     |   3 +
+ 16 files changed, 1565 insertions(+), 6 deletions(-)
+commit 30bb3245d2b011ee19ee3cd16ff5bb291c47488b
+vidi-agent  Thu Oct 8 03:57:32 2026 +0000
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
 commit 95c2c6f875b345395f0c2ee995292d51b3fb96f1
 agent  Thu Oct 8 03:54:50 2026 +0000
 
