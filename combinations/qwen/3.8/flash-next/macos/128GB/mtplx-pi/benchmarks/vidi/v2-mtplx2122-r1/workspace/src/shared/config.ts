@@ -54,3 +54,17 @@ export const PERSIST_TESTED_NOTES = 2000
 export const BOARD_LOAD_BUDGET_MS = 3000
 /** Version of the storage tables (not of the Yjs document schema). */
 export const STORAGE_SCHEMA_VERSION = 1
+
+// ── Sharing settings (story 5) ───────────────────────────────────────────────
+
+/** Click-to-board budget for "New board" (PRD share.create, 2 s typical broadband). */
+export const CREATE_BUDGET_MS = 2000
+/** How long the Share panel keeps the "Link copied" confirmation. */
+export const LINK_COPIED_MS = 2000
+/**
+ * First backoff step while a board link is being checked with an unreachable
+ * service; each retry doubles it, capped at {@link RECONNECT_MAX_BACKOFF_MS}.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000
+/** Board links are `https://host/b/<id>`; `id` is 22 base64url characters. */
+export const BOARD_PATH_PREFIX = '/b/'

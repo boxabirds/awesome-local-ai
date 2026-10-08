@@ -1,10 +1,13 @@
 /**
- * BoardStore: the SQLite side of board persistence (story 4, `persist.board_store`).
+ * BoardStore: the SQLite side of board persistence (story 4, `persist.board_store`)
+ * and, from story 5, the place that answers "does this board exist?"
+ * (`share.not_found`).
  *
  * Layout of one board's database (one database per Durable Object, therefore
  * per board):
  *
- * - `storage_meta`         — `storage_schema_version`, `snapshot_through_seq`
+ * - `storage_meta`         — `storage_schema_version`, `snapshot_through_seq`,
+ *                            `created_at` (the existence marker, story 5)
  * - `updates`              — the append-only log, one row per Yjs update
  * - `snapshot_chunks`      — the compacted document, split into fixed-size rows
  * - `quarantined_updates`  — log rows that could not be applied any more
@@ -15,6 +18,11 @@
  * (chunking and the compaction threshold) hold the arithmetic that decides
  * *when* and *how* that replay is bounded, and are unit-tested without any
  * database (TC-01, TC-02).
+ *
+ * Story 5 added one rule on top of that: reading must not write. A board that
+ * was never created has no tables at all, and neither `load()` nor
+ * `existsReadOnly()` creates them — otherwise every mistyped link in the world
+ * would leave a database behind, and "Board not found" would be a lie.
  */
 
 import * as Y from 'yjs'
@@ -27,6 +35,17 @@ import {
 
 /** Origin tag for bytes that came out of storage: never stored or broadcast again. */
 export const LOAD_ORIGIN: unique symbol = Symbol('load')
+
+/**
+ * `storage_meta` key marking a board as one that was deliberately created
+ * (`POST /api/boards`). Its absence used to mean "nobody ever edited this
+ * board"; from story 5 it means "this address was never granted", which is why
+ * boards that already have saved content still count as existing without it.
+ */
+export const CREATED_AT_KEY = 'created_at'
+
+/** Our four tables, in creation order (`sqlite_master` probe). */
+const BOARD_TABLES = ['storage_meta', 'updates', 'snapshot_chunks', 'quarantined_updates'] as const
 
 /** Split `data` into chunks of at most `size` bytes (0 bytes → 0 chunks). */
 export function chunkBytes(data: Uint8Array, size: number = SNAPSHOT_CHUNK_BYTES): Uint8Array[] {
@@ -125,7 +144,63 @@ export class BoardStore {
   // ── schema ─────────────────────────────────────────────────────────────────
 
   /**
+   * True when all four tables exist.
+   *
+   * This is the *only* thing read for a board nobody ever created, and it is
+   * a read: `sqlite_master` is queried rather than `CREATE TABLE IF NOT
+   * EXISTS` run, because story 5 requires that probing an unknown link leaves
+   * no storage behind (TC-06, TC-09).
+   */
+  #tablesExist(): boolean {
+    for (const table of BOARD_TABLES) {
+      const found = this.#storage.sql
+        .exec<{ name: string }>(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+          table,
+        )
+        .toArray()
+      if (found.length === 0) return false
+    }
+    return true
+  }
+
+  /**
+   * Read-only existence check (story 5, `share.not_found`).
+   *
+   * A board exists when it was granted by `POST /api/boards` — that writes
+   * `created_at` — *or* when it already has content from an earlier story
+   * (`share.legacy_boards`: boards created by the story 3 client redirect have
+   * update rows and no `created_at`, and opening one of those links must keep
+   * working). Everything else, including a well-formed id nobody ever asked
+   * for, answers "does not exist" without writing anything.
+   */
+  existsReadOnly(): boolean {
+    const sql = this.#storage.sql
+    try {
+      if (!this.#tablesExist()) return false
+      if (this.metaValue(CREATED_AT_KEY) !== null) return true
+      // Legacy board: content is existence.
+      if (sql.exec<{ some: number }>('SELECT 1 AS some FROM updates LIMIT 1').toArray().length > 0) {
+        return true
+      }
+      if (sql.exec<{ some: number }>('SELECT 1 AS some FROM snapshot_chunks LIMIT 1').toArray().length > 0) {
+        return true
+      }
+      return false
+    } catch (error) {
+      // A database we cannot read is not a board anyone can open; reporting it
+      // as absent only hides damage that `load()` will log in detail.
+      console.error(`[board-store] existence check failed: ${messageOf(error)}`)
+      return false
+    }
+  }
+
+  /**
    * Create the tables and record the schema version.
+   *
+   * Called from `BoardRoom.initialize()` (one new board, granted through
+   * `POST /api/boards`) and lazily before the first `append()`, never on
+   * construct and never from `load()`.
    *
    * Deliberately writes no `updates` or `snapshot_chunks` rows: opening a
    * board that was never edited must not create board content (TC-25).
@@ -149,6 +224,25 @@ export class BoardStore {
     this.#migrated = true
   }
 
+  /**
+   * Record the existence marker. Returns `created` the first time a board is
+   * initialised and `exists` on every later call (TC-15), which is also what
+   * keeps a colliding id from ever being shared with a second board.
+   */
+  initialize(now: number): 'created' | 'exists' {
+    const alreadyThere = this.#tablesExist()
+    this.migrate()
+    if (this.metaValue(CREATED_AT_KEY) !== null) return 'exists'
+    this.#storage.sql.exec(
+      'INSERT INTO storage_meta (key, value) VALUES (?, ?)',
+      CREATED_AT_KEY,
+      String(now),
+    )
+    // A legacy board (content, no marker) was already a board; initialising it
+    // does not create it, and the marker must not pretend otherwise.
+    return alreadyThere ? 'exists' : 'created'
+  }
+
   /** Read a meta key (mostly for tests and the schema-version assertion). */
   metaValue(key: string): string | null {
     for (const row of this.#storage.sql.exec<{ key: string; value: string }>(
@@ -168,6 +262,10 @@ export class BoardStore {
    * room cannot serve half-saved (persist.seen_is_saved).
    */
   append(update: Uint8Array): void {
+    // Lazily build the schema here: story 3 clients could open a board without
+    // ever asking for one, so a board's first write may still be its first
+    // contact with storage. From story 5 a connection alone is not that write.
+    this.migrate()
     const sql = this.#storage.sql
     // The sequence number is supplied rather than left to AUTOINCREMENT so it
     // keeps counting across a compaction: a fresh log must start *above*
@@ -199,7 +297,16 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
-      this.migrate()
+      if (!this.#tablesExist()) {
+        // Never-created board: an empty document, and no tables written while
+        // finding that out. This is the read that a mistyped link triggers
+        // thousands of times a day; it must cost nothing and change nothing.
+        this.#migrated = false
+        return { ok: true, quarantined: 0 }
+      }
+      // The schema is already there (story 4 board, or one we created):
+      // nothing in this method needs to create it again.
+      this.#migrated = true
 
       const throughRow = this.metaValue('snapshot_through_seq')
       this.#throughSeq = throughRow === null ? 0 : Number(throughRow)

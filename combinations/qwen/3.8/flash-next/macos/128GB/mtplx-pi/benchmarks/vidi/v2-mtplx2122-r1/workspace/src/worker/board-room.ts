@@ -34,7 +34,7 @@ import {
   MESSAGE_SYNC,
   decodeMessage,
 } from '../shared/protocol'
-import { BoardStore, LOAD_ORIGIN, type LoadResult } from './board-store'
+import { BoardStore, CREATED_AT_KEY, LOAD_ORIGIN, type LoadResult } from './board-store'
 import { blocksUpdates, nextRoomState, type RoomState } from './room-state'
 import type { Env } from './index'
 
@@ -232,10 +232,71 @@ export class BoardRoom extends DurableObject<Env> {
 
   // ── entry points ───────────────────────────────────────────────────────────
 
+  /**
+   * RPC, called on the namespace stub by `POST /api/boards` (story 5).
+   *
+   * Building the schema and writing `created_at` is the whole of "create a
+   * board": there is no retry loop, because a collision between two 128-bit
+   * ids is not a practical event, and an id that somehow did exist would be
+   * answered `exists` and refused rather than quietly shared.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    // A board created through the API starts empty, so the doc built while this
+    // object was constructed is already the right one: only the marker moves.
+    return this.#store.initialize(Date.now())
+  }
+
+  /**
+   * RPC, called on the stub by `GET /api/boards/:id`: does this address
+   * belong to a board? Reads only — an unknown id must not gain a database
+   * because somebody typed it into the address bar (TC-06).
+   */
+  async exists(): Promise<boolean> {
+    return this.#store.existsReadOnly()
+  }
+
+  /**
+   * Test-hook only (`share.legacy_boards`): write stored updates the way
+   * story 3/4 did — content, no `created_at` — so a legacy board can be
+   * opened through the story 5 existence rule.
+   */
+  async seed(updates: string[]): Promise<number> {
+    const store = this.#store
+    store.migrate()
+    let written = 0
+    for (const update of updates) {
+      const bytes = Uint8Array.from(atob(update), char => char.charCodeAt(0))
+      store.append(bytes)
+      written += 1
+    }
+    // Re-read the board the seed just changed, so the next socket sees it.
+    this.#load()
+    return written
+  }
+
+  /**
+   * A board must be *granted* before it can be opened: an address that was
+   * never created, or that has neither `created_at` nor stored content, is
+   * answered 404 and no socket is accepted.
+   *
+   * From story 5 this is the seam that makes "Board not found" true rather
+   * than cosmetic — a guessed link used to start a brand-new board.
+   */
+  #existsForRead(): boolean {
+    return this.#store.existsReadOnly()
+  }
+
   fetch(request: Request): Response {
     const upgrade = request.headers.get('Upgrade')
     if (upgrade === null || upgrade.toLowerCase() !== 'websocket') {
       return new Response('Expected Upgrade: websocket', { status: 426 })
+    }
+
+    if (!this.#existsForRead()) {
+      // Nobody ever created this board, so there is nothing to join: answer
+      // the upgrade as a plain 404 and write nothing. The client reads this as
+      // "Board not found" instead of opening an empty board of its own.
+      return new Response('Board not found', { status: 404 })
     }
 
     const pair = new WebSocketPair()
