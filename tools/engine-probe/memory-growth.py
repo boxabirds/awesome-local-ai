@@ -107,7 +107,22 @@ def measured_chars_per_token(base_url: str, model: str) -> float:
     return len(sample) / used * CALIBRATION_DRIFT
 
 
+def sizes_from(spec: str) -> list[int]:
+    """"60000" is one size; "10000,40000,120000" is a cycle of them, request i using the (i-1)th modulo its length."""
+    sizes = [int(s) for s in str(spec).split(",") if s.strip()]
+    if not sizes or any(s <= 0 for s in sizes):
+        raise SystemExit(f"--tokens wants positive sizes, got {spec!r}")
+    return sizes
+
+
 def self_test() -> None:
+    assert sizes_from("60000") == [60000] and sizes_from("10000, 40000,120000") == [10000, 40000, 120000]
+    try:
+        sizes_from("0")
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("a zero size must be refused")
     a, b = prompt(1, 1000), prompt(2, 1000)
     assert a != b and a.splitlines()[0] != b.splitlines()[0]
     assert not set(a.splitlines()[1:6]) & set(b.splitlines()[1:6]), "no shared lines near the start: no shared prefix"
@@ -130,7 +145,7 @@ def main() -> int:
     ap.add_argument("--base-url")
     ap.add_argument("--model")
     ap.add_argument("--port", type=int, help="the port the server listens on, to find its process")
-    ap.add_argument("--tokens", type=int, default=60000)
+    ap.add_argument("--tokens", default="60000", help="prompt size, or a comma-separated cycle of sizes (a context ramp)")
     ap.add_argument("--requests", type=int, default=30)
     ap.add_argument("--out", default="memory-growth.jsonl")
     ap.add_argument("--self-test", action="store_true")
@@ -144,6 +159,7 @@ def main() -> int:
     if not pid:
         print(f"nothing is listening on port {a.port}", file=sys.stderr)
         return 1
+    sizes = sizes_from(a.tokens)
     cpt = measured_chars_per_token(a.base_url, a.model)
     out = open(a.out, "a")
     readings: list[dict] = []
@@ -156,9 +172,10 @@ def main() -> int:
 
     record("start")
     for i in range(1, a.requests + 1):
-        resp, secs = ask(a.base_url, a.model, prompt(i, a.tokens, cpt))
+        target = sizes[(i - 1) % len(sizes)]
+        resp, secs = ask(a.base_url, a.model, prompt(i, target, cpt))
         u = resp.get("usage", {})
-        record("request", index=i, prompt_tokens=u.get("prompt_tokens"), seconds=round(secs, 1))
+        record("request", index=i, target_tokens=target, prompt_tokens=u.get("prompt_tokens"), seconds=round(secs, 1))
     last = time.time()
     for wait in IDLE_READINGS_S:
         time.sleep(max(0, last + wait - time.time()))
