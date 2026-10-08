@@ -327,3 +327,27 @@ def test_the_cli_s_json_output_is_a_list_of_events_ending_in_the_result():
                   "result": "Claude usage limit reached. Your limit will reset at 7pm."}
     assert triage.classify(0, json.dumps(events), "")[0] == "usage_limit"
     assert triage.classify(1, json.dumps(events), "")[0] == "usage_limit"
+
+
+# ---- what is urgent: only what needs the owner now ----------------------------------------------------------------
+
+REPAIR_LEFT_FINALIZE = {
+    "rescore": "done",
+    "repair": {"left": {"7": "its accounting check failed; recomputed from the full log, still so"}},
+}
+
+
+def test_an_accounting_check_the_repair_could_not_fix_is_logged_but_never_urgent():
+    # It costs a story its time breakdown; no score, no machine and no run is at stake. On 8 Oct 2026 it raised an
+    # "urgent" notification for a 9-second overrun on a 14-minute story.
+    dets = monitor.record_detections("combos/x/benchmarks/vidi/v2-r1", {"stories": {}}, REPAIR_LEFT_FINALIZE, {"state": "finished"})
+    left = [d for d in dets if d["kind"] == "repair_left"]
+    assert len(left) == 1, "still logged, so triage sees it"
+    assert not left[0]["urgent"]
+
+
+def test_a_run_that_could_not_be_scored_is_urgent_only_when_it_needs_a_person():
+    fin = {"rescore": "failed", "attempts": 2, "reason_kind": "x", "reason": "y"}
+    for needs, expected in ((True, True), (False, False)):
+        dets = monitor.record_detections("combos/x/benchmarks/vidi/v2-r1", {"stories": {}}, {**fin, "needs_person": needs}, {"state": "finished"})
+        assert [d["urgent"] for d in dets if d["kind"] == "run_not_scored"] == [expected]

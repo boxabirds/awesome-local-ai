@@ -20,7 +20,7 @@ already produce, and it was ported from a script that had run the same checks fo
   `triage stopped: Claude usage limit reached at <time>; detections are still being logged (N waiting)`.
 - `detector_last_run`, `triage_last_run`, `triage_outcome`, `triage_message`, `untriaged`, `urgent_untriaged`.
 
-A change of state raises one macOS notification; so does an urgent detection. The status is for whoever runs the
+A change of state raises one macOS notification; so does an urgent detection. **Urgent means something needs the owner now:** a machine unreachable for 15 minutes, a job that stopped for good, a queue that is not starting, a story that has not moved for 30 minutes, a run that needs a person to be scored, a commit by another author or under a fixture path, a harness that fails to import. Anything that only costs data quality (a story's time breakdown, a repair that could not finish) is logged for triage and never urgent. The status is for whoever runs the
 benchmark: it is not shown in the benchmarker.
 
 The usage-limit state is recognised from how the `claude` run ended: a non-zero exit or an error result whose

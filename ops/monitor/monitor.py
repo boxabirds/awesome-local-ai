@@ -349,7 +349,7 @@ def record_detections(run_dir: str, metrics: dict, finalize: dict | None, run_st
     left = ((finalize or {}).get("repair") or {}).get("left") or {}
     if left:
         dets.append(det("repair_left", f"repair_left:{run_dir}:{','.join(sorted(left))}",
-                        "the automatic repair left: " + json.dumps(left)[:300], run_dir=run_dir, urgent=True))
+                        "the automatic repair left: " + json.dumps(left)[:300], run_dir=run_dir))   # data quality, not urgent
     if ended and run_status.get("state") != "finished":
         dets.append(det("run_ended_early", f"run_ended_early:{run_dir}:{run_status.get('at')}",
                         f"{run_status.get('state')}: {str(run_status.get('reason'))[:260]}", run_dir=run_dir))
