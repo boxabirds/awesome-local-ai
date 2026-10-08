@@ -70,7 +70,9 @@ describe('TC-28: Sticky note button creates note', () => {
   it('clicking the toolbar button calls onCreateSticky', async () => {
     const onCreateSticky = vi.fn();
 
-    const { container } = render(<Toolbar onCreateSticky={onCreateSticky} />);
+    const { container } = render(
+      <Toolbar onCreateSticky={onCreateSticky} canUndo={false} canRedo={false} onUndo={() => {}} onRedo={() => {}} />,
+    );
     const btn = container.querySelector('[aria-label="Sticky note"]') as HTMLButtonElement;
     expect(btn).toBeTruthy();
 
@@ -87,7 +89,16 @@ describe('TC-28: Sticky note button creates note', () => {
 describe('TC-23: Toolbar disabled in load_failed', () => {
   it('disabled prop hides cursor and prevents onClick', async () => {
     const onCreateSticky = vi.fn();
-    const { container } = render(<Toolbar onCreateSticky={onCreateSticky} disabled />);
+    const { container } = render(
+      <Toolbar
+        onCreateSticky={onCreateSticky}
+        disabled
+        canUndo={false}
+        canRedo={false}
+        onUndo={() => {}}
+        onRedo={() => {}}
+      />,
+    );
     const btn = container.querySelector('[aria-label="Sticky note"]') as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
     expect(btn.style.cursor).toBe('not-allowed');

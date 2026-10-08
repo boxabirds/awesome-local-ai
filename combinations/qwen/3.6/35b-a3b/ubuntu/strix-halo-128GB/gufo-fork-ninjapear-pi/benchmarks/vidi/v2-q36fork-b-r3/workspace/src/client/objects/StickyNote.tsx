@@ -11,6 +11,7 @@ import {
 } from '@shared/config';
 import { fitFontSize } from './StickyText';
 import { getObjectType } from '../objects/registry';
+import { StickyTextEditor } from './StickyTextEditor';
 import type { Handle } from '@shared/geometry';
 import type { Point } from '../canvas/camera';
 import { objectBounds } from '@shared/board-model';
@@ -26,6 +27,11 @@ interface StickyNoteProps {
   onEndEdit(next: 'selected' | 'unselected'): void;
   onObjectPointerDown?(e: PointerEvent, id: string): void;
   onHandlePointerDown?(e: PointerEvent, handle: Handle): void;
+  // Story 8: undo integration
+  onUndoBoundary?(): void;
+  onUndo?(): boolean;
+  onRedo?(): boolean;
+  onColorChange?(id: string, color: string): void;
 }
 
 export function StickyNote({
@@ -39,6 +45,10 @@ export function StickyNote({
   onEndEdit,
   onObjectPointerDown,
   onHandlePointerDown,
+  onUndoBoundary,
+  onUndo,
+  onRedo,
+  onColorChange,
 }: StickyNoteProps) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -81,6 +91,19 @@ export function StickyNote({
     },
     [note.id, onStartEdit],
   );
+
+  // Get the Y.Text for this sticky's content
+  const ytext = (() => {
+    try {
+      const objects = (doc as any).getMap('objects');
+      const dataMap = objects.get(note.id);
+      if (dataMap instanceof Y.Map) {
+        const val = dataMap.get('text');
+        return val instanceof Y.Text ? val : undefined;
+      }
+    } catch { /* ignore */ }
+    return undefined;
+  })();
 
   return (
     <div
@@ -128,56 +151,45 @@ export function StickyNote({
         {note.text || '\u200B'}
       </span>
 
-      {editing ? (
-        <>
-          <textarea
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              outline: 'none',
-              resize: 'none',
-              background: 'transparent',
-              fontFamily: 'sans-serif',
-              fontSize: `${fontPxRef.current}px`,
-              lineHeight: 1.25,
-              padding: '16px',
-              textAlign: 'center',
-              color: '#333',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              overflow: 'hidden',
-              cursor: 'text',
-              userSelect: 'text',
-              boxSizing: 'border-box',
-            }}
-            defaultValue={note.text}
-            autoFocus
-            onBlur={() => onEndEdit('selected')}
-            spellCheck={false}
-            autoCapitalize="off"
-            autoComplete="off"
-          />
-          {/* Character counter visible when within threshold of limit */}
-          {(function Counter() {
-            const len = note.text.length;
-            if (len < STICKY_TEXT_MAX_CHARS - STICKY_COUNTER_THRESHOLD_CHARS) return null;
-            return (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 2,
-                  right: 4,
-                  fontSize: '9px',
-                  color: '#888',
-                  pointerEvents: 'none',
-                }}
-              >
-                {len}/{STICKY_TEXT_MAX_CHARS}
-              </div>
-            );
-          })()}
-        </>
+      {editing && ytext ? (
+        <StickyTextEditor
+          ytext={ytext}
+          fontPx={fontPxRef.current}
+          onEnd={onEndEdit}
+          onUndoBoundary={onUndoBoundary ?? (() => {})}
+          onUndo={() => { onUndo?.(); return true; }}
+          onRedo={() => { onRedo?.(); return true; }}
+        />
+      ) : editing ? (
+        // Fallback: Y.Text not available — render raw textarea
+        <textarea
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            outline: 'none',
+            resize: 'none',
+            background: 'transparent',
+            fontFamily: 'sans-serif',
+            fontSize: `${fontPxRef.current}px`,
+            lineHeight: 1.25,
+            padding: '16px',
+            textAlign: 'center',
+            color: '#333',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            overflow: 'hidden',
+            cursor: 'text',
+            userSelect: 'text',
+            boxSizing: 'border-box',
+          }}
+          defaultValue={note.text}
+          autoFocus
+          onBlur={() => onEndEdit('selected')}
+          spellCheck={false}
+          autoCapitalize="off"
+          autoComplete="off"
+        />
       ) : (
         <>
           <div

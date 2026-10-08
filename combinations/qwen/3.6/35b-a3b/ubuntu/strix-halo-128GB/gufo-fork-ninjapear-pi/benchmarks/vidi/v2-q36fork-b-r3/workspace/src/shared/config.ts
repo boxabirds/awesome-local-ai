@@ -40,6 +40,10 @@ export const CREATE_BUDGET_MS = 2000;
 export const LINK_COPIED_MS = 2000;
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
 
+// Story 8 — Undo and redo my own changes
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;   // typing pause that ends a burst
+export const UNDO_MAX_STEPS = 200;
+
 // Story 7 — Select, move, resize and delete several objects
 export const HANDLE_SIZE_PX = 8;
 export const STICKY_MIN_SIZE_WORLD = 50;

@@ -6,20 +6,24 @@ interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
   onEnd(next: 'selected' | 'unselected'): void;
+  onUndoBoundary(): void;
+  onUndo(): boolean;
+  onRedo(): boolean;
 }
 
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
+export function StickyTextEditor({ ytext, fontPx, onEnd, onUndoBoundary, onUndo, onRedo }: StickyTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
 
-  // On mount: set value from Y.Text, focus, caret at end
+  // On mount: set value from Y.Text, focus, caret at end, and close capture window
   useEffect(() => {
     if (!textareaRef.current) return;
     const text = ytext.toString();
     textareaRef.current.value = text;
     textareaRef.current.focus();
     textareaRef.current.setSelectionRange(text.length, text.length);
-  }, [ytext]);
+    onUndoBoundary();
+  }, [ytext, onUndoBoundary]);
 
   const handleInput = useCallback(() => {
     if (composingRef.current || !textareaRef.current) return;
@@ -49,6 +53,27 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // Intercept undo/redo shortcuts inside the textarea
+      const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+      const isUndo =
+        isCmdOrCtrl && !e.shiftKey && e.key.toLowerCase() === 'z';
+      const isRedo =
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') ||
+        (e.ctrlKey && !e.metaKey && !e.shiftKey && e.key.toLowerCase() === 'y');
+
+      if (isUndo) {
+        e.preventDefault();
+        e.stopPropagation();
+        onUndo();
+        return;
+      }
+      if (isRedo) {
+        e.preventDefault();
+        e.stopPropagation();
+        onRedo();
+        return;
+      }
+
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
@@ -56,7 +81,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       }
       // Enter is allowed for newline insertion (default textarea behaviour)
     },
-    [onEnd],
+    [onEnd, onUndo, onRedo],
   );
 
   // Listen for pointerdown outside this editor (handled by parent note)

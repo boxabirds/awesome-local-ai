@@ -22,6 +22,7 @@ interface UseTransformGestureOpts {
   canEdit: boolean;
   onGestureStart?(): void;
   onGestureEnd?(): void;
+  onBoundary?(): void;
 }
 
 let rafId: number | null = null;
@@ -35,6 +36,7 @@ export function useTransformGesture({
   canEdit,
   onGestureStart,
   onGestureEnd,
+  onBoundary,
 }: UseTransformGestureOpts) {
   const dragRef = useRef<{
     phase: 'idle' | 'pressed' | 'dragging';
@@ -117,7 +119,8 @@ export function useTransformGesture({
   const finishDrag = useCallback(() => {
     dragRef.current.phase = 'idle';
     onGestureEnd?.();
-  }, [onGestureEnd]);
+    onBoundary?.();
+  }, [onGestureEnd, onBoundary]);
 
   const startDragging = useCallback(() => {
     if (dragRef.current.phase !== 'pressed') return;
@@ -125,7 +128,8 @@ export function useTransformGesture({
     const rectSet = Array.from(dragRef.current.startRects.values());
     bringObjectsToFront(doc, rectSet.map(() => '')); // simplified — real impl needs ids
     onGestureStart?.();
-  }, [onGestureStart]);
+    onBoundary?.();
+  }, [onGestureStart, onBoundary]);
 
   // ── Handle pointer down (for resizing) ───────────────────────────
   const onHandlePointerDown = useCallback(
@@ -226,13 +230,15 @@ export function useTransformGesture({
   const finishResize = useCallback(() => {
     resizeRef.current.phase = 'idle';
     onGestureEnd?.();
-  }, [onGestureEnd]);
+    onBoundary?.();
+  }, [onGestureEnd, onBoundary]);
 
   const startResizing = useCallback(() => {
     if (resizeRef.current.phase !== 'pressed') return;
     resizeRef.current.phase = 'resizing';
     onGestureStart?.();
-  }, [onGestureStart]);
+    onBoundary?.();
+  }, [onGestureStart, onBoundary]);
 
   return {
     onObjectPointerDown,

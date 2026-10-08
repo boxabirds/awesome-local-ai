@@ -1,11 +1,23 @@
 import React from 'react';
+import { UndoButtons } from './UndoButtons';
 
 interface ToolbarProps {
   onCreateSticky(): void;
   disabled?: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo(): void;
+  onRedo(): void;
 }
 
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
+export function Toolbar({
+  onCreateSticky,
+  disabled = false,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+}: ToolbarProps) {
   return (
     <div
       style={{
@@ -42,6 +54,13 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
       >
         📝
       </button>
+      <UndoButtons
+        canUndo={canUndo}
+        canRedo={canRedo}
+        disabled={disabled}
+        onUndo={onUndo}
+        onRedo={onRedo}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { checkBoard, CheckResponse } from '../api';
 import { isValidBoardId } from '@shared/board-id';
 import { BOARD_CHECK_RETRY_BASE_MS, RECONNECT_MAX_BACKOFF_MS } from '@shared/config';
@@ -22,6 +22,8 @@ import { useTransformGesture } from '../board/useTransformGesture';
 import { MarqueeRect } from '../board/Marquee';
 import { useMarquee } from '../board/Marquee';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { useUndo } from '../board/useUndo';
+import { createUndo } from '../board/undo';
 import { createSticky, setStickyColor, deleteObjects } from '@shared/board-model';
 import type { StickySnapshot } from '@shared/board-model';
 import type { Handle } from '@shared/geometry';
@@ -146,18 +148,49 @@ function BoardContent({ boardId }: { boardId: string }) {
   const globalConnState = getState();
   const canEdit = globalConnState !== 'load_failed';
 
-  // Story 7: keyboard commands
-  useBoardKeys({ doc: board.doc, selection, snapshot: board.snapshot, canEdit });
+  // ─── Story 8: Undo controller ───────────────────────────────────
+  const undoControllerRef = useRef<ReturnType<typeof createUndo> | null>(null);
 
-  // Story 7: transform gesture (move / resize)
+  // Memoize the controller so it survives re-renders but is recreated on board change
+  const undoController = useMemo(() => {
+    if (!board.doc) return null;
+    return createUndo(board.doc);
+  }, [board.doc]); // recreated when board doc changes (e.g. different board)
+
+  // Clean up controller on unmount or board change
+  useEffect(() => {
+    const ctrl = undoController;
+    return () => ctrl?.destroy();
+  }, [undoController]);
+
+// Story 8: boundary callback for gestures and editing
+  const boundary = useCallback(() => {
+    undoController?.boundary();
+  }, [undoController]);
+
+  // Story 7: keyboard commands + undo shortcuts
+  useBoardKeys({
+    doc: board.doc,
+    selection,
+    snapshot: board.snapshot,
+    canEdit,
+    undoController,
+    onBoundary: boundary,
+  });
+
+  // Story 8: undo state binding
+  const { canUndo, canRedo, undo, redo } = useUndo(undoController, canEdit);
+
+  // Story 7: transform gesture (move / resize) with undo boundaries
   const gesture = useTransformGesture({
     doc: board.doc,
     camera,
     selection,
     snapshot: board.snapshot,
     canEdit,
-    onGestureStart: undefined, // story 8 undo boundary
-    onGestureEnd: undefined,   // story 8 undo boundary
+    onGestureStart: undefined,
+    onGestureEnd: undefined,
+    onBoundary: boundary,
   });
 
   // Story 7: marquee
@@ -187,12 +220,14 @@ function BoardContent({ boardId }: { boardId: string }) {
           y: viewportSize.height / 2,
         });
       }
+      // Boundary before creating a new sticky note (one step)
+      boundary();
       const id = createSticky(board.doc, worldPoint);
       selection.click(id);
       selection.startEdit(id);
       return id;
     },
-    [board.doc, camera, selection, viewportSize, canEdit],
+    [board.doc, camera, selection, viewportSize, canEdit, boundary],
   );
 
   const handleToolbarCreate = useCallback(() => {
@@ -211,13 +246,29 @@ function BoardContent({ boardId }: { boardId: string }) {
   );
 
   const handleStartEdit = useCallback((id: string) => selection.startEdit(id), [selection]);
-  const handleEndEdit = useCallback((_next: 'selected' | 'unselected') => selection.endEdit(_next), [selection]);
+
+  const handleEndEdit = useCallback(
+    (_next: 'selected' | 'unselected') => {
+      boundary();
+      selection.endEdit(_next);
+    },
+    [boundary, selection],
+  );
 
   const handleDeleteSelection = useCallback(() => {
+    boundary();
     const ids = [...selection.ids];
     deleteObjects(board.doc, ids);
     selection.clear();
-  }, [board.doc, selection]);
+  }, [board.doc, selection, boundary]);
+
+  const handleSetStickyColor = useCallback(
+    (id: string, color: string) => {
+      boundary();
+      setStickyColor(board.doc, id, color);
+    },
+    [board.doc, boundary],
+  );
 
   // Track pointer move for drag/marquee in BoardViewport
   const handlePointerMove = useCallback(
@@ -239,7 +290,14 @@ function BoardContent({ boardId }: { boardId: string }) {
       {/* Share button top-right */}
       <SharePanel boardId={boardId} />
 
-      <Toolbar onCreateSticky={handleToolbarCreate} disabled={!canEdit} />
+      <Toolbar
+        onCreateSticky={handleToolbarCreate}
+        disabled={!canEdit}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
+      />
       <BoardViewport
         camera={camera}
         onPanMove={panMove}
@@ -281,12 +339,16 @@ function BoardContent({ boardId }: { boardId: string }) {
             onSelect={(id: string, shiftKey: boolean) => handleSelect(id, shiftKey)}
             onStartEdit={handleStartEdit}
             onEndEdit={handleEndEdit}
+            onUndoBoundary={boundary}
+            onUndo={() => { undo(); return true; }}
+            onRedo={() => { redo(); return true; }}
             onObjectPointerDown={(e: PointerEvent, id: string) => {
               gesture.onObjectPointerDown(e, id);
             }}
             onHandlePointerDown={(e: PointerEvent, h: Handle) => {
               gesture.onHandlePointerDown(e, h);
             }}
+            onColorChange={handleSetStickyColor}
           />
         ))}
         {selection.ids.size > 0 && (
@@ -309,11 +371,12 @@ function BoardContent({ boardId }: { boardId: string }) {
             zIndex: 100,
           }}
         >
-          <SelectionBar
+<SelectionBar
             ids={selection.ids}
             snapshot={board.snapshot}
             doc={board.doc}
             onDelete={handleDeleteSelection}
+            onBoundary={boundary}
           />
         </div>
       )}

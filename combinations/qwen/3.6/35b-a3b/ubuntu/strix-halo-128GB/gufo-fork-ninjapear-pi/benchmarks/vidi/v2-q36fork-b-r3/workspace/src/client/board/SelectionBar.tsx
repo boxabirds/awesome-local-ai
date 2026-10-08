@@ -3,17 +3,16 @@ import * as Y from 'yjs';
 import { StickySnapshot } from '@shared/board-model';
 import type { StickyColor } from '@shared/config';
 import { setStickyColor, deleteObjects } from '@shared/board-model';
-import { NoteToolbar } from '../objects/NoteToolbar';
-import type { StickyColor as ColorType } from '@shared/config';
 
 interface SelectionBarProps {
   ids: ReadonlySet<string>;
   snapshot: readonly StickySnapshot[];
   doc: Y.Doc;
   onDelete(): void;
+  onBoundary?(): void;
 }
 
-export function SelectionBar({ ids, snapshot, doc, onDelete }: SelectionBarProps) {
+export function SelectionBar({ ids, snapshot, doc, onDelete, onBoundary }: SelectionBarProps) {
   const count = ids.size;
   if (count === 0) return null;
 
@@ -50,6 +49,7 @@ export function SelectionBar({ ids, snapshot, doc, onDelete }: SelectionBarProps
             title={`${name} colour`}
             onClick={(e) => {
               e.stopPropagation();
+              onBoundary?.();
               setStickyColor(doc, note!.id, name as StickyColor);
             }}
             style={{
@@ -76,6 +76,7 @@ export function SelectionBar({ ids, snapshot, doc, onDelete }: SelectionBarProps
           title="Delete note"
           onClick={(e) => {
             e.stopPropagation();
+            onBoundary?.();
             onDelete();
           }}
           style={{
@@ -128,6 +129,7 @@ export function SelectionBar({ ids, snapshot, doc, onDelete }: SelectionBarProps
         title="Delete selection"
         onClick={(e) => {
           e.stopPropagation();
+          onBoundary?.();
           const idList = [...ids];
           deleteObjects(doc, idList);
           onDelete();

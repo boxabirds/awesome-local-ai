@@ -97,6 +97,7 @@ export function createSticky(
 
 /**
  * Move object `id` to world position `(x, y)`. Returns false if stale/invalid.
+ * Uses LOCAL_ORIGIN so it enters the undo history.
  */
 export function moveObject(
   doc: Y.Doc,
@@ -112,8 +113,10 @@ export function moveObject(
   const dm = getDataMap(objects, id);
   if (!dm) return false;
 
-  dm.set('x', x);
-  dm.set('y', y);
+  doc.transact(() => {
+    dm.set('x', x);
+    dm.set('y', y);
+  }, LOCAL_ORIGIN);
 
   return true;
 }
@@ -139,6 +142,7 @@ export function bringToFront(doc: Y.Doc, id: string): boolean {
 
 /**
  * Change sticky colour. Returns false for stale id or unknown colour.
+ * Uses LOCAL_ORIGIN so it enters the undo history.
  */
 export function setStickyColor(
   doc: Y.Doc,
@@ -153,13 +157,16 @@ export function setStickyColor(
   const dm = getDataMap(objects, id);
   if (!dm) return false;
 
-  dm.set('color', color as StickyColor);
+  doc.transact(() => {
+    dm.set('color', color as StickyColor);
+  }, LOCAL_ORIGIN);
 
   return true;
 }
 
 /**
  * Delete object `id`. Returns false if stale.
+ * Uses LOCAL_ORIGIN so it enters the undo history.
  */
 export function deleteObject(doc: Y.Doc, id: string): boolean {
   const objects = getDocObjects(doc);
@@ -167,7 +174,9 @@ export function deleteObject(doc: Y.Doc, id: string): boolean {
     return false;
   }
 
-  objects.delete(id);
+  doc.transact(() => {
+    objects.delete(id);
+  }, LOCAL_ORIGIN);
 
   return true;
 }

@@ -6,9 +6,10 @@ interface NoteToolbarProps {
   color: StickyColor;
   onColor(color: StickyColor): void;
   onDelete(): void;
+  onBoundary?(): void;
 }
 
-export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps) {
+export function NoteToolbar({ color, onColor, onDelete, onBoundary }: NoteToolbarProps) {
   const colours = Object.entries(STICKY_COLORS);
 
   return (
@@ -33,6 +34,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps) {
           title={`${name} colour`}
           onClick={(e) => {
             e.stopPropagation();
+            onBoundary?.();
             onColor(name as StickyColor);
           }}
           style={{
@@ -59,6 +61,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps) {
         title="Delete note"
         onClick={(e) => {
           e.stopPropagation();
+          onBoundary?.();
           onDelete();
         }}
         style={{
