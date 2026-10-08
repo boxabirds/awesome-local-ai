@@ -93,6 +93,6 @@ export const ShapeObject = memo(function ShapeObject({ snap, camera, selected }:
           {labelText}
         </text>
       )}
-    </>
+    </g>
   );
 });

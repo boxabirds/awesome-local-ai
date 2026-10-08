@@ -10,6 +10,8 @@ import {
   SHAPE_LABEL_MAX_CHARS,
 } from './config';
 import type { StickyColor } from './config';
+import type { PenColor, PenThickness } from './config';
+import { PEN_COLORS, PEN_THICKNESS_WORLD, DEFAULT_PEN_COLOR, DEFAULT_PEN_THICKNESS } from './config';
 import type { Point } from '../client/canvas/camera';
 import type { Rect } from './geometry';
 import { sideAnchor, nearestSide, resolveEndpoints, connectorBBox } from './geometry/connector-geometry';
@@ -63,9 +65,25 @@ export interface ConnectorSnapshot {
   createdBy?: string;
 }
 
+export interface StrokeSnapshot {
+  id: string;
+  type: 'stroke';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  points: readonly number[];
+  baseWidth: number;
+  baseHeight: number;
+  color: PenColor;
+  thickness: PenThickness;
+  z: number;
+  createdAt: number;
+}
+
 // Legacy alias for backward compatibility with existing code
 export type StickySnapshotLegacy = StickySnapshot;
-export type ObjectSnap = StickySnapshot | ShapeSnapshot | ConnectorSnapshot;
+export type ObjectSnap = StickySnapshot | ShapeSnapshot | ConnectorSnapshot | StrokeSnapshot;
 
 /** Type guard: narrows an ObjectSnap to StickySnapshot */
 export function isStickySnap(obj: ObjectSnap): obj is StickySnapshot {
@@ -321,6 +339,24 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnap[] {
         createdAt: Number(dm.get('createdAt') ?? 0),
         createdBy: dm.has('createdBy') ? String(dm.get('createdBy')) : undefined,
       } as ConnectorSnapshot);
+    } else if (type === 'stroke') {
+      const pts = dm.get('points');
+      const ptsArr = Array.isArray(pts) ? pts : [];
+      result.push({
+        id,
+        type: 'stroke' as const,
+        x: Number(dm.get('x') ?? 0),
+        y: Number(dm.get('y') ?? 0),
+        width: Number(dm.get('width') ?? 0),
+        height: Number(dm.get('height') ?? 0),
+        points: ptsArr,
+        baseWidth: Number(dm.get('baseWidth') ?? 0),
+        baseHeight: Number(dm.get('baseHeight') ?? 0),
+        color: String(dm.get('color') ?? DEFAULT_PEN_COLOR) as PenColor,
+        thickness: String(dm.get('thickness') ?? DEFAULT_PEN_THICKNESS) as PenThickness,
+        z: Number(dm.get('z') ?? 0),
+        createdAt: Number(dm.get('createdAt') ?? 0),
+      } as StrokeSnapshot);
     }
     // skip unknown types (forward compatibility)
   }
@@ -347,6 +383,9 @@ export function objectBounds(obj: ObjectSnap): Rect {
     return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
   }
   if (obj.type === 'connector') {
+    return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
+  }
+  if (obj.type === 'stroke') {
     return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
   }
   return { x: 0, y: 0, width: STICKY_SIZE_WORLD, height: STICKY_SIZE_WORLD };

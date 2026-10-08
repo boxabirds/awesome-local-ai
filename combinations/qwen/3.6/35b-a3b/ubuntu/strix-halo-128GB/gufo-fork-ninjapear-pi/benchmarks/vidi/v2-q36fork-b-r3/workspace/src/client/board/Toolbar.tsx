@@ -1,7 +1,7 @@
 import React from 'react';
 import { UndoButtons } from './UndoButtons';
 
-type ToolName = 'select' | 'sticky' | 'text' | 'shape' | 'connector';
+type ToolName = 'select' | 'sticky' | 'text' | 'shape' | 'connector' | 'pen';
 
 interface ToolbarProps {
   onCreateSticky(): void;
@@ -20,6 +20,7 @@ const TOOL_INFO: Record<ToolName, { label: string; shortcut: string; emoji?: str
   text: { label: 'Text', shortcut: 'T' },
   shape: { label: 'Shape', shortcut: 'S' },
   connector: { label: 'Connector', shortcut: 'L' },
+  pen: { label: 'Pen', shortcut: 'P', emoji: '✏️' },
 };
 
 export function Toolbar({
@@ -45,7 +46,7 @@ export function Toolbar({
         zIndex: 100,
       }}
     >
-      {(['select', 'sticky', 'text', 'shape', 'connector'] as ToolName[]).map((toolKey) => {
+      {(['select', 'sticky', 'text', 'shape', 'connector', 'pen'] as ToolName[]).map((toolKey) => {
         const info = TOOL_INFO[toolKey];
         const isActive = selectedTool === toolKey;
         // For sticky button, create sticky AND switch to Select (legacy behaviour)

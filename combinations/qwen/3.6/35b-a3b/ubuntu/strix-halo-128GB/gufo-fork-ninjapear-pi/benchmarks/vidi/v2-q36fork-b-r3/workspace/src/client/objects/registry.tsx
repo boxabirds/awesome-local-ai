@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import type { StickySnapshot } from '@shared/board-model';
+import type { ObjectSnap } from '@shared/board-model';
 
 /** Specification for an object type on the board. */
 export type HandleMode = 'all' | 'horizontal';
@@ -14,7 +14,9 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** Which resize handles to show: 'all' (default 8) or 'horizontal' (left/right only). */
   handles?: HandleMode;
-  hitTest(obj: StickySnapshot, worldPoint: { readonly x: number; readonly y: number }): boolean;
+  /** Hit test: returns true if world point p is within the object's interactive region. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  hitTest(obj: ObjectSnap, worldPoint: { readonly x: number; readonly y: number }, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();

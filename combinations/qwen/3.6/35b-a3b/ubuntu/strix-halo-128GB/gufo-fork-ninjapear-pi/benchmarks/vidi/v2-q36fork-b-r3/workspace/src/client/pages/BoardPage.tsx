@@ -13,6 +13,10 @@ import { StickyNote } from '../objects/StickyNote';
 import { TextObject } from '../objects/TextObject';
 import { ShapeObject } from '../objects/ShapeObject';
 import { ConnectorObject } from '../objects/ConnectorObject';
+import { StrokeObject } from '../objects/StrokeObject';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { ZoomControls } from '../canvas/ZoomControls';
 import { NavigationHint } from '../canvas/NavigationHint';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -33,7 +37,7 @@ import type { SnapshotWithText } from '../board/SelectionBar';
 import { createText, setTextSize } from '@shared/objects/text';
 import { useTool } from '../board/useTool';
 import type { Tool } from '../board/useTool';
-import type { ObjectSnap, StickySnapshot, ShapeSnapshot, ConnectorSnapshot } from '@shared/board-model';
+import type { ObjectSnap, StickySnapshot, ShapeSnapshot, ConnectorSnapshot, StrokeSnapshot } from '@shared/board-model';
 import type { TextSnapshot } from '@shared/objects/text';
 import type { Handle } from '@shared/geometry';
 import { objectBounds } from '@shared/board-model';
@@ -162,6 +166,10 @@ function BoardContent({ boardId }: { boardId: string }) {
 
   // Story 9: tool mode
   const { tool, setTool } = useTool(canEdit);
+  // Story 11: pen options
+  const penOptions = usePenOptions();
+  // Identity for stroke ownership
+  const identityId = useMemo(() => crypto.randomUUID(), []);
   // Story 10: shape kind
   const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
   const [hoverDots, setHoverDots] = useState<{ pos: { x: number; y: number }; highlighted: boolean }[]>([]);
@@ -366,6 +374,15 @@ function BoardContent({ boardId }: { boardId: string }) {
         onUndo={undo}
         onRedo={redo}
       />
+      {/* Story 11: Pen toolbar - visible only when Pen tool is active */}
+      {tool === 'pen' && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={(c) => penOptions.setColor(c)}
+          onThickness={(t) => penOptions.setThickness(t)}
+        />
+      )}
       <BoardViewport
         camera={camera}
         onPanMove={panMove}
@@ -395,7 +412,17 @@ function BoardContent({ boardId }: { boardId: string }) {
         }}
         activeTool={tool}
         onTextClick={tool === 'text' ? handleTextClick : undefined}
-      >
+>
+        {tool === 'pen' && (
+          <PenTool
+            camera={camera}
+            color={penOptions.color}
+            thickness={penOptions.thickness}
+            doc={board.doc}
+            identityId={identityId}
+            onBoundary={boundary}
+          />
+        )}
         <MarqueeRect rect={marquee.rect ?? null} camera={camera} />
         {board.snapshot
           .filter((o): o is StickySnapshot => o.type === 'sticky')
@@ -424,6 +451,16 @@ function BoardContent({ boardId }: { boardId: string }) {
         ))}
         {/* Render text objects - read directly from Y.Doc */}
         {renderTextObjects(board.doc, camera, selection, handleSelect, handleStartEdit, handleEndEdit, boundary, gesture)}
+        {/* Render strokes */}
+        {board.snapshot
+          .filter((o): o is StrokeSnapshot => o.type === 'stroke')
+          .map((s) => (
+            <StrokeObject
+              key={s.id}
+              stroke={s}
+              selected={selection.ids.has(s.id)}
+            />
+          ))}
         {/* Render shapes */}
         {board.snapshot
           .filter((o): o is ShapeSnapshot => o.type === 'shape' && o.kind === 'rect')

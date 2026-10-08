@@ -57,6 +57,15 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit, undoController
         return;
       }
 
+      // P — Pen tool
+      if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        if (canEdit && activeTool !== 'pen') {
+          setActiveTool?.('pen');
+        }
+        return;
+      }
+
       // T — Text tool (only if canEdit)
       if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
@@ -81,7 +90,7 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit, undoController
       // Escape — clear selection, or revert to Select tool
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (activeTool === 'text' || activeTool === 'shape' || activeTool === 'connector') {
+        if (['text', 'shape', 'connector', 'pen'].includes(activeTool ?? '')) {
           setActiveTool?.('select');
         } else {
           selection.clear();

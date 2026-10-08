@@ -34,10 +34,12 @@ export interface BoardViewportProps {
   onEmptyPointerDown?(e: PointerEvent): void;
   /** Called on pointerup on empty space after potential marquee end */
   onEmptyPointerUp?(): void;
-  /** Currently active tool ('select' or 'text') */
+  /** Currently active tool ('select', 'text', 'pen', etc.) */
   activeTool?: ToolId;
   /** Called when user clicks while Text tool is active */
   onTextClick?(worldPoint: { x: number; y: number }): void;
+  /** Called when user clicks while Pen tool is active (dot click) */
+  onPenPointerDown?(e: React.PointerEvent<HTMLDivElement>): void;
 }
 
 export function BoardViewport(props: BoardViewportProps) {
@@ -55,6 +57,7 @@ export function BoardViewport(props: BoardViewportProps) {
     onEmptyPointerUp,
     activeTool,
     onTextClick,
+    onPenPointerDown,
   } = props;
   const ref = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -79,8 +82,12 @@ export function BoardViewport(props: BoardViewportProps) {
   );
 
   // ── Click on empty board → clear selection ──────────────────────────
-  const handleClickEmpty = useCallback(
+    const handleClickEmpty = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      // Don't clear selection for pen/text tools
+      if (activeTool === 'pen' || activeTool === 'text') {
+        return;
+      }
       if ((e.target as HTMLElement).closest('[data-sticky-id]') ||
           (e.target as HTMLElement).closest('[data-text-id]')) {
         return;
@@ -95,7 +102,7 @@ export function BoardViewport(props: BoardViewportProps) {
       }
       onClearSelection?.();
     },
-    [onClearSelection],
+    [onClearSelection, activeTool],
   );
 
   // ── Handle pointer up on empty space (text tool click-to-create) ───
@@ -122,6 +129,11 @@ export function BoardViewport(props: BoardViewportProps) {
           (e.target as HTMLElement).closest('[data-marquee]') ||
           (e.target as HTMLElement).closest('[data-handle]')) {
         return; // handled by child elements
+      }
+
+      // Pen tool active: don't pan — let pointer events go to PenTool child
+      if (activeTool === 'pen') {
+        return;
       }
 
       // Text tool active: record position for click-to-create
@@ -222,7 +234,7 @@ export function BoardViewport(props: BoardViewportProps) {
         position: 'fixed',
         inset: 0,
         overflow: 'hidden',
-        cursor: isPanning ? 'grabbing' : (activeTool === 'text' ? 'text' : 'grab'),
+        cursor: isPanning ? 'grabbing' : (activeTool === 'text' ? 'text' : activeTool === 'pen' ? 'crosshair' : 'grab'),
         background: '#f0f0f0',
       }}
       onPointerDown={handlePointerDown}

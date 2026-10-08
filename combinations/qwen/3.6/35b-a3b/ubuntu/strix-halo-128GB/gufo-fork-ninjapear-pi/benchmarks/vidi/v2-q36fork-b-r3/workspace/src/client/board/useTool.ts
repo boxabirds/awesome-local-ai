@@ -5,7 +5,8 @@ export type Tool =
   | 'sticky'
   | 'text'
   | 'shape'
-  | 'connector';   // stories 10-12 extend later
+  | 'connector'
+  | 'pen';
 
 interface UseToolReturn {
   tool: Tool;
