@@ -42,6 +42,12 @@ def judge(workspace: Path) -> tuple[bool, str]:
     return (got == LINES), f"{TARGET} has {len(got)} lines: {got!r}"
 
 
+def agent_env(base, home: Path, workspace: Path) -> dict:
+    """The environment OpenCode runs in: an isolated home, and the workspace as its working directory (PWD included)."""
+    return dict(base, HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"), XDG_DATA_HOME=str(home / ".local/share"),
+                XDG_CACHE_HOME=str(home / ".cache"), XDG_STATE_HOME=str(home / ".local/state"), PWD=str(workspace))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url")
@@ -60,8 +66,7 @@ def main() -> int:
     ws = work / "ws"
     ws.mkdir()
     home = work / "agent-home"
-    env = dict(os.environ, HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"), XDG_DATA_HOME=str(home / ".local/share"),
-               XDG_CACHE_HOME=str(home / ".cache"), XDG_STATE_HOME=str(home / ".local/state"))
+    env = agent_env(os.environ, home, ws)
     started = time.time()
     run = subprocess.run(client.command(a.model, PROMPT), cwd=ws, env=env, capture_output=True, text=True, timeout=TIMEOUT_S)
     state = {"session": None, "steps": 0, "tool_calls": 0, "error": None, "tokens": {"input": 0, "output": 0, "reasoning": 0, "cache_read": 0, "cache_write": 0}}
@@ -85,6 +90,10 @@ def self_test() -> None:
     assert judge(d)[0] is True
     (d / TARGET).write_text("one\ntwo\nthree\nfour\n")
     assert judge(d)[0] is False, "extra content is not 'nothing else'"
+    # OpenCode takes its working directory from $PWD, not only from the process's cwd: on 8 Oct 2026 this smoke inherited the shell's
+    # PWD, OpenCode worked in the repository root, and wrote hello.txt into the node's checkout instead of the empty workspace.
+    env = agent_env({"PWD": "/somewhere/else", "PATH": "/bin"}, d / "home", d / "ws")
+    assert env["PWD"] == str(d / "ws") and env["HOME"] == str(d / "home") and env["PATH"] == "/bin"
     from clients import OpenCodeClient
     c = OpenCodeClient(d / "w")
     c.write_config("http://127.0.0.1:1/v1", "m", CONTEXT, OUTPUT)
