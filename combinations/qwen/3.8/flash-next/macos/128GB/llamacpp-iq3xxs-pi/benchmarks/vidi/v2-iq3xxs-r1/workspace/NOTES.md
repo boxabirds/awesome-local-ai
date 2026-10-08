@@ -655,3 +655,85 @@ synchronously inside `act`, so hook-driven seeds re-render in the same call.
 loads: both cached binaries abort on launch (`exitCode=134`), exactly as recorded for stories
 1–9. Chromium alone is therefore what this machine can prove; nothing about the shape code
 differs per engine (an SVG figure, a foreignObject label, a stroked hit line — all standard).
+
+## Story 11 — sketch freehand with a pen
+
+### Where the Pen tool's surface lives: `toolOverlay` on `BoardViewport`
+The design states the routing rule (a pointer drag belongs to the pen even over a note,
+while wheel and pinch still navigate) without saying where the surface is mounted. It is
+mounted *inside* `.board-viewport`, as a new optional `toolOverlay` ReactNode rendered
+after the world layer, via a new prop. That single placement is what makes both halves
+true with no new event plumbing: the overlay is the pointer target, so the viewport's own
+`pointerdown` sees `e.target !== el` and never starts a pan and no object below receives
+the press; wheel and pinch bubble from the overlay to the viewport and pan/zoom exactly as
+story 1. `ShapeTool`/`ConnectorTool` are still mounted outside the viewport (their
+gestures began as clicks on empty space), so the two placements coexist.
+
+### The pen's options are rendered by `Toolbar`, through a new `penOptions` prop
+`PenToolbar` is a component of its own with its own buttons and accessibility, and Board
+passes it as `penOptions`, which `Toolbar` renders directly below the Pen button — the
+same place the shape-kind menu sits for the Shape tool. Keeping it a sibling (fixed
+position outside the panel) would have needed a guess at where the toolbar ends, since its
+height changes with which tools are shown.
+
+### `aspectLocked` stopped meaning "square"
+`useTransformGesture` used to enforce a locked ratio as `size = max(width, height)`, i.e.
+square, which was right only because the sole locked type so far (a sticky note) is drawn
+as a square. For a stroke that is wrong in an visible way: a wide underline dragged by a
+corner became a square underline. The lock is now the object's own ratio —
+`rect.width / rect.height` — and the axis that moved less follows the one that moved
+further, with the object's `minSize` re-imposed afterwards so the lock cannot squeeze an
+object below its own minimum. A sticky note keeps behaving exactly as before because its
+ratio already is 1:1.
+
+### One stroke, one undo step, from the tool
+`PenTool` takes an extra optional `undo: UndoController` (the design's
+`undoManager.stopCapturing()` is `UndoController.boundary()` in this codebase). It opens
+and closes a step around every `createStroke`, so a stroke is undone on its own, a stroke
+split by the point limit is two steps, and typing in a text box directly before or after
+drawing is never merged into the stroke.
+
+### Two paths per stroke: one to see, one to click
+`StrokeObject` draws the visible line plus an invisible path along the same `d` with
+`stroke-width = max(ink, 2 * STROKE_HIT_TOLERANCE_PX / zoom)` and
+`pointer-events: stroke`. Without it the registry's line-distance hit test would have
+nothing to be asked about, because the object div would have to be clickable as a box —
+and a box around a squiggle is mostly empty space that a click should fall through (PRD
+pen.select). The div itself stays `pointer-events: none`; the svg stays
+`pointer-events: none`; only the hit path answers.
+
+### Signatures that bite
+- `splitPoints(points, max)` shares the join point: part 2 begins with part 1's last
+  point, so the parts together hold `points.length + 1` points. `PenTool` restarts a long
+  stroke from that point, so the line has no gap where the stroke was cut (PRD
+  pen.long_stroke).
+- `smoothPath` is `M p0` then `Q control mid` per point and closes with exactly one `L`
+  segment to the last point. A one-point path is `M x y L x y`: zero length, and the round
+  line cap turns it into the dot whose diameter is the ink (PRD pen.dot).
+- `createStroke` stores `points` flattened `[x0,y0,…]` *relative to the box origin*, where
+  the box is padded outward by half the ink, so `width = dx + ink`. Renderers scale by
+  `width / baseWidth`; `stroke-width` is the stored ink and never scales.
+- `StrokeSnap.points` is a plain array replaced atomically: there is no API to move one
+  point or recolour a stroke, which is what makes PRD's "no point editing" true in the
+  model rather than only in the UI.
+
+### Component tests use real rAF, and one `act` for a 5,000-move gesture
+The preview commit is scheduled with `requestAnimationFrame`; like story 1, these tests
+flush a real frame instead of installing fake timers, because jsdom's rAF is already
+deterministic. `drawLongPath` in `tests/component/penUtil.ts` dispatches the whole
+5,010-point gesture inside a single `act()` — one `act` per move makes the point-limit
+test cost more than it tests.
+
+### TC-15 measures off a straight seeded line
+"Within 6 screen pixels / beyond 7" is only testable if the distance off the line is exact.
+The `UNDERLINE` fixture wobbles, so the perpendicular distance from a guessed midpoint is
+not the number being asserted. The case seeds a straight three-point line instead, asserts
+the perpendicular distance it thinks it is measuring, and keeps both zooms; the fixture
+stays where a real drawn shape matters (smoothing, path text, selection by line).
+
+### Firefox and WebKit: not available on this machine
+`tasks.md` asks for TC-17 outside Chromium too. `VIDI6_BROWSERS=firefox,webkit
+npm run test:e2e -- pen.spec.ts` fails before a board loads — both cached binaries abort on
+launch (`exitCode=134`), exactly as recorded for stories 1–10. Chromium is what this
+machine can prove; nothing in the pen code is engine-specific (pointer events with
+`getCoalescedEvents`, `touch-action: none`, an SVG path with round caps — all standard).

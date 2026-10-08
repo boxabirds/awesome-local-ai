@@ -142,11 +142,23 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         if (Math.abs(scaled.x - rect.x) > 1e-9) moves.set(id, { x: scaled.x, y: rect.y });
         continue;
       }
-      // Enforce aspect lock for sticky notes
-      if (typeSpec?.aspectLocked) {
-        const size = Math.max(scaled.width, scaled.height);
-        scaled.width = size;
-        scaled.height = size;
+      /* An object that is locked to a ratio keeps *its own* ratio, which for a square
+         sticky note is 1:1 and for a wide stroke is that stroke's own width-to-height
+         (PRD pen.resize: the drawing scales in proportion, it is not squashed). The
+         other axis follows the one that moved further, as it does for the box. */
+      if (typeSpec?.aspectLocked && rect.width > 0 && rect.height > 0) {
+        const aspect = rect.width / rect.height;
+        const dw = Math.abs(scaled.width - rect.width);
+        const dh = Math.abs(scaled.height - rect.height);
+        if (dw >= dh) scaled.height = scaled.width / aspect;
+        else scaled.width = scaled.height * aspect;
+        // The lock must not squeeze an object below its own minimum side.
+        const min = typeSpec.minSize > 0 ? typeSpec.minSize : 0;
+        if (min > 0 && (scaled.width < min || scaled.height < min)) {
+          const grow = Math.min(min / scaled.width, min / scaled.height);
+          scaled.width *= grow;
+          scaled.height *= grow;
+        }
       }
       resizeMap.set(id, scaled);
     }

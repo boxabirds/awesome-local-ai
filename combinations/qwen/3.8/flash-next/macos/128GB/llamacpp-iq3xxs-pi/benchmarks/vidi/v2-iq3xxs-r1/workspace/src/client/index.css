@@ -860,3 +860,111 @@ body {
   border-color: #1a73e8;
   color: #174ea6;
 }
+
+/* ------------------------------------------------------------------ *
+ * Story 11: sketch freehand with a pen                                *
+ * ------------------------------------------------------------------ */
+
+/* The pen's own surface. It sits INSIDE the viewport, in screen space: a pointer
+   drag belongs to the pen — including a drag that starts on top of a note, which is
+   drawn over rather than moved — while wheel and pinch still reach the viewport and
+   navigate the board as story 1 has always done (PRD pen.navigation). */
+.pen-tool-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  cursor: crosshair;
+  touch-action: none;
+}
+/* The line being drawn. Local only, and a screen-space path, so it is one screen
+   pixel wide whatever the zoom (PRD pen.share). */
+.pen-preview-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+/* A round cursor the size of the ink: the next stroke, in the colour it will have. */
+.pen-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+/* Six inks and three thicknesses, inside the toolbar while the Pen is active
+   (PRD pen.options). */
+.pen-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0;
+  padding: 6px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+}
+.pen-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.pen-swatch {
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+}
+.pen-swatch:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+.pen-swatch[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1a73e8;
+}
+.board-toolbar .pen-thickness {
+  padding: 4px 8px;
+  font-size: 12px;
+  gap: 8px;
+}
+.board-toolbar .pen-thickness[aria-pressed="true"] {
+  background: #e8f0fe;
+  border-color: #1a73e8;
+  color: #174ea6;
+}
+/* The button shows how wide the ink is, in real pixels. */
+.pen-thickness-sample {
+  display: block;
+  width: 20px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+/* A drawn stroke. The box holds the path and the handles, but only the invisible wide
+   path along the line takes pointer events, so clicking inside the box away from the
+   line selects what is underneath (PRD pen.select). */
+.stroke-object {
+  position: absolute;
+  pointer-events: none;
+  outline: 0 solid transparent;
+}
+.stroke-object[data-selected="true"] {
+  outline: 2px dashed #1a73e8;
+  outline-offset: 1px;
+}
+.stroke-svg {
+  display: block;
+  overflow: visible;
+}
+.stroke-line {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

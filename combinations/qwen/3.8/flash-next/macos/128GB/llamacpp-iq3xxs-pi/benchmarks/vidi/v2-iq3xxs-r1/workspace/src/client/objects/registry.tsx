@@ -3,17 +3,22 @@ import type { ObjectSnapshot, WorldPoint } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import { rectContains } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { isConnectorSnap } from '../../shared/objects/connector';
+import { isStrokeSnap, scaledPoints } from '../../shared/objects/stroke';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
 
 /**
  * Per-type knobs the generic selection/move/resize/delete machinery needs.
@@ -144,8 +149,33 @@ function registerConnector(): void {
   });
 }
 
+function registerStroke(): void {
+  if (registry.has('stroke')) return;
+  registry.set('stroke', {
+    Component: StrokeObject as unknown as ComponentType<ObjectProps>,
+    // A stroke is a drawing, so it is resized, but only in proportion: squashing a
+    // handwritten line is not a thing a person means to do (PRD pen.resize).
+    resizable: true,
+    aspectLocked: true,
+    minSize: STROKE_MIN_SIZE_WORLD,
+    editableText: false,
+    hitTest(obj: ObjectSnapshot, worldPoint: WorldPoint, zoom = 1): boolean {
+      if (!isStrokeSnap(obj)) return false;
+      // Only the line itself is clickable: within half the ink, or 6 px of screen,
+      // whichever is wider. A click inside the box but away from the line misses,
+      // and selection falls through to whatever is underneath (PRD pen.select).
+      const tolerance = Math.max(
+        PEN_THICKNESS_WORLD[obj.thickness] / 2,
+        STROKE_HIT_TOLERANCE_PX / (zoom > 0 ? zoom : 1),
+      );
+      return distanceToPolyline(scaledPoints(obj), worldPoint) <= tolerance;
+    },
+  });
+}
+
 // Auto-register at module load
 registerSticky();
 registerText();
 registerShape();
 registerConnector();
+registerStroke();

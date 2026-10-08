@@ -122,6 +122,14 @@ export interface BoardViewportProps {
   onMarqueeEnd?(): void;
   /** Shift+drag cancelled (pointercancel). */
   onMarqueeCancel?(): void;
+  /**
+   * A tool's own surface, drawn over the board in screen space but *inside* the
+   * viewport (story 11). That placement is the whole routing rule: a pointer drag
+   * lands on the tool, so the viewport never sees it as an empty-space pan and no
+   * object under the pointer is moved, while wheel and pinch still bubble to the
+   * viewport and navigate the board exactly as story 1 (PRD pen.navigation).
+   */
+  toolOverlay?: ReactNode;
 }
 
 export function BoardViewport({
@@ -134,6 +142,7 @@ export function BoardViewport({
   onMarqueeMove,
   onMarqueeEnd,
   onMarqueeCancel,
+  toolOverlay,
 }: BoardViewportProps) {
   const { camera, viewportRef, beginPan, panMove, endPan, wheel, zoomAtPoint, zoomStep, reset } =
     useBoardCamera();
@@ -363,8 +372,8 @@ export function BoardViewport({
           tool === 'text'
             ? 'text'
             : // A tool that draws something marks its surface as such (PRD shape.create_drag,
-              // connector.create_attached).
-              tool === 'shape' || tool === 'connector'
+              // connector.create_attached, pen.draw).
+              tool === 'shape' || tool === 'connector' || tool === 'pen'
             ? 'crosshair'
             : panning
               ? 'grabbing'
@@ -383,6 +392,7 @@ export function BoardViewport({
         <div className="origin-marker" data-testid="origin-marker" aria-hidden="true" />
         {children}
       </div>
+      {toolOverlay}
     </div>
   );
 }

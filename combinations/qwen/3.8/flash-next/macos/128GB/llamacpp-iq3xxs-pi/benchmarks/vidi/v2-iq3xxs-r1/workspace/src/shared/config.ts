@@ -195,3 +195,49 @@ export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
 export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 /** Radius of a connection dot, in screen pixels (PRD connector.hover_points). */
 export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+// --- Story 11: freehand pen --------------------------------------------------
+
+/** The six pen inks (PRD pen.options); the name is what a stroke stores. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+/** The three pen thicknesses, in board units, so a stroke scales with the zoom. */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenColor = keyof typeof PEN_COLORS;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+/** What a brand-new pen is set to (PRD pen.options), until the page is reloaded. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+/**
+ * How faithful a finished stroke stays to the line that was drawn (PRD pen.smooth):
+ * screen pixels. No point of the finished stroke lies further than this from the
+ * path the user drew, at the zoom the stroke was drawn at.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/** Recorded points in one stroke before it is split into two that join seamlessly. */
+export const STROKE_MAX_POINTS = 5000;
+/** Screen pixels of slack when clicking a stroke's line (PRD pen.select). */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** Smallest any side of a stroke's box can be resized to, in board units. */
+export const STROKE_MIN_SIZE_WORLD = 4;
+/** Accessible names of the three thickness buttons (PRD pen.options). */
+export const PEN_THICKNESS_LABELS: Record<PenThickness, string> = {
+  thin: 'Thin',
+  medium: 'Medium',
+  thick: 'Thick',
+};
+/** What each pen ink is called on screen, so a swatch has a name and not only a colour. */
+export const PEN_COLOR_LABELS: Record<PenColor, string> = {
+  black: 'Black',
+  blue: 'Blue',
+  red: 'Red',
+  green: 'Green',
+  orange: 'Orange',
+  purple: 'Purple',
+};

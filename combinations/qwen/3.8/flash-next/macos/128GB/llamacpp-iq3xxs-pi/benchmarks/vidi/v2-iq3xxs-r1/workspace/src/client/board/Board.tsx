@@ -20,6 +20,7 @@ import {
   type SeedEndpoint,
   type SeedNote,
   type SeedShape,
+  type SeedStroke,
   type SeedText,
 } from '../canvas/testHooks';
 import { useBoardDoc } from './useBoardDoc';
@@ -27,6 +28,9 @@ import { useSelection } from './useSelection';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
 import { useUndo, useUndoController } from './useUndo';
@@ -38,6 +42,7 @@ import { StickyNote } from '../objects/StickyNote';
 import { TextObject } from '../objects/TextObject';
 import { ShapeObject } from '../objects/ShapeObject';
 import { ConnectorObject } from '../objects/ConnectorObject';
+import { StrokeObject } from '../objects/StrokeObject';
 import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit, type ConnectOptions, type ProviderLike } from '../sync/connectBoard';
@@ -73,9 +78,19 @@ import {
   createConnector,
   type EndpointInput,
 } from '../../shared/objects/connector';
+import {
+  createStroke,
+  strokeSnapshots,
+  type StrokeSnap,
+} from '../../shared/objects/stroke';
 import { remeasureTextBox } from '../objects/useTextBoxSync';
 import { sharedMeasurer } from '../objects/textLayout';
-import { SHAPE_DEFAULT_SIZE_WORLD, STICKY_SIZE_WORLD } from '../../shared/config';
+import {
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
+  SHAPE_DEFAULT_SIZE_WORLD,
+  STICKY_SIZE_WORLD,
+} from '../../shared/config';
 
 function ZoomControlsConnector() {
   const { camera, zoomStep, reset } = useBoardCamera();
@@ -128,10 +143,8 @@ export function Board(props: BoardProps) {
 }
 
 function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
-  const { doc, notes, texts, shapes, connectors, connection, connectionState } = useBoardDoc(
-    boardId,
-    { sync, provider, connect },
-  );
+  const { doc, notes, texts, shapes, connectors, strokes, connection, connectionState } =
+    useBoardDoc(boardId, { sync, provider, connect });
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
   const { camera, viewport } = useBoardCamera();
@@ -146,11 +159,12 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
   const objects = useMemo(
     () =>
       [
-        ...(notes as readonly (StickySnapshot | TextSnapshot | ShapeSnap)[]),
+        ...(notes as readonly (StickySnapshot | TextSnapshot | ShapeSnap | StrokeSnap)[]),
         ...texts,
         ...shapes,
+        ...strokes,
       ].sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
-    [notes, texts, shapes],
+    [notes, texts, shapes, strokes],
   );
   /** Connectors paint below everything with a box: an arrow points at things, it does
    *  not cover them. */
@@ -180,6 +194,12 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
   // board are never in each other's tool. It is asked for after the selection, so a
   // tool that has just created something can select it (PRD tools.return_to_select).
   const tool = useActiveTool({ canEdit: editable, selection });
+
+  /* Which pen this tab is holding (PRD pen.options). Session state only: it is not
+     written to the document, a colleague's pen is never changed from here, and a
+     reload brings the defaults back. The Pen tool is the one creating tool that does
+     not call `toolCreated` — it stays drawing (PRD pen.stay_active). */
+  const pen = usePenOptions();
 
   // Transform gesture: group move and resize
   const transformGesture = useTransformGesture({
@@ -309,6 +329,7 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
       getTexts: () => textSnapshots(doc),
       getShapes: () => shapeSnapshots(doc),
       getConnectors: () => connectorSnapshots(doc),
+      getStrokes: () => strokeSnapshots(doc),
       getSelection: (): { selectedId: string | null; editingId: string | null; selectedIds?: string[] } => {
         const ids = [...selectedIds];
         const base: { selectedId: string | null; editingId: string | null; selectedIds?: string[] } = {
@@ -412,6 +433,25 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
         });
         return ids;
       },
+      seedStrokes: (specs: readonly SeedStroke[]) => {
+        const ids: string[] = [];
+        // Seeded as if the board had been saved with the drawing on it (story 11).
+        doc.transact(() => {
+          for (const spec of specs) {
+            const id = createStroke(
+              doc,
+              {
+                points: spec.points,
+                color: spec.color ?? DEFAULT_PEN_COLOR,
+                thickness: spec.thickness ?? DEFAULT_PEN_THICKNESS,
+              },
+              spec.createdBy ?? clientId,
+            );
+            if (id) ids.push(id);
+          }
+        });
+        return ids;
+      },
       seedTexts: (specs: readonly SeedText[]) => {
         const ids: string[] = [];
         // Seeded like seedNotes: as if the board had been saved with them on it.
@@ -447,9 +487,11 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
         'seedTexts',
         'seedShapes',
         'seedConnectors',
+        'seedStrokes',
         'getTexts',
         'getShapes',
         'getConnectors',
+        'getStrokes',
         'undo',
         'redo',
         'canUndo',
@@ -520,6 +562,18 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
         onMarqueeCancel={marquee.cancel}
+        toolOverlay={
+          editable && tool.tool === 'pen' ? (
+            <PenTool
+              camera={camera}
+              color={pen.color}
+              thickness={pen.thickness}
+              doc={doc}
+              identityId={clientId}
+              undo={undo}
+            />
+          ) : null
+        }
       >
         {connectorsPainted.map((connector) => (
           <ConnectorObject
@@ -574,6 +628,16 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
               onObjectPointerDown={transformGesture.onObjectPointerDown}
               onDelete={onDeleteObject}
               undo={undo}
+            />
+          ) : object.type === 'stroke' ? (
+            <StrokeObject
+              key={object.id}
+              stroke={object}
+              zoom={camera.zoom}
+              editable={editable}
+              selected={selectedIds.has(object.id)}
+              onObjectPointerDown={transformGesture.onObjectPointerDown}
+              onSelect={onSelect}
             />
           ) : (
             <StickyNote
@@ -633,11 +697,23 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
       {/* Selection bar (>= 2 selected) */}
       <SelectionBar ids={selectedIds} snapshot={objectSnapshots} onDelete={onDeleteSelection} />
 
+      {/* `penOptions` is what the next stroke will be drawn with, shown while the Pen
+          tool is active (PRD pen.options). It never restyles an existing stroke. */}
       <Toolbar
         onCreateSticky={onCreateSticky}
         disabled={!editable}
         undo={undoControls}
         tool={tool}
+        penOptions={
+          tool.tool === 'pen' ? (
+            <PenToolbar
+              color={pen.color}
+              thickness={pen.thickness}
+              onColor={pen.setColor}
+              onThickness={pen.setThickness}
+            />
+          ) : undefined
+        }
       />
       <ConnectionStatus state={connectionState} />
       <SharePanel boardId={boardId} />

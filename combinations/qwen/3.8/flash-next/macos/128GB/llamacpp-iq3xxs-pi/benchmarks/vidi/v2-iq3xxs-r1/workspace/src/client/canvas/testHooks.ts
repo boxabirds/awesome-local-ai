@@ -6,7 +6,15 @@ import type { StickySnapshot } from '../../shared/board-model';
 import type { TextSnapshot } from '../../shared/objects/text';
 import type { ShapeSnap } from '../../shared/objects/shape';
 import type { ConnectorSnap } from '../../shared/objects/connector';
-import type { ShapeKind, TextSize, FillColor, StrokeColor } from '../../shared/config';
+import type { StrokeSnap } from '../../shared/objects/stroke';
+import type {
+  ShapeKind,
+  TextSize,
+  FillColor,
+  StrokeColor,
+  PenColor,
+  PenThickness,
+} from '../../shared/config';
 
 /** A note a browser-test fixture asks for (world position, colour, text, size). */
 export interface SeedNote {
@@ -68,6 +76,19 @@ export interface SeedConnector {
   createdBy?: string;
 }
 
+/**
+ * A stroke a browser-test fixture asks for (story 11): the world points that were
+ * drawn, and the pen that drew them. The box is computed by the model, exactly as it
+ * would be if the stroke had been drawn with the pen, so a fixture cannot invent a
+ * box that the app would never produce.
+ */
+export interface SeedStroke {
+  points: readonly { x: number; y: number }[];
+  color?: PenColor;
+  thickness?: PenThickness;
+  createdBy?: string;
+}
+
 export interface BoardSelectionState {
   selectedId: string | null;
   editingId: string | null;
@@ -91,6 +112,8 @@ export interface BoardTestApi {
   getShapes(): readonly ShapeSnap[];
   /** Live connector snapshot in paint order (story 10), ends resolved as drawn. */
   getConnectors(): readonly ConnectorSnap[];
+  /** Live stroke snapshot in paint order (story 11), points as they were drawn. */
+  getStrokes(): readonly StrokeSnap[];
   /** The in-memory document, so tests can drive the model directly. */
   getDoc(): Y.Doc;
   /** Local selection / editing ids (story 2). */
@@ -129,6 +152,11 @@ export interface BoardTestApi {
    * call, or a world point, so a fixture can describe a whole flow in one go.
    */
   seedConnectors(specs: readonly SeedConnector[]): string[];
+  /**
+   * And for strokes (story 11): drawn as if the board had been saved with them on it,
+   * so they are nobody's undo step, ids returned in the order they were given.
+   */
+  seedStrokes(specs: readonly SeedStroke[]): string[];
   /**
    * This tab's own undo history (story 8): step once back or once forward and report
    * whether either is available. The same history the buttons and shortcuts drive, so

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { useNativeStopPropagation } from './useNativeStopPropagation';
 import { UndoButtons, type UndoButtonsProps } from './UndoButtons';
 import type { ActiveTool } from '../tools/useActiveTool';
@@ -17,6 +17,11 @@ export interface ToolbarProps {
    * (PRD text.load_failed).
    */
   tool?: ActiveTool;
+  /**
+   * The pen options, shown inside the toolbar while the Pen tool is active — where the
+   * shape kind menu sits for the Shape tool (PRD pen.options).
+   */
+  penOptions?: ReactNode;
 }
 
 export const STICKY_BUTTON_LABEL = 'Sticky note (N)';
@@ -25,17 +30,19 @@ export const SELECT_BUTTON_LABEL = 'Select (V)';
 export const TEXT_BUTTON_LABEL = 'Text (T)';
 export const SHAPE_BUTTON_LABEL = 'Shape (S)';
 export const CONNECTOR_BUTTON_LABEL = 'Connector (L)';
+export const PEN_BUTTON_LABEL = 'Pen (P)';
 
 /**
  * Left-side vertical board toolbar: the tool the board is in, then the things a
  * person can put on the board. The Sticky note button is always available.
  */
-export function Toolbar({ onCreateSticky, disabled = false, undo, tool }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled = false, undo, tool, penOptions }: ToolbarProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   useNativeStopPropagation(ref);
   const isText = tool?.tool === 'text';
   const isShape = tool?.tool === 'shape';
   const isConnector = tool?.tool === 'connector';
+  const isPen = tool?.tool === 'pen';
 
   return (
     <div ref={ref} className="board-toolbar" data-testid="board-toolbar">
@@ -125,6 +132,25 @@ export function Toolbar({ onCreateSticky, disabled = false, undo, tool }: Toolba
         </span>
         Connector
       </button>
+      {/* The Pen is the one tool that stays put: drawing one stroke does not send you
+          back to Select, because sketching is more than one stroke (PRD pen.stay_active). */}
+      <button
+        type="button"
+        className="tool-button"
+        data-testid="tool-pen"
+        aria-label={PEN_BUTTON_LABEL}
+        title={`${PEN_BUTTON_LABEL} – draw freehand on the board`}
+        disabled={disabled}
+        aria-disabled={disabled}
+        aria-pressed={tool ? isPen : undefined}
+        onClick={disabled || !tool ? undefined : () => tool.setTool('pen')}
+      >
+        <span className="tool-icon tool-icon-pen" aria-hidden="true">
+          {'\u270E'}
+        </span>
+        Pen
+      </button>
+      {penOptions}
       <button
         type="button"
         className="tool-button"
