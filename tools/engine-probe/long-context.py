@@ -25,14 +25,15 @@ SECRET = "KESTREL-4417-ORCHID"
 FILLER_LINE = "function step_{n}(x) {{ return (x * {n} + {m}) % 9973; }}\n"
 APPROX_CHARS_PER_TOKEN = 3.6  # code filler; the server's own count is what is reported
 DECODE_TOKENS = 200
+CALIBRATION_TOKENS = 4000
 MIN_RETRIEVAL_SHARE = 1.0
 
 
-def build_prompt(tokens: int) -> str:
+def build_prompt(tokens: int, chars_per_token: float = APPROX_CHARS_PER_TOKEN) -> str:
     """Filler code of about `tokens` tokens with the secret on the first line and a question at the end."""
     lines = [f"// The access phrase for this file is {SECRET}. Remember it.\n"]
     chars, n = len(lines[0]), 0
-    target = int(tokens * APPROX_CHARS_PER_TOKEN)
+    target = int(tokens * chars_per_token)
     while chars < target:
         line = FILLER_LINE.format(n=n, m=(n * 7) % 101)
         lines.append(line)
@@ -70,8 +71,16 @@ def summarise(first: dict, first_s: float, second: dict, second_s: float) -> dic
     }
 
 
+def measured_chars_per_token(base_url: str, model: str) -> float:
+    """Ask the server how many tokens a small sample of the filler is: its tokenizer, not a guess, sizes the prompt."""
+    sample = build_prompt(CALIBRATION_TOKENS)
+    used = post(base_url, {"model": model, "messages": [{"role": "user", "content": sample}], "max_tokens": 1,
+                           "temperature": 0})["usage"]["prompt_tokens"]
+    return len(sample) / used
+
+
 def run(base_url: str, model: str, tokens: int) -> dict:
-    prompt = build_prompt(tokens)
+    prompt = build_prompt(tokens, measured_chars_per_token(base_url, model))
     msg = [{"role": "user", "content": prompt}]
     t = time.time()
     first = post(base_url, {"model": model, "messages": msg, "max_tokens": 64, "temperature": 0})
@@ -88,6 +97,9 @@ def self_test() -> None:
     assert p.startswith("// The access phrase") and SECRET in p.splitlines()[0]
     assert abs(len(p) / APPROX_CHARS_PER_TOKEN - 1000) < 100
     assert "Question:" in p.splitlines()[-2] or "Question:" in p
+    # a prompt sized with a measured ratio is that many characters per token, not the default guess
+    dense = build_prompt(1000, 1.7)
+    assert abs(len(dense) / 1.7 - 1000) < 100 and len(dense) < len(build_prompt(1000))
     assert retrieved(f"it is {SECRET}.") and not retrieved("I do not know") and not retrieved(None)
     first = {"choices": [{"message": {"content": SECRET}}], "usage": {"prompt_tokens": 250000}}
     second = {"choices": [{"message": {"content": "x"}}],
