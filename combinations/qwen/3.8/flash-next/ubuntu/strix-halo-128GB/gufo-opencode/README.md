@@ -69,15 +69,19 @@ output reserve above is used. The harness's OpenCode adapter says compaction can
 is not right for this version. Setting `limit.input` to 131,072 and `compaction.reserved` to 16,384 gives
 131,072 - 16,384 = 114,688, pi's trigger.
 
-### The decision this leaves
+### Decided: OpenCode's defaults against pi's defaults
 
-This is a fork in what "one variable" means, and it is the owner's to choose before the series:
+The owner's decision (8 Oct 2026): the variable is **each client as it ships**. OpenCode compacts at 99,072 tokens and pi
+at 114,688, and the series keeps both. Nothing about compaction is changed for OpenCode, so the harness's OpenCode adapter
+is used as it is (`limit.context` 131,072, `limit.output` 32,768, no `limit.input`).
 
-1. **OpenCode as shipped** (compacts at 99,072). The result is "OpenCode's defaults on gufo". The earlier trigger and the
-   larger prompt are part of what is measured.
-2. **OpenCode with pi's trigger** (`limit.input` 131,072, `compaction.reserved` 16,384). Then only the prompt overhead and
-   OpenCode's own behaviour differ, and the 21,000-token gap shrinks to the 5,422 of overhead.
-3. **Both**, as two series, if the machine time is there.
+The reason: moving OpenCode's trigger to pi's would be an intervention nobody has measured. It would leave 16,384 tokens free
+for the reply where OpenCode asks for up to 32,000 per request, so what it does to a story is unknown. A result with the
+setting changed would not be "OpenCode".
+
+What this means for reading the result: a difference between this series and `gufo-pi` is the whole client, prompt, tools,
+behaviour and compaction timing together. It cannot say which of those caused it. Conversation records (calls, compactions,
+context at each call) can say how much of it was compaction.
 
 ## Before a run
 
