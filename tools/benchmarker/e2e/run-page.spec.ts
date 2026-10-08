@@ -606,14 +606,16 @@ test.describe("compare with other runs", () => {
     await fresh(page, SWIFT, "v2-r5");
     await add(page, "v2-r4");
     await expect(chips(page).filter({ hasText: "v2-r4" })).toHaveCount(1);
-    await expect(compare(page).locator(".compare-key")).toContainText("v2-r5 over v2-r4");
+    await expect(compare(page).locator(".compare-key")).toContainText("v2-r4");
     expect(page.url()).toContain("compare=v2-r4");
-    const t1 = compare(page).locator('tr[data-story="1"] [data-measure="minutes"]');
-    await expect(t1).toContainText("11 min");
-    await expect(t1).toContainText("12 min");
-    await expect(t1.locator(".diff")).toHaveText("−4%");
-    await expect(t1).not.toHaveAttribute("data-flagged", "true");
-    const t2 = compare(page).locator('tr[data-story="2"] [data-measure="minutes"]');
+    const mine = compare(page).locator('tr[data-story="1"][data-this-run="true"] [data-measure="minutes"]');
+    const other = compare(page).locator('tr[data-story="1"][data-run="v2-r4"] [data-measure="minutes"]');
+    await expect(mine).toContainText("11 min");
+    await expect(other).toContainText("12 min");
+    await expect(other.locator(".diff")).toHaveText("−4%");
+    await expect(other).not.toHaveAttribute("data-flagged", "true");
+    await expect(mine.locator(".diff")).toHaveCount(0);            // this run's own line has no difference from itself
+    const t2 = compare(page).locator('tr[data-story="2"][data-run="v2-r4"] [data-measure="minutes"]');
     await expect(t2).toHaveAttribute("data-flagged", "true");
     await expect(t2.locator(".diff.flagged")).toHaveText("+401%");
     await expect(t2.locator(".diff.flagged")).toHaveAttribute("data-tip", /more than 10%/);
@@ -624,14 +626,15 @@ test.describe("compare with other runs", () => {
     await add(page, "v2-r4");
     await add(page, "v2-r6");
     await expect(chips(page)).toHaveCount(2);
-    const cell = compare(page).locator('tr[data-story="1"] [data-measure="minutes"]');
-    await expect(cell.locator(".pair-other")).toHaveCount(2);
-    await expect(cell.locator('.pair-other[data-run="v2-r4"] .pair-tag')).toHaveText(/v2-r4/);
-    await expect(cell.locator('.pair-other[data-run="v2-r6"] .pair-tag')).toHaveText(/v2-r6/);
+    const lines = compare(page).locator('tr[data-story="1"]');
+    await expect(lines).toHaveCount(3);                            // this run's line, then one per chosen run
+    await expect(lines.nth(0)).toHaveAttribute("data-this-run", "true");
+    await expect(lines.nth(1)).toHaveAttribute("data-run", "v2-r4");
+    await expect(lines.nth(2)).toHaveAttribute("data-run", "v2-r6");
     expect(page.url()).toContain("compare=v2-r4%2Cv2-r6");
     await compare(page).getByRole("button", { name: /^Remove v2-r4/ }).click();
     await expect(chips(page)).toHaveCount(1);
-    await expect(compare(page).locator('tr[data-story="1"] [data-measure="minutes"] .pair-other')).toHaveCount(1);
+    await expect(compare(page).locator('tr[data-story="1"]')).toHaveCount(2);
     expect(page.url()).toContain("compare=v2-r6");
     expect(page.url()).not.toContain("v2-r4");
   });
@@ -641,17 +644,38 @@ test.describe("compare with other runs", () => {
     const other = (await offered(page, SWIFT, "v2-r5")).find((r) => r.stack !== SWIFT)!;
     await add(page, `${other.runId} ${other.label}`);
     await expect(chips(page).filter({ hasText: other.runId })).toHaveCount(1);
-    await expect(compare(page).locator(".compare-key")).toContainText(`v2-r5 over ${other.runId}`);
+    await expect(compare(page).locator(".compare-key")).toContainText(other.runId);
     expect(decodeURIComponent(page.url())).toContain(`compare=${other.stack}|${other.runId}`);
     await page.reload();                                           // the address alone brings it back
     await expect(chips(page).filter({ hasText: other.runId })).toHaveCount(1);
   });
 
+  test("two lines per story, one per run: held-out as x/y, a time bar, then the other measures with generated tok/s", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    await add(page, "v2-r4");
+    const heads = await compare(page).locator("thead th").allInnerTexts();
+    expect(heads.map((h) => h.toLowerCase())).toEqual(expect.arrayContaining(["run", "where the time went", "generated tok/s"]));
+    expect(heads.map((h) => h.toLowerCase()).indexOf("where the time went")).toBeLessThan(heads.map((h) => h.toLowerCase()).indexOf("generated tok/s"));
+    for (const run of ["v2-r5", "v2-r4"]) {
+      const line = compare(page).locator(`tr[data-story="1"][data-run="${run}"]`);
+      await expect(line.locator('[data-measure="heldOut"]')).toContainText(/^\s*\d+\/\d+/);   // x/y, not a percentage
+      await expect(line.locator('[data-measure="timeBar"] .seg').first()).toBeVisible();      // the bar
+      await expect(line.locator('[data-measure="decodeTokS"]')).toBeVisible();
+    }
+  });
+
+  test("the time bars of a story share one scale: the shorter run's bar is the shorter", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    await add(page, "v2-r4");
+    const width = (run: string) => compare(page).locator(`tr[data-story="2"][data-run="${run}"] [data-measure="timeBar"] .seg`).evaluateAll((segs) => segs.reduce((w, s) => w + (s as HTMLElement).getBoundingClientRect().width, 0));
+    expect(await width("v2-r4")).toBeLessThan(await width("v2-r5"));      // 16 min against 1h20m
+  });
+
   test("a story only one run has: its figure against '—', unmarked", async ({ page }) => {
     await fresh(page, SWIFT, "v2-r5");
     await add(page, "v2-r1");
-    const cell = compare(page).locator('tr[data-story="2"] [data-measure="minutes"]');
-    await expect(cell.locator(".pair-b .missing")).toHaveAttribute("data-tip", "v2-r1 has no figure for this story.");
+    const cell = compare(page).locator('tr[data-story="2"][data-run="v2-r1"] [data-measure="minutes"]');
+    await expect(cell.locator(".missing")).toHaveAttribute("data-tip", "v2-r1 has no agent time for this story.");
     await expect(cell).not.toHaveAttribute("data-flagged", "true");
   });
 

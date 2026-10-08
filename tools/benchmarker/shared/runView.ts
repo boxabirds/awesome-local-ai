@@ -321,7 +321,7 @@ export function median(xs: number[]): number | null {
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
-export type MeasureKey = "minutes" | "outTokens" | "calls" | "tokS" | "heldOut";
+export type MeasureKey = "minutes" | "outTokens" | "calls" | "tokS" | "decodeTokS" | "heldOut";
 
 export interface Measure { key: MeasureKey; term: TermId; value: (s: Story) => number | null }
 
@@ -332,6 +332,7 @@ export const COMPARE_MEASURES: Measure[] = [
   { key: "outTokens", term: "outTokens", value: (s) => s.usage?.outTokens ?? null },
   { key: "calls", term: "calls", value: (s) => s.usage?.calls ?? null },
   { key: "tokS", term: "tokS", value: (s) => s.usage?.tokS ?? null },
+  { key: "decodeTokS", term: "generatedTokS", value: (s) => s.usage?.decodeTokS ?? null },
   { key: "heldOut", term: "storyHeldOut", value: (s) => (s.ownTotal ? (s.ownPassed ?? 0) / s.ownTotal : null) },
 ];
 
@@ -374,6 +375,26 @@ export function compareMany(a: Pick<Row, "stories">, others: Pick<Row, "stories"
       others: rows.map((r) => { const c = r.cells.find((c) => c.key === key); return { b: c?.b ?? null, rel: c?.rel ?? null, flagged: c?.flagged ?? false }; }),
     }));
     return { id, title, inA: !!sa, inOthers: rows.map((r) => r.inB), cells };
+  });
+}
+
+export interface CompareLine { run: Row; story: Story | null; diffs: Record<MeasureKey, { rel: number | null; flagged: boolean }> | null }
+export interface CompareBlock { id: string; title: string; lines: CompareLine[]; scaleSeconds: number }
+
+/** The comparison laid out as it is read: a block per story, in it a line per run (this run first, then the others in the
+ * order given). The other runs' lines carry their difference from this run's; this run's carries none. The runs' time
+ * bars in a story share one scale, the longest wall time among them, so lengths compare within the story. */
+export function compareBlocks(a: Row, others: Row[]): CompareBlock[] {
+  return compareMany(a, others).map((r) => {
+    const storyOf = (run: Row) => run.stories.find((s) => s.id === r.id) ?? null;
+    const lines: CompareLine[] = [
+      { run: a, story: storyOf(a), diffs: null },
+      ...others.map((o, i) => ({
+        run: o, story: storyOf(o),
+        diffs: Object.fromEntries(r.cells.map((c) => [c.key, { rel: c.others[i].rel, flagged: c.others[i].flagged }])) as CompareLine["diffs"],
+      })),
+    ];
+    return { id: r.id, title: r.title, lines, scaleSeconds: Math.max(1, ...lines.map((l) => l.story?.usage?.split?.wall ?? 0)) };
   });
 }
 

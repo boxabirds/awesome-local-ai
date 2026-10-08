@@ -680,7 +680,7 @@ test.describe("page state in the address, on other pages", () => {
     await page.reload();
     await expect(chips(page)).toHaveCount(1);
     await expect(chips(page).first()).toContainText("v2-r6");
-    await expect(page.locator('[data-section="compare"] .compare-key')).toContainText("v2-r5 over v2-r6");
+    await expect(page.locator('[data-section="compare"] .compare-key')).toContainText("v2-r6");
   });
 
   test("run page: the back button comes back to the run compared with", async ({ page }) => {

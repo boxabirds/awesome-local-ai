@@ -26,6 +26,7 @@ export const GLOSSARY = {
   inputTokens: { name: "Input tokens", what: "Everything the model read to answer, summed over all its calls. Each call re-reads the whole conversation so far, mostly from its cache, so this grows with the number of calls." },
   calls: { name: "Tool calls", what: "Tool calls the agent made: reads, edits, writes and commands." },
   tokS: { name: "Effective story tok/s", what: "Tokens per second averaged over the whole time it took to build a story, including tool calls, compactions, and critically, timeouts requiring interventions." },
+  generatedTokS: { name: "Generated tok/s", what: "Tokens per second while the model is actually generating: output tokens over the time spent decoding. Reading the prompt, tool calls, compactions and waits are left out, so it is the speed the model is capable of, not the speed the story went at." },
   decodeTokS: { name: "Output tok/s", what: "Average tokens per second when actually generating tokens. Excludes tool calls, compactions etc." },
   engineSpeed: { name: "engine speed", what: "The model alone, where it was timed: output tokens per second while it generates, and fresh input tokens per second while it reads." },
   compactions: { name: "Compactions", what: "Times the conversation was summarised to make room in the context." },

@@ -1,11 +1,12 @@
 // This run beside another of the same combination, story by story; and the combination's other runs.
 // Modest on purpose: the combination page has the full runs x stories matrix.
 import { useLayoutEffect, useRef, useState } from "react";
-import type { Row } from "../../../shared/types.ts";
-import { COMPARE_MEASURES, compareMany, PENDING, scoreOfRecord, signedPercent, statusView, type MeasureKey } from "../../../shared/runView.ts";
+import type { Row, Story } from "../../../shared/types.ts";
+import { COMPARE_MEASURES, compareBlocks, PENDING, scoreOfRecord, signedPercent, statusView, type MeasureKey } from "../../../shared/runView.ts";
 import { compareToken, parseCompareList, resolveCompareList, runKey, serializeCompareList } from "../../../shared/compareList.ts";
 import { readRemember, readRemembered, writeRemember, writeRemembered } from "../../compareMemory.ts";
 import { ComparePicker } from "./ComparePicker.tsx";
+import { conversationPartHref, SegmentLegend, SplitBar } from "./SplitBar.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { CombinationLink, MachineLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
@@ -15,7 +16,7 @@ import { pct, speed } from "./RunCost.tsx";
 import { useAddressParam } from "../story/useAddressParam.ts";
 import { RunSectionLists } from "../RunGroupHead.tsx";
 
-const SHOW: Record<MeasureKey, (n: number) => string> = { minutes: duration, outTokens: short, calls: full, tokS: speed, heldOut: pct };
+const SHOW: Record<MeasureKey, (n: number) => string> = { minutes: duration, outTokens: short, calls: full, tokS: speed, decodeTokS: speed, heldOut: pct };
 
 /** The runs compared with are in the address (?compare=v2-r4,<combination>|v2-r1), so a reload or a shared link keeps
  * them. With none there, the runs the reader last chose in this browser (if they asked to remember), else the first other
@@ -35,13 +36,13 @@ export function CompareRuns({ run, candidates, params }: { run: Row; candidates:
     if (remember) writeRemembered(runs.map(runKey));
   };
   const onRemember = (on: boolean) => { setRemember(on); writeRemember(on); if (on) writeRemembered(chosen.map(runKey)); };
-  const rows = compareMany(run, chosen);
+  const blocks = compareBlocks(run, chosen);
   // Clearing the last run takes the table away, and a page that gets that much shorter jumps to a new scroll position.
   // So the height the comparison last had is kept while nothing is chosen (a run page is its own component: a new
   // run starts with none).
   const body = useRef<HTMLDivElement>(null);
   const heldHeight = useRef(0);
-  useLayoutEffect(() => { if (chosen.length && rows.length && body.current) heldHeight.current = body.current.offsetHeight; });
+  useLayoutEffect(() => { if (chosen.length && blocks.length && body.current) heldHeight.current = body.current.offsetHeight; });
 
   return (
     <Section term="compareRuns" id="compare">
@@ -51,51 +52,59 @@ export function CompareRuns({ run, candidates, params }: { run: Row; candidates:
         {unknown.length ? <p className="small" data-unknown={unknown.join(",")}>The address names {unknown.join(", ")}, which {unknown.length === 1 ? "isn't" : "aren't"} a run in this pack and suite with a story recorded; {unknown.length === 1 ? "it is" : "they are"} left out.</p> : null}
         <div ref={body} className="compare-body" style={chosen.length === 0 ? { minHeight: heldHeight.current } : undefined}>
         {chosen.length === 0 ? <p className="rp-empty">Choose a run to compare with.</p>
-          : rows.length === 0 ? <p className="rp-empty">{chosen.length === 1 ? "Neither run has" : "None of these runs has"} recorded a story yet.</p> : <>
+          : blocks.length === 0 ? <p className="rp-empty">{chosen.length === 1 ? "Neither run has" : "None of these runs has"} recorded a story yet.</p> : <>
           <p className="small compare-key">
-            Each cell: <b>{run.runId}</b> over {chosen.map((o, i) => <span key={runKey(o)}>{i ? ", " : ""}<RunLink pack={o.pack} stack={o.stack} runId={o.runId} /></span>)}; <span className="diff flagged">marked</span> where another run differs from {run.runId} by more than 10%.
+            One line per run in each story, this run first{chosen.map((o, i) => <span key={runKey(o)}>{i ? ", " : ": "}<RunLink pack={o.pack} stack={o.stack} runId={o.runId} /></span>)}. Under another run's figure,
+            its difference from {run.runId}'s; <span className="diff flagged">marked</span> where it is more than 10%. The time bars in a story share one scale.
           </p>
+          <SegmentLegend />
           <div className="table-scroll">
-            <table className="rp-table compare" aria-label={`${run.runId} against ${chosen.map((o) => o.runId).join(", ")}`}>
+            <table className="rp-table compare compare-lines" aria-label={`${run.runId} against ${chosen.map((o) => o.runId).join(", ")}`}>
               <thead>
                 <tr>
                   <th>Story</th>
-                  {COMPARE_MEASURES.map((m) => <th key={m.key} className="n"><Term id={m.term} /></th>)}
+                  <th>Run</th>
+                  <th className="n"><Term id="storyHeldOut" /></th>
+                  <th>Where the time went</th>
+                  {COMPARE_MEASURES.filter((m) => m.key !== "heldOut").map((m) => <th key={m.key} className="n"><Term id={m.term} /></th>)}
                 </tr>
               </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} data-story={r.id}>
-                    <td className="story-cell">
-                      {r.id}. {r.title || `story ${r.id}`}
-                      <div className="small">
-                        {r.inA ? <StoryRunLink pack={run.pack} stack={run.stack} runId={run.runId} story={r.id}>{run.runId}</StoryRunLink> : null}
-                        {chosen.map((o, i) => r.inOthers[i] ? (
-                          <span key={runKey(o)}>{r.inA || r.inOthers.slice(0, i).some(Boolean) ? " · " : null}<StoryRunLink pack={o.pack} stack={o.stack} runId={o.runId} story={r.id}>{o.runId}</StoryRunLink></span>
-                        ) : null)}
-                      </div>
-                    </td>
-                    {r.cells.map((c) => {
-                      const measure = COMPARE_MEASURES.find((m) => m.key === c.key)!;
-                      const what = GLOSSARY[measure.term].name.toLowerCase();
+              {blocks.map((block) => (
+                <tbody key={block.id} data-story={block.id}>
+                  {block.lines.map((line, i) => {
+                    const { run: r, story: s } = line;
+                    const mine = i === 0;
+                    const missing = (what: string) => <Missing why={`${r.runId} ${s ? `has no ${what} for this story.` : "hasn't recorded this story."}`} />;
+                    const cell = (key: MeasureKey, shown: string | null, what: string) => {
+                      const d = line.diffs?.[key];
                       return (
-                        <td key={c.key} className="n pair" data-measure={c.key} data-flagged={c.others.some((o) => o.flagged) ? "true" : undefined}>
-                          <div className="pair-a">{c.a !== null ? SHOW[c.key](c.a) : <Missing why={r.inA ? `${run.runId} has no ${what} for this story.` : `${run.runId} hasn't recorded this story.`} />}</div>
-                          {c.others.map((o, i) => (
-                            <div key={runKey(chosen[i])} className="pair-other" data-run={chosen[i].runId}>
-                              <div className="pair-b">
-                                {chosen.length > 1 ? <span className="pair-tag small">{chosen[i].runId} </span> : null}
-                                {o.b !== null ? SHOW[c.key](o.b) : <Missing why={r.inOthers[i] ? `${chosen[i].runId} has no figure for this story.` : `${chosen[i].runId} hasn't recorded this story.`} />}
-                              </div>
-                              {o.rel !== null ? <div className={`diff${o.flagged ? " flagged" : ""}`} tabIndex={o.flagged ? 0 : undefined} data-tip={o.flagged ? GLOSSARY.compareDiff.what : undefined}>{signedPercent(o.rel)}</div> : null}
-                            </div>
-                          ))}
+                        <td key={key} className="n" data-measure={key} data-flagged={d?.flagged ? "true" : undefined}>
+                          {shown !== null ? <div className="line-value">{shown}</div> : missing(what)}
+                          {d && d.rel !== null ? <div className={`diff${d.flagged ? " flagged" : ""}`} tabIndex={d.flagged ? 0 : undefined} data-tip={d.flagged ? GLOSSARY.compareDiff.what : undefined}>{signedPercent(d.rel)}</div> : null}
                         </td>
                       );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
+                    };
+                    const num = (key: MeasureKey) => { const v = COMPARE_MEASURES.find((m) => m.key === key)!.value(s ?? ({} as Story)); return s && v !== null ? SHOW[key](v) : null; };
+                    return (
+                      <tr key={runKey(r)} data-run={r.runId} data-story={block.id} data-this-run={mine ? "true" : undefined}>
+                        {mine ? <th scope="rowgroup" rowSpan={block.lines.length} className="story-cell">{block.id}. {block.title || `story ${block.id}`}</th> : null}
+                        <td className="run-cell">
+                          {s ? <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={block.id}>{r.runId}</StoryRunLink> : <RunLink pack={r.pack} stack={r.stack} runId={r.runId} />}
+                          {r.stack !== run.stack ? <div className="small">{r.label}</div> : null}
+                        </td>
+                        <td className="n" data-measure="heldOut" data-flagged={line.diffs?.heldOut.flagged ? "true" : undefined}>
+                          {s && s.ownTotal ? <div className="line-value">{s.ownPassed ?? 0}/{s.ownTotal}</div> : missing("held-out result")}
+                          {line.diffs?.heldOut.rel != null ? <div className={`diff${line.diffs.heldOut.flagged ? " flagged" : ""}`} tabIndex={line.diffs.heldOut.flagged ? 0 : undefined} data-tip={line.diffs.heldOut.flagged ? GLOSSARY.compareDiff.what : undefined}>{signedPercent(line.diffs.heldOut.rel)}</div> : null}
+                        </td>
+                        <td className="bar-cell" data-measure="timeBar">
+                          {s?.usage?.split ? <SplitBar split={s.usage.split} usage={s.usage} scaleSeconds={block.scaleSeconds} label={`${r.runId} story ${block.id}: ${duration(s.usage.split.wall)}`} hrefOf={conversationPartHref(r, s)} /> : missing("time breakdown")}
+                        </td>
+                        {COMPARE_MEASURES.filter((m) => m.key !== "heldOut").map((m) => cell(m.key, num(m.key), GLOSSARY[m.term].name.toLowerCase()))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              ))}
             </table>
           </div>
         </>}
