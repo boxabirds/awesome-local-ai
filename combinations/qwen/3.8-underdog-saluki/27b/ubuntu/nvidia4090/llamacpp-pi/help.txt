@@ -1,0 +1,52 @@
+PROFILE DETAIL
+  need_mib is a CONSERVATIVE BOUND carried from the baseline Qwen3.8-27B
+  combination (same qwen35 architecture, Q4_K_M, 16.2 GiB of weights). This
+  model's file is 7.8 GiB, about 8.4 GiB smaller, so real headroom is much
+  larger than shown. Re-run the context probe to replace the bounds with
+  measured numbers; none are measured for this model.
+
+  coding     128k ctx   q4_0 KV   vision off   >> DEFAULT
+  balanced    96k ctx   q8_0 KV   vision off
+  vision      96k ctx   q4_0 KV   vision ON
+  vision-max 128k ctx   q4_0 KV   vision ON    tightest; foreground only
+  max        160k ctx   q4_0 KV   vision off   foreground only
+
+WHY THIS MODEL (Underdog Saluki 27B, 2-bit)
+  Qwen3.8-27B as an IQ2-mix GGUF by Underdog (ConwayResearch), "tuned to keep
+  tool calling intact", with the base model's MTP head grafted on by Kujira
+  (nothing re-quantised or trained). The author's figures, not reproduced
+  here: tool calling 88 against 84 for the full model (120 tasks), SWE-bench
+  Verified 30 against 33 (50 issues), AIME 2025 79 against 97.
+
+MTP / SPECULATIVE DECODING
+  The MTP head is inside the GGUF (blk.64.*, Q8_0 and F32), so the launcher
+  uses --spec-type draft-mtp with --spec-draft-n-max 4 and no sidecar. "MTP
+  head missing" at install is expected. The author measured acceptance of
+  62-96% at temperature 0 with a draft depth of 2; ours is temperature 1.0 and
+  depth 4, so acceptance is not known. Confirm the head is live: grep the
+  server log for "creating MTP draft context" and "draft acceptance".
+
+THE PIN
+  The install fetches the repository commit named in config.sh and refuses a
+  file whose sha256 differs from the one the card prints. Both uploads were a
+  day old when this was written.
+
+ENVIRONMENT OVERRIDES
+  PORT=8080          HOST=127.0.0.1     CTX=<tokens>
+  KV_TYPE=q4_0|q8_0|f16                 VISION=0|1
+  NP=<slots>         UB=<micro-batch>
+  THINKING=1|0       THINKING_BUDGET=<tokens>
+  REASONING_EFFORT=low|medium|xhigh|default
+  UNDERDOG_QWEN38_ROOT=<dir>  MODEL=<file>  MODEL_ALIAS=<id>
+
+GOTCHA: THINKING MODE AND max_tokens
+  Reasoning is billed against max_tokens; a small max_tokens returns an empty
+  answer with finish_reason "length". Give agents a generous max_tokens.
+
+SECURITY
+  HOST defaults to 127.0.0.1 and there is NO authentication.
+
+EXAMPLES
+  underdog-qwen38-27b-server                                  # 128k coding default
+  # API: http://127.0.0.1:8080/v1  model id: qwen3.8-underdog-saluki-27b
+  REASONING_EFFORT=xhigh underdog-qwen38-27b-server           # think hard
