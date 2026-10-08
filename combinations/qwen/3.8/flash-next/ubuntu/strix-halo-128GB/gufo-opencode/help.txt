@@ -1,0 +1,20 @@
+NOTES
+  Runs gufo's runtime image with Podman: the GPU is passed in as /dev/kfd and
+  /dev/dri, and the image carries its own ROCm. The weights stay on the host
+  (~/gufo/models/qwen3.8-flash-next) and are mounted read-only.
+
+  Refuses to start while another model server (llama-server, mlx-serve, gufo)
+  is running: two models this size do not fit in 128 GB of unified memory.
+  ALLOW_COEXIST=1 overrides.
+
+  The model id is the one below (--served-model-name). gufo answers any other
+  id with 404 model_not_found, so a client must use it.
+
+EXAMPLES
+  qwen38-flash-next-strix-gufo-oc-server                 # default profile, :8080
+  PORT=18010 qwen38-flash-next-strix-gufo-oc-server      # the benchmark port
+  THINKING=0 qwen38-flash-next-strix-gufo-oc-server      # instruct sampler, no reasoning
+  REASONING_EFFORT=medium qwen38-flash-next-strix-gufo-oc-server
+  DRAFT_TOKENS=4 qwen38-flash-next-strix-gufo-oc-server  # llama.cpp's MTP depth, for an A/B
+
+  Stop it with Ctrl-C or SIGTERM: the launcher then runs `podman stop`.
