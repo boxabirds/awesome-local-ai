@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness 051e7c6ec (harness-v2026.10.08.1), client pi, model mtplx-flash-next-optimized-speed",
-  "at": "2026-10-08T08:53:05Z",
+  "state": "finished",
+  "reason": "",
+  "at": "2026-10-08T16:45:32Z",
   "host": "Apple M5 Max 128GB"
 }
