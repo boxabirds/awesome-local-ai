@@ -1,0 +1,47 @@
+{
+  "version": "vidi-v2.0-pre2",
+  "pack_ref": "vidi-v2.0-pre2",
+  "at": "2026-10-08T19:28:25Z",
+  "bundle": "workspace.bundle",
+  "outside_workspace": {
+    "ok": true,
+    "reached": [],
+    "unjudged": []
+  },
+  "repair": {
+    "repaired": [],
+    "left": {},
+    "accounting_version": 4,
+    "harness_commit": "051e7c6ec"
+  },
+  "guard": {
+    "story": 12,
+    "record": "1/75",
+    "live": "1/75",
+    "live_version": "vidi-v2.0-pre2",
+    "comparable": true,
+    "threshold": 3,
+    "difference": 0,
+    "failures": 74,
+    "one_signature": true,
+    "live_same_signature": true,
+    "flagged": null
+  },
+  "score": "1/75",
+  "rescore": "done",
+  "reason": "",
+  "reason_kind": "scored",
+  "needs_person": false,
+  "retries_exhausted": false,
+  "attempts": 1,
+  "max_attempts": 5,
+  "last_attempt_at": "2026-10-08T19:28:25Z",
+  "history": [
+    {
+      "at": "2026-10-08T19:28:25Z",
+      "rescore": "done",
+      "reason_kind": "scored",
+      "reason": ""
+    }
+  ]
+}
