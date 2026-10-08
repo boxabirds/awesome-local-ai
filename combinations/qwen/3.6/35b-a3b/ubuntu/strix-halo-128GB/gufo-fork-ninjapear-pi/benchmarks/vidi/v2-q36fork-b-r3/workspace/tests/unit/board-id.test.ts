@@ -1,7 +1,7 @@
-/** TC-01, TC-02 already covered in unit tests */
+/** TC-01, TC-02, TC-04 — board id unit tests */
 
 import { describe, it, expect } from 'vitest';
-import { isValidBoardId, newBoardId } from '@shared/board-id';
+import { BOARD_ID_BYTES, BOARD_ID_PATTERN, isValidBoardId, newBoardId } from '@shared/board-id';
 
 describe('board-id unit tests (TC-01, TC-02)', () => {
   describe('isValidBoardId', () => {
@@ -33,14 +33,36 @@ describe('board-id unit tests (TC-01, TC-02)', () => {
   });
 
   // TC-02
-  it('newBoardId() x 10,000 all match pattern; no duplicates', async ({
-    expect: tExpect,
-  }) => {
+  it('newBoardId() x 10,000 all match pattern; no duplicates', () => {
     const set = new Set<string>();
     for (let i = 0; i < 10_000; i++) {
       const id = newBoardId();
       expect(isValidBoardId(id)).toBe(true);
+      expect(id.length).toBe(22);
       set.add(id);
+    }
+    expect(set.size).toBe(10_000);
+  });
+});
+
+// TC-04 — link-code strength: 128 bits, unguessable
+describe('TC-04: board id format and uniqueness', () => {
+  it('BOARD_ID_BYTES is 16 (128 bits)', () => {
+    expect(BOARD_ID_BYTES).toBe(16);
+  });
+
+  it('all generated ids are 22 chars matching BOARD_ID_PATTERN', () => {
+    for (let i = 0; i < 10_000; i++) {
+      const id = newBoardId();
+      expect(id.length).toBe(22);
+      expect(BOARD_ID_PATTERN.test(id)).toBe(true);
+    }
+  });
+
+  it('10,000 ids are all unique', () => {
+    const set = new Set<string>();
+    for (let i = 0; i < 10_000; i++) {
+      set.add(newBoardId());
     }
     expect(set.size).toBe(10_000);
   });

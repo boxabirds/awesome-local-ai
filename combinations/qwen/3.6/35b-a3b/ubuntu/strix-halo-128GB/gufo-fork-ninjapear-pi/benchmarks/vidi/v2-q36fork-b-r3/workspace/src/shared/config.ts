@@ -35,6 +35,11 @@ export const CONNECTED_CONFIRMATION_MS = 2000;       // green badge duration aft
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;       // PRD live.catch_up verification outage
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;       // functional wait in e2e (all stories)
 
+// Story 5 — Share a board with others using a link
+export const CREATE_BUDGET_MS = 2000;
+export const LINK_COPIED_MS = 2000;
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
 // Story 4 — Board persistence
 export const COMPACTION_UPDATE_COUNT = 500;
 export const COMPACTION_BYTES = 4 * 1024 * 1024;

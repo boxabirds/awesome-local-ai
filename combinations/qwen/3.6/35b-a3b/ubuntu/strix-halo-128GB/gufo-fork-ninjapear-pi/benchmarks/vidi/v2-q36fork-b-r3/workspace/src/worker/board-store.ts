@@ -17,6 +17,9 @@ import {
   LOAD_ORIGIN,
 } from '@shared/config';
 
+// Story 5 constants
+const CREATED_AT_KEY = 'created_at';
+
 // ─── Public types ────────────────────────────────────────────────
 
 export type LoadResult =
@@ -148,11 +151,99 @@ export class BoardStore {
     this.meta.totalBytes += update.length;
   }
 
+  // ── existsReadOnly ─────────────────────────────────────────────
+  /**
+   * Read-only existence check — does NOT create tables.
+   * A board "exists" if:
+   *   - `storage_meta.created_at` is present, **or**
+   *   - it has at least one row in `updates` or `snapshot_chunks` (legacy boards).
+   *
+   * Uses `sqlite_master` introspection first to determine whether tables exist,
+   * avoiding table creation entirely when probing an unknown link.
+   */
+  existsReadOnly(): boolean {
+    if (!this._hasSqlOps) {
+      // Non-SQL env: treat as not existing unless already marked
+      return this.meta.initialized;
+    }
+
+    const ops = this._ops!;
+    try {
+      // Check if storage_meta table exists at all
+      const metaCheck = ops.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='storage_meta'",
+      ).toArray();
+      if (metaCheck.length === 0) {
+        // No meta table → nothing initialized → may still have legacy tables
+        // Check for legacy data
+        const updatesCheck = ops.execute(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='updates'",
+        ).toArray();
+        if (updatesCheck.length > 0) {
+          try {
+            const r = ops.execute('SELECT 1 FROM updates LIMIT 1').toArray();
+            if (r.length > 0) return true;
+          } catch {
+            // Table might be corrupted — fall through
+          }
+        }
+        const snapCheck = ops.execute(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='snapshot_chunks'",
+        ).toArray();
+        if (snapCheck.length > 0) {
+          try {
+            const r = ops.execute('SELECT 1 FROM snapshot_chunks LIMIT 1').toArray();
+            if (r.length > 0) return true;
+          } catch {
+            // Table might be corrupted — fall through
+          }
+        }
+        return false;
+      }
+
+      // storage_meta exists — check created_at
+      const createdAtRows = ops.execute(
+        'SELECT value FROM storage_meta WHERE key = ?', [CREATED_AT_KEY],
+      ).toArray();
+      if (createdAtRows.length > 0) {
+        return true;
+      }
+
+      // No created_at but meta exists — check for legacy data anyway
+      const updatesRows = ops.execute('SELECT 1 FROM updates LIMIT 1').toArray();
+      if (updatesRows.length > 0) return true;
+
+      const snapRows = ops.execute('SELECT 1 FROM snapshot_chunks LIMIT 1').toArray();
+      if (snapRows.length > 0) return true;
+
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  // ── setCreatedAt ────────────────────────────────────────────────
+  /** Write created_at to storage_meta (called once during initialisation). */
+  setCreatedAt(timestampMs: number): void {
+    if (!this._hasSqlOps) {
+      this.meta.initialized = true;
+      return;
+    }
+    const ops = this._ops!;
+    ops.prepare(
+      'INSERT OR REPLACE INTO storage_meta (key, value) VALUES (?, ?)',
+    ).bind(CREATED_AT_KEY, String(timestampMs)).run();
+    this.meta.initialized = true;
+  }
+
   // ── load ───────────────────────────────────────────────────────
   /**
    * Apply the persisted snapshot + pending log rows to `doc`.
    * Damaged log rows are quarantined; damaged snapshot returns ok:false.
    * SQL errors also return ok:false.
+   *
+   * If tables do not yet exist, treats the board as empty (no migration needed).
+   * Migration must be called separately via `migrate()`.
    */
   load(doc: Y.Doc): LoadResult {
     if (!this._hasSqlOps) return { ok: true, quarantined: 0 }; // No data in non-SQL
@@ -169,6 +260,23 @@ export class BoardStore {
         }
       } catch {
         snapshotThroughSeq = -1;
+      }
+
+      // Get max seq from existing updates
+      let maxSeqInUpdates = -1;
+      try {
+        const maxSeqRow = ops.execute('SELECT MAX(seq) as m FROM updates').toArray();
+        if (maxSeqRow.length > 0 && maxSeqRow[0].m !== null) {
+          maxSeqInUpdates = Number(maxSeqRow[0].m);
+        }
+      } catch {
+        // No updates table or no rows
+      }
+
+      // If we have pending updates but no snapshot_through_seq yet,
+      // and snapshot_through_seq is not set, use max seq as boundary
+      if (maxSeqInUpdates >= 0 && snapshotThroughSeq < 0) {
+        snapshotThroughSeq = maxSeqInUpdates;
       }
 
       // Read snapshot chunks if any

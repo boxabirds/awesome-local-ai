@@ -1,3 +1,42 @@
+commit 4b6e8635fd50c21b4deaefe6bd24002b9c6dff4e
+agent  Thu Oct 8 11:54:14 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ PROGRESS.md                         |  37 +++--
+ index.html                          |   1 +
+ src/client/App.tsx                  | 223 +++-------------------------
+ src/client/api.ts                   |  34 +++++
+ src/client/main.tsx                 |   6 +-
+ src/client/pages/BoardPage.tsx      | 286 ++++++++++++++++++++++++++++++++++++
+ src/client/pages/HomePage.tsx       |  76 ++++++++++
+ src/client/pages/NotFoundPage.tsx   |  56 +++++++
+ src/client/pages/state.ts           |  50 +++++++
+ src/client/router.ts                |  71 +++++++++
+ src/client/share/SharePanel.tsx     | 188 ++++++++++++++++++++++++
+ src/shared/config.ts                |   5 +
+ src/worker/board-room.ts            |  61 ++++++--
+ src/worker/board-store.ts           | 108 ++++++++++++++
+ src/worker/create-board.ts          |  30 ++++
+ src/worker/index.ts                 |  93 ++++++++++--
+ tests/component/SharePanel.test.tsx | 102 +++++++++++++
+ tests/component/pages.test.tsx      | 268 +++++++++++++++++++++++++++++++++
+ tests/component/setup.ts            |   2 +
+ tests/e2e/navigation.e2e.ts         |   6 +-
+ tests/e2e/share.e2e.ts              | 101 +++++++++++++
+ tests/e2e/sticky-notes.e2e.ts       |   6 +-
+ tests/integration/board-api.test.ts | 234 +++++++++++++++++++++++++++++
+ tests/unit/board-id.test.ts         |  32 +++-
+ 24 files changed, 1829 insertions(+), 247 deletions(-)
+commit 73f23cc3160211d93c9694948f45fb97f48c2bba
+vidi-agent  Thu Oct 8 11:09:25 2026 +0000
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 62 ++++++++++++-------------------------------------------------
+ 1 file changed, 12 insertions(+), 50 deletions(-)
 commit 8a0dae6cad4c6486ab1dfe47a52e5ccafd6ce999
 agent  Thu Oct 8 10:42:33 2026 +0000
 

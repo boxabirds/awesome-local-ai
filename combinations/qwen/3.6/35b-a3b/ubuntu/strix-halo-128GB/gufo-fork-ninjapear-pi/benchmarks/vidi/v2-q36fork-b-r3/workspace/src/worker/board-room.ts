@@ -17,6 +17,9 @@ import {
   LOAD_ORIGIN,
 } from '@shared/config';
 
+// Story 5: board creation / existence constants
+const CREATED_AT_KEY = 'created_at';
+
 // ─── Room state machine types ────────────────────────────────────
 
 export type RoomState = 'loading' | 'ready' | 'load-failed' | 'storage-failed' | 'compacting' | 'hibernated';
@@ -131,12 +134,37 @@ export class BoardRoom implements DurableObject {
     return this.state.storage as unknown as SqlOps;
   }
 
+  // ── Story 5: initialize & exists RPC ───────────────────────────
+  /**
+   * Initialize a new board — called from POST /api/boards via RPC.
+   * Migrates storage, sets created_at if absent. Returns 'created' or 'exists'.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    await this._ensureInitialized();
+
+    // Check if already initialized (created_at present)
+    const exists = this.store.existsReadOnly();
+    if (exists) {
+      return 'exists';
+    }
+
+    // First-time initialisation: migrate + set created_at
+    this.store.migrate();
+    this.store.setCreatedAt(Date.now());
+    return 'created';
+  }
+
+  /**
+   * Exists check — called by GET /api/boards/:id and WebSocket upgrade.
+   * Read-only; never creates tables beyond what migrate() does for querying.
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   // ── fetch: HTTP/WebSocket entry point ─────────────────────────
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
-
-    // Ensure room is initialized (loadDoc + migration)
-    await this._ensureInitialized();
 
     // 1) Internal RPC via ?action=<name> — exposed to test harness
     const action = url.searchParams.get('action');
@@ -149,18 +177,27 @@ export class BoardRoom implements DurableObject {
       return this.handleRpc(url);
     }
 
-    // 3) HTTP GET to board room without Upgrade header → 426 Upgrade Required
-    // This ensures clients use proper WebSocket connection flow.
+    // 3) WebSocket upgrade: only accept on existing boards (story 5)
+    // Unknown boards are rejected with 404 at this level.
     const upgrade = request.headers.get('upgrade') || '';
-    if (!upgrade.toLowerCase().includes('websocket')) {
-      return new Response(
-        JSON.stringify({ error: 'WebSocket upgrade required' }),
-        { status: 426, headers: { 'Content-Type': 'application/json' } },
-      );
+    if (upgrade.toLowerCase().includes('websocket')) {
+      // Check existence — returns 404 for unknown/malformed boards
+      if (!this.store.existsReadOnly()) {
+        return new Response(JSON.stringify({ error: 'not_found' }), { status: 404 });
+      }
+      // Board exists — proceed with full init + accept
+      await this._ensureInitialized();
+      return new Response('', { status: 200 });
     }
 
-    // 4) WebSocket-related HTTP requests → route via index.ts handler
-    return new Response('', { status: 200 });
+    // 4) Non-WebSocket HTTP requests → ensure room init, then serve
+    await this._ensureInitialized();
+
+    // 5) GET without Upgrade header → 426 Upgrade Required
+    return new Response(
+      JSON.stringify({ error: 'WebSocket upgrade required' }),
+      { status: 426, headers: { 'Content-Type': 'application/json' } },
+    );
   }
 
   /** Handle RPC via ?action=query-param — used by test harness. */

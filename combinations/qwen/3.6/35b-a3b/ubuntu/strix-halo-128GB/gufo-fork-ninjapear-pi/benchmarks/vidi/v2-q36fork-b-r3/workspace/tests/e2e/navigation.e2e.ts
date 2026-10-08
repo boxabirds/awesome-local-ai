@@ -20,8 +20,10 @@ function screenToWorld(screenX, screenY, zoom) {
 test.describe('E2E — Pan and Zoom (Story 1)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    // Wait for the initial render
-    await expect(page.locator('div[style*="position: fixed"]')).toBeVisible();
+    // Click "New board" on home page to get to the board view
+    await page.getByRole('button', { name: 'New board' }).click();
+    // Wait for the board UI to appear
+    await expect(page.locator('[aria-label="Sticky note"]')).toBeVisible({ timeout: 5000 });
   });
 
   // ── TC-E2E-01: Initial view ────────────────────────────────────────

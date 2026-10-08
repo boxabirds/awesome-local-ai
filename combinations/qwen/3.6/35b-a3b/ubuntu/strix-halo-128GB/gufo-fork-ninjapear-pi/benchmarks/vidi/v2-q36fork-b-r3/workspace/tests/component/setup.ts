@@ -1,3 +1,5 @@
+import '@testing-library/jest-dom/vitest';
+
 // Mock ResizeObserver for jsdom
 class MockResizeObserver {
   observe() {}

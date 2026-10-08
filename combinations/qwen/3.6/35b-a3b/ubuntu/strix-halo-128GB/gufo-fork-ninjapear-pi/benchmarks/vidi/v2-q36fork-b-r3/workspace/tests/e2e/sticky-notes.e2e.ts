@@ -4,8 +4,10 @@ import { STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX } from '@shared/config';
 test.describe('E2E — Sticky Notes (Story 2)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    // Wait for the app to be ready: look for sticky button
-    await expect(page.locator('[aria-label="Sticky note"]')).toBeVisible({ timeout: 5000 });
+    // Click "New board" on home page to get to the board view
+    await page.getByRole('button', { name: 'New board' }).click();
+    // Wait for the board UI to appear
+    await expect(page.locator('[aria-label="Sticky note"]')).toBeVisible({ timeout: 10000 });
   });
 
   // ─── TC-30: create note via toolbar, type "Hello" ─────────────────────
