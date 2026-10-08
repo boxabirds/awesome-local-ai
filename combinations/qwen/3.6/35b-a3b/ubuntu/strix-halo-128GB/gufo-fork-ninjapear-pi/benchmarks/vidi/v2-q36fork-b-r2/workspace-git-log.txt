@@ -1,3 +1,37 @@
+commit 95c2c6f875b345395f0c2ee995292d51b3fb96f1
+agent  Thu Oct 8 03:54:50 2026 +0000
+
+    story 11: Sketch freehand with a pen
+
+
+ PROGRESS.md                           |  12 +-
+ src/client/board/BoardApp.tsx         |  44 +++++
+ src/client/board/Toolbar.tsx          |  25 +++
+ src/client/board/useBoardKeys.ts      |   9 ++
+ src/client/board/useTool.ts           |   4 +-
+ src/client/canvas/BoardViewport.tsx   |   4 +-
+ src/client/objects/StrokeObject.tsx   |  89 ++++++++++
+ src/client/tools/PenTool.tsx          | 294 ++++++++++++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx       | 100 ++++++++++++
+ src/client/tools/usePenOptions.ts     |  27 ++++
+ src/shared/board-model.ts             |  10 ++
+ src/shared/config.ts                  |  17 ++
+ src/shared/geometry/simplify.ts       | 153 ++++++++++++++++++
+ src/shared/objects/stroke.ts          | 183 +++++++++++++++++++++
+ tests/component/PenComponent.test.tsx | 111 +++++++++++++
+ tests/component/StrokeObject.test.tsx | 153 ++++++++++++++++++
+ tests/e2e/story-11-pen.spec.ts        |  88 ++++++++++
+ tests/fixtures/pen-paths.ts           |  61 +++++++
+ tests/unit/stroke.test.ts             | 232 +++++++++++++++++++++++++++
+ 19 files changed, 1606 insertions(+), 10 deletions(-)
+commit 997ed4b4051d5265dfe2b454a1d8d65a24eb5b1e
+vidi-agent  Thu Oct 8 02:55:18 2026 +0000
+
+    harness: PROGRESS.md for story 11
+
+
+ PROGRESS.md | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)
 commit 4b4a25cbad5446f00fa194cdc74fd6107ac2796a
 vidi-agent  Thu Oct 8 02:55:07 2026 +0000
 
