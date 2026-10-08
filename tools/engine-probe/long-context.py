@@ -18,6 +18,7 @@ import argparse
 import json
 import sys
 import time
+import urllib.error
 import urllib.request
 
 TIMEOUT_S = 1500
@@ -26,6 +27,10 @@ FILLER_LINE = "function step_{n}(x) {{ return (x * {n} + {m}) % 9973; }}\n"
 APPROX_CHARS_PER_TOKEN = 3.6  # code filler; the server's own count is what is reported
 DECODE_TOKENS = 200
 CALIBRATION_TOKENS = 4000
+# A thinking model spends tokens reasoning before it answers; a small limit returns an empty reply.
+ANSWER_TOKENS = 4096
+# Later filler lines have longer numbers, so the small sample reads a little denser than the whole prompt.
+CALIBRATION_DRIFT = 0.92
 MIN_RETRIEVAL_SHARE = 1.0
 
 
@@ -46,8 +51,11 @@ def build_prompt(tokens: int, chars_per_token: float = APPROX_CHARS_PER_TOKEN) -
 def post(base_url: str, body: dict) -> dict:
     req = urllib.request.Request(base_url.rstrip("/") + "/chat/completions", json.dumps(body).encode(),
                                  {"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
-        return json.load(r)
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        raise SystemExit(f"server answered {e.code}: {e.read().decode(errors='replace')[:400]}")
 
 
 def retrieved(answer: str) -> bool:
@@ -80,10 +88,10 @@ def measured_chars_per_token(base_url: str, model: str) -> float:
 
 
 def run(base_url: str, model: str, tokens: int) -> dict:
-    prompt = build_prompt(tokens, measured_chars_per_token(base_url, model))
+    prompt = build_prompt(tokens, measured_chars_per_token(base_url, model) * CALIBRATION_DRIFT)
     msg = [{"role": "user", "content": prompt}]
     t = time.time()
-    first = post(base_url, {"model": model, "messages": msg, "max_tokens": 64, "temperature": 0})
+    first = post(base_url, {"model": model, "messages": msg, "max_tokens": ANSWER_TOKENS, "temperature": 0})
     first_s = time.time() - t
     msg2 = msg + [{"role": "assistant", "content": first["choices"][0]["message"].get("content") or ""},
                   {"role": "user", "content": f"Now write {DECODE_TOKENS} tokens of any JavaScript."}]
