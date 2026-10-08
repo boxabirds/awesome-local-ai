@@ -24,4 +24,10 @@ echo
 echo "and it refuses to run without somewhere to point"
 assert_fails "no --base-url"       bash -c "cd '$REPO_ROOT' && uv run '$PROBE'"
 
+echo
+echo "the other probes' judging is sound too"
+for tool in long-context memory-growth session-replay; do
+  assert_ok "$tool self-test passes"  bash -c "cd '$REPO_ROOT' && uv run '$REPO_ROOT/tools/engine-probe/$tool.py' --self-test"
+done
+
 finish
