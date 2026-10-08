@@ -157,6 +157,14 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (e.key === 'Escape') {
       e.preventDefault();
+      // Consume this Escape: end editing but keep the note selected
+      // (sel.keyboard: board-level Escape deselects, editor Escape does not).
+      // stopPropagation keeps it from reaching the board's window keydown
+      // handler — React flushes this end-edit synchronously, so by the time
+      // the event would bubble to window the board already sees "not
+      // editing" and would wrongly clear the selection.
+      e.stopPropagation();
+      e.nativeEvent.stopPropagation();
       onEnd('selected');
     }
     // Enter inserts a newline (native behaviour); the board-level handler

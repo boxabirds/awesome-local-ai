@@ -1,5 +1,5 @@
 import type { Camera } from './camera';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
 
 declare global {
   interface Window {
@@ -30,6 +30,9 @@ export interface BoardObjectState {
   z: number;
   color: string;
   text: string;
+  /** Present for objects with a stored size (story 7 resize). */
+  width?: number;
+  height?: number;
 }
 
 /**
@@ -42,7 +45,7 @@ export interface BoardObjectState {
  */
 export function installVidi6TestHooks(
   setCamera: (cam: Camera) => void,
-  getObjects: () => readonly StickySnapshot[],
+  getObjects: () => readonly ObjectSnapshot[],
   dropConnection: () => void,
   resumeConnection: () => void,
 ): void {
@@ -75,6 +78,16 @@ export function updateVidi6ConnectionState(state: string): void {
   }
 }
 
-function toState(o: StickySnapshot): BoardObjectState {
-  return { id: o.id, x: o.x, y: o.y, z: o.z, color: o.color, text: o.text };
+function toState(o: ObjectSnapshot): BoardObjectState {
+  const s = o as StickySnapshot;
+  return {
+    id: o.id,
+    x: o.x,
+    y: o.y,
+    z: o.z,
+    color: typeof s.color === 'string' ? s.color : '',
+    text: typeof s.text === 'string' ? s.text : '',
+    width: o.width,
+    height: o.height,
+  };
 }

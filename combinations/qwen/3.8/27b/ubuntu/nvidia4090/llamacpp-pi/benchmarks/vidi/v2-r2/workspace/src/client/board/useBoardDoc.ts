@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshotAll, type ObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 import type { BoardConnection } from '../sync/connectBoard';
 
@@ -12,10 +12,13 @@ import type { BoardConnection } from '../sync/connectBoard';
  * Remote updates arrive through the provider as document updates; the same
  * objects.observeDeep re-render path covers local and remote changes. The
  * snapshot is memoised per document revision.
+ *
+ * `docOverride` (test-only) supplies a pre-made local Y.Doc and skips the
+ * network provider entirely (the component tests run without a server).
  */
-export function useBoardDoc(boardId: string): {
+export function useBoardDoc(boardId: string, docOverride?: Y.Doc): {
   doc: Y.Doc;
-  objects: readonly StickySnapshot[];
+  objects: readonly ObjectSnapshot[];
   connectionState: ConnectionState;
   /** Closes the live socket (test-only, wired to window.__vidi6). */
   dropSocket: () => void;
@@ -24,16 +27,21 @@ export function useBoardDoc(boardId: string): {
 } {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
-    const doc = new Y.Doc();
-    initDoc(doc);
-    docRef.current = doc;
+    if (docOverride !== undefined) {
+      docRef.current = docOverride;
+    } else {
+      const doc = new Y.Doc();
+      initDoc(doc);
+      docRef.current = doc;
+    }
   }
   const doc = docRef.current;
+  const overridden = docOverride !== undefined;
 
   // Bumped on every document change; getSnapshot recomputes only when it
   // changes, so useSyncExternalStore always gets a stable reference.
   const versionRef = useRef(0);
-  const cacheRef = useRef<{ version: number; objects: readonly StickySnapshot[] } | null>(null);
+  const cacheRef = useRef<{ version: number; objects: readonly ObjectSnapshot[] } | null>(null);
 
   useEffect(() => {
     const objects = doc.getMap('objects');
@@ -57,11 +65,11 @@ export function useBoardDoc(boardId: string): {
     [doc],
   );
 
-  const getSnapshot = useCallback((): readonly StickySnapshot[] => {
+  const getSnapshot = useCallback((): readonly ObjectSnapshot[] => {
     const version = versionRef.current;
     const cache = cacheRef.current;
     if (cache === null || cache.version !== version) {
-      cacheRef.current = { version, objects: snapshot(doc) };
+      cacheRef.current = { version, objects: snapshotAll(doc) };
       return cacheRef.current.objects;
     }
     return cache.objects;
@@ -71,17 +79,21 @@ export function useBoardDoc(boardId: string): {
 
   // Connection state for the badge. The setter is stable, so the provider
   // is (re)created only when the doc or boardId changes; destroy() on
-  // unmount or board change.
-  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  // unmount or board change. With a doc override there is no socket: the
+  // board is simply connected (test-only).
+  const [connectionState, setConnectionState] = useState<ConnectionState>(overridden ? 'connected' : 'connecting');
   const connectionRef = useRef<BoardConnection | null>(null);
   useEffect(() => {
+    if (overridden) {
+      return;
+    }
     const connection = connectBoard(doc, boardId, setConnectionState);
     connectionRef.current = connection;
     return () => {
       connectionRef.current = null;
       connection.destroy();
     };
-  }, [doc, boardId]);
+  }, [doc, boardId, overridden]);
 
   const dropSocket = useCallback((): void => {
     connectionRef.current?.dropSocket();

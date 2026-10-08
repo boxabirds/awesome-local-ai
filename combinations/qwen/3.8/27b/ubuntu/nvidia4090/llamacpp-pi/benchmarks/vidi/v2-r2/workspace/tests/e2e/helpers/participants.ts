@@ -44,6 +44,9 @@ export interface ObjectState {
   z: number;
   color: string;
   text: string;
+  /** Present for stickies (world units). */
+  width?: number;
+  height?: number;
 }
 
 /** STICKY_SIZE_WORLD / 2 — model x,y is the note's top-left corner. */

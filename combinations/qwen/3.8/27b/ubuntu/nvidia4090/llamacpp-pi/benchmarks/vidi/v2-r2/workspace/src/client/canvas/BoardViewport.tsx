@@ -40,10 +40,23 @@ interface BoardViewportProps {
   onDoubleClickEmpty?: (p: Point) => void;
   /** Single click (no drag) on empty board space: clear the selection. */
   onEmptyClick?: () => void;
+  /**
+   * Screen-space overlay (selection outline, resize handles, marquee rect,
+   * selection bar): rendered above the world layer, outside its transform.
+   */
+  overlay?: ReactNode;
+  /** Shift+pointerdown on empty space: begin a marquee at this point. */
+  onMarqueeBegin?: (p: Point) => void;
+  /** Pointer movement during a marquee (viewport-local point). */
+  onMarqueeMove?: (p: Point) => void;
+  /** Clean marquee end (pointerup on empty space). */
+  onMarqueeEnd?: () => void;
+  /** Marquee cancelled (pointercancel / lost capture). */
+  onMarqueeCancel?: () => void;
 }
 
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
-  const { onDoubleClickEmpty, onEmptyClick } = props;
+  const { onDoubleClickEmpty, onEmptyClick, overlay, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel } = props;
   const controller = useContext(CameraContext);
   if (controller === null) {
     throw new Error('BoardViewport must be rendered inside a CameraContext provider');
@@ -52,6 +65,8 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const panStartLocalRef = useRef<Point | null>(null);
+  /** The pointer id driving the marquee (null when no marquee is active). */
+  const marqueePointerRef = useRef<number | null>(null);
   const [isPanning, setIsPanning] = useState(false);
 
   const toLocalPoint = (clientX: number, clientY: number): Point => {
@@ -174,12 +189,23 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     if (el && typeof el.setPointerCapture === 'function') {
       el.setPointerCapture(e.pointerId);
     }
+    // Shift+drag on empty space marquee-selects (story 7); a plain drag
+    // pans (story 1, unchanged).
+    if (e.shiftKey) {
+      marqueePointerRef.current = e.pointerId;
+      onMarqueeBegin?.(toLocalPoint(e.clientX, e.clientY));
+      return;
+    }
     beginPan(toLocalPoint(e.clientX, e.clientY));
     panStartLocalRef.current = toLocalPoint(e.clientX, e.clientY);
     setIsPanning(true);
   };
 
   const onPointerMove = (e: ReactPointerEvent): void => {
+    if (marqueePointerRef.current !== null && e.pointerId === marqueePointerRef.current) {
+      onMarqueeMove?.(toLocalPoint(e.clientX, e.clientY));
+      return;
+    }
     panMove(toLocalPoint(e.clientX, e.clientY)); // no-op unless a drag is active
   };
 
@@ -189,6 +215,13 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   };
 
   const onPointerUp = (e: ReactPointerEvent): void => {
+    if (marqueePointerRef.current !== null) {
+      if (e.pointerId === marqueePointerRef.current) {
+        marqueePointerRef.current = null;
+        onMarqueeEnd?.();
+      }
+      return;
+    }
     endDrag();
     // A click on empty space (pointer did not travel) clears the selection.
     const down = panStartLocalRef.current;
@@ -199,6 +232,28 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         onEmptyClick?.();
       }
     }
+  };
+
+  const onPointerCancel = (e: ReactPointerEvent): void => {
+    if (marqueePointerRef.current !== null) {
+      if (e.pointerId === marqueePointerRef.current) {
+        marqueePointerRef.current = null;
+        onMarqueeCancel?.();
+      }
+      return;
+    }
+    endDrag();
+  };
+
+  const onLostPointerCapture = (e: ReactPointerEvent): void => {
+    if (marqueePointerRef.current !== null) {
+      if (e.pointerId === marqueePointerRef.current) {
+        marqueePointerRef.current = null;
+        onMarqueeCancel?.();
+      }
+      return;
+    }
+    endDrag();
   };
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>): void => {
@@ -229,8 +284,8 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={endDrag}
-      onLostPointerCapture={endDrag}
+      onPointerCancel={onPointerCancel}
+      onLostPointerCapture={onLostPointerCapture}
       onDoubleClick={onDoubleClick}
       style={{
         position: 'absolute',
@@ -257,6 +312,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       >
         {props.children}
       </div>
+      {overlay}
     </div>
   );
 }

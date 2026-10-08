@@ -86,6 +86,23 @@ export const STICKY_SELECTION_OUTLINE = '#1a73e8';
 /** Padding inside a note around its text, in board units. */
 export const STICKY_TEXT_PADDING = 12;
 
+// --- Multi-select: move, resize, delete (story 7) ----------------------------
+
+/** Screen size of the square resize handles on the selection bounding box. */
+export const HANDLE_SIZE_PX = 8;
+
+/** Smallest size (either axis) any resized object may reach. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/** Largest size (either axis) any object of any type may reach. */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** Arrow-key nudge step in world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Arrow-key nudge step in world units while Shift is held. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 // --- Live collaboration (story 3) ------------------------------------------
 
 /**

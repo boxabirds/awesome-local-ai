@@ -302,3 +302,95 @@ _(Story 2 decisions are at the bottom of this file.)_
   canEdit(connectionState)` and gate create/drag/edit/colour/delete (and
   disable the Sticky + note-toolbar buttons). `useStickyKeyboard` takes an
   `editable` flag so Enter-to-edit / Delete-to-delete are no-ops when locked.
+
+# Story 7: Select, move, resize and delete several objects at once — decisions
+
+## Architecture
+
+- **Object registry (`src/client/objects/registry.tsx`).** Every object type
+  registers `create`/`getBounds`/`minSize`/`resizable`/`aspectLocked` plus
+  optional `createWithText`/`resizable` flags. `KNOWN_OBJECT_TYPES` is a
+  *mutable* `Set` with an `addKnownObjectType(type)` export so the testbox
+  fixture (a development-only type) and any future type register at module
+  load; `getObjects()`/`snapshotAll()` filter on it, so unknown entries in a
+  board are skipped everywhere (sel.all_types).
+- **`snapshot()` vs `snapshotAll()`.** `snapshot()` keeps its story-2
+  signature (`readonly StickySnapshot[]`) so pre-existing tests and the
+  e2e `getObject` hook are untouched; `snapshotAll(doc)` returns
+  `readonly ObjectSnapshot[]` (id, type, x, y, z + type-specific fields) and
+  is what `useBoardDoc`, selection, gestures and the overlay consume.
+- **Model coordinates are TOP-LEFT.** `createSticky(doc, at, color)` takes a
+  *centre* (unchanged API) but stores `at - SIZE/2`; every group operation
+  and the overlay work in top-left space. New stickies also write explicit
+  `width`/`height` (STICKY_SIZE_WORLD); pre-story-7 entries still resolve
+  through the `objectBounds` fallback (TC-10).
+- **Selection is a reducer hook (`useSelection`)**: `click`, `toggle`
+  (shift), `marquee`, `selectAll`, `clear`, `deleteSelected`, `startEdit` /
+  `endEdit(next)` / nudge `moveSelected`. Ghost ids (objects deleted
+  remotely while selected) are pruned lazily on the next doc change
+  (`prune(ids)`), never mid-gesture — the gesture keeps moving what was
+  selected at its start (sel.remote mid-gesture).
+- **Transform gesture (`useTransformGesture`)**: one hook, two entry points
+  (`onObjectPointerDown` for group move, `onHandlePointerDown` for
+  bounding-box resize). Window-level pointer listeners are attached once and
+  gated by a gesture ref, so an in-flight gesture survives objects
+  unmounting underneath it. Pending frames apply in rAF; `pointerup` flushes
+  exactly, `pointercancel` drops the unflushed frame (the last applied state
+  stays). Aspect lock when any selected type is aspect-locked *or* Shift is
+  held; `clampScale` enforces per-type `minSize` (sticky: 50) and
+  `MAX_OBJECT_SIZE_WORLD`, with the first object to hit a limit stopping the
+  whole group.
+- **Marquee** is a viewport-level concern: Shift+pointerdown on empty space
+  (movement < DRAG_THRESHOLD_PX still counts as marquee begin — the rect may
+  be zero-sized) drives `onMarqueeBegin/Move/End/Cancel` into `useMarquee`,
+  which selects on every move (inside / half-inside counts, sel.marquee).
+  The rect renders screen-space in the `overlay` slot (a new prop on
+  BoardViewport, rendered after the world layer).
+- **Board composition.** `Board` owns the camera (`useCamera` +
+  `CameraContext.Provider`), selection, gesture and marquee; objects render
+  through the registry; the `SelectionOverlay` (box + 8 handles) and
+  `SelectionBar` (N≥2) render in the screen-space `overlay` slot.
+  `useBoardKeys` (window keydown, capture-phase `stopImmediatePropagation`
+  only while the marquee is active) handles Ctrl/Cmd+A, Escape, arrows
+  (Shift = 10×), Delete/Backspace and Enter. `StickyTextEditor` stops
+  propagation on Escape so the window handler never sees it (React 18
+  discrete-event flush makes a window handler race the editor's own
+  `onEnd`).
+- **StickyNote lost its private drag/editing state**: it is a pure view of
+  `ObjectProps {doc, obj, selected, editingId, onPointerDown, onEdit,
+  onEndEdit}` and reports gestures to the board (sel.interaction).
+
+## Environment / browser quirks
+
+- **Chromium pointercancel on resize handles (the big one).** With a real
+  Chromium mouse: pointerdown on the (screen-space) resize handle, then a
+  pointermove whose *hit target is a sticky note* (i.e. dragging the handle
+  toward the box interior) makes Chromium fire `pointercancel` at (0,0) and
+  the whole sequence is dropped — even though no DOM node is removed and
+  `touch-action` is `none` everywhere (verified by replica-div bisection:
+  plain/tabindex/touch-action/user-select replicas never cancel; the cancel
+  only happens over the live note, and only when the down target is the
+  overlay handle — drags that start on a note or over empty space are fine).
+  Fix (standard pattern): `setPointerCapture(pointerId)` on the element that
+  received pointerdown — the handle in `SelectionOverlay` and the note root
+  in `StickyNote` (BoardViewport's pan/marquee path already captured, which
+  is why marquee was unaffected). With capture, all events retarget to the
+  capture element and the sequence survives crossing any other object.
+- **`setPointerCapture` is best-effort.** JSDOM does not implement it
+  (`e.currentTarget.setPointerCapture is not a function`), so both call
+  sites are `try { el.setPointerCapture?.(id) } catch {}`; the gesture's
+  window listeners work with or without capture.
+- **React 18 discrete-event flush order.** A window `keydown` listener sees
+  the *post*-update state of any React synthetic handler that ran earlier in
+  the same event (e.g. the editor's Escape `onEnd` already cleared
+  `editingId` before `useBoardKeys` runs). The editor therefore stops
+  propagation on Escape instead of relying on flag ordering.
+- **Playwright `expect` + `Set`**: `toHaveLength` is not supported on Sets —
+  assert `.size`.
+- **`pkill -f "wrangler dev"` kills its own shell** (the pattern matches the
+  pkill command line); use `pkill -f "wrangl[e]r dev"` or find the PID via
+  `ss -tlnp`.
+- **E2E cameras/coords.** Model x/y are top-left: `byText`/`getObject`
+  values are centres − 100 for stickies. MAIN_CAM `{x:-1280,y:-800,zoom:0.5}`
+  gives screen = world×0.5 + (640, 400); a 150px screen drag is 300 world at
+  that zoom.

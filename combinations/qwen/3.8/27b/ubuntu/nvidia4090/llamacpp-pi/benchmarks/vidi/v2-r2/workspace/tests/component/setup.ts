@@ -1,6 +1,11 @@
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 
+// jsdom's default window is 1024x768; the component tests' camera fixture is
+// the 1280x800 design viewport, so pin the window size before any render.
+Object.defineProperty(window, 'innerWidth', { configurable: true, get: () => 1280 });
+Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => 800 });
+
 type ProviderStatus = 'connecting' | 'connected' | 'disconnected';
 
 /** A fake y-websocket provider a test can drive (see ConnectionStatus tests). */
