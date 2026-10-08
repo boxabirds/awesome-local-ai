@@ -179,6 +179,31 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
         →
       </button>
 
+      {/* Pen */}
+      <button
+        onClick={() => onToolChange?.('pen')}
+        disabled={!onToolChange}
+        aria-label="Pen (P)"
+        aria-pressed={activeTool === 'pen'}
+        title="Pen – or press P"
+        style={{
+          width: '40px',
+          height: '40px',
+          border: '1px solid #ccc',
+          borderRadius: '8px',
+          background: activeTool === 'pen' ? '#e8f0fe' : '#fff',
+          cursor: onToolChange ? 'pointer' : 'not-allowed',
+          opacity: onToolChange ? 1 : 0.5,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '18px',
+          boxShadow: activeTool === 'pen' ? '0 0 0 2px #1a73e8' : '0 2px 4px rgba(0,0,0,0.1)',
+        }}
+      >
+        ✏️
+      </button>
+
       {undoProps && <UndoButtons {...undoProps} />}
     </div>
   );

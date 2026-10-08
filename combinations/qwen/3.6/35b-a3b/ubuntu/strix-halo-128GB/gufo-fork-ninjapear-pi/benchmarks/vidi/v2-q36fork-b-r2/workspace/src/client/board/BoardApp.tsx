@@ -31,6 +31,10 @@ import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { setShapeStyle } from '../../shared/objects/shape';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import type { Point } from '../canvas/camera';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
+import { StrokeObject } from '../objects/StrokeObject';
 
 export interface BoardAppProps {
   boardId: string;
@@ -109,6 +113,9 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
   }, [boundary]);
   const { tool: activeTool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool(selection, canEditBool, boundaryWrapper);
   const setToolTyped = React.useCallback((t: ToolId) => setTool(t), [setTool]);
+
+  // Pen options (session-only)
+  const penOptions = usePenOptions();
 
   // ---- Gesture hooks ----
   const gesture = useTransformGesture({
@@ -371,6 +378,18 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
           />,
         );
       }
+
+      // Strokes
+      if (obj.type === 'stroke' && obj.id) {
+        elements.push(
+          <StrokeObject
+            key={obj.id}
+            stroke={obj as any}
+            selected={!!selection.ids.has(obj.id)}
+            camera={hook.camera}
+          />,
+        );
+      }
     }
 
     return elements;
@@ -458,6 +477,31 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
           />
         </div>
       )}
+
+      {/* Pen tool overlay */}
+      {activeTool === 'pen' && (
+        <PenTool
+          camera={hook.camera}
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          doc={doc!}
+          identityId='local'
+          onCommit={() => {
+            boundary();
+          }}
+          undoBoundary={boundary}
+        />
+      )}
+
+      {/* Pen toolbar (visible when Pen is active) */}
+      {activeTool === 'pen' && canEditBool ? (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
+        />
+      ) : null}
 
       {/* Sticky note toolbar (appears near selected sticky — single note only) */}
       {selection.ids.size === 1 && !selection.editingId && (() => {

@@ -170,8 +170,8 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
       if (e.pointerType === 'touch') return;
       if (e.button !== 0 && e.pointerType !== 'pen') return;
       
-      // In text tool mode, don't start panning — let click pass through to handle text creation
-      if (activeTool === 'text') return;
+      // In text tool mode or pen tool, don't start panning
+      if (activeTool === 'text' || activeTool === 'pen') return;
       if (isStickyTarget(e.target)) return;
 
       const offset = getContainerOffset();

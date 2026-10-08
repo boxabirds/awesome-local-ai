@@ -17,6 +17,7 @@ import type { Rect } from './geometry';
 import { detachConnectorsTo } from './objects/connector';
 import type { Endpoint, ConnectorSnap } from './objects/connector';
 import type { ShapeKind } from './objects/shape';
+import type { StrokeSnap as _StrokeSnap } from './objects/stroke';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('localOrigin');
 
@@ -263,6 +264,15 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         connectorSnap.to = value.get('to') as Endpoint;
         connectorSnap.createdBy = value.get('createdBy') as string;
         connectorSnap.createdAt = value.get('createdAt') as number;
+        break;
+      }
+      case 'stroke': {
+        const strokeSnap = snap as any;
+        strokeSnap.points = value.get('points') as readonly number[];
+        strokeSnap.baseWidth = value.get('baseWidth') as number;
+        strokeSnap.baseHeight = value.get('baseHeight') as number;
+        strokeSnap.color = value.get('color') as string;
+        strokeSnap.thickness = value.get('thickness') as string;
         break;
       }
     }

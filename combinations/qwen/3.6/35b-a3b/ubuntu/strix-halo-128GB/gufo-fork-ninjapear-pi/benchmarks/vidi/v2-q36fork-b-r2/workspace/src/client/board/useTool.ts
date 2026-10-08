@@ -51,9 +51,9 @@ export function useActiveTool(
         return;
       }
 
-      // Escape while in shape or connector → select, create nothing
+      // Escape while in shape, connector or pen → select, create nothing
       if (e.key === 'Escape') {
-        if (tool === 'shape' || tool === 'connector') {
+        if (tool === 'shape' || tool === 'connector' || tool === 'pen') {
           setToolInternal('select');
           e.preventDefault();
         }

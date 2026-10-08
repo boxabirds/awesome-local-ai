@@ -98,6 +98,15 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
         return;
       }
 
+      // P → Pen tool
+      if (e.key === 'p' && !e.ctrlKey && !e.metaKey && onToolChange) {
+        e.preventDefault();
+        if (canEdit) {
+          onToolChange('pen');
+        }
+        return;
+      }
+
       // Escape → Select tool + clear selection
       if (e.key === 'Escape') {
         if (onToolChange) {
