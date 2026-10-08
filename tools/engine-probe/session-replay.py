@@ -32,6 +32,7 @@ import json
 import statistics
 import sys
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -200,16 +201,25 @@ def main() -> int:
         print(f"nothing is listening on port {a.port}", file=sys.stderr)
         return 1
     out = open(a.out, "a")
-    sent, deviations = 0, []
+    sent, errors, deviations = 0, 0, []
     for story_index, path in enumerate(a.events, 1):
         with open(path, errors="replace") as f:
             turns = turns_from_events(f, a.with_reasoning)
         for number, turn in enumerate(turns, 1):
             t = time.time()
-            resp = post(a.base_url, {"model": a.model, "messages": turn["messages"], "tools": tools, "max_tokens": ANSWER_TOKENS, "temperature": 0})
+            sent += 1
+            try:
+                resp = post(a.base_url, {"model": a.model, "messages": turn["messages"], "tools": tools, "max_tokens": ANSWER_TOKENS, "temperature": 0})
+            except urllib.error.HTTPError as err:
+                # A server that answers a valid request with an error is a finding, not a reason to stop: record it and go on.
+                out.write(json.dumps({"kind": "error", "n": sent, "file": story_index, "turn": number, "status": err.code,
+                                      "body": err.read().decode(errors="replace")[:300], "expected_tokens": turn["expected_tokens"],
+                                      "seconds": round(time.time() - t, 2), "at": round(time.time(), 1), **mg.read_process(pid)}) + "\n")
+                out.flush()
+                errors += 1
+                continue
             secs = time.time() - t
             u = resp.get("usage", {})
-            sent += 1
             row = {"kind": "request", "n": sent, "file": story_index, "turn": number, "expected_tokens": turn["expected_tokens"],
                    "prompt_tokens": u.get("prompt_tokens"), "cached_tokens": (u.get("prompt_tokens_details") or {}).get("cached_tokens"),
                    "seconds": round(secs, 2), "at": round(time.time(), 1)}
@@ -223,6 +233,7 @@ def main() -> int:
                 break
         if a.limit and sent >= a.limit:
             break
+    print(f"{sent} requests, {errors} answered with an error")
     if deviations:
         print(f"{sent} requests; server's prompt tokens against the agent's model's: median {statistics.median(deviations):+.1%}, "
               f"5th to 95th percentile {sorted(deviations)[len(deviations) // 20]:+.1%} to {sorted(deviations)[-1 - len(deviations) // 20]:+.1%}")
