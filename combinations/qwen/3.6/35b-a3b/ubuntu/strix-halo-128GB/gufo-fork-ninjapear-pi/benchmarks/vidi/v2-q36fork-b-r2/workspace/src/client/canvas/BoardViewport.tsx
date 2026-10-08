@@ -33,6 +33,9 @@ interface BoardViewportProps {
   // Gesture hooks (story 7)
   onObjectPointerDown?: (e: PointerEvent, id: string) => void;
   onHandlePointerDown?: (e: PointerEvent, handle: Handle) => void;
+  // Story 8: undo controller callbacks
+  undo?: () => void;
+  redo?: () => void;
 }
 
 /**
@@ -111,14 +114,16 @@ function OriginMarker() {
 }
 
 export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
-  const { 
-    camera, 
-    useCameraHook, 
-    children, 
-    snapshosts, 
-    selectedIds, 
-    onObjectPointerDown, 
+  const {
+    camera,
+    useCameraHook,
+    children,
+    snapshosts,
+    selectedIds,
+    onObjectPointerDown,
     onHandlePointerDown,
+    undo,
+    redo,
   } = props;
   
   const [isPanning, setIsPanning] = React.useState(false);
@@ -340,6 +345,8 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
             onStartEdit={props.onStartEdit}
             onEndEdit={props.onEndEdit || (() => {})}
             onMove={props.onMove}
+            undo={props.undo}
+            redo={props.redo}
             onBringToFront={props.onBringToFront}
             onObjectPointerDown={onObjectPointerDown}
           />

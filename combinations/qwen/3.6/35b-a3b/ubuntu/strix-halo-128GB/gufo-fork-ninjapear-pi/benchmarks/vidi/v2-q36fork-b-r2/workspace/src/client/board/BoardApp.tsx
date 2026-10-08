@@ -16,6 +16,9 @@ import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { useVidi6TestHook } from '../testHooks';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
+import { createUndo } from './undo';
+import { useUndo } from './useUndo';
+import type { UndoController } from './undo';
 
 export interface BoardAppProps {
   boardId: string;
@@ -51,6 +54,40 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
   const hook = useCamera(viewportSize);
   const selection = useSelection(snapshots, doc);
 
+  // ---- Undo controller (story 8) ----
+  const controllerRef = React.useRef<UndoController | null>(null);
+
+  // Create/destroy controller when board changes
+  React.useEffect(() => {
+    // Destroy previous controller
+    controllerRef.current?.destroy();
+    controllerRef.current = null;
+
+    // Only create when we have a real doc
+    if (doc && connectionState === 'connected') {
+      controllerRef.current = createUndo(doc);
+    }
+
+    return () => {
+      controllerRef.current?.destroy();
+      controllerRef.current = null;
+    };
+  }, [props.boardId]); // destroy on board change
+
+  // Clean up controller when unmounting (session only)
+  React.useEffect(() => {
+    return () => {
+      controllerRef.current?.destroy();
+      controllerRef.current = null;
+    };
+  }, []);
+
+  const canEditBool = !!canEdit;
+  const undoProps = useUndo(controllerRef.current, canEditBool);
+  const boundary = React.useCallback(() => {
+    controllerRef.current?.boundary();
+  }, []);
+
   // Hook into camera state for e2e test assertions
   useVidi6TestHook(hook.setRawCamera);
 
@@ -61,8 +98,8 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
     selection,
     snapshot: snapshots,
     canEdit: !!canEdit,
-    onGestureStart: undefined,
-    onGestureEnd: undefined,
+    onGestureStart: boundary,
+    onGestureEnd: boundary,
   });
 
   // Keyboard handler
@@ -72,6 +109,10 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
     snapshot: snapshots,
     canEdit: !!canEdit,
     editingId: selection.editingId,
+    undo: undoProps.undo,
+    redo: undoProps.redo,
+    canUndo: undoProps.canUndo,
+    canRedo: undoProps.canRedo,
   });
 
   // ------------------------------------------------------------------
@@ -172,10 +213,13 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
       />
 
       {/* Toolbar (top-left) */}
-      <Toolbar onCreateSticky={() => handleCreateStickyAtWorld(screenToWorld(hook.camera, {
-        x: viewportSize.width / 2,
-        y: viewportSize.height / 2,
-      }))} />
+      <Toolbar
+        onCreateSticky={() => handleCreateStickyAtWorld(screenToWorld(hook.camera, {
+          x: viewportSize.width / 2,
+          y: viewportSize.height / 2,
+        }))}
+        undoProps={undoProps}
+      />
 
       {/* Main canvas */}
       <BoardViewport
@@ -193,6 +237,8 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
         onDelete={undefined}
         onObjectPointerDown={gesture.onObjectPointerDown}
         onHandlePointerDown={gesture.onHandlePointerDown}
+        undo={undoProps.undo}
+        redo={undoProps.redo}
       />
 
       {/* Note toolbar (appears near selected sticky — single note only) */}

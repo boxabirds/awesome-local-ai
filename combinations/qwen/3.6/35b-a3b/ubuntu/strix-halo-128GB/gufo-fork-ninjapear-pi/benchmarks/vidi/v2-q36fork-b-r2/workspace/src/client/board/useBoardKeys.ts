@@ -18,18 +18,46 @@ interface UseBoardKeysOptions {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   editingId: string | null;
+  undo?: () => void;
+  redo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 export function useBoardKeys(opts: UseBoardKeysOptions): void {
-  const { doc, selection, snapshot, canEdit, editingId } = opts;
+  const { doc, selection, snapshot, canEdit, editingId, undo, redo, canUndo, canRedo } = opts;
 
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       // Ignore if focus is in an input/textarea or editing text
       const tag = (e.target as HTMLElement)?.tagName;
       const contentEditable = (e.target as HTMLElement)?.getAttribute('contenteditable');
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || contentEditable === 'true') return;
+      
+      // If a sticky is being edited, the editor handles Ctrl+Z/Z themselves — ignore here.
       if (editingId) return;
+      // Also ignore if focus is inside any input-like element (not only during editingId)
+      // This covers share-link inputs etc.
+      if ((tag === 'INPUT' || tag === 'TEXTAREA' || contentEditable === 'true') && !((e.ctrlKey || e.metaKey))) {
+        return;
+      }
+
+      // Undo / Redo via keyboard shortcuts — handled only on board (non-input) focus
+      if ((e.ctrlKey || e.metaKey)) {
+        const isUndo = e.key === 'z' && !e.shiftKey;
+        const isRedoShiftZ = e.key === 'Z' || (e.key === 'z' && e.shiftKey);
+        const isRedoY = e.key === 'y';
+        
+        if (isUndo && undo && canUndo) {
+          e.preventDefault();
+          undo();
+          return;
+        }
+        if ((isRedoShiftZ || isRedoY) && redo && canRedo) {
+          e.preventDefault();
+          redo();
+          return;
+        }
+      }
 
       // Ctrl/Cmd + A: select all
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
@@ -91,5 +119,5 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selection, snapshot, canEdit, editingId]);
+  }, [doc, selection, snapshot, canEdit, editingId, undo, redo, canUndo, canRedo]);
 }

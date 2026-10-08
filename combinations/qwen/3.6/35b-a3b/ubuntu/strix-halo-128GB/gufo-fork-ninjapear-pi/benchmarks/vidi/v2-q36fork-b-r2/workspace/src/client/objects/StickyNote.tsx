@@ -47,6 +47,9 @@ export interface StickyNoteProps {
   onMove?: (id: string, x: number, y: number) => boolean;
   onBringToFront?: (id: string) => boolean;
   onPointerDown?: (e: PointerEvent, id: string) => void;
+  // Story 8: undo controller callbacks
+  undo?: () => void;
+  redo?: () => void;
 }
 
 /** @deprecated Use `obj` prop instead of `note` — this component now uses generic ObjectSnapshot */
@@ -64,6 +67,9 @@ interface LegacyStickyNoteProps {
   onMove?: (id: string, x: number, y: number) => boolean;
   onBringToFront?: (id: string) => boolean;
   onObjectPointerDown?: (e: PointerEvent, id: string) => void;
+  // Story 8: undo controller callbacks
+  undo?: () => void;
+  redo?: () => void;
 }
 
 export function StickyNote(props: LegacyStickyNoteProps | StickyNoteProps): React.JSX.Element {
@@ -82,6 +88,8 @@ export function StickyNote(props: LegacyStickyNoteProps | StickyNoteProps): Reac
     onStartEdit,
     onEndEdit,
     onBringToFront,
+    undo,
+    redo,
   } = legacy ? props : props;
 
   const x = note.x;
@@ -178,15 +186,15 @@ export function StickyNote(props: LegacyStickyNoteProps | StickyNoteProps): Reac
             wordWrap: 'break-word',
           }}
         >
-          {typeof note.doc !== 'undefined' && (
-            <StickyTextEditor
-              value={text}
-              fontPx={fontSize}
-              overflow={overflowRef.current}
-              onChange={() => {}}
-              onEnd={onEndEdit}
-            />
-          )}
+          <StickyTextEditor
+            value={text}
+            fontPx={fontSize}
+            overflow={overflowRef.current}
+            onChange={() => {}}
+            onEnd={onEndEdit}
+            undo={undo}
+            redo={redo}
+          />
           <span style={{ fontSize: `${fontSize}px`, fontFamily: 'system-ui, sans-serif', color: '#333' }}>
             {text || '\u00A0'}
           </span>

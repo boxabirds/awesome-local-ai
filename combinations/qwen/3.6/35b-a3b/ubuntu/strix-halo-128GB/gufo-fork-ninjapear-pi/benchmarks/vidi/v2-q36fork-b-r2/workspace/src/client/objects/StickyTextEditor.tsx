@@ -7,10 +7,12 @@ interface StickyTextEditorProps {
   overflow: boolean;
   onChange(next: string): void;
   onEnd(next: 'selected' | 'unselected'): void;
+  undo?: () => void;
+  redo?: () => void;
 }
 
 export function StickyTextEditor(props: StickyTextEditorProps): React.JSX.Element {
-  const { value, fontPx, overflow, onChange, onEnd } = props;
+  const { value, fontPx, overflow, onChange, onEnd, undo, redo } = props;
 
   const ref = React.useRef<HTMLTextAreaElement>(null);
   const composingRef = React.useRef(false);
@@ -48,11 +50,29 @@ export function StickyTextEditor(props: StickyTextEditorProps): React.JSX.Elemen
       if (e.key === 'Escape') {
         e.preventDefault();
         onEnd('selected');
+        return;
+      }
+      // Undo / Redo shortcuts inside the textarea: intercept with preventDefault
+      // so native textarea undo doesn't diverge from Y.Text.
+      const ctrlOrMeta = e.ctrlKey || e.metaKey;
+      if (ctrlOrMeta && undo && redo) {
+        if ((e.key === 'z' && !e.shiftKey) || (e.key === 'Z')) {
+          e.preventDefault();
+          e.stopPropagation();
+          undo();
+          return;
+        }
+        if ((e.key === 'z' && e.shiftKey) || (e.key === 'y')) {
+          e.preventDefault();
+          e.stopPropagation();
+          redo();
+          return;
+        }
       }
       // Enter inserts newline (default textarea behavior)
       // Backspace/Delete edit characters (default textarea behavior)
     },
-    [onEnd],
+    [onEnd, undo, redo],
   );
 
   return (

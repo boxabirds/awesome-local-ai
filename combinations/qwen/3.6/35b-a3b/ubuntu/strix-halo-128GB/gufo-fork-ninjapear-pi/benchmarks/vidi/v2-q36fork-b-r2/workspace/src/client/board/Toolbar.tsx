@@ -1,11 +1,14 @@
 import * as React from 'react';
+import type { useUndo } from './useUndo';
+import { UndoButtons } from './UndoButtons';
 
 interface ToolbarProps {
   onCreateSticky(): void;
+  undoProps?: ReturnType<typeof useUndo>;
 }
 
 export function Toolbar(props: ToolbarProps): React.JSX.Element {
-  const { onCreateSticky } = props;
+  const { onCreateSticky, undoProps } = props;
 
   return (
     <div
@@ -42,6 +45,7 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
       >
         📝
       </button>
+      {undoProps && <UndoButtons {...undoProps} />}
     </div>
   );
 }

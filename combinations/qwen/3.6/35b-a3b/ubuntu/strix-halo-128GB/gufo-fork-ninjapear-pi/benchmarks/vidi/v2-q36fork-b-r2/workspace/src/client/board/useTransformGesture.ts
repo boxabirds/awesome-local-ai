@@ -177,8 +177,18 @@ export function useTransformGesture(opts: UseTransformGestureOptions): {
         }
       };
 
+      const onCancel = () => {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        // pointercancel: still close the capture window as one step
+        if (phase === 'moving') {
+          onEndRef.current?.();
+        }
+      };
+
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
+      document.addEventListener('pointercancel', onCancel);
     },
     [selection.ids, computeStartState],
   );
@@ -307,8 +317,18 @@ export function useTransformGesture(opts: UseTransformGestureOptions): {
         }
       };
 
+      const onCancel = () => {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        // pointercancel: still close the capture window as one step
+        if (phase === 'resizing') {
+          onEndRef.current?.();
+        }
+      };
+
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
+      document.addEventListener('pointercancel', onCancel);
     },
     [selection.ids, hasResizableType],
   );

@@ -4,6 +4,9 @@ import { BoardPage } from './pages/BoardPage';
 import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
+// Shared UndoController ref for the current board (destroyed on board change)
+let _undoController: ReturnType<typeof import('./board/undo').createUndo> | null = null;
+
 /** Root App — renders the appropriate page based on the current route. */
 export default function App(): React.JSX.Element {
   const [currentRoute, setCurrentRoute] = React.useState(() => {
