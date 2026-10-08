@@ -13,13 +13,13 @@
     "noEmit": true,
     "declaration": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "types": ["node", "vite/client"],
+    "types": ["node", "vite/client", "@cloudflare/workers-types", "vitest/globals"],
     "baseUrl": ".",
     "paths": {
       "@shared/*": ["src/shared/*"],
       "@client/*": ["src/client/*"]
     }
   },
-  "include": ["src", "tests/unit", "tests/component", "vite.config.ts", "playwright.config.ts"],
-  "exclude": ["node_modules", "dist", "tests/e2e"]
+  "include": ["src", "tests/unit", "tests/component", "tests/integration", "playwright.config.ts", "wrangler.jsonc"],
+  "exclude": ["node_modules", "dist", "tests/e2e", "**/*.config.*"]
 }

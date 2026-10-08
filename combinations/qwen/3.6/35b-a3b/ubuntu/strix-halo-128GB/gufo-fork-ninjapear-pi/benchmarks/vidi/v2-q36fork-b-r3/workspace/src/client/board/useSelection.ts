@@ -1,8 +1,26 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import * as Y from 'yjs';
+import { getDocObjects } from '@shared/board-model';
 
-export function useSelection() {
+export function useSelection(doc: Y.Doc) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Clear selection/editing when the note is deleted
+  useEffect(() => {
+    const objects = getDocObjects(doc);
+    const handler = () => {
+      if (selectedId !== null && !objects.has(selectedId)) {
+        setSelectedId(null);
+        setEditingId(null);
+      }
+      if (editingId !== null && !objects.has(editingId)) {
+        setEditingId(null);
+      }
+    };
+    objects.observeDeep(handler);
+    return () => objects.unobserveDeep(handler);
+  }, [doc, selectedId, editingId]);
 
   const select = useCallback((id: string | null) => {
     setSelectedId(id);

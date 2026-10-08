@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot as snapshotFn } from '@shared/board-model';
 import type { StickySnapshot } from '@shared/board-model';
+import { connectBoard } from '../sync/connectBoard';
 
 /**
- * Creates a Y.Doc, initialises it, and exposes a memoised snapshot via useSyncExternalStore.
+ * Creates a Y.Doc initialised for a board, connects via WebSocket,
+ * and exposes a memoised snapshot via state.
  */
-export function useBoardDoc(): {
+export function useBoardDoc(boardId: string): {
   doc: Y.Doc;
   snapshot: readonly StickySnapshot[];
 } {
@@ -28,6 +30,12 @@ export function useBoardDoc(): {
     });
     return () => unsubDeep();
   }, [doc]);
+
+  // Connect the WebSocket provider
+  useEffect(() => {
+    const { destroy } = connectBoard(doc, boardId, () => {});
+    return destroy;
+  }, [doc, boardId]);
 
   return {
     doc,

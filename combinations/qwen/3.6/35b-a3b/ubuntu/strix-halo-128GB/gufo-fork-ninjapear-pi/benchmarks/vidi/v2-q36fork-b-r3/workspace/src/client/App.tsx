@@ -1,4 +1,5 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { BrowserRouter, useNavigate, useParams } from 'react-router-dom';
 import * as Y from 'yjs';
 import { BoardViewport } from './canvas/BoardViewport';
 import { ZoomControls } from './canvas/ZoomControls';
@@ -13,6 +14,9 @@ import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject, setStickyColor } from '@shared/board-model';
 import { screenToWorld } from './canvas/camera';
 import type { StickySnapshot } from '@shared/board-model';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { getState as getGlobalState } from './sync/connectBoard';
+import { newBoardId } from '@shared/board-id';
 
 // Expose camera on window for E2E tests
 declare global {
@@ -22,13 +26,33 @@ declare global {
   }
 }
 
+/** Root App — routes / to new board, /b/:boardId to existing board */
+export function AppRouter() {
+  return (
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  );
+}
+
 export function App() {
-  const [viewportSize] = React.useState({ width: 1280, height: 800 });
+  const navigate = useNavigate();
+  const params = useParams();
+  const boardId = params.boardId || newBoardId();
+
+  // Redirect / (no boardId) to a new board
+  useEffect(() => {
+    if (!params.boardId && boardId) {
+      navigate(`/b/${boardId}`, { replace: true });
+    }
+  }, [params.boardId, navigate]);
+
+  const [viewportSize] = useState({ width: 1280, height: 800 });
   const cameraState = useCamera(viewportSize);
   const { camera, hasNavigated, panMove, wheel, zoomStep, reset: camReset } = cameraState;
 
-  const board = useBoardDoc();
-  const selection = useSelection();
+  const board = useBoardDoc(boardId);
+  const selection = useSelection(board.doc);
 
   // Expose camera & notes for e2e inspection
   if (typeof window !== 'undefined' && import.meta.env.DEV) {
@@ -57,8 +81,9 @@ export function App() {
     handleCreateSticky();
   }, [handleCreateSticky]);
 
+
   // ── Keyboard handler (window level) ─────────────────────────────────
-  React.useEffect(() => {
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -194,6 +219,7 @@ export function App() {
         onZoomOut={() => zoomStep('out')}
         onReset={camReset}
       />
+      <ConnectionStatus state={getGlobalState()} />
       <NavigationHint visible={!hasNavigated} />
     </>
   );

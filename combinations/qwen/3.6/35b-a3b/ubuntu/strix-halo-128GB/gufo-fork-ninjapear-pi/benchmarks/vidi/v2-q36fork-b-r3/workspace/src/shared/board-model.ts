@@ -25,7 +25,7 @@ export interface StickySnapshot {
 
 // ─── Internal helpers ─────────────────────────────────────────────────────
 
-function getDocObjects(doc: Y.Doc): any {
+export function getDocObjects(doc: Y.Doc): any {
   return doc.getMap('objects');
 }
 
