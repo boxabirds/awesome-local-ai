@@ -679,6 +679,23 @@ test.describe("compare with other runs", () => {
     expect(page.url()).toContain("compare=none");
   });
 
+  // Playwright's click scrolls the target into view first, which would hide a jump; the click is dispatched instead.
+  test("removing a run keeps the page where it was scrolled", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    await add(page, "v2-r4");
+    await add(page, "v2-r6");
+    const top = await compare(page).evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
+    await page.evaluate((y) => window.scrollTo(0, y - 40), top);
+    const before = await page.evaluate(() => window.scrollY);
+    expect(before).toBeGreaterThan(100);                           // it is scrolled down, so a reset to the top is visible
+    await compare(page).getByRole("button", { name: /^Remove v2-r4/ }).dispatchEvent("click");
+    await expect(chips(page)).toHaveCount(1);
+    expect(await page.evaluate(() => window.scrollY)).toBe(before);
+    await compare(page).getByRole("button", { name: /^Remove v2-r6/ }).dispatchEvent("click");   // the last one: the table goes
+    await expect(chips(page)).toHaveCount(0);
+    expect(await page.evaluate(() => window.scrollY)).toBe(before);
+  });
+
   test("an address naming a run that cannot be compared says so and leaves it out", async ({ page }) => {
     await page.goto(`${runPath(SWIFT, "v2-r5")}?compare=v2-r4,v2-r99`);
     await expect(compare(page).locator("[data-unknown]")).toHaveAttribute("data-unknown", "v2-r99");

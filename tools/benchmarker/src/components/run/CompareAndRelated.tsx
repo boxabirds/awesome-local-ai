@@ -1,6 +1,6 @@
 // This run beside another of the same combination, story by story; and the combination's other runs.
 // Modest on purpose: the combination page has the full runs x stories matrix.
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { Row } from "../../../shared/types.ts";
 import { COMPARE_MEASURES, compareMany, PENDING, scoreOfRecord, signedPercent, statusView, type MeasureKey } from "../../../shared/runView.ts";
 import { compareToken, parseCompareList, resolveCompareList, runKey, serializeCompareList } from "../../../shared/compareList.ts";
@@ -36,6 +36,12 @@ export function CompareRuns({ run, candidates, params }: { run: Row; candidates:
   };
   const onRemember = (on: boolean) => { setRemember(on); writeRemember(on); if (on) writeRemembered(chosen.map(runKey)); };
   const rows = compareMany(run, chosen);
+  // Clearing the last run takes the table away, and a page that gets that much shorter jumps to a new scroll position.
+  // So the height the comparison last had is kept while nothing is chosen (a run page is its own component: a new
+  // run starts with none).
+  const body = useRef<HTMLDivElement>(null);
+  const heldHeight = useRef(0);
+  useLayoutEffect(() => { if (chosen.length && rows.length && body.current) heldHeight.current = body.current.offsetHeight; });
 
   return (
     <Section term="compareRuns" id="compare">
@@ -43,6 +49,7 @@ export function CompareRuns({ run, candidates, params }: { run: Row; candidates:
         <ComparePicker candidates={candidates} chosen={chosen} remember={remember} onRemember={onRemember}
           onAdd={(r) => setChosen([...chosen, r])} onRemove={(r) => setChosen(chosen.filter((c) => runKey(c) !== runKey(r)))} />
         {unknown.length ? <p className="small" data-unknown={unknown.join(",")}>The address names {unknown.join(", ")}, which {unknown.length === 1 ? "isn't" : "aren't"} a run in this pack and suite with a story recorded; {unknown.length === 1 ? "it is" : "they are"} left out.</p> : null}
+        <div ref={body} className="compare-body" style={chosen.length === 0 ? { minHeight: heldHeight.current } : undefined}>
         {chosen.length === 0 ? <p className="rp-empty">Choose a run to compare with.</p>
           : rows.length === 0 ? <p className="rp-empty">{chosen.length === 1 ? "Neither run has" : "None of these runs has"} recorded a story yet.</p> : <>
           <p className="small compare-key">
@@ -92,6 +99,7 @@ export function CompareRuns({ run, candidates, params }: { run: Row; candidates:
             </table>
           </div>
         </>}
+        </div>
       </>}
     </Section>
   );
