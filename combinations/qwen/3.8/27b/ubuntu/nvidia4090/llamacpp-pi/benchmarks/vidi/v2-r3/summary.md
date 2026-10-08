@@ -9,18 +9,22 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | Story | New work | Regressions | Repairs | Cumulative |
 |---|---|---|---|---|
 | 1 | 0/6 | 0 | 0 | 0/6 |
+| 2 | 0/10 | 0 | 0 | 0/20 |
 
-**New work** 0/6, **regressions** 0, **repairs** 0, **cumulative** 0/6.
+**New work** 0/16, **regressions** 0, **repairs** 0, **cumulative** 0/20.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | PARTIAL (red) | 16.5 | None | None | None | — | — | red | 0/6 |  | 0 / 1 | 0 | — | throttled 0%, server peak 17 GB |
+| 2 | Capture ideas on sticky notes and rearrange them | PARTIAL (red), on partial 1 | 18.3 | None | None | None | — | — | red | 0/20 |  | 0 / 1 | 0 | — | throttled 0%, server peak 17 GB |
 
-**Totals:** 1 stories, 17 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/1, final acceptance 0/6, stalled 0, partial 1, 0 lines in src+tests.
+**Totals:** 2 stories, 35 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/2, final acceptance 0/20, stalled 0, partial 2, 0 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 1 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7] (implementation: [2, 3, 4, 5]), held-out 0/6 (floor 0.0).
+- **Story 2 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8] (implementation: [2, 4, 5, 6]), held-out 0/10 (floor 0.0).
+- Story 2, built on partial 1: held-out tests on the partial base 0/20; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -29,6 +33,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | Story | Commits | + / − lines | Most-changed source files (lines; tests and lockfiles left out) |
 |---|---|---|---|
 | 1 | — | 0 / 0 | — |
+| 2 | — | 0 / 0 | — |
 
 ### Earlier stories broken or fixed
 
