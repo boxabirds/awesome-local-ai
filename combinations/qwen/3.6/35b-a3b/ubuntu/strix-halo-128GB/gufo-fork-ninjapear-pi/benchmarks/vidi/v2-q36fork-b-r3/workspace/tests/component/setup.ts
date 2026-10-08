@@ -1,4 +1,6 @@
 import '@testing-library/jest-dom/vitest';
+// Ensure sticky object type is registered before any component tests run
+import '../../src/client/objects/index';
 
 // Mock ResizeObserver for jsdom
 class MockResizeObserver {

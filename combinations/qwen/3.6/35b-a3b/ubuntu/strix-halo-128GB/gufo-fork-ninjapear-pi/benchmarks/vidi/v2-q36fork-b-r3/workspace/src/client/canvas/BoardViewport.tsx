@@ -29,6 +29,10 @@ export interface BoardViewportProps {
   onCreateSticky?(worldPoint: { x: number; y: number }): string | void;
   /** Called when clicking empty board space (clear selection) */
   onClearSelection?(): void;
+  /** Called on pointerdown on empty space before marquee start */
+  onEmptyPointerDown?(e: PointerEvent): void;
+  /** Called on pointerup on empty space after potential marquee end */
+  onEmptyPointerUp?(): void;
 }
 
 export function BoardViewport(props: BoardViewportProps) {
@@ -42,6 +46,8 @@ export function BoardViewport(props: BoardViewportProps) {
     style = {},
     onCreateSticky,
     onClearSelection,
+    onEmptyPointerDown,
+    onEmptyPointerUp,
   } = props;
   const ref = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -73,6 +79,11 @@ export function BoardViewport(props: BoardViewportProps) {
       if ((e.target as HTMLElement).closest('[class*="toolbar"]')) {
         return;
       }
+      if ((e.target as HTMLElement).closest('[data-selection-bounds]') ||
+          (e.target as HTMLElement).closest('[data-marquee]') ||
+          (e.target as HTMLElement).closest('[data-handle]')) {
+        return;
+      }
       onClearSelection?.();
     },
     [onClearSelection],
@@ -81,11 +92,28 @@ export function BoardViewport(props: BoardViewportProps) {
   // ── Pointer drag ────────────────────────────────────────────────────
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      if ((e.target as HTMLElement).closest('[data-sticky-id]') ||
+          (e.target as HTMLElement).closest('[data-selection-bounds]') ||
+          (e.target as HTMLElement).closest('[data-marquee]') ||
+          (e.target as HTMLElement).closest('[data-handle]')) {
+        return; // handled by child elements
+      }
+
+      if (e.shiftKey) {
+        // Start marquee
+        onEmptyPointerDown?.(e.nativeEvent);
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch { /* no-op */ }
+        return;
+      }
+
+      // Plain pan
       e.currentTarget.setPointerCapture(e.pointerId);
       setIsPanning(true);
       lastPosRef.current = { x: e.clientX, y: e.clientY };
     },
-    [],
+    [onEmptyPointerDown],
   );
 
   const handlePointerMove = useCallback(
@@ -100,16 +128,22 @@ export function BoardViewport(props: BoardViewportProps) {
   );
 
   const handlePointerUp = useCallback(() => {
-    setIsPanning(false);
-    lastPosRef.current = null;
-    onEndPan();
-  }, [onEndPan]);
+    if (isPanning) {
+      setIsPanning(false);
+      lastPosRef.current = null;
+      onEndPan();
+    } else {
+      // Marquee end
+      onEmptyPointerUp?.();
+    }
+  }, [isPanning, onEndPan, onEmptyPointerUp]);
 
   const handleLostPointerCapture = useCallback(() => {
     setIsPanning(false);
     lastPosRef.current = null;
     onEndPan();
-  }, [onEndPan]);
+    onEmptyPointerUp?.();
+  }, [onEndPan, onEmptyPointerUp]);
 
   // ── Wheel handler ───────────────────────────────────────────────────
   useEffect(() => {

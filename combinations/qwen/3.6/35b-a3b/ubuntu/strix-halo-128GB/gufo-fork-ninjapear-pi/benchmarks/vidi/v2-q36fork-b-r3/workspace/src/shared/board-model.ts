@@ -4,8 +4,11 @@ import {
   STICKY_COLORS,
   DEFAULT_STICKY_COLOR,
   STICKY_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
 } from './config';
 import type { StickyColor } from './config';
+import type { Point } from '../client/canvas/camera';
+import type { Rect } from './geometry';
 
 /** Unique symbol for local transactions (used by undo / network filtering). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('local-origin');
@@ -21,6 +24,8 @@ export interface StickySnapshot {
   text: string;
   z: number;
   createdAt: number;
+  width?: number;
+  height?: number;
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────
@@ -206,6 +211,8 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
       text: textStr,
       z: Number(dm.get('z') ?? 0),
       createdAt: Number(dm.get('createdAt') ?? 0),
+      width: dm.has('width') ? Number(dm.get('width')) : undefined,
+      height: dm.has('height') ? Number(dm.get('height')) : undefined,
     });
   }
 
@@ -213,4 +220,170 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
   result.sort((a, b) => a.z - b.z || a.id.localeCompare(b.id));
 
   return Object.freeze(result);
+}
+
+// ─── Story 7: Selection geometry & group operations ───────────────
+import { rectContains } from './geometry';
+
+/** Return a Rect for an object snapshot. Uses width/height if set;
+ *  otherwise falls back to STICKY_SIZE_WORLD for both dimensions.
+ */
+export function objectBounds(obj: StickySnapshot): Rect {
+  const w = obj.width ?? STICKY_SIZE_WORLD;
+  const h = obj.height ?? STICKY_SIZE_WORLD;
+  return { x: obj.x, y: obj.y, width: w, height: h };
+}
+
+/** Return ids of objects whose entire bounds lie inside `rect`. */
+export function objectsInRect(
+  snapshot: readonly StickySnapshot[],
+  rect: Rect,
+): string[] {
+  const ids: string[] = [];
+  for (const obj of snapshot) {
+    if (rectContains(rect, objectBounds(obj))) {
+      ids.push(obj.id);
+    }
+  }
+  return ids;
+}
+
+/** Return ids of all known-registered objects in the snapshot. */
+export function allObjectIds(snapshot: readonly StickySnapshot[]): string[] {
+  return snapshot.map((o) => o.id);
+}
+
+/** Move multiple objects atomically. Returns count changed. */
+export function moveObjects(
+  doc: Y.Doc,
+  positions: ReadonlyMap<string, Point>,
+): number {
+  if (positions.size === 0) return 0;
+
+  const objects = getDocObjects(doc);
+  let count = 0;
+
+  try {
+    doc.transact(() => {
+      for (const [id, pos] of positions) {
+        if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) continue;
+        const dm = getDataMap(objects, id);
+        if (!dm) continue;
+        dm.set('x', pos.x);
+        dm.set('y', pos.y);
+        count++;
+      }
+    }, LOCAL_ORIGIN);
+  } catch {
+    return 0;
+  }
+
+  return count;
+}
+
+/** Resize multiple objects atomically (writes width/height). Returns count changed. */
+export function resizeObjects(
+  doc: Y.Doc,
+  rects: ReadonlyMap<string, Rect>,
+): number {
+  if (rects.size === 0) return 0;
+
+  const objects = getDocObjects(doc);
+  let count = 0;
+
+  try {
+    doc.transact(() => {
+      for (const [id, r] of rects) {
+        if (
+          !Number.isFinite(r.x) ||
+          !Number.isFinite(r.y) ||
+          !Number.isFinite(r.width) ||
+          !Number.isFinite(r.height)
+        ) {
+          continue;
+        }
+        const dm = getDataMap(objects, id);
+        if (!dm) continue;
+        dm.set('x', r.x);
+        dm.set('y', r.y);
+        dm.set('width', r.width);
+        dm.set('height', r.height);
+        count++;
+      }
+    }, LOCAL_ORIGIN);
+  } catch {
+    return 0;
+  }
+
+  return count;
+}
+
+/** Delete multiple objects atomically. Returns count deleted. */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+
+  const objects = getDocObjects(doc);
+  let count = 0;
+
+  try {
+    doc.transact(() => {
+      for (const id of ids) {
+        if (objects.has(id)) {
+          objects.delete(id);
+          count++;
+        }
+      }
+    }, LOCAL_ORIGIN);
+  } catch {
+    return 0;
+  }
+
+  return count;
+}
+
+/** Bring selected objects to front above unselected; preserve relative z order.
+ *  Returns count changed.
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+
+  const objects = getDocObjects(doc);
+  const selectedSet = new Set(ids);
+
+  // Find highest Z among unselected objects
+  let highestNonSelectedZ = 0;
+  for (const [oid, val] of objects) {
+    if (!(val instanceof Y.Map)) continue;
+    const dm = val as any;
+    const z = Number(dm.get('z') ?? 0);
+    if (!selectedSet.has(oid) && z > highestNonSelectedZ) {
+      highestNonSelectedZ = z;
+    }
+  }
+
+  // Collect selected objects with their current z, then sort to preserve relative order
+  const selectedWithZ: Array<{ id: string; z: number }> = [];
+  for (const [oid, val] of objects) {
+    if (!selectedSet.has(oid) || !(val instanceof Y.Map)) continue;
+    const dm = val as any;
+    const z = Number(dm.get('z') ?? 0);
+    selectedWithZ.push({ id: oid, z });
+  }
+  selectedWithZ.sort((a, b) => a.z - b.z);
+
+  const orderedIds = selectedWithZ.map((o) => o.id);
+
+  try {
+    doc.transact(() => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        const dm = getDataMap(objects, orderedIds[i]);
+        if (!dm) continue;
+        dm.set('z', highestNonSelectedZ + 1 + i);
+      }
+    }, LOCAL_ORIGIN);
+  } catch {
+    return 0;
+  }
+
+  return orderedIds.length;
 }

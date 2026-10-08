@@ -40,6 +40,13 @@ export const CREATE_BUDGET_MS = 2000;
 export const LINK_COPIED_MS = 2000;
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
 
+// Story 7 — Select, move, resize and delete several objects
+export const HANDLE_SIZE_PX = 8;
+export const STICKY_MIN_SIZE_WORLD = 50;
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+export const NUDGE_STEP_WORLD = 1;
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 // Story 4 — Board persistence
 export const COMPACTION_UPDATE_COUNT = 500;
 export const COMPACTION_BYTES = 4 * 1024 * 1024;

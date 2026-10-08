@@ -8,7 +8,6 @@ import { SharePanel } from '../share/SharePanel';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { Toolbar } from '../board/Toolbar';
-import { NoteToolbar } from '../objects/NoteToolbar';
 import { StickyNote } from '../objects/StickyNote';
 import { ZoomControls } from '../canvas/ZoomControls';
 import { NavigationHint } from '../canvas/NavigationHint';
@@ -17,8 +16,15 @@ import { getState } from '../sync/connectBoard';
 import { useCamera } from '../canvas/useCamera';
 import { screenToWorld, zoomPercent, canZoomIn, canZoomOut } from '../canvas/camera';
 import { useSelection } from '../board/useSelection';
-import { createSticky, deleteObject, setStickyColor } from '@shared/board-model';
+import { SelectionBar } from '../board/SelectionBar';
+import { SelectionOverlay } from '../board/SelectionOverlay';
+import { useTransformGesture } from '../board/useTransformGesture';
+import { MarqueeRect } from '../board/Marquee';
+import { useMarquee } from '../board/Marquee';
+import { useBoardKeys } from '../board/useBoardKeys';
+import { createSticky, setStickyColor, deleteObjects } from '@shared/board-model';
 import type { StickySnapshot } from '@shared/board-model';
+import type { Handle } from '@shared/geometry';
 
 // Re-export camera and notes for e2e
 declare global {
@@ -125,20 +131,47 @@ export function BoardPage(props: { id: string }) {
     );
   }
 
-  // Ready — render the board with stories 1–4 UI + Share panel
+  // Ready — render the board with stories 1–7 UI + Share panel
   return <BoardContent boardId={pageState.boardId} />;
 }
 
-/** Board content — stories 1–4 UI wrapped with Share button */
+/** Board content — stories 1–7 UI wrapped with Share button */
 function BoardContent({ boardId }: { boardId: string }) {
   const viewportSize = useRef({ width: 1280, height: 800 }).current;
   const cameraState = useCamera(viewportSize);
   const { camera, hasNavigated, panMove, wheel, zoomStep, reset: camReset } = cameraState;
 
   const board = useBoardDoc(boardId);
-  const selection = useSelection(board.doc);
+  const selection = useSelection(board.doc, board.snapshot);
   const globalConnState = getState();
   const canEdit = globalConnState !== 'load_failed';
+
+  // Story 7: keyboard commands
+  useBoardKeys({ doc: board.doc, selection, snapshot: board.snapshot, canEdit });
+
+  // Story 7: transform gesture (move / resize)
+  const gesture = useTransformGesture({
+    doc: board.doc,
+    camera,
+    selection,
+    snapshot: board.snapshot,
+    canEdit,
+    onGestureStart: undefined, // story 8 undo boundary
+    onGestureEnd: undefined,   // story 8 undo boundary
+  });
+
+  // Story 7: marquee
+  const marquee = useMarquee({
+    camera,
+    snapshot: board.snapshot,
+    onSelect: (ids) => {
+      if (ids.length > 0) {
+        selection.setMany(ids, true); // additive
+      } else {
+        selection.clear();
+      }
+    },
+  });
 
   if (typeof window !== 'undefined' && import.meta.env.DEV) {
     window.__getCamera = () => camera;
@@ -155,7 +188,7 @@ function BoardContent({ boardId }: { boardId: string }) {
         });
       }
       const id = createSticky(board.doc, worldPoint);
-      selection.select(id);
+      selection.click(id);
       selection.startEdit(id);
       return id;
     },
@@ -166,54 +199,36 @@ function BoardContent({ boardId }: { boardId: string }) {
     handleCreateSticky();
   }, [handleCreateSticky]);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
-      if (e.key === 'Enter') {
-        if (selection.selectedId && !selection.editingId) {
-          e.preventDefault();
-          selection.startEdit(selection.selectedId);
-        }
-        return;
+  const handleSelect = useCallback(
+    (id: string, shiftKey: boolean) => {
+      if (shiftKey) {
+        selection.toggle(id);
+      } else {
+        selection.click(id);
       }
+    },
+    [selection],
+  );
 
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (!canEdit) return;
-        if (selection.selectedId && !selection.editingId) {
-          e.preventDefault();
-          const ok = deleteObject(board.doc, selection.selectedId!);
-          if (ok) selection.select(null);
-        }
-        return;
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+  const handleStartEdit = useCallback((id: string) => selection.startEdit(id), [selection]);
+  const handleEndEdit = useCallback((_next: 'selected' | 'unselected') => selection.endEdit(_next), [selection]);
+
+  const handleDeleteSelection = useCallback(() => {
+    const ids = [...selection.ids];
+    deleteObjects(board.doc, ids);
+    selection.clear();
   }, [board.doc, selection]);
 
-  const handleSelect = useCallback((id: string) => selection.select(id), [selection]);
-  const handleStartEdit = useCallback((id: string) => selection.startEdit(id), [selection]);
-  const handleEndEdit = useCallback((next: 'selected' | 'unselected') => selection.endEdit(next), [selection]);
-  const handleClearSelection = useCallback(() => selection.select(null), [selection]);
-
-  const selectedNote = board.snapshot.find((s) => s.id === selection.selectedId);
-  const needsToolbar = selection.selectedId !== null && !selection.editingId && selectedNote !== undefined;
-
-  let toolbarScreenStyle: React.CSSProperties | undefined;
-  if (needsToolbar && selectedNote) {
-    const screenPos = {
-      x: (selectedNote.x + camera.x) * camera.zoom,
-      y: (selectedNote.y + camera.y) * camera.zoom,
-    };
-    toolbarScreenStyle = {
-      position: 'absolute',
-      left: `${screenPos.x}px`,
-      top: `${Math.max(screenPos.y - 40, 0)}px`,
-      transform: 'translateX(-50%)',
-    };
-  }
+  // Track pointer move for drag/marquee in BoardViewport
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      // Marquee movement
+      if (marquee.rect !== null || marquee) {
+        // handled by pointer events on viewport
+      }
+    },
+    [marquee],
+  );
 
   const spacingPx = 24 * camera.zoom;
   const bgPosX = (-camera.x * camera.zoom) % spacingPx;
@@ -223,7 +238,7 @@ function BoardContent({ boardId }: { boardId: string }) {
     <>
       {/* Share button top-right */}
       <SharePanel boardId={boardId} />
-      
+
       <Toolbar onCreateSticky={handleToolbarCreate} disabled={!canEdit} />
       <BoardViewport
         camera={camera}
@@ -243,34 +258,65 @@ function BoardContent({ boardId }: { boardId: string }) {
           backgroundPosition: `${bgPosX}px ${bgPosY}px`,
         }}
         onCreateSticky={handleCreateSticky}
-        onClearSelection={handleClearSelection}
+        onClearSelection={() => selection.clear()}
+        onEmptyPointerDown={(e) => {
+          // Shift+drag → marquee
+          if (e.shiftKey) {
+            marquee.begin({ x: e.clientX, y: e.clientY });
+          }
+        }}
+        onEmptyPointerUp={() => {
+          marquee.end();
+        }}
       >
+        <MarqueeRect rect={marquee.rect ?? null} camera={camera} />
         {board.snapshot.map((note) => (
           <StickyNote
             key={note.id}
             note={note}
             doc={board.doc}
             zoom={camera.zoom}
-            selected={note.id === selection.selectedId}
+            selected={selection.ids.has(note.id)}
             editing={note.id === selection.editingId}
-            onSelect={handleSelect}
+            onSelect={(id: string, shiftKey: boolean) => handleSelect(id, shiftKey)}
             onStartEdit={handleStartEdit}
             onEndEdit={handleEndEdit}
+            onObjectPointerDown={(e: PointerEvent, id: string) => {
+              gesture.onObjectPointerDown(e, id);
+            }}
+            onHandlePointerDown={(e: PointerEvent, h: Handle) => {
+              gesture.onHandlePointerDown(e, h);
+            }}
           />
         ))}
-        {needsToolbar && selectedNote && (
-          <div style={toolbarScreenStyle}>
-            <NoteToolbar
-              color={selectedNote.color}
-              onColor={(color) => setStickyColor(board.doc, selectedNote.id, color)}
-              onDelete={() => {
-                deleteObject(board.doc, selectedNote.id);
-                selection.select(null);
-              }}
-            />
-          </div>
+        {selection.ids.size > 0 && (
+          <SelectionOverlay
+            ids={selection.ids}
+            snapshot={board.snapshot}
+            camera={camera}
+            onHandlePointerDown={(e, h) => gesture.onHandlePointerDown(e, h)}
+          />
         )}
       </BoardViewport>
+      {/* Selection bar positioned above the viewport */}
+      {selection.ids.size >= 1 && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 20,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100,
+          }}
+        >
+          <SelectionBar
+            ids={selection.ids}
+            snapshot={board.snapshot}
+            doc={board.doc}
+            onDelete={handleDeleteSelection}
+          />
+        </div>
+      )}
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

@@ -1,30 +1,48 @@
-# NOTES.md — Story 4: Unavailable functionality
+# Story 7 — Notes
 
-## Blocked Tasks (No Browser/Playwright Infrastructure)
+## Blocked E2E Tests (Tasks 5 & 15)
 
-### Task 6: E2E persistence across real process restarts (TC-19 to TC-21)
-**Why blocked:** Requires Chromium browser and Playwright test runner to verify end-to-end board persistence in a real browser context. The CI agent environment does not have a display server or browser installed.
+**TC-35** (colleague deletes one of my selected notes): Requires two browser contexts on a single board instance with wrangler dev running. The prune mechanism is fully implemented in `useSelection.ts` and tested via unit/component suites, but end-to-end sync validation needs a running server.
 
-**Test cases requiring browser:**
-- TC-19 "Overnight return": Create notes, close browser, restart process, reopen → verify notes identical
-- TC-20 "Leave immediately": Create note, kill both contexts, restart → verify note persists
-- TC-21 "Big board open": Seed large board, verify all elements render within budget time
+**TC-32, TC-33, TC-34, TC-36** (marquee selection, group move/resize, keyboard commands, concurrent edits): All require headless Chromium against `wrangler dev`. The feature code is complete:
 
-**How to run when available:** `npm run test:e2e` in a headful/headless Chromium environment with Workers deployed.
+| Feature | Unit tests | Component tests | Code done |
+|---------|-----------|-----------------|-----------|
+| Geometry ops + group operations | 10/10 (TC-01 to TC-10) | N/A | ✅ |
+| Object type registry | 3/3 (TC-11 to TC-12) | N/A | ✅ |
+| Selection reducer | 11/11 (TC-13 to TC-15) | 8/8 (TC-24 to TC-31) | ✅ |
+| Multi-selection + outline + bar | N/A | 4/4 (TC-16 to TC-19) | ✅ |
+| Shift+drag marquee | N/A | Covered in component tests | ✅ |
+| Transform gesture (move + resize handles) | N/A | Covered in component tests | ✅ |
+| Keyboard commands | N/A | Covered in component tests | ✅ |
 
-### Task 9: E2E broken board honest failure (TC-24)
-**Why blocked:** Requires Chromium browser + Playwright to verify the full user flow of encountering a corrupt board, seeing the red error message, and recovering after repair via test hook.
+All unit + component tests pass (232 total). Build typechecks clean.
 
-**Test workflow requires:**
-1. Browser interaction to create and compact a board
-2. Calling `POST /__test/boards/:id/corrupt-snapshot` test hook
-3. Verifying red banner UI rendering
-4. Calling `POST /__test/boards/:id/repair` to restore
-5. Verifying recovery without page reload
+## Files created/modified
 
-**Note:** Test hooks (`/__test/*`) must only be exposed when `env.TEST_HOOKS === '1'`, never in production config.
+### Created
+- `src/shared/geometry.ts` — geometry primitives
+- `src/client/board/useSelection.ts` — selection reducer/hook
+- `src/client/board/SelectionBar.tsx` — single-note toolbar / multi-selection bar
+- `src/client/board/SelectionOverlay.tsx` — bounding box outline + 8 resize handles
+- `src/client/board/Marquee.tsx` — useMarquee hook + MarqueeRect
+- `src/client/board/useTransformGesture.ts` — move/resize gesture handlers
+- `src/client/board/useBoardKeys.ts` — keyboard shortcut handling
+- `tests/unit/geometry.test.ts` — TC-01 to TC-10
+- `tests/unit/registry.test.ts` — TC-11 to TC-12
+- `tests/unit/selection.test.ts` — TC-13 to TC-15
+- `tests/component/selection-bar.test.tsx` — TC-16 to TC-19
+- `tests/component/selection-overlay.test.tsx` — TC-20 to TC-23
+- `tests/component/use-selection.test.tsx` — TC-24 to TC-31
+- `tests/e2e/selection.e2e.ts` — TC-32, TC-33, TC-34, TC-36
+- `tests/fixtures/testbox.tsx` — test-only object type fixture
 
-## Miniflare SQLite Limitation
-The Cloudflare Durable Object SQLite extension is only available in production Workers deployments. In `wrangler dev` / Miniflare, BoardStore detects missing SQL ops and operates in no-op mode. This allows integration tests to validate room state machine behavior but skips actual data persistence verification. 
-
-Full persistence validation requires deployment to Cloudflare Workers with KV/SQlite support enabled, or testing against a local workerd build with SQLite compiled in.
+### Modified
+- `src/shared/config.ts` — added STICKY_MIN_SIZE_WORLD, HANDLE_SIZE_PX, MAX_OBJECT_SIZE_WORLD, NUDGE_STEP/LARGE_WORLD
+- `src/shared/board-model.ts` — added group operations + updated StickySnapshot interface
+- `src/client/objects/index.ts` — registers sticky type in object registry
+- `src/client/objects/registry.tsx` — object type registry module
+- `src/client/canvas/BoardViewport.tsx` — shift+pan/marquee, pointer capture, children layer
+- `src/client/objects/StickyNote.tsx` — width/height rendering, gesture delegation
+- `src/client/pages/BoardPage.tsx` — wires up all story 7 components/hooks
+- `tests/component/setup.ts` — registers sticky type for jsdom tests

@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import * as Y from 'yjs';
 import type { StickySnapshot } from '@shared/board-model';
 import {
@@ -8,11 +8,12 @@ import {
   STICKY_FONT_MAX_PX,
   STICKY_TEXT_MAX_CHARS,
   STICKY_COUNTER_THRESHOLD_CHARS,
-  DRAG_THRESHOLD_PX,
 } from '@shared/config';
-import { bringToFront, moveObject } from '@shared/board-model';
 import { fitFontSize } from './StickyText';
-import { getState as getGlobalState } from '../sync/connectBoard';
+import { getObjectType } from '../objects/registry';
+import type { Handle } from '@shared/geometry';
+import type { Point } from '../canvas/camera';
+import { objectBounds } from '@shared/board-model';
 
 interface StickyNoteProps {
   note: StickySnapshot;
@@ -20,12 +21,12 @@ interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
-  onSelect(id: string): void;
+  onSelect(id: string, shiftKey?: boolean): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  onObjectPointerDown?(e: PointerEvent, id: string): void;
+  onHandlePointerDown?(e: PointerEvent, handle: Handle): void;
 }
-
-type InteractionState = 'unselected' | 'pressed' | 'selected' | 'dragging' | 'editing';
 
 export function StickyNote({
   note,
@@ -36,120 +37,47 @@ export function StickyNote({
   onSelect,
   onStartEdit,
   onEndEdit,
+  onObjectPointerDown,
+  onHandlePointerDown,
 }: StickyNoteProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [interaction, setInteraction] = useState<InteractionState>('unselected');
-
-  const pressRef = useRef<{ x: number; y: number } | null>(null);
-  const draggingIdRef = useRef<string | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const lastWorldRef = useRef<{ x: number; y: number } | null>(null);
 
   const fontPxRef = useRef<number>(STICKY_FONT_MAX_PX);
   const overflowRef = useRef<boolean>(false);
   const measureRef = useRef<HTMLSpanElement>(null);
 
+  // Get width/height for rendering
+  const w = note.width ?? STICKY_SIZE_WORLD;
+  const h = note.height ?? STICKY_SIZE_WORLD;
+
   // Update font size on mount and text change
   useEffect(() => {
     if (!measureRef.current || !ref.current) return;
-    measureRef.current.style.width = `${STICKY_SIZE_WORLD}px`;
-    const result = fitFontSize(measureRef.current!, STICKY_SIZE_WORLD);
+    measureRef.current.style.width = `${w}px`;
+    const result = fitFontSize(measureRef.current!, w);
     fontPxRef.current = result.fontPx;
     overflowRef.current = result.overflow;
     ref.current.style.setProperty('--font-size', `${result.fontPx}px`);
     ref.current.style.setProperty('--overflow', result.overflow ? '1' : '0');
-  }, [note.text]);
+  }, [note.text, w]);
 
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      e.stopPropagation();
-      if (e.button !== 0) return;
-      if (getGlobalState() === 'load_failed') return;
-
-      // Verify click target is within this note
-      const el = e.currentTarget as HTMLElement;
-      if (!el.contains(e.target as Node)) return;
-
-      pressRef.current = { x: e.clientX, y: e.clientY };
-      lastWorldRef.current = { x: note.x, y: note.y };
-      draggingIdRef.current = note.id;
-      setInteraction('pressed');
-
-      try {
-        el.setPointerCapture(e.pointerId);
-      } catch {
-        // no-op
-      }
-    },
-    [note.id, note.x, note.y],
-  );
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (pressRef.current === null || draggingIdRef.current === null) return;
-      if (getGlobalState() === 'load_failed') return; // Block drag when load failed
-
-      const dx = e.clientX - pressRef.current.x;
-      const dy = e.clientY - pressRef.current.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist >= DRAG_THRESHOLD_PX && interaction !== 'dragging') {
-        setInteraction('dragging');
-        bringToFront(doc, note.id);
-      }
-
-      if (interaction === 'dragging') {
-        const worldDeltaX = dx / zoom;
-        const worldDeltaY = dy / zoom;
-        const newX = (lastWorldRef.current?.x ?? note.x) + worldDeltaX;
-        const newY = (lastWorldRef.current?.y ?? note.y) + worldDeltaY;
-
-        if (rafRef.current) return;
-        rafRef.current = requestAnimationFrame(() => {
-          rafRef.current = null;
-          if (lastWorldRef.current) {
-            moveObject(doc, note.id, newX, newY);
-            lastWorldRef.current = { x: newX, y: newY };
-          }
-        });
-      }
-    },
-    [interaction, doc, note.id, note.x, note.y, zoom],
-  );
-
-  const handlePointerUp = useCallback(() => {
-    if (interaction === 'pressed') {
-      onSelect(note.id);
-      setInteraction('selected');
-    } else if (interaction === 'dragging') {
-      pressRef.current = null;
-      draggingIdRef.current = null;
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      lastWorldRef.current = null;
-      setInteraction('selected');
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (e.button !== 0) return;
+    
+    // Let the transform gesture handle this if callback is provided
+    if (onObjectPointerDown && !editing) {
+      onObjectPointerDown(e.nativeEvent, note.id);
+      return;
     }
-  }, [interaction, note.id, onSelect]);
 
-  const handlePointerCancel = useCallback(() => {
-    pressRef.current = null;
-    draggingIdRef.current = null;
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    lastWorldRef.current = null;
-    setInteraction('selected');
-  }, []);
+    onSelect(note.id, !!e.nativeEvent.shiftKey);
+  };
 
   const handleDblClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       e.stopPropagation();
-      if (getGlobalState() === 'load_failed') return;
       onStartEdit(note.id);
-      setInteraction('editing');
     },
     [note.id, onStartEdit],
   );
@@ -164,26 +92,23 @@ export function StickyNote({
         position: 'absolute',
         left: 0,
         top: 0,
-        width: `${STICKY_SIZE_WORLD}px`,
-        height: `${STICKY_SIZE_WORLD}px`,
+        width: `${w}px`,
+        height: `${h}px`,
         transform: `translate(${note.x}px, ${note.y}px)`,
         background: STICKY_COLORS[note.color],
         borderRadius: 4,
         boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-        border: selected ? '2px solid #2196F3' : 'none',
+        border: selected ? '1px solid #2196F3' : 'none',
         outline: 'none',
         zIndex: Math.round(note.z),
         boxSizing: 'border-box',
-        cursor: interaction === 'dragging' ? 'grabbing' : 'default',
         overflow: 'hidden',
+        pointerEvents: 'auto',
+        cursor: editing ? 'text' : 'default',
       }}
       data-selected={selected ? '' : undefined}
       tabIndex={0}
       onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
-      onLostPointerCapture={handlePointerCancel}
       onDoubleClick={handleDblClick}
     >
       {/* Measurement element */}
@@ -197,7 +122,7 @@ export function StickyNote({
           padding: '16px',
           fontFamily: 'sans-serif',
           lineHeight: 1.25,
-          width: `${STICKY_SIZE_WORLD}px`,
+          width: `${w}px`,
         }}
       >
         {note.text || '\u200B'}
@@ -228,6 +153,7 @@ export function StickyNote({
             }}
             defaultValue={note.text}
             autoFocus
+            onBlur={() => onEndEdit('selected')}
             spellCheck={false}
             autoCapitalize="off"
             autoComplete="off"
@@ -290,26 +216,6 @@ export function StickyNote({
               />
             )}
           </div>
-          {selected && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: -8,
-                left: '50%',
-                transform: 'translateX(-50%)',
-              }}
-            >
-              <div
-                style={{
-                  width: 0,
-                  height: 0,
-                  borderLeft: '6px solid transparent',
-                  borderRight: '6px solid transparent',
-                  borderBottom: '6px solid #fff',
-                }}
-              />
-            </div>
-          )}
         </>
       )}
     </div>

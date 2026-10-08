@@ -1,0 +1,37 @@
+import type { ComponentType } from 'react';
+import type { StickySnapshot } from '@shared/board-model';
+
+/** Specification for an object type on the board. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface ObjectTypeSpec {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Component: ComponentType<any>;
+  resizable: boolean;
+  aspectLocked: boolean;
+  minSize: number;
+  editableText: boolean;
+  hitTest(obj: StickySnapshot, worldPoint: { readonly x: number; readonly y: number }): boolean;
+}
+
+const registry = new Map<string, ObjectTypeSpec>();
+
+/** Register an object type. Throws if already registered. */
+export function registerObjectType(
+  type: string,
+  spec: ObjectTypeSpec,
+): void {
+  if (registry.has(type)) {
+    throw new Error(`Object type "${type}" is already registered`);
+  }
+  registry.set(type, spec);
+}
+
+/** Look up a registered object type, or undefined for unknown types. */
+export function getObjectType(type: string): ObjectTypeSpec | undefined {
+  return registry.get(type);
+}
+
+/** Check all specs are resizable / know their sizes. Useful for runtime validation. */
+export function getAllTypes(): ReadonlyMap<string, ObjectTypeSpec> {
+  return registry;
+}
