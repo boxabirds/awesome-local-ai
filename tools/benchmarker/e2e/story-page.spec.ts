@@ -663,34 +663,45 @@ test.describe("page state in the address, on other pages", () => {
   });
 
   const run = `/#/vidi/r/${enc(SWIFT)}/v2-r5`;
-  const compareSelect = (page: Page) => page.locator('[data-page="run"] [data-section="compare"] select');
+  const compareBox = (page: Page) => page.locator('[data-page="run"] [data-section="compare"]');
+  const chips = (page: Page) => compareBox(page).locator(".compare-chips li");
+  /** The compare list emptied (the page starts with one run chosen), then one run chosen by searching for it. */
+  async function chooseOnly(page: Page, runId: string) {
+    await expect(compareBox(page).getByRole("combobox", { name: "Add a run" })).toBeVisible();   // the page has its data: the chips are drawn
+    while (await chips(page).count()) await compareBox(page).getByRole("button", { name: /^Remove / }).first().click();
+    await compareBox(page).getByRole("combobox", { name: "Add a run" }).fill(runId);
+    await compareBox(page).getByRole("option").first().click();
+  }
 
   test("run page: the run compared with is in the address, and a reload keeps it", async ({ page }) => {
     await page.goto(run);
-    await compareSelect(page).selectOption("v2-r6");
+    await chooseOnly(page, "v2-r6");
     await expect(page).toHaveURL(/\?compare=v2-r6$/);
     await page.reload();
-    await expect(compareSelect(page)).toHaveValue("v2-r6");
+    await expect(chips(page)).toHaveCount(1);
+    await expect(chips(page).first()).toContainText("v2-r6");
     await expect(page.locator('[data-section="compare"] .compare-key')).toContainText("v2-r5 over v2-r6");
   });
 
   test("run page: the back button comes back to the run compared with", async ({ page }) => {
     await page.goto(run);
-    await compareSelect(page).selectOption("v2-r7");
+    await chooseOnly(page, "v2-r7");
     await page.locator('[data-section="compare"] tr[data-story="2"] a.story-run-link').first().click();
     await expect(page.locator('[data-page="storyRun"]')).toBeVisible();
     await page.goBack();
-    await expect(compareSelect(page)).toHaveValue("v2-r7");
+    await expect(chips(page)).toHaveCount(1);
+    await expect(chips(page).first()).toContainText("v2-r7");
   });
 
   test("run page: choosing no run is kept too; an address naming a run that isn't there says so", async ({ page }) => {
     await page.goto(run);
-    await compareSelect(page).selectOption("");
+    await expect(compareBox(page).getByRole("combobox", { name: "Add a run" })).toBeVisible();
+    while (await chips(page).count()) await compareBox(page).getByRole("button", { name: /^Remove / }).first().click();
     await expect(page).toHaveURL(/\?compare=none$/);
     await page.reload();
     await expect(page.locator('[data-section="compare"] .rp-empty')).toHaveText("Choose a run to compare with.");
     await page.goto(`${run}?compare=v9-nope`);
-    await expect(page.locator('[data-section="compare"] .rp-empty')).toContainText("The address names v9-nope");
+    await expect(page.locator('[data-section="compare"] [data-unknown]')).toContainText("The address names v9-nope");
   });
 });
 

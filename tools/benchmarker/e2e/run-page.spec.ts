@@ -548,77 +548,199 @@ test.describe("when it ran", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-test.describe("compare with another run", () => {
-  test("the choices are this combination's other runs in this pack, never itself or another combination", async ({ page }) => {
+test.describe("compare with other runs", () => {
+  const compare = (page: Page) => section(page, "compare");
+  const search = (page: Page) => compare(page).getByRole("combobox", { name: "Add a run" });
+  const chips = (page: Page) => compare(page).locator(".compare-chips li");
+  /** The runs the page can offer for `run`, worked out from the served state. */
+  const offered = async (page: Page, stack: string, runId: string) => {
+    const s = (await (await page.request.get("/api/state")).json()) as State;
+    const me = rowOf(s, stack, runId);
+    return s.rows.filter((r) => r.pack === me.pack && r.suite === me.suite && r.stories.length > 0 && !(r.stack === stack && r.runId === runId));
+  };
+  /** The run's page with nothing chosen: the page starts with one run of its combination chosen, which these tests clear. */
+  const fresh = async (page: Page, stack: string, runId: string) => {
+    await open(page, stack, runId);
+    while (await chips(page).count()) await compare(page).getByRole("button", { name: /^Remove / }).first().click();
+  };
+  const add = async (page: Page, text: string) => {
+    await search(page).fill(text);
+    await compare(page).getByRole("option").first().click();
+  };
+
+  test("with nothing chosen yet, one other run of this combination is shown", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    const opts = await section(page, "compare").locator("select option").evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value));
-    expect(opts[0]).toBe("");
-    expect(opts).toContain("v2-r1");
-    expect(opts).toContain("v2-r4");
-    expect(opts).not.toContain("v2-r5");
-    expect(opts).not.toContain("run-9");
-    expect(opts.slice(1)).toEqual(opts.slice(1).toSorted((a, b) => a.localeCompare(b, "en", { numeric: true })));
+    await expect(chips(page)).toHaveCount(1);
+    await expect(chips(page).first()).toHaveAttribute("data-stack", SWIFT);
+    await expect(compare(page).locator(".compare-key")).toBeVisible();
   });
 
-  test("side by side per story: over 10% marked, under it not", async ({ page }) => {
-    await open(page, SWIFT, "v2-r5");
-    await section(page, "compare").locator("select").selectOption("v2-r4");
-    const c = section(page, "compare");
-    await expect(c.locator(".compare-key")).toContainText("v2-r5 over v2-r4");
-    const t1 = c.locator('tr[data-story="1"] [data-measure="minutes"]');
+  test("offers this combination's other runs and other combinations' runs, never itself, another suite or another pack", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    const state = (await (await page.request.get("/api/state")).json()) as State;
+    const me = rowOf(state, SWIFT, "v2-r5");
+    await search(page).focus();
+    const got = await compare(page).getByRole("option").evaluateAll((os) => os.map((o) => ({ stack: o.getAttribute("data-stack")!, run: o.getAttribute("data-run")! })));
+    expect(got.length).toBeGreaterThan(0);
+    expect(got.some((o) => o.stack !== SWIFT)).toBe(true);           // runs of other combinations are offered
+    expect(got.some((o) => o.stack === SWIFT && o.run === "v2-r5")).toBe(false);   // never itself
+    for (const o of got) {                                           // each is a real run: same pack and suite, something recorded
+      const r = rowOf(state, o.stack, o.run);
+      expect([r.pack, r.suite, r.stories.length > 0]).toEqual([me.pack, me.suite, true]);
+    }
+    expect(got[0].stack).toBe(SWIFT);                                // this combination's runs come first
+  });
+
+  test("typing narrows the suggestions to runs whose id, model, engine or machine contain every word", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    await search(page).fill("v2-r4");
+    const ids = await compare(page).getByRole("option").evaluateAll((os) => os.map((o) => o.getAttribute("data-run")));
+    expect(ids).toContain("v2-r4");
+    expect(ids.every((id) => id!.includes("v2-r4") || id === null)).toBe(true);
+    await search(page).fill("zzzz-no-such-run");
+    await expect(compare(page).getByRole("listbox")).toContainText("No run matches.");
+    await expect(compare(page).getByRole("option")).toHaveCount(0);
+  });
+
+  test("choosing a run adds it to the list and shows its figures beside this run's; the address keeps the list", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    await add(page, "v2-r4");
+    await expect(chips(page).filter({ hasText: "v2-r4" })).toHaveCount(1);
+    await expect(compare(page).locator(".compare-key")).toContainText("v2-r5 over v2-r4");
+    expect(page.url()).toContain("compare=v2-r4");
+    const t1 = compare(page).locator('tr[data-story="1"] [data-measure="minutes"]');
     await expect(t1).toContainText("11 min");
     await expect(t1).toContainText("12 min");
     await expect(t1.locator(".diff")).toHaveText("−4%");
     await expect(t1).not.toHaveAttribute("data-flagged", "true");
-    const t2 = c.locator('tr[data-story="2"] [data-measure="minutes"]');
+    const t2 = compare(page).locator('tr[data-story="2"] [data-measure="minutes"]');
     await expect(t2).toHaveAttribute("data-flagged", "true");
     await expect(t2.locator(".diff.flagged")).toHaveText("+401%");
     await expect(t2.locator(".diff.flagged")).toHaveAttribute("data-tip", /more than 10%/);
   });
 
+  test("several runs at once: each has its own line in every cell, tagged with its run id, and each can be removed", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    await add(page, "v2-r4");
+    await add(page, "v2-r6");
+    await expect(chips(page)).toHaveCount(2);
+    const cell = compare(page).locator('tr[data-story="1"] [data-measure="minutes"]');
+    await expect(cell.locator(".pair-other")).toHaveCount(2);
+    await expect(cell.locator('.pair-other[data-run="v2-r4"] .pair-tag')).toHaveText(/v2-r4/);
+    await expect(cell.locator('.pair-other[data-run="v2-r6"] .pair-tag')).toHaveText(/v2-r6/);
+    expect(page.url()).toContain("compare=v2-r4%2Cv2-r6");
+    await compare(page).getByRole("button", { name: /^Remove v2-r4/ }).click();
+    await expect(chips(page)).toHaveCount(1);
+    await expect(compare(page).locator('tr[data-story="1"] [data-measure="minutes"] .pair-other')).toHaveCount(1);
+    expect(page.url()).toContain("compare=v2-r6");
+    expect(page.url()).not.toContain("v2-r4");
+  });
+
+  test("a run of another combination is compared too, and the address says which combination", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    const other = (await offered(page, SWIFT, "v2-r5")).find((r) => r.stack !== SWIFT)!;
+    await add(page, `${other.runId} ${other.label}`);
+    await expect(chips(page).filter({ hasText: other.runId })).toHaveCount(1);
+    await expect(compare(page).locator(".compare-key")).toContainText(`v2-r5 over ${other.runId}`);
+    expect(decodeURIComponent(page.url())).toContain(`compare=${other.stack}|${other.runId}`);
+    await page.reload();                                           // the address alone brings it back
+    await expect(chips(page).filter({ hasText: other.runId })).toHaveCount(1);
+  });
+
   test("a story only one run has: its figure against '—', unmarked", async ({ page }) => {
-    await open(page, SWIFT, "v2-r5");
-    await section(page, "compare").locator("select").selectOption("v2-r1");
-    const cell = section(page, "compare").locator('tr[data-story="2"] [data-measure="minutes"]');
+    await fresh(page, SWIFT, "v2-r5");
+    await add(page, "v2-r1");
+    const cell = compare(page).locator('tr[data-story="2"] [data-measure="minutes"]');
     await expect(cell.locator(".pair-b .missing")).toHaveAttribute("data-tip", "v2-r1 has no figure for this story.");
     await expect(cell).not.toHaveAttribute("data-flagged", "true");
   });
 
-  test("each story links to both runs' story runs", async ({ page }) => {
-    await open(page, SWIFT, "v2-r5");
-    await section(page, "compare").locator("select").selectOption("v2-r4");
-    const links = section(page, "compare").locator('tr[data-story="2"] a.story-run-link');
+  test("each story links to every compared run's story run", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    await add(page, "v2-r4");
+    const links = compare(page).locator('tr[data-story="2"] a.story-run-link');
     await expect(links.nth(0)).toHaveAttribute("href", storyRunHref(SWIFT, "v2-r5", "2"));
     await expect(links.nth(1)).toHaveAttribute("href", storyRunHref(SWIFT, "v2-r4", "2"));
   });
 
-  test("a run with nothing recorded: this run's figures, the other's missing", async ({ page }) => {
-    await open(page, SWIFT, "v2-r5");
-    await section(page, "compare").locator("select").selectOption("v2-r2");
-    await expect(section(page, "compare").locator('[data-flagged="true"]')).toHaveCount(0);
-    await expect(section(page, "compare").locator('tr[data-story="1"] .pair-b .missing').first()).toHaveAttribute("data-tip", "v2-r2 hasn't recorded this story.");
+  test("a run with nothing recorded is not offered, so there is nothing to compare it with", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    await search(page).fill("v2-r2");
+    const ids = await compare(page).getByRole("option").evaluateAll((os) => os.map((o) => `${o.getAttribute("data-stack")}|${o.getAttribute("data-run")}`));
+    expect(ids).not.toContain(`${SWIFT}|v2-r2`);
   });
 
-  test("no run chosen: asks for one", async ({ page }) => {
-    await open(page, SWIFT, "v2-r5");
-    await section(page, "compare").locator("select").selectOption("");
-    await expect(section(page, "compare").locator(".rp-empty")).toHaveText("Choose a run to compare with.");
+  test("removing the last run asks for one, and the address says none was chosen", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    await add(page, "v2-r4");
+    await compare(page).getByRole("button", { name: /^Remove v2-r4/ }).click();
+    await expect(chips(page)).toHaveCount(0);
+    await expect(compare(page).locator(".rp-empty")).toHaveText("Choose a run to compare with.");
+    expect(page.url()).toContain("compare=none");
   });
 
-  test("the only run of its combination: nothing to compare with, and no selector", async ({ page }) => {
-    await open(page, GUFO, "canvas-gufo-r3");
-    await expect(section(page, "compare").locator(".rp-empty")).toHaveText("This combination has no other run in this pack to compare with.");
-    await expect(section(page, "compare").locator("select")).toHaveCount(0);
+  test("an address naming a run that cannot be compared says so and leaves it out", async ({ page }) => {
+    await page.goto(`${runPath(SWIFT, "v2-r5")}?compare=v2-r4,v2-r99`);
+    await expect(compare(page).locator("[data-unknown]")).toHaveAttribute("data-unknown", "v2-r99");
+    await expect(chips(page)).toHaveCount(1);
+    await expect(chips(page).first()).toContainText("v2-r4");
   });
 
-  test("works from the keyboard", async ({ page }) => {
+  test("remembered in this browser: the list comes back on another run's page, and is never the page's own run", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    await add(page, "v2-r4");
+    await add(page, "v2-r6");
+    await open(page, SWIFT, "v2-r1");                              // a fresh address with no ?compare
+    await expect(chips(page).filter({ hasText: "v2-r4" })).toHaveCount(1);
+    await expect(chips(page).filter({ hasText: "v2-r6" })).toHaveCount(1);
+    await open(page, SWIFT, "v2-r4");                              // the remembered run is this page's own run: left out
+    await expect(chips(page).filter({ hasText: "v2-r4" })).toHaveCount(0);
+    await expect(chips(page).filter({ hasText: "v2-r6" })).toHaveCount(1);
+  });
+
+  test("an address that names runs wins over what was remembered", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    await add(page, "v2-r4");
+    await page.goto(`${runPath(SWIFT, "v2-r1")}?compare=v2-r6`);
+    await expect(chips(page)).toHaveCount(1);
+    await expect(chips(page).first()).toContainText("v2-r6");
+  });
+
+  test("with remembering switched off nothing is kept, and what was kept is forgotten", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    await add(page, "v2-r9");                                      // not the run a page falls back to, so it is told apart
+    await compare(page).getByRole("checkbox", { name: /remember/ }).uncheck();
+    await open(page, SWIFT, "v2-r1");
+    await expect(chips(page).filter({ hasText: "v2-r9" })).toHaveCount(0);
+    await add(page, "v2-r7");
+    await open(page, SWIFT, "v2-r4");
+    await expect(chips(page).filter({ hasText: "v2-r7" })).toHaveCount(0);
+    await expect(compare(page).getByRole("checkbox", { name: /remember/ })).not.toBeChecked();
+  });
+
+  test("works from the keyboard: arrows move through the suggestions, Enter adds, Escape closes", async ({ page }) => {
+    await fresh(page, SWIFT, "v2-r5");
+    const box = search(page);
+    await box.focus();
+    await expect(box).toHaveAttribute("aria-expanded", "true");
+    await box.fill("v2-r4");
+    await box.press("ArrowDown");
+    await expect(compare(page).getByRole("option").first()).toHaveAttribute("aria-selected", "true");
+    await expect(box).toHaveAttribute("aria-activedescendant", /.+/);
+    await box.press("Enter");
+    await expect(chips(page).filter({ hasText: "v2-r4" })).toHaveCount(1);
+    await expect(box).toBeFocused();
+    await box.press("ArrowDown");
+    await box.press("Escape");
+    await expect(box).toHaveAttribute("aria-expanded", "false");
+    await expect(compare(page).getByRole("listbox")).toHaveCount(0);
+  });
+
+  test("no run in the pack and suite has anything recorded: no picker, and it says so", async ({ page }) => {
+    await patchState(page, (s) => { for (const r of s.rows) if (r.pack === "vidi" && r.suite === rowOf(s, SWIFT, "v2-r5").suite && !(r.stack === SWIFT && r.runId === "v2-r5")) r.stories = []; });
     await open(page, SWIFT, "v2-r5");
-    const select = section(page, "compare").locator("select");
-    await select.focus();
-    await select.selectOption("v2-r4");  // what a keyboard choice does; the select is a native one
-    await expect(select).toBeFocused();
-    await expect(section(page, "compare").locator(".compare-key")).toContainText("v2-r4");
-    await expect(page.getByRole("combobox", { name: /^against/ })).toBeVisible();  // the select has a label
+    await expect(compare(page).locator(".rp-empty")).toHaveText("No other run in this pack and suite has recorded a story to compare with.");
+    await expect(search(page)).toHaveCount(0);
   });
 });
 
@@ -662,7 +784,7 @@ test.describe("links and keyboard", () => {
     expect(tips.length).toBeGreaterThan(30);
     expect(tips.filter((t) => !definitions.has(t))).toEqual([]);
     const headings = await page.locator('[data-page="run"] h2').evaluateAll((els) => els.map((e) => e.textContent));
-    expect(headings).toEqual(["Stories", "When it ran", "Compare with another run", "Other runs of this combination"]);
+    expect(headings).toEqual(["Stories", "When it ran", "Compare with other runs", "Other runs of this combination"]);
   });
 
   test("every in-app link lands on the entity it names", async ({ page }) => {

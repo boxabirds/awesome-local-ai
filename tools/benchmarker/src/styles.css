@@ -238,3 +238,20 @@ table.combos td .amount { display: block; font-size: 11px; white-space: nowrap; 
 .rs-sq.rs-unbuilt { background: none; border: 2px dashed var(--line); color: var(--faint); }
 .rs-sq.rs-noResult { background: none; border: 2px solid var(--line); color: var(--faint); }
 .rs-sq.rs-building { background: none; border: 2px solid var(--run); }
+
+/* Comparing a run with others: the chosen runs as removable chips, and a search box that suggests runs as you type. */
+.compare-picker { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: flex-start; margin-bottom: 0.75rem; }
+.compare-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; list-style: none; margin: 0; padding: 0; }
+.compare-chips li { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.15rem 0.2rem 0.15rem 0.55rem; border: 1px solid var(--line, #8884); border-radius: 999px; }
+.chip-id { font-weight: 600; }
+.chip-remove { border: 0; background: transparent; color: inherit; font: inherit; line-height: 1; padding: 0.1rem 0.4rem; border-radius: 999px; cursor: pointer; }
+.chip-remove:hover, .chip-remove:focus-visible { background: var(--line, #8884); }
+.compare-search { position: relative; display: flex; align-items: center; gap: 0.4rem; }
+.compare-search input[role="combobox"] { min-width: 18rem; max-width: 100%; }
+.compare-suggestions { position: absolute; z-index: 20; top: 100%; left: 0; margin: 0.2rem 0 0; padding: 0.25rem; list-style: none; min-width: 100%; width: max-content; max-width: min(40rem, 90vw); max-height: 18rem; overflow: auto; background: var(--bg, Canvas); color: var(--fg, CanvasText); border: 1px solid var(--line, #8886); border-radius: 0.4rem; box-shadow: 0 4px 16px #0003; }
+.compare-suggestions li[role="option"] { padding: 0.3rem 0.5rem; border-radius: 0.25rem; cursor: pointer; }
+.compare-suggestions li.active { background: var(--line, #8884); }
+.compare-none { padding: 0.3rem 0.5rem; }
+.compare-remember { align-self: center; }
+.pair-other + .pair-other { margin-top: 0.15rem; }
+.pair-tag { opacity: 0.7; }
