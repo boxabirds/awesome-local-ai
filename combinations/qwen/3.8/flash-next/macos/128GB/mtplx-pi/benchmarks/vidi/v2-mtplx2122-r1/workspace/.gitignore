@@ -19,3 +19,6 @@ test-results/
 .idea/
 .vscode/
 *.swp
+
+# Scratch (worker bundles, DO state, spikes)
+.tmp/

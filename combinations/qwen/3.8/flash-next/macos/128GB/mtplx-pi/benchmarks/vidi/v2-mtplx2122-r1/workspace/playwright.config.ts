@@ -1,29 +1,14 @@
 import { defineConfig, Project } from '@playwright/test'
-import { existsSync } from 'fs'
+import { availableBrowsers } from './tests/e2e/helpers/browsers'
 
 // ── browser detection ────────────────────────────────────────────────────────
-// If Playwright browsers are not installed (sandbox / CI that hasn't run
-// `npx playwright install`), we create no projects so that every test is
-// skipped without a launch error.  `npm run test:e2e` exits with code 0.
-type BrowserName = 'chromium' | 'firefox' | 'webkit'
-
-function isBrowserAvailable(name: BrowserName): boolean {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const pw = require('playwright-core') as Record<
-      BrowserName,
-      { executablePath(): string }
-    >
-    return existsSync(pw[name].executablePath())
-  } catch {
-    return false
-  }
-}
-
-const ALL_BROWSERS: readonly BrowserName[] = ['chromium', 'firefox', 'webkit']
-const AVAILABLE: BrowserName[] = ALL_BROWSERS.filter(isBrowserAvailable)
+// If Playwright browsers are not installed (sandbox, or a CI machine that has
+// not run `npx playwright install`), no project is created and every test skips
+// itself, so `npm run test:e2e` exits 0 instead of failing on a launch error.
+// `tests/live/live-sync.test.ts` covers the same contracts without a browser.
+const AVAILABLE = availableBrowsers()
 const HAS_BROWSER = AVAILABLE.length > 0
-const PORT = 25776
+const PORT = Number(process.env.E2E_PORT ?? 25776)
 
 const projects: Project[] = HAS_BROWSER
   ? AVAILABLE.map(name => ({
@@ -33,8 +18,8 @@ const projects: Project[] = HAS_BROWSER
         viewport: { width: 1280, height: 800 },
       },
     }))
-  : // No browsers installed: keep a placeholder project so Playwright can
-    // enumerate tests (they all skip via test.skip() in the spec file).
+  : // No browsers installed: keep one placeholder project so Playwright can
+    // still enumerate the tests (each spec skips via `test.skip`).
     [{ name: 'chromium', use: { browserName: 'chromium' } }]
 
 export default defineConfig({
@@ -49,13 +34,17 @@ export default defineConfig({
     actionTimeout: 8_000,
     trace: 'off',
   },
+  // The workerd e2e server (tools/e2e-server.mjs) runs the real Worker +
+  // Durable Object.  It needs a built client, which `npm run test:e2e`
+  // produces before Playwright starts.
   webServer: HAS_BROWSER
     ? {
-        command: `npx vite --port ${PORT} --host 127.0.0.1`,
-        url: `http://127.0.0.1:${PORT}`,
+        command: 'node tools/e2e-server.mjs',
+        url: `http://127.0.0.1:${PORT}/`,
         reuseExistingServer: !process.env.CI,
-        timeout: 30_000,
+        timeout: 60_000,
         stdout: 'pipe',
+        stderr: 'pipe',
       }
     : undefined,
   projects,

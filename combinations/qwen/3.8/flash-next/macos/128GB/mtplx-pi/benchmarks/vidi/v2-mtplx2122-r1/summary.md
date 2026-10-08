@@ -10,25 +10,27 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 |---|---|---|---|---|
 | 1 | 0/6 | 0 | 0 | 0/6 |
 | 2 | 0/10 | 0 | 0 | 0/20 |
+| 3 | 5/7 | 0 | 19 | 24/27 |
 
-**New work** 0/16, **regressions** 0, **repairs** 0, **cumulative** 0/20.
+**New work** 5/23, **regressions** 0, **repairs** 19, **cumulative** 24/27.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 64.5 | 203 | 13105182 | 238208 | 0.5 | 72.0 | green | 0/6 |  | 0 / 1 | 3 | 117165 | throttled 97%, server peak 96 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 66.9 | 192 | 13266009 | 241018 | 0.8 | 76.2 | green | 0/20 |  | 2 / 1 | 4 | 126991 | throttled 95%, server peak 97 GB |
+| 3 | See other people's edits appear live on the same board | DONE | 110.3 | 434 | 30108133 | 334218 | 0.8 | 70.3 | green | 24/27 |  | 3 / 0 | 5 | 120006 | throttled 88%, server peak 100 GB |
 
-**Totals:** 2 stories, 131 agent-minutes, 395 requests, 26,371,191 prompt / 479,226 completion tokens, gate green 2/2, final acceptance 0/20, stalled 0, partial 0, 4826 lines in src+tests.
+**Totals:** 3 stories, 242 agent-minutes, 829 requests, 56,479,324 prompt / 813,444 completion tokens, gate green 3/3, final acceptance 24/27, stalled 0, partial 0, 9131 lines in src+tests.
 
 ### Decode tok/s by context (server log, all stories)
 
 | Context | Requests | Decode tok/s (request-weighted median of per-story medians) |
 |---|---|---|
-| 0-16k | 10 | 91.1 |
-| 16-32k | 39 | 81.2 |
-| 32-64k | 152 | 72.3 |
-| 64-100k | 118 | 72.3 |
-| 100-+k | 76 | 74.9 |
+| 0-16k | 17 | 91.1 |
+| 16-32k | 67 | 81.2 |
+| 32-64k | 301 | 73.8 |
+| 64-100k | 297 | 67.6 |
+| 100-+k | 147 | 70.3 |
 
 ## How it happened
 
@@ -38,10 +40,13 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 1 by the agent | 8265 / 8 | `App.tsx` (184), `BoardViewport.tsx` (177), `useCamera.ts` (145), `camera.ts` (104), `ZoomControls.tsx` (98), `playwright.config.ts` (62), +14 more |
 | 2 | 1 by the agent | 2921 / 114 | `App.tsx` (287), `StickyNote.tsx` (276), `StickyTextEditor.tsx` (189), `board-model.ts` (178), `BoardViewport.tsx` (108), `StickyText.ts` (92), +8 more |
+| 3 | 1 by the agent | 5797 / 43 | `board-room.ts` (197), `connectBoard.ts` (128), `protocol.ts` (122), `e2e-server.mjs` (85), `index.ts` (78), `workers-env.d.ts` (70), +12 more |
 
 ### Earlier stories broken or fixed
 
-No story changed an earlier story's held-out results.
+- **Story 3 broke 0, fixed 19** earlier held-out tests (story 3: See other people's edits appear live on the same board). Source files it changed most: `board-room.ts` (197), `connectBoard.ts` (128), `protocol.ts` (122), `e2e-server.mjs` (85), `index.ts` (78), `workers-env.d.ts` (70), +12 more.
+  - story 1: 0/10 → 10/10; fixed 10
+  - story 2: 0/10 → 9/10; fixed 9
 
 ### Interruptions and dead time
 

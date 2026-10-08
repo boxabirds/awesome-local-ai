@@ -6,10 +6,12 @@ import { useCamera, type WheelData } from './canvas/useCamera'
 import { zoomPercent, canZoomIn, canZoomOut, screenToWorld, worldToScreen } from './canvas/camera'
 import { useBoardDoc } from './board/useBoardDoc'
 import { useSelection } from './board/useSelection'
+import { ConnectionStatus } from './sync/ConnectionStatus'
+import type { ProviderLike } from './sync/connectBoard'
 import { Toolbar } from './board/Toolbar'
 import { StickyNote } from './objects/StickyNote'
 import { NoteToolbar } from './objects/NoteToolbar'
-import { createSticky, deleteObject, setStickyColor } from '../shared/board-model'
+import { createSticky, deleteObject, setStickyColor, snapshot } from '../shared/board-model'
 import { STICKY_SIZE_WORLD } from '../shared/config'
 import type { StickyColor } from '../shared/config'
 import type { Point } from './canvas/camera'
@@ -17,6 +19,13 @@ import type { Point } from './canvas/camera'
 // ── viewport dimensions ───────────────────────────────────────────────────────
 
 const INITIAL_VIEWPORT = { width: 1280, height: 800 }
+
+/**
+ * `window.__vidi6` is exposed in dev and in the e2e "test build"
+ * (`VITE_VIDI6_TEST_HOOKS=1 npm run build`), never in a normal production
+ * build.
+ */
+const TEST_HOOKS = import.meta.env.DEV || import.meta.env.VITE_VIDI6_TEST_HOOKS === '1'
 
 // ── global test hook ──────────────────────────────────────────────────────────
 
@@ -27,13 +36,24 @@ declare global {
         setCamera(cam: { x: number; y: number; zoom: number }): void
         /** Test helper: add a note at world (x, y) directly, bypassing UI. */
         createNote(x: number, y: number, color?: string): string
+        /** Full board snapshot (id, position, colour, text) of this page. */
+        snapshot(): Array<{ id: string; x: number; y: number; color: string; text: string }>
+        /** Live-connection state of this page (story 3 e2e/nightly hooks). */
+        readonly connectionState: string
       }
     | undefined
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
-export function App() {
+export interface AppProps {
+  /** Board to sync with; `undefined` = local-only board (component tests). */
+  boardId?: string
+  /** Test seam for the sync provider. */
+  providerFactory?: (boardId: string, doc: import('yjs').Doc) => ProviderLike
+}
+
+export function App({ boardId, providerFactory }: AppProps = {}) {
   const [viewportSize, setViewportSize] = useState(INITIAL_VIEWPORT)
 
   const {
@@ -50,7 +70,7 @@ export function App() {
   } = useCamera(viewportSize)
 
   // ── doc + notes ─────────────────────────────────────────────────────────────
-  const { doc, notes } = useBoardDoc()
+  const { doc, notes, connectionState } = useBoardDoc(boardId, { providerFactory })
 
   // ── selection ───────────────────────────────────────────────────────────────
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection()
@@ -128,15 +148,29 @@ export function App() {
   setCameraRef.current = setCamera
   const docRef = useRef(doc)
   docRef.current = doc
+  const connectionStateRef = useRef(connectionState)
+  connectionStateRef.current = connectionState
 
   useEffect(() => {
-    if (!import.meta.env.DEV) return
+    if (!TEST_HOOKS) return
     window.__vidi6 = {
       setCamera(cam: { x: number; y: number; zoom: number }) {
         setCameraRef.current(cam)
       },
       createNote(x: number, y: number, color?: string) {
         return createSticky(docRef.current, { x, y }, color as any)
+      },
+      snapshot() {
+        return snapshot(docRef.current).map(n => ({
+          id: n.id,
+          x: n.x,
+          y: n.y,
+          color: n.color,
+          text: n.text,
+        }))
+      },
+      get connectionState() {
+        return connectionStateRef.current
       },
     }
     return () => { delete window.__vidi6 }
@@ -187,6 +221,18 @@ export function App() {
       selectRef.current(null)
     }
   }, [])
+
+  // ── Remote deletes clear stale selection / editing / drag ─────────────────
+  // When somebody else deletes the note this screen has selected (or is
+  // editing / dragging), the id is gone from the doc: drop the selection, close
+  // the editor and end the drag instead of rendering a phantom note.
+  useEffect(() => {
+    const current = selRef.current
+    if (!current.selectedId) return
+    if (notes.some(n => n.id === current.selectedId)) return
+    setDraggingId(null)
+    selectRef.current(null)
+  }, [notes])
 
   // ── Double-click on empty viewport → create a new sticky ──────────────────
   // Camera is needed to convert viewport-space point → world-space point.
@@ -346,6 +392,7 @@ export function App() {
         onReset={reset}
       />
       <NavigationHint visible={!hasNavigated} />
+      <ConnectionStatus state={connectionState} />
     </div>
   )
 }

@@ -10,14 +10,25 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:e2e": "playwright test"
+    "test:integration": "npm run build && vitest run --config tests/integration/vitest.config.ts",
+    "build:test": "VITE_VIDI6_TEST_HOOKS=1 vite build",
+    "e2e:server": "node tools/build-e2e-worker.mjs && node tools/e2e-server.mjs",
+    "test:e2e": "npm run build:test && node tools/build-e2e-worker.mjs && playwright test",
+    "test:e2e:nightly": "npm run build:test && node tools/build-e2e-worker.mjs && playwright test --config playwright.nightly.config.ts",
+    "test:live": "node tools/build-e2e-worker.mjs && vitest run --config tests/live/vitest.config.ts",
+    "test:nightly": "npm run build:test && node tools/build-e2e-worker.mjs && VIDI6_NIGHTLY=1 vitest run --config tests/live/vitest.config.ts && npm run test:e2e:nightly"
   },
   "dependencies": {
+    "lib0": "^0.2.117",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^1.5.4",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.7.2",
+    "@cloudflare/workers-types": "^4.20260702.1",
     "@playwright/test": "^1.64.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",

@@ -1,13 +1,24 @@
-import { useRef, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import * as Y from 'yjs'
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model'
+import { connectBoard, type ConnectionState, type ProviderLike } from '../sync/connectBoard'
 
 export interface UseBoardDocResult {
   doc: Y.Doc
   notes: readonly StickySnapshot[]
+  /** Live-connection state; `'connected'` when the board is offline-only. */
+  connectionState: ConnectionState
 }
 
-export function useBoardDoc(): UseBoardDocResult {
+export interface UseBoardDocOptions {
+  /** Test seam: build the sync provider instead of a real `WebsocketProvider`. */
+  providerFactory?: (boardId: string, doc: Y.Doc) => ProviderLike
+}
+
+export function useBoardDoc(
+  boardId?: string,
+  options: UseBoardDocOptions = {},
+): UseBoardDocResult {
   // Create (or reuse) the one Y.Doc for this component lifetime.
   const docRef = useRef<Y.Doc | null>(null)
   if (docRef.current === null) {
@@ -16,6 +27,22 @@ export function useBoardDoc(): UseBoardDocResult {
     docRef.current = d
   }
   const doc = docRef.current
+
+  // ── live connection ────────────────────────────────────────────────────────
+  // No board id (component tests, `?offline`) → no provider at all, and the
+  // badge stays hidden.
+  const [connectionState, setConnectionState] = useState<ConnectionState>(
+    boardId ? 'connecting' : 'connected',
+  )
+  const providerFactory = options.providerFactory
+  useEffect(() => {
+    if (!boardId) return
+    const provider = providerFactory ? providerFactory(boardId, doc) : undefined
+    const connection = connectBoard(doc, boardId, setConnectionState, { provider })
+    return () => {
+      connection.destroy()
+    }
+  }, [doc, boardId, providerFactory])
 
   // Snapshot cache — recomputed whenever the objects map fires an event.
   // We use a fresh object wrapper so identity changes exactly when the doc
@@ -48,5 +75,5 @@ export function useBoardDoc(): UseBoardDocResult {
 
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
-  return { doc, notes }
+  return { doc, notes, connectionState }
 }
