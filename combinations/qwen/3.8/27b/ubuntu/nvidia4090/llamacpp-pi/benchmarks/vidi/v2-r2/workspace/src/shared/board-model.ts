@@ -21,6 +21,9 @@
  *       size: TextSize            // text only (story 9)
  *       widthMode: 'auto'|'fixed' // text only (story 9)
  *       createdBy: string         // text only (story 9)
+ *       kind/fill/stroke/label    // shape only (story 10, shape.ts)
+ *       from/to: Y.Map            // connector only (story 10, connector.ts);
+ *                                 // x/y stored as 0, bbox derived in the snapshot
  *     }
  *
  * Story 7 adds the generic object view (`ObjectSnapshot`) and the group
@@ -33,13 +36,23 @@
 import * as Y from 'yjs';
 import {
   DEFAULT_STICKY_COLOR,
+  SHAPE_FILL_COLORS,
+  SHAPE_KINDS,
+  SHAPE_STROKE_COLORS,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   TEXT_SIZES,
+  type ShapeFillColor,
+  type ShapeKind,
+  type ShapeStrokeColor,
   type StickyColor,
   type TextSize,
 } from './config';
 import { type Point, type Rect, rectContains } from './geometry';
+
+export type { Point, Rect } from './geometry';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import { readEndpoint, type Endpoint } from './objects/endpoint';
 
 /** Transaction origin for all local (non-synced) mutations. */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local-origin');
@@ -62,6 +75,21 @@ export function addKnownObjectType(type: string): void {
 /** True when `type` is known to this client. */
 export function isKnownObjectType(type: string): boolean {
   return knownObjectTypes.has(type);
+}
+
+/**
+ * Pre-delete hooks (story 10): run inside deleteObjects' transaction,
+ * BEFORE the removals, so dependent writes (connector detach) land in the
+ * same update and see the deleted objects' last known state. Object models
+ * register hooks on import (connector: detachConnectorsTo) — this keeps
+ * the dependency one-way, so this module never imports an object model.
+ */
+type PreDeleteHook = (doc: Y.Doc, deletedIds: readonly string[]) => void;
+const preDeleteHooks: PreDeleteHook[] = [];
+
+/** Registers a pre-delete hook (see above). */
+export function addPreDeleteHook(hook: PreDeleteHook): void {
+  preDeleteHooks.push(hook);
 }
 
 /**
@@ -88,11 +116,24 @@ export interface ObjectSnapshot {
   height?: number;
   /** Sticky-only fields: present when type is 'sticky'. */
   color?: StickyColor;
-  /** The object's text content (type 'sticky' or 'text'). */
+  /** The object's text content (type 'sticky', 'text', or the shape label). */
   text?: string;
   /** Text-only fields (story 9): present when type is 'text'. */
   size?: TextSize;
   widthMode?: 'auto' | 'fixed';
+  /** Shape-only fields (story 10): present when type is 'shape'; the label
+   *  content is also exposed through `text` above. */
+  kind?: ShapeKind;
+  fill?: ShapeFillColor;
+  stroke?: ShapeStrokeColor;
+  label?: string;
+  /** Connector-only fields (story 10): present when type is 'connector'.
+   *  `x/y/width/height` above are the *derived* bounding box of the
+   *  resolved endpoints (the stored x/y are 0). */
+  from?: Endpoint;
+  to?: Endpoint;
+  fromPoint?: Point;
+  toPoint?: Point;
 }
 
 /** Immutable view of one sticky note. */
@@ -209,6 +250,50 @@ export function objectBounds(obj: ObjectSnapshot): Rect {
 }
 
 /**
+ * Read-only world rect of every known NON-connector object (story 10:
+ * connector endpoint resolution). Connector entries (their geometry is
+ * derived from other objects' rects) and malformed entries are skipped.
+ */
+export function objectRects(doc: Y.Doc): ReadonlyMap<string, Rect> {
+  const m = new Map<string, Rect>();
+  for (const [id, entry] of objectsOf(doc)) {
+    if (!isKnownObject(entry) || entry.get('type') === 'connector') {
+      continue;
+    }
+    const x = entry.get('x');
+    const y = entry.get('y');
+    if (!finiteNumber(x) || !finiteNumber(y)) {
+      continue;
+    }
+    const width = entry.get('width');
+    const height = entry.get('height');
+    m.set(id, {
+      x,
+      y,
+      width: finiteNumber(width) ? width : STICKY_SIZE_WORLD,
+      height: finiteNumber(height) ? height : STICKY_SIZE_WORLD,
+    });
+  }
+  return m;
+}
+
+/**
+ * World rects of the snapshot's non-connector objects (story 10: connector
+ * endpoint resolution from the rendered snapshot, e.g. for the re-attach
+ * hit test and the connector's live endpoints).
+ */
+export function snapshotRects(snapshot: readonly ObjectSnapshot[]): Map<string, Rect> {
+  const m = new Map<string, Rect>();
+  for (const obj of snapshot) {
+    if (obj.type === 'connector') {
+      continue;
+    }
+    m.set(obj.id, objectBounds(obj));
+  }
+  return m;
+}
+
+/**
  * Ids of the snapshot objects fully inside `rect` (marquee containment
  * rule). Ids outside the snapshot — deleted remotely, unknown types — are
  * never returned.
@@ -280,6 +365,9 @@ export function moveObjects(
         if (!isKnownObject(entry)) {
           continue;
         }
+        if (entry.get('type') === 'connector') {
+          continue; // endpoint-defined geometry (story 10)
+        }
         entry.set('x', p.x);
         entry.set('y', p.y);
         applied += 1;
@@ -314,6 +402,9 @@ export function resizeObjects(
         const entry = objects.get(id);
         if (!isKnownObject(entry)) {
           continue;
+        }
+        if (entry.get('type') === 'connector') {
+          continue; // not resizable: endpoint-defined geometry (story 10)
         }
         entry.set('x', r.x);
         entry.set('y', r.y);
@@ -393,6 +484,12 @@ export function bringObjectsToFront(
  * Deletes every known object in `ids` in one LOCAL_ORIGIN transaction.
  * Missing ids are skipped. Returns the number of objects deleted; an empty
  * id list returns 0 with no transaction.
+ *
+ * Story 10: connector endpoints attached to a deleted object are detached
+ * to free points at their last known anchor *inside the same transaction*
+ * (before the removals, so the deleted objects' rects are still live),
+ * keeping the whole deletion to exactly one update. The detach runs
+ * through the pre-delete hook registry (registered by the connector model).
  */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) {
@@ -402,6 +499,9 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   let applied = 0;
   doc.transact(
     () => {
+      for (const hook of preDeleteHooks) {
+        hook(doc, ids);
+      }
       for (const id of ids) {
         const entry = objects.get(id);
         if (!isKnownObject(entry)) {
@@ -497,29 +597,70 @@ export function renderOrder(
  * by (z, id) so concurrent equal z values give every client the same order.
  * Malformed entries are skipped (forward compatibility for later stories).
  *
+ * Story 10: connector snapshots carry the endpoint descriptors plus the
+ * *derived* resolved points and bounding box (stored x/y are 0), so generic
+ * code (objectBounds, marquee, unions) sees the live arrow geometry.
+ *
  * The board renders through this view + the object registry; sticky-only
  * consumers (tests, the e2e hooks) use `snapshot` instead.
  */
 export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
   const out: ObjectSnapshot[] = [];
+  // Live rects of the non-connector objects (connector endpoint resolution).
+  const rects = objectRects(doc);
   for (const [id, entry] of objectsOf(doc)) {
     if (!isKnownObject(entry)) {
       continue;
     }
     const type = entry.get('type');
-    const x = entry.get('x');
-    const y = entry.get('y');
     const z = entry.get('z');
     const createdAt = entry.get('createdAt');
-    if (typeof type !== 'string' || !finiteNumber(x) || !finiteNumber(y) || !finiteNumber(z)) {
+    if (typeof type !== 'string' || !finiteNumber(z)) {
+      continue;
+    }
+    if (type === 'connector') {
+      const from = readEndpoint(entry.get('from'));
+      const to = readEndpoint(entry.get('to'));
+      if (from === undefined || to === undefined) {
+        continue; // malformed connector
+      }
+      const { fromPoint, toPoint } = resolveEndpoints({ from, to }, rects);
+      const bbox = connectorBBox(fromPoint, toPoint);
+      out.push({
+        id,
+        type,
+        x: bbox.x,
+        y: bbox.y,
+        z,
+        createdAt: finiteNumber(createdAt) ? createdAt : 0,
+        width: bbox.width,
+        height: bbox.height,
+        from,
+        to,
+        fromPoint,
+        toPoint,
+      });
+      continue;
+    }
+    const x = entry.get('x');
+    const y = entry.get('y');
+    if (!finiteNumber(x) || !finiteNumber(y)) {
       continue;
     }
     const width = entry.get('width');
     const height = entry.get('height');
     const color = type === 'sticky' ? entry.get('color') : undefined;
-    const textType = type === 'sticky' || type === 'text' ? entry.get('text') : undefined;
+    const textSource =
+      type === 'sticky' || type === 'text'
+        ? entry.get('text')
+        : type === 'shape'
+          ? entry.get('label')
+          : undefined;
     const size = type === 'text' ? entry.get('size') : undefined;
     const widthMode = type === 'text' ? entry.get('widthMode') : undefined;
+    const kind = type === 'shape' ? entry.get('kind') : undefined;
+    const fill = type === 'shape' ? entry.get('fill') : undefined;
+    const stroke = type === 'shape' ? entry.get('stroke') : undefined;
     out.push({
       id,
       type,
@@ -530,11 +671,21 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
       width: finiteNumber(width) ? width : undefined,
       height: finiteNumber(height) ? height : undefined,
       color: typeof color === 'string' ? (color as StickyColor) : undefined,
-      text: textType instanceof Y.Text ? textType.toString() : undefined,
+      text: textSource instanceof Y.Text ? textSource.toString() : undefined,
       size:
         typeof size === 'string' && size in TEXT_SIZES ? (size as TextSize) : undefined,
       widthMode:
         widthMode === 'auto' || widthMode === 'fixed' ? widthMode : undefined,
+      kind:
+        typeof kind === 'string' && (SHAPE_KINDS as readonly string[]).includes(kind)
+          ? (kind as ShapeKind)
+          : undefined,
+      fill: typeof fill === 'string' && fill in SHAPE_FILL_COLORS ? (fill as ShapeFillColor) : undefined,
+      stroke:
+        typeof stroke === 'string' && stroke in SHAPE_STROKE_COLORS
+          ? (stroke as ShapeStrokeColor)
+          : undefined,
+      label: textSource instanceof Y.Text && type === 'shape' ? textSource.toString() : undefined,
     });
   }
   out.sort((a, b) => {

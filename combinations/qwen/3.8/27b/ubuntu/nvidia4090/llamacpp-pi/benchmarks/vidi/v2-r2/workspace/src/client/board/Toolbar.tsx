@@ -1,20 +1,23 @@
 import { type CSSProperties, type JSX } from 'react';
-import { STICKY_COLORS } from '../../shared/config';
-import type { Tool } from './useTool';
+import { SHAPE_KINDS, STICKY_COLORS, type ShapeKind } from '../../shared/config';
+import type { ToolId } from '../tools/useActiveTool';
 import { UndoButtons } from './UndoButtons';
 import type { UndoActions } from './useUndo';
 
 export interface ToolbarProps {
   /** Create a sticky note at the viewport centre (N). */
   onCreateSticky(): void;
-  /** The active tool (story 9) and its setter (Toolbar clicks). */
-  tool: Tool;
-  onToolChange(t: Tool): void;
+  /** The active tool (story 9/10) and its setter (Toolbar clicks). */
+  tool: ToolId;
+  onToolChange(t: ToolId): void;
+  /** The kind the Shape tool draws with (story 10) and its setter. */
+  shapeKind: ShapeKind;
+  onShapeKindChange(k: ShapeKind): void;
   /**
    * When true (persist.client_status load_failed) the Sticky note button is
-   * disabled, so a load-failed board can never create a note. The Text tool
-   * is also unavailable (board.readonly): the Text button is disabled and
-   * the T shortcut is ignored.
+   * disabled, so a load-failed board can never create a note. The creation
+   * tools are also unavailable (board.readonly): their buttons are disabled
+   * and their shortcuts are ignored.
    */
   disabled?: boolean;
   /** Undo / Redo state and actions for this tab (story 8, undo.controls). */
@@ -33,10 +36,40 @@ const TOOL_BUTTON_STYLE: CSSProperties = {
   cursor: 'pointer',
 };
 
+/** Small 26x26 kind-button look (the shape kind row). */
+const KIND_BUTTON_STYLE: CSSProperties = {
+  width: 26,
+  height: 26,
+  display: 'grid',
+  placeItems: 'center',
+  padding: 0,
+  border: '1px solid rgba(0,0,0,0.18)',
+  borderRadius: 5,
+  cursor: 'pointer',
+};
+
+/** The little glyph for one shape kind. */
+function KindGlyph({ kind }: { kind: ShapeKind }): JSX.Element {
+  const common = {
+    fill: 'none',
+    stroke: '#3c3c34',
+    strokeWidth: 2,
+    strokeLinejoin: 'round' as const,
+  };
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24">
+      {kind === 'rect' && <rect x="4" y="7" width="16" height="10" {...common} />}
+      {kind === 'ellipse' && <ellipse cx="12" cy="12" rx="8" ry="5.5" {...common} />}
+      {kind === 'diamond' && <polygon points="12,4 20,12 12,20 4,12" {...common} />}
+    </svg>
+  );
+}
+
 /**
- * Fixed left toolbar: the Select and Text tools (story 9), the Sticky note
- * button (story 2; shortcut N, introduced by story 9) and the Undo / Redo
- * buttons (story 8).
+ * Fixed left toolbar: the Select, Text, Shape and Connector tools
+ * (stories 9-10), the Sticky note button (story 2; shortcut N) and the
+ * Undo / Redo buttons (story 8). While the Shape tool is active, a row of
+ * kind buttons (rect / ellipse / diamond) sits under the tool buttons.
  *
  * It is rendered in screen space (outside the board's transformed world
  * layer) and stops pointer/double-click propagation so a press on it never
@@ -46,6 +79,8 @@ export function Toolbar({
   onCreateSticky,
   tool,
   onToolChange,
+  shapeKind,
+  onShapeKindChange,
   disabled = false,
   undo,
 }: ToolbarProps): JSX.Element {
@@ -115,6 +150,93 @@ export function Toolbar({
       >
         <span aria-hidden="true">T</span>
       </button>
+      <button
+        type="button"
+        aria-label="Shape (S)"
+        title={disabled ? 'Board unavailable' : 'Shape – S, then drag or click the board'}
+        aria-pressed={tool === 'shape'}
+        disabled={disabled}
+        data-testid="shape-button"
+        onClick={() => onToolChange('shape')}
+        style={{
+          ...TOOL_BUTTON_STYLE,
+          background: tool === 'shape' ? '#e8f0fe' : '#ffffff',
+          outline: tool === 'shape' ? '1px solid #1a73e8' : 'none',
+        }}
+      >
+        <svg
+          aria-hidden="true"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#3c3c34"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        >
+          <rect x="4" y="4" width="16" height="16" rx="1" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        aria-label="Connector (L)"
+        title={disabled ? 'Board unavailable' : 'Connector – L, then drag between two objects'}
+        aria-pressed={tool === 'connector'}
+        disabled={disabled}
+        data-testid="connector-button"
+        onClick={() => onToolChange('connector')}
+        style={{
+          ...TOOL_BUTTON_STYLE,
+          background: tool === 'connector' ? '#e8f0fe' : '#ffffff',
+          outline: tool === 'connector' ? '1px solid #1a73e8' : 'none',
+        }}
+      >
+        <svg
+          aria-hidden="true"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#3c3c34"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M5 12h12" />
+          <path d="M13 7l5 5-5 5" />
+          <circle cx="4.5" cy="12" r="1.5" fill="#3c3c34" stroke="none" />
+        </svg>
+      </button>
+      {tool === 'shape' && (
+        <div
+          data-testid="shape-kind-row"
+          role="radiogroup"
+          aria-label="Shape kind"
+          style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+        >
+          {SHAPE_KINDS.map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              role="radio"
+              aria-checked={shapeKind === kind}
+              aria-label={
+                kind === 'rect' ? 'Rectangle' : kind === 'ellipse' ? 'Ellipse' : 'Diamond'
+              }
+              title={kind}
+              data-testid={`shape-kind-${kind}`}
+              onClick={() => onShapeKindChange(kind)}
+              style={{
+                ...KIND_BUTTON_STYLE,
+                background: shapeKind === kind ? '#e8f0fe' : '#ffffff',
+                outline: shapeKind === kind ? '1px solid #1a73e8' : 'none',
+              }}
+            >
+              <KindGlyph kind={kind} />
+            </button>
+          ))}
+        </div>
+      )}
       <button
         type="button"
         aria-label="Sticky note (N)"

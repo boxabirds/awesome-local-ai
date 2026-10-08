@@ -51,6 +51,7 @@ export function TextObject(props: TextObjectProps): JSX.Element {
     onEndEdit,
     onTextBoundary,
     onTextUndo,
+    inert,
   } = props;
   const text = obj as TextSnapshot;
   const editing = editingId === obj.id;
@@ -82,6 +83,9 @@ export function TextObject(props: TextObjectProps): JSX.Element {
       aria-label="Text"
       tabIndex={0}
       onPointerDown={(e) => {
+        if (inert) {
+          return; // a non-Select tool is active: the tool owns the gesture
+        }
         if (editing) {
           return; // the textarea owns pointer events while editing (caret)
         }
@@ -95,7 +99,7 @@ export function TextObject(props: TextObjectProps): JSX.Element {
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        if (!editing) {
+        if (!inert && !editing) {
           onEdit(obj.id);
         }
       }}
@@ -116,7 +120,7 @@ export function TextObject(props: TextObjectProps): JSX.Element {
         boxSizing: 'border-box',
         userSelect: 'none',
         touchAction: 'none',
-        pointerEvents: 'auto',
+        pointerEvents: inert ? 'none' : 'auto',
         cursor: editing ? 'text' : 'grab',
       }}
     >

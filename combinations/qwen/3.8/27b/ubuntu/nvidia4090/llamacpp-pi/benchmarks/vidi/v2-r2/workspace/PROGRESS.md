@@ -1,28 +1,33 @@
-# Story 9 — Write free text anywhere on the board
+# Story 10 progress — Draw shapes and connect them with arrows that follow when moved
 
-## Current status
-- **done:** all tasks (1–10) complete; all unit/component/integration/e2e suites green
-- **last commit:** (this commit)
+## Doing
+- (none)
 
-## Tasks
-- [x] 1. Text model + unit tests (TC-01–06)
-- [x] 2. Text model implementation (createText, setTextSize, setTextWidthFixed, setTextBox, deleteIfEmpty)
-- [x] 3. Text layout unit tests (TC-07–11, TC-32)
-- [x] 4. Text layout implementation (layoutText, canvas measurer) + box sync (useTextBoxSync)
-- [x] 5. Box sync component tests (TC-12, TC-13)
-- [x] 6. Text tool UI + shortcuts (toolbar, V/T/N, click-to-create, load_failed)
-- [x] 7. Tool component tests (TC-14–18)
-- [x] 8. TextObject rendering, editor, TextToolbar, registry, handles, resize gesture
-- [x] 9. Text object component tests (TC-19–25)
-- [x] 10. e2e free text (TC-26–31)
+## Todo
+- (none)
 
-## Decisions
-- `src/shared/objects/text.ts` registers 'text' as a known object type on import (unit tests run without the client registry).
-- Text stores explicit width/height (like stickies); box sync observes local Y.Text/size/width changes and writes setTextBox when the re-measured box differs.
-- StickyTextEditor wraps a generalised TextEditor (per design); clampToLimit/applyTextDiff moved to src/shared/text-edit.ts with re-exports.
-- Undo inverse transactions use the UndoManager as origin (not LOCAL_ORIGIN), so box-sync does not re-measure on undo — the stored box reverts exactly with the text (TC-25).
-- `snapshotAll` is the all-types read used by text tests; `snapshot` remains sticky-only (unchanged).
-- Test-only hook now exposes `size` and `widthMode` for text objects.
+## Blocked
+- (none)
+
+## Done
+- Task 7: Shape model unit tests (TC-01..TC-06)
+- Task 8: Shape object model
+- Task 9: Connector model + geometry unit tests (TC-07..TC-14, TC-29)
+- Task 10: Connector model, geometry, detach-on-delete
+- Task 11: Active tool hook (s/l shortcuts, toolCreated revert)
+- Task 12: Shape tool + shape object (drag, label editor, toolbar)
+- Task 13: Connector tool + connector object (dots, arrowhead, re-attach)
+- Task 14: Component tests (TC-15..TC-22, TC-28)
+- Task 15: E2E tests (TC-23..TC-27, checkout-flow fixture)
+- Run all suites + build + typecheck; commit
+
+## Verification (all green)
+- unit: 159 passed (18 files)
+- component: 105 passed (18 files)
+- integration: 45 passed (5 files)
+- e2e (chromium): 47 passed (includes new TC-23..TC-27)
+- build (vite): ok
+- typecheck (both tsconfigs): ok
 
 ## Notes
-- See NOTES.md.
+- See NOTES.md for decisions and deviations.

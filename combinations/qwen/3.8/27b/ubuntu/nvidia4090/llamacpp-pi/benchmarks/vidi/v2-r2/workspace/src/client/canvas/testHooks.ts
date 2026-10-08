@@ -36,6 +36,18 @@ export interface BoardObjectState {
   /** Free text (story 9): the size preset and width mode. */
   size?: string;
   widthMode?: 'auto' | 'fixed';
+  /** Shape (story 10): the kind and named colours; the label also shows
+   *  up in `text`. */
+  kind?: string;
+  fill?: string;
+  stroke?: string;
+  label?: string;
+  /** Connector (story 10): the endpoint descriptors and their resolved
+   *  points; `x/y/width/height` are the derived bounding box. */
+  from?: { kind: string; objectId?: string; x?: number; y?: number };
+  to?: { kind: string; objectId?: string; x?: number; y?: number };
+  fromPoint?: { x: number; y: number };
+  toPoint?: { x: number; y: number };
 }
 
 /**
@@ -94,5 +106,18 @@ function toState(o: ObjectSnapshot): BoardObjectState {
     height: o.height,
     size: o.size,
     widthMode: o.widthMode,
+    kind: o.kind,
+    fill: o.fill,
+    stroke: o.stroke,
+    label: o.label,
+    from: o.from === undefined ? undefined : endpointState(o.from),
+    to: o.to === undefined ? undefined : endpointState(o.to),
+    fromPoint: o.fromPoint,
+    toPoint: o.toPoint,
   };
+}
+
+/** One connector endpoint for the test hook (story 10). */
+function endpointState(e: { kind: string; objectId?: string; x?: number; y?: number }) {
+  return { kind: e.kind, objectId: e.objectId, x: e.x, y: e.y };
 }

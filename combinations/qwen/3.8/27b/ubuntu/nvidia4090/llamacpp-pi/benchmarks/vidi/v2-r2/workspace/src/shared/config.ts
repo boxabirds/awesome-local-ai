@@ -210,3 +210,80 @@ export const TEXT_COUNTER_NEAR_CHARS = 50;
  * width when canvas measurement is unavailable (unit tests / non-DOM).
  */
 export const TEXT_ESTIMATED_GLYPH_WIDTH_RATIO = 0.55;
+
+/* ------------------------------------------------------------------ */
+/* Shape object (story 10, design shape.object)                        */
+/* ------------------------------------------------------------------ */
+
+/** The three shape kinds (design shape.object). */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** Shape label character limit (shared with the shape label editor). */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** Shape created by a click (no drag / tiny drag), in world units. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/** Smallest shape size in world units; smaller drags become the default. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** Shape stroke width in world units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** Named fill palette (design shape.object); `none` means no fill. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#ffffff',
+  blue: '#c5dcf7',
+  green: '#cdeccd',
+  yellow: '#f7e8b0',
+  pink: '#f6cfe0',
+  grey: '#e4e4e0',
+} as const;
+export type ShapeFillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** Named outline palette (design shape.object). */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#3c3c34',
+  blue: '#2563eb',
+  green: '#16a34a',
+  orange: '#ea8a00',
+  red: '#dc2626',
+  grey: '#9a9a92',
+} as const;
+export type ShapeStrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** Default fill / outline for a freshly created shape (design shape.object). */
+export const DEFAULT_SHAPE_FILL: ShapeFillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: ShapeStrokeColor = 'dark';
+
+/** Shape label font size, world units at 100% zoom (shape.label). */
+export const SHAPE_LABEL_FONT_PX = 16;
+
+/** Padding between a shape's outline and its label box, world units. */
+export const SHAPE_LABEL_PADDING_WORLD = 8;
+
+/* ------------------------------------------------------------------ */
+/* Connector (story 10, design connector.object)                       */
+/* ------------------------------------------------------------------ */
+
+/** Connectors shorter than this are not created (a 7.9 unit drag creates
+ *  nothing, an 8 unit drag is allowed). */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/** Click / hit tolerance around a connector line, in screen pixels at any
+ *  zoom (5 px is within the tolerance, 7 px is not). */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** Connector line width in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** Arrowhead size in world units (head length and half of the base). */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** Endpoint dot radius, in screen pixels (connector tool hover / drag). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+/** Connector line colour. */
+export const CONNECTOR_INK_COLOR = '#3c3c34';

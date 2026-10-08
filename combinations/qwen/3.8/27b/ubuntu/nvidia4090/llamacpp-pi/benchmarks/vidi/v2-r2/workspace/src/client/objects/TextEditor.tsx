@@ -43,6 +43,8 @@ export interface TextEditorUi {
   fadeTestid?: string;
   /** Inset of the textarea inside the object, world units (default 0). */
   padding?: number;
+  /** Horizontal alignment (default 'left'; the shape label uses 'center'). */
+  textAlign?: 'left' | 'center';
   /** Line-height ratio (default TEXT_LINE_HEIGHT). */
   lineHeight?: number;
   /** Ink colour (default the text object ink). */
@@ -318,6 +320,7 @@ export function TextEditor({
           color: ui.color ?? TEXT_INK,
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
+          textAlign: ui.textAlign ?? 'left',
         }}
       />
       {overflow && ui.fadeTestid !== undefined && (

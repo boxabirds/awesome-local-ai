@@ -36,7 +36,18 @@ import {
   type StickySnapshot,
 } from '../shared/board-model';
 import { createText, deleteIfEmpty, setTextSize } from '../shared/objects/text';
-import { STICKY_SIZE_WORLD, type StickyColor, type TextSize } from '../shared/config';
+import { setShapeStyle } from '../shared/objects/shape';
+import type { ShapeSnapshot } from '../shared/objects/shape';
+import { CLIENT_ID } from './client-id';
+import {
+  SHAPE_DEFAULT_SIZE_WORLD,
+  STICKY_SIZE_WORLD,
+  type ShapeFillColor,
+  type ShapeKind,
+  type ShapeStrokeColor,
+  type StickyColor,
+  type TextSize,
+} from '../shared/config';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { createUndo } from './board/undo';
@@ -44,12 +55,15 @@ import { useUndo } from './board/useUndo';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { useBoardKeys } from './board/useBoardKeys';
-import { useTool } from './board/useTool';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
 import { NoteToolbar } from './objects/NoteToolbar';
-import { getObjectType } from './objects/registry';
+import { ShapeToolbar } from './objects/ShapeToolbar';
+import { getObjectType, type GesturePointerEvent } from './objects/registry';
 import { type ConnectionState } from './sync/connectBoard';
 
 /**
@@ -62,15 +76,6 @@ import { type ConnectionState } from './sync/connectBoard';
 export function canEdit(state: ConnectionState): boolean {
   return state !== 'load_failed';
 }
-
-/**
- * This client's id (story 9, text.created_by): one stable id per tab for the
- * lifetime of the tab. It is client-only metadata, never synced.
- */
-const CLIENT_ID: string =
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `client-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 /** Board background colour (the dot grid is drawn on top). */
 const BOARD_BACKGROUND = '#f8f8f6';
@@ -177,11 +182,11 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
   // --- selection (story 7) --------------------------------------------------
   const selection = useSelection(objects);
 
-  // --- tools (story 9, text.tool_ui) -----------------------------------------
-  // Select is the default; Text is armed via T or the Toolbar. While the
-  // board is not editable (load_failed) an active Text tool reverts to
-  // Select. V always reverts to Select (it is local UI state).
-  const { tool, setTool } = useTool(editable);
+  // --- tools (story 9/10, text.tool_ui / tools.active_tool) ------------------
+  // Select is the default; the creation tools are armed via shortcuts or
+  // the Toolbar. While the board is not editable (load_failed) an active
+  // creation tool reverts to Select. V always reverts to Select (local UI).
+  // (useActiveTool is called after the create callbacks it needs exist.)
 
   // --- text editing ----------------------------------------------------------
   // The editor reports 'unselected' when a press lands outside the object
@@ -280,6 +285,13 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
     createAt({ x: viewport.width / 2, y: viewport.height / 2 });
   }, [createAt, viewport]);
 
+  const activeTool = useActiveTool({
+    canEdit: editable,
+    selectObject: (id: string) => selection.click(id),
+    onCreateSticky: createAtCentre,
+  });
+  const { tool, setTool, shapeKind, setShapeKind, toolCreated } = activeTool;
+
   /**
    * Story 9 (text.tool_ui): create a free text object at a viewport-local
    * point, select it, start editing it, and revert to the Select tool.
@@ -333,17 +345,42 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
     [doc, objects, selection, editable, undo],
   );
 
-  // --- keyboard commands (story 7 + 8 + 9) --------------------------------------
+  // --- keyboard commands (story 7 + 8) ---------------------------------------
+  // (Tool shortcuts — V, T, S, L, N, Escape — are owned by useActiveTool.)
   useBoardKeys({
     doc,
     selection,
     snapshot: objects,
     canEdit: editable,
     undo,
-    tool,
-    setTool,
-    onCreateSticky: createAtCentre,
   });
+
+  /**
+   * Story 10 (connector.select): a Select-tool press on empty space hit-
+   * tests the connector lines (topmost first, registry tolerance);
+   * returning true consumed the press (selected, no pan/marquee).
+   */
+  const onEmptyPointerDown = useCallback(
+    (e: GesturePointerEvent, p: Point): boolean => {
+      const world = screenToWorld(cameraController.camera, p);
+      const zoom = cameraController.camera.zoom;
+      const spec = getObjectType('connector');
+      if (spec === undefined) {
+        return false;
+      }
+      const candidates = objects
+        .filter((o) => o.type === 'connector')
+        .sort((a, b) => b.z - a.z);
+      for (const c of candidates) {
+        if (spec.hitTest(c, world, zoom)) {
+          gesture.onObjectPointerDown(e, c.id);
+          return true;
+        }
+      }
+      return false;
+    },
+    [cameraController.camera, objects, gesture],
+  );
 
   const deleteSelection = useCallback((): void => {
     if (!editable) {
@@ -377,6 +414,30 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
     [doc, selection, editable, undo],
   );
 
+  /**
+   * Story 10 (shape.style): change the fill and/or outline of the single
+   * selected shape. One undo step per swatch click.
+   */
+  const changeShapeStyle = useCallback(
+    (s: { fill?: ShapeFillColor; stroke?: ShapeStrokeColor }): void => {
+      if (!editable) {
+        return;
+      }
+      const id = selection.ids.values().next().value;
+      if (id === undefined) {
+        return;
+      }
+      const obj = objects.find((o) => o.id === id);
+      if (obj === undefined || obj.type !== 'shape') {
+        return; // only a single selected shape shows the ShapeToolbar
+      }
+      undo.boundary();
+      setShapeStyle(doc, id, s);
+      undo.boundary();
+    },
+    [doc, objects, selection, editable, undo],
+  );
+
   const ordered = renderOrder(objects);
 
   // The selection chrome (outline, handles, bar) is hidden during a
@@ -388,6 +449,15 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
       ? (objects.find(
           (o) => selection.ids.has(o.id) && o.type === 'sticky',
         ) as StickySnapshot | undefined)
+      : undefined;
+
+  // Story 10 (shape.style): exactly one selected shape shows the Shape
+  // toolbar (fill + outline swatches) above it.
+  const selectedShape =
+    selection.ids.size === 1
+      ? (objects.find(
+          (o) => selection.ids.has(o.id) && o.type === 'shape',
+        ) as ShapeSnapshot | undefined)
       : undefined;
 
   return (
@@ -402,6 +472,7 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
             editable && tool === 'select' ? createAt : undefined
           }
           onEmptyClick={selection.clear}
+          onEmptyPointerDown={editable ? onEmptyPointerDown : undefined}
           tool={tool}
           onTextToolClick={editable ? createTextAt : undefined}
           onMarqueeBegin={(p) => marquee.begin(p)}
@@ -453,15 +524,38 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
                 onEndEdit={handleEndEdit}
                 onTextBoundary={undo.boundary}
                 onTextUndo={undo.undo}
-                inert={tool === 'text'}
+                onBoundary={undo.boundary}
+                inert={tool !== 'select'}
+                camera={cameraController.camera}
+                objects={objects}
               />
             );
           })}
         </BoardViewport>
+        {tool === 'shape' && editable && (
+          <ShapeTool
+            doc={doc}
+            kind={shapeKind}
+            camera={cameraController.camera}
+            onCreated={toolCreated}
+            onBoundary={undo.boundary}
+          />
+        )}
+        {tool === 'connector' && editable && (
+          <ConnectorTool
+            doc={doc}
+            camera={cameraController.camera}
+            snapshot={objects}
+            onCreated={toolCreated}
+            onBoundary={undo.boundary}
+          />
+        )}
         <Toolbar
           onCreateSticky={createAtCentre}
           tool={tool}
           onToolChange={setTool}
+          shapeKind={shapeKind}
+          onShapeKindChange={setShapeKind}
           disabled={!editable}
           undo={undoActions}
         />
@@ -489,6 +583,32 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
               disabled={!editable}
               onColor={recolorSelection}
               onDelete={deleteSelection}
+            />
+          </div>
+        )}
+        {chromeVisible && selectedShape !== undefined && (
+          <div
+            style={{
+              position: 'fixed',
+              left:
+                worldToScreen(cameraController.camera, {
+                  x: selectedShape.x + (selectedShape.width ?? SHAPE_DEFAULT_SIZE_WORLD) / 2,
+                  y: selectedShape.y,
+                }).x,
+              top:
+                worldToScreen(cameraController.camera, {
+                  x: selectedShape.x,
+                  y: selectedShape.y,
+                }).y - 10,
+              transform: 'translate(-50%, -100%)',
+              zIndex: 3000,
+            }}
+          >
+            <ShapeToolbar
+              fill={selectedShape.fill}
+              stroke={selectedShape.stroke}
+              onFill={(fill) => changeShapeStyle({ fill })}
+              onStroke={(stroke) => changeShapeStyle({ stroke })}
             />
           </div>
         )}

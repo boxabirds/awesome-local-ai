@@ -63,8 +63,6 @@ function KeysHarness({ controller, canEdit, editingId = null }: {
     snapshot: [],
     canEdit,
     undo: controller,
-    tool: 'select',
-    setTool: () => {},
   });
   return null;
 }

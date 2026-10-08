@@ -24,13 +24,13 @@ describe('registry (sel.registry)', () => {
     // A 200×200 sticky at top-left (0,0): inside at the centre, and inside
     // up to (but not including) the far edges...
     const note: ObjectSnapshot = { id: 'n', type: 'sticky', x: 0, y: 0, z: 0, createdAt: 0 };
-    expect(spec!.hitTest(note, { x: 100, y: 100 })).toBe(true);
-    expect(spec!.hitTest(note, { x: 1, y: 1 })).toBe(true);
+    expect(spec!.hitTest(note, { x: 100, y: 100 }, 1)).toBe(true);
+    expect(spec!.hitTest(note, { x: 1, y: 1 }, 1)).toBe(true);
     // ...exactly on the far edge is OUTSIDE (boundary), and 1 unit beyond it
     // is outside too.
-    expect(spec!.hitTest(note, { x: 200, y: 100 })).toBe(false);
-    expect(spec!.hitTest(note, { x: 201, y: 100 })).toBe(false);
-    expect(spec!.hitTest(note, { x: 100, y: 201 })).toBe(false);
+    expect(spec!.hitTest(note, { x: 200, y: 100 }, 1)).toBe(false);
+    expect(spec!.hitTest(note, { x: 201, y: 100 }, 1)).toBe(false);
+    expect(spec!.hitTest(note, { x: 100, y: 201 }, 1)).toBe(false);
   });
 
   it('TC-12: unknown type → undefined', () => {

@@ -12,14 +12,19 @@ import * as Y from 'yjs';
 import type { ComponentType } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { addKnownObjectType, objectBounds } from '../../shared/board-model';
-import type { Point } from '../canvas/camera';
+import type { Camera, Point } from '../canvas/camera';
 import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import type { Rect } from '../../shared/geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { moveObjects } from '../../shared/board-model';
 import { getTextWidthMode, setTextWidthFixed } from '../../shared/objects/text';
+import { ConnectorObject } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 
@@ -61,12 +66,23 @@ export interface ObjectProps {
   onTextBoundary?(): void;
   /** Ctrl/Cmd+Z inside the text editor: undo this tab's last step (story 8). */
   onTextUndo?(): void;
+  /** Wraps one discrete user action in an undo boundary (story 10: the
+   *  connector's re-attach commit is one undo step). */
+  onBoundary?(): void;
   /**
    * Story 9: while the Text tool is active every object is inert (no
    * pointer events) so a click falls through to the viewport and creates a
-   * text object on top at that point.
+   * text object on top at that point. Story 10: the same holds for every
+   * non-Select tool (the Shape/Connector tools own the gesture through
+   * their tool layer; inert is the belt-and-braces guard).
    */
   inert?: boolean;
+  /** The live camera (story 10: the connector sizes its handles and hit
+   *  stroke in screen space and converts handle-release points). */
+  camera?: Camera;
+  /** The full live snapshot (story 10: the connector hit-tests re-attach
+   *  releases against the other objects). */
+  objects?: readonly ObjectSnapshot[];
 }
 
 /** One registered object type. */
@@ -80,8 +96,10 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Double-click / Enter opens an inline text editor. */
   editableText: boolean;
-  /** True when the world point hits the object. */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /** True when the world point hits the object. `zoom` (screen px per
+   *  world unit) lets screen-space tolerances (connector hit) convert to
+   *  world units; bbox types ignore it. */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom: number): boolean;
   /**
    * Which resize handles this type offers (story 9): 'horizontal' means
    * only the e/w handles (free text: width only — the height is derived
@@ -121,7 +139,7 @@ export function getObjectType(type: string): ObjectTypeSpec | undefined {
 // sticky
 // ---------------------------------------------------------------------------
 
-function pointWithinBounds(obj: ObjectSnapshot, p: Point): boolean {
+function pointWithinBounds(obj: ObjectSnapshot, p: Point, _zoom: number): boolean {
   const b = objectBounds(obj);
   return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
 }
@@ -162,4 +180,45 @@ registerObjectType('text', {
   handles: 'horizontal',
   hitTest: pointWithinBounds,
   applyGroupResize: applyTextGroupResize,
+});
+
+// ---------------------------------------------------------------------------
+// shape (story 10)
+// ---------------------------------------------------------------------------
+
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: pointWithinBounds,
+});
+
+// ---------------------------------------------------------------------------
+// connector (story 10)
+// ---------------------------------------------------------------------------
+
+/**
+ * Precise line hit test (connector.select): a point hits when it is within
+ * CONNECTOR_HIT_TOLERANCE_PX screen pixels of the arrow's line — the
+ * tolerance is divided by the zoom to convert to world units. Points inside
+ * the arrow's bounding box but farther from the line never hit.
+ */
+function connectorHitTest(obj: ObjectSnapshot, p: Point, zoom: number): boolean {
+  const from = obj.fromPoint;
+  const to = obj.toPoint;
+  if (from === undefined || to === undefined || !(zoom > 0)) {
+    return false;
+  }
+  return distanceToPolyline([from, to], p) <= CONNECTOR_HIT_TOLERANCE_PX / zoom;
+}
+
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest: connectorHitTest,
 });

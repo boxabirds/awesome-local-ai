@@ -15,7 +15,8 @@ import {
 } from '../../shared/config';
 import { CameraContext } from './useCamera';
 import type { Point } from './camera';
-import type { Tool } from '../board/useTool';
+import type { ToolId } from '../tools/useActiveTool';
+import type { GesturePointerEvent } from '../objects/registry';
 
 // Wheel event deltaMode values (DOM spec).
 const WHEEL_DELTA_PIXELS = 0;
@@ -60,15 +61,24 @@ interface BoardViewportProps {
    * the tolerance, no travel) fires `onTextToolClick` with the viewport-
    * local point so the board can create a text object there. Objects are
    * inert under the Text tool, so a press over an object also lands here
-   * and creates text on top.
+   * and creates text on top. Story 10: the full ToolId union (the Shape
+   * and Connector tools own the board through their own tool layers, so
+   * this component only distinguishes 'text' and 'select').
    */
-  tool?: Tool;
+  tool?: ToolId;
   /** Text-tool click: create a text object at this viewport-local point. */
   onTextToolClick?: (p: Point) => void;
+  /**
+   * Story 10 (connector.select): with the Select tool, a primary-button
+   * press on empty space first lets the board hit-test connector lines;
+   * returning true means a connector was selected (the press is consumed
+   * and no pan/marquee starts). Shift-presses (marquee) skip it.
+   */
+  onEmptyPointerDown?: (e: GesturePointerEvent, p: Point) => boolean;
 }
 
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
-  const { onDoubleClickEmpty, onEmptyClick, overlay, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel, tool = 'select', onTextToolClick } = props;
+  const { onDoubleClickEmpty, onEmptyClick, overlay, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel, tool = 'select', onTextToolClick, onEmptyPointerDown } = props;
   const controller = useContext(CameraContext);
   if (controller === null) {
     throw new Error('BoardViewport must be rendered inside a CameraContext provider');
@@ -199,6 +209,14 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     }
     if (e.pointerType === 'mouse' && e.button !== 0) {
       return;
+    }
+    // Story 10 (connector.select): a Select-tool press on empty space may
+    // land on a connector line (inside its tolerance): the board selects
+    // it and the press is consumed (no pan, no marquee).
+    if (tool === 'select' && !e.shiftKey && onEmptyPointerDown !== undefined) {
+      if (onEmptyPointerDown(e, toLocalPoint(e.clientX, e.clientY))) {
+        return;
+      }
     }
     // Story 9 (text.tool_ui): the Text tool arms a click-to-create on empty
     // space; it does not pan or marquee.

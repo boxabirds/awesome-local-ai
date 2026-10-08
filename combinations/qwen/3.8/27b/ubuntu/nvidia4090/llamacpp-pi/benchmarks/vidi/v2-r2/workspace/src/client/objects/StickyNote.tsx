@@ -27,7 +27,7 @@ const TEXT_FAMILY =
  * ObjectProps (sel.all_types).
  */
 export function StickyNote(props: ObjectProps): JSX.Element {
-  const { doc, obj, selected, editingId, onPointerDown, onEdit, onEndEdit, onTextBoundary, onTextUndo } = props;
+  const { doc, obj, selected, editingId, onPointerDown, onEdit, onEndEdit, onTextBoundary, onTextUndo, inert } = props;
   const note = obj as StickySnapshot;
   const editing = editingId === obj.id;
   const width = note.width ?? STICKY_SIZE_WORLD;
@@ -64,6 +64,9 @@ export function StickyNote(props: ObjectProps): JSX.Element {
       aria-label="Sticky note"
       tabIndex={0}
       onPointerDown={(e) => {
+        if (inert) {
+          return; // a non-Select tool is active: the tool owns the gesture
+        }
         if (editing) {
           return; // the textarea owns pointer events while editing (caret)
         }
@@ -80,7 +83,7 @@ export function StickyNote(props: ObjectProps): JSX.Element {
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        if (!editing) {
+        if (!inert && !editing) {
           onEdit(obj.id);
         }
       }}
@@ -98,7 +101,7 @@ export function StickyNote(props: ObjectProps): JSX.Element {
           : '0 1px 4px rgba(0,0,0,0.18)',
         outline: selected ? STICKY_SELECTION_OUTLINE : 'none',
         outlineOffset: 2,
-        pointerEvents: 'auto',
+        pointerEvents: inert ? 'none' : 'auto',
         cursor: editing ? 'text' : 'grab',
         fontFamily: TEXT_FAMILY,
         boxSizing: 'border-box',

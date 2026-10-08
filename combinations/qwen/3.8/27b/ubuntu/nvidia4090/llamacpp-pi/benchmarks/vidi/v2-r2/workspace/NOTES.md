@@ -1,531 +1,117 @@
-# Story 1: decisions and environment notes
+# Story 10 — decisions and deviations
 
-_(Story 2 decisions are at the bottom of this file.)_
+## Decisions
 
-# Story 2: Capture ideas on sticky notes — decisions
+- **Object ids are strings (UUIDs)** — existing model convention (story 9+); the design
+  sketch's `number` ids are not used anywhere.
+- **Object IDs in the Y.Map `objects` are stored as written** — connector endpoint
+  `objectId` values are the string object ids.
+- **`inert` is implemented** on StickyNote and TextObject (pointer + double-click
+  guards, `pointer-events: none` while inert). The board passes
+  `inert={tool !== 'select'}`, which also realises the documented story-9 intent that
+  the Text tool clicks create text *on top of* objects (a click lands on the viewport).
+  Existing tests never click an object while the Text tool is active, so nothing
+  regresses.
+- **Registry `hitTest` gains a `zoom` parameter** (`(obj, worldPoint, zoom)`). Existing
+  object specs ignore it; the connector spec uses it for the screen-px tolerance.
+  Existing registry unit tests are updated mechanically (pass zoom = 1).
+- **Connector geometry lives in `src/shared/geometry/connector-geometry.ts`** and the
+  segment-distance helper in `src/shared/geometry/polyline.ts` (shared/ so it is
+  unit-testable without a client; `distanceToPolyline` is written generically for
+  future multi-segment paths, story 11 reuses it).
+- **`ObjectSnapshot` gains optional fields** for shapes (`kind`, `fill`, `stroke`;
+  label content also exposed through the generic `text` field) and connectors
+  (`from`, `to` endpoint descriptors plus *derived* `fromPoint`/`toPoint` and the
+  derived `x/y/width/height` bounding box). `snapshotAll` computes them; sticky/text
+  snaps are unchanged.
+- **Connector `x/y` are stored as 0** (as designed) and the snapshot derives the
+  bounding box via `resolveEndpoints` + `connectorBBox`. `objectBounds` therefore
+  returns the live bbox, so marquee containment and union rects work unchanged.
+- **`moveObjects` and `resizeObjects` skip connector entries.** An arrow's geometry is
+  fully defined by its endpoints: dragging the shapes it is attached to moves the
+  arrow (the point of the story), and ends are repositioned with the Select-tool
+  re-attach handles. A connector-only selection therefore has no resize handles
+  (registry entry `resizable: false`) and dragging it is a no-op. This is documented
+  here because the design does not specify arrow-move mechanics and no TC covers
+  dragging a lone arrow.
+- **`deleteObjects` calls `detachConnectorsTo` inside the same transaction** (before
+  the removals), so each deletion is exactly one update and the detach anchor is
+  computed from the object's last known rect. `detachConnectorsTo` must be called
+  inside an open transaction (it writes into the caller's).
+- **Undo wiring:** the tool layers receive `boundary()` (the tab's
+  `undo.boundary`) and call it around `createShape` / `createConnector`; ConnectorObject
+  reuses the `onTextBoundary` prop channel (semantically "close the undo capture
+  window") for re-attach boundaries. Each of create / restyle / label / re-attach is
+  one undo step.
+- **`useActiveTool` (new, `src/client/tools/useActiveTool.ts`)** replaces `useTool`
+  (deleted). It owns v/t/s/l + Escape (ignored while an editor/input has focus),
+  the `shapeKind` state, `toolCreated(id)` (selects the id, reverts to Select) and
+  the load-failed guard (non-Select tools force back to Select when `canEdit` is
+  false). `'n'` stays a *command* in `useBoardKeys` (creates a sticky at the viewport
+  centre) — it is listed in `TOOL_SHORTCUTS` per the contract but is not a
+  switchable tool state, since the sticky note button is an action, not a tool.
+  `useBoardKeys` loses its v/t handling (and the `setTool` parameter).
+- **`ObjectProps` gains optional `camera?: Camera`** (and `zoom?: number`) so the
+  ConnectorObject can convert pointer positions and size its screen-constant
+  handles/hit-stroke; existing components ignore them.
+- **Connector click selection:** lines are ~2 world units wide, far smaller than the
+  6-screen-px tolerance. The viewport receives an `onEmptyPointerDown(point)` hook
+  (Select tool only, non-shift): the Board hit-tests connectors top-down at the
+  point and selects on the first hit, otherwise the event proceeds to pan/clear.
+  The wide invisible hit-stroke on the line itself covers on-line presses; the hook
+  covers the tolerance band around it.
+- **Shape label editing** reuses story 9's `TextEditor` (IME, clamp, undo
+  boundaries, outside-click end) with a new optional `ui.textAlign` knob (default
+  `'left'`, so sticky/text rendering is unchanged); the *displayed* label is a
+  separate centred block (flex-centred, `pre-wrap`, `break-word`) inside the shape.
+- **`CLIENT_ID` moves to `src/client/client-id.ts`** (was a module constant in
+  Board.tsx) so the tool layers can pass `by` to the model.
+- **Connector tool fallbacks:** each attached endpoint's `fallback` is computed at
+  creation from the live rects — `sideAnchor(rect, nearestSide(rect, otherRef))`
+  where `otherRef` is the other endpoint's anchor (its resolved point, or the other
+  object's centre when attached). The orphan-on-concurrent-delete path (TC-27)
+  therefore renders at the same point the other client's detach computed.
+- **TC-27 determinism:** Playwright route delays cannot intercept an already-
+  established WebSocket's frames, so the test wraps `WebSocket.prototype.send`
+  on Sam's page in a `setTimeout` (600 ms) — Sam's *outbound* frames are delayed
+  while inbound sync is untouched. Dana's create therefore reaches the room
+  before Sam's delete, and the final state converges to the arrow rendered at
+  the stored fallback point whether the race detached it (free end) or left it
+  attached to a now-missing ship (orphan → fallback). The assertion is on the
+  *rendered* `toPoint` plus "connector visible on both screens, no console
+  errors", in both interleavings.
+- **E2E checkout-flow fixture** (`tests/fixtures/checkout-flow.ts`): four labelled
+  shapes (rect/diamond/ellipse/rect) + three attached connectors + one free-ended
+  connector, built with the real model calls from a `NodeWsClient` seeder
+  (probe client confirms the room holds all 8 objects before the browsers join).
+- **TC-25 side-switch expectations** follow `resolveEndpoints` exactly: an
+  attached end re-resolves against `endpointRef(other)` — the other end's *live
+  target centre* (not the other resolved point). After dragging ship above cart:
+  cart end switches bottom→top `(-220,-140)`, ship end switches top→bottom
+  `(100,-250)`.
+- **E2E observation:** `BoardObjectState` (test hook) and the `ObjectState`
+  participant helper gain optional shape/connector fields (`kind`, `fill`,
+  `stroke`, `from`, `to`, `fromPoint`, `toPoint`); shape labels are readable via
+  the existing `text` field.
+- **Shape default-size rule lives in the model** (`createShape`): a null rect or a
+  rect below `SHAPE_MIN_SIZE_WORLD` in either dimension yields the default
+  160×160 centred on `at` (the click/drag origin). `square` (Shift) applies only
+  to a valid rect: `max(w,h)` on both axes, anchored at the drag origin.
+- **Toolbar:** the Shape button (S) opens an inline 3-button kind row
+  (Rectangle selected by default) while the Shape tool is active; the Connector
+  button (L) sits next to the Text button. Both show `aria-pressed` and are
+  disabled on load-failed boards.
 
-## Environment
+## Deviations from design.md (recorded per repo convention)
 
-- **E2E runs on Chromium only.** The sandbox pre-installs only the
-  Chromium Playwright browser (`chromium-1243` + headless shell) under
-  `~/.cache/vidi-agent-ms-playwright`; Firefox and WebKit binaries are not
-  present and cannot be downloaded (no network to the Playwright CDN, no
-  root). `playwright.config.ts` therefore keeps all three projects per the
-  design, and `npm run test:e2e` selects the `chromium` project
-  (`playwright test --project chromium`). On a machine with all three
-  browsers, `npx playwright test` would run everything.
-- **`scripts/ensure-browsers.mjs`** runs before the e2e suite and makes
-  `PLAYWRIGHT_BROWSERS_PATH` work no matter how the environment sets it: it
-  keeps the current value when it contains a Chromium binary, otherwise
-  falls back to the sandbox cache locations.
-- **Ports.** All servers stay inside `$AGENT_PORT_FIRST..$AGENT_PORT_LAST`
-  (defaults 29104-29119): `vite dev` on 29104, the e2e `wrangler dev`
-  webServer on 29105 (config asserts the port is in range).
-
-## Implementation decisions
-
-- **CameraContext.** `useCamera` lives in `App` (which also owns the
-  viewport size) and is provided via `CameraContext`; `BoardViewport`
-  consumes it. This keeps the viewport's public API as `{children}` while
-  the board input, zoom controls and hint all drive the same camera.
-- **rAF coalescing.** Every camera mutation is enqueued and applied once
-  per animation frame (`useCamera`), so fast wheel/drag bursts cause at
-  most one render per frame. `endPan` flushes synchronously so a drag ends
-  on the exact pointer position.
-- **ZoomControls enabled-guards.** Buttons carry the native `disabled`
-  attribute and additionally check `canZoomIn/Out` before calling their
-  callbacks, keeping the design contract ("call callbacks only when
-  enabled") true even for synthetic events (jsdom fires `click` on
-  disabled elements — TC-32).
-- **`setPointerCapture` guard.** Called only when available (jsdom lacks
-  it; every supported browser has it).
-- **Test hook.** `window.__vidi6.setCamera` is installed only when
-  `import.meta.env.MODE === 'test'`; verified absent from the production
-  bundle (`grep __vidi6 dist/client/assets/*.js` → 0 matches).
-- **E2E pixel target.** The origin marker is a 12px world-space crosshair
-  centred on (0,0); its centre is exactly `worldToScreen(0,0)`, so
-  movement assertions are ±1px camera assertions. TC-27/TC-26 travel to
-  `UNBOUNDED_PAN_TESTED_EXTENT` via the test hook; the marker's layout box
-  is readable even far off-screen.
-- **TC-18 (keys)** is tested in `BoardViewport.test.tsx`: the Ctrl/Cmd
-  keydown listener lives on `window` inside BoardViewport. (The design
-  lists TC-18 under both the BoardViewport and ZoomControls test files.)
-
-## Component-test environment quirks (handled in `tests/component/setup.ts`)
-
-- **No `PointerEvent` in jsdom** — a minimal `PointerEvent` (over
-  `MouseEvent`, adding `pointerId`/`pointerType`) is installed so
-  Testing Library's pointer events carry `clientX/Y`/`button`.
-- **No `requestAnimationFrame` without `pretendToBeVisual`** — a
-  timer-based fallback is installed; under `vi.useFakeTimers()` the
-  underlying `setTimeout` is faked, so tests advance 16ms in `act` to
-  flush the coalesced camera update.
-- **RTL `fireEvent` returns `dispatchEvent`'s boolean**, not the event;
-  tests that assert `defaultPrevented` build the event with
-  `createEvent` and dispatch it with `fireEvent`.
-- **RTL auto-cleanup needs vitest globals** (off here), so `cleanup` runs
-  in an explicit `afterEach`.
-
-## Story 2 implementation decisions
-
-- **Stable DOM render order — the drag-capture bug.** Rendering notes in
-  snapshot (z, id) order means `bringToFront` mid-drag re-sorts the list
-  and React reorders the DOM (remove + reinsert). In Chromium, moving a
-  node that holds `setPointerCapture` releases the capture and fires
-  `lostpointercapture`, killing the drag after its first move. Fix: the
-  board renders notes in a **stable `(createdAt, id)` order**
-  (`renderOrder` in `board-model.ts`); stacking is expressed purely by
-  CSS `z-index: note.z`, which can change without touching DOM order.
-  `snapshot()` still returns (z, id) order for the model and tests.
-- **Unit-test Y.Text must be doc-bound.** `applyTextDiff` operates through
-  `ytext.doc.transact`; a standalone `new Y.Text()` has no doc. The unit
-  tests use a `makeYText(initial)` helper (`new Y.Doc()` +
-  `doc.getText('text')`) so every level tests the real Y.Doc, and
-  `applyTextDiff` keeps a null-doc guard (applies directly without a
-  transact) as a defensive fallback.
-- **Yjs delta shape.** The observed delta uses separate `{ delete: n }`
-  chunks (not `{ retain: n, delete: true }`) and omits the unchanged
-  trailing suffix; the test summarizer handles both forms.
-- **Editor "outside" detection.** The textarea finds its own note root
-  via `ta.closest('[data-sticky-note]')`; a pointerdown whose target is
-  inside the own note (padding, swatches) stays in editing, while a click
-  on any other note or the board ends editing as *unselected* (design
-  sticky.edit_outside).
-- **`finishDrag(flush)` semantics.** A clean `pointerup` cancels the
-  pending rAF and flushes it, so the grabbed point ends exactly under the
-  pointer (TC-31/TC-32). `pointercancel`/`lostpointercapture` do **not**
-  flush — the note stays where it was last displayed (TC-37). The rAF is
-  also cancelled in the unmount cleanup so a deleted note never leaves a
-  stale drag id or a pending frame.
-- **Drag math is origin-based.** The pending world position is
-  `pointerdown origin + (pointer - origin) / zoom`, recomputed every move
-  and applied at most once per rAF; it stays exact even if the camera
-  zooms mid-drag because both terms use the live zoom.
-- **E2E model hook.** `window.__vidi6.getObject(id)` returns
-  `{x, y, z, color, text}` in test builds (absent from production), so
-  e2e tests assert on the model (exact world deltas, z-order, colour,
-  length-clamped text) rather than pixel-guessing.
-- **TC-32 overlap geometry.** At 200% zoom the two notes' creation points
-  are chosen so the second dblclick lands *outside* the first note's box
-  (otherwise it edits instead of creating) while the boxes still overlap;
-  the drag grabs the bottom note at a point not covered by the top one.
-- **`longParagraph()`** produces exactly 1,000 characters of English prose
-  (repeated sentence pool, sliced to length) so the auto-fit test crosses
-  the 1,000-char limit and exercises the clamp + counter + fade.
-
-## Story 2 test counts
-
-- Unit: 40 (16 board-model + 11 sticky-text + 13 camera)
-- Component: 32 (9 StickyNote + 4 StickyTextEditor + 3 Toolbars + 9
-  BoardViewport + 5 ZoomControls + 2 NavigationHint + ...)
-- E2E (Chromium): 11 (7 story-1 navigation + 4 story-2 sticky notes)
-
-# Story 4: Return to a board and find everything as it was left — decisions
-
-## Environment
-
-- **Ports.** The shared e2e `wrangler dev` webServer keeps its slot (offset 1,
-  29105). Each persistence test (TC-19/20/21) runs its OWN `wrangler dev` on its
-  OWN port (offset 2/3/4 = 29106/29107/29108): distinct ports mean a lingering
-  `workerd` from one test can never shadow another test's board (sharing one
-  port was observed to make the next test's first WebSocket hang on a stale
-  process). The TC-24 broken-board process runs on offset 5 (29109) and the
-  production-hook-verification process on offset 6 (29110). Every port is
-  built from `AGENT_PORT_FIRST` and asserted in-range
-  (`tests/e2e/helpers/wrangler-process.ts`, like `vite.config.ts` and
-  `playwright.config.ts`). `WranglerProcess.start()`/`stop()` drive the port
-  to a known-free state (waiting, then `fuser -k <port>/tcp` for stragglers),
-  and spawn `wrangler dev` detached so `stop()` kills the whole group
-  (wrangler + workerd).
-- **Cold-DO open is slow under e2e load.** The first WebSocket to a fresh room
-  (cold Durable Object instantiation) can stay in CONNECTING for 10-25s when
-  the e2e machine is loaded by prior tests. `NodeWsClient.connect` therefore
-  budgets 60s for the open (not asserted, just generous), and TC-21 sets its
-  own test timeout. This is environmental, not a bug: the identical sequence
-  opens in ~1.5s in a standalone Node process.
-- **E2E wrangler env (TC-24 damage hooks).** The TC-24 wrangler is started
-  with `--var TEST_HOOKS:1`; the worker registers the `/__test/boards/:id/
-  (corrupt-snapshot|repair)` routes ONLY when `env.TEST_HOOKS === '1'`, so the
-  production-hook check (a *separate* wrangler with no such var) proves the
-  routes are absent there (POST → 405 from the static-asset server, GET → the
-  SPA `index.html`).
-- **wrangler `--var` uses COLON-separated `KEY:VALUE`, not `KEY=VALUE`.**
-  Verified in `wrangler-dist/cli.js` (`collectKeyValues` splits on `:`): with
-  `--var TEST_HOOKS=1` the whole string `TEST_HOOKS=1` becomes the *key* with
-  an empty value, so `env.TEST_HOOKS` is `undefined` and the hook routes never
-  register (they fall through to ASSETS → 405). `--var TEST_HOOKS:1` sets
-  `env.TEST_HOOKS === '1'` correctly. `WranglerProcess` formats every var as
-  `${key}:${value}`.
-
-## Implementation decisions
-
-- **Where the pure functions live.** `chunkBytes` / `joinChunks` /
-  `shouldCompact` (design: "in board-store.ts") and `nextRoomState` (design:
-  "room-state.ts") live in `src/shared/storage-chunks.ts` and
-  `src/shared/room-state.ts` because the root `tsconfig.json` *excludes*
-  `src/worker` (its globals conflict with the DOM lib) and therefore unit
-  tests can never import from `src/worker/*` under `npm run typecheck`.
-  `src/worker/board-store.ts` re-exports the chunk helpers so the module
-  boundary the design names is preserved.
-- **Room-owned `meta.schemaVersion`.** The client no longer calls `initDoc`
-  (removed from `useBoardDoc` and the `WsClient` fixture): the *room* applies
-  it, under a dedicated `LOAD_ORIGIN`, after every successful load. Because
-  `LOAD_ORIGIN` updates are never stored, a fresh board's first open stores
-  no rows at all (TC-25), and the meta item can never be quarantined or
-  re-broadcast as a client edit. `initDoc(doc, origin?)` gains an optional
-  origin parameter for this.
-- **Emulating room reconstruction.** workerd gives no API to force-evict a
-  Durable Object mid-test, so "a new room instance on the same storage" is
-  emulated by calling `BoardRoom.rebuildDoc()` inside
-  `runInDurableObject`: it is the exact code path the constructor runs on
-  every wake (fresh `Y.Doc`, update handler attached, state = loading,
-  migrate + load from storage). The live instance stays the runtime's
-  handler target, which matches what a post-eviction wake would do.
-- **`BoardStore.storage` is public.** TC-14 (write failure) and TC-26 (SQL
-  failure) wrap the store's `storage` (`{ sql, transactionSync }`) to inject
-  failures deterministically; the room's write path treats a thrown `append`
-  as "storage failed" without propagating the exception through Yjs's emit
-  loop.
-- **Corruption fixtures.** A truncated Yjs update (10 bytes off the end) and
-  same-length random bytes are both rejected by `Y.applyUpdate`
-  ("Unexpected end of array"); verified empirically (200/200 random
-  same-length byte arrays rejected). The corrupt-snapshot hook overwrites
-  chunk 0 with a deterministic LCG-derived byte string of the same length
-  and keeps the original for `repair`.
-- **Close codes.** `CLOSE_BOARD_LOAD_FAILED = 4500`: y-websocket 3.1.0 treats
-  codes 4500-4499 as permanent, everything at/above 4500 as transient, so the
-  client's provider reconnects with its normal backoff — that is exactly the
-  "retry until repair, no reload" path TC-24 needs. `CLOSE_STORAGE_FAILURE =
-  1011` (IETF "Internal Error") marks a write-failure room reset; the state
-  mapping treats it like any transient loss (reconnecting, board editable).
-- **Hibernation.** The room switches from its own `Set<WebSocket>` to
-  `ctx.acceptWebSocket()` / `ctx.getWebSockets()`. The awareness relay
-  (story 3) already counts as traffic on every accepted socket, which is what
-  keeps idle-but-connected clients alive through hibernation.
-- **Edit lock (TC-23).** `canEdit(state)` is exported from `App.tsx`
-  (`state !== 'load_failed'`). App gates create (double-click + toolbar),
-  color and delete callbacks; `Toolbar` gains a `disabled` prop; `StickyNote`
-  gains an `editable` prop (selection still works; drag, edit and Enter are
-  no-ops); `useStickyKeyboard` gains an `editable` option. The design's file
-  table lists only App.tsx/ConnectionStatus/connectBoard, but drag and edit
-  start live inside StickyNote, so the prop was added there as the mechanism.
-- **TC-16 interval.** The test drives the retry clock directly instead of
-  waiting the real 5 s: it corrupts the snapshot, pins the room to
-  `load-failed` with a known fresh `lastLoadAttemptMs` (`t0`), and asserts a
-  too-early connection is closed 4500 *with the clock still `t0`* (proof no
-  reload was attempted). It then repairs the snapshot, pins the clock to
-  `now - 10 min` (retry due), and asserts the next connection reloads the now
-  healthy storage and syncs the 25 notes. The live room's public fields
-  (`state`, `lastLoadAttemptMs`, `loadFailureReason`, `store`) are what make
-  this deterministic.
-- **Large-board seeding (TC-21).** A Node-side `NodeWsClient` (plain global
-  `WebSocket`, mirroring the integration `WsClient` protocol) builds the
-  `PERSIST_TESTED_NOTES`-note board locally and streams each note's update as
-  its own frame, so the room's log really crosses the compaction threshold
-  and the board is stored as a chunked snapshot (D1 = "Snapshotted"), not one
-  giant log row.
-- **`isolatedStorage: false`** (set in story 3) plus fresh random board ids
-  per test keep the per-test-file SQLite push/pop safe; storage is shared
-  across tests in a file but never across boards.
-- **DO SQLite API in this environment is `exec`-based, not `prepare`-based.**
-  workerd 1.20260310 (vitest pool) and 1.20261006 (root wrangler 4.148) both
-  expose `storage.sql.exec(query, ...bindings)` returning a cursor
-  (`toArray()`, `one()`, `next()`, `rowsRead/rowsWritten`); `sql.prepare`
-  does not exist at runtime (verified in-worker). BLOBs bind as
-  `Uint8Array` and come back as `ArrayBuffer` (wrap in `new Uint8Array`).
-  `one()` throws on zero rows ("Expected exactly one result"), so first-row
-  reads use `toArray()[0] ?? null`. Multi-statement `exec` works (migrate
-  runs all four CREATE TABLEs in one call). `transactionSync` gives atomic
-  rollback (TC-11 relies on it). The installed @cloudflare/workers-types
-  (5.20261008.1) matches this shape but declares the statement class empty,
-  so `BoardStore` defines a structural `BoardSql`/`BoardSqlCursor` interface
-  and `fromStorage()` adapts the DO storage.
-- **`fromStorage` must bind `transactionSync` to its original receiver.**
-  Detaching the native method onto the wrapper object makes workerd throw
-  "Illegal invocation" when the transaction runs.
-- **Only store real deltas, not Yjs's empty update.** A no-op sync message
-  (the per-connection handshake) still makes `Y.encodeStateAsUpdate(doc,
-  before)` return a 2-byte `00 00` "empty" update, so gating persistence on
-  `delta.byteLength > 0` stored two empty rows per connection. `BoardRoom`
-  now compares the delta against a module-level `EMPTY_YJS_UPDATE` (the
-  canonical empty encoding) and skips the store on a match. A state-vector
-  comparison is *not* a valid gate: Yjs deletes are tombstones that do not
-  change the per-client clocks, so `encodeStateVector` is unchanged by a
-  delete and the comparison would silently skip storing real deletions
-  (this broke story 3's TC-11/TC-12 when first tried).
-- **`reload()` is the room's wake path (renamed from `rebuildDoc`).** It is
-  `async` and *awaited*: `onSocketOpen` awaits it before deciding whether to
-  sync or close the new socket, so no handler ever sees a half-loaded room.
-  The constructor cannot await, so it runs `void this.ctx.blockConcurrencyWhile(
-  () => this.loadBoard())`; `blockConcurrencyWhile` must be handed a
-  `() => Promise<T>` callback, not a `() => void` one.
-- **Self-initiated `ws.close()` does not surface a client-side `close`
-  event in the vitest-pool-workers harness** (verified: after `client.close()`,
-  `client.closed` stays `false` and `closeCode` stays `null`). Server-initiated
-  closes (4500/1011/1003) *do* fire the event. Integration tests therefore
-  never `waitForClose()` after a self-close; they give the room a short delay
-  to hibernate and rely on the next connection's wake path instead.
-- **Yjs item-chain cascade (shapes TC-09).** Silently dropping any update
-  that creates items referenced by later updates makes Yjs drop every
-  affected later note without throwing (verified: skipping the 4th note's
-  create update leaves only 3 of 25 notes). The only rows safe to damage
-  for the design's "exactly one row lost, all other notes present"
-  capability are rows with no structural successors — the last row of the
-  log. TC-09 therefore damages row 53 (the retro board's final stacking
-  z-set), not the design's illustrative "row 7" (that number was chosen
-  before the Yjs layout was known; the capability is identical).
-- **Truncation partially applies multi-message updates.** A Yjs update
-  byte string is a sequence of messages; `applyUpdate` integrates complete
-  prefix messages before throwing on the truncated tail (verified: the
-  truncated final z-set update still set z=28 while throwing). Same-length
-  scrambling is rejected wholesale, so TC-09 uses the `scrambleUpdate`
-  fixture; `truncateUpdate` remains available (the design's fixture list
-  covers both for TC-09/TC-10).
-- **Fixture update counts.** `buildRetroBoard` = 53 updates (25 × create +
-  25 × text + 3 × bringToFront); `buildLargeBoard` = 4000 updates. The
-  retro board's stacked trio (notes 22–24 at one centre) ends at z 26/27/28
-  in the source doc.
-- **Client load-failure close-code mapping.** y-websocket emits
-  `connection-close` (with the `CloseEvent`) on *every* socket close, before
-  the `status: disconnected` event; `null` for a local close. Only close code
-  `CLOSE_BOARD_LOAD_FAILED` (4500) maps to `load_failed` (red badge, editing
-  locked out). Every other code — storage failure 1011, garbage update 1003,
-  transient 44xx, normal 1000/1001 — is handled by the `status` event
-  (`reconnecting`) and never locks the board (persist.save_failure / TC-28).
-  y-websocket's default `shouldReconnect` keeps 4500/1011/1003 transient
-  (retries with backoff), so a `load_failed` board recovers to `connected`
-  (no page reload) on the first successful sync — `tryLive` treats
-  `load_failed` like the initial `connecting` (→ `connected`, not `confirmed`).
-- **`canEdit` lives in `App.tsx`** (per the design contract): a pure
-  `(state) => state !== 'load_failed'`, exported for the component tests.
-  `App` and the `renderStickyBoard` harness both compute `editable =
-  canEdit(connectionState)` and gate create/drag/edit/colour/delete (and
-  disable the Sticky + note-toolbar buttons). `useStickyKeyboard` takes an
-  `editable` flag so Enter-to-edit / Delete-to-delete are no-ops when locked.
-
-# Story 7: Select, move, resize and delete several objects at once — decisions
-
-## Architecture
-
-- **Object registry (`src/client/objects/registry.tsx`).** Every object type
-  registers `create`/`getBounds`/`minSize`/`resizable`/`aspectLocked` plus
-  optional `createWithText`/`resizable` flags. `KNOWN_OBJECT_TYPES` is a
-  *mutable* `Set` with an `addKnownObjectType(type)` export so the testbox
-  fixture (a development-only type) and any future type register at module
-  load; `getObjects()`/`snapshotAll()` filter on it, so unknown entries in a
-  board are skipped everywhere (sel.all_types).
-- **`snapshot()` vs `snapshotAll()`.** `snapshot()` keeps its story-2
-  signature (`readonly StickySnapshot[]`) so pre-existing tests and the
-  e2e `getObject` hook are untouched; `snapshotAll(doc)` returns
-  `readonly ObjectSnapshot[]` (id, type, x, y, z + type-specific fields) and
-  is what `useBoardDoc`, selection, gestures and the overlay consume.
-- **Model coordinates are TOP-LEFT.** `createSticky(doc, at, color)` takes a
-  *centre* (unchanged API) but stores `at - SIZE/2`; every group operation
-  and the overlay work in top-left space. New stickies also write explicit
-  `width`/`height` (STICKY_SIZE_WORLD); pre-story-7 entries still resolve
-  through the `objectBounds` fallback (TC-10).
-- **Selection is a reducer hook (`useSelection`)**: `click`, `toggle`
-  (shift), `marquee`, `selectAll`, `clear`, `deleteSelected`, `startEdit` /
-  `endEdit(next)` / nudge `moveSelected`. Ghost ids (objects deleted
-  remotely while selected) are pruned lazily on the next doc change
-  (`prune(ids)`), never mid-gesture — the gesture keeps moving what was
-  selected at its start (sel.remote mid-gesture).
-- **Transform gesture (`useTransformGesture`)**: one hook, two entry points
-  (`onObjectPointerDown` for group move, `onHandlePointerDown` for
-  bounding-box resize). Window-level pointer listeners are attached once and
-  gated by a gesture ref, so an in-flight gesture survives objects
-  unmounting underneath it. Pending frames apply in rAF; `pointerup` flushes
-  exactly, `pointercancel` drops the unflushed frame (the last applied state
-  stays). Aspect lock when any selected type is aspect-locked *or* Shift is
-  held; `clampScale` enforces per-type `minSize` (sticky: 50) and
-  `MAX_OBJECT_SIZE_WORLD`, with the first object to hit a limit stopping the
-  whole group.
-- **Marquee** is a viewport-level concern: Shift+pointerdown on empty space
-  (movement < DRAG_THRESHOLD_PX still counts as marquee begin — the rect may
-  be zero-sized) drives `onMarqueeBegin/Move/End/Cancel` into `useMarquee`,
-  which selects on every move (inside / half-inside counts, sel.marquee).
-  The rect renders screen-space in the `overlay` slot (a new prop on
-  BoardViewport, rendered after the world layer).
-- **Board composition.** `Board` owns the camera (`useCamera` +
-  `CameraContext.Provider`), selection, gesture and marquee; objects render
-  through the registry; the `SelectionOverlay` (box + 8 handles) and
-  `SelectionBar` (N≥2) render in the screen-space `overlay` slot.
-  `useBoardKeys` (window keydown, capture-phase `stopImmediatePropagation`
-  only while the marquee is active) handles Ctrl/Cmd+A, Escape, arrows
-  (Shift = 10×), Delete/Backspace and Enter. `StickyTextEditor` stops
-  propagation on Escape so the window handler never sees it (React 18
-  discrete-event flush makes a window handler race the editor's own
-  `onEnd`).
-- **StickyNote lost its private drag/editing state**: it is a pure view of
-  `ObjectProps {doc, obj, selected, editingId, onPointerDown, onEdit,
-  onEndEdit}` and reports gestures to the board (sel.interaction).
-
-## Environment / browser quirks
-
-- **Chromium pointercancel on resize handles (the big one).** With a real
-  Chromium mouse: pointerdown on the (screen-space) resize handle, then a
-  pointermove whose *hit target is a sticky note* (i.e. dragging the handle
-  toward the box interior) makes Chromium fire `pointercancel` at (0,0) and
-  the whole sequence is dropped — even though no DOM node is removed and
-  `touch-action` is `none` everywhere (verified by replica-div bisection:
-  plain/tabindex/touch-action/user-select replicas never cancel; the cancel
-  only happens over the live note, and only when the down target is the
-  overlay handle — drags that start on a note or over empty space are fine).
-  Fix (standard pattern): `setPointerCapture(pointerId)` on the element that
-  received pointerdown — the handle in `SelectionOverlay` and the note root
-  in `StickyNote` (BoardViewport's pan/marquee path already captured, which
-  is why marquee was unaffected). With capture, all events retarget to the
-  capture element and the sequence survives crossing any other object.
-- **`setPointerCapture` is best-effort.** JSDOM does not implement it
-  (`e.currentTarget.setPointerCapture is not a function`), so both call
-  sites are `try { el.setPointerCapture?.(id) } catch {}`; the gesture's
-  window listeners work with or without capture.
-- **React 18 discrete-event flush order.** A window `keydown` listener sees
-  the *post*-update state of any React synthetic handler that ran earlier in
-  the same event (e.g. the editor's Escape `onEnd` already cleared
-  `editingId` before `useBoardKeys` runs). The editor therefore stops
-  propagation on Escape instead of relying on flag ordering.
-- **Playwright `expect` + `Set`**: `toHaveLength` is not supported on Sets —
-  assert `.size`.
-- **`pkill -f "wrangler dev"` kills its own shell** (the pattern matches the
-  pkill command line); use `pkill -f "wrangl[e]r dev"` or find the PID via
-  `ss -tlnp`.
-- **E2E cameras/coords.** Model x/y are top-left: `byText`/`getObject`
-  values are centres − 100 for stickies. MAIN_CAM `{x:-1280,y:-800,zoom:0.5}`
-  gives screen = world×0.5 + (640, 400); a 150px screen drag is 300 world at
-  that zoom.
-
-# Story 8: Undo and redo my own changes without undoing anyone else's — decisions
-
-## Architecture
-
-- **Controller (`src/client/board/undo.ts`).** `createUndo(doc, opts?)` wraps
-  a `Y.UndoManager` over the board's `objects` map with
-  `trackedOrigins = { LOCAL_ORIGIN, <the manager itself> }`: only this
-  client's own transactions are captured (peers' changes arrive under
-  provider/remote origins and are invisible to the local history), and the
-  manager's own inverse transactions are never re-captured. Y.UndoManager's
-  capture algorithm gives "one burst of transactions = one step": a new
-  tracked transaction joins the open step while the gap since the previous
-  one is strictly `< UNDO_CAPTURE_TIMEOUT_MS` (500 ms) — a gap of *exactly*
-  500 ms starts a new step (undo.timeout TC-12/TC-13).
-- **`boundary()` = `stopCapturing()`.** Closes the open capture window
-  (Yjs sets the last-change marker to 0, so the next tracked transaction
-  starts a new step) and pops any trailing empty step. The app calls it
-  before/after every discrete action (create, delete, recolor, each nudge)
-  and at gesture/edit boundaries, so step separation is deterministic
-  regardless of wall-clock gaps between actions; the timeout only merges
-  transactions *inside* one action.
-- **`undo()`/`redo()` = `popStackItem()` loops.** Yjs keeps popping until a
-  popped item actually performs a change (an inverse that no-ops — e.g.
-  restoring a position the object never had, because a peer already changed
-  it — pops and skips) or the stack is empty; returns whether anything
-  changed (undo.empty/undo.gone: TC-07/TC-11).
-- **Trimming to `UNDO_MAX_STEPS` (100).** On `stack-item-added` (type
-  'undo') while over the limit, drop the oldest steps from the front.
-- **Controller placement: `Board.tsx`, not `App.tsx`.** The design says
-  App, but the doc is owned by `useBoardDoc`, which `Board` calls — the
-  controller needs the doc, so it is created there
-  (`useMemo(() => createUndo(doc), [doc])` + destroy on cleanup).
-- **Step boundaries wired in:** `useTransformGesture` fires
-  `onGestureStart` **before** `bringObjectsToFront` (story-7 order changed:
-  the z-change and every move frame are one step) and `onGestureEnd` on
-  up/cancel; `StickyTextEditor` calls `onBoundary` on mount and on unmount
-  (unmount covers every end path: Escape, outside click, note deleted
-  mid-edit); `useBoardKeys` wraps Delete/nudge; `Board` wraps create /
-  delete-selection / recolor-selection.
-- **Editor owns Ctrl+Z while editing** (`StickyTextEditor` preventDefault +
-  `onUndo`), and `useBoardKeys` returns early when `editingId !== null` —
-  so board-level Ctrl+Z never double-fires with the editor's.
-- **Shortcuts/buttons (undo.controls).** Ctrl/Cmd+Z undo; Ctrl/Cmd+Shift+Z
-  and Ctrl+Y redo; all `preventDefault`; ignored when `canEdit` is false
-  (load_failed), when a sticky is being edited, or when focus is in a
-  text/textarea/contentEditable. Buttons (`UndoButtons.tsx`, in `Toolbar`)
-  carry `aria-label` Undo/Redo, `data-testid` undo-button/redo-button, and
-  are `disabled` + `aria-disabled` when the relevant stack is empty or
-  `!canEdit`.
-- **`useUndo(controller, canEdit)`** subscribes to `controller.onChange`
-  (stack-item-added / -popped / stack-cleared) with a `useReducer`
-  force-update and returns `{canUndo, canRedo, undo, redo}` computed fresh
-  each render.
-
-## Environment / test quirks
-
-- **Yjs binds the clock at module load.** `yjs/undo` gets
-  `getUnixTime` from `lib0/time`, which captures `Date.now` when the module
-  first loads — `vi.useFakeTimers()` therefore cannot control the clock
-  Y.UndoManager sees (the real `Date.now` runs underneath). TC-12/TC-13
-  instead mock `lib0/time` with a hoisted controllable clock
-  (`vi.hoisted(() => ({ now: T0 }))` + `vi.mock('lib0/time', ...)`
-  preserving the other exports) and advance it with `clock.now += ms`.
-- **Vitest must inline `yjs`/`lib0` for the unit project**
-  (`server.deps.inline`): externalised (CJS) packages bypass vite's module
-  graph, so `vi.mock('lib0/time')` would not intercept the import inside
-  the yjs bundle.
-- **Component tests stay deterministic on the real clock.** The component
-  project does not inline yjs, so its UndoManager times on real
-  `Date.now`; gestures/type-bursts run in a few real ms (well under 500 ms)
-  and every user action is bracketed by boundaries, so step separation is
-  independent of timer fakes.
-- **E2E `sameBoard` must wait for real convergence.** A wait on the note
-  *count* alone is a no-op after recolours/undoes (the count never
-  changes), so consistency asserts poll an actual final state (e.g. the
-  restored x of the dragged note plus the peer's new colour) before
-  comparing boards — otherwise the peer's async propagation races the read
-  (observed flake in TC-22 when run after the full suite).
-- **Undoing a move whose target vanished is safe.** The inverse transaction
-  writes only ids that still exist; a note deleted by a peer mid-history
-  is silently skipped (no exception, no resurrection — TC-07/TC-23).
-
-## Story 8 test counts
-
-- Unit: 126 (112 existing + 14 new: 11 undo.history TC-01..TC-11 +
-  3 undo.timeout/boundaries TC-12/TC-13 + empty-boundary no-op)
-- Component: 82 (74 existing + 8 new: 4 boundaries TC-14..TC-17 +
-  4 controls TC-18..TC-21)
-- Integration: 45 (unchanged)
-- E2E (Chromium): 36 (33 existing + 3 new: TC-22..TC-24)
-
-## Story 9 implementation decisions
-- **Text stores an explicit measured box (width/height in world units)** just
-  like stickies. `createText` writes a minimum one-line box so bounds exist
-  before the first measurement; `useTextBoxSync` (a client hook) then rewrites
-  the box via `setTextBox` whenever a LOCAL change alters the re-measured
-  layout. Remote updates never trigger a write, so five clients never race to
-  write dimensions (text.layout, Key decision 1).
-- **`layoutText` is pure and measurer-injected.** Width in auto mode =
-  min(longest PRE-wrap line, TEXT_MAX_AUTO_WIDTH_WORLD) with greedy word wrap
-  beyond the cap; fixed mode wraps at the set width. Height = lines ×
-  TEXT_SIZES[size] × TEXT_LINE_HEIGHT. The canvas measurer falls back to an
-  average-glyph estimate when no 2d context exists (unit/jsdom), so tests are
-  deterministic without a real font (TC-32).
-- **Box sync + undo origin.** Yjs `UndoManager` applies inverse transactions
-  with the manager itself as origin (not LOCAL_ORIGIN), so `useTextBoxSync`
-  (which only reacts to LOCAL_ORIGIN changes) does not re-measure on undo —
-  the stored box reverts exactly with the text in one step (TC-25).
-- **Generalised TextEditor.** Story 2's editor was generalised (maxChars,
-  fontPx, width, optional auto-fit) into `TextEditor`; `StickyTextEditor` is a
-  thin wrapper so story 2 behaviour/tests are unchanged. `clampToLimit` and
-  `applyTextDiff` moved to `src/shared/text-edit.ts` and are re-exported by
-  `StickyText.ts`.
-- **Horizontal-only handles.** The registry gained optional `handles:
-  'all' | 'horizontal'`. `SelectionOverlay` renders only e/w handles when every
-  selected spec is horizontal. A single-text e/w drag is a `textWidth` gesture
-  (setTextWidthFixed + re-measure); mixed selections reposition the text
-  proportionally with its font size unchanged (its stored width is enforced by
-  the group-resize path, so it is excluded from min-size clamping).
-- **Tool mode.** `useTool(canEdit)` holds 'select' | 'text'; V reverts, T arms
-  (only when editable), Escape reverts, N creates a sticky at the view centre.
-  While Text is armed the viewport shows a text caret, does not pan/marquee,
-  and a click (even over an object, which is inert) creates a text with its
-  top-left at the point, starts editing it, and reverts to Select.
-- **Test-only hook** now exposes `size` and `widthMode` for text objects so
-  e2e can assert presets and fixed/auto mode.
-
-## Story 9 test counts
-- Unit: 141 (126 existing + 15 new: 7 text.model TC-01..TC-06/stale +
-  8 text.layout TC-07..TC-11, TC-32)
-- Component: 96 (82 existing + 14 new: 2 box-sync TC-12/TC-13 +
-  5 tool TC-14..TC-18 + 7 text-object TC-19..TC-25)
-- Integration: 45 (unchanged)
-- E2E (Chromium): 42 (36 existing + 6 new: TC-26..TC-31)
+1. `ShapeTool` / `ConnectorTool` receive `doc`, `boundary()` and (connector)
+   `snapshot` in props; the design contract shows only `kind`/`camera`/`onCreated`
+   (and no doc for the connector tool), but creating objects requires the doc and
+   one-undo-step creation requires the boundary hook.
+2. `Endpoint.fallback` is supplied by the *caller* (the tool, from live rects);
+   `createConnector` validates and stores it rather than recomputing it. The unit
+   tests compute expected fallbacks with the same shared geometry functions.
+3. `ObjectProps` gains optional `camera`/`zoom` (the design puts `zoom` on the
+   ConnectorObject contract; the registry only passes `ObjectProps`).
+4. `setShapeStyle` with zero changed fields returns `false` (no no-op writes, no
+   undo step).

@@ -15,10 +15,11 @@
  * - Enter: story 2's edit-start for a single selected sticky (or any
  *   registered type with editableText).
  *
- * Story 9 (text.tool_ui): V activates the Select tool (always — it is local
- * UI), T the Text tool (only when the board is editable), N creates a
- * sticky at the view centre (same as the Sticky note button). Escape also
- * reverts the Text tool to Select. All are ignored while editing text.
+ * Story 9 (text.tool_ui): N creates a sticky at the view centre (same as
+ * the Sticky note button). Story 10 (tools.active_tool): the tool
+ * shortcuts (V, T, S, L, …) and the Escape tool-revert moved to
+ * useActiveTool; this hook only keeps the selection keys. All tool keys
+ * are ignored while editing text.
  *
  * Story 8 (undo.controls): Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z (or
  * Ctrl+Y) redoes this tab's own steps; both preventDefault. They are ignored
@@ -37,7 +38,6 @@ import {
 } from '../../shared/board-model';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
-import type { Tool } from './useTool';
 import type { UndoController } from './undo';
 import type { useSelection } from './useSelection';
 
@@ -50,15 +50,10 @@ interface Options {
   canEdit: boolean;
   /** This tab's undo controller (story 8). */
   undo: UndoController;
-  /** The active tool and its setter (story 9, text.tool_ui). */
-  tool: Tool;
-  setTool(t: Tool): void;
-  /** Create a sticky at the view centre (N; story 9 introduces the key). */
-  onCreateSticky?(): void;
 }
 
 export function useBoardKeys(opts: Options): void {
-  const { doc, selection, snapshot, canEdit, undo, tool, setTool, onCreateSticky } = opts;
+  const { doc, selection, snapshot, canEdit, undo } = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
@@ -75,33 +70,9 @@ export function useBoardKeys(opts: Options): void {
 
       if (e.key === 'Escape') {
         selection.clear();
-        if (tool === 'text') {
-          setTool('select'); // text.tool_ui: Escape reverts to Select
-        }
+        // (Tool shortcuts — V, T, S, L, N and Escape's tool-revert — all
+        // live in useActiveTool, story 10: exactly one listener owns them.)
         return;
-      }
-
-      // Tool shortcuts (story 9): plain keys only — never with modifiers,
-      // never while editing (checked above).
-      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
-        if (e.key === 'v' || e.key === 'V') {
-          if (tool !== 'select') {
-            setTool('select');
-          }
-          return;
-        }
-        if (e.key === 't' || e.key === 'T') {
-          if (canEdit && tool !== 'text') {
-            setTool('text');
-          }
-          return;
-        }
-        if (e.key === 'n' || e.key === 'N') {
-          if (canEdit) {
-            onCreateSticky?.(); // same as the Sticky note button
-          }
-          return;
-        }
       }
 
       const ctrl = e.ctrlKey || e.metaKey;
@@ -185,5 +156,5 @@ export function useBoardKeys(opts: Options): void {
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [doc, selection, snapshot, canEdit, undo, tool, setTool, onCreateSticky]);
+  }, [doc, selection, snapshot, canEdit, undo]);
 }
