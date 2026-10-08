@@ -18,10 +18,10 @@ import * as Y from 'yjs';
 import { chunkBytes } from '../shared/storage-chunks';
 import type { BoardStore } from './board-store';
 
-export type TestHookAction = 'corrupt-snapshot' | 'repair';
+export type TestHookAction = 'corrupt-snapshot' | 'repair' | 'seed-legacy';
 
-/** Matches `/__test/boards/<id>/(corrupt-snapshot|repair)`. */
-const HOOK_PATH = /^\/__test\/boards\/[^/]+\/(corrupt-snapshot|repair)$/;
+/** Matches `/__test/boards/<id>/(corrupt-snapshot|repair|seed-legacy)`. */
+const HOOK_PATH = /^\/__test\/boards\/[^/]+\/(corrupt-snapshot|repair|seed-legacy)$/;
 
 export function parseTestHookAction(pathname: string): TestHookAction | null {
   const m = HOOK_PATH.exec(pathname);

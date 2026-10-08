@@ -8,7 +8,7 @@
  * every local document update, and apply incoming updates/step2.
  */
 
-import { SELF } from 'cloudflare:test';
+import { env, runInDurableObject, SELF } from 'cloudflare:test';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
@@ -27,6 +27,7 @@ import {
   decodeMessage,
   type Decoded,
 } from '../../../src/shared/protocol';
+import { BoardRoom } from '../../../src/worker/board-room';
 
 // y-protocols sync message types (y-protocols/sync.js syncMessageType).
 const SYNC_STEP1 = 0;
@@ -105,6 +106,13 @@ export class WsClient {
     options: { baseUrl?: string; initialState?: Uint8Array | null } = {},
   ): Promise<WsClient> {
     const baseUrl = options.baseUrl ?? 'http://localhost';
+    // Story 5: rooms can no longer be created implicitly by connecting —
+    // ensure the board exists first (the same initialize() RPC that
+    // POST /api/boards performs server-side).
+    const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+    await runInDurableObject<BoardRoom, Promise<'created' | 'exists'>>(stub, (instance) =>
+      instance.initialize(),
+    );
     const response = await SELF.fetch(`${baseUrl}/api/rooms/${encodeURIComponent(boardId)}`, {
       headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
     });

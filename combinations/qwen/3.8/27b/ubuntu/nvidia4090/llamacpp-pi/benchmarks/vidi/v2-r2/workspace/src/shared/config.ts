@@ -131,3 +131,18 @@ export const BOARD_LOAD_BUDGET_MS = 3_000;
 
 /** Current storage schema version, kept in `storage_meta`. */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Share (story 5) --------------------------------------------------------
+
+/** Click-to-board budget for New board on the home page (PRD share.create, ms). */
+export const CREATE_BUDGET_MS = 2000;
+
+/** How long the Share panel shows "Link copied" after a successful copy (ms). */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * Base delay for the board-existence-check backoff while the service is
+ * unreachable (share.unreachable): doubles per attempt, capped at
+ * RECONNECT_MAX_BACKOFF_MS.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

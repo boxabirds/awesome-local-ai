@@ -6,8 +6,9 @@ import {
 import {
   LatencyLog,
   Participant,
-  newBoard,
+  createBoard,
   sameBoard,
+  sharedServerUrl,
   type ObjectState,
 } from './helpers/participants';
 
@@ -61,7 +62,7 @@ test.describe('live-collaboration.e2e.nightly', () => {
     browser,
   }, testInfo) => {
     testInfo.setTimeout((IDLE_SECONDS + 60) * 1000);
-    const boardId = newBoard();
+    const boardId = await createBoard(sharedServerUrl());
     const ctxA = await browser.newContext();
     const ctxS = await browser.newContext();
     const alex = await Participant.join(ctxA, boardId);
@@ -94,7 +95,7 @@ test.describe('live-collaboration.e2e.nightly', () => {
     browser,
   }, testInfo) => {
     testInfo.setTimeout((SOAK_SECONDS + 300) * 1000);
-    const boardId = newBoard();
+    const boardId = await createBoard(sharedServerUrl());
     const contexts: BrowserContext[] = [];
     const all: Participant[] = [];
     const latency = new LatencyLog();

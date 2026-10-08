@@ -6,7 +6,7 @@ import {
   type ConnectionState,
   type ProviderLike,
 } from '../../src/client/sync/connectBoard';
-import { canEdit } from '../../src/client/App';
+import { canEdit } from '../../src/client/Board';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from '../../src/shared/protocol';
 import { createSticky, snapshot } from '../../src/shared/board-model';

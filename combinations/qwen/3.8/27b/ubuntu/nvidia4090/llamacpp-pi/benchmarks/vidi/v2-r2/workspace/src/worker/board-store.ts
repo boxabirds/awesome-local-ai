@@ -115,6 +115,8 @@ export class BoardStore {
   private logRows = 0;
   /** Bytes in the update log (in memory; recomputed from storage on load). */
   private logBytes = 0;
+  /** True once migrate() has run on this instance (story 5: lazy migrate). */
+  private migrated = false;
 
   constructor(storage: BoardStorage) {
     this.storage = storage;
@@ -124,6 +126,10 @@ export class BoardStore {
    * Creates the tables if missing (IF NOT EXISTS) and records the storage
    * schema version only when absent. An existing — possibly unknown —
    * version is left alone: migration preserves data (TC-10).
+   *
+   * Story 5: no longer runs on every construct — only from `initialize()`
+   * (new boards) and lazily before the first `append()` (legacy boards
+   * already have their tables). Probing an unknown link writes nothing.
    */
   migrate(): void {
     const sql = this.storage.sql;
@@ -140,13 +146,61 @@ export class BoardStore {
         .exec('INSERT INTO storage_meta (key, value) VALUES (?, ?)', 'storage_schema_version', String(STORAGE_SCHEMA_VERSION))
         .toArray();
     }
+    this.migrated = true;
+  }
+
+  /**
+   * Read-only existence check (story 5, share.board_api): a board exists if
+   * its storage has `created_at`, or (legacy, share.legacy_boards) at least
+   * one row in `updates` or `snapshot_chunks`. Queries `sqlite_master`
+   * first and NEVER creates tables, so checking a link for an unknown board
+   * leaves no storage behind (TC-06/TC-09).
+   */
+  existsReadOnly(): boolean {
+    const sql = this.storage.sql;
+    try {
+      const tables = new Set(
+        sql
+          .exec("SELECT name FROM sqlite_master WHERE type = 'table'")
+          .toArray()
+          .map((row) => String(row.name)),
+      );
+      if (tables.has('storage_meta')) {
+        const meta = sql.exec("SELECT value FROM storage_meta WHERE key = 'created_at'").toArray();
+        if (meta.length > 0) {
+          return true;
+        }
+      }
+      for (const table of ['updates', 'snapshot_chunks'] as const) {
+        if (!tables.has(table)) {
+          continue;
+        }
+        const row = sql.exec(`SELECT COUNT(*) AS c FROM ${table}`).toArray()[0];
+        if (row !== undefined && Number(row.c ?? 0) > 0) {
+          return true;
+        }
+      }
+      return false;
+    } catch {
+      // Storage that cannot even be read cannot prove existence. The room's
+      // load path reports the real failure to clients; a probe must not
+      // write, so "unknown" is the only safe answer here.
+      return false;
+    }
   }
 
   /**
    * Appends one Yjs update as the next log row. Throws on storage failure
    * — the caller (the room) treats that as "storage failed" and resets.
+   *
+   * Story 5: runs migrate() lazily on the first append, so a legacy board
+   * (tables from before this feature) or a never-initialized object that
+   * somehow receives an update still stores it correctly.
    */
   append(update: Uint8Array): void {
+    if (!this.migrated) {
+      this.migrate();
+    }
     this.storage.sql
       .exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.byteLength)
       .toArray();
@@ -171,6 +225,17 @@ export class BoardStore {
     let updateRows: UpdateRow[];
     let throughSeq: number;
     try {
+      // Story 5: construct no longer migrates (probing an unknown link must
+      // write nothing), so a board with no data tables at all loads as an
+      // empty board instead of failing with a missing-table SQL error.
+      const tables = new Set(
+        sql.exec("SELECT name FROM sqlite_master WHERE type = 'table'").toArray().map((row) => String(row.name)),
+      );
+      if (!tables.has('updates') && !tables.has('snapshot_chunks')) {
+        this.logRows = 0;
+        this.logBytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
       const chunkRows = allRows(sql, 'SELECT data FROM snapshot_chunks ORDER BY idx');
       chunkData = chunkRows.map((r) => blobOf(r, 'data'));
       const through = firstRow(sql, 'SELECT value FROM storage_meta WHERE key = ?', 'snapshot_through_seq');

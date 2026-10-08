@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT } from '../../src/shared/config';
+import { createBoard, sharedServerUrl } from './helpers/participants';
 import type { Point } from '../../src/client/canvas/camera';
 import {
   expectWithinPx,
@@ -40,7 +41,8 @@ async function drag(page: Page, from: Point, delta: Point, steps = 8): Promise<v
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: VIEWPORT.width, height: VIEWPORT.height });
-  await page.goto('/');
+  const boardId = await createBoard(sharedServerUrl());
+  await page.goto(`/b/${encodeURIComponent(boardId)}`);
   await page.waitForSelector('[data-testid="board-viewport"]');
 });
 

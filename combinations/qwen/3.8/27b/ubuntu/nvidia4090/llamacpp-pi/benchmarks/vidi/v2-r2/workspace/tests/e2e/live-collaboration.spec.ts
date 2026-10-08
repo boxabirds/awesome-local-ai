@@ -7,8 +7,9 @@ import {
 import {
   LatencyLog,
   Participant,
-  newBoard,
+  createBoard,
   sameBoard,
+  sharedServerUrl,
   type ObjectState,
 } from './helpers/participants';
 
@@ -29,7 +30,7 @@ test.describe('live-collaboration.e2e', () => {
     browser,
   }, testInfo) => {
     testInfo.setTimeout(90_000);
-    const boardId = newBoard();
+    const boardId = await createBoard(sharedServerUrl());
     const ctxA = await browser.newContext();
     const ctxS = await browser.newContext();
     const latency = new LatencyLog();
@@ -89,7 +90,7 @@ test.describe('live-collaboration.e2e', () => {
     browser,
   }, testInfo) => {
     testInfo.setTimeout(90_000);
-    const boardId = newBoard();
+    const boardId = await createBoard(sharedServerUrl());
     const ctxA = await browser.newContext();
     const ctxS = await browser.newContext();
     const alex = await Participant.join(ctxA, boardId);
@@ -129,7 +130,7 @@ test.describe('live-collaboration.e2e', () => {
     browser,
   }, testInfo) => {
     testInfo.setTimeout(90_000);
-    const boardId = newBoard();
+    const boardId = await createBoard(sharedServerUrl());
     const ctxA = await browser.newContext();
     const ctxS = await browser.newContext();
     const alex = await Participant.join(ctxA, boardId);
@@ -174,7 +175,7 @@ test.describe('live-collaboration.e2e', () => {
     browser,
   }, testInfo) => {
     testInfo.setTimeout(90_000);
-    const boardId = newBoard();
+    const boardId = await createBoard(sharedServerUrl());
     const ctxA = await browser.newContext();
     const ctxS = await browser.newContext();
     const alex = await Participant.join(ctxA, boardId);
@@ -206,7 +207,7 @@ test.describe('live-collaboration.e2e', () => {
     browser,
   }, testInfo) => {
     testInfo.setTimeout(300_000);
-    const boardId = newBoard();
+    const boardId = await createBoard(sharedServerUrl());
     const contexts: BrowserContext[] = [];
     const all: Participant[] = [];
     const latency = new LatencyLog();
@@ -283,7 +284,7 @@ test.describe('live-collaboration.e2e', () => {
   }, testInfo) => {
     // 30 s outage + reconnect + catch-up margin.
     testInfo.setTimeout(180_000);
-    const boardId = newBoard();
+    const boardId = await createBoard(sharedServerUrl());
     const ctxA = await browser.newContext();
     const ctxS = await browser.newContext();
     const alex = await Participant.join(ctxA, boardId);
@@ -351,7 +352,7 @@ test.describe('live-collaboration.e2e', () => {
     browser,
   }, testInfo) => {
     testInfo.setTimeout(90_000);
-    const boardId = newBoard();
+    const boardId = await createBoard(sharedServerUrl());
     const ctxA = await browser.newContext();
     const ctxS = await browser.newContext();
     const alex = await Participant.join(ctxA, boardId);

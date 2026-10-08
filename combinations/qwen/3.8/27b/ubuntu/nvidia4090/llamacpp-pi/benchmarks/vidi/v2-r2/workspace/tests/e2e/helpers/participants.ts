@@ -1,7 +1,33 @@
 import { type BrowserContext, type Page } from '@playwright/test';
 import type { Point } from '../../../src/client/canvas/camera';
 import { E2E_EVENTUAL_TIMEOUT_MS } from '../../../src/shared/config';
-import { newBoardId } from '../../../src/shared/board-id';
+import { agentPort } from './wrangler-process';
+
+/**
+ * The shared e2e webServer's base URL (offset 1 of the agent port range;
+ * playwright.config.ts owns it). Specs running their OWN wrangler (persistence,
+ * broken-board, story 5 legacy seed) use that wrangler's `url` instead.
+ */
+export function sharedServerUrl(): string {
+  return `http://127.0.0.1:${agentPort(1)}`;
+}
+
+/**
+ * Creates a board through the REAL API (`POST /api/boards`) and returns its
+ * id. Story 5: a board link only works for boards the Worker knows, so every
+ * e2e flow creates its board on the target server before opening it.
+ */
+export async function createBoard(baseUrl: string): Promise<string> {
+  const res = await fetch(`${baseUrl}/api/boards`, { method: 'POST' });
+  if (res.status !== 201) {
+    throw new Error(`board creation failed: HTTP ${res.status}`);
+  }
+  const body = (await res.json()) as { id?: unknown };
+  if (typeof body.id !== 'string' || body.id.length === 0) {
+    throw new Error('board creation response has no id');
+  }
+  return body.id;
+}
 
 /**
  * Live-collaboration e2e helpers (story 3): a Participant is one browser
@@ -294,10 +320,7 @@ export class Participant {
   }
 }
 
-/** A fresh, valid board id (same algorithm the client uses). */
-export function newBoard(): string {
-  return newBoardId();
-}
+
 
 /** Two boards agree on the full (id, x, y, z, color, text) set. */
 export function sameBoard(

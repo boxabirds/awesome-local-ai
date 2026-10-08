@@ -232,7 +232,8 @@ describe('BoardRoom malformed input', () => {
     const res = await SELF.fetch('http://localhost/api/rooms/%2e%2e%2fetc', {
       headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
     });
-    expect(res.status).toBe(400);
+    // Story 5: malformed and unknown ids are indistinguishable (404).
+    expect(res.status).toBe(404);
 
     const b = track(await WsClient.connect(board));
     await b.waitForSync();

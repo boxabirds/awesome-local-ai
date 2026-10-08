@@ -22,7 +22,7 @@ import { useStickyKeyboard } from '../../src/client/board/useStickyKeyboard';
 import { Toolbar } from '../../src/client/board/Toolbar';
 import { StickyNote } from '../../src/client/objects/StickyNote';
 import { NoteToolbar } from '../../src/client/objects/NoteToolbar';
-import { canEdit } from '../../src/client/App';
+import { canEdit } from '../../src/client/Board';
 
 /** Fixed viewport size for component tests (default laptop, design fixture). */
 export const TEST_VIEWPORT: Size = { width: 1280, height: 800 };

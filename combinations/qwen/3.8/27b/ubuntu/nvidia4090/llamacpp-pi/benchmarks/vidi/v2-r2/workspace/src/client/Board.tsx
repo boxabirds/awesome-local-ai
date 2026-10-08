@@ -1,0 +1,270 @@
+/**
+ * Board (story 1-4, moved out of App.tsx for the story 5 page split):
+ * canvas, notes, toolbar, zoom, connection status and navigation hint for
+ * one board. The board id is given by the page (story 5: `/b/:id` routes
+ * carry it; the old client-side "fresh id" redirect is gone).
+ */
+
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
+import { BoardViewport } from './canvas/BoardViewport';
+import { NavigationHint } from './canvas/NavigationHint';
+import { ZoomControls } from './canvas/ZoomControls';
+import { CameraContext, useCamera } from './canvas/useCamera';
+import {
+  canZoomIn,
+  canZoomOut,
+  screenToWorld,
+  worldToScreen,
+  zoomPercent,
+  type Point,
+} from './canvas/camera';
+import { installVidi6TestHooks, updateVidi6ConnectionState } from './canvas/testHooks';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import {
+  createSticky,
+  deleteObject,
+  renderOrder,
+  setStickyColor,
+  type StickySnapshot,
+} from '../shared/board-model';
+import { STICKY_SIZE_WORLD, type StickyColor } from '../shared/config';
+import { useBoardDoc } from './board/useBoardDoc';
+import { useSelection } from './board/useSelection';
+import { useStickyKeyboard } from './board/useStickyKeyboard';
+import { Toolbar } from './board/Toolbar';
+import { StickyNote } from './objects/StickyNote';
+import { NoteToolbar } from './objects/NoteToolbar';
+import { type ConnectionState } from './sync/connectBoard';
+
+/**
+ * The board is editable in every connection state except load_failed
+ * (persist.client_status): while the board couldn't be loaded, edits would
+ * be lost, so create/drag/edit/colour/delete are no-ops and the Sticky note
+ * button is disabled. Exported for the component tests (TC-23) and reused by
+ * the board to gate its editing handlers.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
+/** Board background colour (the dot grid is drawn on top). */
+const BOARD_BACKGROUND = '#f8f8f6';
+/** Origin marker (small crosshair at world 0,0): a stable e2e pixel target. */
+const ORIGIN_MARKER_HALF_PX = 6;
+const ORIGIN_MARKER_COLOR = '#8f8f86';
+
+/**
+ * Small crosshair at the board's starting point (world 0,0), rendered in
+ * all builds so e2e tests have a stable pixel target.
+ */
+function OriginMarker(): JSX.Element {
+  return (
+    <div
+      data-testid="origin-marker"
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        left: -ORIGIN_MARKER_HALF_PX,
+        top: -ORIGIN_MARKER_HALF_PX,
+        width: ORIGIN_MARKER_HALF_PX * 2,
+        height: ORIGIN_MARKER_HALF_PX * 2,
+        pointerEvents: 'none',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: ORIGIN_MARKER_HALF_PX - 0.5,
+          width: '100%',
+          height: 1,
+          background: ORIGIN_MARKER_COLOR,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: ORIGIN_MARKER_HALF_PX - 0.5,
+          top: 0,
+          width: 1,
+          height: '100%',
+          background: ORIGIN_MARKER_COLOR,
+        }}
+      />
+    </div>
+  );
+}
+
+export function Board({ boardId }: { boardId: string }): JSX.Element {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = useState(() => ({
+    width: window.innerWidth || 1,
+    height: window.innerHeight || 1,
+  }));
+
+  // Viewport size from a ResizeObserver (window resize never moves content:
+  // the camera is anchored to the top-left and carries no size).
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) {
+      return;
+    }
+    const update = (): void => {
+      setViewport((prev) =>
+        prev.width === el.clientWidth && prev.height === el.clientHeight
+          ? prev
+          : { width: el.clientWidth, height: el.clientHeight },
+      );
+    };
+    if (typeof ResizeObserver === 'function') {
+      const observer = new ResizeObserver(update);
+      observer.observe(el);
+      return () => observer.disconnect();
+    }
+    // Fallback for environments without ResizeObserver (e.g. jsdom).
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  const cameraController = useCamera(viewport);
+  const { doc, objects, connectionState, dropSocket, resumeSocket } = useBoardDoc(boardId);
+  // Editing is locked out while the board couldn't be loaded (persist.client_status).
+  const editable = canEdit(connectionState);
+  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  useStickyKeyboard({ doc, selectedId, editingId, select, startEdit, editable });
+
+  // If the selected / editing note disappears (deleted elsewhere), clear the
+  // stale local state so nothing points at a ghost (TC-37).
+  useEffect(() => {
+    if (selectedId !== null && !objects.some((o) => o.id === selectedId)) {
+      select(null);
+    }
+    if (editingId !== null && !objects.some((o) => o.id === editingId)) {
+      endEdit('unselected');
+    }
+  }, [objects, selectedId, editingId, select, endEdit]);
+
+  /** Create a sticky note centred on a viewport-local point and start editing it. */
+  const createAt = useCallback(
+    (p: Point): void => {
+      if (!editable) {
+        return; // load_failed: editing is locked out (persist.client_status)
+      }
+      const id = createSticky(doc, screenToWorld(cameraController.camera, p));
+      if (id !== '') {
+        startEdit(id);
+      }
+    },
+    [doc, cameraController.camera, startEdit, editable],
+  );
+
+  const createAtCentre = useCallback((): void => {
+    createAt({ x: viewport.width / 2, y: viewport.height / 2 });
+  }, [createAt, viewport]);
+
+  // Test-only hooks (no-ops and tree-shaken in production builds).
+  const objectsRef = useRef<readonly StickySnapshot[]>(objects);
+  objectsRef.current = objects;
+  useEffect(() => {
+    installVidi6TestHooks(
+      cameraController.setCamera,
+      () => objectsRef.current,
+      dropSocket,
+      resumeSocket,
+    );
+  }, [cameraController.setCamera, dropSocket, resumeSocket]);
+
+  // Keep the test hook's live connection state current (no-op in production).
+  useEffect(() => {
+    updateVidi6ConnectionState(connectionState);
+  }, [connectionState]);
+
+  const selectedNote =
+    selectedId !== null ? objects.find((o) => o.id === selectedId) : undefined;
+  const noteToolbarVisible =
+    selectedNote !== undefined &&
+    editingId !== selectedNote.id &&
+    draggingId !== selectedNote.id;
+
+  return (
+    <CameraContext.Provider value={cameraController}>
+      <div
+        ref={rootRef}
+        data-testid="app-root"
+        style={{ position: 'fixed', inset: 0, background: BOARD_BACKGROUND }}
+      >
+        <BoardViewport onDoubleClickEmpty={createAt} onEmptyClick={() => select(null)}>
+          <OriginMarker />
+          {/* Stable DOM order (renderOrder): a DOM move would release pointer
+              capture and kill an in-flight drag; stacking is CSS z-index. */}
+          {renderOrder(objects).map((note) => (
+            <StickyNote
+              key={note.id}
+              note={note}
+              doc={doc}
+              zoom={cameraController.camera.zoom}
+              selected={selectedId === note.id}
+              editing={editingId === note.id}
+              disabled={!editable}
+              onSelect={select}
+              onStartEdit={startEdit}
+              onEndEdit={endEdit}
+              onDraggingChange={setDraggingId}
+            />
+          ))}
+        </BoardViewport>
+        <Toolbar onCreateSticky={createAtCentre} disabled={!editable} />
+        <ConnectionStatus state={connectionState} />
+        {noteToolbarVisible && selectedNote !== undefined && (
+          <div
+            style={{
+              position: 'fixed',
+              left:
+                worldToScreen(cameraController.camera, {
+                  x: selectedNote.x,
+                  y: selectedNote.y,
+                }).x + (STICKY_SIZE_WORLD * cameraController.camera.zoom) / 2,
+              top:
+                worldToScreen(cameraController.camera, {
+                  x: selectedNote.x,
+                  y: selectedNote.y,
+                }).y - 10,
+              transform: 'translate(-50%, -100%)',
+              zIndex: 3000,
+            }}
+          >
+            <NoteToolbar
+              color={selectedNote.color}
+              disabled={!editable}
+              onColor={(c: StickyColor) => {
+                if (!editable) {
+                  return; // load_failed: editing is locked out
+                }
+                setStickyColor(doc, selectedNote.id, c);
+              }}
+              onDelete={() => {
+                if (!editable) {
+                  return; // load_failed: editing is locked out
+                }
+                if (deleteObject(doc, selectedNote.id)) {
+                  select(null);
+                }
+              }}
+            />
+          </div>
+        )}
+        <ZoomControls
+          zoomPercent={zoomPercent(cameraController.camera)}
+          canZoomIn={canZoomIn(cameraController.camera)}
+          canZoomOut={canZoomOut(cameraController.camera)}
+          onZoomIn={() => cameraController.zoomStep('in')}
+          onZoomOut={() => cameraController.zoomStep('out')}
+          onReset={cameraController.reset}
+        />
+        <NavigationHint visible={!cameraController.hasNavigated} />
+      </div>
+    </CameraContext.Provider>
+  );
+}

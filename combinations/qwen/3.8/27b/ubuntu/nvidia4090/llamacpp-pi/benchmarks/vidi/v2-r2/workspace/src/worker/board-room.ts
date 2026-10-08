@@ -130,11 +130,35 @@ export class BoardRoom extends DurableObject<Env> {
     });
   }
 
-  /** Wake path: migrate, load, apply room-owned meta (design sequence). */
+  /**
+   * RPC (story 5, share.board_api): mark this board as created. Migrates
+   * the tables (if missing) and records `created_at` (epoch ms) exactly
+   * once; a second call reports the board already exists and leaves
+   * `created_at` unchanged (TC-15). The only storage write performed by
+   * board creation.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    const sql = this.store.storage.sql;
+    const existing = sql.exec("SELECT value FROM storage_meta WHERE key = 'created_at'").toArray();
+    if (existing.length > 0) {
+      return 'exists';
+    }
+    sql.exec("INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)", Date.now()).toArray();
+    return 'created';
+  }
+
+  /** RPC (story 5): read-only existence check (created_at or legacy data). */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  /** Wake path: load, apply room-owned meta (design sequence).
+   *  Story 5: no migrate here — construct must not write, so probing an
+   *  unknown link leaves no storage behind (TC-06/TC-09). */
   private loadBoard(): void {
     this.state = INITIAL_ROOM_STATE;
     this.lastLoadAttemptMs = Date.now();
-    this.store.migrate();
     const doc = new Y.Doc();
     const result = this.store.load(doc);
     if (!result.ok) {
@@ -165,15 +189,24 @@ export class BoardRoom extends DurableObject<Env> {
     return Date.now() - this.lastLoadAttemptMs >= LOAD_RETRY_MIN_INTERVAL_MS;
   }
 
-  /** WebSocket upgrade, or a test-only storage damage hook (TC-24). */
+  /** WebSocket upgrade, or a test-only storage hook (TC-24, TC-31). */
   async fetch(request: Request): Promise<Response> {
     // The worker routes these here only when TEST_HOOKS is '1'; in
     // production they are never registered (requests serve the SPA).
     const action = parseTestHookAction(new URL(request.url).pathname);
     if (action !== null) {
+      if (action === 'seed-legacy') {
+        return this.testSeedLegacy(request);
+      }
       return action === 'corrupt-snapshot'
         ? this.testCorruptSnapshot()
         : this.testRepairSnapshot();
+    }
+    // Story 5 (share.not_found): rooms can no longer be created implicitly
+    // by connecting. Unknown boards are rejected BEFORE accepting a socket;
+    // the check is read-only, so probing a link leaves no storage behind.
+    if (!this.store.existsReadOnly()) {
+      return new Response('Not Found', { status: 404 });
     }
     const upgrade = request.headers.get('Upgrade');
     if (upgrade === null || !upgrade.toLowerCase().includes('websocket')) {
@@ -371,6 +404,35 @@ export class BoardRoom extends DurableObject<Env> {
     overwriteChunk0(this.store, new Uint8Array(chunk0.byteLength).fill(0xab));
     await this.reload();
     return hookJson({ ok: true, action: 'corrupt-snapshot', bytes: chunk0.byteLength });
+  }
+
+  /**
+   * Test-only (story 5 TC-31): seed a LEGACY board — real tables plus
+   * `updates` rows but NO `created_at` marker, exactly the shape of a
+   * story-4-era board with saved content. The request body is a
+   * hex-encoded Yjs update; it is verified against a scratch doc first.
+   */
+  private async testSeedLegacy(request: Request): Promise<Response> {
+    const hex = (await request.text()).trim();
+    if (!/^[0-9a-fA-F]*$/.test(hex) || hex.length % 2 !== 0) {
+      return hookJson({ ok: false, error: 'body must be a hex-encoded Yjs update' }, 400);
+    }
+    const bytes = fromHex(hex);
+    const scratch = new Y.Doc();
+    try {
+      Y.applyUpdate(scratch, bytes);
+    } catch (error) {
+      return hookJson({ ok: false, error: 'update does not apply: ' + String(error) }, 400);
+    }
+    // Legacy shape: the old migrate() (tables + schema version) and log
+    // rows, but no created_at — existsReadOnly() must find it via the
+    // updates rows (share.legacy_boards).
+    this.store.migrate();
+    this.store.append(bytes);
+    // The room's in-memory doc predates the seed: re-run the real load path
+    // so the room serves the seeded board.
+    await this.reload();
+    return hookJson({ ok: true, action: 'seed-legacy', bytes: bytes.byteLength });
   }
 
   /**

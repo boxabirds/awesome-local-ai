@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import type { Point } from '../../src/client/canvas/camera';
 import { longParagraph, SHORT_PHRASE } from '../fixtures/texts';
 import { expectWithinPx, settle, setCamera } from './helpers/board';
+import { createBoard, sharedServerUrl } from './helpers/participants';
 
 /**
  * E2E sticky notes for story 2 (design "E2E workflows"):
@@ -63,7 +64,8 @@ async function dragFrom(page: Page, from: Point, delta: Point, steps = 10): Prom
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: VIEWPORT.width, height: VIEWPORT.height });
-  await page.goto('/');
+  const boardId = await createBoard(sharedServerUrl());
+  await page.goto(`/b/${encodeURIComponent(boardId)}`);
   await page.waitForSelector('[data-testid="board-viewport"]');
 });
 

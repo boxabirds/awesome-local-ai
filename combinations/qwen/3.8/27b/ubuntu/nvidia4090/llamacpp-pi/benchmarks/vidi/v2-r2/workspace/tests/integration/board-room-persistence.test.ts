@@ -92,6 +92,8 @@ async function writeRetroSnapshot(
   reload: boolean,
 ): Promise<void> {
   await withRoomInstance(boardId, async (instance) => {
+    // Story 5: construct no longer migrates — set the tables up explicitly.
+    instance.store.migrate();
     const doc = new Y.Doc();
     buildRetroBoard(doc);
     const full = Y.encodeStateAsUpdate(doc);

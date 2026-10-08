@@ -9,7 +9,7 @@ import {
   RETRO_NOTE_COUNT,
 } from '../fixtures/boards';
 import { NodeWsClient } from './helpers/node-ws-client';
-import { Participant, newBoard, sameBoard, type ObjectState } from './helpers/participants';
+import { Participant, createBoard, sameBoard, type ObjectState } from './helpers/participants';
 import { WranglerProcess, agentPort, freshPersistDir } from './helpers/wrangler-process';
 
 // Each persistence test runs its OWN wrangler on its OWN port (offset 2/3/4 of
@@ -37,10 +37,10 @@ test.describe('persistence.e2e', () => {
     browser,
   }, testInfo) => {
     testInfo.setTimeout(180_000);
-    const boardId = newBoard();
     const persistTo = freshPersistDir();
     const wrangler = new WranglerProcess(PORT_TC19, persistTo);
     await wrangler.start();
+    const boardId = await createBoard(wrangler.url);
     let ctx: BrowserContext | null = null;
     try {
       // Seed the 25-note retro board (three notes stacked on one spot) from
@@ -97,10 +97,10 @@ test.describe('persistence.e2e', () => {
     browser,
   }, testInfo) => {
     testInfo.setTimeout(150_000);
-    const boardId = newBoard();
     const persistTo = freshPersistDir();
     const wrangler = new WranglerProcess(PORT_TC20, persistTo);
     await wrangler.start();
+    const boardId = await createBoard(wrangler.url);
     let ctxA: BrowserContext | null = null;
     let ctxB: BrowserContext | null = null;
     try {
@@ -149,10 +149,10 @@ test.describe('persistence.e2e', () => {
     browser,
   }, testInfo) => {
     testInfo.setTimeout(240_000);
-    const boardId = newBoard();
     const persistTo = freshPersistDir();
     const wrangler = new WranglerProcess(PORT_TC21, persistTo);
     await wrangler.start();
+    const boardId = await createBoard(wrangler.url);
     let ctx: BrowserContext | null = null;
     try {
       // Seed PERSIST_TESTED_NOTES notes from Node (each note is its own

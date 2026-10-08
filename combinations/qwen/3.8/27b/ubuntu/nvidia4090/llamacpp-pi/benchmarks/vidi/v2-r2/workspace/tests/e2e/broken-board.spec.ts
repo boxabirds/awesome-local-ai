@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { buildRetroBoard, RETRO_NOTE_COUNT } from '../fixtures/boards';
 import { NodeWsClient } from './helpers/node-ws-client';
-import { newBoard } from './helpers/participants';
+import { createBoard } from './helpers/participants';
 import { WranglerProcess, agentPort, freshPersistDir } from './helpers/wrangler-process';
 
 // Each test runs its OWN wrangler on its OWN port (offset 5/6 of the agent
@@ -30,10 +30,10 @@ test.describe('broken board (persist.client_status) e2e', () => {
     browser,
   }, testInfo) => {
     testInfo.setTimeout(180_000);
-    const boardId = newBoard();
     const persistTo = freshPersistDir();
     const wrangler = new WranglerProcess(PORT_TC24, persistTo, { TEST_HOOKS: '1' });
     await wrangler.start();
+    const boardId = await createBoard(wrangler.url);
     let ctx: BrowserContext | null = null;
     try {
       // Seed the 25-note retro board from Node over the real sync protocol,
@@ -127,11 +127,11 @@ test.describe('broken board (persist.client_status) e2e', () => {
 
   test('without TEST_HOOKS the hook paths serve the SPA, not the hooks', async ({}, testInfo) => {
     testInfo.setTimeout(120_000);
-    const boardId = newBoard();
     const persistTo = freshPersistDir();
     // No TEST_HOOKS: the production-equivalent worker has no hook routes.
     const wrangler = new WranglerProcess(PORT_NO_HOOKS, persistTo);
     await wrangler.start();
+    const boardId = await createBoard(wrangler.url);
     try {
       for (const action of ['corrupt-snapshot', 'repair']) {
         const res = await fetch(
