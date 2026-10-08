@@ -45,10 +45,11 @@ Every figure is the author's, on one test set or one machine. The card itself sa
 
 ## Why to be careful
 
-1. **Two bits.** The owner's own read from the runs so far is that 4-bit is the floor below which things stop being good enough
-   (the 3-bit llama.cpp arm of Flash-Next scored 63 live against 66 to 69 for ddalcu's 4/8-bit). The card's own table shows it
-   losing 7 to 17 points on reasoning and maths. A 27B dense model at 2 bits is a different case from a 3-bit MoE, but it is
-   the same warning.
+1. **Two bits is untested here.** The owner's hypothesis was that 4-bit is a floor below which a model is not good enough; the only
+   lower-bit test so far does not support it. The 3-bit llama.cpp arm of Flash-Next (`v2-iq3xxs-r1`, one run, on quintus) scored
+   **68/75** (score of record), against 69, 70, 72 and 72 for ddalcu's 4/8-bit mlx-serve runs and a median of 66 for Swift 1.5. One run, a
+   different engine and a different quantisation family, so it neither confirms nor refutes the hypothesis for 2 bits. What the
+   card's own table does show is where the loss is: reasoning and maths (AIME 2025 79 against 97, MuSR 68 against 80), not tool calling.
 2. **The speed figure is greedy.** Kujira measured at temperature 0. The same effect cost us a comparison on gufo: speculative
    acceptance falls when the sampler is the model card's (ours is temperature 1.0, top-p 0.95, top-k 20), so **no figure on the card
    predicts ours**, and the card says the output is not bit-identical at temperature 0 either.
