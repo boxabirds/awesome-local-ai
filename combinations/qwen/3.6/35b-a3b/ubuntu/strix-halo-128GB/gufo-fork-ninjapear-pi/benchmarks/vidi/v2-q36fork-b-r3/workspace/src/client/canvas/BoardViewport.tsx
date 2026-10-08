@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import type { Camera, Point } from './camera';
 import { screenToWorld } from './camera';
 import { LINE_DELTA, PAGE_DELTA } from '@shared/config';
+import type { ToolId } from '../tools/useActiveTool';
 
 // Safari gesture event type
 declare global {
@@ -34,7 +35,7 @@ export interface BoardViewportProps {
   /** Called on pointerup on empty space after potential marquee end */
   onEmptyPointerUp?(): void;
   /** Currently active tool ('select' or 'text') */
-  activeTool?: 'select' | 'text';
+  activeTool?: ToolId;
   /** Called when user clicks while Text tool is active */
   onTextClick?(worldPoint: { x: number; y: number }): void;
 }
@@ -272,6 +273,15 @@ onClick={(e) => {
           <line x1="12" y1="0" x2="12" y2="24" stroke="#ff4444" strokeWidth="0.5" opacity="0.5" />
           <line x1="0" y1="12" x2="24" y2="12" stroke="#ff4444" strokeWidth="0.5" opacity="0.5" />
         </svg>
+        {/* Connector arrowhead markers — defined once at board-level so all connectors share them */}
+        <defs>
+          <marker id="arrowhead-default" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+            <polygon points="0 0, 12 4, 0 8" fill="#757575" />
+          </marker>
+          <marker id="arrowhead-sel" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+            <polygon points="0 0, 12 4, 0 8" fill="#2196F3" />
+          </marker>
+        </defs>
         {children}
       </div>
     </div>

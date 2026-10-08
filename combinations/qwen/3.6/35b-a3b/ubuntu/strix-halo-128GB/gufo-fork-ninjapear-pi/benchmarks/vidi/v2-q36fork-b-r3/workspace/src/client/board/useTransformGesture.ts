@@ -10,7 +10,7 @@ import {
   resizeObjects,
   bringObjectsToFront,
 } from '@shared/board-model';
-import type { StickySnapshot } from '@shared/board-model';
+import type { ObjectSnap } from '@shared/board-model';
 import { DRAG_THRESHOLD_PX } from '@shared/config';
 import { getObjectType } from '../objects/registry';
 
@@ -18,7 +18,7 @@ interface UseTransformGestureOpts {
   doc: Y.Doc;
   camera: Camera;
   selection: ReturnType<typeof import('./useSelection').useSelection>;
-  snapshot: readonly StickySnapshot[];
+  snapshot: readonly ObjectSnap[];
   canEdit: boolean;
   onGestureStart?(): void;
   onGestureEnd?(): void;

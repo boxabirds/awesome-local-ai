@@ -1,6 +1,6 @@
 import { useReducer, useEffect, useCallback } from 'react';
 import * as Y from 'yjs';
-import type { StickySnapshot } from '@shared/board-model';
+import type { ObjectSnap } from '@shared/board-model';
 
 export interface SelectionState {
   ids: ReadonlySet<string>;
@@ -67,7 +67,7 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
   }
 }
 
-export function useSelection(doc: Y.Doc, snapshot: readonly StickySnapshot[]) {
+export function useSelection(doc: Y.Doc, snapshot: readonly ObjectSnap[]) {
   const [state, dispatch] = useReducer(selectionReducer, {
     ids: new Set<string>(),
     editingId: null,

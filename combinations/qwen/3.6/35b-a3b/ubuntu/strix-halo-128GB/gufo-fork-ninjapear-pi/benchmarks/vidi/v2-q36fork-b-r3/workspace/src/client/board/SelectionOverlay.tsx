@@ -22,7 +22,7 @@ const CORRECTED_HANDLE_POSITIONS: { handle: Handle; xPct: number; yPct: number }
 
 interface SelectionOverlayProps {
   ids: ReadonlySet<string>;
-  snapshot: readonly StickySnapshot[];
+  snapshot: readonly import('@shared/board-model').ObjectSnap[];
   camera: Camera;
   onHandlePointerDown(e: PointerEvent, h: Handle): void;
 }

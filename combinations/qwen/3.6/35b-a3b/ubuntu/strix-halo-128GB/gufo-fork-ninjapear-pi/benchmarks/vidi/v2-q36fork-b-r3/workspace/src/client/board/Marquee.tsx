@@ -7,7 +7,7 @@ import { objectsInRect } from '@shared/board-model';
 
 interface UseMarqueeOpts {
   camera: Camera;
-  snapshot: readonly import('@shared/board-model').StickySnapshot[];
+  snapshot: readonly import('@shared/board-model').ObjectSnap[];
   onSelect: (ids: string[]) => void;
 }
 

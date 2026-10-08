@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot as snapshotFn } from '@shared/board-model';
-import type { StickySnapshot } from '@shared/board-model';
+import type { ObjectSnap } from '@shared/board-model';
 import { connectBoard } from '../sync/connectBoard';
 
 /**
@@ -10,7 +10,7 @@ import { connectBoard } from '../sync/connectBoard';
  */
 export function useBoardDoc(boardId: string): {
   doc: Y.Doc;
-  snapshot: readonly StickySnapshot[];
+  snapshot: readonly ObjectSnap[];
 } {
   const docRef = useRef<Y.Doc | null>(null);
   if (!docRef.current) {

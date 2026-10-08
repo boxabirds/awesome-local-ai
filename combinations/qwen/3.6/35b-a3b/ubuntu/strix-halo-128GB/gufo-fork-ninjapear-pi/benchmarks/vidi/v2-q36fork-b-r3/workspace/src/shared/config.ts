@@ -54,6 +54,39 @@ export const DEFAULT_TEXT_SIZE: TextSize = 'M';
 export const TEXT_LINE_HEIGHT = 1.3;
 export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 
+// Story 10 — Draw shapes and connect them with arrows
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+export const SHAPE_MIN_SIZE_WORLD = 20;
+export const SHAPE_LABEL_MAX_CHARS = 500;
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type ShapeFillColor = keyof typeof SHAPE_FILL_COLORS;
+export type ShapeStrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+export const DEFAULT_SHAPE_FILL: ShapeFillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: ShapeStrokeColor = 'dark';
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
 // Story 7 — Select, move, resize and delete several objects
 export const HANDLE_SIZE_PX = 8;
 export const STICKY_MIN_SIZE_WORLD = 50;

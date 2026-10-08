@@ -1,16 +1,17 @@
 import { useEffect } from 'react';
 import * as Y from 'yjs';
-import type { StickySnapshot } from '@shared/board-model';
-import { deleteObjects, moveObjects, allObjectIds, createSticky } from '@shared/board-model';
+import type { ObjectSnap } from '@shared/board-model';
+import { deleteObjects, moveObjects, createSticky } from '@shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '@shared/config';
 import type { UndoController } from './undo';
 import type { Tool } from './useTool';
 import { screenToWorld } from '../canvas/camera';
+import type { ShapeKind } from '@shared/objects/shape';
 
 export interface UseBoardKeysOpts {
   doc: Y.Doc;
   selection: ReturnType<typeof import('./useSelection').useSelection>;
-  snapshot: readonly StickySnapshot[];
+  snapshot: readonly ObjectSnap[];
   canEdit: boolean;
   undoController: UndoController | null;
   onBoundary?(): void;
@@ -38,6 +39,24 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit, undoController
         return;
       }
 
+      // S — Shape tool
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        if (canEdit && activeTool !== 'shape') {
+          setActiveTool?.('shape');
+        }
+        return;
+      }
+
+      // L — Connector tool
+      if (e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        if (canEdit && activeTool !== 'connector') {
+          setActiveTool?.('connector');
+        }
+        return;
+      }
+
       // T — Text tool (only if canEdit)
       if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
@@ -62,7 +81,7 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit, undoController
       // Escape — clear selection, or revert to Select tool
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (activeTool === 'text') {
+        if (activeTool === 'text' || activeTool === 'shape' || activeTool === 'connector') {
           setActiveTool?.('select');
         } else {
           selection.clear();

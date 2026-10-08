@@ -11,6 +11,8 @@ import { BoardViewport } from '../canvas/BoardViewport';
 import { Toolbar } from '../board/Toolbar';
 import { StickyNote } from '../objects/StickyNote';
 import { TextObject } from '../objects/TextObject';
+import { ShapeObject } from '../objects/ShapeObject';
+import { ConnectorObject } from '../objects/ConnectorObject';
 import { ZoomControls } from '../canvas/ZoomControls';
 import { NavigationHint } from '../canvas/NavigationHint';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -27,13 +29,16 @@ import { useBoardKeys } from '../board/useBoardKeys';
 import { useUndo } from '../board/useUndo';
 import { createUndo } from '../board/undo';
 import { createSticky, setStickyColor, deleteObjects } from '@shared/board-model';
+import type { SnapshotWithText } from '../board/SelectionBar';
 import { createText, setTextSize } from '@shared/objects/text';
 import { useTool } from '../board/useTool';
-import type { StickySnapshot } from '@shared/board-model';
+import type { Tool } from '../board/useTool';
+import type { ObjectSnap, StickySnapshot, ShapeSnapshot, ConnectorSnapshot } from '@shared/board-model';
 import type { TextSnapshot } from '@shared/objects/text';
 import type { Handle } from '@shared/geometry';
 import { objectBounds } from '@shared/board-model';
 import { getObjectType } from '../objects/registry';
+import type { ShapeKind } from '@shared/objects/shape';
 
 // Re-export camera and notes for e2e
 declare global {
@@ -157,6 +162,11 @@ function BoardContent({ boardId }: { boardId: string }) {
 
   // Story 9: tool mode
   const { tool, setTool } = useTool(canEdit);
+  // Story 10: shape kind
+  const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
+  const [hoverDots, setHoverDots] = useState<{ pos: { x: number; y: number }; highlighted: boolean }[]>([]);
+  const [dragDotPos, setDragDotPos] = useState<{ x: number; y: number } | null>(null);
+  const [connectorPreviewLine, setConnectorPreviewLine] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
 
   // ─── Story 8: Undo controller ─────────────────────────────────--
 
@@ -252,7 +262,8 @@ function BoardContent({ boardId }: { boardId: string }) {
 
   if (typeof window !== 'undefined' && import.meta.env.DEV) {
     window.__getCamera = () => camera;
-    window.__getStickyNotes = () => board.snapshot;
+    window.__getStickyNotes = () =>
+      board.snapshot.filter((o): o is StickySnapshot => o.type === 'sticky');
   }
 
   const handleSelect = useCallback(
@@ -315,6 +326,20 @@ function BoardContent({ boardId }: { boardId: string }) {
     [board.doc, canEdit, tool, selection, setTool],
   );
 
+  // Story 10: shape creation from Shape tool
+  const handleShapeCreated = useCallback((id: string) => {
+    if (!canEdit) return;
+    selection.click(id);
+    setTool('select');
+  }, [selection, canEdit, setTool]);
+
+  // Story 10: connector creation from Connector tool
+  const handleConnectorCreated = useCallback((id: string) => {
+    if (!canEdit) return;
+    selection.click(id);
+    setTool('select');
+  }, [selection, canEdit, setTool]);
+
   const spacingPx = 24 * camera.zoom;
   const bgPosX = (-camera.x * camera.zoom) % spacingPx;
   const bgPosY = (-camera.y * camera.zoom) % spacingPx;
@@ -328,11 +353,11 @@ function BoardContent({ boardId }: { boardId: string }) {
       {/* Share button top-right */}
       <SharePanel boardId={boardId} />
 
-      <Toolbar
+<Toolbar
         onCreateSticky={handleToolbarCreate}
         disabled={!canEdit}
-        selectedTool={tool}
-        onToolChange={(t) => {
+        selectedTool={tool as any}
+        onToolChange={(t: any) => {
           setTool(t);
           selection.clear();
         }}
@@ -372,7 +397,9 @@ function BoardContent({ boardId }: { boardId: string }) {
         onTextClick={tool === 'text' ? handleTextClick : undefined}
       >
         <MarqueeRect rect={marquee.rect ?? null} camera={camera} />
-        {board.snapshot.map((note) => (
+        {board.snapshot
+          .filter((o): o is StickySnapshot => o.type === 'sticky')
+          .map((note) => (
           <StickyNote
             key={note.id}
             note={note}
@@ -397,6 +424,29 @@ function BoardContent({ boardId }: { boardId: string }) {
         ))}
         {/* Render text objects - read directly from Y.Doc */}
         {renderTextObjects(board.doc, camera, selection, handleSelect, handleStartEdit, handleEndEdit, boundary, gesture)}
+        {/* Render shapes */}
+        {board.snapshot
+          .filter((o): o is ShapeSnapshot => o.type === 'shape' && o.kind === 'rect')
+          .map((s) => (
+            <ShapeObject
+              key={s.id}
+              snap={s}
+              camera={camera}
+              selected={selection.ids.has(s.id)}
+            />
+          ))}
+        {/* Render connectors */}
+        {board.snapshot
+          .filter((o): o is ConnectorSnapshot => o.type === 'connector')
+          .map((c) => (
+            <ConnectorObject
+              key={c.id}
+              snap={c}
+              boardSnapshot={board.snapshot}
+              camera={camera}
+              selected={selection.ids.has(c.id)}
+            />
+          ))}
         {selection.ids.size > 0 && (
           <SelectionOverlay
             ids={selection.ids}
@@ -419,7 +469,7 @@ function BoardContent({ boardId }: { boardId: string }) {
         >
           <SelectionBar
             ids={selection.ids}
-            snapshot={board.snapshot as any}
+            snapshot={board.snapshot as readonly SnapshotWithText[]}
             doc={board.doc}
             onDelete={handleDeleteSelection}
             onBoundary={boundary}

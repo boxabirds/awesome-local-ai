@@ -192,15 +192,15 @@ describe('TC-08: allObjectIds only returns known registered types', () => {
     const doc = makeDoc();
     const stickyId = createSticky(doc, { x: 0, y: 0 });
     
-    // Inject an unknown-type object
+    // Inject a truly unknown-type object
     const objects = (doc as any).getMap('objects');
     const fakeMap = new Y.Map();
-    (fakeMap as any).set('type', 'shape');
+    (fakeMap as any).set('type', 'phantom');
     (fakeMap as any).set('x', 0);
     (fakeMap as any).set('y', 0);
-    (objects as any).set('fake-shape', fakeMap);
+    (objects as any).set('fake-phantom', fakeMap);
     
-    const snaps = snapshot(doc);
+    const snaps = snapshot(doc) as import('@shared/board-model').StickySnapshot[];
     const allIds = allObjectIds(snaps);
     
     expect(allIds).toEqual([stickyId]);

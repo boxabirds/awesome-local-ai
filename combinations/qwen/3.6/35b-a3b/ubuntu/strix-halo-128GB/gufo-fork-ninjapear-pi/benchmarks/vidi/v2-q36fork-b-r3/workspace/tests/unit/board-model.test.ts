@@ -9,6 +9,7 @@ import {
   setStickyColor,
   deleteObject,
   snapshot,
+  StickySnapshot,
 } from '@shared/board-model';
 import {
   STICKY_SIZE_WORLD,
@@ -48,7 +49,7 @@ describe('TC-01: createSticky on empty doc', () => {
     const id = createSticky(doc, { x: 0, y: 0 });
     expect(id).toBeTruthy();
 
-    const snaps = snapshot(doc);
+    const snaps = snapshot(doc) as StickySnapshot[];
     expect(snaps.length).toBe(1);
 
     const s = snaps[0];
@@ -93,11 +94,11 @@ describe('TC-03: moveObject', () => {
   it('updates x,y and leaves other fields unchanged', () => {
     const doc = makeDoc();
     const id = createSticky(doc, { x: 0, y: 0 });
-    const beforeSnap = snapshot(doc)[0];
+    const beforeSnap = (snapshot(doc) as StickySnapshot[])[0];
 
     moveObject(doc, id, 10, -20);
 
-    const snaps = snapshot(doc);
+    const snaps = snapshot(doc) as StickySnapshot[];
     const s = snaps[0];
     expect(s.x).toBe(10);
     expect(s.y).toBe(-20);
@@ -126,12 +127,12 @@ describe('TC-05: setStickyColor applies change', () => {
   it('changes color to green, text/x/y/z unchanged', () => {
     const doc = makeDoc();
     const id = createSticky(doc, { x: 0, y: 0 });
-    const before = snapshot(doc)[0];
+    const before = (snapshot(doc) as StickySnapshot[])[0];
 
     const result = setStickyColor(doc, id, 'green');
     expect(result).toBe(true);
 
-    const s = snapshot(doc)[0];
+    const s = (snapshot(doc) as StickySnapshot[])[0];
     expect(s.color).toBe('green');
     expect(s.text).toBe(before.text);
     expect(s.x).toBe(before.x);
@@ -152,7 +153,7 @@ describe('TC-06: setStickyColor with unknown colour', () => {
     expect(result).toBe(false);
     expect(tracker.count).toBe(0);
 
-    const s = snapshot(doc)[0];
+    const s = (snapshot(doc) as StickySnapshot[])[0];
     expect(s.color).toBe(DEFAULT_STICKY_COLOR);
     tracker.cleanup();
   });
@@ -166,7 +167,7 @@ describe('TC-07: deleteObject', () => {
     createSticky(doc, { x: 0, y: 0 });
     expect(snapshot(doc).length).toBe(1);
 
-    const id = snapshot(doc)[0].id;
+    const id = (snapshot(doc) as StickySnapshot[])[0].id;
     deleteObject(doc, id);
     expect(snapshot(doc).length).toBe(0);
   });
@@ -249,21 +250,17 @@ describe('TC-12: unknown object type in doc', () => {
   it('skipped by snapshot without throw', () => {
     const doc = makeDoc();
     createSticky(doc, { x: 0, y: 0 });
-    // Inject an unknown-type object directly
+    // Inject a completely unknown-type object directly
     const objects = (doc as any).getMap('objects');
     const fakeMap = new Y.Map();
-    (fakeMap as any).set('type', 'shape');
+    (fakeMap as any).set('type', 'ghost'); // truly unknown type
     (fakeMap as any).set('x', 0);
     (fakeMap as any).set('y', 0);
-    (fakeMap as any).set('color', 'yellow');
-    (fakeMap as any).set('text', new Y.Text());
-    (fakeMap as any).set('z', 1);
-    (fakeMap as any).set('createdAt', Date.now());
-    (objects as any).set('fake-shape-id', fakeMap);
+    (objects as any).set('fake-ghost-id', fakeMap);
 
-    const snaps = snapshot(doc);
+    const snaps = snapshot(doc) as StickySnapshot[];
     expect(snaps.length).toBe(1);
-    expect(snaps[0].id !== 'fake-shape-id').toBe(true);
+    expect(snaps[0].id).not.toBe('fake-ghost-id');
   });
 });
 

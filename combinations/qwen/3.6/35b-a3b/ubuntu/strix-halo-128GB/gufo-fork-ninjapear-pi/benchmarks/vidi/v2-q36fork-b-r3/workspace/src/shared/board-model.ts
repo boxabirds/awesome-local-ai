@@ -5,10 +5,15 @@ import {
   DEFAULT_STICKY_COLOR,
   STICKY_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
+  SHAPE_LABEL_MAX_CHARS,
 } from './config';
 import type { StickyColor } from './config';
 import type { Point } from '../client/canvas/camera';
 import type { Rect } from './geometry';
+import { sideAnchor, nearestSide, resolveEndpoints, connectorBBox } from './geometry/connector-geometry';
+import type { Endpoint, AttachedEndpoint } from './geometry/connector-geometry';
 
 /** Unique symbol for local transactions (used by undo / network filtering). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('local-origin');
@@ -26,6 +31,50 @@ export interface StickySnapshot {
   createdAt: number;
   width?: number;
   height?: number;
+}
+
+export interface ShapeSnapshot {
+  id: string;
+  type: 'shape';
+  kind: 'rect' | 'ellipse' | 'diamond';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  stroke: string;
+  label: string;
+  z: number;
+  createdAt: number;
+  createdBy?: string;
+}
+
+export interface ConnectorSnapshot {
+  id: string;
+  type: 'connector';
+  from: Endpoint;
+  to: Endpoint;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  createdAt: number;
+  createdBy?: string;
+}
+
+// Legacy alias for backward compatibility with existing code
+export type StickySnapshotLegacy = StickySnapshot;
+export type ObjectSnap = StickySnapshot | ShapeSnapshot | ConnectorSnapshot;
+
+/** Type guard: narrows an ObjectSnap to StickySnapshot */
+export function isStickySnap(obj: ObjectSnap): obj is StickySnapshot {
+  return obj.type === 'sticky';
+}
+
+/** Type guard: narrows an ObjectSnap to ShapeSnapshot */
+export function isShapeSnap(obj: ObjectSnap): obj is ShapeSnapshot {
+  return obj.type === 'shape';
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────
@@ -193,36 +242,87 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 }
 
 /**
- * Return a memoisable snapshot of all sticky notes sorted by (z, id).
- * Unknown types are skipped.
+ * Return a memoisable snapshot of all objects sorted by (z, id).
  */
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+export function snapshot(doc: Y.Doc): readonly ObjectSnap[] {
   const objects = getDocObjects(doc);
-  const result: StickySnapshot[] = [];
+  const result: ObjectSnap[] = [];
 
   for (const [id, val] of objects) {
     if (!(val instanceof Y.Map)) continue;
     const dm = val as any;
     const type = String(dm.get('type') ?? '');
-    if (type !== 'sticky') {
-      continue; // skip unknown types (forward compatibility)
+
+    if (type === 'sticky') {
+      const textVal = dm.get('text');
+      const textStr = textVal instanceof Y.Text ? textVal.toString() : '';
+      result.push({
+        id,
+        type: 'sticky' as const,
+        x: Number(dm.get('x') ?? 0),
+        y: Number(dm.get('y') ?? 0),
+        color: String(dm.get('color') ?? DEFAULT_STICKY_COLOR),
+        text: textStr,
+        z: Number(dm.get('z') ?? 0),
+        createdAt: Number(dm.get('createdAt') ?? 0),
+        width: dm.has('width') ? Number(dm.get('width')) : undefined,
+        height: dm.has('height') ? Number(dm.get('height')) : undefined,
+      } as StickySnapshot);
+    } else if (type === 'shape') {
+      const labelVal = dm.get('label');
+      const labelStr = labelVal instanceof Y.Text ? labelVal.toString() : '';
+      result.push({
+        id,
+        type: 'shape' as const,
+        kind: (dm.get('kind') as 'rect' | 'ellipse' | 'diamond') || 'rect',
+        x: Number(dm.get('x') ?? 0),
+        y: Number(dm.get('y') ?? 0),
+        width: Number(dm.get('width') ?? 0),
+        height: Number(dm.get('height') ?? 0),
+        fill: String(dm.get('fill') ?? DEFAULT_SHAPE_FILL),
+        stroke: String(dm.get('stroke') ?? DEFAULT_SHAPE_STROKE),
+        label: labelStr,
+        z: Number(dm.get('z') ?? 0),
+        createdAt: Number(dm.get('createdAt') ?? 0),
+        createdBy: dm.has('createdBy') ? String(dm.get('createdBy')) : undefined,
+      } as ShapeSnapshot);
+    } else if (type === 'connector') {
+      const from: Endpoint = dm.get('from');
+      const to: Endpoint = dm.get('to');
+
+      // Build a rect map of known objects (excluding connectors themselves)
+      const rectsMap = new Map<string, Rect>();
+      for (const [oid, oval] of objects) {
+        if (oid === id || !(oval instanceof Y.Map)) continue;
+        const odm = oval as any;
+        const otype = String(odm.get('type') ?? '');
+        if (otype === 'connector') continue;
+        rectsMap.set(oid, {
+          x: Number(odm.get('x') ?? 0),
+          y: Number(odm.get('y') ?? 0),
+          width: Number(odm.get('width') ?? 0),
+          height: Number(odm.get('height') ?? 0),
+        });
+      }
+
+      const { from: fromPt, to: toPt } = resolveEndpoints({ from, to }, rectsMap);
+      const bbox = connectorBBox(fromPt, toPt);
+
+      result.push({
+        id,
+        type: 'connector' as const,
+        from,
+        to,
+        x: bbox.x,
+        y: bbox.y,
+        width: bbox.width,
+        height: bbox.height,
+        z: Number(dm.get('z') ?? 0),
+        createdAt: Number(dm.get('createdAt') ?? 0),
+        createdBy: dm.has('createdBy') ? String(dm.get('createdBy')) : undefined,
+      } as ConnectorSnapshot);
     }
-
-    const textVal = dm.get('text');
-    const textStr = textVal instanceof Y.Text ? textVal.toString() : '';
-
-    result.push({
-      id,
-      type: 'sticky' as const,
-      x: Number(dm.get('x') ?? 0),
-      y: Number(dm.get('y') ?? 0),
-      color: String(dm.get('color') ?? DEFAULT_STICKY_COLOR) as StickyColor,
-      text: textStr,
-      z: Number(dm.get('z') ?? 0),
-      createdAt: Number(dm.get('createdAt') ?? 0),
-      width: dm.has('width') ? Number(dm.get('width')) : undefined,
-      height: dm.has('height') ? Number(dm.get('height')) : undefined,
-    });
+    // skip unknown types (forward compatibility)
   }
 
   // Stable sort by (z, id)
@@ -237,15 +337,24 @@ import { rectContains } from './geometry';
 /** Return a Rect for an object snapshot. Uses width/height if set;
  *  otherwise falls back to STICKY_SIZE_WORLD for both dimensions.
  */
-export function objectBounds(obj: StickySnapshot): Rect {
-  const w = obj.width ?? STICKY_SIZE_WORLD;
-  const h = obj.height ?? STICKY_SIZE_WORLD;
-  return { x: obj.x, y: obj.y, width: w, height: h };
+export function objectBounds(obj: ObjectSnap): Rect {
+  if (obj.type === 'sticky') {
+    const w = obj.width ?? STICKY_SIZE_WORLD;
+    const h = obj.height ?? STICKY_SIZE_WORLD;
+    return { x: obj.x, y: obj.y, width: w, height: h };
+  }
+  if (obj.type === 'shape') {
+    return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
+  }
+  if (obj.type === 'connector') {
+    return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
+  }
+  return { x: 0, y: 0, width: STICKY_SIZE_WORLD, height: STICKY_SIZE_WORLD };
 }
 
 /** Return ids of objects whose entire bounds lie inside `rect`. */
 export function objectsInRect(
-  snapshot: readonly StickySnapshot[],
+  snapshot: readonly ObjectSnap[],
   rect: Rect,
 ): string[] {
   const ids: string[] = [];
@@ -258,7 +367,7 @@ export function objectsInRect(
 }
 
 /** Return ids of all known-registered objects in the snapshot. */
-export function allObjectIds(snapshot: readonly StickySnapshot[]): string[] {
+export function allObjectIds(snapshot: readonly ObjectSnap[]): string[] {
   return snapshot.map((o) => o.id);
 }
 
@@ -327,7 +436,7 @@ export function resizeObjects(
   return count;
 }
 
-/** Delete multiple objects atomically. Returns count deleted. */
+/** Delete multiple objects atomically, detaching connectors first. Returns count deleted. */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
 
@@ -336,6 +445,41 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
 
   try {
     doc.transact(() => {
+      // Step 1: detach all connectors pointing to deleted ids
+      const deletedSet = new Set(ids);
+      for (const [cid, cval] of objects) {
+        if (!(cval instanceof Y.Map)) continue;
+        const cm = cval as any;
+        if (String(cm.get('type') ?? '') !== 'connector') continue;
+
+        const from: Endpoint = cm.get('from');
+        const to: Endpoint = cm.get('to');
+
+        let fromChanged = false;
+        let toChanged = false;
+
+        if (from.kind === 'attached' && deletedSet.has(from.objectId)) {
+          // Compute anchor point: use the target's last known position
+          const tx = Number(from.fallback.x ?? 0);
+          const ty = Number(from.fallback.y ?? 0);
+          cm.set('from', { kind: 'free', x: tx, y: ty });
+          fromChanged = true;
+        }
+
+        if (to.kind === 'attached' && deletedSet.has(to.objectId)) {
+          const tx = Number(to.fallback.x ?? 0);
+          const ty = Number(to.fallback.y ?? 0);
+          cm.set('to', { kind: 'free', x: tx, y: ty });
+          toChanged = true;
+        }
+
+        if (fromChanged || toChanged) {
+          cm.set('_detachedFrom', fromChanged);
+          cm.set('_detachedTo', toChanged);
+        }
+      }
+
+      // Step 2: delete the objects
       for (const id of ids) {
         if (objects.has(id)) {
           objects.delete(id);
@@ -396,3 +540,5 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 
   return orderedIds.length;
 }
+
+
