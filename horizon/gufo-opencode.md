@@ -2,7 +2,7 @@
 
 **Status:** candidate (8 Oct 2026). The owner wants other harnesses (clients) tried on the same stack, one variable at a
 time. Nothing built or run for this combination. It is a new combination and a new series, not a change to `gufo-pi`.
-**Where it would run:** the Strix Halo box (tritus), against `qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi`.
+**Where it would run:** the Strix Halo box, against `qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi`.
 
 ## What changes, and what must not
 
@@ -13,7 +13,7 @@ time. Nothing built or run for this combination. It is a new combination and a n
 | Engine | gufo **0.5.0**, the same image digest as `gufo-pi` (`GUFO_IMAGE` and `GUFO_VERSION` in its `config.sh`), even if 0.9.0 is faster or a later release fixes the speculation regression. Moving the engine would make a result unattributable. |
 | Model, quantisation, context, KV, thinking, sampling | the same `config.sh` values: `--think on --temperature 1.0 --top-p 0.95 --top-k 20 --min-p 0.0`, 131,072 context |
 | Pack and harness | `vidi`, the pack version and harness release in force when the series starts, recorded per run |
-| Machine | tritus, same sandbox |
+| Machine | the Strix Halo box, same sandbox |
 
 **The client itself must be pinned by version**, recorded in each run (`client_version`), as pi is. The harness already has
 an `OpenCodeClient` (`benchmarks/spec-bench/harness/clients.py`) and other combinations use it (for example

@@ -59,7 +59,7 @@ def post(base_url: str, body: dict) -> dict:
 
 
 def self_test() -> None:
-    # Real lines from the Swift 1.5 server on gruntus (8 Oct 2026): a long prompt, then a 200-token continuation.
+    # Real lines from the Swift 1.5 server on the RTX 4090 machine (8 Oct 2026): a long prompt, then a 200-token continuation.
     log = [
         "8.22.700.394 I slot print_timing: id  0 | task 278 | prompt eval time =  168978.04 ms / 182830 tokens (    0.92 ms per token,  1081.97 tokens per second)",
         "8.22.700.397 I slot print_timing: id  0 | task 278 |        eval time =    1300.68 ms /    78 tokens (   16.89 ms per token,    59.20 tokens per second)",
