@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import * as Y from 'yjs'
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model'
+import { snapshotText, type TextSnapshot } from '../../shared/objects/text'
 import { connectBoard, type ConnectionState, type ProviderLike } from '../sync/connectBoard'
 
 export interface UseBoardDocResult {
   doc: Y.Doc
   notes: readonly StickySnapshot[]
+  texts: readonly TextSnapshot[]
   /** Live-connection state; `'connected'` when the board is offline-only. */
   connectionState: ConnectionState
 }
@@ -15,11 +17,15 @@ export interface UseBoardDocOptions {
   providerFactory?: (boardId: string, doc: Y.Doc) => ProviderLike
 }
 
+interface BoardSnap {
+  notes: readonly StickySnapshot[]
+  texts: readonly TextSnapshot[]
+}
+
 export function useBoardDoc(
   boardId?: string,
   options: UseBoardDocOptions = {},
 ): UseBoardDocResult {
-  // Create (or reuse) the one Y.Doc for this component lifetime.
   const docRef = useRef<Y.Doc | null>(null)
   if (docRef.current === null) {
     const d = new Y.Doc()
@@ -28,9 +34,6 @@ export function useBoardDoc(
   }
   const doc = docRef.current
 
-  // ── live connection ────────────────────────────────────────────────────────
-  // No board id (component tests, `?offline`) → no provider at all, and the
-  // badge stays hidden.
   const [connectionState, setConnectionState] = useState<ConnectionState>(
     boardId ? 'connecting' : 'connected',
   )
@@ -39,41 +42,35 @@ export function useBoardDoc(
     if (!boardId) return
     const provider = providerFactory ? providerFactory(boardId, doc) : undefined
     const connection = connectBoard(doc, boardId, setConnectionState, { provider })
-    return () => {
-      connection.destroy()
-    }
+    return () => { connection.destroy() }
   }, [doc, boardId, providerFactory])
 
-  // Snapshot cache — recomputed whenever the objects map fires an event.
-  // We use a fresh object wrapper so identity changes exactly when the doc
-  // content changes, which is what useSyncExternalStore expects.
-  const cacheRef = useRef<{ snap: readonly StickySnapshot[] }>({ snap: snapshot(doc) })
+  // ── Snapshot cache (both notes and texts) ─────────────────────────────────
+  const cacheRef = useRef<BoardSnap>({ notes: snapshot(doc), texts: snapshotText(doc) })
   const listenersRef = useRef<Set<() => void> | null>(null)
   if (listenersRef.current === null) {
     listenersRef.current = new Set()
   }
   const listeners = listenersRef.current
 
-  // Wire up the Yjs observer once, on the very first render.
   const wiredRef = useRef(false)
   if (!wiredRef.current) {
     wiredRef.current = true
     const objectsMap = doc.getMap('objects') as Y.Map<Y.Map<unknown>>
     objectsMap.observeDeep(() => {
-      cacheRef.current = { snap: snapshot(doc) }
+      cacheRef.current = { notes: snapshot(doc), texts: snapshotText(doc) }
       listeners.forEach(cb => cb())
     })
   }
 
-  // Stable subscribe — the Set reference never changes.
   const subscribe = (cb: () => void): (() => void) => {
     listeners.add(cb)
     return () => { listeners.delete(cb) }
   }
 
-  const getSnapshot = (): readonly StickySnapshot[] => cacheRef.current.snap
+  const getSnapshot = (): BoardSnap => cacheRef.current
 
-  const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+  const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
-  return { doc, notes, connectionState }
+  return { doc, notes: snap.notes, texts: snap.texts, connectionState }
 }

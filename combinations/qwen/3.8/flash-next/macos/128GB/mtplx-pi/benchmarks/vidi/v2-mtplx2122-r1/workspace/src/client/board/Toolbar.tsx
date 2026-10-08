@@ -1,12 +1,15 @@
 import React from 'react'
+import type { Tool } from './useTool'
 
 export interface ToolbarProps {
+  tool: Tool
+  setTool(t: Tool): void
+  canEdit: boolean
   onCreateSticky(): void
 }
 
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ tool, setTool, canEdit, onCreateSticky }: ToolbarProps) {
   function handlePointerDown(e: React.PointerEvent) {
-    // Prevent the viewport from seeing this as a click on empty space.
     e.stopPropagation()
   }
 
@@ -33,10 +36,69 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
         pointerEvents: 'auto',
       }}
     >
+      {/* Select tool (V) */}
+      <button
+        data-testid="tool-select"
+        aria-label="Select (V)"
+        aria-pressed={tool === 'select'}
+        title="Select (V)"
+        onClick={() => setTool('select')}
+        style={{
+          width: 36,
+          height: 36,
+          border: tool === 'select' ? '2px solid #4285f4' : '1px solid rgba(0,0,0,0.2)',
+          borderRadius: 6,
+          background: tool === 'select' ? 'rgba(66,133,244,0.15)' : 'transparent',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 0,
+        }}
+      >
+        <svg
+          width="18" height="18" viewBox="0 0 18 18" fill="none"
+          xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+          style={{ pointerEvents: 'none' }}
+        >
+          <path d="M4 2l10 7-4.5 1L12 15l-2.5 1-2.5-5L4 13V2z"
+            fill="rgba(0,0,0,0.7)" stroke="rgba(0,0,0,0.4)" strokeWidth="0.5"/>
+        </svg>
+      </button>
+
+      {/* Text tool (T) */}
+      <button
+        data-testid="tool-text"
+        aria-label="Text (T)"
+        aria-pressed={tool === 'text'}
+        title="Text (T)"
+        disabled={!canEdit}
+        onClick={() => canEdit && setTool('text')}
+        style={{
+          width: 36,
+          height: 36,
+          border: tool === 'text' ? '2px solid #4285f4' : '1px solid rgba(0,0,0,0.2)',
+          borderRadius: 6,
+          background: tool === 'text' ? 'rgba(66,133,244,0.15)' : 'transparent',
+          cursor: canEdit ? 'pointer' : 'not-allowed',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 0,
+          opacity: canEdit ? 1 : 0.4,
+          fontWeight: 'bold',
+          fontSize: 14,
+          color: tool === 'text' ? '#4285f4' : 'rgba(0,0,0,0.7)',
+        }}
+      >
+        T
+      </button>
+
+      {/* Sticky note button (N) */}
       <button
         data-testid="create-sticky-btn"
-        aria-label="Sticky note"
-        title="Sticky note – or double-click the board"
+        aria-label="Sticky note (N)"
+        title="Sticky note (N) – or double-click the board"
         onClick={onCreateSticky}
         style={{
           width: 36,

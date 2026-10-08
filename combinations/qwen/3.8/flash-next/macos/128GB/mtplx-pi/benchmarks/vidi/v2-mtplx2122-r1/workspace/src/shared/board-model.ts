@@ -83,7 +83,9 @@ export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolea
 
   const objects = getObjectsMap(doc)
   const ymap = objects.get(id)
-  if (!ymap || ymap.get('type') !== 'sticky') return false
+  if (!ymap) return false
+  const t = ymap.get('type')
+  if (t !== 'sticky' && t !== 'text') return false
 
   doc.transact(() => {
     ymap.set('x', x)
@@ -96,7 +98,9 @@ export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolea
 export function bringToFront(doc: Y.Doc, id: string): boolean {
   const objects = getObjectsMap(doc)
   const ymap = objects.get(id)
-  if (!ymap || ymap.get('type') !== 'sticky') return false
+  if (!ymap) return false
+  const t = ymap.get('type')
+  if (t !== 'sticky' && t !== 'text') return false
 
   const currentZ = ymap.get('z') as number
   const topZ = maxZ(doc)
