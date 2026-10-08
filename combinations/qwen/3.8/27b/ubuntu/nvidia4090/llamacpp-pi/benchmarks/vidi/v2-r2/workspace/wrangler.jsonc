@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2025-06-01",
+  // Assets only until story 3: wrangler dev serves dist/client directly.
+  // Story 3 adds the Worker `main` and the `ASSETS` binding.
+  "assets": {
+    "directory": "./dist/client"
+  },
+  "dev": {
+    // Keep `wrangler dev` (and any inspector port) inside the agent port
+    // range even when run manually; the e2e webServer passes --port anyway.
+    "port": 29105
+  }
+}
