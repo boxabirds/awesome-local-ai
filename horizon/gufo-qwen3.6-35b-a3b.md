@@ -212,3 +212,23 @@ MoE in general, or about the fork's engine work. Reading it as any of those woul
 its weights card, and this repository's own combinations and warehouse). **Recheck when:** a from-source build
 is attempted on the Strix Halo box — which moves this to candidate (it built, with a version string) or to
 blocked (it did not, with the error).
+
+## Why this series stops at three runs, not five
+
+The owner's rule of thumb (8 Oct 2026): five runs per stack are for when the spread across three is wide enough that three
+would not separate it from another stack. Here it is not wide. The scores of record, `scores[vidi-v2.0-pre2].passed` of 75:
+
+| Run | Score of record |
+|---|---|
+| `v2-q36fork-b-r1` | 1 |
+| `v2-q36fork-b-r2` | 0 |
+| `v2-q36fork-b-r3` | running; story 3 scored 0 of 7 on the live score |
+
+Two finished runs differ by one test out of 75, and the third is tracking the same way. Two more runs would not move the
+fork any closer to the other stacks, whose scores are in the 60s and 70s. `r4` and `r5` were cancelled (queued, never
+started) on 8 Oct.
+
+**What this does not show.** A narrow spread at the floor says the result is stable. It does not say why it is at the
+floor: a model that cannot do the work and an engine or harness fault that stops it from being tested would both look
+like this. **Recheck when:** `r3` finishes. If its score of record is outside 0 to 2, the argument for stopping at three
+no longer holds and the series should be extended.
