@@ -48,6 +48,15 @@ export interface BoardObjectState {
   to?: { kind: string; objectId?: string; x?: number; y?: number };
   fromPoint?: { x: number; y: number };
   toPoint?: { x: number; y: number };
+  /** The object's type name ('sticky', 'text', 'shape', 'connector',
+   *  'stroke'). */
+  type?: string;
+  /** Stroke (story 11): the flattened path relative to the bbox origin,
+   *  the creation-time base size, and the thickness name. */
+  points?: number[];
+  baseWidth?: number;
+  baseHeight?: number;
+  thickness?: string;
 }
 
 /**
@@ -114,6 +123,11 @@ function toState(o: ObjectSnapshot): BoardObjectState {
     to: o.to === undefined ? undefined : endpointState(o.to),
     fromPoint: o.fromPoint,
     toPoint: o.toPoint,
+    type: o.type,
+    points: o.points === undefined ? undefined : [...o.points],
+    baseWidth: o.baseWidth,
+    baseHeight: o.baseHeight,
+    thickness: o.thickness,
   };
 }
 

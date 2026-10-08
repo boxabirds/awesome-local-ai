@@ -66,8 +66,8 @@ function KindGlyph({ kind }: { kind: ShapeKind }): JSX.Element {
 }
 
 /**
- * Fixed left toolbar: the Select, Text, Shape and Connector tools
- * (stories 9-10), the Sticky note button (story 2; shortcut N) and the
+ * Fixed left toolbar: the Select, Text, Shape, Connector and Pen tools
+ * (stories 9-11), the Sticky note button (story 2; shortcut N) and the
  * Undo / Redo buttons (story 8). While the Shape tool is active, a row of
  * kind buttons (rect / ellipse / diamond) sits under the tool buttons.
  *
@@ -205,6 +205,34 @@ export function Toolbar({
           <path d="M5 12h12" />
           <path d="M13 7l5 5-5 5" />
           <circle cx="4.5" cy="12" r="1.5" fill="#3c3c34" stroke="none" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        aria-label="Pen (P)"
+        title={disabled ? 'Board unavailable' : 'Pen – P, then drag on the board'}
+        aria-pressed={tool === 'pen'}
+        disabled={disabled}
+        data-testid="pen-button"
+        onClick={() => onToolChange('pen')}
+        style={{
+          ...TOOL_BUTTON_STYLE,
+          background: tool === 'pen' ? '#e8f0fe' : '#ffffff',
+          outline: tool === 'pen' ? '1px solid #1a73e8' : 'none',
+        }}
+      >
+        <svg
+          aria-hidden="true"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#3c3c34"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
         </svg>
       </button>
       {tool === 'shape' && (

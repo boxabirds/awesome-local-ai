@@ -22,6 +22,8 @@
  *       widthMode: 'auto'|'fixed' // text only (story 9)
  *       createdBy: string         // text only (story 9)
  *       kind/fill/stroke/label    // shape only (story 10, shape.ts)
+ *       points/baseWidth/…        // stroke only (story 11, stroke.ts); x/y
+ *                                 // stored as the padded bbox, points relative
  *       from/to: Y.Map            // connector only (story 10, connector.ts);
  *                                 // x/y stored as 0, bbox derived in the snapshot
  *     }
@@ -36,12 +38,15 @@
 import * as Y from 'yjs';
 import {
   DEFAULT_STICKY_COLOR,
+  PEN_THICKNESS_WORLD,
   SHAPE_FILL_COLORS,
   SHAPE_KINDS,
   SHAPE_STROKE_COLORS,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   TEXT_SIZES,
+  type PenColor,
+  type PenThickness,
   type ShapeFillColor,
   type ShapeKind,
   type ShapeStrokeColor,
@@ -114,8 +119,8 @@ export interface ObjectSnapshot {
    */
   width?: number;
   height?: number;
-  /** Sticky-only fields: present when type is 'sticky'. */
-  color?: StickyColor;
+  /** Sticky and stroke colour: present when type is 'sticky' or 'stroke'. */
+  color?: StickyColor | PenColor;
   /** The object's text content (type 'sticky', 'text', or the shape label). */
   text?: string;
   /** Text-only fields (story 9): present when type is 'text'. */
@@ -127,6 +132,14 @@ export interface ObjectSnapshot {
   fill?: ShapeFillColor;
   stroke?: ShapeStrokeColor;
   label?: string;
+  /** Stroke-only fields (story 11): present when type is 'stroke'. */
+  /** Flattened [x0, y0, x1, y1, …] relative to the bbox origin. */
+  points?: readonly number[];
+  /** The bbox size at creation (the proportional-resize scale anchor). */
+  baseWidth?: number;
+  /** The bbox size at creation (the proportional-resize scale anchor). */
+  baseHeight?: number;
+  thickness?: PenThickness;
   /** Connector-only fields (story 10): present when type is 'connector'.
    *  `x/y/width/height` above are the *derived* bounding box of the
    *  resolved endpoints (the stored x/y are 0). */
@@ -164,6 +177,10 @@ function finiteNumber(value: unknown): value is number {
 
 function knownColor(value: unknown): value is StickyColor {
   return typeof value === 'string' && value in STICKY_COLORS;
+}
+
+function knownPenThickness(value: unknown): value is PenThickness {
+  return typeof value === 'string' && value in PEN_THICKNESS_WORLD;
 }
 
 /** The highest z among all known objects (0 when there are none). */
@@ -649,7 +666,42 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
     }
     const width = entry.get('width');
     const height = entry.get('height');
-    const color = type === 'sticky' ? entry.get('color') : undefined;
+    const color =
+      type === 'sticky' || type === 'stroke' ? entry.get('color') : undefined;
+    // Stroke fields (story 11): validated like the other fields — a
+    // malformed stroke entry is skipped, never rendered.
+    let points: readonly number[] | undefined;
+    let baseWidth: number | undefined;
+    let baseHeight: number | undefined;
+    let thickness: PenThickness | undefined;
+    if (type === 'stroke') {
+      const rawPoints = entry.get('points');
+      const rawBaseWidth = entry.get('baseWidth');
+      const rawBaseHeight = entry.get('baseHeight');
+      const rawThickness = entry.get('thickness');
+      const flat = Array.isArray(rawPoints)
+        ? (rawPoints as unknown[]).filter(
+            (v): v is number => typeof v === 'number' && Number.isFinite(v),
+          )
+        : undefined;
+      if (
+        flat === undefined ||
+        flat.length < 2 ||
+        flat.length % 2 !== 0 ||
+        flat.some((v) => !Number.isFinite(v)) ||
+        !finiteNumber(rawBaseWidth) ||
+        !(rawBaseWidth > 0) ||
+        !finiteNumber(rawBaseHeight) ||
+        !(rawBaseHeight > 0) ||
+        !knownPenThickness(rawThickness)
+      ) {
+        continue; // malformed stroke: skipped (forward compatibility)
+      }
+      points = flat;
+      baseWidth = rawBaseWidth;
+      baseHeight = rawBaseHeight;
+      thickness = rawThickness;
+    }
     const textSource =
       type === 'sticky' || type === 'text'
         ? entry.get('text')
@@ -670,7 +722,10 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
       createdAt: finiteNumber(createdAt) ? createdAt : 0,
       width: finiteNumber(width) ? width : undefined,
       height: finiteNumber(height) ? height : undefined,
-      color: typeof color === 'string' ? (color as StickyColor) : undefined,
+      color:
+        typeof color === 'string'
+          ? (color as StickyColor | PenColor)
+          : undefined,
       text: textSource instanceof Y.Text ? textSource.toString() : undefined,
       size:
         typeof size === 'string' && size in TEXT_SIZES ? (size as TextSize) : undefined,
@@ -686,6 +741,10 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
           ? (stroke as ShapeStrokeColor)
           : undefined,
       label: textSource instanceof Y.Text && type === 'shape' ? textSource.toString() : undefined,
+      points,
+      baseWidth,
+      baseHeight,
+      thickness,
     });
   }
   out.sort((a, b) => {

@@ -21,6 +21,8 @@ export interface FlowObject {
   text: string;
   width?: number;
   height?: number;
+  /** Object colour (sticky notes and pen strokes). */
+  color?: string;
   /** Shape (story 10). */
   kind?: string;
   fill?: string;
@@ -31,6 +33,13 @@ export interface FlowObject {
   to?: EndpointState;
   fromPoint?: { x: number; y: number };
   toPoint?: { x: number; y: number };
+  /** The object's type name (story 11). */
+  type?: string;
+  /** Stroke (story 11): flattened path, creation-time base size, thickness. */
+  points?: number[];
+  baseWidth?: number;
+  baseHeight?: number;
+  thickness?: string;
 }
 
 /** Every object's current state (shapes + connectors included). */

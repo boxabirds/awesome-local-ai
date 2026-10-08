@@ -15,17 +15,22 @@ import { addKnownObjectType, objectBounds } from '../../shared/board-model';
 import type { Camera, Point } from '../canvas/camera';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import type { Rect } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { moveObjects } from '../../shared/board-model';
+import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
 import { getTextWidthMode, setTextWidthFixed } from '../../shared/objects/text';
 import { ConnectorObject } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeObject } from './StrokeObject';
 import { TextObject } from './TextObject';
 
 /**
@@ -221,4 +226,45 @@ registerObjectType('connector', {
   minSize: 0,
   editableText: false,
   hitTest: connectorHitTest,
+});
+
+// ---------------------------------------------------------------------------
+// stroke (story 11)
+// ---------------------------------------------------------------------------
+
+/**
+ * Precise line hit test (pen.select): a point hits when it is within
+ * max(thickness / 2, STROKE_HIT_TOLERANCE_PX / zoom) of the stroke's line —
+ * the screen-pixel tolerance is converted to world units so it holds at
+ * every zoom. A single point (a dot) is hit-tested as a point. Points
+ * inside the stroke's bounding box but farther from the line never hit, so
+ * the press falls through to the object underneath.
+ */
+function strokeHitTest(obj: ObjectSnapshot, p: Point, zoom: number): boolean {
+  const stroke = obj as StrokeSnap;
+  if (stroke.points === undefined || !(zoom > 0)) {
+    return false;
+  }
+  const points = scaledPoints(stroke);
+  if (points.length === 0) {
+    return false;
+  }
+  const tolerance = Math.max(
+    PEN_THICKNESS_WORLD[stroke.thickness ?? 'medium'] / 2,
+    STROKE_HIT_TOLERANCE_PX / zoom,
+  );
+  const distance =
+    points.length === 1
+      ? Math.hypot(p.x - points[0].x, p.y - points[0].y)
+      : distanceToPolyline(points, p);
+  return distance <= tolerance;
+}
+
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: strokeHitTest,
 });

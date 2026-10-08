@@ -1,33 +1,14 @@
-# Story 10 progress — Draw shapes and connect them with arrows that follow when moved
+# Story 11: Sketch freehand with a pen
 
-## Doing
-- (none)
+Your progress on this story's tasks. Keep the Status column up to date as you work.
 
-## Todo
-- (none)
+| # | Task | Status |
+|---|---|---|
+| 1 | Write stroke model and geometry unit tests first (TC-01 to TC-08) | done |
+| 2 | Implement stroke model: RDP simplify, split, smooth path, createStroke, scaled points | done |
+| 3 | Implement Pen tool: capture, local preview, commit on finish/cancel/limit, options toolbar, viewport routing | done |
+| 4 | Implement StrokeObject rendering and registry entry with line-distance hit test and aspect-locked resize | done |
+| 5 | Component tests for Pen tool and StrokeObject (TC-09 to TC-16, TC-21) | done |
+| 6 | E2E pen workflows: annotate, shared sketch, tidy up (TC-17 to TC-20) | done |
 
-## Blocked
-- (none)
-
-## Done
-- Task 7: Shape model unit tests (TC-01..TC-06)
-- Task 8: Shape object model
-- Task 9: Connector model + geometry unit tests (TC-07..TC-14, TC-29)
-- Task 10: Connector model, geometry, detach-on-delete
-- Task 11: Active tool hook (s/l shortcuts, toolCreated revert)
-- Task 12: Shape tool + shape object (drag, label editor, toolbar)
-- Task 13: Connector tool + connector object (dots, arrowhead, re-attach)
-- Task 14: Component tests (TC-15..TC-22, TC-28)
-- Task 15: E2E tests (TC-23..TC-27, checkout-flow fixture)
-- Run all suites + build + typecheck; commit
-
-## Verification (all green)
-- unit: 159 passed (18 files)
-- component: 105 passed (18 files)
-- integration: 45 passed (5 files)
-- e2e (chromium): 47 passed (includes new TC-23..TC-27)
-- build (vite): ok
-- typecheck (both tsconfigs): ok
-
-## Notes
-- See NOTES.md for decisions and deviations.
+Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).

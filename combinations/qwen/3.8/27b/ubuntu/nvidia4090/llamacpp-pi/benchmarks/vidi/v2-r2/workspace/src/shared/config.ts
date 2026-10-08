@@ -287,3 +287,57 @@ export const CONNECTOR_DOT_RADIUS_PX = 4;
 
 /** Connector line colour. */
 export const CONNECTOR_INK_COLOR = '#3c3c34';
+
+/* ------------------------------------------------------------------ */
+/* Pen strokes (story 11, design pen.tool / stroke.object)             */
+/* ------------------------------------------------------------------ */
+
+/** The six pen colours (design pen.options). */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+/** Name of one of the six pen colours. */
+export type PenColor = keyof typeof PEN_COLORS;
+
+/** The three pen thicknesses in world units (design pen.options). */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+/** Name of one of the three pen thicknesses. */
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** Colour of newly created strokes. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+
+/** Thickness of newly created strokes. */
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/**
+ * Smoothing tolerance in screen pixels at the drawing zoom: after finishing,
+ * no point the user drew lies farther than this (divided by the zoom) from
+ * the simplified stroke (pen.smooth, design stroke.model).
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * Maximum number of raw points one stroke part records. A continuous stroke
+ * that reaches this is committed as a stroke and the drawing continues as a
+ * new stroke starting at the same last point (pen.long_stroke).
+ */
+export const STROKE_MAX_POINTS = 5_000;
+
+/**
+ * Screen-pixel click tolerance around a stroke's line at any zoom
+ * (pen.select): a point within this many pixels of the line hits, even when
+ * the stroke is thinner; the effective tolerance is the larger of this and
+ * half the stroke thickness.
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/** Smallest size (either axis) a resized stroke may reach. */
+export const STROKE_MIN_SIZE_WORLD = 4;

@@ -3,11 +3,11 @@
  * time — 'select' (the default; select, move, pan) plus the creation tools.
  *
  * Story 10 adds the Shape and Connector tools and the `shapeKind` the Shape
- * tool draws with. 'sticky', 'pen', 'image' and 'comment' are reserved
- * ids: 'sticky' is a momentary tool (its shortcut N and the toolbar button
- * create a note at the view centre and the tool never stays active — the
- * story 9 behaviour), and the rest are not implemented yet (their
- * shortcuts are known but ignored).
+ * tool draws with. Story 11 adds the Pen tool. 'sticky', 'image' and
+ * 'comment' are reserved ids: 'sticky' is a momentary tool (its shortcut N
+ * and the toolbar button create a note at the view centre and the tool
+ * never stays active — the story 9 behaviour), and the rest are not
+ * implemented yet (their shortcuts are known but ignored).
  *
  * - Single-letter shortcuts arm the tools (ignored while editing text or
  *   typing in an input); Escape reverts to Select. The Select tool is
@@ -47,12 +47,13 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
   c: 'comment',
 };
 
-/** The tools a user can actually activate in story 10. */
+/** The tools a user can actually activate (stories 9-11). */
 const IMPLEMENTED_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>([
   'select',
   'text',
   'shape',
   'connector',
+  'pen',
 ]);
 
 export interface ActiveToolOptions {

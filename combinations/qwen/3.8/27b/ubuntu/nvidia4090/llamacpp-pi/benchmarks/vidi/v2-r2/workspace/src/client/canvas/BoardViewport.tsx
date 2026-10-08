@@ -16,6 +16,7 @@ import {
 import { CameraContext } from './useCamera';
 import type { Point } from './camera';
 import type { ToolId } from '../tools/useActiveTool';
+import type { PenGesture } from '../tools/PenTool';
 import type { GesturePointerEvent } from '../objects/registry';
 
 // Wheel event deltaMode values (DOM spec).
@@ -75,10 +76,17 @@ interface BoardViewportProps {
    * and no pan/marquee starts). Shift-presses (marquee) skip it.
    */
   onEmptyPointerDown?: (e: GesturePointerEvent, p: Point) => boolean;
+  /**
+   * Story 11 (pen.draw / pen.navigation): present while the Pen tool is
+   * active. A primary-button press anywhere on the board (objects are
+   * inert, so including over them) starts a stroke and never pans or
+   * marquee-selects; wheel/pinch and keyboard navigation are untouched.
+   */
+  pen?: PenGesture;
 }
 
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
-  const { onDoubleClickEmpty, onEmptyClick, overlay, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel, tool = 'select', onTextToolClick, onEmptyPointerDown } = props;
+  const { onDoubleClickEmpty, onEmptyClick, overlay, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel, tool = 'select', onTextToolClick, onEmptyPointerDown, pen } = props;
   const controller = useContext(CameraContext);
   if (controller === null) {
     throw new Error('BoardViewport must be rendered inside a CameraContext provider');
@@ -89,6 +97,8 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   const panStartLocalRef = useRef<Point | null>(null);
   /** The pointer id driving the marquee (null when no marquee is active). */
   const marqueePointerRef = useRef<number | null>(null);
+  /** The pointer id driving an in-flight pen stroke (null when none). */
+  const penPointerRef = useRef<number | null>(null);
   const [isPanning, setIsPanning] = useState(false);
 
   // Story 9: while the Text tool is armed, the primary-button down point on
@@ -210,6 +220,19 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     if (e.pointerType === 'mouse' && e.button !== 0) {
       return;
     }
+    // Story 11 (pen.draw): while the Pen tool is active a primary-button
+    // press anywhere on the board (objects are inert, so including over
+    // them) starts a stroke — it never pans or marquee-selects, and wheel
+    // keeps navigating (pen.navigation).
+    if (pen !== undefined) {
+      const el = viewportRef.current;
+      if (el && typeof el.setPointerCapture === 'function') {
+        el.setPointerCapture(e.pointerId);
+      }
+      penPointerRef.current = e.pointerId;
+      pen.down(e, toLocalPoint(e.clientX, e.clientY));
+      return;
+    }
     // Story 10 (connector.select): a Select-tool press on empty space may
     // land on a connector line (inside its tolerance): the board selects
     // it and the press is consumed (no pan, no marquee).
@@ -248,6 +271,14 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   };
 
   const onPointerMove = (e: ReactPointerEvent): void => {
+    if (penPointerRef.current !== null && e.pointerId === penPointerRef.current) {
+      if (pen !== undefined) {
+        pen.move(e, toLocalPoint(e.clientX, e.clientY));
+      } else {
+        penPointerRef.current = null; // the pen was disarmed mid-stroke
+      }
+      return;
+    }
     if (marqueePointerRef.current !== null && e.pointerId === marqueePointerRef.current) {
       onMarqueeMove?.(toLocalPoint(e.clientX, e.clientY));
       return;
@@ -261,6 +292,13 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   };
 
   const onPointerUp = (e: ReactPointerEvent): void => {
+    if (penPointerRef.current !== null && e.pointerId === penPointerRef.current) {
+      penPointerRef.current = null;
+      if (pen !== undefined) {
+        pen.up(e, toLocalPoint(e.clientX, e.clientY));
+      } // disarmed mid-stroke (e.g. Escape): the in-flight stroke is dropped
+      return;
+    }
     if (marqueePointerRef.current !== null) {
       if (e.pointerId === marqueePointerRef.current) {
         marqueePointerRef.current = null;
@@ -294,6 +332,13 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   };
 
   const onPointerCancel = (e: ReactPointerEvent): void => {
+    if (penPointerRef.current !== null && e.pointerId === penPointerRef.current) {
+      penPointerRef.current = null;
+      if (pen !== undefined) {
+        pen.cancel(e, toLocalPoint(e.clientX, e.clientY));
+      }
+      return;
+    }
     if (marqueePointerRef.current !== null) {
       if (e.pointerId === marqueePointerRef.current) {
         marqueePointerRef.current = null;
@@ -305,6 +350,13 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   };
 
   const onLostPointerCapture = (e: ReactPointerEvent): void => {
+    if (penPointerRef.current !== null && e.pointerId === penPointerRef.current) {
+      penPointerRef.current = null;
+      if (pen !== undefined) {
+        pen.cancel(e, toLocalPoint(e.clientX, e.clientY));
+      }
+      return;
+    }
     if (marqueePointerRef.current !== null) {
       if (e.pointerId === marqueePointerRef.current) {
         marqueePointerRef.current = null;
@@ -350,8 +402,16 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         position: 'absolute',
         inset: 0,
         overflow: 'hidden',
-        // Story 9: the Text tool shows a text caret over empty space.
-        cursor: textToolActive ? 'text' : isPanning ? 'grabbing' : 'grab',
+        // Story 11: the Pen replaces the native cursor with its round
+        // cursor overlay (pen.tool); the Text tool shows a text caret.
+        cursor:
+          pen !== undefined
+            ? 'none'
+            : textToolActive
+              ? 'text'
+              : isPanning
+                ? 'grabbing'
+                : 'grab',
         touchAction: 'none',
         backgroundImage: `radial-gradient(circle, ${GRID_DOT_COLOR} ${GRID_DOT_RADIUS_PX}px, transparent ${
           GRID_DOT_RADIUS_PX + 0.75

@@ -58,6 +58,9 @@ import { useBoardKeys } from './board/useBoardKeys';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool, usePenGesture } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
@@ -292,6 +295,25 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
   });
   const { tool, setTool, shapeKind, setShapeKind, toolCreated } = activeTool;
 
+  // --- pen (story 11, pen.tool) ---------------------------------------------
+  // Session-only options (colour/thickness) plus the in-flight stroke.
+  // The gesture is owned here and routed through the BoardViewport: while
+  // the Pen tool is active, pointer drags (including over objects, which
+  // are inert) draw a stroke and never pan. The preview is a local overlay
+  // that is never written to the document, so nobody else sees an
+  // in-progress stroke (pen.share); the tool stays active after each
+  // commit (pen.stay_active).
+  const penOptions = usePenOptions();
+  const penGesture = usePenGesture({
+    active: tool === 'pen' && editable,
+    camera: cameraController.camera,
+    color: penOptions.color,
+    thickness: penOptions.thickness,
+    doc,
+    identityId: CLIENT_ID,
+    onBoundary: undo.boundary,
+  });
+
   /**
    * Story 9 (text.tool_ui): create a free text object at a viewport-local
    * point, select it, start editing it, and revert to the Select tool.
@@ -360,19 +382,24 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
    * tests the connector lines (topmost first, registry tolerance);
    * returning true consumed the press (selected, no pan/marquee).
    */
+  /**
+   * Story 10 (connector.select) + story 11 (pen.select): a Select-tool
+   * press on empty space hit-tests the connector and stroke lines
+   * (topmost first, registry tolerances); returning true consumed the
+   * press (selected, no pan/marquee).
+   */
   const onEmptyPointerDown = useCallback(
     (e: GesturePointerEvent, p: Point): boolean => {
       const world = screenToWorld(cameraController.camera, p);
       const zoom = cameraController.camera.zoom;
-      const spec = getObjectType('connector');
-      if (spec === undefined) {
-        return false;
-      }
+      const connectorSpec = getObjectType('connector');
+      const strokeSpec = getObjectType('stroke');
       const candidates = objects
-        .filter((o) => o.type === 'connector')
+        .filter((o) => o.type === 'connector' || o.type === 'stroke')
         .sort((a, b) => b.z - a.z);
       for (const c of candidates) {
-        if (spec.hitTest(c, world, zoom)) {
+        const spec = c.type === 'connector' ? connectorSpec : strokeSpec;
+        if (spec !== undefined && spec.hitTest(c, world, zoom)) {
           gesture.onObjectPointerDown(e, c.id);
           return true;
         }
@@ -473,6 +500,7 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
           }
           onEmptyClick={selection.clear}
           onEmptyPointerDown={editable ? onEmptyPointerDown : undefined}
+          pen={tool === 'pen' && editable ? penGesture.gesture : undefined}
           tool={tool}
           onTextToolClick={editable ? createTextAt : undefined}
           onMarqueeBegin={(p) => marquee.begin(p)}
@@ -548,6 +576,25 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
             snapshot={objects}
             onCreated={toolCreated}
             onBoundary={undo.boundary}
+          />
+        )}
+        {tool === 'pen' && editable && (
+          <PenTool
+            camera={cameraController.camera}
+            color={penOptions.color}
+            thickness={penOptions.thickness}
+            doc={doc}
+            identityId={CLIENT_ID}
+            preview={penGesture.preview}
+            cursor={penGesture.cursor}
+          />
+        )}
+        {tool === 'pen' && editable && (
+          <PenToolbar
+            color={penOptions.color}
+            thickness={penOptions.thickness}
+            onColor={penOptions.setColor}
+            onThickness={penOptions.setThickness}
           />
         )}
         <Toolbar
