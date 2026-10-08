@@ -1,0 +1,21 @@
+# Development
+node_modules/
+.vite/
+
+# Build
+dist/
+
+# Cloudflare Workers
+.wrangler/
+
+# Playwright
+playwright-report/
+test-results/
+
+# OS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
