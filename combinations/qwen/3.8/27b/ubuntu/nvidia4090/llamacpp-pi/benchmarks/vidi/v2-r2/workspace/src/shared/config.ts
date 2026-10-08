@@ -341,3 +341,37 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
 
 /** Smallest size (either axis) a resized stroke may reach. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+/* ------------------------------------------------------------------ */
+/* Images (story 12, design assets.api / image.model / image.insert)   */
+/* ------------------------------------------------------------------ */
+
+/** The accepted image MIME types (judged by content, not name). */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** Maximum file size for an uploaded image (10 MB). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Maximum number of images that can be added in one action. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/**
+ * Maximum placement size in board units: an image is scaled down
+ * proportionally so its longest side is at most this value.
+ */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** Minimum size (either axis) a resized image may reach. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** Gap between images in a row placement (board units). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/** Uploads older than this (ms) are marked as unfinished. */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** Cache-Control max-age for served assets (seconds; immutable). */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/** Number of bytes read from the start of the body for type sniffing. */
+export const IMAGE_SNIFF_BYTES = 12;

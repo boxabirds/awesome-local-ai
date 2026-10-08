@@ -23,10 +23,12 @@
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { isValidBoardId } from '../shared/board-id';
+import { handleUpload, handleServe } from './assets';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   /**
    * '1' only in the e2e wrangler environment. Enables the test-only storage
    * damage hooks (TC-24) and the legacy-board seed hook (story 5 TC-31);
@@ -39,6 +41,9 @@ export interface Env {
 const ROOM_PATH = /^\/api\/rooms\/([^/]+)$/;
 const API_BOARDS_PATH = /^\/api\/boards$/;
 const API_BOARD_PATH = /^\/api\/boards\/([^/]+)$/;
+// Story 12: asset upload and serve routes.
+const API_BOARD_ASSETS_PATH = /^\/api\/boards\/([^/]+)\/assets$/;
+const API_ASSET_PATH = /^\/api\/assets\/([^/]+)\/([^/]+)$/;
 // Test-only storage damage/repair/seed hooks (src/worker/test-hooks.ts).
 const TEST_HOOK_PATH = /^\/__test\/boards\/([^/]+)\/(corrupt-snapshot|repair|seed-legacy)$/;
 
@@ -82,6 +87,28 @@ export default {
       // Collection has no other methods (TC-14).
       return new Response('Method Not Allowed', { status: 405 });
     }
+    // --- story 12: asset upload (POST /api/boards/:boardId/assets) -------
+    const boardAssetsMatch = API_BOARD_ASSETS_PATH.exec(pathname);
+    if (boardAssetsMatch !== null) {
+      if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const boardId = decodeURIComponent(boardAssetsMatch[1] ?? '');
+      return handleUpload(request, env, boardId);
+    }
+
+    // --- story 12: asset serve (GET /api/assets/:boardId/:assetId) -------
+    const assetMatch = API_ASSET_PATH.exec(pathname);
+    if (assetMatch !== null) {
+      if (request.method !== 'GET') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const boardId = decodeURIComponent(assetMatch[1] ?? '');
+      const assetId = decodeURIComponent(assetMatch[2] ?? '');
+      const key = `${boardId}/${assetId}`;
+      return handleServe(env, key);
+    }
+
     const boardMatch = API_BOARD_PATH.exec(pathname);
     if (boardMatch !== null) {
       if (request.method !== 'GET') {

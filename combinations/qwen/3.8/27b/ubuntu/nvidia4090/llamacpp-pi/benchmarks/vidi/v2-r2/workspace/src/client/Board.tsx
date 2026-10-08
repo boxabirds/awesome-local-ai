@@ -38,6 +38,11 @@ import {
 import { createText, deleteIfEmpty, setTextSize } from '../shared/objects/text';
 import { setShapeStyle } from '../shared/objects/shape';
 import type { ShapeSnapshot } from '../shared/objects/shape';
+import { useImageInsert } from './images/useImageInsert';
+import { DropHighlight } from './images/DropHighlight';
+import { ImageInsertProvider } from './images/ImageContext';
+import { useToasts, ToastContainer } from './ui/Toast';
+import { IMAGE_ACCEPTED_TYPES } from '../shared/config';
 import { CLIENT_ID } from './client-id';
 import {
   SHAPE_DEFAULT_SIZE_WORLD,
@@ -465,6 +470,35 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
     [doc, objects, selection, editable, undo],
   );
 
+  // --- images (story 12) ------------------------------------------------------
+  const { toasts, showToast } = useToasts();
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera: cameraController.camera,
+    connection: connectionState,
+    identityId: CLIENT_ID,
+    viewportSize: { width: viewport.width, height: viewport.height },
+    showToast,
+  });
+
+  // Paste handler (window-level)
+  useEffect(() => {
+    window.addEventListener('paste', imageInsert.onPaste);
+    return () => window.removeEventListener('paste', imageInsert.onPaste);
+  }, [imageInsert.onPaste]);
+
+  // Remove handler for ImageObject (calls deleteObjects)
+  const removeImage = useCallback(
+    (id: string): void => {
+      if (!editable) return;
+      undo.boundary();
+      deleteObjects(doc, [id]);
+      undo.boundary();
+    },
+    [doc, editable, undo],
+  );
+
   const ordered = renderOrder(objects);
 
   // The selection chrome (outline, handles, bar) is hidden during a
@@ -493,7 +527,12 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
         ref={rootRef}
         data-testid="app-root"
         style={{ position: 'fixed', inset: 0, background: BOARD_BACKGROUND }}
+        onDragOver={imageInsert.onDragOver}
+        onDragEnter={imageInsert.onDragEnter}
+        onDragLeave={imageInsert.onDragLeave}
+        onDrop={imageInsert.onDrop}
       >
+        {imageInsert.isDragging && <DropHighlight />}
         <BoardViewport
           onDoubleClickEmpty={
             editable && tool === 'select' ? createAt : undefined
@@ -532,33 +571,41 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
           }
         >
           <OriginMarker />
-          {/* Stable DOM order (renderOrder): a DOM move would release pointer
-              capture and kill an in-flight drag; stacking is CSS z-index. */}
-          {ordered.map((obj) => {
-            const spec = getObjectType(obj.type);
-            if (spec === undefined) {
-              return null; // unknown type: ignored (forward compatibility)
-            }
-            const { Component } = spec;
-            return (
-              <Component
-                key={obj.id}
-                doc={doc}
-                obj={obj}
-                selected={selection.ids.has(obj.id)}
-                editingId={selection.editingId}
-                onPointerDown={gesture.onObjectPointerDown}
-                onEdit={handleEdit}
-                onEndEdit={handleEndEdit}
-                onTextBoundary={undo.boundary}
-                onTextUndo={undo.undo}
-                onBoundary={undo.boundary}
-                inert={tool !== 'select'}
-                camera={cameraController.camera}
-                objects={objects}
-              />
-            );
-          })}
+          <ImageInsertProvider
+            uploaderId={CLIENT_ID}
+            progress={imageInsert.progress}
+            canRetry={imageInsert.canRetry}
+            retry={imageInsert.retry}
+            remove={removeImage}
+          >
+            {/* Stable DOM order (renderOrder): a DOM move would release pointer
+                capture and kill an in-flight drag; stacking is CSS z-index. */}
+            {ordered.map((obj) => {
+              const spec = getObjectType(obj.type);
+              if (spec === undefined) {
+                return null; // unknown type: ignored (forward compatibility)
+              }
+              const { Component } = spec;
+              return (
+                <Component
+                  key={obj.id}
+                  doc={doc}
+                  obj={obj}
+                  selected={selection.ids.has(obj.id)}
+                  editingId={selection.editingId}
+                  onPointerDown={gesture.onObjectPointerDown}
+                  onEdit={handleEdit}
+                  onEndEdit={handleEndEdit}
+                  onTextBoundary={undo.boundary}
+                  onTextUndo={undo.undo}
+                  onBoundary={undo.boundary}
+                  inert={tool !== 'select'}
+                  camera={cameraController.camera}
+                  objects={objects}
+                />
+              );
+            })}
+          </ImageInsertProvider>
         </BoardViewport>
         {tool === 'shape' && editable && (
           <ShapeTool
@@ -599,6 +646,7 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
         )}
         <Toolbar
           onCreateSticky={createAtCentre}
+          onImagePick={imageInsert.openPicker}
           tool={tool}
           onToolChange={setTool}
           shapeKind={shapeKind}
@@ -668,6 +716,17 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
           onReset={cameraController.reset}
         />
         <NavigationHint visible={!cameraController.hasNavigated} />
+        <ToastContainer toasts={toasts} />
+        {/* Hidden file input for the Image tool picker (story 12) */}
+        <input
+          ref={imageInsert.fileInputRef}
+          type="file"
+          accept={IMAGE_ACCEPTED_TYPES.join(',')}
+          multiple
+          style={{ display: 'none' }}
+          onChange={imageInsert.onFileInputChange}
+          data-testid="image-file-input"
+        />
       </div>
     </CameraContext.Provider>
   );

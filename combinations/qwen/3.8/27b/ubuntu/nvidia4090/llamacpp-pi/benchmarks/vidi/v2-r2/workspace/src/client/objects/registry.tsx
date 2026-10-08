@@ -15,6 +15,7 @@ import { addKnownObjectType, objectBounds } from '../../shared/board-model';
 import type { Camera, Point } from '../canvas/camera';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
@@ -28,6 +29,7 @@ import { moveObjects } from '../../shared/board-model';
 import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
 import { getTextWidthMode, setTextWidthFixed } from '../../shared/objects/text';
 import { ConnectorObject } from './ConnectorObject';
+import { ImageObject } from './ImageObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { StrokeObject } from './StrokeObject';
@@ -267,4 +269,17 @@ registerObjectType('stroke', {
   minSize: STROKE_MIN_SIZE_WORLD,
   editableText: false,
   hitTest: strokeHitTest,
+});
+
+// ---------------------------------------------------------------------------
+// image (story 12)
+// ---------------------------------------------------------------------------
+
+registerObjectType('image', {
+  Component: ImageObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: pointWithinBounds,
 });

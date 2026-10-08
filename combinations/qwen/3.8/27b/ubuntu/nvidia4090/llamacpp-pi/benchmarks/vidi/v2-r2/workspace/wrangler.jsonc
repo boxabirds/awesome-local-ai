@@ -18,6 +18,12 @@
       }
     ]
   },
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   // SQLite-backed from the start: story 4 (persistence) needs no class
   // migration, only storage usage.
   "migrations": [

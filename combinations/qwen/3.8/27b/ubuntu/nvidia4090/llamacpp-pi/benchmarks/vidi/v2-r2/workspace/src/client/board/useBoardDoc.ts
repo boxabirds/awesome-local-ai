@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshotAll, type ObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
@@ -38,44 +38,19 @@ export function useBoardDoc(boardId: string, docOverride?: Y.Doc): {
   const doc = docRef.current;
   const overridden = docOverride !== undefined;
 
-  // Bumped on every document change; getSnapshot recomputes only when it
-  // changes, so useSyncExternalStore always gets a stable reference.
-  const versionRef = useRef(0);
-  const cacheRef = useRef<{ version: number; objects: readonly ObjectSnapshot[] } | null>(null);
+  // Subscribe to Y.Doc changes: recompute the snapshot on every deep change.
+  const [objects, setObjects] = useState<readonly ObjectSnapshot[]>(() => snapshotAll(doc));
 
   useEffect(() => {
-    const objects = doc.getMap('objects');
+    const objectsMap = doc.getMap('objects');
     const onChange = (): void => {
-      versionRef.current += 1;
+      setObjects(snapshotAll(doc));
     };
-    objects.observeDeep(onChange);
+    objectsMap.observeDeep(onChange);
     return () => {
-      objects.unobserveDeep(onChange);
+      objectsMap.unobserveDeep(onChange);
     };
   }, [doc]);
-
-  const subscribe = useCallback(
-    (onStoreChange: () => void): (() => void) => {
-      const objects = doc.getMap('objects');
-      objects.observeDeep(onStoreChange);
-      return () => {
-        objects.unobserveDeep(onStoreChange);
-      };
-    },
-    [doc],
-  );
-
-  const getSnapshot = useCallback((): readonly ObjectSnapshot[] => {
-    const version = versionRef.current;
-    const cache = cacheRef.current;
-    if (cache === null || cache.version !== version) {
-      cacheRef.current = { version, objects: snapshotAll(doc) };
-      return cacheRef.current.objects;
-    }
-    return cache.objects;
-  }, [doc]);
-
-  const objects = useSyncExternalStore(subscribe, getSnapshot);
 
   // Connection state for the badge. The setter is stable, so the provider
   // is (re)created only when the doc or boardId changes; destroy() on

@@ -7,6 +7,8 @@ import type { UndoActions } from './useUndo';
 export interface ToolbarProps {
   /** Create a sticky note at the viewport centre (N). */
   onCreateSticky(): void;
+  /** Open the image file picker (story 12). */
+  onImagePick(): void;
   /** The active tool (story 9/10) and its setter (Toolbar clicks). */
   tool: ToolId;
   onToolChange(t: ToolId): void;
@@ -77,6 +79,7 @@ function KindGlyph({ kind }: { kind: ShapeKind }): JSX.Element {
  */
 export function Toolbar({
   onCreateSticky,
+  onImagePick,
   tool,
   onToolChange,
   shapeKind,
@@ -288,6 +291,32 @@ export function Toolbar({
             borderRadius: 2,
           }}
         />
+      </button>
+      <button
+        type="button"
+        aria-label="Image (I)"
+        title={disabled ? 'Board unavailable' : 'Image – I, opens file picker'}
+        disabled={disabled}
+        data-testid="image-button"
+        onClick={onImagePick}
+        style={{
+          ...TOOL_BUTTON_STYLE,
+        }}
+      >
+        <svg
+          aria-hidden="true"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#3c3c34"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="M21 15l-5-5L5 21" />
+        </svg>
       </button>
       <UndoButtons {...undo} />
     </div>
