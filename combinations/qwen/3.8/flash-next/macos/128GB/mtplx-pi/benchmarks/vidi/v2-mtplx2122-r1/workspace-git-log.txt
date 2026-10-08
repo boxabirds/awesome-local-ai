@@ -1,3 +1,24 @@
+commit 49195c3c41c5b7064422ec0cad452917def682d2
+agent  Thu Oct 8 15:09:53 2026 +0000
+
+    story 8: undo controller + history/boundary unit tests
+
+
+ src/client/board/undo.ts           | 126 ++++++++++++++
+ src/shared/config.ts               |   7 +
+ tests/unit/peer.ts                 |  60 +++++++
+ tests/unit/undo-boundaries.test.ts | 136 +++++++++++++++
+ tests/unit/undo-history.test.ts    | 328 +++++++++++++++++++++++++++++++++++++
+ vitest.workspace.ts                |   4 +
+ 6 files changed, 661 insertions(+)
+commit d6d9144b9a4a6f7a4be87c884165a1670377d552
+vidi-agent  Thu Oct 8 15:54:28 2026 +0100
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 commit 3f520116b5a7643f7176e5eb84f3858f772fa040
 vidi-agent  Thu Oct 8 15:35:25 2026 +0100
 
