@@ -76,6 +76,14 @@ def main() -> int:
         except ValueError:
             continue
     ok, why = judge(ws)
+    # The harness's own reader must find the agent's reply in the stream the agent really wrote (CLAUDE.md: every coding agent has
+    # its own parser). 8 Oct 2026: it read nothing from OpenCode's events, and every story would have been recorded PARTIAL.
+    events = work / "events.jsonl"
+    events.write_text(run.stdout)
+    from drive import final_reply_text
+    reply = final_reply_text(events)
+    if "done" not in reply.lower():
+        ok, why = False, f"the harness's parser found no reply in the agent's events (final_reply_text gave {reply!r}); {why}"
     print(json.dumps({"opencode_exit": run.returncode, "seconds": round(time.time() - started, 1), "steps": state["steps"],
                       "tool_calls": state["tool_calls"], "tokens": state["tokens"], "error": state["error"], "task_done": ok, "check": why}, indent=1))
     return 0 if ok else 1

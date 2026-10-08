@@ -1235,6 +1235,31 @@ def test_the_final_reply_skips_events_whose_message_is_not_a_model_message(tmp_p
     assert drive.final_reply_text(ev) == "the reply"
 
 
+def _oc_text(message_id, text):
+    """OpenCode's own event for a piece of model text: `type: text`, the text in `part`, no `message` key (as in
+    gufo-opencode v2-gufoopencode-r1 story 1, 8 Oct 2026)."""
+    return json.dumps({"type": "text", "sessionID": "ses_1", "part": {"type": "text", "messageID": message_id, "text": text}}) + "\n"
+
+
+def test_the_final_reply_of_an_opencode_session_is_its_last_messages_text(tmp_path):
+    """8 Oct 2026: the harness read no reply from OpenCode's events (it looked only for `message.role == assistant`), so an
+    agent that ended with `STORY 1 DONE <hash>` and a clean tree was never seen to finish. It was sent the stop message,
+    stopped again, and the story was recorded PARTIAL (held-out 6/6) -- every story of the series would have been."""
+    import drive
+    ev = tmp_path / "ev.jsonl"
+    done = "STORY 1 DONE 0e77fa2ffd7d7b74e018ad96ef7dd599738e2709"
+    ev.write_text(_oc_text("msg_a", "working on it")
+                  + json.dumps({"type": "tool_use", "part": {"type": "tool", "tool": "bash"}}) + "\n"
+                  + _oc_text("msg_b", "\n\nStory 1 complete.\n\n")
+                  + _oc_text("msg_b", done)
+                  + "not json\n")
+    assert drive.final_reply_text(ev) == "\n\nStory 1 complete.\n\n" + done
+    assert drive.DONE_LINE.findall(drive.final_reply_text(ev)) == [("1", "0e77fa2ffd7d7b74e018ad96ef7dd599738e2709")]
+    # A later message with no text (the model only called a tool) is not a reply: the last message WITH text is.
+    ev.write_text(_oc_text("msg_a", done) + json.dumps({"type": "tool_use", "part": {"type": "tool", "messageID": "msg_c"}}) + "\n")
+    assert drive.final_reply_text(ev) == done
+
+
 
 def test_event_times_skip_an_unstamped_event_whose_message_is_a_string(tmp_path):
     """The history's event times read a message's own timestamp when an event has no receive stamp; a refused tool
