@@ -283,3 +283,52 @@ export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 export const CONNECTOR_DOT_RADIUS_PX = 4;
 /** The arrow line and arrowhead colour. */
 export const CONNECTOR_STROKE_COLOR = '#263238';
+
+// --- Freehand pen (story 11) ----------------------------------------------
+
+/**
+ * The six pen colours (pen.options). Keys are the colour names used in the
+ * document schema; values are the line colours.
+ */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+/**
+ * The three pen thicknesses (pen.options) in world units: strokes scale
+ * with zoom like everything else on the board.
+ */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+/** Colour of newly drawn strokes (pen.options). */
+export const DEFAULT_PEN_COLOR = 'black';
+/** Thickness of newly drawn strokes (pen.options). */
+export const DEFAULT_PEN_THICKNESS = 'medium';
+
+/**
+ * pen.smooth: the RDP simplification tolerance in SCREEN pixels at the
+ * drawing zoom — no point of the finished stroke lies farther than this
+ * from the path the user drew.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/**
+ * pen.long_stroke: a stroke being drawn reaching this many recorded points
+ * is committed and continued as a new stroke from the same last point.
+ */
+export const STROKE_MAX_POINTS = 5000;
+/**
+ * pen.select: a click within this distance (SCREEN pixels, divided by the
+ * zoom to get board units) of the line selects the stroke (the larger of
+ * this and half the thickness wins).
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/**
+ * Minimum side length (world units) of a stroke's bounding box: the
+ * aspect-locked resize clamps at this.
+ */
+export const STROKE_MIN_SIZE_WORLD = 4;

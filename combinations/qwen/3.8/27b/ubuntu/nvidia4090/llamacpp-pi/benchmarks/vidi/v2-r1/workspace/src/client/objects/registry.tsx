@@ -15,8 +15,11 @@ import { pointInRect, type Point } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import type { UndoController } from '../board/undo';
@@ -25,6 +28,8 @@ import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
+import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
 import type { Rect } from '../../shared/geometry';
 
 /**
@@ -197,6 +202,33 @@ registerObjectType('connector', {
     return (
       distanceToPolyline([obj.fromPoint, obj.toPoint], p) <=
       CONNECTOR_HIT_TOLERANCE_PX / zoom
+    );
+  },
+});
+
+// --- Strokes (story 11, pen.select / pen.resize) ----------------------------
+
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  // A stroke resizes in proportion (pen.resize): the story 7 machinery keeps
+  // the width-to-height ratio and scaledPoints rescales the drawn line; the
+  // line thickness itself is never scaled.
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  // A click selects the stroke only within max(half the line width,
+  // STROKE_HIT_TOLERANCE_PX screen pixels at this zoom) of the line
+  // (pen.select); anywhere else — even inside the bounding box — misses and
+  // selection falls through to the object underneath.
+  hitTest: (obj, p, zoom) => {
+    const s = obj as StrokeSnap;
+    if (s.points === undefined || s.baseWidth === undefined || s.baseHeight === undefined) {
+      return false;
+    }
+    const t = s.thickness in PEN_THICKNESS_WORLD ? PEN_THICKNESS_WORLD[s.thickness] : 0;
+    return (
+      distanceToPolyline(scaledPoints(s), p) <= Math.max(t / 2, STROKE_HIT_TOLERANCE_PX / zoom)
     );
   },
 });

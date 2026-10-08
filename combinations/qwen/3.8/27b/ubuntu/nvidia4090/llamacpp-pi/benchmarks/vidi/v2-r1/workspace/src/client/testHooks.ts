@@ -45,6 +45,14 @@ export interface Vidi6ObjectInfo {
   /** Endpoint kinds (connector objects only); attached drops the fallback. */
   from?: { kind: 'free'; x: number; y: number } | { kind: 'attached'; objectId: string };
   to?: { kind: 'free'; x: number; y: number } | { kind: 'attached'; objectId: string };
+  // --- Story 11 (strokes) ----------------------------------------------------
+  /** Flattened [x0, y0, x1, y1, ...] relative to the bbox origin (strokes only). */
+  points?: number[];
+  /** Bbox size at creation (strokes only); the render scale is width/baseWidth. */
+  baseWidth?: number;
+  baseHeight?: number;
+  /** 'thin' | 'medium' | 'thick' (strokes only). */
+  thickness?: string;
 }
 
 export interface Vidi6TestHooks {

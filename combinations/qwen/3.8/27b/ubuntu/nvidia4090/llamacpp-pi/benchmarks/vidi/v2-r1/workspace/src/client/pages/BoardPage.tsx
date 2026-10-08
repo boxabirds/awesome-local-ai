@@ -39,6 +39,9 @@ import { Toolbar } from '../board/Toolbar';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { getObjectType } from '../objects/registry';
 import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { createShape, getShapeLabel, setShapeStyle } from '../../shared/objects/shape';
@@ -208,6 +211,10 @@ function Board(props: { boardId: string }): JSX.Element {
     onCreateStickyAtCenter: () => createStickyAt({ x: size.width / 2, y: size.height / 2 }),
   });
 
+  // Story 11 (pen.options): the pen's session-only colour/thickness choice;
+  // it survives tool switches for the life of the mounted board.
+  const penOptions = usePenOptions();
+
   // Story 8: one undo controller per board doc (undo.history); it is
   // destroyed when the board unmounts, so a fresh board (or reload) starts
   // with empty history (undo.session_only).
@@ -335,6 +342,10 @@ function Board(props: { boardId: string }): JSX.Element {
             toPoint: o.toPoint,
             from: o.from !== undefined ? ep(o.from) : undefined,
             to: o.to !== undefined ? ep(o.to) : undefined,
+            points: o.points !== undefined ? [...o.points] : undefined,
+            baseWidth: o.baseWidth,
+            baseHeight: o.baseHeight,
+            thickness: o.thickness,
           };
         }),
       getConnectionState: () => connectionState,
@@ -535,6 +546,31 @@ function Board(props: { boardId: string }): JSX.Element {
           canEdit={editable}
           undo={undo}
           onCreated={toolCreated}
+        />
+      )}
+
+      {/* Story 11: the pen tool stays active after every finished stroke
+          (pen.stay_active), so it never calls toolCreated. */}
+      {tool === 'pen' && editable && (
+        <PenTool
+          camera={cam.camera}
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          doc={doc}
+          identityId={getClientId()}
+          canEdit={editable}
+          undo={undo}
+        />
+      )}
+
+      {/* Story 11: the pen options toolbar, next to the left toolbar, only
+          while the Pen tool is active (pen.options). */}
+      {tool === 'pen' && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
         />
       )}
 

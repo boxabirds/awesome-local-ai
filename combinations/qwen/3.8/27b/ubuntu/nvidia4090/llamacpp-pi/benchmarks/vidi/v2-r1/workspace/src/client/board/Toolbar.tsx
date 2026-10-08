@@ -145,6 +145,26 @@ export function Toolbar(
             />
           </svg>
         </button>
+        <button
+          type="button"
+          className="toolbar__tool"
+          aria-label="Pen (P)"
+          aria-pressed={tool === 'pen'}
+          title="Pen (P)"
+          disabled={disabled}
+          onClick={() => onSelectTool('pen')}
+        >
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path
+              d="M3 17l1.1-3.7L14.6 2.8l2.6 2.6L6.7 15.9 3 17z"
+              fill="#FFCC80"
+              stroke="#263238"
+              strokeWidth="1.25"
+              strokeLinejoin="round"
+            />
+            <path d="M13.4 4l2.6 2.6" stroke="#263238" strokeWidth="1.25" />
+          </svg>
+        </button>
         {extra}
       </div>
       {tool === 'shape' && (

@@ -36,6 +36,14 @@ export interface ObjectInfo {
   toPoint?: { x: number; y: number };
   from?: EndpointInfo;
   to?: EndpointInfo;
+  // Story 11 (strokes).
+  /** Flattened [x0, y0, ...] relative to the bbox origin (strokes only). */
+  points?: number[];
+  /** Bbox size at creation (strokes only). */
+  baseWidth?: number;
+  baseHeight?: number;
+  /** 'thin' | 'medium' | 'thick' (strokes only). */
+  thickness?: string;
 }
 
 interface Hooks {

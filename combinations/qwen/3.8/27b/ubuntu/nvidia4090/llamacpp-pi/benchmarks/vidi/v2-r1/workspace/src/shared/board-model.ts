@@ -21,6 +21,7 @@
 import * as Y from 'yjs';
 import {
   DEFAULT_STICKY_COLOR,
+  PEN_THICKNESS_WORLD,
   SHAPE_FILL_COLORS,
   SHAPE_KINDS,
   SHAPE_STROKE_COLORS,
@@ -32,6 +33,7 @@ import {
   type StickyColor,
   type StrokeColor,
 } from './config';
+import type { PenThickness } from './objects/stroke';
 import { rectContains, type Point, type Rect } from './geometry';
 import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 import {
@@ -95,6 +97,16 @@ export interface ObjectSnapshot {
   /** The resolved endpoint points (derived with `from`/`to`). */
   fromPoint?: Point;
   toPoint?: Point;
+  /**
+   * Story 11: stroke-specific fields (present on type 'stroke' objects).
+   */
+  /** Flattened [x0, y0, x1, y1, ...] relative to the bbox origin. */
+  points?: readonly number[];
+  /** Bbox size at creation (render scale = width/baseWidth etc.). */
+  baseWidth?: number;
+  baseHeight?: number;
+  /** thin | medium | thick */
+  thickness?: PenThickness;
   text: string;
   createdAt?: number;
 }
@@ -333,6 +345,31 @@ export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       const labelText = label.toString();
       snap.text = labelText;
       snap.label = labelText;
+    } else if (type === 'stroke') {
+      // Story 11: a stroke's points are stored relative to the bbox origin;
+      // malformed strokes (bad points/base sizes/thickness) are skipped
+      // entirely, like malformed shapes.
+      const pts = obj.get('points');
+      const bw = obj.get('baseWidth');
+      const bh = obj.get('baseHeight');
+      const thick = obj.get('thickness');
+      if (
+        snap.width === undefined ||
+        snap.height === undefined ||
+        !Array.isArray(pts) ||
+        pts.length < 2 ||
+        pts.length % 2 !== 0 ||
+        !pts.every((v) => typeof v === 'number' && Number.isFinite(v)) ||
+        !isValidCoord(bw) ||
+        !isValidCoord(bh) ||
+        !(typeof thick === 'string' && thick in PEN_THICKNESS_WORLD)
+      ) {
+        return;
+      }
+      snap.points = pts as number[];
+      snap.baseWidth = bw;
+      snap.baseHeight = bh;
+      snap.thickness = thick as PenThickness;
     } else if (type === 'connector') {
       const from = parseEndpoint(obj.get('from'));
       const to = parseEndpoint(obj.get('to'));

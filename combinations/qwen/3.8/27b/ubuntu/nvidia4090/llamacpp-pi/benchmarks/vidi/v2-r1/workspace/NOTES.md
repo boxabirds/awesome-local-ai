@@ -470,3 +470,81 @@ Ctrl/Cmd +/-/0 zoom shortcuts in `useCamera`/`BoardViewport`.
   runs in **chromium + firefox** only; the "and webkit" part of the TC-23
   requirement cannot be satisfied on this host. Chromium + firefox cover the
   multi-engine intent (different rendering/pointer engines).
+
+# Story 11 — Notes
+
+## Key design decisions
+
+- **Viewport routing without touching BoardViewport.** The design lists
+  BoardViewport as "modified" so that, while the Pen tool is active, pointer
+  drags route to PenTool instead of panning or moving objects. Like
+  ShapeTool (story 10) and ConnectorTool, this is achieved by PenTool's own
+  **capture-phase** `window` `pointerdown` listener: it fires before the
+  event reaches the React root, and `stopPropagation()` prevents both the
+  viewport pan and any object gesture (including gestures starting over an
+  existing object — TC-28-style, verified e2e in TC-19). BoardViewport's
+  wheel/pinch handlers are untouched, so scrolling still pans and
+  Ctrl/Cmd+scroll still zooms (pen.navigation, TC-19).
+- **PenTool takes `canEdit` and `undo` props beyond the design contract.**
+  The contract's `{camera, color, thickness, doc, identityId}` is a subset;
+  the edit lock (story 4) and the per-board undo controller (story 8, one
+  commit = one undo step via `undo.boundary()`) are wired in the same way as
+  ShapeTool/ConnectorTool. `identityId` is the client id (`getClientId()` in
+  BoardPage), recorded on each stroke.
+- **StrokeObject takes `ObjectProps`, not `{stroke, selected}`.** The design
+  contract idealises the props; the registry (stories 9–10) hands every
+  object component the common `ObjectProps` bundle, so StrokeObject follows
+  the ConnectorObject pattern and narrows `obj` to `StrokeSnap` internally.
+- **Commit on `pointercancel`/`lostpointercapture` keeps the points drawn so
+  far** (pen.interrupted, TC-11) — unlike ShapeTool, which discards an
+  interrupted drag. A single bare press interrupted before any move commits
+  a dot.
+- **Unfinished drag on unmount is dropped.** Escape or another tool
+  unmounts PenTool; the window listeners are removed in the effect cleanup,
+  so a later (implicit) `lostpointercapture` never reaches a handler and
+  nothing is created (TC-13).
+- **Preview is rAF-throttled and local-only.** Points are appended on every
+  pointermove (including `getCoalescedEvents()` payloads) but the preview
+  path state updates at most once per animation frame (pen.tool). The
+  preview is a fixed full-viewport SVG overlay (screen coordinates, no
+  viewBox) that is never written to the Y.Doc — so in-progress strokes are
+  invisible to other participants (TC-18). The round cursor (diameter =
+  thickness × zoom, follows the pointer over the viewport, `aria-hidden`)
+  is positioned via direct DOM writes on a ref to avoid a re-render per
+  mouse move.
+- **STROKE_MAX_POINTS split shares the join point.** When a part reaches
+  5,000 recorded points it is simplified and committed and the next part
+  starts from the same last point, so consecutive strokes join with no
+  visible gap (TC-12). RDP always keeps first/last, so the join point
+  survives simplification on both sides.
+- **Dot commit.** A press/release with movement below `DRAG_THRESHOLD_PX`
+  (3, story 2's setting) commits one point; `createStroke` gives it a
+  thickness-square bbox and it renders as a round-capped zero-length
+  subpath (TC-04, TC-10).
+- **Hit test falls through to objects below.** The registry `hitTest` is
+  `distanceToPolyline(scaledPoints(s), p) <= max(thickness/2,
+  STROKE_HIT_TOLERANCE_PX/zoom)`; the StrokeObject's clickable surface is an
+  invisible wide hit path exactly 2× that tolerance (never the bbox), so a
+  click inside the bbox but far from the line selects the object below
+  (TC-16).
+- **Aspect-locked resize reuses story 7.** The registry entry sets
+  `resizable: true, aspectLocked: true, minSize: STROKE_MIN_SIZE_WORLD`; the
+  drawn line scales because the component renders `scaledPoints` (points
+  scaled by current size / base size), while `stroke-width` stays the stored
+  thickness (TC-06, TC-20).
+- **E2E matrix: chromium + firefox.** TC-17 (draw + live preview) runs in
+  chromium and firefox; TC-18 to TC-20 are chromium-only (skipped in
+  firefox via `chromiumOnly()`, the story-10 pattern). Webkit is unavailable
+  on this host (missing `libavif13`), so the "and webkit" part of TC-17's
+  requirement cannot be satisfied here.
+- **TC-17 samples the preview `d` during a real drag** (24 loop moves, one
+  `page.$eval` per move) and asserts the path is present and its `d`
+  changes between samples; the stroke persists after release and the
+  preview is gone. The delivery time in TC-18 is logged against
+  `LIVE_UPDATE_LATENCY_BUDGET_MS` (annotation + console) and never asserted.
+- **Test hooks** gained the stroke fields on `Vidi6ObjectInfo`
+  (`points`, `baseWidth`, `baseHeight`, `thickness`); `ObjectSnapshot`
+  gained the matching optional fields and `objectsSnapshot` parses the
+  stroke's stored array (validated: non-empty, finite, even-length).
+  `tests/e2e/shape-helpers.ts`'s `ObjectInfo` gained the same optional
+  fields (no impact on the story-10 specs).

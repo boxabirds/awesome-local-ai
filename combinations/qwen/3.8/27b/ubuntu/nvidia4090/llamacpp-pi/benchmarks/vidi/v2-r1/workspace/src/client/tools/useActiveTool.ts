@@ -12,7 +12,8 @@
 //  - Escape returns to Select from any tool, including an unfinished drag
 //    (creating nothing); from Select it only clears the selection (story 7).
 //  - toolCreated(id) selects the new object and returns to Select
-//    (tools.return_to_select).
+//    (tools.return_to_select). The Pen tool never calls toolCreated: it stays
+//    active after every finished stroke (pen.stay_active).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SHAPE_KINDS, type ShapeKind } from '../../shared/config';
@@ -38,12 +39,13 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
   c: 'comment',
 };
 
-/** The tools this build renders a gesture/UI for (stories 11–12, 17 unbuilt). */
+/** The tools this build renders a gesture/UI for (stories 12, 17 unbuilt). */
 const IMPLEMENTED_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>([
   'select',
   'text',
   'shape',
   'connector',
+  'pen',
 ]);
 
 export interface ActiveToolApi {
@@ -85,7 +87,10 @@ export function useActiveTool(opts: UseActiveToolOptions): ActiveToolApi {
 
   const setTool = useCallback((t: ToolId) => {
     if (!IMPLEMENTED_TOOLS.has(t)) return; // reserved for later stories
-    if ((t === 'shape' || t === 'connector' || t === 'text') && !optsRef.current.canEdit) {
+    if (
+      (t === 'shape' || t === 'connector' || t === 'text' || t === 'pen') &&
+      !optsRef.current.canEdit
+    ) {
       return; // locked board
     }
     setToolState(t);
@@ -123,7 +128,10 @@ export function useActiveTool(opts: UseActiveToolOptions): ActiveToolApi {
         return;
       }
       if (!IMPLEMENTED_TOOLS.has(t)) return;
-      if ((t === 'shape' || t === 'connector' || t === 'text') && !optsRef.current.canEdit) {
+      if (
+        (t === 'shape' || t === 'connector' || t === 'text' || t === 'pen') &&
+        !optsRef.current.canEdit
+      ) {
         return;
       }
       setToolState(t);
