@@ -14,6 +14,21 @@ export const RETRO_ITEM =
   'Action: add a hint and track step 2 drop-off.';
 
 /**
+ * A 300-character single-line English annotation (story 9, TC-26): far
+ * longer than TEXT_MAX_AUTO_WIDTH_WORLD at size M, so a typed text object
+ * wraps into multiple lines at the 600-unit cap. Distinct words (no
+ * repeated character runs), no newlines.
+ */
+export function longAnnotation(): string {
+  return (
+    'The sprint review ran long because the team wanted to celebrate the launch properly, and the '
+    + 'facilitator kept adding one more topic while the afternoon light moved across the wall of '
+    + 'sticky notes, turning the board into a map of everything the group had learned that quarter '
+    + 'and the plan for the next'
+  ).slice(0, 300);
+}
+
+/**
  * A 1,000-character paragraph of English prose, exactly at the sticky note
  * text limit. Distinct sentences (no repeated character runs).
  */

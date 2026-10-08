@@ -15,6 +15,7 @@ import {
 } from '../../shared/config';
 import { CameraContext } from './useCamera';
 import type { Point } from './camera';
+import type { Tool } from '../board/useTool';
 
 // Wheel event deltaMode values (DOM spec).
 const WHEEL_DELTA_PIXELS = 0;
@@ -53,10 +54,21 @@ interface BoardViewportProps {
   onMarqueeEnd?: () => void;
   /** Marquee cancelled (pointercancel / lost capture). */
   onMarqueeCancel?: () => void;
+  /**
+   * Story 9 (text.tool_ui): the active tool. While 'text', a primary-button
+   * press on empty space does NOT pan or marquee; a click (pointerup within
+   * the tolerance, no travel) fires `onTextToolClick` with the viewport-
+   * local point so the board can create a text object there. Objects are
+   * inert under the Text tool, so a press over an object also lands here
+   * and creates text on top.
+   */
+  tool?: Tool;
+  /** Text-tool click: create a text object at this viewport-local point. */
+  onTextToolClick?: (p: Point) => void;
 }
 
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
-  const { onDoubleClickEmpty, onEmptyClick, overlay, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel } = props;
+  const { onDoubleClickEmpty, onEmptyClick, overlay, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel, tool = 'select', onTextToolClick } = props;
   const controller = useContext(CameraContext);
   if (controller === null) {
     throw new Error('BoardViewport must be rendered inside a CameraContext provider');
@@ -68,6 +80,12 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   /** The pointer id driving the marquee (null when no marquee is active). */
   const marqueePointerRef = useRef<number | null>(null);
   const [isPanning, setIsPanning] = useState(false);
+
+  // Story 9: while the Text tool is armed, the primary-button down point on
+  // empty space (null when no Text-tool click is in flight). A pointerup
+  // within the tolerance creates a text object; movement cancels it.
+  const textClickRef = useRef<Point | null>(null);
+  const textToolActive = tool === 'text';
 
   const toLocalPoint = (clientX: number, clientY: number): Point => {
     const rect = viewportRef.current?.getBoundingClientRect() ?? { left: 0, top: 0 };
@@ -182,6 +200,16 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     if (e.pointerType === 'mouse' && e.button !== 0) {
       return;
     }
+    // Story 9 (text.tool_ui): the Text tool arms a click-to-create on empty
+    // space; it does not pan or marquee.
+    if (textToolActive) {
+      const el = viewportRef.current;
+      if (el && typeof el.setPointerCapture === 'function') {
+        el.setPointerCapture(e.pointerId);
+      }
+      textClickRef.current = toLocalPoint(e.clientX, e.clientY);
+      return;
+    }
     // Keep pointer events flowing to the viewport even if the pointer
     // leaves the window mid-drag. (All supported browsers implement this;
     // the guard keeps jsdom component tests working.)
@@ -219,6 +247,19 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       if (e.pointerId === marqueePointerRef.current) {
         marqueePointerRef.current = null;
         onMarqueeEnd?.();
+      }
+      return;
+    }
+    // Story 9: finish an armed Text-tool click. Within the tolerance ->
+    // create a text object; travel beyond it -> ignore (no pan happened).
+    if (textClickRef.current !== null) {
+      const down = textClickRef.current;
+      textClickRef.current = null;
+      if (e.target === viewportRef.current) {
+        const up = toLocalPoint(e.clientX, e.clientY);
+        if (Math.hypot(up.x - down.x, up.y - down.y) < DRAG_THRESHOLD_PX) {
+          onTextToolClick?.(up);
+        }
       }
       return;
     }
@@ -291,7 +332,8 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         position: 'absolute',
         inset: 0,
         overflow: 'hidden',
-        cursor: isPanning ? 'grabbing' : 'grab',
+        // Story 9: the Text tool shows a text caret over empty space.
+        cursor: textToolActive ? 'text' : isPanning ? 'grabbing' : 'grab',
         touchAction: 'none',
         backgroundImage: `radial-gradient(circle, ${GRID_DOT_COLOR} ${GRID_DOT_RADIUS_PX}px, transparent ${
           GRID_DOT_RADIUS_PX + 0.75

@@ -13,8 +13,15 @@ import type { ComponentType } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { addKnownObjectType, objectBounds } from '../../shared/board-model';
 import type { Point } from '../canvas/camera';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import {
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
+import type { Rect } from '../../shared/geometry';
+import { moveObjects } from '../../shared/board-model';
+import { getTextWidthMode, setTextWidthFixed } from '../../shared/objects/text';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /**
  * Structural pointer event: satisfied by both React synthetic pointer events
@@ -54,6 +61,12 @@ export interface ObjectProps {
   onTextBoundary?(): void;
   /** Ctrl/Cmd+Z inside the text editor: undo this tab's last step (story 8). */
   onTextUndo?(): void;
+  /**
+   * Story 9: while the Text tool is active every object is inert (no
+   * pointer events) so a click falls through to the viewport and creates a
+   * text object on top at that point.
+   */
+  inert?: boolean;
 }
 
 /** One registered object type. */
@@ -69,6 +82,19 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** True when the world point hits the object. */
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Which resize handles this type offers (story 9): 'horizontal' means
+   * only the e/w handles (free text: width only — the height is derived
+   * from the measured layout). Default 'all'.
+   */
+  handles?: 'all' | 'horizontal';
+  /**
+   * Story 9: applied instead of resizeObjects for this object during a
+   * GROUP resize (types whose box is not freely scalable, like free text:
+   * repositioned proportionally, fixed widths scale, font never changes).
+   * `target` is the object's rect scaled within the group box.
+   */
+  applyGroupResize?(doc: Y.Doc, id: string, target: Rect): void;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -107,4 +133,33 @@ registerObjectType('sticky', {
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
   hitTest: pointWithinBounds,
+});
+
+// ---------------------------------------------------------------------------
+// text (story 9)
+// ---------------------------------------------------------------------------
+
+/**
+ * Group resize for a free text object (story 9, sel.transform): the object
+ * is repositioned proportionally with the group; a FIXED-width text scales
+ * its width (clamped to the minimum by setTextWidthFixed), an auto text
+ * keeps its content-driven width; the font size never changes and the
+ * height is re-derived by the box sync (never written here).
+ */
+function applyTextGroupResize(doc: Y.Doc, id: string, target: Rect): void {
+  if (getTextWidthMode(doc, id) === 'fixed') {
+    setTextWidthFixed(doc, id, target.width);
+  }
+  moveObjects(doc, new Map([[id, { x: target.x, y: target.y }]]));
+}
+
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+  hitTest: pointWithinBounds,
+  applyGroupResize: applyTextGroupResize,
 });

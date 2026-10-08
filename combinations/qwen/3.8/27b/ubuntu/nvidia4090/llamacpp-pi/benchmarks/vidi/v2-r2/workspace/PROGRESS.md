@@ -1,16 +1,28 @@
-# Story 8: Undo and redo my own changes without undoing anyone else's
+# Story 9 — Write free text anywhere on the board
 
-Your progress on this story's tasks. Keep the Status column up to date as you work.
+## Current status
+- **done:** all tasks (1–10) complete; all unit/component/integration/e2e suites green
+- **last commit:** (this commit)
 
-| # | Task | Status |
-|---|---|---|
-| 2 | Implement per-user undo history controller | done |
-| 5 | E2E: recover my mistakes while colleagues work (TC-22 to TC-24) | done |
-| 6 | Write undo history unit tests first with a simulated remote peer (TC-01 to TC-11) | done |
-| 7 | Write capture-timeout unit tests first (TC-12, TC-13) | done |
-| 8 | Wire undo step boundaries into transform gestures, toolbars and the text editor | done |
-| 9 | Component tests: gesture and typing boundaries (TC-14 to TC-17) | done |
-| 10 | Implement undo/redo shortcuts and toolbar buttons | done |
-| 11 | Component tests: undo shortcuts, buttons and edit lock (TC-18 to TC-21) | done |
+## Tasks
+- [x] 1. Text model + unit tests (TC-01–06)
+- [x] 2. Text model implementation (createText, setTextSize, setTextWidthFixed, setTextBox, deleteIfEmpty)
+- [x] 3. Text layout unit tests (TC-07–11, TC-32)
+- [x] 4. Text layout implementation (layoutText, canvas measurer) + box sync (useTextBoxSync)
+- [x] 5. Box sync component tests (TC-12, TC-13)
+- [x] 6. Text tool UI + shortcuts (toolbar, V/T/N, click-to-create, load_failed)
+- [x] 7. Tool component tests (TC-14–18)
+- [x] 8. TextObject rendering, editor, TextToolbar, registry, handles, resize gesture
+- [x] 9. Text object component tests (TC-19–25)
+- [x] 10. e2e free text (TC-26–31)
 
-Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
+## Decisions
+- `src/shared/objects/text.ts` registers 'text' as a known object type on import (unit tests run without the client registry).
+- Text stores explicit width/height (like stickies); box sync observes local Y.Text/size/width changes and writes setTextBox when the re-measured box differs.
+- StickyTextEditor wraps a generalised TextEditor (per design); clampToLimit/applyTextDiff moved to src/shared/text-edit.ts with re-exports.
+- Undo inverse transactions use the UndoManager as origin (not LOCAL_ORIGIN), so box-sync does not re-measure on undo — the stored box reverts exactly with the text (TC-25).
+- `snapshotAll` is the all-types read used by text tests; `snapshot` remains sticky-only (unchanged).
+- Test-only hook now exposes `size` and `widthMode` for text objects.
+
+## Notes
+- See NOTES.md.

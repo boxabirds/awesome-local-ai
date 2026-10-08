@@ -57,7 +57,15 @@ function KeysHarness({ controller, canEdit, editingId = null }: {
 }) {
   const doc = new Y.Doc();
   initDoc(doc);
-  useBoardKeys({ doc, selection: fakeSelection(editingId), snapshot: [], canEdit, undo: controller });
+  useBoardKeys({
+    doc,
+    selection: fakeSelection(editingId),
+    snapshot: [],
+    canEdit,
+    undo: controller,
+    tool: 'select',
+    setTool: () => {},
+  });
   return null;
 }
 

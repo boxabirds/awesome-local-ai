@@ -33,6 +33,9 @@ export interface BoardObjectState {
   /** Present for objects with a stored size (story 7 resize). */
   width?: number;
   height?: number;
+  /** Free text (story 9): the size preset and width mode. */
+  size?: string;
+  widthMode?: 'auto' | 'fixed';
 }
 
 /**
@@ -89,5 +92,7 @@ function toState(o: ObjectSnapshot): BoardObjectState {
     text: typeof s.text === 'string' ? s.text : '',
     width: o.width,
     height: o.height,
+    size: o.size,
+    widthMode: o.widthMode,
   };
 }

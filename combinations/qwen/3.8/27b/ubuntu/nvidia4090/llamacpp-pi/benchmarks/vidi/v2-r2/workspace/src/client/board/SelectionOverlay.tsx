@@ -68,6 +68,14 @@ export function SelectionOverlay({ ids, snapshot, camera, onHandlePointerDown }:
     return null;
   }
   const anyResizable = selected.some((o) => getObjectType(o.type)?.resizable === true);
+  // Story 9: when every selected type offers only horizontal handles (free
+  // text: width-only resize), show just e/w; otherwise the full set.
+  const allHorizontalOnly =
+    anyResizable &&
+    selected.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+  const handleOrder: readonly Handle[] = allHorizontalOnly
+    ? (['e', 'w'] as const)
+    : ORDER;
   const tl = worldToScreen(camera, { x: box.x, y: box.y });
   const w = box.width * camera.zoom;
   const h = box.height * camera.zoom;
@@ -87,7 +95,7 @@ export function SelectionOverlay({ ids, snapshot, camera, onHandlePointerDown }:
         }}
       />
       {anyResizable &&
-        ORDER.map((handle) => {
+        handleOrder.map((handle) => {
           const a = ANCHORS[handle];
           return (
             <div

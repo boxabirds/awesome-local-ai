@@ -175,3 +175,38 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 
 /** Most recent undo steps kept per person; the oldest steps are dropped (undo.limit). */
 export const UNDO_MAX_STEPS = 200;
+
+// --- Free text (story 9) ------------------------------------------------------
+
+/** Maximum width an auto-width text box may grow to, in world units; longer lines wrap. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** Smallest width a fixed-width text object may be dragged down to, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Maximum characters a text object may hold; characters beyond the limit are dropped. */
+export const TEXT_MAX_CHARS = 5000;
+
+/** Text size presets (world-unit font size at 100% zoom). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+/** Name of a text size preset. */
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** Size of newly created text objects. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Line box height = font size x TEXT_LINE_HEIGHT (world units). */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** Standard sans-serif font for text objects. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/** The text length counter appears within this many characters of TEXT_MAX_CHARS. */
+export const TEXT_COUNTER_NEAR_CHARS = 50;
+
+/**
+ * Average glyph width as a fraction of the font size, used to estimate text
+ * width when canvas measurement is unavailable (unit tests / non-DOM).
+ */
+export const TEXT_ESTIMATED_GLYPH_WIDTH_RATIO = 0.55;

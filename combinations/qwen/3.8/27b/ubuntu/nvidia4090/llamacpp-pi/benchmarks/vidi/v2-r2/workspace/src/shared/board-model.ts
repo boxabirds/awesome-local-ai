@@ -10,14 +10,17 @@
  *   meta: Y.Map { schemaVersion: 1 }
  *   objects: Y.Map (key = id, value = Y.Map)
  *     <id>: Y.Map {
- *       type: 'sticky'
+ *       type: 'sticky' | 'text'   // 'text' is owned by shared/objects/text.ts
  *       x: number, y: number      // top-left, world units
- *       color: StickyColor
+ *       color: StickyColor        // sticky only
  *       text: Y.Text
  *       z: number                 // stacking; higher is on top
  *       createdAt: number         // epoch ms
  *       width?: number            // story 7: world units, default STICKY_SIZE_WORLD
  *       height?: number           // story 7: world units, default STICKY_SIZE_WORLD
+ *       size: TextSize            // text only (story 9)
+ *       widthMode: 'auto'|'fixed' // text only (story 9)
+ *       createdBy: string         // text only (story 9)
  *     }
  *
  * Story 7 adds the generic object view (`ObjectSnapshot`) and the group
@@ -32,7 +35,9 @@ import {
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  TEXT_SIZES,
   type StickyColor,
+  type TextSize,
 } from './config';
 import { type Point, type Rect, rectContains } from './geometry';
 
@@ -83,8 +88,11 @@ export interface ObjectSnapshot {
   height?: number;
   /** Sticky-only fields: present when type is 'sticky'. */
   color?: StickyColor;
-  /** The sticky's text content (type 'sticky' only). */
+  /** The object's text content (type 'sticky' or 'text'). */
   text?: string;
+  /** Text-only fields (story 9): present when type is 'text'. */
+  size?: TextSize;
+  widthMode?: 'auto' | 'fixed';
 }
 
 /** Immutable view of one sticky note. */
@@ -509,7 +517,9 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
     const width = entry.get('width');
     const height = entry.get('height');
     const color = type === 'sticky' ? entry.get('color') : undefined;
-    const textType = type === 'sticky' ? entry.get('text') : undefined;
+    const textType = type === 'sticky' || type === 'text' ? entry.get('text') : undefined;
+    const size = type === 'text' ? entry.get('size') : undefined;
+    const widthMode = type === 'text' ? entry.get('widthMode') : undefined;
     out.push({
       id,
       type,
@@ -521,6 +531,10 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
       height: finiteNumber(height) ? height : undefined,
       color: typeof color === 'string' ? (color as StickyColor) : undefined,
       text: textType instanceof Y.Text ? textType.toString() : undefined,
+      size:
+        typeof size === 'string' && size in TEXT_SIZES ? (size as TextSize) : undefined,
+      widthMode:
+        widthMode === 'auto' || widthMode === 'fixed' ? widthMode : undefined,
     });
   }
   out.sort((a, b) => {

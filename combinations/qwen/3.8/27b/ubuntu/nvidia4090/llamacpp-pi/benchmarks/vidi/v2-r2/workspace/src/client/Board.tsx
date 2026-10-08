@@ -35,7 +35,8 @@ import {
   setStickyColor,
   type StickySnapshot,
 } from '../shared/board-model';
-import { STICKY_SIZE_WORLD, type StickyColor } from '../shared/config';
+import { createText, deleteIfEmpty, setTextSize } from '../shared/objects/text';
+import { STICKY_SIZE_WORLD, type StickyColor, type TextSize } from '../shared/config';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { createUndo } from './board/undo';
@@ -43,6 +44,7 @@ import { useUndo } from './board/useUndo';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { useBoardKeys } from './board/useBoardKeys';
+import { useTool } from './board/useTool';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
@@ -60,6 +62,15 @@ import { type ConnectionState } from './sync/connectBoard';
 export function canEdit(state: ConnectionState): boolean {
   return state !== 'load_failed';
 }
+
+/**
+ * This client's id (story 9, text.created_by): one stable id per tab for the
+ * lifetime of the tab. It is client-only metadata, never synced.
+ */
+const CLIENT_ID: string =
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `client-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 /** Board background colour (the dot grid is drawn on top). */
 const BOARD_BACKGROUND = '#f8f8f6';
@@ -166,18 +177,33 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
   // --- selection (story 7) --------------------------------------------------
   const selection = useSelection(objects);
 
+  // --- tools (story 9, text.tool_ui) -----------------------------------------
+  // Select is the default; Text is armed via T or the Toolbar. While the
+  // board is not editable (load_failed) an active Text tool reverts to
+  // Select. V always reverts to Select (it is local UI state).
+  const { tool, setTool } = useTool(editable);
+
   // --- text editing ----------------------------------------------------------
-  // The editor reports 'unselected' when a press lands outside the note
+  // The editor reports 'unselected' when a press lands outside the object
   // (clearing the whole selection) and 'selected' for Escape (keeping it).
   const handleEndEdit = useCallback(
     (next: 'selected' | 'unselected'): void => {
+      const endedId = selection.editingId;
+      // Story 9 (text.empty_removed): a text object still empty when editing
+      // ends is removed. No explicit boundary: the removal lands inside the
+      // editor's open capture window (mount->unmount boundaries), so undoing
+      // restores the object with whatever was typed.
+      if (endedId !== null && deleteIfEmpty(doc, endedId)) {
+        selection.clear();
+        return;
+      }
       if (next === 'unselected') {
         selection.clear();
       } else {
         selection.endEdit();
       }
     },
-    [selection],
+    [doc, selection],
   );
 
   const handleEdit = useCallback(
@@ -212,9 +238,6 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
       selection.setMany(ids, true);
     }
   });
-
-  // --- keyboard commands (story 7 + 8) -----------------------------------------
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo });
 
   // Test-only hooks (no-ops and tree-shaken in production builds).
   const objectsRef = useRef(objects);
@@ -256,6 +279,71 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
   const createAtCentre = useCallback((): void => {
     createAt({ x: viewport.width / 2, y: viewport.height / 2 });
   }, [createAt, viewport]);
+
+  /**
+   * Story 9 (text.tool_ui): create a free text object at a viewport-local
+   * point, select it, start editing it, and revert to the Select tool.
+   */
+  const createTextAt = useCallback(
+    (p: Point): void => {
+      if (!editable) {
+        return; // load_failed: editing is locked out
+      }
+      // One undo step per create (undo.boundaries); the editor's own mount
+      // boundary keeps later typing out of the create step.
+      undo.boundary();
+      const id = createText(doc, screenToWorld(cameraController.camera, p), CLIENT_ID);
+      undo.boundary();
+      if (id !== null) {
+        // Select + start editing the new text immediately.
+        selection.click(id);
+        selection.startEdit(id);
+      }
+      // The tool always reverts to Select after creating a text
+      // (text.tool_ui), so consecutive clicks each create a new text.
+      setTool('select');
+    },
+    [doc, cameraController.camera, selection, editable, undo, setTool],
+  );
+
+  /**
+   * Story 9 (text.object): change the size preset of the single selected
+   * text object. The box re-measures automatically (useTextBoxSync): the
+   * font size changes, the position never does.
+   */
+  const changeTextSize = useCallback(
+    (s: TextSize): void => {
+      if (!editable) {
+        return;
+      }
+      const id = selection.ids.values().next().value;
+      if (id === undefined) {
+        return;
+      }
+      const obj = objects.find((o) => o.id === id);
+      if (obj === undefined || obj.type !== 'text') {
+        return; // only a single selected text shows the TextToolbar
+      }
+      // One undo step per size change; the re-measure (same transaction
+      // batch via the box sync) lands inside this window.
+      undo.boundary();
+      setTextSize(doc, id, s);
+      undo.boundary();
+    },
+    [doc, objects, selection, editable, undo],
+  );
+
+  // --- keyboard commands (story 7 + 8 + 9) --------------------------------------
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undo,
+    tool,
+    setTool,
+    onCreateSticky: createAtCentre,
+  });
 
   const deleteSelection = useCallback((): void => {
     if (!editable) {
@@ -310,8 +398,12 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
         style={{ position: 'fixed', inset: 0, background: BOARD_BACKGROUND }}
       >
         <BoardViewport
-          onDoubleClickEmpty={editable ? createAt : undefined}
+          onDoubleClickEmpty={
+            editable && tool === 'select' ? createAt : undefined
+          }
           onEmptyClick={selection.clear}
+          tool={tool}
+          onTextToolClick={editable ? createTextAt : undefined}
           onMarqueeBegin={(p) => marquee.begin(p)}
           onMarqueeMove={(p) => marquee.move(p)}
           onMarqueeEnd={marquee.end}
@@ -327,11 +419,13 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
                 />
               )}
               <MarqueeRect rect={marquee.rect} camera={cameraController.camera} />
-              {chromeVisible && selection.ids.size >= 2 && (
+              {chromeVisible && selection.ids.size >= 1 && (
                 <SelectionBar
                   ids={selection.ids}
                   snapshot={objects}
+                  camera={cameraController.camera}
                   onDelete={deleteSelection}
+                  onTextSize={changeTextSize}
                   disabled={!editable}
                 />
               )}
@@ -359,11 +453,18 @@ export function Board({ boardId, onDocReady }: BoardProps): JSX.Element {
                 onEndEdit={handleEndEdit}
                 onTextBoundary={undo.boundary}
                 onTextUndo={undo.undo}
+                inert={tool === 'text'}
               />
             );
           })}
         </BoardViewport>
-        <Toolbar onCreateSticky={createAtCentre} disabled={!editable} undo={undoActions} />
+        <Toolbar
+          onCreateSticky={createAtCentre}
+          tool={tool}
+          onToolChange={setTool}
+          disabled={!editable}
+          undo={undoActions}
+        />
         <ConnectionStatus state={connectionState} />
         {chromeVisible && selectedSticky !== undefined && (
           <div

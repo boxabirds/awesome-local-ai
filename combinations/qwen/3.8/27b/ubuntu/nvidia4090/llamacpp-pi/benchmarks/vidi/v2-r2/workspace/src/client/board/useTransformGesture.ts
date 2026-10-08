@@ -14,6 +14,13 @@
  *   is held. resizeRect on the bounding box, clampScale against per-type
  *   minSize and MAX_OBJECT_SIZE_WORLD, scaleWithin per object, resizeObjects.
  *
+ * Story 9 (text.object): dragging the e/w handle of a SINGLE text resizes
+ * its width only (setTextWidthFixed, clamped to TEXT_MIN_WIDTH_WORLD; the
+ * w handle keeps the right edge fixed); the height is re-derived by the box
+ * sync (useTextBoxSync). In group resizes, objects whose spec defines
+ * `applyGroupResize` (free text) are repositioned proportionally — fixed
+ * widths scale, font size never changes — instead of resizeObjects.
+ *
  * `canEdit === false` (load_failed): gestures are ignored (selection still
  * works). Pruned ids are skipped mid-gesture (moveObjects/resizeObjects skip
  * missing ids). pointerup flushes the final frame; pointercancel keeps the
@@ -26,7 +33,11 @@
 import { useCallback, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 import type { Camera, Point } from '../canvas/camera';
-import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
+import {
+  DRAG_THRESHOLD_PX,
+  MAX_OBJECT_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import {
   bringObjectsToFront,
   moveObjects,
@@ -34,6 +45,7 @@ import {
   resizeObjects,
   type ObjectSnapshot,
 } from '../../shared/board-model';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import {
   clampScale,
   resizeRect,
@@ -73,7 +85,60 @@ interface ResizeGesture extends BaseGesture {
   pending: Map<string, Rect> | null;
 }
 
-type Gesture = MoveGesture | ResizeGesture;
+/**
+ * Story 9: dragging the e/w handle of a single free text object changes its
+ * width only (fixed mode); the height is re-derived by the box sync.
+ */
+interface TextWidthGesture extends BaseGesture {
+  kind: 'textWidth';
+  id: string;
+  handle: 'e' | 'w';
+  startX: number;
+  startY: number;
+  startWidth: number;
+  pending: { x: number; width: number } | null;
+}
+
+type Gesture = MoveGesture | ResizeGesture | TextWidthGesture;
+
+/**
+ * Apply a group-resize frame: objects whose spec defines `applyGroupResize`
+ * (free text, story 9) use it — repositioned proportionally, fixed widths
+ * scale, font size never changes — everything else goes through
+ * resizeObjects. `rect` is the object's target rect (scaleWithin).
+ */
+function applyResizeFrame(doc: Y.Doc, pending: Map<string, Rect>): void {
+  const plain = new Map<string, Rect>();
+  for (const [id, rect] of pending) {
+    const entry = doc.getMap('objects').get(id) as Y.Map<unknown> | undefined;
+    const type = entry !== undefined ? (entry.get('type') as string | undefined) : undefined;
+    const spec = type !== undefined ? getObjectType(type) : undefined;
+    if (spec !== undefined && spec.applyGroupResize !== undefined) {
+      spec.applyGroupResize(doc, id, rect);
+    } else {
+      plain.set(id, rect);
+    }
+  }
+  if (plain.size > 0) {
+    resizeObjects(doc, plain);
+  }
+}
+
+/**
+ * Apply a text-width frame (story 9): the width always changes; x only
+ * when the w handle moved it (the e handle keeps x). The height is
+ * re-derived by the box sync (useTextBoxSync) from the width change.
+ */
+function applyTextWidthFrame(doc: Y.Doc, id: string, frame: { x: number; y: number; width: number }): void {
+  const entry = doc.getMap('objects').get(id) as Y.Map<unknown> | undefined;
+  if (entry === undefined) {
+    return; // pruned mid-gesture
+  }
+  setTextWidthFixed(doc, id, frame.width);
+  if (entry.get('x') !== frame.x) {
+    moveObjects(doc, new Map([[id, { x: frame.x, y: frame.y }]]));
+  }
+}
 
 interface Options {
   doc: Y.Doc;
@@ -122,11 +187,17 @@ export function useTransformGesture(opts: Options): {
           if (flush && pending !== null) {
             moveObjects(doc, pending);
           }
+        } else if (g.kind === 'resize') {
+          const pending = g.pending;
+          g.pending = null;
+          if (flush && pending !== null) {
+            applyResizeFrame(doc, pending);
+          }
         } else {
           const pending = g.pending;
           g.pending = null;
           if (flush && pending !== null) {
-            resizeObjects(doc, pending);
+            applyTextWidthFrame(doc, g.id, { x: pending.x, y: g.startY, width: pending.width });
           }
         }
         // A cancelled gesture drops the unflushed pending state: the last
@@ -184,6 +255,21 @@ export function useTransformGesture(opts: Options): {
           pending.set(id, { x: start.x + dx / zoom, y: start.y + dy / zoom });
         }
         g.pending = pending;
+      } else if (g.kind === 'textWidth') {
+        // Story 9: single free text, e/w handle. Width clamped to
+        // [TEXT_MIN_WIDTH_WORLD, MAX_OBJECT_SIZE_WORLD]; the w handle keeps
+        // the right edge fixed (x moves with the width).
+        const zoom = cameraRef.current.zoom;
+        const d = (ev.clientX - g.startClient.x) / zoom;
+        let width: number;
+        if (g.handle === 'e') {
+          width = g.startWidth + d;
+        } else {
+          width = g.startWidth - d;
+        }
+        width = Math.max(TEXT_MIN_WIDTH_WORLD, Math.min(width, MAX_OBJECT_SIZE_WORLD));
+        const x = g.handle === 'w' ? g.startX + g.startWidth - width : g.startX;
+        g.pending = { x, width };
       } else {
         const zoom = cameraRef.current.zoom;
         const delta = { x: dx / zoom, y: dy / zoom };
@@ -240,11 +326,17 @@ export function useTransformGesture(opts: Options): {
             if (pending !== null) {
               moveObjects(doc, pending);
             }
+          } else if (cur.kind === 'resize') {
+            const pending = cur.pending;
+            cur.pending = null;
+            if (pending !== null) {
+              applyResizeFrame(doc, pending);
+            }
           } else {
             const pending = cur.pending;
             cur.pending = null;
             if (pending !== null) {
-              resizeObjects(doc, pending);
+              applyTextWidthFrame(doc, cur.id, { x: pending.x, y: cur.startY, width: pending.width });
             }
           }
         });
@@ -372,6 +464,33 @@ export function useTransformGesture(opts: Options): {
       if (!specs.some((s) => s?.resizable === true)) {
         return; // no selected type is resizable
       }
+      // Story 9: a single free text with an e/w handle gets a width-only
+      // gesture (setTextWidthFixed); the height is re-derived by the box
+      // sync. All other selections use the group bounding-box resize.
+      const allHorizontal = selected.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+      if (
+        allHorizontal &&
+        ids.length === 1 &&
+        (handle === 'e' || handle === 'w') &&
+        getObjectType(selected[0].type)?.handles === 'horizontal'
+      ) {
+        const o = selected[0];
+        const bounds = objectBounds(o);
+        gestureRef.current = {
+          kind: 'textWidth',
+          pointerId: e.pointerId,
+          startClient: { x: e.clientX, y: e.clientY },
+          id: o.id,
+          handle,
+          startX: o.x,
+          startY: o.y,
+          startWidth: bounds.width,
+          pending: null,
+          activated: false,
+          raf: null,
+        };
+        return;
+      }
       const startBox = unionRects(selected.map(objectBounds));
       if (startBox === null || startBox.width <= 0 || startBox.height <= 0) {
         return;
@@ -388,7 +507,10 @@ export function useTransformGesture(opts: Options): {
         aspectLocked: specs.some((s) => s?.aspectLocked === true) || e.shiftKey,
         startBox,
         startRects,
-        minSizes: specs.map((s) => s?.minSize ?? 0),
+        // Story 9: horizontal-only types (free text) have no free vertical
+        // scale; their stored width is enforced by applyGroupResize, so
+        // they must not clamp the group scale through minSize on both axes.
+        minSizes: specs.map((s) => (s?.handles === 'horizontal' ? 0 : (s?.minSize ?? 0))),
         pending: null,
         activated: false,
         raf: null,

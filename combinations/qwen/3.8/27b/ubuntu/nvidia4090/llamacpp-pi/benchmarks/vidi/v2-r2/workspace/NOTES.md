@@ -485,3 +485,47 @@ _(Story 2 decisions are at the bottom of this file.)_
   4 controls TC-18..TC-21)
 - Integration: 45 (unchanged)
 - E2E (Chromium): 36 (33 existing + 3 new: TC-22..TC-24)
+
+## Story 9 implementation decisions
+- **Text stores an explicit measured box (width/height in world units)** just
+  like stickies. `createText` writes a minimum one-line box so bounds exist
+  before the first measurement; `useTextBoxSync` (a client hook) then rewrites
+  the box via `setTextBox` whenever a LOCAL change alters the re-measured
+  layout. Remote updates never trigger a write, so five clients never race to
+  write dimensions (text.layout, Key decision 1).
+- **`layoutText` is pure and measurer-injected.** Width in auto mode =
+  min(longest PRE-wrap line, TEXT_MAX_AUTO_WIDTH_WORLD) with greedy word wrap
+  beyond the cap; fixed mode wraps at the set width. Height = lines ×
+  TEXT_SIZES[size] × TEXT_LINE_HEIGHT. The canvas measurer falls back to an
+  average-glyph estimate when no 2d context exists (unit/jsdom), so tests are
+  deterministic without a real font (TC-32).
+- **Box sync + undo origin.** Yjs `UndoManager` applies inverse transactions
+  with the manager itself as origin (not LOCAL_ORIGIN), so `useTextBoxSync`
+  (which only reacts to LOCAL_ORIGIN changes) does not re-measure on undo —
+  the stored box reverts exactly with the text in one step (TC-25).
+- **Generalised TextEditor.** Story 2's editor was generalised (maxChars,
+  fontPx, width, optional auto-fit) into `TextEditor`; `StickyTextEditor` is a
+  thin wrapper so story 2 behaviour/tests are unchanged. `clampToLimit` and
+  `applyTextDiff` moved to `src/shared/text-edit.ts` and are re-exported by
+  `StickyText.ts`.
+- **Horizontal-only handles.** The registry gained optional `handles:
+  'all' | 'horizontal'`. `SelectionOverlay` renders only e/w handles when every
+  selected spec is horizontal. A single-text e/w drag is a `textWidth` gesture
+  (setTextWidthFixed + re-measure); mixed selections reposition the text
+  proportionally with its font size unchanged (its stored width is enforced by
+  the group-resize path, so it is excluded from min-size clamping).
+- **Tool mode.** `useTool(canEdit)` holds 'select' | 'text'; V reverts, T arms
+  (only when editable), Escape reverts, N creates a sticky at the view centre.
+  While Text is armed the viewport shows a text caret, does not pan/marquee,
+  and a click (even over an object, which is inert) creates a text with its
+  top-left at the point, starts editing it, and reverts to Select.
+- **Test-only hook** now exposes `size` and `widthMode` for text objects so
+  e2e can assert presets and fixed/auto mode.
+
+## Story 9 test counts
+- Unit: 141 (126 existing + 15 new: 7 text.model TC-01..TC-06/stale +
+  8 text.layout TC-07..TC-11, TC-32)
+- Component: 96 (82 existing + 14 new: 2 box-sync TC-12/TC-13 +
+  5 tool TC-14..TC-18 + 7 text-object TC-19..TC-25)
+- Integration: 45 (unchanged)
+- E2E (Chromium): 42 (36 existing + 6 new: TC-26..TC-31)
