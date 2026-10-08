@@ -52,12 +52,27 @@ interface Fetcher {
   fetch(input: string | Request, init?: RequestInit): Promise<Response>
 }
 
+interface SqlCursor<T extends Record<string, unknown>> extends Iterable<T> {
+  toArray(): T[]
+}
+
+interface SqlStorage {
+  exec<T extends Record<string, unknown>>(query: string, ...bindings: unknown[]): SqlCursor<T>
+}
+
+interface DurableObjectStorage {
+  sql: SqlStorage
+  transactionSync<T>(closure: () => T): T
+}
+
 interface DurableObjectState {
   readonly id: DurableObjectId
+  readonly storage: DurableObjectStorage
   acceptWebSocket(webSocket: WebSocket, tags?: string[]): void
   getWebSockets(tag?: string): WebSocket[]
   waitUntil(promise: Promise<unknown>): void
   passThroughOnException(): void
+  blockConcurrencyWhile<T>(callback: () => Promise<T>): Promise<T>
 }
 
 declare module 'cloudflare:workers' {

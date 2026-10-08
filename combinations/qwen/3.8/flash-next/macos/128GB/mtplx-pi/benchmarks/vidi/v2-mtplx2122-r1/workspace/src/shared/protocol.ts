@@ -120,3 +120,9 @@ export function encodeFrame(type: number, payload: Uint8Array): Uint8Array {
   writeVarUint8Array(encoder, payload)
   return toUint8Array(encoder)
 }
+
+/** Close code for a board that could not be loaded (persist.load_failure). */
+export const CLOSE_BOARD_LOAD_FAILED = 4500
+
+/** Close code for a storage failure: the change was not saved (persist.save_failure). */
+export const CLOSE_STORAGE_FAILURE = 1011

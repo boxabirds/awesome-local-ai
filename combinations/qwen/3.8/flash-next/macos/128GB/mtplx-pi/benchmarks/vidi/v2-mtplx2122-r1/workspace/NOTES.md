@@ -54,3 +54,39 @@ Reason: Playwright e2e tests run against `vite --mode development` (not `--mode 
 so `MODE === 'test'` would omit the hook during e2e runs and break TC-26/TC-27.
 `import.meta.env.DEV` is true in both development and Vitest test modes, but false in
 `vite build` (production), which correctly excludes the hook from production bundles.
+
+## One damaged change: the board is refused, not half-served (story 4, task 3)
+
+`persist.partial_damage` and design TC-09 were written assuming the update log can be
+replayed with a hole in it: quarantine the damaged row, apply the rest, and the joiner
+sees "all other saved content intact".
+
+Measured on the 25-note fixture (`tests/fixtures/boards.ts`, 75 log rows), that is not
+how Yjs behaves. `Y.applyUpdate` **silently drops** an update whose dependencies are
+missing: replaying all 75 rows gives 25 notes, replaying them with row 7 skipped or
+damaged gives **2 notes**. Same result with the row quarantined first and the rest
+applied one by one, and with `doc.transact()` wrapping each row. A hole in a log of
+per-transaction updates is not a lost change, it is everything after the hole.
+
+So `BoardStore.load` does the safer of the two things:
+
+- the damaged row is still moved to `quarantined_updates` with its error text, so the
+  same corruption does not fail on every wake and an operator can inspect it;
+- the replay stops there and returns `{ok:false, reason:'log-unreadable'}`, the room
+  discards the half-read doc, and the client shows the load-failure state (red message,
+  editing disabled, Retry) instead of a board that is quietly missing 23 notes.
+
+Why this is the right side of the trade:
+
+- Serving the partial board would violate `persist.load_failure` one requirement higher
+  up in the PRD ("SHALL NOT present it as an empty editable board") — 2 notes out of 25
+  is an empty board with extra steps — and the next compaction would fold the loss into
+  the snapshot, making it permanent and unwarned.
+- Damage cannot arrive from a client: every update is applied to the in-memory doc
+  before it is stored (design decision 2), and Yjs rejects garbage on the way in. The
+  load-side damage paths only ever fire on storage corruption, where "we could not read
+  your board" is the honest message.
+
+TC-09 keeps both halves of that evidence: it asserts the row is quarantined *and*
+asserts that a loader which trusted the remaining rows would have served fewer than 5
+notes, so the deviation is measured in the test rather than argued in prose.

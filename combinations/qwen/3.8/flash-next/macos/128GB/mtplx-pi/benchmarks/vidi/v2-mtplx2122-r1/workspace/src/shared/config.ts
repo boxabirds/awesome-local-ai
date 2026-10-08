@@ -37,3 +37,20 @@ export const CONNECTED_CONFIRMATION_MS = 2000
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000
 /** Generous functional wait in e2e (all stories); latency is logged, not asserted. */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000
+
+// ── Persistence settings (story 4) ───────────────────────────────────────────
+
+/** Compact the update log once this many rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500
+/** …or when the log reaches this many bytes. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024
+/** Snapshot chunk size: keeps every row well under the platform per-row limit. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024
+/** A LoadFailed room retries its load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000
+/** Board size used by the persist.large_board verification (PRD). */
+export const PERSIST_TESTED_NOTES = 2000
+/** Open-time target for that board (PRD persist.large_board). */
+export const BOARD_LOAD_BUDGET_MS = 3000
+/** Version of the storage tables (not of the Yjs document schema). */
+export const STORAGE_SCHEMA_VERSION = 1
