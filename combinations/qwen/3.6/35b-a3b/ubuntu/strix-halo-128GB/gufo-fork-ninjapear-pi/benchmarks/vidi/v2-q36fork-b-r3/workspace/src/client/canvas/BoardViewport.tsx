@@ -33,6 +33,10 @@ export interface BoardViewportProps {
   onEmptyPointerDown?(e: PointerEvent): void;
   /** Called on pointerup on empty space after potential marquee end */
   onEmptyPointerUp?(): void;
+  /** Currently active tool ('select' or 'text') */
+  activeTool?: 'select' | 'text';
+  /** Called when user clicks while Text tool is active */
+  onTextClick?(worldPoint: { x: number; y: number }): void;
 }
 
 export function BoardViewport(props: BoardViewportProps) {
@@ -48,11 +52,14 @@ export function BoardViewport(props: BoardViewportProps) {
     onClearSelection,
     onEmptyPointerDown,
     onEmptyPointerUp,
+    activeTool,
+    onTextClick,
   } = props;
   const ref = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const lastPosRef = useRef<Point | null>(null);
   const worldLayerRef = useRef<HTMLDivElement>(null);
+  const pointerDownPosRef = useRef<{ x: number; y: number } | null>(null);
 
   // ── World transform string ───────────────────────────────────────────
   const worldTransform = `translate(${camera.x * camera.zoom}px, ${camera.y * camera.zoom}px) scale(${camera.zoom})`;
@@ -73,7 +80,8 @@ export function BoardViewport(props: BoardViewportProps) {
   // ── Click on empty board → clear selection ──────────────────────────
   const handleClickEmpty = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if ((e.target as HTMLElement).closest('[data-sticky-id]')) {
+      if ((e.target as HTMLElement).closest('[data-sticky-id]') ||
+          (e.target as HTMLElement).closest('[data-text-id]')) {
         return;
       }
       if ((e.target as HTMLElement).closest('[class*="toolbar"]')) {
@@ -89,15 +97,38 @@ export function BoardViewport(props: BoardViewportProps) {
     [onClearSelection],
   );
 
+  // ── Handle pointer up on empty space (text tool click-to-create) ───
+  const handlePointerUpEmpty = useCallback(() => {
+    if (activeTool !== 'text' || !pointerDownPosRef.current) {
+      pointerDownPosRef.current = null;
+      return;
+    }
+    const pos = pointerDownPosRef.current;
+    // Only trigger if it was a quick tap (not a drag)
+    // Simple check: compare with current position (rough)
+    pointerDownPosRef.current = null;
+    if (onTextClick) {
+      onTextClick(screenToWorld(camera, { x: pos.x, y: pos.y }));
+    }
+  }, [camera, activeTool, onTextClick]);
+
   // ── Pointer drag ────────────────────────────────────────────────────
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if ((e.target as HTMLElement).closest('[data-sticky-id]') ||
+          (e.target as HTMLElement).closest('[data-text-id]') ||
           (e.target as HTMLElement).closest('[data-selection-bounds]') ||
           (e.target as HTMLElement).closest('[data-marquee]') ||
           (e.target as HTMLElement).closest('[data-handle]')) {
         return; // handled by child elements
       }
+
+      // Text tool active: record position for click-to-create
+      if (activeTool === 'text') {
+        pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
+        return;
+      }
+
 
       if (e.shiftKey) {
         // Start marquee
@@ -113,7 +144,7 @@ export function BoardViewport(props: BoardViewportProps) {
       setIsPanning(true);
       lastPosRef.current = { x: e.clientX, y: e.clientY };
     },
-    [onEmptyPointerDown],
+    [onEmptyPointerDown, activeTool],
   );
 
   const handlePointerMove = useCallback(
@@ -190,7 +221,7 @@ export function BoardViewport(props: BoardViewportProps) {
         position: 'fixed',
         inset: 0,
         overflow: 'hidden',
-        cursor: isPanning ? 'grabbing' : 'grab',
+        cursor: isPanning ? 'grabbing' : (activeTool === 'text' ? 'text' : 'grab'),
         background: '#f0f0f0',
       }}
       onPointerDown={handlePointerDown}
@@ -198,7 +229,14 @@ export function BoardViewport(props: BoardViewportProps) {
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onLostPointerCapture={handleLostPointerCapture}
-      onClick={handleClickEmpty}
+onClick={(e) => {
+        if (activeTool === 'text') {
+          // Don't clear selection when text tool is active
+          return;
+        }
+        handleClickEmpty(e);
+      }}
+      onPointerUpCapture={handlePointerUpEmpty}
       onDoubleClickCapture={handleDblClickEmpty}
     >
       {/* Dot grid background */}

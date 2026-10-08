@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import * as Y from 'yjs';
 import { checkBoard, CheckResponse } from '../api';
 import { isValidBoardId } from '@shared/board-id';
 import { BOARD_CHECK_RETRY_BASE_MS, RECONNECT_MAX_BACKOFF_MS } from '@shared/config';
@@ -9,6 +10,7 @@ import { useBoardDoc } from '../board/useBoardDoc';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { Toolbar } from '../board/Toolbar';
 import { StickyNote } from '../objects/StickyNote';
+import { TextObject } from '../objects/TextObject';
 import { ZoomControls } from '../canvas/ZoomControls';
 import { NavigationHint } from '../canvas/NavigationHint';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -25,8 +27,13 @@ import { useBoardKeys } from '../board/useBoardKeys';
 import { useUndo } from '../board/useUndo';
 import { createUndo } from '../board/undo';
 import { createSticky, setStickyColor, deleteObjects } from '@shared/board-model';
+import { createText, setTextSize } from '@shared/objects/text';
+import { useTool } from '../board/useTool';
 import type { StickySnapshot } from '@shared/board-model';
+import type { TextSnapshot } from '@shared/objects/text';
 import type { Handle } from '@shared/geometry';
+import { objectBounds } from '@shared/board-model';
+import { getObjectType } from '../objects/registry';
 
 // Re-export camera and notes for e2e
 declare global {
@@ -133,11 +140,11 @@ export function BoardPage(props: { id: string }) {
     );
   }
 
-  // Ready — render the board with stories 1–7 UI + Share panel
+  // Ready — render the board with stories 1–9 UI + Share panel
   return <BoardContent boardId={pageState.boardId} />;
 }
 
-/** Board content — stories 1–7 UI wrapped with Share button */
+/** Board content — stories 1–9 UI */
 function BoardContent({ boardId }: { boardId: string }) {
   const viewportSize = useRef({ width: 1280, height: 800 }).current;
   const cameraState = useCamera(viewportSize);
@@ -148,34 +155,71 @@ function BoardContent({ boardId }: { boardId: string }) {
   const globalConnState = getState();
   const canEdit = globalConnState !== 'load_failed';
 
-  // ─── Story 8: Undo controller ───────────────────────────────────
+  // Story 9: tool mode
+  const { tool, setTool } = useTool(canEdit);
+
+  // ─── Story 8: Undo controller ─────────────────────────────────--
+
+  // Boundary callback for gestures and editing
+  const boundaryRef = useRef<() => void>(() => {});
+
+  // ─── Handlers (defined before use) ───────────────────────────────
+
+  const handleCreateSticky = useCallback(
+    (worldPoint?: { x: number; y: number }) => {
+      if (!canEdit) return undefined;
+      if (!worldPoint) {
+        worldPoint = screenToWorld(camera, {
+          x: viewportSize.width / 2,
+          y: viewportSize.height / 2,
+        });
+      }
+      boundaryRef.current();
+      const id = createSticky(board.doc, worldPoint);
+      if (id) {
+        selection.click(id);
+        selection.startEdit(id);
+      }
+      return id;
+    },
+    [board.doc, camera, selection, viewportSize, canEdit],
+  );
+
+  const handleToolbarCreate = useCallback(() => {
+    handleCreateSticky();
+  }, [handleCreateSticky]);
   const undoControllerRef = useRef<ReturnType<typeof createUndo> | null>(null);
 
-  // Memoize the controller so it survives re-renders but is recreated on board change
   const undoController = useMemo(() => {
     if (!board.doc) return null;
     return createUndo(board.doc);
-  }, [board.doc]); // recreated when board doc changes (e.g. different board)
+  }, [board.doc]);
 
-  // Clean up controller on unmount or board change
   useEffect(() => {
     const ctrl = undoController;
     return () => ctrl?.destroy();
   }, [undoController]);
 
-// Story 8: boundary callback for gestures and editing
+  // Story 8: boundary callback for gestures and editing
   const boundary = useCallback(() => {
     undoController?.boundary();
   }, [undoController]);
 
-  // Story 7: keyboard commands + undo shortcuts
+  // Set the ref early so handlers can use it before it's stable
+  useEffect(() => {
+    boundaryRef.current = boundary;
+  }, [boundary]);
+
   useBoardKeys({
     doc: board.doc,
     selection,
     snapshot: board.snapshot,
     canEdit,
     undoController,
-    onBoundary: boundary,
+    onBoundary: boundaryRef.current,
+    activeTool: tool,
+    setActiveTool: setTool,
+    onCreateStickyAtCenter: handleToolbarCreate,
   });
 
   // Story 8: undo state binding
@@ -190,7 +234,7 @@ function BoardContent({ boardId }: { boardId: string }) {
     canEdit,
     onGestureStart: undefined,
     onGestureEnd: undefined,
-    onBoundary: boundary,
+    onBoundary: boundaryRef.current,
   });
 
   // Story 7: marquee
@@ -211,31 +255,8 @@ function BoardContent({ boardId }: { boardId: string }) {
     window.__getStickyNotes = () => board.snapshot;
   }
 
-  const handleCreateSticky = useCallback(
-    (worldPoint?: { x: number; y: number }) => {
-      if (!canEdit) return undefined;
-      if (!worldPoint) {
-        worldPoint = screenToWorld(camera, {
-          x: viewportSize.width / 2,
-          y: viewportSize.height / 2,
-        });
-      }
-      // Boundary before creating a new sticky note (one step)
-      boundary();
-      const id = createSticky(board.doc, worldPoint);
-      selection.click(id);
-      selection.startEdit(id);
-      return id;
-    },
-    [board.doc, camera, selection, viewportSize, canEdit, boundary],
-  );
-
-  const handleToolbarCreate = useCallback(() => {
-    handleCreateSticky();
-  }, [handleCreateSticky]);
-
   const handleSelect = useCallback(
-    (id: string, shiftKey: boolean) => {
+    (id: string, shiftKey?: boolean) => {
       if (shiftKey) {
         selection.toggle(id);
       } else {
@@ -249,41 +270,58 @@ function BoardContent({ boardId }: { boardId: string }) {
 
   const handleEndEdit = useCallback(
     (_next: 'selected' | 'unselected') => {
-      boundary();
+      boundaryRef.current();
       selection.endEdit(_next);
     },
-    [boundary, selection],
+    [selection],
   );
 
   const handleDeleteSelection = useCallback(() => {
-    boundary();
+    boundaryRef.current();
     const ids = [...selection.ids];
     deleteObjects(board.doc, ids);
     selection.clear();
-  }, [board.doc, selection, boundary]);
+  }, [board.doc, selection]);
 
   const handleSetStickyColor = useCallback(
     (id: string, color: string) => {
-      boundary();
+      boundaryRef.current();
       setStickyColor(board.doc, id, color);
     },
-    [board.doc, boundary],
+    [board.doc],
   );
 
-  // Track pointer move for drag/marquee in BoardViewport
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      // Marquee movement
-      if (marquee.rect !== null || marquee) {
-        // handled by pointer events on viewport
+  const handleSizeChange = useCallback(
+    (id: string, size: string) => {
+      boundaryRef.current();
+      setTextSize(board.doc, id, size);
+    },
+    [board.doc],
+  );
+
+  // Story 9: create text on click while Text tool is active
+  const handleTextClick = useCallback(
+    (worldPoint: { x: number; y: number }) => {
+      if (!canEdit || tool !== 'text') return;
+      const result = createText(board.doc, worldPoint, 'unknown');
+      if (result !== null && result !== undefined) {
+        // Switch back to Select tool
+        setTool('select');
+        // Select and start editing the new text
+        selection.click(result);
+        selection.startEdit(result);
       }
     },
-    [marquee],
+    [board.doc, canEdit, tool, selection, setTool],
   );
 
   const spacingPx = 24 * camera.zoom;
   const bgPosX = (-camera.x * camera.zoom) % spacingPx;
   const bgPosY = (-camera.y * camera.zoom) % spacingPx;
+
+  // Merge snapshots for overlay/hit-test
+  // We only pass stickies to SelectionOverlay since it uses objectBounds() which needs width/height
+  // Text objects don't have width/height in the sticky snapshot type, but we handle them separately
 
   return (
     <>
@@ -293,6 +331,11 @@ function BoardContent({ boardId }: { boardId: string }) {
       <Toolbar
         onCreateSticky={handleToolbarCreate}
         disabled={!canEdit}
+        selectedTool={tool}
+        onToolChange={(t) => {
+          setTool(t);
+          selection.clear();
+        }}
         canUndo={canUndo}
         canRedo={canRedo}
         onUndo={undo}
@@ -318,7 +361,6 @@ function BoardContent({ boardId }: { boardId: string }) {
         onCreateSticky={handleCreateSticky}
         onClearSelection={() => selection.clear()}
         onEmptyPointerDown={(e) => {
-          // Shift+drag → marquee
           if (e.shiftKey) {
             marquee.begin({ x: e.clientX, y: e.clientY });
           }
@@ -326,6 +368,8 @@ function BoardContent({ boardId }: { boardId: string }) {
         onEmptyPointerUp={() => {
           marquee.end();
         }}
+        activeTool={tool}
+        onTextClick={tool === 'text' ? handleTextClick : undefined}
       >
         <MarqueeRect rect={marquee.rect ?? null} camera={camera} />
         {board.snapshot.map((note) => (
@@ -351,6 +395,8 @@ function BoardContent({ boardId }: { boardId: string }) {
             onColorChange={handleSetStickyColor}
           />
         ))}
+        {/* Render text objects - read directly from Y.Doc */}
+        {renderTextObjects(board.doc, camera, selection, handleSelect, handleStartEdit, handleEndEdit, boundary, gesture)}
         {selection.ids.size > 0 && (
           <SelectionOverlay
             ids={selection.ids}
@@ -371,12 +417,13 @@ function BoardContent({ boardId }: { boardId: string }) {
             zIndex: 100,
           }}
         >
-<SelectionBar
+          <SelectionBar
             ids={selection.ids}
-            snapshot={board.snapshot}
+            snapshot={board.snapshot as any}
             doc={board.doc}
             onDelete={handleDeleteSelection}
             onBoundary={boundary}
+            onSizeChange={handleSizeChange}
           />
         </div>
       )}
@@ -392,4 +439,68 @@ function BoardContent({ boardId }: { boardId: string }) {
       <NavigationHint visible={!hasNavigated} />
     </>
   );
+}
+
+/** Helper to render text objects by reading from Y.Doc directly. */
+function renderTextObjects(
+  doc: Y.Doc | null,
+  camera: { x: number; y: number; zoom: number },
+  selection: ReturnType<typeof useSelection>,
+  handleSelect: (id: string, shiftKey?: boolean) => void,
+  handleStartEdit: (id: string) => void,
+  handleEndEdit: (next: 'selected' | 'unselected') => void,
+  boundary: () => void,
+  gesture: ReturnType<typeof useTransformGesture>,
+) {
+  if (!doc) return null;
+  try {
+    const objectsMap = (doc as any).getMap('objects');
+    const texts: TextSnapshot[] = [];
+
+    for (const [id, val] of objectsMap) {
+      if (!(val instanceof Y.Map)) continue;
+      const dm = val as any;
+      if (String(dm.get('type') ?? '') !== 'text') continue;
+
+      const textVal = dm.get('text');
+      const textStr = textVal instanceof Y.Text ? textVal.toString() : '';
+
+      texts.push({
+        id,
+        type: 'text' as const,
+        x: Number(dm.get('x') ?? 0),
+        y: Number(dm.get('y') ?? 0),
+        z: Number(dm.get('z') ?? 0),
+        createdAt: Number(dm.get('createdAt') ?? 0),
+        text: textStr,
+        size: (dm.get('size') as 'S' | 'M' | 'L' | 'XL') || 'M',
+        widthMode: (dm.get('widthMode') as 'auto' | 'fixed') || 'auto',
+        createdBy: dm.has('createdBy') ? String(dm.get('createdBy')) : undefined,
+        width: dm.has('width') ? Number(dm.get('width')) : undefined,
+        height: dm.has('height') ? Number(dm.get('height')) : undefined,
+      });
+    }
+
+    return texts.map((note) => (
+      <TextObject
+        key={note.id}
+        note={note}
+        doc={doc}
+        zoom={camera.zoom}
+        selected={selection.ids.has(note.id)}
+        editing={note.id === selection.editingId}
+        onSelect={(id: string, shiftKey: boolean) => handleSelect(id, shiftKey)}
+        onStartEdit={handleStartEdit}
+        onEndEdit={handleEndEdit}
+        onObjectPointerDown={(e: PointerEvent, id: string) => {
+          gesture.onObjectPointerDown(e, id);
+        }}
+        onHandlePointerDown={(e: PointerEvent, h: Handle) => {
+          gesture.onHandlePointerDown(e, h);
+        }}
+      />
+    ));
+  } catch {
+    return null;
+  }
 }

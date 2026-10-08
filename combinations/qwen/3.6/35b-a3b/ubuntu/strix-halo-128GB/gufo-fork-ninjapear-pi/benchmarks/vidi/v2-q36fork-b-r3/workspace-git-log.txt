@@ -1,3 +1,42 @@
+commit bcaec59fcb3e1ea05240c489cf0f4b6e6ba9725b
+agent  Thu Oct 8 15:05:29 2026 +0000
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                 | 111 ++++++++------
+ PROGRESS.md                              |  22 +--
+ src/client/board/SelectionBar.tsx        |  34 ++++-
+ src/client/board/SelectionOverlay.tsx    |  22 ++-
+ src/client/board/Toolbar.tsx             |  58 ++++++-
+ src/client/board/useBoardKeys.ts         |  58 +++++--
+ src/client/board/useTool.ts              |  29 ++++
+ src/client/canvas/BoardViewport.tsx      |  46 +++++-
+ src/client/objects/StickyText.ts         |  55 +------
+ src/client/objects/TextEditor.tsx        | 147 ++++++++++++++++++
+ src/client/objects/TextObject.tsx        | 139 +++++++++++++++++
+ src/client/objects/TextToolbar.tsx       |  96 ++++++++++++
+ src/client/objects/index.ts              |  48 ++++--
+ src/client/objects/registry.tsx          |   4 +
+ src/client/objects/textLayout.ts         | 152 +++++++++++++++++++
+ src/client/objects/useTextBoxSync.ts     | 109 ++++++++++++++
+ src/client/pages/BoardPage.tsx           | 211 +++++++++++++++++++-------
+ src/shared/config.ts                     |  10 ++
+ src/shared/objects/text.ts               | 250 +++++++++++++++++++++++++++++++
+ src/shared/text-edit.ts                  |  49 ++++++
+ tests/component/Toolbars.test.tsx        |   4 +-
+ tests/component/undo-boundaries.test.tsx |  55 ++++---
+ tests/unit/text-layout.test.ts           |  97 ++++++++++++
+ tests/unit/text-model.test.ts            | 184 +++++++++++++++++++++++
+ 24 files changed, 1762 insertions(+), 228 deletions(-)
+commit 55007a1997550c4bcedccae8f65a502cc1d392cc
+vidi-agent  Thu Oct 8 14:18:25 2026 +0000
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)
 commit 32612e051766850c28f264d74151a75bcc37484f
 vidi-agent  Thu Oct 8 14:18:15 2026 +0000
 

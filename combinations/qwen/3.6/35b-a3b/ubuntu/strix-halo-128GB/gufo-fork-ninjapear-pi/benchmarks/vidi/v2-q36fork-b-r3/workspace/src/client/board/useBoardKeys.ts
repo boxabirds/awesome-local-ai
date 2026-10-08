@@ -1,21 +1,26 @@
 import { useEffect } from 'react';
 import * as Y from 'yjs';
 import type { StickySnapshot } from '@shared/board-model';
-import { deleteObjects, moveObjects, allObjectIds } from '@shared/board-model';
+import { deleteObjects, moveObjects, allObjectIds, createSticky } from '@shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '@shared/config';
 import type { UndoController } from './undo';
+import type { Tool } from './useTool';
+import { screenToWorld } from '../canvas/camera';
 
-interface UseBoardKeysOpts {
+export interface UseBoardKeysOpts {
   doc: Y.Doc;
   selection: ReturnType<typeof import('./useSelection').useSelection>;
   snapshot: readonly StickySnapshot[];
   canEdit: boolean;
   undoController: UndoController | null;
   onBoundary?(): void;
+  activeTool?: Tool;
+  setActiveTool?(tool: Tool): void;
+  onCreateStickyAtCenter?(): void;
 }
 
 /** Handle keyboard shortcuts for selection management. */
-export function useBoardKeys({ doc, selection, snapshot, canEdit, undoController, onBoundary }: UseBoardKeysOpts) {
+export function useBoardKeys({ doc, selection, snapshot, canEdit, undoController, onBoundary, activeTool, setActiveTool, onCreateStickyAtCenter }: UseBoardKeysOpts) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       // Ignore if focus is in input/textarea/select or editing text
@@ -23,22 +28,45 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit, undoController
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (selection.editingId !== null) return;
 
-      // Ctrl/Cmd+A — select all
-      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+      // V — Select tool
+      if (e.key === 'v' || e.key === 'V') {
         e.preventDefault();
-        const ids = allObjectIds(snapshot);
-        if (ids.length > 0) {
-          selection.setMany(ids, false);
-        } else {
-          selection.clear();
+        if (activeTool !== 'select') {
+          setActiveTool?.('select');
+        }
+        selection.clear();
+        return;
+      }
+
+      // T — Text tool (only if canEdit)
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        if (canEdit && activeTool !== 'text') {
+          setActiveTool?.('text');
+        } else if (!canEdit) {
+          // Revert to select if board can't be edited
+          setActiveTool?.('select');
         }
         return;
       }
 
-      // Escape — clear selection
+      // N — Create sticky note at view center
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        if (canEdit) {
+          onCreateStickyAtCenter?.();
+        }
+        return;
+      }
+
+      // Escape — clear selection, or revert to Select tool
       if (e.key === 'Escape') {
         e.preventDefault();
-        selection.clear();
+        if (activeTool === 'text') {
+          setActiveTool?.('select');
+        } else {
+          selection.clear();
+        }
         return;
       }
 
@@ -55,7 +83,7 @@ export function useBoardKeys({ doc, selection, snapshot, canEdit, undoController
             case 'ArrowDown': dy = step; break;
             case 'ArrowUp': dy = -step; break;
           }
-if (dx !== 0 || dy !== 0 && canEdit) {
+          if ((dx !== 0 || dy !== 0) && canEdit) {
             onBoundary?.();
             const positions = new Map<string, { x: number; y: number }>();
             for (const s of snapshot) {
@@ -92,7 +120,7 @@ if (dx !== 0 || dy !== 0 && canEdit) {
         return;
       }
 
-// Delete / Backspace — delete selected objects
+      // Delete / Backspace — delete selected objects
       if ((e.key === 'Delete' || e.key === 'Backspace') && selection.ids.size > 0) {
         e.preventDefault();
         if (canEdit) {
@@ -107,5 +135,5 @@ if (dx !== 0 || dy !== 0 && canEdit) {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selection, snapshot, canEdit, undoController]);
+  }, [doc, selection, snapshot, canEdit, undoController, activeTool, setActiveTool]);
 }

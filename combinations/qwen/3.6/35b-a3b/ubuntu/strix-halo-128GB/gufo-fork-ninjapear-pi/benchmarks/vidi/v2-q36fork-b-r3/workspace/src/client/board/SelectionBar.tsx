@@ -1,25 +1,49 @@
 import React from 'react';
 import * as Y from 'yjs';
 import { StickySnapshot } from '@shared/board-model';
-import type { StickyColor } from '@shared/config';
+import type { TextSnapshot } from '@shared/objects/text';
+import type { StickyColor, TextSize } from '@shared/config';
 import { setStickyColor, deleteObjects } from '@shared/board-model';
+import { TextToolbar } from '../objects/TextToolbar';
+
+export type SnapshotWithText = StickySnapshot | TextSnapshot;
 
 interface SelectionBarProps {
   ids: ReadonlySet<string>;
-  snapshot: readonly StickySnapshot[];
+  snapshot: readonly SnapshotWithText[];
   doc: Y.Doc;
   onDelete(): void;
   onBoundary?(): void;
+  onSizeChange?(id: string, size: string): void;
 }
 
-export function SelectionBar({ ids, snapshot, doc, onDelete, onBoundary }: SelectionBarProps) {
+export function SelectionBar({ ids, snapshot, doc, onDelete, onBoundary, onSizeChange }: SelectionBarProps) {
   const count = ids.size;
   if (count === 0) return null;
 
-  // Exactly one sticky → show NoteToolbar instead
+  // Exactly one object → show type-specific toolbar
   if (count === 1) {
     const note = snapshot.find((s) => s.id === [...ids][0]);
-    if (!note || note.type !== 'sticky') return null;
+    if (!note) return null;
+
+    // Single text → show size toolbar
+    if (note.type === 'text') {
+      return (
+        <TextToolbar
+          size={note.size}
+          onSize={(size) => {
+            onBoundary?.();
+            onSizeChange?.(note.id, size);
+          }}
+          onDelete={() => {
+            onBoundary?.();
+            onDelete();
+          }}
+        />
+      );
+    }
+
+    // Single sticky → show colour bar
     return (
       <div
         onClick={(e) => e.stopPropagation()}

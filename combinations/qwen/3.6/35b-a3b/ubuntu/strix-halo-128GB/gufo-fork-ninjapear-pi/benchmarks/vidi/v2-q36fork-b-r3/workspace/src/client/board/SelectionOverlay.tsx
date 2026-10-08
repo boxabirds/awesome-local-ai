@@ -6,6 +6,7 @@ import { objectBounds } from '@shared/board-model';
 import type { StickySnapshot } from '@shared/board-model';
 import { getObjectType } from '../objects/registry';
 import { HANDLE_SIZE_PX } from '@shared/config';
+import type { HandleMode } from '../objects/registry';
 
 // Handle positions as percentages of bounding box
 const CORRECTED_HANDLE_POSITIONS: { handle: Handle; xPct: number; yPct: number }[] = [
@@ -36,17 +37,30 @@ export function SelectionOverlay({ ids, snapshot, camera, onHandlePointerDown }:
   const bounds = unionRectsGeo(rects);
   if (!bounds || (bounds.width === 0 && bounds.height === 0)) return null;
 
-  // Check if any selected type is resizable
+  // Check if any selected type is resizable and if ALL are horizontal
   let anyResizable = false;
+  let allHorizontal = true;
   for (const s of snapshot) {
     if (ids.has(s.id)) {
       const spec = getObjectType(s.type);
       if (spec?.resizable) {
         anyResizable = true;
-        break;
+        const handleMode = spec.handles as HandleMode | undefined;
+        if (handleMode !== 'horizontal') {
+          allHorizontal = false;
+        }
+      } else {
+        allHorizontal = false;
       }
     }
   }
+
+  // Only show resize handles if any object is resizable
+  const showHandles = anyResizable;
+  // When all selected objects are horizontal-only, show only E/W handles
+  const filteredHandles = showHandles && allHorizontal
+    ? CORRECTED_HANDLE_POSITIONS.filter((h) => h.handle === 'e' || h.handle === 'w')
+    : CORRECTED_HANDLE_POSITIONS;
 
   // Screen-space position of bounding box
   const tl = worldToScreen(camera, { x: bounds.x, y: bounds.y });
@@ -83,8 +97,8 @@ export function SelectionOverlay({ ids, snapshot, camera, onHandlePointerDown }:
           pointerEvents: 'none',
         }}
       />
-      {anyResizable &&
-        CORRECTED_HANDLE_POSITIONS.map(({ handle, xPct, yPct }) => {
+      {showHandles &&
+        filteredHandles.map(({ handle, xPct, yPct }) => {
           const hx = bx + xPct * bw - handlePx / 2;
           const hy = by + yPct * bh - handlePx / 2;
           const screenPos = worldToScreen(camera, { x: bounds.x + xPct * bounds.width, y: bounds.y + yPct * bounds.height });

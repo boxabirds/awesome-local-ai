@@ -2,6 +2,8 @@ import type { ComponentType } from 'react';
 import type { StickySnapshot } from '@shared/board-model';
 
 /** Specification for an object type on the board. */
+export type HandleMode = 'all' | 'horizontal';
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ObjectTypeSpec {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -10,6 +12,8 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  /** Which resize handles to show: 'all' (default 8) or 'horizontal' (left/right only). */
+  handles?: HandleMode;
   hitTest(obj: StickySnapshot, worldPoint: { readonly x: number; readonly y: number }): boolean;
 }
 

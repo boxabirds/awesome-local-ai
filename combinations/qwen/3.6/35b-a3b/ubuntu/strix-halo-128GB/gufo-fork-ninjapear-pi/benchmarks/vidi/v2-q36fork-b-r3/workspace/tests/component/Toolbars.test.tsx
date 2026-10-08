@@ -73,7 +73,7 @@ describe('TC-28: Sticky note button creates note', () => {
     const { container } = render(
       <Toolbar onCreateSticky={onCreateSticky} canUndo={false} canRedo={false} onUndo={() => {}} onRedo={() => {}} />,
     );
-    const btn = container.querySelector('[aria-label="Sticky note"]') as HTMLButtonElement;
+    const btn = container.querySelector('[aria-label="Sticky note (N)"]') as HTMLButtonElement;
     expect(btn).toBeTruthy();
 
     await act(async () => {
@@ -99,7 +99,7 @@ describe('TC-23: Toolbar disabled in load_failed', () => {
         onRedo={() => {}}
       />,
     );
-    const btn = container.querySelector('[aria-label="Sticky note"]') as HTMLButtonElement;
+    const btn = container.querySelector('[aria-label="Sticky note (N)"]') as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
     expect(btn.style.cursor).toBe('not-allowed');
     expect(btn.style.opacity).toBe('0.6');
