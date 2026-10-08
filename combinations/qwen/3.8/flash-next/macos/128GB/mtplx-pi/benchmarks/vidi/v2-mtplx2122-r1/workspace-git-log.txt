@@ -1,3 +1,32 @@
+commit f3a7c6c439ef887f2b9141c28ba7077547810501
+vidi-agent  Thu Oct 8 17:15:31 2026 +0100
+
+    harness: snapshot after story 10 (uncommitted agent work)
+
+
+ src/client/objects/ConnectorObject.tsx    | 138 +++++++++++
+ src/client/objects/ShapeObject.tsx        | 388 ++++++++++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       | 110 +++++++++
+ src/client/tools/ShapeTool.tsx            | 148 ++++++++++++
+ src/client/tools/useActiveTool.ts         | 140 +++++++++++
+ src/shared/board-model.ts                 |  38 ++-
+ src/shared/config.ts                      |  28 +++
+ src/shared/geometry/connector-geometry.ts | 108 +++++++++
+ src/shared/geometry/polyline.ts           |  48 ++++
+ src/shared/geometry/types.ts              |  17 ++
+ src/shared/objects/connector.ts           | 283 ++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 210 ++++++++++++++++
+ tests/unit/connector-model.test.ts        | 240 ++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 219 +++++++++++++++++
+ 14 files changed, 2113 insertions(+), 2 deletions(-)
+commit 0828cb67ac0f1eeded94f379b1b794ff1513eadb
+vidi-agent  Thu Oct 8 16:49:52 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)
 commit 8a37e6595dbe730c140794131fadfc9847e2bac1
 vidi-agent  Thu Oct 8 16:49:38 2026 +0100
 

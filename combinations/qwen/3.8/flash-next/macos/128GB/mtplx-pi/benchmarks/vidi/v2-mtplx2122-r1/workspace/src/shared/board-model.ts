@@ -1,6 +1,7 @@
 import * as Y from 'yjs'
 import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR } from './config'
 import type { StickyColor } from './config'
+import { detachConnectorsTo } from './objects/connector'
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local')
 
@@ -85,7 +86,7 @@ export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolea
   const ymap = objects.get(id)
   if (!ymap) return false
   const t = ymap.get('type')
-  if (t !== 'sticky' && t !== 'text') return false
+  if (t !== 'sticky' && t !== 'text' && t !== 'shape') return false
 
   doc.transact(() => {
     ymap.set('x', x)
@@ -100,7 +101,7 @@ export function bringToFront(doc: Y.Doc, id: string): boolean {
   const ymap = objects.get(id)
   if (!ymap) return false
   const t = ymap.get('type')
-  if (t !== 'sticky' && t !== 'text') return false
+  if (t !== 'sticky' && t !== 'text' && t !== 'shape') return false
 
   const currentZ = ymap.get('z') as number
   const topZ = maxZ(doc)
@@ -108,6 +109,36 @@ export function bringToFront(doc: Y.Doc, id: string): boolean {
 
   doc.transact(() => {
     ymap.set('z', topZ + 1)
+  }, LOCAL_ORIGIN)
+
+  return true
+}
+
+/**
+ * Resize a shape (used by ShapeObject's resize handles). Sticky notes are a
+ * fixed size, so only shape objects accept a resize. One LOCAL_ORIGIN
+ * transaction; non-finite or negative dimensions return false (no write).
+ */
+export function resizeObject(
+  doc: Y.Doc,
+  id: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): boolean {
+  if (![x, y, width, height].every(n => Number.isFinite(n))) return false
+  if (width <= 0 || height <= 0) return false
+
+  const objects = getObjectsMap(doc)
+  const ymap = objects.get(id)
+  if (!ymap || ymap.get('type') !== 'shape') return false
+
+  doc.transact(() => {
+    ymap.set('x', x)
+    ymap.set('y', y)
+    ymap.set('width', width)
+    ymap.set('height', height)
   }, LOCAL_ORIGIN)
 
   return true
@@ -136,6 +167,9 @@ export function deleteObject(doc: Y.Doc, id: string): boolean {
   if (!objects.has(id)) return false
 
   doc.transact(() => {
+    // Arrows keep their place: any end attached to a deleted object is fixed
+    // at the point where it was attached (connector.target_deleted).
+    detachConnectorsTo(doc, [id])
     objects.delete(id)
   }, LOCAL_ORIGIN)
 
