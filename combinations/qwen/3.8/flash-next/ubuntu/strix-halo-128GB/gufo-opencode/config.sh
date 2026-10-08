@@ -9,15 +9,15 @@
 # the install location and the client differs from gufo-pi's. Change a shared value in gufo-pi's config and the test
 # tells you to change it here.
 #
-# It installs into gufo-pi's directory (INSTALL_REL) so the 114 GB of weights exist once; it has its own INSTALL_ID
-# because the job queue maps an install id to exactly one combination.
+# It has its own install directory and its own INSTALL_ID: each installer writes its manifest (install.env, the command names, the
+# client) into the directory, and the job queue maps an install id to exactly one combination. The 107 GB of weights are not in
+# the install directory (they live under $HOME/gufo), so nothing is downloaded twice.
 #
 # OpenCode compacts earlier than pi at the same window: see README.md, "The system prompt and when it compacts".
 #
 # DATA ONLY. All logic lives in lib/ (lib/gufo.sh, lib/runtime/server-gufo.sh).
 
 INSTALL_ID="qwen38-flash-next-strix-gufo-oc"
-INSTALL_REL=".local/share/qwen38-flash-next-strix-gufo"   # gufo-pi's directory: one copy of the weights
 DISPLAY_NAME="Qwen3.8-Flash-Next (Strix Halo, gufo, OpenCode)"
 MODEL_DISPLAY_NAME="Qwen3.8-Flash-Next GGUF (Unsloth UD-Q4_K_XL)"
 ROOT_ENV_VAR="QWEN38_FLASH_NEXT_GUFO_ROOT"

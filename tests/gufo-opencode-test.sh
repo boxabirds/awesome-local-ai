@@ -15,8 +15,8 @@ PI="$BASE/gufo-pi"
 OC="$BASE/gufo-opencode"
 INSTALLER="$REPO_ROOT/install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-gufo-opencode.sh"
 
-# The settings that are allowed to differ: the install's identity and location, and the client.
-ALLOWED_TO_DIFFER=" INSTALL_ID INSTALL_REL DISPLAY_NAME CLIENT "
+# The settings that are allowed to differ: the install's identity and the client.
+ALLOWED_TO_DIFFER=" INSTALL_ID DISPLAY_NAME CLIENT "
 
 dump() { # <config.sh>: every variable the config sets, one per line, name=value
   env -i bash -c '
@@ -50,7 +50,9 @@ assert_eq "same context as gufo-pi" "$(value CONTEXT_LIMIT "$pi_vars")" "$(value
 oc_id="$(value INSTALL_ID "$oc_vars")"; pi_id="$(value INSTALL_ID "$pi_vars")"
 assert_eq "own install id (the job queue maps an install id to one combination)" "different" \
   "$([[ -n "$oc_id" && "$oc_id" != "$pi_id" ]] && echo different || echo same)"
-# The two share one install directory, so the 114 GB of weights are not downloaded twice.
-assert_eq "shares gufo-pi's install directory" "INSTALL_REL=.local/share/qwen38-flash-next-strix-gufo" "$(value INSTALL_REL "$oc_vars")"
+# The two must NOT share an install directory: each installer writes its own manifest (install.env, the command names, the
+# client) into it, so on 8 Oct 2026 installing gufo-opencode on the Strix Halo box overwrote gufo-pi's manifest with its own.
+# The 107 GB of weights are not in the install directory (they are under $HOME/gufo, MODEL_SUBDIR), so nothing is downloaded twice.
+assert_eq "does not share gufo-pi's install directory (each installer would overwrite the other's manifest)" "" "$(value INSTALL_REL "$oc_vars")"
 
 finish

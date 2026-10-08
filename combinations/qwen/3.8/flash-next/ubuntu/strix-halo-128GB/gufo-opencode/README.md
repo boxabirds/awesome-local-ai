@@ -3,7 +3,7 @@
 The same stack as [`gufo-pi`](../gufo-pi/README.md), driven by OpenCode instead of pi. **One variable: the client.**
 Engine (gufo 0.5.0, pinned by image digest), weights, sampling, context and profile are gufo-pi's, value for value;
 `tests/gufo-opencode-test.sh` fails if any setting other than the install's identity, its location and the client
-differs. It installs into gufo-pi's directory, so the 114 GB of weights exist once, and has its own install id.
+differs. It has its own install directory and install id; the weights live under `$HOME/gufo` and are shared, so they exist once.
 
 **Not run yet.** Status: built, not benchmarked. See [Before a run](#before-a-run).
 
