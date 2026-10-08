@@ -1,3 +1,54 @@
+commit 278436b7961ad8402e8162a3f4cd07583b6e180f
+agent  Thu Oct 8 03:12:26 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  |  97 +++++++++
+ PROGRESS.md                               |  52 ++++-
+ package.json                              |   1 +
+ playwright.config.ts                      |   2 +
+ playwright.shapes.config.ts               |  41 ++++
+ src/client/board/Toolbar.tsx              | 226 ++++++++++++++------
+ src/client/board/useSelection.ts          |  13 ++
+ src/client/board/useTool.ts               |  82 -------
+ src/client/objects/ConnectorObject.tsx    | 343 ++++++++++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 179 ++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  65 ++++++
+ src/client/objects/registry.tsx           |  76 ++++++-
+ src/client/pages/BoardPage.tsx            | 175 ++++++++++++++-
+ src/client/styles.css                     | 135 ++++++++++++
+ src/client/testHooks.ts                   |  29 +++
+ src/client/tools/ConnectorTool.tsx        | 278 ++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 176 +++++++++++++++
+ src/client/tools/useActiveTool.ts         | 136 ++++++++++++
+ src/shared/board-model.ts                 | 175 ++++++++++++++-
+ src/shared/config.ts                      |  83 ++++++++
+ src/shared/geometry/connector-geometry.ts |  76 +++++++
+ src/shared/geometry/polyline.ts           |  30 +++
+ src/shared/objects/connector.ts           | 280 ++++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 186 ++++++++++++++++
+ tests/component/Connector.test.tsx        | 188 ++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 158 ++++++++++++++
+ tests/component/harness-undo.tsx          |   3 +
+ tests/component/useActiveTool.test.tsx    |  90 ++++++++
+ tests/e2e/connectors.spec.ts              | 339 +++++++++++++++++++++++++++++
+ tests/e2e/shape-helpers.ts                | 162 ++++++++++++++
+ tests/e2e/shapes.spec.ts                  | 179 ++++++++++++++++
+ tests/fixtures/checkout-flow.ts           |  57 +++++
+ tests/unit/connector-model.test.ts        | 293 +++++++++++++++++++++++++
+ tests/unit/geometry.test.ts               |   5 +
+ tests/unit/registry.test.ts               |  12 +-
+ tests/unit/shape-model.test.ts            | 231 ++++++++++++++++++++
+ 36 files changed, 4475 insertions(+), 178 deletions(-)
+commit ab908b33ced5b79aa3c9ad80fc7764caa3cda162
+vidi-agent  Thu Oct 8 01:37:48 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 97bde231bc8cebad17f2ab4e2f8d3dcb41c877e1
 agent  Thu Oct 8 01:34:21 2026 +0100
 
