@@ -1233,6 +1233,17 @@
           "pushed": true
         },
         "commit": "3f14afbcc"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 198
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -2533,6 +2544,17 @@
           "pushed": true
         },
         "commit": "b5ff2fc86"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 180
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "3": {
@@ -4249,6 +4271,17 @@
           "pushed": true
         },
         "commit": "8a3a232d8"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 424
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "4": {
@@ -5367,6 +5400,17 @@
           "pushed": true
         },
         "commit": "464a3f7f5"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 140
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "5": {
@@ -6173,6 +6217,17 @@
           "pushed": true
         },
         "commit": "e3116a21a"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 85
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "7": {
@@ -6612,7 +6667,8 @@
           "abandoned_calls": 0,
           "interrupted_tools": [],
           "interrupted_compactions": 0
-        }
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 4,
@@ -6883,6 +6939,17 @@
           "pushed": true
         },
         "commit": "f5e5af413"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 29
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "8": {
@@ -7587,6 +7654,17 @@
           "pushed": true
         },
         "commit": "e43e6733e"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 85
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "9": {
@@ -8409,6 +8487,17 @@
           "pushed": true
         },
         "commit": "e6dee070a"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 75
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "10": {
@@ -9147,6 +9236,17 @@
           "pushed": true
         },
         "commit": "937dd34ee"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 51
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "11": {
@@ -9481,7 +9581,8 @@
           "abandoned_calls": 0,
           "interrupted_tools": [],
           "interrupted_compactions": 0
-        }
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 4,
@@ -9653,6 +9754,17 @@
           "pushed": true
         },
         "commit": "c0794fb0f"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 26
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "12": {
@@ -9987,7 +10099,8 @@
           "abandoned_calls": 0,
           "interrupted_tools": [],
           "interrupted_compactions": 0
-        }
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 4,
@@ -10195,6 +10308,30 @@
           "8": "todo",
           "9": "todo"
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/benchmarks/vidi/v2-mtplx2122-r1/server.log"
+        ],
+        "private": {
+          "copied": 165,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "a6ca46d92"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 10
+        },
+        "truncated": false,
+        "reaches": []
       }
     }
   },
