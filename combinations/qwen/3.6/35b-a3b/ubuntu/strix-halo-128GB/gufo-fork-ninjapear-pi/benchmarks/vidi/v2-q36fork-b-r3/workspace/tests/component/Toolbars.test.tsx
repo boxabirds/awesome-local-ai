@@ -82,6 +82,24 @@ describe('TC-28: Sticky note button creates note', () => {
   });
 });
 
+// ─── TC-23: Sticky note button disabled when load_failed ──────────────
+
+describe('TC-23: Toolbar disabled in load_failed', () => {
+  it('disabled prop hides cursor and prevents onClick', async () => {
+    const onCreateSticky = vi.fn();
+    const { container } = render(<Toolbar onCreateSticky={onCreateSticky} disabled />);
+    const btn = container.querySelector('[aria-label="Sticky note"]') as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(btn.style.cursor).toBe('not-allowed');
+    expect(btn.style.opacity).toBe('0.6');
+
+    await act(async () => {
+      btn.click();
+    });
+    expect(onCreateSticky).not.toHaveBeenCalled();
+  });
+});
+
 // ─── TC-29: bin button → note removed, selection cleared ────────────────
 
 describe('TC-29: bin button deletes note', () => {

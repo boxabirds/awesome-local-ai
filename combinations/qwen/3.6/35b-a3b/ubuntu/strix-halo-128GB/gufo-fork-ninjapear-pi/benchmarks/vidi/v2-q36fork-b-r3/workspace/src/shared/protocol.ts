@@ -10,6 +10,10 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+// Story 4 — Board persistence close codes
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 /** Decoded message from a WebSocket frame. */
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }

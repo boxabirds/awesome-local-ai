@@ -1,4 +1,4 @@
-/** Client-side WebSocket connection to BoardRoom for story 3 */
+/** Client-side WebSocket connection to BoardRoom for stories 3 & 4 */
 
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
@@ -6,8 +6,17 @@ import {
   RECONNECT_MAX_BACKOFF_MS,
   CONNECTED_CONFIRMATION_MS,
 } from '@shared/config';
+import {
+  CLOSE_BOARD_LOAD_FAILED,
+  CLOSE_STORAGE_FAILURE,
+} from '@shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
 
 let globalState: ConnectionState = 'connecting';
 
@@ -78,6 +87,27 @@ export function connectBoard(
       globalState = 'connected';
       onState('connected');
     }
+  });
+
+  // Handle WebSocket close — map persistent-storage-related close codes
+  provider.on('connection-close', (event: CloseEvent | null) => {
+    if (confirmationTimer) {
+      clearTimeout(confirmationTimer);
+      confirmationTimer = null;
+    }
+
+    if (!event) return; // Self-closed via disconnect()
+    const { code } = event;
+    if (code === CLOSE_BOARD_LOAD_FAILED) {
+      // Board could not be loaded from storage — honest failure state
+      globalState = 'load_failed';
+      onState('load_failed');
+    } else if (code === CLOSE_STORAGE_FAILURE) {
+      // Write failed during broadcast — board is readable, retrying saves
+      globalState = 'reconnecting';
+      onState('reconnecting');
+    }
+    // Other close codes (1000 normal, etc.) are handled by status events
   });
 
   // Expose state globally for e2e tests

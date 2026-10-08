@@ -2,9 +2,10 @@ import React from 'react';
 
 interface ToolbarProps {
   onCreateSticky(): void;
+  disabled?: boolean;
 }
 
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
   return (
     <div
       style={{
@@ -20,21 +21,23 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
     >
       <button
         aria-label="Sticky note"
-        title="Sticky note – or double-click the board"
-        onClick={onCreateSticky}
+        title={disabled ? 'Board could not be loaded' : 'Sticky note – or double-click the board'}
+        disabled={disabled}
+        onClick={disabled ? undefined : onCreateSticky}
         style={{
           width: 40,
           height: 40,
           border: 'none',
           borderRadius: 8,
-          background: '#fff',
+          background: disabled ? '#eee' : '#fff',
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-          cursor: 'pointer',
+          cursor: disabled ? 'not-allowed' : 'pointer',
           fontSize: 20,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#333',
+          color: disabled ? '#999' : '#333',
+          opacity: disabled ? 0.6 : 1,
         }}
       >
         📝

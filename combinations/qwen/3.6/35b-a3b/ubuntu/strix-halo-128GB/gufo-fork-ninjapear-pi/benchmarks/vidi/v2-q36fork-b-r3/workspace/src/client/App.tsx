@@ -15,7 +15,7 @@ import { createSticky, deleteObject, setStickyColor } from '@shared/board-model'
 import { screenToWorld } from './canvas/camera';
 import type { StickySnapshot } from '@shared/board-model';
 import { ConnectionStatus } from './sync/ConnectionStatus';
-import { getState as getGlobalState } from './sync/connectBoard';
+import { getState as getGlobalState, type ConnectionState } from './sync/connectBoard';
 import { newBoardId } from '@shared/board-id';
 
 // Expose camera on window for E2E tests
@@ -54,6 +54,10 @@ export function App() {
   const board = useBoardDoc(boardId);
   const selection = useSelection(board.doc);
 
+  // Task 7 — persist.client_status: disable editing when board could not load
+  const globalConnState: ConnectionState = getGlobalState();
+  const canEdit = globalConnState !== 'load_failed';
+
   // Expose camera & notes for e2e inspection
   if (typeof window !== 'undefined' && import.meta.env.DEV) {
     window.__getCamera = () => camera;
@@ -63,6 +67,7 @@ export function App() {
   // ── Create sticky note ──────────────────────────────────────────────
   const handleCreateSticky = useCallback(
     (worldPoint?: { x: number; y: number }) => {
+      if (!canEdit) return undefined;
       if (!worldPoint) {
         worldPoint = screenToWorld(camera, {
           x: viewportSize.width / 2,
@@ -74,7 +79,7 @@ export function App() {
       selection.startEdit(id);
       return id;
     },
-    [board.doc, camera, selection, viewportSize],
+    [board.doc, camera, selection, viewportSize, canEdit],
   );
 
   const handleToolbarCreate = useCallback(() => {
@@ -97,6 +102,7 @@ export function App() {
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (!canEdit) return; // Blocked by load_failed
         if (selection.selectedId && !selection.editingId) {
           e.preventDefault();
           const ok = deleteObject(board.doc, selection.selectedId!);
@@ -160,7 +166,7 @@ export function App() {
 
   return (
     <>
-      <Toolbar onCreateSticky={handleToolbarCreate} />
+      <Toolbar onCreateSticky={handleToolbarCreate} disabled={!canEdit} />
       <BoardViewport
         camera={camera}
         onPanMove={panMove}

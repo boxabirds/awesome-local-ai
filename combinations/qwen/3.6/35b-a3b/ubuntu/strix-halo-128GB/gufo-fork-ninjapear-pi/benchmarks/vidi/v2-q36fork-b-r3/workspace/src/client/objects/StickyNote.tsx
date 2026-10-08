@@ -12,6 +12,7 @@ import {
 } from '@shared/config';
 import { bringToFront, moveObject } from '@shared/board-model';
 import { fitFontSize } from './StickyText';
+import { getState as getGlobalState } from '../sync/connectBoard';
 
 interface StickyNoteProps {
   note: StickySnapshot;
@@ -63,6 +64,7 @@ export function StickyNote({
     (e: React.PointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
       if (e.button !== 0) return;
+      if (getGlobalState() === 'load_failed') return;
 
       // Verify click target is within this note
       const el = e.currentTarget as HTMLElement;
@@ -85,6 +87,7 @@ export function StickyNote({
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (pressRef.current === null || draggingIdRef.current === null) return;
+      if (getGlobalState() === 'load_failed') return; // Block drag when load failed
 
       const dx = e.clientX - pressRef.current.x;
       const dy = e.clientY - pressRef.current.y;
@@ -144,6 +147,7 @@ export function StickyNote({
   const handleDblClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       e.stopPropagation();
+      if (getGlobalState() === 'load_failed') return;
       onStartEdit(note.id);
       setInteraction('editing');
     },

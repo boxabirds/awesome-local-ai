@@ -90,6 +90,16 @@ expect(badge.style.color).toMatch(/d4a017|rgb\(212.*160.*23/i);
     expect(badge.textContent).toBe('Reconnecting\u2026');
   });
 
+  // TC-22: load_failed shows red error banner
+  it('TC-22: load_failed shows red "board could not be loaded" message', () => {
+    render(<ConnectionStatus state="load_failed" />);
+    const badge = screen.getByRole('status');
+    expect(badge.textContent).toBe('This board could not be loaded. Retrying\u2026');
+    expect(badge.style.color).toMatch(/c62828|rgb\(198.*40.*40/i);
+    // Background may be reported as rgb in some environments
+    expect(badge.style.backgroundColor).toMatch(/ffebec|rgb\(255.*235.*238/);
+  });
+
   it('badge has role=status', () => {
     render(<ConnectionStatus state="reconnecting" />);
     const badge = screen.getByRole('status');

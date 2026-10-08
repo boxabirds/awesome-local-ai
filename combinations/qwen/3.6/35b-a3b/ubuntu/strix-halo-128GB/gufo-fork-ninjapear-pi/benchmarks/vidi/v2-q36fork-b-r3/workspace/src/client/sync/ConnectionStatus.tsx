@@ -1,7 +1,9 @@
-/** Connection status badge for story 3 */
+/** Connection status badge — includes story 4 load-failure handling */
+
+type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 interface ConnectionStatusProps {
-  state: 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+  state: ConnectionState;
 }
 
 export function ConnectionStatus({ state }: ConnectionStatusProps): any {
@@ -29,27 +31,34 @@ export function ConnectionStatus({ state }: ConnectionStatusProps): any {
       color = '#2E7D32';
       borderColor = '#2E7D32';
       break;
+    case 'load_failed':
+      text = 'This board could not be loaded. Retrying\u2026';
+      color = '#C62828';
+      borderColor = '#C62828';
+      break;
     default:
       text = '';
       color = '#666';
       borderColor = '#ccc';
   }
 
+  const isLoadFailed = state === 'load_failed';
+
   return (
     <div
       role="status"
-      aria-label={`Connection status: ${text}`}
+      aria-label={isLoadFailed ? 'Error' : `Connection status: ${text}`}
       style={{
         position: 'fixed',
         top: '8px',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 1000,
-        padding: '4px 12px',
+        padding: isLoadFailed ? '6px 16px' : '4px 12px',
         borderRadius: '4px',
-        fontSize: '13px',
+        fontSize: isLoadFailed ? '13px' : '13px',
         fontWeight: 500,
-        backgroundColor: 'white',
+        backgroundColor: isLoadFailed ? '#ffebee' : 'white',
         color,
         border: `1px solid ${borderColor}`,
         boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
