@@ -8,7 +8,7 @@ import { StickyNote } from '../objects/StickyNote';
 import type { Handle } from '../../shared/geometry';
 import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { SelectionOverlay } from '../board/SelectionOverlay';
-import type { Tool } from '../board/useTool';
+import type { ToolId } from '../board/useTool';
 
 interface BoardViewportProps {
   camera: { x: number; y: number; zoom: number };
@@ -37,8 +37,8 @@ interface BoardViewportProps {
   // Story 8: undo controller callbacks
   undo?: () => void;
   redo?: () => void;
-  // Story 9: Text tool
-  activeTool?: Tool;
+  // Active tool (stories 9-12)
+  activeTool?: ToolId;
 }
 
 /**

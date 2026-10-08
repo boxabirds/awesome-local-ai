@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { Doc } from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
-import type { Tool } from './useTool';
+import type { ToolId } from './useTool';
 import {
   moveObjects,
   deleteObjects,
@@ -23,9 +23,9 @@ interface UseBoardKeysOptions {
   redo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
-  // Story 9: tool mode
-  activeTool?: Tool;
-  onToolChange?(tool: Tool): void;
+  // Active tool management (stories 10+)
+  activeTool?: ToolId;
+  onToolChange?(tool: ToolId): void;
 }
 
 export function useBoardKeys(opts: UseBoardKeysOptions): void {
@@ -64,9 +64,25 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
         return; // Don't let other keys through when ctrl/meta is held
       }
 
-      // Story 9: Tool shortcuts — only when NOT in an input context
-      // T → Text tool (only if canEdit and tool is not already text)
-      if (e.key === 't' && onToolChange) {
+      // Active tool shortcuts (stories 10-12) — S shape, L connector
+      if (e.key === 's' && !e.ctrlKey && !e.metaKey && onToolChange) {
+        e.preventDefault();
+        if (canEdit) {
+          onToolChange('shape');
+        }
+        return;
+      }
+
+      if (e.key === 'l' && !e.ctrlKey && !e.metaKey && onToolChange) {
+        e.preventDefault();
+        if (canEdit) {
+          onToolChange('connector');
+        }
+        return;
+      }
+
+      // T → Text tool (only if canEdit)
+      if (e.key === 't' && !e.ctrlKey && !e.metaKey && onToolChange) {
         e.preventDefault();
         if (canEdit) {
           onToolChange('text');
@@ -75,11 +91,9 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
       }
 
       // V → Select tool
-      if (e.key === 'v') {
+      if (e.key === 'v' && onToolChange) {
         e.preventDefault();
-        if (onToolChange) {
-          onToolChange('select');
-        }
+        onToolChange('select');
         selection.clear();
         return;
       }

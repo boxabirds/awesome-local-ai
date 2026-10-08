@@ -1,5 +1,10 @@
 import { STICKY_MIN_SIZE_WORLD, MAX_OBJECT_SIZE_WORLD } from './config';
 
+export interface Point {
+  x: number;
+  y: number;
+}
+
 export interface Rect {
   x: number;
   y: number;

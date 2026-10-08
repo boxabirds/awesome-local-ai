@@ -20,9 +20,17 @@ import { useBoardKeys } from './useBoardKeys';
 import { createUndo } from './undo';
 import { useUndo } from './useUndo';
 import type { UndoController } from './undo';
-import { useTool, type Tool } from './useTool';
+import { useActiveTool } from './useTool';
+import type { ToolId } from './useTool';
 import { createText, setTextSize, getTextContent, isEmptyText, deleteIfEmpty } from '../../shared/objects/text';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { ShapeObject } from '../objects/ShapeObject';
+import { ConnectorObject } from '../objects/ConnectorObject';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
+import { setShapeStyle } from '../../shared/objects/shape';
 import type { ObjectSnapshot } from '../../shared/board-model';
+import type { Point } from '../canvas/camera';
 
 export interface BoardAppProps {
   boardId: string;
@@ -95,8 +103,12 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
   // Hook into camera state for e2e test assertions
   useVidi6TestHook(hook.setRawCamera);
 
-  // ---- Story 9: Tool mode ----
-  const { tool: activeTool, setTool } = useTool(canEditBool);
+  // ---- Active tool management (stories 10-12) ----
+  const boundaryWrapper = React.useCallback(() => {
+    boundary();
+  }, [boundary]);
+  const { tool: activeTool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool(selection, canEditBool, boundaryWrapper);
+  const setToolTyped = React.useCallback((t: ToolId) => setTool(t), [setTool]);
 
   // ---- Gesture hooks ----
   const gesture = useTransformGesture({
@@ -265,13 +277,52 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
   }, [hook]);
 
   // Render viewport children (text objects + sticky notes)
+  // Shape label edit state
+  const [editingShapeId, setEditingShapeId] = React.useState<string | null>(null);
+
+  // Listen for shape edit events
+  React.useEffect(() => {
+    const handleStartShapeEdit = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { id: string };
+      setEditingShapeId(detail.id);
+    };
+    window.addEventListener('vidi6:startShapeEdit', handleStartShapeEdit);
+    return () => window.removeEventListener('vidi6:startShapeEdit', handleStartShapeEdit);
+  }, []);
+
+  // Listen for select-object events (from ConnectorObject etc.)
+  React.useEffect(() => {
+    const handleSelectObj = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { id: string };
+      selection.click(detail.id);
+    };
+    window.addEventListener('vidi6:selectObject', handleSelectObj);
+    return () => window.removeEventListener('vidi6:selectObject', handleSelectObj);
+  }, [selection]);
+
+  // Connector tool needs a rects map for endpoint resolution
+  const connectorRectsMap = React.useMemo(() => {
+    const m = new Map<string, { x: number; y: number; width: number; height: number }>();
+    for (const obj of snapshots) {
+      if (obj.id && obj.type !== 'connector') {
+        m.set(obj.id, {
+          x: obj.x ?? 0,
+          y: obj.y ?? 0,
+          width: obj.width ?? 200,
+          height: obj.height ?? 200,
+        });
+      }
+    }
+    return m;
+  }, [snapshots]);
+
   const renderWorldLayer = React.useMemo(() => {
     const elements: React.ReactNode[] = [];
-    
+
     for (const obj of snapshots) {
       if (obj.type === 'sticky') continue; // already rendered by BoardViewport
-      
-      // For text objects and other types, render via their registered component
+
+      // Text objects
       if (obj.type === 'text' && obj.id) {
         elements.push(
           <TextObjectRenderable
@@ -290,10 +341,40 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
           />,
         );
       }
+
+      // Shapes
+      if (obj.type === 'shape' && obj.id) {
+        const isEditing = editingShapeId === obj.id;
+        elements.push(
+          <ShapeObject
+            key={obj.id}
+            shape={obj as any}
+            doc={doc}
+            selected={!!selection.ids.has(obj.id)}
+            editing={isEditing}
+            onEndEdit={() => setEditingShapeId(null)}
+            camera={hook.camera}
+          />,
+        );
+      }
+
+      // Connectors
+      if (obj.type === 'connector' && obj.id) {
+        elements.push(
+          <ConnectorObject
+            key={obj.id}
+            connector={obj as any}
+            allObjects={snapshots}
+            doc={doc}
+            selected={!!selection.ids.has(obj.id)}
+            zoom={hook.camera.zoom}
+          />,
+        );
+      }
     }
-    
+
     return elements;
-  }, [snapshots, hook.camera, selection.ids, selection.editingId, handleSelect, selection.startEdit, selection.endEdit, gesture, undoProps, undoProps.redo]);
+  }, [snapshots, hook.camera, selection.ids, selection.editingId, editingShapeId, handleSelect, selection.startEdit, selection.endEdit, gesture, undoProps, undoProps.redo, doc]);
 
   return (
     <div ref={rootRef} style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
@@ -316,7 +397,9 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
         }))}
         undoProps={undoProps}
         activeTool={activeTool}
-        onToolChange={canEditBool ? setTool : undefined}
+        onToolChange={canEditBool ? setToolTyped : undefined}
+        shapeKind={shapeKind}
+        onShapeKindChange={setShapeKind}
       />
 
       {/* Main canvas */}
@@ -340,7 +423,41 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
         activeTool={activeTool}
       >
         {renderWorldLayer}
+
+
       </BoardViewport>
+
+      {/* Shape tool overlay (renders on top of viewport) */}
+      {activeTool === 'shape' && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 40 }}>
+          <ShapeTool
+            kind={shapeKind}
+            camera={hook.camera}
+            doc={doc!}
+            onCreated={(id) => {
+              toolCreated(id);
+              selection.click(id);
+            }}
+            selection={{ click: selection.click }}
+          />
+        </div>
+      )}
+
+      {/* Connector tool overlay */}
+      {activeTool === 'connector' && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 40 }}>
+          <ConnectorTool
+            camera={hook.camera}
+            snapshot={snapshots}
+            doc={doc!}
+            onCreated={(id) => {
+              toolCreated(id);
+              selection.click(id);
+            }}
+            selection={{ click: selection.click }}
+          />
+        </div>
+      )}
 
       {/* Sticky note toolbar (appears near selected sticky — single note only) */}
       {selection.ids.size === 1 && !selection.editingId && (() => {
@@ -410,6 +527,41 @@ export function BoardApp(props: BoardAppProps): React.JSX.Element {
                   selection.clear();
                   modelDeleteObjects(doc, [note.id]);
                 }
+              }}
+            />
+          </div>
+        );
+      })()}
+
+      {/* Shape toolbar (appears above selected shape — single shape only) */}
+      {selection.ids.size === 1 && !selection.editingId && (() => {
+        const note = snapshots.find((s) => s.id === [...selection.ids][0]);
+        if (!note || note.type !== 'shape') return null;
+        
+        const w = (note.width ?? 160) as number;
+        const cx = note.x + w / 2;
+        const cy = (note.y ?? 0) - 36;
+        const screenX = (cx - hook.camera.x) * hook.camera.zoom;
+        const screenY = (cy - hook.camera.y) * hook.camera.zoom;
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              left: `${screenX}px`,
+              top: `${screenY}px`,
+              transform: 'translate(-50%, 0)',
+              zIndex: 100,
+              pointerEvents: 'auto',
+            }}
+          >
+            <ShapeToolbar
+              fill={(note.fill as string) || '#FFFFFF'}
+              stroke={(note.stroke as string) || '#263238'}
+              onFill={(hex) => {
+                if (doc) setShapeStyle(doc, note.id, { fill: hex });
+              }}
+              onStroke={(hex) => {
+                if (doc) setShapeStyle(doc, note.id, { stroke: hex });
               }}
             />
           </div>

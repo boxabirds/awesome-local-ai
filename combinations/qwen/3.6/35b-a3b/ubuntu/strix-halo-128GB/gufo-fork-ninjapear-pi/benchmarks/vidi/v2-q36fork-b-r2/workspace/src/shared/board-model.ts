@@ -13,6 +13,11 @@ import { getObjectType } from '../client/objects/registry';
 import { objectBounds, normalizeRect as normRect } from './geometry';
 import type { Rect } from './geometry';
 
+// Connector imports for detach-on-delete
+import { detachConnectorsTo } from './objects/connector';
+import type { Endpoint, ConnectorSnap } from './objects/connector';
+import type { ShapeKind } from './objects/shape';
+
 export const LOCAL_ORIGIN: unique symbol = Symbol('localOrigin');
 
 export interface ObjectSnapshot {
@@ -20,6 +25,8 @@ export interface ObjectSnapshot {
   type: string;
   x: number;
   y: number;
+  width?: number;
+  height?: number;
   z: number;
   [key: string]: any;
 }
@@ -200,30 +207,67 @@ export function getStickyText(
   return textVal instanceof Y.Text ? textVal : undefined;
 }
 
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
-  const objects = getObjects(doc);
-  const result: StickySnapshot[] = [];
+/** Get the object id from a Y.Map value */
+function getObjectKey(objects: Y.Map<Y.Map<any>>, value: Y.Map<any>): string | undefined {
+  let key: string | undefined;
+  objects.forEach((v, k) => {
+    if (v === value) key = k;
+  });
+  return key;
+}
+
+export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const objects = doc.getMap('objects') as Y.Map<Y.Map<any>>;
+  const result: ObjectSnapshot[] = [];
 
   objects.forEach((value) => {
     const type = value.get('type');
-    if (type !== 'sticky') {
-      return; // skip unknown types (forward compatibility)
-    }
+    const id = getObjectKey(objects, value);
+    if (!id) return;
 
-    const id = Array.from(objects.keys()).find(
-      (k) => objects.get(k) === value,
-    )!;
-
-    result.push({
+    const snap: ObjectSnapshot = {
       id,
-      type: 'sticky' as const,
+      type: String(type),
       x: value.get('x') as number,
       y: value.get('y') as number,
-      color: value.get('color') as string,
-      text: (value.get('text') as Y.Text)?.toString() ?? '',
       z: value.get('z') as number,
-      createdAt: value.get('createdAt') as number,
-    });
+    };
+
+    // Add width/height if present
+    if (value.has('width')) snap.width = value.get('width') as number;
+    if (value.has('height')) snap.height = value.get('height') as number;
+
+    // Add type-specific fields
+    switch (type) {
+      case 'sticky':
+        (snap as any).color = value.get('color') as string;
+        (snap as any).text = (value.get('text') as Y.Text)?.toString() ?? '';
+        (snap as any).createdAt = value.get('createdAt') as number;
+        break;
+      case 'text':
+        (snap as any).text = (value.get('text') as Y.Text)?.toString() ?? '';
+        (snap as any).size = value.get('size') as string;
+        (snap as any).widthMode = value.get('widthMode') as string;
+        break;
+      case 'shape':
+        (snap as any).kind = value.get('kind') as ShapeKind;
+        (snap as any).fill = value.get('fill') as string;
+        (snap as any).stroke = value.get('stroke') as string;
+        (snap as any).label = (value.get('label') as Y.Text)?.toString() ?? '';
+        (snap as any).createdBy = value.get('createdBy') as string;
+        (snap as any).createdAt = value.get('createdAt') as number;
+        break;
+      case 'connector': {
+        const connectorSnap = snap as ConnectorSnap;
+        connectorSnap.from = value.get('from') as Endpoint;
+        connectorSnap.to = value.get('to') as Endpoint;
+        connectorSnap.createdBy = value.get('createdBy') as string;
+        connectorSnap.createdAt = value.get('createdAt') as number;
+        break;
+      }
+    }
+
+    result.push(snap);
   });
 
   // Sort by (z, id) for deterministic order
@@ -377,10 +421,21 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
   const objects = getObjects(doc);
+  // Collect existing IDs that we'll actually delete
+  const existingIds: string[] = [];
+  for (const id of ids) {
+    if (objects.has(id)) {
+      existingIds.push(id);
+    }
+  }
+  if (existingIds.length === 0) return 0;
+
   let count = 0;
   try {
     doc.transact(() => {
-      for (const id of ids) {
+      // Detach connectors attached to any of the deleted objects BEFORE removing them
+      detachConnectorsTo(doc, existingIds);
+      for (const id of existingIds) {
         if (objects.has(id)) {
           objects.delete(id);
           count++;

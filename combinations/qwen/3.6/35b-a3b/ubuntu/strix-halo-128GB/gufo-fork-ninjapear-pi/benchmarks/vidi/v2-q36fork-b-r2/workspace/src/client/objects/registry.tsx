@@ -2,6 +2,10 @@ import * as React from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/geometry';
 import { STICKY_MIN_SIZE_WORLD, DEFAULT_STICKY_COLOR, STICKY_COLORS } from '../../shared/config';
+import {
+  SHAPE_MIN_SIZE_WORLD,
+  CONNECTOR_HIT_TOLERANCE_PX,
+} from '../../shared/config';
 
 export interface Point {
   x: number;
