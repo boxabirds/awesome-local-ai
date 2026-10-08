@@ -20,7 +20,7 @@ candidate on the same card; and, through Mirai Labs' own `uzu` runtime, an Apple
 | A GGUF of it (`alesha-pro/Qwen3.8-27B-S-mirai-GGUF`, 11.17 GB) and a port of the codec to llama.cpp (new ggml types 90 to 93, CPU and CUDA kernels) | alesha-pro | The trellis codes are copied bit for bit; also publishes an "abliterated" refusal control vector, not needed here |
 | The serve | Cary Palmer | A PrismML llama.cpp fork as the engine, a **tiered KV cache** (the full 262,144-token window at q8_0: about 58k positions in VRAM, the rest in pinned RAM), MTP drafting at every depth, "lookup drafting" in front of it, "harness-proofing" for clients that send `effort: "high"` or tiny output caps, and an **optional server-side layer** (exact API cards, an API check, a sandboxed Python tool) |
 
-A Linux launcher (`start-server.sh`, by alesha-pro) was checked on Ubuntu 22.04 with an RTX 3090. The repository has no release
+Several of its speed techniques were read from [HyperQwen](hyperqwen.md) and tested; it adopted some and rejected others (its own `docs/HYPERQWEN.md`). A Linux launcher (`start-server.sh`, by alesha-pro) was checked on Ubuntu 22.04 with an RTX 3090. The repository has no release
 notes beyond three days of work, so it is very young and moving fast.
 
 ## What the README claims, and whose figures they are
