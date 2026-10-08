@@ -283,3 +283,89 @@ def test_run_sh_passes_the_install_manifest_to_the_driver():
     call = sh[sh.index("uv run --quiet drive.py"):]
     call = call[:call.index("\n\n")] if "\n\n" in call else call
     assert '--install-env "$ENV_FILE"' in call
+
+
+# ---- MTPLX, the footprint's categories, and the Linux anon/file split (8 Oct 2026) --------------------------------
+#
+# MTPLX 2.12.2 on the M5 Max (v2-mtplx2122-r1) refused long prefills from story 4 on, at its own 90 GiB budget. Its log
+# says what the ENGINE counts as active (`active_bytes`) next to what macOS says the process holds
+# (`phys_footprint_bytes`), and their gap (`host_overhang_bytes`) grew from a median 6.4 GiB in the first quarter of the
+# log to 12.4 GiB in the last while the active figure stayed flat: the growth is memory the engine does not count.
+# These are real lines from that log, trimmed to the fields read.
+MTPLX = """\
+[5/6] Memory plan: 128G Mac: engine budget 90.0G, weights 77.3G, context 131072, session bank up to 9.7G
+[mtplx] memory guard {"action": "prefill_admission_shed", "prompt_tokens": 77268, "active_bytes": 88267978192, "cache_bytes": 524292, "phys_footprint_bytes": 90220611840, "host_overhang_bytes": 1952109356, "limit_bytes": 96636764160, "bank_bytes_after": 4876039312}
+[mtplx] memory guard {"action": "prefill_shed_before_abort", "pool_bytes": 3147585996, "released_bytes": 4876039312, "released_sessions": ["anon-0a81b72c222a3b48"]}
+[mtplx] memory guard {"action": "prefill_admission_shed", "prompt_tokens": 112108, "active_bytes": 87980928192, "cache_bytes": 507908, "phys_footprint_bytes": 98966847488, "host_overhang_bytes": 11000000000, "limit_bytes": 96636764160}
+[mtplx] memory guard {"action": "prefill_system_abort", "prompt_tokens": 80169, "active_bytes": 86000000000, "phys_footprint_bytes": 99000000000, "host_overhang_bytes": 13000000000, "limit_bytes": 96636764160}
+[mtplx] memory pressure guard {"action": "pressure_trim", "level": 2, "allocator_fraction": 0.98}
+"""
+
+
+def test_mtplx_reports_what_it_counts_active_next_to_what_the_process_holds_and_how_often_it_refused():
+    snap = ms.parse_engine_log(MTPLX.splitlines())
+    assert snap["engine"] == "mtplx"
+    x = snap["extras"]
+    # the LAST guard entry that carried each figure
+    assert x["guard_active_mib"] == round(86000000000 / MIB, 1)
+    assert x["guard_footprint_mib"] == round(99000000000 / MIB, 1)
+    assert x["guard_host_overhang_mib"] == round(13000000000 / MIB, 1)
+    assert x["guard_limit_mib"] == round(96636764160 / MIB, 1)
+    assert x["guard_bank_after_mib"] == round(4876039312 / MIB, 1)       # only the entries that said so
+    assert x["guard_admission_sheds"] == 2 and x["guard_system_aborts"] == 1
+
+
+def test_an_mtplx_log_with_no_guard_entry_says_nothing_it_does_not_know():
+    snap = ms.parse_engine_log(["[5/6] Memory plan: 128G Mac: engine budget 90.0G, weights 77.3G", "[mtplx] ready"])
+    assert snap == {}                                                  # a plan line is not a reading
+
+
+FOOTPRINT = """\
+======================================================================
+bun [12303]: 64-bit    Footprint: 139 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  61 MB        0 B      3248 KB         33    WebKit malloc
+  56 MB        0 B          0 B         12    IOAccelerator
+5264 KB        0 B          0 B          8    MALLOC_SMALL
+  90 GB        2 GB          0 B          9    untagged (VM_ALLOCATE)
+ 512 KB        0 B          0 B          3    stack
+    0 B      16 MB          0 B         48    __TEXT
+    0 B        0 B          0 B          2    mapped file
+    ---        ---          ---        ---    ---
+ 139 MB      17 MB      3344 KB       1016    TOTAL
+
+Auxiliary data:
+    phys_footprint: 139 MB
+"""
+
+
+def test_the_footprint_is_split_by_category_in_dirty_mib_leaving_out_what_holds_nothing_dirty():
+    cats = ms.parse_footprint_categories(FOOTPRINT)
+    assert cats == {"WebKit malloc": 61.0, "IOAccelerator": 56.0, "MALLOC_SMALL": round(5264 / 1024, 1),
+                    "untagged (VM_ALLOCATE)": 90 * 1024.0, "stack": 0.5}
+    assert "TOTAL" not in cats and "mapped file" not in cats and "__TEXT" not in cats
+
+
+def test_a_footprint_that_cannot_be_read_has_no_categories():
+    assert ms.parse_footprint_categories("") == {}
+    assert ms.parse_footprint_categories("no such process") == {}
+
+
+def test_a_snapshot_carries_the_categories_only_when_it_was_given_them(tmp_path):
+    log = tmp_path / "server.log"
+    log.write_text("")
+    with_cats = ms.take(resident_gb=1.0, server_log=log, weights=[], at=1.0, footprint_text=FOOTPRINT)
+    assert with_cats["footprint_categories_mib"]["IOAccelerator"] == 56.0
+    assert "footprint_categories_mib" not in ms.take(resident_gb=1.0, server_log=log, weights=[], at=1.0)
+    assert "footprint_categories_mib" not in ms.take(resident_gb=1.0, server_log=log, weights=[], at=1.0, footprint_text="")
+
+
+def test_a_linux_snapshot_carries_the_anonymous_and_file_backed_split_when_it_was_given_it(tmp_path):
+    log = tmp_path / "server.log"
+    log.write_text("")
+    split = {"anon_mib": 91000.0, "file_mib": 27000.0}
+    assert ms.take(resident_gb=1.0, server_log=log, weights=[], at=1.0, process_split=split)["process_split_mib"] == split
+    assert "process_split_mib" not in ms.take(resident_gb=1.0, server_log=log, weights=[], at=1.0)

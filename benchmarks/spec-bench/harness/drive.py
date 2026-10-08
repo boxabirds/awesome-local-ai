@@ -1685,6 +1685,21 @@ def server_footprint_gb(port: int | None) -> tuple[float | None, float | None]:
     return parse_footprint_gb(subprocess.run(["footprint", "-p", str(pid)], capture_output=True, text=True).stdout)
 
 
+def server_process_detail(port: int | None) -> tuple[str | None, dict | None]:
+    """How the model server's memory divides, as (macOS footprint table, Linux anonymous/file-backed split); the one
+    that applies to this machine is set and the other None. (None, None) with no port or no server.
+
+    The footprint's categories tell a growing heap (MALLOC_*) from growing GPU buffers (IOAccelerator) from anonymous
+    mappings (VM_ALLOCATE); on 8 Oct 2026 an engine's footprint grew 6 GiB past what it counted as active and nothing
+    said where."""
+    pid = engine_pid(port) if port else None
+    if not pid:
+        return None, None
+    if not IS_MAC:
+        return None, hostenv.linux_process_split(pid)
+    return subprocess.run(["footprint", "-p", str(pid)], capture_output=True, text=True).stdout, None
+
+
 def memory_at_story_start(run: Path, port: int | None, install_env: Path | None) -> dict:
     """What the model server is holding as a story starts, from what the engine itself says (memory_snapshot.py).
 
@@ -1695,7 +1710,9 @@ def memory_at_story_start(run: Path, port: int | None, install_env: Path | None)
     resident_gb = server_footprint_gb(port)[0] if port else None
     env = memory_snapshot.read_manifest(install_env) if install_env else {}
     weights = memory_snapshot.weights_from_manifest(env, Path.home(), root=install_env.parent) if env else []
-    return memory_snapshot.take(resident_gb, run / "server.log", weights, time.time())
+    footprint_text, process_split = server_process_detail(port)
+    return memory_snapshot.take(resident_gb, run / "server.log", weights, time.time(),
+                                footprint_text=footprint_text, process_split=process_split)
 
 
 def swap_used_gb() -> float:
