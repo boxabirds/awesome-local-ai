@@ -23,6 +23,13 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow'
 
+// ── Undo / redo settings (story 8) ──────────────────────────────────────────
+
+/** Typing pause that ends a burst; also the UndoManager capture window. */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500
+/** Most recent steps kept in a person's personal undo history. */
+export const UNDO_MAX_STEPS = 200
+
 // ── Live collaboration settings (story 3) ────────────────────────────────────
 
 /** Soft simultaneous-editor capacity: design + test target, never enforced. */
