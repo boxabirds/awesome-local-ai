@@ -23,6 +23,7 @@ import {
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  TEXT_SIZES,
   type StickyColor,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
@@ -61,6 +62,10 @@ export interface ObjectSnapshot {
   width?: number;
   height?: number;
   color?: string;
+  /** Size preset (story 9 text objects only). */
+  size?: string;
+  /** 'auto' | 'fixed' (story 9 text objects only). */
+  widthMode?: 'auto' | 'fixed';
   text: string;
   createdAt?: number;
 }
@@ -87,8 +92,23 @@ export function isKnownObjectType(type: string): boolean {
   return knownObjectTypes.has(type);
 }
 
-function objects(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
+export function objects(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap(OBJECTS_KEY);
+}
+
+/** The raw object map of `id` (any type), or undefined. */
+export function getObject(doc: Y.Doc, id: string): Y.Map<unknown> | undefined {
+  return objects(doc).get(id);
+}
+
+/** One above the highest z of any object (new objects go on top). */
+export function nextZAboveAll(doc: Y.Doc): number {
+  let maxZ = 0;
+  objects(doc).forEach((obj) => {
+    const z = obj.get('z');
+    if (typeof z === 'number' && z > maxZ) maxZ = z;
+  });
+  return maxZ + 1;
 }
 
 function isStickyColor(color: unknown): color is StickyColor {
@@ -253,6 +273,12 @@ export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (isValidCoord(height)) snap.height = height;
     if (typeof color === 'string') snap.color = color;
     if (typeof createdAt === 'number') snap.createdAt = createdAt;
+    // Story 9: text-specific fields, read generically when present and
+    // well-formed (readers fall back to defaults otherwise).
+    const size = obj.get('size');
+    if (typeof size === 'string' && size in TEXT_SIZES) snap.size = size;
+    const widthMode = obj.get('widthMode');
+    if (widthMode === 'auto' || widthMode === 'fixed') snap.widthMode = widthMode;
     out.push(Object.freeze(snap));
   });
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

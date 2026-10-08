@@ -128,7 +128,7 @@ describe('story 4: client load-failure state', () => {
     expect(before).toBeTruthy();
 
     // 1. The Sticky note button is disabled.
-    expect(screen.getByRole('button', { name: 'Sticky note' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Sticky note (N)' })).toBeDisabled();
 
     // 2. Double-click on empty board space creates nothing.
     fireEvent.doubleClick(screen.getByTestId('board-viewport'), {

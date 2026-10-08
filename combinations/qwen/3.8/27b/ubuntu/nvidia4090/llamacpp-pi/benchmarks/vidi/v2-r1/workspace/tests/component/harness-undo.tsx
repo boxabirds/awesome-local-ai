@@ -101,6 +101,8 @@ export function UndoHarness(props: { fake: FakeUndo; canEdit: boolean }): JSX.El
   return (
     <div>
       <Toolbar
+        tool="select"
+        onSelectTool={() => undefined}
         onCreateSticky={() => {}}
         disabled={!props.canEdit}
         extra={<UndoButtons undo={api} />}

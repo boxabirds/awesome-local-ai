@@ -15,8 +15,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | 5/5 | 0 | 0 | 34/36 |
 | 7 | 8/8 | 0 | 0 | 42/44 |
 | 8 | 7/7 | 0 | 0 | 49/51 |
+| 9 | 6/6 | 2 | 0 | 53/57 |
 
-**New work** 29/47, **regressions** 0, **repairs** 20, **cumulative** 49/51.
+**New work** 35/53, **regressions** 2, **repairs** 20, **cumulative** 53/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,8 +28,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | Share a board with others using a link | DONE, on partial 1 | 38.5 | None | None | None | — | — | green | 34/36 |  | 0 / 0 | 2 | — | throttled 0%, server peak 17 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE, on partial 1 | 127.8 | None | None | None | — | — | green | 42/44 |  | 0 / 1 | 6 | — | throttled 0%, server peak 18 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 1 | 147.5 | None | None | None | — | — | green | 49/51 |  | 0 / 0 | 7 | — | throttled 0%, server peak 18 GB |
+| 9 | Write free text anywhere on the board | DONE, on partial 1 | 87.5 | None | None | None | — | — | green | 53/57 |  | 0 / 0 | 5 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 7 stories, 629 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 6/7, final acceptance 49/51, stalled 0, partial 1, 14656 lines in src+tests.
+**Totals:** 8 stories, 717 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/8, final acceptance 53/57, stalled 0, partial 1, 17304 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -39,6 +41,7 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - Story 5, built on partial 1: held-out tests on the partial base 34/36; partial story's tests fixed 10, regressed 0; 4 stub-like lines added to src/.
 - Story 7, built on partial 1: held-out tests on the partial base 42/44; partial story's tests fixed 10, regressed 0; 0 stub-like lines added to src/.
 - Story 8, built on partial 1: held-out tests on the partial base 49/51; partial story's tests fixed 10, regressed 0; 0 stub-like lines added to src/.
+- Story 9, built on partial 1: held-out tests on the partial base 53/57; partial story's tests fixed 10, regressed 0; 1 stub-like lines added to src/.
 
 ## How it happened
 
@@ -53,12 +56,15 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | 1 by the agent | 2151 / 356 | `BoardPage.tsx` (333), `App.tsx` (278), `SharePanel.tsx` (157), `styles.css` (147), `board-store.ts` (119), `NOTES.md` (80), +20 more |
 | 7 | 1 by the agent | 3521 / 365 | `useTransformGesture.ts` (311), `board-model.ts` (271), `StickyNote.tsx` (235), `useSelection.ts` (220), `geometry.ts` (195), `BoardPage.tsx` (191), +16 more |
 | 8 | 1 by the agent | 2132 / 18 | `undo.ts` (386), `NOTES.md` (67), `UndoButtons.tsx` (65), `useUndo.ts` (59), `BoardPage.tsx` (50), `StickyTextEditor.tsx` (48), +12 more |
+| 9 | 1 by the agent | 2978 / 200 | `TextEditor.tsx` (263), `text.ts` (167), `StickyTextEditor.tsx` (158), `TextObject.tsx` (129), `textLayout.ts` (121), `useTextBoxSync.ts` (95), +21 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 3 broke 0, fixed 20** earlier held-out tests (story 3: See other people's edits appear live on the same board). Source files it changed most: `vite-plugin-board-sync.ts` (182), `board-room.ts` (158), `connectBoard.ts` (100), `useBoardDoc.ts` (60), `protocol.ts` (54), `index.ts` (43), +13 more.
   - story 1: 0/10 → 10/10; fixed 10
   - story 2: 0/10 → 10/10; fixed 10
+- **Story 9 broke 2, fixed 0** earlier held-out tests (story 9: Write free text anywhere on the board). Source files it changed most: `TextEditor.tsx` (263), `text.ts` (167), `StickyTextEditor.tsx` (158), `TextObject.tsx` (129), `textLayout.ts` (121), `useTextBoxSync.ts` (95), +21 more.
+  - story 2: 10/10 → 8/10; broke 2.
 
 ### Interruptions and dead time
 

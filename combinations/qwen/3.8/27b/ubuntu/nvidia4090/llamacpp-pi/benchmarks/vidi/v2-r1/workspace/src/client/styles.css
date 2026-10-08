@@ -133,6 +133,79 @@ body {
   color: #1f2937;
 }
 
+/* --- Free text objects (story 9) ------------------------------------------ */
+
+/* No background, no border: the text floats on the board (text.object). */
+.text-object {
+  position: absolute;
+  pointer-events: auto;
+  outline: none;
+  cursor: grab;
+  user-select: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: normal;
+  color: #1f2937;
+}
+
+.text-object--selected,
+.text-object:focus-visible {
+  outline: 2px solid var(--selection-blue);
+  outline-offset: 2px;
+}
+
+/* The in-place editor fills the object's stored box exactly. */
+.text-object__editor {
+  position: absolute;
+  inset: 0;
+}
+
+.text-object__textarea {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: normal;
+  color: #1f2937;
+  cursor: text;
+}
+
+/* --- Text toolbar (story 9, size presets) --------------------------------- */
+
+.note-toolbar__size {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3c4043;
+  cursor: pointer;
+}
+
+.note-toolbar__size:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.note-toolbar__size[aria-pressed='true'] {
+  outline: 2px solid var(--selection-blue);
+  outline-offset: 1px;
+}
+
+.note-toolbar__size:focus-visible {
+  outline: 2px solid var(--selection-blue);
+  outline-offset: 1px;
+}
+
 /* Bottom fade shown when the text overflows at the minimum font size. */
 .sticky-note__fade {
   position: absolute;

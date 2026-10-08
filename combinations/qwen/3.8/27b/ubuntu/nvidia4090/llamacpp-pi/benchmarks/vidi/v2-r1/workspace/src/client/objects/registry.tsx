@@ -12,9 +12,10 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { pointInRect, type Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /**
  * The minimal pointer-event shape the object components and the transform
@@ -73,6 +74,12 @@ export interface ObjectTypeSpec {
   /** Minimum side length in world units (the maximum is global). */
   minSize: number;
   editableText: boolean;
+  /**
+   * Which resize handles the selection box shows for objects of this type.
+   * 'horizontal' (story 9 text): only the east/west handles, which set a
+   * fixed width; never a height handle. Default 'all' (eight handles).
+   */
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -103,5 +110,21 @@ registerObjectType('sticky', {
   aspectLocked: true, // sticky notes stay square
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  handles: 'all',
+  hitTest: (obj, p) => pointInRect(objectBounds(obj), p),
+});
+
+// --- Free text (story 9, text.object) ---------------------------------------
+
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  // A side-handle drag shrinks a text box down to this (text.fixed_width).
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  // Only the east/west handles: they set a fixed width; a text object has no
+  // handles that change its height (the height follows the wrapped text).
+  handles: 'horizontal',
   hitTest: (obj, p) => pointInRect(objectBounds(obj), p),
 });

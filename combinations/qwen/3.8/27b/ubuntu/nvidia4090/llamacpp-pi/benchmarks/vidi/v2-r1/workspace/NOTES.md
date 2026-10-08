@@ -281,3 +281,95 @@ Ctrl/Cmd +/-/0 zoom shortcuts in `useCamera`/`BoardViewport`.
   chromium only, one worker, 240 s timeout, each test starts its own
   wrangler on 28433. The main config's `testIgnore` excludes
   `undo.spec.ts` so a plain `npm run test:e2e` never needs wrangler.
+
+# Story 9 — Notes
+
+## Key design decisions
+
+- **Text objects live in the shared model** (`src/shared/objects/text.ts`): a
+  `Y.Map` type `text` with `id`, `createdBy`, `x`, `y`, `text` (a `Y.Text`),
+  `size` (S/M/L/XL), `width` (world px, the fixed box width) and `widthMode`
+  (`auto`|`fixed`). Every write transacts with `LOCAL_ORIGIN` so the board
+  UndoController tracks them; reads are plain getters. `createText` centres on
+  the click point like `createSticky`.
+- **The wire schema is framework-free.** `board-model.ts` reads `size`/`width`/
+  `widthMode` generically into `ObjectSnapshot` (validating `size` against
+  `TEXT_SIZES`) so the snapshot, marquee hit-test and resize path treat a text
+  object like any other box; the text editor and layout are client-only.
+- **Layout (`src/client/objects/textLayout.ts`) uses a canvas 2D measurer**
+  (`measureText`, DPR-scaled) with greedy word wrap on spaces (long words
+  overflow, never char-split). There is **no horizontal padding (P=0)**: the
+  box width is `min(longest original line, TEXT_MAX_AUTO_WIDTH_WORLD=600)` for
+  auto, and the fixed `width` for fixed mode; the wrap budget equals that
+  width, so wrapped lines fit the CSS content width exactly. Height is
+  `lines × fontPx × TEXT_LINE_HEIGHT(1.3)`.
+- **`useTextBoxSync` re-measures on a LOCAL_ORIGIN observer** that is key
+  filtered with `keysChanged.has(...)` (yjs 13.6.33's `YMapEvent` exposes
+  `keysChanged: Set<string>`, not `keys`). It reacts only to `size`/`width`/
+  `widthMode` key changes and to Y.Text changes — an `x`/`y` move never triggers
+  a spurious box write. Box writes go through `setTextBox` (LOCAL_ORIGIN), so
+  a keystroke + its re-measure merge into one undo step.
+- **`TextEditor` is the single general editor** (`src/client/objects/TextEditor.tsx`);
+  `StickyTextEditor` is a thin wrapper that keeps story 2's font-fit +
+  character counter by passing `onValueChange`/`textareaRef`. The `undo`
+  prop is the minimal `TextEditorUndo` interface (boundary/undo/redo), which
+  the board `UndoController` satisfies structurally — no circular import.
+- **Concurrency (text.concurrent): the textarea mirrors Y.Text and never owns
+  the value.** The textarea is *uncontrolled*. Local keystrokes commit with
+  `applyTextDiff(ytext, ta.value, LOCAL_ORIGIN)` (skipped by the observer since
+  the origin matches). A `ytext.observe()` handler re-syncs the textarea from
+  Y.Text for every non-LOCAL_ORIGIN change — remote sync **and undo/redo**
+  (the UndoManager's inverse uses its own origin) — and moves the caret through
+  the event delta with `mapCaretThroughDelta`. This keeps the invariant
+  "textarea content == committed Y.Text" so two clients editing the same text
+  both keep every character (the earlier whole-value diff lost remote
+  characters when a stale textarea re-committed).
+- **Tool mode (`src/client/board/useTool.ts`)**: `Select`(V) / `Text`(T) /
+  `Sticky note`(N) / Escape→Select. The Text tool sets a crosshair cursor and
+  `BoardViewport`'s `onPointerDownCapture` intercepts every pointerdown to
+  `createTextAt` + start editing + drop back to Select (a plain click, no
+  double-click, is required so it never collides with sticky creation).
+- **Horizontal-only resize.** The registry spec gains `handles?: 'all'|
+  'horizontal'`; text is registered `handles:'horizontal'`, `minSize:
+  TEXT_MIN_WIDTH_WORLD`, `aspectLocked:false`. `SelectionOverlay` renders only
+  the e/w handles for an all-horizontal selection, and `useTransformGesture`
+  special-cases a single text object so dragging an edge writes `width` via
+  `setTextWidthFixed` (switching to fixed mode) rather than scaling height.
+- **Empty text is deleted on edit end.** `isEmptyText` is `length === 0`;
+  whitespace-only text is kept. `BoardPage`'s end-edit handler calls
+  `deleteIfEmpty` when the object still exists and is empty.
+- **`createdBy`** is a per-tab anonymous id backed by
+  `sessionStorage` (`src/client/client-id.ts`); real identity is story 6 (out
+  of scope).
+
+## Test notes
+
+- **Test-first tasks 1, 3, 5, 7, 9, 10.** Unit: `text-model.test.ts`
+  (TC-01..06), `text-layout.test.ts` (TC-07..11, TC-32) with a fake measurer,
+  `caret-delta.test.ts` (caret mapping). Component: `TextBoxSync.test.tsx`
+  (TC-12/13 + transition), `Tool.test.tsx` (TC-14..18), `TextObject.test.tsx`
+  (TC-19..25). The text object must be registered in the *unit* project too —
+  `registerKnownObjectType('text')` at module scope — because `objectsSnapshot`
+  filters by `knownObjectTypes` (sticky-only by default).
+- **E2E runs under wrangler** (`playwright.text.config.ts`, script
+  `test:e2e:text`): chromium + firefox, one worker, no parallelism, 240 s
+  timeout; the main config's `testIgnore` excludes `text.spec.ts` so a plain
+  `npm run test:e2e` never needs wrangler. TC-26 (long-annotation wrap) runs in
+  both browsers; TC-27..31 are chromium-only (handle drag, golden path,
+  concurrency, capacity, abandoned text) because pointer-driven resize and the
+  two-context concurrency case are the flakiest under a second engine.
+- **WebKit cannot run in this environment.** The Playwright webkit build is
+  downloaded but fails to launch: it needs the system library `libavif13`,
+  which is absent, there is no root/sudo to install it, and the apt mirror
+  (`archive.ubuntu.com`) is unreachable. Only chromium and firefox launch;
+  both are used to satisfy the multi-engine requirement.
+- **TC-29 (concurrency) pins the invariant.** Two contexts type into the same
+  text ("alpha" / "beta" appended to "Head"); the assertion is a *multiset*
+  equality (every typed character present exactly once, none lost or doubled)
+  plus convergence of both screens — it deliberately does not require a
+  specific interleave order. Expected total length is 13 (Head=4, alpha=5,
+  beta=4).
+- **Existing sticky-note tests reference the button by its new
+  `aria-label` "Sticky note (N)"** (the Toolbar now shows the N shortcut);
+  `sticky-notes.spec.ts`, `load-failure.test.tsx`, `Toolbars.test.tsx` and
+  `broken-board.spec.ts` were updated to match.

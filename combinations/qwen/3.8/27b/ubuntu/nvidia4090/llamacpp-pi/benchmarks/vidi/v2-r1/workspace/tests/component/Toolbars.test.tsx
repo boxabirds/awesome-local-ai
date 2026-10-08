@@ -44,7 +44,7 @@ describe('toolbars (component)', () => {
     const wx = window.innerWidth / 2 + cam.x;
     const wy = window.innerHeight / 2 + cam.y;
 
-    const button = screen.getByRole('button', { name: 'Sticky note' });
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
     fireEvent.click(button);
 
     const notes = hooks().getNotes();

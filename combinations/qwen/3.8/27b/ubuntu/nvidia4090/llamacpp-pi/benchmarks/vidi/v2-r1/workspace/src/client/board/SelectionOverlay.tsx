@@ -62,6 +62,11 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
   const box = unionRects(selected.map(objectBounds));
   if (!box) return null;
   const anyResizable = selected.some((o) => getObjectType(o.type)?.resizable === true);
+  // Story 9: when every selected object only supports horizontal handles
+  // (text), show only the east/west handles; a mixed or sticky selection
+  // keeps all eight.
+  const allHorizontal = selected.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+  const visibleHandles: readonly Handle[] = allHorizontal ? ['e', 'w'] : HANDLES;
 
   const topLeft = worldToScreen(camera, { x: box.x, y: box.y });
   const width = box.width * camera.zoom;
@@ -82,7 +87,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
       }}
     >
       {anyResizable &&
-        HANDLES.map((h) => {
+        visibleHandles.map((h) => {
           const pos = handlePosition(h, width, height);
           return (
             <button

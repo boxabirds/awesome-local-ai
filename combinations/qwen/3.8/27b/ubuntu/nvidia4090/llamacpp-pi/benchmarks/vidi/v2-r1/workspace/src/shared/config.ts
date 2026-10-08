@@ -142,3 +142,61 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * oldest steps are dropped when the limit is exceeded.
  */
 export const UNDO_MAX_STEPS = 200;
+
+// --- Free text (story 9) ----------------------------------------------------
+
+/**
+ * text.grow_wrap: an auto-width text box grows to the width of its longest
+ * line up to this ceiling (world units); beyond it the text wraps.
+ */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/**
+ * text.fixed_width: a side-handle drag can shrink a text box down to this
+ * minimum width (world units).
+ */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/**
+ * text.editing: maximum characters of free text (the editor silently drops
+ * characters beyond the limit, like story 2's notes).
+ */
+export const TEXT_MAX_CHARS = 5000;
+/**
+ * text.sizes: the four size presets. Values are font sizes in world units
+ * (px at 100% zoom; they scale with the camera zoom like everything else).
+ */
+export const TEXT_SIZES = {
+  S: 14,
+  M: 20,
+  L: 32,
+  XL: 56,
+} as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Size of newly created text (text.create: "new text starts at a default size"). */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/**
+ * Line height multiplier used when measuring text layout; the rendered text
+ * uses the same factor so measured and on-screen line counts agree.
+ */
+export const TEXT_LINE_HEIGHT = 1.3;
+/**
+ * Font family of text objects (and their editors). Kept in config so the
+ * layout measurer and the CSS render the same font.
+ */
+export const TEXT_FONT_FAMILY = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+/**
+ * Fallback glyph-width ratio used when no canvas measurer is available
+ * (unit tests without canvas): estimated width = char count x font px x
+ * this ratio.
+ */
+export const TEXT_ESTIMATED_GLYPH_RATIO = 0.6;
+/**
+ * Initial width (world units) of a just-created text object: an estimate so
+ * the object has selectable bounds before its first measurement.
+ */
+export const TEXT_INITIAL_WIDTH_WORLD = TEXT_MIN_WIDTH_WORLD;
+/**
+ * text.create: a new text object gets the top-left corner at the click
+ * point; this is the one-line height of the default size (the initial
+ * estimate's height).
+ */
+export const TEXT_INITIAL_HEIGHT_WORLD = TEXT_SIZES[DEFAULT_TEXT_SIZE] * TEXT_LINE_HEIGHT;

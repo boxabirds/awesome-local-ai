@@ -21,8 +21,10 @@ export default defineConfig({
       // persistence/broken-board specs run their own wrangler process under
       // playwright.persistence.config.ts; share.spec.ts likewise runs under
       // playwright.share.config.ts; selection-collab.spec.ts (multi-context
-      // collaboration) runs under playwright.selection.config.ts (no shared
-      // webServer).
+      // collaboration) runs under playwright.selection.config.ts, undo.spec.ts
+      // under playwright.undo.config.ts, and text.spec.ts (free text; also
+      // firefox/webkit) under playwright.text.config.ts — all no shared
+      // webServer.
       testIgnore: [
         'nightly.spec.ts',
         'persistence.spec.ts',
@@ -30,6 +32,7 @@ export default defineConfig({
         'share.spec.ts',
         'selection-collab.spec.ts',
         'undo.spec.ts',
+        'text.spec.ts',
       ],
     },
     {

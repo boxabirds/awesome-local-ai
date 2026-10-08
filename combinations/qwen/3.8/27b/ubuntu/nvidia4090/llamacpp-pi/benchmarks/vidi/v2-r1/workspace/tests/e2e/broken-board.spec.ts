@@ -48,7 +48,7 @@ test('TC-24: a broken board shows the red banner and recovers without a reload',
     const banner = page.getByRole('status', BANNER);
     await expect(banner).toBeVisible({ timeout: E2E_EVENTUAL_TIMEOUT_MS });
     await expect(banner).toContainText("This board couldn't be loaded. Retrying…");
-    await expect(page.getByRole('button', { name: 'Sticky note' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Sticky note (N)' })).toBeDisabled();
     await expect(page.locator(STICKY_COUNT_SELECTOR)).toHaveCount(0);
 
     // Repair the snapshot. The provider's own retry must load the board in
@@ -57,7 +57,7 @@ test('TC-24: a broken board shows the red banner and recovers without a reload',
     expect((await testHook(boardId, 'repair')).status).toBe(200);
 
     await expect(banner).toBeHidden({ timeout: 2 * E2E_EVENTUAL_TIMEOUT_MS });
-    await expect(page.getByRole('button', { name: 'Sticky note' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Sticky note (N)' })).toBeEnabled();
     await expect(page.locator(STICKY_COUNT_SELECTOR)).toHaveCount(25, {
       timeout: E2E_EVENTUAL_TIMEOUT_MS,
     });

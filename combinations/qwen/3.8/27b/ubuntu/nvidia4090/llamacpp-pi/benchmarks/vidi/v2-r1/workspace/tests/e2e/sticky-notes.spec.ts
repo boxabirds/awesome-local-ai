@@ -147,7 +147,7 @@ test('TC-33: short text renders at the max font; long text shrinks to the minimu
 test('TC-34: the Sticky note button always creates a note at the centre of the screen, even when panned far away', async ({ page }) => {
   await setCamera(page, { x: 5000, y: 5000, zoom: 1 }); // origin far off-screen
 
-  await page.getByRole('button', { name: 'Sticky note' }).click();
+  await page.getByRole('button', { name: 'Sticky note (N)' }).click();
 
   const box = await note(page).boundingBox();
   expect(box).not.toBeNull();

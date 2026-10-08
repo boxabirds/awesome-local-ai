@@ -36,8 +36,10 @@ import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { Toolbar } from '../board/Toolbar';
+import { useTool } from '../board/useTool';
 import { getObjectType } from '../objects/registry';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 import {
   createSticky,
   deleteObject,
@@ -49,6 +51,9 @@ import {
   snapshot,
   type ObjectSnapshot,
 } from '../../shared/board-model';
+import { createText, setTextSize } from '../../shared/objects/text';
+import { TEXT_SIZES, type TextSize } from '../../shared/config';
+import { getClientId } from '../client-id';
 import { STICKY_COLORS, type StickyColor } from '../../shared/config';
 import { isValidBoardId } from '../../shared/board-id';
 import { isTestMode, type Vidi6TestHooks } from '../testHooks';
@@ -171,6 +176,13 @@ function Board(props: { boardId: string }): JSX.Element {
 
   const cam = useCamera(size);
 
+  // Story 9 (tool.shortcuts): the active tool (Select / Text) and the
+  // V / T / N / Escape shortcuts. N creates a sticky at the view centre,
+  // the same action as the toolbar's Sticky note (N) button.
+  const { tool, setTool } = useTool(editable, {
+    onCreateStickyAtCenter: () => createStickyAt({ x: size.width / 2, y: size.height / 2 }),
+  });
+
   // Story 8: one undo controller per board doc (undo.history); it is
   // destroyed when the board unmounts, so a fresh board (or reload) starts
   // with empty history (undo.session_only).
@@ -226,6 +238,25 @@ function Board(props: { boardId: string }): JSX.Element {
     selection.clear();
   }, [doc, selection, editable, undo]);
 
+  // Story 9 (tool.text): a click anywhere on the board creates a text object
+  // with its top-left at the click point, switches back to the Select tool
+  // and starts editing it immediately.
+  const createTextAt = useCallback(
+    (screen: Point) => {
+      if (!editable) return; // story 4: edit lock
+      const world = screenToWorld(cam.camera, screen);
+      // Story 8: one creation is one undo step.
+      undo.boundary();
+      const id = createText(doc, world, getClientId());
+      undo.boundary();
+      if (id) {
+        setTool('select');
+        selection.startEdit(id);
+      }
+    },
+    [cam.camera, doc, editable, selection, setTool, undo],
+  );
+
   // Test hooks (test mode only).
   useEffect(() => {
     if (!isTestMode()) return;
@@ -255,6 +286,8 @@ function Board(props: { boardId: string }): JSX.Element {
             color: o.color,
             text: o.text,
             z: o.z,
+            size: o.size,
+            widthMode: o.widthMode,
           };
         }),
       getConnectionState: () => connectionState,
@@ -300,6 +333,15 @@ function Board(props: { boardId: string }): JSX.Element {
       : null;
   const noteToolbarVisible =
     singleSticky !== null && selection.editingId !== singleSticky.id;
+
+  // With exactly one text object selected, the story 9 TextToolbar (size
+  // presets + delete) replaces the multi-selection bar (text.sizes).
+  const singleText: ObjectSnapshot | null =
+    selectedObjects.length === 1 && selectedObjects[0].type === 'text'
+      ? selectedObjects[0]
+      : null;
+  const textToolbarVisible =
+    singleText !== null && selection.editingId !== singleText.id;
   const singleStickyColor: StickyColor =
     typeof singleSticky?.color === 'string' && singleSticky.color in STICKY_COLORS
       ? (singleSticky.color as StickyColor)
@@ -320,6 +362,7 @@ function Board(props: { boardId: string }): JSX.Element {
         onCreateStickyAt={createStickyAt}
         onEmptyClick={() => selection.clear()}
         marquee={marquee}
+        textTool={tool === 'text' ? { onClickAt: createTextAt } : null}
       >
         {objectsById.map((obj) => {
           const spec = getObjectType(obj.type);
@@ -360,6 +403,8 @@ function Board(props: { boardId: string }): JSX.Element {
       <SelectionBar ids={selection.ids} snapshot={objects} onDelete={deleteSelection} />
 
       <Toolbar
+        tool={tool}
+        onSelectTool={setTool}
         disabled={!editable}
         onCreateSticky={() => createStickyAt({ x: size.width / 2, y: size.height / 2 })}
         extra={<UndoButtons undo={undoApi} />}
@@ -394,6 +439,38 @@ function Board(props: { boardId: string }): JSX.Element {
               if (deleteObject(doc, singleSticky.id)) selection.clear();
               undo.boundary();
             }}
+          />
+        </div>
+      )}
+
+      {textToolbarVisible && singleText && (
+        <div
+          className="note-toolbar-anchor"
+          style={{
+            left: worldToScreen(cam.camera, {
+              x: singleText.x + objectBounds(singleText).width / 2,
+              y: singleText.y,
+            }).x,
+            top:
+              worldToScreen(cam.camera, { x: singleText.x, y: singleText.y }).y -
+              NOTE_TOOLBAR_GAP_PX,
+          }}
+        >
+          <TextToolbar
+            size={
+              singleText.size !== undefined && singleText.size in TEXT_SIZES
+                ? (singleText.size as TextSize)
+                : 'M'
+            }
+            onSize={(s) => {
+              if (!editable) return; // story 4: edit lock
+              // Story 8: one size change is one undo step (the local box
+              // re-measure merges into the same step).
+              undo.boundary();
+              setTextSize(doc, singleText.id, s);
+              undo.boundary();
+            }}
+            onDelete={deleteSelection}
           />
         </div>
       )}

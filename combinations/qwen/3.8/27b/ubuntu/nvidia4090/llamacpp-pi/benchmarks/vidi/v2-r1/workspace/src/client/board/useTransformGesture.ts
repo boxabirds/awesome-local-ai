@@ -25,12 +25,18 @@ import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
 import {
   bringObjectsToFront,
+  getObject,
   moveObjects,
   objectBounds,
   resizeObjects,
   type ObjectSnapshot,
 } from '../../shared/board-model';
-import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
+import {
+  DRAG_THRESHOLD_PX,
+  MAX_OBJECT_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import {
   anchoredBox,
   clampScale,
@@ -99,8 +105,39 @@ export function useTransformGesture(opts: GestureOpts): {
 
   const apply = (p: Pending) => {
     const { doc } = optsRef.current;
-    if (p.kind === 'move') moveObjects(doc, p.positions);
-    else resizeObjects(doc, p.rects);
+    if (p.kind === 'move') {
+      moveObjects(doc, p.positions);
+      return;
+    }
+    // Story 9: objects whose type only supports horizontal handles (text)
+    // never get a direct height change. They are repositioned (x, y) and,
+    // when their width is fixed (or it is the only selected object, in which
+    // case the drag turns it fixed), their scaled width is written via
+    // setTextWidthFixed. useTextBoxSync re-measures the wrapped height
+    // locally after the local width change.
+    const generic = new Map<string, Rect>();
+    const horizontal = new Map<string, Rect>();
+    for (const [id, r] of p.rects) {
+      const obj = getObject(doc, id);
+      const type = obj?.get('type');
+      if (typeof type === 'string' && getObjectType(type)?.handles === 'horizontal') {
+        horizontal.set(id, r);
+      } else {
+        generic.set(id, r);
+      }
+    }
+    if (generic.size > 0) resizeObjects(doc, generic);
+    for (const [id, r] of horizontal) {
+      moveObjects(doc, new Map([[id, { x: r.x, y: r.y }]]));
+      const obj = getObject(doc, id);
+      if (obj === undefined) continue;
+      const widthMode = obj.get('widthMode');
+      const single = p.rects.size === 1;
+      if (single || widthMode === 'fixed') {
+        const width = Math.min(Math.max(r.width, TEXT_MIN_WIDTH_WORLD), MAX_OBJECT_SIZE_WORLD);
+        setTextWidthFixed(doc, id, width);
+      }
+    }
   };
 
   const cancelScheduled = () => {

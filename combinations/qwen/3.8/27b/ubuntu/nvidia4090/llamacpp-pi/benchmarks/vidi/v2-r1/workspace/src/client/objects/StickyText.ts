@@ -1,7 +1,11 @@
 // Sticky note text logic (story 2, sticky.text contract).
-// Pure text logic (diff, clamp, counter) plus font fitting by measurement.
+// Pure text logic (counter, font fitting) plus re-exports of the shared
+// clamp/diff helpers.
+//
+// Story 9 (text.editing.shared): clampToLimit and applyTextDiff moved to
+// src/shared/text-edit.ts so free text reuses them; they are re-exported
+// here (with the sticky default limit) so story 2 callers are unchanged.
 
-import * as Y from 'yjs';
 import {
   STICKY_SIZE_WORLD,
   STICKY_TEXT_MAX_CHARS,
@@ -9,6 +13,9 @@ import {
   STICKY_FONT_MAX_PX,
   STICKY_FONT_MIN_PX,
 } from '../../shared/config';
+import { clampToLimit as sharedClampToLimit, applyTextDiff } from '../../shared/text-edit';
+
+export { applyTextDiff };
 
 /** Padding between the note edge and its text (world units). */
 export const NOTE_PADDING_PX = 12;
@@ -18,7 +25,7 @@ export const NOTE_TEXT_BOX = STICKY_SIZE_WORLD - NOTE_PADDING_PX * 2;
 /** Keep at most `max` characters (default STICKY_TEXT_MAX_CHARS); characters
  *  beyond the limit are dropped. */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  return next.length > max ? next.slice(0, max) : next;
+  return sharedClampToLimit(next, max);
 }
 
 /**
@@ -27,53 +34,6 @@ export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS):
  */
 export function counterVisible(length: number): boolean {
   return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;
-}
-
-/**
- * Apply the minimal change that turns `ytext` into `next`: one delete and/or
- * one insert of the differing middle (common prefix + common suffix), in a
- * single transaction. A full replace would destroy concurrent typing (story 3),
- * so the minimal diff is required.
- *
- * The diff is computed over code points so emoji surrogate pairs are never
- * split.
- */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-
-  const cur = Array.from(current);
-  const nxt = Array.from(next);
-  let prefix = 0;
-  while (prefix < cur.length && prefix < nxt.length && cur[prefix] === nxt[prefix]) {
-    prefix += 1;
-  }
-  let suffix = 0;
-  while (
-    suffix < cur.length - prefix &&
-    suffix < nxt.length - prefix &&
-    cur[cur.length - 1 - suffix] === nxt[nxt.length - 1 - suffix]
-  ) {
-    suffix += 1;
-  }
-
-  const prefixStr = cur.slice(0, prefix).join('');
-  const suffixStr = cur.slice(cur.length - suffix).join('');
-  const deleteStart = prefixStr.length;
-  const deleteLength = current.length - prefixStr.length - suffixStr.length;
-  const insert = nxt.slice(prefix, nxt.length - suffix).join('');
-
-  const apply = () => {
-    if (deleteLength > 0) ytext.delete(deleteStart, deleteLength);
-    if (insert.length > 0) ytext.insert(deleteStart, insert);
-  };
-  const doc = ytext.doc;
-  if (doc) {
-    doc.transact(apply, origin);
-  } else {
-    // Standalone text (unit tests without a doc): implicit transactions.
-    apply();
-  }
 }
 
 /**

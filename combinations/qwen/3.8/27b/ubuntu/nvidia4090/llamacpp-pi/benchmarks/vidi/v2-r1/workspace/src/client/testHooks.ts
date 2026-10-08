@@ -26,6 +26,10 @@ export interface Vidi6ObjectInfo {
   color?: string;
   text: string;
   z: number;
+  /** Size preset (text objects only, story 9). */
+  size?: string;
+  /** 'auto' | 'fixed' (text objects only, story 9). */
+  widthMode?: 'auto' | 'fixed';
 }
 
 export interface Vidi6TestHooks {

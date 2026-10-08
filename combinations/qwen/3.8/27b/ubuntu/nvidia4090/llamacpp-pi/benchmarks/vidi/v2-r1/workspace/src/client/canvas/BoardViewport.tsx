@@ -38,6 +38,12 @@ export interface BoardViewportProps {
     end(): void;
     cancel(): void;
   };
+  /**
+   * Story 9 (tool.text): while the Text tool is active, a pointerdown
+   * anywhere on the board (empty space or on top of an object) creates a
+   * text at that screen point instead of panning, marqueeing or selecting.
+   */
+  textTool?: { onClickAt(screen: Point): void } | null;
   children?: React.ReactNode;
 }
 
@@ -57,6 +63,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     onCreateStickyAt,
     onEmptyClick,
     marquee,
+    textTool,
     children,
   } = props;
 
@@ -67,8 +74,8 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   const lastScaleRef = useRef(1);
 
   // Keep the latest callbacks in a ref so native listeners attach once.
-  const cbRef = useRef({ onBeginPan, onPanMove, onEndPan, onWheel, onZoomStep, onReset, onCreateStickyAt, onEmptyClick, marquee });
-  cbRef.current = { onBeginPan, onPanMove, onEndPan, onWheel, onZoomStep, onReset, onCreateStickyAt, onEmptyClick, marquee };
+  const cbRef = useRef({ onBeginPan, onPanMove, onEndPan, onWheel, onZoomStep, onReset, onCreateStickyAt, onEmptyClick, marquee, textTool });
+  cbRef.current = { onBeginPan, onPanMove, onEndPan, onWheel, onZoomStep, onReset, onCreateStickyAt, onEmptyClick, marquee, textTool };
 
   const toLocal = (clientX: number, clientY: number): Point => {
     const el = viewportRef.current;
@@ -150,6 +157,18 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Story 9 (tool.text): capture phase, so this runs before the object and
+  // pan handlers. While the Text tool is active, every press on the board
+  // creates text at that point (and nothing else starts: no pan, marquee or
+  // selection gesture).
+  const onPointerDownCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    const tt = cbRef.current.textTool;
+    if (!tt) return;
+    e.preventDefault();
+    e.stopPropagation();
+    tt.onClickAt(toLocal(e.clientX, e.clientY));
+  };
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // Drag to pan (or marquee) only starts on empty board space; objects stop
@@ -237,7 +256,9 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       style={{
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${gridX}px ${gridY}px`,
+        ...(textTool !== null && textTool !== undefined ? { cursor: 'text' } : null),
       }}
+      onPointerDownCapture={onPointerDownCapture}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(e) => finishActive(e, false)}
