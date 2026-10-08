@@ -8,6 +8,11 @@ export interface BoardViewportProps {
   onBeginPan: (p: Point) => void
   onPanMove: (p: Point) => void
   onEndPan: () => void
+  /** Fired when a pointerup occurs on empty viewport space with no
+   *  significant drag.  Used to clear selection / end editing. */
+  onEmptyClick?: (p: Point) => void
+  /** Fired on a double-click on empty viewport space. */
+  onDoubleClick?: (p: Point) => void
   onWheel: (data: WheelData) => void
   onGesture: (scale: number, point: Point) => void
   children?: React.ReactNode
@@ -18,24 +23,35 @@ export function BoardViewport({
   onBeginPan,
   onPanMove,
   onEndPan,
+  onEmptyClick,
+  onDoubleClick,
   onWheel,
   onGesture,
   children,
 }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
-  // Keep latest callbacks in a ref so the effect closure uses the latest ones
-  const cbRef = useRef({ onBeginPan, onPanMove, onEndPan, onWheel, onGesture })
-  cbRef.current = { onBeginPan, onPanMove, onEndPan, onWheel, onGesture }
 
-  // We keep the panning flag on a ref + update the DOM attribute directly so
-  // the test assertions see the correct state without waiting for React to re-render.
-  const draggingRef = useRef(false)
+  // Keep latest callbacks in a ref so the effect closure always uses the
+  // latest versions without re-registering DOM listeners.
+  const cbRef = useRef({
+    onBeginPan, onPanMove, onEndPan, onEmptyClick, onDoubleClick, onWheel, onGesture,
+  })
+  cbRef.current = {
+    onBeginPan, onPanMove, onEndPan, onEmptyClick, onDoubleClick, onWheel, onGesture,
+  }
+
+  // ── DOM event listeners (set up once) ─────────────────────────────────────
 
   useEffect(() => {
     const el = viewportRef.current
     if (!el) return
 
-    let pointerId: number | null = null
+    let panning = false
+    let panMoved = false       // true once the pointer has moved far enough to count as a drag
+    let downClientX = 0
+    let downClientY = 0
+
+    const DRAG_PX = 3 // viewport-level "this is a drag, not a click" threshold
 
     function localToViewport(clientX: number, clientY: number): Point {
       const rect = el!.getBoundingClientRect()
@@ -43,36 +59,62 @@ export function BoardViewport({
     }
 
     function setPanning(val: boolean) {
-      draggingRef.current = val
+      panning = val
       el!.dataset.state = val ? 'panning' : 'idle'
       el!.style.cursor = val ? 'grabbing' : 'default'
     }
 
+    // ── pointerdown ──────────────────────────────────────────────────────────
     function onPointerDown(e: globalThis.PointerEvent) {
-      // Only start drag on the viewport element itself (not children)
+      // Only interact with the viewport itself – children (notes, toolbars)
+      // handle their own pointer events and call stopPropagation.
       if (e.target !== el) return
       if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return
-      pointerId = e.pointerId
-      ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+
+      // Record the starting position for click-vs-drag detection.
+      downClientX = e.clientX
+      downClientY = e.clientY
+      panMoved = false
+
       setPanning(true)
+      ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
       const p = localToViewport(e.clientX, e.clientY)
       cbRef.current.onBeginPan(p)
     }
 
+    // ── pointermove ──────────────────────────────────────────────────────────
     function onPointerMove(e: globalThis.PointerEvent) {
-      if (!draggingRef.current) return
+      if (!panning) return
+      const dx = Math.abs(e.clientX - downClientX)
+      const dy = Math.abs(e.clientY - downClientY)
+      if (dx > DRAG_PX || dy > DRAG_PX) panMoved = true
       const p = localToViewport(e.clientX, e.clientY)
       cbRef.current.onPanMove(p)
     }
 
-    function onPointerEnd(_e: globalThis.PointerEvent) {
-      if (!draggingRef.current) return
+    // ── pointerup / pointercancel / lostpointercapture ───────────────────────
+    function onPointerEnd(e: globalThis.PointerEvent) {
+      if (!panning) return
       setPanning(false)
-      pointerId = null
-      cbRef.current.onEndPan()
+      // If the pointer never moved beyond DRAG_PX the user just clicked on
+      // the empty background – fire onEmptyClick so the app can deselect.
+      if (!panMoved) {
+        const p = localToViewport(e.clientX, e.clientY)
+        cbRef.current.onEmptyClick?.(p)
+      }
     }
 
-    // Wheel: always preventDefault and either pan or zoom
+    // ── dblclick ─────────────────────────────────────────────────────────────
+    function onDblClick(e: MouseEvent) {
+      // Only on the viewport itself; double-clicks on notes or toolbars are
+      // handled by those components (they stopPropagation on the underlying
+      // pointer events but not on dblclick, so we also guard by target here).
+      if (e.target !== el) return
+      const p = localToViewport(e.clientX, e.clientY)
+      cbRef.current.onDoubleClick?.(p)
+    }
+
+    // ── wheel ────────────────────────────────────────────────────────────────
     function onWheelNative(e: WheelEvent) {
       e.preventDefault()
       const p = localToViewport(e.clientX, e.clientY)
@@ -85,10 +127,8 @@ export function BoardViewport({
       })
     }
 
-    // Safari gesturestart/gesturechange
-    function onGestureStart(e: Event) {
-      e.preventDefault()
-    }
+    // ── Safari gesture ───────────────────────────────────────────────────────
+    function onGestureStart(e: Event) { e.preventDefault() }
 
     function onGestureChange(e: Event) {
       e.preventDefault()
@@ -98,28 +138,15 @@ export function BoardViewport({
       cbRef.current.onGesture(ge.scale, p)
     }
 
-    // Keyboard shortcuts on window
-    function onKeyDown(e: KeyboardEvent) {
-      if (!(e.ctrlKey || e.metaKey)) return
-      if (e.key === '=' || e.key === '+') {
-        e.preventDefault()
-        cbRef.current.onWheel // placeholder – not used here; see App.tsx
-      }
-    }
-
-    // Pointer events
     el.addEventListener('pointerdown', onPointerDown as EventListener)
     el.addEventListener('pointermove', onPointerMove as EventListener)
     el.addEventListener('pointerup', onPointerEnd as EventListener)
     el.addEventListener('pointercancel', onPointerEnd as EventListener)
     el.addEventListener('lostpointercapture', onPointerEnd as EventListener)
-    // Wheel (non-passive)
+    el.addEventListener('dblclick', onDblClick)
     el.addEventListener('wheel', onWheelNative, { passive: false })
-    // Safari gesture events
     el.addEventListener('gesturestart', onGestureStart)
     el.addEventListener('gesturechange', onGestureChange)
-    // Suppress ctrl+click context menu that can interfere
-    void onKeyDown
 
     return () => {
       el.removeEventListener('pointerdown', onPointerDown as EventListener)
@@ -127,12 +154,15 @@ export function BoardViewport({
       el.removeEventListener('pointerup', onPointerEnd as EventListener)
       el.removeEventListener('pointercancel', onPointerEnd as EventListener)
       el.removeEventListener('lostpointercapture', onPointerEnd as EventListener)
+      el.removeEventListener('dblclick', onDblClick)
       el.removeEventListener('wheel', onWheelNative)
       el.removeEventListener('gesturestart', onGestureStart)
       el.removeEventListener('gesturechange', onGestureChange)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // ── render ─────────────────────────────────────────────────────────────────
 
   const spacing = GRID_SPACING_WORLD * camera.zoom
   const bgX = -camera.x * camera.zoom
@@ -155,7 +185,11 @@ export function BoardViewport({
         touchAction: 'none',
       }}
     >
-      {/* World layer – renders children in board coordinate space */}
+      {/*
+        World layer: renders children in board coordinate space.
+        pointerEvents: 'none' so clicks on the empty layer fall through to
+        the viewport; individual children opt-in with pointerEvents: 'auto'.
+      */}
       <div
         data-testid="world-layer"
         data-camera={`${camera.x},${camera.y},${camera.zoom}`}

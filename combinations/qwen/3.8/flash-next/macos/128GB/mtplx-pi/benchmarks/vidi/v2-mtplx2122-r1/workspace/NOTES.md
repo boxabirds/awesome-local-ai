@@ -32,10 +32,16 @@ To switch to `wrangler dev` once Worker code lands, replace `webServer.command` 
 command: 'npm run build && npx wrangler dev --port 25776'
 ```
 
-## test:component uses jsdom; PointerEvent polyfill
+## test:component uses jsdom; PointerEvent + rAF polyfills
 
-`tests/component/setup.ts` provides a `PointerEvent` polyfill (extending `MouseEvent`)
-because jsdom does not implement `PointerEvent`.  `ResizeObserver` is also mocked.
+`tests/component/setup.ts` provides:
+- `PointerEvent` polyfill (extends `MouseEvent`) because jsdom does not implement it.
+- `ResizeObserver` mock.
+- Synchronous `requestAnimationFrame` override (jsdom's built-in rAF is async via
+  setTimeout; tests need the callback to fire inline so that drag/move assertions
+  can check results without async plumbing).
+- `setPointerCapture` / `releasePointerCapture` / `hasPointerCapture` no-ops.
+
 Event handling in `BoardViewport.tsx` uses `addEventListener` (not React synthetic events)
 so that dispatching synthetic events in tests exercises the same code path as a real browser.
 

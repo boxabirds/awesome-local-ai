@@ -54,6 +54,13 @@ if (typeof _win['ResizeObserver'] === 'undefined') {
   _win['ResizeObserver'] = ResizeObserverMock
 }
 
+// Override requestAnimationFrame: jsdom provides an async one; tests need synchronous.
+_win['requestAnimationFrame'] = (cb: FrameRequestCallback) => {
+  cb(performance.now())
+  return 0
+}
+_win['cancelAnimationFrame'] = (_id: number) => {}
+
 // Polyfill setPointerCapture / releasePointerCapture / hasPointerCapture
 if (!HTMLElement.prototype.setPointerCapture) {
   HTMLElement.prototype.setPointerCapture = function (_id: number) {}

@@ -3,23 +3,39 @@ import { BoardViewport } from './canvas/BoardViewport'
 import { ZoomControls } from './canvas/ZoomControls'
 import { NavigationHint } from './canvas/NavigationHint'
 import { useCamera, type WheelData } from './canvas/useCamera'
-import { zoomPercent, canZoomIn, canZoomOut } from './canvas/camera'
-import { GRID_SPACING_WORLD } from '../shared/config'
+import { zoomPercent, canZoomIn, canZoomOut, screenToWorld, worldToScreen } from './canvas/camera'
+import { useBoardDoc } from './board/useBoardDoc'
+import { useSelection } from './board/useSelection'
+import { Toolbar } from './board/Toolbar'
+import { StickyNote } from './objects/StickyNote'
+import { NoteToolbar } from './objects/NoteToolbar'
+import { createSticky, deleteObject, setStickyColor } from '../shared/board-model'
+import { STICKY_SIZE_WORLD } from '../shared/config'
+import type { StickyColor } from '../shared/config'
 import type { Point } from './canvas/camera'
 
+// ── viewport dimensions ───────────────────────────────────────────────────────
+
 const INITIAL_VIEWPORT = { width: 1280, height: 800 }
+
+// ── global test hook ──────────────────────────────────────────────────────────
 
 declare global {
   // eslint-disable-next-line no-var
   var __vidi6:
     | {
         setCamera(cam: { x: number; y: number; zoom: number }): void
+        /** Test helper: add a note at world (x, y) directly, bypassing UI. */
+        createNote(x: number, y: number, color?: string): string
       }
     | undefined
 }
 
+// ── App ───────────────────────────────────────────────────────────────────────
+
 export function App() {
   const [viewportSize, setViewportSize] = useState(INITIAL_VIEWPORT)
+
   const {
     camera,
     hasNavigated,
@@ -33,28 +49,85 @@ export function App() {
     setCamera,
   } = useCamera(viewportSize)
 
-  // ── Keyboard shortcuts on window ──────────────────────────────────────────
+  // ── doc + notes ─────────────────────────────────────────────────────────────
+  const { doc, notes } = useBoardDoc()
+
+  // ── selection ───────────────────────────────────────────────────────────────
+  const { selectedId, editingId, select, startEdit, endEdit } = useSelection()
+
+  // ── drag state (which note is being dragged; null = none) ─────────────────
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+
+  const handleDragStart = useCallback((id: string) => setDraggingId(id), [])
+  const handleDragEnd  = useCallback((id: string) =>
+    setDraggingId(prev => prev === id ? null : prev),
+  [])
+
+  // ── keyboard shortcuts on window ──────────────────────────────────────────
+  const kbRef = useRef({ selectedId, editingId, doc, select, startEdit, endEdit })
+  kbRef.current = { selectedId, editingId, doc, select, startEdit, endEdit }
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return
-      if (e.key === '=' || e.key === '+') {
+      const { selectedId, editingId, doc, select, startEdit } = kbRef.current
+
+      // Zoom shortcuts (ctrl/meta) – existing behaviour, unchanged.
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === '=' || e.key === '+') { e.preventDefault(); kbRef.current && (window as any).__zoomIn?.() }
+        if (e.key === '-' || e.key === '_') { e.preventDefault(); (window as any).__zoomOut?.() }
+        if (e.key === '0') { e.preventDefault(); (window as any).__zoomReset?.() }
+        return
+      }
+
+      // Skip if focus is in a form element (textarea or input).
+      const ae = document.activeElement
+      if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT')) return
+
+      // Skip while editing – keys go to the textarea.
+      if (editingId) return
+
+      if (e.key === 'Enter' && selectedId) {
         e.preventDefault()
-        zoomStep('in')
-      } else if (e.key === '-' || e.key === '_') {
+        startEdit(selectedId)
+        return
+      }
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
         e.preventDefault()
-        zoomStep('out')
-      } else if (e.key === '0') {
-        e.preventDefault()
-        reset()
+        deleteObject(doc, selectedId)
+        select(null)
+        return
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [zoomStep, reset])
+  }, []) // stable – uses kbRef
 
-  // ── Test hook (DEV / test builds only) ─────────────────────────────────────
+  // ── keyboard zoom (wired via effect so the window handler can reach zoomStep)
+  const zoomStepRef = useRef(zoomStep)
+  zoomStepRef.current = zoomStep
+  const resetRef = useRef(reset)
+  resetRef.current = reset
+
+  useEffect(() => {
+    const zoomIn = () => zoomStepRef.current('in')
+    const zoomOut = () => zoomStepRef.current('out')
+    const zoomReset = () => resetRef.current()
+    ;(window as any).__zoomIn = zoomIn
+    ;(window as any).__zoomOut = zoomOut
+    ;(window as any).__zoomReset = zoomReset
+    return () => {
+      delete (window as any).__zoomIn
+      delete (window as any).__zoomOut
+      delete (window as any).__zoomReset
+    }
+  }, [])
+
+  // ── Test hook ──────────────────────────────────────────────────────────────
   const setCameraRef = useRef(setCamera)
   setCameraRef.current = setCamera
+  const docRef = useRef(doc)
+  docRef.current = doc
 
   useEffect(() => {
     if (!import.meta.env.DEV) return
@@ -62,10 +135,11 @@ export function App() {
       setCamera(cam: { x: number; y: number; zoom: number }) {
         setCameraRef.current(cam)
       },
+      createNote(x: number, y: number, color?: string) {
+        return createSticky(docRef.current, { x, y }, color as any)
+      },
     }
-    return () => {
-      delete window.__vidi6
-    }
+    return () => { delete window.__vidi6 }
   }, [])
 
   // ── Viewport size via ResizeObserver ───────────────────────────────────────
@@ -76,9 +150,7 @@ export function App() {
     const update = () => {
       const { width, height } = el.getBoundingClientRect()
       if (width > 0 && height > 0) {
-        setViewportSize(s =>
-          s.width === width && s.height === height ? s : { width, height },
-        )
+        setViewportSize(s => s.width === width && s.height === height ? s : { width, height })
       }
     }
     update()
@@ -91,15 +163,89 @@ export function App() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleBeginPan = useCallback((p: Point) => beginPan(p), [beginPan])
-  const handlePanMove = useCallback((p: Point) => panMove(p), [panMove])
-  const handleEndPan = useCallback(() => endPan(), [endPan])
-  const handleWheel = useCallback((d: WheelData) => wheel(d), [wheel])
-  const handleGesture = useCallback(
-    (scale: number, point: Point) => {
-      zoomAtPoint(point, scale)
-    },
-    [zoomAtPoint],
-  )
+  const handlePanMove  = useCallback((p: Point) => panMove(p), [panMove])
+  const handleEndPan   = useCallback(() => endPan(), [endPan])
+  const handleWheel    = useCallback((d: WheelData) => wheel(d), [wheel])
+  const handleGesture  = useCallback((scale: number, point: Point) => {
+    zoomAtPoint(point, scale)
+  }, [zoomAtPoint])
+
+  // ── Empty-space click → clear selection / end editing ─────────────────────
+  // Keep latest selection state in a ref so the stable handler sees the right values.
+  const selRef = useRef({ selectedId, editingId })
+  selRef.current = { selectedId, editingId }
+  const endEditRef = useRef(endEdit)
+  endEditRef.current = endEdit
+  const selectRef = useRef(select)
+  selectRef.current = select
+
+  const handleEmptyClick = useCallback((_p: Point) => {
+    const { selectedId, editingId } = selRef.current
+    if (editingId) {
+      endEditRef.current('unselected')
+    } else if (selectedId) {
+      selectRef.current(null)
+    }
+  }, [])
+
+  // ── Double-click on empty viewport → create a new sticky ──────────────────
+  // Camera is needed to convert viewport-space point → world-space point.
+  const cameraRef = useRef(camera)
+  cameraRef.current = camera
+
+  const startEditRef = useRef(startEdit)
+  startEditRef.current = startEdit
+
+  const handleViewportDblClick = useCallback((p: Point) => {
+    const cam = cameraRef.current
+    const worldPoint = screenToWorld(cam, p)
+    const id = createSticky(doc, worldPoint)
+    if (id) {
+      selectRef.current(id)
+      startEditRef.current(id)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc])
+
+  // ── Toolbar create button ──────────────────────────────────────────────────
+  const viewportSizeRef = useRef(viewportSize)
+  viewportSizeRef.current = viewportSize
+
+  const handleToolbarCreate = useCallback(() => {
+    const { width, height } = viewportSizeRef.current
+    const cam = cameraRef.current
+    // World centre of the visible board area.
+    const worldCenter = screenToWorld(cam, { x: width / 2, y: height / 2 })
+    const id = createSticky(doc, worldCenter)
+    if (id) {
+      selectRef.current(id)
+      startEditRef.current(id)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc])
+
+  // ── NoteToolbar actions ─────────────────────────────────────────────────────
+  const docForToolbar = doc
+
+  const handleDelete = useCallback((id: string) => {
+    deleteObject(doc, id)
+    selectRef.current(null)
+  }, [doc])
+
+  // ── selected note lookup ────────────────────────────────────────────────────
+  const selectedNote = selectedId ? notes.find(n => n.id === selectedId) : null
+
+  // ── NoteToolbar screen position ─────────────────────────────────────────────
+  const noteToolbarPos = selectedNote
+    ? (() => {
+        const screenTopLeft = worldToScreen(camera, { x: selectedNote.x, y: selectedNote.y })
+        const noteScreenW = STICKY_SIZE_WORLD * camera.zoom
+        return {
+          left: screenTopLeft.x + noteScreenW / 2,
+          top: screenTopLeft.y - 44,
+        }
+      })()
+    : null
 
   return (
     <div
@@ -112,44 +258,26 @@ export function App() {
         onBeginPan={handleBeginPan}
         onPanMove={handlePanMove}
         onEndPan={handleEndPan}
+        onEmptyClick={handleEmptyClick}
+        onDoubleClick={handleViewportDblClick}
         onWheel={handleWheel}
         onGesture={handleGesture}
       >
-        {/* Origin crosshair at world (0,0) */}
+        {/* Origin crosshair at world (0,0) – from story 1 */}
         <div
           data-testid="origin-marker"
           aria-hidden="true"
           style={{
             position: 'absolute',
-            left: -6,
-            top: -6,
-            width: 12,
-            height: 12,
+            left: -6, top: -6, width: 12, height: 12,
             pointerEvents: 'none',
           }}
         >
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 5,
-              width: 12,
-              height: 2,
-              background: 'rgba(255,0,0,0.7)',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: 5,
-              top: 0,
-              width: 2,
-              height: 12,
-              background: 'rgba(255,0,0,0.7)',
-            }}
-          />
+          <div style={{ position: 'absolute', left: 0, top: 5, width: 12, height: 2, background: 'rgba(255,0,0,0.7)' }} />
+          <div style={{ position: 'absolute', left: 5, top: 0, width: 2, height: 12, background: 'rgba(255,0,0,0.7)' }} />
         </div>
-        {/* Grid dot landmarks at k*GRID_SPACING_WORLD for e2e tests */}
+
+        {/* Grid dot landmarks – from story 1 */}
         {Array.from({ length: 5 }, (_, k) => (
           <div
             key={k}
@@ -157,17 +285,58 @@ export function App() {
             aria-hidden="true"
             style={{
               position: 'absolute',
-              left: (k + 1) * GRID_SPACING_WORLD - 3,
-              top: -3,
-              width: 6,
-              height: 6,
+              left: (k + 1) * 40 - 3, top: -3,
+              width: 6, height: 6,
               borderRadius: '50%',
               background: 'rgba(0,0,255,0.5)',
               pointerEvents: 'none',
             }}
           />
         ))}
+
+        {/* Sticky notes */}
+        {notes.map(note => (
+          <StickyNote
+            key={note.id}
+            note={note}
+            doc={doc}
+            zoom={camera.zoom}
+            selected={note.id === selectedId}
+            editing={note.id === editingId}
+            onSelect={id => selectRef.current(id)}
+            onStartEdit={id => startEditRef.current(id)}
+            onEndEdit={next => endEditRef.current(next)}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          />
+        ))}
       </BoardViewport>
+
+      {/* ── Left toolbar ── */}
+      <Toolbar onCreateSticky={handleToolbarCreate} />
+
+      {/* ── NoteToolbar: shown when a note is selected, not editing, not dragging ── */}
+      {selectedNote && !editingId && !draggingId && noteToolbarPos && (
+        <div
+          data-testid="note-toolbar-wrapper"
+          style={{
+            position: 'absolute',
+            left: noteToolbarPos.left,
+            top: noteToolbarPos.top,
+            transform: 'translateX(-50%)',
+            zIndex: 20,
+            pointerEvents: 'none',
+          }}
+        >
+          <NoteToolbar
+            color={selectedNote.color}
+            onColor={c => setStickyColor(doc, selectedNote.id, c)}
+            onDelete={() => handleDelete(selectedNote.id)}
+          />
+        </div>
+      )}
+
+      {/* ── Zoom + Navigation UI ── */}
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
