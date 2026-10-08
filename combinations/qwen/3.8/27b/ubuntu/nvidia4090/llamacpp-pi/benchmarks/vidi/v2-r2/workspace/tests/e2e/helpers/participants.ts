@@ -85,15 +85,24 @@ export class Participant {
     });
   }
 
-  /** Opens /b/<boardId> in a new tab and waits until synced+connected. */
+  /**
+   * Opens /b/<boardId> in a new tab and waits until synced+connected.
+   * `baseUrl` (optional) targets a specific server (the persistence tests run
+   * their own `wrangler dev`); omitted means the playwright baseURL.
+   */
   static async join(
     context: BrowserContext,
     boardId: string,
     timeoutMs = 20_000,
+    baseUrl?: string,
   ): Promise<Participant> {
     const page = await context.newPage();
     const p = new Participant(page);
-    await page.goto(`/b/${encodeURIComponent(boardId)}`);
+    await page.goto(
+      baseUrl === undefined
+        ? `/b/${encodeURIComponent(boardId)}`
+        : `${baseUrl}/b/${encodeURIComponent(boardId)}`,
+    );
     await page.waitForSelector('[data-testid="board-viewport"]');
     await page.waitForFunction(
       () => window.__vidi6?.connectionState === 'connected',

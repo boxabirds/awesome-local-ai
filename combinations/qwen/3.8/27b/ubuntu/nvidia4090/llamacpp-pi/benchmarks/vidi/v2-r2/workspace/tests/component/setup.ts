@@ -7,6 +7,8 @@ type ProviderStatus = 'connecting' | 'connected' | 'disconnected';
 export interface MockWebsocketProvider {
   emitStatus(status: ProviderStatus): void;
   emitSync(sync: boolean): void;
+  /** Fire a socket close with the given close code (or null for a local close). */
+  emitConnectionClose(code: number | null): void;
   destroyed: boolean;
 }
 
@@ -14,7 +16,14 @@ export interface MockWebsocketProvider {
 // order; the latest one belongs to the most recently rendered board.
 // (vi.hoisted consts cannot be exported directly, hence the alias.)
 const hoistedMock = vi.hoisted(
-  () => ({ providers: [] as { emitStatus(s: string): void; emitSync(s: boolean): void; destroyed: boolean }[] }),
+  () => ({
+    providers: [] as {
+      emitStatus(s: string): void;
+      emitSync(s: boolean): void;
+      emitConnectionClose(c: number | null): void;
+      destroyed: boolean;
+    }[],
+  }),
 );
 export const mockProviders: MockWebsocketProvider[] = hoistedMock.providers;
 
@@ -32,6 +41,7 @@ vi.mock('y-websocket', () => ({
   WebsocketProvider: class {
     private statusHandlers: ((event: { status: ProviderStatus }) => void)[] = [];
     private syncHandlers: ((sync: boolean) => void)[] = [];
+    private closeHandlers: ((event: { code: number } | null) => void)[] = [];
     destroyed = false;
 
     constructor(..._args: unknown[]) {
@@ -39,11 +49,13 @@ vi.mock('y-websocket', () => ({
       mockProviders.push(this as unknown as MockWebsocketProvider);
     }
 
-    on(event: 'status' | 'sync', handler: unknown): void {
+    on(event: 'status' | 'sync' | 'connection-close', handler: unknown): void {
       if (event === 'status') {
         this.statusHandlers.push(handler as never);
-      } else {
+      } else if (event === 'sync') {
         this.syncHandlers.push(handler as never);
+      } else {
+        this.closeHandlers.push(handler as never);
       }
     }
 
@@ -60,6 +72,12 @@ vi.mock('y-websocket', () => ({
     emitSync(sync: boolean): void {
       for (const h of this.syncHandlers) {
         h(sync);
+      }
+    }
+
+    emitConnectionClose(code: number | null): void {
+      for (const h of this.closeHandlers) {
+        h(code === null ? null : { code });
       }
     }
   },

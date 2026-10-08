@@ -32,6 +32,12 @@ export interface StickyNoteProps {
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
   /**
+   * When true (persist.client_status load_failed) the note can still be
+   * selected but drag and text editing are no-ops, so a load-failed board
+   * can never be mutated.
+   */
+  disabled?: boolean;
+  /**
    * Report whether this note is mid-drag. Used by the board (and tests) to
    * hide the floating note toolbar while a drag is in flight, so a
    * pointerup never lands on a swatch and recolors by accident.
@@ -40,7 +46,7 @@ export interface StickyNoteProps {
 }
 
 export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit, onDraggingChange } = props;
+  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit, onDraggingChange, disabled = false } = props;
 
   const textRef = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState<{ fontPx: number; overflow: boolean }>({
@@ -102,6 +108,12 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (editing) {
       return; // the textarea owns pointer events (caret placement)
+    }
+    if (disabled) {
+      // load_failed: selection is allowed but drag is a no-op.
+      e.stopPropagation();
+      onSelect(note.id);
+      return;
     }
     if (e.pointerType === 'mouse' && e.button !== 0) {
       return;
@@ -184,6 +196,9 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
     // Double-clicking a note edits it; it must never fall through to the
     // board and create a second note (TC-35).
     e.stopPropagation();
+    if (disabled) {
+      return; // load_failed: editing is locked out
+    }
     if (!editing) {
       onStartEdit(note.id);
     }
@@ -192,6 +207,9 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     if (editing) {
       return; // the textarea owns the keys
+    }
+    if (disabled) {
+      return; // load_failed: editing is locked out
     }
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -234,7 +252,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
         outline: selected ? STICKY_SELECTION_OUTLINE : 'none',
         outlineOffset: 2,
         pointerEvents: 'auto',
-        cursor: editing ? 'text' : 'grab',
+        cursor: editing ? 'text' : disabled ? 'default' : 'grab',
         fontFamily: TEXT_FAMILY,
         boxSizing: 'border-box',
         userSelect: 'none',

@@ -24,6 +24,22 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code for frames the room cannot make sense of. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/**
+ * Permanent-style close: the board failed to load. y-websocket treats close
+ * codes 4400-4499 as permanent (no reconnect) and anything at/above 4500 as
+ * transient (reconnect with backoff) — 4500 is therefore exactly the code a
+ * LoadFailed room closes with: the client keeps retrying until the storage
+ * is repaired (TC-24) without any page reload.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/**
+ * Transient close: a storage write failed and the room reset itself
+ * (PRD F5). Clients treat it like any other connection loss: reconnecting,
+ * board stays editable; their pending updates re-sync on reconnect.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 /** A decoded WebSocket frame, or why it could not be decoded. */
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }

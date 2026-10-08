@@ -10,9 +10,13 @@
  *   reconnecting-> socket lost after having connected (amber badge)
  *   confirmed   -> just reconnected; green "Connected" for
  *                  CONNECTED_CONFIRMATION_MS, then back to connected
+ *   load_failed -> the last close was CLOSE_BOARD_LOAD_FAILED (4500): the
+ *                  board could not be loaded (red badge, editing disabled).
+ *                  The provider keeps retrying with backoff; the first
+ *                  successful sync switches back to connected (no reload).
  *
- * The board stays fully editable in every state: edits go into the local
- * Y.Doc and are exchanged on (re)connect.
+ * The board stays fully editable in every state except load_failed: edits
+ * go into the local Y.Doc and are exchanged on (re)connect.
  */
 
 import { WebsocketProvider } from 'y-websocket';
@@ -21,8 +25,14 @@ import {
   CONNECTED_CONFIRMATION_MS,
   RECONNECT_MAX_BACKOFF_MS,
 } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
 
 /**
  * Handle returned by connectBoard: tear down, or drive a simulated network
@@ -41,6 +51,10 @@ export interface BoardConnection {
  * The slice of the y-websocket provider the state mapping needs. Extracted
  * so the mapping is testable with a fake provider event emitter (design
  * TC-19 to TC-21) without a real socket.
+ *
+ * `connection-close` fires on every socket close with the `CloseEvent`
+ * (or `null` for a local close); only its `code` is needed. The real
+ * y-websocket `CloseEvent` is structurally assignable to `{ code: number }`.
  */
 export interface ProviderLike {
   on(
@@ -48,6 +62,7 @@ export interface ProviderLike {
     handler: (event: { status: 'connecting' | 'connected' | 'disconnected' }) => void,
   ): void;
   on(event: 'sync', handler: (state: boolean) => void): void;
+  on(event: 'connection-close', handler: (event: { code: number } | null) => void): void;
   destroy(): void;
 }
 
@@ -86,6 +101,10 @@ export function createConnectionState(
     }
     if (state === 'connecting') {
       emit('connected');
+    } else if (state === 'load_failed') {
+      // The board loaded (re)successfully: switch back to connected and
+      // re-enable editing, without a page reload (persist.load_failure).
+      emit('connected');
     } else if (state === 'reconnecting') {
       emit('confirmed');
       confirmationTimer = setTimeout(() => {
@@ -102,8 +121,15 @@ export function createConnectionState(
       tryLive();
     } else {
       wsConnected = false;
+      // A fresh sync is required before the board counts as live again
+      // (y-websocket resets `synced` on disconnect / new connection); this
+      // prevents a stale `synced` from flipping a reconnect to 'connected'
+      // before the Step1/Step2 dance completes.
+      synced = false;
       // A socket loss (or a fresh connect attempt) after having been live
-      // means "reconnecting"; the initial load stays "connecting".
+      // means "reconnecting"; the initial load stays "connecting". A board
+      // that failed to load keeps showing "load_failed" (Retrying…) across
+      // the provider's backoff retries until a sync succeeds (tryLive).
       if (state === 'connected' || state === 'confirmed') {
         emit('reconnecting');
       }
@@ -117,8 +143,21 @@ export function createConnectionState(
     }
   };
 
+  // Only CLOSE_BOARD_LOAD_FAILED (4500) means "the board could not be
+  // loaded" → load_failed. Every other close code (storage failure 1011,
+  // garbage update 1003, transient 44xx, normal 1000/1001) keeps the board
+  // readable: the socket loss is handled by the status event (reconnecting)
+  // and changes are retried on reconnection (persist.save_failure).
+  const handleClose = (event: { code: number } | null): void => {
+    if (event !== null && event.code === CLOSE_BOARD_LOAD_FAILED) {
+      clearConfirmation();
+      emit('load_failed');
+    }
+  };
+
   provider.on('status', handleStatus);
   provider.on('sync', handleSync);
+  provider.on('connection-close', handleClose);
 
   // The initial state is reported immediately (design sync.client).
   onState('connecting');

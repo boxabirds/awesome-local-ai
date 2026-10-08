@@ -28,6 +28,18 @@ import { useStickyKeyboard } from './board/useStickyKeyboard';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
+import { type ConnectionState } from './sync/connectBoard';
+
+/**
+ * The board is editable in every connection state except load_failed
+ * (persist.client_status): while the board couldn't be loaded, edits would
+ * be lost, so create/drag/edit/colour/delete are no-ops and the Sticky note
+ * button is disabled. Exported for the component tests (TC-23) and reused by
+ * the board to gate its editing handlers.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 /** Board background colour (the dot grid is drawn on top). */
 const BOARD_BACKGROUND = '#f8f8f6';
@@ -147,10 +159,12 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
 
   const cameraController = useCamera(viewport);
   const { doc, objects, connectionState, dropSocket, resumeSocket } = useBoardDoc(boardId);
+  // Editing is locked out while the board couldn't be loaded (persist.client_status).
+  const editable = canEdit(connectionState);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  useStickyKeyboard({ doc, selectedId, editingId, select, startEdit });
+  useStickyKeyboard({ doc, selectedId, editingId, select, startEdit, editable });
 
   // If the selected / editing note disappears (deleted elsewhere), clear the
   // stale local state so nothing points at a ghost (TC-37).
@@ -166,12 +180,15 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
   /** Create a sticky note centred on a viewport-local point and start editing it. */
   const createAt = useCallback(
     (p: Point): void => {
+      if (!editable) {
+        return; // load_failed: editing is locked out (persist.client_status)
+      }
       const id = createSticky(doc, screenToWorld(cameraController.camera, p));
       if (id !== '') {
         startEdit(id);
       }
     },
-    [doc, cameraController.camera, startEdit],
+    [doc, cameraController.camera, startEdit, editable],
   );
 
   const createAtCentre = useCallback((): void => {
@@ -221,6 +238,7 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
               zoom={cameraController.camera.zoom}
               selected={selectedId === note.id}
               editing={editingId === note.id}
+              disabled={!editable}
               onSelect={select}
               onStartEdit={startEdit}
               onEndEdit={endEdit}
@@ -228,7 +246,7 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
             />
           ))}
         </BoardViewport>
-        <Toolbar onCreateSticky={createAtCentre} />
+        <Toolbar onCreateSticky={createAtCentre} disabled={!editable} />
         <ConnectionStatus state={connectionState} />
         {noteToolbarVisible && selectedNote !== undefined && (
           <div
@@ -250,10 +268,17 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
           >
             <NoteToolbar
               color={selectedNote.color}
+              disabled={!editable}
               onColor={(c: StickyColor) => {
+                if (!editable) {
+                  return; // load_failed: editing is locked out
+                }
                 setStickyColor(doc, selectedNote.id, c);
               }}
               onDelete={() => {
+                if (!editable) {
+                  return; // load_failed: editing is locked out
+                }
                 if (deleteObject(doc, selectedNote.id)) {
                   select(null);
                 }

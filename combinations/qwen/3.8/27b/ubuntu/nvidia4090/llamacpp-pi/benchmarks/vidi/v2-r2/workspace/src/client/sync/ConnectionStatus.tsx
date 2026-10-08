@@ -6,9 +6,10 @@ import type { ConnectionState } from './connectBoard';
  *
  * Hidden while connected normally; amber "Reconnecting…" while the
  * connection is lost; green "Connected" for CONNECTED_CONFIRMATION_MS
- * after a reconnection; grey "Connecting…" during the first load.
- * `pointerEvents: none` and no board lockout: the board stays fully
- * editable in every state.
+ * after a reconnection; grey "Connecting…" during the first load; red
+ * "This board couldn't be loaded. Retrying…" when the board failed to load.
+ * `pointerEvents: none`: the badge never intercepts board input. The board
+ * stays editable in every state except load_failed (see App.tsx / canEdit).
  */
 
 interface BadgeStyle {
@@ -20,6 +21,7 @@ const BADGES: Record<Exclude<ConnectionState, 'connected'>, BadgeStyle> = {
   connecting: { text: 'Connecting…', color: '#6b7280' },
   reconnecting: { text: 'Reconnecting…', color: '#d97706' }, // amber
   confirmed: { text: 'Connected', color: '#16a34a' }, // green
+  load_failed: { text: "This board couldn't be loaded. Retrying…", color: '#dc2626' }, // red
 };
 
 export function ConnectionStatus(props: { state: ConnectionState }): JSX.Element | null {

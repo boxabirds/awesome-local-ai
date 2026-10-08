@@ -4,6 +4,11 @@ import { STICKY_COLORS } from '../../shared/config';
 export interface ToolbarProps {
   /** Create a sticky note at the viewport centre. */
   onCreateSticky(): void;
+  /**
+   * When true (persist.client_status load_failed) the Sticky note button is
+   * disabled, so a load-failed board can never create a note.
+   */
+  disabled?: boolean;
 }
 
 /**
@@ -13,7 +18,7 @@ export interface ToolbarProps {
  * layer) and stops pointer/double-click propagation so a press on it never
  * pans the board or creates a note.
  */
-export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX.Element {
   return (
     <div
       data-testid="sticky-toolbar"
@@ -38,7 +43,8 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
       <button
         type="button"
         aria-label="Sticky note"
-        title="Sticky note – or double-click the board"
+        title={disabled ? 'Board unavailable' : 'Sticky note – or double-click the board'}
+        disabled={disabled}
         data-testid="sticky-note-button"
         onClick={onCreateSticky}
         style={{

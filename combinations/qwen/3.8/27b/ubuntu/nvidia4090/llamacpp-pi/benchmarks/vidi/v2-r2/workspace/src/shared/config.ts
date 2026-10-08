@@ -108,3 +108,26 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
 
 /** Generous functional wait for e2e assertions; latency is logged, not asserted (ms). */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+// --- Durable storage (story 4) --------------------------------------------
+
+/** Compact when this many log rows have accumulated (a small load is fast). */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** Also compact when the log exceeds this many bytes (protects against large single updates). */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/** Snapshots are stored in chunks of at most this many bytes per row. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** Minimum interval between board-load retries for a LoadFailed room (TC-16). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5_000;
+
+/** Sticky notes on the e2e large-board load test (TC-21). */
+export const PERSIST_TESTED_NOTES = 2_000;
+
+/** Reference budget for loading PERSIST_TESTED_NOTES notes in a browser (logged, not asserted, ms). */
+export const BOARD_LOAD_BUDGET_MS = 3_000;
+
+/** Current storage schema version, kept in `storage_meta`. */
+export const STORAGE_SCHEMA_VERSION = 1;

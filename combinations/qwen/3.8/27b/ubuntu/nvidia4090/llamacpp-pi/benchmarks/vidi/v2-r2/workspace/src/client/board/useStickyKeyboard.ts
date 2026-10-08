@@ -16,8 +16,14 @@ export function useStickyKeyboard(options: {
   editingId: string | null;
   select: (id: string | null) => void;
   startEdit: (id: string) => void;
+  /**
+   * Whether the board is editable (persist.client_status). When false (the
+   * board failed to load) Enter-to-edit and Delete-to-delete are no-ops so a
+   * load-failed board can never be mutated.
+   */
+  editable?: boolean;
 }): void {
-  const { doc, selectedId, editingId, select, startEdit } = options;
+  const { doc, selectedId, editingId, select, startEdit, editable = true } = options;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
@@ -26,6 +32,9 @@ export function useStickyKeyboard(options: {
       }
       if (selectedId === null) {
         return;
+      }
+      if (!editable) {
+        return; // load_failed: editing is locked out
       }
       const active = document.activeElement;
       if (
@@ -48,5 +57,5 @@ export function useStickyKeyboard(options: {
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [doc, selectedId, editingId, select, startEdit]);
+  }, [doc, selectedId, editingId, select, startEdit, editable]);
 }

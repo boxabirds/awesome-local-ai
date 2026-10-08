@@ -46,7 +46,7 @@ export interface StickySnapshot {
   createdAt: number;
 }
 
-const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 1;
 
 function objectsOf(doc: Y.Doc): Y.Map<any> {
   return doc.getMap('objects') as Y.Map<any>;
@@ -87,15 +87,20 @@ function maxZ(doc: Y.Doc): number {
 
 /**
  * Sets `meta.schemaVersion` if absent (idempotent).
+ *
+ * Story 4: the room applies this under its own origin (LOAD_ORIGIN) after a
+ * successful load, so `meta` is room-owned and never written by clients.
+ * The `origin` parameter keeps local (client-side) init working for the
+ * standalone component harness.
  */
-export function initDoc(doc: Y.Doc): void {
+export function initDoc(doc: Y.Doc, origin: unknown = LOCAL_ORIGIN): void {
   const meta = doc.getMap('meta');
   if (meta.get('schemaVersion') === undefined) {
     doc.transact(
       () => {
         meta.set('schemaVersion', SCHEMA_VERSION);
       },
-      LOCAL_ORIGIN,
+      origin,
     );
   }
 }

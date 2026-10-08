@@ -14,6 +14,13 @@ export interface NoteToolbarProps {
   color: StickyColor;
   onColor(c: StickyColor): void;
   onDelete(): void;
+  /**
+   * When true (persist.client_status load_failed) the swatches and delete
+   * are disabled, so a load-failed board can never be recoloured or delete a
+   * note. The board also guards its handlers; this makes the intent visible
+   * in the DOM (disabled buttons) for the component tests.
+   */
+  disabled?: boolean;
 }
 
 /**
@@ -24,7 +31,7 @@ export interface NoteToolbarProps {
  * it stops pointer/double-click propagation so pressing it never deselects
  * the note, pans the board, or creates a note.
  */
-export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX.Element {
+export function NoteToolbar({ color, onColor, onDelete, disabled = false }: NoteToolbarProps): JSX.Element {
   return (
     <div
       data-testid="note-toolbar"
@@ -46,8 +53,9 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX
           key={c}
           type="button"
           aria-label={`${COLOR_NAMES[c]} colour`}
-          title={`${COLOR_NAMES[c]} colour`}
+          title={disabled ? 'Board unavailable' : `${COLOR_NAMES[c]} colour`}
           aria-pressed={color === c}
+          disabled={disabled}
           data-testid={`note-swatch-${c}`}
           onClick={() => onColor(c)}
           style={{
@@ -65,7 +73,8 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX
       <button
         type="button"
         aria-label="Delete note"
-        title="Delete note"
+        title={disabled ? 'Board unavailable' : 'Delete note'}
+        disabled={disabled}
         data-testid="note-delete-button"
         onClick={onDelete}
         style={{

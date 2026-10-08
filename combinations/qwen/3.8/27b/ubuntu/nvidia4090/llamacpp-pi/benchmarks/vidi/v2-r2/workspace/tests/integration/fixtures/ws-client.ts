@@ -16,7 +16,6 @@ import { writeSyncStep1, writeSyncStep2 } from 'y-protocols/sync.js';
 import {
   createSticky,
   deleteObject,
-  initDoc,
   moveObject,
   setStickyColor,
   snapshot,
@@ -72,7 +71,8 @@ export class WsClient {
     if (initialState !== null) {
       Y.applyUpdate(this.doc, initialState, this.doc);
     }
-    initDoc(this.doc);
+    // Story 4: the room owns meta.schemaVersion (applied under LOAD_ORIGIN
+    // after load); clients never write it.
     this.ws = ws;
     ws.binaryType = 'arraybuffer';
 
@@ -287,6 +287,19 @@ export class WsClient {
   /** Send a raw frame (malformed-frame tests). */
   sendRaw(data: Uint8Array): void {
     this.send(data);
+  }
+
+  /**
+   * Send one raw y-protocols sync update frame (failure-path tests, e.g.
+   * TC-15: an update in flight while the room is LoadFailed must store
+   * nothing).
+   */
+  sendUpdateFrame(update: Uint8Array): void {
+    const encoder = encoding.createEncoder();
+    encoding.writeVarUint(encoder, MESSAGE_SYNC);
+    encoding.writeVarUint(encoder, SYNC_UPDATE);
+    encoding.writeVarUint8Array(encoder, update);
+    this.send(encoding.toUint8Array(encoder));
   }
 
   /** True when the room closed us with the unsupported-data code. */

@@ -22,6 +22,7 @@ import { useStickyKeyboard } from '../../src/client/board/useStickyKeyboard';
 import { Toolbar } from '../../src/client/board/Toolbar';
 import { StickyNote } from '../../src/client/objects/StickyNote';
 import { NoteToolbar } from '../../src/client/objects/NoteToolbar';
+import { canEdit } from '../../src/client/App';
 
 /** Fixed viewport size for component tests (default laptop, design fixture). */
 export const TEST_VIEWPORT: Size = { width: 1280, height: 800 };
@@ -109,10 +110,12 @@ export function renderStickyBoard(options: BoardHarnessOptions = {}): StickyBoar
     // this boardId never reaches the network.
     const { doc, objects, connectionState } = useBoardDoc('harness-board');
     docInstance = doc;
+    // Mirrors App.tsx: editing is locked out while the board failed to load.
+    const editable = canEdit(connectionState);
     const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
     const [draggingId, setDraggingId] = useState<string | null>(null);
 
-    useStickyKeyboard({ doc, selectedId, editingId, select, startEdit });
+    useStickyKeyboard({ doc, selectedId, editingId, select, startEdit, editable });
 
     // Stale local state guard (mirrors App.tsx).
     useEffect(() => {
@@ -126,12 +129,15 @@ export function renderStickyBoard(options: BoardHarnessOptions = {}): StickyBoar
 
     const createAt = useCallback(
       (p: Point): void => {
+        if (!editable) {
+          return; // load_failed: editing locked out (mirrors App.tsx)
+        }
         const id = createSticky(doc, screenToWorld(controller.camera, p));
         if (id !== '') {
           startEdit(id);
         }
       },
-      [doc, controller.camera, startEdit],
+      [doc, controller.camera, startEdit, editable],
     );
 
     const selectedNote =
@@ -152,6 +158,7 @@ export function renderStickyBoard(options: BoardHarnessOptions = {}): StickyBoar
               zoom={controller.camera.zoom}
               selected={selectedId === note.id}
               editing={editingId === note.id}
+              disabled={!editable}
               onSelect={select}
               onStartEdit={startEdit}
               onEndEdit={endEdit}
@@ -159,7 +166,10 @@ export function renderStickyBoard(options: BoardHarnessOptions = {}): StickyBoar
             />
           ))}
         </BoardViewport>
-        <Toolbar onCreateSticky={() => createAt({ x: TEST_VIEWPORT.width / 2, y: TEST_VIEWPORT.height / 2 })} />
+        <Toolbar
+          onCreateSticky={() => createAt({ x: TEST_VIEWPORT.width / 2, y: TEST_VIEWPORT.height / 2 })}
+          disabled={!editable}
+        />
         {options.withStatusBadge === true && <ConnectionStatus state={connectionState} />}
         {noteToolbarVisible && selectedNote !== undefined && (
           <div
@@ -172,10 +182,17 @@ export function renderStickyBoard(options: BoardHarnessOptions = {}): StickyBoar
           >
             <NoteToolbar
               color={selectedNote.color}
+              disabled={!editable}
               onColor={(c) => {
+                if (!editable) {
+                  return; // load_failed: editing locked out (mirrors App.tsx)
+                }
                 setStickyColor(doc, selectedNote.id, c);
               }}
               onDelete={() => {
+                if (!editable) {
+                  return; // load_failed: editing locked out (mirrors App.tsx)
+                }
                 if (deleteObject(doc, selectedNote.id)) {
                   select(null);
                 }
