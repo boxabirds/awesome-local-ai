@@ -1,3 +1,31 @@
+commit d5d200ad983ffa264d10427bb7f5cfa70ff85aca
+vidi-agent  Thu Oct 8 14:59:45 2026 +0100
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ .scratch/probe9.mjs                   |  22 ++
+ NOTES.md                              |  36 ++
+ PROGRESS.md                           |   8 +-
+ src/shared/config.ts                  |  17 +
+ src/shared/protocol.ts                |   6 +
+ src/worker/board-room.ts              | 285 ++++++++++----
+ src/worker/board-store.ts             | 332 +++++++++++++++++
+ src/worker/room-state.ts              |  86 +++++
+ src/worker/workers-env.d.ts           |  15 +
+ tests/fixtures/boards.ts              | 187 ++++++++++
+ tests/integration/board-store.test.ts | 674 ++++++++++++++++++++++++++++++++++
+ tests/unit/board-store-chunks.test.ts |  76 ++++
+ tests/unit/room-state.test.ts         | 149 ++++++++
+ 13 files changed, 1814 insertions(+), 79 deletions(-)
+commit ce0ae0888a4d9335de363d2c83b2f75dbbee3e9e
+vidi-agent  Thu Oct 8 14:04:48 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit b1d75303c5f65a777dfb2e750c530cf582c1332d
 agent  Thu Oct 8 13:02:36 2026 +0000
 
