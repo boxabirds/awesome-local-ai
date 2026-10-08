@@ -13,10 +13,20 @@ import {
   zoomPercent,
   type Point,
 } from '../canvas/camera';
-import { patchTestHook, unpatchTestHook, type SeedNote, type SeedText } from '../canvas/testHooks';
+import {
+  patchTestHook,
+  unpatchTestHook,
+  type SeedConnector,
+  type SeedEndpoint,
+  type SeedNote,
+  type SeedShape,
+  type SeedText,
+} from '../canvas/testHooks';
 import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
-import { useTool } from './useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
 import { useUndo, useUndoController } from './useUndo';
@@ -26,6 +36,8 @@ import { SelectionBar } from './SelectionBar';
 import { Toolbar } from './Toolbar';
 import { StickyNote } from '../objects/StickyNote';
 import { TextObject } from '../objects/TextObject';
+import { ShapeObject } from '../objects/ShapeObject';
+import { ConnectorObject } from '../objects/ConnectorObject';
 import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit, type ConnectOptions, type ProviderLike } from '../sync/connectBoard';
@@ -48,9 +60,22 @@ import {
   textSnapshots,
   type TextSnapshot,
 } from '../../shared/objects/text';
+import {
+  createShape,
+  getShapeLabel,
+  setShapeStyle,
+  shapeSnapshots,
+  type ShapeSnap,
+} from '../../shared/objects/shape';
+import {
+  connectorRects,
+  connectorSnapshots,
+  createConnector,
+  type EndpointInput,
+} from '../../shared/objects/connector';
 import { remeasureTextBox } from '../objects/useTextBoxSync';
 import { sharedMeasurer } from '../objects/textLayout';
-import { STICKY_SIZE_WORLD } from '../../shared/config';
+import { SHAPE_DEFAULT_SIZE_WORLD, STICKY_SIZE_WORLD } from '../../shared/config';
 
 function ZoomControlsConnector() {
   const { camera, zoomStep, reset } = useBoardCamera();
@@ -103,32 +128,44 @@ export function Board(props: BoardProps) {
 }
 
 function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
-  const { doc, notes, texts, connection, connectionState } = useBoardDoc(boardId, {
-    sync,
-    provider,
-    connect,
-  });
+  const { doc, notes, texts, shapes, connectors, connection, connectionState } = useBoardDoc(
+    boardId,
+    { sync, provider, connect },
+  );
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
   const { camera, viewport } = useBoardCamera();
   const editable = canEdit(connectionState);
   const clientId = useClientId();
-  // Which tool this tab is in (story 9). It is per tab: two people on one board
-  // are never in each other's tool.
-  const tool = useTool(editable);
-
-  // Every object on the board in one paint order, so a text and a note interleave by
-  // `z` and one selection/marquee/gesture path sees one state (PRD text.consistent).
+  /** Shape ids the browser fixtures seeded, so a connector fixture can join them. */
+  const seededShapesRef = useRef<string[]>([]);
+  const seededShapes = seededShapesRef.current;
+  // Every object that has a box, in one paint order, so a text, a note and a shape
+  // interleave by `z` and one selection/marquee/gesture path sees one state
+  // (PRD text.consistent, shape.consistent).
   const objects = useMemo(
     () =>
       [
-        ...(notes as readonly (StickySnapshot | TextSnapshot)[]),
-        ...(texts as readonly (StickySnapshot | TextSnapshot)[]),
+        ...(notes as readonly (StickySnapshot | TextSnapshot | ShapeSnap)[]),
+        ...texts,
+        ...shapes,
       ].sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
-    [notes, texts],
+    [notes, texts, shapes],
   );
-  /** The same objects, seen as the generic kind the selection machinery works with. */
-  const objectSnapshots = objects as unknown as readonly ObjectSnapshot[];
+  /** Connectors paint below everything with a box: an arrow points at things, it does
+   *  not cover them. */
+  const connectorsPainted = connectors;
+  /**
+   * The same objects plus the connectors, seen as the generic kind the selection,
+   * marquee and delete machinery works with — an arrow is selectable and deletable
+   * like anything else (PRD connector.select).
+   */
+  const objectSnapshots = useMemo(
+    () => [...objects, ...connectorsPainted] as unknown as readonly ObjectSnapshot[],
+    [objects, connectorsPainted],
+  );
+  /** Objects an arrow end may be attached to, as the connector's handle needs them. */
+  const attachableRects = useMemo(() => connectorRects(doc), [doc, objects]);
 
   // This tab's undo history for this board: it holds nothing but what this person
   // did here, and it goes away with the board (PRD undo.own, undo.session_only).
@@ -138,6 +175,11 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
   // Selection now takes the snapshot so it can prune deleted ids
   const selection = useSelection(objectSnapshots);
   const { ids: selectedIds, editingId, click, setMany, clear, startEdit, endEdit } = selection;
+
+  // Which tool this tab is in (story 9, story 10). It is per tab: two people on one
+  // board are never in each other's tool. It is asked for after the selection, so a
+  // tool that has just created something can select it (PRD tools.return_to_select).
+  const tool = useActiveTool({ canEdit: editable, selection });
 
   // Transform gesture: group move and resize
   const transformGesture = useTransformGesture({
@@ -232,6 +274,19 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
     [createAtScreenPoint, viewport],
   );
 
+  /**
+   * A tool made something: the drawing is one undo step of its own, it becomes the
+   * selected thing, and the board goes back to Select so it can be moved straight
+   * afterwards (PRD tools.return_to_select).
+   */
+  const onToolCreated = useCallback(
+    (id: string) => {
+      undo.boundary();
+      tool.toolCreated(id);
+    },
+    [undo, tool],
+  );
+
   // Keyboard commands: story 9's tool shortcuts, story 2's N (now a real shortcut) and
   // the delete/undo/selection keys. It is wired after the create actions because N runs
   // exactly the toolbar's Sticky note button.
@@ -252,6 +307,8 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
       getDoc: () => doc,
       getSnapshot: () => snapshot(doc),
       getTexts: () => textSnapshots(doc),
+      getShapes: () => shapeSnapshots(doc),
+      getConnectors: () => connectorSnapshots(doc),
       getSelection: (): { selectedId: string | null; editingId: string | null; selectedIds?: string[] } => {
         const ids = [...selectedIds];
         const base: { selectedId: string | null; editingId: string | null; selectedIds?: string[] } = {
@@ -292,6 +349,69 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
         });
         return ids;
       },
+      seedShapes: (specs: readonly SeedShape[]) => {
+        const ids: string[] = [];
+        // Seeded as if the board had been saved with the shapes on it (story 10).
+        doc.transact(() => {
+          for (const spec of specs) {
+            const width = spec.width ?? SHAPE_DEFAULT_SIZE_WORLD;
+            const height = spec.height ?? SHAPE_DEFAULT_SIZE_WORLD;
+            const id = createShape(
+              doc,
+              {
+                kind: spec.kind ?? 'rect',
+                rect: { x: spec.x, y: spec.y, width, height },
+                at: { x: spec.x + width / 2, y: spec.y + height / 2 },
+              },
+              spec.createdBy ?? clientId,
+            );
+            if (!id) continue;
+            if (spec.fill || spec.stroke) setShapeStyle(doc, id, { fill: spec.fill, stroke: spec.stroke });
+            if (spec.label) getShapeLabel(doc, id)?.insert(0, spec.label);
+            seededShapes.push(id);
+            ids.push(id);
+          }
+        });
+        return ids;
+      },
+      seedConnectors: (specs: readonly SeedConnector[]) => {
+        const ids: string[] = [];
+        // An end names an object already on the board (by id, or by a shape from an
+        // earlier seedShapes call), or a point of the board.
+        const anchorCentre = (objectId: string): Point => {
+          const rect = connectorRects(doc).get(objectId);
+          if (!rect) throw new Error(`seedConnectors: nothing called ${objectId} to attach to`);
+          return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+        };
+        const end = (e: SeedEndpoint): EndpointInput => {
+          if (e.objectId != null) {
+            return { kind: 'attached', objectId: e.objectId, fallback: anchorCentre(e.objectId) };
+          }
+          if (e.shapeIndex != null) {
+            const objectId = seededShapes[e.shapeIndex];
+            if (!objectId) {
+              throw new Error(`seedConnectors: no seeded shape at index ${e.shapeIndex}`);
+            }
+            return { kind: 'attached', objectId, fallback: anchorCentre(objectId) };
+          }
+          if (!Number.isFinite(e.x) || !Number.isFinite(e.y)) {
+            throw new Error('seedConnectors: a free end needs finite x and y');
+          }
+          return { kind: 'free', x: e.x!, y: e.y! };
+        };
+        doc.transact(() => {
+          for (const spec of specs) {
+            const id = createConnector(
+              doc,
+              end(spec.from),
+              end(spec.to),
+              spec.createdBy ?? clientId,
+            );
+            if (id) ids.push(id);
+          }
+        });
+        return ids;
+      },
       seedTexts: (specs: readonly SeedText[]) => {
         const ids: string[] = [];
         // Seeded like seedNotes: as if the board had been saved with them on it.
@@ -325,13 +445,17 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
         'seedBoard',
         'seedNotes',
         'seedTexts',
+        'seedShapes',
+        'seedConnectors',
         'getTexts',
+        'getShapes',
+        'getConnectors',
         'undo',
         'redo',
         'canUndo',
         'canRedo',
       ]);
-  }, [doc, connectionState, selectedIds, editingId, undo, clientId]);
+  }, [doc, connectionState, selectedIds, editingId, undo, clientId, seededShapes]);
 
   const onSelect = useCallback((id: string) => click(id), [click]);
   const onStartEdit = useCallback((id: string) => startEdit(id), [startEdit]);
@@ -397,8 +521,39 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
         onMarqueeEnd={marquee.end}
         onMarqueeCancel={marquee.cancel}
       >
+        {connectorsPainted.map((connector) => (
+          <ConnectorObject
+            key={connector.id}
+            connector={connector}
+            rects={attachableRects}
+            doc={doc}
+            zoom={camera.zoom}
+            camera={camera}
+            editable={editable}
+            selected={selectedIds.has(connector.id)}
+            onObjectPointerDown={transformGesture.onObjectPointerDown}
+            onSelect={onSelect}
+            undo={undo}
+          />
+        ))}
         {objects.map((object) =>
-          object.type === 'text' ? (
+          object.type === 'shape' ? (
+            <ShapeObject
+              key={object.id}
+              shape={object}
+              doc={doc}
+              zoom={camera.zoom}
+              editable={editable}
+              selected={selectedIds.has(object.id)}
+              editing={editingId === object.id}
+              dragging={transformGesture.draggingIds.has(object.id)}
+              onSelect={onSelect}
+              onStartEdit={onStartEdit}
+              onEndEdit={onEndEdit}
+              onObjectPointerDown={transformGesture.onObjectPointerDown}
+              undo={undo}
+            />
+          ) : object.type === 'text' ? (
             <TextObject
               key={object.id}
               doc={doc}
@@ -439,6 +594,28 @@ function BoardInside({ boardId, sync = true, provider, connect }: BoardProps) {
           ),
         )}
       </BoardViewport>
+
+      {/* The tool's own surface, while a creating tool is active (PRD shape.create_drag,
+          connector.create_attached): it holds the pointer, so a drag that starts on an
+          existing object draws instead of moving it. */}
+      {editable && tool.tool === 'shape' ? (
+        <ShapeTool
+          kind={tool.shapeKind}
+          camera={camera}
+          doc={doc}
+          createdBy={clientId}
+          onCreated={onToolCreated}
+        />
+      ) : null}
+      {editable && tool.tool === 'connector' ? (
+        <ConnectorTool
+          camera={camera}
+          snapshot={objectSnapshots}
+          doc={doc}
+          createdBy={clientId}
+          onCreated={onToolCreated}
+        />
+      ) : null}
 
       {/* Selection overlay: bounding box + handles */}
       {selectedIds.size > 0 && (

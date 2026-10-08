@@ -6,6 +6,11 @@ import {
   type StickyColor,
 } from './config';
 import { rectContains, type Rect } from './geometry';
+// Story 10: deleting an object must detach the arrows attached to it. The two
+// modules need each other (a connector lives in the same `objects` map, and
+// `connectorRects` reads the bounds helpers below), and only ever use each
+// other's exports from inside a function, which is what makes the cycle safe.
+import { detachConnectorsTo } from './objects/connector';
 
 /**
  * Transaction origin for every mutation this client makes. Story 8 uses it for
@@ -193,10 +198,17 @@ export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
   return true;
 }
 
-/** Remove any board object. False for stale ids. */
+/**
+ * Remove any board object. False for stale ids. Arrows attached to it survive with
+ * their end fixed at the point they were attached at (story 10, PRD
+ * connector.target_deleted) — in the same transaction, so Undo reverses both.
+ */
 export function deleteObject(doc: Y.Doc, id: string): boolean {
   if (!(objectsOf(doc).get(id) instanceof Y.Map)) return false;
-  doc.transact(() => objectsOf(doc).delete(id), LOCAL_ORIGIN);
+  doc.transact(() => {
+    detachConnectorsTo(doc, [id]);
+    objectsOf(doc).delete(id);
+  }, LOCAL_ORIGIN);
   return true;
 }
 
@@ -354,6 +366,11 @@ export function bringObjectsToFront(
 /**
  * Delete multiple objects. Returns count actually deleted.
  * Empty list → 0, no transaction. Missing ids are skipped.
+ *
+ * Arrows attached to a deleted object are kept: `detachConnectorsTo` fixes each
+ * formerly attached end at the point where it was attached, inside this same
+ * transaction (story 10), so one Undo brings the object and its arrows back as one
+ * step and no screen ever shows a dangling arrow.
  */
 export function deleteObjects(
   doc: Y.Doc,
@@ -363,6 +380,7 @@ export function deleteObjects(
   const objs = objectsOf(doc);
   let count = 0;
   doc.transact(() => {
+    detachConnectorsTo(doc, [...ids]);
     for (const id of ids) {
       if (objs.get(id) instanceof Y.Map) {
         objs.delete(id);

@@ -20,12 +20,14 @@ export function textEl(index = 0): HTMLElement {
 }
 
 /** The tool the board is in, read from the viewport the user is looking at. */
-export function toolState(): 'select' | 'text' {
-  return viewportEl().getAttribute('data-tool') === 'text' ? 'text' : 'select';
+/** Story 10 adds Shape and Connector to what the board can be in. */
+export function toolState(): 'select' | 'text' | 'shape' | 'connector' {
+  const tool = viewportEl().getAttribute('data-tool');
+  return tool === 'text' || tool === 'shape' || tool === 'connector' ? tool : 'select';
 }
 
-export function toolButton(tool: 'select' | 'text'): HTMLButtonElement {
-  return screen.getByTestId(tool === 'text' ? 'tool-text' : 'tool-select') as HTMLButtonElement;
+export function toolButton(tool: 'select' | 'text' | 'shape' | 'connector'): HTMLButtonElement {
+  return screen.getByTestId(tool === 'select' ? 'tool-select' : `tool-${tool}`) as HTMLButtonElement;
 }
 
 /** Create texts as fixtures (as if the board had been saved with them on it). */

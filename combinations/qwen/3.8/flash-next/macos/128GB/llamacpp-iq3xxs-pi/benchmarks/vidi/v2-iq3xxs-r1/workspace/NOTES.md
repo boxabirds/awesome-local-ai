@@ -567,3 +567,91 @@ next run, or the suite tests yesterday's code and passes.
 `page.keyboard.type(LONG_SENTENCE)` was fine; `LONG_SENTENCE` was 254 characters because of
 operator precedence, and the test failed on "this fixture is over 300 characters". Compute
 fixture lengths, don't eyeball them.
+
+---
+
+## Story 10 — shapes and connectors
+
+### One tool mechanism, not two
+`useTool` (story 9's Text tool) and story 10's needs are the same problem, so there is now
+one hook, `src/client/board/useActiveTool.ts`, owning `tool`, the shape `kind`, `setTool`
+and `toolCreated(id)` (select the new object, go back to Select). `useTool.ts` is deleted.
+Shortcuts go through `useBoardKeys` with a generic `TOOL_SHORTCUTS` table (`v n t s l p i c`)
+rather than per-tool key handlers; `n` stays "create a note directly" because that is what
+story 2 shipped. A test that clicks a tool button and a test that press the key now exercise
+the same state machine.
+
+### `board-model.ts` and `objects/connector.ts` import each other
+`deleteObjects`/`deleteObject` call `detachConnectorsTo`, and the connector module reads the
+board's object map. The cycle is real but harmless: every use is inside a function body, and
+ESM live bindings resolve it. It is the same shape as `board-model` already having
+`objects/text.ts` reach back for `initDoc`-adjacent helpers. Worth knowing before adding a
+top-level value (a constant used at module scope) to either module — that would break.
+
+### A connector follows without being told to
+A connector stores its ends (object id + fallback point) and a bounding box, but the box and
+the drawn ends are re-derived from the current object rectangles on *every read*
+(`connectorSnapshots`). Moving a shape therefore moves the arrow with no extra document
+traffic and no repair pass. `resolveEndpointPair` picks, for each end, the side of the object
+that faces the *other* end's centre, so an arrow that has been dragged past its partner
+re-anchors on the opposite side without the model remembering any side explicitly.
+
+### The main toolbar was under the new tool layers (found by e2e, not by jsdom)
+The Shape/Connector tool layers are absolutely positioned over the whole viewport
+(`z-index: 20`), and `.board-toolbar` had no `z-index` at all. In jsdom nothing hit-tests, so
+the component tests clicked the shape-kind buttons happily; in a real browser the layer ate
+the clicks and a user could not pick Diamond while the Shape tool was active. `.board-toolbar`
+is now `z-index: 40`, in the band the other fixed panels use (badge 40, share 45). Another
+example of a CSS stacking bug that only a real pointer can find.
+
+### The top-left corner of the board belongs to the toolbar
+`tasks.md` asks TC-23 to drag `(100,100) -> (300,220)`, but the toolbar panel occupies
+x 16..149, y 16..433, so that drag starts on a button. The test drags `(400,120) -> (600,240)`
+instead — the same 200x120 box, asserted to the pixel — because the interesting part of the
+assertion is "the box is what the pointer described", not which corner of the screen it
+started from.
+
+### One measurable box for a shape label
+`.shape-label` is a flex box centring an inline `<span>`, and an inline element has no box of
+its own: `Range.getClientRects()` returns one rect per line *fragment*, including trailing
+space, so "is the label centred" measured off the union of those rects was off by ~2 world px.
+`.shape-label-inner` is now `display: inline-block` (a flex item: one tight box, still wrapped
+by `overflow-wrap`), so the test reads one rectangle for centring and still counts line rects
+for wrapping.
+
+### Forcing the delete race without delaying WebSocket frames
+The design suggests a Playwright route delay on the second screen's traffic. Playwright's
+`route` cannot delay WebSocket frames, only the handshake, so TC-27 creates the overlap with
+the app's own hooks: `dropConnection(dana)` → Dana draws the arrow onto a shape she can still
+see → Sam deletes that shape → `resumeConnection(dana)`. Dana's arrow is attached to an object
+that no longer exists, which is exactly `connector.target_deleted`: both screens resolve that
+end to the stored fallback and neither invents a position. No console errors on either screen.
+
+### Seeded connectors attach by object id
+`SeedEndpoint` gained `objectId` (alongside `shapeIndex` and a plain point), so a fixture can
+say "attach this end to that shape" without caring which id the hook made, and
+`tests/fixtures/checkout-flow.ts` describes the whole flow declaratively:
+`CHECKOUT_FLOW_SHAPES` + `CHECKOUT_FLOW_CONNECTORS` for the browser hooks, and
+`buildCheckoutFlow(doc)` for the same flow built by direct model calls on a `Y.Doc` (the unit
+test asserts its resolved ends, so the fixture cannot silently drift away from the browser
+tests that rely on its numbers).
+
+### Signatures that bite
+`createSticky(doc, at, color)` centres the note on `at` on a fixed `STICKY_SIZE_WORLD` square
+and returns `''` for an unknown colour — it is not a way to get a note of a given size (use
+`seedNotes`, which takes width/height). `moveObjects(doc, positions)` takes a map of *absolute*
+top-left positions, not deltas. `setShapeStyle`/`setConnectorEndpoint` return `false` when
+nothing changed, so a no-op gesture writes nothing and no traffic leaves the tab.
+
+### Component tests must act-wrap toolbar clicks
+A `click` on a toolbar button outside `act` leaves React's state (and so `aria-pressed` and
+the viewport's `data-tool`) in the previous frame: assertions then read stale values.
+`clickTestId` in `tests/component/shapeUtil.ts` wraps the click; the Yjs observer fires
+synchronously inside `act`, so hook-driven seeds re-render in the same call.
+
+### TC-23 in Firefox and WebKit, re-attempted
+`tasks.md` asks for the shape-drag case outside Chromium too. Re-run of
+`VIDI6_BROWSERS=firefox,webkit npm run test:e2e -- shapes.spec.ts` fails before any board
+loads: both cached binaries abort on launch (`exitCode=134`), exactly as recorded for stories
+1–9. Chromium alone is therefore what this machine can prove; nothing about the shape code
+differs per engine (an SVG figure, a foreignObject label, a stroked hit line — all standard).

@@ -100,7 +100,7 @@ export interface BoardViewportProps {
    * caret, empty space is not panned and Shift+drag does not make a marquee, so a
    * click can be used to put the text where it was clicked instead.
    */
-  tool?: 'select' | 'text';
+  tool?: 'select' | 'text' | 'shape' | 'connector' | 'sticky' | 'pen' | 'image' | 'comment';
   /**
    * A click while the Text tool is active, reported as a screen-space point: the
    * board creates a text object with its top-left at that point (story 9). Unlike
@@ -359,7 +359,16 @@ export function BoardViewport({
         backgroundImage: `radial-gradient(circle, ${DOT_COLOR} 1px, transparent 1px)`,
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${bgX}px ${bgY}px`,
-        cursor: tool === 'text' ? 'text' : panning ? 'grabbing' : 'grab',
+        cursor:
+          tool === 'text'
+            ? 'text'
+            : // A tool that draws something marks its surface as such (PRD shape.create_drag,
+              // connector.create_attached).
+              tool === 'shape' || tool === 'connector'
+            ? 'crosshair'
+            : panning
+              ? 'grabbing'
+              : 'grab',
       }}
     >
       <div

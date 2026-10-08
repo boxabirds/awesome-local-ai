@@ -10,7 +10,8 @@ import {
   type WorldPoint,
 } from '../../shared/board-model';
 import type { Selection } from './useSelection';
-import type { ToolState } from './useTool';
+import type { ActiveTool } from '../tools/useActiveTool';
+import { TOOL_SHORTCUTS } from '../tools/useActiveTool';
 import { undoStepFor, type UndoController } from './undo';
 
 export interface BoardKeysOptions {
@@ -23,7 +24,7 @@ export interface BoardKeysOptions {
    * The active tool (story 9): V returns to Select, T switches to the Text tool, and
    * Escape — which already drops the selection — leaves the tool at Select as well.
    */
-  tool?: ToolState;
+  tool?: ActiveTool;
   /** N: exactly what the toolbar's Sticky note button does (story 2 behaviour). */
   onCreateSticky?(): void;
   /**
@@ -61,21 +62,23 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       const tool = optsRef.current.tool;
       const plain = !event.ctrlKey && !event.metaKey && !event.altKey;
 
-      // V, T, N: the board's letter shortcuts (story 9 adds two of the three).
-      // They are only for the board, which is why Ctrl+V and Cmd+V stay paste.
-      if (plain && (event.key === 'v' || event.key === 'V')) {
-        tool?.setTool('select');
-        return;
-      }
-      if (plain && (event.key === 't' || event.key === 'T')) {
-        // A board that cannot be edited has no Text tool to switch to (TC-15).
-        if (canEdit) tool?.setTool('text');
-        return;
-      }
-      if (plain && (event.key === 'n' || event.key === 'N')) {
+      // The board's letter shortcuts, read from the tool table so a story adds a
+      // tool by adding its letter instead of editing this handler. They are only for
+      // the board, which is why Ctrl+V and Cmd+V stay paste.
+      const letter = plain && event.key.length === 1 ? event.key.toLowerCase() : '';
+      const toolId = letter ? TOOL_SHORTCUTS[letter] : undefined;
+      if (toolId === 'sticky') {
+        // N keeps story 2's behaviour: it makes a note straight away rather than
+        // switching to a sticky tool, which the board does not have.
         if (!canEdit) return;
         event.preventDefault();
         optsRef.current.onCreateSticky?.();
+        return;
+      }
+      if (toolId) {
+        // A board that cannot be edited has no creating tool to switch to (TC-15),
+        // but going back to Select is always allowed.
+        if (toolId === 'select' || canEdit) tool?.setTool(toolId);
         return;
       }
 
@@ -126,6 +129,9 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         const positions = new Map<string, WorldPoint>();
         for (const obj of snapshot) {
           if (!selection.ids.has(obj.id)) continue;
+          // An arrow is not nudged: where it goes is decided by what it joins, and a
+          // connector that is attached at both ends has nowhere to be nudged to.
+          if (obj.type === 'connector') continue;
           const bounds = objectBounds(obj);
           positions.set(obj.id, { x: bounds.x + dx, y: bounds.y + dy });
         }

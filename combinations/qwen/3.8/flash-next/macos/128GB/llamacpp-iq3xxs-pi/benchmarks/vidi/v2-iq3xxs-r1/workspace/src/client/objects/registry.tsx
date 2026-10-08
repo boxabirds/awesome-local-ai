@@ -1,10 +1,19 @@
 import type { ComponentType } from 'react';
 import type { ObjectSnapshot, WorldPoint } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import { rectContains } from '../../shared/geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { isConnectorSnap } from '../../shared/objects/connector';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
 
 /**
  * Per-type knobs the generic selection/move/resize/delete machinery needs.
@@ -24,7 +33,12 @@ export interface ObjectTypeSpec {
    * instead of testing a type name, so adding a type stays a registration.
    */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: WorldPoint): boolean;
+  /**
+   * Whether a point is on this object. `zoom` is passed only where a type's
+   * tolerance is measured on screen rather than in board units — a connector is hit
+   * within 6 px of its line whatever the zoom is (story 10, PRD conn.endpoint).
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: WorldPoint, zoom?: number): boolean;
 }
 
 /** Props every registered object component receives (sel.all_types). */
@@ -92,6 +106,46 @@ function registerText() {
   });
 }
 
+// Shapes and connectors (story 10) register the same way, for the same reason: the
+// generic selection machinery asks every type the same question.
+function registerShape(): void {
+  if (registry.has('shape')) return;
+  registry.set('shape', {
+    Component: ShapeObject as unknown as ComponentType<ObjectProps>,
+    // A shape has no content to fit, so it is stretched freely in both directions
+    // and never keeps a ratio — Shift belongs to the drawing gesture (PRD shape.resize).
+    resizable: true,
+    aspectLocked: false,
+    minSize: SHAPE_MIN_SIZE_WORLD,
+    editableText: true,
+    hitTest(obj: ObjectSnapshot, worldPoint: WorldPoint): boolean {
+      // The bounding box, whatever the kind: an ellipse is selected by its box, which
+      // is what the outline, the move handles and the marquee all agree on.
+      return rectContains(objectBounds(obj), { x: worldPoint.x, y: worldPoint.y, width: 0, height: 0 });
+    },
+  });
+}
+
+function registerConnector(): void {
+  if (registry.has('connector')) return;
+  registry.set('connector', {
+    Component: ConnectorObject as unknown as ComponentType<ObjectProps>,
+    // Where a connector goes is decided by its ends, not by a box: dragging a corner
+    // of an invisible box would move nothing sensible (PRD conn.endpoint).
+    resizable: false,
+    aspectLocked: false,
+    minSize: 0,
+    editableText: false,
+    hitTest(obj: ObjectSnapshot, worldPoint: WorldPoint, zoom = 1): boolean {
+      if (!isConnectorSnap(obj)) return false;
+      const { from, to } = obj.ends;
+      return distanceToPolyline([from, to], worldPoint) <= CONNECTOR_HIT_TOLERANCE_PX / zoom;
+    },
+  });
+}
+
 // Auto-register at module load
 registerSticky();
 registerText();
+registerShape();
+registerConnector();

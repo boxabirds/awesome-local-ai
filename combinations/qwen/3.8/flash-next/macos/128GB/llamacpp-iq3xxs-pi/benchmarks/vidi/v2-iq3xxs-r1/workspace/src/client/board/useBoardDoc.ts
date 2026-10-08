@@ -14,6 +14,8 @@ import {
   type StickySnapshot,
 } from '../../shared/board-model';
 import { textSnapshots, type TextSnapshot } from '../../shared/objects/text';
+import { shapeSnapshots, type ShapeSnap } from '../../shared/objects/shape';
+import { connectorSnapshots, type ConnectorSnap } from '../../shared/objects/connector';
 import {
   connectBoard,
   type BoardConnection,
@@ -26,6 +28,8 @@ import {
 interface BoardObjects {
   readonly notes: readonly StickySnapshot[];
   readonly texts: readonly TextSnapshot[];
+  readonly shapes: readonly ShapeSnap[];
+  readonly connectors: readonly ConnectorSnap[];
 }
 
 export interface BoardDoc {
@@ -34,6 +38,14 @@ export interface BoardDoc {
   readonly notes: readonly StickySnapshot[];
   /** Free text objects in paint order (story 9), same read-your-write guarantee. */
   readonly texts: readonly TextSnapshot[];
+  /** Shapes in paint order (story 10). */
+  readonly shapes: readonly ShapeSnap[];
+  /**
+   * Connectors in paint order (story 10), with their ends resolved against wherever
+   * their objects are *now* — which is why a moved object moves the arrow on every
+   * screen without the arrow being written to again.
+   */
+  readonly connectors: readonly ConnectorSnap[];
   /** This board's connection, or null when the board is offline-by-construction. */
   readonly connection: BoardConnection | null;
   readonly connectionState: ConnectionState;
@@ -104,7 +116,14 @@ export function useBoardDoc(
   // previous array is kept while nothing changed (the contract useSyncExternalStore
   // requires for getSnapshot).
   const cache = useMemo(() => {
-    const read = (): BoardObjects => ({ notes: snapshot(doc), texts: textSnapshots(doc) });
+    const read = (): BoardObjects => ({
+      notes: snapshot(doc),
+      texts: textSnapshots(doc),
+      shapes: shapeSnapshots(doc),
+      // Read after the shapes: a connector's ends are resolved against the rectangles
+      // of the objects it points at, in the same pass, so nothing can disagree.
+      connectors: connectorSnapshots(doc),
+    });
     let current: BoardObjects = read();
     return {
       read(): BoardObjects {
@@ -138,6 +157,8 @@ export function useBoardDoc(
     doc,
     notes: objects.notes,
     texts: objects.texts,
+    shapes: objects.shapes,
+    connectors: objects.connectors,
     connection,
     connectionState,
   };

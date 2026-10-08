@@ -146,3 +146,52 @@ export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
  * canvas to measure with (jsdom, worker): an estimate beats no layout at all.
  */
 export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.5;
+
+// --- Story 10: shapes and connectors ---------------------------------------
+
+/** The three shape kinds the Shape tool offers; no others exist (PRD out of scope). */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+/**
+ * What the Shape menu next to the Shape button says about each kind (PRD
+ * shape.create_click: Rectangle (selected), Ellipse, Diamond).
+ */
+export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+/** A click (or a drag too small to see) drops a shape this wide and high. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** A drag smaller than this in either direction counts as a click (PRD shape.create_click). */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Hard limit on characters stored in one shape label (PRD shape.label). */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Outline thickness of a shape, in board units (= CSS px at 100% zoom). */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** The six fills a shape can have, plus `none` (PRD shape.style). */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent', white: '#FFFFFF', blue: '#BBDEFB', green: '#C8E6C9',
+  yellow: '#FFF9C4', pink: '#F8BBD0', grey: '#E0E0E0',
+} as const;
+/** The six outlines a shape can have. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238', blue: '#1E88E5', green: '#43A047', orange: '#FB8C00',
+  red: '#E53935', grey: '#9E9E9E',
+} as const;
+/** A fill / outline named by one of the palettes above; the name is what is stored. */
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+/** What a brand-new shape is filled and outlined with. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+/** A drag shorter than this creates no arrow (PRD connector.no_accidental). */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** Screen pixels of slack when clicking an arrow's line (PRD connector.select). */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Arrow line thickness in board units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Length of the arrowhead's sides, in board units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius of a connection dot, in screen pixels (PRD connector.hover_points). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;

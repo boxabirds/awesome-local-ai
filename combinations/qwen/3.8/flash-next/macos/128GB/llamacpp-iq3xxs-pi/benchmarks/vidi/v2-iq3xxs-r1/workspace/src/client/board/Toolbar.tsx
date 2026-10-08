@@ -1,7 +1,8 @@
 import { useRef } from 'react';
 import { useNativeStopPropagation } from './useNativeStopPropagation';
 import { UndoButtons, type UndoButtonsProps } from './UndoButtons';
-import type { ToolState } from './useTool';
+import type { ActiveTool } from '../tools/useActiveTool';
+import { SHAPE_KIND_LABELS, SHAPE_KINDS, type ShapeKind } from '../../shared/config';
 
 export interface ToolbarProps {
   /** Create a sticky note in the centre of the visible board area. */
@@ -11,16 +12,19 @@ export interface ToolbarProps {
   /** This tab's undo/redo state and actions (story 8); absent on boards without a history. */
   undo?: UndoButtonsProps;
   /**
-   * The active tool (story 9). The tool buttons report it with `aria-pressed`, and the
-   * Text tool is unavailable on a board that cannot be edited (PRD text.load_failed).
+   * The active tool (story 9, story 10). The tool buttons report it with `aria-pressed`,
+   * and creating tools are unavailable on a board that cannot be edited
+   * (PRD text.load_failed).
    */
-  tool?: ToolState;
+  tool?: ActiveTool;
 }
 
 export const STICKY_BUTTON_LABEL = 'Sticky note (N)';
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note (N) – or double-click the board';
 export const SELECT_BUTTON_LABEL = 'Select (V)';
 export const TEXT_BUTTON_LABEL = 'Text (T)';
+export const SHAPE_BUTTON_LABEL = 'Shape (S)';
+export const CONNECTOR_BUTTON_LABEL = 'Connector (L)';
 
 /**
  * Left-side vertical board toolbar: the tool the board is in, then the things a
@@ -30,6 +34,8 @@ export function Toolbar({ onCreateSticky, disabled = false, undo, tool }: Toolba
   const ref = useRef<HTMLDivElement | null>(null);
   useNativeStopPropagation(ref);
   const isText = tool?.tool === 'text';
+  const isShape = tool?.tool === 'shape';
+  const isConnector = tool?.tool === 'connector';
 
   return (
     <div ref={ref} className="board-toolbar" data-testid="board-toolbar">
@@ -62,6 +68,62 @@ export function Toolbar({ onCreateSticky, disabled = false, undo, tool }: Toolba
           T
         </span>
         Text
+      </button>
+      <button
+        type="button"
+        className="tool-button"
+        data-testid="tool-shape"
+        aria-label={SHAPE_BUTTON_LABEL}
+        title={`${SHAPE_BUTTON_LABEL} – draw a rectangle, ellipse or diamond`}
+        disabled={disabled}
+        aria-disabled={disabled}
+        aria-pressed={tool ? isShape : undefined}
+        onClick={disabled || !tool ? undefined : () => tool.setTool('shape')}
+      >
+        <span className="tool-icon tool-icon-shape" aria-hidden="true">
+          {'\u25AF'}
+        </span>
+        Shape
+      </button>
+      {/* Which shape the Shape tool draws next; shown while the tool is active
+          (PRD shape.create_click). Picking a kind does not leave the tool. */}
+      {isShape && tool ? (
+        <div
+          className="shape-kind-menu"
+          data-testid="shape-kind-menu"
+          role="group"
+          aria-label="Shape kind"
+        >
+          {SHAPE_KINDS.map((kind: ShapeKind) => (
+            <button
+              key={kind}
+              type="button"
+              className="tool-button shape-kind-button"
+              data-testid={`tool-shape-kind-${kind}`}
+              data-shape-kind={kind}
+              aria-pressed={tool.shapeKind === kind}
+              onClick={() => tool.setShapeKind(kind)}
+            >
+              {SHAPE_KIND_LABELS[kind]}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <button
+        type="button"
+        className="tool-button"
+        data-testid="tool-connector"
+        aria-label={CONNECTOR_BUTTON_LABEL}
+        title={`${CONNECTOR_BUTTON_LABEL} – draw an arrow between things`}
+        disabled={disabled}
+        aria-disabled={disabled}
+        aria-pressed={tool ? isConnector : undefined}
+        onClick={disabled || !tool ? undefined : () => tool.setTool('connector')}
+      >
+        <span className="tool-icon tool-icon-connector" aria-hidden="true">
+          {'\u2192'}
+        </span>
+        Connector
       </button>
       <button
         type="button"

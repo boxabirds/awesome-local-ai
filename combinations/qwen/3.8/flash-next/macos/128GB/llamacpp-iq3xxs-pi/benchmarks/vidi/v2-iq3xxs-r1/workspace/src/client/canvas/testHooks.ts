@@ -4,7 +4,9 @@ import type { ConnectionState } from '../sync/connectBoard';
 import type { StickyColor } from '../../shared/config';
 import type { StickySnapshot } from '../../shared/board-model';
 import type { TextSnapshot } from '../../shared/objects/text';
-import type { TextSize } from '../../shared/config';
+import type { ShapeSnap } from '../../shared/objects/shape';
+import type { ConnectorSnap } from '../../shared/objects/connector';
+import type { ShapeKind, TextSize, FillColor, StrokeColor } from '../../shared/config';
 
 /** A note a browser-test fixture asks for (world position, colour, text, size). */
 export interface SeedNote {
@@ -32,6 +34,40 @@ export interface SeedText {
   createdBy?: string;
 }
 
+/**
+ * A shape a browser-test fixture asks for: its box (top-left, like SeedText), kind,
+ * colours and label (story 10).
+ */
+export interface SeedShape {
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  kind?: ShapeKind;
+  fill?: FillColor;
+  stroke?: StrokeColor;
+  label?: string;
+  createdBy?: string;
+}
+
+/** One end of a seeded connector: an object id created earlier in the same fixture, or a point. */
+export interface SeedEndpoint {
+  /** Attach to an object that is already on the board. */
+  objectId?: string;
+  /** Or to the shape from an earlier `seedShapes` call, in order. */
+  shapeIndex?: number;
+  /** Or fix to an explicit world point. */
+  x?: number;
+  y?: number;
+}
+
+/** A connector between two of the fixture's shapes, or two points (story 10). */
+export interface SeedConnector {
+  from: SeedEndpoint;
+  to: SeedEndpoint;
+  createdBy?: string;
+}
+
 export interface BoardSelectionState {
   selectedId: string | null;
   editingId: string | null;
@@ -51,6 +87,10 @@ export interface BoardTestApi {
   getSnapshot(): readonly StickySnapshot[];
   /** Live free text snapshot in paint order (story 9), for e2e assertions. */
   getTexts(): readonly TextSnapshot[];
+  /** Live shape snapshot in paint order (story 10). */
+  getShapes(): readonly ShapeSnap[];
+  /** Live connector snapshot in paint order (story 10), ends resolved as drawn. */
+  getConnectors(): readonly ConnectorSnap[];
   /** The in-memory document, so tests can drive the model directly. */
   getDoc(): Y.Doc;
   /** Local selection / editing ids (story 2). */
@@ -79,6 +119,16 @@ export interface BoardTestApi {
    * with it on it, each box measured from its content, ids returned in order.
    */
   seedTexts(specs: readonly SeedText[]): string[];
+  /**
+   * The same fixture for shapes (story 10): created as if the board had been saved
+   * with them on it, ids returned in the order they were given.
+   */
+  seedShapes(specs: readonly SeedShape[]): string[];
+  /**
+   * And for connectors (story 10): each end names the index of a shape from the same
+   * call, or a world point, so a fixture can describe a whole flow in one go.
+   */
+  seedConnectors(specs: readonly SeedConnector[]): string[];
   /**
    * This tab's own undo history (story 8): step once back or once forward and report
    * whether either is available. The same history the buttons and shortcuts drive, so

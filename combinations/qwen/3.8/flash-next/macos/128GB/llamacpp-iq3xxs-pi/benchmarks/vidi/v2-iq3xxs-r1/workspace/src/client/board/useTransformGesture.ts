@@ -185,6 +185,13 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       // Move all selected ids
       selectedIds = [...selection.ids];
     }
+    // An arrow is not dragged along with the things it joins: its ends are resolved
+    // from those objects, so a dragged arrow would be drawn back where it belongs
+    // (PRD connector.follow). Dragging the arrow itself selects it and moves nothing.
+    selectedIds = selectedIds.filter(
+      (id) => optsRef.current.snapshot.find((o) => o.id === id)?.type !== 'connector',
+    );
+    if (selectedIds.length === 0) return;
 
     const g: GestureState = {
       pointerId: e.pointerId,
@@ -272,6 +279,9 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     for (const id of selectedIds) {
       const obj = snapshot.find((o) => o.id === id);
       if (!obj) continue;
+      // An arrow has no box of its own to stretch: its ends decide where it is, so it
+      // takes no part in a resize even when it is selected alongside something else.
+      if (obj.type === 'connector') continue;
       const spec = getObjectType(obj.type);
       if (spec?.resizable) anyResizable = true;
       if (spec?.aspectLocked) aspectLocked = true;

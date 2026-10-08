@@ -139,6 +139,9 @@ body {
   position: fixed;
   left: 16px;
   top: 16px;
+  /* Above the tool layers (story 10), so the tools and the shape kind menu stay
+     clickable while a shape or connector drag is in progress. */
+  z-index: 40;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -665,4 +668,195 @@ body {
 }
 .text-size-glyph-XL {
   font-size: 20px;
+}
+
+/* --- Shapes and connectors (story 10) -------------------------------------
+   The two tools draw on their own surface above the board, so a drag that starts
+   on top of an existing object draws a shape or an arrow instead of moving it
+   (PRD shape.consistent, connector.no_accidental). They stay below the toolbars,
+   which come later in the document. */
+.shape-tool-layer,
+.connector-tool-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  cursor: crosshair;
+  touch-action: none;
+}
+.shape-tool-svg,
+.connector-tool-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.connector-tool-svg line {
+  stroke-linecap: round;
+}
+.connector-preview-line {
+  stroke: #1a73e8;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+/* The four side anchors of the object an arrow would join. */
+.connector-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  border: 1px solid #1a73e8;
+  background: #fff;
+  pointer-events: none;
+}
+.connector-dot[data-highlighted="true"] {
+  background: #1a73e8;
+}
+
+/* A shape is an SVG of its own box, so story 7's move and resize handle it like
+   everything else. */
+.shape-object {
+  position: absolute;
+  pointer-events: auto;
+  cursor: grab;
+  outline: 0 solid transparent;
+}
+.shape-object[data-selected="true"] {
+  outline: 2px solid #1a73e8;
+  outline-offset: 1px;
+}
+.shape-object[data-dragging="true"] {
+  cursor: grabbing;
+}
+.shape-object:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 1px;
+}
+.shape-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+/* The label fills the shape's box and is centred both ways, which is what keeps it
+   centred while the box is being resized (PRD shape.label). */
+.shape-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 6px;
+  color: #1a1a1a;
+  text-align: center;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+/* The label's own box: one measurable box (not a scatter of line fragments) that
+   the flex centring of `.shape-label` centres, so "centred in the shape" is a fact a
+   test can read off one element. */
+.shape-label-inner {
+  display: inline-block;
+  max-width: 100%;
+}
+.shape-label-input {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  color: #1a1a1a;
+  font-family: inherit;
+  text-align: center;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.shape-toolbar-anchor {
+  position: absolute;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.shape-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
+  pointer-events: auto;
+}
+.shape-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.shape-swatch[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1a73e8;
+}
+.shape-toolbar .shape-swatch:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 1px;
+}
+.shape-toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--panel-border);
+}
+
+/* An arrow is drawn in world units inside the world layer; only the things that
+   must stay legible (the tolerance line, the handles) are divided by the zoom. */
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+}
+.connector-svg {
+  overflow: visible;
+}
+.connector-line {
+  stroke-linecap: round;
+}
+
+/* Which shape the Shape tool will draw next, shown beside the tool buttons
+   (PRD shape.create_click). */
+.shape-kind-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0;
+  padding: 4px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+}
+.board-toolbar .shape-kind-button {
+  padding: 4px 8px;
+  font-size: 12px;
+  text-align: left;
+}
+.board-toolbar .shape-kind-button[aria-pressed="true"] {
+  background: #e8f0fe;
+  border-color: #1a73e8;
+  color: #174ea6;
 }
