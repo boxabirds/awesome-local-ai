@@ -1,3 +1,46 @@
+commit f1537c3abb40dc5dedb77b8175206b1888b0e034
+agent  Fri Oct 9 07:48:37 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                |  54 +++-
+ PROGRESS.md                             |  24 +-
+ playwright.config.ts                    |   2 +-
+ src/client/Board.tsx                    | 152 ++++++----
+ src/client/board/Marquee.tsx            | 113 +++++++
+ src/client/board/SelectionBar.tsx       |  77 +++++
+ src/client/board/SelectionOverlay.tsx   | 126 ++++++++
+ src/client/board/useBoardDoc.ts         |  13 +-
+ src/client/board/useBoardKeys.ts        | 112 +++++++
+ src/client/board/useSelection.ts        | 163 +++++++++--
+ src/client/board/useTransformGesture.ts | 236 +++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  78 +++--
+ src/client/objects/StickyNote.tsx       | 126 +++-----
+ src/client/objects/registry.tsx         |  91 ++++++
+ src/shared/board-model.ts               | 227 ++++++++++++++-
+ src/shared/config.ts                    |   8 +
+ src/shared/geometry.ts                  | 192 ++++++++++++
+ tests/component/board-harness.tsx       |  44 +++
+ tests/component/multi-select.test.tsx   | 501 ++++++++++++++++++++++++++++++++
+ tests/e2e/multi-select.spec.ts          | 406 ++++++++++++++++++++++++++
+ tests/fixtures/boards.ts                |   4 +-
+ tests/fixtures/testbox.tsx              | 100 +++++++
+ tests/integration/hooks.ts              |   6 +-
+ tests/integration/ws-client.ts          |   9 +-
+ tests/unit/board-model-group.test.ts    | 229 +++++++++++++++
+ tests/unit/geometry.test.ts             | 133 +++++++++
+ tests/unit/registry.test.ts             |  47 +++
+ tests/unit/selection.test.ts            | 120 ++++++++
+ 28 files changed, 3164 insertions(+), 229 deletions(-)
+commit e1c943150583eb7a55e2680a62f6d3270d34ddf0
+vidi-agent  Fri Oct 9 05:11:27 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit adf96db2cbc4cbc4cba301789344a008dd785050
 agent  Fri Oct 9 05:08:23 2026 +0100
 
