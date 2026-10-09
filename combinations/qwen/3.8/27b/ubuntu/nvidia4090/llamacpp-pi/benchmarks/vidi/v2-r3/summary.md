@@ -16,8 +16,9 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 | 4 | 4/4 | 0 | 0 | 29/31 | 0 |
 | 5 | 4/5 | 0 | 0 | 33/36 | 0 |
 | 7 | 6/8 | 4 | 0 | 35/44 | 4 |
+| 8 | 5/7 | 0 | 0 | 40/51 | 7 |
 
-**New work** 19/40, **regressions** 4, **repairs** 20, **cumulative** 35/44.
+**New work** 24/47, **regressions** 4, **repairs** 20, **cumulative** 40/51.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,8 +28,9 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 | 4 | Return to a board and find everything as it was left | DONE, on partial 1, 2 | 126.9 | None | None | None | — | — | green | 29/31 |  | 0 / 0 | 5 | — | throttled 0%, server peak 18 GB |
 | 5 | Share a board with others using a link | DONE, on partial 1, 2 | 56.4 | None | None | None | — | — | green | 33/36 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE, on partial 1, 2 | 157.4 | None | None | None | — | — | red | 35/44 |  | 0 / 1 | 6 | — | throttled 0%, server peak 18 GB |
+| 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 1, 2 | 85.2 | None | None | None | — | — | green | 40/51 |  | 0 / 0 | 4 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 6 stories, 499 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/6, final acceptance 35/44, stalled 0, partial 2, 10786 lines in src+tests.
+**Totals:** 7 stories, 584 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/7, final acceptance 40/51, stalled 0, partial 2, 12424 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -39,6 +41,7 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 - Story 4, built on partial 1, 2: held-out tests on the partial base 29/31; partial story's tests fixed 20, regressed 0; 2 stub-like lines added to src/.
 - Story 5, built on partial 1, 2: held-out tests on the partial base 33/36; partial story's tests fixed 20, regressed 0; 2 stub-like lines added to src/.
 - Story 7, built on partial 1, 2: held-out tests on the partial base 35/44; partial story's tests fixed 18, regressed 0; 0 stub-like lines added to src/.
+- Story 8, built on partial 1, 2: held-out tests on the partial base 40/51; partial story's tests fixed 18, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -52,6 +55,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 4 | 1 by the agent | 2870 / 80 | `board-room.ts` (364), `test-hooks.ts` (270), `board-store.ts` (250), `check-production-hooks.mjs` (125), `room-state.ts` (80), `NOTES.md` (48), +15 more |
 | 5 | 1 by the agent | 1981 / 292 | `App.tsx` (209), `SharePanel.tsx` (207), `Board.tsx` (189), `test-hooks.ts` (109), `NOTES.md` (97), `BoardPage.tsx` (79), +13 more |
 | 7 | 1 by the agent | 3164 / 229 | `useTransformGesture.ts` (236), `board-model.ts` (227), `geometry.ts` (192), `useSelection.ts` (163), `Board.tsx` (152), `SelectionOverlay.tsx` (126), +11 more |
+| 8 | 1 by the agent | 1758 / 22 | `undo.ts` (215), `NOTES.md` (86), `UndoButtons.tsx` (65), `useUndo.ts` (52), `Board.tsx` (33), `StickyTextEditor.tsx` (32), +8 more |
 
 ### Earlier stories broken or fixed
 

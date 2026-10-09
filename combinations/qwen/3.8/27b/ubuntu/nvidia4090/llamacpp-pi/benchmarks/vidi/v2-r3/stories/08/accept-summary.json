@@ -1,0 +1,62 @@
+{
+  "skipped": false,
+  "build_exit": 0,
+  "runner_exit": 1,
+  "passed": 40,
+  "total": 51,
+  "on_partial": {
+    "passed": 40,
+    "total": 51
+  },
+  "by_story": {
+    "01": {
+      "passed": 9,
+      "total": 10,
+      "on_partial_total": 10,
+      "on_partial_passed": 9
+    },
+    "02": {
+      "passed": 9,
+      "total": 10,
+      "on_partial_total": 10,
+      "on_partial_passed": 9
+    },
+    "03": {
+      "passed": 4,
+      "total": 7,
+      "on_partial_total": 7,
+      "on_partial_passed": 4
+    },
+    "04": {
+      "passed": 3,
+      "total": 4,
+      "on_partial_total": 4,
+      "on_partial_passed": 3
+    },
+    "05": {
+      "passed": 4,
+      "total": 5,
+      "on_partial_total": 5,
+      "on_partial_passed": 4
+    },
+    "07": {
+      "passed": 6,
+      "total": 8,
+      "on_partial_total": 8,
+      "on_partial_passed": 6
+    },
+    "08": {
+      "passed": 5,
+      "total": 7,
+      "on_partial_total": 7,
+      "on_partial_passed": 5
+    }
+  },
+  "setup_fallbacks": {
+    "tests": 7,
+    "by_owner": {
+      "2": 7
+    }
+  },
+  "harness_fault": null
+}
