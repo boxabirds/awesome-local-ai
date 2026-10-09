@@ -1,7 +1,7 @@
 import { BoardViewport } from '../canvas/BoardViewport';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
-import { useNoteKeys } from '../board/useNoteKeys';
+import { useBoardKeys } from '../board/useBoardKeys';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
 
@@ -16,22 +16,13 @@ export function canEdit(state: ConnectionState): boolean {
 // not found, unreachable) never construct a document or a connection.
 export function BoardShell(props: { boardId: string }) {
   const { doc, notes, connection } = useBoardDoc(props.boardId);
-  const selection = useSelection(doc);
-  useNoteKeys(doc, selection, canEdit(connection));
+  const selection = useSelection(notes);
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: canEdit(connection) });
 
   return (
     <>
       <ConnectionStatus state={connection} />
-      <BoardViewport
-        doc={doc}
-        notes={notes}
-        selectedId={selection.selectedId}
-        editingId={selection.editingId}
-        onSelect={selection.select}
-        onStartEdit={selection.startEdit}
-        onEndEdit={selection.endEdit}
-        editable={canEdit(connection)}
-      />
+      <BoardViewport doc={doc} notes={notes} selection={selection} editable={canEdit(connection)} />
     </>
   );
 }

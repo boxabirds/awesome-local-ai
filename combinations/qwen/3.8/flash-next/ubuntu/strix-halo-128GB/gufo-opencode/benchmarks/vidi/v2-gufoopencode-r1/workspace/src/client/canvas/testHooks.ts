@@ -6,6 +6,9 @@ export interface Vidi6TestHooks {
   getCamera(): Camera;
   connectionState?: ConnectionState;
   simulateOutage?(ms: number): void;
+  // Story 7 e2e: deterministically place `count` sticky notes on a 4-column
+  // grid (world tops (-460 + col·240, -200 + row·240)) and return their ids.
+  seedStickies?(count: number): string[];
 }
 
 declare global {

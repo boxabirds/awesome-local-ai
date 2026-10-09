@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent, JSX } from 'react';
-import * as Y from 'yjs';
-import { bringToFront, deleteObject, getStickyText, moveObject, setStickyColor, type StickySnapshot } from '../../shared/board-model';
-import { DRAG_THRESHOLD_PX, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from '../../shared/config';
+import { useLayoutEffect, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, JSX } from 'react';
+import {
+  DEFAULT_STICKY_COLOR,
+  STICKY_COLORS,
+  type StickyColor
+} from '../../shared/config';
+import { deleteObject, getStickyText, isStickyObject, setStickyColor } from '../../shared/board-model';
 import { NoteToolbar } from './NoteToolbar';
 import { StickyTextEditor } from './StickyTextEditor';
 import { fitFontSize } from './StickyText';
@@ -12,140 +15,51 @@ import {
   noteRootStyle,
   noteTextStyle,
   SELECTION_OUTLINE_COLOR,
-  STICKY_TEXT_BOX_WORLD
+  STICKY_PADDING_WORLD
 } from './stickyStyles';
+import type { ObjectProps } from './registry';
 
-export interface StickyNoteProps {
-  note: StickySnapshot;
-  doc: Y.Doc;
-  zoom: number;
-  selected: boolean;
-  editing: boolean;
-  onSelect(id: string): void;
-  onStartEdit(id: string): void;
-  onEndEdit(next: 'selected' | 'unselected'): void;
-  editable?: boolean;
-}
-
-export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
-  const editable = props.editable !== false;
-  const [dragging, setDragging] = useState(false);
+// The sticky renderer is a plain view of the generic machinery: selection,
+// dragging and editing state come in as props, pointer-down is delegated to
+// the transform gesture (registry ObjectProps).
+export function StickyNote(props: ObjectProps): JSX.Element {
+  const { obj, doc, zoom, selected, dragging, editing, editable } = props;
+  const sticky = isStickyObject(obj)
+    ? obj
+    : { ...obj, type: 'sticky' as const, color: DEFAULT_STICKY_COLOR, text: '' };
   const [fontPx, setFontPx] = useState<number>(24);
   const [overflow, setOverflow] = useState(false);
-
   const measureRef = useRef<HTMLDivElement | null>(null);
-  const pointerIdRef = useRef<number | null>(null);
-  const startScreenRef = useRef({ x: 0, y: 0 });
-  const startWorldRef = useRef({ x: 0, y: 0 });
-  const pendingRef = useRef({ dx: 0, dy: 0 });
-  const rafRef = useRef<number | null>(null);
-  const draggingRef = useRef(false);
-  const movedRef = useRef(false);
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
+
+  const textBox = Math.max(0, obj.height - STICKY_PADDING_WORLD * 2);
 
   useLayoutEffect(() => {
     const el = measureRef.current;
     if (el === null) return;
-    const result = fitFontSize(el, STICKY_TEXT_BOX_WORLD);
+    const result = fitFontSize(el, textBox);
     setFontPx(result.fontPx);
     setOverflow(result.overflow);
-  }, [note.text, editing]);
-
-  useEffect(
-    () => () => {
-      draggingRef.current = false;
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-    },
-    []
-  );
-
-  const commitPendingMove = useCallback((): void => {
-    const { dx, dy } = pendingRef.current;
-    const z = zoomRef.current || 1;
-    const ok = moveObject(doc, note.id, startWorldRef.current.x + dx / z, startWorldRef.current.y + dy / z);
-    if (!ok) {
-      draggingRef.current = false;
-      setDragging(false);
-      pointerIdRef.current = null;
-    }
-  }, [doc, note.id]);
-
-  const scheduleMove = useCallback((): void => {
-    if (rafRef.current !== null) return;
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
-      if (!draggingRef.current) return;
-      commitPendingMove();
-    });
-  }, [commitPendingMove]);
+  }, [sticky.text, editing, obj.width, textBox]);
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    pointerIdRef.current = event.pointerId;
-    movedRef.current = false;
-    draggingRef.current = false;
-    startScreenRef.current = { x: event.clientX, y: event.clientY };
-    startWorldRef.current = { x: note.x, y: note.y };
-    pendingRef.current = { dx: 0, dy: 0 };
-  };
-
-  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (pointerIdRef.current === null || !editable) return;
-    const dx = event.clientX - startScreenRef.current.x;
-    const dy = event.clientY - startScreenRef.current.y;
-    if (!draggingRef.current) {
-      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
-      draggingRef.current = true;
-      movedRef.current = true;
-      setDragging(true);
-      bringToFront(doc, note.id);
-    }
-    pendingRef.current = { dx, dy };
-    scheduleMove();
-  };
-
-  const endPointer = (): void => {
-    if (pointerIdRef.current === null) return;
-    pointerIdRef.current = null;
-    const hadPendingFrame = rafRef.current !== null;
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    // The frame for the final pointermove may not have run yet; commit it
-    // synchronously so the note lands exactly under the pointer on release.
-    if (hadPendingFrame && draggingRef.current) {
-      const { dx, dy } = pendingRef.current;
-      const z = zoomRef.current || 1;
-      moveObject(doc, note.id, startWorldRef.current.x + dx / z, startWorldRef.current.y + dy / z);
-    }
-    draggingRef.current = false;
-    setDragging(false);
-    onSelect(note.id);
+    props.onObjectPointerDown(event, obj.id);
   };
 
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
     event.stopPropagation();
-    if (!editable) return;
-    onStartEdit(note.id);
+    if (!editable || editing) return;
+    props.onStartEdit(obj.id);
   };
 
   const rootStyle = {
     ...noteRootStyle,
-    left: note.x,
-    top: note.y,
-    width: STICKY_SIZE_WORLD,
-    height: STICKY_SIZE_WORLD,
-    background: STICKY_COLORS[note.color],
+    left: obj.x,
+    top: obj.y,
+    width: obj.width,
+    height: obj.height,
+    background: STICKY_COLORS[sticky.color],
     outline: selected ? `2px solid ${SELECTION_OUTLINE_COLOR}` : 'none',
-    zIndex: note.z,
+    zIndex: obj.z,
     cursor: dragging ? 'grabbing' : 'grab'
   };
 
@@ -153,34 +67,30 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
     <div
       role="group"
       aria-label="Sticky note"
-      data-testid={`sticky-${note.id}`}
+      data-testid={`sticky-${obj.id}`}
       data-selected={selected}
       data-dragging={dragging}
       style={rootStyle}
       tabIndex={0}
       onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endPointer}
-      onPointerCancel={endPointer}
-      onLostPointerCapture={endPointer}
       onDoubleClick={onDoubleClick}
     >
       {editing ? (
         (() => {
-          const ytext = getStickyText(doc, note.id);
-          return ytext ? <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} /> : null;
+          const ytext = getStickyText(doc, obj.id);
+          return ytext ? <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={props.onEndEdit} /> : null;
         })()
       ) : (
         <div style={noteBodyStyle}>
-          <div ref={measureRef} style={{ ...noteTextStyle, fontSize: fontPx }} data-testid={`sticky-text-${note.id}`}>
-            {note.text}
+          <div ref={measureRef} style={{ ...noteTextStyle, fontSize: fontPx }} data-testid={`sticky-text-${obj.id}`}>
+            {sticky.text}
           </div>
           {overflow ? <div data-testid="sticky-fade" style={noteFadeStyle} /> : null}
         </div>
       )}
       {editable && selected && !editing && !dragging ? (
         <div
-          data-testid={`note-toolbar-anchor-${note.id}`}
+          data-testid={`note-toolbar-anchor-${obj.id}`}
           style={{
             position: 'absolute',
             left: 0,
@@ -192,13 +102,13 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
           }}
         >
           <NoteToolbar
-            color={note.color}
+            color={sticky.color}
             onColor={(c: StickyColor) => {
-              setStickyColor(doc, note.id, c);
+              setStickyColor(doc, obj.id, c);
             }}
             onDelete={() => {
-              deleteObject(doc, note.id);
-              onEndEdit('unselected');
+              deleteObject(doc, obj.id);
+              props.onEndEdit('unselected');
             }}
           />
         </div>

@@ -39,6 +39,13 @@ export const LOAD_RETRY_MIN_INTERVAL_MS = 5000; // a load-failed room retries it
 export const PERSIST_TESTED_NOTES = 2000; // PRD persist.large_board
 export const BOARD_LOAD_BUDGET_MS = 3000; // PRD persist.large_board (reported, never asserted)
 
+// Story 7: multi-select, move, resize.
+export const HANDLE_SIZE_PX = 8;
+export const STICKY_MIN_SIZE_WORLD = 50;
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+export const NUDGE_STEP_WORLD = 1;
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 // Story 5: sharing by link.
 export const CREATE_BUDGET_MS = 2000; // PRD share.create (click to board visible; logged, not asserted)
 export const LINK_COPIED_MS = 2000; // "Link copied" confirmation duration

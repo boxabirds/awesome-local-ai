@@ -1,49 +1,96 @@
-import { useCallback, useEffect, useState } from 'react';
-import type * as Y from 'yjs';
+import { useCallback, useEffect, useMemo, useReducer } from 'react';
+import type { ObjectSnapshot } from '../../shared/board-model';
 
 export type EndEditNext = 'selected' | 'unselected';
 
-export interface SelectionApi {
-  selectedId: string | null;
+export interface SelectionState {
+  ids: ReadonlySet<string>;
   editingId: string | null;
-  select(id: string | null): void;
+}
+
+export type SelectionAction =
+  | { type: 'click'; id: string }
+  | { type: 'toggle'; id: string }
+  | { type: 'setMany'; ids: string[]; additive: boolean }
+  | { type: 'clear' }
+  | { type: 'prune'; presentIds: ReadonlySet<string> }
+  | { type: 'edit'; id: string | null };
+
+const EMPTY_IDS: ReadonlySet<string> = new Set<string>();
+
+export function selectionReducer(state: SelectionState, action: SelectionAction): SelectionState {
+  switch (action.type) {
+    case 'click':
+      return { ids: new Set([action.id]), editingId: null };
+    case 'toggle': {
+      if (state.ids.has(action.id)) {
+        const ids = new Set(state.ids);
+        ids.delete(action.id);
+        return { ids, editingId: state.editingId === action.id ? null : state.editingId };
+      }
+      const ids = new Set(state.ids);
+      ids.add(action.id);
+      return { ids, editingId: state.editingId };
+    }
+    case 'setMany': {
+      const ids = action.additive ? new Set(state.ids) : new Set<string>();
+      for (const id of action.ids) ids.add(id);
+      return { ids, editingId: state.editingId };
+    }
+    case 'clear':
+      return { ids: EMPTY_IDS, editingId: null };
+    case 'prune': {
+      let dropped = false;
+      const ids = new Set<string>();
+      for (const id of state.ids) {
+        if (action.presentIds.has(id)) ids.add(id);
+        else dropped = true;
+      }
+      const editGone = state.editingId !== null && !action.presentIds.has(state.editingId);
+      if (!dropped && !editGone) return state;
+      return { ids, editingId: editGone ? null : state.editingId };
+    }
+    case 'edit': {
+      if (action.id === null) return { ids: state.ids, editingId: null };
+      if (state.ids.has(action.id)) return { ids: state.ids, editingId: action.id };
+      const ids = new Set(state.ids);
+      ids.add(action.id);
+      return { ids, editingId: action.id };
+    }
+  }
+}
+
+export interface SelectionApi {
+  ids: ReadonlySet<string>;
+  editingId: string | null;
+  click(id: string): void;
+  toggle(id: string): void;
+  setMany(ids: string[], additive: boolean): void;
+  clear(): void;
   startEdit(id: string): void;
   endEdit(next: EndEditNext): void;
 }
 
-// Selection and editing are per-client UI state and are never written to the
-// Y.Doc. When a doc is given (story 3), an edit by anyone — including a remote
-// delete of the note being selected, edited or dragged — clears the stale ids
-// here; drags end on their own because moveObject stops succeeding.
-export function useSelection(doc?: Y.Doc): SelectionApi {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+// Selection and editing are per-client UI state, never written to the Y.Doc.
+// A snapshot change dispatches `prune`, so ids deleted by anyone (locally or
+// remotely) leave the selection, and editing a vanished object ends.
+export function useSelection(objects: readonly ObjectSnapshot[]): SelectionApi {
+  const [state, dispatch] = useReducer(selectionReducer, { ids: EMPTY_IDS, editingId: null });
+  const presentIds = useMemo(() => new Set(objects.map((obj) => obj.id)), [objects]);
 
   useEffect(() => {
-    if (doc === undefined) return;
-    const objects = doc.getMap('objects');
-    const observer = (): void => {
-      setSelectedId((id) => (id !== null && !objects.has(id) ? null : id));
-      setEditingId((id) => (id !== null && !objects.has(id) ? null : id));
-    };
-    objects.observe(observer);
-    return () => objects.unobserve(observer);
-  }, [doc]);
+    dispatch({ type: 'prune', presentIds });
+  }, [presentIds]);
 
-  const select = useCallback((id: string | null) => {
-    setEditingId(null);
-    setSelectedId(id);
-  }, []);
-
-  const startEdit = useCallback((id: string) => {
-    setSelectedId(id);
-    setEditingId(id);
-  }, []);
-
+  const click = useCallback((id: string) => dispatch({ type: 'click', id }), []);
+  const toggle = useCallback((id: string) => dispatch({ type: 'toggle', id }), []);
+  const setMany = useCallback((ids: string[], additive: boolean) => dispatch({ type: 'setMany', ids, additive }), []);
+  const clear = useCallback(() => dispatch({ type: 'clear' }), []);
+  const startEdit = useCallback((id: string) => dispatch({ type: 'edit', id }), []);
   const endEdit = useCallback((next: EndEditNext) => {
-    setEditingId(null);
-    if (next === 'unselected') setSelectedId(null);
+    if (next === 'unselected') dispatch({ type: 'clear' });
+    else dispatch({ type: 'edit', id: null });
   }, []);
 
-  return { selectedId, editingId, select, startEdit, endEdit };
+  return { ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit };
 }
