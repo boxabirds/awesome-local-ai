@@ -1,3 +1,100 @@
+commit 3378ef89cf70c408021f55661c940e6f27d763f3
+agent  Fri Oct 9 08:38:02 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                 |  26 ++++++
+ PROGRESS.md                              |   6 +-
+ package.json                             |   1 +
+ playwright.config.ts                     |   4 +-
+ playwright.persistence.config.ts         |  25 +++++
+ src/worker/board-room.ts                 |  54 ++++++++++-
+ tests/component/app-load-failed.test.tsx |   2 +-
+ tests/e2e/broken-board.spec.ts           | 112 ++++++++++++++++++++++
+ tests/e2e/helpers/wrangler-process.ts    | 114 +++++++++++++++++++++++
+ tests/e2e/persistence.spec.ts            | 154 +++++++++++++++++++++++++++++++
+ tests/e2e/production-hooks.spec.ts       |  18 ++++
+ 11 files changed, 509 insertions(+), 7 deletions(-)
+commit bbdf8a8a02d6de337de09d9d74470333a2d94c78
+agent  Fri Oct 9 08:01:31 2026 +0000
+
+    story 4 task 7+8: client load-failure state with the red badge; component tests for badge, edit lock and close-code mapping (TC-22, TC-23, TC-28)
+
+
+ src/client/App.tsx                        |  20 +-
+ src/client/board/Toolbar.tsx              |   5 +-
+ src/client/objects/StickyNote.tsx         |  17 +-
+ src/client/styles.css                     |   8 +
+ src/client/sync/BoardSocket.ts            | 297 ++++++++++++++++++++++++++++++
+ src/client/sync/ConnectionStatus.tsx      |   5 +-
+ src/client/sync/connectBoard.ts           | 139 ++++++++++----
+ tests/component/ConnectionStatus.test.tsx |  17 +-
+ tests/component/app-load-failed.test.tsx  |  80 ++++++++
+ tests/component/connectBoard.test.tsx     | 116 ++++++++++++
+ tests/component/fixtures/socket.ts        |  18 ++
+ 11 files changed, 679 insertions(+), 43 deletions(-)
+commit 728e22e5dce718fe3655410742671f23a9a391e7
+agent  Fri Oct 9 07:57:04 2026 +0000
+
+    story 4 task 4+5: persistent hibernating BoardRoom; integration tests for durability, failures and hibernation (TC-12 to TC-18, TC-26)
+
+
+ NOTES.md                                    |  35 ++-
+ PROGRESS.md                                 |   8 +-
+ src/shared/config.ts                        |   6 +
+ src/worker/board-room.ts                    | 405 +++++++++++++++++++++-------
+ src/worker/index.ts                         |  20 +-
+ src/worker/room-state.ts                    |  53 +++-
+ tests/integration/board-persistence.test.ts | 363 +++++++++++++++++++++++++
+ tests/integration/board-room.test.ts        |  11 +-
+ tests/integration/helpers/ws-client.ts      |   9 +-
+ 9 files changed, 802 insertions(+), 108 deletions(-)
+commit 4e01b00b1108b0fc1d3cffd593d43a2a79878449
+agent  Fri Oct 9 06:19:15 2026 +0000
+
+    story 4 task 3: BoardStore integration tests on real DO SQLite (TC-03..TC-11, TC-25); probe-doc quarantine and compaction gap guard
+
+
+ NOTES.md                              |  17 ++
+ PROGRESS.md                           |   4 +-
+ src/worker/board-store.ts             |  37 ++-
+ tests/fixtures/boards.ts              | 183 ++++++++++++++
+ tests/integration/board-store.test.ts | 440 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 676 insertions(+), 5 deletions(-)
+commit 740b33631d0ee3aa06c764b848201e0f307146a2
+agent  Fri Oct 9 05:43:02 2026 +0000
+
+    story 4 task 2: BoardStore (SQLite schema, append, load with quarantine, chunked compaction); TC-01/TC-02 green
+
+
+ PROGRESS.md               |   4 +-
+ src/worker/board-store.ts | 301 ++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 279 insertions(+), 26 deletions(-)
+commit ad4c0c078977296fca2ec3a0db45c2466b1f9ffc
+agent  Fri Oct 9 05:36:58 2026 +0000
+
+    story 4 task 1: unit tests for chunking, compaction threshold and room state machine (TC-01, TC-02, TC-27) with stubs
+
+
+ PROGRESS.md                           |   2 +-
+ src/shared/config.ts                  |  17 ++++
+ src/shared/protocol.ts                |  13 ++-
+ src/worker/board-store.ts             |  74 +++++++++++++++++
+ src/worker/room-state.ts              |  49 ++++++++++++
+ tests/unit/board-store-chunks.test.ts |  88 +++++++++++++++++++++
+ tests/unit/room-state.test.ts         | 145 ++++++++++++++++++++++++++++++++++
+ tsconfig.json                         |   9 ++-
+ tsconfig.worker.json                  |   9 ++-
+ 9 files changed, 402 insertions(+), 4 deletions(-)
+commit c3e8bf5cbd1c0186a7e2e45e40e41b6fbe85dd80
+vidi-agent  Fri Oct 9 06:09:47 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 142 +++++-------------------------------------------------------
+ 1 file changed, 10 insertions(+), 132 deletions(-)
 commit 1ff879d8d04cf108a5615a43ffa9773eeb56aaab
 agent  Fri Oct 9 05:06:34 2026 +0000
 
