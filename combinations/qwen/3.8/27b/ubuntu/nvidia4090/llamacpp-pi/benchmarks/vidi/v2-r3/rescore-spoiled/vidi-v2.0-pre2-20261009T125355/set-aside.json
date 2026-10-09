@@ -1,0 +1,4 @@
+{
+  "reason": "the re-score (9/75) differs from the live score of the same code (55/75 under vidi-v2.0-pre2) by 46 tests, more than 3",
+  "at": "2026-10-09T12:53:55Z"
+}
