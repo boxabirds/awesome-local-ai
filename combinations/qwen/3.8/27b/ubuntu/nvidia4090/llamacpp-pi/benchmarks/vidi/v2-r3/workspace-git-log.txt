@@ -1,3 +1,67 @@
+commit b196f85a0595106cd8bccf6a1b8fedcbc8252c9a
+agent  Fri Oct 9 02:00:00 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ .gitignore                                |    7 +
+ NOTES.md                                  |  124 +
+ PROGRESS.md                               |   20 +-
+ index.html                                |   12 +
+ package-lock.json                         | 3731 +++++++++++++++++++++++++++++
+ package.json                              |   39 +
+ playwright.config.ts                      |   34 +
+ src/client/App.tsx                        |  185 ++
+ src/client/board/Toolbar.tsx              |   45 +
+ src/client/board/useBoardDoc.ts           |   51 +
+ src/client/board/useSelection.ts          |   36 +
+ src/client/canvas/BoardViewport.tsx       |  159 ++
+ src/client/canvas/NavigationHint.tsx      |   30 +
+ src/client/canvas/ZoomControls.tsx        |   65 +
+ src/client/canvas/camera.ts               |   95 +
+ src/client/canvas/useCamera.ts            |  111 +
+ src/client/main.tsx                       |   12 +
+ src/client/objects/NoteToolbar.tsx        |   75 +
+ src/client/objects/StickyNote.tsx         |  209 ++
+ src/client/objects/StickyText.ts          |   75 +
+ src/client/objects/StickyTextEditor.tsx   |  122 +
+ src/client/styles.css                     |   16 +
+ src/client/sync/ConnectionStatus.tsx      |   47 +
+ src/client/sync/connectBoard.ts           |  127 +
+ src/shared/board-id.ts                    |   37 +
+ src/shared/board-model.ts                 |  147 ++
+ src/shared/config.ts                      |   41 +
+ src/shared/protocol.ts                    |   71 +
+ src/worker/board-room.ts                  |  157 ++
+ src/worker/index.ts                       |   32 +
+ tests/component/ConnectionStatus.test.tsx |  155 ++
+ tests/e2e/helpers.ts                      |  194 ++
+ tests/e2e/live-collaboration.spec.ts      |  316 +++
+ tests/e2e/nightly/soak.spec.ts            |  216 ++
+ tests/integration/global-setup.ts         |   84 +
+ tests/integration/random-ops.ts           |   93 +
+ tests/integration/room-advanced.test.ts   |  201 ++
+ tests/integration/room-core.test.ts       |  137 ++
+ tests/integration/worker.test.ts          |   71 +
+ tests/integration/ws-client.ts            |  223 ++
+ tests/unit/board-id.test.ts               |   61 +
+ tests/unit/protocol.test.ts               |   74 +
+ tsconfig.json                             |   28 +
+ tsconfig.worker.json                      |   17 +
+ vite.config.ts                            |   14 +
+ vitest.component.config.ts                |   10 +
+ vitest.integration.config.ts              |   24 +
+ vitest.unit.config.ts                     |    8 +
+ wrangler.jsonc                            |   30 +
+ 49 files changed, 7859 insertions(+), 9 deletions(-)
+commit 87bea8fb4ca1f8bd275e9efc5e1f5e23b502df1c
+vidi-agent  Thu Oct 8 23:56:40 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit 335fe76a48f34eeefc14f44199e094996fd0b493
 vidi-agent  Thu Oct 8 23:37:40 2026 +0100
 

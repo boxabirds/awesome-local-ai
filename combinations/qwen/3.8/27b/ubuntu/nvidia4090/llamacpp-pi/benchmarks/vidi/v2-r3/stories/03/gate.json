@@ -1,0 +1,59 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 1.7,
+      "tail": "\nadded 148 packages, and audited 149 packages in 2s\n\n38 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.3,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.4 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 75 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.38 kB \u2502 gzip:   0.25 kB\ndist/client/assets/index-CmPeQe4J.css    0.19 kB \u2502 gzip:   0.18 kB\ndist/client/assets/index-C_W2K-_c.js   324.00 kB \u2502 gzip: 100.74 kB\n\n\u001b[32m\u2713 built in 116ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.2,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.4,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --config vitest.unit.config.ts\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.w/72e6b68b7d/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 40\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (2)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m14 passed\u001b[39m\u001b[22m\u001b[90m (14)\u001b[39m\n\u001b[2m   Start at \u001b[22m 02:00:21\n\u001b[2m   Duration \u001b[22m 130ms\u001b[2m (transform 34ms, setup 0ms, import 67ms, tests 46ms, environment 0ms)\u001b[22m\n\n",
+      "passed": 14,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --config vitest.component.config.ts\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.w/72e6b68b7d/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 92\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m   Start at \u001b[22m 02:00:22\n\u001b[2m   Duration \u001b[22m 523ms\u001b[2m (transform 28ms, setup 0ms, import 88ms, tests 92ms, environment 271ms)\u001b[22m\n\n",
+      "passed": 4,
+      "failed": 0
+    },
+    "test:integration": {
+      "cmd": "npm run test:integration",
+      "exit": 0,
+      "seconds": 3.7,
+      "tail": "\n> vidi6@0.0.0 test:integration\n> vite build --mode test && vitest run --config vitest.integration.config.ts\n\n\u001b[36mvite v8.3.4 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 75 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.38 kB \u2502 gzip:   0.26 kB\ndist/client/assets/index-CmPeQe4J.css    0.19 kB \u2502 gzip:   0.18 kB\ndist/client/assets/index-TPv3pOW_.js   324.09 kB \u2502 gzip: 100.77 kB\n\n\u001b[32m\u2713 built in 103ms\u001b[39m\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.w/72e6b68b7d/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m tests/integration/worker.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 117\u001b[2mms\u001b[22m\u001b[39m\n\u001b[90mstdout\u001b[2m | tests/integration/room-advanced.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardRoom advanced behavior\u001b[2m > \u001b[22m\u001b[2mTC-12: 5 clients x 200 seeded random ops converge to identical boards\n\u001b[22m\u001b[39mTC-12: seed=1592598564 ops=5x200 finalNotes=22\n\n\u001b[90mstdout\u001b[2m | tests/integration/room-advanced.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardRoom advanced behavior\u001b[2m > \u001b[22m\u001b[2mTC-15: malformed data closes the offending client with 1003 and leaves the room healthy\n\u001b[22m\u001b[39mTC-15 variant: text frame\n\n\u001b[90mstdout\u001b[2m | tests/integration/room-advanced.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardRoom advanced behavior\u001b[2m > \u001b[22m\u001b[2mTC-15: malformed data closes the offending client with 1003 and leaves the room healthy\n\u001b[22m\u001b[39mTC-15 variant: truncated frame\n\n\u001b[90mstdout\u001b[2m | tests/integration/room-advanced.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardRoom advanced behavior\u001b[2m > \u001b[22m\u001b[2mTC-15: malformed data closes the offending client with 1003 and leaves the room healthy\n\u001b[22m\u001b[39mTC-15 variant: unknown message type\n\n\u001b[90mstdout\u001b[2m | tests/integration/room-advanced.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardRoom advanced behavior\u001b[2m > \u001b[22m\u001b[2mTC-15: malformed data closes the offending client with 1003 and leaves the room healthy\n\u001b[22m\u001b[39mTC-15 variant: invalid yjs update\n\n \u001b[32m\u2713\u001b[39m tests/integration/room-core.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1013\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m tests/integration/room-advanced.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1785\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-12: 5 clients x 200 seeded random ops converge to identical boards \u001b[33m 359\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-15: malformed data closes the offending client with 1003 and leaves the room healthy \u001b[33m 557\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-17: separate boards do not mix \u001b[33m 396\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m17 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m\n\u001b[2m   Start at \u001b[22m 02:00:23\n\u001b[2m   Duration \u001b[22m 2.94s\u001b[2m (transform 52ms, setup 0ms, import 141ms, tests 2.91s, environment 0ms)\u001b[22m\n\n",
+      "passed": 17,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 45.9,
+      "tail": "\n> vidi6@0.0.0 test:e2e\n> playwright test --project chromium --project=chromium\n\n\nRunning 7 tests using 1 worker\n\n[latency] create: 20ms (budget 1000ms, within)\n[latency] text: 210ms (budget 1000ms, within)\n[latency] move: 210ms (budget 1000ms, within)\n[latency] recolour: 41ms (budget 1000ms, within)\n[latency] delete: 41ms (budget 1000ms, within)\n  \u2713  1 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:66:3 \u203a live collaboration (real browsers + wrangler dev) \u203a TC-22: every change type Alex makes appears for Sam (789ms)\n  \u2713  2 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:104:3 \u203a live collaboration (real browsers + wrangler dev) \u203a TC-23: simultaneous typing on the same note keeps every character (406ms)\n[latency] settle after concurrent drag: 255ms\n  \u2713  3 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:135:3 \u203a live collaboration (real browsers + wrangler dev) \u203a TC-24: dragging the same note to different places settles identically (509ms)\n  \u2713  4 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:156:3 \u203a live collaboration (real browsers + wrangler dev) \u203a TC-25: deleting a note someone is editing removes it cleanly (298ms)\n  \u2713  5 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:194:3 \u203a live collaboration (real browsers + wrangler dev) \u203a TC-26: full capacity \u2014 every change from each editor reaches all others (7.1s)\n  \u2713  6 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:231:3 \u203a live collaboration (real browsers + wrangler dev) \u203a TC-27: offline catch-up \u2014 badge Reconnecting then Connected, both see all notes (33.4s)\n  \u2713  7 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:290:3 \u203a live collaboration (real browsers + wrangler dev) \u203a TC-28: selection and the text editor are local only (661ms)\n\n  7 passed (45.5s)\n",
+      "passed": 7,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
