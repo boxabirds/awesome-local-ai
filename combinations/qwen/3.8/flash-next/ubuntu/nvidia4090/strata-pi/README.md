@@ -17,7 +17,7 @@ packs the other Flash-Next combinations run, so a score here measures the engine
 
 | | |
 |---|---|
-| Strata | v0.1.40, pinned by commit `1735d647` |
+| Strata | v0.1.39, pinned by commit `6f32ec07` (the 0.1.40 pin of 6 Oct was unbuildable: its commit is gone upstream; see config.sh) |
 | Weights | `ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF` at `ed59f920`, IQ3_XXS (75.8 GB in two files, sha256-checked) |
 | Why IQ3_XXS | the owner's choice: IQ3_S needs 62 GB of RAM with little else running, and a story also runs the agent, browsers and test servers on the same machine |
 | Context | 131,072 tokens (the benchmark's minimum), KV cache int8 |
@@ -27,7 +27,7 @@ packs the other Flash-Next combinations run, so a score here measures the engine
 
 ## What was measured
 
-These figures are **Strata 0.1.36 and 0.1.39**, not the pinned 0.1.40. The one benchmark run of this
+These figures are **Strata 0.1.36 and 0.1.39**. The one benchmark run of this
 combination, `v2-strata0139-r2`, ran on 0.1.39.
 
 On 2 Oct 2026, nothing else running: ready in about 25 s; 42.7 GiB RAM and 23.8 GiB VRAM resident; structured tool

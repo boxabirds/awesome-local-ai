@@ -53,8 +53,12 @@ STRATA_MIN_RAM_MIB=50000
 # (0.1.39).
 # 0.1.38 also hardened the server: without an api_key it answers only requests addressed to a name it knows and
 # refuses cross-site ones. The launcher binds 127.0.0.1 and pi sends no Origin, so this is checked, not assumed.
-STRATA_VERSION="0.1.40"
-STRATA_COMMIT="1735d6471df29b42c26170efaac1f1446a58640f"
+# Back on 0.1.39 (9 Oct 2026), for the diagnosis of v2-strata0139-r2's slowdown, which has to run on the build that showed it. The 0.1.40
+# pin could not be installed: its commit (1735d647) is no longer on upstream (`git ls-remote` finds no ref holding it) and the tags have
+# moved since (v0.1.39 now points at a1641e9f, the build we ran is 6f32ec07; v0.1.40 now at 1cbcacbc). Nothing was ever run on 0.1.40,
+# so nothing recorded straddles this. Moving to 0.1.40 again needs a commit that exists, and a decision.
+STRATA_VERSION="0.1.39"
+STRATA_COMMIT="6f32ec070f23ced9f50e704d854d775da52591ab"
 STRATA_REPO_URL="https://github.com/Niko1221/Strata.git"
 # The size and the context the benchmark runs: the owner chose IQ3_XXS (IQ3_S needs 62 GB of RAM with little else
 # running, and a story also runs the agent, browsers and test servers on the same machine); 131072 is the benchmark's
