@@ -1,49 +1,23 @@
-import type * as Y from 'yjs';
-import {
-  LOCAL_ORIGIN,
-} from '../../shared/board-model';
+/**
+ * Story 2: sticky note content editing.
+ *
+ * `clampToLimit` and `applyTextDiff` now live in src/shared/text-edit.ts
+ * (story 9) so sticky notes and text objects share them; both are re-exported
+ * here unchanged for existing callers.
+ */
 import {
   STICKY_COUNTER_THRESHOLD_CHARS,
   STICKY_FONT_MAX_PX,
   STICKY_FONT_MIN_PX,
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
+import { clampToLimit as clampToLimitShared } from '../../shared/text-edit';
+
+export { applyTextDiff } from '../../shared/text-edit';
 
 /** Keeps at most `max` characters. */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  return next.length > max ? next.slice(0, max) : next;
-}
-
-/**
- * Applies the minimal change (common prefix + common suffix) from the
- * current text to `next` on the Y.Text. One Yjs transaction. This is what
- * keeps concurrent typing by others intact (story 3).
- */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown = LOCAL_ORIGIN): void {
-  const cur = ytext.toString();
-  if (cur === next) return;
-  let start = 0;
-  const minLen = Math.min(cur.length, next.length);
-  while (start < minLen && cur[start] === next[start]) start++;
-  let endCur = cur.length;
-  let endNext = next.length;
-  while (endCur > start && endNext > start && cur[endCur - 1] === next[endNext - 1]) {
-    endCur--;
-    endNext--;
-  }
-  const doc = ytext.doc;
-  if (doc) {
-    doc.transact(
-      () => {
-        ytext.delete(start, endCur - start);
-        if (endNext > start) ytext.insert(start, next.slice(start, endNext));
-      },
-      origin,
-    );
-  } else {
-    ytext.delete(start, endCur - start);
-    if (endNext > start) ytext.insert(start, next.slice(start, endNext));
-  }
+  return clampToLimitShared(next, max);
 }
 
 /** Character counter is visible when at most the threshold remains. */

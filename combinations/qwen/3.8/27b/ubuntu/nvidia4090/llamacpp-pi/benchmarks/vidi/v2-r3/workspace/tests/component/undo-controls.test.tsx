@@ -45,7 +45,15 @@ function renderKeys(canEdit: boolean, controller: UndoController, children?: Rea
   const doc = new Y.Doc();
   initDoc(doc);
   function Host(): ReactElement {
-    useBoardKeys({ doc, selection: fakeSelection(), snapshot: [], canEdit, undo: controller });
+    useBoardKeys({
+      doc,
+      selection: fakeSelection(),
+      snapshot: [],
+      canEdit,
+      undo: controller,
+      setTool: () => {},
+      onNewSticky: () => {},
+    });
     return <div>{children}</div>;
   }
   const r = render(<Host />);

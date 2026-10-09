@@ -14,10 +14,15 @@ import {
 } from './camera';
 import { GRID_SPACING_WORLD, DRAG_THRESHOLD_PX } from '../../shared/config';
 import type { WheelInput } from './useCamera';
+import type { Tool } from '../board/useTool';
 
 export interface BoardViewportProps {
   camera: Camera;
   size: Size;
+  /** The active tool (story 9): 'text' shows the text-tool click layer. */
+  tool: Tool;
+  /** Text tool: create a text object with its top-left at `world`. */
+  onCreateTextAt(world: Point): void;
   onBeginPan(p: Point): void;
   onPanMove(p: Point): void;
   onEndPan(): void;
@@ -196,6 +201,15 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
       >
         {children}
       </div>
+      {props.tool === 'text' && (
+        <div
+          data-text-tool-layer="true"
+          style={{ position: 'absolute', inset: 0, cursor: 'text', zIndex: 15 }}
+          onClick={(e) => {
+            handlersRef.current.onCreateTextAt(screenToWorld(camera, toLocal(e)));
+          }}
+        />
+      )}
     </div>
   );
 }

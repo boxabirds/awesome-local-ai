@@ -17,8 +17,9 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 | 5 | 4/5 | 0 | 0 | 33/36 | 0 |
 | 7 | 6/8 | 4 | 0 | 35/44 | 4 |
 | 8 | 5/7 | 0 | 0 | 40/51 | 7 |
+| 9 | 4/6 | 7 | 1 | 38/57 | 3 |
 
-**New work** 24/47, **regressions** 4, **repairs** 20, **cumulative** 40/51.
+**New work** 28/53, **regressions** 11, **repairs** 21, **cumulative** 38/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -29,8 +30,9 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 | 5 | Share a board with others using a link | DONE, on partial 1, 2 | 56.4 | None | None | None | — | — | green | 33/36 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE, on partial 1, 2 | 157.4 | None | None | None | — | — | red | 35/44 |  | 0 / 1 | 6 | — | throttled 0%, server peak 18 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 1, 2 | 85.2 | None | None | None | — | — | green | 40/51 |  | 0 / 0 | 4 | — | throttled 0%, server peak 18 GB |
+| 9 | Write free text anywhere on the board | DONE, on partial 1, 2 | 65.8 | None | None | None | — | — | red | 38/57 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 7 stories, 584 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/7, final acceptance 40/51, stalled 0, partial 2, 12424 lines in src+tests.
+**Totals:** 8 stories, 650 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/8, final acceptance 38/57, stalled 0, partial 2, 14525 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -42,6 +44,7 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 - Story 5, built on partial 1, 2: held-out tests on the partial base 33/36; partial story's tests fixed 20, regressed 0; 2 stub-like lines added to src/.
 - Story 7, built on partial 1, 2: held-out tests on the partial base 35/44; partial story's tests fixed 18, regressed 0; 0 stub-like lines added to src/.
 - Story 8, built on partial 1, 2: held-out tests on the partial base 40/51; partial story's tests fixed 18, regressed 0; 0 stub-like lines added to src/.
+- Story 9, built on partial 1, 2: held-out tests on the partial base 38/57; partial story's tests fixed 16, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -56,6 +59,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | 1 by the agent | 1981 / 292 | `App.tsx` (209), `SharePanel.tsx` (207), `Board.tsx` (189), `test-hooks.ts` (109), `NOTES.md` (97), `BoardPage.tsx` (79), +13 more |
 | 7 | 1 by the agent | 3164 / 229 | `useTransformGesture.ts` (236), `board-model.ts` (227), `geometry.ts` (192), `useSelection.ts` (163), `Board.tsx` (152), `SelectionOverlay.tsx` (126), +11 more |
 | 8 | 1 by the agent | 1758 / 22 | `undo.ts` (215), `NOTES.md` (86), `UndoButtons.tsx` (65), `useUndo.ts` (52), `Board.tsx` (33), `StickyTextEditor.tsx` (32), +8 more |
+| 9 | 6 by the agent | 2306 / 205 | `text.ts` (186), `TextEditor.tsx` (148), `textLayout.ts` (135), `TextObject.tsx` (128), `StickyTextEditor.tsx` (126), `Board.tsx` (84), +15 more |
 
 ### Earlier stories broken or fixed
 
@@ -67,6 +71,11 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 2: 10/10 → 9/10; broke 1.
   - story 3: 5/7 → 4/7; broke 1.
   - story 4: 4/4 → 3/4; broke 1.
+- **Story 9 broke 7, fixed 1** earlier held-out tests (story 9: Write free text anywhere on the board; story 9 (tasks 6-7): tool mode with Select/Text, V/T/N/Escape shortcuts, tool tests; story 9 (tasks 4-5): text layout, local-only box sync, and box sync tests; story 9 (task 3): text layout unit tests with a fake measurer; story 9 (task 2): text object model and shared text-edit helpers; story 9 (task 1): text model unit tests first (TC-01 to TC-06)). Source files it changed most: `text.ts` (186), `TextEditor.tsx` (148), `textLayout.ts` (135), `TextObject.tsx` (128), `StickyTextEditor.tsx` (126), `Board.tsx` (84), +15 more.
+  - story 2: 9/10 → 7/10; broke 2.
+  - story 4: 3/4 → 2/4; broke 1.
+  - story 7: 6/8 → 6/8; broke 1; fixed 1.
+  - story 8: 5/7 → 2/7; broke 3.
 
 ### Interruptions and dead time
 

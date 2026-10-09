@@ -1,10 +1,11 @@
 import type { ReactElement } from 'react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import {
   createSticky,
   deleteObjects,
 } from '../shared/board-model';
+import { createText, setTextSize } from '../shared/objects/text';
 import type { Point, Size } from './canvas/camera';
 import { screenToWorld } from './canvas/camera';
 import { BoardViewport } from './canvas/BoardViewport';
@@ -18,13 +19,17 @@ import { useSelection } from './board/useSelection';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
+import { useTool } from './board/useTool';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { getObjectType } from './objects/registry';
+import { createCanvasMeasurer } from './objects/textLayout';
+import { remeasureTextBox } from './objects/useTextBoxSync';
 import { SharePanel } from './share/SharePanel';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
-import { STICKY_SIZE_WORLD } from '../shared/config';
+import { STICKY_SIZE_WORLD, type TextSize } from '../shared/config';
+
 
 /**
  * Editing gate (persist.client_status): the board is only non-editable while
@@ -74,6 +79,9 @@ export function Board(props: { boardId: string }): ReactElement {
   const selection = useSelection(objects);
   const editable = canEdit(connectionState);
 
+  // Story 9 (text.tool_ui): per-client active tool (Select / Text).
+  const { tool, setTool } = useTool(editable);
+
   // Story 8 (undo.session_only): one undo controller per board document.
   const undoState = useUndo(doc);
 
@@ -91,9 +99,6 @@ export function Board(props: { boardId: string }): ReactElement {
     onGestureStart: undoState.boundary,
     onGestureEnd: undoState.boundary,
   });
-
-  // Selection keyboard commands (select all, clear, nudge, delete, edit, undo/redo).
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoState.controller });
 
   // Test-only hooks (excluded from production builds).
   useEffect(() => {
@@ -146,12 +151,62 @@ export function Board(props: { boardId: string }): ReactElement {
     createStickyAt(screenToWorld(cam.camera, { x: size.width / 2, y: size.height / 2 }));
   }, [createStickyAt, cam.camera, size]);
 
+  // Story 9 (text.tool_ui): the Text tool click creates a text object whose
+  // top-left corner is at the click point, then returns to the Select tool
+  // and edits the new object (shared createdId effect above).
+  const identityIdRef = useRef(crypto.randomUUID());
+  const createTextAt = useCallback(
+    (world: Point) => {
+      if (!editable) return; // load_failed: the board is not editable
+      // Story 8: a single model call is one undo step.
+      undoState.boundary();
+      const id = createText(doc, world, identityIdRef.current);
+      undoState.boundary();
+      if (id) {
+        createdIdRef.current = id;
+        setTool('select');
+      }
+    },
+    [doc, editable, undoState.boundary, setTool],
+  );
+
+  // Selection keyboard commands (select all, clear, nudge, delete, edit,
+  // undo/redo, tool shortcuts V/T/N).
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undo: undoState.controller,
+    setTool,
+    onNewSticky: createStickyCenter,
+  });
+
   const deleteSelection = useCallback(() => {
     if (!editable) return; // load_failed: deletion is a no-op
     if (selection.ids.size === 0) return;
     deleteObjects(doc, [...selection.ids]);
     selection.clear();
   }, [doc, selection, editable]);
+
+  // Story 9 (text.object): the TextToolbar size change — set the size preset
+  // and re-measure the box in one undo step (boundary + local change +
+  // boundary, story 8).
+  const textMeasurer = useMemo(() => createCanvasMeasurer(), []);
+  const handleTextSize = useCallback(
+    (size: TextSize) => {
+      if (!editable) return;
+      if (selection.ids.size !== 1) return;
+      const id = [...selection.ids][0];
+      const o = objects.find((s) => s.id === id);
+      if (!o || o.type !== 'text') return;
+      undoState.boundary();
+      setTextSize(doc, id, size);
+      remeasureTextBox(doc, id, textMeasurer);
+      undoState.boundary();
+    },
+    [doc, editable, objects, selection.ids, textMeasurer, undoState.boundary],
+  );
 
   // Camera zoom shortcuts (kept from story 1); selection keys live in
   // useBoardKeys.
@@ -177,13 +232,14 @@ export function Board(props: { boardId: string }): ReactElement {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [cam]);
 
-  // A pointerdown outside the note being edited ends editing (selection kept).
+  // A pointerdown outside the object being edited ends editing (selection
+  // kept). data-object-id covers sticky notes and text objects alike.
   const editingId = selection.editingId;
   const endEdit = selection.endEdit;
   useEffect(() => {
     if (editingId === null) return;
     const onPointerDown = (e: PointerEvent) => {
-      const el = document.querySelector(`[data-note-id="${CSS.escape(editingId)}"]`);
+      const el = document.querySelector(`[data-object-id="${CSS.escape(editingId)}"]`);
       if (el && el.contains(e.target as Node)) return;
       endEdit();
     };
@@ -201,6 +257,8 @@ export function Board(props: { boardId: string }): ReactElement {
       <BoardViewport
         camera={cam.camera}
         size={size}
+        tool={tool}
+        onCreateTextAt={createTextAt}
         onBeginPan={cam.beginPan}
         onPanMove={cam.panMove}
         onEndPan={cam.endPan}
@@ -240,10 +298,18 @@ export function Board(props: { boardId: string }): ReactElement {
           camera={cam.camera}
           onHandlePointerDown={transform.onHandlePointerDown}
         />
-        <SelectionBar ids={selection.ids} snapshot={objects} onDelete={deleteSelection} />
+        <SelectionBar
+          ids={selection.ids}
+          snapshot={objects}
+          doc={doc}
+          onDelete={deleteSelection}
+          onTextSize={handleTextSize}
+        />
         <MarqueeRect rect={marquee.rect} zoom={cam.camera.zoom} />
       </BoardViewport>
       <Toolbar
+        tool={tool}
+        onSelectTool={setTool}
         onCreateSticky={createStickyCenter}
         disabled={!editable}
         canUndo={undoState.canUndo}

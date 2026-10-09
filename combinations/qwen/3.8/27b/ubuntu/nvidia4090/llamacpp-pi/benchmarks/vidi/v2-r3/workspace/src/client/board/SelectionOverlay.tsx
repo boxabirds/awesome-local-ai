@@ -11,6 +11,7 @@ import {
 } from '../../shared/geometry';
 import { HANDLE_SIZE_PX } from '../../shared/config';
 import type { Camera } from '../canvas/camera';
+import { getObjectType } from '../objects/registry';
 
 /**
  * Story 7 (sel.transform): the bounding box and eight resize handles of the
@@ -19,6 +20,10 @@ import type { Camera } from '../canvas/camera';
  * they keep a constant size on screen.
  *
  * Each handle carries the `Resize <position>` aria-label expected by the tests.
+ *
+ * Story 9 (text.object): when every selected object is a horizontal-resize
+ * type (text), only the e/w handles are shown — text height follows its
+ * content and cannot be dragged.
  */
 export function SelectionOverlay(props: {
   ids: ReadonlySet<string>;
@@ -34,6 +39,9 @@ export function SelectionOverlay(props: {
 
   const box = unionRects(selected.map(objectBounds));
   if (!box) return null;
+
+  const horizontalOnly = selected.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+  const handles = horizontalOnly ? (['e', 'w'] as Handle[]) : HANDLES;
 
   const zoom = camera.zoom;
   const borderW = 1.5 / zoom;
@@ -57,7 +65,7 @@ export function SelectionOverlay(props: {
         boxSizing: 'border-box',
       }}
     >
-      {HANDLES.map((h) => {
+      {handles.map((h) => {
         const c = handleCenter(h, W, H);
         return (
           <div

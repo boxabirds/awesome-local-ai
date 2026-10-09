@@ -5,9 +5,10 @@ import {
   registerKnownObjectType,
 } from '../../shared/board-model';
 import type { Point } from '../canvas/camera';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /**
  * Story 7 (sel.registry): the object type registry.
@@ -54,6 +55,12 @@ export interface ObjectTypeSpec {
   readonly minSize: number;
   /** Whether the type has an editable text field. */
   readonly editableText: boolean;
+  /**
+   * Handles shown for a single selection of this type (story 9): 'all' (the
+   * default, eight handles) or 'horizontal' (only e/w — text objects resize
+   * by width, their height always follows the content).
+   */
+  readonly handles?: 'all' | 'horizontal';
   /** Whether a world point hits this object (default: within its bounds). */
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
@@ -87,6 +94,23 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: (obj, p) => {
+    const b = objectBounds(obj);
+    return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+  },
+});
+
+/**
+ * Register the story 9 text type: resizable by width only (horizontal
+ * handles), no aspect lock, editable text, bounds hit test.
+ */
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: (obj, p) => {
     const b = objectBounds(obj);
     return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;

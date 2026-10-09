@@ -8,6 +8,7 @@
  * Story 5 — sharing a board by link
  * Story 7 — multi-select, move, resize, delete
  * Story 8 — per-user undo and redo
+ * Story 9 — free text objects
  */
 
 // Story 1
@@ -68,3 +69,13 @@ export const NUDGE_LARGE_STEP_WORLD = 10; // Shift+arrow-key nudge (board units)
 // Story 8
 export const UNDO_CAPTURE_TIMEOUT_MS = 500; // typing pause that ends a burst
 export const UNDO_MAX_STEPS = 200;
+
+// Story 9
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600; // auto-width text wraps beyond this (board units)
+export const TEXT_MIN_WIDTH_WORLD = 40; // fixed-width text cannot be narrower than this (board units)
+export const TEXT_MAX_CHARS = 5000; // text length limit
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const; // font sizes in board units
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+export const TEXT_LINE_HEIGHT = 1.3; // line height as a multiple of the font size
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';

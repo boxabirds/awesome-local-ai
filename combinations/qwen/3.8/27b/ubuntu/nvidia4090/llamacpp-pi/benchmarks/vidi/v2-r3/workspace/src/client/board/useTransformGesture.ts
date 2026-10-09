@@ -16,9 +16,16 @@ import {
   type Point,
   type Rect,
 } from '../../shared/geometry';
-import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
+import {
+  DRAG_THRESHOLD_PX,
+  MAX_OBJECT_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import type { Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
+import { setTextWidthFixed } from '../../shared/objects/text';
+import { createCanvasMeasurer, type Measurer } from '../objects/textLayout';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
 import type { SelectionApi } from './useSelection';
 
 type MoveGesture = {
@@ -41,6 +48,12 @@ type ResizeGesture = {
   startRects: Map<string, Rect>;
   minSizes: number[];
   anyAspect: boolean;
+  /**
+   * Story 9: set when the selection is a single text object and the handle is
+   * e/w — the drag changes only the width (fixed mode) and re-measures the
+   * height from the content, instead of scaling the box.
+   */
+  textWidthId: string | null;
   active: boolean;
 };
 type Gesture = MoveGesture | ResizeGesture;
@@ -81,6 +94,8 @@ export function useTransformGesture(opts: {
   startRef.current = opts.onGestureStart;
   const endRef = useRef(opts.onGestureEnd);
   endRef.current = opts.onGestureEnd;
+  const measurerRef = useRef<Measurer | null>(null);
+  if (measurerRef.current === null) measurerRef.current = createCanvasMeasurer();
 
   const onObjectPointerDown = (e: React.PointerEvent, id: string): void => {
     // Shift-click toggles membership in the selection and never moves.
@@ -128,6 +143,12 @@ export function useTransformGesture(opts: {
       minSizes.push(spec?.minSize ?? 0);
       if (spec?.aspectLocked) anyAspect = true;
     }
+    // Story 9: a single text object dragged by e/w resizes its width (fixed
+    // mode) and re-measures its height; the generic box scaling is bypassed.
+    const singleText =
+      selObjs.length === 1 &&
+      selObjs[0].type === 'text' &&
+      (handle === 'e' || handle === 'w');
     gestureRef.current = {
       kind: 'resize',
       pointerId: e.pointerId,
@@ -139,6 +160,7 @@ export function useTransformGesture(opts: {
       startRects,
       minSizes,
       anyAspect,
+      textWidthId: singleText ? gid[0] : null,
       active: false,
     };
   };
@@ -210,6 +232,25 @@ export function useTransformGesture(opts: {
   };
 
   const applyResize = (g: ResizeGesture, worldDx: number, worldDy: number, shift: boolean): void => {
+    // Story 9 (text.object): single text + side handle → width-only resize.
+    if (g.textWidthId !== null) {
+      const id = g.textWidthId;
+      const sr = g.startRects.get(id);
+      if (!sr) return; // pruned mid-gesture: skip
+      const rawWidth = g.handle === 'e' ? sr.width + worldDx : sr.width - worldDx;
+      const width = Math.min(Math.max(rawWidth, TEXT_MIN_WIDTH_WORLD), MAX_OBJECT_SIZE_WORLD);
+      if (g.handle === 'w') {
+        const x = sr.x + sr.width - width; // right edge anchored
+        if (Math.abs(x - sr.x) > 1e-9) {
+          moveObjects(doc, new Map([[id, { x, y: sr.y }]]));
+        }
+      }
+      setTextWidthFixed(doc, id, width);
+      // Re-measure the wrapped height at the new fixed width (same capture
+      // window → the whole drag is one undo step).
+      remeasureTextBox(doc, id, measurerRef.current!);
+      return;
+    }
     const aspectLocked = g.anyAspect || shift;
     const proposed = resizeRect(g.box, g.handle, { x: worldDx, y: worldDy }, aspectLocked);
     const scale = {

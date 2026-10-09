@@ -1,11 +1,49 @@
 import type { ReactElement } from 'react';
 import { UndoButtons } from './UndoButtons';
+import type { Tool } from './useTool';
+import { TEXT_SIZES } from '../../shared/config';
+
+function ToolButton(props: {
+  label: string;
+  glyph: string;
+  pressed: boolean;
+  disabled?: boolean;
+  onClick(): void;
+}): ReactElement {
+  return (
+    <button
+      type="button"
+      aria-label={props.label}
+      title={props.label}
+      aria-pressed={props.pressed}
+      disabled={props.disabled}
+      onClick={props.onClick}
+      style={{
+        width: 40,
+        height: 40,
+        fontSize: 18,
+        borderRadius: 8,
+        border: '1px solid #d5d9e0',
+        background: props.pressed ? '#1a73e8' : props.disabled ? '#e8eaee' : '#fff',
+        color: props.pressed ? '#fff' : '#23272e',
+        cursor: props.disabled ? 'not-allowed' : 'pointer',
+        opacity: props.disabled ? 0.6 : 1,
+      }}
+    >
+      {props.glyph}
+    </button>
+  );
+}
+
 /**
- * Left toolbar with the Sticky note button, the Undo/Redo buttons (story 8)
- * and nothing else. `disabled` (the board failed to load) disables the
+ * Left toolbar: the Select / Text tool buttons (story 9), the Sticky note
+ * button (shortcut N, or double-click the board) and the Undo/Redo buttons
+ * (story 8). `disabled` (the board failed to load) disables the editing
  * buttons; the double-click path is gated in App.
  */
 export function Toolbar(props: {
+  tool: Tool;
+  onSelectTool(t: Tool): void;
   onCreateSticky(): void;
   disabled?: boolean;
   canUndo: boolean;
@@ -33,10 +71,24 @@ export function Toolbar(props: {
       }}
       onPointerDown={(e) => e.stopPropagation()}
     >
+      <ToolButton
+        label="Select (V)"
+        glyph="⬚"
+        pressed={props.tool === 'select'}
+        onClick={() => props.onSelectTool('select')}
+      />
+      <ToolButton
+        label="Text (T)"
+        glyph="T"
+        pressed={props.tool === 'text'}
+        disabled={props.disabled}
+        onClick={() => props.onSelectTool('text')}
+      />
+      <div style={{ height: 1, background: '#e4e7ec', margin: '2px 0' }} />
       <button
         type="button"
         aria-label="Sticky note"
-        title="Sticky note – or double-click the board"
+        title={`Sticky note (N) – or double-click the board (default size ${TEXT_SIZES.M}px)`}
         disabled={props.disabled}
         onClick={props.onCreateSticky}
         style={{
