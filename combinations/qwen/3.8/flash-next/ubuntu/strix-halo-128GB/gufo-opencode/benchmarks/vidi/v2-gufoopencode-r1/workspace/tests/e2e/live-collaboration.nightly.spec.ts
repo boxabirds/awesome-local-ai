@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoard } from './helpers/board';
 import { LIVE_UPDATE_LATENCY_BUDGET_MS, MAX_CONCURRENT_EDITORS, type StickyColor } from '../../src/shared/config';
 import { boardSnapshot, expectEventually, eventually, openParticipant, snapshotOf, type Participant } from './helpers/participants';
 
@@ -75,10 +75,11 @@ async function expectAllConverge(parts: Participant[], label: string): Promise<n
 
 test.describe('nightly soak', () => {
   test('TC-29 a board idles connected for 45 seconds and the first edit after the idle still propagates', async ({
-    browser
+    browser,
+    request
   }) => {
     test.setTimeout(150_000);
-    const boardId = newBoardId();
+    const boardId = await createBoard(request);
     const alex = await openParticipant(browser, 'Alex', boardId);
     const sam = await openParticipant(browser, 'Sam', boardId);
 
@@ -107,10 +108,11 @@ test.describe('nightly soak', () => {
   });
 
   test('TC-30 five editors keep a board converged for 60 seconds of random edits with a latency report', async ({
-    browser
+    browser,
+    request
   }) => {
     test.setTimeout(240_000);
-    const boardId = newBoardId();
+    const boardId = await createBoard(request);
     const parts: Participant[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i += 1) {
       parts.push(await openParticipant(browser, `Editor${i + 1}`, boardId));

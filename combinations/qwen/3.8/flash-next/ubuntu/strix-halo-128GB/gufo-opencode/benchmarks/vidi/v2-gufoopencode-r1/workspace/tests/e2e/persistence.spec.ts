@@ -89,7 +89,16 @@ async function restartServer(): Promise<void> {
 async function hook(boardId: string, action: string, query = ''): Promise<Record<string, unknown>> {
   const response = await fetch(`${BASE}/__test/boards/${boardId}/${action}${query}`, { method: 'POST' });
   if (!response.ok) throw new Error(`hook ${action} failed: ${String(response.status)}`);
-  return (await response.json()) as Record<string, unknown>;
+  return (await response.json()) as { [key: string]: unknown };
+}
+
+// Story 5 removed implicit creation: a board a test will edit through the UI
+// must be created via the API first. (Seeded boards count as existing, so
+// tests that seed first keep using newBoardId.)
+async function createBoardViaApi(): Promise<string> {
+  const response = await fetch(`${BASE}/api/boards`, { method: 'POST' });
+  if (!response.ok) throw new Error(`create failed: ${String(response.status)}`);
+  return String(((await response.json()) as { id: string }).id);
 }
 
 interface NoteView {
@@ -137,7 +146,7 @@ test.afterAll(async () => {
 });
 
 test('TC-19 notes survive a kill and restart of the persisted dev process', async ({ browser }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoardViaApi();
   const page = await browser.newPage();
   await page.goto(`/b/${boardId}`);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
@@ -172,7 +181,7 @@ test('TC-19 notes survive a kill and restart of the persisted dev process', asyn
 });
 
 test('TC-20 a note visible to a second viewer survives an immediate kill', async ({ browser }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoardViaApi();
   const alex = await browser.newPage();
   const sam = await browser.newPage();
   await alex.goto(`/b/${boardId}`);

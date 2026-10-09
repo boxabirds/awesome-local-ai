@@ -73,6 +73,7 @@ export function shouldCompact(
 
 const META_SCHEMA_VERSION = 'storage_schema_version';
 const META_SNAPSHOT_THROUGH_SEQ = 'snapshot_through_seq';
+export const META_CREATED_AT = 'created_at';
 
 // One board's log-structured persistence: a compacted snapshot in fixed-size
 // chunks plus an append-only log of Yjs updates on top. Every method is
@@ -84,8 +85,53 @@ export class BoardStore {
   private pendingCount = 0;
   private pendingBytes = 0;
   private countersLoaded = false;
+  // True once the tables are known to exist (migrated, or observed by a
+  // read). Tables are never dropped, so this only ever goes false → true.
+  private tablesReady = false;
 
   constructor(private readonly storage: BoardStorage) {}
+
+  tableExists(name: string): boolean {
+    return (
+      this.storage.sql
+        .exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", name)
+        .toArray().length > 0
+    );
+  }
+
+  // Read-only existence rule (share.not_found / share.legacy_boards): a board
+  // exists if storage_meta has created_at, or (legacy) if there is at least
+  // one update or snapshot row. Never creates tables, so probing an unknown
+  // link leaves no storage behind.
+  existsReadOnly(): boolean {
+    if (!this.tableExists('updates')) return false;
+    this.tablesReady = true;
+    if (this.hasCreatedAt()) return true;
+    if (this.storage.sql.exec('SELECT 1 FROM updates LIMIT 1').toArray().length > 0) return true;
+    return (
+      this.tableExists('snapshot_chunks') &&
+      this.storage.sql.exec('SELECT 1 FROM snapshot_chunks LIMIT 1').toArray().length > 0
+    );
+  }
+
+  // Record the board's creation timestamp. Returns true when this call
+  // created the board, false when it already existed (TC-15).
+  markCreated(): boolean {
+    return this.storage.transactionSync(() => {
+      if (this.hasCreatedAt()) return false;
+      this.storage.sql.exec(
+        'INSERT INTO storage_meta (key, value) VALUES (?, ?)',
+        META_CREATED_AT,
+        new TextEncoder().encode(String(Date.now()))
+      );
+      return true;
+    });
+  }
+
+  private hasCreatedAt(): boolean {
+    if (!this.tableExists('storage_meta')) return false;
+    return this.storage.sql.exec('SELECT 1 FROM storage_meta WHERE key = ?', META_CREATED_AT).toArray().length > 0;
+  }
 
   migrate(): void {
     this.storage.transactionSync(() => {
@@ -120,12 +166,16 @@ export class BoardStore {
         );
       }
     });
+    this.tablesReady = true;
     this.refreshCounters();
   }
 
   // Insert one update at the tail of the log. SQL errors propagate: the room
   // treats them as a storage failure and stops serving writes.
   append(update: Uint8Array): void {
+    // Story 5: migrate() no longer runs on construct, so the first write of a
+    // session creates the schema lazily (legacy boards already have it).
+    if (!this.tablesReady) this.migrate();
     this.storage.sql.exec(
       'INSERT INTO updates (data, bytes, created_at) VALUES (?, ?, ?)',
       update,
@@ -145,6 +195,15 @@ export class BoardStore {
   // the caller enters the load-failed state.
   load(doc: Y.Doc): LoadResult {
     try {
+      if (!this.tableExists('updates')) {
+        // Nothing was ever stored for this board: an empty board. Load does
+        // not create tables, so a never-created board stays storage-free.
+        this.pendingCount = 0;
+        this.pendingBytes = 0;
+        this.countersLoaded = true;
+        return { ok: true, quarantined: 0 };
+      }
+      this.tablesReady = true;
       const snapshot = this.readSnapshot();
       if (snapshot !== null) {
         try {

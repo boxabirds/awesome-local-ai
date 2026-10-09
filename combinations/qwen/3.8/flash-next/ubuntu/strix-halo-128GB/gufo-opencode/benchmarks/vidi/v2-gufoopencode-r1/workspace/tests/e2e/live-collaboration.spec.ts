@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
 import { CATCH_UP_TEST_OUTAGE_MS, MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
-import { settle } from './helpers/board';
+import { createBoard, settle } from './helpers/board';
 import { boardSnapshot, eventually, expectEventually, openParticipant, snapshotOf, type Participant } from './helpers/participants';
 
 async function createNote(page: Page, x: number, y: number): Promise<string> {
@@ -30,8 +29,8 @@ function textOf(page: Page, id: string): Promise<string | null> {
 }
 
 test.describe('workflow: two-person workshop', () => {
-  test('TC-22 every change by Alex appears live for Sam', async ({ browser }) => {
-    const boardId = newBoardId();
+  test('TC-22 every change by Alex appears live for Sam', async ({ browser, request }) => {
+    const boardId = await createBoard(request);
     const alex = await openParticipant(browser, 'Alex', boardId);
     const sam = await openParticipant(browser, 'Sam', boardId);
 
@@ -78,8 +77,8 @@ test.describe('workflow: two-person workshop', () => {
     await sam.context.close();
   });
 
-  test('TC-23 both typing into one note at once keeps every character on both screens', async ({ browser }) => {
-    const boardId = newBoardId();
+  test('TC-23 both typing into one note at once keeps every character on both screens', async ({ browser, request }) => {
+    const boardId = await createBoard(request);
     const alex = await openParticipant(browser, 'Alex', boardId);
     const sam = await openParticipant(browser, 'Sam', boardId);
     const id = await createNote(alex.page, 600, 350);
@@ -107,8 +106,8 @@ test.describe('workflow: two-person workshop', () => {
     await sam.context.close();
   });
 
-  test('TC-24 both dragging the same note settles on one identical position', async ({ browser }) => {
-    const boardId = newBoardId();
+  test('TC-24 both dragging the same note settles on one identical position', async ({ browser, request }) => {
+    const boardId = await createBoard(request);
     const alex = await openParticipant(browser, 'Alex', boardId);
     const sam = await openParticipant(browser, 'Sam', boardId);
     const id = await createNote(alex.page, 600, 350);
@@ -131,8 +130,8 @@ test.describe('workflow: two-person workshop', () => {
     await sam.context.close();
   });
 
-  test("TC-25 deleting the note Sam is typing in closes Sam's editor with no errors", async ({ browser }) => {
-    const boardId = newBoardId();
+  test("TC-25 deleting the note Sam is typing in closes Sam's editor with no errors", async ({ browser, request }) => {
+    const boardId = await createBoard(request);
     const alex = await openParticipant(browser, 'Alex', boardId);
     const sam = await openParticipant(browser, 'Sam', boardId);
     const id = await createNote(alex.page, 600, 350);
@@ -157,9 +156,9 @@ test.describe('workflow: two-person workshop', () => {
 });
 
 test.describe('workflow: full-capacity session', () => {
-  test('TC-26 every change of a full board of editors reaches everyone and final states match', async ({ browser }) => {
+  test('TC-26 every change of a full board of editors reaches everyone and final states match', async ({ browser, request }) => {
     test.setTimeout(240_000);
-    const boardId = newBoardId();
+    const boardId = await createBoard(request);
     const people: Participant[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i += 1) {
       people.push(await openParticipant(browser, `person-${String(i + 1)}`, boardId));
@@ -202,9 +201,9 @@ test.describe('workflow: full-capacity session', () => {
 });
 
 test.describe('workflow: flaky wi-fi', () => {
-  test('TC-27 a 30 second outage reconnects and both sides catch up on all six notes', async ({ browser }) => {
+  test('TC-27 a 30 second outage reconnects and both sides catch up on all six notes', async ({ browser, request }) => {
     test.setTimeout(180_000);
-    const boardId = newBoardId();
+    const boardId = await createBoard(request);
     const alex = await openParticipant(browser, 'Alex', boardId);
     const sam = await openParticipant(browser, 'Sam', boardId);
 
@@ -245,8 +244,8 @@ test.describe('workflow: flaky wi-fi', () => {
   });
 });
 
-test("TC-28 selection and editing stay on the editor's own screen", async ({ browser }) => {
-  const boardId = newBoardId();
+test("TC-28 selection and editing stay on the editor's own screen", async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const alex = await openParticipant(browser, 'Alex', boardId);
   const sam = await openParticipant(browser, 'Sam', boardId);
   const id = await createNote(alex.page, 600, 350);

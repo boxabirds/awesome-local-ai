@@ -34,15 +34,59 @@ export interface RoomTestHookAccess {
   readonly testLoadAttempts: number;
   armFailAppendOnce(): void;
   seedNotes(count: number): void;
+  seedLegacy(updatesBase64: string[]): void;
+  initializeBoard(): 'created' | 'exists';
 }
 
 const BACKUP_KEY = 'test_chunk0_backup';
 
-export function runRoomTestHook(action: string, room: RoomTestHookAccess, params: URLSearchParams): Response {
+export async function runRoomTestHook(
+  action: string,
+  room: RoomTestHookAccess,
+  params: URLSearchParams,
+  request: Request
+): Promise<Response> {
   const sql = room.testStorage.sql;
   switch (action) {
     case 'state':
       return Response.json({ phase: room.testPhase, loadAttempts: room.testLoadAttempts });
+    case 'tables': {
+      const rows = sql
+        .exec("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+        .toArray();
+      return Response.json({ tables: rows.map((row) => String(row['name'])) });
+    }
+    case 'meta': {
+      if (!room.testStore.tableExists('storage_meta')) return Response.json({ meta: null });
+      const rows = sql.exec('SELECT key, value FROM storage_meta').toArray();
+      const meta: Record<string, string> = {};
+      for (const row of rows) {
+        const raw = row['value'];
+        meta[String(row['key'])] =
+          typeof raw === 'string' ? raw : new TextDecoder().decode(raw as Uint8Array);
+      }
+      return Response.json({ meta });
+    }
+    case 'initialize':
+      return Response.json({ result: room.initializeBoard() });
+    case 'seed-legacy': {
+      // Story 5 TC-31 / TC-08: a board that already has `updates` rows but no
+      // created_at marker — exactly the shape of storage written before the
+      // sharing feature shipped. The room reloads so connecting clients see
+      // the seeded content.
+      let body: { updates?: unknown };
+      try {
+        body = (await request.json()) as { updates?: unknown };
+      } catch {
+        return Response.json({ ok: false, reason: 'expected JSON body' }, { status: 400 });
+      }
+      const updates = body.updates;
+      if (!Array.isArray(updates) || updates.length === 0 || updates.some((u) => typeof u !== 'string')) {
+        return Response.json({ ok: false, reason: 'updates must be a non-empty base64 string array' }, { status: 400 });
+      }
+      room.seedLegacy(updates as string[]);
+      return Response.json({ ok: true, rows: updates.length });
+    }
     case 'stats':
       return Response.json(room.testStore.stats());
     case 'compact': {

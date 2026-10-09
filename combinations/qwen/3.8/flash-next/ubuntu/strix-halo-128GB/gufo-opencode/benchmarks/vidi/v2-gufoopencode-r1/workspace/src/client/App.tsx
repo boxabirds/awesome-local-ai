@@ -1,62 +1,16 @@
-import { useEffect, useState } from 'react';
-import { BoardViewport } from './canvas/BoardViewport';
-import { useBoardDoc } from './board/useBoardDoc';
-import { useSelection } from './board/useSelection';
-import { useNoteKeys } from './board/useNoteKeys';
-import { ConnectionStatus } from './sync/ConnectionStatus';
-import type { ConnectionState } from './sync/connectBoard';
-import { isValidBoardId, newBoardId } from '../shared/board-id';
+import type { JSX } from 'react';
+import { useRoute } from './router';
+import { HomePage } from './pages/HomePage';
+import { BoardPage } from './pages/BoardPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
-// Story 3 routing: the board lives at /b/<boardId>. '/' mints a fresh board
-// id and replaces its own history entry (story 5 replaces this with proper
-// board creation). An unparseable id is treated the same way as '/' — the
-// client never sends it to the server.
-function readBoardId(): string | null {
-  const match = /^\/b\/([^/?#]+)/.exec(window.location.pathname);
-  if (match === null) return null;
-  const candidate = decodeURIComponent(match[1]);
-  return isValidBoardId(candidate) ? candidate : null;
-}
-
-function boardIdFromLocation(): string {
-  const existing = readBoardId();
-  if (existing !== null) return existing;
-  const fresh = newBoardId();
-  window.history.replaceState(null, '', `/b/${fresh}`);
-  return fresh;
-}
-
-// The board is read-only only while the server cannot load it; every other
-// connection state (including reconnecting) keeps editing enabled.
-export function canEdit(state: ConnectionState): boolean {
-  return state !== 'load_failed';
-}
-
-export function App() {
-  const [boardId, setBoardId] = useState<string | null>(() => boardIdFromLocation());
-  useEffect(() => {
-    const onPop = (): void => setBoardId(boardIdFromLocation());
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, []);
-
-  const { doc, notes, connection } = useBoardDoc(boardId ?? undefined);
-  const selection = useSelection(doc);
-  useNoteKeys(doc, selection, canEdit(connection));
-
-  return (
-    <>
-      <ConnectionStatus state={connection} />
-      <BoardViewport
-        doc={doc}
-        notes={notes}
-        selectedId={selection.selectedId}
-        editingId={selection.editingId}
-        onSelect={selection.select}
-        onStartEdit={selection.startEdit}
-        onEndEdit={selection.endEdit}
-        editable={canEdit(connection)}
-      />
-    </>
-  );
+// Story 5 routing: '/' is Home (create a board), '/b/<id>' is a board whose
+// existence is checked before the stories 1–4 UI mounts, and anything else is
+// Board not found. The story 3 implicit-mint behaviour is gone — boards are
+// only created through the API.
+export function App(): JSX.Element {
+  const route = useRoute();
+  if (route.name === 'home') return <HomePage />;
+  if (route.name === 'board') return <BoardPage id={route.id} />;
+  return <NotFoundPage />;
 }

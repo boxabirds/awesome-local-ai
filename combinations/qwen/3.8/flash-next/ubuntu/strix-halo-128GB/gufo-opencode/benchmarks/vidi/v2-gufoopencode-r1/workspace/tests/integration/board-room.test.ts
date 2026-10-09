@@ -2,7 +2,6 @@ import { expect, inject, test } from 'vitest';
 import * as Y from 'yjs';
 import { createEncoder, toUint8Array, writeVarUint, writeVarUint8Array } from 'lib0/encoding';
 import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
-import { newBoardId } from '../../src/shared/board-id';
 import { LIVE_UPDATE_LATENCY_BUDGET_MS, MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import {
   createSticky,
@@ -12,12 +11,13 @@ import {
   setStickyColor
 } from '../../src/shared/board-model';
 import { CLOSE_UNSUPPORTED_DATA, MESSAGE_AWARENESS, MESSAGE_SYNC, SYNC_UPDATE } from '../../src/shared/protocol';
-import { TestClient, equalBytes, rawSocket, waitFor } from './ws-client';
+import { TestClient, createBoardId, equalBytes, rawSocket, waitFor } from './ws-client';
 import { applyRandomOp, mulberry32 } from './random-ops';
 
 const port = inject('workerPort');
 
-async function pair(boardId = newBoardId()): Promise<{ a: TestClient; b: TestClient }> {
+async function pair(providedBoardId?: string): Promise<{ a: TestClient; b: TestClient }> {
+  const boardId = providedBoardId ?? (await createBoardId(port));
   const a = await TestClient.connected(port, boardId);
   const b = await TestClient.connected(port, boardId);
   return { a, b };
@@ -123,7 +123,7 @@ test('TC-11 a delete concurrent with typing removes the note everywhere without 
 test('TC-12 a full-capacity board with hundreds of seeded random ops converges', async () => {
   const seed = 0x517c0000 | Math.floor(Math.random() * 0xffff);
   console.log(`TC-12 seed: ${seed.toString(16)}`);
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const clients: TestClient[] = [];
   for (let i = 0; i < MAX_CONCURRENT_EDITORS; i += 1) {
     clients.push(await TestClient.connected(port, boardId));
@@ -143,7 +143,7 @@ test('TC-12 a full-capacity board with hundreds of seeded random ops converges',
 });
 
 test('TC-14 a late joiner receives a twenty-note board intact', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const a = await TestClient.connected(port, boardId);
   for (let i = 0; i < 20; i += 1) {
     createSticky(a.doc, { x: i * 30, y: i * 20 });
@@ -195,7 +195,7 @@ test('TC-15 malformed traffic closes only its socket with 1003 and cannot corrup
 });
 
 test('TC-16 an awareness update is relayed verbatim to every socket including the sender', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const bodyDoc = new Y.Doc();
   const awareness = new Awareness(bodyDoc);
   awareness.setLocalStateField('user', { name: 'relay-test' });
@@ -235,7 +235,7 @@ test('TC-16 an awareness update is relayed verbatim to every socket including th
 });
 
 test('TC-18 after full idle the room is re-populated through the sync handshake', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const a = await TestClient.connected(port, boardId);
   for (let i = 0; i < 5; i += 1) {
     createSticky(a.doc, { x: i * 10, y: 0 });
@@ -257,7 +257,7 @@ test('TC-18 after full idle the room is re-populated through the sync handshake'
 });
 
 test('TC-31 an update arriving while a dead socket drains does not break the room', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const a = await TestClient.connected(port, boardId);
   const doomedRaw = rawSocket(port, boardId);
   await new Promise<void>((resolve) => doomedRaw.on('open', () => resolve()));

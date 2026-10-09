@@ -17,7 +17,7 @@ vi.mock('../../src/client/sync/connectBoard', () => ({
   }
 }));
 
-import { App, canEdit } from '../../src/client/App';
+import { BoardShell, canEdit } from '../../src/client/pages/BoardShell';
 
 function drive(state: string): void {
   act(() => {
@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 test('TC-23 a load_failed board ignores double-click, toolbar, drag and Delete', () => {
-  render(<App />);
+  render(<BoardShell boardId="read-only-test" />);
   drive('connected');
   const doc = capturedDoc;
   if (doc === null) throw new Error('doc not captured');

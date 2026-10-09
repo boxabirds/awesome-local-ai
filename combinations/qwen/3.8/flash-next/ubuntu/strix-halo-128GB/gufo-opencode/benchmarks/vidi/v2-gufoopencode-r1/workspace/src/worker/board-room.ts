@@ -17,6 +17,25 @@ import { isTestHookPath, runRoomTestHook, type RoomTestHookAccess } from './test
 import { createSticky } from '../shared/board-model';
 import type { Env } from './index';
 
+// Story 5 test observability, read only by the TEST_HOOKS-gated /__test/
+// routes: per-object counts of the initialize()/exists() RPC calls, so
+// integration tests can prove malformed ids never reach a Durable Object
+// (TC-07) and that createBoard performs exactly the calls it should (TC-15).
+// The local workerd runtime shares one module instance between the worker
+// handler and its Durable Object instances.
+const rpcCallsById = new Map<string, number>();
+
+export function rpcCallCount(id: string): number {
+  return rpcCallsById.get(id) ?? 0;
+}
+
+// Injected failure for TC-12: the next initialize() RPC throws once.
+let failInitializeOnce = false;
+
+export function armFailInitializeOnce(): void {
+  failInitializeOnce = true;
+}
+
 function safeSend(socket: WebSocket, data: Uint8Array | ArrayBuffer): boolean {
   try {
     socket.send(data);
@@ -68,15 +87,49 @@ export class BoardRoom extends DurableObject<Env> implements RoomTestHookAccess 
     });
   }
 
+  // Durable Object RPC (story 5 share.board_api). `initialize` is the only
+  // path that writes a brand-new board; `exists` never writes, so probing an
+  // unknown link leaves no storage behind.
+  async initialize(): Promise<'created' | 'exists'> {
+    this.recordRpc();
+    if (failInitializeOnce) {
+      failInitializeOnce = false;
+      throw new Error('injected initialize failure');
+    }
+    return this.initializeBoard();
+  }
+
+  // Shared by the RPC entry point and the test-hook bridge so both exercise
+  // the identical creation path.
+  initializeBoard(): 'created' | 'exists' {
+    this.store.migrate();
+    return this.store.markCreated() ? 'created' : 'exists';
+  }
+
+  async exists(): Promise<boolean> {
+    this.recordRpc();
+    return this.store.existsReadOnly();
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const hook = isTestHookPath(url.pathname);
     if (hook !== null) {
       if (this.env.TEST_HOOKS !== '1') return new Response('not found', { status: 404 });
-      return runRoomTestHook(hook.action, this, url.searchParams);
+      return await runRoomTestHook(hook.action, this, url.searchParams, request);
     }
     if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('expected a WebSocket upgrade', { status: 426 });
+    }
+
+    // share.not_found: rooms are no longer created implicitly by connecting.
+    // A board that was never initialized (and has no legacy data) is a 404
+    // before any socket is accepted. A storage error here is not treated as
+    // "missing": the load-failure path below closes with the retryable codes.
+    try {
+      if (!this.store.existsReadOnly()) return new Response('board not found', { status: 404 });
+    } catch {
+      // Fall through to the phase handling below.
     }
 
     if (this.phase === 'load-failed' || this.phase === 'storage-failed') {
@@ -143,6 +196,18 @@ export class BoardRoom extends DurableObject<Env> implements RoomTestHookAccess 
     this.failAppendOnce = true;
   }
 
+  // Test-only: write pre-existing (legacy) update rows straight into the log
+  // without a created_at marker, then reload the doc so a client opening the
+  // board sees exactly that content (story 5 share.legacy_boards).
+  seedLegacy(updatesBase64: string[]): void {
+    this.store.migrate();
+    for (const encoded of updatesBase64) {
+      const binary = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+      this.store.append(binary);
+    }
+    this.runLoad();
+  }
+
   // Test-only: append `count` sticky notes through the normal update path so
   // persistence and compaction see them exactly like real client edits.
   seedNotes(count: number): void {
@@ -156,6 +221,11 @@ export class BoardRoom extends DurableObject<Env> implements RoomTestHookAccess 
   }
 
   // --- internals -----------------------------------------------------------
+
+  private recordRpc(): void {
+    const key = this.ctx.id.toString();
+    rpcCallsById.set(key, (rpcCallsById.get(key) ?? 0) + 1);
+  }
 
   private transition(event: RoomEvent): void {
     this.phase = nextRoomState(this.phase, event);
@@ -174,7 +244,6 @@ export class BoardRoom extends DurableObject<Env> implements RoomTestHookAccess 
     this.loadAttempts += 1;
     this.phase = 'loading';
     try {
-      this.store.migrate();
       const doc = new Y.Doc();
       const result = this.store.load(doc);
       if (result.ok) {

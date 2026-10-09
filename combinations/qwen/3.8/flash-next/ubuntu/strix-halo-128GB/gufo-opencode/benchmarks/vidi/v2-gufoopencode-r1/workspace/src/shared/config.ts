@@ -38,3 +38,8 @@ export const SNAPSHOT_CHUNK_BYTES = 512 * 1024; // keeps every row well under th
 export const LOAD_RETRY_MIN_INTERVAL_MS = 5000; // a load-failed room retries its load at most this often
 export const PERSIST_TESTED_NOTES = 2000; // PRD persist.large_board
 export const BOARD_LOAD_BUDGET_MS = 3000; // PRD persist.large_board (reported, never asserted)
+
+// Story 5: sharing by link.
+export const CREATE_BUDGET_MS = 2000; // PRD share.create (click to board visible; logged, not asserted)
+export const LINK_COPIED_MS = 2000; // "Link copied" confirmation duration
+export const BOARD_CHECK_RETRY_BASE_MS = 1000; // backoff doubles up to RECONNECT_MAX_BACKOFF_MS (story 3)

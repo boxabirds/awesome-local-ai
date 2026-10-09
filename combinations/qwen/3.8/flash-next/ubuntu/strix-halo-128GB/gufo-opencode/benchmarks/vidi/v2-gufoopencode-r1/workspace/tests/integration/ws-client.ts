@@ -86,6 +86,15 @@ export function rawSocket(port: number, boardId: string): WebSocket {
   return new WebSocket(`ws://127.0.0.1:${port}/api/rooms/${boardId}`);
 }
 
+// Story 5: rooms are no longer created implicitly, so any test that opens a
+// socket must first create the board through the API.
+export async function createBoardId(port: number): Promise<string> {
+  const response = await fetch(`http://127.0.0.1:${port}/api/boards`, { method: 'POST' });
+  if (response.status !== 201) throw new Error(`board creation failed: ${String(response.status)}`);
+  const body = (await response.json()) as { id: string };
+  return body.id;
+}
+
 export function waitForSync(client: TestClient): Promise<void> {
   return waitFor(() => client.provider.synced, 'sync', '');
 }

@@ -5,7 +5,6 @@ import { createTestHarness } from 'wrangler';
 import { createEncoder, toUint8Array, writeVarUint } from 'lib0/encoding';
 import { writeSyncStep2 } from 'y-protocols/sync';
 import type { TestHarness, WorkerHandle } from 'wrangler';
-import { newBoardId } from '../../src/shared/board-id';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
 import { createSticky } from '../../src/shared/board-model';
 import {
@@ -15,7 +14,7 @@ import {
   MESSAGE_SYNC,
   SYNC_UPDATE
 } from '../../src/shared/protocol';
-import { TestClient, rawSocket, waitFor } from './ws-client';
+import { TestClient, createBoardId, rawSocket, waitFor } from './ws-client';
 
 // Real BoardRoom over real Durable Object SQLite storage, driven through
 // websockets and the /__test/ hooks (TEST_HOOKS=1 in this harness only).
@@ -119,7 +118,7 @@ async function seededCompactBoard(boardId: string): Promise<TestClient> {
 }
 
 test('TC-12 by the time B observes a change its row exists, and a fresh instance replays it from storage', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const { a, b } = await pair(boardId);
   createSticky(a.doc, { x: 10, y: 20 });
   await waitFor(() => b.boardSnapshot() === a.boardSnapshot(), 'B observes A');
@@ -135,7 +134,7 @@ test('TC-12 by the time B observes a change its row exists, and a fresh instance
 });
 
 test('TC-13 after everyone leaves, a fresh instance over the same storage reopens an identical board', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const { a, b } = await pair(boardId);
   const id = createSticky(a.doc, { x: 40, y: 60 }) as string;
   createSticky(a.doc, { x: 45, y: 65 });
@@ -152,7 +151,7 @@ test('TC-13 after everyone leaves, a fresh instance over the same storage reopen
 });
 
 test('TC-14 a failed append closes both clients with 1011 without propagating; the change recovers on reconnect', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const { a, b } = await pair(boardId);
   createSticky(a.doc, { x: 1, y: 1 });
   await waitFor(() => b.boardSnapshot() === a.boardSnapshot(), 'seed note on B');
@@ -174,7 +173,7 @@ test('TC-14 a failed append closes both clients with 1011 without propagating; t
 });
 
 test('TC-15 a corrupt snapshot closes connecting clients with 4500 and a SyncStep2 stores nothing', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const a = await seededCompactBoard(boardId);
   expect((await hook(boardId, 'corrupt-snapshot')).ok).toBe(true);
   await a.close();
@@ -189,7 +188,7 @@ test('TC-15 a corrupt snapshot closes connecting clients with 4500 and a SyncSte
 });
 
 test('TC-16 retrying before LOAD_RETRY_MIN_INTERVAL_MS keeps 4500 without a reload; repairing storage recovers after the interval', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const a = await seededCompactBoard(boardId);
   expect(await rowCount(boardId, 'snapshot_chunks')).toBeGreaterThan(0);
   expect((await hook(boardId, 'corrupt-snapshot')).ok).toBe(true);
@@ -211,7 +210,7 @@ test('TC-16 retrying before LOAD_RETRY_MIN_INTERVAL_MS keeps 4500 without a relo
 });
 
 test('TC-17 garbage updates close 1003 and store no rows', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const { a, b } = await pair(boardId);
   createSticky(a.doc, { x: 1, y: 1 });
   // Persistence is write-before-broadcast, so once B has the note the sticky
@@ -237,7 +236,7 @@ test('TC-17 garbage updates close 1003 and store no rows', async () => {
 });
 
 test('TC-18 hibernated sockets receive broadcasts through getWebSockets after the room is rebuilt', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const a = await TestClient.connected(port, boardId);
   createSticky(a.doc, { x: 1, y: 1 });
   await waitCount(boardId, 'updates', 1);
@@ -252,7 +251,7 @@ test('TC-18 hibernated sockets receive broadcasts through getWebSockets after th
 });
 
 test('TC-26 an SQL read error during load closes clients with 4500 and recovery follows a repair', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const a = await TestClient.connected(port, boardId);
   createSticky(a.doc, { x: 1, y: 1 });
   await waitCount(boardId, 'updates', 1);

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { STICKY_COLORS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX, STICKY_SIZE_WORLD } from '../../src/shared/config';
 import { PARAGRAPH_1000 } from '../fixtures/texts';
-import { setCamera, settle, VIEWPORT_HEIGHT, VIEWPORT_WIDTH } from './helpers/board';
+import { openFreshBoard, setCamera, settle, VIEWPORT_HEIGHT, VIEWPORT_WIDTH } from './helpers/board';
 
 const CENTER = { x: VIEWPORT_WIDTH / 2, y: VIEWPORT_HEIGHT / 2 };
 
@@ -59,7 +59,7 @@ async function endEditing(page: Page): Promise<void> {
 
 test.describe('workflow: brainstorm golden path', () => {
   test('TC-30 double-click creates a note centred at the cursor with typed text', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     const id = await createNoteAt(page, 400, 300);
     await page.keyboard.type('Hello');
     await endEditing(page);
@@ -73,7 +73,7 @@ test.describe('workflow: brainstorm golden path', () => {
   test('TC-31 at 50% zoom a note drags to keep the grabbed point under the pointer, then recolour and delete', async ({
     page
   }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await setCamera(page, { x: 0, y: 0, zoom: 0.5 });
     const id = await createNoteAt(page, CENTER.x, CENTER.y);
     await endEditing(page);
@@ -105,7 +105,7 @@ test.describe('workflow: brainstorm golden path', () => {
   test('TC-32 at 200% zoom a drag gives half the world delta and the dragged note is drawn above', async ({
     page
   }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await setCamera(page, { x: 0, y: 0, zoom: 2 });
     // Two notes that overlap on their inner edges (note width = 200 world = 400 px).
     const idA = await createNoteAt(page, CENTER.x, CENTER.y);
@@ -143,7 +143,7 @@ test.describe('workflow: brainstorm golden path', () => {
   test('TC-33 long text auto-fits: one word is max size, a 1,000-char paragraph shrinks and fades', async ({
     page
   }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     const id = await createNoteAt(page, CENTER.x, CENTER.y);
     await page.keyboard.type('Retro');
     await endEditing(page);
@@ -180,7 +180,7 @@ test.describe('workflow: brainstorm golden path', () => {
   });
 
   test('TC-34 panned far away, the Sticky note button drops a note at the screen centre', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await setCamera(page, { x: 500000, y: -250000, zoom: 1 });
     await page.getByRole('button', { name: 'Sticky note' }).click();
     await settle(page);

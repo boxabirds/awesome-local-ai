@@ -4,7 +4,7 @@ import * as Y from 'yjs';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { createSticky, snapshot } from '../../src/shared/board-model';
-import { TestClient, waitFor } from './ws-client';
+import { TestClient, createBoardId, waitFor } from './ws-client';
 
 const port = inject('workerPort');
 
@@ -38,10 +38,10 @@ function rawStatus(path: string, upgrade = true): Promise<number> {
   });
 }
 
-test('TC-04 an invalid board id is 400 before the Durable Object is touched', async () => {
+test('TC-04 an invalid board id is 404 before the Durable Object is touched', async () => {
   for (const bad of ['bad!id', 'x'.repeat(30), 'short', 'a'.repeat(21)]) {
     const status = await rawStatus(`/api/rooms/${bad}`);
-    expect(status, `id ${bad}`).toBe(400);
+    expect(status, `id ${bad}`).toBe(404);
     expect(status).toBeLessThan(500);
   }
 });
@@ -57,14 +57,18 @@ test('TC-06 app routes fall back to the SPA index', async () => {
     expect(response.headers.get('content-type'), path).toContain('text/html');
     await response.body?.cancel();
   }
-  // A valid id nobody has visited yet is addressed, not created.
-  const client = await TestClient.connected(port, newBoardId());
+  // Story 5: a valid id nobody created is not addressed by connecting; the
+  // board must be created first, after which the socket opens.
+  const uncreated = newBoardId();
+  expect(await rawStatus(`/api/rooms/${uncreated}`)).toBe(404);
+  const boardId = await createBoardId(port);
+  const client = await TestClient.connected(port, boardId);
   expect(client.provider.wsconnected).toBe(true);
   await client.close();
 });
 
 test('TC-13 a board accepts more than MAX_CONCURRENT_EDITORS sockets and syncs them all', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(port);
   const clients: TestClient[] = [];
   for (let i = 0; i < MAX_CONCURRENT_EDITORS + 1; i += 1) {
     clients.push(await TestClient.connected(port, boardId));
@@ -95,8 +99,8 @@ test('TC-13 a board accepts more than MAX_CONCURRENT_EDITORS sockets and syncs t
 });
 
 test('TC-17 clients on different boards never see each other', async () => {
-  const idOne = newBoardId();
-  const idTwo = newBoardId();
+  const idOne = await createBoardId(port);
+  const idTwo = await createBoardId(port);
   const one = await TestClient.connected(port, idOne);
   const two = await TestClient.connected(port, idTwo);
   const twoBefore = two.log.syncKinds.length;
