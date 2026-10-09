@@ -351,3 +351,73 @@ def test_a_run_that_could_not_be_scored_is_urgent_only_when_it_needs_a_person():
     for needs, expected in ((True, True), (False, False)):
         dets = monitor.record_detections("combos/x/benchmarks/vidi/v2-r1", {"stories": {}}, {**fin, "needs_person": needs}, {"state": "finished"})
         assert [d["urgent"] for d in dets if d["kind"] == "run_not_scored"] == [expected]
+
+
+# ---- the backup (ops/backup/backup.py writes state/backups/status.json after every run) ----
+
+HOUR = 3600.0
+GB = 1_000_000_000
+
+
+def backup_status(at, local=None, remote=None):
+    """What backup.py writes: per repository, whether the last run worked, the last good time, the capacity forecast."""
+    ok = lambda last, cap: {"ok": True, "last_good": last, "capacity": cap, "staleness": {"status": "ok", "message": ""}}
+    quiet = {"status": "ok", "days_left": 400.0, "growth_per_day": 0.1 * GB, "free_bytes": 40 * GB, "message": "400 days of room"}
+    return {"at": at, "exit": 0, "warnings": [], "repos": {
+        "/Users/someone/bench-backup-local/repo": local or ok(at, quiet),
+        "sftp:node-a:/home/someone/bench-backup/repo": remote or ok(at, quiet)}}
+
+
+def test_a_healthy_backup_raises_nothing():
+    assert monitor.backup_detections(backup_status(NOW - 2 * HOUR), NOW) == []
+
+
+def test_no_status_file_raises_nothing():
+    assert monitor.backup_detections(None, NOW) == []
+
+
+def test_a_repository_whose_last_good_backup_is_over_36_hours_old_is_detected_once_a_day_and_is_not_urgent():
+    s = backup_status(NOW - 2 * HOUR)
+    s["repos"]["sftp:node-a:/home/someone/bench-backup/repo"]["last_good"] = NOW - 40 * HOUR
+    d = monitor.backup_detections(s, NOW)
+    assert kinds(d) == ["backup_stale"] and not d[0]["urgent"]
+    assert "remote" in d[0]["detail"] and "40 hours" in d[0]["detail"]
+    assert d[0]["id"] == monitor.backup_detections(s, NOW + 3 * HOUR)[0]["id"], "the same day, the same detection"
+    assert d[0]["id"] != monitor.backup_detections(s, NOW + 30 * HOUR)[0]["id"], "a new day, raised again"
+
+
+def test_the_job_not_running_at_all_is_stale_too_since_staleness_is_judged_now_not_when_the_status_was_written():
+    s = backup_status(NOW - 50 * HOUR)       # nothing has run for 50 hours; both repositories looked fine when last written
+    assert kinds(monitor.backup_detections(s, NOW)) == ["backup_stale", "backup_stale"]
+
+
+def test_a_failed_run_is_detected_once_per_run_with_the_reason():
+    s = backup_status(NOW - 1 * HOUR)
+    s["repos"]["/Users/someone/bench-backup-local/repo"].update(ok=False, error="backup failed: disk full")
+    d = monitor.backup_detections(s, NOW)
+    assert kinds(d) == ["backup_failed"] and "local" in d[0]["detail"] and "disk full" in d[0]["detail"]
+    assert monitor.backup_detections(s, NOW + HOUR)[0]["id"] == d[0]["id"]
+
+
+def test_under_a_month_of_room_is_detected_as_a_fact_with_its_numbers_and_no_remedy():
+    s = backup_status(NOW - HOUR)
+    s["repos"]["/Users/someone/bench-backup-local/repo"]["capacity"] = {
+        "status": "warn", "days_left": 12.0, "growth_per_day": 4 * GB, "free_bytes": 48 * GB,
+        "message": "less than a month left: 12 days of room at 4.0 GB a day; 48.0 GB free"}
+    d = monitor.backup_detections(s, NOW)
+    assert kinds(d) == ["backup_capacity"] and not d[0]["urgent"]
+    assert "12 days of room at 4.0 GB a day" in d[0]["detail"] and "local" in d[0]["detail"]
+
+
+def test_a_repository_with_no_history_yet_raises_nothing_about_capacity():
+    s = backup_status(NOW - HOUR)
+    s["repos"]["/Users/someone/bench-backup-local/repo"]["capacity"] = {"status": "no-history", "days_left": None, "message": "not enough history yet"}
+    assert monitor.backup_detections(s, NOW) == []
+
+
+def test_the_detail_names_no_machine_and_no_home_directory_after_the_ticks_redaction():
+    s = backup_status(NOW - 40 * HOUR)
+    d = monitor.backup_detections(s, NOW)
+    labels = {"node-a": "RTX 4090"}
+    text = json.dumps(monitor.redact(d, labels))
+    assert "node-a" not in text and "/Users/someone" not in text

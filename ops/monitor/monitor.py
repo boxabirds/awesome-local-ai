@@ -29,12 +29,16 @@ import zoneinfo
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent / "backup"))
 REPO = HERE.parents[1]
 OPS = REPO / "ops"
 LOG = OPS / "monitor-log.jsonl"
 STATUS = OPS / "monitor-status.json"
 STATE_DIR = OPS / "monitor-state"            # git-ignored: the detector's memory between ticks
 STATE = STATE_DIR / "detector.json"
+# What ops/backup/backup.py writes after every run (the private bench repository's state folder); BENCH_BACKUP_STATUS overrides it.
+BACKUP_STATUS = Path(os.environ.get("BENCH_BACKUP_STATUS") or Path.home() / "expts" / "awesome-local-ai-bench-private" / "state" / "backups" / "status.json")
+SECONDS_PER_DAY = 86400
 TRIAGE_STATE = STATE_DIR / "triage.json"     # written by triage.py
 MEMORY_LOG = STATE_DIR / "memory.jsonl"
 
@@ -108,6 +112,40 @@ def new_only(dets: list[dict], seen: dict, now: float) -> list[dict]:
             seen[d["id"]] = now
             out.append(d)
     return out
+
+
+# ---- the backup ---------------------------------------------------------------------------------------------------------
+
+def _backup_label(repo: str) -> str:
+    return "remote backup repository" if repo.startswith("sftp:") else "local backup repository"
+
+
+def backup_detections(status: dict | None, now: float) -> list[dict]:
+    """Facts from backup.py's last status: a repository's last good backup too old (judged now, so a job that stopped running shows),
+    a run that failed, under a month of room. None of them is urgent, and none says what to do."""
+    if not status:
+        return []
+    import forecast                                     # ops/backup/forecast.py
+    day = int(now // SECONDS_PER_DAY)
+    out = []
+    for repo, r in (status.get("repos") or {}).items():
+        label = _backup_label(repo)
+        age = forecast.staleness(r.get("last_good"), now)
+        if age["status"] == "stale":
+            out.append(det("backup_stale", f"backup_stale:{label}:{day}", f"{label}: {age['message']}"))
+        if r.get("ok") is False:
+            out.append(det("backup_failed", f"backup_failed:{label}:{int(status.get('at') or 0)}", f"{label}: {r.get('error') or 'the last run failed'}"))
+        cap = r.get("capacity") or {}
+        if cap.get("status") == "warn":
+            out.append(det("backup_capacity", f"backup_capacity:{label}:{day}", f"{label}: {cap.get('message')}"))
+    return out
+
+
+def read_backup_status() -> dict | None:
+    try:
+        return json.loads(BACKUP_STATUS.read_text())
+    except (OSError, ValueError):
+        return None
 
 
 # ---- the faults feed ------------------------------------------------------------------------------------------------
@@ -548,6 +586,7 @@ def tick(now: float, dry_run: bool = False) -> dict:
     except Exception as e:                       # noqa: BLE001 — any failure to read the feed is the detection
         dets.append(det("benchmarker_unreachable", f"benchmarker_unreachable:{int(now // 3600)}", str(e)[:200]))
     collect_repo(st, dets)
+    dets += backup_detections(read_backup_status(), now)
     seen = st.setdefault("seen", {})
     fresh = new_only(dets, seen, now)
     if first:                                    # the first tick is the baseline: what is already open is not news
