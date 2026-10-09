@@ -9,6 +9,8 @@ export const MESSAGE_SYNC = 0;
 export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+export const CLOSE_BOARD_LOAD_FAILED = 4500; // board snapshot could not be read; client must not edit
+export const CLOSE_STORAGE_FAILURE = 1011; // server-side storage write failed
 
 // y-protocols/sync message ids (inlined to keep this module dependency-light).
 const SYNC_STEP1 = 0;

@@ -1,3 +1,48 @@
+commit 97a178c757cdf4990614d94825217dabf50d9d2f
+agent  Fri Oct 9 23:52:07 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                        |  63 ++++
+ PROGRESS.md                                     |  18 +-
+ package.json                                    |   2 +
+ playwright.config.ts                            |   2 +-
+ playwright.persistence.config.ts                |  34 ++
+ src/client/App.tsx                              |  34 +-
+ src/client/board/Toolbar.tsx                    |   4 +-
+ src/client/board/seedBoard.ts                   |  63 ++++
+ src/client/canvas/testHooks.ts                  |   2 +
+ src/client/objects/StickyNote.tsx               |  10 +-
+ src/client/styles.css                           |   4 +
+ src/client/sync/ConnectionStatus.tsx            |   1 +
+ src/client/sync/connectBoard.ts                 |  35 +-
+ src/shared/config.ts                            |   9 +
+ src/shared/protocol.ts                          |   2 +
+ src/worker/board-room.ts                        | 297 +++++++++++++---
+ src/worker/board-store.ts                       | 236 +++++++++++++
+ src/worker/index.ts                             |   6 +
+ src/worker/room-state.ts                        |  83 +++++
+ src/worker/test-hooks.ts                        |  30 ++
+ tests/component/LoadFailure.test.tsx            | 180 ++++++++++
+ tests/e2e/helpers/wrangler-process.ts           | 134 ++++++++
+ tests/e2e/persistence/board-persistence.spec.ts | 278 +++++++++++++++
+ tests/fixtures/boards.ts                        | 163 +++++++++
+ tests/integration/board-store.test.ts           | 439 ++++++++++++++++++++++++
+ tests/integration/persist-room.test.ts          | 269 +++++++++++++++
+ tests/unit/board-store-chunks.test.ts           |  84 +++++
+ tests/unit/room-state.test.ts                   |  76 ++++
+ tsconfig.json                                   |   1 +
+ tsconfig.worker.json                            |   2 +-
+ 30 files changed, 2484 insertions(+), 77 deletions(-)
+commit 1eab6535c9f1c614d2c69589172886412cfa610b
+vidi-agent  Fri Oct 9 22:03:42 2026 +0000
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit b583be803b7dfb752319d827eca6b974be22dbae
 agent  Fri Oct 9 22:01:01 2026 +0000
 

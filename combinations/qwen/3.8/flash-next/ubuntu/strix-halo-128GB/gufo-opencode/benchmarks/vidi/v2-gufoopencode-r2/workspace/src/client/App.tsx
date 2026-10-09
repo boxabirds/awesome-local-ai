@@ -2,13 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BoardViewport, type ViewportHandle } from './canvas/BoardViewport';
 import { installTestHook } from './canvas/testHooks';
 import { useBoardDoc } from './board/useBoardDoc';
+import { seedBoard } from './board/seedBoard';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 import type { Point } from './canvas/camera';
+
+// Editing is disabled only while the board could not be loaded: every other
+// state (connecting, reconnecting, confirmed) keeps the board editable.
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 // Story 3 routing: `/b/<boardId>` opens that board; `/` (or anything invalid)
 // generates a fresh id. Temporary until story 5 adds board management.
@@ -27,10 +35,16 @@ export function App() {
   const [viewport, setViewport] = useState<ViewportHandle | null>(null);
 
   // Test-only: expose the live doc, note snapshot and connection state for
-  // e2e assertions.
-  useEffect(() => {
-    installTestHook({ board: { doc, getNotes: () => snapshot(doc) }, connectionState: () => connection });
-  }, [doc, connection]);
+  // e2e assertions. Gated by mode so seed code and hooks are dead-code
+  // eliminated from production builds.
+  if (import.meta.env.MODE === 'test') {
+    useEffect(() => {
+      installTestHook({
+        board: { doc, getNotes: () => snapshot(doc), seedBoard: (count) => seedBoard(doc, count) },
+        connectionState: () => connection,
+      });
+    }, [doc, connection]);
+  }
 
   // Selection and editing are per-client and must not survive the note (TC-37).
   useEffect(() => {
@@ -38,14 +52,17 @@ export function App() {
     if (editingId !== null && !notes.some((n) => n.id === editingId)) select(null);
   }, [notes, selectedId, editingId, select]);
 
+  const editable = canEdit(connection);
+
   const createStickyAtWorld = useCallback(
     (world: Point) => {
+      if (!editable) return; // load_failed: creation is a no-op
       // createSticky takes the note centre, so the note lands centred here.
       const id = createSticky(doc, world);
       // Creation immediately starts editing with an empty caret (FR-4).
       if (typeof id === 'string') startEdit(id);
     },
-    [doc, startEdit],
+    [doc, startEdit, editable],
   );
 
   const createStickyAtCentre = useCallback(() => {
@@ -62,16 +79,18 @@ export function App() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
       if (editingId !== null || selectedId === null) return;
       if (e.key === 'Enter') {
+        if (!editable) return;
         e.preventDefault();
         startEdit(selectedId);
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (!editable) return;
         deleteObject(doc, selectedId);
         select(null);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selectedId, editingId, startEdit, select]);
+  }, [doc, selectedId, editingId, startEdit, select, editable]);
 
   // Render in stable creation order (never re-sorted by z) so bringToFront
   // mid-drag cannot detach the dragged node and break pointer capture; the
@@ -86,7 +105,7 @@ export function App() {
   return (
     <>
       <ConnectionStatus state={connection} />
-      <Toolbar onCreateSticky={createStickyAtCentre} />
+      <Toolbar onCreateSticky={createStickyAtCentre} disabled={!editable} />
       <BoardViewport
         onCreateStickyAtWorld={createStickyAtWorld}
         onClearSelection={() => select(null)}
@@ -100,6 +119,7 @@ export function App() {
             zoom={zoom}
             selected={selectedId === note.id}
             editing={editingId === note.id}
+            editable={editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}

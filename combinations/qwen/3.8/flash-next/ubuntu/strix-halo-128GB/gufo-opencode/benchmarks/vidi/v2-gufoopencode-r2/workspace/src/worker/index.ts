@@ -7,10 +7,14 @@
 
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { maybeHandleTestHook } from './test-hooks';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  // Set to '1' by the e2e/dev workers (wrangler dev --var TEST_HOOKS:1) to
+  // enable the storage-corruption test hooks. Never set in production.
+  TEST_HOOKS?: string;
 }
 
 const ROOM_ROUTE = /^\/api\/rooms\/([^/?]+)$/;
@@ -31,6 +35,8 @@ export default {
       const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
       return stub.fetch(req);
     }
+    const hookResponse = await maybeHandleTestHook(req, env);
+    if (hookResponse !== null) return hookResponse;
     return env.ASSETS.fetch(req);
   },
 };

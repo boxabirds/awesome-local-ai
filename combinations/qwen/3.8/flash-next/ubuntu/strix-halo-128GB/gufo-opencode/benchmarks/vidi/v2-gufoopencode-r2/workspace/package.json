@@ -12,6 +12,8 @@
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
     "test:e2e": "playwright test",
+    "test:e2e:persistence": "playwright test --config playwright.persistence.config.ts",
+    "pretest:e2e:persistence": "npm run setup:chromium && npm run build:test",
     "test:e2e:nightly": "playwright test --config playwright.nightly.config.ts",
     "test:integration": "vite build && vitest run --config vitest.integration.config.ts",
     "setup:chromium": "node scripts/setup-chromium.mjs",

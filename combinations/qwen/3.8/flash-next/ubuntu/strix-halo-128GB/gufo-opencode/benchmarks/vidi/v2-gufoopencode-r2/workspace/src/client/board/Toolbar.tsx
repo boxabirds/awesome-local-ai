@@ -3,9 +3,10 @@
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  disabled?: boolean;
 }
 
-export function Toolbar({ onCreateSticky }: ToolbarProps): React.JSX.Element {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): React.JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -21,6 +22,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): React.JSX.Element {
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
         onClick={onCreateSticky}
+        disabled={disabled}
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
           <path

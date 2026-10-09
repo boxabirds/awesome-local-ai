@@ -28,6 +28,8 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** false while the board could not be loaded: drag, edit, colour, delete. */
+  editable: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -51,6 +53,7 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  editable,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -113,6 +116,7 @@ export function StickyNote({
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (editing) return; // caret placement inside the textarea stays with the editor
+    if (!editable) return; // load_failed: no drag (the board pans behind instead)
     // The board must not pan when a drag starts on a note (sticky.no_pan).
     e.stopPropagation();
     try {
@@ -195,10 +199,10 @@ export function StickyNote({
       onLostPointerCapture={handleRelease}
       onDoubleClick={(e) => {
         e.stopPropagation(); // never create a second note here (TC-35)
-        if (!editing) onStartEdit(note.id);
+        if (!editing && editable) onStartEdit(note.id);
       }}
     >
-      {editing ? (
+      {editing && editable ? (
         ytext ? (
           <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} />
         ) : null
@@ -211,7 +215,7 @@ export function StickyNote({
           {note.text}
         </div>
       )}
-      {selected && !dragging && !editing && (
+      {selected && !dragging && !editing && editable && (
         <div className="note-toolbar-wrap">
           <NoteToolbar
             color={note.color}

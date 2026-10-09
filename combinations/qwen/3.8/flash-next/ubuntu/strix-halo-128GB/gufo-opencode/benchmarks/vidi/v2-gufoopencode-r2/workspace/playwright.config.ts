@@ -9,7 +9,7 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 export default defineConfig({
   testDir: 'tests/e2e',
   // Nightly soak/stability specs have their own config and ports.
-  testIgnore: '**/nightly/**',
+  testIgnore: ['**/nightly/**', '**/persistence/**'],
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,

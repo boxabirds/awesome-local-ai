@@ -6,6 +6,8 @@ import type { ConnectionState } from '../sync/connectBoard';
 export interface BoardTestHooks {
   doc: Y.Doc;
   getNotes(): readonly StickySnapshot[];
+  /** Seeded, realistic board mutations (persistence e2e only). */
+  seedBoard(count: number): void;
 }
 
 export interface Vidi6TestHooks {

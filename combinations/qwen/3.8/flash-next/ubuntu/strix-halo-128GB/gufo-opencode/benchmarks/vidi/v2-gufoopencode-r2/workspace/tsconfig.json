@@ -21,6 +21,7 @@
     "vitest.integration.config.ts",
     "playwright.config.ts",
     "playwright.nightly.config.ts",
+    "playwright.persistence.config.ts",
     "playwright.launch.ts"
   ],
   // Worker-side code and its integration tests typecheck under

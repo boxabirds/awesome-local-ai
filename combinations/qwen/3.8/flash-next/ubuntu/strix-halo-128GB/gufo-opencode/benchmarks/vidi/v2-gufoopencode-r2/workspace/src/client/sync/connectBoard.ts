@@ -4,8 +4,14 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { RECONNECT_MAX_BACKOFF_MS, CONNECTED_CONFIRMATION_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
 
 export interface BoardConnection {
   destroy(): void;
@@ -14,6 +20,7 @@ export interface BoardConnection {
 interface StateMapper {
   onStatus(status: string): void;
   onSync(synced: boolean): void;
+  onClose(code: number): void;
   dispose(): void;
 }
 
@@ -29,6 +36,7 @@ export function createConnectionStateMapper(
   emit: (state: ConnectionState) => void,
 ): StateMapper {
   let hadSynced = false;
+  let loadFailed = false;
   let confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
   const clearConfirmTimer = () => {
@@ -40,6 +48,7 @@ export function createConnectionStateMapper(
 
   return {
     onStatus(status) {
+      if (loadFailed) return; // close-code mapping owns this state
       if (status === 'disconnected' && hadSynced) {
         clearConfirmTimer();
         emit('reconnecting');
@@ -48,6 +57,12 @@ export function createConnectionStateMapper(
     onSync(synced) {
       if (!synced) return;
       clearConfirmTimer();
+      if (loadFailed) {
+        loadFailed = false;
+        hadSynced = true;
+        emit('connected');
+        return;
+      }
       if (!hadSynced) {
         hadSynced = true;
         emit('connected');
@@ -58,6 +73,21 @@ export function createConnectionStateMapper(
         confirmTimer = null;
         emit('connected');
       }, CONNECTED_CONFIRMATION_MS);
+    },
+    onClose(code) {
+      if (code === CLOSE_BOARD_LOAD_FAILED) {
+        clearConfirmTimer();
+        loadFailed = true;
+        emit('load_failed');
+        return;
+      }
+      // Normal closure on teardown must not show a badge.
+      if (code === 1000 || code === 1001 || code === 1005) return;
+      if (loadFailed) return; // still unreadable; stay load_failed until a sync
+      if (hadSynced) {
+        clearConfirmTimer();
+        emit('reconnecting');
+      }
     },
     dispose: clearConfirmTimer,
   };
@@ -81,6 +111,9 @@ export function connectBoard(
   const mapper = createConnectionStateMapper(onState);
   provider.on('status', ({ status }: { status: string }) => mapper.onStatus(status));
   provider.on('sync', (synced: boolean) => mapper.onSync(synced));
+  provider.on('connection-close', (event: CloseEvent | null) =>
+    mapper.onClose(event?.code ?? 1006),
+  );
   // Non-null local awareness state makes y-websocket send periodic awareness
   // renewals; the room relays awareness back, so idle connections keep
   // seeing traffic and never hit messageReconnectTimeout.

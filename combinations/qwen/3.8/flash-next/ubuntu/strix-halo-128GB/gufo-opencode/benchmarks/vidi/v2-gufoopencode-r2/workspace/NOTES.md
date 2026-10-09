@@ -152,3 +152,66 @@
   `dist/client` holds: a later `npm run build` (production) silently removes the `__vidi6` test
   hooks and e2e fails with "missing-hook". Both e2e pretest scripts now run `build:test`, and
   orphan wrangler processes must be killed when a backgrounded run gets interrupted.
+
+## Story 4 notes
+
+- Room lifecycle is a pure state machine (`src/worker/room-state.ts`, TC-27):
+  loading / ready / compacting / hibernated / load-failed / storage-failed.
+  BoardRoom keeps the current state and routes through `nextRoomState`.
+- `runInDurableObject` calls the callback as `(instance, state)` only and runs
+  it in the same isolate, so fault injection in integration tests monkey-
+  patches the live instance (e.g. wrap `store.append`, patch
+  `BoardStore.prototype.load`) through `runInDurableObject(boardId, (obj) => …)`.
+- Damaging a row INSIDE the update log is nearly invisible in Yjs: clock
+  chaining makes every later update defer silently, so a corrupt interior row
+  yields a loadable-but-truncated board. TC-09/09b therefore damage the LAST
+  log row (or chunk 0 after compaction) to hit the load-failure path.
+- Fixture gotcha: `initDoc` in tests/fixtures must run AFTER `startCapture`,
+  and text inserts need `doc.transact(fn, LOCAL_ORIGIN)` — otherwise the
+  captured byte sequence no longer reproduces the doc state.
+- Compaction thresholds are only exercised by named settings
+  (COMPACTION_UPDATE_COUNT/COMPACTION_BYTES); the test hook calls
+  `compact(doc)` directly so corruption deterministically hits chunk 0.
+- BLOB round-trip in workerd DO SQLite returns `ArrayBuffer` (not Uint8Array);
+  BoardStore normalizes with `new Uint8Array(...)`.
+- Hibernation: `ctx.acceptWebSocket(server, ['vidi6-board'])`, broadcast via
+  `ctx.getWebSockets('vidi6-board')`; constructor loads the board inside
+  `ctx.blockConcurrencyWhile` so the first joiner never sees a half-loaded doc.
+- Client maps close codes in the y-websocket status mapper: 4500 ->
+  `load_failed` (sticky; status events cannot downgrade it), 1000/1001/1005
+  ignored, all others -> `reconnecting`; the first `sync` after `load_failed`
+  returns to `connected` in place (TC-28, no reload).
+- The zoom control also uses `role="status"`, so component/e2e selectors pin
+  the badge by `.connection-status` / `.connection-status--load_failed`.
+- `canEdit(state)` (exported from App.tsx) is false only for `load_failed`; it
+  disables the toolbar, gates keyboard create/delete, double-click create and
+  StickyNote dragging/editing via a single `editable` prop.
+- Test hooks (`src/worker/test-hooks.ts`): POST
+  `/__test/boards/:id/corrupt-snapshot` and `/repair` are registered ONLY when
+  `env.TEST_HOOKS === '1'` (wrangler `--var`, e2e configs only). Without it the
+  paths fall through to the SPA handler — verified in TC-24 step 4 against a
+  `TEST_HOOKS:0` worker sharing the same `--persist-to` directory (board
+  intact, hook answered SPA/405, never hook JSON).
+- Persistence e2e (`tests/e2e/helpers/wrangler-process.ts`) spawns real
+  `wrangler dev --persist-to <tmpdir>` processes on 29434-29437 (config
+  `playwright.persistence.config.ts`, workers:1, no webServer) so restarts
+  really restart the isolate. TC-21 (2000 notes) is REPORTED, not asserted:
+  measured ~3.8s render vs the 3000ms BOARD_LOAD_BUDGET_MS — the budget is
+  exceeded on this machine and the spec says report only.
+- The load-failure badge e2e recovery (TC-24) rides y-websocket's own
+  reconnect backoff; after the repair hook flips the room back to `ready`,
+  the next reconnect lands within seconds and editing re-enables with no
+  reload.
+
+### Verified on this machine (story 4)
+
+- npm run typecheck: clean (both tsconfigs).
+- npm run build: clean; `__vidi6` test hooks absent from the production
+  bundle (grep count 0).
+- unit + component: 121/121. integration (workers pool): 41/41.
+- npm run test:e2e (chromium, stories 1-3): 19/19.
+- npm run test:e2e:persistence: 4/4 (TC-19, TC-20, TC-21, TC-24). TC-21
+  measurement: 2000 notes synced 3695ms, fully rendered 3702ms — OVER the
+  3000ms BOARD_LOAD_BUDGET_MS on this machine; reported only per spec.
+- npm run test:e2e:nightly (E2E_SOAK_MS=10000): 2/2, including the full 45s
+  idle-stability test — idle hibernation does not drop established clients.

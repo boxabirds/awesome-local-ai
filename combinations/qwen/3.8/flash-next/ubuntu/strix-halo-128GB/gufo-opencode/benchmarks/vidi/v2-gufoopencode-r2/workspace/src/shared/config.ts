@@ -27,3 +27,12 @@ export const RECONNECT_MAX_BACKOFF_MS = 10_000; // passed to WebsocketProvider m
 export const CONNECTED_CONFIRMATION_MS = 2000; // green badge duration after reconnect
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000; // PRD live.catch_up verification outage
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000; // functional wait in e2e; latency is logged, not asserted
+
+// Story 4: persistence.
+export const COMPACTION_UPDATE_COUNT = 500; // log rows that trigger a snapshot compaction
+export const COMPACTION_BYTES = 4 * 1024 * 1024; // log bytes that trigger a snapshot compaction
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024; // max bytes per snapshot_chunks row
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5_000; // minimum time between board load attempts
+export const PERSIST_TESTED_NOTES = 2000; // note count proven to survive a restart
+export const BOARD_LOAD_BUDGET_MS = 3_000; // budget for reload + full render after restart
+export const STORAGE_SCHEMA_VERSION = 1; // versions the board's SQLite tables

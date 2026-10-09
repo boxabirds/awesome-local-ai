@@ -366,3 +366,7 @@ body {
 .connection-status--confirmed {
   background: #1b7f37;
 }
+
+.connection-status--load_failed {
+  background: #c62828;
+}
