@@ -52,7 +52,6 @@ function renderKeys(canEdit: boolean, controller: UndoController, children?: Rea
       canEdit,
       undo: controller,
       setTool: () => {},
-      onNewSticky: () => {},
     });
     return <div>{children}</div>;
   }

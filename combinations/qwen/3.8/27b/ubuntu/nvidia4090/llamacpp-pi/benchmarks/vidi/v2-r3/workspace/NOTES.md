@@ -401,3 +401,103 @@ alive and to carry no product-visible state in this story.
 - **Config added:** `UNDO_CAPTURE_TIMEOUT_MS = 500` (merge window for a step),
   `UNDO_MAX_STEPS = 200` (front-trimmed on `stack-item-added`).
 - **No new ports.** Story 8 e2e reuses 29040 (shared e2e `webServer`).
+
+## 13. Story 10 — draw shapes and connect them with arrows that follow when moved
+
+- **No gap fill from stories 1/2 was needed.** Everything story 10 builds on
+  (camera, selection, transform gesture, marquee, the object registry,
+  `window.__vidi6`) already existed from stories 1–9, so nothing had to be
+  back-filled to their design. Nothing from stories 6 or 13–17 was stubbed or
+  hooked either (out of scope).
+- **Shape model (`src/shared/objects/shape.ts`).** `createShape` stores
+  `kind/fill/stroke/label` (a `Y.Text`, so concurrent labelling merges like
+  sticky text) plus the shared base fields. A dragged rect below
+  `SHAPE_MIN_SIZE_WORLD` in either dimension is treated as a click and becomes
+  a `SHAPE_DEFAULT_SIZE_WORLD` square centred on the click; `square` (Shift)
+  makes a square of the larger dragged side anchored at the drag origin. Every
+  mutation is one `LOCAL_ORIGIN` transact; invalid input returns `null`/
+  `false` with no transaction. `setShapeStyle` only touches the given colour
+  keys and rejects names outside the palettes. `getShapeLabel` returns the
+  `Y.Text` for the editor.
+- **Connector model + geometry (`src/shared/objects/connector.ts`,
+  `src/shared/geometry/connector-geometry.ts`, `src/shared/geometry/polyline.ts`).**
+  An endpoint is `{kind:'attached', objectId, fallback}` or `{kind:'free', x,
+  y}`. Attached endpoints always carry a `fallback` point: set at attach time
+  to the side anchor of the side nearest the other end, and used to render the
+  end when the target object is absent (the orphaned-end case). `x/y/width/
+  height` are stored as `0` and re-derived in `snapshot` from the resolved
+  endpoints, so a connector never carries stale bounds. `nearestSide` is
+  aspect-aware (compares `|dx|·h` vs `|dy|·w`; the 45° tie goes horizontal).
+  `detachConnectorsTo` converts every attached endpoint on a deleted object to a free endpoint at
+  the *current* side anchor and is run inside `deleteObjects`' transaction, so
+  deleting a shape keeps its arrows (now with a free end) rather than
+  deleting them.
+- **`ObjectSnapshot` extended, not changed.** The base snapshot gained
+  optional `kind/fill/stroke/label/from/to` (connector endpoints) and the two-
+  pass `snapshot` (collect rects, then resolve connectors) so connectors get
+  real bounds. Existing sticky/text snapshots are byte-identical.
+- **Active tool replaces the old `useTool`.** `src/client/tools/useActiveTool.ts`
+  owns the `ToolId` (`select|sticky|shape|connector`), the shortcut map
+  (`TOOL_SHORTCUTS`: V/N/S/L), and the return-to-Select-after-creating rule
+  (`toolCreated`). The old `src/client/board/useTool.ts` was deleted. `N` keeps
+  its story-2 behaviour (create a sticky at view centre) as an *action*, not a
+  tool switch. Escape cancels an armed tool back to Select without creating.
+- **Registry `hitTest` widened to `(obj, worldPoint, zoom, rects)`.** Sticky/
+  text ignore `zoom`/`rects` (bounding box). The connector hit-tests the
+  *resolved* polyline with a screen-px tolerance: `distanceToPolyline ≤
+  CONNECTOR_HIT_TOLERANCE_PX / zoom`, so "6 screen px" is constant across zoom
+  (the TC-20 boundary at 100/50/200%). `buildRects` + `findObjectAt` were added
+  to the registry so tools and objects can resolve world points to ids.
+- **`handles: 'none'` on the connector spec.** Connectors are selected by their
+  wide invisible hit stroke, not a bounding box; `SelectionOverlay` renders the
+  selection rectangle but no resize handles when every selected object is
+  `handles: 'none'`. Endpoint re-attach is done by the connector's own two
+  handles (`data-connector-handle`), dragged in screen space and re-resolved
+  (attach to the object under the release point, else free at the release
+  world point).
+- **Component tests (TC-15…TC-22, TC-28)** live in
+  `tests/component/{ShapeTool,Connector,useActiveTool}.test.tsx`. The board
+  harness renders the real `<Board>`; the connector hit-test case calls the
+  registry's `hitTest` directly with synthetic zoom/rects (the deterministic
+  boundary the task asks for).
+- **E2E fixture (`tests/fixtures/checkout-flow.ts`).** The "draw a flow" board
+  (4 labelled shapes + 3 connected connectors + 1 free-tail connector) is built
+  with the *real* shared model calls against a local `Y.Doc`, then shipped to a
+  page as `Y.encodeStateAsUpdate` bytes and applied to `window.__vidi6.doc`.
+  Applying it through a participant's connected provider broadcasts the whole
+  board to every other participant over the server — no test-only seeding hook
+  in the worker. Two gotchas: (a) the Node-side builder must call
+  `registerKnownObjectType('shape'|'connector')` first, because `snapshot`/the
+  live-rect lookups inside `createConnector` only see types the client registry
+  has registered (in the browser that happens at load); (b) placeholder
+  `(0,0)` fallbacks are fine because `createConnector` re-settles them from the
+  live rects (all targets exist in the fixture doc).
+- **E2E camera is `(0,0,1)`** for the shape/connector specs (unlike the story-3
+  `CAM`), so screen coordinates equal world units and positions are asserted
+  exactly (±1 px, ±2 px for the round linecap). The specs use real drags
+  (`mouse.move/down/up`) through the real tool layers and the real transform
+  gesture — no test hooks for creation.
+- **TC-27 delete race is forced deterministically, not by WS route delays.**
+  Playwright cannot delay a *connected* WebSocket's frames (`context.route`
+  only sees the HTTP upgrade, not the y-websocket data frames), so a route
+  delay cannot overlap Sam's delete with Dana's create. Instead: Dana goes
+  offline (`context.setOffline(true)`), drags an arrow onto B and releases —
+  her create is attached to B with B's side anchor as fallback — while Sam
+  (still online) deletes B. On reconnect Dana's create reaches the server
+  *after* Sam's delete, so the connector ends attached to a now-missing object
+  and renders at its fallback. This exercises the same orphaned-end path a
+  true network overlap would produce, deterministically. (Both orderings —
+  create-then-delete and delete-then-create — converge on "arrow renders at
+  the fallback"; this ordering additionally proves the orphan path. No
+  uncaught console errors are asserted on Dana's page.)
+- **Single-shape delete is via the `Delete` key.** The "Delete selection" bar
+  only renders for ≥2 selected objects and a single shape's `ShapeToolbar` has
+  no delete button, so the e2e `deleteAt` helper selects (click) then presses
+  `Delete` (the `useBoardKeys` delete path). This matches how a user deletes
+  one shape in the real UI.
+- **Firefox/WebKit not covered (environment limitation).** TC-24 says "also in
+  firefox and webkit"; this machine has Chromium only (offline, as in
+  stories 3/5/7/9), so the Playwright config keeps a single chromium project
+  (testMatch extended to `|shapes|connectors`). The flows are DOM/pointer only,
+  so porting is a config change.
+- **No new ports.** Story 10 reuses 29040 (shared e2e `webServer`).

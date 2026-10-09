@@ -1,6 +1,9 @@
 import type { ReactElement } from 'react';
 import { UndoButtons } from './UndoButtons';
-import type { Tool } from './useTool';
+import type { ToolId } from '../tools/useActiveTool';
+import { SHAPE_KINDS } from '../../shared/config';
+import type { ShapeKind } from '../../shared/objects/shape';
+import { shapeKindName } from '../objects/ShapeToolbar';
 import { TEXT_SIZES } from '../../shared/config';
 
 function ToolButton(props: {
@@ -36,14 +39,20 @@ function ToolButton(props: {
 }
 
 /**
- * Left toolbar: the Select / Text tool buttons (story 9), the Sticky note
- * button (shortcut N, or double-click the board) and the Undo/Redo buttons
- * (story 8). `disabled` (the board failed to load) disables the editing
- * buttons; the double-click path is gated in App.
+ * Left toolbar: the Select / Shape / Text / Connector tool buttons, the
+ * Sticky note button (shortcut N, or double-click the board) and the
+ * Undo/Redo buttons (story 8). `disabled` (the board failed to load)
+ * disables the editing buttons; the double-click path is gated in App.
+ *
+ * Story 10: selecting the Shape tool opens the kind menu (Rectangle /
+ * Ellipse / Diamond) next to the button; the current kind is the menu's
+ * aria-pressed entry and the next drawn shape's kind.
  */
 export function Toolbar(props: {
-  tool: Tool;
-  onSelectTool(t: Tool): void;
+  tool: ToolId;
+  shapeKind: ShapeKind;
+  onSelectTool(t: ToolId): void;
+  onShapeKind(k: ShapeKind): void;
   onCreateSticky(): void;
   disabled?: boolean;
   canUndo: boolean;
@@ -77,12 +86,70 @@ export function Toolbar(props: {
         pressed={props.tool === 'select'}
         onClick={() => props.onSelectTool('select')}
       />
+      <div style={{ position: 'relative' }}>
+        <ToolButton
+          label="Shape (S)"
+          glyph="▭"
+          pressed={props.tool === 'shape'}
+          disabled={props.disabled}
+          onClick={() => props.onSelectTool('shape')}
+        />
+        {props.tool === 'shape' && (
+          <div
+            data-shape-kind-menu="true"
+            style={{
+              position: 'absolute',
+              left: 'calc(100% + 8px)',
+              top: 0,
+              background: '#fff',
+              border: '1px solid #d5d9e0',
+              borderRadius: 8,
+              padding: 4,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              zIndex: 20,
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {SHAPE_KINDS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                aria-label={shapeKindName(k)}
+                aria-pressed={props.shapeKind === k}
+                onClick={() => props.onShapeKind(k)}
+                style={{
+                  border: 'none',
+                  background: props.shapeKind === k ? '#e8f0fe' : 'transparent',
+                  borderRadius: 4,
+                  padding: '4px 10px',
+                  fontSize: 13,
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {shapeKindName(k)}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <ToolButton
         label="Text (T)"
         glyph="T"
         pressed={props.tool === 'text'}
         disabled={props.disabled}
         onClick={() => props.onSelectTool('text')}
+      />
+      <ToolButton
+        label="Connector (L)"
+        glyph="→"
+        pressed={props.tool === 'connector'}
+        disabled={props.disabled}
+        onClick={() => props.onSelectTool('connector')}
       />
       <div style={{ height: 1, background: '#e4e7ec', margin: '2px 0' }} />
       <button

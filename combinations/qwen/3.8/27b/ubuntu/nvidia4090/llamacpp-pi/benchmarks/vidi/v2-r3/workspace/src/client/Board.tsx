@@ -19,10 +19,12 @@ import { useSelection } from './board/useSelection';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
-import { useTool } from './board/useTool';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
-import { getObjectType } from './objects/registry';
+import { buildRects, getObjectType } from './objects/registry';
 import { createCanvasMeasurer } from './objects/textLayout';
 import { remeasureTextBox } from './objects/useTextBoxSync';
 import { SharePanel } from './share/SharePanel';
@@ -78,9 +80,6 @@ export function Board(props: { boardId: string }): ReactElement {
   const { doc, objects, connectionState } = useBoardDoc(props.boardId);
   const selection = useSelection(objects);
   const editable = canEdit(connectionState);
-
-  // Story 9 (text.tool_ui): per-client active tool (Select / Text).
-  const { tool, setTool } = useTool(editable);
 
   // Story 8 (undo.session_only): one undo controller per board document.
   const undoState = useUndo(doc);
@@ -151,6 +150,22 @@ export function Board(props: { boardId: string }): ReactElement {
     createStickyAt(screenToWorld(cam.camera, { x: size.width / 2, y: size.height / 2 }));
   }, [createStickyAt, cam.camera, size]);
 
+  // Story 10 (tool contract): per-client active tool (Select / Text / Shape /
+  // Connector), the tool shortcuts V/N/T/S/L and the "created → select +
+  // return to Select" flow. The Shape/Connector tools' creation callbacks
+  // call toolCreated; the sticky/text flows keep the createdId effect above.
+  const toolApi = useActiveTool({
+    canEdit: editable,
+    selection,
+    snapshot: objects,
+    onNewSticky: createStickyCenter,
+  });
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = toolApi;
+
+  // Story 10: the id → world Rect map, passed to every object component
+  // (connector endpoint resolution, hit tests) and the tool layers.
+  const rects = useMemo(() => buildRects(objects), [objects]);
+
   // Story 9 (text.tool_ui): the Text tool click creates a text object whose
   // top-left corner is at the click point, then returns to the Select tool
   // and edits the new object (shared createdId effect above).
@@ -179,7 +194,6 @@ export function Board(props: { boardId: string }): ReactElement {
     canEdit: editable,
     undo: undoState.controller,
     setTool,
-    onNewSticky: createStickyCenter,
   });
 
   const deleteSelection = useCallback(() => {
@@ -269,6 +283,28 @@ export function Board(props: { boardId: string }): ReactElement {
         onMarqueeMove={(screen) => marquee.move(screen)}
         onMarqueeEnd={() => marquee.end()}
         onMarqueeCancel={() => marquee.cancel()}
+        toolLayer={
+          tool === 'shape' && editable ? (
+            <ShapeTool
+              kind={shapeKind}
+              camera={cam.camera}
+              doc={doc}
+              undo={undoState.controller}
+              by={identityIdRef.current}
+              onCreated={toolCreated}
+            />
+          ) : tool === 'connector' && editable ? (
+            <ConnectorTool
+              camera={cam.camera}
+              snapshot={objects}
+              rects={rects}
+              doc={doc}
+              undo={undoState.controller}
+              by={identityIdRef.current}
+              onCreated={toolCreated}
+            />
+          ) : undefined
+        }
       >
         {objects.map((o) => {
           const spec = getObjectType(o.type);
@@ -280,6 +316,7 @@ export function Board(props: { boardId: string }): ReactElement {
               obj={o}
               doc={doc}
               zoom={cam.camera.zoom}
+              rects={rects}
               selected={selection.ids.has(o.id)}
               editing={selection.editingId === o.id}
               editable={editable}
@@ -309,7 +346,9 @@ export function Board(props: { boardId: string }): ReactElement {
       </BoardViewport>
       <Toolbar
         tool={tool}
+        shapeKind={shapeKind}
         onSelectTool={setTool}
+        onShapeKind={setShapeKind}
         onCreateSticky={createStickyCenter}
         disabled={!editable}
         canUndo={undoState.canUndo}

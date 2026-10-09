@@ -23,7 +23,8 @@ import { getObjectType } from '../objects/registry';
  *
  * Story 9 (text.object): when every selected object is a horizontal-resize
  * type (text), only the e/w handles are shown — text height follows its
- * content and cannot be dragged.
+ * content and cannot be dragged. Story 10: connector-only selections show
+ * no bounding-box handles (the arrow has its own endpoint handles).
  */
 export function SelectionOverlay(props: {
   ids: ReadonlySet<string>;
@@ -40,8 +41,12 @@ export function SelectionOverlay(props: {
   const box = unionRects(selected.map(objectBounds));
   if (!box) return null;
 
-  const horizontalOnly = selected.every((o) => getObjectType(o.type)?.handles === 'horizontal');
-  const handles = horizontalOnly ? (['e', 'w'] as Handle[]) : HANDLES;
+  const modes = selected.map((o) => getObjectType(o.type)?.handles ?? 'all');
+  const handles: readonly Handle[] = modes.every((m) => m === 'horizontal')
+    ? ['e', 'w']
+    : modes.every((m) => m === 'none')
+      ? []
+      : HANDLES;
 
   const zoom = camera.zoom;
   const borderW = 1.5 / zoom;

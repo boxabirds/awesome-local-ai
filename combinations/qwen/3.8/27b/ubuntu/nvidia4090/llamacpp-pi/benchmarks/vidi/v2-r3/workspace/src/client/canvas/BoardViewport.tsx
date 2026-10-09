@@ -14,13 +14,13 @@ import {
 } from './camera';
 import { GRID_SPACING_WORLD, DRAG_THRESHOLD_PX } from '../../shared/config';
 import type { WheelInput } from './useCamera';
-import type { Tool } from '../board/useTool';
+import type { ToolId } from '../tools/useActiveTool';
 
 export interface BoardViewportProps {
   camera: Camera;
   size: Size;
-  /** The active tool (story 9): 'text' shows the text-tool click layer. */
-  tool: Tool;
+  /** The active tool (story 9/10): 'text' shows the text-tool click layer. */
+  tool: ToolId;
   /** Text tool: create a text object with its top-left at `world`. */
   onCreateTextAt(world: Point): void;
   onBeginPan(p: Point): void;
@@ -34,6 +34,11 @@ export interface BoardViewportProps {
   onMarqueeMove(screen: Point): void;
   onMarqueeEnd(): void;
   onMarqueeCancel(): void;
+  /**
+   * Story 10: a screen-space tool layer (the Shape / Connector tool),
+   * rendered on top of the world so it receives pointer events first.
+   */
+  toolLayer?: ReactNode;
   children?: ReactNode;
 }
 
@@ -210,6 +215,7 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
           }}
         />
       )}
+      {props.toolLayer}
     </div>
   );
 }

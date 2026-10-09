@@ -11,20 +11,22 @@ import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
 import type { SelectionApi } from './useSelection';
-import type { Tool } from './useTool';
+import type { ToolId } from '../tools/useActiveTool';
 
 /**
  * Story 7 (sel.keyboard): selection keyboard commands.
  *
  *   Ctrl/Cmd+A  select all (registered-type objects)
- *   Escape      clear the selection (and back to the Select tool, story 9)
+ *   Escape      clear the selection (and back to the Select tool, story 9;
+ *               also cancels an in-progress shape/connector draw, story 10)
  *   arrows      nudge the selection (Shift for the large step)
  *   Delete/⌫    delete the selection
  *   Enter       edit the single selected text object
  *   Ctrl/Cmd+Z  undo the caller's last change (story 8)
  *   Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y  redo (story 8)
- *   V / T       Select / Text tool (story 9; T needs canEdit)
- *   N           new sticky note at the view centre (story 9; needs canEdit)
+ *
+ * The tool shortcuts (V, N, T — story 9 — and S, L — story 10) live in
+ * useActiveTool, which has the same inField/editing guards.
  *
  * Ignored while editing text, while focus is in an input/textarea/content
  * element, or (for the mutating keys) when `canEdit` is false. Handled keys
@@ -38,8 +40,7 @@ export function useBoardKeys(opts: {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undo: UndoController;
-  setTool(t: Tool): void;
-  onNewSticky(): void;
+  setTool(t: ToolId): void;
 }): void {
   const { doc, selection, canEdit, undo } = opts;
   const selectionRef = useRef(selection);
@@ -52,8 +53,6 @@ export function useBoardKeys(opts: {
   undoRef.current = undo;
   const setToolRef = useRef(opts.setTool);
   setToolRef.current = opts.setTool;
-  const onNewStickyRef = useRef(opts.onNewSticky);
-  onNewStickyRef.current = opts.onNewSticky;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -68,26 +67,6 @@ export function useBoardKeys(opts: {
 
       const mod = e.ctrlKey || e.metaKey;
       const snap = snapshotRef.current;
-
-      // Tool and create shortcuts (story 9): unmodified V / T / N only, so
-      // Ctrl/Cmd+V (paste) & co. are never intercepted.
-      if (!mod && !e.altKey) {
-        if (e.key === 'v' || e.key === 'V') {
-          e.preventDefault();
-          setToolRef.current('select');
-          return;
-        }
-        if ((e.key === 't' || e.key === 'T') && canEditRef.current) {
-          e.preventDefault();
-          setToolRef.current('text');
-          return;
-        }
-        if ((e.key === 'n' || e.key === 'N') && canEditRef.current) {
-          e.preventDefault();
-          onNewStickyRef.current();
-          return;
-        }
-      }
 
       // Select all.
       if (mod && (e.key === 'a' || e.key === 'A')) {

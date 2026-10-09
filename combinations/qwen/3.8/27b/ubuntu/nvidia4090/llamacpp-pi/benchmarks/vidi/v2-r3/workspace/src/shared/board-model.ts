@@ -10,9 +10,19 @@
  *     <id>: Y.Map { type, x, y, color, text: Y.Text, z, createdAt }
  */
 import * as Y from 'yjs';
-import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
+import {
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
+  DEFAULT_STICKY_COLOR,
+  STICKY_COLORS,
+  STICKY_SIZE_WORLD,
+  type StickyColor,
+} from './config';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 import { rectContains } from './geometry';
 import type { Point, Rect } from './geometry';
+import type { Endpoint } from './objects/connector';
+import { detachConnectorsTo } from './objects/connector';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('LOCAL_ORIGIN');
 
@@ -33,6 +43,14 @@ export interface ObjectSnapshot {
   text?: string;
   z: number;
   createdAt: number;
+  // type-specific (story 10): shapes
+  kind?: string;
+  fill?: string;
+  stroke?: string;
+  label?: string;
+  // type-specific (story 10): connectors
+  from?: Endpoint;
+  to?: Endpoint;
 }
 
 export type StickySnapshot = ObjectSnapshot & {
@@ -307,6 +325,9 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   let changed = 0;
   doc.transact(
     () => {
+      // detach connectors to the deleted ids first (still inside this
+      // transaction, while the target rects are still present)
+      detachConnectorsTo(doc, ids);
       for (const id of new Set(ids)) {
         if (objects.has(id)) {
           objects.delete(id);
@@ -319,7 +340,13 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   return changed;
 }
 
-/** All objects (of any known type) sorted by (z, id); unknown types skipped. */
+/**
+ * All objects (of any known type) sorted by (z, id); unknown types skipped.
+ *
+ * Story 10: shape kind/fill/stroke/label are read from the Y.Map; connector
+ * from/to endpoints are read and their x/y/width/height are derived from the
+ * live endpoints (connector items store them as 0).
+ */
 export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const out: ObjectSnapshot[] = [];
   objects(doc).forEach((item, id) => {
@@ -339,8 +366,32 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       o.color = (item.get('color') as StickyColor) ?? DEFAULT_STICKY_COLOR;
       o.text = (item.get('text') as Y.Text)?.toString() ?? '';
     }
+    if (type === 'shape') {
+      o.kind = (item.get('kind') as string) ?? 'rect';
+      o.fill = (item.get('fill') as string) ?? DEFAULT_SHAPE_FILL;
+      o.stroke = (item.get('stroke') as string) ?? DEFAULT_SHAPE_STROKE;
+      o.label = (item.get('label') as Y.Text | undefined)?.toString() ?? '';
+    }
+    if (type === 'connector') {
+      o.from = item.get('from') as Endpoint | undefined;
+      o.to = item.get('to') as Endpoint | undefined;
+    }
     out.push(o);
   });
+  // second pass: derive connector bboxes from the live rects
+  const rects = new Map<string, Rect>();
+  for (const o of out) {
+    if (o.type !== 'connector') rects.set(o.id, objectBounds(o));
+  }
+  for (const o of out) {
+    if (o.type !== 'connector' || !o.from || !o.to) continue;
+    const { from: fp, to: tp } = resolveEndpoints({ from: o.from, to: o.to }, rects);
+    const b = connectorBBox(fp, tp);
+    o.x = b.x;
+    o.y = b.y;
+    o.width = b.width;
+    o.height = b.height;
+  }
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;
 }

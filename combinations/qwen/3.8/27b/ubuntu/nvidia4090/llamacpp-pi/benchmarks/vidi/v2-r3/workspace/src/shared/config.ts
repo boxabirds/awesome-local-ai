@@ -9,6 +9,7 @@
  * Story 7 — multi-select, move, resize, delete
  * Story 8 — per-user undo and redo
  * Story 9 — free text objects
+ * Story 10 — shapes and connectors
  */
 
 // Story 1
@@ -79,3 +80,34 @@ export type TextSize = keyof typeof TEXT_SIZES;
 export const DEFAULT_TEXT_SIZE: TextSize = 'M';
 export const TEXT_LINE_HEIGHT = 1.3; // line height as a multiple of the font size
 export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+// Story 10
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+export const SHAPE_MIN_SIZE_WORLD = 20;
+export const SHAPE_LABEL_MAX_CHARS = 500;
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export const DEFAULT_SHAPE_FILL = 'white';
+export const DEFAULT_SHAPE_STROKE = 'dark';
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+export const CONNECTOR_DOT_RADIUS_PX = 4;

@@ -5,8 +5,18 @@ import {
   registerKnownObjectType,
 } from '../../shared/board-model';
 import type { Point } from '../canvas/camera';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import type { Rect } from '../../shared/geometry';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
+import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
 import type { UndoController } from '../board/undo';
+import { ConnectorObject } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 
@@ -20,6 +30,10 @@ import { TextObject } from './TextObject';
  *
  * Registration also tells the shared board-model the type is known, so
  * `allObjectIds` / `objectsInRect` / `snapshot` include it.
+ *
+ * Story 10: hitTest also receives the camera zoom and the current
+ * object-bounds map (`rects`), so a type can hit-test against screen
+ * tolerances (the connector's 6-px line) or other objects' live bounds.
  */
 export interface ObjectProps {
   /** The generic object snapshot (type-specific fields may be read via a cast). */
@@ -28,6 +42,11 @@ export interface ObjectProps {
   readonly doc: import('yjs').Doc;
   /** Current camera zoom (screen px per world unit). */
   readonly zoom: number;
+  /**
+   * Story 10: current world Rect of every board object, by id (id → bounds).
+   * Used to resolve connector endpoints and for hit tests.
+   */
+  readonly rects: ReadonlyMap<string, Rect>;
   /** Whether this object is in the current selection. */
   readonly selected: boolean;
   /** Whether this object is being edited (text). */
@@ -56,13 +75,18 @@ export interface ObjectTypeSpec {
   /** Whether the type has an editable text field. */
   readonly editableText: boolean;
   /**
-   * Handles shown for a single selection of this type (story 9): 'all' (the
-   * default, eight handles) or 'horizontal' (only e/w — text objects resize
-   * by width, their height always follows the content).
+   * Handles shown for a single selection of this type: 'all' (the default,
+   * eight handles), 'horizontal' (only e/w — text objects resize by width,
+   * their height always follows the content) or 'none' (story 10: connectors
+   * show their own endpoint handles instead).
    */
-  readonly handles?: 'all' | 'horizontal';
-  /** Whether a world point hits this object (default: within its bounds). */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  readonly handles?: 'all' | 'horizontal' | 'none';
+  /**
+   * Whether a world point hits this object. Story 10: the zoom (screen px
+   * per world unit) and the current bounds map are also available.
+   * Default: within its bounds.
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom: number, rects: ReadonlyMap<string, Rect>): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -84,6 +108,40 @@ export function getObjectType(type: string): ObjectTypeSpec | undefined {
   return registry.get(type);
 }
 
+/** The current id → world Rect map of a snapshot (connector resolution). */
+export function buildRects(snapshot: readonly ObjectSnapshot[]): ReadonlyMap<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const o of snapshot) rects.set(o.id, objectBounds(o));
+  return rects;
+}
+
+/**
+ * The topmost (z) registered-type object hit by `worldPoint`, or null.
+ * Unknown types and the types in `skipTypes` (tools pass 'connector' so an
+ * arrow is never an attach target) are ignored.
+ */
+export function findObjectAt(
+  snapshot: readonly ObjectSnapshot[],
+  worldPoint: Point,
+  zoom: number,
+  rects: ReadonlyMap<string, Rect>,
+  skipTypes?: readonly string[],
+): ObjectSnapshot | null {
+  for (let i = snapshot.length - 1; i >= 0; i--) {
+    const o = snapshot[i];
+    if (skipTypes?.includes(o.type)) continue;
+    const spec = registry.get(o.type);
+    if (!spec) continue; // unknown type
+    if (spec.hitTest(o, worldPoint, zoom, rects)) return o;
+  }
+  return null;
+}
+
+const boundsHitTest = (obj: ObjectSnapshot, p: Point): boolean => {
+  const b = objectBounds(obj);
+  return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+};
+
 /**
  * Register the story 1 sticky note type: resizable, aspect-locked (always
  * square), minimum STICKY_MIN_SIZE_WORLD, editable text, bounds hit test.
@@ -94,10 +152,7 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
-  hitTest: (obj, p) => {
-    const b = objectBounds(obj);
-    return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
-  },
+  hitTest: (obj, p) => boundsHitTest(obj, p),
 });
 
 /**
@@ -111,8 +166,41 @@ registerObjectType('text', {
   minSize: TEXT_MIN_WIDTH_WORLD,
   editableText: true,
   handles: 'horizontal',
-  hitTest: (obj, p) => {
-    const b = objectBounds(obj);
-    return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+  hitTest: (obj, p) => boundsHitTest(obj, p),
+});
+
+/**
+ * Register the story 10 shape type: resizable (both axes), no aspect lock
+ * (Shift-square happens at creation), editable text (the label), bounds hit
+ * test.
+ */
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: (obj, p) => boundsHitTest(obj, p),
+});
+
+/**
+ * Register the story 10 connector type: no bounding-box resize (it has its
+ * own endpoint handles), no aspect lock, no editable text. Hit test: within
+ * CONNECTOR_HIT_TOLERANCE_PX screen pixels of the resolved line (a 6-px
+ * target at any zoom).
+ */
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  handles: 'none',
+  hitTest: (obj, p, zoom, rects) => {
+    const from = obj.from;
+    const to = obj.to;
+    if (!from || !to) return false;
+    const ends = resolveEndpoints({ from, to }, rects);
+    return distanceToPolyline([ends.from, ends.to], p) <= CONNECTOR_HIT_TOLERANCE_PX / zoom;
   },
 });
