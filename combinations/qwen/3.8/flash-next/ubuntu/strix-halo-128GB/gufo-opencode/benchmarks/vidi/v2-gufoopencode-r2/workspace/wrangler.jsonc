@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2025-09-01",
+  "send_metrics": false,
+  "assets": {
+    "directory": "./dist/client"
+  }
+}

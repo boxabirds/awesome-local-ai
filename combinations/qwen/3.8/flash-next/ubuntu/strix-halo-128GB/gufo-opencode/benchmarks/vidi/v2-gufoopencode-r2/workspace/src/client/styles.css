@@ -1,0 +1,152 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+  background: #fafafa;
+  color: #1f2328;
+}
+
+.board-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  background: #fafafa;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-grid {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+}
+
+.world-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.origin-marker {
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: '';
+  position: absolute;
+  background: #e5484d;
+}
+
+.origin-marker::before {
+  left: 5px;
+  top: 0;
+  width: 2px;
+  height: 12px;
+}
+
+.origin-marker::after {
+  left: 0;
+  top: 5px;
+  width: 12px;
+  height: 2px;
+}
+
+.board-ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffffff;
+  border: 1px solid #d6dae1;
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.zoom-button {
+  width: 32px;
+  height: 32px;
+  font-size: 18px;
+  line-height: 1;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.zoom-button:hover:not(:disabled) {
+  background: #eef1f5;
+}
+
+.zoom-button:disabled {
+  color: #b0b6bf;
+  cursor: default;
+}
+
+.zoom-label {
+  min-width: 48px;
+  text-align: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoom-reset {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.zoom-reset:hover {
+  background: #eef1f5;
+}
+
+.zoom-button:focus-visible,
+.zoom-reset:focus-visible {
+  outline: 2px solid #3572e6;
+  outline-offset: 1px;
+}
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: rgba(31, 35, 40, 0.85);
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  white-space: nowrap;
+}
