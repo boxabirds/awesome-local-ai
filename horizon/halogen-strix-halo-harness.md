@@ -1,12 +1,13 @@
 # aic0d3r's Strix Halo harness (the "halogen" engine and NPU sidecars)
 
 **Status:** open question (9 Oct 2026). Added at the owner's request as "Strata + NPU sidecars for AMD".
-**Read it once, from its page only** (<https://github.com/aic0d3r/qwen38-strix-halo-harness>); nothing installed or run.
+**Read from the pages only, nothing installed or run:** the harness (<https://github.com/aic0d3r/qwen38-strix-halo-harness>) on 9 Oct 2026,
+and halogen's own repository (<https://github.com/peonist-ai/halogen-flash-server>) and its `LICENSE.md` the same day, after the owner supplied it.
 **A correction to the request's label:** the page never mentions Strata. The engine it recommends is called **halogen**
 ("the NPU+GPU engine stack"), a different engine from the Strata we have been running. Whether the two are related is not
-stated; it needs asking or reading its other pages before this note can be filed under Strata.
-**Needs before it is a candidate:** an answer to what halogen is, which weights it loads, and whether a plain `pi` can be
-pointed at it without the NPU tools (see "What would make it a fair test").
+stated, and halogen's own page does not mention Strata either. Treat it as a separate engine.
+**Needs before it is a candidate:** a check that the engine runs on our Strix Halo box's settings (ROCm version, BIOS memory carve-out,
+room for the model), a check that it loads the same GGUF as `gufo-pi` and gives the same answers, and the image digest to pin.
 
 ## What it is
 
@@ -40,35 +41,48 @@ One pi task per repository for crash recovery (stale checkpoints removed by hand
 at a time (two cause device-lost errors); cold boot can take several minutes and memory fragmentation can block a launch until a
 reboot; the halogen download is at least 124 GB.
 
-## Is halogen open source? The page does not say
+## Halogen itself (from its own repository and licence, 9 Oct 2026)
 
-The harness is MIT-licensed; that covers its scripts, not the engine. For halogen the page gives **no source repository, no maker
-(it says only "Upstream"), no registry for the image, no licence and no description of the `.hgn` format**. It is distributed as a
-Docker image the launcher pulls by tag (`HALOGEN_IMAGE_TAG`), and its weights come from a Hugging Face account (`peonist-ai`: one
-repository for the model, four for the NPU models). That fits a closed binary but does not say so. The owner's recollection is that
-it is closed source; **unconfirmed**.
-
-If it is closed: we could not read its quantisation, sampler or draft logic, so every figure would need to say the engine could not
-be inspected; we could pin only by image digest (a tag can move) and would record it; and the weights confound that cost us
-the Strata comparison could not be ruled out by reading code. Benchmarking a closed engine is allowed here; the result simply
-carries that limit.
+- **What it is:** a GPU inference engine and server for Qwen3.8 Flash-Next on one machine type: AMD Strix Halo (gfx1151), reference
+  box a Ryzen AI Max+ 395 with 128 GB, ROCm 7.14.0. Published by the GitHub account `peonist-ai` (906 stars, 116 commits, 19 open
+  issues when read). Version 0.17.3 in its quickstart. The page gives no release dates.
+- **Closed source, free to use.** The repository holds deployment files, documents and tools, **no engine or kernel source**. The
+  engine is a compiled binary (`flash_serve`, with gfx1151 device code) in a container image
+  (`ghcr.io/peonist-ai/halogen-flash-server`, tag `0.17.3`, `:latest` also exists). Its licence is the **halogen End User License
+  Agreement, version 0.1 (effective 25 Aug 2026), Peonist, LLC**, which says it does not commit to providing source. It grants free
+  use for any purpose including commercial, no keys, no telemetry by default; modification for your own use but not passing a
+  modified image on as halogen; reverse engineering is not prohibited. Model weights are licensed separately by their authors.
+- **We may benchmark it and publish the results without approval.** It asks that published figures state the software version and the
+  prompt set (a request, not a condition). Our records name the engine build already.
+- **What closed source costs us.** We cannot read its sampler, quantisation handling or draft logic. We pin by **image digest** (a tag
+  can move), record it, and every result says the engine cannot be inspected.
+- **Interface:** OpenAI-compatible on port 8731 under `/v1`, also the Responses and Anthropic Messages APIs, and `/metrics`. A plain
+  `pi` can talk to it directly; the third-party harness is not needed for that.
+- **Weights: it loads GGUFs.** Besides its own `.hgn` checkpoints (v2 is the default; about 62 GiB plus a 48 GiB n-gram table), it runs
+  llama.cpp GGUFs of the same model, naming Unsloth's `UD-IQ4_XS` and `UD-Q4_K_XL`, and says a GGUF converts to `.hgn` losslessly. It
+  refuses Q4_1, Q2_K, Q3_K and the IQ2 and IQ1 families by name (it does not name IQ3_XXS). `gufo-pi` on the Strix Halo box runs
+  `UD-Q4_K_XL`, so the same weights can be fed to both engines. That is what the Strata comparison lacked.
+- **Its own limits:** one GPU and one model family; no response store; `n > 1` and several JSON-schema keywords unsupported; quality
+  not measured against BF16 at scale; the BIOS graphics carve-out must be set to a minimum; a shared machine can stall badly under
+  memory pressure; GPU and NPU work at once can hang the machine unless the fabric clock is held. Its licence note says throughput
+  varies about 2x with prompt type (about 20 tok/s on prose, 42 on code).
 
 ## What it could tell us
 
 - **A second engine for Flash-Next on the machine we already benchmark gufo on.** Our Strix Halo box runs Flash-Next under gufo
-  with the MTP draft. A different engine on the same hardware, same model family, same client, would be a one-variable comparison,
-  if the weights match.
+  with the MTP draft. A different engine on the same hardware, same weights, same client, is a one-variable comparison, and halogen
+  can load the same GGUF.
 - **Whether NPU search tools help an agent finish stories,** which nobody here has measured.
 
 ## What would make it a fair test (and what would not)
 
-- **The weights.** A `.hgn` checkpoint is its own format and its quantisation is not stated, so it may not be the weights our gufo
-  and llama.cpp runs use. A comparison across different weights tells us about the weights as much as the engine, which is the
-  mistake made with Strata. Find out what it is before any run.
+- **The weights.** Feed halogen the same GGUF `gufo-pi` runs (`UD-Q4_K_XL`), not its own `.hgn` default, so a difference is the
+  engine's. Check the conversion by comparing answers on a fixed prompt set before any run. A comparison on its own `.hgn` checkpoint
+  would repeat the Strata mistake.
 - **The client.** Our benchmark drives plain pi with its defaults. This harness adds tools (`codebase_search`, a guard, `decide`) and
   a compaction sidecar, so a run with them on is a different client and cannot be compared with `gufo-pi`. A fair engine comparison
   needs plain pi against halogen with the sidecars off; the sidecars are their own experiment.
 - **One variable at a time**, as with [gufo with OpenCode](gufo-opencode.md): pin the engine build (the page says its image tag is
   pinned to the last validated version), keep model, sampling and context as in `gufo-pi`, change only the engine.
-- **Memory.** About 124 GB of model files against a 128 GB machine that also runs the agent, browsers and test servers: check
-  there is room before anything else.
+- **Memory.** Its own `.hgn` files total about 110 GiB; a GGUF is smaller. Whichever it loads, check there is room beside the agent,
+  browsers and test servers, and that the BIOS carve-out and ROCm version match what it asks for, before anything else.
