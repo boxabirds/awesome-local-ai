@@ -454,18 +454,24 @@ export interface RawUsage {
   agent?: { seconds?: number; tool_calls?: number; compactions?: number; nudges?: number; tokens?: { input?: number; output?: number; cache_read?: number; cache_write?: number } };
   time_split?: { wall_s?: number; tools_s?: number; compaction_s?: number; between_sessions_s?: number; other_s?: number; tools_by_kind?: Record<string, number>;
     accounting?: { version?: number; ok?: boolean; problems?: string[] }; model?: {
-    decode_tokens?: number; decode_s?: number; decode_tok_s?: number;
+    source?: string; decode_tokens?: number; decode_s?: number; decode_tok_s?: number;
     prefill_tokens?: number; prefill_s?: number; prefill_tok_s?: number; draft_acceptance?: number | null;
   } };
 }
 
+/** The time split's model source for OpenCode's stream (harness accounting.OPENCODE_STREAM). */
+const OPENCODE_SOURCE = "opencode-stream";
+
 function splitOf(ts: RawUsage["time_split"]): RecordSplit | null {
   if (!ts || ts.wall_s == null) return null;
   const m = ts.model, other = ts.other_s ?? 0;
+  // OpenCode's events say neither when the first token came nor how long the model thought: the record holds a step's whole model
+  // time as one figure, and it is shown as the model's time, not split.
+  const unsplit = m?.source === OPENCODE_SOURCE ? (m.prefill_s ?? 0) + (m.decode_s ?? 0) : 0;
   return {
-    wall: ts.wall_s, prefill: m?.prefill_s ?? 0, decode: m?.decode_s ?? 0, tools: ts.tools_s ?? 0, compaction: ts.compaction_s ?? 0,
+    wall: ts.wall_s, prefill: unsplit ? 0 : m?.prefill_s ?? 0, decode: unsplit ? 0 : m?.decode_s ?? 0, tools: ts.tools_s ?? 0, compaction: ts.compaction_s ?? 0,
     // Untimed model: "other" holds the model's time and the agent's own, which can't be told apart.
-    other: m ? other : 0, modelUnsplit: m ? 0 : other,
+    other: m ? other : 0, modelUnsplit: m ? unsplit : other,
     toolsByKind: ts.tools_by_kind ?? {},
     betweenSessions: ts.between_sessions_s ?? 0,
     check: !ts.accounting ? { status: "unchecked", problems: [], version: null }
