@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 
 /** What happens to an object's selection when its editing ends (kept from story 2). */
@@ -150,7 +150,20 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
     (objects) => selectionInit(objects.map((object) => object.id)),
   );
 
-  const presentIds = useMemo(() => new Set(snapshot.map((object) => object.id)), [snapshot]);
+  // The ids the document holds, kept as the *same set* for as long as it holds the same
+  // objects. The snapshot array is rebuilt on every document change, a remote keystroke
+  // included, so a fresh `new Set(...)` per render is a fresh dependency for the prune effect
+  // below — a state update per document change, whether or not any object came or went. When
+  // changes arrive in a burst (undoing a group, story 8, with five people making changes at
+  // once) that is a render pass after render pass with no gap in it, and React counts those as
+  // a nested update cascade and stops updating the board entirely past fifty.
+  const lastPresent = useRef<Set<string>>(new Set<string>());
+  const presentIds = useMemo(() => {
+    const ids = new Set(snapshot.map((object) => object.id));
+    if (sameSet(ids, lastPresent.current)) return lastPresent.current;
+    lastPresent.current = ids;
+    return ids;
+  }, [snapshot]);
 
   useEffect(() => {
     dispatch({ type: 'prune', presentIds });

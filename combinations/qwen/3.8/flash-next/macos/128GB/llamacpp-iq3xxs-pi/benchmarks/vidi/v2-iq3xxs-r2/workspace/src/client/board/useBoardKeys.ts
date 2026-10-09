@@ -9,6 +9,7 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { getObjectType } from '../objects/registry';
+import type { UndoController } from './undo';
 import type { Selection } from './useSelection';
 
 export interface BoardKeyOptions {
@@ -22,6 +23,11 @@ export interface BoardKeyOptions {
    * Escape means everywhere else on the board.
    */
   readonly marqueeActive: boolean;
+  /**
+   * Story 8: the history of this board. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (and Ctrl+Y) step
+   * through it, and every action below this file performs opens a step of its own first.
+   */
+  readonly undo: UndoController;
 }
 
 const DELETE_KEYS = ['Delete', 'Backspace'];
@@ -43,7 +49,8 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * The board's keyboard: Ctrl/Cmd+A, Escape, the arrow keys, Delete.
+ * The board's keyboard: Ctrl/Cmd+A, Escape, the arrow keys, Delete, and story 8's
+ * Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y.
  *
  * Two rules cover most of the surprises here. Nothing is handled while this client is
  * typing in an object, or while the keypress belongs to a field of its own — Backspace has
@@ -58,13 +65,14 @@ function isEditableTarget(target: EventTarget | null): boolean {
 export function useBoardKeys({
   doc,
   selection,
+  undo,
   snapshot,
   canEdit,
   marqueeActive,
 }: BoardKeyOptions): void {
   // One listener for the lifetime of the board; it reads the current values through a ref.
-  const live = useRef({ doc, selection, snapshot, canEdit, marqueeActive });
-  live.current = { doc, selection, snapshot, canEdit, marqueeActive };
+  const live = useRef({ doc, selection, snapshot, canEdit, marqueeActive, undo });
+  live.current = { doc, selection, snapshot, canEdit, marqueeActive, undo };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -89,6 +97,21 @@ export function useBoardKeys({
         sel.clear();
         return;
       }
+      // Story 8: the undo shortcuts (TC-19). They come before the general "a modified key is
+      // not the board's" bail-out below, and are ignored — not merely un-done — while this
+      // client cannot edit: undoing would take the board back to a state this client is not
+      // allowed to write. `sel.editingId` already sent any typing Ctrl+Z to the text editor.
+      const modifier = event.ctrlKey || event.metaKey;
+      if (modifier && !event.altKey && (key === 'z' || key === 'Z' || key === 'y' || key === 'Y')) {
+        if (!live.current.canEdit) return;
+        // The browser would otherwise undo its own selection of the page, or start undoing
+        // the typing in the last field that had focus.
+        event.preventDefault();
+        if (key === 'y' || key === 'Y' || event.shiftKey) live.current.undo.redo();
+        else live.current.undo.undo();
+        return;
+      }
+
       if (event.ctrlKey || event.metaKey || event.altKey) return;
 
       const arrow = ARROW_KEYS.get(key);
@@ -106,7 +129,10 @@ export function useBoardKeys({
           positions.set(object.id, { x: bounds.x + arrow.x * step, y: bounds.y + arrow.y * step });
         }
         if (positions.size === 0) return;
+        // One arrow press is one undo step, even when the keys are held down (undo.boundaries).
+        live.current.undo.boundary();
         moveObjects(board, positions);
+        live.current.undo.boundary();
         return;
       }
 
@@ -115,7 +141,10 @@ export function useBoardKeys({
         if (ids.length === 0) return;
         if (!live.current.canEdit) return;
         event.preventDefault();
+        // One Delete is one undo step, whatever the typing before it was doing (TC-14).
+        live.current.undo.boundary();
         deleteObjects(board, ids);
+        live.current.undo.boundary();
         // Every one of them went, so nothing is selected any more (TC-31).
         sel.clear();
         return;

@@ -2,15 +2,18 @@
 import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  boardNotes,
+  click,
   createNote,
   flushFrames,
+  notePosition,
   noteToolbarElement,
   readCamera,
+  remotePatch,
   renderBoard,
   selectNote,
   selectedNoteIds,
   waitForNotes,
-  click,
 } from './fixtures/board';
 import {
   clickObject,
@@ -230,5 +233,30 @@ describe('selection stays off the document (TC-16)', () => {
       z: object.z,
     }));
     expect(after).toEqual(before);
+  });
+});
+
+describe('the selection while the document is changing quickly', () => {
+  it('the board keeps up with a burst of remote changes while something is selected', async () => {
+    // A burst of remote changes in one go, the way one websocket message carries one update
+    // after another — undoing a group of notes writes every one of them. Everything has to
+    // arrive, and the selection this client made has to survive it. Story 8's undo storms
+    // found the version of this in the browser (`TC-24`) where the burst was a nested update
+    // cascade in React's eyes and the board stopped updating altogether; here it is the same
+    // shape at component speed.
+    const selected = createNote({ x: 0, y: 0 });
+    const changed = createNote({ x: 600, y: 0 });
+    await waitForNotes(2);
+    await selectNote(selected);
+
+    // Sixty changes in one go, the way one websocket message carries one after another.
+    for (let step = 0; step < 60; step++) remotePatch(changed, { y: step });
+    await flushFrames(4);
+
+    await waitForNotes(2);
+    expect(boardNotes().map((note) => note.id)).toEqual([selected, changed]);
+    expect(notePosition(changed).y).toBe(59);
+    // And the selection is still the one this client made, not a casualty of the burst.
+    expect(selectedNoteIds()).toEqual([selected]);
   });
 });

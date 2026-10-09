@@ -384,3 +384,136 @@ webServer); the main config `testIgnore`s the two specs so neither suite runs th
 Unit 129, integration 62, component 92, e2e 25 (Chromium) plus the persistence suite's 4.
 The nightly suite (2 tests) compiles and is listed; the soak itself was not run for this
 story, which does not touch what it measures.
+
+# Story 8 — "Undo and redo my own changes without undoing anyone else's"
+
+## Followed from the design exactly
+
+- Both named settings in `src/shared/config.ts` (`UNDO_CAPTURE_TIMEOUT_MS = 500`,
+  `UNDO_MAX_STEPS = 200`), every named file (`src/client/board/undo.ts`, `useUndo.ts`,
+  `UndoButtons.tsx`, `tests/unit/undo-history.test.ts`, `tests/unit/undo-boundaries.test.ts`,
+  `tests/component/UndoBoundaries.test.tsx`, `tests/component/UndoControls.test.tsx`,
+  `tests/e2e/undo.spec.ts`, `tests/e2e/helpers/undo.ts`), and the exported contracts
+  (`UndoController`, `UndoOptions`, `createUndo(doc, options)`, `UndoButtonState`).
+- The UI text verbatim: `aria-label="Undo"` / `aria-label="Redo"`, tooltips
+  `Undo (Ctrl/Cmd+Z)` and `Redo (Ctrl/Cmd+Shift+Z)`, both buttons in the left toolbar under
+  the Sticky note button, disabled when their stack is empty.
+- `undo.session_only` is what the design asks for and what `Y.UndoManager` gives: the history
+  is a tab's own object, nothing about it goes into the document, and an undo or redo is a
+  local transaction like any other change — which is exactly why the other person sees it.
+
+## Decisions and deviations
+
+1. **The controller is created in `Board.tsx`, not `App.tsx`.** The design's `App` passes a
+   `doc` to `Board`, but the doc is made by `useBoardDoc` *inside* `Board`, and `App` has no
+   doc to hand over. Creating it where the doc lives also puts `destroy()` on the board's
+   unmount, so a board remount starts a fresh history — which is what "a person's history is
+   scoped to one open board" means. A second mount of the same doc (React StrictMode in dev)
+   creates a controller that is then destroyed; nothing observes it.
+2. **`UndoContext` (`useUndoController()`) instead of a field on `ObjectProps`.** The object
+   renderers (`StickyTextEditor`, `StickyNote`) need the controller to open a step around
+   typing and around toolbar actions; `ObjectProps` is story 1/2's contract for every object
+   type, and only one type cares.
+3. **`useTransformGesture.ts` is unchanged.** The design lists it as a caller of
+   `undo.boundary()`. It already had `onGestureStart`/`onGestureEnd` from story 7, so `Board`
+   passes `undo.boundary` to both — the gesture stays undo-agnostic, and the boundary lands
+   exactly once around the whole drag including its final coalesced write.
+4. **The note toolbar's two actions take their boundary in `StickyNote`'s handlers**
+   (`handleColor`, `handleDelete`), since `NoteToolbar` is presentational and owns no
+   transactions. Discrete actions are wrapped *before and after*, so two quick clicks on
+   different swatches are two steps rather than one merged pair.
+5. **The undo/redo shortcut branch sits in front of the generic "some modifier is down, so
+   this is not the board's key" bail-out** in `useBoardKeys`, because Ctrl/Cmd+Z *is* the
+   board's key. When the board cannot be edited it is ignored *without* `preventDefault`, so
+   the browser keeps its own undo on a board that must not change (TC-20).
+6. **`useUndo` mirrors the stacks into React with a `useReducer` bump** from the manager's
+   `stack-item-added`/`-popped`/`-updated`/`stack-cleared` events, and gates `canUndo`/`canRedo`
+   on `canEdit` as well, so the buttons are disabled *and* the shortcut is left alone.
+7. **Ctrl/Cmd+Z typed inside a note is handled by the editor itself** (preventDefault, then
+   undo, then re-sync the textarea from the shared text). The browser's own textarea undo
+   would otherwise move the caret and the shared `Y.Text` apart.
+8. **Trimming the stack** is `undoStack.shift()` past `UNDO_MAX_STEPS` in the
+   `stack-item-added` handler; the manager's own `stack-item-limit` event is never reached
+   because `stackitem-limit` only fires when `undoManager.stackItemLimit` is set, and the
+   design's default is `-1` (unlimited).
+
+## yjs findings (building tasks 2, 7 and 9)
+
+- **`lib0`'s `getUnixTime` is `Date.now`, captured at module load.** `vi.useFakeTimers()` or
+  `vi.spyOn(Date, 'now')` installed afterwards do not move the capture window, because yjs
+  holds the function reference it took from `lib0/time` at import. `tests/unit/fake-clock.ts`
+  replaces `Date.now` on the module's *first import*, before `yjs`, and the boundary tests
+  import it first. Measured against the setting: a 499 ms gap merges the two changes, exactly
+  500 ms does not (`now - lastChange < captureTimeout`, strict `<`) — so TC-13's "exactly
+  `UNDO_CAPTURE_TIMEOUT_MS` apart is two steps" is the real boundary.
+- **`popStackItem` loops until something actually changed.** A stack item whose target has
+  been deleted by somebody else is dropped silently and the same Ctrl+Z carries on to the
+  next item. TC-07 records the consequence: one press restored the earlier of two steps whose
+  note had vanished, and redo still worked.
+- **Any new tracked change clears the redo stack** (`afterTransactionHandler` →
+  `this.clear(false, true)`), so the Redo button goes from enabled to disabled the moment this
+  person does something new (TC-18's second half).
+- **Redo comes back oldest-first.** `undo()` pushes what it popped onto `redoStack`, and
+  `redo()` pops the end — the *last* thing undone, which is the *earliest* step. In TC-22 the
+  first redo brings back the move, and the deletion is the last change to return.
+- **`manager.destroy()` removes the `afterTransaction` and `destroy` listeners it added**, so a
+  destroyed controller leaves no transaction observer behind on a doc that outlives the board
+  (TC-11 asserts that, by writing to a doc both managers can see).
+
+## Running the three browser cases (task 5)
+
+- `design.md` and `tasks.md` describe TC-22, TC-23 and TC-24 as three concrete browser
+  workflows (box-select and delete eight notes; somebody else deletes the note I moved;
+  `MAX_CONCURRENT_EDITORS` people each undoing their own steps at once) and `prd.md` uses
+  those ids for three *different* stories. The three tests named TC-22/23/24 implement the
+  design/tasks workflows, since tasks.md is what the acceptance list ticks; the PRD's three
+  scenarios are each implemented too, named after the scenario, so nothing in either
+  document goes untested.
+- `tests/e2e/helpers/undo.ts` holds the four things every case needs: Ctrl/Cmd+Z and
+  Ctrl/Cmd+Shift+Z, clicking the toolbar buttons by their accessible name, their tooltips, and
+  one assertion for the enabled/disabled pair.
+- TC-24 takes the room in two stages, and that is deliberate: after *everybody* has undone
+  there is nobody's work left to be still there, so "without undoing anyone else's" cannot be
+  asserted then. Stage one has one person undo their two steps *alone*, and checks in all five
+  browsers that their own steps are gone and everybody else's work is untouched — a claim
+  about the other four screens, not just theirs. Stage two has the rest undo at once and
+  checks that the room ends on one identical board — the same board it started with, because
+  every step was taken back by the person who made it.
+- Between a drag and the typing that follows it in TC-24 the test waits
+  `UNDO_CAPTURE_TIMEOUT_MS + 100`. Without that the two would merge into one step on a slow
+  machine and stay two on a fast one, and the two `Ctrl+Z`s would mean different things.
+
+## A cascade React was right to refuse (found by TC-24)
+
+With five people on one board undoing at once, the production bundle threw minified React
+error #185 — "Maximum update depth exceeded" — from inside the yjs observer, which y-protocols
+caught and logged as `Caught error while handling a Yjs update`. The board carried on being
+clickable while showing a state the document no longer held.
+
+- **It was not undo's bug.** `useSelection` derived `presentIds` with `new Set(...)` from the
+  object snapshot, and the snapshot array is rebuilt on every document change. Its prune
+  effect therefore had a new dependency on every remote change, and dispatched a state update
+  for each — on top of the store notification that brought the snapshot at all. When changes
+  arrive one after another, every render pass leaves another still pending, which React calls
+  a nested update cascade, and past fifty of them it stops the root rather than hanging the
+  tab. Undo storms are only the first thing in this app that has ever arrived faster than
+  React can render.
+- **The fix** is in `useSelection.ts`: hand back the *same* set while the document holds the
+  same objects, so the effect — and the dispatch — happens when objects come or go, and not
+  once per keystroke of somebody else's typing.
+- **Two things that looked like fixes and were dropped.** Coalescing the store notifications
+  to one per burst of `observeDeep` calls, and routing them through `startTransition`, both in
+  `useBoardDoc.ts`: each lowered the pass count, neither removed the crash, and both would
+  have changed when story 1's bridge updates the screen for every surface in the app.
+- **What guards it**: TC-24 failed in 3 of 3 runs (`--retries=0`) before the fix and has
+  passed in every run since. The cascade itself is React-internal and only appears in the
+  production bundle in a real browser, so the added component test ("the board keeps up with a
+  burst of remote changes while something is selected", `tests/component/Selection.test.tsx`)
+  pins the behaviour at component speed rather than the cascade.
+
+## Current test totals for story 8
+
+Unit 224 (14 files), component 158 (19 files), integration 62 (5 files), e2e 36 (Chromium
+only, as ever on this machine — 6 of them `tests/e2e/undo.spec.ts`), plus the persistence
+suite's 4 on its own config. The nightly suite compiles and is listed; the soak and load runs
+themselves were not run for this story, which does not touch what they measure.

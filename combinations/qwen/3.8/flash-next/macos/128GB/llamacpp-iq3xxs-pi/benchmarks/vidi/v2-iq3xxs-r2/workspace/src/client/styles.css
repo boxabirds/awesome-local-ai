@@ -387,6 +387,43 @@ button:focus-visible,
   box-shadow: inset 0 0 0 1px rgb(17 22 33 / 20%);
 }
 
+/* Story 8: undo and redo under the Sticky note button, separated from it so the toolbar
+   still reads as one group of tools. Both are always there; grey is the whole of what a
+   board with nothing to undo has to say. */
+.vidi6-undo-buttons {
+  display: flex;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #d7dbe2;
+}
+
+.vidi6-undo-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #d7dbe2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111621;
+  cursor: pointer;
+}
+
+.vidi6-undo-button:hover:not(:disabled) {
+  background: #f2f3f6;
+}
+
+.vidi6-undo-button:disabled {
+  color: #b0b6c1;
+  cursor: default;
+}
+
+.vidi6-undo-icon {
+  display: block;
+}
+
 /* Connection status, top centre: the only thing this app says about the wire. Amber
    while the board is not live, green for the moment it comes back, and gone otherwise —
    so it never sits on top of somebody's work. */

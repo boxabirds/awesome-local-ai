@@ -1,4 +1,4 @@
-import { useCallback, useRef, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type JSX } from 'react';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { NavigationHint } from '../canvas/NavigationHint';
 import { ZoomControls } from '../canvas/ZoomControls';
@@ -19,6 +19,8 @@ import { MarqueeRect, useMarquee } from './Marquee';
 import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
+import { createUndo } from './undo';
+import { UndoContext, useUndo } from './useUndo';
 import { getObjectComponent } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit as connectionAllowsEditing } from '../sync/connectBoard';
@@ -39,6 +41,11 @@ import { unionRects } from '../../shared/geometry';
  * Selection, editing, the gesture and the marquee stay in React state, never in the
  * document: a board with six people has six selections on it and exactly one of them is
  * yours.
+ *
+ * Story 8 adds the undo history, which is exactly as local as the selection is: this tab's
+ * own changes, for as long as this tab is open. It is created here, with the document, and
+ * handed to the keys, the gesture, the toolbar and — through `UndoContext` — the objects that
+ * edit text, so that a change made anywhere on the board opens a step in the same history.
  */
 export function Board({ boardId }: { boardId: string }): JSX.Element {
   const viewport = useViewportSize();
@@ -49,6 +56,17 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   // A board that could not be loaded is shown and refuses every edit (story 4); no other
   // connection state refuses anything.
   const canEdit = connectionAllowsEditing(connection);
+
+  // One history per document: it is empty when the board opens, holds this tab's changes
+  // while it is open, and goes with the document (`undo.session_only`, TC-11).
+  const undo = useMemo(() => createUndo(doc), [doc]);
+  useEffect(
+    () => () => {
+      undo.destroy();
+    },
+    [undo],
+  );
+  const undoState = useUndo(undo, canEdit);
 
   // Handlers that run long after a render read the latest values through refs.
   const cameraRef = useRef(camera);
@@ -65,11 +83,15 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     (screenPoint: Point): void => {
       if (!canEdit) return; // no edits on a board that failed to load
       const world = screenToWorld(cameraRef.current, screenPoint);
+      // One click makes one note, and one note is one undo step even when the button is
+      // clicked twice in a second.
+      undo.boundary();
       const id = createSticky(doc, world);
+      undo.boundary();
       if (id === false) return;
       selectionRef.current.startEdit(id);
     },
-    [doc, canEdit],
+    [doc, canEdit, undo],
   );
 
   /** The Sticky note button: the centre of the visible board area. */
@@ -83,6 +105,10 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     selection,
     snapshot: objects,
     canEdit,
+    // A drag is one undo step whatever it did on the way (TC-14): the gesture announces
+    // itself at `begin` and again when the pointer is released or taken away.
+    onGestureStart: undo.boundary,
+    onGestureEnd: undo.boundary,
   });
 
   /** The marquee adds to what is already selected (sel.marquee). */
@@ -96,6 +122,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     snapshot: objects,
     canEdit,
     marqueeActive: marquee.rect !== null,
+    undo,
   });
 
   /**
@@ -112,9 +139,13 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     if (!canEdit) return;
     const ids = [...selectionRef.current.ids];
     if (ids.length === 0) return;
+    // The selection bar's Delete and the keyboard's are the same step: one press, one step,
+    // however many objects it takes away (TC-04).
+    undo.boundary();
     deleteObjects(doc, ids);
+    undo.boundary();
     selectionRef.current.clear();
-  }, [canEdit, doc]);
+  }, [canEdit, doc, undo]);
 
   // The selection bar sits above its bounding box, in screen pixels, and only while
   // nothing is being typed in — an editor and a delete button are not a good pair.
@@ -127,6 +158,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
 
   return (
     <CameraApiContext.Provider value={cameraApi}>
+      <UndoContext.Provider value={undo}>
       <main className="vidi6-app" data-testid="app">
         <BoardViewport
           onCreateStickyAt={createAtScreenPoint}
@@ -185,7 +217,11 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           </div>
         ) : null}
         <ConnectionStatus state={connection} />
-        <Toolbar onCreateSticky={createAtViewportCentre} disabled={!canEdit} />
+        <Toolbar
+          onCreateSticky={createAtViewportCentre}
+          disabled={!canEdit}
+          undo={undoState}
+        />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}
@@ -196,6 +232,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         />
         <NavigationHint visible={!hasNavigated} />
       </main>
+      </UndoContext.Provider>
     </CameraApiContext.Provider>
   );
 }

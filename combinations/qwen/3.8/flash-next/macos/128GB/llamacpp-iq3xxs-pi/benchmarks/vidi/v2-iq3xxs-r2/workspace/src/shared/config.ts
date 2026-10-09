@@ -122,3 +122,13 @@ export const MAX_OBJECT_SIZE_WORLD = 20_000;
 export const NUDGE_STEP_WORLD = 1;
 /** How far Shift+arrow moves the selection, in board units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// Story 8: undo and redo of my own changes.
+
+/**
+ * The typing pause that ends an undo step (`undo.typing`): keystrokes that follow each
+ * other within this many milliseconds are one step to undo.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/** How many steps one person's undo history keeps; older steps are discarded. */
+export const UNDO_MAX_STEPS = 200;

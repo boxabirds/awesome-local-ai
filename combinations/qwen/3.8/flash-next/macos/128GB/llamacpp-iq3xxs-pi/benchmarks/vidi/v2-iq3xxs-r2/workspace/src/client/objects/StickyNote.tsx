@@ -25,6 +25,7 @@ import {
   setStickyColor,
   type StickySnapshot,
 } from '../../shared/board-model';
+import { useUndoController } from '../board/useUndo';
 import { fitFontSize } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 import { NoteToolbar } from './NoteToolbar';
@@ -86,6 +87,7 @@ function StickyNoteBody({
   onStartEdit,
   onEndEdit,
 }: StickyNoteBodyProps): JSX.Element {
+  const undo = useUndoController();
   const noteRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const onEndEditRef = useRef(onEndEdit);
@@ -180,11 +182,16 @@ function StickyNoteBody({
 
   const handleColor = (color: StickyColor): void => {
     // Only the colour changes: text, position, stacking and the selection are untouched.
+    // A click is a step of its own (undo.boundaries), even 100 ms after the last one (TC-15).
+    undo?.boundary();
     setStickyColor(doc, note.id, color);
+    undo?.boundary();
   };
 
   const handleDelete = (): void => {
+    undo?.boundary();
     deleteObject(doc, note.id);
+    undo?.boundary();
   };
 
   /*

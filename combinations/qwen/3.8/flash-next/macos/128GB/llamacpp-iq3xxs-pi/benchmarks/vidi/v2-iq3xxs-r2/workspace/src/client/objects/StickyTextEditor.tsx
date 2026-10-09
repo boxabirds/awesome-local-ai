@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type JSX, type KeyboardEvent as ReactKeybo
 import type * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
+import { useUndoController } from '../board/useUndo';
 import {
   applyLocalEdit,
   clampToLimit,
@@ -35,10 +36,17 @@ export interface StickyTextEditorProps {
  * delete, and one character in fifty would vanish. Changes from the other side are
  * mirrored into the textarea as they arrive, with the caret stepped over them, so what
  * this person sees, what they type into, and what the document holds stay the same text.
+ *
+ * Story 8 adds one thing to that: the shared text is also what undo takes back. The editor
+ * closes an undo step at both ends of the edit, so a burst of typing is one step, and
+ * Ctrl/Cmd+Z typed *into* the note undoes the typing instead of the note underneath it.
+ * Because the textarea keeps being a mirror of the shared text, an undo done anywhere —
+ * here, by the toolbar, by another person deleting a word — shows up in it unchanged.
  */
 export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
+  const undo = useUndoController();
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
   /** What the textarea held the last time it was written to the document. */
@@ -100,6 +108,17 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     };
   }, [ytext]);
 
+  // Story 8: one edit session is one undo step (TC-12, TC-16). The step closes when the
+  // caret goes into the note and again when it leaves, whatever the pause between the two,
+  // so typing before and after the session are not merged with it and a burst of keystrokes
+  // inside it is a single step.
+  useEffect(() => {
+    undo?.boundary();
+    return () => {
+      undo?.boundary();
+    };
+  }, [undo]);
+
   // Native `input`, so the value React renders never fights the DOM value, and IME
   // composition is written once on `compositionend` instead of per keystroke.
   useEffect(() => {
@@ -138,6 +157,22 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       event.preventDefault();
       sync();
       onEndRef.current('selected');
+      return;
+    }
+    // Story 8 (PRD: "While typing in a note, Ctrl/Cmd+Z undoes typing in that note"): this
+    // textarea has no text of its own to undo, so the shortcut steps the shared text back.
+    // Without `preventDefault` the browser would undo the textarea's value on its own and
+    // leave the document behind, which is the one thing a mirror must never do.
+    const key = event.key;
+    const modifier = event.metaKey || event.ctrlKey;
+    if (modifier && !event.altKey && (key === 'z' || key === 'Z' || key === 'y' || key === 'Y')) {
+      event.preventDefault();
+      if (!undo) return;
+      // Anything this person typed but has not written yet is written first, so the step
+      // they are undoing is the one they just made.
+      sync();
+      if (key === 'y' || key === 'Y' || event.shiftKey) undo.redo();
+      else undo.undo();
     }
   };
 
