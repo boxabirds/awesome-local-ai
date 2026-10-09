@@ -15,9 +15,14 @@
  *    ratio around the pointer.
  *  - Window keydown: Ctrl/Cmd + = / - / 0 zoom one step or reset.
  */
-import type { ReactNode, PointerEvent as ReactPointerEvent } from "react";
+import type {
+  ReactNode,
+  PointerEvent as ReactPointerEvent,
+  MouseEvent as ReactMouseEvent,
+} from "react";
 import { useEffect, useRef } from "react";
-import { GRID_SPACING_WORLD } from "../../shared/config";
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from "../../shared/config";
+import { screenToWorld, type Point } from "./camera";
 import { useCameraContext } from "./useCamera";
 
 /** Wheel deltaMode constants (DOM spec values). */
@@ -39,13 +44,22 @@ interface GestureEventLike {
   readonly clientY?: number;
 }
 
-export function BoardViewport(props: { children?: ReactNode }) {
+export function BoardViewport(props: {
+  children?: ReactNode;
+  /** Double-click on empty board space; receives the world point of the click. */
+  onCreateAt?: (world: Point) => void;
+  /** A short click (no movement) on empty board space. */
+  onEmptyClick?: () => void;
+}) {
   const api = useCameraContext();
   const rootRef = useRef<HTMLDivElement>(null);
   const { camera, panning } = api;
   const { x, y, zoom } = camera;
 
   const gridSpacing = GRID_SPACING_WORLD * zoom;
+
+  /** Screen point (viewport-local) of the last empty-space pointerdown. */
+  const clickStartRef = useRef<Point | null>(null);
 
   // Pointer drag to pan. Only empty board space starts a drag so later
   // object stories can stopPropagation from their own elements.
@@ -56,7 +70,9 @@ export function BoardViewport(props: { children?: ReactNode }) {
       event.currentTarget.setPointerCapture(event.pointerId);
     }
     const rect = event.currentTarget.getBoundingClientRect();
-    api.beginPan({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+    const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    clickStartRef.current = point;
+    api.beginPan(point);
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -65,8 +81,33 @@ export function BoardViewport(props: { children?: ReactNode }) {
     api.panMove({ x: event.clientX - rect.left, y: event.clientY - rect.top });
   };
 
-  const endPan = () => {
+  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = clickStartRef.current;
+    clickStartRef.current = null;
     api.endPan();
+    // A press on empty space that barely moved was a click: clear selection.
+    if (start !== null && event.button === 0) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const dx = event.clientX - rect.left - start.x;
+      const dy = event.clientY - rect.top - start.y;
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) {
+        props.onEmptyClick?.();
+      }
+    }
+  };
+
+  const endPan = () => {
+    clickStartRef.current = null;
+    api.endPan();
+  };
+
+  // Double-click on empty board space creates a note centred at the click.
+  // A double-click on an object is stopped by that object's own handler.
+  const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (event.target !== rootRef.current) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    props.onCreateAt?.(screenToWorld(camera, point));
   };
 
   // Wheel: non-passive so preventDefault can stop page scroll and page zoom.
@@ -169,9 +210,10 @@ export function BoardViewport(props: { children?: ReactNode }) {
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={endPan}
+      onPointerUp={onPointerUp}
       onPointerCancel={endPan}
       onLostPointerCapture={endPan}
+      onDoubleClick={onDoubleClick}
     >
       <div
         data-testid="board-world"

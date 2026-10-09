@@ -1,3 +1,42 @@
+commit b7c9ddca582f46ed43385d660e31691b10594a23
+agent  Fri Oct 9 15:32:40 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  85 +++++++++
+ PROGRESS.md                               |  24 ++-
+ package-lock.json                         |  51 ++++-
+ package.json                              |   3 +-
+ src/client/App.tsx                        |  83 ++++++++-
+ src/client/board/Toolbar.tsx              |  36 ++++
+ src/client/board/useBoardDoc.ts           |  71 +++++++
+ src/client/board/useSelection.ts          | 107 +++++++++++
+ src/client/canvas/BoardViewport.tsx       |  52 +++++-
+ src/client/canvas/testHooks.ts            |  12 +-
+ src/client/objects/NoteToolbar.tsx        |  59 ++++++
+ src/client/objects/StickyNote.tsx         | 297 ++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          | 122 ++++++++++++
+ src/client/objects/StickyTextEditor.tsx   | 157 ++++++++++++++++
+ src/client/styles.css                     | 178 ++++++++++++++++++
+ src/shared/board-model.ts                 | 245 ++++++++++++++++++++++++
+ src/shared/config.ts                      |  32 +++-
+ tests/component/StickyNote.test.tsx       | 258 ++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 117 ++++++++++++
+ tests/component/Toolbars.test.tsx         |  92 +++++++++
+ tests/component/stickyHarness.tsx         | 114 ++++++++++++
+ tests/e2e/sticky-notes.spec.ts            | 275 +++++++++++++++++++++++++++
+ tests/fixtures/texts.ts                   |  49 +++++
+ tests/unit/board-model.test.ts            | 263 ++++++++++++++++++++++++++
+ 24 files changed, 2757 insertions(+), 25 deletions(-)
+commit 176d5367d22bc4bfd3d9cae40e3e83c2589a81a0
+vidi-agent  Fri Oct 9 14:45:03 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
 commit 6f893e539b4a6a8340a3eec7d47fff817634a83b
 agent  Fri Oct 9 14:44:12 2026 +0100
 
