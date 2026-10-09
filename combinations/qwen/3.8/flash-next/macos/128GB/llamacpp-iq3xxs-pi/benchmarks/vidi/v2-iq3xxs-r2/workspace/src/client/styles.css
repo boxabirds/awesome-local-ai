@@ -712,3 +712,185 @@ button:focus-visible,
   background: #eef4ff;
   color: #1d4ed8;
 }
+
+/* -------------------------------------------------------------------------
+   Story 10: shapes and arrows. The two new tool buttons are drawn pressed like
+   story 9's; the kind menu belongs to the Shape button and appears while that
+   tool is up, since a shape kind you cannot see the point of is a kind you
+   change by accident.
+   --------------------------------------------------------------------- */
+.vidi6-tool-shape::before {
+  content: '';
+  display: block;
+  width: 13px;
+  height: 10px;
+  margin: 2px;
+  border: 2px solid currentColor;
+}
+
+.vidi6-tool-connector {
+  background: currentColor;
+  clip-path: polygon(0 45%, 62% 45%, 62% 20%, 100% 50%, 62% 80%, 62% 55%, 0 55%);
+}
+
+.vidi6-shape-kinds {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: -4px 0 4px;
+  padding: 4px;
+  border: 1px solid #d7dbe2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.vidi6-shape-kind {
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #5b6270;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vidi6-shape-kind:hover {
+  background: #f2f3f6;
+}
+
+.vidi6-shape-kind[aria-pressed='true'] {
+  border-color: #2563eb;
+  background: #eef4ff;
+  color: #1d4ed8;
+}
+
+/* The Shape and Connector tools both take the whole viewport: a cross says "this press
+   draws", and nothing under the pointer takes it — which is the tool capturing the
+   pointer rather than the board letting go of it (design: shape.tool_capture). */
+.vidi6-viewport[data-tool='shape'],
+.vidi6-viewport[data-tool='connector'] {
+  cursor: crosshair;
+}
+
+/* A shape is an SVG figure plus its centred label; the label box is the shape, so a
+   resize re-wraps the label and keeps it centred (PRD: shape.label). */
+.vidi6-shape {
+  position: absolute;
+  outline-style: solid;
+  outline-offset: 0;
+}
+
+.vidi6-shape:focus {
+  outline: none;
+}
+
+.vidi6-shape-svg {
+  display: block;
+  overflow: visible;
+}
+
+.vidi6-shape-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  color: #1f2430;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.vidi6-shape-editor {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  background: transparent;
+  text-align: center;
+  color: inherit;
+  font-family: inherit;
+}
+
+/* The swatch toolbar floats under the shape it changes, at a fixed screen size. */
+.vidi6-shape-toolbar-anchor {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  transform-origin: top left;
+  z-index: 3;
+}
+
+.vidi6-shape-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px;
+  border: 1px solid #d7dbe2;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgb(18 22 33 / 14%);
+}
+
+.vidi6-shape-swatches {
+  display: flex;
+  gap: 4px;
+}
+
+.vidi6-shape-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid #c8cddb;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.vidi6-shape-swatch[aria-pressed='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* The dashed box the Shape tool draws while the drag is going on (design: shape.ui). */
+.vidi6-shape-preview {
+  position: absolute;
+  border: 2px dashed #2563eb;
+  border-radius: 2px;
+  background: rgb(37 99 235 / 8%);
+  pointer-events: none;
+}
+
+/* An arrow and its ends. The line itself is drawn in SVG; the handles are HTML circles
+   that keep their size on screen. */
+.vidi6-connector-svg {
+  display: block;
+  overflow: visible;
+}
+
+.vidi6-connector-handle:focus {
+  outline: none;
+}
+
+/* The four connection dots, and the arrow being dragged (design: connector.hover_points). */
+.vidi6-connector-dot {
+  border: 2px solid #2563eb;
+  border-radius: 50%;
+  background: #ffffff;
+  pointer-events: none;
+}
+
+.vidi6-connector-dot[data-highlighted='true'] {
+  background: #2563eb;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 25%);
+}
+
+.vidi6-connector-preview-line {
+  stroke: #2563eb;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  fill: none;
+}

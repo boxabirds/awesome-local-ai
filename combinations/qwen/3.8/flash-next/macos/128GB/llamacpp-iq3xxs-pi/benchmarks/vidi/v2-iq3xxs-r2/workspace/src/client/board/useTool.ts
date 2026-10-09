@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { isPointerTool, toolIdForShortcut } from '../tools/useActiveTool';
 
 /**
- * The board's tool mode (story 9, `text.tool_mode`).
+ * The board's tool mode (story 9, `text.tool_mode`,
  *
  * A tool is not a mode the document knows about: which tool this tab is on, like its
  * selection, belongs to this tab alone, and a board with six people has six tools on it.
@@ -9,10 +10,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
  * tool only decides *where* the next click goes.
  */
 
-/** The two pointer modes; the Sticky note button is an action, not a mode (see below). */
-export type Tool = 'select' | 'text';
+/**
+ * The pointer modes; the Sticky note button is an action, not a mode (see below).
+ * Story 10 adds `shape` and `connector`; `../tools/useActiveTool` is where the whole tool
+ * family — including the shortcuts reserved for stories 11 and 12 — is written down.
+ */
+export type Tool = 'select' | 'text' | 'shape' | 'connector';
 
-/** What the board looks like when it opens, after Escape, and after a text is placed. */
+/** What the board looks like when it opens, after Escape, and after a tool placed something. */
 export const DEFAULT_TOOL: Tool = 'select';
 
 /** The single letters that choose a tool — and one that does something else entirely. */
@@ -22,24 +27,19 @@ export type ToolShortcut = Tool | 'sticky';
  * Which tool the key `key` asks for, or null when it asked for none of them. Uppercase
  * counts: Shift+T is still the Text tool.
  *
- * `n` is listed here because it belongs to the same family — the story 2 Sticky note button,
- * which this story gives a shortcut of its own — and a key that changes the tool and a key
- * that creates an object must be translated by one map, not by two that can disagree about
- * what `v` means. It is not a `Tool`: the Sticky note button stays an action that creates one
- * note, and pressing `n` while the Text tool is up switches back to Select first (TC-17), or
- * the next click would plant a text where that note's heading is being typed.
+ * The map lives in `../tools/useActiveTool` (`TOOL_SHORTCUTS`), because a key that changes
+ * the tool and a key that creates an object must be translated by one map, not by two that
+ * can disagree about what `v` means. This turns the tool *id* into something a pointer can
+ * sit on: `sticky` stays an action rather than a mode (pressing `n` switches back to Select
+ * first, TC-17, or the next click would plant a text where that note's heading is being
+ * typed), and the letters belonging to tools this build does not have — `p`, `i`, `c` — are
+ * not spent, so they keep belonging to whatever they were pressed in.
  */
 export function toolForShortcut(key: string): ToolShortcut | null {
-  switch (key.toLowerCase()) {
-    case 'v':
-      return 'select';
-    case 't':
-      return 'text';
-    case 'n':
-      return 'sticky';
-    default:
-      return null;
-  }
+  const id = toolIdForShortcut(key);
+  if (id === null) return null;
+  if (isPointerTool(id)) return id;
+  return id === 'sticky' ? 'sticky' : null;
 }
 
 /** What the board may do with the tool. */
@@ -47,9 +47,9 @@ export interface ToolControls {
   readonly tool: Tool;
   setTool(tool: Tool): void;
   /**
-   * A plain `v`, `t` or `n` typed at the board (`text.tool_mode`, and the Sticky note
-   * shortcut this story introduces). True when `key` was one of those, so the caller knows
-   * whether the key is spent.
+   * A plain `v`, `n`, `t`, `s` or `l` typed at the board (`text.tool_mode`,
+   * `tools.active_tool`). True when `key` was one of those, so the caller knows whether the
+   * key is spent.
    */
   press(key: string): boolean;
 }
@@ -84,12 +84,13 @@ export function useTool({ canEdit, onCreateSticky }: ToolOptions): ToolControls 
     (key: string): boolean => {
       const shortcut = toolForShortcut(key);
       if (shortcut === null) return false;
-      if (shortcut === 'text') {
-        // Recognised, and refused: the key is spent, the tool is not.
-        if (canEdit) setTool('text');
+      if (shortcut !== 'select' && shortcut !== 'sticky') {
+        // Text, Shape and Connector each put something on the board: while the board answers
+        // nothing the key is recognised and refused — spent, but the tool does not change.
+        if (canEdit) setTool(shortcut);
         return true;
       }
-      // Both `v` and `n` leave the Text tool behind: `n` because a tool still up after it
+      // `v` and `n` leave whatever tool was up: `n` because a tool still up after it
       // made a note would write its next click over that note.
       setTool(DEFAULT_TOOL);
       if (shortcut === 'sticky') onCreateSticky();

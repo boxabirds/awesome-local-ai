@@ -316,10 +316,11 @@ export function BoardViewport({
   };
 
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
-    // Only empty board space creates a note: a note stops the event itself (TC-35). While
-    // the Text tool is up, each press of a double click has already written a text, so a
-    // note arriving as well would be one object too many.
-    if (tool === 'text') return;
+    // Only empty board space creates a note: a note stops the event itself (TC-35). While a
+    // tool that puts something on the board is up, each press of a double click has already
+    // been taken by that tool, so a note arriving as well would be one object too many — the
+    // shape and connector tools of story 10 are refused for exactly that reason.
+    if (tool !== 'select') return;
     if (event.target !== event.currentTarget) return;
     const element = event.currentTarget;
     onCreateStickyAt?.(boardPoint(element, event.clientX, event.clientY));

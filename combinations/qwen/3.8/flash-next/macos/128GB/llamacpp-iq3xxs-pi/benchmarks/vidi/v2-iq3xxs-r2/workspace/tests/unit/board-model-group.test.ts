@@ -379,19 +379,23 @@ describe('allObjectIds and the object types this build knows (TC-08)', () => {
     const sticky = createSticky(doc, { x: 0, y: 0 });
     if (typeof sticky !== 'string') throw new Error('fixture failed');
     doc.transact(() => {
-      const shape = new Y.Map<unknown>();
-      shape.set('type', 'shape');
-      shape.set('x', 0);
-      shape.set('y', 0);
-      shape.set('z', 99);
-      rawObjects(doc).set('shape-1', shape);
+      // A type this build has never heard of. (Until story 10 this fixture was a
+      // `"shape"`, which is a type this build now does know how to read.)
+      const widget = new Y.Map<unknown>();
+      widget.set('type', 'widget');
+      widget.set('x', 0);
+      widget.set('y', 0);
+      widget.set('z', 99);
+      rawObjects(doc).set('widget-1', widget);
     });
 
     expect(objectSnapshots(doc)).toHaveLength(2);
     expect(allObjectIds(objectSnapshots(doc))).toEqual([sticky]);
     // The renderer still paints it (it has bounds), but nothing can be selected on it.
-    expect(isObjectTypeKnown('shape')).toBe(false);
+    expect(isObjectTypeKnown('widget')).toBe(false);
     expect(isObjectTypeKnown('sticky')).toBe(true);
+    // Story 10: a shape is a type this build reads, so a shape is selectable on its own.
+    expect(isObjectTypeKnown('shape')).toBe(true);
   });
 
   it('a type this build declares becomes known and selectable', () => {

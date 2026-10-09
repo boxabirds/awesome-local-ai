@@ -623,3 +623,119 @@ drives the Text tool, and nothing in it knows what a sticky note is.
 Unit 243 (16 files), component 190 (22 files), integration 62 (5 files), e2e 44 (Chromium
 only, as ever on this machine — 8 of them `tests/e2e/text.spec.ts`), plus the persistence
 suite's 4 and the nightly suite's runs on their own configs, which this story does not touch.
+
+# Story 10 — Draw shapes and connect them with arrows that follow when moved
+
+## Followed from the design exactly
+
+- The shared modules `src/shared/objects/shape.ts`, `src/shared/objects/connector.ts`,
+  `src/shared/geometry/polyline.ts`, `src/shared/geometry/connector-geometry.ts`, the client
+  files `tools/useActiveTool.ts`, `tools/ShapeTool.tsx`, `tools/ConnectorTool.tsx`,
+  `objects/ShapeObject.tsx`, `objects/ShapeToolbar.tsx`, `objects/ConnectorObject.tsx`, and every
+  named setting in `src/shared/config.ts` (`SHAPE_KINDS`, `SHAPE_DEFAULT_SIZE_WORLD`,
+  `SHAPE_MIN_SIZE_WORLD`, `SHAPE_LABEL_MAX_CHARS`, `SHAPE_STROKE_WIDTH_WORLD`, `SHAPE_FILL_COLORS`,
+  `SHAPE_STROKE_COLORS`, `DEFAULT_SHAPE_FILL`, `DEFAULT_SHAPE_STROKE`, `CONNECTOR_MIN_LENGTH_WORLD`,
+  `CONNECTOR_HIT_TOLERANCE_PX`, `CONNECTOR_STROKE_WIDTH_WORLD`, `CONNECTOR_ARROWHEAD_SIZE_WORLD`,
+  `CONNECTOR_DOT_RADIUS_PX`).
+- The model contracts as written: `createShape`/`setShapeStyle`/`readShape`/`getShapeLabel`,
+  `createConnector`/`setConnectorEndpoint`/`detachConnectorsTo`/`readConnector`,
+  `sideAnchor`/`nearestSide`/`resolveEndpoints`/`connectorBBox`, `distanceToPolyline`. Each writer
+  returns `null`/`false` and opens no transaction when the object is missing or the value is not
+  one of the named kinds or colours; each one works inside a `LOCAL_ORIGIN` transaction.
+- UI strings come from the PRD: the toolbar's shape and connector buttons labelled with their
+  shortcuts, the kind menu, the fill and outline swatch labels, the label placeholder, and the
+  arrow's accessible name.
+- Tool order: a shape or an arrow is one undo boundary, becomes the selection, and hands the tool
+  back to Select (`toolCreated(id)` in `useActiveTool`).
+
+## Decisions and deviations
+
+1. **`shapeRectFor` is exported separately from `createShape`.** The Shape tool needs the box a
+   drag would produce in order to preview it, and a preview must not write. Both go through the
+   same arithmetic, so a preview cannot disagree with the shape that lands.
+2. **A non-finite provided rect is refused rather than treated as a click** (`createShape` returns
+   `null`). A box that was dragged but holds no finite numbers is a bug, not an empty-board click.
+3. **The default shape is the square the settings name (160 × 160 units)**, which is what the
+   design fixes at line 351; TC-24 asserts that number rather than the 200 × 120 of the PRD prose.
+4. **`READABLE_TYPES` names `SHAPE_TYPE` and `CONNECTOR_TYPE` directly** in `board-model.ts`. The
+   two object modules import `LOCAL_ORIGIN`, `newObjectId` and `topZ` back from it, and that cycle
+   is safe only because nothing from `board-model` is called while a module body runs — the same
+   discipline `useTool.ts` and `useActiveTool.ts` keep with each other.
+5. **A connector's endpoints are plain objects in the `Y.Map`**, replaced wholesale by
+   `setConnectorEndpoint`. Nested `Y.Map`s would merge two people's concurrent endpoint edits into
+   one endpoint that is half of each.
+6. **`objectSnapshots` is now two passes**: the first reads everything that has a box and collects
+   those boxes into `rects`, the second reads connectors, whose position is derived (their stored
+   `x`/`y`/`width`/`height` are 0 and come from `connectorBBox`). `rects` is passed to object
+   Components so a re-attach can ask what is under its end.
+7. **`detachConnectorsTo` runs inside `deleteObjects`' transaction**, before the objects go, so the
+   anchor of the end being freed is still readable from the shape being deleted. No caller can
+   forget it, and a half-deleted arrow is never visible to anybody.
+8. **Both tools are overlay layers inside `BoardViewport`'s `overlay`** (screen space), not
+   document-level capture listeners. That is what makes TC-28 hold — while the Shape tool is up,
+   nothing under the pointer starts a move of its own — and it keeps the tools out of the board's
+   own coordinate system. Their props include `doc` and `createdBy`, which the design's contract
+   omits but a tool that writes needs.
+9. **`TOOL_SHORTCUTS` lives in `useActiveTool.ts`** and recognises the keys of tools this story
+   does not build; `toolForShortcut` returns `null` for those so the key is not spent and a later
+   story can have it.
+10. **`rects` was added to `ObjectProps`** because only connectors need it, **`hitTest` takes an
+    optional `zoom`** so a near miss on an arrow stays six screen pixels at any zoom, and
+    **`useTransformGesture.onObjectPointerDown` accepts `HTMLElement | SVGElement`** because an
+    arrow's press begins on an SVG element. `press` does not use `currentTarget`, so widening it
+    changes nothing for the types that were there.
+11. **`pointInRect` was added to `geometry.ts`** for an arrow's own question — which object is this
+    end over — reusing the existing `isRect`/`isPoint` guards.
+12. **`DEFAULT_SHAPE_KIND` lives in `shape.ts` as `SHAPE_KINDS[0]`**, not in `config.ts`: it is the
+    order of the kind menu, not a product setting.
+
+## An arrow's box must not take the pointer (found by the e2e flow test, task 15)
+
+`ConnectorObject`'s wrapper div is the rectangle around the arrow's two ends, padded so the wide
+invisible hit stroke is not clipped, and it is drawn above every shape. It used to take the
+pointer across that whole box, so a press on a shape whose area overlapped an arrow's box pressed
+the *arrow* instead — a drag of a shape with an arrow coming off it moved nothing at all. The
+wrapper and its `svg` are now `pointer-events: none`; only the hit line (`pointer-events: stroke`)
+and the two end handles (`pointer-events: auto`, since they sit inside the disabled subtree) take
+the pointer, which is what `nearConnector` always claimed. The component tests press the hit line,
+one of them now pins the styling down, and the e2e flow test in `tests/e2e/shapes.spec.ts` would
+not pass without the change.
+
+## The e2e side of story 10 (task 15)
+
+- `tests/e2e/helpers/shapes.ts` reads a board two ways, as the earlier suites do: the document
+  each browser holds, and the screen. Arrows report more through the DOM than the document stores —
+  `data-connector-from-x`, `-from-y`, `-to-x`, `-to-y`, `-from-side`, `-to-side`, `-orphaned` —
+  because where an end is gets worked out from where its objects are, and a test should follow that
+  answer rather than recompute it.
+- TC-23 measures the shape on the screen as well as in the document at 100% zoom, where they are
+  the same numbers (±1 px). TC-24 sets the camera to exactly 2 through the test hook — the step
+  buttons land on 1.953 and 2.44 — and counts the label's wrapped line boxes as the browser painted
+  them (`Range.getClientRects`, as in story 9), then counts them again after a handle resize, with
+  the label's centre compared against the shape's centre each time.
+- TC-25, TC-26 and TC-27 use Dana and Sam by name (`participantOf` with the story's names, on a
+  board the service made). Delivery is measured with `applyChange` and reported with
+  `logLatencySummary`; the budget is never asserted. TC-25 checks the resolved sides on both
+  screens after the move (right/left becomes left/right) and the ends against each screen's own
+  rect data. TC-26 checks that the freed end sits where the deleted shape's facing side was, in
+  both browsers. TC-27 forces its overlap by holding the button down: Dana presses on A, drags to
+  B, and does not release; Sam deletes B; the delete is waited for on Dana's page; only then does
+  Dana let go. A paused drag is a firmer overlap than a network delay and needs no fake network.
+  The arrow that results is drawn, its end inside the box B left behind, and nothing is thrown on
+  either screen.
+- A lone selected shape has no selection bar (`barAt` is only for one text object or two or more
+  things), so the new tests delete with the Delete key, as story 7's tests do.
+
+## Blocked on this machine (story 10)
+
+- TC-23 is specified for Chromium, Firefox and WebKit. As with stories 1, 3, 8 and 9, Firefox and
+  WebKit cannot be launched here — `browserType.launch` closes its target immediately, and the
+  probe in `tests/e2e/helpers/browsers.ts` caches `chromium` only — so the 8 new e2e tests, and the
+  suite's 52, ran in Chromium. The Playwright config hands every test to every browser that can
+  start, so when they can, the same cases run three times with no change here.
+
+## Current test totals for story 10
+
+Unit 277 (18 files), component 218 (25 files), integration 62 (5 files), e2e 52 (Chromium only, as
+ever on this machine, 8 of them story 10's), plus the persistence suite's 4 and the nightly runs on
+their own configs.

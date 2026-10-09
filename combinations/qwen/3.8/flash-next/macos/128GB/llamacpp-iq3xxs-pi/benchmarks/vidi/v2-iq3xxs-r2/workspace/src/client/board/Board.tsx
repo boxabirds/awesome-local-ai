@@ -15,7 +15,8 @@ import { useBoardDoc } from './useBoardDoc';
 import { useSelection, type EndEditNext } from './useSelection';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
-import { DEFAULT_TOOL, useTool } from './useTool';
+import { DEFAULT_TOOL } from './useTool';
+import { useActiveTool } from '../tools/useActiveTool';
 import { MarqueeRect, useMarquee } from './Marquee';
 import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -26,6 +27,10 @@ import { getObjectComponent } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit as connectionAllowsEditing } from '../sync/connectBoard';
 import { createSticky, deleteObjects, objectBounds } from '../../shared/board-model';
+import { CONNECTOR_TYPE } from '../../shared/objects/connector';
+import type { Rect } from '../../shared/geometry';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
 import {
   createText,
   isTextSnapshot,
@@ -113,8 +118,19 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     createAtScreenPoint({ x: viewport.width / 2, y: viewport.height / 2 });
   }, [createAtScreenPoint, viewport.width, viewport.height]);
 
-  /** Which pointer tool this tab is on: Select, or Text. `n` still makes a note (TC-17). */
-  const tool = useTool({ canEdit, onCreateSticky: createAtViewportCentre });
+  /**
+   * Which pointer tool this tab is on: Select, Text, Shape or Connector. `n` still makes a
+   * note (TC-17), and the tools that make something hand the pointer back to Select holding
+   * what they made selected (`tools.return_to_select`).
+   */
+  const selectOnly = useCallback((id: string): void => {
+    selectionRef.current.select(id);
+  }, []);
+  const tool = useActiveTool({
+    canEdit,
+    onCreateSticky: createAtViewportCentre,
+    onSelectOnly: selectOnly,
+  });
   const setTool = tool.setTool;
 
   /**
@@ -142,6 +158,20 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
 
   // One canvas measurer for this board, shared with every text object on it.
   const measurer = useMemo(() => defaultMeasurer(), []);
+
+  /**
+   * Every object's box, by id, for the one thing that needs it: an arrow being re-attached
+   * asks which object its end is over (design: connector.reattach). Arrows are left out — an
+   * arrow's box is its ends, so its own box would answer that question about itself.
+   */
+  const rects = useMemo(() => {
+    const boxes = new Map<string, Rect>();
+    for (const object of objects) {
+      if (object.type === CONNECTOR_TYPE) continue;
+      boxes.set(object.id, objectBounds(object));
+    }
+    return boxes;
+  }, [objects]);
 
   const gesture = useTransformGesture({
     doc,
@@ -261,6 +291,29 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
                 />
               ) : null}
               <MarqueeRect rect={marquee.rect} camera={camera} />
+              {/* Story 10: the Shape and Connector tools are surfaces over the viewport, so a
+                  drag that starts on top of an object draws a shape or an arrow instead of
+                  moving that object (TC-28). They are mounted only while they are the tool in
+                  hand — a surface that is not the tool in hand would swallow the pointer for
+                  nothing — and never over a board this client may not write to. */}
+              {canEdit && tool.tool === 'shape' ? (
+                <ShapeTool
+                  kind={tool.shapeKind}
+                  camera={camera}
+                  doc={doc}
+                  createdBy={identity}
+                  onCreated={tool.toolCreated}
+                />
+              ) : null}
+              {canEdit && tool.tool === 'connector' ? (
+                <ConnectorTool
+                  camera={camera}
+                  snapshot={objects}
+                  doc={doc}
+                  createdBy={identity}
+                  onCreated={tool.toolCreated}
+                />
+              ) : null}
             </>
           }
         >
@@ -279,6 +332,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
                 selectedCount={selection.ids.size}
                 editing={selection.editingId === object.id}
                 dragging={gesture.dragging && selection.ids.has(object.id)}
+                rects={rects}
                 readOnly={!canEdit}
                 onSelect={selection.click}
                 onObjectPointerDown={gesture.onObjectPointerDown}
@@ -312,6 +366,10 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           tool={tool.tool}
           onSelectTool={() => tool.setTool('select')}
           onTextTool={() => tool.setTool('text')}
+          onShapeTool={() => tool.setTool('shape')}
+          onConnectorTool={() => tool.setTool('connector')}
+          shapeKind={tool.shapeKind}
+          onShapeKind={tool.setShapeKind}
           disabled={!canEdit}
           undo={undoState}
         />

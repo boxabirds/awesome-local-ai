@@ -124,6 +124,11 @@ export interface Selection {
   readonly editingId: string | null;
   /** Select exactly this object (a plain click, or the start of dragging an unselected one). */
   click(id: string): void;
+  /**
+   * Select exactly this object and do not edit it: the object a tool has just made, which
+   * this client knows about a moment before its own snapshot does (`tools.return_to_select`).
+   */
+  select(id: string): void;
   /** Shift+click: add this object, or remove it if it was already selected. */
   toggle(id: string): void;
   /** Marquee and select-all. Additive keeps what was already selected. */
@@ -177,6 +182,16 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   const toggle = useCallback((id: string): void => {
     dispatch({ type: 'toggle', id });
   }, []);
+  /**
+   * Select one object without editing it. `know` comes first for the same reason it does in
+   * `startEdit`: the object a tool has just written is not in `present` yet, and `setMany`
+   * ignores ids the snapshot has not heard of.
+   */
+  const select = useCallback((id: string): void => {
+    dispatch({ type: 'know', id });
+    dispatch({ type: 'setMany', ids: [id], additive: false });
+    dispatch({ type: 'edit', id: null });
+  }, []);
   const setMany = useCallback((ids: string[], additive: boolean): void => {
     dispatch({ type: 'setMany', ids, additive });
   }, []);
@@ -208,6 +223,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
     ids: state.ids,
     editingId: state.editingId,
     click,
+    select,
     toggle,
     setMany,
     clear,

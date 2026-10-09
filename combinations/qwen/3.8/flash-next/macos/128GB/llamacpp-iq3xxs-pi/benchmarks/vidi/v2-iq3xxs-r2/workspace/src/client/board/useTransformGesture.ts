@@ -46,8 +46,11 @@ export interface TransformGestureOptions {
 }
 
 export interface TransformGesture {
-  /** Press on an object: selects it if it is not selected, then may start a group move. */
-  onObjectPointerDown(event: ReactPointerEvent<HTMLElement>, id: string): void;
+  /**
+   * Press on an object: selects it if it is not selected, then may start a group move. An
+   * HTML element or an SVG one — the gesture reads the pointer, not what it landed on.
+   */
+  onObjectPointerDown(event: ReactPointerEvent<HTMLElement | SVGElement>, id: string): void;
   /** Press on one of the selection's 8 handles: may start a group resize. */
   onHandlePointerDown(event: ReactPointerEvent<HTMLElement>, handle: Handle): void;
   /** True between the threshold crossing and the release; objects render themselves pressed. */
@@ -339,7 +342,11 @@ export function useTransformGesture({
   );
 
   const press = useCallback(
-    (event: ReactPointerEvent<HTMLElement>, id: string | null, handle: Handle | null): void => {
+    (
+      event: ReactPointerEvent<HTMLElement | SVGElement>,
+      id: string | null,
+      handle: Handle | null,
+    ): void => {
       if (event.pointerType === 'touch') return; // touch input is out of scope for this story
       if (event.button !== 0) return;
       const shift = event.shiftKey;

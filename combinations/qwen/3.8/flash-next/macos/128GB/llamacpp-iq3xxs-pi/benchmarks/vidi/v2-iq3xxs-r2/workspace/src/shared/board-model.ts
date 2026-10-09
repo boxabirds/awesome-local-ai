@@ -1,6 +1,14 @@
 import * as Y from 'yjs';
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+// A shape and an arrow have more fields than a board object does, and their own modules
+// are the ones that read them. These imports go both ways (shape.ts and connector.ts take
+// ids and `z` from here), which is safe because nothing is used before both modules have
+// been read: every use is inside a function.
+import { readShapeObject, SHAPE_TYPE } from './objects/shape';
+import { detachConnectorsTo, readConnectorObject, CONNECTOR_TYPE } from './objects/connector';
+import type { ConnectorSnapshot } from './objects/connector';
+import type { ShapeSnapshot } from './objects/shape';
 
 /**
  * The board document model: the Yjs schema plus every mutation the client performs
@@ -58,8 +66,13 @@ export interface StickySnapshot extends ObjectSnapshotBase {
   known: true;
 }
 
-/** Any object this build read out of the document, sticky notes included. */
-export type ObjectSnapshot = ObjectSnapshotBase | StickySnapshot;
+/**
+ * Any object this build read out of the document: sticky notes, shapes, and any type this
+ * build knows nothing about beyond its box. A text object reads through `readText` in
+ * `objects/text.ts`, which extends the same base.
+ */
+export type ObjectSnapshot =
+  ObjectSnapshotBase | StickySnapshot | ShapeSnapshot | ConnectorSnapshot;
 
 /**
  * Is this a sticky note? The `type` of a general object is any string — it is read from a
@@ -68,6 +81,7 @@ export type ObjectSnapshot = ObjectSnapshotBase | StickySnapshot;
 export function isStickySnapshot(object: ObjectSnapshot): object is StickySnapshot {
   return object.type === STICKY_TYPE;
 }
+
 
 type YObject = Y.Map<unknown>;
 
@@ -247,7 +261,7 @@ function readSize(item: YObject): { width: number; height: number } {
  * it, and an object of any other type is reported as not `known` — skipped by select-all
  * and by the marquee, because there is nothing to select it with (TC-08).
  */
-const READABLE_TYPES = new Set<string>([STICKY_TYPE]);
+const READABLE_TYPES = new Set<string>([STICKY_TYPE, SHAPE_TYPE, CONNECTOR_TYPE]);
 
 export function isObjectTypeKnown(type: string): boolean {
   return READABLE_TYPES.has(type);
@@ -262,8 +276,17 @@ export function markObjectTypeKnown(type: string): void {
  * A generic object as far as the model is concerned: everything an object type has in
  * common. A sticky note reads through `readSticky` instead, because it has more fields.
  */
-function readObject(id: string, item: YObject): ObjectSnapshot | undefined {
+function readObject(
+  id: string,
+  item: YObject,
+  rects: ReadonlyMap<string, Rect>,
+): ObjectSnapshot | undefined {
   if (item.get('type') === STICKY_TYPE) return readSticky(id, item);
+  // A shape has more fields than the base, and its own module knows how to read them.
+  if (item.get('type') === SHAPE_TYPE) return readShapeObject(id, item);
+  // An arrow has no box of its own: its own module reads it, and needs the boxes of the
+  // objects its ends sit on to work out where it is (story 10).
+  if (item.get('type') === CONNECTOR_TYPE) return readConnectorObject(id, item, rects);
   const type = item.get('type');
   if (typeof type !== 'string' || type.length === 0) return undefined;
   const x = item.get('x');
@@ -317,12 +340,23 @@ function compareObjects(a: ObjectSnapshot, b: ObjectSnapshot): number {
  * selected (TC-08).
  */
 export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
-  const objects: ObjectSnapshot[] = [];
+  const items: [string, YObject][] = [];
   objectsOf(doc).forEach((item, id) => {
-    if (!(item instanceof Y.Map)) return;
-    const object = readObject(id, item);
-    if (object) objects.push(object);
+    if (item instanceof Y.Map) items.push([id, item]);
   });
+  // Two passes, because an arrow's box is the boxes of what it joins: every other
+  // object's rectangle first, then the arrows with that map in hand (story 10).
+  const rects = new Map<string, Rect>();
+  for (const [id, item] of items) {
+    if (item.get('type') === CONNECTOR_TYPE) continue;
+    const rect = boundsOfItem(item);
+    if (rect) rects.set(id, rect);
+  }
+  const objects: ObjectSnapshot[] = [];
+  for (const [id, item] of items) {
+    const object = readObject(id, item, rects);
+    if (object) objects.push(object);
+  }
   objects.sort(compareObjects);
   return objects;
 }
@@ -488,6 +522,10 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
  * Removes every object named by `ids` in one transaction, skipping ids that are gone, so
  * deleting a selection somebody else has partly deleted leaves a clean board rather than
  * an error (TC-31).
+ *
+ * Arrows that end on a deleted object are loosened first, in the same transaction, while
+ * the objects are still there to be asked where the arrow was attached (story 10 TC-13,
+ * design: connector.target_deleted). The arrows stay; only their ends come loose.
  */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
@@ -495,6 +533,7 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = ids.filter((id) => objectOf(doc, id) !== undefined);
   if (present.length === 0) return 0;
   doc.transact(() => {
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;

@@ -1,6 +1,6 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { CONNECTOR_HIT_TOLERANCE_PX, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import {
   markObjectTypeKnown,
   objectBounds,
@@ -8,8 +8,14 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { setTextWidthFixed, TEXT_TYPE } from '../../shared/objects/text';
+import { SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+import { SHAPE_TYPE } from '../../shared/objects/shape';
+import { isConnectorSnapshot, CONNECTOR_TYPE } from '../../shared/objects/connector';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { rectContains, type Point, type Rect } from '../../shared/geometry';
 import type { EndEditNext } from '../board/useSelection';
+import { ConnectorObject } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 
@@ -41,8 +47,19 @@ export interface ObjectProps {
   readOnly: boolean;
   /** A transform gesture (move or resize) is running on this client's board. */
   dragging: boolean;
+  /**
+   * Every other object's box, by id (story 10). Only an arrow asks: dragging one's end onto
+   * another object means knowing which object a board point is over, and the boxes the board
+   * has already read are the cheapest way to answer that. Arrows are left out of it — an
+   * arrow's box is its two ends, which makes it a box mostly full of empty board.
+   */
+  readonly rects?: ReadonlyMap<string, Rect>;
   /** Pressing an object is the start of a possible move: the gesture owns it from here. */
-  onObjectPointerDown(event: ReactPointerEvent<HTMLElement>, id: string): void;
+  /**
+   * The event may come from an HTML element or from an SVG one — an arrow's press is handled
+   * on its `<svg>`, and the gesture does not care which kind of element it landed on.
+   */
+  onObjectPointerDown(event: ReactPointerEvent<HTMLElement | SVGElement>, id: string): void;
   /** Selecting without a pointer: keyboard focus reaching an object. */
   onSelect(id: string): void;
   onStartEdit(id: string): void;
@@ -72,8 +89,13 @@ export interface ObjectTypeSpec {
    * handle pins the width instead of scaling a box. Absent means the generic box resize.
    */
   resizeObject?(doc: Y.Doc, id: string, to: Rect): void;
-  /** Is `worldPoint` on this object? Rectangular types: inside their bounds. */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Is `worldPoint` on this object? Rectangular types: inside their bounds. `zoom` is asked
+   * for by types whose hit area is not their box — an arrow is clicked by how close to its
+   * line the pointer was, and that tolerance is `CONNECTOR_HIT_TOLERANCE_PX` *screen* pixels,
+   * which is a smaller number of board units the closer the board is (TC-20).
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 /** Every type this build knows. Populated at import; nothing clears it. */
@@ -156,6 +178,38 @@ registerObjectType(STICKY_TYPE, {
 function resizeTextWidth(doc: Y.Doc, id: string, to: Rect): void {
   setTextWidthFixed(doc, id, to.width);
 }
+
+registerObjectType(SHAPE_TYPE, {
+  Component: ShapeObject,
+  // A shape is resized freely: a rectangle that would not go thin would not be a rectangle.
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: boundsContain,
+});
+
+/**
+ * An arrow is not a box: the point has to be near its line. The tolerance is stated in screen
+ * pixels (PRD: "within 6 screen pixels"), so it is divided by the zoom to get the board units
+ * this point is measured in — which is what makes a click that is close enough at 100% still
+ * close enough at 200% (TC-20).
+ */
+function nearConnector(obj: ObjectSnapshot, worldPoint: Point, zoom = 1): boolean {
+  if (!isConnectorSnapshot(obj)) return false;
+  const tolerance = CONNECTOR_HIT_TOLERANCE_PX / (zoom > 0 ? zoom : 1);
+  return distanceToPolyline([obj.ends.from, obj.ends.to], worldPoint) <= tolerance;
+}
+
+registerObjectType(CONNECTOR_TYPE, {
+  Component: ConnectorObject,
+  // An arrow goes where its ends go: there is no box of it to drag handles about.
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest: nearConnector,
+});
 
 registerObjectType(TEXT_TYPE, {
   Component: TextObject,

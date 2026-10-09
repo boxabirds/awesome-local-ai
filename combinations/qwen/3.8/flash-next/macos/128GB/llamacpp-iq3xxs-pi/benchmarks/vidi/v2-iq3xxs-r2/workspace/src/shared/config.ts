@@ -156,3 +156,50 @@ export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
  * the measured line, by `TEXT_MAX_AUTO_WIDTH_WORLD`.
  */
 export const TEXT_BOX_PADDING_WORLD = 8;
+
+// Story 10: shapes, and the arrows that connect them.
+
+/** The three kinds of shape this board draws, in the order the Shape menu lists them. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+/** A shape drawn by clicking (or by a drag too small to be a shape) is this big. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** A drag smaller than this in either direction counts as a click; a shape is never smaller. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Longest label a shape keeps. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** The outline of every shape, in board units, so it thickens with the board as everything else does. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** The seven fills the shape toolbar offers: six colours and no fill. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+/** The six outlines the shape toolbar offers. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type ShapeFillColor = keyof typeof SHAPE_FILL_COLORS;
+export type ShapeStrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+/** A new shape is a white rectangle with a dark outline (PRD: "a white rectangle with a dark outline"). */
+export const DEFAULT_SHAPE_FILL: ShapeFillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: ShapeStrokeColor = 'dark';
+/** A connector drag shorter than this (board units) is a mis-click, not an arrow. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** How close to an arrow's line (screen pixels) a click has to be to select it. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** The arrow's own line width, in board units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** The arrowhead's length and half-width, in board units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** The radius of a connection dot, in screen pixels (it never scales with zoom). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;

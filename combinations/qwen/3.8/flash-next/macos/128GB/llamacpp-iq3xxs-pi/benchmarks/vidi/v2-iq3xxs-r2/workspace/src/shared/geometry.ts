@@ -69,11 +69,27 @@ function isPoint(point: Point | undefined): boolean {
 }
 
 /**
+ * Is `point` inside `rect`, edges included? The question a pointer answers most often: a
+ * rectangular object holds the point its box holds (story 10 asks the same of an arrow's end,
+ * dropped onto whatever is under it).
+ */
+export function pointInRect(rect: Rect, point: Point): boolean {
+  if (!isRect(rect) || !isPoint(point)) return false;
+  return (
+    point.x >= rect.x &&
+    point.y >= rect.y &&
+    point.x <= rect.x + rect.width &&
+    point.y <= rect.y + rect.height
+  );
+}
+
+/**
  * True when `inner` lies entirely within `outer`. The marquee rule (PRD): "An object is
  * selected when its bounding box is entirely within the marquee rectangle." Edges that
  * line up exactly count as inside — nothing sticks out — while an object that only
  * touches the marquee from outside does not.
  */
+
 export function rectContains(outer: Rect, inner: Rect): boolean {
   if (!isRect(outer) || !isRect(inner)) return false;
   return (
