@@ -2,12 +2,15 @@ import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { rectContains, type Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { isStrokeObject } from '../../shared/board-model';
+import { scaledPoints } from '../../shared/objects/stroke';
 
 // Props every object-type renderer receives from the board viewport. The
 // viewport owns selection and the transform gesture; components only declare
@@ -108,4 +111,25 @@ registerObjectType('connector', {
   minSize: 0,
   editableText: false,
   hitTest: connectorHitTest
+});
+
+// Story 11: strokes hit against the recorded line (never the empty bbox),
+// resize aspect-locked so the drawing is never distorted, and their thickness
+// is a style key unaffected by the bbox scale.
+const strokeHitTest = (obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean => {
+  if (!isStrokeObject(obj)) return false;
+  const tolerance = Math.max(
+    PEN_THICKNESS_WORLD[obj.thickness] / 2,
+    STROKE_HIT_TOLERANCE_PX / (zoom === undefined || zoom <= 0 ? 1 : zoom)
+  );
+  return distanceToPolyline(scaledPoints(obj), worldPoint) <= tolerance;
+};
+
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: strokeHitTest
 });

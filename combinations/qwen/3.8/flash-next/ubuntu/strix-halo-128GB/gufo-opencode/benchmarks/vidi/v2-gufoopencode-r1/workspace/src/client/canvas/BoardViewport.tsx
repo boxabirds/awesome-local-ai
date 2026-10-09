@@ -25,6 +25,9 @@ import { useTransformGesture } from '../board/useTransformGesture';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { getObjectType, ATTACHABLE_TYPES } from '../objects/registry';
 import { useUndo, useUndoController } from '../board/useUndo';
 import type { SelectionApi } from '../board/useSelection';
@@ -251,6 +254,9 @@ export function BoardViewport(props: BoardViewportProps) {
     canEdit: props.editable !== false,
     selection: props.selection
   });
+  // Story 11: pen style is session state; the Pen tool stays armed after each
+  // stroke (no toolCreated call from PenTool).
+  const penOptions = usePenOptions();
   const shapeKindRef = useRef(shapeKind);
   shapeKindRef.current = shapeKind;
 
@@ -550,6 +556,15 @@ export function BoardViewport(props: BoardViewportProps) {
             onCreateConnector={createConnectorEnds}
           />
         ) : null}
+        {tool === 'pen' && props.doc !== undefined ? (
+          <PenTool
+            camera={camera}
+            color={penOptions.color}
+            thickness={penOptions.thickness}
+            doc={props.doc}
+            identityId={getSessionId()}
+          />
+        ) : null}
         {selection !== undefined && props.doc !== undefined ? (
           <SelectionOverlay
             ids={selection.ids}
@@ -592,6 +607,15 @@ export function BoardViewport(props: BoardViewportProps) {
           onToolChange={setTool}
           shapeKind={shapeKind}
           onShapeKindChange={setShapeKind}
+        />
+      ) : null}
+      {props.doc !== undefined && tool === 'pen' ? (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
+          disabled={props.editable === false}
         />
       ) : null}
       <ZoomControls

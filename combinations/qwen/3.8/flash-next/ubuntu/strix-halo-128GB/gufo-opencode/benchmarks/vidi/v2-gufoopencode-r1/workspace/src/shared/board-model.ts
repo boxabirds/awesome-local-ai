@@ -4,6 +4,7 @@ import { rectContains, type Point, type Rect } from './geometry';
 import type { TextSnapshot } from './objects/text';
 import { readShape, type ShapeSnapshot } from './objects/shape';
 import { detachConnectorsTo, readConnector, type ConnectorSnapshot } from './objects/connector';
+import { readStroke, type StrokeSnapshot } from './objects/stroke';
 
 // Origin tag for every local mutation. Story 8 uses it for undo and story 3 to
 // avoid echoing changes back over the network.
@@ -31,7 +32,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 
 // Types this story's model knows how to read. Unknown types stay in the doc
 // untouched and are never selectable, listed or measured (design sel.registry).
-const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector']);
+const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector', 'stroke']);
 
 export function isKnownObjectType(type: string): boolean {
   return KNOWN_OBJECT_TYPES.has(type);
@@ -255,6 +256,18 @@ export function isConnectorObject(obj: ObjectSnapshot): obj is ConnectorSnapshot
   );
 }
 
+export function isStrokeObject(obj: ObjectSnapshot): obj is StrokeSnapshot {
+  const candidate = obj as Partial<StrokeSnapshot>;
+  return (
+    obj.type === 'stroke' &&
+    Array.isArray(candidate.points) &&
+    typeof candidate.color === 'string' &&
+    typeof candidate.thickness === 'string' &&
+    typeof candidate.baseWidth === 'number' &&
+    typeof candidate.baseHeight === 'number'
+  );
+}
+
 // Every known object in the doc, ordered for rendering (z, then id).
 // Connectors are read in a second pass because their bounds are derived from
 // the rects of the objects they attach to (which are computed in the first).
@@ -273,6 +286,8 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
       placed = readText(id, entry);
     } else if (type === 'shape') {
       placed = readShape(id, entry);
+    } else if (type === 'stroke') {
+      placed = readStroke(id, entry);
     } else if (type === 'connector') {
       connectors.push([id, entry]);
       continue;

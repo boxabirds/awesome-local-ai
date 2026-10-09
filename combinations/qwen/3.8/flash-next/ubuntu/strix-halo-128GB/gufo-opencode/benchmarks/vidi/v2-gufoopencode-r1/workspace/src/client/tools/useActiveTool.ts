@@ -12,7 +12,8 @@ export const TOOL_SHORTCUTS: Readonly<Record<string, Tool>> = {
   v: 'select',
   t: 'text',
   s: 'shape',
-  l: 'connector'
+  l: 'connector',
+  p: 'pen'
 };
 
 export interface ActiveToolApi {

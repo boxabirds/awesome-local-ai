@@ -8,6 +8,9 @@ const containerStyle: CSSProperties = {
   position: 'fixed',
   left: 16,
   bottom: 16,
+  // Above tool overlays (zIndex 45) so the toolbar stays clickable while a
+  // creation tool is armed (story 11: Pen stays active after each stroke).
+  zIndex: 50,
   display: 'flex',
   flexDirection: 'row',
   gap: 6,
@@ -101,6 +104,17 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
             onClick={() => props.onToolChange?.('connector')}
           >
             ↗
+          </button>
+          <button
+            type="button"
+            aria-label="Pen (P)"
+            title="Pen – or press P"
+            aria-pressed={props.tool === 'pen'}
+            style={buttonStyle}
+            disabled={props.disabled === true}
+            onClick={() => props.onToolChange?.('pen')}
+          >
+            ✎
           </button>
           {props.shapeKind !== undefined ? (
             <div data-testid="shape-kind-menu" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
