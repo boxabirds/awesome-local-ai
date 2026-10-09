@@ -699,6 +699,14 @@ describe("tokens and speed", () => {
     expect(st.usage!.split).toMatchObject({ prefill: 0, decode: 0, modelUnsplit: 1400, other: 0 });
   });
 
+  it("OpenCode's model time isn't split into reading and writing: it is the model's time, not split, not a prefill of 0", () => {
+    // 9 Oct 2026: its events carry no first-token time, so the record puts all of a step in decode (source opencode-stream);
+    // the page showed "Prefill 0 s 0%" and "Generation 1,627 s" as if both had been measured.
+    const st = storyEntry("1", { agent: { seconds: 1800, tokens: {} }, time_split: { wall_s: 1900, tools_s: 160, compaction_s: 0, other_s: 47,
+      model: { source: "opencode-stream", prefill_s: 0, decode_s: 1626.9 } } } as never);
+    expect(st.usage!.split).toMatchObject({ prefill: 0, decode: 0, modelUnsplit: 1626.9, tools: 160, other: 47 });
+  });
+
   it("a run's tok/s is weighted by tokens, not an average of the stories' rates", () => {
     const u = runUsage([storyEntry("1", raw(1000, 100, 10, 1)), storyEntry("2", raw(9000, 900, 180, 9))]);
     expect(u.outTokens).toBe(10000);
