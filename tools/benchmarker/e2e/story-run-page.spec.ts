@@ -176,9 +176,10 @@ test.describe("host load", () => {
     for (const [term, text] of want) await expect(stat(page, "host", term).locator(".stat-value"), term).toHaveText(text);
   });
 
-  test("a story from before the host figures existed has no such block, and says nothing about it", async ({ page }) => {
+  test("a story from before the host figures existed still has the block, and says when they began", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
-    await expect(section(page, "host")).toHaveCount(0);
+    await expect(section(page, "host")).toHaveCount(1);
+    await expect(section(page, "host")).toContainText("Not recorded: this story ran before the machine's load was recorded (9 Oct 2026)");
   });
 });
 
@@ -882,10 +883,10 @@ test.describe("a story run with no record shows what is known", () => {
 
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("links and keyboard", () => {
-  test("sections come in order: header, time, cost, conversation, against the combination, what differed, against every combination, navigation", async ({ page }) => {
+  test("sections come in order: header, time, cost, machine load, conversation, against the combination, what differed, against every combination, navigation", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     const order = await page.locator('[data-page="storyRun"] > [data-section]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.section));
-    expect(order).toEqual(["header", "time", "cost", "conversation", "against", "differed", "across", "nav"]);
+    expect(order).toEqual(["header", "time", "cost", "host", "conversation", "against", "differed", "across", "nav"]);
   });
 
   test("every label with a definition takes it from the glossary", async ({ page }) => {

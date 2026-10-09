@@ -145,7 +145,7 @@ GUIDE_DATA.entities = [
     id: "machine", name: "Machine (node)", group: "stack", row: 3,
     short: "The hardware a combination was measured on.",
     what: "The hardware a combination was measured on, named by hardware and never by hostname: the RTX 4090 machine (Ubuntu, and Windows on the same disk), the Strix Halo box (Ryzen AI Max+ 395, 128 GB) and the M5 Max (Apple, 128 GB); the monitor's list also has an M2 MacBook Air. A machine that runs `dbench serve` is a node. It runs one job at a time.",
-    contains: ["a path segment of the combination (`nvidia4090`, `strix-halo-128GB`, `128GB`)", "a hardware description recorded per run", "conditions sampled every 30 s during a story: power, thermals, swap, free memory, GPU"],
+    contains: ["a path segment of the combination (`nvidia4090`, `strix-halo-128GB`, `128GB`)", "a hardware description recorded per run", "conditions sampled every 30 s during a story: power, thermals, swap, free memory, GPU and, from 9 October 2026, the host's own load (CPU, kernel stalls, paging, page cache, busiest process)"],
     rel: [["runs", "node-server"]],
     repo: [["README.md", "README: the bench machines"], ["benchmarks/spec-bench/harness/host-desc.sh", "harness/host-desc.sh"], ["tools/windows-bench-host/README.md", "Windows bench host"]],
     example: "The Strix Halo box: AMD Ryzen AI Max+ 395 with 128 GB, Ubuntu 26.04, running llama.cpp and gufo.",

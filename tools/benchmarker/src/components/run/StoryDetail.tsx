@@ -77,9 +77,9 @@ export function StoryCost({ usage, cloud = false }: { usage: Usage | null | unde
 }
 
 /** What the host itself was doing while the story ran (CPU, stalls, paging, page cache): peaks and typical values from the record's readings.
- * Nothing at all for a story recorded before the readings existed: there is no figure to be missing, and no panel of "—". */
+ * A story recorded before the readings existed (9 Oct 2026) still has the block, saying so, so a missing figure is never mistaken for a quiet machine. */
 export function StoryHost({ host }: { host: StoryHostFigures | null | undefined }) {
-  if (!host) return null;
+  if (!host) return <Section term="storyHost" id="host"><p className="rp-empty" data-empty="host">Not recorded: this story ran before the machine's load was recorded (9 Oct 2026).</p></Section>;
   const one = (v: number | null, f: (n: number) => string): ReactNode => (v === null ? <Missing why="The machine did not report this." /> : f(v));
   const stalls = [["cpu", host.stallCpuMax], ["mem", host.stallMemoryMax], ["io", host.stallIoMax]].filter(([, v]) => v !== null).map(([k, v]) => `${k} ${(v as number).toFixed(1)}%`);
   return (

@@ -99,6 +99,11 @@ export function agentTime(run: Pick<Row, "stories" | "status" | "live">): AgentT
   };
 }
 
+/** How many of a run's recorded stories carry the machine's load (readings began 9 Oct 2026); null when the run has no recorded story. */
+export function hostCoverage(run: Pick<Row, "stories">): { recorded: number; of: number } | null {
+  return run.stories.length ? { recorded: run.stories.filter((s) => s.host).length, of: run.stories.length } : null;
+}
+
 /** The stories in the run's scope, in order: its squares, plus any recorded story they don't list. */
 export function scopeIds(run: Pick<Row, "stories" | "storiesWorking">): string[] {
   const ids = new Set([...run.storiesWorking.squares.map((q) => q.id), ...run.stories.map((s) => s.id)]);

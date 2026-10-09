@@ -8,7 +8,7 @@ import {
   runTimeBars, runTotals, scopeIds, scoreOfRecord, segmentTip, signedPercent, splitParts, squareTip, statusView, storyResults,
   storyRunState, storyTitle, toolKinds, whyMissing, whyRunMissing, againstAbsent,
   groupInterventions, interventionsOf, interventionText, interventionTip, INTERVENTION_OTHER, MAX_TIP_INTERVENTIONS,
-  againstFlagTip, typicalRun, whatDiffered, BELOW_CAVEAT, HELD_OUT_CAVEAT, runMemory, compareMany, compareBlocks,
+  againstFlagTip, hostCoverage, typicalRun, whatDiffered, BELOW_CAVEAT, HELD_OUT_CAVEAT, runMemory, compareMany, compareBlocks,
 } from "./runView.ts";
 import { classifyMechanism } from "./combinationView.ts";
 import { GLOSSARY } from "./glossary.ts";
@@ -1316,5 +1316,18 @@ describe("compareBlocks: one block per story, a line per run, this run first", (
     const m = COMPARE_MEASURES.find((m) => m.key === "decodeTokS")!;
     expect(m.value(withSplit("1", 900))).toBe(50);
     expect(m.value(story("1", { usage: null }))).toBeNull();
+  });
+});
+
+describe("hostCoverage: how many of a run's recorded stories carry the machine's load", () => {
+  const host = { samples: 4, cpuBusyMedian: 50, cpuBusyMax: 60, loadMax: 3, stallCpuMax: 0, stallMemoryMax: 0, stallIoMax: 0, majorFaultsMax: 0, cacheMinGb: 8, topComm: "x" };
+  it("counts the stories that have it against the stories recorded", () => {
+    expect(hostCoverage(row({ stories: [story("1", { host }), story("2", { host: null }), story("3", { host })] }))).toEqual({ recorded: 2, of: 3 });
+  });
+  it("none of them: zero of the recorded stories", () => {
+    expect(hostCoverage(row({ stories: [story("1"), story("2", { host: null })] }))).toEqual({ recorded: 0, of: 2 });
+  });
+  it("a run with no recorded story has no coverage to state", () => {
+    expect(hostCoverage(row({ stories: [] }))).toBeNull();
   });
 });

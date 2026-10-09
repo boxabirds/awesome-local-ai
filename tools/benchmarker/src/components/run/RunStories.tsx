@@ -3,7 +3,7 @@
 // row, empty, with a light italic word for it.
 import type { ReactNode } from "react";
 import type { Row, Usage } from "../../../shared/types.ts";
-import { isCloud, runTimeBars, runTotals, interventionsOf, storyResults, storyTitle, whyMissing, whyRunMissing, type StoryResult } from "../../../shared/runView.ts";
+import { isCloud, runTimeBars, runTotals, hostCoverage, interventionsOf, storyResults, storyTitle, whyMissing, whyRunMissing, type StoryResult } from "../../../shared/runView.ts";
 import { conversationHref, storyRunHref } from "../../../shared/routes.ts";
 import { StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { CollapsedMark, InterventionMark, interventionHref } from "../RunMarks.tsx";
@@ -48,6 +48,7 @@ export function RunStories({ run, rows, judgeUrl }: { run: Row; rows: Row[]; jud
   const cloud = isCloud(run);
   const { bars, scaleSeconds } = runTimeBars(run);
   const results = storyResults(run);
+  const load = hostCoverage(run);
   const or = (v: number | null, show: (n: number) => string, why: Parameters<typeof whyRunMissing>[1]) =>
     v === null ? <Missing why={whyRunMissing(run, why)} /> : show(v);
   return (
@@ -61,6 +62,7 @@ export function RunStories({ run, rows, judgeUrl }: { run: Row; rows: Row[]; jud
         <Stat term="compactions">{or(t.compactions, String, "counter")}</Stat>
         <Stat term="nudges">{or(t.nudges, String, "counter")}</Stat>
       </div>
+      {load ? <p className="small" data-fact="hostCoverage">Machine load recorded for {load.recorded} of {load.of} {load.of === 1 ? "story" : "stories"}</p> : null}
       <EngineSpeed decode={t.decodeTokS} prefill={t.prefillTokS} whyDecode={whyRunMissing(run, "model-speed")} whyPrefill={whyRunMissing(run, "model-speed")} cloud={cloud} />
       {results.length === 0 ? <p className="rp-empty">No stories in scope are known for this run.</p> : <>
         <SegmentLegend />

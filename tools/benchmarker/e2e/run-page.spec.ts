@@ -962,3 +962,15 @@ test.describe("memory", () => {
     expect(order.slice(0, 3)).toEqual(["header", "stories", "memory"]);
   });
 });
+
+test.describe("machine load coverage", () => {
+  test("states how many of the run's recorded stories carry the machine's load", async ({ page }) => {
+    await patchState(page, (s) => {
+      const r = rowOf(s, SWIFT, "v2-r5");
+      r.stories!.forEach((st, i) => { st.host = i === 0 ? { samples: 4, cpuBusyMedian: 50, cpuBusyMax: 60, loadMax: 3, stallCpuMax: 0, stallMemoryMax: 0, stallIoMax: 0, majorFaultsMax: 0, cacheMinGb: 8, topComm: "x" } : null; });
+    });
+    await page.goto(runPath(SWIFT, "v2-r5"));
+    const n = await page.evaluate(async () => (await (await fetch("/api/state")).json()).rows.find((r: { runId: string; stack: string }) => r.runId === "v2-r5" && r.stack.includes("swift")).stories.length);
+    await expect(page.locator('[data-page="run"] [data-fact="hostCoverage"]')).toHaveText(`Machine load recorded for 1 of ${n} stories`);
+  });
+});
