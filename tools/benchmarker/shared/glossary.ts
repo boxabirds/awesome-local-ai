@@ -95,7 +95,7 @@ export const GLOSSARY = {
   splitParts: { name: "Parts", what: "Each part's seconds and its share of the story's wall time." },
   segPrefill: { name: "Prefill", what: "the model reading its input (including re-reading after a compaction or a resumed session)" },
   segDecode: { name: "Generation", what: "the model writing its output" },
-  segModelUnsplit: { name: "Model, not split", what: "a model whose time wasn't split into reading and writing (a cloud model), together with the agent's own time" },
+  segModelUnsplit: { name: "Model, not split", what: "a model whose time wasn't split into reading and writing because the record has no time for when reading ended (a cloud model, or a story whose server log gave none), together with the agent's own time" },
   segCompaction: { name: "Compaction", what: "the model summarising its own conversation to make room" },
   segTools: { name: "Tools", what: "the agent waiting on its own tool calls: its test runs, builds, file reads and edits, and any other command" },
   segBetweenSessions: { name: "Between sessions", what: "waiting to start the agent's next session after one ended: a pause before resuming an agent whose session ended in an error, and a message to one that stopped before the story was finished" },
