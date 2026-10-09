@@ -501,3 +501,46 @@ alive and to carry no product-visible state in this story.
   (testMatch extended to `|shapes|connectors`). The flows are DOM/pointer only,
   so porting is a config change.
 - **No new ports.** Story 10 reuses 29040 (shared e2e `webServer`).
+
+## 14. Story 11 — sketch freehand with a pen
+
+- **Mid-draw unmount cancels (no commit).** Escape mid-stroke arms Select and
+  unmounts `PenTool`. Story 10's design says "Escape cancels an in-progress
+draw", so an *intentional* tool switch discards the points; the PRD's
+  "keep the stroke" rule is for *system* interrupts (`pointercancel` /
+  `lostpointercapture`), which commit what has been drawn. The unmount effect
+  just clears the draw state — no `commitPart` call.
+- **Coalesced events.** On pointermove the tool processes
+  `e.getCoalescedEvents()` and *then* appends the current event (the spec says
+  the current event is not in the coalesced list). jsdom has no
+  `getCoalescedEvents`, so component tests see exactly one point per event.
+- **Preview is rAF-driven and stores the full draw state.** The in-progress
+  points, colour and thickness are locked at pointerdown (a gesture can't
+  change options mid-draw); the rAF loop renders the smooth path from
+  `drawRef` into `data-pen-preview`. Component tests fake
+  `requestAnimationFrame` and flush with `act(() => vi.advanceTimersByTime(16))`
+  (safe: `connectBoard` is mocked and nothing else in `<Board>` uses rAF or
+  timers during mount). Real e2e (TC-17) samples the preview `d` via a rAF
+  promise *in the page* while the mouse drag runs in parallel.
+- **TC-12 float precision.** `scaledPoints` rebuilds absolute points as
+  `origin + relative * (size/base)`; IEEE arithmetic does not guarantee
+  `x + (p.x - x) === p.x`, so the join-point assertion uses `toBeCloseTo(..., 8)`
+  (the parts are still the same doubles — well inside a pixel at any zoom).
+- **TC-16 (jsdom) is a two-part assertion.** jsdom performs no geometric
+  hit-testing, so the test proves (a) the registry `hitTest` rejects a point
+  inside the bbox but far from the line, and (b) clicking the element a browser
+  would actually reach there (the sticky below) selects the sticky — not the
+  stroke. The real browser proof is e2e TC-20 (click selects the line itself).
+- **E2E pen camera is `(0,0,1)`** (like story 10): screen = world. The fixture
+  paths (`tests/fixtures/pen-paths.ts`) sit inside the 1280x800 viewport at
+  that camera. `playwright.config.ts` testMatch extended with `|pen`.
+- **Wheel pans map-style with the pen active.** The pen layer intercepts
+  pointer events but not wheel: the wheel bubbles to the viewport's native
+  (non-passive) listener, which pans `(-deltaX, -deltaY)` — wheel deltaY +100
+  moves the content *up* (TC-19 asserts that convention).
+- **Pre-existing e2e flakes under load.** `live-collaboration` TC-23 and
+  `multi-select` TC-33 occasionally fail when the full suite runs on the shared
+  test machine (they pass in isolation and on re-run); both are
+  timing-sensitive pre-existing specs untouched by this story. The final full
+  run was green (35/35).
+- **No new ports.** Story 11 reuses 29040 (shared e2e `webServer`).

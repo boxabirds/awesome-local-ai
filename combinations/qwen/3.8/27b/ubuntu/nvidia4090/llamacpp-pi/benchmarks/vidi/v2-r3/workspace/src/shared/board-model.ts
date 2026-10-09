@@ -11,6 +11,8 @@
  */
 import * as Y from 'yjs';
 import {
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
   DEFAULT_SHAPE_FILL,
   DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
@@ -19,6 +21,7 @@ import {
   type StickyColor,
 } from './config';
 import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import type { PenColor } from './objects/stroke';
 import { rectContains } from './geometry';
 import type { Point, Rect } from './geometry';
 import type { Endpoint } from './objects/connector';
@@ -39,7 +42,7 @@ export interface ObjectSnapshot {
   y: number;
   width?: number;
   height?: number;
-  color?: StickyColor;
+  color?: StickyColor | PenColor;
   text?: string;
   z: number;
   createdAt: number;
@@ -51,6 +54,11 @@ export interface ObjectSnapshot {
   // type-specific (story 10): connectors
   from?: Endpoint;
   to?: Endpoint;
+  // type-specific (story 11): strokes
+  points?: readonly number[];
+  baseWidth?: number;
+  baseHeight?: number;
+  thickness?: string;
 }
 
 export type StickySnapshot = ObjectSnapshot & {
@@ -375,6 +383,13 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (type === 'connector') {
       o.from = item.get('from') as Endpoint | undefined;
       o.to = item.get('to') as Endpoint | undefined;
+    }
+    if (type === 'stroke') {
+      o.points = (item.get('points') as number[]) ?? [];
+      o.baseWidth = (item.get('baseWidth') as number) ?? 0;
+      o.baseHeight = (item.get('baseHeight') as number) ?? 0;
+      o.color = (item.get('color') as PenColor) ?? DEFAULT_PEN_COLOR;
+      o.thickness = (item.get('thickness') as string) ?? DEFAULT_PEN_THICKNESS;
     }
     out.push(o);
   });

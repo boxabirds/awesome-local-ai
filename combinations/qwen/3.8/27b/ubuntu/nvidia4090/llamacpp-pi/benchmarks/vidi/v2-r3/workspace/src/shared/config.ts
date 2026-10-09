@@ -10,6 +10,7 @@
  * Story 8 — per-user undo and redo
  * Story 9 — free text objects
  * Story 10 — shapes and connectors
+ * Story 11 — pen (freehand sketching)
  */
 
 // Story 1
@@ -111,3 +112,56 @@ export const CONNECTOR_HIT_TOLERANCE_PX = 6;
 export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
 export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+// Story 11
+
+/** Pen colours. The keys are the saved `color` values on a stroke. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+/**
+ * Pen thicknesses in *world* units (they do not scale with zoom). The keys
+ * are the saved `thickness` values on a stroke.
+ */
+export const PEN_THICKNESS_WORLD = {
+  thin: 2,
+  medium: 4,
+  thick: 8,
+} as const;
+
+/** Default pen colour (session state, story 11 `pen.options`). */
+export const DEFAULT_PEN_COLOR: keyof typeof PEN_COLORS = 'black';
+
+/** Default pen thickness (session state, story 11 `pen.options`). */
+export const DEFAULT_PEN_THICKNESS: keyof typeof PEN_THICKNESS_WORLD = 'medium';
+
+/**
+ * RDP simplify tolerance in *screen* pixels at the current zoom (story 11
+ * `stroke.model`): a 1 px tolerance at the zoom you drew with.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * A stroke records at most this many points; at the limit the part drawn so
+ * far is committed and the rest continues as the next stroke (story 11
+ * `pen.tool`).
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/**
+ * The minimum world distance from the drawn line for a stroke to accept a
+ * click/tap/drag on it (story 11 `stroke.object`).
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/**
+ * Minimum world size of a stroke's bbox while resizing (story 11
+ * `stroke.object`).
+ */
+export const STROKE_MIN_SIZE_WORLD = 4;

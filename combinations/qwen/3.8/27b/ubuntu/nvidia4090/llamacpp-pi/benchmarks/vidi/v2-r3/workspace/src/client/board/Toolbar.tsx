@@ -39,8 +39,8 @@ function ToolButton(props: {
 }
 
 /**
- * Left toolbar: the Select / Shape / Text / Connector tool buttons, the
- * Sticky note button (shortcut N, or double-click the board) and the
+ * Left toolbar: the Select / Shape / Text / Connector / Pen tool buttons,
+ * the Sticky note button (shortcut N, or double-click the board) and the
  * Undo/Redo buttons (story 8). `disabled` (the board failed to load)
  * disables the editing buttons; the double-click path is gated in App.
  *
@@ -150,6 +150,13 @@ export function Toolbar(props: {
         pressed={props.tool === 'connector'}
         disabled={props.disabled}
         onClick={() => props.onSelectTool('connector')}
+      />
+      <ToolButton
+        label="Pen (P)"
+        glyph="✎"
+        pressed={props.tool === 'pen'}
+        disabled={props.disabled}
+        onClick={() => props.onSelectTool('pen')}
       />
       <div style={{ height: 1, background: '#e4e7ec', margin: '2px 0' }} />
       <button

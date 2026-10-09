@@ -8,8 +8,9 @@ import type { SelectionApi } from '../board/useSelection';
  * Story 10 (tool contract): the active tool, per client.
  *
  * 'select' is the default. 'text' and 'shape' keep their story 9 / story 10
- * behaviour; 'connector' arms the connector tool. 'pen' / 'image' /
- * 'comment' are reserved for later stories — their shortcuts do nothing here.
+ * behaviour; 'connector' arms the connector tool; 'pen' (story 11) draws
+ * freehand strokes. 'image' / 'comment' are reserved for later stories —
+ * their shortcuts do nothing here.
  *
  * The tool is client state only — it is never persisted in the shared doc,
  * so each client keeps its own tool. When the board becomes non-editable
@@ -17,7 +18,8 @@ import type { SelectionApi } from '../board/useSelection';
  *
  * Keyboard shortcuts (window keydown, ignored while editing text or focus is
  * in an input/textarea/content element): v → Select, n → new sticky at the
- * view centre (story 9 behaviour), t → Text, s → Shape, l → Connector.
+ * view centre (story 9 behaviour), t → Text, s → Shape, l → Connector,
+ * p → Pen.
  * Escape (cancel an in-progress draw / back to Select) stays in
  * useBoardKeys, which owns the other board keys.
  */
@@ -44,7 +46,7 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 };
 
 /** Tools that can actually be armed in this story. */
-const ARMABLE: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector']);
+const ARMABLE: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector', 'pen']);
 
 export interface ActiveToolApi {
   readonly tool: ToolId;
@@ -122,7 +124,7 @@ export function useActiveTool(opts: {
         onNewStickyRef.current();
         return;
       }
-      if (!ARMABLE.has(dest)) return; // pen/image/comment: later stories
+      if (!ARMABLE.has(dest)) return; // image/comment: later stories
       if (!canEditRef.current && dest !== 'select') return;
       e.preventDefault();
       setToolState(dest);

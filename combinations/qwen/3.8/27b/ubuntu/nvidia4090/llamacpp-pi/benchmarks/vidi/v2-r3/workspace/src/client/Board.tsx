@@ -22,6 +22,9 @@ import { useBoardKeys } from './board/useBoardKeys';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { buildRects, getObjectType } from './objects/registry';
@@ -162,6 +165,9 @@ export function Board(props: { boardId: string }): ReactElement {
   });
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = toolApi;
 
+  // Story 11 (pen.options): the pen's colour/thickness, session state only.
+  const penOptions = usePenOptions();
+
   // Story 10: the id → world Rect map, passed to every object component
   // (connector endpoint resolution, hit tests) and the tool layers.
   const rects = useMemo(() => buildRects(objects), [objects]);
@@ -284,7 +290,16 @@ export function Board(props: { boardId: string }): ReactElement {
         onMarqueeEnd={() => marquee.end()}
         onMarqueeCancel={() => marquee.cancel()}
         toolLayer={
-          tool === 'shape' && editable ? (
+          tool === 'pen' && editable ? (
+            <PenTool
+              camera={cam.camera}
+              color={penOptions.color}
+              thickness={penOptions.thickness}
+              doc={doc}
+              identityId={identityIdRef.current}
+              undo={undoState.controller}
+            />
+          ) : tool === 'shape' && editable ? (
             <ShapeTool
               kind={shapeKind}
               camera={cam.camera}
@@ -356,6 +371,14 @@ export function Board(props: { boardId: string }): ReactElement {
         onUndo={undoState.undo}
         onRedo={undoState.redo}
       />
+      {tool === 'pen' && editable && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
+        />
+      )}
       <ZoomControls
         zoom={cam.camera.zoom}
         onZoomIn={() => cam.zoomStep('in')}

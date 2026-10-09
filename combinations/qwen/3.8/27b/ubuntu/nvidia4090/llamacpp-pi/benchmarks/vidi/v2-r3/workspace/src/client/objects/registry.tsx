@@ -8,16 +8,22 @@ import type { Point } from '../canvas/camera';
 import type { Rect } from '../../shared/geometry';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
+import type { PenThickness } from '../../shared/objects/stroke';
+import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
 import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import type { UndoController } from '../board/undo';
 import { ConnectorObject } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeObject } from './StrokeObject';
 import { TextObject } from './TextObject';
 
 /**
@@ -181,6 +187,30 @@ registerObjectType('shape', {
   minSize: SHAPE_MIN_SIZE_WORLD,
   editableText: true,
   hitTest: (obj, p) => boundsHitTest(obj, p),
+});
+
+/**
+ * Register the story 11 stroke type: resizable with a locked aspect ratio
+ * (a resize scales the drawn points with the box via scaledPoints — the
+ * thickness stays in world units), minimum STROKE_MIN_SIZE_WORLD, no
+ * editable text. Hit test: within max(half thickness,
+ * STROKE_HIT_TOLERANCE_PX / zoom) world units of the drawn line — a click
+ * far from the line but inside the bbox misses (and selects what is below).
+ */
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, p, zoom) => {
+    const s = obj as StrokeSnap;
+    const t = PEN_THICKNESS_WORLD[s.thickness as PenThickness] ?? PEN_THICKNESS_WORLD.medium;
+    return (
+      distanceToPolyline(scaledPoints(s), p) <=
+      Math.max(t / 2, STROKE_HIT_TOLERANCE_PX / zoom)
+    );
+  },
 });
 
 /**
