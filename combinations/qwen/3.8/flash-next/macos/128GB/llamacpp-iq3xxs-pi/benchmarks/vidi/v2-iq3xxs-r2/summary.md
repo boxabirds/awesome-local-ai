@@ -16,8 +16,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 7 | 8/8 | 0 | 1 | 43/44 |
 | 8 | 7/7 | 0 | 0 | 50/51 |
 | 9 | 5/6 | 0 | 1 | 56/57 |
+| 10 | 8/8 | 1 | 0 | 63/65 |
 
-**New work** 51/53, **regressions** 1, **repairs** 2, **cumulative** 56/57.
+**New work** 59/61, **regressions** 2, **repairs** 2, **cumulative** 63/65.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -29,8 +30,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 7 | Select, move, resize and delete several objects at once | DONE | 211.4 | None | None | None | — | — | green | 43/44 |  | 0 / 0 | 5 | — | throttled 97%, server peak 79 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 170.4 | None | None | None | — | — | green | 50/51 |  | 0 / 0 | 4 | — | throttled 90%, server peak 79 GB |
 | 9 | Write free text anywhere on the board | DONE | 148.5 | None | None | None | — | — | green | 56/57 |  | 0 / 1 | 4 | — | throttled 92%, server peak 79 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 140.5 | None | None | None | — | — | green | 63/65 |  | 0 / 0 | 4 | — | throttled 92%, server peak 79 GB |
 
-**Totals:** 8 stories, 1271 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/8, final acceptance 56/57, stalled 0, partial 0, 26598 lines in src+tests.
+**Totals:** 9 stories, 1412 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 9/9, final acceptance 63/65, stalled 0, partial 0, 32262 lines in src+tests.
 
 ## How it happened
 
@@ -46,6 +48,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | 9 by the agent | 5402 / 507 | `useTransformGesture.ts` (399), `board-model.ts` (360), `useSelection.ts` (345), `geometry.ts` (314), `StickyNote.tsx` (259), `Board.tsx` (206), +10 more |
 | 8 | 5 by the agent | 2375 / 27 | `undo.ts` (144), `NOTES.md` (133), `UndoButtons.tsx` (93), `useUndo.ts` (58), `Board.tsx` (45), `styles.css` (37), +7 more |
 | 9 | 9 by the agent | 4429 / 482 | `text.ts` (371), `textLayout.ts` (231), `TextEditor.tsx` (230), `TextObject.tsx` (215), `StickyTextEditor.tsx` (209), `text-edit.ts` (207), +18 more |
+| 10 | 6 by the agent | 5913 / 121 | `connector.ts` (443), `ConnectorObject.tsx` (377), `shape.ts` (311), `ShapeObject.tsx` (310), `ConnectorTool.tsx` (233), `ShapeTool.tsx` (186), +17 more |
 
 ### Earlier stories broken or fixed
 
@@ -55,6 +58,8 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 3: 5/7 → 6/7; fixed 1
 - **Story 9 broke 0, fixed 1** earlier held-out tests (story 9: Write free text anywhere on the board; test(text): component tests for the two tools and for text objects (TC-14 to TC-25); feat(text): TextObject, a generalised TextEditor, the size toolbar and horizontal-only handles; feat(tool): Select and Text tools with V, T, N and Escape; test(text): box sync writes only after local changes (TC-12, TC-13); feat(text): text layout and local-only box sync; test(text): layout tests with a fake measurer (TC-07 to TC-11, TC-32); feat(text): the text object model and the shared text-edit helpers; test(text): unit tests for the text object model (TC-01 to TC-06)). Source files it changed most: `text.ts` (371), `textLayout.ts` (231), `TextEditor.tsx` (230), `TextObject.tsx` (215), `StickyTextEditor.tsx` (209), `text-edit.ts` (207), +18 more.
   - story 3: 6/7 → 7/7; fixed 1
+- **Story 10 broke 1, fixed 0** earlier held-out tests (story 10 task 15: e2e for shapes and arrows (TC-23..TC-27), arrow takes pointer only on its line; story 10 task 12-14: shape and connector UI, registry, component tests (TC-15..TC-22, TC-28); story 10 task 11: active tool hook, s/l shortcuts, shape kind menu; story 10 task 10: connector model, geometry, detach-on-delete; story 10 task 9: connector model and geometry unit tests, with stubs; story 10 task 7-8: shape model, settings and unit tests). Source files it changed most: `connector.ts` (443), `ConnectorObject.tsx` (377), `shape.ts` (311), `ShapeObject.tsx` (310), `ConnectorTool.tsx` (233), `ShapeTool.tsx` (186), +17 more.
+  - story 3: 7/7 → 6/7; broke 1.
 
 ### Interruptions and dead time
 
