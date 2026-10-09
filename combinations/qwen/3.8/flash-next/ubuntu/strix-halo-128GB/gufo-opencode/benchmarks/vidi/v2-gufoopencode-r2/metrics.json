@@ -1,0 +1,1286 @@
+{
+  "stories": {
+    "1": {
+      "title": "Pan and zoom around an infinite board",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "unmonitored"
+      },
+      "started": 1791568907.397107,
+      "engine_settings": {
+        "server_started_at": "2026-10-09T18:01:43Z",
+        "engine": "gufo",
+        "engine_version": "gufo version 0.5.0 (23cacbb)",
+        "thinking_mode": {
+          "value": "on",
+          "source": "command line",
+          "evidence": "--think on"
+        },
+        "thinking_budget": {
+          "value": "not set",
+          "source": "not set",
+          "evidence": "no thinking-budget flag on gufo's command line (the launcher has none to set)"
+        },
+        "context_size": {
+          "value": 131072,
+          "source": "command line",
+          "evidence": "--context 131072"
+        },
+        "kv_cache_type": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "gufo's CLI has no KV-cache type switch (lib/gufo.sh), and the type it uses internally isn't on the command line"
+        },
+        "speculative": {
+          "value": {
+            "method": "mtp",
+            "draft_max": "***",
+            "draft_quantisation": "Q8_0"
+          },
+          "source": "command line",
+          "evidence": "--speculative mtp --draft-tokens ***"
+        },
+        "temperature": {
+          "value": 1.0,
+          "source": "command line",
+          "evidence": "--temperature 1.0"
+        },
+        "top_p": {
+          "value": 0.95,
+          "source": "command line",
+          "evidence": "--top-p 0.95"
+        },
+        "top_k": {
+          "value": 20,
+          "source": "command line",
+          "evidence": "--top-k 20"
+        },
+        "min_p": {
+          "value": 0.0,
+          "source": "command line",
+          "evidence": "--min-p 0.0"
+        },
+        "quantisation": {
+          "value": "UD-Q4_K_XL",
+          "source": "model file name",
+          "evidence": "Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf"
+        },
+        "reasoning_effort": {
+          "requested": "low",
+          "engine": {
+            "value": "low",
+            "source": "command line",
+            "evidence": "--reasoning-effort low"
+          },
+          "client": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "OpenCode drops reasoning_effort from an agent's options before the request leaves (docs/discovery-macos-mtplx.md)"
+          },
+          "effective": {
+            "value": "low",
+            "source": "command line",
+            "evidence": "--reasoning-effort low"
+          },
+          "matches_request": true
+        },
+        "gaps": []
+      },
+      "memory_start": {
+        "at": 1791568907.4263287,
+        "resident_mib": null,
+        "model_bytes": 114121223040,
+        "engine": "gufo",
+        "prompt_cache": {
+          "skipped_for_capacity": 0
+        },
+        "extras": {
+          "gpu_device_used_mib": 88564,
+          "gpu_device_total_mib": 122880,
+          "host_available_mib": 34415,
+          "engine_rss_mib": 352
+        }
+      },
+      "agent": {
+        "seconds": 3151.1,
+        "steps": 122,
+        "tool_calls": 141,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 138479,
+          "output": 111333,
+          "reasoning": 0,
+          "cache_read": 6754328,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 1,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "ses_ede2bf050ffe3r6MOcLFtKsTPa",
+          "ses_ede2bf050ffe3r6MOcLFtKsTPa"
+        ],
+        "finished": true,
+        "interventions": {
+          "total": 1,
+          "stop_message": 1,
+          "toolcall_text_resumes": 0,
+          "error_resumes": 0
+        }
+      },
+      "agent_finished": 1791572058.5286996,
+      "conditions": {
+        "samples": 104,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 1.79,
+        "swap_max_gb": 2.03,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 10.791146386886805,
+        "memory_snapshot": {
+          "t": 1791569898.476636,
+          "free_pct": 10.791146386886805,
+          "total_rss_gb": 20.42,
+          "processes": [
+            {
+              "pid": 3182914,
+              "rss_gb": 16.83,
+              "command": "gufo serve --host 0.0.0.0 --port 8080 --sessions 1 llm --model /models/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf --mtp-model /models/MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf --sp"
+            },
+            {
+              "pid": 3183761,
+              "rss_gb": 2.69,
+              "command": "opencode run --pure --format json --model local/qwen3.8-flash-next-gufo You are implementing the web app \"vidi6\" (a collaborative whiteboard) in the current directory, one story at a time.  This sessi"
+            },
+            {
+              "pid": 2587335,
+              "rss_gb": 0.26,
+              "command": "claude --dangerously-skip-permissions"
+            },
+            {
+              "pid": 1273599,
+              "rss_gb": 0.1,
+              "command": "/usr/lib/systemd/systemd-journald"
+            },
+            {
+              "pid": 1936,
+              "rss_gb": 0.05,
+              "command": "/usr/sbin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=41641"
+            },
+            {
+              "pid": 3182870,
+              "rss_gb": 0.05,
+              "command": "podman run --rm --name qwen38-flash-next-strix-gufo-oc-18010 --userns=keep-id:uid=1000,gid=1000 --device /dev/kfd --device /dev/dri --group-add keep-groups --ulimit memlock=-1 -p 127.0.0.1:18010:8080 "
+            },
+            {
+              "pid": 3183720,
+              "rss_gb": 0.04,
+              "command": "~/.cache/uv/builds-v0/.tmpGj2WYN/bin/python drive.py --run-dir ~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-opencode/benchmarks/vidi/v2-gufoopencode-r2 --base"
+            },
+            {
+              "pid": 3183753,
+              "rss_gb": 0.04,
+              "command": "~/.vidi-bench/agent-sandbox/ebe17472e98a439b/release/agent-sandbox run --own-dir ~/.w/58ef6c3b6a --workdir workspace --keep-env AGENT_PORT_FIRST,AGENT_PORT_LAST,CLAUDE_CODE_TMPDIR,GIT_AUTHOR_EMAIL,GIT"
+            },
+            {
+              "pid": 3049825,
+              "rss_gb": 0.04,
+              "command": "~/.local/bin/dbench serve --bind 100.97.95.90:7717 --repo ~/expts/awesome-local-ai --home ~/.dbench --share-dir ~/.local/share --path-prepend ~/.local/bin --max-restarts 3"
+            },
+            {
+              "pid": 3183758,
+              "rss_gb": 0.04,
+              "command": "/run/init"
+            },
+            {
+              "pid": 1273608,
+              "rss_gb": 0.03,
+              "command": "/usr/libexec/fwupd/fwupd"
+            },
+            {
+              "pid": 3183715,
+              "rss_gb": 0.02,
+              "command": "uv run --quiet drive.py --run-dir ~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-opencode/benchmarks/vidi/v2-gufoopencode-r2 --base-url http://127.0.0.1:18010/v"
+            },
+            {
+              "pid": 3751659,
+              "rss_gb": 0.02,
+              "command": "/snap/snapd/current/usr/lib/snapd/snapd"
+            },
+            {
+              "pid": 3182922,
+              "rss_gb": 0.02,
+              "command": "/usr/bin/pasta --config-net -t 127.0.0.1/18010-18010:8080-8080 --dns-forward 169.254.1.1 -u none -T none -U none --no-map-gw --quiet --netns /run/user/1000/netns/netns-e8ac64a3-35b0-e0cc-3f6c-3e94fbd7"
+            },
+            {
+              "pid": 1,
+              "rss_gb": 0.01,
+              "command": "/usr/lib/systemd/systemd --system --deserialize=94"
+            }
+          ],
+          "by_program": [
+            {
+              "program": "gufo",
+              "count": 1,
+              "rss_gb": 16.83
+            },
+            {
+              "program": "opencode",
+              "count": 1,
+              "rss_gb": 2.69
+            },
+            {
+              "program": "claude",
+              "count": 1,
+              "rss_gb": 0.26
+            },
+            {
+              "program": "systemd-journal",
+              "count": 1,
+              "rss_gb": 0.1
+            },
+            {
+              "program": "tailscaled",
+              "count": 1,
+              "rss_gb": 0.05
+            },
+            {
+              "program": "podman",
+              "count": 1,
+              "rss_gb": 0.05
+            },
+            {
+              "program": "python",
+              "count": 1,
+              "rss_gb": 0.04
+            },
+            {
+              "program": "agent-sandbox",
+              "count": 1,
+              "rss_gb": 0.04
+            },
+            {
+              "program": "dbench",
+              "count": 1,
+              "rss_gb": 0.04
+            },
+            {
+              "program": "init",
+              "count": 1,
+              "rss_gb": 0.04
+            }
+          ]
+        },
+        "server_footprint_max_gb": 17.323406219482422,
+        "server_footprint_peak_gb": 17.327800750732422,
+        "gpu": {
+          "samples": 104,
+          "busy_mean_pct": 86.2,
+          "sclk_min_busy_mhz": 2817,
+          "sclk_max_mhz": 2900,
+          "power_mean_w": 99.0,
+          "power_max_w": 137.1,
+          "temp_max_c": 77.0,
+          "gtt_max_gb": 85.61,
+          "throttled_samples": 0
+        }
+      },
+      "containment": {
+        "enabled": true,
+        "units": [
+          "spec-bench-v2-gufoopencode-r2-s01-1",
+          "spec-bench-v2-gufoopencode-r2-s01-2"
+        ],
+        "memory_max_gb": 12.3,
+        "memory_peak_gb": null,
+        "left_at_story_end": 0,
+        "reaped": []
+      },
+      "agent_commits": 3,
+      "provenance": {
+        "harness_commit": "eb8cc2508",
+        "harness_dirty": null,
+        "harness_release": "harness-v2026.10.09.3",
+        "pack_version": "vidi-v2.0-pre2",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 1.9,
+            "tail": "\nadded 225 packages, and audited 226 packages in 2s\n\n41 packages are looking for funding\n  run `npm fund` for details\n\n3 vulnerabilities (1 moderate, 2 critical)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm WARN deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 1.1,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v6.4.4 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 36 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.39 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.27 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-bMLzeUnP.css  \u001b[39m\u001b[1m\u001b[2m  1.89 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.77 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-5GAn-MKx.js   \u001b[39m\u001b[1m\u001b[2m230.45 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 71.84 kB\u001b[22m\n\u001b[32m\u2713 built in 610ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.2,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/58ef6c3b6a/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 18\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:54:23\n\u001b[2m   Duration \u001b[22m 359ms\u001b[2m (transform 48ms, setup 0ms, collect 41ms, tests 18ms, environment 0ms, prepare 57ms)\u001b[22m\n\n",
+            "passed": 13,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 1.3,
+            "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/58ef6c3b6a/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 64\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 60\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 88\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m15 passed\u001b[39m\u001b[22m\u001b[90m (15)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:54:24\n\u001b[2m   Duration \u001b[22m 739ms\u001b[2m (transform 125ms, setup 123ms, collect 282ms, tests 211ms, environment 582ms, prepare 214ms)\u001b[22m\n\n",
+            "passed": 15,
+            "failed": 0
+          },
+          "test:integration": {
+            "exit": "missing"
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 4.8,
+            "tail": "\n> vidi6@0.0.0 test:e2e\n> playwright test --project=chromium\n\n[WebServer] \n[WebServer] > vidi6@0.0.0 build:test\n[WebServer] > vite build --mode test\n[WebServer] \n[WebServer] vite v6.4.4 building for test...\n[WebServer] transforming...\n[WebServer] \u2713 36 modules transformed.\n[WebServer] rendering chunks...\n[WebServer] computing gzip size...\n[WebServer] dist/client/index.html                   0.39 kB \u2502 gzip:  0.27 kB\n[WebServer] dist/client/assets/index-bMLzeUnP.css    1.89 kB \u2502 gzip:  0.77 kB\n[WebServer] dist/client/assets/index-cgQYS3N_.js   230.55 kB \u2502 gzip: 71.89 kB\n[WebServer] \u2713 built in 535ms\n[WebServer] \n[WebServer]  \u26c5\ufe0f wrangler 4.149.0\n[WebServer] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n[WebServer] \u2394 Starting local server...\n[WebServer] [wrangler:info] Ready on http://127.0.0.1:29430\n[WebServer] [wrangler:info] GET / 200 OK (8ms)\n\nRunning 7 tests using 7 workers\n\n[WebServer] [wrangler:info] GET / 200 OK (5ms)\n[WebServer] [wrangler:info] GET / 200 OK (26ms)\n[WebServer] [wrangler:info] GET / 200 OK (27ms)\n[WebServer] [wrangler:info] GET / 200 OK (27ms)\n[WebServer] [wrangler:info] GET / 200 OK (27ms)\n[WebServer] [wrangler:info] GET /assets/index-cgQYS3N_.js 200 OK (8ms)\n[WebServer] [wrangler:info] GET /assets/index-bMLzeUnP.css 200 OK (8ms)\n[WebServer] [wrangler:info] GET / 200 OK (27ms)\n[WebServer] [wrangler:info] GET / 200 OK (27ms)\n[WebServer] [wrangler:info] GET /assets/index-cgQYS3N_.js 200 OK (22ms)\n[WebServer] [wrangler:info] GET /assets/index-bMLzeUnP.css 200 OK (5ms)\n[WebServer] [wrangler:info] GET /assets/index-cgQYS3N_.js 200 OK (5ms)\n[WebServer] [wrangler:info] GET /assets/index-cgQYS3N_.js 200 OK (5ms)\n[WebServer] [wrangler:info] GET /assets/index-cgQYS3N_.js 200 OK (15ms)\n[WebServer] [wrangler:info] GET /assets/index-cgQYS3N_.js 200 OK (16ms)\n[WebServer] [wrangler:info] GET /assets/index-bMLzeUnP.css 200 OK (16ms)\n[WebServer] [wrangler:info] GET /assets/index-bMLzeUnP.css 200 OK (16ms)\n[WebServer] [wrangler:info] GET /assets/index-bMLzeUnP.css 200 OK (28ms)\n[WebServer] [wrangler:info] GET /assets/index-bMLzeUnP.css 200 OK (28ms)\n[WebServer] [wrangler:info] GET /assets/index-cgQYS3N_.js 200 OK (29ms)\n[WebServer] [wrangler:info] GET /assets/index-bMLzeUnP.css 200 OK (29ms)\n  \u2713  6 [chromium] \u203a tests/e2e/navigation.spec.ts:43:1 \u203a TC-24: ctrl+wheel keeps the point under the pointer fixed (332ms)\n  \u2713  7 [chromium] \u203a tests/e2e/navigation.spec.ts:107:1 \u203a TC-31: ctrl+wheel over the board never changes page zoom (374ms)\n  \u2713  4 [chromium] \u203a tests/e2e/navigation.spec.ts:75:1 \u203a TC-26: Reset view from far away at max zoom returns to 100% centred (398ms)\n  \u2713  3 [chromium] \u203a tests/e2e/navigation.spec.ts:20:1 \u203a TC-28: first visit shows the navigation hint; dragging removes it (425ms)\n  \u2713  2 [chromium] \u203a tests/e2e/navigation.spec.ts:31:1 \u203a TC-23: dragging 200x100 moves the origin marker exactly 200x100 px (433ms)\n  \u2713  5 [chromium] \u203a tests/e2e/navigation.spec.ts:89:1 \u203a TC-27: panning at 1,000,000 units is exact and grid spacing holds (450ms)\n  \u2713  1 [chromium] \u203a tests/e2e/navigation.spec.ts:63:1 \u203a TC-25: clicking + until disabled ends at 400% (534ms)\n\n  7 passed (4.2s)\n",
+            "passed": 7,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 0,
+        "passed": 6,
+        "total": 6,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "63d051921e47a5a08ffef2fdf877d6efcb37c4d4",
+      "requests": {},
+      "time_split": {
+        "wall_s": 3151.1,
+        "model": {
+          "source": "opencode-stream",
+          "requests": 122,
+          "prefill_s": 215.4,
+          "prefill_tokens": 138479,
+          "prefill_tok_s": 642.9,
+          "decode_s": 2691.4,
+          "decode_tokens": 111333,
+          "decode_tok_s": 41.4,
+          "cached_tokens": 6754328,
+          "draft_acceptance": 0.732,
+          "mean_accepted_len": null
+        },
+        "tools_s": 223.4,
+        "tools_by_kind": {
+          "e2e": 177.8,
+          "build": 28.9,
+          "unit": 14.0,
+          "bash": 2.4,
+          "write": 0.2,
+          "edit": 0.1,
+          "read": 0.0,
+          "todowrite": 0.0
+        },
+        "compaction_s": 0.0,
+        "compactions": 0,
+        "between_sessions_s": 1.7,
+        "other_s": 19.2,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        }
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 122,
+        "tool_calls": 141,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 10771,
+        "tool_arg_chars": 84096,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 7692,
+        "context_end": 76700,
+        "largest_context_jump": {
+          "tokens": 18019,
+          "call": 8
+        },
+        "tools_by_name": {
+          "bash": 90,
+          "read": 6,
+          "todowrite": 2,
+          "write": 29,
+          "edit": 14
+        },
+        "tool_errors": 5,
+        "longest_tool": {
+          "seconds": 64.2,
+          "name": "bash",
+          "gist": "cd /w/workspace && npx playwright test --project=chromium 2>&1 | tail -30"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 17,
+        "lines": 1366
+      },
+      "finished": 1791572088.226375,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Scaffold project and write camera maths unit tests first (TC-01 to TC-12)",
+          "type": "test:unit",
+          "implements": [
+            "camera.math"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12"
+          ],
+          "status": "verified",
+          "found": 12,
+          "total": 12
+        },
+        {
+          "n": 2,
+          "title": "Implement camera maths to pass unit tests",
+          "type": "implementation",
+          "implements": [
+            "camera.math"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement board viewport: drag, wheel, pinch and keyboard navigation with dot grid",
+          "type": "implementation",
+          "implements": [
+            "viewport.input"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement zoom controls (\u2212, percentage, +, Reset view)",
+          "type": "implementation",
+          "implements": [
+            "zoom.controls"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement first-use navigation hint",
+          "type": "implementation",
+          "implements": [
+            "nav.hint_display"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Component tests for viewport input, zoom controls and hint",
+          "type": "test:ui-component",
+          "implements": [
+            "viewport.input",
+            "zoom.controls",
+            "nav.hint_display"
+          ],
+          "tcs": [
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-29",
+            "TC-30",
+            "TC-32"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 7,
+          "title": "E2E navigation tests in Chromium, Firefox and WebKit",
+          "type": "test:e2e",
+          "implements": [
+            "viewport.input",
+            "zoom.controls",
+            "nav.hint_display"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        }
+      ],
+      "end_reason": "stop-message-then-finished",
+      "tasks_claimed": {
+        "file": "read",
+        "tasks": {
+          "1": "done",
+          "2": "done",
+          "3": "done",
+          "4": "done",
+          "5": "done",
+          "6": "done",
+          "7": "done"
+        }
+      }
+    }
+  },
+  "pack": "vidi",
+  "scope": "canvas",
+  "model_id": "qwen3.8-flash-next-gufo",
+  "client": "opencode",
+  "compact_at": null,
+  "client_thinking": null,
+  "processed": [
+    {
+      "id": 1,
+      "title": "Pan and zoom around an infinite board",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1791568907.397107,
+      "ended_at": 1791572058.5286996,
+      "agent_minutes": 52.5,
+      "calls": 122,
+      "output_tokens": 111333,
+      "compactions": 0,
+      "last_commit_at": 1791572052.0,
+      "accept": {
+        "passed": 6,
+        "total": 6
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Scaffold project and write camera maths unit tests first (TC-01 to TC-12)",
+          "type": "test:unit",
+          "implements": [
+            "camera.math"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12"
+          ],
+          "status": "verified",
+          "found": 12,
+          "total": 12
+        },
+        {
+          "n": 2,
+          "title": "Implement camera maths to pass unit tests",
+          "type": "implementation",
+          "implements": [
+            "camera.math"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement board viewport: drag, wheel, pinch and keyboard navigation with dot grid",
+          "type": "implementation",
+          "implements": [
+            "viewport.input"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement zoom controls (\u2212, percentage, +, Reset view)",
+          "type": "implementation",
+          "implements": [
+            "zoom.controls"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement first-use navigation hint",
+          "type": "implementation",
+          "implements": [
+            "nav.hint_display"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Component tests for viewport input, zoom controls and hint",
+          "type": "test:ui-component",
+          "implements": [
+            "viewport.input",
+            "zoom.controls",
+            "nav.hint_display"
+          ],
+          "tcs": [
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-29",
+            "TC-30",
+            "TC-32"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 7,
+          "title": "E2E navigation tests in Chromium, Firefox and WebKit",
+          "type": "test:e2e",
+          "implements": [
+            "viewport.input",
+            "zoom.controls",
+            "nav.hint_display"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 7.9,
+          "calls": 24,
+          "output_tokens": 50987,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi v2-q36fork-b-r1",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 44.7,
+          "calls": 251,
+          "output_tokens": 115528,
+          "accept": {
+            "passed": 6,
+            "total": 6,
+            "on_partial_total": 6,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi v2-q36fork-b-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 41.7,
+          "calls": 278,
+          "output_tokens": 96627,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi v2-q36fork-b-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 29.2,
+          "calls": 210,
+          "output_tokens": 80698,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "PARTIAL",
+          "gate_green": null,
+          "agent_minutes": 15.3,
+          "calls": 5,
+          "output_tokens": 65983,
+          "accept": {
+            "passed": 0,
+            "total": 6,
+            "on_partial_total": 6,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 36.9,
+          "calls": 100,
+          "output_tokens": 128735,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "PARTIAL",
+          "gate_green": null,
+          "agent_minutes": 16.5,
+          "calls": 7,
+          "output_tokens": 67637,
+          "accept": {
+            "passed": 0,
+            "total": 6,
+            "on_partial_total": 6,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 49.1,
+          "calls": 123,
+          "output_tokens": 167008,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-iq3xxs-pi v2-iq3xxs-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 79.5,
+          "calls": 116,
+          "output_tokens": 112589,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-iq3xxs-pi v2-iq3xxs-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 132.3,
+          "calls": 204,
+          "output_tokens": 145383,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 28.2,
+          "calls": 111,
+          "output_tokens": 86716,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 62.5,
+          "calls": 224,
+          "output_tokens": 190468,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 43.9,
+          "calls": 192,
+          "output_tokens": 141739,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 70.0,
+          "calls": 204,
+          "output_tokens": 196374,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 34.6,
+          "calls": 145,
+          "output_tokens": 119024,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 44.6,
+          "calls": 116,
+          "output_tokens": 103365,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 63.6,
+          "calls": 135,
+          "output_tokens": 144361,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 63.7,
+          "calls": 103,
+          "output_tokens": 118657,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 46.7,
+          "calls": 153,
+          "output_tokens": 129874,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi v2-mtplx2122-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 64.5,
+          "calls": 200,
+          "output_tokens": 231787,
+          "accept": {
+            "passed": 0,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi v2-strata0139-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 27.1,
+          "calls": 141,
+          "output_tokens": 117568,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-opencode v2-gufoopencode-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 30.1,
+          "calls": 69,
+          "output_tokens": 63445,
+          "accept": {
+            "passed": 6,
+            "total": 6,
+            "on_partial_total": 6,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 52.2,
+          "calls": 154,
+          "output_tokens": 109513,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 40.8,
+          "calls": 102,
+          "output_tokens": 86268,
+          "accept": {
+            "passed": 5,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 32.2,
+          "calls": 97,
+          "output_tokens": 72746,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 59.3,
+          "calls": 131,
+          "output_tokens": 110710,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 58.3,
+          "calls": 156,
+          "output_tokens": 125881,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 51.0,
+          "calls": 124,
+          "output_tokens": 111141,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 35.2,
+          "calls": 97,
+          "output_tokens": 81882,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 28.1,
+          "calls": 112,
+          "output_tokens": 46899,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 34.5,
+          "calls": 98,
+          "output_tokens": 79258,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 37.1,
+          "calls": 93,
+          "output_tokens": 83216,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 34.0,
+          "calls": 118,
+          "output_tokens": 119397,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 27.3,
+          "calls": 73,
+          "output_tokens": 103170,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 8.5,
+          "calls": 63,
+          "output_tokens": 40141,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 18.5,
+          "calls": 75,
+          "output_tokens": 79896,
+          "accept": {
+            "passed": 5,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 32.9,
+          "calls": 128,
+          "output_tokens": 135161,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 12.4,
+          "calls": 66,
+          "output_tokens": 58057,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 11.1,
+          "calls": 63,
+          "output_tokens": 54170,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 24.0,
+          "calls": 111,
+          "output_tokens": 105800,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 8.1,
+          "calls": 68,
+          "output_tokens": 42278,
+          "accept": {
+            "passed": 5,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 10.5,
+          "calls": 79,
+          "output_tokens": 51556,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        }
+      ]
+    }
+  ]
+}
