@@ -36,7 +36,7 @@ SYSTEM_PREFIXES = ("/dev/", "/usr/", "/bin/", "/sbin/", "/etc/", "/opt/homebrew/
 CLIMB_RE = re.compile(r"(?<![\w./~-])((?:\.\./)+[^\s\"'`;|&<>(){}]*)")
 CD_RE = re.compile(r"(?:^|[;&|\s])cd\s+(\"[^\"]+\"|'[^']+'|[^\s;&|]+)")
 # Tool-input fields that name a path directly.
-PATH_FIELDS = ("file_path", "path", "notebook_path", "cwd")
+PATH_FIELDS = ("file_path", "filePath", "path", "notebook_path", "cwd")   # filePath: OpenCode
 # Tool-input fields holding shell or free text that may mention paths.
 TEXT_FIELDS = ("command", "pattern", "glob")
 
@@ -56,9 +56,13 @@ class Report:
 
 
 def tool_calls(line: dict):
-    """(tool name, input dict) for every tool call in one transcript line, in either format."""
+    """(tool name, input dict) for every tool call in one transcript line, in any of the three clients' formats."""
     if line.get("type") == "tool_execution_start":  # pi
         yield line.get("toolName", "?"), line.get("args") or {}
+        return
+    if line.get("type") == "tool_use" and isinstance(line.get("part"), dict):  # OpenCode: written once the call is done
+        state = line["part"].get("state")
+        yield line["part"].get("tool", "?"), (state.get("input") if isinstance(state, dict) else None) or {}
         return
     msg = line.get("message") or {}
     content = msg.get("content") if isinstance(msg, dict) else None

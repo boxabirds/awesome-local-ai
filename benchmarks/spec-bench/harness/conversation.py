@@ -57,6 +57,7 @@ def profile(events: Path, t_from: float, t_to: float) -> dict | None:
     starts: dict = {}
     longest = None
     claude = False
+    opencode = False                     # OpenCode: a call is a step_finish; its events carry no thinking
     by_id: dict[str, dict] = {}          # Claude: the call each message id is, as its blocks arrive
     subagent: set[str] = set()
     estimate = None                      # Claude: the latest running estimate of the thinking in progress
@@ -100,6 +101,28 @@ def profile(events: Path, t_from: float, t_to: float) -> dict | None:
                 u = m.get("usage") if isinstance(m.get("usage"), dict) else {}
                 calls.append({"think": think, "estimate": None, "at": rx - t_from,
                               "context": int(u.get("input") or 0) + int(u.get("cacheRead") or 0)})
+            elif t == "step_finish" and isinstance(e.get("part"), dict):
+                opencode = True
+                tk = e["part"].get("tokens") if isinstance(e["part"].get("tokens"), dict) else {}
+                cache = tk.get("cache") if isinstance(tk.get("cache"), dict) else {}
+                calls.append({"think": None, "estimate": None, "at": rx - t_from,
+                              "context": int(tk.get("input") or 0) + int(cache.get("read") or 0)})
+            elif t == "text" and isinstance(e.get("part"), dict):
+                opencode = True
+                text += len(e["part"].get("text") or "")
+            elif t == "tool_use" and isinstance(e.get("part"), dict):
+                opencode = True
+                part = e["part"]
+                state = part.get("state") if isinstance(part.get("state"), dict) else {}
+                name = part.get("tool") or "?"
+                tool_calls += 1
+                by_name[name] = by_name.get(name, 0) + 1
+                inp = state.get("input") if isinstance(state.get("input"), dict) else {}
+                args += len(json.dumps(inp))
+                errors += state.get("status") == "error"
+                span = state.get("time") if isinstance(state.get("time"), dict) else {}
+                if isinstance(span.get("start"), (int, float)) and isinstance(span.get("end"), (int, float)):
+                    longest = _longer(longest, (span["end"] - span["start"]) / 1000, (span["start"] / 1000, name, str(inp.get("command") or inp.get("filePath") or "")))
             elif t == "tool_execution_start":
                 starts[e.get("toolCallId")] = (rx, e.get("toolName") or "?", str((e.get("args") or {}).get("command") or (e.get("args") or {}).get("path") or ""))
             elif t == "tool_execution_end":
@@ -159,7 +182,7 @@ def profile(events: Path, t_from: float, t_to: float) -> dict | None:
     ests = [c["estimate"] for c in calls]
     est_big = max((i for i, x in enumerate(ests) if x is not None), key=lambda i: (ests[i], -i), default=None)
     return {
-        "version": VERSION, "calls": len(calls), "tool_calls": tool_calls, **_thinking(calls, visible=not claude),
+        "version": VERSION, "calls": len(calls), "tool_calls": tool_calls, **_thinking(calls, visible=not (claude or opencode)),
         "text_chars": text, "tool_arg_chars": args,
         "thinking_tokens": exact,
         "thinking_estimated_tokens": sum(x for x in ests if x is not None) if est_big is not None else None,

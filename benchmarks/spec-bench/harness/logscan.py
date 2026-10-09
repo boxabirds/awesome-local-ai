@@ -196,7 +196,7 @@ def read_calls(log: Path) -> tuple[str, list[_Call], list[str]]:
     calls: dict[str, _Call] = {}
     results: dict[str, str] = {}
     cwds: list[str] = []
-    pi = cc = False
+    pi = cc = oc = False
 
     def add(cid, tool, args):
         key = str(cid) if cid else f"anon-{len(calls)}:{tool}:{json.dumps(args, sort_keys=True)}"
@@ -233,6 +233,11 @@ def read_calls(log: Path) -> tuple[str, list[_Call], list[str]]:
             add(e.get("toolCallId"), e.get("toolName"), e.get("args"))
         elif t == "tool_execution_end":
             results[str(e.get("toolCallId"))] = _text_of(e.get("result"))
+        elif t == "tool_use" and isinstance(e.get("part"), dict):             # OpenCode: one event per finished call
+            oc = True
+            state = e["part"].get("state") if isinstance(e["part"].get("state"), dict) else {}
+            key = add(e["part"].get("callID"), e["part"].get("tool"), state.get("input"))
+            results[key] = _text_of(state.get("output"))
         elif t == "assistant":
             cc = True
             for b in assistant_blocks(e.get("message")):
@@ -245,7 +250,8 @@ def read_calls(log: Path) -> tuple[str, list[_Call], list[str]]:
                     results[str(b.get("tool_use_id"))] = _text_of(b.get("content"))
     for key, c in calls.items():
         c.result = results.get(key, "")
-    fmt = "pi" if pi and not cc else "claude-code" if cc and not pi else ("mixed" if pi and cc else "unknown")
+    seen = [name for name, hit in (("pi", pi), ("claude-code", cc), ("opencode", oc)) if hit]
+    fmt = seen[0] if len(seen) == 1 else "mixed" if seen else "unknown"
     return fmt, list(calls.values()), cwds
 
 
