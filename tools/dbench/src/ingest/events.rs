@@ -134,6 +134,8 @@ pub struct Parser {
     comps: Vec<CompactionRow>,
     comp_start: Value,
     by_mid: HashMap<Option<String>, usize>,
+    /// OpenCode: the call the step in progress is.
+    oc_call: Option<usize>,
 }
 
 /// The text of a content value: a string as it is, else its text blocks joined.
@@ -238,6 +240,10 @@ impl Parser {
                     summary: clean(summary),
                 });
             }
+            Some("step_start") if e.get("part").is_some_and(Value::is_object) => self.opencode_step_start(rx),
+            Some("text") if e.get("part").is_some_and(Value::is_object) => self.opencode_text(&e),
+            Some("tool_use") if e.get("part").is_some_and(Value::is_object) => self.opencode_tool(&e),
+            Some("step_finish") if e.get("part").is_some_and(Value::is_object) => self.opencode_step_finish(&e, rx),
             Some("assistant") if e.get("message").is_some_and(Value::is_object) => self.claude_assistant(&e, rx),
             Some("user") if e.get("message").is_some_and(Value::is_object) => self.claude_user(&e, rx),
             _ => {}
@@ -282,6 +288,85 @@ impl Parser {
             self.tools.insert(tid.clone(), ToolBuild { call: idx, name: get(b, "name"), arg, aj, start: Value::Null, end: Value::Null, err: None, res: None, sub: 0, ne, oc, nc, kind });
             self.order.push(tid);
         }
+    }
+
+    /// OpenCode: a step is one model call and the tools it asked for. Its text and tool_use events are each written when done,
+    /// its tokens and stop reason come with the step_finish. A step that never finishes (its process died) stays, with no tokens.
+    fn opencode_step_start(&mut self, rx: Value) {
+        self.fmt = Some("opencode");
+        let i = self.calls.len();
+        self.calls.push(CallRow {
+            idx: i,
+            rx,
+            think: 0,
+            text: 0,
+            n_tools: 0,
+            out_tok: Value::Null,
+            in_tok: Value::Null,
+            cache_tok: Value::Null,
+            stop: Value::Null,
+            sub: 0,
+            think_flags: Vec::new(),
+            text_flags: Vec::new(),
+            think_full: String::new(),
+            text_full: String::new(),
+            mid: None,
+        });
+        self.oc_call = Some(i);
+    }
+
+    fn opencode_text(&mut self, e: &Map<String, Value>) {
+        let Some(row) = self.oc_call else { return };
+        let part = obj(e.get("part")).cloned().unwrap_or_default();
+        let tx = clean(part.get("text").and_then(Value::as_str).unwrap_or(""));
+        let call = &mut self.calls[row];
+        call.text_full.push_str(&tx);
+        call.text = chars(&call.text_full);
+        call.text_flags = find_flags(text_rx(), &call.text_full);
+    }
+
+    fn opencode_tool(&mut self, e: &Map<String, Value>) {
+        let Some(row) = self.oc_call else { return };
+        let part = obj(e.get("part")).cloned().unwrap_or_default();
+        let state = obj(part.get("state")).cloned().unwrap_or_default();
+        self.calls[row].n_tools += 1;
+        let a = obj(state.get("input")).cloned().unwrap_or_default();
+        let aj = clean(&dumps(&Value::Object(a.clone())));
+        let name = part.get("tool").and_then(Value::as_str).unwrap_or("");
+        let arg = if name == "bash" { arg_of(&a, &["command"], &aj) } else { arg_of(&a, &["filePath", "path", "pattern"], &aj) };
+        let (mut ne, mut oc, mut nc) = edit_sizes(&a);
+        if ne == 0 {
+            // OpenCode's edit tool: oldString and newString.
+            let len = |k: &str| a.get(k).and_then(Value::as_str).map_or(0, chars);
+            if a.contains_key("oldString") || a.contains_key("newString") {
+                (ne, oc, nc) = (1, len("oldString"), len("newString"));
+            }
+        }
+        let time = obj(state.get("time"));
+        let secs = |k: &str| time.and_then(|t| t.get(k)).and_then(Value::as_f64).map_or(Value::Null, |ms| serde_json::json!(ms / 1000.0));
+        let tid = opt_string(part.get("callID"));
+        let res = match state.get("output") {
+            Some(Value::String(s)) => s.clone(),
+            other => text_of(other),
+        };
+        let err = i64::from(state.get("status").and_then(Value::as_str) == Some("error"));
+        let kind = super::timing::opencode_tool_kind(name, &a);
+        self.tools.insert(tid.clone(), ToolBuild { call: row, name: get(&part, "tool"), arg, aj, start: secs("start"), end: secs("end"), err: Some(err), res: Some(clean(&res)), sub: 0, ne, oc, nc, kind });
+        self.order.push(tid);
+    }
+
+    fn opencode_step_finish(&mut self, e: &Map<String, Value>, rx: Value) {
+        let Some(row) = self.oc_call.take() else { return };
+        let part = obj(e.get("part")).cloned().unwrap_or_default();
+        let tk = obj(part.get("tokens")).cloned().unwrap_or_default();
+        let cache = obj(tk.get("cache")).cloned().unwrap_or_default();
+        let call = &mut self.calls[row];
+        call.rx = rx;
+        call.out_tok = get(&tk, "output");
+        call.in_tok = get(&tk, "input");
+        call.cache_tok = get(&cache, "read");
+        call.stop = get(&part, "reason");
+        call.mid = opt_string(part.get("messageID"));
     }
 
     fn claude_assistant(&mut self, e: &Map<String, Value>, rx: Value) {

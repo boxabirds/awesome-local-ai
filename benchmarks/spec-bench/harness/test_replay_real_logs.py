@@ -439,7 +439,9 @@ def replay_accounting(s: Story, p: Problems) -> None:
     p.expect(all(c.sent <= c.first <= c.end for c in parsed.calls), "a model call isn't sent <= first output <= end")
     p.expect(all(c.fresh >= 0 and c.cached >= 0 for c in parsed.calls), "a model call has negative tokens")
     claude = parsed.source == accounting.CLAUDE_STREAM
-    p.expect(parsed.source in (accounting.CLIENT_STREAM, accounting.CLAUDE_STREAM) and claude == (s.client == "claude" and bool(parsed.calls)),
+    p.expect(parsed.source in (accounting.CLIENT_STREAM, accounting.CLAUDE_STREAM, accounting.OPENCODE_STREAM)
+             and claude == (s.client == "claude" and bool(parsed.calls))
+             and (parsed.source == accounting.OPENCODE_STREAM) == (s.client == "opencode" and bool(parsed.calls)),
              f"model calls from {parsed.source!r} in a {s.client} log")
     p.expect(all((c.out is None) == claude for c in parsed.calls), "output tokens are None exactly for Claude Code's calls")
     p.expect(parsed.abandoned >= 0 and all(isinstance(x, str) for x in parsed.problems), "abandoned or problems of the wrong type")

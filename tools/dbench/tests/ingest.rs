@@ -910,3 +910,34 @@ fn re_ingesting_a_story_replaces_its_snapshot_rather_than_doubling_it() {
     let n: i64 = db.conn.query_row("select count(*) from memory where sk = ?1", [out.sk], |r| r.get(0)).unwrap();
     assert_eq!(n, 1);
 }
+
+/// 8 Oct 2026: ingest had a reader for pi's events and one for Claude Code's and none for OpenCode's, so an OpenCode story
+/// (gufo-opencode v2-gufoopencode-r1 story 1) went into the warehouse with no format, no calls, no tools and no timing,
+/// without an error. The fixture is the first six steps of that story as OpenCode wrote them (harness/fixtures/opencode-stream.jsonl).
+#[test]
+fn an_opencode_story_has_its_calls_tools_and_timing_in_the_warehouse() {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let text = fixture("opencode-stream");
+    let rel = format!("{RUN}/stories/01");
+    let rec = json!({"started": 1_791_500_833.0, "agent_finished": 1_791_501_268.5});
+    let out = ingest::ingest_story(&mut db, &parts, &story_inputs(&rel, &text, rec, true), 1_791_600_000.0).unwrap();
+    assert_eq!(db.story_fmt(out.sk).unwrap().as_deref(), Some("opencode"));
+    let all = db.events_after(out.sk, -1, 1000).unwrap();
+    let count = |k: &str| all.iter().filter(|e| e.kind == k).count();
+    assert_eq!((count("call"), count("tool_start"), count("tool_end")), (6, 9, 9), "6 steps and 9 tool calls in the fixture");
+    // The first step: 7,692 fresh input tokens, nothing cached, 98 output tokens; its two tools were a read and a bash.
+    let call = db.call(out.sk, 0).unwrap().unwrap();
+    let tools = call["tools"].as_array().unwrap();
+    assert_eq!(tools.len(), 2, "{call}");
+    let t0 = db.tool(out.sk, 0).unwrap().unwrap();
+    assert_eq!(t0["name"], "read", "{t0}");
+    let (a, b) = (t0["start"].as_f64().unwrap(), t0["end"].as_f64().unwrap());
+    assert!((b - a - 0.021).abs() < 0.001, "the tool's own start and end, from OpenCode's clock: {t0}");
+    assert_eq!(t0["error"], 0);
+    assert!(t0["args"]["filePath"].is_string() && t0["result"].as_str().is_some_and(|r| r.contains("<content>")), "{t0}");
+    // The timing join found every call, with its tokens.
+    assert_eq!(out.calls.calls.len(), 6, "every call has its timing");
+    let c0 = &out.calls.calls[0].1;
+    assert_eq!((c0.fresh, c0.cached, c0.out), (7692, 0, Some(98)));
+}

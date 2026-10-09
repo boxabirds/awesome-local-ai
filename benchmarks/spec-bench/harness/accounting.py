@@ -82,6 +82,14 @@ def claude_tool_kind(name: str, tool_input: dict) -> str:
     return next((k for k, rx in TOOL_KINDS if rx.search(cmd)), "bash")
 
 
+def opencode_tool_kind(name: str, tool_input: dict) -> str:
+    """tool_kind for OpenCode's tools (lower-case names): bash commands by what they run, every other tool by its name."""
+    if name != "bash":
+        return name or "other"
+    cmd = str((tool_input or {}).get("command", ""))
+    return next((k for k, rx in TOOL_KINDS if rx.search(cmd)), "bash")
+
+
 def tool_kind(e: dict) -> str:
     """e2e, unit, build for the agent's own test and build commands; the tool's name for reads and edits; bash else."""
     if e.get("toolName") != "bash":
@@ -101,7 +109,7 @@ class Call:
     out: int | None
 
 
-CLIENT_STREAM, CLAUDE_STREAM = "client-stream", "claude-stream"
+CLIENT_STREAM, CLAUDE_STREAM, OPENCODE_STREAM = "client-stream", "claude-stream", "opencode-stream"
 RESTART_MARK = "harness_attempt"   # the line the harness writes into the log where it restarts a story (attempts.py)
 TOOL_INTERRUPT_MARK = "harness_tool_interrupted"   # the line the hang guard writes where it kills a silent tool call (drive.py)
 # What showed that a tool call with no end event was over (interrupted_tools' ended_by), in the log's own order.
@@ -137,6 +145,7 @@ def parse(events: Path, t_to: float) -> Parsed:
     settled = None                 # when the last session ended, until the next one starts
     claude: dict = {}              # Claude Code: message id -> its Call
     cs = {"step": None, "thinking_from": None, "ended": None, "background": False, "init": None, "live": False}   # Claude Code: see _claude_event
+    oc = {"open": False, "sent": None, "gen_end": None, "settled": None}   # OpenCode: see _opencode_event
     prev = None                    # the stamp of the line before this one: a dead process's last sign of life
     live = False                   # a session has started since the log began or the harness last restarted
     try:
@@ -202,6 +211,8 @@ def parse(events: Path, t_to: float) -> Parsed:
                     out.abandoned += 1         # the previous call never ended: the session was cut off
                 call = [rx, None]
                 steps.append((rx, ENDED_BY_STEP))
+            elif t in OPENCODE_EVENTS and isinstance(e.get("part"), dict):
+                _opencode_event(e, rx, last, out, steps, oc)
             elif t in ("assistant", "user", "result") or (t == "system" and e.get("subtype") in CLAUDE_SYSTEM):
                 _claude_event(e, rx, last, out, claude, starts, steps, cs)
             elif t == "message_end" and role == "assistant" and call is not None:
@@ -231,6 +242,56 @@ def _cut_tool(out: Parsed, started: tuple, stop: float, by: str) -> None:
     start, kind = started
     out.tools.append((start, max(start, stop), kind))
     out.cut_tools.append((start, max(start, stop), kind, by))
+
+
+OPENCODE_EVENTS = ("step_start", "text", "tool_use", "step_finish")
+
+
+def _opencode_event(e: dict, rx: float, last: float, out: Parsed, steps: list, oc: dict) -> None:
+    """One event of OpenCode's stream into out. A step is one model call and the tools it asked for: a step_start, then a text
+    and a tool_use event each written when that part is done, then a step_finish. A tool_use carries its own start and end (OpenCode's
+    clock, in ms), so tool time is exact. Nothing says when the first token came or how long the model thought, and that time is
+    in the step before its first tool, so the model owns the step from its start to the earlier of its text's end and its first
+    tool's start, all of it as decode (a prefill/decode split is not observable, and no rate is made of it).
+
+    A step_finish with reason "stop" ends the session; the next step_start (a stop message, or the harness resuming) is
+    after a wait that is between sessions. A step_start while the step before it never finished means that process died:
+    the wait is from when it was last heard from, and the step is abandoned."""
+    t, part = e["type"], e["part"]
+    out.source = OPENCODE_STREAM
+    if t == "step_start":
+        if oc["open"]:
+            out.abandoned += 1
+            out.between.append((last, max(last, rx)))
+        elif oc["settled"] is not None:
+            out.between.append((oc["settled"], max(oc["settled"], rx)))
+        oc.update(open=True, sent=rx, gen_end=None, settled=None)
+        steps.append((rx, ENDED_BY_STEP))
+        return
+    state = part.get("state") if isinstance(part.get("state"), dict) else {}
+    if t == "text":
+        span = part.get("time") if isinstance(part.get("time"), dict) else {}
+        end = span.get("end")
+        oc["gen_end"] = min(x for x in (oc["gen_end"], end / MS_PER_S if isinstance(end, (int, float)) else rx) if x is not None)
+    elif t == "tool_use":
+        span = state.get("time") if isinstance(state.get("time"), dict) else {}
+        a, b = span.get("start"), span.get("end")
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            a, b = a / MS_PER_S, b / MS_PER_S
+            kind = opencode_tool_kind(part.get("tool") or "", state.get("input") if isinstance(state.get("input"), dict) else {})
+            out.tools.append((a, max(a, b), kind))
+            oc["gen_end"] = min(x for x in (oc["gen_end"], a) if x is not None)
+    elif t == "step_finish" and oc["open"]:
+        tk = part.get("tokens") if isinstance(part.get("tokens"), dict) else {}
+        cache = tk.get("cache") if isinstance(tk.get("cache"), dict) else {}
+        sent = oc["sent"]
+        end = min(max(oc["gen_end"] if oc["gen_end"] is not None else rx, sent), rx)
+        out.calls.append(Call(sent, sent, end, int(tk.get("input") or 0), int(cache.get("read") or 0),
+                              int(tk.get("output") or 0) + int(tk.get("reasoning") or 0)))
+        oc["open"] = False
+        if part.get("reason") == "stop":
+            oc["settled"] = rx
+            steps.append((rx, ENDED_BY_SESSION_END))
 
 
 CLAUDE_INIT = "init"
@@ -371,9 +432,11 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
         counted = [c for c in p.calls if c.sent >= t_from and c.end <= t_to and not _in_compaction(c.end, comps)]
         pre_n, cached = sum(c.fresh for c in counted), sum(c.cached for c in counted)
         dec_n = None if source == CLAUDE_STREAM else sum(c.out for c in counted)
-        # A cloud API's time to first output is queueing and network as much as reading: no rate is made of it.
-        pre_raw = sum(c.first - c.sent for c in counted) if source != CLAUDE_STREAM else 0
-        dec_raw = sum(c.end - c.first for c in counted) if dec_n is not None else 0
+        # A cloud API's time to first output is queueing and network as much as reading: no rate is made of it. Nor is one
+        # of OpenCode's, whose events carry no first-token time: the step's time is not split into reading and writing.
+        observed = source not in (CLAUDE_STREAM, OPENCODE_STREAM)
+        pre_raw = sum(c.first - c.sent for c in counted) if observed else 0
+        dec_raw = sum(c.end - c.first for c in counted) if observed and dec_n is not None else 0
         extra = engine_log.draft(text, p.calls, counted)
     else:
         source, spans, counted = None, [], []
