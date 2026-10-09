@@ -364,8 +364,8 @@ def backup_status(at, local=None, remote=None):
     ok = lambda last, cap: {"ok": True, "last_good": last, "capacity": cap, "staleness": {"status": "ok", "message": ""}}
     quiet = {"status": "ok", "days_left": 400.0, "growth_per_day": 0.1 * GB, "free_bytes": 40 * GB, "message": "400 days of room"}
     return {"at": at, "exit": 0, "warnings": [], "repos": {
-        "/Users/someone/bench-backup-local/repo": local or ok(at, quiet),
-        "sftp:node-a:/home/someone/bench-backup/repo": remote or ok(at, quiet)}}
+        "/srv/backup-local/repo": local or ok(at, quiet),
+        "sftp:node-a:/srv/backup-remote/repo": remote or ok(at, quiet)}}
 
 
 def test_a_healthy_backup_raises_nothing():
@@ -378,7 +378,7 @@ def test_no_status_file_raises_nothing():
 
 def test_a_repository_whose_last_good_backup_is_over_36_hours_old_is_detected_once_a_day_and_is_not_urgent():
     s = backup_status(NOW - 2 * HOUR)
-    s["repos"]["sftp:node-a:/home/someone/bench-backup/repo"]["last_good"] = NOW - 40 * HOUR
+    s["repos"]["sftp:node-a:/srv/backup-remote/repo"]["last_good"] = NOW - 40 * HOUR
     d = monitor.backup_detections(s, NOW)
     assert kinds(d) == ["backup_stale"] and not d[0]["urgent"]
     assert "remote" in d[0]["detail"] and "40 hours" in d[0]["detail"]
@@ -393,7 +393,7 @@ def test_the_job_not_running_at_all_is_stale_too_since_staleness_is_judged_now_n
 
 def test_a_failed_run_is_detected_once_per_run_with_the_reason():
     s = backup_status(NOW - 1 * HOUR)
-    s["repos"]["/Users/someone/bench-backup-local/repo"].update(ok=False, error="backup failed: disk full")
+    s["repos"]["/srv/backup-local/repo"].update(ok=False, error="backup failed: disk full")
     d = monitor.backup_detections(s, NOW)
     assert kinds(d) == ["backup_failed"] and "local" in d[0]["detail"] and "disk full" in d[0]["detail"]
     assert monitor.backup_detections(s, NOW + HOUR)[0]["id"] == d[0]["id"]
@@ -401,7 +401,7 @@ def test_a_failed_run_is_detected_once_per_run_with_the_reason():
 
 def test_under_a_month_of_room_is_detected_as_a_fact_with_its_numbers_and_no_remedy():
     s = backup_status(NOW - HOUR)
-    s["repos"]["/Users/someone/bench-backup-local/repo"]["capacity"] = {
+    s["repos"]["/srv/backup-local/repo"]["capacity"] = {
         "status": "warn", "days_left": 12.0, "growth_per_day": 4 * GB, "free_bytes": 48 * GB,
         "message": "less than a month left: 12 days of room at 4.0 GB a day; 48.0 GB free"}
     d = monitor.backup_detections(s, NOW)
@@ -411,7 +411,7 @@ def test_under_a_month_of_room_is_detected_as_a_fact_with_its_numbers_and_no_rem
 
 def test_a_repository_with_no_history_yet_raises_nothing_about_capacity():
     s = backup_status(NOW - HOUR)
-    s["repos"]["/Users/someone/bench-backup-local/repo"]["capacity"] = {"status": "no-history", "days_left": None, "message": "not enough history yet"}
+    s["repos"]["/srv/backup-local/repo"]["capacity"] = {"status": "no-history", "days_left": None, "message": "not enough history yet"}
     assert monitor.backup_detections(s, NOW) == []
 
 
@@ -420,4 +420,4 @@ def test_the_detail_names_no_machine_and_no_home_directory_after_the_ticks_redac
     d = monitor.backup_detections(s, NOW)
     labels = {"node-a": "RTX 4090"}
     text = json.dumps(monitor.redact(d, labels))
-    assert "node-a" not in text and "/Users/someone" not in text
+    assert "node-a" not in text and "/srv/backup" not in text
