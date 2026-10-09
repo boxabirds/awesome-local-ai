@@ -11,7 +11,7 @@ stands in for it). Nothing below has been run against a real restic repository y
 ## What a run does
 
 1. Takes a consistent copy of each live database with SQLite's online backup and checks the copy (`pragma integrity_check`). The live
-   `.db`, `-wal` and `-shm` files are excluded; the copies in `state/backups/staging/` are backed up instead.
+   `.db`, `-wal` and `-shm` files are excluded; the copies in `state/backup-staging/` are backed up instead.
 2. For each repository: creates it if it isn't there, `restic backup` (deduplicated, compressed, encrypted), then
    `restic forget --keep-daily 14 --keep-weekly 8 --prune`, then `restic stats --mode raw-data` for its size.
 3. Appends each repository's size to `state/backups/history.jsonl`, measures the free space where it lives, and forecasts
