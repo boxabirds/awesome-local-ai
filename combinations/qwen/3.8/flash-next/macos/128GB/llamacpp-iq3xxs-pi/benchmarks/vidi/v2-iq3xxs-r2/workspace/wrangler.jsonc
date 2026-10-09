@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2026-09-01",
+  // Story 1 serves the client as static assets only. Story 3 adds the Worker `main`
+  // (and with it an asset binding) and the Durable Objects.
+  "assets": {
+    "directory": "./dist/client"
+  }
+}

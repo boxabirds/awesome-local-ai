@@ -1,0 +1,10 @@
+node_modules
+dist
+.wrangler
+.output
+playwright-report
+test-results
+vitest-results.json
+*.log
+.DS_Store
+/.logs/

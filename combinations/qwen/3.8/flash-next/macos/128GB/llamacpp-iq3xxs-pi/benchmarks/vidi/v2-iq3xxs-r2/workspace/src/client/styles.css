@@ -1,0 +1,139 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #1f2430;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+button {
+  font: inherit;
+}
+
+/* Full-window board. */
+.vidi6-app {
+  position: fixed;
+  inset: 0;
+}
+
+.vidi6-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: #f7f8fa;
+  cursor: grab;
+  /* Mouse/pen only: touch-screen pinch and one-finger drag are out of scope. */
+  touch-action: none;
+  user-select: none;
+}
+
+.vidi6-viewport[data-state='panning'] {
+  cursor: grabbing;
+}
+
+/* Everything drawn on the board, mapped from world units to screen pixels. */
+.vidi6-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+/* The board's starting point (world 0,0), centred on the origin. */
+.vidi6-origin-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin-top: -8px;
+  margin-left: -8px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(#e0443f, #e0443f),
+    linear-gradient(#e0443f, #e0443f);
+  background-size:
+    100% 2px,
+    2px 100%;
+  background-position:
+    center,
+    center;
+  background-repeat: no-repeat;
+}
+
+/* Bottom-right zoom control. */
+.vidi6-zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid #d7dbe2;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(17 22 33 / 12%);
+}
+
+.vidi6-zoom-button,
+.vidi6-reset-button {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid #d7dbe2;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.vidi6-zoom-button {
+  width: 30px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.vidi6-reset-button {
+  margin-left: 4px;
+}
+
+.vidi6-zoom-button:disabled {
+  cursor: not-allowed;
+  color: #9aa1ad;
+  background: #f2f3f6;
+}
+
+.vidi6-zoom-label {
+  min-width: 46px;
+  padding: 0 4px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+button:focus-visible,
+.vidi6-zoom-label:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* First-use hint, bottom centre. */
+.vidi6-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgb(31 36 48 / 82%);
+  color: #ffffff;
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}
