@@ -401,12 +401,12 @@
         "model": {
           "source": "opencode-stream",
           "requests": 69,
-          "prefill_s": 0.0,
+          "prefill_s": 164.7,
           "prefill_tokens": 127902,
-          "prefill_tok_s": null,
-          "decode_s": 1626.9,
+          "prefill_tok_s": 776.8,
+          "decode_s": 1462.3,
           "decode_tokens": 63445,
-          "decode_tok_s": null,
+          "decode_tok_s": 43.4,
           "cached_tokens": 4439560,
           "draft_acceptance": 0.76,
           "mean_accepted_len": null
@@ -798,12 +798,12 @@
               "model": {
                 "source": "opencode-stream",
                 "requests": 19,
-                "prefill_s": 0.0,
+                "prefill_s": 69.0,
                 "prefill_tokens": 61574,
-                "prefill_tok_s": null,
-                "decode_s": 771.0,
+                "prefill_tok_s": 892.6,
+                "decode_s": 702.0,
                 "decode_tokens": 27949,
-                "decode_tok_s": null,
+                "decode_tok_s": 39.8,
                 "cached_tokens": 820075,
                 "draft_acceptance": 0.718,
                 "mean_accepted_len": null
@@ -862,12 +862,12 @@
               "model": {
                 "source": "opencode-stream",
                 "requests": 106,
-                "prefill_s": 0.0,
+                "prefill_s": 323.2,
                 "prefill_tokens": 274366,
-                "prefill_tok_s": null,
-                "decode_s": 2335.0,
+                "prefill_tok_s": 849.0,
+                "decode_s": 2011.8,
                 "decode_tokens": 82596,
-                "decode_tok_s": null,
+                "decode_tok_s": 41.1,
                 "cached_tokens": 7314389,
                 "draft_acceptance": 0.726,
                 "mean_accepted_len": null
@@ -1181,13 +1181,13 @@
         "model": {
           "source": "opencode-stream",
           "requests": 125,
-          "prefill_s": 0,
+          "prefill_s": 392.2,
           "prefill_tokens": 335940,
-          "decode_s": 3106.0,
+          "decode_s": 2713.8,
           "decode_tokens": 110545,
           "cached_tokens": 8134464,
-          "prefill_tok_s": null,
-          "decode_tok_s": null,
+          "prefill_tok_s": 856.7,
+          "decode_tok_s": 40.8,
           "draft_acceptance": 0.724,
           "mean_accepted_len": null
         },
@@ -1199,7 +1199,8 @@
           "interrupted_tools": [],
           "interrupted_compactions": 0
         },
-        "attempts": 2
+        "attempts": 2,
+        "backfilled": true
       },
       "conversation": {
         "version": 4,
@@ -1835,12 +1836,12 @@
         "model": {
           "source": "opencode-stream",
           "requests": 312,
-          "prefill_s": 0.0,
+          "prefill_s": 668.0,
           "prefill_tokens": 495005,
-          "prefill_tok_s": null,
-          "decode_s": 4924.3,
+          "prefill_tok_s": 741.0,
+          "decode_s": 4256.3,
           "decode_tokens": 173436,
-          "decode_tok_s": null,
+          "decode_tok_s": 40.7,
           "cached_tokens": 17735947,
           "draft_acceptance": 0.723,
           "mean_accepted_len": null
@@ -1868,7 +1869,8 @@
           "abandoned_calls": 1,
           "interrupted_tools": [],
           "interrupted_compactions": 0
-        }
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 4,
@@ -2510,12 +2512,12 @@
         "model": {
           "source": "opencode-stream",
           "requests": 464,
-          "prefill_s": 0.0,
+          "prefill_s": 1035.4,
           "prefill_tokens": 785636,
-          "prefill_tok_s": null,
-          "decode_s": 8935.9,
+          "prefill_tok_s": 758.8,
+          "decode_s": 7900.5,
           "decode_tokens": 317742,
-          "decode_tok_s": null,
+          "decode_tok_s": 40.2,
           "cached_tokens": 26363647,
           "draft_acceptance": 0.722,
           "mean_accepted_len": null
@@ -2544,7 +2546,8 @@
           "abandoned_calls": 0,
           "interrupted_tools": [],
           "interrupted_compactions": 0
-        }
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 4,
@@ -3228,12 +3231,12 @@
         "model": {
           "source": "opencode-stream",
           "requests": 234,
-          "prefill_s": 0.0,
+          "prefill_s": 528.7,
           "prefill_tokens": 402618,
-          "prefill_tok_s": null,
-          "decode_s": 3560.6,
+          "prefill_tok_s": 761.5,
+          "decode_s": 3031.9,
           "decode_tokens": 127604,
-          "decode_tok_s": null,
+          "decode_tok_s": 42.1,
           "cached_tokens": 13689464,
           "draft_acceptance": 0.735,
           "mean_accepted_len": null
@@ -3261,7 +3264,8 @@
           "abandoned_calls": 0,
           "interrupted_tools": [],
           "interrupted_compactions": 0
-        }
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 4,
@@ -3902,12 +3906,12 @@
         "model": {
           "source": "opencode-stream",
           "requests": 179,
-          "prefill_s": 0.0,
+          "prefill_s": 479.4,
           "prefill_tokens": 403483,
-          "prefill_tok_s": null,
-          "decode_s": 4699.1,
+          "prefill_tok_s": 841.6,
+          "decode_s": 4219.7,
           "decode_tokens": 179930,
-          "decode_tok_s": null,
+          "decode_tok_s": 42.6,
           "cached_tokens": 10588182,
           "draft_acceptance": 0.749,
           "mean_accepted_len": null
@@ -3936,7 +3940,8 @@
           "abandoned_calls": 0,
           "interrupted_tools": [],
           "interrupted_compactions": 0
-        }
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 4,
@@ -4676,12 +4681,12 @@
         "model": {
           "source": "opencode-stream",
           "requests": 149,
-          "prefill_s": 0.0,
+          "prefill_s": 364.7,
           "prefill_tokens": 299461,
-          "prefill_tok_s": null,
-          "decode_s": 3097.6,
+          "prefill_tok_s": 821.2,
+          "decode_s": 2732.9,
           "decode_tokens": 112401,
-          "decode_tok_s": null,
+          "decode_tok_s": 41.1,
           "cached_tokens": 7817393,
           "draft_acceptance": 0.731,
           "mean_accepted_len": null
@@ -4710,7 +4715,8 @@
           "abandoned_calls": 0,
           "interrupted_tools": [],
           "interrupted_compactions": 0
-        }
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 4,
@@ -5375,12 +5381,12 @@
         "model": {
           "source": "opencode-stream",
           "requests": 323,
-          "prefill_s": 0.0,
+          "prefill_s": 771.7,
           "prefill_tokens": 630024,
-          "prefill_tok_s": null,
-          "decode_s": 5487.1,
+          "prefill_tok_s": 816.4,
+          "decode_s": 4715.3,
           "decode_tokens": 192620,
-          "decode_tok_s": null,
+          "decode_tok_s": 40.8,
           "cached_tokens": 18742362,
           "draft_acceptance": 0.727,
           "mean_accepted_len": null
@@ -5409,7 +5415,8 @@
           "abandoned_calls": 1,
           "interrupted_tools": [],
           "interrupted_compactions": 0
-        }
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 4,
