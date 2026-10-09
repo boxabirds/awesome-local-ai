@@ -134,6 +134,11 @@ def timeline(lines) -> list[dict]:
             add("error", f"{e.get('toolName')} failed", t)
         elif typ == "compaction_start":
             add("compaction", f"compaction ({e.get('reason', '')})", t)
+        elif typ == "tool_use" and isinstance(e.get("part"), dict):       # OpenCode
+            state = e["part"].get("state") if isinstance(e["part"].get("state"), dict) else {}
+            add("tool", f"{e['part'].get('tool')} {short_args(state.get('input'))}", t)
+            if state.get("status") == "error":
+                add("error", f"{e['part'].get('tool')} failed", t)
         elif typ == "assistant":
             for c in (e.get("message") or {}).get("content") or []:
                 if c.get("type") == "tool_use":

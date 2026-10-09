@@ -585,3 +585,17 @@ def test_recount_leaves_a_right_record_and_a_story_run_once_alone(tmp_path):
     once = {"started": T0, "agent_finished": T0 + 50, "agent": _harness_agent(50, 3, 3, "s1")}
     assert attempts.recount(once, ev, "pi") is None
     assert attempts.recount(rec, tmp_path / "missing.jsonl", "pi") is None
+
+
+def test_the_conversation_profile_reads_an_opencode_stream():
+    """8 Oct 2026: conversation.profile had branches for pi and Claude Code and none for OpenCode, so every OpenCode story had
+    no conversation profile at all. The fixture is the first six steps of gufo-opencode v2-gufoopencode-r1 story 1, as OpenCode
+    wrote them (long tool outputs cut)."""
+    import conversation
+    p = conversation.profile(Path(__file__).parent / "fixtures" / "opencode-stream.jsonl", 0, 1e12)
+    assert p is not None, "no profile from an OpenCode stream"
+    assert p["calls"] == 6 and p["tool_calls"] == 9
+    assert p["context_start"] == 7692 and p["context_end"] == 38111 + 54
+    assert p["tools_by_name"] and sum(p["tools_by_name"].values()) == 9
+    assert p["thinking_visible"] is False, "OpenCode's events carry no thinking, so it is not available, not zero"
+    assert p["text_chars"] > 0 and p["tool_arg_chars"] > 0

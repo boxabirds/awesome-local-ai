@@ -84,9 +84,11 @@ RUN_FILES = ("metrics.json", "run.json")         # what makes a directory a run'
 NO_WORK = Path("/nonexistent")                   # a client's work directory: scan never writes there
 NO_WORK_ROOT = Path("/nonexistent/work")         # logscan.known_runs: the repo's runs only, whatever this machine holds
 PROBE_SECRET = "story-01.spec.ts"                # what preflight's probe looks for in tool results
-CLIENTS_WITH_LOGS = {"pi", "claude"}             # must be found; OpenCode has no recorded run yet (1 Oct 2026)
-LOGSCAN_FORMAT = {"pi": "pi", "claude": "claude-code"}
+CLIENTS_WITH_LOGS = {"pi", "claude", "opencode"}  # must be found (OpenCode: gufo-opencode v2-gufoopencode-r1, 8 Oct 2026)
+LOGSCAN_FORMAT = {"pi": "pi", "claude": "claude-code", "opencode": "opencode"}
 PI_STEP, PI_TOOL_START, CLAUDE_STEP = "message_end", "tool_execution_start", "assistant"
+OPENCODE_STEP, OPENCODE_TOOL = "step_finish", "tool_use"   # OpenCode: a model call ends in a step_finish; a tool_use is written once the call is done
+THINKING_WITHHELD = ("claude", "opencode")      # clients whose events carry no thinking text
 UNPARSABLE = ("a line that isn't JSON",)          # among a log's shapes of event (shapes_of)
 
 # How a cut string ends, as a log holds it: the old compaction wrote its events again, the "…" escaped.
@@ -306,6 +308,8 @@ class Story:
     @functools.cached_property
     def model_calls(self) -> int:
         """Model calls in the log, counted here from its events: pi's assistant message_end, Claude's message ids."""
+        if self.client == "opencode":
+            return sum(1 for e in self.events if e.get("type") == OPENCODE_STEP)
         if self.client == "claude":
             return len({e["message"].get("id") for e in self.events
                         if e.get("type") == CLAUDE_STEP and isinstance(e.get("message"), dict)})
@@ -316,6 +320,8 @@ class Story:
     def tools_without_end(self) -> int:
         """Tool calls the log starts and never ends, counted here: every start (a repeated id starts another call)
         less every end that has a start. A subagent's calls (Claude Code) aren't the agent's."""
+        if self.client == "opencode":
+            return 0                                 # a tool_use is only written when its call is complete
         open_: dict = {}
         ended = 0
         starts = 0
@@ -341,6 +347,8 @@ class Story:
     @functools.cached_property
     def tool_starts(self) -> int:
         """Tool calls in the log, counted here: pi's tool_execution_start, Claude's tool_use blocks."""
+        if self.client == "opencode":
+            return sum(1 for e in self.events if e.get("type") == OPENCODE_TOOL)
         if self.client == "claude":
             return sum(1 for e in self.events if e.get("type") == CLAUDE_STEP for b in _blocks(e) if b.get("type") == "tool_use")
         return sum(1 for e in self.events if e.get("type") == PI_TOOL_START)
@@ -533,10 +541,10 @@ def replay_conversation(s: Story, p: Problems) -> None:
     p.same(set(prof), PROFILE_KEYS, "the profile's keys")
     p.serialisable(prof, "the profile")
     p.same(prof["version"], conversation.VERSION, "version")
-    p.same(prof["thinking_visible"], s.client != "claude", "thinking_visible")
+    p.same(prof["thinking_visible"], s.client not in THINKING_WITHHELD, "thinking_visible")
     p.expect(prof["calls"] >= 1 and prof["tool_calls"] >= 0 and prof["tool_errors"] >= 0, "counts out of range")
     p.same(sum(prof["tools_by_name"].values()), prof["tool_calls"], "tools_by_name sums to tool_calls")
-    p.expect((prof["thinking_chars"] is None) == (s.client == "claude"), "thinking_chars is None exactly where thinking is withheld")
+    p.expect((prof["thinking_chars"] is None) == (s.client in THINKING_WITHHELD), "thinking_chars is None exactly where thinking is withheld")
     if s.stamped and s.t_from <= s.stamps[0] and s.stamps[-1] <= s.t_to:    # the window holds the whole log
         p.same(prof["calls"] + prof["subagent_calls"], s.model_calls, "model calls, the agent's and its subagents'")
     recorded = s.rec.get("conversation")
