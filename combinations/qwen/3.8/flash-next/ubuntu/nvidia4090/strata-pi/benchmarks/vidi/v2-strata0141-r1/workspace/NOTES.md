@@ -102,3 +102,63 @@ Decisions and environment facts for this build.
 - Safari pinch is only covered by the component test TC-17 (synthetic
   `gesturechange`), as Playwright cannot synthesise gesture events - matching the
   test strategy's "Not covered" list.
+
+## Story 2 — sticky notes
+
+Design contracts are implemented as written. Everything below is either an extra
+setting the PRD needs but the design did not name, or an environment fact the tests
+depend on.
+
+### Additions to `src/shared/config.ts`
+
+- `STICKY_PADDING_WORLD = 16` — the PRD fixes the text 16 px from every note edge;
+  the auto-fit search and the editor both need that number, so it is a named product
+  setting next to the ones the design listed.
+- `STICKY_COLOR_NAMES` / `stickyColorLabel(color)` — the accessible name and tooltip
+  of each swatch ("Yellow colour" … "Violet colour"), so colours are distinguishable
+  by name and not only by fill (PRD accessibility criterion).
+
+### Board model
+
+- `createSticky` returns `string` exactly as the design declares it. A rejected
+  creation returns `''` (falsy), which keeps the return type a string while still
+  telling the caller that nothing was created.
+- Every successful mutation is one `doc.transact(fn, LOCAL_ORIGIN)`; rejections
+  (stale id, unknown colour, non-finite coordinates, raise on the topmost note)
+  return before a transaction opens, so they emit zero `update` events — that is what
+  the unit suite counts.
+
+### Viewport ownership
+
+- `BoardViewport` stays presentation-only: it never calls `createSticky` itself. It
+  reports `onEmptyDoubleClick(worldPoint)`, `onEmptyClick(worldPoint)` and
+  `onSurfaceChange(surface)` and `App` decides what a click on empty space means.
+  `viewportCentre(surface)` returns **screen** coordinates (the centre of the visible
+  area); callers convert with `screenToWorld(surface.camera, …)`.
+- `data-board-surface="true"` marks elements that empty-board gestures belong to
+  (the board and its grid). Notes and both toolbars `stopPropagation`, so a note
+  press can never pan the board and a toolbar click can never clear the selection.
+- `BoardSurface.width/height` fall back to the measured viewport when
+  `getBoundingClientRect()` is empty, because jsdom has no layout engine.
+
+### Test hooks (test build only)
+
+`window.__vidi6` gains `notes()` (a `snapshot()` of the live document) and
+`createNote({x, y, color})`. E2E uses them to set up a board without simulating the
+creation gesture and to read back world positions, which the DOM cannot express at
+50 % / 200 % zoom. They are compiled out of `npm run build` (verified by grepping the
+bundle for `__vidi6`).
+
+### jsdom vs. a real browser
+
+- jsdom has no layout: text fit, note clipping, the bottom fade and font-size
+  measurement can only be verified in E2E (TC-33). Component tests assert the model
+  and the DOM state (data attributes, which element is mounted), never geometry.
+- jsdom has no `ResizeObserver`; `useViewportSize` falls back to
+  `window.innerWidth/innerHeight` (1024 × 768).
+- `StickyNote` coalesces drags with `requestAnimationFrame` (one Y.Doc write per
+  frame, not per pointermove), and `useCamera` does the same for pans — so component
+  tests must `await flushFrame()` before reading a position or the camera, and
+  `data-panning` / `data-dragging` are checked synchronously.
+- Only Chromium is available on this machine (see the Playwright section above), so
+  story 2's E2E suite runs there; it covers TC-30 to TC-34 plus the golden path.

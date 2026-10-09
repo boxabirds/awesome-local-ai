@@ -1,10 +1,22 @@
 import type { Camera } from './canvas/camera';
+import type { StickyColor } from '../shared/config';
+import type { StickySnapshot } from '../shared/board-model';
+
+/** Test-only note creation arguments, mirroring `createSticky`. */
+export interface TestStickyParams {
+  at: { x: number; y: number };
+  color?: StickyColor;
+}
 
 export interface Vidi6TestHooks {
   /** Jump the camera anywhere on the board (used by e2e "far travel" tests). */
   setCamera(camera: Camera): void;
   /** Read the current camera. */
   getCamera(): Camera | null;
+  /** The live document, topmost last (story 2 e2e). */
+  notes(): StickySnapshot[];
+  /** Put a note on the board through the model, for test setup. */
+  createNote(params: TestStickyParams): string;
 }
 
 declare global {
@@ -25,6 +37,18 @@ export function registerCameraApi(api: CameraApi | null): void {
   cameraApi = api;
 }
 
+export interface BoardApi {
+  notes: () => StickySnapshot[];
+  createNote: (params: TestStickyParams) => string;
+}
+
+let boardApi: BoardApi | null = null;
+
+/** Called by App while mounted; pass null on unmount. */
+export function registerBoardApi(api: BoardApi | null): void {
+  boardApi = api;
+}
+
 /** Installs `window.__vidi6` only in the test build (never in production). */
 export function installTestHooks(): void {
   if (import.meta.env.MODE !== 'test') {
@@ -33,5 +57,7 @@ export function installTestHooks(): void {
   window.__vidi6 = {
     setCamera: (camera) => cameraApi?.set(camera),
     getCamera: () => cameraApi?.get() ?? null,
+    notes: () => boardApi?.notes() ?? [],
+    createNote: (params) => boardApi?.createNote(params) ?? '',
   };
 }

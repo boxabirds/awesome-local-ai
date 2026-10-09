@@ -126,3 +126,196 @@ body {
   font-size: 14px;
   color: #52606d;
 }
+
+/* --- sticky notes (story 2) ---------------------------------------------- */
+
+.sticky-note {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 16%);
+  cursor: pointer;
+  /* The world layer ignores pointers; the notes themselves do not. */
+  pointer-events: auto;
+}
+
+.sticky-note:focus-visible,
+.sticky-note[data-selected='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 0;
+}
+
+.sticky-note__clip {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  /* Text never spills out of the note: the overflow is clipped and faded. */
+  overflow: hidden;
+}
+
+.sticky-note__text {
+  box-sizing: border-box;
+  width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  line-height: 1.25;
+  color: #1f2933;
+  pointer-events: none;
+}
+
+.sticky-note__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26px;
+  display: none;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0%), rgb(255 255 255 / 85%));
+}
+
+.sticky-note[data-overflow='true'] .sticky-note__fade {
+  display: block;
+}
+
+.sticky-note__editor-wrap {
+  position: absolute;
+  inset: 0;
+}
+
+.sticky-note__editor {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 2px;
+  margin: 0;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  font: inherit;
+  line-height: 1.25;
+  color: #1f2933;
+  background: transparent;
+}
+
+.sticky-note__counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #52606d;
+  background: rgb(255 255 255 / 78%);
+  border-radius: 4px;
+  padding: 1px 5px;
+  pointer-events: none;
+}
+
+/* The note toolbar is counter-scaled, so it keeps a constant size on screen. */
+.sticky-note__toolbar {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  transform-origin: 0 100%;
+  pointer-events: auto;
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  background: rgb(255 255 255 / 96%);
+  border: 1px solid #d5dbe3;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 12%);
+}
+
+.note-toolbar__colours {
+  display: flex;
+  gap: 4px;
+}
+
+.note-toolbar__swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #b8c0ca;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.note-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.note-toolbar__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #d5dbe3;
+  border-radius: 6px;
+  background: #fff;
+  color: #b42318;
+  cursor: pointer;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* --- left toolbar (story 2) ---------------------------------------------- */
+
+.toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: rgb(255 255 255 / 96%);
+  border: 1px solid #d5dbe3;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 12%);
+}
+
+.toolbar__button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 64px;
+  padding: 8px 6px;
+  border: 1px solid #d5dbe3;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2933;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.toolbar__button:focus-visible,
+.note-toolbar__swatch:focus-visible,
+.note-toolbar__delete:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}

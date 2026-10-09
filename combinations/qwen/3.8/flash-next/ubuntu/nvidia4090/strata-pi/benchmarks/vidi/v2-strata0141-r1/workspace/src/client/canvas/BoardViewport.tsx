@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { GRID_SPACING_WORLD } from '../../shared/config';
-import { canZoomIn, canZoomOut, zoomPercent, type Size } from './camera';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import {
+  canZoomIn,
+  canZoomOut,
+  screenToWorld,
+  zoomPercent,
+  type Camera,
+  type Point,
+  type Size,
+} from './camera';
 import { useCamera, wheelDeltaToPixels, wheelZoomFactor, type CameraApi } from './useCamera';
 import { NavigationHint } from './NavigationHint';
 import { ZoomControls } from './ZoomControls';
@@ -61,12 +69,43 @@ function isTextEntry(target: EventTarget | null): boolean {
 }
 
 /**
+ * The board surface as seen from the outside: the camera plus the size of the
+ * surface element. Story 2 uses it to turn the centre of the visible board into
+ * a world point (creating a sticky note from the toolbar).
+ */
+export interface BoardSurface {
+  readonly camera: Camera;
+  readonly viewport: Size;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** The centre of the visible board area, in surface coordinates. */
+export function viewportCentre(surface: BoardSurface): Point {
+  return { x: surface.width / 2, y: surface.height / 2 };
+}
+
+export interface BoardViewportProps {
+  children?: React.ReactNode;
+  /** Empty board double-clicked: the world point under the pointer. */
+  onEmptyDoubleClick?: (world: Point) => void;
+  /** Empty board clicked without panning: the world point under the pointer. */
+  onEmptyClick?: (world: Point) => void;
+  /** Called whenever the camera or the surface size changes. */
+  onSurfaceChange?: (surface: BoardSurface) => void;
+}
+
+/**
  * The board input surface: dot grid, world layer (world coordinates), and the
  * board chrome (zoom controls, first-use hint). Pan by dragging, pan by
  * scrolling, zoom at the pointer (Ctrl/Cmd wheel or Safari gesture) and the
  * Ctrl/Cmd + = / - / 0 shortcuts all prevent the browser's own behaviour.
+ *
+ * Board objects (sticky notes) are passed as children and rendered inside the
+ * world layer, so they pan and zoom with the board.
  */
-export function BoardViewport({ children }: { children?: React.ReactNode }) {
+export function BoardViewport(props: BoardViewportProps) {
+  const { children, onEmptyDoubleClick, onEmptyClick, onSurfaceChange } = props;
   const surfaceRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize(surfaceRef);
   const api = useCamera(viewport);
@@ -75,6 +114,8 @@ export function BoardViewport({ children }: { children?: React.ReactNode }) {
   const { beginPan, panMove, endPan: endPanAction, wheel, zoomAtPointer, zoomStep, reset } = api;
   const lastPointerRef = useRef({ x: viewport.width / 2, y: viewport.height / 2 });
   const gestureScaleRef = useRef(1);
+  /** A pointerdown on empty board space that has not moved yet: a click. */
+  const pendingClickRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   const screenPointFromEvent = useCallback(
     (e: { clientX: number; clientY: number }) => {
@@ -97,6 +138,7 @@ export function BoardViewport({ children }: { children?: React.ReactNode }) {
       return;
     }
     const point = screenPointFromEvent(e);
+    pendingClickRef.current = { x: point.x, y: point.y, moved: false };
     beginPan(point);
     try {
       surfaceRef.current?.setPointerCapture(e.pointerId);
@@ -106,18 +148,53 @@ export function BoardViewport({ children }: { children?: React.ReactNode }) {
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const point = screenPointFromEvent(e);
+    const pending = pendingClickRef.current;
+    if (pending && !pending.moved) {
+      const dx = point.x - pending.x;
+      const dy = point.y - pending.y;
+      if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
+        pending.moved = true; // a pan, not a click
+      }
+    }
     if (!api.isPanning) {
-      screenPointFromEvent(e);
       return;
     }
-    panMove(screenPointFromEvent(e));
+    panMove(point);
   };
 
-  const endDrag = () => {
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const pending = pendingClickRef.current;
+    pendingClickRef.current = null;
+    if (pending && !pending.moved && onEmptyClick && e.type === 'pointerup') {
+      onEmptyClick(screenToWorld(api.camera, screenPointFromEvent(e)));
+    }
     if (api.isPanning) {
       endPanAction();
     }
   };
+
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target;
+    if (!(target instanceof Element) || target.getAttribute('data-board-surface') !== 'true') {
+      return; // double-clicking a board object is the object's own business
+    }
+    onEmptyDoubleClick?.(screenToWorld(api.camera, screenPointFromEvent(e)));
+  };
+
+  // Publish the surface (camera + size) so board objects and toolbars can map
+  // screen points to world points without owning the camera.
+  useEffect(() => {
+    if (!onSurfaceChange) {
+      return;
+    }
+    const rect = surfaceRef.current?.getBoundingClientRect();
+    // Environments without layout (jsdom) report an empty rect: fall back to
+    // the viewport size the surface itself was measured with.
+    const width = rect && rect.width > 0 ? rect.width : viewport.width;
+    const height = rect && rect.height > 0 ? rect.height : viewport.height;
+    onSurfaceChange({ camera: api.camera, viewport, width, height });
+  }, [api.camera, viewport, onSurfaceChange]);
 
   // --- wheel (non-passive so it never scrolls or zooms the page) ------------
   useEffect(() => {
@@ -228,6 +305,7 @@ export function BoardViewport({ children }: { children?: React.ReactNode }) {
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       onLostPointerCapture={endDrag}
+      onDoubleClick={onDoubleClick}
     >
       <div className="board__grid" data-board-surface="true" aria-hidden="true" />
       <div
