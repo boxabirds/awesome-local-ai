@@ -1,8 +1,9 @@
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 export interface BoardConnection {
   destroy(): void;
@@ -52,9 +53,11 @@ export function connectBoard(
   const onStatus = (event: { status: 'connecting' | 'connected' | 'disconnected' }): void => {
     if (event.status === 'disconnected') {
       // Losing the socket only matters once one has been established; a first
-      // load that has not connected yet is still just "Connecting…".
+      // load that has not connected yet is still just "Connecting…". A
+      // load_failed close must survive the trailing status event, which fires
+      // after connection-close, so it is excluded here.
       clearConfirmation();
-      if (everConnected && state !== 'reconnecting') emit('reconnecting');
+      if (everConnected && state !== 'reconnecting' && state !== 'load_failed') emit('reconnecting');
       return;
     }
     if (event.status === 'connected') {
@@ -76,14 +79,25 @@ export function connectBoard(
       return;
     }
     if (state === 'connecting') emit('connected');
+    // A board that refused to load re-enables editing on the first successful
+    // sync after a repair, without a page reload.
+    else if (state === 'load_failed') emit('connected');
   };
 
   const onProviderSync = (synced: boolean): void => {
     if (synced) onSynced();
   };
 
-  const onConnectionClose = (): void => {
+  const onConnectionClose = (event: CloseEvent | null): void => {
     clearConfirmation();
+    // 4500 is the room saying the board could not be loaded. Other close
+    // codes (1011 storage failure, 1003 bad frame, network drops) stay on the
+    // reconnecting path because the board itself is readable and the provider
+    // keeps retrying in both cases.
+    if (event !== null && event.code === CLOSE_BOARD_LOAD_FAILED) {
+      emit('load_failed');
+      return;
+    }
     if (everConnected && state !== 'reconnecting') emit('reconnecting');
   };
 

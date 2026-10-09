@@ -13,6 +13,7 @@
     "test:component": "vitest run --project component",
     "test:integration": "WRANGLER_SEND_METRICS=false vite build && WRANGLER_SEND_METRICS=false vitest run --project integration",
     "test:e2e": "playwright test",
+    "test:e2e:persistence": "playwright test --config playwright.persistence.config.ts",
     "test:e2e:nightly": "playwright test --config playwright.nightly.config.ts"
   },
   "dependencies": {

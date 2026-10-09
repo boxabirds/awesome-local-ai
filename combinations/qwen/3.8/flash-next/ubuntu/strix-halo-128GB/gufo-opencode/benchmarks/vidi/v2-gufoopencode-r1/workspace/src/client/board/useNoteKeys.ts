@@ -11,10 +11,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 // Window-level keyboard handling for the selected note: Enter starts editing,
 // Delete/Backspace delete it. While editing, every key is left to the textarea.
-export function useNoteKeys(doc: Y.Doc, selection: SelectionApi): void {
+export function useNoteKeys(doc: Y.Doc, selection: SelectionApi, editable = true): void {
   const { selectedId, editingId, select, startEdit } = selection;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!editable) return;
       if (editingId !== null) return;
       if (selectedId === null) return;
       if (isEditableTarget(event.target)) return;
@@ -29,5 +30,5 @@ export function useNoteKeys(doc: Y.Doc, selection: SelectionApi): void {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selectedId, editingId, select, startEdit]);
+  }, [doc, selectedId, editingId, select, startEdit, editable]);
 }

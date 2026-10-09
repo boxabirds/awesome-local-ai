@@ -4,6 +4,7 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { useNoteKeys } from './board/useNoteKeys';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 
 // Story 3 routing: the board lives at /b/<boardId>. '/' mints a fresh board
@@ -25,6 +26,12 @@ function boardIdFromLocation(): string {
   return fresh;
 }
 
+// The board is read-only only while the server cannot load it; every other
+// connection state (including reconnecting) keeps editing enabled.
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
 export function App() {
   const [boardId, setBoardId] = useState<string | null>(() => boardIdFromLocation());
   useEffect(() => {
@@ -35,7 +42,7 @@ export function App() {
 
   const { doc, notes, connection } = useBoardDoc(boardId ?? undefined);
   const selection = useSelection(doc);
-  useNoteKeys(doc, selection);
+  useNoteKeys(doc, selection, canEdit(connection));
 
   return (
     <>
@@ -48,6 +55,7 @@ export function App() {
         onSelect={selection.select}
         onStartEdit={selection.startEdit}
         onEndEdit={selection.endEdit}
+        editable={canEdit(connection)}
       />
     </>
   );

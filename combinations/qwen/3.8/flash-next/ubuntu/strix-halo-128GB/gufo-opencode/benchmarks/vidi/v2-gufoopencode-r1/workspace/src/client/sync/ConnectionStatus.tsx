@@ -9,13 +9,15 @@ import type { ConnectionState } from './connectBoard';
 const LABELS: Record<Exclude<ConnectionState, 'connected'>, string> = {
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
-  confirmed: 'Connected'
+  confirmed: 'Connected',
+  load_failed: "This board couldn't be loaded. Retrying…"
 };
 
 const COLORS: Record<Exclude<ConnectionState, 'connected'>, string> = {
   connecting: '#6b7280',
   reconnecting: '#b45309',
-  confirmed: '#15803d'
+  confirmed: '#15803d',
+  load_failed: '#dc2626'
 };
 
 export function ConnectionStatus(props: { state: ConnectionState }): JSX.Element | null {

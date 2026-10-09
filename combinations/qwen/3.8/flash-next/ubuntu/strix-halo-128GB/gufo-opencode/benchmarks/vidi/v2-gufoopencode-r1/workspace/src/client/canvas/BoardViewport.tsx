@@ -44,6 +44,9 @@ export interface BoardViewportProps {
   onSelect?(id: string | null): void;
   onStartEdit?(id: string): void;
   onEndEdit?(next: 'selected' | 'unselected'): void;
+  // False while the board could not be loaded: every model mutation is a
+  // no-op and the Sticky note button is disabled.
+  editable?: boolean;
 }
 
 export function BoardViewport(props: BoardViewportProps) {
@@ -147,12 +150,12 @@ export function BoardViewport(props: BoardViewportProps) {
 
   const createAtWorld = useCallback((world: Point): void => {
     const doc = props.doc;
-    if (doc === undefined) return;
+    if (doc === undefined || props.editable === false) return;
     const id = createSticky(doc, world);
     if (id === false) return;
     selectRef.current?.(id);
     startEditRef.current?.(id);
-  }, [props.doc]);
+  }, [props.doc, props.editable]);
 
   const createCentre = useCallback((): void => {
     createAtWorld(screenToWorld(cam.camera, { x: viewport.width / 2, y: viewport.height / 2 }));
@@ -268,11 +271,12 @@ export function BoardViewport(props: BoardViewportProps) {
               onSelect={(id) => props.onSelect?.(id)}
               onStartEdit={(id) => props.onStartEdit?.(id)}
               onEndEdit={(next) => props.onEndEdit?.(next)}
+              editable={props.editable !== false}
             />
           ))}
         </div>
       </div>
-      {props.doc !== undefined ? <Toolbar onCreateSticky={createCentre} /> : null}
+      {props.doc !== undefined ? <Toolbar onCreateSticky={createCentre} disabled={props.editable === false} /> : null}
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

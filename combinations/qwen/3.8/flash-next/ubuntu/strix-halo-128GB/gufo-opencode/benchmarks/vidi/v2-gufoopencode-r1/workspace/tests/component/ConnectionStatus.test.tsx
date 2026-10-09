@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
 import * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../src/shared/config';
+import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from '../../src/shared/protocol';
 
 // A fake provider: connectBoard is the unit under test and the badge renders
 // from the state it reports, so the transport is replaced by a hand-driven
@@ -61,11 +62,11 @@ vi.mock('y-websocket', () => {
   return { WebsocketProvider: Fake };
 });
 
-import { connectBoard } from '../../src/client/sync/connectBoard';
+import { connectBoard, type ConnectionState } from '../../src/client/sync/connectBoard';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 
 function Badge({ boardId }: { boardId: string }): JSX.Element {
-  const [state, setState] = useState<'connecting' | 'connected' | 'reconnecting' | 'confirmed'>('connecting');
+  const [state, setState] = useState<ConnectionState>('connecting');
   const [doc] = useState(() => new Y.Doc());
   useEffect(() => {
     const handle = connectBoard(doc, boardId, setState);
@@ -207,4 +208,66 @@ test('an edit control under the badge stays clickable while reconnecting', () =>
   });
   fireEvent.click(button);
   expect(clicked).toBe(true);
+});
+
+test('TC-22 close 4500 shows the red load-failed badge and a later sync returns to normal', () => {
+  render(<Badge boardId="board-fff" />);
+  const provider = latest();
+  act(() => {
+    provider.wsconnected = true;
+    provider.synced = true;
+    provider.emit('status', { status: 'connected' });
+    provider.emit('sync', true);
+  });
+  expect(screen.queryByRole('status')).toBeNull();
+  act(() => {
+    provider.wsconnected = false;
+    provider.synced = false;
+    provider.emit('connection-close', { code: CLOSE_BOARD_LOAD_FAILED });
+    provider.emit('status', { status: 'disconnected' });
+  });
+  const badge = screen.getByRole('status');
+  expect(badge.textContent).toContain("This board couldn't be loaded. Retrying…");
+  expect(badge.getAttribute('data-state')).toBe('load_failed');
+  expect(badge.style.color).toBe('rgb(220, 38, 38)');
+  // The provider keeps retrying; the first successful sync re-enables the
+  // board without a reload.
+  act(() => {
+    provider.wsconnected = true;
+    provider.synced = true;
+    provider.emit('status', { status: 'connected' });
+    provider.emit('sync', true);
+  });
+  expect(screen.queryByRole('status')).toBeNull();
+});
+
+test('TC-28 close 1011 then 1003 show Reconnecting, never load-failed, and editing stays enabled', () => {
+  render(
+    <>
+      <Badge boardId="board-ggg" />
+      <button onClick={() => undefined}>Create sticky</button>
+    </>
+  );
+  const provider = latest();
+  act(() => {
+    provider.wsconnected = true;
+    provider.synced = true;
+    provider.emit('status', { status: 'connected' });
+    provider.emit('sync', true);
+  });
+  act(() => {
+    provider.wsconnected = false;
+    provider.synced = false;
+    provider.emit('connection-close', { code: CLOSE_STORAGE_FAILURE });
+    provider.emit('status', { status: 'disconnected' });
+  });
+  expect(screen.getByRole('status').getAttribute('data-state')).toBe('reconnecting');
+  act(() => {
+    provider.emit('connection-close', { code: 1003 });
+    provider.emit('status', { status: 'disconnected' });
+  });
+  const badge = screen.getByRole('status');
+  expect(badge.getAttribute('data-state')).toBe('reconnecting');
+  expect(badge.textContent).toContain('Reconnecting…');
+  expect((screen.getByRole('button', { name: 'Create sticky' }) as HTMLButtonElement).disabled).toBe(false);
 });

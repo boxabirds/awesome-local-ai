@@ -8,6 +8,18 @@ import { TestClient, waitFor } from './ws-client';
 
 const port = inject('workerPort');
 
+async function waitForFrameQuiescence(clients: TestClient[]): Promise<void> {
+  const deadline = Date.now() + 15_000;
+  let signature = '';
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    const current = clients.map((client) => client.log.syncKinds.length).join(',');
+    if (current === signature && current !== '') return;
+    signature = current;
+  }
+  throw new Error('sync frames did not quiesce');
+}
+
 function emptySnapshot(): string {
   const doc = new Y.Doc();
   return JSON.stringify(snapshot(doc));
@@ -58,6 +70,11 @@ test('TC-13 a board accepts more than MAX_CONCURRENT_EDITORS sockets and syncs t
     clients.push(await TestClient.connected(port, boardId));
   }
   expect(clients.every((client) => client.provider.wsconnected)).toBe(true);
+  // Each client seeds the schema version on connect and the room relays that
+  // write to every other socket. Wait for that relay traffic to go quiet
+  // before taking the frame baseline, or a straggler relay is counted as a
+  // duplicate below.
+  await waitForFrameQuiescence(clients);
   const last = clients[clients.length - 1];
   const before = clients.map((client) => client.log.syncKinds.length);
   const noteId = createSticky(last.doc, { x: 10, y: 20 });

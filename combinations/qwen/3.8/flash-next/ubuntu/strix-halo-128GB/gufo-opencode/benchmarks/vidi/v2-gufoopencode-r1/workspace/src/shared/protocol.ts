@@ -3,6 +3,11 @@ export const MESSAGE_SYNC = 0;
 export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+// Story 4: the room could not load its persisted document (client shows the
+// load-failed state and keeps retrying), and the room lost its storage and
+// had to close everybody because changes can no longer be made durable.
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 // y-protocols/sync message kinds (the varint that follows MESSAGE_SYNC).
 export const SYNC_STEP1 = 0;

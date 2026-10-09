@@ -28,6 +28,7 @@ const buttonStyle: CSSProperties = {
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  disabled?: boolean;
 }
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
@@ -44,6 +45,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         aria-label="Sticky note"
         title={STICKY_BUTTON_TOOLTIP}
         style={buttonStyle}
+        disabled={props.disabled === true}
         onClick={() => props.onCreateSticky()}
       >
         🗒

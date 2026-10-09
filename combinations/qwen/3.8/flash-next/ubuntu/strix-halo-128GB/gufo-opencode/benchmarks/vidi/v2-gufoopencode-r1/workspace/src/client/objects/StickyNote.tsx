@@ -24,10 +24,12 @@ export interface StickyNoteProps {
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  editable?: boolean;
 }
 
 export function StickyNote(props: StickyNoteProps): JSX.Element {
   const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const editable = props.editable !== false;
   const [dragging, setDragging] = useState(false);
   const [fontPx, setFontPx] = useState<number>(24);
   const [overflow, setOverflow] = useState(false);
@@ -95,7 +97,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (pointerIdRef.current === null) return;
+    if (pointerIdRef.current === null || !editable) return;
     const dx = event.clientX - startScreenRef.current.x;
     const dy = event.clientY - startScreenRef.current.y;
     if (!draggingRef.current) {
@@ -131,6 +133,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
 
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
     event.stopPropagation();
+    if (!editable) return;
     onStartEdit(note.id);
   };
 
@@ -175,7 +178,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
           {overflow ? <div data-testid="sticky-fade" style={noteFadeStyle} /> : null}
         </div>
       )}
-      {selected && !editing && !dragging ? (
+      {editable && selected && !editing && !dragging ? (
         <div
           data-testid={`note-toolbar-anchor-${note.id}`}
           style={{

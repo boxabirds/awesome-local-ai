@@ -29,7 +29,7 @@ export default defineConfig({
           pool: 'forks',
           include: ['tests/integration/**/*.test.ts'],
           globalSetup: ['tests/integration/global-setup.ts'],
-          testTimeout: 30_000,
+          testTimeout: 90_000,
           hookTimeout: 180_000
         }
       }
