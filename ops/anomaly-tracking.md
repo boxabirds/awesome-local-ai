@@ -495,13 +495,17 @@ test that would reproduce it. Details under the entries.
   dirty); re-scored under vidi-v2.0-pre2.
 - **Observed:** from story 5 on every held-out test failed live, with the gate green throughout; the same
   final commit re-scores 75/75.
-- **Bucket:** unexplained — **confidence low**. A scoring-side fault under the pre1 suite is likelier than
-  the model (a green gate and a perfect re-score), but the live detail wasn't read.
+- **Bucket:** internal bug (the held-out suite) — **explained 9 Oct 2026**. Every failure in story 5's `accept-report.json` is the
+  same timeout waiting for a button named "Create a board"; the page the suite saw (its screenshot and page snapshot) has a button
+  named "New board", which is what story 5's spec asks for. Every held-out test opens a board first, so from story 5 on all of
+  them failed, stories 1–4's included (0/36 at story 5 against 30/31 at story 4). The suite was fixed for exactly this in the
+  private pack's `e100d47d` ("the held-out suite asks only for what spec v2 asks for", vidi v2.0-pre2). The app was not at fault.
 - **Note 2026-10-01 13:10:** Opus v2-r1 and v2-r2 were left out of the migration to scores of record
   (A-030) because they ran under vidi-v2.0-pre1 (dirty), not pre2; whether their pre2 re-scores (75/75
   for v2-r1) count is with the owner. This is the same run whose live scores are 0 from story 5.
-- **Status:** open; per-story live numbers for this run are not usable. Would need the
-  private held-out detail of story 5.
+- **Status:** explained; the run's score of record is its pre2 re-score, 75/75. Its per-story live numbers from story 5 are not usable
+  (the suite's fault, not the model's). Not checked: whether other runs' live zeros (e.g. Swift 1.5 v2-r1 at story 4, gufo v2-r1 at
+  story 5) have the same cause.
 
 ---
 
