@@ -12,8 +12,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 2 | 10/10 | 0 | 0 | 20/20 |
 | 3 | 6/7 | 0 | 0 | 26/27 |
 | 4 | 4/4 | 1 | 0 | 29/31 |
+| 5 | 5/5 | 0 | 0 | 34/36 |
 
-**New work** 26/27, **regressions** 1, **repairs** 0, **cumulative** 29/31.
+**New work** 31/32, **regressions** 1, **repairs** 0, **cumulative** 34/36.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -21,8 +22,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 96.9 | None | None | None | — | — | green | 20/20 |  | 0 / 1 | 2 | — | throttled 99%, server peak 73 GB |
 | 3 | See other people's edits appear live on the same board | DONE | 204.2 | None | None | None | — | — | green | 26/27 |  | 0 / 1 | 4 | — | throttled 78%, server peak 79 GB |
 | 4 | Return to a board and find everything as it was left | DONE | 208.7 | None | None | None | — | — | green | 29/31 |  | 0 / 0 | 4 | — | throttled 83%, server peak 79 GB |
+| 5 | Share a board with others using a link | DONE | 99.0 | None | None | None | — | — | green | 34/36 |  | 0 / 1 | 2 | — | throttled 83%, server peak 79 GB |
 
-**Totals:** 4 stories, 642 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/4, final acceptance 29/31, stalled 0, partial 0, 13108 lines in src+tests.
+**Totals:** 5 stories, 741 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/5, final acceptance 34/36, stalled 0, partial 0, 15647 lines in src+tests.
 
 ## How it happened
 
@@ -34,6 +36,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 2 | 4 by the agent | 3998 / 128 | `StickyNote.tsx` (423), `board-model.ts` (322), `styles.css` (171), `StickyText.ts` (169), `StickyTextEditor.tsx` (132), `App.tsx` (123), +10 more |
 | 3 | 5 by the agent | 5543 / 218 | `board-room.ts` (261), `PROGRESS.md` (146), `protocol.ts` (95), `StickyText.ts` (91), `connectBoard.ts` (90), `index.ts` (66), +16 more |
 | 4 | 6 by the agent | 3347 / 193 | `board-room.ts` (459), `board-store.ts` (412), `BoardSocket.ts` (297), `connectBoard.ts` (139), `room-state.ts` (102), `NOTES.md` (78), +14 more |
+| 5 | 7 by the agent | 3031 / 395 | `SharePanel.tsx` (352), `App.tsx` (204), `Board.tsx` (173), `styles.css` (135), `state.ts` (122), `router.ts` (117), +15 more |
 
 ### Earlier stories broken or fixed
 

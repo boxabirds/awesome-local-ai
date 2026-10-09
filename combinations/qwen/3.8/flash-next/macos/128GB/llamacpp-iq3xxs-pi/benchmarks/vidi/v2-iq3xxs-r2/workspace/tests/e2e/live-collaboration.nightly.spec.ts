@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
 import {
   LIVE_UPDATE_LATENCY_BUDGET_MS,
   MAX_CONCURRENT_EDITORS,
@@ -10,9 +9,9 @@ import { NOTE_WORDS, mulberry32 } from '../fixtures/random-ops';
 import {
   applyChange,
   badgeSightings,
-  boardLink,
   boardMarkers,
   closeParticipants,
+  createBoardLink,
   connectionState,
   createNoteAt,
   createParticipants,
@@ -94,7 +93,7 @@ const short = (id: string): string => id.slice(0, 6);
 
 test('TC-29 @nightly: a board nobody touches stays connected', async ({ browser }) => {
   test.setTimeout(300_000);
-  const people = await createParticipants(browser, boardLink(newBoardId()), 2);
+  const people = await createParticipants(browser, await createBoardLink(browser), 2);
   const [alex, sam] = people as [Participant, Participant];
   try {
     // Prove the two are connected before "nothing happens" means anything.
@@ -138,7 +137,7 @@ test('TC-30 @nightly: a full room editing for a minute converges, with a latency
   browser,
 }) => {
   test.setTimeout(900_000);
-  const people = await createParticipants(browser, boardLink(newBoardId()), MAX_CONCURRENT_EDITORS);
+  const people = await createParticipants(browser, await createBoardLink(browser), MAX_CONCURRENT_EDITORS);
   const random = mulberry32(20260822);
   const pick = <T>(values: readonly T[]): T => values[Math.floor(random() * values.length)]!;
   const spotOf = new Map<string, number>();

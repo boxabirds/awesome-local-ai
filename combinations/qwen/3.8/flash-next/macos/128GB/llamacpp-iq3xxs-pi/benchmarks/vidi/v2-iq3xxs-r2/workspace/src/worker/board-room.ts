@@ -63,6 +63,29 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   /**
+   * Create this board (`POST /api/boards`, story 5): migrate, then write `created_at`
+   * unless it is already there. One call per board — an id that turns out to be taken
+   * answers `exists` and the Worker turns that into a 500 rather than adopting someone
+   * else's board (share.unguessable).
+   *
+   * This is the only place a board's tables come from for a linked board; a room that
+   * is merely probed by `exists()` or a refused socket writes nothing.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    if (!this.store.markCreatedAtIfAbsent(Date.now())) return 'exists';
+    return 'created';
+  }
+
+  /**
+   * Does this board exist (`GET /api/boards/:id`, story 5)? Read-only by contract:
+   * no tables, no rows, no `created_at` (`share.not_found`).
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  /**
    * A WebSocket upgrade takes a seat; when `TEST_HOOKS` is on, the room also answers
    * the test-only storage routes (`/__test/...`), which production never sees.
    */
@@ -76,6 +99,16 @@ export class BoardRoom extends DurableObject<Env> {
     }
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('expected a WebSocket upgrade', { status: 426 });
+    }
+
+    // Story 5 (`share.not_found`): a board is created by `POST /api/boards`, not by
+    // connecting to its address. The check reads, so a mistyped link leaves no storage
+    // and no board behind (TC-09).
+    if (!this.store.existsReadOnly()) {
+      return new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
     }
 
     // A connection is the only way back for a room that failed before: storage resets
@@ -149,27 +182,22 @@ export class BoardRoom extends DurableObject<Env> {
   /** Read the board into a fresh doc. Synchronous SQL throughout: no await needed. */
   private loadNow(): void {
     const doc = new Y.Doc();
-    let failure: string | null = null;
-    try {
-      this.store.migrate();
-    } catch (error) {
-      failure = reasonOf(error);
-    }
-    if (failure === null) {
-      const result = this.store.load(doc);
-      if (result.ok) {
-        if (result.quarantined > 0) {
-          console.error(
-            JSON.stringify({ event: 'board_loaded_with_damage', quarantined: result.quarantined }),
-          );
-        }
-        this.doc = doc;
-        this.wire(doc);
-        this.dispatch({ type: 'load-ok' });
-        return;
+    // Story 5: loading does not migrate. A board that has no tables has never been
+    // created, and reading it must leave it that way (`share.not_found`); boards that
+    // do have tables are read as they are, damaged tables and all (`persist.load_failure`).
+    const result = this.store.load(doc);
+    if (result.ok) {
+      if (result.quarantined > 0) {
+        console.error(
+          JSON.stringify({ event: 'board_loaded_with_damage', quarantined: result.quarantined }),
+        );
       }
-      failure = `${result.reason}: ${result.error}`;
+      this.doc = doc;
+      this.wire(doc);
+      this.dispatch({ type: 'load-ok' });
+      return;
     }
+    const failure = `${result.reason}: ${result.error}`;
     // A failed load: the doc is discarded (never served half-read), and the retry
     // clock starts. `load-failed` rooms answer every socket with 4500.
     this.doc = null;

@@ -1,5 +1,11 @@
-import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
+import {
+  expect,
+  type APIRequestContext,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from '@playwright/test';
+import { BOARD_ID_PATTERN } from '../../../src/shared/board-id';
 import {
   CATCH_UP_TEST_OUTAGE_MS,
   E2E_EVENTUAL_TIMEOUT_MS,
@@ -8,8 +14,10 @@ import {
   RECONNECT_MAX_BACKOFF_MS,
   STICKY_SIZE_WORLD,
 } from '../../../src/shared/config';
+import { LINK_COPIED_LABEL } from '../../../src/client/share/SharePanel';
 import { screenToWorld } from '../../../src/client/canvas/camera';
 import {
+  BOARD_URL,
   boardNotes,
   dragPointer,
   noteRect,
@@ -50,8 +58,46 @@ export interface LatencySample {
 }
 
 /** The address of a board, as it appears in the link the app copies. */
-export function boardLink(boardId: string = newBoardId()): string {
-  return `#/b/${boardId}`;
+export function boardLink(boardId: string): string {
+  return `/b/${boardId}`;
+}
+
+/** Anything that can ask the test server for something: a request, a context, or a browser. */
+type Requester = APIRequestContext | BrowserContext | Browser;
+
+/**
+ * A board that exists, made through the endpoint the app itself uses — since story 5 an
+ * id nobody created is simply a board that is not there, and a test that wants one of
+ * those should say so with a link rather than by hoping the client still opens it.
+ */
+export async function createBoard(via: Requester): Promise<string> {
+  const context = 'newContext' in via ? await via.newContext() : null;
+  const request: APIRequestContext =
+    context !== null
+      ? context.request
+      : 'request' in via
+        ? via.request
+        : (via as APIRequestContext);
+  try {
+    const response = await request.post('/api/boards');
+    expect(response.status(), 'POST /api/boards').toBe(201);
+    const body: unknown = await response.json();
+    const id =
+      typeof body === 'object' && body !== null && 'id' in body && typeof body.id === 'string'
+        ? body.id
+        : null;
+    expect(id, 'the created board id').not.toBeNull();
+    if (id === null) throw new Error('unreachable');
+    expect(BOARD_ID_PATTERN.test(id), `created id ${id}`).toBe(true);
+    return id;
+  } finally {
+    await context?.close();
+  }
+}
+
+/** The link of a board that exists, ready to hand to `createParticipants`. */
+export async function createBoardLink(via: Requester): Promise<string> {
+  return boardLink(await createBoard(via));
 }
 
 /**
@@ -66,22 +112,39 @@ export async function createParticipants(
 ): Promise<Participant[]> {
   const people: Participant[] = [];
   for (const name of NAMES.slice(0, count)) {
-    const context = await browser.newContext();
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    const page = await context.newPage();
-    const errors: string[] = [];
-    const sockets: string[] = [];
-    page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
-    page.on('console', (message) => {
-      if (message.type() === 'error') errors.push(`console: ${message.text()}`);
-    });
-    page.on('websocket', (socket) => sockets.push(socket.url()));
-    const participant: Participant = { name, context, page, errors, sockets };
-    people.push(participant);
-    await page.goto(link);
-    await waitForCentredBoard(page);
+    const context = await clipboardContext(browser);
+    const person = participantOf(name, context, await context.newPage());
+    people.push(person);
+    await person.page.goto(link);
+    await waitForCentredBoard(person.page);
   }
   return people;
+}
+
+/**
+ * A context that can read and write the clipboard. Sharing a link is a clipboard act, so
+ * every context this suite opens has the permission — and where the engine has nothing to
+ * grant, granting it changes nothing.
+ */
+export async function clipboardContext(browser: Browser): Promise<BrowserContext> {
+  const context = await browser.newContext();
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  return context;
+}
+
+/**
+ * A person out of a context and page a test opened itself, with the same recording of
+ * console errors and sockets that the suites which open their own people rely on.
+ */
+export function participantOf(name: string, context: BrowserContext, page: Page): Participant {
+  const errors: string[] = [];
+  const sockets: string[] = [];
+  page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+  });
+  page.on('websocket', (socket) => sockets.push(socket.url()));
+  return { name, context, page, errors, sockets };
 }
 
 const closed = new WeakSet<Participant>();
@@ -239,6 +302,22 @@ export function logLatencySummary(samples: LatencySample[]): void {
 /* -------------------------------------------------------------------------
  * What a person does
  * ---------------------------------------------------------------------- */
+
+/**
+ * Share, Copy link, and whatever the clipboard holds afterwards — which is the only proof
+ * that matters, because the clipboard is what carries the link to the next person.
+ */
+export async function copyLinkThroughPanel(page: Page): Promise<string> {
+  await page.getByTestId('share-button').click();
+  await expect(page.getByTestId('share-panel')).toBeVisible();
+  await page.getByTestId('copy-link').click();
+  // The confirmation is the app's own claim that the link is on the clipboard, so it is
+  // waited for before the clipboard is read back and compared with it.
+  await expect(page.getByTestId('copy-link')).toContainText(LINK_COPIED_LABEL);
+  const text = await page.evaluate(() => navigator.clipboard.readText());
+  expect(text, 'the copied link').toMatch(BOARD_URL);
+  return text;
+}
 
 /** Double-click an empty spot: that is how a person makes a note. */
 export async function createNoteAt(person: Participant, at: Point): Promise<string> {

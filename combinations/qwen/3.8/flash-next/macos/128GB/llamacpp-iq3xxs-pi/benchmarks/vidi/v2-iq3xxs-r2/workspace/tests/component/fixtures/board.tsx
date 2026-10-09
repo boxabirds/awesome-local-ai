@@ -2,6 +2,7 @@ import { act, render } from '@testing-library/react';
 import { expect, vi } from 'vitest';
 import * as Y from 'yjs';
 import { App } from '../../../src/client/App';
+import { newBoardId } from '../../../src/shared/board-id';
 import {
   screenToWorld,
   worldToScreen,
@@ -25,11 +26,20 @@ export { VIEWPORT_FIXTURE };
 export const ORIGIN_MARKER_SIZE_PX = 16;
 
 /**
- * Render the real app so input handlers, camera state and controls are all wired,
- * then wait for the board to centre itself on its starting point (the first camera
- * change, which happens one animation frame after mount).
+ * Render the real app on a board address, so the router, the existence check, the input
+ * handlers, the camera state and the controls are all wired, then wait for the board to
+ * centre itself on its starting point (the first camera change, which happens one
+ * animation frame after mount).
+ *
+ * Story 5 makes this two things it was not: the app starts on the home page, so a board
+ * test has to be at `/b/<id>` to see a board, and a board only mounts once the page has
+ * been told it exists — which the stubbed board service answers yes to by default
+ * (`fixtures/api`). The id the board is on comes back, because a test that cares about
+ * the link needs the same one.
  */
-export async function renderBoard(): Promise<void> {
+export async function renderBoard(): Promise<string> {
+  const boardId = newBoardId();
+  window.history.replaceState(null, '', `/b/${boardId}`);
   render(<App />);
   await vi.waitFor(() => {
     const cam = readCamera();
@@ -38,6 +48,7 @@ export async function renderBoard(): Promise<void> {
     }
   });
   await flushFrames();
+  return boardId;
 }
 
 export function viewportElement(): HTMLElement {

@@ -199,10 +199,28 @@ export async function waitForCentredBoard(page: Page, timeout = 15_000): Promise
   }
 }
 
-/** Navigate to the board and wait until the starting point is centred. */
-export async function gotoBoard(page: Page): Promise<void> {
-  await page.goto('/');
+/** The home page's way into a board, and the address a board lives at. */
+export const NEW_BOARD_BUTTON = '[data-testid="new-board"]';
+export const BOARD_URL = /\/b\/[A-Za-z0-9_-]{22}$/;
+
+/**
+ * Press "New board" and wait for the board it made, returning the id the app navigated
+ * to. Since story 5 a board is something the service has to have made, so "open the
+ * board" and "make a board" are one act, and every story that only wanted a board in
+ * front of a person now goes the way a person does.
+ */
+export async function makeBoard(page: Page): Promise<string> {
+  await page.locator(NEW_BOARD_BUTTON).click();
+  await expect(page).toHaveURL(BOARD_URL);
+  const boardId = new URL(page.url()).pathname.slice('/b/'.length);
   await waitForCentredBoard(page);
+  return boardId;
+}
+
+/** Navigate to a board — which, from the home page, means making one. */
+export async function gotoBoard(page: Page): Promise<string> {
+  await page.goto('/');
+  return makeBoard(page);
 }
 
 /**

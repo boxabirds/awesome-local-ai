@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { isValidBoardId, newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { createSticky, initDoc } from '../../src/shared/board-model';
-import { TestClient, connectClients, disconnectClients } from './helpers/ws-client';
+import { TestClient, connectClients, createBoardRoom, disconnectClients } from './helpers/ws-client';
 
 /**
  * The Worker's own routing (`sync.worker_entry`), run inside workerd against the real
@@ -23,11 +23,13 @@ async function settle(ms = 300): Promise<void> {
 }
 
 describe('worker routing (TC-04 to TC-06, TC-13, TC-17)', () => {
-  it('TC-04 rejects a malformed board id with 400 and never asks for the object', async () => {
+  // Story 5 (`share.not_found`) turned story 3's 400 into the same 404 an unknown board
+  // gets: a bad address says "no such board" and nothing else, so nothing is revealed.
+  it('TC-04 rejects a malformed board id with 404 and never asks for the object', async () => {
     const idFromName = vi.spyOn(env.BOARD_ROOM, 'idFromName');
     for (const path of ['/api/rooms/bad!id', '/api/rooms/', '/api/rooms/short', '/api/rooms/AAAAAAAAAAAAAAAAAAAAAAAA']) {
       const response = await requestRoom(path);
-      expect(response.status, path).toBe(400);
+      expect(response.status, path).toBe(404);
     }
     expect(isValidBoardId('bad!id')).toBe(false);
     expect(idFromName).not.toHaveBeenCalled();
@@ -48,7 +50,7 @@ describe('worker routing (TC-04 to TC-06, TC-13, TC-17)', () => {
   it('rejects an id that a percent-encoding smuggles a path into', async () => {
     const idFromName = vi.spyOn(env.BOARD_ROOM, 'idFromName');
     const response = await requestRoom(`/api/rooms/${newBoardId()}%2Fadmin`);
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
     expect(idFromName).not.toHaveBeenCalled();
     idFromName.mockRestore();
   });
@@ -78,6 +80,8 @@ describe('worker routing (TC-04 to TC-06, TC-13, TC-17)', () => {
 
   it('upgrades a valid board address and hands the socket to that board', async () => {
     const boardId = newBoardId();
+    // Story 5: only a board that exists answers a socket (TC-09 covers the other case).
+    await createBoardRoom(boardId);
     const response = await requestRoom(`/api/rooms/${boardId}`, {
       Upgrade: 'WebSocket',
       Connection: 'upgrade',

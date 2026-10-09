@@ -37,11 +37,24 @@ test.afterAll(async () => {
 /** Reopening a board after a process died is worth waiting a bit longer for. */
 const RETURN_TIMEOUT_MS = 60_000;
 
+/**
+ * A board that exists on *this* server, made through the same endpoint the app uses.
+ * Since story 5 a link to a board nobody made is a board that is not there, and these
+ * tests need boards they can come back to, so they make them — against the port they
+ * own, which is the one place their storage lives.
+ */
+async function boardHere(): Promise<{ boardId: string; link: string }> {
+  const answer = await fetch(`${server.url}api/boards`, { method: 'POST' });
+  expect(answer.status, `POST ${server.url}api/boards`).toBe(201);
+  const { id } = (await answer.json()) as { id: string };
+  return { boardId: id, link: boardLink(id) };
+}
+
 test.describe('Persistence across process restarts', () => {
   test('TC-19 the overnight return: twenty-five varied notes survive a process death', async ({
     browser,
   }) => {
-    const link = boardLink();
+    const { link } = await boardHere();
     const [alex] = await createParticipants(browser, link, 1) as [Participant];
 
     // Twenty-five notes, and they are not clones: some end up a different colour,
@@ -92,7 +105,7 @@ test.describe('Persistence across process restarts', () => {
   });
 
   test('TC-20 leaving immediately does not leave the last change behind', async ({ browser }) => {
-    const link = boardLink();
+    const { link } = await boardHere();
     const people = await createParticipants(browser, link, 2);
     const [alex, sam] = people as [Participant, Participant];
 

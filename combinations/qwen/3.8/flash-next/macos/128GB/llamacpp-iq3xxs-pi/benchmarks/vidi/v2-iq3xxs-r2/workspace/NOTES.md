@@ -290,3 +290,97 @@ webServer); the main config `testIgnore`s the two specs so neither suite runs th
   a note with text **grows downwards**, so typing must happen after every double-click
   of a test; and the bottom-left corner is the zoom widget's — a double-click at
   (250, ~700) zooms the board to 64% instead of creating a note.
+
+# Story 5: Share a board with others using a link
+
+## Followed from the design exactly
+
+- Board ids stay 128 random bits (`newBoardId()`), never derived from time or counters;
+  `BOARD_ID_PATTERN` decides what a board address is, on the Worker and in the client.
+- `POST /api/boards` → 201 `{id}` / 500 `create_failed`, other methods 405;
+  `GET /api/boards/:id` → 200/404; a malformed id is 404 with no RPC and no storage
+  touched; the WebSocket route answers 404 before accepting anything.
+- The board page is given an address and nothing else, so it asks the service whether the
+  board exists, shows `Opening board…` while it asks, retries while the service is
+  unreachable, and never decides "not found" from local memory.
+- Share panel state `closed | open | copied | manual_copy`, `LINK_COPIED_MS` confirmation,
+  manual-copy fallback that selects the field, and the security note under the link.
+- Wall-clock budgets (`CREATE_BUDGET_MS`) are logged in e2e, never asserted.
+
+## Decisions and additions
+
+- **Existence is read-only and three questions deep** (`BoardStore.existsReadOnly`): tables
+  in `storage_meta`? then `created_at`; rows in `updates`/`snapshot_chunks`? then it is a
+  legacy board (story 1–4) and it exists. `load()` no longer migrates: a probe of an
+  unknown link creates no tables, which is what makes TC-06/TC-09 negative assertions
+  possible at all. `append()` migrates lazily, `initialize()` migrates and stamps
+  `created_at`.
+- **`initialize()` returns `created` | `exists`** and `markCreatedAtIfAbsent` is false the
+  second time, so a collision can only ever end as `create_failed` — the app never takes
+  over a board it did not make (TC-15).
+- **A malformed board address gets the same 404 an unknown board gets**, not a 400:
+  nothing is revealed, and `idFromName` is never called with junk (TC-07).
+- **The router is `useSyncExternalStore` over `popstate`** plus an internal notify, with
+  the route snapshot cached per pathname (an uncached snapshot re-renders forever).
+  Story 3's `#/b/:id` links still open boards, so a saved hash link is not a broken link.
+- **`checkBoard` has three answers, not two**: `exists`, `not_found`, `unreachable`.
+  Anything that is not a decided 200/404 — a 500, a timeout, a body that is not JSON — is
+  `unreachable`, i.e. "we do not know yet", which is the honest reading and the one that
+  keeps retrying.
+- **Page state machines are pure functions** (`src/client/pages/state.ts`), including the
+  retry delay (`boardCheckDelayMs`, doubling from `BOARD_CHECK_RETRY_BASE_MS` up to
+  story 3's `RECONNECT_MAX_BACKOFF_MS`). The retry count survives the
+  checking→unreachable→checking cycle so a message that already explained the failure
+  does not blink out (TC-21).
+- **Component tests stub `fetch`, not `api.ts`** (the design's table says "mocked
+  `api.ts`"). A mocked `api.ts` would let the status-code-to-outcome mapping — the thing
+  the pages are built on — go untested at the component level, so the stub sits one layer
+  lower at `tests/component/fixtures/api.ts` and records every request. That is also what
+  lets TC-19 be a negative test: no request was made for an impossible id.
+- **The Share button stays mounted while the panel is open.** Swapping button for panel
+  would mean focusing an element React had just removed, and "the keyboard goes back where
+  it came from" would silently stop working (TC-25).
+- `renderBoard` in the component fixtures returns the board id, so a test can assert on the
+  link the app built rather than one it invented.
+
+## The e2e side of story 5 (task 7)
+
+- `boardLink(boardId)` is now `/b/:id` (was `#/b/:id`). Since story 5 a link to a board
+  nobody made is a board that is not there, so **every story that wants a board now makes
+  one**: `createBoard` / `createBoardLink` in `helpers/participants.ts` POST to the same
+  server the browser is talking to (via `context.request`, so the port comes from the
+  config, not from a constant), and story 3's specs take the id from there. Story 1 and 2
+  specs change in one place: `gotoBoard` now lands on Home and presses *New board*, because
+  that is how anybody reaches a board.
+- `tests/e2e/persistence.spec.ts` creates its boards with a plain `fetch` to the port it
+  owns (`boardHere()`): TC-19/TC-20 need boards they can come back to after a process dies.
+- **TC-31 owns a second `wrangler dev`** (port 27430, `TEST_HOOKS:1`) inside `share.spec.ts`.
+  It needs the seeding hooks, and the shared webServer must not have them — their absence
+  is story 4's `production-hooks.spec.ts`. The legacy board is seeded with `seed-notes`,
+  which writes through `store.append` and never through `initialize()`, so it has
+  `updates` rows and no `created_at`: exactly the board a story 1 visitor left behind. A
+  control in the same test opens a never-seeded link on that same server and gets Board
+  not found, so "its data is what makes it exist" is a comparison and not a coincidence.
+- TC-28 aborts `**/api/boards/*` with `page.route`, waits for the retry message, marks the
+  window with a property a reload would wash away, unroutes, and asserts the board arrived
+  on the *same* page.
+- TC-29 installs a rejecting `writeText` with `addInitScript`, so the fallback is the
+  app's real behaviour against a clipboard that refused, and asserts the field's selection
+  equals the address in the bar.
+
+## Blocked on this machine
+
+- **Only Chromium can launch here.** `helpers/browsers.ts` probes the installed browsers and
+  this machine aborts Firefox and WebKit at process launch (`SIGABRT`, seen directly with
+  `E2E_BROWSERS=firefox`), so the suite runs one browser. The design wants TC-27 and TC-29
+  in Firefox and WebKit too; on this machine they run in Chromium only.
+- TC-26 (real clipboard read-back) and TC-31 (needs the hooks server) are marked
+  Chromium-only in the spec itself, for the reasons the design gives: clipboard permission
+  is engine-specific (TC-29 forces the other path in every engine), and whether a board
+  exists is the server's memory rather than a browser behaviour.
+
+## Current test totals
+
+Unit 129, integration 62, component 92, e2e 25 (Chromium) plus the persistence suite's 4.
+The nightly suite (2 tests) compiles and is listed; the soak itself was not run for this
+story, which does not touch what it measures.

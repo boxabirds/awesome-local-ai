@@ -1,3 +1,106 @@
+commit 6090b0defc165bc8e59da8d615d95cfe8d83bedd
+agent  Fri Oct 9 10:19:15 2026 +0000
+
+    story 5: e2e share workflows (TC-26 to TC-29, TC-31) and boards that must exist first
+
+
+ NOTES.md                                           |  94 ++++++++
+ PROGRESS.md                                        |   5 +-
+ .../{share-panel.test.tsx => SharePanel.test.tsx}  |   0
+ .../{share-pages.test.tsx => pages.test.tsx}       |   0
+ tests/e2e/helpers/board.ts                         |  24 +-
+ tests/e2e/helpers/participants.ts                  | 115 +++++++--
+ tests/e2e/live-collaboration.nightly.spec.ts       |   7 +-
+ tests/e2e/live-collaboration.spec.ts               |  12 +-
+ tests/e2e/persistence.spec.ts                      |  17 +-
+ tests/e2e/share.spec.ts                            | 258 +++++++++++++++++++++
+ 10 files changed, 497 insertions(+), 35 deletions(-)
+commit 5b94e2aeec98cd2fabad7a240c9e1c76472494b6
+agent  Fri Oct 9 09:56:12 2026 +0000
+
+    story 5: component tests for the pages and the Share panel (TC-16, TC-17, TC-19 to TC-25)
+
+
+ src/client/share/SharePanel.tsx      | 133 +++++++++++++----------
+ tests/component/fixtures/api.ts      | 138 ++++++++++++++++--------
+ tests/component/share-pages.test.tsx | 184 ++++++++++++++++++++++++++++++++
+ tests/component/share-panel.test.tsx | 199 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 555 insertions(+), 99 deletions(-)
+commit 389d65b7ce7c2202860543e6f4a3fd6ef45b3f0e
+agent  Fri Oct 9 09:32:20 2026 +0000
+
+    story 5: Share panel — copy the board link, and copy it by hand if asked to
+
+
+ PROGRESS.md                     |   3 +-
+ src/client/board/Board.tsx      |   7 +-
+ src/client/board/Toolbar.tsx    |  27 +----
+ src/client/pages/BoardPage.tsx  |  11 +-
+ src/client/share/SharePanel.tsx | 219 ++++++++++++++++++++++++++++++++++++++++
+ src/client/styles.css           |  74 ++++++++++++++
+ 6 files changed, 309 insertions(+), 32 deletions(-)
+commit 9361e2c4dea16518986fa8772023b5db4cb29c46
+agent  Fri Oct 9 09:28:25 2026 +0000
+
+    story 5: router, api client, Home, Board and Board not found pages
+
+
+ PROGRESS.md                        |   2 +-
+ src/client/App.tsx                 | 204 ++++---------------------------------
+ src/client/api.ts                  |  50 +++++++++
+ src/client/board/Board.tsx         | 166 ++++++++++++++++++++++++++++++
+ src/client/pages/BoardPage.tsx     |  79 ++++++++++++++
+ src/client/pages/HomePage.tsx      |  79 ++++++++++++++
+ src/client/pages/NotFoundPage.tsx  |  46 +++++++++
+ src/client/pages/state.ts          | 122 ++++++++++++++++++++++
+ src/client/router.ts               | 117 +++++++++++++++++++++
+ src/client/styles.css              |  61 +++++++++++
+ tests/component/fixtures/api.ts    | 101 ++++++++++++++++++
+ tests/component/fixtures/board.tsx |  19 +++-
+ tests/component/setup.ts           |   6 ++
+ 13 files changed, 863 insertions(+), 189 deletions(-)
+commit 48f7f2a9b5df6b1903526119e7a139e157924949
+agent  Fri Oct 9 09:15:44 2026 +0000
+
+    story 5: integration tests for the board API (TC-05 to TC-10, TC-12, TC-14, TC-15, TC-32)
+
+
+ PROGRESS.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+commit b4050bd04b7aa460d0a875f4cafb65fad1159aad
+agent  Fri Oct 9 09:15:24 2026 +0000
+
+    story 5: board API — POST /api/boards, GET /api/boards/:id, 404 for unknown rooms
+
+
+ PROGRESS.md                            |   4 +-
+ index.html                             |   3 +
+ src/worker/board-room.ts               |  66 ++++--
+ src/worker/board-store.ts              | 105 ++++++++++
+ src/worker/create-board.ts             |  44 ++++
+ src/worker/index.ts                    |  74 ++++++-
+ tests/integration/board-api.test.ts    | 359 +++++++++++++++++++++++++++++++++
+ tests/integration/helpers/ws-client.ts |  36 +++-
+ tests/integration/worker.test.ts       |  12 +-
+ 9 files changed, 666 insertions(+), 37 deletions(-)
+commit 5a59ef0f316ba20fc6003d98beea0ea2223fa571
+agent  Fri Oct 9 08:55:46 2026 +0000
+
+    story 5 task 1: link-code strength unit tests (TC-04); CREATE_BUDGET_MS, LINK_COPIED_MS, BOARD_CHECK_RETRY_BASE_MS
+
+
+ PROGRESS.md                     |   4 +-
+ src/shared/config.ts            |  12 ++++
+ tests/unit/create-board.test.ts | 126 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 140 insertions(+), 2 deletions(-)
+commit 220a853e898d990d4b7d51cdf5cc7cd5adbb2d5b
+vidi-agent  Fri Oct 9 09:43:15 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit 3378ef89cf70c408021f55661c940e6f27d763f3
 agent  Fri Oct 9 08:38:02 2026 +0000
 

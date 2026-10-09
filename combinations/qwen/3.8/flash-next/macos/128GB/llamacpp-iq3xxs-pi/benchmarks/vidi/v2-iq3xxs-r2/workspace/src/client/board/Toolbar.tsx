@@ -3,14 +3,10 @@ import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 /** Exact UI text (PRD: Left-side vertical toolbar with a "Sticky note" button). */
 export const STICKY_BUTTON_LABEL = 'Sticky note';
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
-export const SHARE_BUTTON_LABEL = 'Share board';
-export const SHARE_BUTTON_TOOLTIP = 'Share board – copy the link to this board';
 
 export interface ToolbarProps {
   /** Creates a note in the middle of the visible board area and starts editing it. */
   onCreateSticky(): void;
-  /** The link that opens this board; the Share button puts it on the clipboard. */
-  shareUrl: string;
   /** Story 4: while the board could not be loaded, the Sticky note button is disabled. */
   disabled?: boolean;
 }
@@ -20,19 +16,12 @@ export interface ToolbarProps {
  * on the board. Pointer events stop here so a click on a button never reaches the
  * viewport (which would pan the board and clear the selection).
  *
- * Sharing a board is only ever copying its link: there is no membership, no invite and
- * nothing to join, so the link *is* the invitation.
+ * Story 5 moved sharing out of here and into the page that owns the board's address
+ * (`share/SharePanel`): sharing is about the link, and the toolbar is about the board.
  */
-export function Toolbar({ onCreateSticky, shareUrl, disabled = false }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX.Element {
   const stop = (event: ReactPointerEvent<HTMLDivElement>): void => {
     event.stopPropagation();
-  };
-
-  const share = (): void => {
-    // Clipboard access can be missing or refused; either way the board carries on.
-    const clipboard = (navigator as Navigator & { clipboard?: Clipboard }).clipboard;
-    if (!clipboard) return;
-    clipboard.writeText(shareUrl).catch(() => {});
   };
 
   return (
@@ -55,16 +44,6 @@ export function Toolbar({ onCreateSticky, shareUrl, disabled = false }: ToolbarP
       >
         <span className="vidi6-sticky-glyph" aria-hidden="true" />
         <span className="vidi6-toolbar-text">{STICKY_BUTTON_LABEL}</span>
-      </button>
-      <button
-        type="button"
-        className="vidi6-toolbar-button"
-        data-testid="share-board"
-        aria-label={SHARE_BUTTON_LABEL}
-        title={SHARE_BUTTON_TOOLTIP}
-        onClick={share}
-      >
-        <span className="vidi6-toolbar-text">{SHARE_BUTTON_LABEL}</span>
       </button>
     </div>
   );

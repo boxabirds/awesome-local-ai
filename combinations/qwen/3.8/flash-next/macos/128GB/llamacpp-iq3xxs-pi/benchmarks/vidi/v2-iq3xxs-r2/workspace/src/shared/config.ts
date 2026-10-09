@@ -96,3 +96,15 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Version of the storage tables themselves (the document schema has its own). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// Story 5: share a board with others using a link.
+
+/** `share.create`: how long clicking New board may take before the board is visible. */
+export const CREATE_BUDGET_MS = 2_000;
+/** `share.copy`: how long the Share panel says "Link copied". */
+export const LINK_COPIED_MS = 2_000;
+/**
+ * `share.unreachable`: the first wait before re-checking a board link; each further
+ * failure doubles it, up to story 3's `RECONNECT_MAX_BACKOFF_MS`.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1_000;

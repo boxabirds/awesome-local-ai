@@ -3,6 +3,10 @@ import { cleanup } from '@testing-library/react';
 // jsdom has no WebSocket and `App` connects its document to a board room, so the stub
 // room the component tests talk through is installed here, before anything mounts.
 import './fixtures/socket';
+// Story 5: `App` also talks HTTP (`POST /api/boards`, `GET /api/boards/:id`), so the
+// board service is stubbed at `fetch` here — the real `src/client/api.ts` still runs
+// against it, and the test can see every request that was made.
+import { resetBoardApiStub } from './fixtures/api';
 
 /** Design fixture: default laptop viewport, used by the ResizeObserver stub below. */
 export const VIEWPORT_FIXTURE = { width: 1280, height: 800 };
@@ -85,4 +89,6 @@ afterEach(() => {
   cleanup();
   // Tests that resize the window do not leak their size into the next test.
   setWindowSize(VIEWPORT_FIXTURE.width, VIEWPORT_FIXTURE.height);
+  // Neither does a stubbed service answer, or the log of what it was asked.
+  resetBoardApiStub();
 });

@@ -30,6 +30,15 @@ export const LOAD_ORIGIN = 'vidi6-load';
 /** `storage_meta` keys this store owns. */
 export const META_SCHEMA_VERSION = 'storage_schema_version';
 export const META_SNAPSHOT_THROUGH_SEQ = 'snapshot_through_seq';
+/**
+ * Story 5 (`share.not_found`): when this board was created by `POST /api/boards`, in
+ * epoch milliseconds. Its absence does not mean the board does not exist — a board
+ * that already had content before links existed never got one (`share.legacy_boards`).
+ */
+export const META_CREATED_AT = 'created_at';
+
+/** Every table this store owns, in the order `migrate` creates them. */
+const TABLE_NAMES = ['storage_meta', 'updates', 'snapshot_chunks', 'quarantined_updates'] as const;
 
 /**
  * Split `data` into chunks of at most `size` bytes (0 bytes in, 0 chunks out), so
@@ -107,6 +116,14 @@ export class BoardStore {
   private logHasPending = false;
 
   /**
+   * Story 5: whether *this instance* knows the tables are there — set by `migrate`, or
+   * by a `load` that found them. False for a board nothing has ever written, and that
+   * is the point: `load` and `existsReadOnly` answer without creating anything, and the
+   * first `append` migrates. Probing an unknown link therefore leaves no storage.
+   */
+  private tablesReady = false;
+
+  /**
    * Test-only failure injection (`tests/integration`), called with each statement
    * before it runs; a throw makes that statement fail exactly as a disk error would,
    * inside the same `transactionSync`, so real rollback applies. Production code never
@@ -128,8 +145,80 @@ export class BoardStore {
   }
 
   /**
+   * The names of this board's tables that exist in storage right now. Reads
+   * `sqlite_master` only, so it is safe to ask about a board that was never created.
+   */
+  private tableNamesPresent(): Set<string> {
+    const placeholders = TABLE_NAMES.map(() => '?').join(', ');
+    const rows = this.exec<{ name: string }>(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`,
+      ...TABLE_NAMES,
+    ).toArray();
+    return new Set(rows.map((row) => row.name));
+  }
+
+  /** True when any of this board's tables exist: a board never written has none. */
+  hasTables(): boolean {
+    return this.tableNamesPresent().size > 0;
+  }
+
+  /**
+   * Story 5's existence rule (`share.not_found`, `share.legacy_boards`): a board exists
+   * once it was created (`created_at`), or once it has anything at all to show — a log
+   * row or a snapshot chunk, which is how a board that predates links still opens.
+   *
+   * It only reads: an unknown id has no tables, and asking about it creates none, so a
+   * person poking at a mistyped link leaves no storage behind (TC-06, TC-09).
+   */
+  existsReadOnly(): boolean {
+    const present = this.tableNamesPresent();
+    if (present.size === 0) return false;
+    if (present.has('storage_meta')) {
+      const created = this.exec<MetaRow>(
+        'SELECT value FROM storage_meta WHERE key = ?',
+        META_CREATED_AT,
+      ).next();
+      if (created.done === false) return true;
+    }
+    // A board with content but no `created_at` is a legacy one; either table counts.
+    for (const table of ['updates', 'snapshot_chunks']) {
+      if (!present.has(table)) continue;
+      const row = this.exec<{ seq: number }>(`SELECT 1 AS seq FROM ${table} LIMIT 1`).next();
+      if (row.done === false) return true;
+    }
+    return false;
+  }
+
+  /** When this board was created by `POST /api/boards`, or null when it never was. */
+  createdAt(): number | null {
+    const row = this.exec<MetaRow>(
+      'SELECT value FROM storage_meta WHERE key = ?',
+      META_CREATED_AT,
+    ).next();
+    return row.done === true ? null : Number.parseInt(row.value.value, 10);
+  }
+
+  /**
+   * Record the moment this board was created, if it has not been recorded: the second
+   * call changes nothing and answers false (TC-15, `initialize()` returns `exists`).
+   */
+  markCreatedAtIfAbsent(at: number): boolean {
+    if (this.createdAt() !== null) return false;
+    this.exec(
+      'INSERT INTO storage_meta (key, value) VALUES (?, ?)',
+      META_CREATED_AT,
+      String(at),
+    );
+    return true;
+  }
+
+  /**
    * Create the tables and the `storage_schema_version` row if absent. Writes no update
    * rows, so a board that was only ever opened stays honestly empty (TC-25).
+   *
+   * Story 5: nothing calls this on their own initiative any more — `initialize()` (a
+   * board being created) and the first `append()` (a legacy board's first new change)
+   * do, so a board nobody has created still has no tables to probe (TC-06).
    */
   migrate(): void {
     this.exec('CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
@@ -160,6 +249,7 @@ export class BoardStore {
     }
     // Keep the in-memory log picture consistent with an untouched database.
     this.readLogTally();
+    this.tablesReady = true;
   }
 
   /**
@@ -168,6 +258,9 @@ export class BoardStore {
    * away from storage (`persist.save_failure`).
    */
   append(update: Uint8Array): void {
+    // Story 5: `load` no longer creates the tables, so the first change to a board
+    // (including one a test hook seeds) brings them with it.
+    if (!this.tablesReady) this.migrate();
     const inserted = this.exec<{ seq: number }>(
       'INSERT INTO updates (data, bytes) VALUES (?, ?) RETURNING seq',
       update.slice(),
@@ -190,6 +283,18 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // Story 5: a board nobody has ever written has no tables, and loading it must not
+      // make any. It is an empty board — empty, not broken, and not storage.
+      if (!this.hasTables()) {
+        this.tablesReady = false;
+        this.logRows = 0;
+        this.logBytes = 0;
+        this.lastSeq = 0;
+        this.snapshotThroughSeq = 0;
+        this.logHasPending = false;
+        return { ok: true, quarantined: 0 };
+      }
+      this.tablesReady = true;
       // 1. The snapshot, if one exists. Refusing to apply it is fatal: most of the
       //    board would be missing (design decision 5).
       const through = this.readSnapshot(doc);

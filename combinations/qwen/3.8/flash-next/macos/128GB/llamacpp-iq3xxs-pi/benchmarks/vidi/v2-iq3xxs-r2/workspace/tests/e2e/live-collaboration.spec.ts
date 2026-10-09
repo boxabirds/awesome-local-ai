@@ -1,11 +1,12 @@
 import { expect, test, type Browser } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
 import { CATCH_UP_TEST_OUTAGE_MS } from '../../src/shared/config';
 import {
   applyChange,
   boardLink,
   boardMarkers,
   capacity,
+  createBoard,
+  createBoardLink,
   closeParticipants,
   connectionState,
   createNoteAt,
@@ -57,7 +58,8 @@ async function twoPeople(browser: Browser): Promise<{
   sam: Participant;
   people: Participant[];
 }> {
-  const boardId = newBoardId();
+  // A board these two can join has to have been made by the service first (story 5).
+  const boardId = await createBoard(browser);
   const people = await createParticipants(browser, boardLink(boardId), 2);
   const [alex, sam] = people as [Participant, Participant];
   let note = '';
@@ -219,7 +221,7 @@ test('TC-25: a note deleted while someone is typing inside it stays deleted', as
 test('TC-26: a full room of editors all sees everything the others do', async ({ browser }) => {
   test.setTimeout(240_000);
   const seats = capacity();
-  const people = await createParticipants(browser, boardLink(newBoardId()), seats);
+  const people = await createParticipants(browser, await createBoardLink(browser), seats);
   try {
     // Each seat owns a column of the board, so a note is never in two places at once.
     const spotFor = (seat: number, index: number): Point => ({
@@ -327,8 +329,8 @@ test('TC-27: one person drops out, the board keeps working, and they catch up', 
 });
 
 test('TC-28: two boards in the same browser never mix', async ({ browser }) => {
-  const firstBoard = newBoardId();
-  const secondBoard = newBoardId();
+  const firstBoard = await createBoard(browser);
+  const secondBoard = await createBoard(browser);
   const first = await createParticipants(browser, boardLink(firstBoard), 2);
   const second = await createParticipants(browser, boardLink(secondBoard), 2);
   const people = [...first, ...second];

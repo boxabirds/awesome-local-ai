@@ -8,7 +8,7 @@
  * watch every frame, edit while disconnected (TC-09 to TC-11) and send bytes no browser
  * would ever send (TC-15).
  */
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import * as awarenessProtocol from 'y-protocols/awareness';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
@@ -124,9 +124,20 @@ export class TestClient {
     });
   }
 
-  /** Open a socket to the room for `boardId` through the Worker and shake hands. */
-  static async connect(boardId: string): Promise<TestClient> {
+  /**
+   * Open a socket to the room for `boardId` through the Worker and shake hands.
+   *
+   * Story 5 turned a board into something that has to exist before its room answers, so
+   * a test's board is created the way a person's is — one `initialize()` RPC on its own
+   * room object — unless the test is precisely about a board nobody created, which says
+   * `{ create: false }`.
+   */
+  static async connect(
+    boardId: string,
+    options: { create?: boolean } = {},
+  ): Promise<TestClient> {
     const client = new TestClient();
+    if (options.create !== false) await createBoardRoom(boardId);
     await client.open(boardId);
     return client;
   }
@@ -363,6 +374,25 @@ export class TestClient {
       setTimeout(resolve, timeoutMs);
     });
   }
+}
+
+/**
+ * Create `boardId` for real (`POST /api/boards`' one RPC, story 5), so its room will
+ * answer a socket. Called by `connect`/`connectClients`; a board that already exists is
+ * left exactly as it was (`created_at` unchanged), which is what lets a test reconnect.
+ */
+const createdHere = new Set<string>();
+
+export async function createBoardRoom(boardId: string): Promise<'created' | 'exists'> {
+  // Once per board per test process: a test that reconnects — or whose storage has since
+  // been damaged on purpose (TC-15, TC-26) — must not run creation over it again.
+  if (createdHere.has(boardId)) return 'exists';
+  const outcome = await env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).initialize();
+  if (outcome !== 'created' && outcome !== 'exists') {
+    throw new Error(`unexpected initialize() outcome: ${String(outcome)}`);
+  }
+  createdHere.add(boardId);
+  return outcome;
 }
 
 /** Open `count` clients on one board, one after another. */
