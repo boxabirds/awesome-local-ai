@@ -11,6 +11,8 @@ export interface ToolbarProps {
   onCreateSticky(): void;
   /** The link that opens this board; the Share button puts it on the clipboard. */
   shareUrl: string;
+  /** Story 4: while the board could not be loaded, the Sticky note button is disabled. */
+  disabled?: boolean;
 }
 
 /**
@@ -21,7 +23,7 @@ export interface ToolbarProps {
  * Sharing a board is only ever copying its link: there is no membership, no invite and
  * nothing to join, so the link *is* the invitation.
  */
-export function Toolbar({ onCreateSticky, shareUrl }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, shareUrl, disabled = false }: ToolbarProps): JSX.Element {
   const stop = (event: ReactPointerEvent<HTMLDivElement>): void => {
     event.stopPropagation();
   };
@@ -49,6 +51,7 @@ export function Toolbar({ onCreateSticky, shareUrl }: ToolbarProps): JSX.Element
         aria-label={STICKY_BUTTON_LABEL}
         title={STICKY_BUTTON_TOOLTIP}
         onClick={onCreateSticky}
+        disabled={disabled}
       >
         <span className="vidi6-sticky-glyph" aria-hidden="true" />
         <span className="vidi6-toolbar-text">{STICKY_BUTTON_LABEL}</span>

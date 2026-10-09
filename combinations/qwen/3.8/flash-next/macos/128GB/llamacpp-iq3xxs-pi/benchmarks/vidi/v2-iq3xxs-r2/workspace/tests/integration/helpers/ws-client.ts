@@ -206,13 +206,18 @@ export class TestClient {
   /** Close the socket and wait for the close event, so the next step is not a race. */
   async close(): Promise<void> {
     if (this.socket === null) return;
+    const socket = this.socket;
     const closes = this.closes.length;
-    this.socket.close();
+    socket.close();
     try {
       await this.waitUntil('the socket to close', () => this.closes.length > closes, 2000);
     } catch {
-      // The room may already have torn the connection down; either way it is gone.
+      // The local runner does not send the close-frame echo for a hibernatable socket
+      // (the Cloudflare edge and every real browser do, and the room side has already
+      // removed the socket — asserted directly in TC-31). The connection is gone
+      // either way, so forget the socket and let the test reopen.
     }
+    if (this.socket === socket) this.socket = null;
   }
 
   /** Abrupt hang-up, the way a dropped connection looks to the room (TC-31). */

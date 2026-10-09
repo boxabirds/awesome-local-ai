@@ -101,7 +101,25 @@ export function socketsDrop(): void {
   for (const socket of sockets) socket.close();
 }
 
+/**
+ * The room closes the door itself, with a code: 4500 is 'this board could not be
+ * loaded' (story 4), 1011 is a storage failure — both are stories the badge tells
+ * differently, and the code is the only thing that tells them apart.
+ */
+export function socketsCloseWith(code: number, reason = 'stub'): void {
+  for (const socket of sockets) {
+    if (socket.readyState !== StubSocket.OPEN) continue;
+    socket.readyState = StubSocket.CLOSED;
+    socket.onclose?.({ code, reason, wasClean: true } as CloseEvent);
+  }
+}
+
 /** How many sockets the app has opened, so a test can see it retrying or not. */
 export function socketCount(): number {
   return sockets.length;
+}
+
+/** Forget the sockets of tests past, so counts mean what this test made. */
+export function clearSockets(): void {
+  sockets.length = 0;
 }

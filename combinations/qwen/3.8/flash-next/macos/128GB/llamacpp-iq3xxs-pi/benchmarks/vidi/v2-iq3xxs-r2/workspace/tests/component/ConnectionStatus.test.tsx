@@ -5,6 +5,7 @@ import {
   CONNECTING_LABEL,
   CONNECTION_STATUS_LABEL,
   ConnectionStatus,
+  LOAD_FAILED_LABEL,
   RECONNECTING_LABEL,
 } from '../../src/client/sync/ConnectionStatus';
 import type { ConnectionState } from '../../src/client/sync/connectBoard';
@@ -51,11 +52,12 @@ class Badge {
     return this.element?.textContent ?? null;
   }
 
-  /** Amber while the board is not live, green for the moment it is back. */
-  get tone(): 'pending' | 'ok' | null {
+  /** Amber while the board is not live, green for the moment it is back, red for a board that will not load. */
+  get tone(): 'pending' | 'ok' | 'bad' | null {
     const className = this.element?.className ?? '';
     if (className.includes('--pending')) return 'pending';
     if (className.includes('--ok')) return 'ok';
+    if (className.includes('--bad')) return 'bad';
     return null;
   }
 }
@@ -94,6 +96,17 @@ describe('connection status badge', () => {
     expect(badge.text).toBe(CONNECTED_LABEL);
 
     badge.advance(1);
+    expect(badge.element).toBeNull();
+  });
+
+  it("TC-22 says 'This board couldn't be loaded. Retrying…' in red while the load fails", () => {
+    const badge = new Badge('load_failed');
+    expect(badge.text).toBe(LOAD_FAILED_LABEL); // exact PRD text
+    expect(badge.tone).toBe('bad');
+
+    // The moment a sync says otherwise, the red is gone — no reload of the page, and
+    // nothing about the failure lingers in the badge.
+    badge.show('connected');
     expect(badge.element).toBeNull();
   });
 

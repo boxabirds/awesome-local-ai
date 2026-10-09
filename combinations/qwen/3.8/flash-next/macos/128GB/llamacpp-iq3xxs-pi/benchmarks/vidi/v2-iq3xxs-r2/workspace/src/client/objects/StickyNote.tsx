@@ -52,6 +52,11 @@ export interface StickyNoteProps {
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: EndEditNext): void;
+  /**
+   * Story 4: a board that could not be load refuses edits (PRD: "cannot be edited").
+   * Selection stays allowed — looking is not editing.
+   */
+  readOnly?: boolean;
 }
 
 /** One press on a note: `Pressed`, then `Dragging` once the pointer has moved enough. */
@@ -84,6 +89,7 @@ export function StickyNote({
   onSelect,
   onStartEdit,
   onEndEdit,
+  readOnly = false,
 }: StickyNoteProps): JSX.Element {
   const noteRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -218,6 +224,12 @@ export function StickyNote({
     if (event.button !== 0) return;
     // The board must never start a pan from a note (sticky.no_pan).
     event.stopPropagation();
+    if (readOnly) {
+      // A board that could not be loaded is not editable (story 4): selecting still
+      // works, dragging never starts.
+      onSelect(note.id);
+      return;
+    }
     const target = event.target as HTMLElement | null;
     if (target?.tagName === 'TEXTAREA') return; // let the caret move inside the editor
     if (editing) onEndEditRef.current('selected');
@@ -243,7 +255,7 @@ export function StickyNote({
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
     // The viewport would otherwise create a second note here (TC-35).
     event.stopPropagation();
-    if (editing) return;
+    if (editing || readOnly) return;
     onStartEdit(note.id);
   };
 
@@ -282,7 +294,8 @@ export function StickyNote({
     deleteObject(doc, note.id);
   };
 
-  const showToolbar = selected && !editing && !dragging;
+  // A read-only board has no colour and delete to give away either.
+  const showToolbar = selected && !editing && !dragging && !readOnly;
 
   const noteStyle = {
     left: `${note.x}px`,

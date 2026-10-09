@@ -29,5 +29,12 @@
   // The Worker half of the project (and the integration tests that run inside workerd)
   // typecheck against `tsconfig.worker.json`, which has the Workers runtime types in
   // place of the DOM ones.
-  "exclude": ["src/worker", "tests/integration"]
+  // The two story 4 unit tests import the Worker half of the project, so they are
+  // typechecked by `tsconfig.worker.json` instead of this one.
+  "exclude": [
+    "src/worker",
+    "tests/integration",
+    "tests/unit/board-store-chunks.test.ts",
+    "tests/unit/room-state.test.ts"
+  ]
 }

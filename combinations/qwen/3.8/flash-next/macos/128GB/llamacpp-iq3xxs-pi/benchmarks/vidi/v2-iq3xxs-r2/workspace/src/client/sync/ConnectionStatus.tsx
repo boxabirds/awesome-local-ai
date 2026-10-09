@@ -6,6 +6,8 @@ import type { ConnectionState } from './connectBoard';
 export const CONNECTING_LABEL = 'Connecting…';
 export const RECONNECTING_LABEL = 'Reconnecting…';
 export const CONNECTED_LABEL = 'Connected';
+/** Story 4: the board itself could not be loaded. Red, and it says so (exact PRD text). */
+export const LOAD_FAILED_LABEL = 'This board couldn\'t be loaded. Retrying…';
 export const CONNECTION_STATUS_LABEL = 'Connection status';
 
 /**
@@ -17,6 +19,7 @@ export const CONNECTION_STATUS_LABEL = 'Connection status';
 export function ConnectionStatus({ state }: { state: ConnectionState }): JSX.Element | null {
   if (state === 'connected') return null;
   if (state === 'confirmed') return <Confirmation />;
+  if (state === 'load_failed') return <Badge tone="bad" text={LOAD_FAILED_LABEL} />;
   return <Badge tone="pending" text={state === 'connecting' ? CONNECTING_LABEL : RECONNECTING_LABEL} />;
 }
 
@@ -31,7 +34,7 @@ function Confirmation(): JSX.Element | null {
   return <Badge tone="ok" text={CONNECTED_LABEL} />;
 }
 
-function Badge({ tone, text }: { tone: 'pending' | 'ok'; text: string }): JSX.Element {
+function Badge({ tone, text }: { tone: 'pending' | 'ok' | 'bad'; text: string }): JSX.Element {
   return (
     <div
       role="status"

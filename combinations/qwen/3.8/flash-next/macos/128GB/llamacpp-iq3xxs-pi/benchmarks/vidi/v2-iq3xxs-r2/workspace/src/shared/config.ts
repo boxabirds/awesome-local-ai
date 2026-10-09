@@ -73,3 +73,26 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
  * 1-second `LIVE_UPDATE_LATENCY_BUDGET_MS` is measured and logged, never asserted.
  */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+// Story 4: return to a board and find everything as it was left.
+
+/** Compact the update log into a snapshot when this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** …or when the log's bytes reach this many. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/** Snapshot chunk size; keeps every row well under the platform per-row size limit. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A load-failed room retries loading at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/**
+ * How long the client waits for a socket that has never been opened before showing a
+ * load-failure badge. The socket keeps trying; this only decides when the badge tells
+ * the truth, and a load slower than this still ends with the board appearing.
+ */
+export const BOARD_LOAD_TIMEOUT_MS = 5000;
+/** `persist.large_board`: the board size the open-time guarantee is tested at. */
+export const PERSIST_TESTED_NOTES = 2000;
+/** `persist.large_board`: how long opening that board may take. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the storage tables themselves (the document schema has its own). */
+export const STORAGE_SCHEMA_VERSION = 1;

@@ -17,8 +17,19 @@ import * as decoding from 'lib0/decoding';
 export const MESSAGE_SYNC = 0;
 export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
-/** RFC 6455 "unsupported data"; the only close code this story's room ever sends. */
+/** RFC 6455 "unsupported data"; the close code for a rejected update (story 3). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/**
+ * Story 4: this board exists but could not be loaded (a damaged snapshot, an
+ * unreadable database). The client must not present it as an empty board; it says
+ * "This board couldn't be loaded. Retrying…" instead, and the provider keeps retrying.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/**
+ * Story 4: the room could not write to storage, so it dropped every socket while it
+ * reloads. The board itself is fine; unsaved changes ride back in on reconnection.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 /**
  * Where a board lives on the same origin, on both sides: `<scheme>://<host>` + this +

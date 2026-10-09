@@ -1,6 +1,6 @@
 import { isValidBoardId } from '../shared/board-id';
 import { ROOM_PATH_PREFIX } from '../shared/protocol';
-import { BoardRoom } from './board-room';
+import { BoardRoom, TEST_HOOK_PREFIX } from './board-room';
 
 /**
  * Everything the Worker needs from the platform: the room namespace and the built
@@ -9,6 +9,12 @@ import { BoardRoom } from './board-room';
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /**
+   * `'1'` turns on the room's test-only storage routes (`/__test/...`), and is never
+   * set in production config — the default deployment has no way to damage a board
+   * through the front door (design: "Test hooks are the only non-protocol route").
+   */
+  TEST_HOOKS?: string;
 }
 
 /** Everything under the prefix belongs to the room: `/api/rooms/` owns its whole tree. */
@@ -42,6 +48,18 @@ function isUpgrade(request: Request): boolean {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url);
+
+    // `/__test/:boardId/...` are the room's storage-damage routes; the room itself
+    // answers 404 unless `TEST_HOOKS` is on, so production never exposes them.
+    if (pathname.startsWith(TEST_HOOK_PREFIX)) {
+      const parts = pathname.slice(TEST_HOOK_PREFIX.length).split('/');
+      const hookBoardId = parts[0] ?? '';
+      if (parts.length < 2 || !isValidBoardId(hookBoardId)) {
+        return new Response('invalid test hook path', { status: 400 });
+      }
+      return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(hookBoardId)).fetch(request);
+    }
+
     const boardId = boardIdOf(pathname);
     if (boardId === null) return env.ASSETS.fetch(request);
 

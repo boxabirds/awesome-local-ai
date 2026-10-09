@@ -216,3 +216,77 @@ open, an addition that was needed to make it work, or something this machine can
   integration file, the rest in story 1's camera tests).
 - `npm run test:e2e` — 12 tests (8 from story 1, 4 from story 2).
 - `npm run typecheck` — clean.
+
+## yjs update streams are clock-contiguous per client (discovered building task 3)
+
+Skipping a damaged row when replaying the log works for every *other* client's
+updates, but a client's own later updates are held by yjs in
+`store.pendingStructs` until the gap is filled: yjs integrates a client's structs
+only against that client's own clock. Consequences baked into `BoardStore`:
+
+- Quarantine keeps the damaged row's author's later rows in the log: they stay in
+  yjs's `pendingStructs` on every load (inert — they cost display, not data, and
+  never leave the disk).
+- `compactIfNeeded` refuses to truncate while the last load left
+  `store.pendingStructs` non-null (`logHasPending`), so compaction can never
+  delete the only copy of paused rows (TC-09 gap guard).
+- `load` applies each row to a throwaway probe doc first: `Y.applyUpdate` throws
+  *inside* its transaction and poisons the target doc — everything applied
+  afterwards is silently lost. The probe takes the hit; the real doc only ever
+  sees bytes that survived.
+
+## Hibernation changes what a room object is (discovered building tasks 4–5)
+
+Switching `BoardRoom` to `ctx.acceptWebSocket` broke three things that story 3 took
+for granted, all found by the real-SQLite/real-eviction integration tests:
+
+- **`setInterval` blocks eviction.** A local DO is only evictable (`evictDurableObject`)
+  once it is idle; a 10-second keepalive `setInterval` means the object is never idle
+  while sockets are open, so hibernation never happens and eviction times out. The
+  interval was replaced by a chain of `ctx.storage.setAlarm` fires (Cloudflare's own
+  recipe for hibernatable-socket keepalive): the object sleeps between pings, the
+  ping chain ends by itself when the last socket closes.
+- **`binaryType = 'arraybuffer'` does not survive hibernation.** A socket accepted
+  before an eviction hands its next message to the reconstructed object as a **Blob**,
+  not an ArrayBuffer — and the new object never had a chance to set `binaryType` on
+  that socket. `webSocketMessage` now normalises `Blob → ArrayBuffer` before decoding.
+  (A `new Uint8Array(blob)` of a Blob is *empty*, not an error, so the old code
+  answered every woken socket with a 1003 close: corrupted-invisible, not corrupt.)
+- **A load failure must live in storage to be testable.** Anything injected into a
+  live object (like `BoardStore.testBeforeExec`) dies with eviction, and forcing
+  `loadNow()` on a `ready` room cannot reach `load-failed` — the pinned state machine
+  has no such edge (correctly: TC-27 pins it). The integration fixtures damage the
+  storage itself instead: the updates table is left present with the wrong columns,
+  so `migrate`'s `CREATE TABLE IF NOT EXISTS` cannot heal it and the next room
+  object's own load fails for real — and can be healed again from the same side.
+
+Also found by tests: `createSticky(doc, at)` **centres** on `at`; the stored `x`/`y`
+are `at - STICKY_SIZE_WORLD/2`. An assertion written as `x === 12` after
+`createSticky(..., {x: 12})` is wrong by 100 and was not wrong in any earlier story
+because no earlier test checked a created note's stored position.
+
+## The persistence e2e suite (tasks 6 and 9)
+
+`tests/e2e/helpers/wrangler-process.ts` owns a `wrangler dev` per suite: its own port
+(27428), its own `--persist-to` temp directory, and a `restart()` that kills the process
+and starts another on the same directory. That is the whole distinction story 4 turns on
+— the process forgets, the storage does not — and no shared Playwright `webServer` can
+offer it. `playwright.persistence.config.ts` is a separate project (`workers: 1`, no
+webServer); the main config `testIgnore`s the two specs so neither suite runs the other's.
+
+- Seeding is done through the room's own door, not around it: the `seed-notes` and
+  `pump-notes` test hooks (TEST_HOOKS-gated, POST-only) call `createSticky` and colour
+  sets on the room's doc, so every seeded note goes through `store.append` like any
+  other change — and `pump-notes` crosses the compaction threshold for real, so TC-24
+  damages a snapshot the server itself wrote.
+- `tests/e2e/production-hooks.spec.ts` runs against the *production* webServer (started
+  without `TEST_HOOKS`) and shows POSTing the hook routes gets a 404: the routes are
+  not there.
+- Load time is reported, not asserted: TC-21 measures navigation to fully rendered
+  `PERSIST_TESTED_NOTES` notes (note *elements* in the DOM, not doc entries) against
+  `BOARD_LOAD_BUDGET_MS`; measured ~2.1 s against a 3 s budget on this machine.
+- What e2e geometry costs you (found the slow way): a double-clicked note is a note
+  being typed into, so every `createNoteAt` leaves an editor open until `endEditing`;
+  a note with text **grows downwards**, so typing must happen after every double-click
+  of a test; and the bottom-left corner is the zoom widget's — a double-click at
+  (250, ~700) zooms the board to 64% instead of creating a note.

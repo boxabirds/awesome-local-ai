@@ -34,7 +34,9 @@ export default defineConfig({
   reporter: [['list']],
   // The nightly checks (`*.nightly.spec.ts`) run on their own via `test:e2e:nightly`;
   // they are too slow to be part of every commit.
-  testIgnore: /\.nightly\.spec\.ts$/,
+  // The nightly checks and the persistence suite run on their own: the persistence
+  // tests own and kill their own server, which no shared webServer can put back.
+  testIgnore: [/\.nightly\.spec\.ts$/, /persistence\.spec\.ts$/, /broken-board\.spec\.ts$/],
   timeout: 60_000,
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,

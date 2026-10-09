@@ -15,6 +15,7 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit as connectionAllowsEditing } from './sync/connectBoard';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 
@@ -75,6 +76,9 @@ export function App(): JSX.Element {
   const [boardId] = useState<string>(boardIdFromLocation);
   const { doc, notes, connection } = useBoardDoc(boardId);
   const selection = useSelection();
+  // A board that could not be loaded is shown empty and refuses every edit (story 4);
+  // no other connection state refuses anything.
+  const canEdit = connectionAllowsEditing(connection);
 
   // Handlers that run long after a render read the latest values through refs.
   const cameraRef = useRef(camera);
@@ -91,12 +95,13 @@ export function App(): JSX.Element {
    */
   const createAtScreenPoint = useCallback(
     (screenPoint: Point): void => {
+      if (!canEdit) return; // no edits on a board that failed to load
       const world = screenToWorld(cameraRef.current, screenPoint);
       const id = createSticky(doc, world);
       if (id === false) return;
       selectionRef.current.startEdit(id);
     },
-    [doc],
+    [doc, canEdit],
   );
 
   /** The Sticky note button: the centre of the visible board area. */
@@ -111,14 +116,14 @@ export function App(): JSX.Element {
       const { selectedId, editingId } = selectionRef.current;
       if (editingId !== null) return; // the keys edit text, not the note
       if (DELETE_KEYS.includes(event.key)) {
-        if (!selectedId) return;
+        if (!selectedId || !canEdit) return;
         event.preventDefault();
         deleteObject(doc, selectedId);
         selectionRef.current.select(null);
         return;
       }
       if (event.key === 'Enter') {
-        if (!selectedId) return; // Enter with nothing selected does nothing (TC-36)
+        if (!selectedId || !canEdit) return; // Enter with nothing selected does nothing (TC-36)
         if (!notesRef.current.some((note) => note.id === selectedId)) return;
         event.preventDefault();
         selectionRef.current.startEdit(selectedId);
@@ -126,7 +131,7 @@ export function App(): JSX.Element {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc]);
+  }, [doc, canEdit]);
 
   // A note can leave the document while it is selected (deleted by anyone, from any
   // client), in which case the local selection is dropped with it.
@@ -160,11 +165,16 @@ export function App(): JSX.Element {
               onSelect={selection.select}
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
+              readOnly={!canEdit}
             />
           ))}
         </BoardViewport>
         <ConnectionStatus state={connection} />
-        <Toolbar onCreateSticky={createAtViewportCentre} shareUrl={boardLink(boardId)} />
+        <Toolbar
+          onCreateSticky={createAtViewportCentre}
+          shareUrl={boardLink(boardId)}
+          disabled={!canEdit}
+        />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}

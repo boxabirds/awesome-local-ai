@@ -337,3 +337,11 @@ button:focus-visible,
   background: #e4f7ea;
   border-color: #86c9a1;
 }
+
+/* Story 4: the board itself could not be loaded. Red, because everything else says
+   "wait a moment" and this one says "something is wrong with your board". */
+.vidi6-connection-status--bad {
+  color: #7f1d1d;
+  background: #fde8e8;
+  border-color: #e29090;
+}

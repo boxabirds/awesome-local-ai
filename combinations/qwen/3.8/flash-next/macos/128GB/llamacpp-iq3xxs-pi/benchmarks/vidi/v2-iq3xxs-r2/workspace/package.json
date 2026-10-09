@@ -13,6 +13,7 @@
     "test:component": "vitest run --project component",
     "test:integration": "npm run build:test && vitest run --project integration",
     "test:e2e": "npm run e2e:build && playwright test",
+    "test:e2e:persist": "npm run e2e:build && playwright test -c playwright.persistence.config.ts",
     "e2e:build": "vite build --mode test",
     "e2e:server": "wrangler dev --ip 127.0.0.1 --port ${AGENT_PORT_E2E:-27426} --inspector-port ${AGENT_PORT_E2E_WRANGLER:-27427} --log-level=warn",
     "test:e2e:nightly": "npm run e2e:build && playwright test -c playwright.nightly.config.ts"

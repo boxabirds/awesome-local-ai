@@ -1,4 +1,4 @@
-import { env, evictDurableObject } from 'cloudflare:test';
+import { env, evictDurableObject, runInDurableObject } from 'cloudflare:test';
 import * as Y from 'yjs';
 import { describe, expect, it } from 'vitest';
 import { createSticky, deleteObject, getStickyText, initDoc, moveObject, setStickyColor } from '../../src/shared/board-model';
@@ -353,7 +353,14 @@ describe('board room', () => {
     try {
       b.terminate();
       await settle();
-      expect(b.closes.length).toBeGreaterThan(0);
+      // The room noticed: the hibernated socket list no longer holds the dead peer.
+      // (Stronger than the client watching its own close event — this is the fact
+      // the rest of the test depends on; see the helper's note on close echo.)
+      const sockets = await runInDurableObject(
+        env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)),
+        (_instance: unknown, state: { getWebSockets(): WebSocket[] }) => state.getWebSockets().length,
+      );
+      expect(sockets).toBe(1);
       // The room does not fall over on the update it tries to send to a dead socket.
       const id = createSticky(a.doc, { x: 1, y: 1 }, 'pink');
       if (typeof id !== 'string') throw new Error('createSticky failed');
