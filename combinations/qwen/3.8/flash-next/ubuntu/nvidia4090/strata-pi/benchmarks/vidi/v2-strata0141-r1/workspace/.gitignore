@@ -1,0 +1,7 @@
+node_modules
+dist
+.wrangler
+playwright-report
+test-results
+npm-debug.log*
+.e2e

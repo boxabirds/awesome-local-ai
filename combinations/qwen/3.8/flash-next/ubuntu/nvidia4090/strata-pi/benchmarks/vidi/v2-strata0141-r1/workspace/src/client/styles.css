@@ -1,0 +1,128 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2933;
+  background: #f7f8fa;
+  overflow: hidden;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+}
+
+.board {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  background-color: #fdfdfe;
+}
+
+.board[data-panning='true'] {
+  cursor: grabbing;
+}
+
+.board__grid {
+  position: absolute;
+  inset: 0;
+}
+
+.board__world {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.origin-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+
+.origin-marker__h,
+.origin-marker__v {
+  position: absolute;
+  background: #94a3b8;
+}
+
+.origin-marker__h {
+  left: -9px;
+  top: -1px;
+  width: 18px;
+  height: 2px;
+}
+
+.origin-marker__v {
+  left: -1px;
+  top: -9px;
+  width: 2px;
+  height: 18px;
+}
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid #d5dbe3;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 12%);
+}
+
+.zoom-controls button {
+  font: inherit;
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid #d5dbe3;
+  border-radius: 6px;
+  background: #f7f8fa;
+  color: inherit;
+  cursor: pointer;
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible,
+.navigation-hint:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.zoom-controls output {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  min-width: 52px;
+  text-align: center;
+}
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  background: rgb(255 255 255 / 92%);
+  border: 1px solid #d5dbe3;
+  border-radius: 999px;
+  font-size: 14px;
+  color: #52606d;
+}

@@ -1,0 +1,291 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { GRID_SPACING_WORLD } from '../../shared/config';
+import { canZoomIn, canZoomOut, zoomPercent, type Size } from './camera';
+import { useCamera, wheelDeltaToPixels, wheelZoomFactor, type CameraApi } from './useCamera';
+import { NavigationHint } from './NavigationHint';
+import { ZoomControls } from './ZoomControls';
+
+/** Safari (and legacy) pinch gestures are delivered as GestureEvent. */
+interface GestureEventLike extends Event {
+  readonly scale: number;
+  readonly rotation?: number;
+}
+
+const mod = (value: number, modulus: number): number => ((value % modulus) + modulus) % modulus;
+
+/** Viewport size from a ResizeObserver, falling back to window dimensions. */
+function useViewportSize(ref: React.RefObject<HTMLElement | null>): Size {
+  const [size, setSize] = useState<Size>(() => ({
+    width: typeof window === 'undefined' ? 0 : window.innerWidth,
+    height: typeof window === 'undefined' ? 0 : window.innerHeight,
+  }));
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+    if (typeof ResizeObserver === 'function') {
+      const observer = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        const box = entry?.contentRect;
+        if (box) {
+          setSize((previous) =>
+            previous.width === box.width && previous.height === box.height
+              ? previous
+              : { width: box.width, height: box.height },
+          );
+        }
+      });
+      observer.observe(element);
+      return () => observer.disconnect();
+    }
+    const onResize = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [ref]);
+
+  return size;
+}
+
+/** Is this event coming from the board surface (not from board chrome)? */
+function isBoardSurface(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest('[data-board-chrome]') === null;
+}
+
+function isTextEntry(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  return target.closest('input, textarea, select, [contenteditable="true"]') !== null;
+}
+
+/**
+ * The board input surface: dot grid, world layer (world coordinates), and the
+ * board chrome (zoom controls, first-use hint). Pan by dragging, pan by
+ * scrolling, zoom at the pointer (Ctrl/Cmd wheel or Safari gesture) and the
+ * Ctrl/Cmd + = / - / 0 shortcuts all prevent the browser's own behaviour.
+ */
+export function BoardViewport({ children }: { children?: React.ReactNode }) {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  const viewport = useViewportSize(surfaceRef);
+  const api = useCamera(viewport);
+
+  const { camera, isPanning } = api;
+  const { beginPan, panMove, endPan: endPanAction, wheel, zoomAtPointer, zoomStep, reset } = api;
+  const lastPointerRef = useRef({ x: viewport.width / 2, y: viewport.height / 2 });
+  const gestureScaleRef = useRef(1);
+
+  const screenPointFromEvent = useCallback(
+    (e: { clientX: number; clientY: number }) => {
+      const rect = surfaceRef.current?.getBoundingClientRect();
+      const x = rect ? e.clientX - rect.left : e.clientX;
+      const y = rect ? e.clientY - rect.top : e.clientY;
+      lastPointerRef.current = { x, y };
+      return { x, y };
+    },
+    [],
+  );
+
+  // --- dragging -------------------------------------------------------------
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const target = e.target;
+    if (!(target instanceof Element) || target.getAttribute('data-board-surface') !== 'true') {
+      return; // only empty board space starts a pan
+    }
+    if (e.button !== 0 && e.pointerType === 'mouse') {
+      return;
+    }
+    const point = screenPointFromEvent(e);
+    beginPan(point);
+    try {
+      surfaceRef.current?.setPointerCapture(e.pointerId);
+    } catch {
+      // jsdom (and browsers that reject capture) still pan via pointer events.
+    }
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!api.isPanning) {
+      screenPointFromEvent(e);
+      return;
+    }
+    panMove(screenPointFromEvent(e));
+  };
+
+  const endDrag = () => {
+    if (api.isPanning) {
+      endPanAction();
+    }
+  };
+
+  // --- wheel (non-passive so it never scrolls or zooms the page) ------------
+  useEffect(() => {
+    const element = surfaceRef.current;
+    if (!element) {
+      return;
+    }
+    const onWheel = (e: WheelEvent) => {
+      if (!isBoardSurface(e.target)) {
+        return; // over chrome: leave the browser default alone
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      const point = screenPointFromEvent(e);
+      const deltaY = wheelDeltaToPixels(e.deltaY, e.deltaMode);
+      const deltaX = wheelDeltaToPixels(e.deltaX, e.deltaMode);
+      if (e.ctrlKey || e.metaKey) {
+        zoomAtPointer(point, wheelZoomFactor(deltaY));
+        return;
+      }
+      wheel({ deltaX, deltaY, ctrlOrMeta: false, point });
+    };
+    element.addEventListener('wheel', onWheel, { passive: false });
+    return () => element.removeEventListener('wheel', onWheel);
+  }, [wheel, zoomAtPointer, screenPointFromEvent]);
+
+  // --- Safari pinch gestures -------------------------------------------------
+  useEffect(() => {
+    const element = surfaceRef.current;
+    if (!element) {
+      return;
+    }
+    const onStart = (e: Event) => {
+      e.preventDefault();
+      gestureScaleRef.current = (e as GestureEventLike).scale || 1;
+    };
+    const onChange = (e: Event) => {
+      e.preventDefault();
+      const gesture = e as GestureEventLike;
+      const scale = gesture.scale || 1;
+      const ratio = gestureScaleRef.current === 0 ? 1 : scale / gestureScaleRef.current;
+      gestureScaleRef.current = scale;
+      zoomAtPointer(lastPointerRef.current, ratio);
+    };
+    const onEnd = (e: Event) => {
+      e.preventDefault();
+      gestureScaleRef.current = 1;
+    };
+    element.addEventListener('gesturestart', onStart);
+    element.addEventListener('gesturechange', onChange);
+    element.addEventListener('gestureend', onEnd);
+    return () => {
+      element.removeEventListener('gesturestart', onStart);
+      element.removeEventListener('gesturechange', onChange);
+      element.removeEventListener('gestureend', onEnd);
+    };
+  }, [zoomAtPointer]);
+
+  // --- keyboard shortcuts ----------------------------------------------------
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) {
+        return;
+      }
+      // Keyboard shortcuts work whenever focus is not in a text field.
+      if (isTextEntry(e.target) || isTextEntry(document.activeElement)) {
+        return;
+      }
+      const key = e.key;
+      if (key === '=' || key === '+' || key === '-' || key === '_' || key === '0') {
+        // Stop the browser from zooming the page.
+        e.preventDefault();
+      }
+      if (key === '=' || key === '+') {
+        zoomStep('in');
+      } else if (key === '-' || key === '_') {
+        zoomStep('out');
+      } else if (key === '0') {
+        reset();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [zoomStep, reset]);
+
+  const spacingPx = GRID_SPACING_WORLD * camera.zoom;
+
+  return (
+    <div
+      ref={surfaceRef}
+      className="board"
+      data-testid="board"
+      data-board-surface="true"
+      data-panning={isPanning ? 'true' : 'false'}
+      style={{
+        backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, rgba(203, 213, 225, 0) 1.6px)',
+        backgroundSize: `${spacingPx}px ${spacingPx}px`,
+        // Each CSS tile paints its dot at the tile centre, so the offset is
+        // pulled back by half a tile: that puts a dot exactly above every world
+        // point that is a multiple of GRID_SPACING_WORLD (including 0,0).
+        backgroundPosition: `${mod(-camera.x * camera.zoom - spacingPx / 2, spacingPx)}px ${mod(
+          -camera.y * camera.zoom - spacingPx / 2,
+          spacingPx,
+        )}px`,
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onLostPointerCapture={endDrag}
+    >
+      <div className="board__grid" data-board-surface="true" aria-hidden="true" />
+      <div
+        className="board__world"
+        data-testid="world-layer"
+        data-zoom={camera.zoom}
+        style={{
+          transform: `scale(${camera.zoom}) translate(${-camera.x}px, ${-camera.y}px)`,
+          transformOrigin: '0 0',
+        }}
+      >
+        <div className="origin-marker" data-testid="origin-marker" data-world-x="0" data-world-y="0" aria-hidden="true">
+          <span className="origin-marker__h" />
+          <span className="origin-marker__v" />
+        </div>
+        <span style={{ position: 'absolute', left: 0, top: 0 }} data-testid="origin-point" />
+        {import.meta.env.MODE === 'test' ? <FarAnchor /> : null}
+        {children}
+      </div>
+      <BoardChrome api={api} />
+    </div>
+  );
+}
+
+/**
+ * Test-only anchor at the tested far extent, so e2e can verify exact panning
+ * 1,000,000 world units from the start without dragging a million pixels.
+ * Tree-shaken out of production builds.
+ */
+function FarAnchor() {
+  return (
+    <div
+      className="origin-marker origin-marker--far"
+      data-testid="far-anchor"
+      data-world-x="1000000"
+      data-world-y="1000000"
+      aria-hidden="true"
+      style={{ transform: 'translate(1000000px, 1000000px)' }}
+    >
+      <span className="origin-marker__h" />
+      <span className="origin-marker__v" />
+    </div>
+  );
+}
+
+/** Board chrome: zoom controls and the first-use hint, wired to the camera. */
+function BoardChrome({ api }: { api: CameraApi }) {
+  return (
+    <>
+      <NavigationHint visible={!api.hasNavigated} />
+      <ZoomControls
+        zoomPercent={zoomPercent(api.camera)}
+        canZoomIn={canZoomIn(api.camera)}
+        canZoomOut={canZoomOut(api.camera)}
+        onZoomIn={() => api.zoomStep('in')}
+        onZoomOut={() => api.zoomStep('out')}
+        onReset={api.reset}
+      />
+    </>
+  );
+}
