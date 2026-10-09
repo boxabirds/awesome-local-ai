@@ -1,0 +1,137 @@
+/* vidi6 styles (story 1). */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #1f2024;
+}
+
+.board-root {
+  position: fixed;
+  inset: 0;
+  background-color: #fbfbfa;
+}
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+/* World layer: zero-sized anchor at the viewport top-left; content inside is
+   positioned in world units and transformed as a whole. */
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+/* Origin marker at world (0,0): a small crosshair, centred on (0,0). */
+.origin-marker {
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: "";
+  position: absolute;
+  background: #9c9c94;
+}
+
+.origin-marker::before {
+  left: 5px;
+  top: 0;
+  width: 2px;
+  height: 12px;
+}
+
+.origin-marker::after {
+  left: 0;
+  top: 5px;
+  width: 12px;
+  height: 2px;
+}
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #ffffff;
+  border: 1px solid #d9d9d4;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.zoom-controls button {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  color: #1f2024;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #f0f0ec;
+}
+
+.zoom-controls button:disabled {
+  color: #b3b3ad;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible,
+.board-viewport:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.zoom-controls output {
+  min-width: 52px;
+  text-align: center;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.navigation-hint {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(31, 32, 36, 0.82);
+  color: #ffffff;
+  font-size: 13px;
+  pointer-events: none;
+  white-space: nowrap;
+}

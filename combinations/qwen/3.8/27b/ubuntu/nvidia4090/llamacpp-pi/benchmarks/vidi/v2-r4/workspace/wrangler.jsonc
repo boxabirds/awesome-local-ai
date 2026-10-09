@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2025-06-01",
+  // The Vite client build lands in dist/client; `wrangler dev` serves it.
+  // A Worker `main` is added in story 3.
+  "assets": {
+    "directory": "dist/client"
+  }
+}
