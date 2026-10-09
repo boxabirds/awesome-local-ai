@@ -1,3 +1,110 @@
+commit eb9e83551e05602d5226f5606628f168b941af70
+agent  Fri Oct 9 15:41:17 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ PROGRESS.md | 2 ++
+ 1 file changed, 2 insertions(+)
+commit de78c96a5ec737fffb638ae6cb360bdb67121146
+agent  Fri Oct 9 15:40:12 2026 +0000
+
+    story 10: e2e draw/rearrange/delete-race (TC-23..27), checkout-flow seed hook + builder + fixture
+
+
+ NOTES.md                            |   7 ++
+ PROGRESS.md                         |   2 +-
+ src/client/canvas/BoardViewport.tsx |   6 ++
+ src/client/canvas/testHooks.ts      |   3 +
+ src/shared/board-seed.ts            |  53 ++++++++++++++
+ tests/e2e/connectors.spec.ts        | 134 ++++++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/shapes.ts         |  56 +++++++++++++++
+ tests/e2e/shapes.spec.ts            |  77 +++++++++++++++++++++
+ tests/fixtures/checkout-flow.ts     |  14 ++++
+ 9 files changed, 351 insertions(+), 1 deletion(-)
+commit 8492632c142c9baf339a03c48bbb06b0380c9063
+agent  Fri Oct 9 15:28:47 2026 +0000
+
+    story 10: component tests for shape/connector tools, object, toolbar and active-tool hook (TC-15..22, TC-28)
+
+
+ PROGRESS.md                             |   2 +-
+ src/client/objects/ConnectorObject.tsx  |   6 +-
+ src/client/tools/ConnectorTool.tsx      |   6 +-
+ src/client/tools/ShapeTool.tsx          |   6 +-
+ tests/component/ShapeConnector.test.tsx | 239 ++++++++++++++++++++++++++++++++
+ 5 files changed, 255 insertions(+), 4 deletions(-)
+commit c9ab16d239be573ceacf987072213838edba78cc
+agent  Fri Oct 9 15:17:48 2026 +0000
+
+    story 10: active-tool hook, Shape tool/object/toolbar, Connector tool/object + viewport wiring
+
+
+ NOTES.md                               |   9 ++
+ PROGRESS.md                            |   6 +-
+ src/client/board/Toolbar.tsx           |  62 ++++++++++++
+ src/client/board/useTool.ts            |  12 ++-
+ src/client/canvas/BoardViewport.tsx    | 125 +++++++++++++++++++-----
+ src/client/objects/ConnectorObject.tsx | 164 ++++++++++++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx     | 168 +++++++++++++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx    |  71 ++++++++++++++
+ src/client/objects/registry.tsx        |  43 ++++++++-
+ src/client/tools/ConnectorTool.tsx     | 150 +++++++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx         | 111 ++++++++++++++++++++++
+ src/client/tools/useActiveTool.ts      |  74 +++++++++++++++
+ 12 files changed, 963 insertions(+), 32 deletions(-)
+commit e546f92daf23e53364281e2fc78401348bd0b334
+agent  Fri Oct 9 15:00:01 2026 +0000
+
+    story 10: connector model, geometry and detach-on-delete (TC-07..14, TC-29 green)
+
+
+ PROGRESS.md                               |   4 +-
+ src/shared/board-model.ts                 |  51 +++++++-
+ src/shared/geometry/connector-geometry.ts |  69 +++++++++--
+ src/shared/geometry/polyline.ts           |  21 +++-
+ src/shared/objects/connector.ts           | 187 ++++++++++++++++++++++++++++--
+ tests/unit/board-model-group.test.ts      |  14 +--
+ tests/unit/board-model.test.ts            |  10 +-
+ 7 files changed, 317 insertions(+), 39 deletions(-)
+commit 5b1d33d8786933bdf55b3a669f91dd7c96b010cd
+agent  Fri Oct 9 14:53:38 2026 +0000
+
+    story 10 scaffold: connector model + geometry red unit tests (TC-07..14, TC-29)
+
+
+ src/shared/geometry/connector-geometry.ts |  22 ++++
+ src/shared/geometry/polyline.ts           |   8 ++
+ src/shared/objects/connector.ts           |  45 +++++++
+ tests/unit/connector-model.test.ts        | 198 ++++++++++++++++++++++++++++++
+ 4 files changed, 273 insertions(+)
+commit 9318f9e76dfcd52225342dad133cfa038b3d139a
+agent  Fri Oct 9 14:48:13 2026 +0000
+
+    story 10: shape model implementation (TC-01..06 green)
+
+
+ PROGRESS.md                 |   4 +-
+ src/shared/objects/shape.ts | 183 ++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 177 insertions(+), 10 deletions(-)
+commit 300da49cf1bb75d34d07d10ee4aaf8875d895289
+agent  Fri Oct 9 14:47:24 2026 +0000
+
+    story 10 scaffold: shape model red unit tests (TC-01..06)
+
+
+ src/shared/config.ts           |  36 ++++++++++
+ src/shared/objects/shape.ts    |  34 +++++++++
+ tests/unit/shape-model.test.ts | 158 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 228 insertions(+)
+commit 36544b3e592195d2338ba5cb7a401b0ee363683e
+vidi-agent  Fri Oct 9 14:19:06 2026 +0000
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit cd04679bd7f71efe7ba75080abb2e6a77988e896
 agent  Fri Oct 9 14:14:45 2026 +0000
 
