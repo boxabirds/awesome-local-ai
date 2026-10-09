@@ -1,12 +1,26 @@
 # Backup of the bench state
 
-The lake (`collected/`), the warehouse and analytics databases (`insights/`), the recordings and the other files under
-`~/expts/awesome-local-ai-bench-private/state/` exist on one disk only. This backs them up every day to two restic
-repositories: one on this Mac and one on another machine (the RTX 4090 box, over ssh), and after each backup says how long each target has left at
-the last week's rate of growth.
+## What this is for
 
-Status: **built and tested; not installed.** `test_forecast.py` and `test_backup.py` run without restic (a recording fake
-stands in for it). Nothing below has been run against a real restic repository yet.
+The benchmark's results are public (they are in git), but the evidence behind them is not, and it is expensive to make: days of machine
+time per run. It lives in the private bench repository's `state/` folder on this Mac, which is git-ignored, so before this backup it
+existed once, on one disk.
+
+- **The lake** (`collected/`) is a byte-for-byte copy, pulled from each benchmark machine, of every run's raw logs: what the agent said
+  and did, the machine's readings, the model server's log. The public repository keeps only compacted records of them, and a machine
+  may clear a run's folder, so the lake is often the only full copy.
+- **The warehouse and analytics databases** (`insights/`) are built from the lake and the public records. The benchmarker's
+  conversation pages and our analyses read them. They can be rebuilt, slowly, except for anything made in them by hand (labels, reviews).
+- **Recordings, judging, annotate and keys** are the rest of that folder.
+
+This job copies all of it, every day, to two places: a repository on this Mac and one on another machine (the RTX 4090 box, over ssh), so
+that a dead disk, a bad migration or a deleted folder does not cost us runs. It is not a backup of the public repository (git is that)
+or of the benchmark machines' own working files. After each backup it also says how long each target has left at the last week's rate of
+growth. **To get something back, read `RESTORE.md`.**
+
+Status: **installed 9 Oct 2026**, running daily at 03:30; the first backups to both repositories were checked by restoring files and
+both databases from each. `test_forecast.py` and `test_backup.py` test the logic with a fake restic and, where restic is installed,
+with the real one.
 
 ## What a run does
 
