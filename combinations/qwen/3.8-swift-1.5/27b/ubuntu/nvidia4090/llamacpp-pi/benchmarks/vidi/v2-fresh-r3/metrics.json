@@ -1829,15 +1829,13 @@
         },
         "compaction_s": 330.9,
         "compactions": 4,
-        "between_sessions_s": 679.5,
-        "other_s": 44.0,
+        "between_sessions_s": 60.9,
+        "other_s": 662.6,
         "suspended_s": 0.0,
         "accounting": {
           "version": 4,
-          "ok": false,
-          "problems": [
-            "the agent's own clock (6310.1 s + 679.5 s between sessions) is 618.6 s more than the wall's 6371.0 s: agent time was counted twice"
-          ],
+          "ok": true,
+          "problems": [],
           "abandoned_calls": 0,
           "interrupted_tools": [
             {
@@ -1846,7 +1844,8 @@
               "ended_by": "the next session's start"
             }
           ],
-          "interrupted_compactions": 0
+          "interrupted_compactions": 0,
+          "silent_alive_s": 618.6
         },
         "backfilled": true
       },
@@ -2378,15 +2377,13 @@
         },
         "compaction_s": 150.2,
         "compactions": 2,
-        "between_sessions_s": 680.4,
-        "other_s": 30.4,
+        "between_sessions_s": 60.4,
+        "other_s": 650.4,
         "suspended_s": 0.0,
         "accounting": {
           "version": 4,
-          "ok": false,
-          "problems": [
-            "the agent's own clock (4246.3 s + 680.4 s between sessions) is 620.0 s more than the wall's 4306.7 s: agent time was counted twice"
-          ],
+          "ok": true,
+          "problems": [],
           "abandoned_calls": 0,
           "interrupted_tools": [
             {
@@ -2395,7 +2392,8 @@
               "ended_by": "the next session's start"
             }
           ],
-          "interrupted_compactions": 0
+          "interrupted_compactions": 0,
+          "silent_alive_s": 620.0
         },
         "backfilled": true
       },

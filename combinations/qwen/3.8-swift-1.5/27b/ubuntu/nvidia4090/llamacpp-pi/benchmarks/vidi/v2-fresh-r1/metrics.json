@@ -4562,15 +4562,13 @@
         },
         "compaction_s": 143.8,
         "compactions": 2,
-        "between_sessions_s": 688.5,
-        "other_s": 24.9,
+        "between_sessions_s": 60.3,
+        "other_s": 653.1,
         "suspended_s": 0.0,
         "accounting": {
           "version": 4,
-          "ok": false,
-          "problems": [
-            "the agent's own clock (4131.3 s + 688.5 s between sessions) is 628.2 s more than the wall's 4191.6 s: agent time was counted twice"
-          ],
+          "ok": true,
+          "problems": [],
           "abandoned_calls": 0,
           "interrupted_tools": [
             {
@@ -4579,7 +4577,8 @@
               "ended_by": "the next session's start"
             }
           ],
-          "interrupted_compactions": 0
+          "interrupted_compactions": 0,
+          "silent_alive_s": 628.2
         },
         "backfilled": true
       },
