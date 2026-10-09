@@ -1,14 +1,14 @@
 import type { CSSProperties, JSX } from 'react';
 import { UndoButtons } from './UndoButtons';
 import type { UndoState } from './useUndo';
+import type { Tool } from './useTool';
 
 const containerStyle: CSSProperties = {
   position: 'fixed',
   left: 16,
-  top: '50%',
-  transform: 'translateY(-50%)',
+  bottom: 16,
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'row',
   gap: 6,
   padding: 6,
   background: '#ffffff',
@@ -32,20 +32,49 @@ export interface ToolbarProps {
   onCreateSticky(): void;
   disabled?: boolean;
   undo?: UndoState;
+  // Story 9: when provided, the tool switcher is rendered above the actions.
+  tool?: Tool;
+  onToolChange?(tool: Tool): void;
 }
 
-export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
+export const STICKY_BUTTON_TOOLTIP = 'Sticky note (N) – or double-click the board';
 
 export function Toolbar(props: ToolbarProps): JSX.Element {
   const stop = (event: { stopPropagation(): void }): void => {
     event.stopPropagation();
   };
+  const showTools = props.tool !== undefined && props.onToolChange !== undefined;
 
   return (
     <div data-testid="board-toolbar" style={containerStyle} onPointerDown={stop}>
+      {showTools ? (
+        <>
+          <button
+            type="button"
+            aria-label="Select (V)"
+            title="Select – or press V"
+            aria-pressed={props.tool === 'select'}
+            style={buttonStyle}
+            onClick={() => props.onToolChange?.('select')}
+          >
+            ↖
+          </button>
+          <button
+            type="button"
+            aria-label="Text (T)"
+            title="Text – or press T"
+            aria-pressed={props.tool === 'text'}
+            style={buttonStyle}
+            disabled={props.disabled === true}
+            onClick={() => props.onToolChange?.('text')}
+          >
+            T
+          </button>
+        </>
+      ) : null}
       <button
         type="button"
-        aria-label="Sticky note"
+        aria-label="Sticky note (N)"
         title={STICKY_BUTTON_TOOLTIP}
         style={buttonStyle}
         disabled={props.disabled === true}

@@ -9,7 +9,7 @@ let registry: MutableRefObject<HarnessRegistry>;
 function mount(): string {
   registry = { current: { doc: null, selectedId: null, editingId: null } };
   render(<Harness registry={registry} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
   const id = snapshot(registry.current.doc!)[0].id;
   fireEvent.keyDown(screen.getByTestId('sticky-editor'), { key: 'Escape' });
   return id;
@@ -166,7 +166,7 @@ describe('sticky.interaction', () => {
   test('TC-37 a note deleted from the model while editing ends cleanly and is not recreated', () => {
     registry = { current: { doc: null, selectedId: null, editingId: null } };
     render(<Harness registry={registry} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     const id = snapshot(doc())[0].id;
     expect(screen.getByTestId('sticky-editor')).toBeTruthy();
     expect(() => {

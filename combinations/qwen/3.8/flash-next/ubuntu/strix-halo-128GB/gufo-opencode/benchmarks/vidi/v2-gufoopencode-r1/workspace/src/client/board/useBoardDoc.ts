@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshotAll, type ObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 import { IS_TEST_MODE } from '../canvas/testHooks';
 
 interface SnapshotStore {
   subscribe(onStoreChange: () => void): () => void;
-  getSnapshot(): readonly StickySnapshot[];
+  getSnapshot(): readonly ObjectSnapshot[];
 }
 
 // Memoises the immutable snapshot and recomputes it only when the objects map
@@ -14,7 +14,7 @@ interface SnapshotStore {
 // and detached when the last unsubscribes.
 function createSnapshotStore(doc: Y.Doc): SnapshotStore {
   const objects = doc.getMap('objects');
-  let current: readonly StickySnapshot[] = snapshot(doc);
+  let current: readonly ObjectSnapshot[] = snapshotAll(doc);
   const listeners = new Set<() => void>();
   let observer: ((events: Y.YEvent<Y.AbstractType<unknown>>[], transaction: Y.Transaction) => void) | null = null;
 
@@ -23,7 +23,7 @@ function createSnapshotStore(doc: Y.Doc): SnapshotStore {
       listeners.add(onStoreChange);
       if (observer === null) {
         observer = () => {
-          current = snapshot(doc);
+          current = snapshotAll(doc);
           for (const listener of listeners) listener();
         };
         objects.observeDeep(observer);
@@ -44,7 +44,7 @@ function createSnapshotStore(doc: Y.Doc): SnapshotStore {
 
 export interface BoardDoc {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  notes: readonly ObjectSnapshot[];
   connection: ConnectionState;
 }
 

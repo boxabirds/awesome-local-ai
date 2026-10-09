@@ -4,6 +4,8 @@ import * as Y from 'yjs';
 import { canZoomIn, canZoomOut, screenToWorld, worldToScreen, zoomPercent } from './camera';
 import type { Point, Size } from './camera';
 import { createSticky, deleteObjects, objectBounds, type ObjectSnapshot } from '../../shared/board-model';
+import { createText } from '../../shared/objects/text';
+import { getSessionId } from '../session';
 import { unionRects } from '../../shared/geometry';
 import { DRAG_THRESHOLD_PX } from '../../shared/config';
 import { gridStyle, worldLayerStyle } from './boardStyles';
@@ -17,6 +19,7 @@ import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { useTransformGesture } from '../board/useTransformGesture';
+import { useTool } from '../board/useTool';
 import { useUndo, useUndoController } from '../board/useUndo';
 import type { SelectionApi } from '../board/useSelection';
 
@@ -233,6 +236,69 @@ export function BoardViewport(props: BoardViewportProps) {
     createAtWorld(screenToWorld(cam.camera, { x: viewport.width / 2, y: viewport.height / 2 }));
   }, [createAtWorld, cam.camera, viewport.width, viewport.height]);
 
+  const { tool, setTool } = useTool(props.editable !== false);
+
+  // Story 9 tool shortcuts (design text.tool_ui): V → Select, T → Text,
+  // N → same as the Sticky note button, Escape → Select. Ignored while
+  // editing text or when focus is in an input. Escape keeps bubbling so the
+  // board-wide handler can also clear the selection.
+  const createCentreRef = useRef(createCentre);
+  createCentreRef.current = createCentre;
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const selection = selectionRef.current;
+      if (selection !== undefined && selection.editingId !== null) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target !== null &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable === true)
+      ) {
+        return;
+      }
+      if (event.key === 'v' || event.key === 'V') {
+        setTool('select');
+        return;
+      }
+      if (event.key === 't' || event.key === 'T') {
+        if (!editableRef.current) return;
+        event.preventDefault();
+        setTool('text');
+        return;
+      }
+      if (event.key === 'n' || event.key === 'N') {
+        if (!editableRef.current) return;
+        event.preventDefault();
+        createCentreRef.current();
+        return;
+      }
+      if (event.key === 'Escape') {
+        setTool('select');
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [setTool]);
+
+  const createTextAtScreenPoint = useCallback(
+    (clientX: number, clientY: number): void => {
+      const doc = docRef.current;
+      const element = viewportRef.current;
+      if (doc === undefined || element === null || !editableRef.current) return;
+      const rect = element.getBoundingClientRect();
+      const world = screenToWorld(cam.camera, { x: clientX - rect.left, y: clientY - rect.top });
+      undoRef.current?.boundary();
+      const id = createText(doc, world, getSessionId());
+      undoRef.current?.boundary();
+      if (id === null) return;
+      setTool('select');
+      selectionRef.current?.startEdit(id);
+    },
+    [cam.camera, setTool]
+  );
+
+  const toolActive = tool === 'text';
+
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       if (event.button !== 0 || !isBoardSurface(event.target)) return;
@@ -383,6 +449,22 @@ export function BoardViewport(props: BoardViewportProps) {
           })}
           <MarqueeRect rect={marquee.rect} camera={camera} />
         </div>
+        {toolActive ? (
+          <div
+            data-testid="text-tool-overlay"
+            style={{ position: 'absolute', inset: 0, cursor: 'text', zIndex: 45 }}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+            }}
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              createTextAtScreenPoint(event.clientX, event.clientY);
+            }}
+          />
+        ) : null}
         {selection !== undefined && props.doc !== undefined ? (
           <SelectionOverlay
             ids={selection.ids}
@@ -417,7 +499,13 @@ export function BoardViewport(props: BoardViewportProps) {
         ) : null}
       </div>
       {props.doc !== undefined ? (
-        <Toolbar onCreateSticky={createCentre} disabled={props.editable === false} undo={undoState} />
+        <Toolbar
+          onCreateSticky={createCentre}
+          disabled={props.editable === false}
+          undo={undoState}
+          tool={tool}
+          onToolChange={setTool}
+        />
       ) : null}
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

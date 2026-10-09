@@ -2,8 +2,9 @@ import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { rectContains, type Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 // Props every object-type renderer receives from the board viewport. The
 // viewport owns selection and the transform gesture; components only declare
@@ -29,6 +30,9 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  // 'horizontal' restricts resize handles to e/w (story 9: text height is
+  // derived from content and must not be dragged). Default: all eight.
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -54,5 +58,15 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: stickyHitTest
+});
+
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: stickyHitTest
 });

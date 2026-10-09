@@ -46,6 +46,16 @@ export const MAX_OBJECT_SIZE_WORLD = 20_000;
 export const NUDGE_STEP_WORLD = 1;
 export const NUDGE_LARGE_STEP_WORLD = 10;
 
+// Story 9: free text.
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+export const TEXT_MIN_WIDTH_WORLD = 40;
+export const TEXT_MAX_CHARS = 5000;
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+export const TEXT_LINE_HEIGHT = 1.3;
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
 // Story 8: undo/redo.
 export const UNDO_CAPTURE_TIMEOUT_MS = 500; // edits closer than this merge into one undo step
 export const UNDO_MAX_STEPS = 200; // undo history cap per participant

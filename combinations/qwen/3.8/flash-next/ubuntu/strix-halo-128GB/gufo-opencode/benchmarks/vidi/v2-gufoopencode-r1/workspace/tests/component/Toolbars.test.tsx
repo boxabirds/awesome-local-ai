@@ -24,7 +24,7 @@ describe('sticky.toolbar', () => {
     mount();
     const doc = registry.current.doc!;
     expect(snapshot(doc).length).toBe(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     const notes = snapshot(doc);
     expect(notes.length).toBe(1);
     // Initial camera is centred on world (0,0); the new note is centred there.
@@ -38,7 +38,7 @@ describe('sticky.toolbar', () => {
   test('TC-27 pink swatch recolours the note and keeps it selected', () => {
     mount();
     const doc = registry.current.doc!;
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     const id = snapshot(doc)[0].id;
     fireEvent.keyDown(screen.getByTestId('sticky-editor'), { key: 'Escape' });
     // Selected, not editing: the note toolbar is shown.
@@ -53,7 +53,7 @@ describe('sticky.toolbar', () => {
   test('TC-29 bin button deletes the note and clears the selection', () => {
     mount();
     const doc = registry.current.doc!;
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     fireEvent.keyDown(screen.getByTestId('sticky-editor'), { key: 'Escape' });
     expect(screen.getByTestId('note-toolbar')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Delete note' }));

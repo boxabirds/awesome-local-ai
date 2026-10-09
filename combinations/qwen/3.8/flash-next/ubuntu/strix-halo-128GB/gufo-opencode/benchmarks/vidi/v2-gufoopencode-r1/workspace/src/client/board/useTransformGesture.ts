@@ -3,11 +3,15 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import {
   bringObjectsToFront,
+  LOCAL_ORIGIN,
   moveObjects,
   objectBounds,
   resizeObjects,
   type ObjectSnapshot
 } from '../../shared/board-model';
+import { setTextWidthFixed } from '../../shared/objects/text';
+import { createCanvasMeasurer, type Measurer } from '../objects/textLayout';
+import { remeasureText } from '../objects/useTextBoxSync';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
 import {
   clampScale,
@@ -46,6 +50,8 @@ interface GestureState {
   startRects: Map<string, Rect>;
   bounding: Rect;
   minSizes: Map<string, number>;
+  horizontalIds: Set<string>;
+  horizontalOnly: boolean;
   anyAspectLocked: boolean;
   aspectShift: boolean;
   thresholdPassed: boolean;
@@ -66,6 +72,11 @@ interface Controller {
 // so losing it (element unmounted) safely ends the gesture.
 function createController(getOpts: () => TransformGestureOpts, setDragging: (ids: ReadonlySet<string>) => void): Controller {
   let state: GestureState | null = null;
+  let measurer: Measurer | null = null;
+  const getMeasurer = (): Measurer => {
+    if (measurer === null) measurer = createCanvasMeasurer();
+    return measurer;
+  };
 
   function commit(): void {
     const opts = getOpts();
@@ -102,9 +113,40 @@ function createController(getOpts: () => TransformGestureOpts, setDragging: (ids
       width: gesture.bounding.width * scale.x,
       height: gesture.bounding.height * scale.y
     };
+    if (gesture.horizontalOnly) {
+      // Text-only selection (story 9): the e/w drag sets a fixed width and
+      // remeasures height from content; the stored height is never scaled.
+      const positions = new Map<string, Point>();
+      const doc = opts.doc;
+      doc.transact(() => {
+        for (const [id, rect] of gesture.startRects) {
+          const r = scaleWithin(rect, gesture.bounding, to);
+          setTextWidthFixed(doc, id, r.width);
+          positions.set(id, { x: r.x, y: rect.y });
+        }
+        moveObjects(doc, positions);
+        for (const id of gesture.startRects.keys()) remeasureText(doc, id, getMeasurer());
+      }, LOCAL_ORIGIN);
+      return;
+    }
     const next = new Map<string, Rect>();
-    for (const [id, rect] of gesture.startRects) next.set(id, scaleWithin(rect, gesture.bounding, to));
-    resizeObjects(opts.doc, next);
+    for (const [id, rect] of gesture.startRects) {
+      if (gesture.horizontalIds.has(id)) continue;
+      next.set(id, scaleWithin(rect, gesture.bounding, to));
+    }
+    if (next.size > 0) resizeObjects(opts.doc, next);
+    if (gesture.horizontalIds.size > 0) {
+      // Mixed group (story 9): text keeps its size and font; only its centre
+      // position scales with the group.
+      const positions = new Map<string, Point>();
+      for (const [id, rect] of gesture.startRects) {
+        if (!gesture.horizontalIds.has(id)) continue;
+        const cx = to.x + ((rect.x + rect.width / 2 - gesture.bounding.x) / gesture.bounding.width) * to.width;
+        const cy = to.y + ((rect.y + rect.height / 2 - gesture.bounding.y) / gesture.bounding.height) * to.height;
+        positions.set(id, { x: cx - rect.width / 2, y: cy - rect.height / 2 });
+      }
+      if (positions.size > 0) moveObjects(opts.doc, positions);
+    }
   }
 
   function onWindowMove(event: PointerEvent): void {
@@ -137,6 +179,7 @@ function createController(getOpts: () => TransformGestureOpts, setDragging: (ids
           const spec = obj === undefined ? undefined : getObjectType(obj.type);
           if (spec === undefined || !spec.resizable) allResizable = false;
           if (spec !== undefined && spec.aspectLocked) anyLocked = true;
+          if (spec !== undefined && spec.handles === 'horizontal') state.horizontalIds.add(id);
           state.minSizes.set(id, spec === undefined ? 0 : spec.minSize);
         }
         if (!allResizable) {
@@ -144,6 +187,7 @@ function createController(getOpts: () => TransformGestureOpts, setDragging: (ids
           return;
         }
         state.anyAspectLocked = anyLocked;
+        state.horizontalOnly = state.horizontalIds.size === state.startRects.size;
       }
       state.thresholdPassed = true;
       opts.onGestureStart?.();
@@ -194,6 +238,8 @@ function createController(getOpts: () => TransformGestureOpts, setDragging: (ids
       startRects: new Map(),
       bounding: { x: 0, y: 0, width: 0, height: 0 },
       minSizes: new Map(),
+      horizontalIds: new Set(),
+      horizontalOnly: false,
       anyAspectLocked: false,
       aspectShift: false,
       thresholdPassed: false,

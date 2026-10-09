@@ -9,7 +9,7 @@ let registry: MutableRefObject<HarnessRegistry>;
 function mount(): void {
   registry = { current: { doc: null, selectedId: null, editingId: null } };
   render(<Harness registry={registry} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
 }
 
 function editor(): HTMLTextAreaElement {

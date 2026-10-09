@@ -51,7 +51,7 @@ test('TC-23 a load_failed board ignores double-click, toolbar, drag and Delete',
   expect(snap()).toBe(baseline);
 
   // The Sticky note button is disabled.
-  const button = screen.getByRole('button', { name: 'Sticky note' }) as HTMLButtonElement;
+  const button = screen.getByRole('button', { name: 'Sticky note (N)' }) as HTMLButtonElement;
   expect(button.disabled).toBe(true);
   fireEvent.click(button);
   expect(snap()).toBe(baseline);

@@ -86,7 +86,7 @@ describe('selection keyboard commands (sel.keyboard)', () => {
   test('TC-30: Backspace while editing text edits the text and keeps the note', () => {
     mountHarness();
     act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     });
     const id = snapshot(api().doc)[0].id;
     const editor = screen.getByTestId('sticky-editor');

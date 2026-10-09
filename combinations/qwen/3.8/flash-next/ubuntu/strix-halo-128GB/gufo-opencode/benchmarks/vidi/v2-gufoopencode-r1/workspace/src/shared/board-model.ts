@@ -1,6 +1,7 @@
 import * as Y from 'yjs';
-import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
+import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES, type StickyColor } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+import type { TextSnapshot } from './objects/text';
 
 // Origin tag for every local mutation. Story 8 uses it for undo and story 3 to
 // avoid echoing changes back over the network.
@@ -28,7 +29,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 
 // Types this story's model knows how to read. Unknown types stay in the doc
 // untouched and are never selectable, listed or measured (design sel.registry).
-const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky']);
+const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky', 'text']);
 
 export function isKnownObjectType(type: string): boolean {
   return KNOWN_OBJECT_TYPES.has(type);
@@ -155,36 +156,104 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   return text instanceof Y.Text ? text : undefined;
 }
 
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+function readSticky(id: string, entry: Y.Map<unknown>): StickySnapshot | null {
+  const x = entry.get('x');
+  const y = entry.get('y');
+  const color = entry.get('color');
+  const z = entry.get('z');
+  const createdAt = entry.get('createdAt');
+  const text = entry.get('text');
+  if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(z) || !isStickyColor(color)) return null;
+  const width = entry.get('width');
+  const height = entry.get('height');
+  return {
+    id,
+    type: 'sticky',
+    x,
+    y,
+    width: isFiniteNumber(width) ? width : STICKY_SIZE_WORLD,
+    height: isFiniteNumber(height) ? height : STICKY_SIZE_WORLD,
+    color,
+    text: text instanceof Y.Text ? text.toString() : '',
+    z,
+    createdAt: typeof createdAt === 'number' ? createdAt : 0
+  };
+}
+
+function isTextSize(value: unknown): value is keyof typeof TEXT_SIZES {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, value);
+}
+
+function readText(id: string, entry: Y.Map<unknown>): TextSnapshot | null {
+  const x = entry.get('x');
+  const y = entry.get('y');
+  const z = entry.get('z');
+  const width = entry.get('width');
+  const height = entry.get('height');
+  const size = entry.get('size');
+  const widthMode = entry.get('widthMode');
+  const text = entry.get('text');
+  const createdAt = entry.get('createdAt');
+  if (
+    !isFiniteNumber(x) ||
+    !isFiniteNumber(y) ||
+    !isFiniteNumber(z) ||
+    !isFiniteNumber(width) ||
+    !isFiniteNumber(height) ||
+    !isTextSize(size) ||
+    (widthMode !== 'auto' && widthMode !== 'fixed') ||
+    !(text instanceof Y.Text)
+  ) {
+    return null;
+  }
+  return {
+    id,
+    type: 'text',
+    x,
+    y,
+    width,
+    height,
+    text: text.toString(),
+    size,
+    widthMode,
+    z,
+    createdAt: typeof createdAt === 'number' ? createdAt : 0
+  };
+}
+
+export function isTextObject(obj: ObjectSnapshot): obj is TextSnapshot {
+  const candidate = obj as Partial<TextSnapshot>;
+  return (
+    obj.type === 'text' &&
+    typeof candidate.text === 'string' &&
+    (candidate.widthMode === 'auto' || candidate.widthMode === 'fixed') &&
+    typeof candidate.size === 'string'
+  );
+}
+
+// Every known object in the doc, ordered for rendering (z, then id).
+export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects = doc.getMap('objects');
-  const result: StickySnapshot[] = [];
+  const result: ObjectSnapshot[] = [];
   for (const [id, value] of objects.entries()) {
     const entry = value as Y.Map<unknown>;
-    if (entry.get('type') !== 'sticky') continue;
-    const x = entry.get('x');
-    const y = entry.get('y');
-    const color = entry.get('color');
-    const z = entry.get('z');
-    const createdAt = entry.get('createdAt');
-    const text = entry.get('text');
-    if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(z) || !isStickyColor(color)) continue;
-    const width = entry.get('width');
-    const height = entry.get('height');
-    result.push({
-      id,
-      type: 'sticky',
-      x,
-      y,
-      width: isFiniteNumber(width) ? width : STICKY_SIZE_WORLD,
-      height: isFiniteNumber(height) ? height : STICKY_SIZE_WORLD,
-      color,
-      text: text instanceof Y.Text ? text.toString() : '',
-      z,
-      createdAt: typeof createdAt === 'number' ? createdAt : 0
-    });
+    const type = entry.get('type');
+    if (type === 'sticky') {
+      const sticky = readSticky(id, entry);
+      if (sticky !== null) result.push(sticky);
+    } else if (type === 'text') {
+      const text = readText(id, entry);
+      if (text !== null) result.push(text);
+    }
   }
   result.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return result;
+}
+
+// Sticky-only view kept for story 2 callers and tests; use snapshotAll() for
+// anything that must see every object type.
+export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+  return snapshotAll(doc).filter(isStickyObject);
 }
 
 // --- Story 7: generic bounds and group operations ------------------------

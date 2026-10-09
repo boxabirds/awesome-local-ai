@@ -52,10 +52,9 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
     }
     case 'edit': {
       if (action.id === null) return { ids: state.ids, editingId: null };
-      if (state.ids.has(action.id)) return { ids: state.ids, editingId: action.id };
-      const ids = new Set(state.ids);
-      ids.add(action.id);
-      return { ids, editingId: action.id };
+      // Editing an object always operates on it alone: entering edit mode
+      // (by creation or double-click) collapses the selection to it.
+      return { ids: new Set([action.id]), editingId: action.id };
     }
   }
 }

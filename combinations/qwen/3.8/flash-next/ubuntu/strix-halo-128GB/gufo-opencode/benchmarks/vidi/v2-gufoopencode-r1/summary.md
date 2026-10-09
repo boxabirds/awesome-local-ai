@@ -15,8 +15,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | 5/5 | 0 | 0 | 35/36 |
 | 7 | 8/8 | 0 | 0 | 43/44 |
 | 8 | 7/7 | 0 | 0 | 50/51 |
+| 9 | 5/6 | 1 | 0 | 54/57 |
 
-**New work** 46/47, **regressions** 0, **repairs** 0, **cumulative** 50/51.
+**New work** 51/53, **regressions** 1, **repairs** 0, **cumulative** 54/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,8 +28,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | Share a board with others using a link | DONE, on partial 4 | 69.5 | None | None | None | — | — | green | 35/36 |  | 0 / 0 | 0 | — | throttled 0%, server peak 17 GB |
 | 7 | Select, move, resize and delete several objects at once | PARTIAL (green), on partial 4 | 89.6 | None | None | None | — | — | green | 43/44 |  | 0 / 1 | 0 | — | throttled 0%, server peak 17 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 4, 7 | 54.8 | None | None | None | — | — | green | 50/51 |  | 0 / 0 | 0 | — | throttled 0%, server peak 17 GB |
+| 9 | Write free text anywhere on the board | DONE, on partial 4, 7 | 134.2 | None | None | None | — | — | green | 54/57 |  | 1 / 0 | 0 | — | throttled 0%, server peak 17 GB |
 
-**Totals:** 7 stories, 662 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 6/7, final acceptance 50/51, stalled 0, partial 2, 12538 lines in src+tests.
+**Totals:** 8 stories, 796 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/8, final acceptance 54/57, stalled 0, partial 2, 14638 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -37,6 +39,7 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - **Story 7 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **green**: gate green, tasks not verified none (implementation: none), held-out 8/8 (floor 0.0).
 - Story 7, built on partial 4: held-out tests on the partial base 17/17; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 8, built on partial 4, 7: held-out tests on the partial base 24/24; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- Story 9, built on partial 4, 7: held-out tests on the partial base 28/30; partial story's tests fixed 0, regressed 1; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -51,10 +54,12 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | 1 by the agent | 1570 / 140 | `SharePanel.tsx` (178), `HomePage.tsx` (95), `BoardPage.tsx` (81), `App.tsx` (74), `board-room.ts` (73), `board-store.ts` (59), +13 more |
 | 7 | 1 by the agent | 2748 / 289 | `useTransformGesture.ts` (270), `BoardViewport.tsx` (212), `StickyNote.tsx` (172), `board-model.ts` (158), `geometry.ts` (133), `SelectionOverlay.tsx` (113), +11 more |
 | 8 | 1 by the agent | 1279 / 17 | `undo.ts` (85), `useUndo.ts` (51), `UndoButtons.tsx` (48), `useBoardKeys.ts` (26), `BoardViewport.tsx` (26), `StickyTextEditor.tsx` (24), +7 more |
+| 9 | 4 by the agent | 2255 / 144 | `TextEditor.tsx` (179), `text.ts` (171), `TextObject.tsx` (139), `textLayout.ts` (138), `board-model.ts` (121), `TextToolbar.tsx` (100), +15 more |
 
 ### Earlier stories broken or fixed
 
-No story changed an earlier story's held-out results.
+- **Story 9 broke 1, fixed 0** earlier held-out tests (story 9: Write free text anywhere on the board; story 9: tool mode + text object rendering (TC-14..25 green); story 9: text model implementation (TC-01..06 green) + red layout tests (TC-07..11, TC-32); story 9 scaffold: text model red unit tests (TC-01..06)). Source files it changed most: `TextEditor.tsx` (179), `text.ts` (171), `TextObject.tsx` (139), `textLayout.ts` (138), `board-model.ts` (121), `TextToolbar.tsx` (100), +15 more.
+  - story 7: 8/8 → 7/8; broke 1.
 
 ### Interruptions and dead time
 
