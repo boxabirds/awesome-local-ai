@@ -519,6 +519,23 @@ def draft_figures(events: Path, server_log: Path, windows: list[tuple[float, flo
     return engine_log.draft(text, p.calls, [c for c in p.calls if inside(c.sent, c.end) and not _in_compaction(c.end, p.compactions)])
 
 
+def reconcile_silent_alive(split: dict, agent_seconds: float | None) -> dict:
+    """An agent process that was alive but silent until the harness killed it (a hung command, then exit 143 and a resume 60 s later) is not
+    'between sessions': the log analysis puts the whole stretch from the process's last event to the next session's start there, while the
+    harness's clock for the agent ran through the silent part. When the agent's clock plus the between-sessions time exceeds the wall by more
+    than the check allows, and between-sessions can cover it, the overlap is moved to 'other' (alive, silent) and noted as silent_alive_s.
+    Anything else is left for check() to flag: a larger overlap is a real double count, and a wall longer than the clock is a real gap."""
+    if agent_seconds is None:
+        return split
+    parts = split.get("between_sessions_s", 0.0)
+    over = agent_seconds + parts + split.get("suspended_s", 0.0) - split["wall_s"]
+    if over <= max(AGENT_CLOCK_SLACK_S, AGENT_CLOCK_TOLERANCE * split["wall_s"]) or over > parts:
+        return split
+    out = {**split, "between_sessions_s": round(parts - over, DECIMALS), "other_s": round(split["other_s"] + over, DECIMALS)}
+    out["accounting"] = {**split["accounting"], "silent_alive_s": round(over, DECIMALS)}
+    return out
+
+
 def check(split: dict, agent_seconds: float | None = None) -> list[str]:
     """The invariants of a split, re-derived from its numbers (so a stored record can be checked too)."""
     m = split.get("model") or {}

@@ -6655,18 +6655,17 @@
         },
         "compaction_s": 0.0,
         "compactions": 0,
-        "between_sessions_s": 189.8,
-        "other_s": 7.0,
+        "between_sessions_s": 180.6,
+        "other_s": 16.2,
         "suspended_s": 0.0,
         "accounting": {
           "version": 4,
-          "ok": false,
-          "problems": [
-            "the agent's own clock (649.7 s + 189.8 s between sessions) is 9.2 s more than the wall's 830.3 s: agent time was counted twice"
-          ],
+          "ok": true,
+          "problems": [],
           "abandoned_calls": 0,
           "interrupted_tools": [],
-          "interrupted_compactions": 0
+          "interrupted_compactions": 0,
+          "silent_alive_s": 9.2
         },
         "backfilled": true
       },
@@ -9569,18 +9568,17 @@
         },
         "compaction_s": 0.0,
         "compactions": 0,
-        "between_sessions_s": 189.5,
-        "other_s": 6.2,
+        "between_sessions_s": 180.6,
+        "other_s": 15.1,
         "suspended_s": 0.0,
         "accounting": {
           "version": 4,
-          "ok": false,
-          "problems": [
-            "the agent's own clock (129.5 s + 189.5 s between sessions) is 8.9 s more than the wall's 310.1 s: agent time was counted twice"
-          ],
+          "ok": true,
+          "problems": [],
           "abandoned_calls": 0,
           "interrupted_tools": [],
-          "interrupted_compactions": 0
+          "interrupted_compactions": 0,
+          "silent_alive_s": 8.9
         },
         "backfilled": true
       },
@@ -10087,18 +10085,17 @@
         },
         "compaction_s": 0.0,
         "compactions": 0,
-        "between_sessions_s": 189.4,
-        "other_s": 4.2,
+        "between_sessions_s": 180.5,
+        "other_s": 13.1,
         "suspended_s": 0.0,
         "accounting": {
           "version": 4,
-          "ok": false,
-          "problems": [
-            "the agent's own clock (65.9 s + 189.4 s between sessions) is 8.9 s more than the wall's 246.4 s: agent time was counted twice"
-          ],
+          "ok": true,
+          "problems": [],
           "abandoned_calls": 0,
           "interrupted_tools": [],
-          "interrupted_compactions": 0
+          "interrupted_compactions": 0,
+          "silent_alive_s": 8.9
         },
         "backfilled": true
       },

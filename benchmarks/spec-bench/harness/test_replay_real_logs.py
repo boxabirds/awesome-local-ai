@@ -526,8 +526,11 @@ def _same_split(s: Story, recorded: dict, again: dict, p: Problems) -> None:
     if s.lossless:                      # each call's first delta is there: prefill and decode split as they were
         for k in ("prefill_s", "decode_s"):
             p.agree(s, f"time_split.model.{k}", theirs.get(k), ours.get(k), accounting.TOLERANCE_S)
-        for k in ("between_sessions_s", "other_s"):
-            p.agree(s, f"time_split.{k}", recorded.get(k, 0.0), again.get(k, 0.0), accounting.TOLERANCE_S)
+        # A record that reconciled an agent process alive but silent until the harness killed it (accounting.reconcile_silent_alive) moved
+        # that stretch from between sessions to other; the log alone still reads it as between sessions.
+        silent = (recorded.get("accounting") or {}).get("silent_alive_s", 0.0)
+        for k, moved in (("between_sessions_s", silent), ("other_s", -silent)):
+            p.agree(s, f"time_split.{k}", recorded.get(k, 0.0) + moved, again.get(k, 0.0), accounting.TOLERANCE_S)
 
 
 # ---------------------------------------------------------------- conversation.py
