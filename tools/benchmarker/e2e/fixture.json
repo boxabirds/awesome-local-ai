@@ -2259,6 +2259,23 @@
       "powerW": 310.0,
       "throttle": null
      },
+     "host": {
+      "cpus": 32,
+      "load1": 16.0,
+      "cpu_busy_pct": 40.0,
+      "cache_gb": 8.0,
+      "psi": {
+       "cpu": {
+        "some_pct": 1.0
+       },
+       "memory": {
+        "some_pct": 3.0
+       },
+       "io": {
+        "some_pct": 0.5
+       }
+      }
+     },
      "ord": 14
     },
     {
@@ -2272,6 +2289,23 @@
      "freePct": 40.0,
      "footprintGb": 58.4,
      "gpu": null,
+     "host": {
+      "cpus": 32,
+      "load1": 32.0,
+      "cpu_busy_pct": 90.0,
+      "cache_gb": 6.0,
+      "psi": {
+       "cpu": {
+        "some_pct": 0.0
+       },
+       "memory": {
+        "some_pct": 0.0
+       },
+       "io": {
+        "some_pct": 7.0
+       }
+      }
+     },
      "ord": 15
     },
     {

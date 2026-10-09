@@ -74,6 +74,12 @@ tr[data-jumped="true"] td { background: var(--chip); }
 .strip-compaction { stroke: var(--seg-compaction); stroke-width: 2; }
 .strip-intervention { stroke: var(--part); stroke-width: 2; stroke-dasharray: 4 3; }
 .strip-range { fill: var(--ink); opacity: .12; }
+.conv-lanes { margin: 6px 0 0; display: grid; gap: 2px; }
+.conv-lane .lane-caption { display: flex; gap: 8px; color: var(--muted); line-height: 1.2; }
+.conv-lane .lane-name { color: var(--ink); }
+.lane-svg { display: block; width: 100%; height: 28px; }
+.lane-line { fill: none; stroke: var(--muted); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.lane-point { fill: var(--ink); opacity: .75; vector-effect: non-scaling-stroke; }
 .conv-strip-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin-top: 4px; color: var(--muted); }
 .conv-strip-legend .sw { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; border-radius: 2px; }
 .sw-call { background: var(--seg-decode); } .sw-tool { background: var(--seg-tools); } .sw-compaction { background: var(--seg-compaction); } .sw-intervention { background: var(--part); }

@@ -382,6 +382,42 @@ export function strip(all: Turn[], range: { fromMs: number; toMs: number }): Str
   return out;
 }
 
+// ---------- the machine lanes: the engine's speed and the host's load on the strip's time axis ----------
+
+export interface LanePoint { x: number; v: number; label: string }
+export interface Lane { key: string; label: string; unit: string; max: number; points: LanePoint[] }
+
+const CPU_BUSY_MAX = 100;
+
+/** One lane per figure that some reading or engine request of the story could give, each point at its time in 0..1 of the strip's width. A figure
+ * nothing gave is left out, never drawn flat at zero: a story from before the host readings has no CPU lane, not an idle one. Load is read against
+ * the machine's CPU count, so a reading without the count gives no load point. */
+export function machineLanes(all: Turn[], range: { fromMs: number; toMs: number }): Lane[] {
+  const span = Math.max(1, range.toMs - range.fromMs);
+  const x = (t: number) => Math.min(1, Math.max(0, (t - range.fromMs) / span));
+  const defs: { key: string; label: string; unit: string; kind: "request" | "condition"; value: (e: ConversationEvent) => number | null; show: (v: number) => string }[] = [
+    { key: "decode", label: "Engine speed", unit: "tok/s", kind: "request", value: (e) => (isNum(e.decodeTokS) ? e.decodeTokS : null), show: (v) => `${v.toFixed(0)} tok/s` },
+    { key: "cpu", label: "CPU busy", unit: "%", kind: "condition", value: (e) => (isNum(rec(e.host)?.cpu_busy_pct) ? (rec(e.host)!.cpu_busy_pct as number) : null), show: (v) => `${v.toFixed(0)}% busy` },
+    { key: "load", label: "Load per CPU", unit: "× CPUs", kind: "condition", value: (e) => { const h = rec(e.host); return h && isNum(h.load1) && isNum(h.cpus) && h.cpus > 0 ? h.load1 / h.cpus : null; }, show: (v) => `load ${v.toFixed(2)} per CPU` },
+    { key: "stall", label: "Stalled", unit: "%", kind: "condition", value: (e) => { const psi = rec(rec(e.host)?.psi); const xs = ["cpu", "memory", "io"].map((k) => rec(psi?.[k])?.some_pct).filter(isNum); return xs.length ? Math.max(...xs) : null; }, show: (v) => `stalled ${v.toFixed(1)}%` },
+    { key: "cache", label: "Page cache", unit: "GB", kind: "condition", value: (e) => (isNum(rec(e.host)?.cache_gb) ? (rec(e.host)!.cache_gb as number) : null), show: (v) => `cache ${v.toFixed(1)} GB` },
+    { key: "gpuPower", label: "GPU power", unit: "W", kind: "condition", value: (e) => (isNum(rec(e.gpu)?.powerW) ? (rec(e.gpu)!.powerW as number) : null), show: (v) => `GPU ${v.toFixed(0)} W` },
+  ];
+  const lanes: Lane[] = [];
+  for (const d of defs) {
+    const points: LanePoint[] = [];
+    for (const t of all) {
+      // An engine request matched to a call is folded into that call's turn (Turn.request): its speed is still its own, at its own time.
+      const e = d.kind === "request" ? (t.kind === "request" ? t.event : t.request) : t.kind === "condition" ? t.event : null;
+      if (!e) continue;
+      const v = d.value(e);
+      if (v !== null) points.push({ x: x(e.tMs), v, label: `${d.show(v)} at ${clock(e.tMs, range.fromMs)}` });
+    }
+    if (points.length) lanes.push({ key: d.key, label: d.label, unit: d.unit, max: d.key === "cpu" ? CPU_BUSY_MAX : Math.max(...points.map((p) => p.v)), points });
+  }
+  return lanes;
+}
+
 /** The turn nearest a moment (by its own time), for a click on the strip. */
 export function nearestTurn(all: Turn[], tMs: number): number | null {
   let best: number | null = null;
