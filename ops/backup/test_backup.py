@@ -3,6 +3,7 @@
 restic is behind a runner here (a recording fake), so these tests need neither restic nor a remote machine.
 """
 import json
+import shutil
 import sqlite3
 import subprocess
 from pathlib import Path
@@ -53,11 +54,10 @@ def test_each_repo_gets_a_backup_with_the_password_file_the_staged_databases_and
     for repo in cfg.repos:
         b = next(c for c in fake.calls if c[c.index("-r") + 1] == repo and "backup" in c)
         assert "--password-file" in b and str(cfg.password_file) in b
-        assert str(cfg.state / "backups" / "staging") in b and str(cfg.state / "collected") in b
-        assert str(cfg.state / "backups" / "staging" / "..") not in b
+        assert str(cfg.state / "backup-staging") in b and str(cfg.state / "collected") in b
         ex = [b[i + 1] for i, c in enumerate(b) if c == "--exclude"]
         assert "insights/*.db" in ex and "insights/*.db-wal" in ex and "backups" in ex, "the live databases and the backups folder are not backed up as they are"
-    staged = cfg.state / "backups" / "staging"
+    staged = cfg.state / "backup-staging"
     for name in ("conversations", "analytics"):
         assert sqlite3.connect(staged / f"{name}.db").execute("pragma integrity_check").fetchone() == ("ok",)
 
@@ -134,3 +134,23 @@ def test_the_launchd_job_is_rendered_for_a_user_not_stored_in_the_repo(tmp_path)
     assert p["Label"] == backup.LAUNCHD_LABEL and p["StartCalendarInterval"] == {"Hour": backup.RUN_HOUR, "Minute": backup.RUN_MINUTE}
     assert p["ProgramArguments"][-1] == str(script) and p["EnvironmentVariables"]["HOME"] == str(home)
     assert p["StandardOutPath"] == str(home / ".dbench" / "bench-backup.log")
+
+
+@pytest.mark.skipif(shutil.which("restic") is None, reason="restic is not installed")
+def test_with_real_restic_the_staged_databases_are_in_the_snapshot_and_the_live_ones_and_old_backups_are_not(tmp_path):
+    """9 Oct 2026: the first real backup had no databases in it. The `backups` exclude (meant for old backups) also matched the staging
+    folder under state/backups/, and the unit tests, which only look at the command line, could not see it. A restore test found it."""
+    cfg = config(tmp_path, repos=(str(tmp_path / "repo"),))
+    cfg.password_file.write_text("test-password")
+    (cfg.state / "backups" / "20260101-old-backup").mkdir()
+    (cfg.state / "backups" / "20260101-old-backup" / "old.db").write_text("old")
+    (cfg.state / "collected" / "node-a").mkdir()
+    (cfg.state / "collected" / "node-a" / "events.jsonl").write_text("{}\n")
+    status = backup.run(cfg)                         # the real restic, a local repository
+    assert status["exit"] == 0, status
+    listing = subprocess.run(["restic", "-r", cfg.repos[0], "--password-file", str(cfg.password_file), "ls", "latest"], capture_output=True, text=True).stdout
+    names = [line.strip() for line in listing.splitlines()]
+    assert any(n.endswith("/conversations.db") and "/backup-staging/" in n for n in names) and any(n.endswith("/analytics.db") and "/backup-staging/" in n for n in names), "the staged databases"
+    assert any(n.endswith("/collected/node-a/events.jsonl") for n in names), "the lake"
+    assert not any(n.endswith("/insights/conversations.db") for n in names), "the live database is not backed up as it is"
+    assert not any("old.db" in n for n in names), "earlier backups are not backed up again"

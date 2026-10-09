@@ -941,3 +941,57 @@ fn an_opencode_story_has_its_calls_tools_and_timing_in_the_warehouse() {
     let c0 = &out.calls.calls[0].1;
     assert_eq!((c0.fresh, c0.cached, c0.out), (7692, 0, Some(98)));
 }
+
+// ---- a real OpenCode run is not a renamed pi run (owner approved the fix, 9 Oct 2026) ----
+
+fn lake_story(root: &std::path::Path, run: &str, story: &str) {
+    let dir = root.join("store/node-a").join(run).join("stories").join(story);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("agent-events.jsonl"), "{}\n").unwrap();
+    std::fs::write(root.join("store/node-a").join(run).join("collection.json"),
+        format!(r#"{{"node": "node-a", "complete": true, "collected_at": 1.0, "files": {{"stories/{story}/agent-events.jsonl": {{"bytes": 3}}}}}}"#)).unwrap();
+}
+
+fn published_story(root: &std::path::Path, run: &str, story: &str) {
+    let dir = root.join(run).join("stories").join(story);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("agent-events.compact.jsonl.gz"), b"").unwrap();
+}
+
+#[test]
+fn an_opencode_run_named_like_a_pi_run_is_its_own_run_not_the_pi_one_renamed() {
+    // Until 9 Oct 2026 a lake run under `<stack>-opencode/` was mapped to `<stack>-pi/` whenever the pi run of that name had the
+    // story published (logs recorded before the combinations were renamed). A real OpenCode run named like a pi run (v2-r1 in both)
+    // had its stories folded into the pi run's and, if the pi twin was archived, dropped.
+    use dbench::ingest::inputs::{candidates, lake_runs, TreeSource};
+    use std::collections::BTreeSet;
+    let root = std::env::temp_dir().join(format!("dbench-ingest-oc-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let pi = "combinations/q/w/v/os/m/gufo-pi/benchmarks/vidi/v2-r1";
+    let oc = "combinations/q/w/v/os/m/gufo-opencode/benchmarks/vidi/v2-r1";
+    for s in ["01", "02"] {
+        published_story(&root, pi, s);
+    }
+    published_story(&root, oc, "01");              // the OpenCode run has published its first story, so it is a real run
+    lake_story(&root, oc, "02");                   // its second is only in the lake so far
+    let lake = lake_runs(&root.join("store")).unwrap();
+    let got = candidates(&TreeSource { root: root.clone() }, &lake).unwrap();
+    assert_eq!(got, BTreeSet::from([format!("{pi}/stories/01"), format!("{pi}/stories/02"), format!("{oc}/stories/01"), format!("{oc}/stories/02")]));
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn a_run_recorded_before_the_rename_still_maps_from_opencode_to_pi() {
+    use dbench::ingest::inputs::{candidates, lake_runs, TreeSource};
+    use std::collections::BTreeSet;
+    let root = std::env::temp_dir().join(format!("dbench-ingest-oc-legacy-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let pi = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/canvas-pi-02";
+    let old = "combinations/q/w/v/os/m/llamacpp-opencode/benchmarks/vidi/canvas-pi-02";   // what the machine still calls it
+    published_story(&root, pi, "03");              // published only under the new name
+    lake_story(&root, old, "03");
+    let lake = lake_runs(&root.join("store")).unwrap();
+    let got = candidates(&TreeSource { root: root.clone() }, &lake).unwrap();
+    assert_eq!(got, BTreeSet::from([format!("{pi}/stories/03")]), "the lake's old name is the published pi story, not a second one");
+    std::fs::remove_dir_all(&root).unwrap();
+}

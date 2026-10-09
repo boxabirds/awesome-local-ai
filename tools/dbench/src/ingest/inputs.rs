@@ -280,10 +280,15 @@ pub fn candidates(published: &dyn Published, lake: &BTreeMap<String, LakeRun>) -
             out.insert(dir.to_string());
         }
     }
+    let published_paths = published.paths()?;
+    // A run under `-opencode/` is a pi run recorded before the rename only if nothing is published under that name: a real
+    // OpenCode run publishes its records under its own.
+    let renamed = |run: &str| -> String {
+        let has_own = published_paths.keys().any(|p| p.starts_with(&format!("{run}/")));
+        if has_own { run.to_string() } else { run.replace(RENAMED_FROM, RENAMED_TO) }
+    };
     for (run, lr) in lake {
-        if !under_published_root(run) || run.contains(RESCORE_DIR) || archived.contains(run)
-            || archived.contains(&run.replace(RENAMED_FROM, RENAMED_TO))
-        {
+        if !under_published_root(run) || run.contains(RESCORE_DIR) || archived.contains(run) || archived.contains(&renamed(run)) {
             continue;
         }
         let Ok(stories) = std::fs::read_dir(lr.dir.join(STORIES_DIR)) else { continue };
@@ -291,7 +296,7 @@ pub fn candidates(published: &dyn Published, lake: &BTreeMap<String, LakeRun>) -
             let name = s.file_name().to_string_lossy().to_string();
             if s.path().join(EVENTS_FILE).is_file() && name.chars().all(|c| c.is_ascii_digit()) {
                 let rel = format!("{run}/{STORIES_DIR}/{name}");
-                let published_name = rel.replace(RENAMED_FROM, RENAMED_TO);
+                let published_name = format!("{}/{STORIES_DIR}/{name}", renamed(run));
                 out.insert(if out.contains(&published_name) { published_name } else { rel });
             }
         }
