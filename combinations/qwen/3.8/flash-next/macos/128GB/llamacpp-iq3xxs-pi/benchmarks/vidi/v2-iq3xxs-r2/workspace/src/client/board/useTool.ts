@@ -12,10 +12,11 @@ import { isPointerTool, toolIdForShortcut } from '../tools/useActiveTool';
 
 /**
  * The pointer modes; the Sticky note button is an action, not a mode (see below).
- * Story 10 adds `shape` and `connector`; `../tools/useActiveTool` is where the whole tool
- * family — including the shortcuts reserved for stories 11 and 12 — is written down.
+ * Story 10 adds `shape` and `connector`, story 11 the Pen; `../tools/useActiveTool` is where
+ * the whole tool family — including the shortcuts reserved for stories 12 and 13 — is written
+ * down.
  */
-export type Tool = 'select' | 'text' | 'shape' | 'connector';
+export type Tool = 'select' | 'text' | 'shape' | 'connector' | 'pen';
 
 /** What the board looks like when it opens, after Escape, and after a tool placed something. */
 export const DEFAULT_TOOL: Tool = 'select';
@@ -32,8 +33,8 @@ export type ToolShortcut = Tool | 'sticky';
  * can disagree about what `v` means. This turns the tool *id* into something a pointer can
  * sit on: `sticky` stays an action rather than a mode (pressing `n` switches back to Select
  * first, TC-17, or the next click would plant a text where that note's heading is being
- * typed), and the letters belonging to tools this build does not have — `p`, `i`, `c` — are
- * not spent, so they keep belonging to whatever they were pressed in.
+ * typed), and the letters belonging to tools this build does not have — `i`, `c` — are not
+ * spent, so they keep belonging to whatever they were pressed in.
  */
 export function toolForShortcut(key: string): ToolShortcut | null {
   const id = toolIdForShortcut(key);
@@ -85,8 +86,8 @@ export function useTool({ canEdit, onCreateSticky }: ToolOptions): ToolControls 
       const shortcut = toolForShortcut(key);
       if (shortcut === null) return false;
       if (shortcut !== 'select' && shortcut !== 'sticky') {
-        // Text, Shape and Connector each put something on the board: while the board answers
-        // nothing the key is recognised and refused — spent, but the tool does not change.
+        // Text, Shape, Connector and Pen each put something on the board: while the board
+        // answers nothing the key is recognised and refused — spent, but the tool does not change.
         if (canEdit) setTool(shortcut);
         return true;
       }

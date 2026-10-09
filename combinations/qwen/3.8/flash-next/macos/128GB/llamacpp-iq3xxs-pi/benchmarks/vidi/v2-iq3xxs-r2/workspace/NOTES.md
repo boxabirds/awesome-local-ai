@@ -739,3 +739,109 @@ not pass without the change.
 Unit 277 (18 files), component 218 (25 files), integration 62 (5 files), e2e 52 (Chromium only, as
 ever on this machine, 8 of them story 10's), plus the persistence suite's 4 and the nightly runs on
 their own configs.
+
+# Story 11 — Sketch freehand with a pen
+
+## Followed from the design exactly
+
+- The named settings (`PEN_COLORS` with its six colours, `PEN_THICKNESS_WORLD` at 2/4/8,
+  `DEFAULT_PEN_COLOR`/`DEFAULT_PEN_THICKNESS`, `STROKE_SIMPLIFY_TOLERANCE_PX = 1`,
+  `STROKE_MAX_POINTS = 5_000`, `STROKE_HIT_TOLERANCE_PX = 6`, `STROKE_MIN_SIZE_WORLD = 4`), the
+  file layout (`shared/objects/stroke.ts`, `shared/geometry/simplify.ts`,
+  `client/tools/{PenTool,PenToolbar,usePenOptions}.tsx`, `client/objects/StrokeObject.tsx`), and
+  the contract of every exported function: `simplify` (iterative RDP with an explicit stack),
+  `splitPoints` (parts that share their join point), `smoothPath`, `createStroke` (null and no
+  transaction for bad input), `scaledPoints`, `snapshot` → `StrokeSnap`.
+- `PenColor`/`PenThickness` are declared next to `StickyColor` in `shared/config.ts` and
+  re-exported from `objects/stroke.ts`, with the runtime guards (`isPenColor`, `isPenThickness`)
+  beside the other validators in the model file rather than in config.
+- The registry entry is the design's: `resizable`, `aspectLocked`, `minSize`
+  `STROKE_MIN_SIZE_WORLD`, `editableText: false`, and a `hitTest` of
+  `distanceToPolyline(scaledPoints(obj), point) <= max(thickness/2, STROKE_HIT_TOLERANCE_PX / zoom)`,
+  so a click inside a stroke's box but away from its line falls through to whatever is under it.
+- The UI strings: the toolbar button says `Pen (P)` with the tooltip "Pen – sketch freehand – or
+  press P"; the swatches are labelled "black pen" … "purple pen"; the thickness buttons say Thin,
+  Medium, Thick; a stroke's accessible name is "Drawing".
+
+## Decisions and deviations
+
+1. **The curve is a midpoint quadratic, not a Catmull–Rom spline.** `smoothPath` emits
+   `M p0 Q p1 mid(p1,p2) Q p2 mid(p2,p3) … L pN`. It keeps every segment inside the hull of the
+   sampled points, so the drawn line stays within `STROKE_SIMPLIFY_TOLERANCE_PX` of the hand
+   instead of overshooting at the sharp turns a hand makes. Coordinates go through `String(value)`
+   unscaled, so a path built from `scaledPoints` and read back is the same geometry.
+2. **`createStroke` stores the points relative to the box at creation size, plus `baseWidth` and
+   `baseHeight`** — the design's proportional resize, with `scaledPoints` multiplying by
+   `width/baseWidth`. `simplify` drops non-finite coordinates and consecutive duplicates before
+   it runs; `createStroke` refuses the whole stroke if any coordinate is not finite, because a
+   half-trusted point list would put a `NaN` into a shared document.
+3. **The Pen tool's surface is the tool.** `BoardViewport` gets one explicit
+   `if (tool === 'pen') return;` at the top of its `onPointerDown`, and the surface covers the
+   viewport at inset 0, so a press can neither pan nor grab the object underneath it — the belt
+   and the braces, because story 7's object drags and story 1's panning both start from that one
+   handler. Wheel and pinch handlers are untouched, so scrolling still pans and Ctrl/Cmd+scroll
+   still zooms with the pen up (TC-19).
+4. **The preview is screen-space and lives in React state, repainted once per animation
+   frame.** Pointer points are converted to board units as they arrive (so a stroke stays where
+   it was drawn if the board is scrolled underneath it) and converted back through the current
+   camera in the frame callback. `getCoalescedEvents()` is read when the browser offers it, so a
+   fast drag keeps its detail rather than its frame rate.
+5. **One undo step per stroke, and per part of a split stroke**: an `undo.boundary()` before and
+   after every `createStroke`. The in-progress line is never written to the document, so there is
+   nothing for another browser to undo, and nothing to clean up when Escape takes the tool away
+   mid-drag (TC-13).
+6. **A dot is measured by how much ground the line covered, not by where the press ended** — a
+   change to the design's wording, found by e2e TC-17. The first version followed "movement <
+   `DRAG_THRESHOLD_PX` → dot" by comparing the release point with the press point, which is
+   exactly how you do *not* measure the loop a person draws round a cluster of notes: it ends
+   where it began, and the most ink on the board came back as a 4×4 dot. `PenTool.finish` now
+   commits a dot when the recorded points' own bounding box is inside the drag threshold (which
+   is still exactly the case TC-10 describes), so a closed loop keeps its 240×180 shape.
+7. **Pen options are session state** (`usePenOptions`), not document state: they are not synced,
+   not undone, not remembered on reload, and never rewrite a stroke that already exists (TC-14).
+   A stroke reads the options at the moment it is committed, through a ref, so changing colour
+   mid-drag affects the next line and not the one under the pointer.
+8. **StrokeObject paints a hit path as well as the visible one.** The container and the `<svg>`
+   have `pointer-events: none`; an invisible copy of the path with a fat transparent stroke takes
+   the pointer. That is the DOM's version of the registry's `hitTest`, and it is why an
+   annotation drawn round a note does not steal clicks on the area it encloses.
+9. **A stroke's split parts share their join point**, so consecutive parts meet without a gap,
+   and each is centred on its own box. `splitPoints` is only reached when the in-hand array
+   passes `STROKE_MAX_POINTS`, which is counted in points, not in flattened numbers.
+
+## The e2e side of story 11 (task 6)
+
+- `tests/e2e/helpers/pen.ts` keeps the two readings apart: strokes are read from a browser's own
+  document for everything that must have arrived from elsewhere, and from its DOM for what only
+  that browser can see (the line under the pointer, the pen's own round cursor).
+- TC-17 samples the preview *inside the page*, once per `requestAnimationFrame`, because
+  "redrawn every frame" is a claim about frames and no amount of poking from outside can see a
+  frame. The assertion is that consecutive non-empty samples differ — a line that grew, not one
+  painted once at the end. The same test reloads the page to show the stroke was a real object.
+- TC-18 is mostly a negative: while Priya is drawing, Sam's document has no stroke, his screen has
+  no stroke element, and he never grew a pen surface of his own. Release-to-visible is logged
+  (10–11 ms against the 1000 ms budget on this machine) and never asserted.
+- TC-19 checks the wheel first (`scrolled.y !== camera.y`, `zoom` unchanged), then draws a loop
+  whose *first* point is the middle of a sticky note: the note keeps its exact x/y, nothing is
+  selected, and the camera does not move during the drag.
+- TC-20 tidies up: `P` is still pressed and the tidier has to put the pen down with `V` first;
+  then a click on the ink (found with `getPointAtLength` at the middle of the painted path, since
+  a stroke's box is mostly empty space), a corner handle 90×60 px out (the box ratio holds to
+  better than 1% and `stroke-width` is unchanged), a body drag that moves the box and not its
+  size, and Delete, which empties both screens.
+- `boardNotes()` and `selectedNoteIds()` match every object — a stroke carries `data-note-id` too
+  — so the tests that mean sticky notes filter on `type === 'sticky'` / `data-note-type="sticky"`.
+
+## Blocked on this machine (story 11)
+
+- TC-17 is specified for Chromium, Firefox and WebKit. Firefox and WebKit still cannot be
+  launched here: `browserType.launch` aborts at process start (`Abort trap: 6`), and the probe in
+  `tests/e2e/helpers/browsers.ts` caches `chromium` only, so the 4 new e2e tests — and the suite's
+  56 — ran in Chromium. Nothing in the new tests is Chromium-specific; when the other two can
+  start, `E2E_BROWSERS=all` runs them three times with no change to this story's files.
+
+## Current test totals for story 11
+
+Unit 299 (19 files), component 243 (27 files), integration 62 (5 files), e2e 56 (Chromium only, as
+ever on this machine, 4 of them story 11's), plus the persistence suite's 4 and the nightly runs on
+their own configs.

@@ -258,6 +258,10 @@ export function BoardViewport({
     // Touch navigation is out of scope; only mouse and pen pan by dragging.
     if (event.pointerType === 'touch') return;
     if (event.button !== 0) return;
+    // While the Pen is up the press belongs to the Pen tool, whose surface is mounted above this
+    // one: a Pen drag neither pans the board nor draws a marquee, whatever it started on, and the
+    // wheel handlers below are untouched, so scrolling still navigates (design: pen.navigation).
+    if (tool === 'pen') return;
     // Only empty board space starts a pan: objects stop propagation themselves.
     if (event.target !== event.currentTarget) return;
     const element = event.currentTarget;

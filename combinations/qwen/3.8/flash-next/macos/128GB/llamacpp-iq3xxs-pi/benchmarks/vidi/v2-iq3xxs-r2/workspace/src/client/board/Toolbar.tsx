@@ -17,6 +17,9 @@ export const SHAPE_TOOL_LABEL = 'Shape (S)';
 export const CONNECTOR_TOOL_LABEL = 'Connector (L)';
 export const SHAPE_TOOL_TOOLTIP = 'Shape – draw a rectangle, ellipse or diamond – or press S';
 export const CONNECTOR_TOOL_TOOLTIP = 'Connector – drag from one object to another – or press L';
+/** Story 11: the Pen tool (PRD: "Left toolbar: Pen button"). */
+export const PEN_TOOL_LABEL = 'Pen (P)';
+export const PEN_TOOL_TOOLTIP = 'Pen – sketch freehand – or press P';
 export const SHAPE_KIND_MENU_LABEL = 'Shape kind';
 /** What the Shape menu calls the three kinds (PRD: "Rectangle (selected), Ellipse, Diamond"). */
 export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
@@ -36,6 +39,8 @@ export interface ToolbarProps {
   shapeKind?: ShapeKind;
   onShapeTool?(): void;
   onConnectorTool?(): void;
+  /** Story 11: the Pen tool, which stays up after every stroke it makes. */
+  onPenTool?(): void;
   onShapeKind?(kind: ShapeKind): void;
   /** Story 4: while the board could not be loaded, the Sticky note button is disabled. */
   disabled?: boolean;
@@ -71,6 +76,7 @@ export function Toolbar({
   shapeKind = SHAPE_KIND_KEYS[0],
   onShapeTool,
   onConnectorTool,
+  onPenTool,
   onShapeKind,
   disabled = false,
   undo,
@@ -162,6 +168,21 @@ export function Toolbar({
       >
         <span className="vidi6-tool-glyph vidi6-tool-connector" aria-hidden="true" />
         <span className="vidi6-toolbar-text">{CONNECTOR_TOOL_LABEL}</span>
+      </button>
+      {/* The Pen stays up while it is being used, so its button is pressed for as long as the
+          strokes are coming — which is the point of `pen.stay_active`. */}
+      <button
+        type="button"
+        className="vidi6-toolbar-button vidi6-toolbar-tool"
+        data-testid="tool-pen"
+        aria-label={PEN_TOOL_LABEL}
+        title={PEN_TOOL_TOOLTIP}
+        aria-pressed={tool === 'pen'}
+        onClick={onPenTool}
+        disabled={disabled}
+      >
+        <span className="vidi6-tool-glyph vidi6-tool-pen" aria-hidden="true" />
+        <span className="vidi6-toolbar-text">{PEN_TOOL_LABEL}</span>
       </button>
       <button
         type="button"

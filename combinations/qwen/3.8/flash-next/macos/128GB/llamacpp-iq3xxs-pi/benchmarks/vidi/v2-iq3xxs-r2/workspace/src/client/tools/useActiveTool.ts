@@ -20,8 +20,8 @@ import { useTool, type Tool, type ToolControls } from '../board/useTool';
 
 /**
  * Every tool id in the product, including the ones this build has not got to yet — the
- * shortcuts below are the cross-story convention, so `p`, `i` and `c` are already spoken
- * for even while nothing answers them.
+ * shortcuts below are the cross-story convention, so `i` and `c` are already spoken for even
+ * while nothing answers them.
  */
 export type ToolId =
   | 'select'
@@ -49,8 +49,14 @@ export const TOOL_SHORTCUTS: Readonly<Record<string, ToolId>> = {
   c: 'comment',
 };
 
-/** The tools that are modes the pointer can sit in, as opposed to `sticky`, which acts. */
-export const POINTER_TOOL_IDS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+/**
+ * The tools that are modes the pointer can sit in, as opposed to `sticky`, which acts.
+ *
+ * `pen` is in the list even though it is the one tool that does not hand the pointer back to
+ * Select when it has made something (`pen.stay_active`): being a mode and going away afterwards
+ * are two different things, and only the second one is what this list is about.
+ */
+export const POINTER_TOOL_IDS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
 /**
  * Which tool the key `key` asks for, or null when it asked for none of them. Uppercase

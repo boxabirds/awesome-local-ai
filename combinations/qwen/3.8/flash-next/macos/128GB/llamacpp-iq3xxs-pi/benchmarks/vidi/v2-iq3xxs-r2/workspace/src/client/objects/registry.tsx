@@ -1,6 +1,13 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
-import { CONNECTOR_HIT_TOLERANCE_PX, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  PEN_THICKNESS_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import {
   markObjectTypeKnown,
   objectBounds,
@@ -11,11 +18,13 @@ import { setTextWidthFixed, TEXT_TYPE } from '../../shared/objects/text';
 import { SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
 import { SHAPE_TYPE } from '../../shared/objects/shape';
 import { isConnectorSnapshot, CONNECTOR_TYPE } from '../../shared/objects/connector';
+import { isStrokeSnapshot, scaledPoints, STROKE_TYPE } from '../../shared/objects/stroke';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { rectContains, type Point, type Rect } from '../../shared/geometry';
 import type { EndEditNext } from '../board/useSelection';
 import { ConnectorObject } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
+import { StrokeObject } from './StrokeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 
@@ -209,6 +218,31 @@ registerObjectType(CONNECTOR_TYPE, {
   minSize: 0,
   editableText: false,
   hitTest: nearConnector,
+});
+
+/**
+ * A freehand line is clicked by how close the pointer came to it, not by whether it landed
+ * inside its box — the box of a scribble is mostly empty board, and a click in it means the
+ * thing underneath (PRD: pen.select). The tolerance is `STROKE_HIT_TOLERANCE_PX` *screen*
+ * pixels, or half the line's own thickness if that is thicker, divided by the zoom to get the
+ * board units this point is measured in — the same rule an arrow is clicked by.
+ */
+function nearStroke(obj: ObjectSnapshot, worldPoint: Point, zoom = 1): boolean {
+  if (!isStrokeSnapshot(obj)) return false;
+  const half = (PEN_THICKNESS_WORLD[obj.thickness] ?? 0) / 2;
+  const tolerance = Math.max(half, STROKE_HIT_TOLERANCE_PX / (zoom > 0 ? zoom : 1));
+  return distanceToPolyline(scaledPoints(obj), worldPoint) <= tolerance;
+}
+
+registerObjectType(STROKE_TYPE, {
+  Component: StrokeObject,
+  // A stroke has a box, so it gets handles; the box keeps its ratio, because stretching a
+  // sketch sideways would draw it again rather than enlarge it (PRD: pen.resize).
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: nearStroke,
 });
 
 registerObjectType(TEXT_TYPE, {

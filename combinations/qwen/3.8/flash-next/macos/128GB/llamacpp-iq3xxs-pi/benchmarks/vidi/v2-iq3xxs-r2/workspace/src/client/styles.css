@@ -733,6 +733,12 @@ button:focus-visible,
   clip-path: polygon(0 45%, 62% 45%, 62% 20%, 100% 50%, 62% 80%, 62% 55%, 0 55%);
 }
 
+/* The Pen is a nib: a diamond, cut to a point at the bottom-left. */
+.vidi6-tool-pen {
+  background: currentColor;
+  clip-path: polygon(38% 12%, 88% 55%, 55% 88%, 12% 45%, 12% 12%);
+}
+
 .vidi6-shape-kinds {
   display: flex;
   flex-direction: column;
@@ -893,4 +899,115 @@ button:focus-visible,
   stroke-width: 2;
   stroke-dasharray: 6 4;
   fill: none;
+}
+
+/* Story 11: the Pen tool takes the whole viewport too, and it is the only tool whose press
+   leaves a line rather than a box — the crosshair says "this press draws", and the round preview
+   that follows the pointer says how thick that line will be. */
+.vidi6-viewport[data-tool='pen'] {
+  cursor: crosshair;
+}
+
+/* The pen toolbar floats beside the left toolbar rather than inside it: everything on it is
+   about the next stroke, and only about the next one. */
+.vidi6-pen-toolbar-anchor {
+  position: fixed;
+  left: 212px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 4;
+}
+
+.vidi6-pen-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #d7dbe2;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgb(18 22 33 / 14%);
+}
+
+.vidi6-pen-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 116px;
+}
+
+.vidi6-pen-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #c8cddb;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.vidi6-pen-swatch[aria-pressed='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.vidi6-pen-thicknesses {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vidi6-pen-thickness {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #5b6270;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vidi6-pen-thickness:hover {
+  background: #f2f3f6;
+}
+
+.vidi6-pen-thickness[aria-pressed='true'] {
+  border-color: #2563eb;
+  background: #eef4ff;
+  color: #1d4ed8;
+}
+
+/* The glyph is the stroke itself, so the button shows what pressing it would write. */
+.vidi6-pen-thickness-glyph {
+  display: inline-block;
+  width: 18px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* A stroke is a path in its own box; the box is the stroke's bounds, and only the line takes
+   the pointer (design: pen.select). */
+.vidi6-stroke {
+  overflow: visible;
+}
+
+.vidi6-stroke-svg {
+  display: block;
+  overflow: visible;
+}
+
+.vidi6-stroke:focus {
+  outline: none;
+}
+
+/* The line being drawn: local, in screen pixels, and never in the document. */
+.vidi6-pen-preview-svg {
+  pointer-events: none;
+}
+
+.vidi6-pen-cursor {
+  pointer-events: none;
 }

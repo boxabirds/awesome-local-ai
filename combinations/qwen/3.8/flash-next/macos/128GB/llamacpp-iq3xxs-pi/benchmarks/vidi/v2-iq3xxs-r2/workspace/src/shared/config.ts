@@ -203,3 +203,38 @@ export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
 export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 /** The radius of a connection dot, in screen pixels (it never scales with zoom). */
 export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+// Story 11: sketching freehand with the Pen tool.
+
+/** The six pen colours, in the order the pen toolbar lists them. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+/** The three thicknesses, in board units, in the order the pen toolbar lists them. */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenColor = keyof typeof PEN_COLORS;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+/** A new pen is black (PRD: "six colour swatches (black selected)"). */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+/** …and Medium (PRD: "Thin / Medium (selected) / Thick"). */
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+/**
+ * How far a finished stroke may lie from the path that was drawn, in *screen* pixels at the
+ * zoom the drawing happened at (`pen.smooth`): the Ramer-Douglas-Peucker tolerance is this
+ * divided by the zoom, so a stroke drawn at 200% keeps half as many board units of slack.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/**
+ * How many recorded points one stroke may hold (`pen.long_stroke`): the 5,001st ends the
+ * current stroke and starts the next one at the same point, so the two join without a gap.
+ */
+export const STROKE_MAX_POINTS = 5_000;
+/** How close to a stroke's line (screen pixels) a click has to be to select it (`pen.select`). */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** The smallest side a stroke's box may be resized down to, in board units. */
+export const STROKE_MIN_SIZE_WORLD = 4;

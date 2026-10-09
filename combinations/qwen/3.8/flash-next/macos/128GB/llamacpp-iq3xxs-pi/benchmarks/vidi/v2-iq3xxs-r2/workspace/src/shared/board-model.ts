@@ -7,8 +7,10 @@ import { rectContains, type Point, type Rect } from './geometry';
 // been read: every use is inside a function.
 import { readShapeObject, SHAPE_TYPE } from './objects/shape';
 import { detachConnectorsTo, readConnectorObject, CONNECTOR_TYPE } from './objects/connector';
+import { readStrokeObject, STROKE_TYPE } from './objects/stroke';
 import type { ConnectorSnapshot } from './objects/connector';
 import type { ShapeSnapshot } from './objects/shape';
+import type { StrokeSnap } from './objects/stroke';
 
 /**
  * The board document model: the Yjs schema plus every mutation the client performs
@@ -72,7 +74,11 @@ export interface StickySnapshot extends ObjectSnapshotBase {
  * `objects/text.ts`, which extends the same base.
  */
 export type ObjectSnapshot =
-  ObjectSnapshotBase | StickySnapshot | ShapeSnapshot | ConnectorSnapshot;
+  | ObjectSnapshotBase
+  | StickySnapshot
+  | ShapeSnapshot
+  | ConnectorSnapshot
+  | StrokeSnap;
 
 /**
  * Is this a sticky note? The `type` of a general object is any string — it is read from a
@@ -287,6 +293,9 @@ function readObject(
   // An arrow has no box of its own: its own module reads it, and needs the boxes of the
   // objects its ends sit on to work out where it is (story 10).
   if (item.get('type') === CONNECTOR_TYPE) return readConnectorObject(id, item, rects);
+  // A freehand line keeps its points, its creation size and its pen, and its own module knows
+  // how to read all three (story 11).
+  if (item.get('type') === STROKE_TYPE) return readStrokeObject(id, item);
   const type = item.get('type');
   if (typeof type !== 'string' || type.length === 0) return undefined;
   const x = item.get('x');

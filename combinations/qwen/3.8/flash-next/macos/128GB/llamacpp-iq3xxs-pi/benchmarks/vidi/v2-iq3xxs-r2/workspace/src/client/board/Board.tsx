@@ -31,6 +31,9 @@ import { CONNECTOR_TYPE } from '../../shared/objects/connector';
 import type { Rect } from '../../shared/geometry';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import {
   createText,
   isTextSnapshot,
@@ -141,6 +144,11 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
    * what a tool that vanishes after one click is worth: nothing by accident.
    */
   const identity = useLocalIdentity();
+  /**
+   * What the next stroke is drawn with: session state, like the tool itself, so a pen is as
+   * local as a selection and reloads back to black and Medium (`pen.options`).
+   */
+  const penOptions = usePenOptions();
   const createTextAtScreenPoint = useCallback(
     (screenPoint: Point): void => {
       if (!canEdit) return; // no edits on a board that failed to load
@@ -314,6 +322,19 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
                   onCreated={tool.toolCreated}
                 />
               ) : null}
+              {/* Story 11: the Pen is the same kind of surface, with the opposite manners — it
+                  keeps the tool up after every stroke, so it never calls `toolCreated` and never
+                  selects what it made. The line being drawn lives in this component: it is drawn
+                  for this tab only, and only the finished stroke reaches anybody else. */}
+              {canEdit && tool.tool === 'pen' ? (
+                <PenTool
+                  camera={camera}
+                  color={penOptions.color}
+                  thickness={penOptions.thickness}
+                  doc={doc}
+                  identityId={identity}
+                />
+              ) : null}
             </>
           }
         >
@@ -368,11 +389,26 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           onTextTool={() => tool.setTool('text')}
           onShapeTool={() => tool.setTool('shape')}
           onConnectorTool={() => tool.setTool('connector')}
+          onPenTool={() => tool.setTool('pen')}
           shapeKind={tool.shapeKind}
           onShapeKind={tool.setShapeKind}
           disabled={!canEdit}
           undo={undoState}
         />
+        {/* The pen toolbar belongs to the tool rather than to the toolbar: it is only ever
+            relevant while the Pen is up, and it is next to the toolbar rather than in it, so
+            choosing a colour does not read as changing tools (PRD: "a pen toolbar appears next to
+            the left toolbar"). */}
+        {canEdit && tool.tool === 'pen' ? (
+          <div className="vidi6-pen-toolbar-anchor" data-testid="pen-toolbar-anchor">
+            <PenToolbar
+              color={penOptions.color}
+              thickness={penOptions.thickness}
+              onColor={penOptions.setColor}
+              onThickness={penOptions.setThickness}
+            />
+          </div>
+        ) : null}
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}
