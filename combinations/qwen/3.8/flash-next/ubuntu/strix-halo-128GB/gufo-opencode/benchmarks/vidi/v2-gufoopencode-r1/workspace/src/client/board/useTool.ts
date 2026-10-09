@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 
-// Story 9: the active pointer tool. Stories 10-12 extend this union.
-export type Tool = 'select' | 'text';
+// The active pointer tool. Stories 10-12 own 'shape' and 'connector'.
+export type Tool = 'select' | 'text' | 'shape' | 'connector';
 
-// The Text tool only exists while editing is allowed: setTool('text') is
-// ignored when canEdit is false and an active Text tool reverts to Select.
+// The editing tools (Text, Shape, Connector) only exist while editing is
+// allowed: setTool is ignored when canEdit is false and an active editing tool
+// reverts to Select.
 export function useTool(canEdit: boolean): { tool: Tool; setTool(t: Tool): void } {
   const [tool, setToolState] = useState<Tool>('select');
   const setTool = useCallback(
     (t: Tool): void => {
-      setToolState(t === 'text' && !canEdit ? 'select' : t);
+      const editingTool = t === 'text' || t === 'shape' || t === 'connector';
+      setToolState(editingTool && !canEdit ? 'select' : t);
     },
     [canEdit]
   );

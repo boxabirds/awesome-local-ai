@@ -4,7 +4,11 @@ import * as Y from 'yjs';
 import { canZoomIn, canZoomOut, screenToWorld, worldToScreen, zoomPercent } from './camera';
 import type { Point, Size } from './camera';
 import { createSticky, deleteObjects, objectBounds, type ObjectSnapshot } from '../../shared/board-model';
+import { seedCheckoutFlow } from '../../shared/board-seed';
+import type { Rect } from '../../shared/geometry';
 import { createText } from '../../shared/objects/text';
+import { createShape } from '../../shared/objects/shape';
+import { createConnector, type EndpointInput } from '../../shared/objects/connector';
 import { getSessionId } from '../session';
 import { unionRects } from '../../shared/geometry';
 import { DRAG_THRESHOLD_PX } from '../../shared/config';
@@ -14,12 +18,14 @@ import { installTestHooks, uninstallTestHooks } from './testHooks';
 import { useCamera } from './useCamera';
 import { ZoomControls } from './ZoomControls';
 import { Toolbar } from '../board/Toolbar';
-import { getObjectType } from '../objects/registry';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { useTransformGesture } from '../board/useTransformGesture';
-import { useTool } from '../board/useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { getObjectType, ATTACHABLE_TYPES } from '../objects/registry';
 import { useUndo, useUndoController } from '../board/useUndo';
 import type { SelectionApi } from '../board/useSelection';
 
@@ -162,6 +168,11 @@ export function BoardViewport(props: BoardViewportProps) {
           }
         });
         return ids;
+      },
+      seedCheckoutFlow: (): { shapes: string[]; connectors: string[] } => {
+        const doc = docRef.current;
+        if (doc === undefined) return { shapes: [], connectors: [] };
+        return seedCheckoutFlow(doc);
       }
     });
     return () => uninstallTestHooks();
@@ -236,12 +247,16 @@ export function BoardViewport(props: BoardViewportProps) {
     createAtWorld(screenToWorld(cam.camera, { x: viewport.width / 2, y: viewport.height / 2 }));
   }, [createAtWorld, cam.camera, viewport.width, viewport.height]);
 
-  const { tool, setTool } = useTool(props.editable !== false);
+  const { tool, setTool, shapeKind, setShapeKind, toolCreated } = useActiveTool({
+    canEdit: props.editable !== false,
+    selection: props.selection
+  });
+  const shapeKindRef = useRef(shapeKind);
+  shapeKindRef.current = shapeKind;
 
-  // Story 9 tool shortcuts (design text.tool_ui): V → Select, T → Text,
-  // N → same as the Sticky note button, Escape → Select. Ignored while
-  // editing text or when focus is in an input. Escape keeps bubbling so the
-  // board-wide handler can also clear the selection.
+  // Story 7 sticky creation shortcut (N). The tool letter shortcuts (v/t/s/l/
+  // Escape) live in useActiveTool; 'n' stays here because it creates a sticky
+  // at the centre immediately rather than arming a tool.
   const createCentreRef = useRef(createCentre);
   createCentreRef.current = createCentre;
   useEffect(() => {
@@ -256,29 +271,15 @@ export function BoardViewport(props: BoardViewportProps) {
       ) {
         return;
       }
-      if (event.key === 'v' || event.key === 'V') {
-        setTool('select');
-        return;
-      }
-      if (event.key === 't' || event.key === 'T') {
-        if (!editableRef.current) return;
-        event.preventDefault();
-        setTool('text');
-        return;
-      }
       if (event.key === 'n' || event.key === 'N') {
         if (!editableRef.current) return;
         event.preventDefault();
         createCentreRef.current();
-        return;
-      }
-      if (event.key === 'Escape') {
-        setTool('select');
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [setTool]);
+  }, []);
 
   const createTextAtScreenPoint = useCallback(
     (clientX: number, clientY: number): void => {
@@ -298,6 +299,73 @@ export function BoardViewport(props: BoardViewportProps) {
   );
 
   const toolActive = tool === 'text';
+
+  // Story 10 client↔world conversions and a topmost attachable-object hit-test,
+  // shared by the ConnectorTool overlay and the ConnectorObject re-attach
+  // handles. screenToWorldClient takes viewport page coords and returns world.
+  const screenToWorldClient = useCallback(
+    (clientX: number, clientY: number): Point => {
+      const element = viewportRef.current;
+      if (element === null) return { x: 0, y: 0 };
+      const rect = element.getBoundingClientRect();
+      return screenToWorld(cam.camera, { x: clientX - rect.left, y: clientY - rect.top });
+    },
+    [cam.camera]
+  );
+  const worldToScreenClient = useCallback((world: Point): Point => worldToScreen(camera, world), [camera]);
+
+  const attachableRects = useMemo(() => {
+    const rects = new Map<string, Rect>();
+    for (const obj of snapshot) {
+      if (!ATTACHABLE_TYPES.has(obj.type)) continue;
+      rects.set(obj.id, objectBounds(obj));
+    }
+    return rects;
+  }, [snapshot]);
+  const getRect = useCallback((id: string): Rect | null => attachableRects.get(id) ?? null, [attachableRects]);
+
+  const hitTestAtWorld = useCallback(
+    (world: Point, excludeId?: string): string | null => {
+      let bestId: string | null = null;
+      let bestZ = Number.NEGATIVE_INFINITY;
+      for (const obj of snapshot) {
+        if (obj.id === excludeId) continue;
+        if (!ATTACHABLE_TYPES.has(obj.type)) continue;
+        const spec = getObjectType(obj.type);
+        if (spec === undefined) continue;
+        if (spec.hitTest(obj, world, camera.zoom) && obj.z > bestZ) {
+          bestZ = obj.z;
+          bestId = obj.id;
+        }
+      }
+      return bestId;
+    },
+    [snapshot, camera.zoom]
+  );
+
+  const createShapeAt = useCallback(
+    (rect: Rect | null, at: Point, square: boolean): void => {
+      const doc = docRef.current;
+      if (doc === undefined || !editableRef.current) return;
+      undoRef.current?.boundary();
+      const id = createShape(doc, { kind: shapeKindRef.current, rect, at, square }, getSessionId());
+      undoRef.current?.boundary();
+      if (id !== null) toolCreated(id);
+    },
+    [toolCreated]
+  );
+
+  const createConnectorEnds = useCallback(
+    (from: EndpointInput, to: EndpointInput): void => {
+      const doc = docRef.current;
+      if (doc === undefined || !editableRef.current) return;
+      undoRef.current?.boundary();
+      const id = createConnector(doc, from, to, getSessionId());
+      undoRef.current?.boundary();
+      if (id !== null) toolCreated(id);
+    },
+    [toolCreated]
+  );
 
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -444,6 +512,10 @@ export function BoardViewport(props: BoardViewportProps) {
                 onStartEdit={(id) => selectionRef.current?.startEdit(id)}
                 onEndEdit={(next) => selectionRef.current?.endEdit(next)}
                 onObjectPointerDown={transform.onObjectPointerDown}
+                onSelect={(id) => selectionRef.current?.click(id)}
+                screenToWorld={screenToWorldClient}
+                worldToScreen={worldToScreenClient}
+                hitTestAtWorld={hitTestAtWorld}
               />
             );
           })}
@@ -463,6 +535,19 @@ export function BoardViewport(props: BoardViewportProps) {
               event.stopPropagation();
               createTextAtScreenPoint(event.clientX, event.clientY);
             }}
+          />
+        ) : null}
+        {tool === 'shape' ? (
+          <ShapeTool shapeKind={shapeKind} screenToWorld={screenToWorldClient} onCreate={createShapeAt} />
+        ) : null}
+        {tool === 'connector' ? (
+          <ConnectorTool
+            zoom={camera.zoom}
+            screenToWorld={screenToWorldClient}
+            worldToScreen={worldToScreenClient}
+            hitTestAtWorld={hitTestAtWorld}
+            getRect={getRect}
+            onCreateConnector={createConnectorEnds}
           />
         ) : null}
         {selection !== undefined && props.doc !== undefined ? (
@@ -505,6 +590,8 @@ export function BoardViewport(props: BoardViewportProps) {
           undo={undoState}
           tool={tool}
           onToolChange={setTool}
+          shapeKind={shapeKind}
+          onShapeKindChange={setShapeKind}
         />
       ) : null}
       <ZoomControls

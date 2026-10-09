@@ -1,6 +1,10 @@
 import * as Y from 'yjs';
 import { createSticky, getStickyText, initDoc } from './board-model';
 import { STICKY_COLORS, type StickyColor } from './config';
+import { createShape, setShapeStyle } from './objects/shape';
+import { createConnector } from './objects/connector';
+import type { ShapeKind } from './config';
+import { getShapeLabel } from './objects/shape';
 
 // Deterministic PRNG so every seeded board is reproducible from its seed.
 export function mulberry32(seed: number): () => number {
@@ -67,4 +71,53 @@ export function seedBoard(doc: Y.Doc, count: number, random: () => number): stri
     });
   }
   return ids;
+}
+
+export interface CheckoutFlow {
+  shapes: string[];
+  connectors: string[];
+}
+
+// Story 10 e2e fixture: a 4-step flow (rect -> diamond -> ellipse -> rect),
+// each with a centred label, joined by 3 attached arrows, plus one free-ended
+// arrow floating beneath. Every object is created through the real model so the
+// connector anchors are derived, not hand-placed. Shapes sit on a row spaced
+// 400 world units apart so arrows are long enough to be created and hit-test.
+export function seedCheckoutFlow(doc: Y.Doc): CheckoutFlow {
+  initDoc(doc);
+  const spec: Array<{ kind: ShapeKind; x: number; y: number; label: string; fill?: string }> = [
+    { kind: 'rect', x: -600, y: -160, label: 'Start', fill: 'green' },
+    { kind: 'diamond', x: -200, y: -160, label: 'Decision' },
+    { kind: 'ellipse', x: 200, y: -160, label: 'Process', fill: 'yellow' },
+    { kind: 'rect', x: 600, y: -160, label: 'End' }
+  ];
+  const shapes: string[] = [];
+  doc.transact(() => {
+    for (const s of spec) {
+      const id = createShape(doc, { kind: s.kind, rect: { x: s.x, y: s.y, width: 200, height: 120 }, at: { x: s.x, y: s.y }, square: false }, 'seed');
+      if (typeof id !== 'string') continue;
+      shapes.push(id);
+      const label = getShapeLabel(doc, id);
+      if (label !== undefined && s.label.length > 0) label.insert(0, s.label);
+      if (s.fill !== undefined) setShapeStyle(doc, id, { fill: s.fill });
+    }
+  });
+  const connectors: string[] = [];
+  doc.transact(() => {
+    for (let i = 0; i + 1 < shapes.length; i += 1) {
+      const from = shapes[i];
+      const to = shapes[i + 1];
+      if (from === undefined || to === undefined) continue;
+      const id = createConnector(doc, { kind: 'attached', objectId: from }, { kind: 'attached', objectId: to }, 'seed');
+      if (typeof id === 'string') connectors.push(id);
+    }
+    const free = createConnector(
+      doc,
+      { kind: 'free', x: -600, y: 80 },
+      { kind: 'free', x: -200, y: 80 },
+      'seed'
+    );
+    if (typeof free === 'string') connectors.push(free);
+  });
+  return { shapes, connectors };
 }

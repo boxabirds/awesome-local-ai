@@ -176,11 +176,11 @@ describe('board.model', () => {
     const doc = new Y.Doc();
     initDoc(doc);
     const objects = doc.getMap('objects');
-    const shape = new Y.Map<unknown>();
-    shape.set('type', 'shape');
-    shape.set('x', 1);
-    shape.set('y', 2);
-    objects.set('shape-1', shape);
+    const widget = new Y.Map<unknown>();
+    widget.set('type', 'widget');
+    widget.set('x', 1);
+    widget.set('y', 2);
+    objects.set('widget-1', widget);
     const id = createSticky(doc, { x: 0, y: 0 }) as string;
     expect(() => snapshot(doc)).not.toThrow();
     const notes = snapshot(doc);

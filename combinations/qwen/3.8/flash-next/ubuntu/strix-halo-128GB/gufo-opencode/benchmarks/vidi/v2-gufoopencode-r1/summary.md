@@ -16,8 +16,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 7 | 8/8 | 0 | 0 | 43/44 |
 | 8 | 7/7 | 0 | 0 | 50/51 |
 | 9 | 5/6 | 1 | 0 | 54/57 |
+| 10 | 8/8 | 0 | 1 | 63/65 |
 
-**New work** 51/53, **regressions** 1, **repairs** 0, **cumulative** 54/57.
+**New work** 59/61, **regressions** 1, **repairs** 1, **cumulative** 63/65.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -29,8 +30,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 7 | Select, move, resize and delete several objects at once | PARTIAL (green), on partial 4 | 89.6 | None | None | None | — | — | green | 43/44 |  | 0 / 1 | 0 | — | throttled 0%, server peak 17 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 4, 7 | 54.8 | None | None | None | — | — | green | 50/51 |  | 0 / 0 | 0 | — | throttled 0%, server peak 17 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 4, 7 | 134.2 | None | None | None | — | — | green | 54/57 |  | 1 / 0 | 0 | — | throttled 0%, server peak 17 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 4, 7 | 84.0 | None | None | None | — | — | green | 63/65 |  | 0 / 0 | 0 | — | throttled 0%, server peak 11 GB |
 
-**Totals:** 8 stories, 796 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/8, final acceptance 54/57, stalled 0, partial 2, 14638 lines in src+tests.
+**Totals:** 9 stories, 880 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/9, final acceptance 63/65, stalled 0, partial 2, 17100 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -40,6 +42,7 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - Story 7, built on partial 4: held-out tests on the partial base 17/17; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 8, built on partial 4, 7: held-out tests on the partial base 24/24; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 9, built on partial 4, 7: held-out tests on the partial base 28/30; partial story's tests fixed 0, regressed 1; 0 stub-like lines added to src/.
+- Story 10, built on partial 4, 7: held-out tests on the partial base 37/38; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -55,14 +58,25 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | 1 by the agent | 2748 / 289 | `useTransformGesture.ts` (270), `BoardViewport.tsx` (212), `StickyNote.tsx` (172), `board-model.ts` (158), `geometry.ts` (133), `SelectionOverlay.tsx` (113), +11 more |
 | 8 | 1 by the agent | 1279 / 17 | `undo.ts` (85), `useUndo.ts` (51), `UndoButtons.tsx` (48), `useBoardKeys.ts` (26), `BoardViewport.tsx` (26), `StickyTextEditor.tsx` (24), +7 more |
 | 9 | 4 by the agent | 2255 / 144 | `TextEditor.tsx` (179), `text.ts` (171), `TextObject.tsx` (139), `textLayout.ts` (138), `board-model.ts` (121), `TextToolbar.tsx` (100), +15 more |
+| 10 | 8 by the agent | 2566 / 86 | `connector.ts` (232), `shape.ts` (217), `ConnectorObject.tsx` (170), `ShapeObject.tsx` (168), `ConnectorTool.tsx` (156), `BoardViewport.tsx` (131), +14 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 9 broke 1, fixed 0** earlier held-out tests (story 9: Write free text anywhere on the board; story 9: tool mode + text object rendering (TC-14..25 green); story 9: text model implementation (TC-01..06 green) + red layout tests (TC-07..11, TC-32); story 9 scaffold: text model red unit tests (TC-01..06)). Source files it changed most: `TextEditor.tsx` (179), `text.ts` (171), `TextObject.tsx` (139), `textLayout.ts` (138), `board-model.ts` (121), `TextToolbar.tsx` (100), +15 more.
   - story 7: 8/8 → 7/8; broke 1.
+- **Story 10 broke 0, fixed 1** earlier held-out tests (story 10: Draw shapes and connect them with arrows that follow when moved; story 10: e2e draw/rearrange/delete-race (TC-23..27), checkout-flow seed hook + builder + fixture; story 10: component tests for shape/connector tools, object, toolbar and active-tool hook (TC-15..22, TC-28); story 10: active-tool hook, Shape tool/object/toolbar, Connector tool/object + viewport wiring; story 10: connector model, geometry and detach-on-delete (TC-07..14, TC-29 green); story 10 scaffold: connector model + geometry red unit tests (TC-07..14, TC-29); story 10: shape model implementation (TC-01..06 green); story 10 scaffold: shape model red unit tests (TC-01..06)). Source files it changed most: `connector.ts` (232), `shape.ts` (217), `ConnectorObject.tsx` (170), `ShapeObject.tsx` (168), `ConnectorTool.tsx` (156), `BoardViewport.tsx` (131), +14 more.
+  - story 7: 7/8 → 8/8; fixed 1
 
 ### Interruptions and dead time
 
 A gap in a story's agent events with a restart or a logged intervention inside it is dead time (the machine or the run was down), not agent time. *Active* is the story's event span minus that dead time, across every attempt. *Recorded* is the harness's agent time, which covers only the attempt after the last restart.
 
-No interruptions inside a story.
+**1 restart (no intervention logged); 88 min dead in total.**
+
+| Story | When (UTC) | Down for | Kind | Logged cause |
+|---|---|---|---|---|
+| 2 | 08 Oct 23:51 | 88 min | restart (no intervention logged) | — |
+
+| Story | Active | Dead | Recorded |
+|---|---|---|---|
+| 2 | 53 min | 88 min | 53 min |

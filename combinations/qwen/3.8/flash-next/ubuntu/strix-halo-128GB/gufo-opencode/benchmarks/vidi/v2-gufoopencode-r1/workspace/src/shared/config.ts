@@ -60,6 +60,42 @@ export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 export const UNDO_CAPTURE_TIMEOUT_MS = 500; // edits closer than this merge into one undo step
 export const UNDO_MAX_STEPS = 200; // undo history cap per participant
 
+// Story 10: shapes and connectors.
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+export const SHAPE_MIN_SIZE_WORLD = 20;
+export const SHAPE_LABEL_MAX_CHARS = 500;
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+export const SHAPE_LABEL_FONT_WORLD = 16;
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0'
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E'
+} as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+export const CONNECTOR_STROKE_COLOR = '#263238';
+
 // Story 5: sharing by link.
 export const CREATE_BUDGET_MS = 2000; // PRD share.create (click to board visible; logged, not asserted)
 export const LINK_COPIED_MS = 2000; // "Link copied" confirmation duration

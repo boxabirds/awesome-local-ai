@@ -100,17 +100,17 @@ describe('board-model group operations', () => {
     initDoc(doc);
     const a = place(doc, 0, 0);
     doc.transact(() => {
-      const shape = new Y.Map<unknown>();
-      shape.set('type', 'shape');
-      shape.set('x', 0);
-      shape.set('y', 0);
-      shape.set('z', 9);
-      doc.getMap('objects').set('shape-1', shape);
+      const widget = new Y.Map<unknown>();
+      widget.set('type', 'widget');
+      widget.set('x', 0);
+      widget.set('y', 0);
+      widget.set('z', 9);
+      doc.getMap('objects').set('widget-1', widget);
     }, 'remote');
     expect(allObjectIds(snapshot(doc))).toEqual([a]);
     const handBuilt: ObjectSnapshot[] = [
       { id: 'a', type: 'sticky', x: 0, y: 0, z: 1, createdAt: 0, width: 200, height: 200 },
-      { id: 's', type: 'shape', x: 0, y: 0, z: 2, createdAt: 0, width: 200, height: 200 }
+      { id: 'w', type: 'widget', x: 0, y: 0, z: 2, createdAt: 0, width: 200, height: 200 }
     ];
     expect(allObjectIds(handBuilt)).toEqual(['a']);
   });

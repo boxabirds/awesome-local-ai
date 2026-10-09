@@ -2,6 +2,7 @@ import type { CSSProperties, JSX } from 'react';
 import { UndoButtons } from './UndoButtons';
 import type { UndoState } from './useUndo';
 import type { Tool } from './useTool';
+import { SHAPE_KINDS, type ShapeKind } from '../../shared/config';
 
 const containerStyle: CSSProperties = {
   position: 'fixed',
@@ -35,7 +36,16 @@ export interface ToolbarProps {
   // Story 9: when provided, the tool switcher is rendered above the actions.
   tool?: Tool;
   onToolChange?(tool: Tool): void;
+  // Story 10: the pending shape kind and its menu (Rectangle/Ellipse/Diamond).
+  shapeKind?: ShapeKind;
+  onShapeKindChange?(kind: ShapeKind): void;
 }
+
+const KIND_LABEL: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond'
+};
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note (N) – or double-click the board';
 
@@ -70,6 +80,58 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           >
             T
           </button>
+          <button
+            type="button"
+            aria-label="Shape (S)"
+            title="Shape – or press S"
+            aria-pressed={props.tool === 'shape'}
+            style={buttonStyle}
+            disabled={props.disabled === true}
+            onClick={() => props.onToolChange?.('shape')}
+          >
+            ▢
+          </button>
+          <button
+            type="button"
+            aria-label="Connector (L)"
+            title="Connector – or press L"
+            aria-pressed={props.tool === 'connector'}
+            style={buttonStyle}
+            disabled={props.disabled === true}
+            onClick={() => props.onToolChange?.('connector')}
+          >
+            ↗
+          </button>
+          {props.shapeKind !== undefined ? (
+            <div data-testid="shape-kind-menu" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {SHAPE_KINDS.map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  aria-label={KIND_LABEL[kind]}
+                  title={`${KIND_LABEL[kind]} shape`}
+                  aria-pressed={props.shapeKind === kind}
+                  data-testid={`shape-kind-${kind}`}
+                  style={{
+                    height: 14,
+                    padding: '0 4px',
+                    border: props.shapeKind === kind ? '1px solid #1E88E5' : '1px solid #d6dae1',
+                    background: props.shapeKind === kind ? '#E3F2FD' : '#f3f4f6',
+                    borderRadius: 4,
+                    fontSize: 10,
+                    cursor: 'pointer'
+                  }}
+                  disabled={props.disabled === true}
+                  onClick={() => {
+                    props.onShapeKindChange?.(kind);
+                    props.onToolChange?.('shape');
+                  }}
+                >
+                  {KIND_LABEL[kind]}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </>
       ) : null}
       <button

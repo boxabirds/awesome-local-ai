@@ -9,6 +9,9 @@ export interface Vidi6TestHooks {
   // Story 7 e2e: deterministically place `count` sticky notes on a 4-column
   // grid (world tops (-460 + col·240, -200 + row·240)) and return their ids.
   seedStickies?(count: number): string[];
+  // Story 10 e2e: build a 4-shape checkout flow with 3 attached + 1 free
+  // connector through the real model, returning the created ids.
+  seedCheckoutFlow?(): { shapes: string[]; connectors: string[] };
 }
 
 declare global {

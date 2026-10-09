@@ -2,6 +2,8 @@ import * as Y from 'yjs';
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES, type StickyColor } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
 import type { TextSnapshot } from './objects/text';
+import { readShape, type ShapeSnapshot } from './objects/shape';
+import { detachConnectorsTo, readConnector, type ConnectorSnapshot } from './objects/connector';
 
 // Origin tag for every local mutation. Story 8 uses it for undo and story 3 to
 // avoid echoing changes back over the network.
@@ -29,7 +31,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 
 // Types this story's model knows how to read. Unknown types stay in the doc
 // untouched and are never selectable, listed or measured (design sel.registry).
-const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky', 'text']);
+const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector']);
 
 export function isKnownObjectType(type: string): boolean {
   return KNOWN_OBJECT_TYPES.has(type);
@@ -143,6 +145,7 @@ export function deleteObject(doc: Y.Doc, id: string): boolean {
   const note = objects.get(id) as Y.Map<unknown> | undefined;
   if (note === undefined || note.get('type') !== 'sticky') return false;
   doc.transact(() => {
+    detachConnectorsTo(doc, [id]);
     objects.delete(id);
   }, LOCAL_ORIGIN);
   return true;
@@ -231,20 +234,57 @@ export function isTextObject(obj: ObjectSnapshot): obj is TextSnapshot {
   );
 }
 
+export function isShapeObject(obj: ObjectSnapshot): obj is ShapeSnapshot {
+  const candidate = obj as Partial<ShapeSnapshot>;
+  return (
+    obj.type === 'shape' &&
+    typeof candidate.kind === 'string' &&
+    typeof candidate.fill === 'string' &&
+    typeof candidate.stroke === 'string' &&
+    typeof candidate.label === 'string'
+  );
+}
+
+export function isConnectorObject(obj: ObjectSnapshot): obj is ConnectorSnapshot {
+  const candidate = obj as Partial<ConnectorSnapshot>;
+  return (
+    obj.type === 'connector' &&
+    candidate.from !== undefined &&
+    candidate.to !== undefined &&
+    candidate.resolved !== undefined
+  );
+}
+
 // Every known object in the doc, ordered for rendering (z, then id).
+// Connectors are read in a second pass because their bounds are derived from
+// the rects of the objects they attach to (which are computed in the first).
 export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects = doc.getMap('objects');
   const result: ObjectSnapshot[] = [];
+  const rects = new Map<string, Rect>();
+  const connectors: [string, Y.Map<unknown>][] = [];
   for (const [id, value] of objects.entries()) {
     const entry = value as Y.Map<unknown>;
     const type = entry.get('type');
+    let placed: ObjectSnapshot | null = null;
     if (type === 'sticky') {
-      const sticky = readSticky(id, entry);
-      if (sticky !== null) result.push(sticky);
+      placed = readSticky(id, entry);
     } else if (type === 'text') {
-      const text = readText(id, entry);
-      if (text !== null) result.push(text);
+      placed = readText(id, entry);
+    } else if (type === 'shape') {
+      placed = readShape(id, entry);
+    } else if (type === 'connector') {
+      connectors.push([id, entry]);
+      continue;
     }
+    if (placed !== null) {
+      result.push(placed);
+      rects.set(id, objectBounds(placed));
+    }
+  }
+  for (const [id, entry] of connectors) {
+    const connector = readConnector(id, entry, rects);
+    if (connector !== null) result.push(connector);
   }
   result.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return result;
@@ -370,6 +410,7 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = ids.filter((id) => objects.has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
