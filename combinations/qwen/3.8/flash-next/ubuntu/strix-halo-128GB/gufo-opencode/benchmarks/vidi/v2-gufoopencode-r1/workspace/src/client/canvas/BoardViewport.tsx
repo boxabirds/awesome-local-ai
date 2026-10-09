@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import type { PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent, DragEvent as ReactDragEvent, ReactNode } from 'react';
 import * as Y from 'yjs';
 import { canZoomIn, canZoomOut, screenToWorld, worldToScreen, zoomPercent } from './camera';
 import type { Point, Size } from './camera';
@@ -31,6 +31,11 @@ import { usePenOptions } from '../tools/usePenOptions';
 import { getObjectType, ATTACHABLE_TYPES } from '../objects/registry';
 import { useUndo, useUndoController } from '../board/useUndo';
 import type { SelectionApi } from '../board/useSelection';
+import type { ConnectionState } from '../sync/connectBoard';
+import { useImageInsert } from '../images/useImageInsert';
+import { ImageInsertContext } from '../images/ImageInsertContext';
+import { DropHighlight } from '../images/DropHighlight';
+import { Toast } from '../images/Toast';
 
 // Wheel events with deltaMode LINE/PAGE are converted to pixels with these.
 const WHEEL_LINE_PIXELS = 16;
@@ -62,6 +67,9 @@ export interface BoardViewportProps {
   // False while the board could not be loaded: every model mutation is a
   // no-op and the Sticky note button is disabled.
   editable?: boolean;
+  // Story 12: the upload endpoint and the live sync state for the offline gate.
+  boardId?: string;
+  connection?: ConnectionState;
   onGestureStart?(): void;
   onGestureEnd?(): void;
 }
@@ -260,6 +268,34 @@ export function BoardViewport(props: BoardViewportProps) {
   const shapeKindRef = useRef(shapeKind);
   shapeKindRef.current = shapeKind;
 
+  // Story 12 image pipeline: the viewport owns the drop point and the centre
+  // anchor; useImageInsert owns validation, placeholders, uploads and toasts.
+  const getCentreWorld = useCallback(
+    (): Point => screenToWorld(cam.camera, { x: viewport.width / 2, y: viewport.height / 2 }),
+    [cam.camera, viewport.width, viewport.height]
+  );
+  const images = useImageInsert({
+    doc: props.doc,
+    boardId: props.boardId,
+    connection: props.connection ?? 'connected',
+    canEdit: props.editable !== false,
+    getCentreWorld
+  });
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
+  const imageContextValue = useMemo(
+    () => ({ getProgress: images.getProgress, retry: images.retry, canRetry: images.canRetry }),
+    [images.getProgress, images.retry, images.canRetry]
+  );
+
+  const [dropActive, setDropActive] = useState(false);
+  const dragDepthRef = useRef(0);
+  const dragHasFiles = (event: ReactDragEvent<HTMLDivElement>): boolean => {
+    const transfer = event.dataTransfer;
+    if (transfer === null) return false;
+    return Array.from(transfer.types ?? []).includes('Files') || (transfer.files?.length ?? 0) > 0;
+  };
+
   // Story 7 sticky creation shortcut (N). The tool letter shortcuts (v/t/s/l/
   // Escape) live in useActiveTool; 'n' stays here because it creates a sticky
   // at the centre immediately rather than arming a tool.
@@ -281,6 +317,13 @@ export function BoardViewport(props: BoardViewportProps) {
         if (!editableRef.current) return;
         event.preventDefault();
         createCentreRef.current();
+        return;
+      }
+      // Story 12: I opens the file picker (momentary action, not a tool). The
+      // offline gate lives in openPicker.
+      if (event.key === 'i' || event.key === 'I') {
+        event.preventDefault();
+        imagesRef.current.openPicker();
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -319,6 +362,31 @@ export function BoardViewport(props: BoardViewportProps) {
     [cam.camera]
   );
   const worldToScreenClient = useCallback((world: Point): Point => worldToScreen(camera, world), [camera]);
+
+  const handleDragEnter = useCallback((event: ReactDragEvent<HTMLDivElement>): void => {
+    if (!dragHasFiles(event)) return;
+    dragDepthRef.current += 1;
+    setDropActive(true);
+  }, []);
+  const handleDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>): void => {
+    if (!dragHasFiles(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }, []);
+  const handleDragLeave = useCallback((event: ReactDragEvent<HTMLDivElement>): void => {
+    if (!dragHasFiles(event)) return;
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setDropActive(false);
+  }, []);
+  const handleDrop = useCallback((event: ReactDragEvent<HTMLDivElement>): void => {
+    if (!dragHasFiles(event)) return;
+    event.preventDefault();
+    dragDepthRef.current = 0;
+    setDropActive(false);
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    if (files.length === 0) return;
+    imagesRef.current.addFiles(files, screenToWorldClient(event.clientX, event.clientY), 'top-left');
+  }, [screenToWorldClient]);
 
   const attachableRects = useMemo(() => {
     const rects = new Map<string, Rect>();
@@ -482,6 +550,10 @@ export function BoardViewport(props: BoardViewportProps) {
         onPointerCancel={handlePointerCancel}
         onLostPointerCapture={() => finishPointer(false)}
         onDoubleClick={handleDoubleClick}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         <div data-testid="dot-grid" data-grid="true" style={gridStyle(camera)} />
         <div data-testid="world-layer" style={{ ...worldLayerStyle(camera), pointerEvents: 'none' }}>
@@ -501,32 +573,35 @@ export function BoardViewport(props: BoardViewportProps) {
             <div style={{ position: 'absolute', left: 0, top: 9.25, width: 20, height: 1.5, background: '#e05252' }} />
           </div>
           {props.children}
-          {orderedObjects?.map((obj) => {
-            const spec = getObjectType(obj.type);
-            if (spec === undefined) return null;
-            const Renderer = spec.Component;
-            return (
-              <Renderer
-                key={obj.id}
-                obj={obj}
-                doc={props.doc as Y.Doc}
-                zoom={camera.zoom}
-                selected={selection !== undefined && selection.ids.has(obj.id)}
-                dragging={transform.draggingIds.has(obj.id)}
-                editing={selection !== undefined && selection.editingId === obj.id}
-                editable={props.editable !== false}
-                onStartEdit={(id) => selectionRef.current?.startEdit(id)}
-                onEndEdit={(next) => selectionRef.current?.endEdit(next)}
-                onObjectPointerDown={transform.onObjectPointerDown}
-                onSelect={(id) => selectionRef.current?.click(id)}
-                screenToWorld={screenToWorldClient}
-                worldToScreen={worldToScreenClient}
-                hitTestAtWorld={hitTestAtWorld}
-              />
-            );
-          })}
+          <ImageInsertContext.Provider value={imageContextValue}>
+            {orderedObjects?.map((obj) => {
+              const spec = getObjectType(obj.type);
+              if (spec === undefined) return null;
+              const Renderer = spec.Component;
+              return (
+                <Renderer
+                  key={obj.id}
+                  obj={obj}
+                  doc={props.doc as Y.Doc}
+                  zoom={camera.zoom}
+                  selected={selection !== undefined && selection.ids.has(obj.id)}
+                  dragging={transform.draggingIds.has(obj.id)}
+                  editing={selection !== undefined && selection.editingId === obj.id}
+                  editable={props.editable !== false}
+                  onStartEdit={(id) => selectionRef.current?.startEdit(id)}
+                  onEndEdit={(next) => selectionRef.current?.endEdit(next)}
+                  onObjectPointerDown={transform.onObjectPointerDown}
+                  onSelect={(id) => selectionRef.current?.click(id)}
+                  screenToWorld={screenToWorldClient}
+                  worldToScreen={worldToScreenClient}
+                  hitTestAtWorld={hitTestAtWorld}
+                />
+              );
+            })}
+          </ImageInsertContext.Provider>
           <MarqueeRect rect={marquee.rect} camera={camera} />
         </div>
+        {dropActive ? <DropHighlight /> : null}
         {toolActive ? (
           <div
             data-testid="text-tool-overlay"
@@ -607,6 +682,7 @@ export function BoardViewport(props: BoardViewportProps) {
           onToolChange={setTool}
           shapeKind={shapeKind}
           onShapeKindChange={setShapeKind}
+          onAddImage={images.openPicker}
         />
       ) : null}
       {props.doc !== undefined && tool === 'pen' ? (
@@ -627,6 +703,8 @@ export function BoardViewport(props: BoardViewportProps) {
         onReset={() => cam.reset()}
       />
       <NavigationHint visible={!cam.hasNavigated} />
+      <input {...images.fileInputProps} />
+      <Toast toasts={images.toasts} />
     </>
   );
 }

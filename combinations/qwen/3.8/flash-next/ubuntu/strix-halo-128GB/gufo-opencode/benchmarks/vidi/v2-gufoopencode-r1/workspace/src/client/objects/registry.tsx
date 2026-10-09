@@ -2,12 +2,13 @@ import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { rectContains, type Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, IMAGE_MIN_SIZE_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
+import { ImageObject } from './ImageObject';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { isStrokeObject } from '../../shared/board-model';
 import { scaledPoints } from '../../shared/objects/stroke';
@@ -132,4 +133,15 @@ registerObjectType('stroke', {
   minSize: STROKE_MIN_SIZE_WORLD,
   editableText: false,
   hitTest: strokeHitTest
+});
+
+// Story 12: images resize aspect-locked (never distorted) with the
+// IMAGE_MIN_SIZE_WORLD floor on the longest side.
+registerObjectType('image', {
+  Component: ImageObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: stickyHitTest
 });

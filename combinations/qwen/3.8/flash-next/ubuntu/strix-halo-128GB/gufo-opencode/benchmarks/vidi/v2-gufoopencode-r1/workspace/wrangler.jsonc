@@ -14,5 +14,7 @@
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }],
+  // Story 12: uploaded board images, addressed by unguessable keys.
+  "r2_buckets": [{ "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }]
 }

@@ -1,4 +1,5 @@
 import { isValidBoardId } from '../shared/board-id';
+import { armFailR2PutOnce, handleServe, handleUpload } from './assets';
 import { BoardRoom, armFailInitializeOnce, rpcCallCount } from './board-room';
 import { createBoard } from './create-board';
 import { parseTestHookBoardId } from './test-hooks';
@@ -6,6 +7,7 @@ import { parseTestHookBoardId } from './test-hooks';
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   // Set to '1' only in test environments; production config never has it, so
   // the /__test/ routes fall through to the static assets (SPA/404).
   TEST_HOOKS?: string;
@@ -13,6 +15,8 @@ export interface Env {
 
 const ROOM_PREFIX = '/api/rooms/';
 const BOARD_API_PREFIX = '/api/boards';
+const BOARD_ASSETS_SUFFIX = '/assets';
+const ASSET_API_PREFIX = '/api/assets';
 
 // Routes `/api/rooms/:boardId` to that board's BoardRoom and everything else
 // to the static assets. `idFromName` gives every board its own object, which
@@ -29,6 +33,20 @@ export default {
         if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
         armFailInitializeOnce();
         return Response.json({ ok: true });
+      }
+      if (url.pathname === '/__test/fail-r2-put') {
+        if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
+        armFailR2PutOnce();
+        return Response.json({ ok: true });
+      }
+      if (url.pathname === '/__test/r2-keys') {
+        const listed = await env.ASSETS_BUCKET.list();
+        return Response.json({
+          keys: listed.objects.map((object) => ({
+            name: object.key,
+            contentType: object.httpMetadata?.contentType ?? null
+          }))
+        });
       }
       if (url.pathname === '/__test/rpc-calls') {
         const id = url.searchParams.get('id') ?? '';
@@ -47,6 +65,19 @@ export default {
     }
     if (url.pathname === BOARD_API_PREFIX || url.pathname.startsWith(`${BOARD_API_PREFIX}/`)) {
       return await handleBoardApi(request, url, env);
+    }
+    if (url.pathname === ASSET_API_PREFIX) return new Response('not found', { status: 404 });
+    if (url.pathname.startsWith(`${ASSET_API_PREFIX}/`)) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return new Response('method not allowed', { status: 405 });
+      }
+      let key: string;
+      try {
+        key = decodeURIComponent(url.pathname.slice(ASSET_API_PREFIX.length + 1));
+      } catch {
+        return new Response('not found', { status: 404 });
+      }
+      return handleServe(env, key);
     }
     if (!url.pathname.startsWith(ROOM_PREFIX)) return env.ASSETS.fetch(request);
     const boardId = url.pathname.slice(ROOM_PREFIX.length);
@@ -74,7 +105,14 @@ async function handleBoardApi(request: Request, url: URL, env: Env): Promise<Res
     }
     return Response.json({ id: result.id }, { status: 201 });
   }
-  const boardId = url.pathname.slice(BOARD_API_PREFIX.length + 1);
+  const rest = url.pathname.slice(BOARD_API_PREFIX.length + 1);
+  // Story 12: POST /api/boards/:id/assets uploads one image for that board.
+  if (rest.endsWith(BOARD_ASSETS_SUFFIX)) {
+    const boardId = rest.slice(0, -BOARD_ASSETS_SUFFIX.length);
+    if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
+    return handleUpload(request, env, boardId);
+  }
+  const boardId = rest;
   if (boardId.length === 0 || boardId.includes('/') || !isValidBoardId(boardId)) {
     return Response.json({ error: 'not_found' }, { status: 404 });
   }

@@ -31,7 +31,7 @@ export function BoardShell(props: { boardId: string }) {
     <>
       <ConnectionStatus state={connection} />
       <UndoContext.Provider value={undo}>
-        <BoardViewport doc={doc} notes={notes} selection={selection} editable={editable} />
+        <BoardViewport doc={doc} notes={notes} selection={selection} editable={editable} boardId={props.boardId} connection={connection} />
       </UndoContext.Provider>
     </>
   );

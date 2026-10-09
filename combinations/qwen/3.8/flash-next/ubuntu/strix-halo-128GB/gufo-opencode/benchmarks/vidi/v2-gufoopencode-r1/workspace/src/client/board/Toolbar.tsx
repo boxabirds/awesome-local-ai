@@ -42,6 +42,8 @@ export interface ToolbarProps {
   // Story 10: the pending shape kind and its menu (Rectangle/Ellipse/Diamond).
   shapeKind?: ShapeKind;
   onShapeKindChange?(kind: ShapeKind): void;
+  // Story 12: momentary Image action — opens the file picker, does not arm a tool.
+  onAddImage?(): void;
 }
 
 const KIND_LABEL: Record<ShapeKind, string> = {
@@ -116,6 +118,19 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           >
             ✎
           </button>
+          {props.onAddImage !== undefined ? (
+            <button
+              type="button"
+              aria-label="Image (I)"
+              title="Image – or press I"
+              data-testid="image-button"
+              style={buttonStyle}
+              disabled={props.disabled === true}
+              onClick={() => props.onAddImage?.()}
+            >
+              🖼
+            </button>
+          ) : null}
           {props.shapeKind !== undefined ? (
             <div data-testid="shape-kind-menu" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {SHAPE_KINDS.map((kind) => (

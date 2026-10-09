@@ -5,6 +5,9 @@ import type { TextSnapshot } from './objects/text';
 import { readShape, type ShapeSnapshot } from './objects/shape';
 import { detachConnectorsTo, readConnector, type ConnectorSnapshot } from './objects/connector';
 import { readStroke, type StrokeSnapshot } from './objects/stroke';
+import { readImage } from './objects/image';
+
+export { isImageObject, type ImageSnap } from './objects/image';
 
 // Origin tag for every local mutation. Story 8 uses it for undo and story 3 to
 // avoid echoing changes back over the network.
@@ -32,7 +35,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 
 // Types this story's model knows how to read. Unknown types stay in the doc
 // untouched and are never selectable, listed or measured (design sel.registry).
-const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector', 'stroke']);
+const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector', 'stroke', 'image']);
 
 export function isKnownObjectType(type: string): boolean {
   return KNOWN_OBJECT_TYPES.has(type);
@@ -288,6 +291,8 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
       placed = readShape(id, entry);
     } else if (type === 'stroke') {
       placed = readStroke(id, entry);
+    } else if (type === 'image') {
+      placed = readImage(id, entry);
     } else if (type === 'connector') {
       connectors.push([id, entry]);
       continue;
