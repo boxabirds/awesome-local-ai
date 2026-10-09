@@ -26,7 +26,7 @@ export function readingFigures(e: ConversationEvent): string {
     const psi = rec(host.psi), stall = (kind: string): unknown => rec(psi?.[kind])?.some_pct;
     const stalls = [["cpu", stall("cpu")], ["mem", stall("memory")], ["io", stall("io")]].filter(([, v]) => isNum(v)).map(([k, v]) => `${k} ${(v as number).toFixed(1)}%`);
     const top = Array.isArray(host.top) ? rec(host.top[0]) : null;
-    parts.push(isNum(host.cpu_busy_pct) ? `CPU ${host.cpu_busy_pct.toFixed(0)}%` : "", isNum(host.load1) ? `load ${host.load1.toFixed(1)}` : "",
+    parts.push(isNum(host.cpu_busy_pct) ? `CPU ${host.cpu_busy_pct.toFixed(0)}%` : "", isNum(host.load1) ? `load ${host.load1.toFixed(1)}${isNum(host.cpus) ? ` of ${host.cpus} CPUs` : ""}` : "",
       stalls.length ? `stall ${stalls.join(" ")}` : "",
       isNum(host.major_faults_per_s) && host.major_faults_per_s > 0 ? `faults ${host.major_faults_per_s.toFixed(1)}/s` : "",
       isNum(host.disk_read_mb_per_s) && host.disk_read_mb_per_s > 0 ? `disk read ${host.disk_read_mb_per_s.toFixed(1)} MB/s` : "",

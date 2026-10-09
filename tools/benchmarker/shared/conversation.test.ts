@@ -192,6 +192,10 @@ describe("a machine reading's figures on the conversation page", () => {
       psi: { cpu: { some_pct: 0.19 }, memory: { some_pct: 1.5 }, io: { some_pct: 0 } }, top: [{ comm: "strata", cpu_pct: 412.5 }, { comm: "chrome", cpu_pct: 33 }] } } as never;
     expect(readingFigures(e)).toBe("nominal · free 24% · swap 2.0 GB · GPU 100% · CPU 45% · load 12.5 · stall cpu 0.2% mem 1.5% io 0.0% · cache 7.1 GB · top strata 413%");
   });
+  it("reads the load against the machine's CPU count when the reading has it", () => {
+    const e = { ...base, host: { cpus: 32, load1: 12.5 } } as never;
+    expect(readingFigures(e)).toBe("nominal · free 24% · swap 2.0 GB · GPU 100% · load 12.5 of 32 CPUs");
+  });
   it("shows paging only when there was some, and leaves out what the reading could not say", () => {
     const e = { ...base, host: { cpu_busy_pct: null, load1: 2, major_faults_per_s: 3.5, disk_read_mb_per_s: 2.8, psi: { cpu: { some_pct: null }, memory: { some_pct: null }, io: { some_pct: null } }, top: [] } } as never;
     expect(readingFigures(e)).toBe("nominal · free 24% · swap 2.0 GB · GPU 100% · load 2.0 · faults 3.5/s · disk read 2.8 MB/s");
