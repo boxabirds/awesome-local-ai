@@ -1,0 +1,33 @@
+{
+  "skipped": false,
+  "build_exit": 0,
+  "runner_exit": 0,
+  "passed": 6,
+  "total": 6,
+  "on_partial": {
+    "passed": 0,
+    "total": 0
+  },
+  "by_story": {
+    "01": {
+      "passed": 6,
+      "total": 6
+    }
+  },
+  "setup_fallbacks": {
+    "tests": 0,
+    "by_owner": {}
+  },
+  "harness_fault": null,
+  "install": {
+    "ok": true,
+    "command": "npm ci --no-audit --no-fund",
+    "fallback": false
+  },
+  "scores": [
+    6,
+    6,
+    6
+  ],
+  "flaky": 0
+}
