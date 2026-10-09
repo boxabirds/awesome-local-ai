@@ -62,21 +62,25 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
     []
   );
 
+  const commitPendingMove = useCallback((): void => {
+    const { dx, dy } = pendingRef.current;
+    const z = zoomRef.current || 1;
+    const ok = moveObject(doc, note.id, startWorldRef.current.x + dx / z, startWorldRef.current.y + dy / z);
+    if (!ok) {
+      draggingRef.current = false;
+      setDragging(false);
+      pointerIdRef.current = null;
+    }
+  }, [doc, note.id]);
+
   const scheduleMove = useCallback((): void => {
     if (rafRef.current !== null) return;
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
       if (!draggingRef.current) return;
-      const { dx, dy } = pendingRef.current;
-      const z = zoomRef.current || 1;
-      const ok = moveObject(doc, note.id, startWorldRef.current.x + dx / z, startWorldRef.current.y + dy / z);
-      if (!ok) {
-        draggingRef.current = false;
-        setDragging(false);
-        pointerIdRef.current = null;
-      }
+      commitPendingMove();
     });
-  }, [doc, note.id]);
+  }, [commitPendingMove]);
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (event.button !== 0) return;
@@ -108,9 +112,17 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const endPointer = (): void => {
     if (pointerIdRef.current === null) return;
     pointerIdRef.current = null;
+    const hadPendingFrame = rafRef.current !== null;
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
+    }
+    // The frame for the final pointermove may not have run yet; commit it
+    // synchronously so the note lands exactly under the pointer on release.
+    if (hadPendingFrame && draggingRef.current) {
+      const { dx, dy } = pendingRef.current;
+      const z = zoomRef.current || 1;
+      moveObject(doc, note.id, startWorldRef.current.x + dx / z, startWorldRef.current.y + dy / z);
     }
     draggingRef.current = false;
     setDragging(false);

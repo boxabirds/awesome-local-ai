@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
+import { IS_TEST_MODE } from '../canvas/testHooks';
 
 interface SnapshotStore {
   subscribe(onStoreChange: () => void): () => void;
@@ -43,19 +45,35 @@ function createSnapshotStore(doc: Y.Doc): SnapshotStore {
 export interface BoardDoc {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  connection: ConnectionState;
 }
 
-export function useBoardDoc(): BoardDoc {
-  const docRef = useRef<Y.Doc | null>(null);
-  if (docRef.current === null) {
+export function useBoardDoc(boardId?: string): BoardDoc {
+  const docRef = useRef<{ boardId: string | undefined; doc: Y.Doc } | null>(null);
+  if (docRef.current === null || docRef.current.boardId !== boardId) {
     const doc = new Y.Doc();
     initDoc(doc);
-    docRef.current = doc;
+    docRef.current = { boardId, doc };
   }
-  const doc = docRef.current;
+  const doc = docRef.current.doc;
+  const [connection, setConnection] = useState<ConnectionState>(boardId ? 'connecting' : 'connected');
+
+  useEffect(() => {
+    if (boardId === undefined) return;
+    const handle = connectBoard(doc, boardId, setConnection);
+    if (IS_TEST_MODE && window.__vidi6 !== undefined) {
+      window.__vidi6.simulateOutage = (ms: number): void => handle.simulateOutage?.(ms);
+    }
+    return () => handle.destroy();
+  }, [doc, boardId]);
+
+  useEffect(() => {
+    if (IS_TEST_MODE && window.__vidi6 !== undefined) window.__vidi6.connectionState = connection;
+  }, [connection]);
+
   const store = useMemo(() => createSnapshotStore(doc), [doc]);
   const subscribe = useCallback((onStoreChange: () => void) => store.subscribe(onStoreChange), [store]);
   const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return { doc, notes };
+  return { doc, notes, connection };
 }

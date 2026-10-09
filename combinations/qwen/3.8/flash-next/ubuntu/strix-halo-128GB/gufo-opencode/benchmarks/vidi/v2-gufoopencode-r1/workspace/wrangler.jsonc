@@ -1,9 +1,18 @@
 {
-  // Worker `main` and Durable Objects arrive in story 3; for now this only
-  // serves the built client as static assets via `wrangler dev`.
+  // Story 3: the Worker routes /api/rooms/:boardId WebSocket upgrades to a
+  // per-board BoardRoom Durable Object and serves everything else as assets.
+  // The room is SQLite-class-backed already so story 4 adds persistence
+  // without a class migration; this story keeps the document in memory only.
   "name": "vidi6",
   "compatibility_date": "2026-09-17",
+  "main": "src/worker/index.ts",
   "assets": {
-    "directory": "./dist/client"
-  }
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
 }

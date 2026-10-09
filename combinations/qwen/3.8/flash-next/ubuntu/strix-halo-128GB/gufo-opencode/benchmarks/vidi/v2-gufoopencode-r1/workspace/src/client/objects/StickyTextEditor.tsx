@@ -51,6 +51,49 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     fit();
   };
 
+  // Remote edits landing in this Y.Text while the textarea holds the local
+  // value are spliced into the textarea around the local caret instead of
+  // overwriting it: the changed region is located by its common prefix and
+  // suffix, and the caret is shifted by whatever the remote inserted or
+  // removed relative to it. (A story-2 minimal textarea kept the stale local
+  // value and the next commit's diff would silently delete remote text.)
+  useEffect(() => {
+    let last = ytext.toString();
+    const observer = (_event: Y.YTextEvent, transaction: Y.Transaction): void => {
+      const next = ytext.toString();
+      const prev = last;
+      last = next;
+      setLength(next.length);
+      const el = textareaRef.current;
+      if (transaction.origin === LOCAL_ORIGIN || el === null || composingRef.current) {
+        if (composingRef.current) fit();
+        return;
+      }
+      let p = 0;
+      const maxPrefix = Math.min(prev.length, next.length);
+      while (p < maxPrefix && prev[p] === next[p]) p += 1;
+      let s = 0;
+      const maxSuffix = Math.min(prev.length - p, next.length - p);
+      while (s < maxSuffix && prev[prev.length - 1 - s] === next[next.length - 1 - s]) s += 1;
+      const oldInner = prev.slice(p, prev.length - s);
+      const newInner = next.slice(p, next.length - s);
+      const mapCaret = (caret: number): number =>
+        caret <= p
+          ? caret
+          : caret >= p + oldInner.length
+            ? caret + (newInner.length - oldInner.length)
+            : p + newInner.length;
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      el.value = next;
+      el.setSelectionRange(mapCaret(start), mapCaret(end));
+      fit();
+    };
+    ytext.observe(observer);
+    return () => ytext.unobserve(observer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ytext]);
+
   const onInput = (event: ReactFormEvent<HTMLTextAreaElement>): void => {
     if (composingRef.current) return;
     commit(event.currentTarget.value);

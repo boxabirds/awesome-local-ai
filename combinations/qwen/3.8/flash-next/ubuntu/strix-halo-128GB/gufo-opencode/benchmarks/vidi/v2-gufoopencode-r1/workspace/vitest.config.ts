@@ -21,6 +21,17 @@ export default defineConfig({
           include: ['tests/component/**/*.test.{ts,tsx}'],
           setupFiles: ['tests/component/setup.ts']
         }
+      },
+      {
+        extends: true,
+        test: {
+          name: 'integration',
+          pool: 'forks',
+          include: ['tests/integration/**/*.test.ts'],
+          globalSetup: ['tests/integration/global-setup.ts'],
+          testTimeout: 30_000,
+          hookTimeout: 180_000
+        }
       }
     ]
   }

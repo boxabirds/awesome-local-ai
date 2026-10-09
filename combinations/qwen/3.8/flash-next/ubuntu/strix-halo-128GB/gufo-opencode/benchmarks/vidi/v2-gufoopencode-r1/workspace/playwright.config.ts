@@ -21,6 +21,8 @@ if (!hasDesktopGecko) {
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Nightly soak tests (TC-29, TC-30) only run via test:e2e:nightly.
+  testIgnore: /nightly/,
   fullyParallel: true,
   reporter: 'list',
   use: {

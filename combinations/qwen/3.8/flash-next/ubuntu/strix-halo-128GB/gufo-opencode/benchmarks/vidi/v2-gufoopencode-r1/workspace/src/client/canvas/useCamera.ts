@@ -105,6 +105,15 @@ export function useCamera(viewport: Size): CameraApi {
   const setCamera = useCallback(
     (next: Camera) => {
       applyCamera(next);
+      // applyCamera batches the state update into the next frame for
+      // wheel/pan smoothness. Programmatic camera changes (test helpers,
+      // reset-to-board) must be visible to rendered components before the
+      // caller's next action, so flush the batched state here.
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      setCameraState(cameraRef.current);
     },
     [applyCamera]
   );

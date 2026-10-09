@@ -1,8 +1,11 @@
 import type { Camera } from './camera';
+import type { ConnectionState } from '../sync/connectBoard';
 
 export interface Vidi6TestHooks {
   setCamera(cam: Camera): void;
   getCamera(): Camera;
+  connectionState?: ConnectionState;
+  simulateOutage?(ms: number): void;
 }
 
 declare global {

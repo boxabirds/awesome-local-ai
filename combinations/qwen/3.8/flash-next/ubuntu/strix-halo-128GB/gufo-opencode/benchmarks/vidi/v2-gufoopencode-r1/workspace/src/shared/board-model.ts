@@ -27,7 +27,7 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 function newId(): string {
-  const c = globalThis.crypto as Crypto | undefined;
+  const c = (globalThis as { crypto?: Crypto }).crypto;
   if (c !== undefined && typeof c.randomUUID === 'function') return c.randomUUID();
   return 'id-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
