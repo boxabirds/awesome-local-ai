@@ -1,9 +1,0 @@
-{
-  // Worker `main` and Durable Objects arrive in story 3; for now this only
-  // serves the built client as static assets via `wrangler dev`.
-  "name": "vidi6",
-  "compatibility_date": "2026-09-17",
-  "assets": {
-    "directory": "./dist/client"
-  }
-}
