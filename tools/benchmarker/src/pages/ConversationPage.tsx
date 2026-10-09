@@ -6,7 +6,7 @@
 // app's own words.
 import { useEffect, useRef, useState } from "react";
 import type { Row, State, Story } from "../../shared/types.ts";
-import { clock, cutText, thinkingWithheld, kindsFromParam, kindsToParam, nearestTurn, openToolAt, spanFromParam, spanToParam, interventionEvents, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
+import { clock, cutText, readingFigures, thinkingWithheld, kindsFromParam, kindsToParam, nearestTurn, openToolAt, spanFromParam, spanToParam, interventionEvents, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
 import { callHref, type Route } from "../../shared/routes.ts";
 import { storyRunState, storyTitle } from "../../shared/runView.ts";
 import { GLOSSARY } from "../../shared/glossary.ts";
@@ -251,7 +251,7 @@ function OtherRow({ t, i, ctx }: { t: Turn; i: number; ctx: RowCtx }) {
     case "intervention": what = "intervention"; text = String(e.text ?? ""); break;
     case "wait": what = "wait"; figures = isNum(e.seconds) ? `waited ${e.seconds} s` : ""; break;
     case "request": what = "engine request"; figures = [isNum(e.promptTok) ? `prompt ${full(e.promptTok)}` : "", isNum(e.generatedTok) ? `generated ${full(e.generatedTok)}` : "", isNum(e.decodeTokS) ? `${full(e.decodeTokS)} tok/s` : ""].filter(Boolean).join(" · ") || "no call of this story matched it"; break;
-    case "condition": what = "reading"; figures = [typeof e.thermal === "string" ? e.thermal : "", isNum(e.freePct) ? `free ${e.freePct.toFixed(0)}%` : "", isNum(e.swapGb) ? `swap ${e.swapGb.toFixed(1)} GB` : "", e.gpu && typeof e.gpu === "object" && isNum((e.gpu as Record<string, unknown>).busyPct) ? `GPU ${((e.gpu as Record<string, unknown>).busyPct as number).toFixed(0)}%` : ""].filter(Boolean).join(" · "); break;
+    case "condition": what = "reading"; figures = readingFigures(e); break;
     default: what = t.kind;
   }
   return (

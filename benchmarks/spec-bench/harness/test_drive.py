@@ -212,6 +212,45 @@ def test_condition_sampler_start_stop(monkeypatch):
     assert res["degraded"] is True and res["samples"] >= 1
 
 
+FAKE_HOST = {"cpus": 32, "load1": 12.5, "load5": 11.0, "load15": 10.0, "cache_gb": 7.0, "avail_gb": 14.0, "dirty_mb": 0.5, "cpu_busy_pct": 45.0,
+             "cpu_iowait_pct": 0.1, "major_faults_per_s": 0.0, "disk_read_mb_per_s": 2.8, "swap_in_per_s": 0.0, "swap_out_per_s": 0.0,
+             "top": [{"comm": "strata", "cpu_pct": 400.0}],
+             "psi": {"cpu": {"some_pct": 0.2, "full_pct": None}, "memory": {"some_pct": 0.0, "full_pct": 0.0}, "io": {"some_pct": 0.0, "full_pct": 0.0}}}
+
+
+class FakeHost:
+    """Stands in for hostenv.HostSampler: the same reading every tick."""
+    def __init__(self, *a, **k):
+        pass
+
+    def sample(self, now):
+        return FAKE_HOST
+
+
+class BrokenHost(FakeHost):
+    def sample(self, now):
+        raise OSError("no /proc")
+
+
+def test_a_failed_host_reading_is_recorded_as_null_and_stops_neither_the_guards_nor_the_series(monkeypatch, tmp_path):
+    """Informational, like the GPU reading: the host sampler failing must not stop the swap and memory guards or the rest of the reading."""
+    import drive, json, time
+    monkeypatch.setattr(drive, "CONDITION_POLL_S", 0.01)
+    monkeypatch.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
+    monkeypatch.setattr(drive, "swap_used_gb", lambda: 1.25)
+    monkeypatch.setattr(drive, "mem_free_pct", lambda: 42.0)
+    monkeypatch.setattr(drive, "server_footprint_gb", lambda port, pid=None: (None, None))
+    monkeypatch.setattr(drive.hostenv, "gpu_sample", lambda: None)
+    monkeypatch.setattr(drive.hostenv, "HostSampler", BrokenHost)
+    out = tmp_path / "c.jsonl"
+    s = drive.ConditionSampler(record=out)
+    s.start(); time.sleep(0.05)
+    res = s.stop()
+    last = json.loads(out.read_text().splitlines()[-1])
+    assert last["host"] is None and last["swap_gb"] == 1.25 and last["free_pct"] == 42.0
+    assert res["host"] is None and res["samples"] >= 1
+
+
 def test_condition_sampler_records_every_tick_as_a_json_line(monkeypatch, tmp_path):
     """The whole series goes to stories/NN/conditions.jsonl (dbench collect pulls it); metrics.json keeps the summary."""
     import drive, json
@@ -221,6 +260,7 @@ def test_condition_sampler_records_every_tick_as_a_json_line(monkeypatch, tmp_pa
     monkeypatch.setattr(drive, "mem_free_pct", lambda: 42.0)
     monkeypatch.setattr(drive, "server_footprint_gb", lambda port, pid=None: (58.2, 60.0))
     monkeypatch.setattr(drive.hostenv, "gpu_sample", lambda: {"busy_pct": 97.0, "sclk_mhz": 2500})
+    monkeypatch.setattr(drive.hostenv, "HostSampler", FakeHost)
     out = tmp_path / "stories" / "03" / drive.CONDITIONS_FILE
     out.parent.mkdir(parents=True)
     s = drive.ConditionSampler(record=out)
@@ -231,8 +271,9 @@ def test_condition_sampler_records_every_tick_as_a_json_line(monkeypatch, tmp_pa
     lines = [json.loads(l) for l in out.read_text().splitlines()]
     assert len(lines) == res["samples"] >= 1
     assert lines[0] == {"t": lines[0]["t"], "ac": True, "low_power": False, "thermal": "nominal", "swap_gb": 1.25, "free_pct": 42.0,
-                        "footprint_gb": 58.2, "footprint_peak_gb": 60.0, "gpu": {"busy_pct": 97.0, "sclk_mhz": 2500}}
+                        "footprint_gb": 58.2, "footprint_peak_gb": 60.0, "gpu": {"busy_pct": 97.0, "sclk_mhz": 2500}, "host": FAKE_HOST}
     assert isinstance(lines[0]["t"], float)
+    assert res["host"]["samples"] == res["samples"] and res["host"]["cpu_busy_pct"] == {"median": 45.0, "max": 45.0}, "the story's summary of the host readings"
     # No GPU reading: recorded as null, not left out.
     monkeypatch.setattr(drive.hostenv, "gpu_sample", lambda: None)
     s2 = drive.ConditionSampler(record=out)

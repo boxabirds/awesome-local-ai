@@ -364,3 +364,194 @@ def summarise_gpu(samples: list[dict]) -> dict | None:
             "temp_max_c": agg(max, "temp_c"),
             f"{mem_key.removesuffix('_gb')}_max_gb": agg(max, mem_key),
             "throttled_samples": sum(1 for s in samples if s.get("throttle") not in (None, "0x0000000000000000"))}
+
+
+# ---- the host's own load while a story runs: CPU, stalls, page cache, paging ------------------------------------------
+# Linux reads /proc; where a file is missing (macOS has none of them) the figures that need it are None, and the load
+# average falls back to os.getloadavg. Why these: the Strata run of 5 Oct 2026 fell from about 100 to about 25 tok/s with its
+# GPU "100% busy" at half its power, an engine that computes experts on the CPU and reads weights through the page cache,
+# and none of this was recorded (test_host_sample.py).
+PROC_STAT = "/proc/stat"
+PROC_LOADAVG = "/proc/loadavg"
+PROC_MEMINFO = "/proc/meminfo"
+PROC_VMSTAT = "/proc/vmstat"
+PROC_PRESSURE = "/proc/pressure/{}"
+PSI_KINDS = ("cpu", "memory", "io")
+PSI_LEVELS = ("some", "full")
+CLK_TCK_DEFAULT = 100
+TOP_PROCESSES = 3
+US_PER_S = 1_000_000.0
+KIB_PER_MIB = 1024
+DECIMALS = 2
+HOST_FIELDS_NONE = {"cpu_busy_pct": None, "cpu_iowait_pct": None, "major_faults_per_s": None, "disk_read_mb_per_s": None,
+                    "swap_in_per_s": None, "swap_out_per_s": None}
+
+
+def _read_text(path: str) -> str | None:
+    try:
+        return Path(path).read_text()
+    except OSError:
+        return None
+
+
+def _list_pids() -> list[int]:
+    try:
+        return [int(n) for n in os.listdir("/proc") if n.isdigit()]
+    except OSError:
+        return []
+
+
+def parse_proc_stat_cpu(text: str | None) -> dict[str, int] | None:
+    """The machine-wide `cpu` line of /proc/stat as ticks per kind (user, nice, system, idle, iowait, irq, softirq, steal)."""
+    for line in (text or "").splitlines():
+        if line.startswith("cpu "):
+            names = ("user", "nice", "system", "idle", "iowait", "irq", "softirq", "steal")
+            try:
+                return dict(zip(names, (int(x) for x in line.split()[1:9])))
+            except ValueError:
+                return None
+    return None
+
+
+def parse_pressure(text: str | None) -> dict[str, int] | None:
+    """A /proc/pressure/<kind> file as the microseconds stalled in total, per level: {"some": us, "full": us}."""
+    out: dict[str, int] = {}
+    for line in (text or "").splitlines():
+        parts = line.split()
+        if parts and parts[0] in PSI_LEVELS:
+            kv = dict(p.split("=", 1) for p in parts[1:] if "=" in p)
+            try:
+                out[parts[0]] = int(kv["total"])
+            except (KeyError, ValueError):
+                continue
+    return out or None
+
+
+def parse_vmstat(text: str | None) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for line in (text or "").splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[1].isdigit():
+            out[parts[0]] = int(parts[1])
+    return out
+
+
+def parse_pid_stat(line: str | None) -> tuple[int, str, int] | None:
+    """(pid, the kernel's short name, utime + stime in ticks) from one /proc/<pid>/stat line. The name sits in parentheses and may
+    hold spaces and parentheses itself, so it runs from the first "(" to the last ")"."""
+    if not line:
+        return None
+    try:
+        pid = int(line.split(" ", 1)[0])
+        name = line[line.index("(") + 1:line.rindex(")")]
+        rest = line[line.rindex(")") + 2:].split()
+        return pid, name, int(rest[11]) + int(rest[12])      # after the state: ppid ... cmajflt, utime, stime
+    except (ValueError, IndexError):
+        return None
+
+
+class HostSampler:
+    """One reading of what the host was doing since the last one: CPU busy and iowait, the load average, the share of the interval the
+    kernel says work stalled on CPU, memory and disk, the page cache, paging rates, and the busiest processes by their short name. Rates need
+    two looks, so the first reading has the instantaneous figures only. The kernel's files are read through `read` so tests can feed captured ones."""
+
+    def __init__(self, read=_read_text, list_pids=_list_pids, clk_tck: int = CLK_TCK_DEFAULT, ncpu: int | None = None):
+        self.read, self.list_pids, self.clk_tck = read, list_pids, clk_tck
+        self.ncpu = ncpu or os.cpu_count()
+        self.prev: dict | None = None
+
+    def _snapshot(self, now: float) -> dict:
+        procs: dict[int, tuple[str, int]] = {}
+        for pid in self.list_pids():
+            parsed = parse_pid_stat(self.read(f"/proc/{pid}/stat"))
+            if parsed:
+                procs[parsed[0]] = (parsed[1], parsed[2])
+        return {"t": now, "cpu": parse_proc_stat_cpu(self.read(PROC_STAT)), "vm": parse_vmstat(self.read(PROC_VMSTAT)), "procs": procs,
+                "psi": {k: parse_pressure(self.read(PROC_PRESSURE.format(k))) for k in PSI_KINDS}}
+
+    def _load(self) -> dict:
+        parts = (self.read(PROC_LOADAVG) or "").split()
+        try:
+            return {"load1": float(parts[0]), "load5": float(parts[1]), "load15": float(parts[2])}
+        except (IndexError, ValueError):
+            try:
+                one, five, fifteen = os.getloadavg()
+                return {"load1": round(one, DECIMALS), "load5": round(five, DECIMALS), "load15": round(fifteen, DECIMALS)}
+            except OSError:
+                return {"load1": None, "load5": None, "load15": None}
+
+    def _memory(self) -> dict:
+        text = self.read(PROC_MEMINFO)
+        m = parse_meminfo(text) if text else {}
+        gib = lambda k: round(m[k] / KIB_PER_GIB, 3) if k in m else None
+        return {"cache_gb": gib("Cached"), "avail_gb": gib("MemAvailable"),
+                "dirty_mb": round(m["Dirty"] / KIB_PER_MIB, DECIMALS) if "Dirty" in m else None}
+
+    def sample(self, now: float) -> dict:
+        snap, prev = self._snapshot(now), self.prev
+        self.prev = snap
+        reading: dict = {"cpus": self.ncpu, **self._load(), **self._memory(), **HOST_FIELDS_NONE, "top": [],
+                         "psi": {k: {"some_pct": None, "full_pct": None} for k in PSI_KINDS}}
+        dt = (now - prev["t"]) if prev else 0.0
+        if prev is None or dt <= 0:
+            return reading
+        if snap["cpu"] and prev["cpu"]:
+            d = {k: snap["cpu"][k] - prev["cpu"][k] for k in snap["cpu"]}
+            total = sum(d.values())
+            if total > 0:
+                reading["cpu_busy_pct"] = round(PERCENT * (total - d["idle"] - d["iowait"]) / total, DECIMALS)
+                reading["cpu_iowait_pct"] = round(PERCENT * d["iowait"] / total, DECIMALS)
+        for kind in PSI_KINDS:
+            now_t, then_t = snap["psi"][kind], prev["psi"][kind]
+            if now_t and then_t:
+                for level in PSI_LEVELS:
+                    if level in now_t and level in then_t:
+                        reading["psi"][kind][f"{level}_pct"] = round(PERCENT * (now_t[level] - then_t[level]) / (dt * US_PER_S), DECIMALS)
+        vm, vm0 = snap["vm"], prev["vm"]
+        rate = lambda k: round((vm[k] - vm0[k]) / dt, DECIMALS) if k in vm and k in vm0 else None
+        reading["major_faults_per_s"] = rate("pgmajfault")
+        reading["swap_in_per_s"], reading["swap_out_per_s"] = rate("pswpin"), rate("pswpout")
+        if "pgpgin" in vm and "pgpgin" in vm0:
+            reading["disk_read_mb_per_s"] = round((vm["pgpgin"] - vm0["pgpgin"]) / KIB_PER_MIB / dt, DECIMALS)   # pgpgin counts KiB
+        busy = [(name, (ticks - prev["procs"][pid][1]) / self.clk_tck / dt * PERCENT)
+                for pid, (name, ticks) in snap["procs"].items() if pid in prev["procs"] and ticks > prev["procs"][pid][1]]
+        busy.sort(key=lambda x: -x[1])
+        reading["top"] = [{"comm": name, "cpu_pct": round(pct, DECIMALS)} for name, pct in busy[:TOP_PROCESSES]]
+        return reading
+
+
+def _med(xs: list[float]) -> float | None:
+    return round(sorted(xs)[len(xs) // 2] if len(xs) % 2 else (sorted(xs)[len(xs) // 2 - 1] + sorted(xs)[len(xs) // 2]) / 2, DECIMALS) if xs else None
+
+
+def summarise_host(readings: list[dict]) -> dict | None:
+    """A story's host readings as peaks and typical values (the series is in conditions.jsonl); None when there were none."""
+    hosts = [r["host"] for r in readings if isinstance(r.get("host"), dict)]
+    if not hosts:
+        return None
+
+    def vals(get) -> list[float]:
+        out = []
+        for h in hosts:
+            try:
+                v = get(h)
+            except (KeyError, TypeError):
+                continue
+            if v is not None:
+                out.append(v)
+        return out
+
+    peak = lambda xs: max(xs) if xs else None
+    busy, cache = vals(lambda h: h["cpu_busy_pct"]), vals(lambda h: h["cache_gb"])
+    lead = [h["top"][0]["comm"] for h in hosts if h.get("top")]
+    return {"samples": len(hosts),
+            "cpu_busy_pct": {"median": _med(busy), "max": peak(busy)} if busy else None,
+            "load1_max": peak(vals(lambda h: h["load1"])),
+            "psi_cpu_some_pct_max": peak(vals(lambda h: h["psi"]["cpu"]["some_pct"])),
+            "psi_memory_some_pct_max": peak(vals(lambda h: h["psi"]["memory"]["some_pct"])),
+            "psi_memory_full_pct_max": peak(vals(lambda h: h["psi"]["memory"]["full_pct"])),
+            "psi_io_some_pct_max": peak(vals(lambda h: h["psi"]["io"]["some_pct"])),
+            "psi_io_full_pct_max": peak(vals(lambda h: h["psi"]["io"]["full_pct"])),
+            "major_faults_per_s_max": peak(vals(lambda h: h["major_faults_per_s"])),
+            "cache_gb": {"min": min(cache), "median": _med(cache)} if cache else None,
+            "top_comm": max(set(lead), key=lead.count) if lead else None}

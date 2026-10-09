@@ -287,6 +287,30 @@ pub struct ConditionRow {
     pub gpu_temp_c: Option<f64>,
     pub gpu_power_w: Option<f64>,
     pub gpu_throttle: Option<String>,
+    /// The host's own load (harness 9 Oct 2026): flat columns of the conditions table. NULL where the reading had none.
+    pub host_cpus: Option<i64>,
+    pub host_load1: Option<f64>,
+    pub host_load5: Option<f64>,
+    pub host_load15: Option<f64>,
+    pub host_cpu_busy_pct: Option<f64>,
+    pub host_cpu_iowait_pct: Option<f64>,
+    pub host_psi_cpu_some_pct: Option<f64>,
+    pub host_psi_mem_some_pct: Option<f64>,
+    pub host_psi_mem_full_pct: Option<f64>,
+    pub host_psi_io_some_pct: Option<f64>,
+    pub host_psi_io_full_pct: Option<f64>,
+    pub host_cache_gb: Option<f64>,
+    pub host_avail_gb: Option<f64>,
+    pub host_dirty_mb: Option<f64>,
+    pub host_major_faults_per_s: Option<f64>,
+    pub host_disk_read_mb_per_s: Option<f64>,
+    pub host_swap_in_per_s: Option<f64>,
+    pub host_swap_out_per_s: Option<f64>,
+    /// The busiest processes, as the JSON array the harness wrote (short names and CPU shares only).
+    pub host_top: Option<String>,
+    /// The whole `host` object as the harness wrote it, for the event stream; None for a reading without one.
+    #[serde(skip)]
+    pub host: Option<Value>,
 }
 
 /// What the model server was holding when a story began, from the record's `memory_start`. Every figure is optional:
@@ -341,6 +365,9 @@ fn condition_of(v: &Value, sk: Option<i64>) -> Option<ConditionRow> {
     let gpu = v.get("gpu").and_then(Value::as_object);
     let gf = |k: &str| gpu.and_then(|g| g.get(k)).and_then(Value::as_f64);
     let b = |k: &str| v.get(k).map(|x| i64::from(py::truthy(Some(x))));
+    let host = v.get("host").filter(|h| h.is_object());
+    let hf = |k: &str| host.and_then(|h| h.get(k)).and_then(Value::as_f64);
+    let pf = |kind: &str, level: &str| host.and_then(|h| h.get("psi")).and_then(|p| p.get(kind)).and_then(|k| k.get(level)).and_then(Value::as_f64);
     Some(ConditionRow {
         at,
         sk,
@@ -357,6 +384,26 @@ fn condition_of(v: &Value, sk: Option<i64>) -> Option<ConditionRow> {
         gpu_temp_c: gf("temp_c"),
         gpu_power_w: gf("power_w"),
         gpu_throttle: gpu.and_then(|g| g.get("throttle")).and_then(Value::as_str).map(String::from),
+        host_cpus: host.and_then(|h| h.get("cpus")).and_then(Value::as_i64),
+        host_load1: hf("load1"),
+        host_load5: hf("load5"),
+        host_load15: hf("load15"),
+        host_cpu_busy_pct: hf("cpu_busy_pct"),
+        host_cpu_iowait_pct: hf("cpu_iowait_pct"),
+        host_psi_cpu_some_pct: pf("cpu", "some_pct"),
+        host_psi_mem_some_pct: pf("memory", "some_pct"),
+        host_psi_mem_full_pct: pf("memory", "full_pct"),
+        host_psi_io_some_pct: pf("io", "some_pct"),
+        host_psi_io_full_pct: pf("io", "full_pct"),
+        host_cache_gb: hf("cache_gb"),
+        host_avail_gb: hf("avail_gb"),
+        host_dirty_mb: hf("dirty_mb"),
+        host_major_faults_per_s: hf("major_faults_per_s"),
+        host_disk_read_mb_per_s: hf("disk_read_mb_per_s"),
+        host_swap_in_per_s: hf("swap_in_per_s"),
+        host_swap_out_per_s: hf("swap_out_per_s"),
+        host_top: host.and_then(|h| h.get("top")).filter(|t| t.is_array()).map(|t| t.to_string()),
+        host: host.cloned(),
     })
 }
 
@@ -484,6 +531,7 @@ pub fn stream_events(rows: &events::Rows, timing: &timing::Parsed, timed: &[Opti
             json!({
                 "ac": c.ac, "lowPower": c.low_power, "thermal": c.thermal, "swapGb": c.swap_gb, "freePct": c.free_pct, "footprintGb": c.footprint_gb,
                 "gpu": { "busyPct": c.gpu_busy_pct, "sclkMhz": c.gpu_sclk_mhz, "memGb": c.gpu_mem_gb, "tempC": c.gpu_temp_c, "powerW": c.gpu_power_w, "throttle": c.gpu_throttle },
+                "host": c.host,
             }),
         );
     }

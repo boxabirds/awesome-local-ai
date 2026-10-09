@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cutText, eventText, thinkingWithheld, EventStore, matchesQuery, needsClamp, SEGMENT_KIND, splitHighlights, storyRunId, timeline, type ConversationEvent } from "./conversation.ts";
+import { cutText, eventText, thinkingWithheld, readingFigures, EventStore, matchesQuery, needsClamp, SEGMENT_KIND, splitHighlights, storyRunId, timeline, type ConversationEvent } from "./conversation.ts";
 import { SEGMENTS } from "./runView.ts";
 
 const ev = (ord: number, tMs: number, kind = "call", refIdx = ord): ConversationEvent => ({ ord, tMs, kind, refIdx, cursor: `${tMs}:${ord}` });
@@ -178,5 +178,22 @@ describe("whose log shows the thinking", () => {
     expect(thinkingWithheld("opencode")).toBe(true);
     expect(thinkingWithheld(null)).toBe(false);
     expect(thinkingWithheld(undefined)).toBe(false);
+  });
+});
+
+describe("a machine reading's figures on the conversation page", () => {
+  const base = { ord: 1, tMs: 1, kind: "condition", refIdx: 0, cursor: "1:1", thermal: "nominal", freePct: 24.2, swapGb: 1.98, gpu: { busyPct: 100 } } as unknown as ConversationEvent;
+  it("a reading from before the host figures existed shows what it always showed", () => {
+    expect(readingFigures({ ...base, host: null } as never)).toBe("nominal · free 24% · swap 2.0 GB · GPU 100%");
+    expect(readingFigures(base)).toBe("nominal · free 24% · swap 2.0 GB · GPU 100%");
+  });
+  it("adds the host's CPU, load, stalls, page cache and busiest process", () => {
+    const e = { ...base, host: { cpu_busy_pct: 45.04, load1: 12.5, cache_gb: 7.06, major_faults_per_s: 0, disk_read_mb_per_s: 0,
+      psi: { cpu: { some_pct: 0.19 }, memory: { some_pct: 1.5 }, io: { some_pct: 0 } }, top: [{ comm: "strata", cpu_pct: 412.5 }, { comm: "chrome", cpu_pct: 33 }] } } as never;
+    expect(readingFigures(e)).toBe("nominal · free 24% · swap 2.0 GB · GPU 100% · CPU 45% · load 12.5 · stall cpu 0.2% mem 1.5% io 0.0% · cache 7.1 GB · top strata 413%");
+  });
+  it("shows paging only when there was some, and leaves out what the reading could not say", () => {
+    const e = { ...base, host: { cpu_busy_pct: null, load1: 2, major_faults_per_s: 3.5, disk_read_mb_per_s: 2.8, psi: { cpu: { some_pct: null }, memory: { some_pct: null }, io: { some_pct: null } }, top: [] } } as never;
+    expect(readingFigures(e)).toBe("nominal · free 24% · swap 2.0 GB · GPU 100% · load 2.0 · faults 3.5/s · disk read 2.8 MB/s");
   });
 });

@@ -8,7 +8,31 @@ use serde_json::Value;
 use std::path::Path;
 
 pub const SCHEMA: &str = include_str!("schema.sql");
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
+
+/// The columns the `conditions` table gained on 9 Oct 2026 (the host's own load), with their SQLite types. schema.sql creates them for a new
+/// warehouse; `init` adds any that are missing to an older one, because `create table if not exists` leaves an existing table as it was and
+/// SQLite is only asked to add a nullable column (existing rows read NULL). A test holds the two lists to the same set.
+pub const HOST_COLUMNS: [(&str, &str); 19] = [
+    ("host_cpus", "integer"),
+    ("host_load1", "real"),
+    ("host_load5", "real"),
+    ("host_load15", "real"),
+    ("host_cpu_busy_pct", "real"),
+    ("host_cpu_iowait_pct", "real"),
+    ("host_psi_cpu_some_pct", "real"),
+    ("host_psi_mem_some_pct", "real"),
+    ("host_psi_mem_full_pct", "real"),
+    ("host_psi_io_some_pct", "real"),
+    ("host_psi_io_full_pct", "real"),
+    ("host_cache_gb", "real"),
+    ("host_avail_gb", "real"),
+    ("host_dirty_mb", "real"),
+    ("host_major_faults_per_s", "real"),
+    ("host_disk_read_mb_per_s", "real"),
+    ("host_swap_in_per_s", "real"),
+    ("host_swap_out_per_s", "real"),
+    ("host_top", "text"),];
 /// A text column's head and tail, kept beside the whole text for a quick look (build_full.py's H and T).
 pub const HEAD_CHARS: usize = 400;
 pub const TAIL_CHARS: usize = 700;
@@ -108,9 +132,25 @@ impl Db {
 
     fn init(&self) -> Result<()> {
         self.conn.execute_batch(SCHEMA).context("create the schema")?;
+        self.add_missing_columns("conditions", &HOST_COLUMNS)?;
         let version: i64 = self.conn.query_row("pragma user_version", [], |r| r.get(0))?;
         anyhow::ensure!(version == SCHEMA_VERSION, "schema version {version}, expected {SCHEMA_VERSION}");
         self.conn.execute("insert or replace into meta(key, value) values ('schema_version', ?1)", params![SCHEMA_VERSION.to_string()])?;
+        Ok(())
+    }
+
+    /// Add to an existing table any of these nullable columns it lacks (a warehouse made before they existed). Idempotent.
+    fn add_missing_columns(&self, table: &str, columns: &[(&str, &str)]) -> Result<()> {
+        let have: Vec<String> = {
+            let mut s = self.conn.prepare(&format!("select name from pragma_table_info('{table}')"))?;
+            let names = s.query_map([], |r| r.get(0))?.collect::<std::result::Result<Vec<String>, _>>()?;
+            names
+        };
+        for (name, ty) in columns {
+            if !have.iter().any(|h| h == name) {
+                self.conn.execute(&format!("alter table {table} add column {name} {ty}"), [])?;
+            }
+        }
         Ok(())
     }
 
@@ -329,12 +369,10 @@ impl Db {
         tx.execute("delete from conditions where sk = ?1", params![sk])?;
         for c in rows {
             tx.execute(
-                "insert or replace into conditions(run_id, at, sk, ac, low_power, thermal, swap_gb, free_pct, footprint_gb, footprint_peak_gb,
-                    gpu_busy_pct, gpu_sclk_mhz, gpu_mem_gb, gpu_temp_c, gpu_power_w, gpu_throttle)
-                 values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+                "insert or replace into conditions(run_id, at, sk, ac, low_power, thermal, swap_gb, free_pct, footprint_gb, footprint_peak_gb, gpu_busy_pct, gpu_sclk_mhz, gpu_mem_gb, gpu_temp_c, gpu_power_w, gpu_throttle, host_cpus, host_load1, host_load5, host_load15, host_cpu_busy_pct, host_cpu_iowait_pct, host_psi_cpu_some_pct, host_psi_mem_some_pct, host_psi_mem_full_pct, host_psi_io_some_pct, host_psi_io_full_pct, host_cache_gb, host_avail_gb, host_dirty_mb, host_major_faults_per_s, host_disk_read_mb_per_s, host_swap_in_per_s, host_swap_out_per_s, host_top)
+                 values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35)",
                 params![
-                    run_id, c.at, c.sk, c.ac, c.low_power, c.thermal, c.swap_gb, c.free_pct, c.footprint_gb, c.footprint_peak_gb,
-                    c.gpu_busy_pct, c.gpu_sclk_mhz, c.gpu_mem_gb, c.gpu_temp_c, c.gpu_power_w, c.gpu_throttle
+                    run_id, c.at, c.sk, c.ac, c.low_power, c.thermal, c.swap_gb, c.free_pct, c.footprint_gb, c.footprint_peak_gb, c.gpu_busy_pct, c.gpu_sclk_mhz, c.gpu_mem_gb, c.gpu_temp_c, c.gpu_power_w, c.gpu_throttle, c.host_cpus, c.host_load1, c.host_load5, c.host_load15, c.host_cpu_busy_pct, c.host_cpu_iowait_pct, c.host_psi_cpu_some_pct, c.host_psi_mem_some_pct, c.host_psi_mem_full_pct, c.host_psi_io_some_pct, c.host_psi_io_full_pct, c.host_cache_gb, c.host_avail_gb, c.host_dirty_mb, c.host_major_faults_per_s, c.host_disk_read_mb_per_s, c.host_swap_in_per_s, c.host_swap_out_per_s, c.host_top
                 ],
             )?;
         }

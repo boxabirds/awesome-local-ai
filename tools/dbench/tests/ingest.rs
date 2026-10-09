@@ -161,7 +161,8 @@ fn the_v1_columns_are_an_exact_prefix_of_every_table_the_detect_scripts_read() {
         assert!(names.len() >= want.len(), "{table}: {names:?}");
         assert_eq!(&names[..want.len()], &want[..], "{table}: v1 prefix");
     }
-    assert_eq!(db.meta("schema_version").unwrap().as_deref(), Some("2"));
+    // 2: the memory table (7 Oct 2026). 3: the conditions table's host columns (9 Oct 2026), added to an older warehouse by Db::init.
+    assert_eq!(db.meta("schema_version").unwrap().as_deref(), Some("3"));
 }
 
 #[test]
@@ -994,4 +995,75 @@ fn a_run_recorded_before_the_rename_still_maps_from_opencode_to_pi() {
     let got = candidates(&TreeSource { root: root.clone() }, &lake).unwrap();
     assert_eq!(got, BTreeSet::from([format!("{pi}/stories/03")]), "the lake's old name is the published pi story, not a second one");
     std::fs::remove_dir_all(&root).unwrap();
+}
+
+// ---- the host's own load in each reading (9 Oct 2026): CPU, stalls, page cache, paging, busiest processes ----
+// The Strata run of 5 Oct fell from about 100 to about 25 tok/s with its GPU 100% busy at half its power, and no CPU or stall figure
+// had been recorded, so the host could not be ruled in or out. A reading now carries a `host` object; the warehouse keeps it in columns
+// of the `conditions` table (so it can be queried and joined) and the whole object in the event stream (so the conversation page can show it).
+const HOST_READING: &str = r#"{"t": 1790000010.0, "ac": true, "low_power": false, "thermal": "nominal", "swap_gb": 1.98, "free_pct": 24.0, "footprint_gb": 0.18, "footprint_peak_gb": 0.21, "gpu": {"busy_pct": 100, "sclk_mhz": 2775, "power_w": 128.77, "temp_c": 46.0, "vram_gb": 23.13, "throttle": "0x00"}, "host": {"cpus": 32, "load1": 12.5, "load5": 11.0, "load15": 10.0, "cache_gb": 7.06, "avail_gb": 14.35, "dirty_mb": 0.55, "cpu_busy_pct": 45.0, "cpu_iowait_pct": 0.12, "major_faults_per_s": 3.5, "disk_read_mb_per_s": 2.8, "swap_in_per_s": 0.0, "swap_out_per_s": 0.0, "top": [{"comm": "strata", "cpu_pct": 412.5}, {"comm": "chrome", "cpu_pct": 33.0}], "psi": {"cpu": {"some_pct": 0.19, "full_pct": null}, "memory": {"some_pct": 1.5, "full_pct": 0.5}, "io": {"some_pct": 2.5, "full_pct": 1.5}}}}"#;
+
+#[test]
+fn a_readings_host_figures_are_in_the_conditions_table_and_the_event_stream_and_an_old_reading_has_none() {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let text = fixture("accounting__pi-nudged");
+    let rec = json!({"title": "One", "status": "DONE", "started": 1790000000.0, "agent_finished": 1790000122.0});
+    let mut inp = story_inputs(&format!("{RUN}/stories/01"), &text, rec, true);
+    // the second reading is from before the host figures existed: it must ingest, with NULLs, never zeros
+    inp.conditions_text = Some(format!("{HOST_READING}\n{}", CONDITIONS.lines().nth(1).unwrap()));
+    let out = ingest::ingest_story(&mut db, &parts, &inp, 1_790_001_000.0).unwrap();
+
+    let row = |col: &str, at: f64| -> Option<f64> {
+        db.conn.query_row(&format!("select {col} from conditions where sk = ?1 and at = ?2"), rusqlite::params![out.sk, at], |r| r.get(0)).unwrap()
+    };
+    let t0 = 1790000010.0;
+    for (col, want) in [("host_cpu_busy_pct", 45.0), ("host_cpu_iowait_pct", 0.12), ("host_load1", 12.5), ("host_psi_cpu_some_pct", 0.19), ("host_psi_mem_some_pct", 1.5),
+                        ("host_psi_mem_full_pct", 0.5), ("host_psi_io_some_pct", 2.5), ("host_psi_io_full_pct", 1.5), ("host_cache_gb", 7.06), ("host_avail_gb", 14.35),
+                        ("host_major_faults_per_s", 3.5), ("host_disk_read_mb_per_s", 2.8), ("host_swap_in_per_s", 0.0)] {
+        assert_eq!(row(col, t0), Some(want), "{col}");
+    }
+    let top: String = db.conn.query_row("select host_top from conditions where sk = ?1 and at = ?2", rusqlite::params![out.sk, t0], |r| r.get(0)).unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&top).unwrap(), json!([{"comm": "strata", "cpu_pct": 412.5}, {"comm": "chrome", "cpu_pct": 33.0}]));
+    assert_eq!(row("host_cpu_busy_pct", 1790000040.0), None, "a reading without host figures has NULL, not 0");
+    assert_eq!(row("host_psi_cpu_some_pct", t0 + 30.0), None);
+
+    let events = db.events_after(out.sk, -1, 1000).unwrap();
+    let cond: Vec<_> = events.iter().filter(|e| e.kind == "condition").collect();
+    assert_eq!(cond.len(), 2);
+    assert_eq!(cond[0].payload["host"]["cpu_busy_pct"], 45.0, "the whole host object is in the event, as the harness wrote it");
+    assert_eq!(cond[0].payload["host"]["top"][0]["comm"], "strata");
+    assert!(cond[1].payload["host"].is_null(), "an old reading has host null in the stream");
+}
+
+#[test]
+fn a_warehouse_made_before_the_host_columns_gains_them_when_opened_and_keeps_its_rows() {
+    let dir = std::env::temp_dir().join(format!("dbench-host-migrate-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("conversations.db");
+    {
+        // the conditions table exactly as it was before 9 Oct 2026, with a row in it
+        let c = rusqlite::Connection::open(&path).unwrap();
+        c.execute_batch(
+            "create table conditions(run_id text, at real, sk integer, ac integer, low_power integer, thermal text, swap_gb real, free_pct real,
+               footprint_gb real, footprint_peak_gb real, gpu_busy_pct real, gpu_sclk_mhz integer, gpu_mem_gb real, gpu_temp_c real, gpu_power_w real,
+               gpu_throttle text, primary key(run_id, at));
+             insert into conditions(run_id, at, sk, free_pct) values ('old-run', 1.0, 7, 23.5);",
+        )
+        .unwrap();
+    }
+    let db = Db::open(&path).unwrap();
+    let cols = |c: &rusqlite::Connection| -> Vec<String> {
+        let mut s = c.prepare("select name from pragma_table_info('conditions') order by name").unwrap();
+        s.query_map([], |r| r.get(0)).unwrap().map(|x| x.unwrap()).collect()
+    };
+    let fresh = Db::open_memory().unwrap();
+    assert_eq!(cols(&db.conn), cols(&fresh.conn), "an opened old warehouse has exactly the columns a new one has");
+    assert!(cols(&db.conn).contains(&"host_cpu_busy_pct".to_string()));
+    let (free, busy): (f64, Option<f64>) = db.conn.query_row("select free_pct, host_cpu_busy_pct from conditions where run_id = 'old-run'", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+    assert_eq!((free, busy), (23.5, None), "the old row is kept, its host figures NULL");
+    drop(db);
+    Db::open(&path).unwrap();    // opening it again is harmless
+    std::fs::remove_dir_all(&dir).unwrap();
 }

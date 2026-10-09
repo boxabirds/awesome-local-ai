@@ -58,6 +58,36 @@ def test_condition_and_gpu_fields(tmp_path):
     assert undocumented(fields) == []
 
 
+def test_host_reading_and_summary_fields():
+    """Every field of a host reading (conditions.jsonl `host`) and of a story's host summary (metrics.json conditions.host) is documented."""
+    import json
+    from pathlib import Path
+    proc = Path(__file__).parent / "fixtures" / "proc"
+    n = {"v": 1}
+    files = {"/proc/stat": "stat", "/proc/pressure/cpu": "pressure_cpu", "/proc/pressure/memory": "pressure_memory", "/proc/pressure/io": "pressure_io",
+             "/proc/vmstat": "vmstat", "/proc/meminfo": "meminfo", "/proc/loadavg": "loadavg"}
+
+    def read(path):
+        if path in files:
+            return (proc / f"{files[path]}.{n['v']}").read_text()
+        if path.endswith("/stat"):
+            lines = (proc / f"pidstat.{n['v']}").read_text().splitlines()
+            return next((l for l in lines if l.startswith(path.split("/")[2] + " ")), None)
+
+    def pids():
+        return [int(l.split(" ", 1)[0]) for l in (proc / f"pidstat.{n['v']}").read_text().splitlines()]
+
+    s = hostenv.HostSampler(read=read, list_pids=pids, ncpu=32)
+    s.sample(0.0)
+    n["v"] = 2
+    reading = s.sample(3.24)
+    fields = set(reading) | {k for kind in reading["psi"].values() for k in kind} | {k for p in reading["top"] for k in p}
+    summary = hostenv.summarise_host([{"host": reading}])
+    fields |= set(summary) | {k for v in summary.values() if isinstance(v, dict) for k in v}
+    fields |= {"host"}
+    assert undocumented(fields) == []
+
+
 def test_time_split_and_server_fields(tmp_path):
     ev = tmp_path / "e.jsonl"
     ev.write_text("")
